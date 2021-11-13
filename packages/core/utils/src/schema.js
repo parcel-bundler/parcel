@@ -378,7 +378,7 @@ export function fuzzySearch(
   return result.map(([v]) => v);
 }
 
-validateSchema.diagnostic = function(
+validateSchema.diagnostic = function (
   schema: SchemaEntity,
   data: {|
     ...

@@ -20,7 +20,7 @@ import {symlinkSync} from 'fs';
 const inputDir = path.join(__dirname, '/watcher');
 const distDir = path.join(inputDir, 'dist');
 
-describe('watcher', function() {
+describe('watcher', function () {
   let subscription;
   afterEach(async () => {
     if (subscription) {
@@ -29,7 +29,7 @@ describe('watcher', function() {
     subscription = null;
   });
 
-  it('should rebuild on source file change', async function() {
+  it('should rebuild on source file change', async function () {
     await outputFS.mkdirp(inputDir);
     await outputFS.writeFile(
       path.join(inputDir, '/index.js'),
@@ -74,7 +74,7 @@ describe('watcher', function() {
     assert.equal(output, 'hello');
   });
 
-  it('should rebuild on a config file change', async function() {
+  it('should rebuild on a config file change', async function () {
     let inDir = path.join(__dirname, 'integration/parcelrc-custom');
     let outDir = path.join(inDir, 'dist');
 
@@ -106,7 +106,7 @@ describe('watcher', function() {
     assert(distFile.includes('TRANSFORMED CODE'));
   });
 
-  it('should rebuild properly when a dependency is removed', async function() {
+  it('should rebuild properly when a dependency is removed', async function () {
     await ncp(path.join(__dirname, 'integration/babel-default'), inputDir);
 
     let b = bundler(path.join(inputDir, 'index.js'), {
@@ -137,7 +137,7 @@ describe('watcher', function() {
     assert(!distFile.includes('Foo'));
   });
 
-  it.skip('should re-generate bundle tree when files change', async function() {
+  it.skip('should re-generate bundle tree when files change', async function () {
     await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
 
     let b = bundler(path.join(inputDir, '/index.js'), {watch: true});
@@ -215,7 +215,7 @@ describe('watcher', function() {
     assert.equal(await output(), 8);
   });
 
-  it.skip('should only re-package bundles that changed', async function() {
+  it.skip('should only re-package bundles that changed', async function () {
     await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
     let b = bundler(path.join(inputDir, '/index.js'), {watch: true});
 
@@ -244,7 +244,7 @@ describe('watcher', function() {
     assert.notEqual(mtimes[mtimes.length - 1], newMtimes[newMtimes.length - 1]);
   });
 
-  it.skip('should unload assets that are orphaned', async function() {
+  it.skip('should unload assets that are orphaned', async function () {
     await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
     let b = bundler(path.join(inputDir, '/index.js'), {watch: true});
 
@@ -330,7 +330,7 @@ describe('watcher', function() {
     assert(!b.loadedAssets.has(path.join(inputDir, 'common-dep.js')));
   });
 
-  it.skip('should recompile all assets when a config file changes', async function() {
+  it.skip('should recompile all assets when a config file changes', async function () {
     await ncp(path.join(__dirname, '/integration/babel'), inputDir);
     let b = bundler(path.join(inputDir, 'index.js'), {watch: true});
 
@@ -357,7 +357,7 @@ describe('watcher', function() {
     assert(file.includes('function Bar'));
   });
 
-  it.skip('should rebuild if the file behind a symlink changes', async function() {
+  it.skip('should rebuild if the file behind a symlink changes', async function () {
     await ncp(
       path.join(__dirname, '/integration/commonjs-with-symlinks/'),
       inputDir,
@@ -446,7 +446,7 @@ describe('watcher', function() {
     ]);
   });
 
-  it('should rebuild if a missing file is added', async function() {
+  it('should rebuild if a missing file is added', async function () {
     await outputFS.mkdirp(inputDir);
     await outputFS.writeFile(
       path.join(inputDir, '/index.js'),

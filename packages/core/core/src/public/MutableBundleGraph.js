@@ -27,8 +27,10 @@ import {fromProjectPathRelative} from '../projectPath';
 import {BundleBehavior} from '../types';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
 
-export default class MutableBundleGraph extends BundleGraph<IBundle>
-  implements IMutableBundleGraph {
+export default class MutableBundleGraph
+  extends BundleGraph<IBundle>
+  implements IMutableBundleGraph
+{
   #graph /*: InternalBundleGraph */;
   #options /*: ParcelOptions */;
   #bundlePublicIds /*: Set<string> */ = new Set<string>();
@@ -102,9 +104,8 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       dependencyNode.id,
     );
     let resolvedNodeId = this.#graph._graph.getNodeIdByContentKey(resolved.id);
-    let assetNodes = this.#graph._graph.getNodeIdsConnectedFrom(
-      dependencyNodeId,
-    );
+    let assetNodes =
+      this.#graph._graph.getNodeIdsConnectedFrom(dependencyNodeId);
     this.#graph._graph.addEdge(dependencyNodeId, bundleGroupNodeId);
     this.#graph._graph.replaceNodeIdsConnectedTo(bundleGroupNodeId, assetNodes);
     this.#graph._graph.addEdge(

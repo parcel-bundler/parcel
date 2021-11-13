@@ -8,8 +8,8 @@ import {
   outputFS,
 } from '@parcel/test-utils';
 
-describe('elm', function() {
-  it('should produce a basic Elm bundle', async function() {
+describe('elm', function () {
+  it('should produce a basic Elm bundle', async function () {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'));
 
     assertBundles(b, [
@@ -22,7 +22,7 @@ describe('elm', function() {
     let output = await run(b);
     assert.equal(typeof output().Elm.Main.init, 'function');
   });
-  it('should produce a elm bundle with debugger', async function() {
+  it('should produce a elm bundle with debugger', async function () {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'));
 
     await run(b);
@@ -30,7 +30,7 @@ describe('elm', function() {
     assert(js.includes('elm$browser$Debugger'));
   });
 
-  it('should apply elm-hot if HMR is enabled', async function() {
+  it('should apply elm-hot if HMR is enabled', async function () {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'), {
       hmrOptions: true,
     });
@@ -46,7 +46,7 @@ describe('elm', function() {
     assert(js.includes('[elm-hot]'));
   });
 
-  it('should remove debugger in production', async function() {
+  it('should remove debugger in production', async function () {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'), {
       mode: 'production',
     });
@@ -56,7 +56,7 @@ describe('elm', function() {
     assert(!js.includes('elm$browser$Debugger'));
   });
 
-  it('should remove debugger when environment variable `PARCEL_ELM_NO_DEBUG` is set to true', async function() {
+  it('should remove debugger when environment variable `PARCEL_ELM_NO_DEBUG` is set to true', async function () {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'), {
       env: {PARCEL_ELM_NO_DEBUG: true},
     });
@@ -66,7 +66,7 @@ describe('elm', function() {
     assert(!js.includes('elm$browser$Debugger'));
   });
 
-  it('should minify Elm in production mode', async function() {
+  it('should minify Elm in production mode', async function () {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'), {
       mode: 'production',
       defaultTargetOptions: {
