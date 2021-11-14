@@ -50,10 +50,6 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.serveOptions;
   }
 
-  get global(): ?string {
-    return this.#options.global;
-  }
-
   get shouldBuildLazily(): boolean {
     return this.#options.shouldBuildLazily;
   }

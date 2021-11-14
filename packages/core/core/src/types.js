@@ -69,6 +69,7 @@ export type Environment = {|
   outputFormat: OutputFormat,
   sourceType: SourceType,
   isLibrary: boolean,
+  global: ?string,
   shouldOptimize: boolean,
   shouldScopeHoist: boolean,
   sourceMap: ?TargetSourceMapOptions,
@@ -271,13 +272,13 @@ export type ParcelOptions = {|
   |}>,
 
   instanceId: string,
-  global?: string,
 
   +defaultTargetOptions: {|
     +shouldOptimize: boolean,
     +shouldScopeHoist?: boolean,
     +sourceMaps: boolean,
     +publicUrl: string,
+    +global?: string,
     +distDir?: ProjectPath,
     +engines?: Engines,
     +outputFormat?: OutputFormat,

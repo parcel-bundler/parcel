@@ -72,6 +72,9 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
     isLibrary: {
       type: 'boolean',
     },
+    global: {
+      type: 'string',
+    },
     source: {
       oneOf: [
         {

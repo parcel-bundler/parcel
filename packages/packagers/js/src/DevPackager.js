@@ -163,7 +163,7 @@ export class DevPackager {
       ', ' +
       JSON.stringify(this.parcelRequireName) +
       ', ' +
-      JSON.stringify(this.options.global || '') +
+      JSON.stringify(this.bundle.env.global || '') +
       ')' +
       '\n';
 

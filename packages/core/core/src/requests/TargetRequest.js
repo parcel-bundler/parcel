@@ -727,6 +727,7 @@ export class TargetResolver {
             descriptor.publicUrl ?? this.options.defaultTargetOptions.publicUrl,
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
+            global: descriptor.global,
             context:
               descriptor.context ??
               (targetName === 'browser'
@@ -870,6 +871,12 @@ export class TargetResolver {
           ? true
           : this.options.defaultTargetOptions.shouldScopeHoist;
 
+        console.log('TargetRequest descriptor custom', descriptor);
+        console.log(
+          'TargetRequest defaultTargetOptions custom',
+          this.options.defaultTargetOptions,
+        );
+
         targets.set(targetName, {
           name: targetName,
           distDir: toProjectPath(
@@ -884,6 +891,7 @@ export class TargetResolver {
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
+            global: descriptor.global,
             includeNodeModules: descriptor.includeNodeModules,
             outputFormat:
               descriptor.outputFormat ??

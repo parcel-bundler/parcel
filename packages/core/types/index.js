@@ -166,6 +166,7 @@ export type EnvironmentOptions = {|
   +outputFormat?: OutputFormat,
   +sourceType?: SourceType,
   +isLibrary?: boolean,
+  +global?: string,
   +shouldOptimize?: boolean,
   +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
@@ -308,6 +309,7 @@ export type InitialParcelOptions = {|
     +sourceMaps?: boolean,
     +publicUrl?: string,
     +distDir?: FilePath,
+    +global?: string,
     +engines?: Engines,
     +outputFormat?: OutputFormat,
     +isLibrary?: boolean,
@@ -317,8 +319,6 @@ export type InitialParcelOptions = {|
     packageName: DependencySpecifier,
     resolveFrom: FilePath,
   |}>,
-
-  global?: string,
 |};
 
 export type InitialServerOptions = {|
@@ -335,7 +335,6 @@ export interface PluginOptions {
   +serveOptions: ServerOptions | false;
   +shouldBuildLazily: boolean;
   +shouldAutoInstall: boolean;
-  +global: ?string;
   +logLevel: LogLevel;
   +projectRoot: FilePath;
   +cacheDir: FilePath;

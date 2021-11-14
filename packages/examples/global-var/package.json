@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "PARCEL_WORKERS=0 yarn parcel build ./ --no-cache --global ListChecker",
+    "build": "PARCEL_WORKERS=0 yarn parcel build ./ --no-cache",
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo",
     "serve": "yarn parcel serve src/index.html"
   },
@@ -19,6 +19,7 @@
       "outputFormat": "global",
       "sourceMap": false,
       "optimize": false,
+      "global": "ListChecker",
       "source": "./src/index.js",
       "scopeHoist": false
     }

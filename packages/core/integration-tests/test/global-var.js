@@ -118,7 +118,9 @@ describe('global-var', function () {
   describe('plugin options', function () {
     it('should contain the global value', function () {
       const pluginOptions = new PluginOptions({
-        global: 'hello-world',
+        defaultTargetOptions: {
+          global: 'hello-world',
+        },
       });
       assert.equal(pluginOptions.global, 'hello-world');
     });
@@ -127,9 +129,11 @@ describe('global-var', function () {
   describe('resolve options', function () {
     it('resolveOptions should resolve global value', async function () {
       const result = await resolveOptions({
-        global: 'hello-world',
+        defaultTargetOptions: {
+          global: 'hello-world',
+        },
       });
-      assert.equal(result.global, 'hello-world');
+      assert.equal(result.defaultTargetOptions.global, 'hello-world');
     });
   });
 });

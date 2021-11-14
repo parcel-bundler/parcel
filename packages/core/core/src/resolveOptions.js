@@ -146,11 +146,11 @@ export default async function resolveOptions(
       })) ?? [],
     instanceId: generateInstanceId(entries),
     detailedReport: initialOptions.detailedReport,
-    global: initialOptions.global,
     defaultTargetOptions: {
       shouldOptimize,
       shouldScopeHoist: initialOptions?.defaultTargetOptions?.shouldScopeHoist,
       sourceMaps: initialOptions?.defaultTargetOptions?.sourceMaps ?? true,
+      global: initialOptions?.defaultTargetOptions?.global,
       publicUrl,
       ...(distDir != null
         ? {distDir: toProjectPath(projectRoot, distDir)}
