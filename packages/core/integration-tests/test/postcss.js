@@ -623,4 +623,53 @@ describe('postcss', () => {
 
     await subscription.unsubscribe();
   });
+
+  it('should throw an error when importing a missing class', async function () {
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(
+            __dirname,
+            '/integration/no-export-error-with-correct-filetype/src/App.jsx',
+          ),
+          {
+            shouldDisableCache: true,
+            defaultTargetOptions: {
+              shouldScopeHoist: true,
+            },
+          },
+        ),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/no-export-error-with-correct-filetype/src/App.jsx',
+                ),
+                language: 'js',
+                codeHighlights: [
+                  {
+                    end: {
+                      column: 45,
+                      line: 7,
+                    },
+                    start: {
+                      column: 28,
+                      line: 7,
+                    },
+                  },
+                ],
+              },
+            ],
+            message:
+              "integration/no-export-error-with-correct-filetype/src/app.module.css does not export 'notExisting'",
+            origin: '@parcel/core',
+          },
+        ],
+      },
+    );
+  });
 });
