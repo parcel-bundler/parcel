@@ -445,13 +445,50 @@ export default class BundleGraph {
     }
   }
 
+  bundlesWithCycles: Set<NodeId> = new Set();
+
+  shouldExitEarly(assetNodeId: NodeId, bundleNodeId: NodeId): boolean {
+    // Detects whether a bundle has a cycle.
+    // If so, exit traversal early when removing the asset's subgraph.
+    // NOTE: this is not an ideal solution. See https://github.com/parcel-bundler/parcel/issues/6446
+    if (this.bundlesWithCycles.has(bundleNodeId)) {
+      return true;
+    }
+
+    let shouldExitEarly = false;
+
+    let entryNodes = new Set(this._graph.getNodeIdsConnectedFrom(bundleNodeId));
+
+    this._graph.traverse((nodeId, context, actions) => {
+      let node = nullthrows(this._graph.getNode(nodeId));
+      if (node.type !== 'asset') {
+        return;
+      }
+      if (entryNodes.has(nodeId) && assetNodeId !== nodeId) {
+        this.bundlesWithCycles.add(bundleNodeId);
+        shouldExitEarly = true;
+        actions.skipChildren();
+        return;
+      }
+    }, assetNodeId);
+
+    return shouldExitEarly;
+  }
+
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
     let assetNodeId = this._graph.getNodeIdByContentKey(asset.id);
 
     // Remove all contains edges from the bundle to the nodes in the asset's
     // subgraph.
+    var shouldExitEarly = this.shouldExitEarly(assetNodeId, bundleNodeId);
+
     this._graph.traverse((nodeId, context, actions) => {
+      if (shouldExitEarly) {
+        actions.skipChildren();
+        return;
+      }
+
       let node = nullthrows(this._graph.getNode(nodeId));
 
       if (node.type === 'bundle_group') {
