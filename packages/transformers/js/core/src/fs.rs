@@ -1,5 +1,5 @@
-use crate::collect::{Collect, Import};
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
+use crate::hoist::{Collect, Import};
 use crate::utils::SourceLocation;
 use data_encoding::{BASE64, HEXLOWER};
 use std::collections::HashSet;
