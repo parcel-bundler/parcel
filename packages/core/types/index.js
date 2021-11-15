@@ -167,7 +167,7 @@ export type EnvironmentOptions = {|
   +outputFormat?: OutputFormat,
   +sourceType?: SourceType,
   +isLibrary?: boolean,
-  +global?: string,
+  +global?: ?string,
   +shouldOptimize?: boolean,
   +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
