@@ -206,7 +206,6 @@ export interface Environment {
   +id: string;
   +context: EnvironmentContext;
   +engines: Engines;
-  +global: ?string;
   /** Whether to include all/none packages \
    *  (<code>true / false</code>), an array of package names to include, or an object \
    *  (of a package is not specified, it's included).
@@ -225,6 +224,7 @@ export interface Environment {
   +shouldScopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
   +loc: ?SourceLocation;
+  +global: ?string;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;

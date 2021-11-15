@@ -87,6 +87,12 @@ export function createEnvironment({
     }
   }
 
+  if (global !== null) {
+    if (outputFormat !== 'global') {
+      global = null;
+    }
+  }
+
   let res: Environment = {
     id: '',
     context,
