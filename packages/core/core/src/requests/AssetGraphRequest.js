@@ -554,7 +554,7 @@ export class AssetGraphBuilder {
                           this.options.projectRoot,
                           loc?.filePath,
                         ) ?? undefined,
-                      language: assetNode.value.type,
+                      language: incomingDep.value.sourceAssetType ?? undefined,
                       codeHighlights: [
                         {
                           start: loc.start,
