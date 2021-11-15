@@ -35,10 +35,10 @@ const BROWSER_ENV = new Environment(
   DEFAULT_OPTIONS,
 );
 
-describe('resolver', function() {
+describe('resolver', function () {
   let resolver;
 
-  beforeEach(async function() {
+  beforeEach(async function () {
     await overlayFS.mkdirp(rootDir);
     await ncp(rootDir, rootDir);
 
@@ -74,8 +74,8 @@ describe('resolver', function() {
     configCache.clear();
   });
 
-  describe('file paths', function() {
-    it('should resolve a relative path with an extension', async function() {
+  describe('file paths', function () {
+    it('should resolve a relative path with an extension', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './bar.js',
@@ -85,7 +85,7 @@ describe('resolver', function() {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
 
-    it('should resolve a relative path without an extension', async function() {
+    it('should resolve a relative path without an extension', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './bar',
@@ -95,7 +95,7 @@ describe('resolver', function() {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
 
-    it('should resolve an absolute path from the root module', async function() {
+    it('should resolve an absolute path from the root module', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '/bar',
@@ -105,7 +105,7 @@ describe('resolver', function() {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
 
-    it('should resolve an absolute path from a node_modules folder', async function() {
+    it('should resolve an absolute path from a node_modules folder', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '/bar',
@@ -115,7 +115,7 @@ describe('resolver', function() {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
 
-    it('should resolve a tilde path from the root module', async function() {
+    it('should resolve a tilde path from the root module', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '~/bar',
@@ -125,7 +125,7 @@ describe('resolver', function() {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
 
-    it('should resolve a tilde path from the root module without a slash', async function() {
+    it('should resolve a tilde path from the root module without a slash', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '~bar',
@@ -135,7 +135,7 @@ describe('resolver', function() {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
 
-    it('should resolve a tilde path from a node_modules folder', async function() {
+    it('should resolve a tilde path from a node_modules folder', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '~/bar',
@@ -148,7 +148,7 @@ describe('resolver', function() {
       );
     });
 
-    it('should resolve an index file in a directory', async function() {
+    it('should resolve an index file in a directory', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './nested',
@@ -161,7 +161,7 @@ describe('resolver', function() {
       );
     });
 
-    it('should not resolve an index file in a directory for URL specifiers', async function() {
+    it('should not resolve an index file in a directory for URL specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './nested',
@@ -173,7 +173,7 @@ describe('resolver', function() {
       ]);
     });
 
-    it('should resolve a file with a question mark with CommonJS specifiers', async function() {
+    it('should resolve a file with a question mark with CommonJS specifiers', async function () {
       // Windows filenames cannot contain question marks.
       if (process.platform === 'win32') {
         return;
@@ -190,7 +190,7 @@ describe('resolver', function() {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'a?b.js'));
     });
 
-    it('should not resolve a file with a question mark with ESM specifiers', async function() {
+    it('should not resolve a file with a question mark with ESM specifiers', async function () {
       // Windows filenames cannot contain question marks.
       if (process.platform === 'win32') {
         return;
@@ -209,7 +209,7 @@ describe('resolver', function() {
       ]);
     });
 
-    it('should resolve a file with an encoded question mark with ESM specifiers', async function() {
+    it('should resolve a file with an encoded question mark with ESM specifiers', async function () {
       // Windows filenames cannot contain question marks.
       if (process.platform === 'win32') {
         return;
@@ -226,7 +226,7 @@ describe('resolver', function() {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'a?b.js'));
     });
 
-    it('should not support percent encoding in CommonJS specifiers', async function() {
+    it('should not support percent encoding in CommonJS specifiers', async function () {
       // Windows filenames cannot contain question marks.
       if (process.platform === 'win32') {
         return;
@@ -248,7 +248,7 @@ describe('resolver', function() {
       ]);
     });
 
-    it('should support query params for ESM specifiers', async function() {
+    it('should support query params for ESM specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './nested?foo=bar',
@@ -259,10 +259,10 @@ describe('resolver', function() {
         nullthrows(resolved).filePath,
         path.join(rootDir, 'nested', 'index.js'),
       );
-      assert.deepEqual(nullthrows(resolved).query, {foo: 'bar'});
+      assert.deepEqual(nullthrows(resolved).query?.toString(), 'foo=bar');
     });
 
-    it('should not support query params for CommonJS specifiers', async function() {
+    it('should not support query params for CommonJS specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './nested?foo=bar',
@@ -275,8 +275,8 @@ describe('resolver', function() {
     });
   });
 
-  describe('builtins', function() {
-    it('should resolve node builtin modules', async function() {
+  describe('builtins', function () {
+    it('should resolve node builtin modules', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'zlib',
@@ -308,7 +308,7 @@ describe('resolver', function() {
       });
     });
 
-    it('Should be able to handle node: prefixes', async function() {
+    it('Should be able to handle node: prefixes', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'node:zlib',
@@ -340,7 +340,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should resolve unimplemented node builtin modules to an empty file', async function() {
+    it('should resolve unimplemented node builtin modules to an empty file', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'fs',
@@ -372,7 +372,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should error when resolving node builtin modules with --target=node', async function() {
+    it('should error when resolving node builtin modules with --target=node', async function () {
       let resolved = await resolver.resolve({
         env: NODE_ENV,
         filename: 'zlib',
@@ -382,7 +382,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {isExcluded: true});
     });
 
-    it('should exclude the electron module in electron environments', async function() {
+    it('should exclude the electron module in electron environments', async function () {
       let resolved = await resolver.resolve({
         env: new Environment(
           createEnvironment({
@@ -401,8 +401,8 @@ describe('resolver', function() {
     });
   });
 
-  describe('node_modules', function() {
-    it('should resolve a node_modules index.js', async function() {
+  describe('node_modules', function () {
+    it('should resolve a node_modules index.js', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'foo',
@@ -434,7 +434,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should resolve a node_modules package.main', async function() {
+    it('should resolve a node_modules package.main', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-main',
@@ -466,7 +466,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should resolve a node_modules package.module', async function() {
+    it('should resolve a node_modules package.module', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-module',
@@ -503,7 +503,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should resolve a node_modules package.browser main field', async function() {
+    it('should resolve a node_modules package.browser main field', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-browser',
@@ -540,7 +540,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should not resolve a node_modules package.browser main field with --target=node', async function() {
+    it('should not resolve a node_modules package.browser main field with --target=node', async function () {
       let resolved = await resolver.resolve({
         env: NODE_INCLUDE_ENV,
         filename: 'package-browser',
@@ -577,7 +577,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should fall back to index.js when it cannot find package.main', async function() {
+    it('should fall back to index.js when it cannot find package.main', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-fallback',
@@ -651,7 +651,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should resolve a node_module package.main pointing to a directory', async function() {
+    it('should resolve a node_module package.main pointing to a directory', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-main-directory',
@@ -719,7 +719,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should resolve a file inside a node_modules folder', async function() {
+    it('should resolve a file inside a node_modules folder', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'foo/nested/baz',
@@ -751,7 +751,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should resolve a scoped module', async function() {
+    it('should resolve a scoped module', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '@scope/pkg',
@@ -783,7 +783,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should resolve a file inside a scoped module', async function() {
+    it('should resolve a file inside a scoped module', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '@scope/pkg/foo/bar',
@@ -815,8 +815,8 @@ describe('resolver', function() {
       });
     });
 
-    describe('sideEffects: false', function() {
-      it('should determine sideEffects correctly (file)', async function() {
+    describe('sideEffects: false', function () {
+      it('should determine sideEffects correctly (file)', async function () {
         let resolved = await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'side-effects-false/src/index.js',
@@ -856,7 +856,7 @@ describe('resolver', function() {
         });
       });
 
-      it('should determine sideEffects correctly (extensionless file)', async function() {
+      it('should determine sideEffects correctly (extensionless file)', async function () {
         let resolved = await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'side-effects-false/src/index',
@@ -896,7 +896,7 @@ describe('resolver', function() {
         });
       });
 
-      it('should determine sideEffects correctly (sub folder)', async function() {
+      it('should determine sideEffects correctly (sub folder)', async function () {
         let resolved = await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'side-effects-false/src/',
@@ -955,7 +955,7 @@ describe('resolver', function() {
         });
       });
 
-      it('should determine sideEffects correctly (main field)', async function() {
+      it('should determine sideEffects correctly (main field)', async function () {
         let resolved = await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'side-effects-false/src/',
@@ -1015,7 +1015,100 @@ describe('resolver', function() {
       });
     });
 
-    it('should not resolve a node module for URL dependencies', async function() {
+    describe('sideEffects: globs', function () {
+      it('should determine sideEffects correctly (matched)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false-glob/a/index',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(
+          {filePath: resolved?.filePath, sideEffects: resolved?.sideEffects},
+          {
+            filePath: path.resolve(
+              rootDir,
+              'node_modules/side-effects-false-glob/a/index.js',
+            ),
+            sideEffects: undefined,
+          },
+        );
+      });
+      it('should determine sideEffects correctly (unmatched)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false-glob/b/index.js',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(
+          {filePath: resolved?.filePath, sideEffects: resolved?.sideEffects},
+          {
+            filePath: path.resolve(
+              rootDir,
+              'node_modules/side-effects-false-glob/b/index.js',
+            ),
+            sideEffects: false,
+          },
+        );
+      });
+      it('should determine sideEffects correctly (matched dotslash)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false-glob/sub/index.js',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(
+          {filePath: resolved?.filePath, sideEffects: resolved?.sideEffects},
+          {
+            filePath: path.resolve(
+              rootDir,
+              'node_modules/side-effects-false-glob/sub/index.js',
+            ),
+            sideEffects: undefined,
+          },
+        );
+      });
+      it('should determine sideEffects correctly (unmatched, prefix in subdir)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false-glob/sub/a/index.js',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(
+          {filePath: resolved?.filePath, sideEffects: resolved?.sideEffects},
+          {
+            filePath: path.resolve(
+              rootDir,
+              'node_modules/side-effects-false-glob/sub/a/index.js',
+            ),
+            sideEffects: false,
+          },
+        );
+      });
+      it('should determine sideEffects correctly (only name)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false-glob/sub/index.json',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(
+          {filePath: resolved?.filePath, sideEffects: resolved?.sideEffects},
+          {
+            filePath: path.resolve(
+              rootDir,
+              'node_modules/side-effects-false-glob/sub/index.json',
+            ),
+            sideEffects: undefined,
+          },
+        );
+      });
+    });
+
+    it('should not resolve a node module for URL dependencies', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '@scope/pkg',
@@ -1027,7 +1120,7 @@ describe('resolver', function() {
       ]);
     });
 
-    it('should resolve a node module for URL dependencies with the npm: prefix', async function() {
+    it('should resolve a node module for URL dependencies with the npm: prefix', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'npm:@scope/pkg',
@@ -1040,7 +1133,7 @@ describe('resolver', function() {
       );
     });
 
-    it('should support query params for bare ESM specifiers', async function() {
+    it('should support query params for bare ESM specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '@scope/pkg?foo=2',
@@ -1051,10 +1144,10 @@ describe('resolver', function() {
         nullthrows(resolved).filePath,
         path.resolve(rootDir, 'node_modules/@scope/pkg/index.js'),
       );
-      assert.deepEqual(nullthrows(resolved).query, {foo: '2'});
+      assert.deepEqual(nullthrows(resolved).query?.toString(), 'foo=2');
     });
 
-    it('should not support query params for bare CommonJS specifiers', async function() {
+    it('should not support query params for bare CommonJS specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '@scope/pkg?foo=2',
@@ -1069,7 +1162,7 @@ describe('resolver', function() {
       ]);
     });
 
-    it('should support query params for npm: specifiers', async function() {
+    it('should support query params for npm: specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'npm:@scope/pkg?foo=2',
@@ -1080,12 +1173,12 @@ describe('resolver', function() {
         nullthrows(resolved).filePath,
         path.resolve(rootDir, 'node_modules/@scope/pkg/index.js'),
       );
-      assert.deepEqual(nullthrows(resolved).query, {foo: '2'});
+      assert.deepEqual(nullthrows(resolved).query?.toString(), 'foo=2');
     });
   });
 
-  describe('aliases', function() {
-    it('should alias the main file using the package.browser field', async function() {
+  describe('aliases', function () {
+    it('should alias the main file using the package.browser field', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-browser-alias',
@@ -1127,7 +1220,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should alias a sub-file using the package.browser field', async function() {
+    it('should alias a sub-file using the package.browser field', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-browser-alias/foo',
@@ -1169,7 +1262,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should alias a relative file using the package.browser field', async function() {
+    it('should alias a relative file using the package.browser field', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './foo',
@@ -1226,7 +1319,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should not alias using the package.browser field with --target=node', async function() {
+    it('should not alias using the package.browser field with --target=node', async function () {
       let resolved = await resolver.resolve({
         env: NODE_INCLUDE_ENV,
         filename: 'package-browser-alias/foo',
@@ -1268,7 +1361,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should alias a deep nested relative file using the package.browser field', async function() {
+    it('should alias a deep nested relative file using the package.browser field', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './nested',
@@ -1325,7 +1418,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should alias a sub-file using the package.alias field', async function() {
+    it('should alias a sub-file using the package.alias field', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-alias/foo',
@@ -1357,7 +1450,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should alias a relative file using the package.alias field', async function() {
+    it('should alias a relative file using the package.alias field', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './foo',
@@ -1404,7 +1497,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should alias a glob using the package.alias field', async function() {
+    it('should alias a glob using the package.alias field', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './lib/test',
@@ -1463,7 +1556,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply a module alias using the package.alias field in the root package', async function() {
+    it('should apply a module alias using the package.alias field in the root package', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliased',
@@ -1495,7 +1588,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply a global module alias using the package.alias field in the root package', async function() {
+    it('should apply a global module alias using the package.alias field in the root package', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliased',
@@ -1538,7 +1631,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply a global module alias to a sub-file in a package', async function() {
+    it('should apply a global module alias to a sub-file in a package', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliased/bar',
@@ -1581,7 +1674,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply a module alias pointing to a file using the package.alias field', async function() {
+    it('should apply a module alias pointing to a file using the package.alias field', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliased-file',
@@ -1610,7 +1703,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply a global module alias pointing to a file using the package.alias field', async function() {
+    it('should apply a global module alias pointing to a file using the package.alias field', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliased-file',
@@ -1647,7 +1740,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply an alias for a virtual module folder (relative to project dir)', async function() {
+    it('should apply an alias for a virtual module folder (relative to project dir)', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliasedfolder/test.js',
@@ -1676,7 +1769,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply an alias for a virtual module folder only (relative to project dir)', async function() {
+    it('should apply an alias for a virtual module folder only (relative to project dir)', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliasedfolder',
@@ -1714,7 +1807,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply an alias for a virtual module folder (relative to root dir)', async function() {
+    it('should apply an alias for a virtual module folder (relative to root dir)', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliasedabsolute/test.js',
@@ -1743,7 +1836,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply an alias for a virtual module folder only (relative to root dir)', async function() {
+    it('should apply an alias for a virtual module folder only (relative to root dir)', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliasedabsolute',
@@ -1781,7 +1874,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply an alias for a virtual module folder sub-path', async function() {
+    it('should apply an alias for a virtual module folder sub-path', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'foo/bar',
@@ -1810,7 +1903,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply an alias for a virtual module folder glob sub-path', async function() {
+    it('should apply an alias for a virtual module folder glob sub-path', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'glob/bar/test',
@@ -1839,7 +1932,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply an alias for a virtual module', async function() {
+    it('should apply an alias for a virtual module', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'something',
@@ -1868,7 +1961,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should apply a global alias for a virtual module', async function() {
+    it('should apply a global alias for a virtual module', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'something',
@@ -1905,7 +1998,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should resolve to an empty file when package.browser resolves to false', async function() {
+    it('should resolve to an empty file when package.browser resolves to false', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-browser-exclude',
@@ -1942,7 +2035,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should resolve to an empty file when package.alias resolves to false', async function() {
+    it('should resolve to an empty file when package.alias resolves to false', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-alias-exclude',
@@ -1980,8 +2073,8 @@ describe('resolver', function() {
     });
   });
 
-  describe('source field', function() {
-    it('should use the source field when symlinked', async function() {
+  describe('source field', function () {
+    it('should use the source field when symlinked', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'source',
@@ -2013,7 +2106,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should not use the source field when not symlinked', async function() {
+    it('should not use the source field when not symlinked', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'source-not-symlinked',
@@ -2055,7 +2148,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should use the source field as an alias when symlinked', async function() {
+    it('should use the source field as an alias when symlinked', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'source-alias/dist',
@@ -2087,7 +2180,7 @@ describe('resolver', function() {
       });
     });
 
-    it('should use the source field as a glob alias when symlinked', async function() {
+    it('should use the source field as a glob alias when symlinked', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'source-alias-glob',
@@ -2131,8 +2224,8 @@ describe('resolver', function() {
     });
   });
 
-  describe('symlinks', function() {
-    it('should resolve symlinked files to their realpath', async function() {
+  describe('symlinks', function () {
+    it('should resolve symlinked files to their realpath', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './baz.js',
@@ -2142,7 +2235,7 @@ describe('resolver', function() {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
 
-    it('should resolve symlinked directories to their realpath', async function() {
+    it('should resolve symlinked directories to their realpath', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './symlinked-nested',
@@ -2156,8 +2249,8 @@ describe('resolver', function() {
     });
   });
 
-  describe('error handling', function() {
-    it('should return diagnostics when package.module does not exist', async function() {
+  describe('error handling', function () {
+    it('should return diagnostics when package.module does not exist', async function () {
       let result = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-module-fallback',
@@ -2171,7 +2264,7 @@ describe('resolver', function() {
       );
     });
 
-    it('should throw when a relative path cannot be resolved', async function() {
+    it('should throw when a relative path cannot be resolved', async function () {
       let result = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './xyz.js',
@@ -2185,7 +2278,7 @@ describe('resolver', function() {
       );
     });
 
-    it('should throw when a node_module cannot be resolved', async function() {
+    it('should throw when a node_module cannot be resolved', async function () {
       assert.strictEqual(
         null,
         await resolver.resolve({
@@ -2197,7 +2290,7 @@ describe('resolver', function() {
       );
     });
 
-    it('should throw when a subfile of a node_module cannot be resolved', async function() {
+    it('should throw when a subfile of a node_module cannot be resolved', async function () {
       assert.strictEqual(
         null,
         await resolver.resolve({
@@ -2209,7 +2302,7 @@ describe('resolver', function() {
       );
     });
 
-    it('should error when a library is missing an external dependency', async function() {
+    it('should error when a library is missing an external dependency', async function () {
       let result = await resolver.resolve({
         env: new Environment(
           createEnvironment({
@@ -2231,7 +2324,7 @@ describe('resolver', function() {
       );
     });
 
-    it('should not error when external dependencies are declared', async function() {
+    it('should not error when external dependencies are declared', async function () {
       let result = await resolver.resolve({
         env: new Environment(
           createEnvironment({
@@ -2250,7 +2343,7 @@ describe('resolver', function() {
       assert.deepEqual(result, {isExcluded: true});
     });
 
-    it('should not error when external dependencies are declared in peerDependencies', async function() {
+    it('should not error when external dependencies are declared in peerDependencies', async function () {
       let result = await resolver.resolve({
         env: new Environment(
           createEnvironment({
@@ -2269,7 +2362,7 @@ describe('resolver', function() {
       assert.deepEqual(result, {isExcluded: true});
     });
 
-    it('should not error on missing dependencies for environment builtins', async function() {
+    it('should not error on missing dependencies for environment builtins', async function () {
       let result = await resolver.resolve({
         env: new Environment(
           createEnvironment({
@@ -2289,8 +2382,8 @@ describe('resolver', function() {
     });
   });
 
-  describe('urls', function() {
-    it('should ignore protocol relative urls', async function() {
+  describe('urls', function () {
+    it('should ignore protocol relative urls', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '//example.com/foo.png',
@@ -2300,7 +2393,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {isExcluded: true});
     });
 
-    it('should ignore hash urls', async function() {
+    it('should ignore hash urls', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '#hash',
@@ -2310,7 +2403,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {isExcluded: true});
     });
 
-    it('should ignore http: urls', async function() {
+    it('should ignore http: urls', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'http://example.com/foo.png',

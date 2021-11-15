@@ -1,6 +1,6 @@
 {
   "name": "@parcel/babylon-walk",
-  "version": "2.0.0-rc.0",
+  "version": "2.0.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -10,6 +10,11 @@
     "url": "https://opencollective.com/parcel"
   },
   "description": "Lightweight Babylon AST traversal",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git",
+    "directory": "packages/utils/babylon-walk"
+  },
   "main": "lib/index.js",
   "source": "src/index.js",
   "engines": {

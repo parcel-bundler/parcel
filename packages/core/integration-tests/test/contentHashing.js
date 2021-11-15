@@ -14,12 +14,12 @@ function bundle(path) {
   });
 }
 
-describe('content hashing', function() {
+describe('content hashing', function () {
   beforeEach(async () => {
     await outputFS.rimraf(path.join(__dirname, '/input'));
   });
 
-  it('should update content hash when content changes', async function() {
+  it('should update content hash when content changes', async function () {
     await ncp(
       path.join(__dirname, '/integration/html-css'),
       path.join(__dirname, '/input'),
@@ -52,7 +52,7 @@ describe('content hashing', function() {
     assert.notEqual(filename, newFilename);
   });
 
-  it('should update content hash when raw asset changes', async function() {
+  it('should update content hash when raw asset changes', async function () {
     await ncp(
       path.join(__dirname, '/integration/import-raw'),
       path.join(__dirname, '/input'),

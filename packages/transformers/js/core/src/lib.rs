@@ -251,12 +251,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               };
             }
 
+            let global_mark = Mark::fresh(Mark::root());
+            let ignore_mark = Mark::fresh(Mark::root());
             module = {
               let mut passes = chain!(
-                Optional::new(
-                  react::react(source_map.clone(), Some(&comments), react_options),
-                  config.is_jsx
-                ),
                 // Decorators can use type information, so must run before the TypeScript pass.
                 Optional::new(
                   decorators::decorators(decorators::Config {
@@ -266,15 +264,35 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   }),
                   config.decorators
                 ),
-                Optional::new(typescript::strip(), config.is_type_script)
+                Optional::new(
+                  typescript::strip_with_jsx(
+                    source_map.clone(),
+                    typescript::Config {
+                      pragma: Some(react_options.pragma.clone()),
+                      pragma_frag: Some(react_options.pragma_frag.clone()),
+                      ..Default::default()
+                    },
+                    Some(&comments),
+                    global_mark,
+                  ),
+                  config.is_type_script && config.is_jsx
+                ),
+                Optional::new(typescript::strip(), config.is_type_script && !config.is_jsx),
+                resolver_with_mark(global_mark),
+                Optional::new(
+                  react::react(
+                    source_map.clone(),
+                    Some(&comments),
+                    react_options,
+                    global_mark
+                  ),
+                  config.is_jsx
+                ),
               );
 
               module.fold_with(&mut passes)
             };
 
-            let global_mark = Mark::fresh(Mark::root());
-            let ignore_mark = Mark::fresh(Mark::root());
-            let module = module.fold_with(&mut resolver_with_mark(global_mark));
             let mut decls = collect_decls(&module);
 
             let mut preset_env_config = swc_ecma_preset_env::Config {
@@ -307,7 +325,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ),
                 // Simplify expressions and remove dead branches so that we
                 // don't include dependencies inside conditionals that are always false.
-                expr_simplifier(),
+                expr_simplifier(Default::default()),
                 dead_branch_remover(),
                 // Inline Node fs.readFileSync calls
                 Optional::new(

@@ -47,7 +47,8 @@ type BundleFactory<TBundle: IBundle> = (
 ) => TBundle;
 
 export default class BundleGraph<TBundle: IBundle>
-  implements IBundleGraph<TBundle> {
+  implements IBundleGraph<TBundle>
+{
   #graph: InternalBundleGraph;
   #options: ParcelOptions;
   #createBundle: BundleFactory<TBundle>;
@@ -294,7 +295,7 @@ export default class BundleGraph<TBundle: IBundle>
       .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
   }
 
-  getUsedSymbols(v: IAsset | IDependency): $ReadOnlySet<Symbol> {
+  getUsedSymbols(v: IAsset | IDependency): ?$ReadOnlySet<Symbol> {
     if (v instanceof Asset) {
       return this.#graph.getUsedSymbolsAsset(assetToAssetValue(v));
     } else {

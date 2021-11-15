@@ -5,7 +5,7 @@ import NodeResolver from '@parcel/node-resolver-core';
 
 // Throw user friendly errors on special webpack loader syntax
 // ex. `imports-loader?$=jquery!./example.js`
-const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
+const WEBPACK_IMPORT_REGEX = /^\w+-loader(?:\?\S*)?!/;
 
 export default (new Resolver({
   resolve({dependency, options, specifier}) {

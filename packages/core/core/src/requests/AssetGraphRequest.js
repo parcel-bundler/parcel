@@ -24,6 +24,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
+import logger from '@parcel/logger';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import {BundleBehavior, Priority} from '../types';
 import AssetGraph from '../AssetGraph';
@@ -78,7 +79,8 @@ export default function createAssetGraphRequest(
     type: 'asset_graph_request',
     id: input.name,
     run: async input => {
-      let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
+      let prevResult =
+        await input.api.getPreviousResult<AssetGraphRequestResult>();
       let builder = new AssetGraphBuilder(input, prevResult);
       return builder.build();
     },
@@ -132,7 +134,7 @@ export class AssetGraphBuilder {
     this.requestedAssetIds = requestedAssetIds ?? new Set();
     this.shouldBuildLazily = shouldBuildLazily ?? false;
     this.cacheKey = hashString(
-      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}`,
+      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
     );
 
     this.queue = new PromiseQueue();
@@ -203,7 +205,11 @@ export class AssetGraphBuilder {
           return dep;
         }),
       );
-    if (entryDependencies.some(d => d.value.env.shouldScopeHoist)) {
+
+    this.assetGraph.symbolPropagationRan = entryDependencies.some(
+      d => d.value.env.shouldScopeHoist,
+    );
+    if (this.assetGraph.symbolPropagationRan) {
       try {
         this.propagateSymbols();
       } catch (e) {
@@ -397,6 +403,26 @@ export class AssetGraphBuilder {
       }
     });
 
+    const logFallbackNamespaceInsertion = (
+      assetNode,
+      symbol,
+      depNode1,
+      depNode2,
+    ) => {
+      if (this.options.logLevel === 'verbose') {
+        logger.warn({
+          message: `${fromProjectPathRelative(
+            assetNode.value.filePath,
+          )} reexports "${symbol}", which could be resolved either to the dependency "${
+            depNode1.value.specifier
+          }" or "${
+            depNode2.value.specifier
+          }" at runtime. Adding a namespace object to fall back on.`,
+          origin: '@parcel/core',
+        });
+      }
+    };
+
     // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
     // root and remove requested symbols that aren't actually exported
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
@@ -420,7 +446,9 @@ export class AssetGraphBuilder {
         }
       }
 
-      let reexportedSymbols = new Set<Symbol>();
+      // the symbols that are reexport (not used in `asset`) -> the corresponding outgoingDep(s)
+      // There could be multiple dependencies with non-statically analyzable exports
+      let reexportedSymbols = new Map<Symbol, DependencyNode>();
       for (let outgoingDep of outgoingDeps) {
         let outgoingDepSymbols = outgoingDep.value.symbols;
         if (!outgoingDepSymbols) continue;
@@ -437,7 +465,20 @@ export class AssetGraphBuilder {
         }
 
         if (outgoingDepSymbols.get('*')?.local === '*') {
-          outgoingDep.usedSymbolsUp.forEach(s => reexportedSymbols.add(s));
+          outgoingDep.usedSymbolsUp.forEach(s => {
+            // If the symbol could come from multiple assets at runtime, assetNode's
+            // namespace will be needed at runtime to perform the lookup on.
+            if (reexportedSymbols.has(s) && !assetNode.usedSymbols.has('*')) {
+              logFallbackNamespaceInsertion(
+                assetNode,
+                s,
+                nullthrows(reexportedSymbols.get(s)),
+                outgoingDep,
+              );
+              assetNode.usedSymbols.add('*');
+            }
+            reexportedSymbols.set(s, outgoingDep);
+          });
         }
 
         for (let s of outgoingDep.usedSymbolsUp) {
@@ -454,7 +495,19 @@ export class AssetGraphBuilder {
 
           let reexported = assetSymbolsInverse?.get(local);
           if (reexported != null) {
-            reexported.forEach(s => reexportedSymbols.add(s));
+            reexported.forEach(s => {
+              // see same code above
+              if (reexportedSymbols.has(s) && !assetNode.usedSymbols.has('*')) {
+                logFallbackNamespaceInsertion(
+                  assetNode,
+                  s,
+                  nullthrows(reexportedSymbols.get(s)),
+                  outgoingDep,
+                );
+                assetNode.usedSymbols.add('*');
+              }
+              reexportedSymbols.set(s, outgoingDep);
+            });
           }
         }
       }
@@ -501,7 +554,7 @@ export class AssetGraphBuilder {
                           this.options.projectRoot,
                           loc?.filePath,
                         ) ?? undefined,
-                      language: assetNode.value.type,
+                      language: incomingDep.value.sourceAssetType ?? undefined,
                       codeHighlights: [
                         {
                           start: loc.start,
@@ -726,9 +779,8 @@ export class AssetGraphBuilder {
           }
         }
       } else {
-        let connectedNodes = this.assetGraph.getNodeIdsConnectedTo(
-          queuedNodeId,
-        );
+        let connectedNodes =
+          this.assetGraph.getNodeIdsConnectedTo(queuedNodeId);
         if (connectedNodes.length > 0) {
           queue.add(...connectedNodes);
         }

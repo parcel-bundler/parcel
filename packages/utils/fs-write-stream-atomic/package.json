@@ -1,8 +1,13 @@
 {
   "name": "@parcel/fs-write-stream-atomic",
-  "version": "2.0.0-rc.0",
+  "version": "2.0.1",
   "description": "Like `fs.createWriteStream(...)`, but atomic.",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git",
+    "directory": "packages/utils/fs-write-stream-atomic"
+  },
   "directories": {
     "test": "test"
   },

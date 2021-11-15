@@ -18,7 +18,7 @@
     "*.toml": ["@parcel/transformer-toml"],
     "*.webmanifest": ["@parcel/transformer-webmanifest"],
     "webmanifest:*.{json,webmanifest}": ["@parcel/transformer-webmanifest"],
-    "*.yaml": ["@parcel/transformer-yaml"],
+    "*.{yaml,yml}": ["@parcel/transformer-yaml"],
     "*.{glsl,vert,frag}": ["@parcel/transformer-glsl"],
     "*.{gql,graphql}": ["@parcel/transformer-graphql"],
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
@@ -26,7 +26,7 @@
     "*.less": ["@parcel/transformer-less"],
     "*.{css,pcss}": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
     "*.sss": ["@parcel/transformer-sugarss"],
-    "*.{htm,html}": [
+    "*.{htm,html,xhtml}": [
       "@parcel/transformer-posthtml",
       "@parcel/transformer-html"
     ],
@@ -41,6 +41,7 @@
     "custom:*.vue": ["@parcel/transformer-vue"],
     "*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
     "*.svg": ["@parcel/transformer-svg"],
+    "*.{xml,rss,atom}": ["@parcel/transformer-xml"],
     "url:*": ["...", "@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
@@ -53,16 +54,17 @@
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
     "*.css": ["@parcel/optimizer-cssnano"],
-    "*.html": ["@parcel/optimizer-htmlnano"],
+    "*.{html,xhtml}": ["@parcel/optimizer-htmlnano"],
     "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
     "*.svg": ["@parcel/optimizer-svgo"],
     "*.{jpg,jpeg,png}": ["@parcel/optimizer-image"]
   },
   "packagers": {
-    "*.html": "@parcel/packager-html",
+    "*.{html,xhtml}": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.{js,mjs,cjs}": "@parcel/packager-js",
     "*.svg": "@parcel/packager-svg",
+    "*.{xml,rss,atom}": "@parcel/packager-xml",
     "*.ts": "@parcel/packager-ts",
     "*.{jsonld,svg,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"

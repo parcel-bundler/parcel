@@ -1,6 +1,6 @@
 // @flow
 
-import type {BuildSuccessEvent, PluginOptions} from '@parcel/types';
+import type {BuildSuccessEvent, Dependency, PluginOptions} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {ServerError, HMRServerOptions} from './types.js.flow';
@@ -95,11 +95,35 @@ export default class HMRServer {
   async emitUpdate(event: BuildSuccessEvent) {
     this.unresolvedError = null;
 
-    let changedAssets = Array.from(event.changedAssets.values());
-    if (changedAssets.length === 0) return;
+    let changedAssets = new Set(event.changedAssets.values());
+    if (changedAssets.size === 0) return;
 
     let queue = new PromiseQueue({maxConcurrent: FS_CONCURRENCY});
     for (let asset of changedAssets) {
+      if (asset.type !== 'js') {
+        // If all of the incoming dependencies of the asset actually resolve to a JS asset
+        // rather than the original, we can mark the runtimes as changed instead. URL runtimes
+        // have a cache busting query param added with HMR enabled which will trigger a reload.
+        let runtimes = new Set();
+        let incomingDeps = event.bundleGraph.getIncomingDependencies(asset);
+        let isOnlyReferencedByRuntimes = incomingDeps.every(dep => {
+          let resolved = event.bundleGraph.getResolvedAsset(dep);
+          let isRuntime = resolved?.type === 'js' && resolved !== asset;
+          if (resolved && isRuntime) {
+            runtimes.add(resolved);
+          }
+          return isRuntime;
+        });
+
+        if (isOnlyReferencedByRuntimes) {
+          for (let runtime of runtimes) {
+            changedAssets.add(runtime);
+          }
+
+          continue;
+        }
+      }
+
       queue.add(async () => {
         let dependencies = event.bundleGraph.getDependencies(asset);
         let depsByBundle = {};
@@ -108,9 +132,8 @@ export default class HMRServer {
           for (let dep of dependencies) {
             let resolved = event.bundleGraph.getResolvedAsset(dep, bundle);
             if (resolved) {
-              deps[dep.specifier] = event.bundleGraph.getAssetPublicId(
-                resolved,
-              );
+              deps[getSpecifier(dep)] =
+                event.bundleGraph.getAssetPublicId(resolved);
             }
           }
           depsByBundle[bundle.id] = deps;
@@ -119,7 +142,8 @@ export default class HMRServer {
         return {
           id: event.bundleGraph.getAssetPublicId(asset),
           type: asset.type,
-          output: await asset.getCode(),
+          // No need to send the contents of non-JS assets to the client.
+          output: asset.type === 'js' ? await asset.getCode() : '',
           envHash: asset.env.id,
           depsByBundle,
         };
@@ -152,4 +176,12 @@ export default class HMRServer {
       ws.send(json);
     }
   }
+}
+
+function getSpecifier(dep: Dependency): string {
+  if (typeof dep.meta.placeholder === 'string') {
+    return dep.meta.placeholder;
+  }
+
+  return dep.specifier;
 }

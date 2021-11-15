@@ -5,6 +5,7 @@ import typeof * as BabelCore from '@babel/core';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {BabelConfig} from './types';
 
+import json5 from 'json5';
 import path from 'path';
 import * as internalBabelCore from '@babel/core';
 import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
@@ -109,10 +110,9 @@ export async function load(
       // We need to invalidate on startup in case the config is non-static,
       // e.g. uses unknown environment variables, reads from the filesystem, etc.
       logger.warn({
-        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${path.basename(
-          file,
-          path.extname(file),
-        ) + '.json'} file instead.`,
+        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${
+          path.basename(file, path.extname(file)) + '.json'
+        } file instead.`,
       });
       config.invalidateOnStartup();
 
@@ -341,7 +341,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
       ],
       hints: [md`Delete __${filePath}__`],
       documentationURL:
-        'https://v2.parceljs.org/languages/javascript/#default-presets',
+        'https://parceljs.org/languages/javascript/#default-presets',
     });
   } else if (foundRedundantPresets.size > 0) {
     diagnostics.push({
@@ -362,7 +362,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
       ],
       hints: [md`Remove the above presets from __${filePath}__`],
       documentationURL:
-        'https://v2.parceljs.org/languages/javascript/#default-presets',
+        'https://parceljs.org/languages/javascript/#default-presets',
     });
   }
 
@@ -384,7 +384,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
         `Either remove __@babel/preset-env__ to use Parcel's builtin transpilation, or replace with __@parcel/babel-preset-env__`,
       ],
       documentationURL:
-        'https://v2.parceljs.org/languages/javascript/#custom-plugins',
+        'https://parceljs.org/languages/javascript/#custom-plugins',
     });
   }
 
@@ -397,7 +397,7 @@ async function getCodeHighlights(fs, filePath, redundantPresets) {
   let ext = path.extname(filePath);
   if (ext !== '.js' && ext !== '.cjs' && ext !== '.mjs') {
     let contents = await fs.readFile(filePath, 'utf8');
-    let json = JSON.parse(contents);
+    let json = json5.parse(contents);
 
     let presets = json.presets || [];
     let pointers = [];
@@ -410,7 +410,12 @@ async function getCodeHighlights(fs, filePath, redundantPresets) {
     }
 
     if (pointers.length > 0) {
-      return generateJSONCodeHighlights(contents, pointers);
+      try {
+        return generateJSONCodeHighlights(contents, pointers);
+      } catch {
+        // TODO: support code highlights for json5 sources.
+        // Babel supports json5 syntax, but json-source-map does not.
+      }
     }
   }
 
