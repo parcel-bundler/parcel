@@ -132,6 +132,7 @@ export type PackageTargetDescriptor = {|
     | {[PackageName]: boolean, ...},
   +outputFormat?: OutputFormat,
   +publicUrl?: string,
+  +global?: string,
   +distDir?: FilePath,
   +sourceMap?: boolean | TargetSourceMapOptions,
   +isLibrary?: boolean,
@@ -205,6 +206,7 @@ export interface Environment {
   +id: string;
   +context: EnvironmentContext;
   +engines: Engines;
+  +global: ?string;
   /** Whether to include all/none packages \
    *  (<code>true / false</code>), an array of package names to include, or an object \
    *  (of a package is not specified, it's included).

@@ -153,7 +153,7 @@ export default class Environment implements IEnvironment {
     return this.#environment.engines;
   }
 
-  get global(): string {
+  get global(): ?string {
     return this.#environment.global;
   }
 
