@@ -241,6 +241,8 @@ export class TargetResolver {
               env: createEnvironment({
                 engines: descriptor.engines,
                 context: descriptor.context,
+                global:
+                  descriptor.global ?? this.options.defaultTargetOptions.global,
                 isLibrary:
                   descriptor.isLibrary ??
                   this.options.defaultTargetOptions.isLibrary,
@@ -318,6 +320,7 @@ export class TargetResolver {
             env: createEnvironment({
               context: 'browser',
               engines: {},
+              global: this.options.defaultTargetOptions.global,
               shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
               outputFormat: this.options.defaultTargetOptions.outputFormat,
               shouldScopeHoist:
@@ -727,7 +730,8 @@ export class TargetResolver {
             descriptor.publicUrl ?? this.options.defaultTargetOptions.publicUrl,
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
-            global: descriptor.global,
+            global:
+              descriptor.global ?? this.options.defaultTargetOptions.global,
             context:
               descriptor.context ??
               (targetName === 'browser'
@@ -885,7 +889,8 @@ export class TargetResolver {
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
-            global: descriptor.global,
+            global:
+              descriptor.global ?? this.options.defaultTargetOptions.global,
             includeNodeModules: descriptor.includeNodeModules,
             outputFormat:
               descriptor.outputFormat ??
@@ -922,6 +927,7 @@ export class TargetResolver {
         env: createEnvironment({
           engines: pkgEngines,
           context,
+          global: this.options.defaultTargetOptions.global,
           outputFormat: this.options.defaultTargetOptions.outputFormat,
           isLibrary: this.options.defaultTargetOptions.isLibrary,
           shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,

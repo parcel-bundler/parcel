@@ -3,7 +3,6 @@ import path from 'path';
 import {bundle} from '@parcel/test-utils';
 import {DevPackager} from '../../../packagers/js/src/DevPackager';
 import {ScopeHoistingPackager} from '../../../packagers/js/src/ScopeHoistingPackager';
-import PluginOptions from '@parcel/core/src/public/PluginOptions';
 import resolveOptions from '@parcel/core/src/resolveOptions';
 
 describe('global-var', function () {
@@ -11,11 +10,15 @@ describe('global-var', function () {
     it('should pass the global var', async function () {
       const b = await bundle(
         path.join(__dirname, '/integration/global-var/index.js'),
+        {
+          defaultTargetOptions: {
+            global: 'hello-world',
+          },
+        },
       );
       const packager = new DevPackager(
         {
           projectRoot: '',
-          global: 'hello-world',
         },
         b,
         b.getBundles()[0],
@@ -28,14 +31,40 @@ describe('global-var', function () {
       );
     });
 
-    it('should contain empty string if no global var is passed', async function () {
+    it('should not pass the global var when outputFormat is not global', async function () {
       const b = await bundle(
         path.join(__dirname, '/integration/global-var/index.js'),
+        {
+          defaultTargetOptions: {
+            global: 'hello-world',
+            outputFormat: 'esmodule',
+          },
+        },
       );
       const packager = new DevPackager(
         {
           projectRoot: '',
-          global: '',
+        },
+        b,
+        b.getBundles()[0],
+        'aRequiredName',
+      );
+      const output = await packager.package();
+      assert.equal(output.contents.includes('"aRequiredName", "")\n'), true);
+    });
+
+    it('should contain empty string if no global var is passed', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/global-var/index.js'),
+        {
+          defaultTargetOptions: {
+            global: '',
+          },
+        },
+      );
+      const packager = new DevPackager(
+        {
+          projectRoot: '',
         },
         b,
         b.getBundles()[0],
@@ -48,11 +77,15 @@ describe('global-var', function () {
     it('should mount as commonjs', async function () {
       const b = await bundle(
         path.join(__dirname, '/integration/global-var/index.js'),
+        {
+          defaultTargetOptions: {
+            global: 'hello-world',
+          },
+        },
       );
       const packager = new DevPackager(
         {
           projectRoot: '',
-          global: 'hello-world',
         },
         b,
         b.getBundles()[0],
@@ -72,11 +105,15 @@ describe('global-var', function () {
     it('should have the globalName', async function () {
       const b = await bundle(
         path.join(__dirname, '/integration/global-var/index.js'),
+        {
+          defaultTargetOptions: {
+            global: 'hello-world',
+          },
+        },
       );
       const packager = new DevPackager(
         {
           projectRoot: '',
-          global: 'hello-world',
         },
         b,
         b.getBundles()[0],
@@ -98,13 +135,13 @@ describe('global-var', function () {
         {
           defaultTargetOptions: {
             shouldScopeHoist: true,
+            global: 'hello-world',
           },
         },
       );
       const packager = new ScopeHoistingPackager(
         {
           projectRoot: '',
-          global: 'hello-world',
         },
         b,
         b.getBundles()[0],
@@ -112,17 +149,6 @@ describe('global-var', function () {
       );
       const output = await packager.package();
       assert.equal(output.contents.substr(output.contents.length - 3), '();');
-    });
-  });
-
-  describe('plugin options', function () {
-    it('should contain the global value', function () {
-      const pluginOptions = new PluginOptions({
-        defaultTargetOptions: {
-          global: 'hello-world',
-        },
-      });
-      assert.equal(pluginOptions.global, 'hello-world');
     });
   });
 
