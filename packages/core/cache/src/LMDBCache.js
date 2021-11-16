@@ -1,12 +1,11 @@
 // @flow strict-local
-import type {Readable} from 'stream';
 import type {FilePath} from '@parcel/types';
 import type {Cache} from './types';
 
+import {Readable} from 'stream';
 import path from 'path';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 import {NodeFS} from '@parcel/fs';
-import {blobToStream, bufferStream} from '@parcel/utils';
 import invariant from 'assert';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
@@ -62,12 +61,24 @@ export class LMDBCache implements Cache {
   }
 
   getStream(key: string): Readable {
-    return blobToStream(this.store.get(key));
+    let filename = path.join(this.dir, key);
+    if (this.fs.existsSync(filename)) {
+      return this.fs.createReadStream(filename);
+    } else {
+      // If the file doesn't exists, return an empty stream.
+      let stream = new Readable();
+      stream.push(null);
+      return stream;
+    }
   }
 
-  async setStream(key: string, stream: Readable): Promise<void> {
-    let buf = await bufferStream(stream);
-    await this.store.put(key, buf);
+  setStream(key: string, stream: Readable): Promise<void> {
+    return new Promise((resolve, reject) => {
+      stream
+        .pipe(this.fs.createWriteStream(path.join(this.dir, key)))
+        .on('error', reject)
+        .on('finish', resolve);
+    });
   }
 
   getBlob(key: string): Promise<Buffer> {
