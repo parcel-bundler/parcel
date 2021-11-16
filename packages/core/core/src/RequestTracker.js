@@ -4,7 +4,12 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {Async, EnvMap} from '@parcel/types';
 import type {EventType, Options as WatcherOptions} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
-import type {ContentKey, NodeId, SerializedContentGraph} from '@parcel/graph';
+import type {
+  ContentGraphOpts,
+  ContentKey,
+  NodeId,
+  SerializedContentGraph,
+} from '@parcel/graph';
 import type {
   ParcelOptions,
   RequestInvalidation,
@@ -56,6 +61,17 @@ export const requestGraphEdgeTypes = {
 };
 
 export type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;
+
+type RequestGraphOpts = {|
+  ...ContentGraphOpts<RequestGraphNode, RequestGraphEdgeType>,
+  invalidNodeIds: Set<NodeId>,
+  incompleteNodeIds: Set<NodeId>,
+  globNodeIds: Set<NodeId>,
+  envNodeIds: Set<NodeId>,
+  optionNodeIds: Set<NodeId>,
+  unpredicatableNodeIds: Set<NodeId>,
+|};
+
 type SerializedRequestGraph = {|
   ...SerializedContentGraph<RequestGraphNode, RequestGraphEdgeType>,
   invalidNodeIds: Set<NodeId>,
@@ -202,7 +218,7 @@ export class RequestGraph extends ContentGraph<
   unpredicatableNodeIds: Set<NodeId> = new Set();
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: SerializedRequestGraph): RequestGraph {
+  static deserialize(opts: RequestGraphOpts): RequestGraph {
     // $FlowFixMe[prop-missing]
     let deserialized = new RequestGraph(opts);
     deserialized.invalidNodeIds = opts.invalidNodeIds;
