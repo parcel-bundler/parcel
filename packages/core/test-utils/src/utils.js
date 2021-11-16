@@ -193,7 +193,7 @@ export function mergeParcelOptions(
   };
 }
 
-export function assertDependencyWasDeferred(
+export function assertDependencyWasExcluded(
   bundleGraph: BundleGraph<PackagedBundle>,
   assetFileName: string,
   specifier: string,
