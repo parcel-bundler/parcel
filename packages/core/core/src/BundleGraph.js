@@ -6,7 +6,11 @@ import type {
   Symbol,
   TraversalActions,
 } from '@parcel/types';
-import type {NodeId, SerializedContentGraph} from '@parcel/graph';
+import type {
+  ContentGraphOpts,
+  NodeId,
+  SerializedContentGraph,
+} from '@parcel/graph';
 
 import type {
   Asset,
@@ -71,6 +75,14 @@ type InternalSymbolResolution = {|
 type InternalExportSymbolResolution = {|
   ...InternalSymbolResolution,
   +exportAs: Symbol | string,
+|};
+
+type BundleGraphOpts = {|
+  graph: ContentGraphOpts<BundleGraphNode, BundleGraphEdgeType>,
+  bundleContentHashes: Map<string, string>,
+  assetPublicIds: Set<string>,
+  publicIdByAssetId: Map<string, string>,
+  symbolPropagationRan: boolean,
 |};
 
 type SerializedBundleGraph = {|
@@ -174,7 +186,7 @@ export default class BundleGraph {
       let fromIds;
       if (assetGroupIds.has(edge.from)) {
         fromIds = [
-          ...assetGraph.inboundEdges.getEdges(
+          ...assetGraph.getNodeIdsConnectedTo(
             edge.from,
             bundleGraphEdgeTypes.null,
           ),
@@ -185,7 +197,7 @@ export default class BundleGraph {
 
       for (let from of fromIds) {
         if (assetGroupIds.has(edge.to)) {
-          for (let to of assetGraph.outboundEdges.getEdges(
+          for (let to of assetGraph.getNodeIdsConnectedFrom(
             edge.to,
             bundleGraphEdgeTypes.null,
           )) {
@@ -223,7 +235,7 @@ export default class BundleGraph {
     };
   }
 
-  static deserialize(serialized: SerializedBundleGraph): BundleGraph {
+  static deserialize(serialized: BundleGraphOpts): BundleGraph {
     return new BundleGraph({
       graph: ContentGraph.deserialize(serialized.graph),
       assetPublicIds: serialized.assetPublicIds,
@@ -1031,7 +1043,6 @@ export default class BundleGraph {
       },
       visit,
       undefined, // start with root
-      // $FlowFixMe
       ALL_EDGE_TYPES,
     );
   }
@@ -1221,7 +1232,6 @@ export default class BundleGraph {
     return this._graph
       .getNodeIdsConnectedTo(
         this._graph.getNodeIdByContentKey(asset.id),
-        // $FlowFixMe
         ALL_EDGE_TYPES,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
@@ -1481,7 +1491,9 @@ export default class BundleGraph {
         if (!resolved) continue;
         let exported = this.getExportedSymbols(resolved, boundary)
           .filter(s => s.exportSymbol !== 'default')
-          .map(s => ({...s, exportAs: s.exportSymbol}));
+          .map(s =>
+            s.exportSymbol !== '*' ? {...s, exportAs: s.exportSymbol} : s,
+          );
         symbols.push(...exported);
       }
     }

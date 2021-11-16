@@ -29,9 +29,10 @@ use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
+use swc_common::DUMMY_SP;
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
 use swc_ecma_preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::{Invalid, Module};
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
@@ -41,16 +42,18 @@ use swc_ecmascript::transforms::{
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
   pass::Optional, proposals::decorators, react, typescript,
 };
-use swc_ecmascript::visit::FoldWith;
+use swc_ecmascript::visit::{FoldWith, VisitWith};
 
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::hoist;
+use hoist::{hoist, CollectResult, HoistResult};
 use modules::esm2cjs;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+
+use crate::hoist::Collect;
 
 type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
 
@@ -86,14 +89,15 @@ pub struct Config {
   trace_bailouts: bool,
 }
 
-#[derive(Serialize, Debug, Deserialize, Default)]
+#[derive(Serialize, Debug, Default)]
 pub struct TransformResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   map: Option<String>,
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
-  hoist_result: Option<hoist::HoistResult>,
+  hoist_result: Option<HoistResult>,
+  symbol_result: Option<CollectResult>,
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
@@ -392,16 +396,20 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               return Ok(result);
             }
 
+            let mut collect = Collect::new(
+              source_map.clone(),
+              decls,
+              ignore_mark,
+              global_mark,
+              config.trace_bailouts,
+            );
+            module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
+            if let Some(bailouts) = &collect.bailouts {
+              diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
+            }
+
             let module = if config.scope_hoist {
-              let res = hoist(
-                module,
-                source_map.clone(),
-                config.module_id.as_str(),
-                decls,
-                ignore_mark,
-                global_mark,
-                config.trace_bailouts,
-              );
+              let res = hoist(module, config.module_id.as_str(), &collect);
               match res {
                 Ok((module, hoist_result, hoist_diagnostics)) => {
                   result.hoist_result = Some(hoist_result);
@@ -414,6 +422,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
+              result.symbol_result = Some(collect.into());
+
               let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;
               module
