@@ -150,7 +150,7 @@ describe('AssetGraph', () => {
         }).id,
       ),
     );
-    assert.deepEqual(graph.getAllEdges(), [
+    assert.deepEqual(Array.from(graph.getAllEdges()), [
       {
         from: graph.rootNodeId,
         to: graph.getNodeIdByContentKey('entry_specifier:path/to/index1'),

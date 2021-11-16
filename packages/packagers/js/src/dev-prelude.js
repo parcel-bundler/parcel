@@ -80,11 +80,13 @@
     return cache[name].exports;
 
     function localRequire(x) {
-      return newRequire(localRequire.resolve(x));
+      var res = localRequire.resolve(x);
+      return res === false ? {} : newRequire(res);
     }
 
     function resolve(x) {
-      return modules[name][1][x] || x;
+      var id = modules[name][1][x];
+      return id != null ? id : x;
     }
   }
 

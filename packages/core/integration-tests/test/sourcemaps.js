@@ -563,6 +563,46 @@ describe('sourcemaps', function () {
     });
   });
 
+  it('should create a valid sourcemap when using the Typescript tsc transformer', async function () {
+    let inputFilePath = path.join(
+      __dirname,
+      '/integration/sourcemap-typescript-tsc/index.ts',
+    );
+
+    await bundle(inputFilePath);
+    let distDir = path.join(__dirname, '../dist/');
+    let filename = path.join(distDir, 'index.js');
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    assert.equal(map.file, 'index.js.map');
+    assert(raw.includes('//# sourceMappingURL=index.js.map'));
+    // assert.equal(map.sourceRoot, '/__parcel_source_root/');
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addVLQMap(map);
+
+    let mapData = sourceMap.getMap();
+    assert.equal(mapData.sources.length, 1);
+    assert.deepEqual(mapData.sources, ['index.ts']);
+
+    let input = await inputFS.readFile(
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+      'utf8',
+    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'nonExistsFunc',
+      sourcePath: 'index.ts',
+    });
+  });
+
   it('should create a valid sourcemap for a CSS bundle', async function () {
     async function test(minify) {
       let inputFilePath = path.join(
