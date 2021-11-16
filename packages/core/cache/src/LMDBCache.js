@@ -44,51 +44,44 @@ export class LMDBCache implements Cache {
   }
 
   has(key: string): Promise<boolean> {
-    if (this.store.get(key) != null) return Promise.resolve(true);
-    return this.hasLargeBlob(key);
+    return Promise.resolve(this.store.get(key) != null);
   }
 
-  async get<T>(key: string): Promise<?T> {
-    let data = await this.getBuffer(key);
-    return data == null ? null : deserialize(data);
+  get<T>(key: string): Promise<?T> {
+    let data = this.store.get(key);
+    if (data == null) {
+      return Promise.resolve(null);
+    }
+
+    return Promise.resolve(deserialize(data));
   }
 
   async set(key: string, value: mixed): Promise<void> {
-    await this.setBlob(key, serialize(value));
+    await this.store.put(key, serialize(value));
   }
 
   getStream(key: string): Readable {
-    let buf = this.store.get(key);
-    if (buf != null) return blobToStream(buf);
-    return this.fs.createReadStream(path.join(this.dir, key));
+    return blobToStream(this.store.get(key));
   }
 
   async setStream(key: string, stream: Readable): Promise<void> {
-    await this.setBlob(key, await bufferStream(stream));
+    let buf = await bufferStream(stream);
+    await this.store.put(key, buf);
   }
 
-  async getBlob(key: string): Promise<Buffer> {
-    let buffer = await this.getBuffer(key);
-    if (buffer == null) throw new Error(`Key ${key} not found in cache`);
-    return buffer;
+  getBlob(key: string): Promise<Buffer> {
+    let buffer = this.store.get(key);
+    return buffer != null
+      ? Promise.resolve(buffer)
+      : Promise.reject(new Error(`Key ${key} not found in cache`));
   }
 
   async setBlob(key: string, contents: Buffer | string): Promise<void> {
-    if (isLargeBlob(contents)) {
-      // Remove the old blob if it has been 'upgraded' to large blob storage.
-      if (this.store.get(key) != null) await this.store.remove(key);
-      await this.setLargeBlob(key, contents);
-    } else {
-      await this.store.put(key, contents);
-    }
+    await this.store.put(key, contents);
   }
 
-  async getBuffer(key: string): Promise<?Buffer> {
-    let buffer = this.store.get(key);
-    if (buffer == null && (await this.hasLargeBlob(key))) {
-      buffer = await this.getLargeBlob(key);
-    }
-    return buffer;
+  getBuffer(key: string): Promise<?Buffer> {
+    return Promise.resolve(this.store.get(key));
   }
 
   hasLargeBlob(key: string): Promise<boolean> {
