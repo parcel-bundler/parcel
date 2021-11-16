@@ -7,6 +7,7 @@ import path from 'path';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 import {NodeFS} from '@parcel/fs';
 import {blobToStream, bufferStream} from '@parcel/utils';
+import invariant from 'assert';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 // $FlowFixMe
@@ -57,7 +58,7 @@ export class LMDBCache implements Cache {
   }
 
   async set(key: string, value: mixed): Promise<void> {
-    await this.store.put(key, serialize(value));
+    await this.setBlob(key, serialize(value));
   }
 
   getStream(key: string): Readable {
@@ -77,6 +78,10 @@ export class LMDBCache implements Cache {
   }
 
   async setBlob(key: string, contents: Buffer | string): Promise<void> {
+    invariant(
+      !isLargeBlob(contents),
+      'Cannot store large blobs in the cache. You may want to use `setLargeBlob` instead.',
+    );
     await this.store.put(key, contents);
   }
 
