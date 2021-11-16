@@ -323,4 +323,32 @@ describe('typescript types', function () {
     );
     assert.equal(dist, expected);
   });
+
+  it('should work with module augmentation', async function () {
+    let fixtureDir = path.join(__dirname, 'integration/ts-types/augmentation');
+    await outputFS.mkdirp(path.join(fixtureDir, 'node_modules'));
+    await ncp(fixtureDir, fixtureDir);
+    await outputFS.symlink(
+      path.join(fixtureDir, 'original'),
+      path.join(fixtureDir, 'node_modules/original'),
+    );
+
+    let b = await bundle(path.join(fixtureDir, 'augmenter'), {
+      inputFS: overlayFS,
+    });
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        type: 'js',
+        assets: ['index.ts'],
+      },
+      {
+        name: 'index.d.ts',
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    // TODO: test the contents of the .d.ts file.
+  });
 });
