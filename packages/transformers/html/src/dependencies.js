@@ -3,7 +3,6 @@
 import type {AST, MutableAsset} from '@parcel/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
-
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
@@ -115,6 +114,7 @@ export default function collectDependencies(
   let isDirty = false;
   let hasScripts = false;
   let seen = new Set();
+  const errors = [];
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
     if (!attrs || seen.has(node)) {
@@ -156,7 +156,7 @@ export default function collectDependencies(
       let href = attrs.href;
       if (attrs.rel === 'manifest') {
         // A hack to allow manifest.json rather than manifest.webmanifest.
-        // If a custom pipeline is used, it is responsible for running @parcel/transformer-webmanifest.
+        // If a custom pipestart is used, it is responsible for running @parcel/transformer-webmanifest.
         if (!href.includes(':')) {
           href = 'webmanifest:' + href;
         }
@@ -254,6 +254,15 @@ export default function collectDependencies(
         continue;
       }
 
+      // Check for empty string
+      if (attrs[attr].length === 0) {
+        errors.push({
+          message: `${attr} should not be empty string`,
+          filePath: asset.filePath,
+          loc: node.location,
+        });
+      }
+
       let elements = ATTRS[attr];
       if (elements && elements.includes(node.tag)) {
         let depHandler = getAttrDepHandler(attr);
@@ -273,6 +282,10 @@ export default function collectDependencies(
 
     return node;
   });
+
+  if (errors.length > 0) {
+    throw errors;
+  }
 
   return hasScripts;
 }
