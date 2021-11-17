@@ -21,7 +21,10 @@ export function shake(
 
   // When module definitions are nested inside each other (e.g with module augmentation),
   // we want to keep track of the hierarchy so we can associated nodes with the right module.
-  const _moduleStack: Array<?TSModule> = [];
+  const moduleStack: Array<?TSModule> = [];
+
+  let addedGeneratedImports = false;
+
   let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
@@ -30,14 +33,15 @@ export function shake(
 
     // Flatten all module declarations into the top-level scope
     if (ts.isModuleDeclaration(node)) {
-      _moduleStack.push(_currentModule);
+      moduleStack.push(_currentModule);
       let isFirstModule = !_currentModule;
       _currentModule = moduleGraph.getModule(node.name.text);
       let statements = ts.visitEachChild(node, visit, context).body.statements;
-      _currentModule = _moduleStack.pop();
+      _currentModule = moduleStack.pop();
 
-      if (isFirstModule) {
+      if (isFirstModule && !addedGeneratedImports) {
         statements.unshift(...generateImports(moduleGraph));
+        addedGeneratedImports = true;
       }
 
       return statements;

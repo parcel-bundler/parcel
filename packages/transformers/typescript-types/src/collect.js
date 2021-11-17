@@ -13,7 +13,7 @@ export function collect(
 ): any {
   // When module definitions are nested inside each other (e.g with module augmentation),
   // we want to keep track of the hierarchy so we can associated nodes with the right module.
-  const _moduleStack: Array<?TSModule> = [];
+  const moduleStack: Array<?TSModule> = [];
   let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
@@ -21,7 +21,7 @@ export function collect(
     }
 
     if (ts.isModuleDeclaration(node)) {
-      _moduleStack.push(_currentModule);
+      moduleStack.push(_currentModule);
       _currentModule = new TSModule();
       moduleGraph.addModule(node.name.text, _currentModule);
     }
@@ -113,7 +113,7 @@ export function collect(
     // After we finish traversing the children of a module definition,
     // we need to make sure that subsequent nodes get associated with the next-highest level module.
     if (ts.isModuleDeclaration(node)) {
-      _currentModule = _moduleStack.pop();
+      _currentModule = moduleStack.pop();
     }
     return results;
   };
