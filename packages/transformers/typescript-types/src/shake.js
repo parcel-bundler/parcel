@@ -36,8 +36,6 @@ export function shake(
       // Deeply nested module declarations are assumed to be module augmentations and left alone.
       if (moduleStack.length >= 1) {
         // Since we are hoisting them to the top-level scope, we need to add a "declare" keyword to make them ambient.
-        // TODO: do we want to process/tree-shake the children of an module augmentation declaration?
-        // TODO: do we need to handle the case of a module-augmentation-inside-another-augmentation? Is that even a thing?
         node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.DeclareKeyword));
         return node;
       }
