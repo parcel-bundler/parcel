@@ -6,7 +6,7 @@ import type {EnvMap, FilePath} from '@parcel/types';
 import {resolveConfig} from '@parcel/utils';
 import dotenv from 'dotenv';
 import variableExpansion from 'dotenv-expand';
-import path from 'path/posix';
+import path from 'path';
 import {cwd} from 'process';
 
 export default async function loadEnv(
@@ -27,7 +27,7 @@ export default async function loadEnv(
     `.env.${NODE_ENV}`,
     `.env.${NODE_ENV}.local`,
     envFileName
-      ? envFileName.startsWith('/')
+      ? path.isAbsolute(envFileName)
         ? envFileName
         : path.join(cwd(), envFileName)
       : null,
