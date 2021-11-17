@@ -512,7 +512,9 @@ export default class Transformation {
       cachedAssets.map(async (value: AssetValue) => {
         let content =
           value.contentKey != null
-            ? this.options.cache.getStream(value.contentKey)
+            ? value.isLargeBlob
+              ? this.options.cache.getStream(value.contentKey)
+              : await this.options.cache.getBlob(value.contentKey)
             : null;
         let mapBuffer =
           value.astKey != null

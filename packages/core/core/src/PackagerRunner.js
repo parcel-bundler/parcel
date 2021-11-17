@@ -83,6 +83,7 @@ export type BundleInfo = {|
   +hashReferences: Array<string>,
   +time?: number,
   +cacheKeys: CacheKeyMap,
+  +isLargeBlob: boolean,
 |};
 
 type CacheKeyMap = {|
@@ -618,9 +619,11 @@ export default class PackagerRunner {
     let size = 0;
     let hash;
     let hashReferences = [];
+    let isLargeBlob = false;
 
     // TODO: don't replace hash references in binary files??
     if (contents instanceof Readable) {
+      isLargeBlob = true;
       let boundaryStr = '';
       let h = new Hash();
       await this.options.cache.setStream(
@@ -659,6 +662,7 @@ export default class PackagerRunner {
       hash,
       hashReferences,
       cacheKeys,
+      isLargeBlob,
     };
     await this.options.cache.set(cacheKeys.info, info);
     return info;
