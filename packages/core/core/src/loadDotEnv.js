@@ -27,9 +27,7 @@ export default async function loadEnv(
     `.env.${NODE_ENV}`,
     `.env.${NODE_ENV}.local`,
     envFileName
-      ? path.isAbsolute(envFileName)
-        ? envFileName
-        : path.join(cwd(), envFileName)
+      ? path.resolve(envFileName)
       : null,
   ].filter(Boolean);
 
