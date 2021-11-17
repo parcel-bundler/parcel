@@ -1,9 +1,9 @@
-export declare const anotherThing: string;
+export const anotherThing: string;
 declare module "original" {
     interface Person {
         greet(): string;
     }
 }
-export declare const somethingElse: string;
+export const somethingElse: string;
 
 //# sourceMappingURL=index.d.ts.map

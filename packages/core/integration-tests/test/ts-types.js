@@ -324,7 +324,7 @@ describe('typescript types', function () {
     assert.equal(dist, expected);
   });
 
-  it.skip('should work with module augmentation', async function () {
+  it('should work with module augmentation', async function () {
     let fixtureDir = path.join(__dirname, 'integration/ts-types/augmentation');
     await outputFS.mkdirp(path.join(fixtureDir, 'node_modules'));
     await ncp(fixtureDir, fixtureDir);
