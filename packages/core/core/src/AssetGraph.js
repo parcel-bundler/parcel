@@ -38,8 +38,8 @@ type InitOpts = {|
 
 type AssetGraphOpts = {|
   ...ContentGraphOpts<AssetGraphNode>,
-  hash?: ?string,
   symbolPropagationRan: boolean,
+  hash?: ?string,
 |};
 
 type SerializedAssetGraph = {|

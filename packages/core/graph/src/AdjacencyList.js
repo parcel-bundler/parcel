@@ -1,9 +1,9 @@
 // @flow
-import type {AllEdgeTypes, NodeId, NullEdgeType} from './types';
-
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import {ALL_EDGE_TYPES, fromNodeId, toNodeId} from './types';
+import {fromNodeId, toNodeId} from './types';
+import {ALL_EDGE_TYPES, type NullEdgeType, type AllEdgeTypes} from './Graph';
+import type {NodeId} from './types';
 
 /** The address of the node in the nodes map. */
 opaque type NodeAddress = number;

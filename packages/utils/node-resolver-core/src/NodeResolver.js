@@ -1176,13 +1176,21 @@ export default class NodeResolver {
       case 'boolean':
         return pkg.sideEffects;
       case 'string': {
-        let sideEffects = pkg.sideEffects;
-        invariant(typeof sideEffects === 'string');
-        return micromatch.isMatch(
-          path.relative(pkg.pkgdir, filePath),
-          sideEffects,
-          {matchBase: true},
-        );
+        let glob = pkg.sideEffects;
+        invariant(typeof glob === 'string');
+
+        let relative = path.relative(pkg.pkgdir, filePath);
+        if (!glob.includes('/')) {
+          glob = `**/${glob}`;
+        }
+
+        // Trim off "./" to make micromatch behave correctly,
+        // `path.relative` never returns a leading "./"
+        if (glob.startsWith('./')) {
+          glob = glob.substr(2);
+        }
+
+        return micromatch.isMatch(relative, glob, {dot: true});
       }
       case 'object':
         return pkg.sideEffects.some(sideEffects =>

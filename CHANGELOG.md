@@ -7,7 +7,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [2.0.1] - 2021-11-08
 
-## Fixed
+### Fixed
 
 - Don't load PostCSS and PostHTML config when inside node_modules - [Details](https://github.com/parcel-bundler/parcel/pull/7088)
 - Fix unknown language in Vue templates with external scripts/styles - [Details](https://github.com/parcel-bundler/parcel/pull/7056)
@@ -28,7 +28,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Add missing dependency on `@parcel/diagnostic` to `@parcel/transformer-typescript-types` - [Details](https://github.com/parcel-bundler/parcel/pull/7248)
 - Resolve GLSL relative to the importer, not the asset - [Details](https://github.com/parcel-bundler/parcel/pull/7263)
 
-## Experiments
+### Experiments
 
 - Update esbuild dependency in `@parcel/optimizer-esbuild` plugin - [Details](https://github.com/parcel-bundler/parcel/pull/7233)
 - Add experimental `@parcel/optimizer-swc` plugin - [Details](https://github.com/parcel-bundler/parcel/pull/7212)
