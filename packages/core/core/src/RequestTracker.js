@@ -1078,9 +1078,7 @@ export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
 }
 
 function getCacheKey(options) {
-  return `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}${
-    process.env.PARCEL_SHARE_MEM != null ? ':shared' : ''
-  }`;
+  return `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}`;
 }
 
 async function loadRequestGraph(options): Async<RequestGraph> {

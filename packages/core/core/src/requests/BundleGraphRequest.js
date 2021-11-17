@@ -405,8 +405,7 @@ class BundlerRunner {
           configs +
           devDepRequests +
           invalidations +
-          this.options.mode +
-          (process.env.PARCEL_SHARE_MEM != null ? 'shared' : ''),
+          this.options.mode,
       ),
       bundlerHash: hashString(PARCEL_VERSION + plugin.name + configs),
     };
