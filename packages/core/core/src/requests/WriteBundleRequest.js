@@ -166,7 +166,7 @@ async function run({input, options, api}: RunInput) {
     (await options.cache.has(mapKey))
   ) {
     await writeFiles(
-      options.cache.getStream(mapKey),
+      blobToStream(await options.cache.getBlob(mapKey)),
       info,
       hashRefToNameHash,
       options,

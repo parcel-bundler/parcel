@@ -597,7 +597,9 @@ export default class PackagerRunner {
     let contentKey = PackagerRunner.getContentKey(cacheKey);
     let mapKey = PackagerRunner.getMapKey(cacheKey);
 
-    let contentExists = await this.options.cache.has(contentKey);
+    let isLargeBlob = await this.options.cache.hasLargeBlob(contentKey);
+    let contentExists =
+      isLargeBlob || (await this.options.cache.has(contentKey));
     if (!contentExists) {
       return null;
     }
@@ -605,8 +607,12 @@ export default class PackagerRunner {
     let mapExists = await this.options.cache.has(mapKey);
 
     return {
-      contents: this.options.cache.getStream(contentKey),
-      map: mapExists ? this.options.cache.getStream(mapKey) : null,
+      contents: isLargeBlob
+        ? this.options.cache.getStream(contentKey)
+        : blobToStream(this.options.cache.getBlob(contentKey)),
+      map: mapExists
+        ? blobToStream(await this.options.cache.getBlob(mapKey))
+        : null,
     };
   }
 
