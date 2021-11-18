@@ -61,15 +61,7 @@ export class LMDBCache implements Cache {
   }
 
   getStream(key: string): Readable {
-    let filename = path.join(this.dir, key);
-    if (this.fs.existsSync(filename)) {
-      return this.fs.createReadStream(filename);
-    } else {
-      // If the file doesn't exists, return an empty stream.
-      let stream = new Readable();
-      stream.push(null);
-      return stream;
-    }
+    return this.fs.createReadStream(path.join(this.dir, key));
   }
 
   setStream(key: string, stream: Readable): Promise<void> {
