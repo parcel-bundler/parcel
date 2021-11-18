@@ -180,6 +180,7 @@ export type Asset = {|
   configPath?: ProjectPath,
   plugin: ?PackageName,
   configKeyPath?: string,
+  isLargeBlob?: boolean,
 |};
 
 export type InternalGlob = ProjectPath;

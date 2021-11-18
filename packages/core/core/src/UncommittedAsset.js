@@ -135,6 +135,7 @@ export default class UncommittedAsset {
       this.value.stats.size = size;
     }
 
+    this.value.isLargeBlob = this.content instanceof Readable;
     this.value.committed = true;
   }
 
