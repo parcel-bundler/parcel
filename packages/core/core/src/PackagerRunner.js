@@ -609,7 +609,7 @@ export default class PackagerRunner {
     return {
       contents: isLargeBlob
         ? this.options.cache.getStream(contentKey)
-        : blobToStream(this.options.cache.getBlob(contentKey)),
+        : blobToStream(await this.options.cache.getBlob(contentKey)),
       map: mapExists
         ? blobToStream(await this.options.cache.getBlob(mapKey))
         : null,
