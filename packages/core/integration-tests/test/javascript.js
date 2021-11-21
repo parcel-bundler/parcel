@@ -2939,7 +2939,10 @@ describe('javascript', function () {
     let b = await bundle(
       path.join(__dirname, '/integration/custom-env-file/index.js'),
       {
-        envFile: '.custom-env-file',
+        envFile: path.join(
+          __dirname,
+          '/integration/custom-env-file/.custom-env-file',
+        ),
       },
     );
 
