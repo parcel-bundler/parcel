@@ -2133,6 +2133,11 @@
   dependencies:
     "@octokit/openapi-types" "^6.2.0"
 
+"@parcel/css@1.0.0-alpha.3":
+  version "1.0.0-alpha.3"
+  resolved "https://registry.yarnpkg.com/@parcel/css/-/css-1.0.0-alpha.3.tgz#1a444d0c361a53cc54cf3c06ca437e926c427fc8"
+  integrity sha512-Aeu1+CABHXgKwI2omxV3/sV3EmoTY3RrqxL7j0LAwagS5fLFjqcmbdbZIkYT0wDhcaufqXsaEg3ijdHiHNLDgA==
+
 "@parcel/source-map@^2.0.0":
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/@parcel/source-map/-/source-map-2.0.0.tgz#41cf004109bbf277ceaf096a58838ff6a59af774"
