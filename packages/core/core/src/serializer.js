@@ -7,10 +7,10 @@ export let serializeRaw = v8.serialize;
 // $FlowFixMe - Flow doesn't know about this method yet
 export let deserializeRaw = v8.deserialize;
 
-const nameToCtor: Map<string, Class<*>> = new Map();
-const ctorToName: Map<Class<*>, string> = new Map();
+const nameToCtor: Map<string, Class<any>> = new Map();
+const ctorToName: Map<Class<any>, string> = new Map();
 
-export function registerSerializableClass(name: string, ctor: Class<*>) {
+export function registerSerializableClass(name: string, ctor: Class<any>) {
   if (ctorToName.has(ctor)) {
     throw new Error('Class already registered with serializer');
   }
@@ -19,7 +19,7 @@ export function registerSerializableClass(name: string, ctor: Class<*>) {
   ctorToName.set(ctor, name);
 }
 
-export function unregisterSerializableClass(name: string, ctor: Class<*>) {
+export function unregisterSerializableClass(name: string, ctor: Class<any>) {
   if (nameToCtor.get(name) === ctor) {
     nameToCtor.delete(name);
   }
