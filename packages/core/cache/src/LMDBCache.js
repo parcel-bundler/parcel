@@ -6,7 +6,6 @@ import {Readable} from 'stream';
 import path from 'path';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 import {NodeFS} from '@parcel/fs';
-import invariant from 'assert';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 // $FlowFixMe
@@ -81,10 +80,6 @@ export class LMDBCache implements Cache {
   }
 
   async setBlob(key: string, contents: Buffer | string): Promise<void> {
-    invariant(
-      !isLargeBlob(contents),
-      'Cannot store large blobs in the cache. You may want to use `setLargeBlob` instead.',
-    );
     await this.store.put(key, contents);
   }
 
@@ -103,19 +98,6 @@ export class LMDBCache implements Cache {
   async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
     await this.fs.writeFile(path.join(this.dir, key), contents);
   }
-}
-
-// lmbd-store decodes cached binary data into a Node Buffer
-// via `Nan::NewBuffer`, which enforces a max size of ~1GB.
-// We subtract 9 bytes to account for any compression heaader
-// added by lmbd-store when encoding the data.
-// See: https://github.com/nodejs/nan/issues/883
-const MAX_BUFFER_SIZE = 0x3fffffff - 9;
-
-function isLargeBlob(contents: Buffer | string): boolean {
-  return typeof contents === 'string'
-    ? Buffer.byteLength(contents) > MAX_BUFFER_SIZE
-    : contents.length > MAX_BUFFER_SIZE;
 }
 
 registerSerializableClass(`${packageJson.version}:LMDBCache`, LMDBCache);
