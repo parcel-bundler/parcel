@@ -5788,13 +5788,15 @@ describe('javascript', function () {
     const b = await bundle(
       path.join(__dirname, '/integration/import-initialization/a.mjs'),
       {
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
       },
     );
 
     await assert.rejects(
       run(b),
-      new ReferenceError("Cannot access 'foo' before initialization"),
+      /^ReferenceError: Cannot access '(.+)' before initialization$/,
     );
   });
 
