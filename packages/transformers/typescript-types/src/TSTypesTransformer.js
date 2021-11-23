@@ -36,6 +36,7 @@ export default (new Transformer({
       moduleResolution: ts.ModuleResolutionKind.NodeJs,
       // createProgram doesn't support incremental mode
       composite: false,
+      incremental: false,
     };
 
     let host = new CompilerHost(options.inputFS, ts, logger);
