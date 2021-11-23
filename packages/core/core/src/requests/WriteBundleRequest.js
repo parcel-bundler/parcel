@@ -16,7 +16,7 @@ import {HASH_REF_PREFIX, HASH_REF_REGEX} from '../constants';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {NamedBundle} from '../public/Bundle';
-import {TapStream} from '@parcel/utils';
+import {blobToStream, TapStream} from '@parcel/utils';
 import {Readable, Transform, pipeline} from 'stream';
 import {
   fromProjectPath,
@@ -123,7 +123,14 @@ async function run({input, options, api}: RunInput) {
       : {
           mode: (await inputFS.stat(mainEntry.filePath)).mode,
         };
-  let contentStream = options.cache.getStream(cacheKeys.content);
+  let contentStream: Readable;
+  if (info.isLargeBlob) {
+    contentStream = options.cache.getStream(cacheKeys.content);
+  } else {
+    contentStream = blobToStream(
+      await options.cache.getBlob(cacheKeys.content),
+    );
+  }
   let size = 0;
   contentStream = contentStream.pipe(
     new TapStream(buf => {
@@ -159,7 +166,7 @@ async function run({input, options, api}: RunInput) {
     (await options.cache.has(mapKey))
   ) {
     await writeFiles(
-      options.cache.getStream(mapKey),
+      blobToStream(await options.cache.getBlob(mapKey)),
       info,
       hashRefToNameHash,
       options,
