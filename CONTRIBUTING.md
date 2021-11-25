@@ -27,7 +27,7 @@ yarn install
 yarn build-native
 ```
 
-In the folder `packages/example`, create a temporary example to debug. You can start by copying the `simple` example and try to reproduce the bug.
+In the folder `packages/examples`, create a temporary example to debug. You can start by copying the `simple` example and try to reproduce the bug.
 
 In the newly created example run `yarn parcel build index.html` to build.
 
@@ -39,7 +39,7 @@ Use `yarn format` to make sure we keep the code format consistent.
 
 Use `yarn lint` to check for stylistic or unwanted errors.
 
-If you want to test out your change outside of the monorepo, you ran run `/path/to/monorepo/packages/core/parcel/src/bin.js build src/index.html` (provided that you don't have any `@parcel/*` plugins installed in this project).
+If you want to test out your change outside the monorepo, you can run `/path/to/monorepo/packages/core/parcel/src/bin.js build src/index.html` (provided that you don't have any `@parcel/*` plugins installed in this project).
 
 ## Notes and things to be aware of
 
@@ -73,7 +73,7 @@ When releasing a new version of Parcel a couple steps should be followed:
 
 After these steps are completed there should be a new version of Parcel published on npm.
 
-In case the automatic npm release failed or you want to do a manual release for any other reason you can also run `yarn run release`
+In case the automatic npm release failed, or you want to do a manual release for any other reason you can also run `yarn run release`
 
 ## Become a backer or sponsor
 
