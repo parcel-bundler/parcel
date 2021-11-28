@@ -109,6 +109,12 @@ pub fn match_require(
               if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
                 return Some(str_.value.clone());
               }
+
+              if let ast::Expr::Tpl(_tpl) = &*arg.expr {
+                if _tpl.quasis.len() == 1 && _tpl.exprs.is_empty() {
+                  return Some(_tpl.quasis[0].raw.clone().value);
+                }
+              }
             }
           }
 
@@ -119,6 +125,12 @@ pub fn match_require(
             if let Some(arg) = call.args.get(0) {
               if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
                 return Some(str_.value.clone());
+              }
+
+              if let ast::Expr::Tpl(_tpl) = &*arg.expr {
+                if _tpl.quasis.len() == 1 && _tpl.exprs.is_empty() {
+                  return Some(_tpl.quasis[0].raw.clone().value);
+                }
               }
             }
           }

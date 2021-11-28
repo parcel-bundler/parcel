@@ -539,6 +539,19 @@ impl<'a> Fold for DependencyCollector<'a> {
     }
 
     let node = if let Some(arg) = node.args.get(0) {
+      let mut arg = arg.clone();
+
+      // convert require(`./name`) to require("./name")
+      if let ast::Expr::Tpl(_tpl) = &*arg.expr {
+        if _tpl.quasis.len() == 1 && _tpl.exprs.is_empty() {
+          let tpl_str = &_tpl.quasis[0].raw;
+          arg.expr = Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+            value: tpl_str.clone().value,
+            ..tpl_str.clone()
+          })));
+        }
+      }
+
       if kind == DependencyKind::ServiceWorker || kind == DependencyKind::Worklet {
         let (source_type, opts) = if kind == DependencyKind::ServiceWorker {
           match_worker_type(node.args.get(1))
