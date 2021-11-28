@@ -5,8 +5,11 @@ import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {PluginLogger} from '@parcel/logger';
+import type {
+  Diagnostic,
+  Diagnostifiable,
+  DiagnosticWithoutOrigin,
+} from '@parcel/diagnostic';
 import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
@@ -15,14 +18,12 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
 /** Plugin-specific config result, <code>any</code> */
-export type ConfigResultWithFilePath = {|
-  contents: ConfigResult,
+export type ConfigResultWithFilePath<T> = {|
+  contents: T,
   filePath: FilePath,
 |};
 /** <code>process.env</code> */
 export type EnvMap = typeof process.env;
-
-export type QueryParameters = {[key: string]: string, ...};
 
 export type JSONValue =
   | null
@@ -42,7 +43,7 @@ export type Glob = string;
 export type Semver = string;
 export type SemverRange = string;
 /** See Dependency */
-export type ModuleSpecifier = string;
+export type DependencySpecifier = string;
 
 /** A pipeline as specified in the config mapping to <code>T</code>  */
 export type GlobMap<T> = {[Glob]: T, ...};
@@ -61,6 +62,7 @@ export type RawParcelConfig = {|
   runtimes?: RawParcelConfigPipeline,
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: RawParcelConfigPipeline, ...},
+  compressors?: {[Glob]: RawParcelConfigPipeline, ...},
   reporters?: RawParcelConfigPipeline,
   validators?: {[Glob]: RawParcelConfigPipeline, ...},
 |};
@@ -108,6 +110,7 @@ export type EnvironmentContext =
   | 'browser'
   | 'web-worker'
   | 'service-worker'
+  | 'worklet'
   | 'node'
   | 'electron-main'
   | 'electron-renderer';
@@ -148,6 +151,8 @@ export type TargetDescriptor = {|
   +distEntry?: FilePath,
 |};
 
+export type SourceType = 'script' | 'module';
+
 /**
  * This is used when creating an Environment (see that).
  */
@@ -159,10 +164,12 @@ export type EnvironmentOptions = {|
     | Array<PackageName>
     | {[PackageName]: boolean, ...},
   +outputFormat?: OutputFormat,
+  +sourceType?: SourceType,
   +isLibrary?: boolean,
   +shouldOptimize?: boolean,
   +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
+  +loc?: ?SourceLocation,
 |};
 
 /**
@@ -179,13 +186,22 @@ export type EnvironmentOptions = {|
  */
 export type VersionMap = {
   [string]: string,
-  ...,
+  ...
 };
+
+export type EnvironmentFeature =
+  | 'esmodules'
+  | 'dynamic-import'
+  | 'worker-module'
+  | 'service-worker-module'
+  | 'import-meta-url'
+  | 'arrow-functions';
 
 /**
  * Defines the environment in for the output bundle
  */
 export interface Environment {
+  +id: string;
   +context: EnvironmentContext;
   +engines: Engines;
   /** Whether to include all/none packages \
@@ -197,6 +213,7 @@ export interface Environment {
     | Array<PackageName>
     | {[PackageName]: boolean, ...};
   +outputFormat: OutputFormat;
+  +sourceType: SourceType;
   /** Whether this is a library build (e.g. less loaders) */
   +isLibrary: boolean;
   /** Whether the output should be minified. */
@@ -204,6 +221,7 @@ export interface Environment {
   /** Whether scope hoisting is enabled. */
   +shouldScopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
+  +loc: ?SourceLocation;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
@@ -213,9 +231,12 @@ export interface Environment {
   isElectron(): boolean;
   /** Whether <code>context</code> specifies a worker context. */
   isWorker(): boolean;
+  /** Whether <code>context</code> specifies a worklet context. */
+  isWorklet(): boolean;
   /** Whether <code>context</code> specifies an isolated context (can't access other loaded ancestor bundles). */
   isIsolated(): boolean;
-  matchesEngines(minVersions: VersionMap): boolean;
+  matchesEngines(minVersions: VersionMap, defaultValue?: boolean): boolean;
+  supports(feature: EnvironmentFeature, defaultValue?: boolean): boolean;
 }
 
 /**
@@ -231,6 +252,7 @@ type PackageDependencies = {|
 export type PackageJSON = {
   name: PackageName,
   version: Semver,
+  type?: 'module',
   main?: FilePath,
   module?: FilePath,
   types?: FilePath,
@@ -256,9 +278,8 @@ export type DetailedReportOptions = {|
 
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
-  +entryRoot?: FilePath,
-  +config?: ModuleSpecifier,
-  +defaultConfig?: ModuleSpecifier,
+  +config?: DependencySpecifier,
+  +defaultConfig?: DependencySpecifier,
   +env?: EnvMap,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
@@ -288,10 +309,12 @@ export type InitialParcelOptions = {|
     +publicUrl?: string,
     +distDir?: FilePath,
     +engines?: Engines,
+    +outputFormat?: OutputFormat,
+    +isLibrary?: boolean,
   |},
 
   +additionalReporters?: Array<{|
-    packageName: ModuleSpecifier,
+    packageName: DependencySpecifier,
     resolveFrom: FilePath,
   |}>,
 
@@ -314,7 +337,6 @@ export interface PluginOptions {
   +shouldBuildLazily: boolean;
   +shouldAutoInstall: boolean;
   +logLevel: LogLevel;
-  +entryRoot: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
@@ -376,13 +398,16 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|};
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    meta?: ?Meta,
+  |};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
 }
+
 export interface MutableAssetSymbols extends AssetSymbols {
   /**
    * Initilizes the map, sets isCleared to false.
@@ -396,6 +421,7 @@ export interface MutableAssetSymbols extends AssetSymbols {
   ): void;
   delete(exportSymbol: Symbol): void;
 }
+
 /**
  * isWeak means: the symbol is not used by the parent asset itself and is merely reexported
  */
@@ -415,9 +441,12 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|};
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    isWeak: boolean,
+    meta?: ?Meta,
+  |};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -430,27 +459,70 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   delete(exportSymbol: Symbol): void;
 }
 
+export type DependencyPriority = 'sync' | 'parallel' | 'lazy';
+export type SpecifierType = 'commonjs' | 'esm' | 'url' | 'custom';
+
 /**
  * Usen when creating a Dependency, see that.
  * @section transformer
  */
 export type DependencyOptions = {|
-  +moduleSpecifier: ModuleSpecifier,
-  +isAsync?: boolean,
-  /** Is merged with the environment of the importer */
-  +isEntry?: boolean,
+  /** The specifier used to resolve the dependency. */
+  +specifier: DependencySpecifier,
+  /**
+   * How the specifier should be interpreted.
+   *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
+   *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
+   *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
+   *   - custom: A custom specifier. Must be handled by a custom resolver plugin.
+   */
+  +specifierType: SpecifierType,
+  /**
+   * When the dependency should be loaded.
+   *   - sync: The dependency should be resolvable synchronously. The resolved asset will be placed
+   *       in the same bundle as the parent, or another bundle that's already on the page.
+   *   - parallel: The dependency should be placed in a separate bundle that's loaded in parallel
+   *       with the current bundle.
+   *   - lazy: The dependency should be placed in a separate bundle that's loaded later.
+   * @default 'sync'
+   */
+  +priority?: DependencyPriority,
+  /**
+   * Controls the behavior of the bundle the resolved asset is placed into. Use in combination with `priority`
+   * to determine when the bundle is loaded.
+   *   - inline: The resolved asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The resolved asset will be isolated from its parents in a separate bundle.
+   *       Shared assets will be duplicated.
+   */
+  +bundleBehavior?: BundleBehavior,
+  /**
+   * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
+   * of that bundle. `needsStableName` indicates that the name should be stable over time, even when the
+   * content of the bundle changes. This is useful for entries that a user would manually enter the URL
+   * for, as well as for things like service workers or RSS feeds, where the URL must remain consistent
+   * over time.
+   */
+  +needsStableName?: boolean,
+  /** Whether the dependency is optional. If the dependency cannot be resolved, this will not fail the build. */
   +isOptional?: boolean,
-  +isURL?: boolean,
-  +isIsolated?: boolean,
+  /** The location within the source file where the dependency was found. */
   +loc?: SourceLocation,
+  /** The environment of the dependency. */
   +env?: EnvironmentOptions,
+  /** Plugin-specific metadata for the dependency. */
   +meta?: Meta,
+  /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   +pipeline?: string,
+  /**
+   * The file path where the dependency should be resolved from.
+   * By default, this is the path of the source file where the dependency was specified.
+   */
   +resolveFrom?: FilePath,
-  +target?: Target,
+  /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,
-    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: Meta|},
   >,
 |};
 
@@ -461,32 +533,73 @@ export type DependencyOptions = {|
  * @section transformer
  */
 export interface Dependency {
+  /** The id of the dependency. */
   +id: string;
-  /** E.g. "lodash" in <code>import {add} from "lodash";</code>  */
-  +moduleSpecifier: ModuleSpecifier;
-  +isAsync: boolean;
-  /** Whether this should become a entry in a bundle. */
-  +isEntry: ?boolean;
-  /** Whether a failed resolution should not cause a build error. */
+  /** The specifier used to resolve the dependency. */
+  +specifier: DependencySpecifier;
+  /**
+   * How the specifier should be interpreted.
+   *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
+   *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
+   *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
+   *   - custom: A custom specifier. Must be handled by a custom resolver plugin.
+   */
+  +specifierType: SpecifierType;
+  /**
+   * When the dependency should be loaded.
+   *   - sync: The dependency should be resolvable synchronously. The resolved asset will be placed
+   *       in the same bundle as the parent, or another bundle that's already on the page.
+   *   - parallel: The dependency should be placed in a separate bundle that's loaded in parallel
+   *       with the current bundle.
+   *   - lazy: The dependency should be placed in a separate bundle that's loaded later.
+   * @default 'sync'
+   */
+  +priority: DependencyPriority;
+  /**
+   * Controls the behavior of the bundle the resolved asset is placed into. Use in combination with `priority`
+   * to determine when the bundle is loaded.
+   *   - inline: The resolved asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The resolved asset will be isolated from its parents in a separate bundle.
+   *       Shared assets will be duplicated.
+   */
+  +bundleBehavior: ?BundleBehavior;
+  /**
+   * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
+   * of that bundle. `needsStableName` indicates that the name should be stable over time, even when the
+   * content of the bundle changes. This is useful for entries that a user would manually enter the URL
+   * for, as well as for things like service workers or RSS feeds, where the URL must remain consistent
+   * over time.
+   */
+  +needsStableName: boolean;
+  /** Whether the dependency is optional. If the dependency cannot be resolved, this will not fail the build. */
   +isOptional: boolean;
-  /** Whether an URL is expected (rather than the language-specific behaviour). */
-  +isURL: boolean;
-  +isIsolated: boolean;
-  /** Used for error messages, the code location that caused this dependency. */
+  /** Whether the dependency is an entry. */
+  +isEntry: boolean;
+  /** The location within the source file where the dependency was found. */
   +loc: ?SourceLocation;
+  /** The environment of the dependency. */
   +env: Environment;
+  /** Plugin-specific metadata for the dependency. */
   +meta: Meta;
+  /** If this is an entry, this is the target that is associated with that entry. */
   +target: ?Target;
-  /** Used for error messages, the importer. */
+  /** The id of the asset with this dependency. */
   +sourceAssetId: ?string;
-  /** Used for error messages, the importer. */
-  +sourcePath: ?string;
-  +resolveFrom: ?string;
-  /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
+  /** The file path of the asset with this dependency. */
+  +sourcePath: ?FilePath;
+  /** The type of the asset that referenced this dependency. */
+  +sourceAssetType: ?string;
+  /**
+   * The file path where the dependency should be resolved from.
+   * By default, this is the path of the source file where the dependency was specified.
+   */
+  +resolveFrom: ?FilePath;
+  /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   +pipeline: ?string;
 
   // TODO make immutable
-  /** a <code>Map&lt;export name of importee, placeholder in importer&gt;</code>. */
+  /** The symbols within the resolved module that the source file depends on. */
   +symbols: MutableDependencySymbols;
 }
 
@@ -500,135 +613,225 @@ export type File = {|
  */
 export type ASTGenerator = {|
   type: string,
-  version: string,
+  version: Semver,
 |};
 
+export type BundleBehavior = 'inline' | 'isolated';
+
 /**
- * An asset (usually represents one source file).
+ * An asset represents a file or part of a file. It may represent any data type, including source code,
+ * binary data, etc. Assets may exist in the file system or may be virtual.
  *
  * @section transformer
  */
 export interface BaseAsset {
-  +env: Environment;
+  /** The id of the asset. */
+  +id: string;
   /** The file system where the source is located. */
   +fs: FileSystem;
+  /** The file path of the asset. */
   +filePath: FilePath;
-  +query: QueryParameters;
-  +id: string;
-  +meta: Meta;
-  +isIsolated: boolean;
-  /** Whether this asset will/should later be inserted back into the importer. */
-  +isInline: boolean;
-  +isSplittable: ?boolean;
-  /** Whether this is asset is part of the users project (and not of an external dependencies) and should be transpiled. */
-  +isSource: boolean;
-  /** Usually corresponds to the file extension */
+  /**
+   * The asset's type. This initially corresponds to the source file extension,
+   * but it may be changed during transformation.
+   */
   +type: string;
-  /** Whether this asset can be omitted if none of its exports are being used (set by ResolveResult) */
+  /** The transformer options for the asset from the dependency query string. */
+  +query: URLSearchParams;
+  /** The environment of the asset. */
+  +env: Environment;
+  /**
+   * Whether this asset is part of the project, and not an external dependency (e.g. in node_modules).
+   * This indicates that transformation using the project's configuration should be applied.
+   */
+  +isSource: boolean;
+  /** Plugin-specific metadata for the asset. */
+  +meta: Meta;
+  /**
+   * Controls which bundle the asset is placed into.
+   *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
+   *       will be duplicated.
+   */
+  +bundleBehavior: ?BundleBehavior;
+  /**
+   * If the asset is used as a bundle entry, this controls whether that bundle can be split
+   * into multiple, or whether all of the dependencies must be placed in a single bundle.
+   */
+  +isBundleSplittable: boolean;
+  /**
+   * Whether this asset can be omitted if none of its exports are being used.
+   * This is initially set by the resolver, but can be overridden by transformers.
+   */
   +sideEffects: boolean;
   /**
-   * Inline assets inheirit the parent's <code>id</code>, making it not be enough for a unique identification
-   * (this could be a counter that is unique per asset)
+   * When a transformer returns multiple assets, it can give them unique keys to identify them.
+   * This can be used to find assets during packaging, or to create dependencies between multiple
+   * assets returned by a transformer by using the unique key as the dependency specifier.
    */
   +uniqueKey: ?string;
   /** The type of the AST. */
   +astGenerator: ?ASTGenerator;
+  /** The pipeline defined in .parcelrc that the asset should be processed with. */
   +pipeline: ?string;
-
-  /** a <code>Map&lt;export name, name of binding&gt;</code> */
+  /** The symbols that the asset exports. */
   +symbols: AssetSymbols;
-
-  /** Returns to current AST. See notes in subclasses (Asset, MutableAsset).*/
+  /** Returns the current AST. */
   getAST(): Promise<?AST>;
-  /** Returns to current source code. See notes in MutableAsset. */
+  /** Returns the asset contents as a string. */
   getCode(): Promise<string>;
-  /** Returns the contents as a buffer. */
+  /** Returns the asset contents as a buffer. */
   getBuffer(): Promise<Buffer>;
-  /** Returns the contents as a stream. */
+  /** Returns the asset contents as a stream. */
   getStream(): Readable;
-  /** Returns the sourcemap (if existent). */
+  /** Returns the source map for the asset, if available. */
   getMap(): Promise<?SourceMap>;
-  /** A buffer representation of the sourcemap (if existent). */
+  /** Returns a buffer representation of the source map, if available. */
   getMapBuffer(): Promise<?Buffer>;
+  /** Returns a list of dependencies for the asset. */
   getDependencies(): $ReadOnlyArray<Dependency>;
-  /** Used to load config files, (looks in every parent folder until a module root) \
-   * for the specified filenames. <code>packageKey</code> can be used to also check <code>pkg#[packageKey]</code>.
-   */
-  getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-    |},
-  ): Promise<ConfigResult | null>;
-  /** Returns the package.json this file belongs to. */
-  getPackage(): Promise<PackageJSON | null>;
 }
 
 /**
- * A somewhat modifiable version of BaseAsset (for transformers)
+ * A mutable Asset, available during transformation.
  * @section transformer
  */
 export interface MutableAsset extends BaseAsset {
-  isIsolated: boolean;
-  isInline: boolean;
-  isSplittable: ?boolean;
+  /**
+   * The asset's type. This initially corresponds to the source file extension,
+   * but it may be changed during transformation.
+   */
   type: string;
-
-  addDependency(dep: DependencyOptions): string;
-  addIncludedFile(filePath: FilePath): void;
-  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
-  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
-  invalidateOnEnvChange(env: string): void;
-
+  /**
+   * Controls which bundle the asset is placed into.
+   *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
+   *       will be duplicated.
+   */
+  bundleBehavior: ?BundleBehavior;
+  /**
+   * If the asset is used as a bundle entry, this controls whether that bundle can be split
+   * into multiple, or whether all of the dependencies must be placed in a single bundle.
+   * @default true
+   */
+  isBundleSplittable: boolean;
+  /**
+   * Whether this asset can be omitted if none of its exports are being used.
+   * This is initially set by the resolver, but can be overridden by transformers.
+   */
+  sideEffects: boolean;
+  /** The symbols that the asset exports. */
   +symbols: MutableAssetSymbols;
 
-  isASTDirty(): boolean;
-  getAST(): Promise<?AST>;
-  setAST(AST): void;
-  setBuffer(Buffer): void;
+  /** Adds a dependency to the asset. */
+  addDependency(DependencyOptions): string;
+  /**
+   * Adds a url dependency to the asset.
+   * This is a shortcut for addDependency that sets the specifierType to 'url' and priority to 'lazy'.
+   */
+  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  /** Invalidates the transformation when the given file is modified or deleted. */
+  invalidateOnFileChange(FilePath): void;
+  /** Invalidates the transformation when matched files are created. */
+  invalidateOnFileCreate(FileCreateInvalidation): void;
+  /** Invalidates the transformation when the given environment variable changes. */
+  invalidateOnEnvChange(string): void;
+  /** Sets the asset contents as a string. */
   setCode(string): void;
-  /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
-  getCode(): Promise<string>;
-  setEnvironment(opts: EnvironmentOptions): void;
-  setMap(?SourceMap): void;
+  /** Sets the asset contents as a buffer. */
+  setBuffer(Buffer): void;
+  /** Sets the asset contents as a stream. */
   setStream(Readable): void;
+  /** Returns whether the AST has been modified. */
+  setAST(AST): void;
+  /** Sets the asset's AST. */
+  isASTDirty(): boolean;
+  /** Sets the asset's source map. */
+  setMap(?SourceMap): void;
+  setEnvironment(opts: EnvironmentOptions): void;
 }
 
 /**
+ * An immutable Asset, available after transformation.
  * @section transformer
  */
 export interface Asset extends BaseAsset {
+  /** Statistics about the asset. */
   +stats: Stats;
 }
 
 export type DevDepOptions = {|
-  moduleSpecifier: ModuleSpecifier,
+  specifier: DependencySpecifier,
   resolveFrom: FilePath,
+  range?: ?SemverRange,
   /**
-   * Whether to also invalidate the parcel plugin that loaded this dev dependency
-   * when it changes. This is useful if the parcel plugin or another parent dependency
+   * When this dev dependency is invalidated, also invalidate these dependencies.
+   * This is useful if the parcel plugin or another parent dependency
    * has its own cache for this dev dependency other than Node's require cache.
    */
-  invalidateParcelPlugin?: boolean,
+  additionalInvalidations?: Array<{|
+    specifier: DependencySpecifier,
+    resolveFrom: FilePath,
+    range?: ?SemverRange,
+  |}>,
 |};
 
 /**
  * @section transformer
  */
 export interface Config {
+  /**
+   * Whether this config is part of the project, and not an external dependency (e.g. in node_modules).
+   * This indicates that transformation using the project's configuration should be applied.
+   */
   +isSource: boolean;
+  /** The path of the file to start searching for config from. */
   +searchPath: FilePath;
-  +result: ConfigResult;
+  /** The environment */
   +env: Environment;
-  +includedFiles: Set<FilePath>;
 
-  setResult(result: ConfigResult): void; // TODO: fix
-  setResultHash(resultHash: string): void;
-  addIncludedFile(filePath: FilePath): void;
-  addDevDependency(devDep: DevDepOptions): void;
-  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
-  getConfigFrom(
+  /** Invalidates the config when the given file is modified or deleted. */
+  invalidateOnFileChange(FilePath): void;
+  /** Invalidates the config when matched files are created. */
+  invalidateOnFileCreate(FileCreateInvalidation): void;
+  /** Invalidates the config when the given environment variable changes. */
+  invalidateOnEnvChange(string): void;
+  /** Invalidates the config when Parcel restarts. */
+  invalidateOnStartup(): void;
+  /**
+   * Adds a dev dependency to the config. If the dev dependency or any of its
+   * dependencies change, the config will be invalidated.
+   */
+  addDevDependency(DevDepOptions): void;
+  /**
+   * Sets the cache key for the config. By default, this is computed as a hash of the
+   * files passed to invalidateOnFileChange or loaded by getConfig. If none, then a
+   * hash of the result returned from loadConfig is used. This method can be used to
+   * override this behavior and explicitly control the cache key. This can be useful
+   * in cases where only part of a file is used to avoid unnecessary invalidations,
+   * or when the result is not hashable (i.e. contains non-serializable properties like functions).
+   */
+  setCacheKey(string): void;
+
+  /**
+   * Searches for config files with the given names in all parent directories
+   * of the config's searchPath.
+   */
+  getConfig<T>(
+    filePaths: Array<FilePath>,
+    options: ?{|
+      packageKey?: string,
+      parse?: boolean,
+      exclude?: boolean,
+    |},
+  ): Promise<?ConfigResultWithFilePath<T>>;
+  /**
+   * Searches for config files with the given names in all parent directories
+   * of the passed searchPath.
+   */
+  getConfigFrom<T>(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
     options: ?{|
@@ -636,17 +839,9 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null>;
-  getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-      exclude?: boolean,
-    |},
-  ): Promise<ConfigResultWithFilePath | null>;
-  getPackage(): Promise<PackageJSON | null>;
-  shouldInvalidateOnStartup(): void;
+  ): Promise<?ConfigResultWithFilePath<T>>;
+  /** Finds the nearest package.json from the config's searchPath. */
+  getPackage(): Promise<?PackageJSON>;
 }
 
 export type Stats = {|
@@ -665,31 +860,88 @@ export type GenerateOutput = {|
 export type Blob = string | Buffer | Readable;
 
 /**
- * Will be used to generate a new BaseAsset, see that.
+ * Transformers can return multiple result objects to create new assets.
+ * For example, a file may contain multiple parts of different types,
+ * which should be processed by their respective transformation pipelines.
+ *
  * @section transformer
  */
 export type TransformerResult = {|
-  +ast?: ?AST,
-  +content?: ?Blob,
-  +dependencies?: $ReadOnlyArray<DependencyOptions>,
-  +env?: EnvironmentOptions,
-  +filePath?: FilePath,
-  +query?: ?QueryParameters,
-  +includedFiles?: $ReadOnlyArray<File>,
-  +isInline?: boolean,
-  +isIsolated?: boolean,
-  +isSource?: boolean,
-  +isSplittable?: boolean,
-  +map?: ?SourceMap,
-  +meta?: Meta,
-  +pipeline?: ?string,
-  +sideEffects?: boolean,
-  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  /** The asset's type. */
   +type: string,
+  /** The content of the asset. Either content or an AST is required. */
+  +content?: ?Blob,
+  /** The asset's AST. Either content or an AST is required. */
+  +ast?: ?AST,
+  /** The source map for the asset. */
+  +map?: ?SourceMap,
+  /** The dependencies of the asset. */
+  +dependencies?: $ReadOnlyArray<DependencyOptions>,
+  /** The environment of the asset. The options are merged with the input asset's environment. */
+  +env?: EnvironmentOptions,
+  /**
+   * Controls which bundle the asset is placed into.
+   *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
+   *       will be duplicated.
+   */
+  +bundleBehavior?: ?BundleBehavior,
+  /**
+   * If the asset is used as a bundle entry, this controls whether that bundle can be split
+   * into multiple, or whether all of the dependencies must be placed in a single bundle.
+   */
+  +isBundleSplittable?: boolean,
+  /** Plugin-specific metadata for the asset. */
+  +meta?: Meta,
+  /** The pipeline defined in .parcelrc that the asset should be processed with. */
+  +pipeline?: ?string,
+  /**
+   * Whether this asset can be omitted if none of its exports are being used.
+   * This is initially set by the resolver, but can be overridden by transformers.
+   */
+  +sideEffects?: boolean,
+  /** The symbols that the asset exports. */
+  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  /**
+   * When a transformer returns multiple assets, it can give them unique keys to identify them.
+   * This can be used to find assets during packaging, or to create dependencies between multiple
+   * assets returned by a transformer by using the unique key as the dependency specifier.
+   */
   +uniqueKey?: ?string,
 |};
 
 export type Async<T> = T | Promise<T>;
+
+export interface PluginLogger {
+  /** Logs a diagnostic at the verbose log level. */
+  verbose(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void;
+
+  /** Logs a diagnostic at the info log level. */
+  info(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void;
+
+  /** Synonym for logger.info. */
+  log(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void;
+
+  /** Logs a diagnostic at the verbose warning log level. */
+  warn(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void;
+
+  /** Logs a diagnostic at the verbose error log level. */
+  error(
+    input:
+      | Diagnostifiable
+      | DiagnosticWithoutOrigin
+      | Array<DiagnosticWithoutOrigin>,
+  ): void;
+}
 
 /**
  * @section transformer
@@ -698,11 +950,13 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
 /**
  * @section validator
+ * @experimental
  */
 type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
 
 /**
  * @section validator
+ * @experimental
  */
 type ResolveConfigWithPathFn = (
   configNames: Array<FilePath>,
@@ -711,6 +965,7 @@ type ResolveConfigWithPathFn = (
 
 /**
  * @section validator
+ * @experimental
  */
 export type ValidateResult = {|
   warnings: Array<Diagnostic>,
@@ -719,6 +974,7 @@ export type ValidateResult = {|
 
 /**
  * @section validator
+ * @experimental
  */
 export type DedicatedThreadValidator = {|
   validateAll: ({|
@@ -731,6 +987,7 @@ export type DedicatedThreadValidator = {|
 
 /**
  * @section validator
+ * @experimental
  */
 export type MultiThreadValidator = {|
   validate: ({|
@@ -756,12 +1013,12 @@ export type Validator = DedicatedThreadValidator | MultiThreadValidator;
  * The methods for a transformer plugin.
  * @section transformer
  */
-export type Transformer = {|
+export type Transformer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
     ast: AST,
@@ -770,8 +1027,8 @@ export type Transformer = {|
   |}) => boolean,
   /** Parse the contents into an ast */
   parse?: ({|
-    asset: MutableAsset,
-    config: ?ConfigResult,
+    asset: Asset,
+    config: ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
@@ -779,7 +1036,7 @@ export type Transformer = {|
   /** Transform the asset and/or add new assets */
   transform({|
     asset: MutableAsset,
-    config: ?ConfigResult,
+    config: ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
@@ -797,12 +1054,12 @@ export type Transformer = {|
  * Used to control a traversal
  * @section bundler
  */
-export interface TraversalActions {
+export type TraversalActions = {|
   /** Skip the current node's children and continue the traversal if there are other nodes in the queue. */
-  skipChildren(): void;
+  skipChildren(): void,
   /** Stop the traversal */
-  stop(): void;
-}
+  stop(): void,
+|};
 
 /**
  * Essentially GraphTraversalCallback, but allows adding specific node enter and exit callbacks.
@@ -837,7 +1094,7 @@ export type BundleTraversable =
 /**
  * @section bundler
  */
-export type BundlerBundleGraphTraversable =
+export type BundleGraphTraversable =
   | {|+type: 'asset', value: Asset|}
   | {|+type: 'dependency', value: Dependency|};
 
@@ -857,27 +1114,55 @@ export type CreateBundleOpts =
   // If an entryAsset is provided, a bundle id, type, and environment will be
   // inferred from the entryAsset.
   | {|
-      +uniqueKey?: string,
+      /** The entry asset of the bundle. If provided, many bundle properties will be inferred from it. */
       +entryAsset: Asset,
+      /** The target of the bundle. Should come from the dependency that created the bundle. */
       +target: Target,
-      +isEntry?: ?boolean,
-      +isInline?: ?boolean,
-      +isSplittable?: ?boolean,
-      +type?: ?string,
-      +env?: ?Environment,
-      +pipeline?: ?string,
+      /**
+       * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
+       * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
+       * like service workers or RSS feeds, where the URL must remain consistent over time.
+       */
+      +needsStableName?: ?boolean,
+      /**
+       * Controls the behavior of the bundle.
+       * to determine when the bundle is loaded.
+       *   - inline: Inline bundles are not written to a separate file, but embedded into the parent bundle.
+       *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
+       */
+      +bundleBehavior?: ?BundleBehavior,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
   | {|
-      +uniqueKey: string,
-      +entryAsset?: Asset,
-      +target: Target,
-      +isEntry?: ?boolean,
-      +isInline?: ?boolean,
-      +isSplittable?: ?boolean,
+      /** The type of the bundle. */
       +type: string,
+      /** The environment of the bundle. */
       +env: Environment,
+      /** A unique value for the bundle to be used in its id. */
+      +uniqueKey: string,
+      /** The target of the bundle. Should come from the dependency that created the bundle. */
+      +target: Target,
+      /**
+       * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
+       * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
+       * like service workers or RSS feeds, where the URL must remain consistent over time.
+       */
+      +needsStableName?: ?boolean,
+      /**
+       * Controls the behavior of the bundle.
+       * to determine when the bundle is loaded.
+       *   - inline: Inline bundles are not written to a separate file, but embedded into the parent bundle.
+       *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
+       */
+      +bundleBehavior?: ?BundleBehavior,
+      /**
+       * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept
+       * internal to the bundle, rather than referring to other bundles. This may result in assets
+       * being duplicated between multiple bundles, but can be useful for things like server side rendering.
+       */
+      +isSplittable?: ?boolean,
+      /** The bundle's pipeline, to be used for optimization. Usually based on the pipeline of the entry asset. */
       +pipeline?: ?string,
     |};
 
@@ -910,27 +1195,56 @@ export type ExportSymbolResolution = {|
  * @section bundler
  */
 export interface Bundle {
+  /** The bundle id. */
   +id: string;
-  /** Whether this value is inside <code>filePath</code> it will be replace with the real hash at the end. */
-  +hashReference: string;
+  /** The type of the bundle. */
   +type: string;
+  /** The environment of the bundle. */
   +env: Environment;
-  /** Whether this is an entry (e.g. should not be hashed). */
-  +isEntry: ?boolean;
-  /** Whether this bundle should be inlined into the parent bundle(s), */
-  +isInline: ?boolean;
-  +isSplittable: ?boolean;
+  /** The bundle's target. */
   +target: Target;
-  +stats: Stats;
   /** Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY */
+  /**
+   * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
+   * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
+   * like service workers or RSS feeds, where the URL must remain consistent over time.
+   */
+  +needsStableName: ?boolean;
+  /**
+   * Controls the behavior of the bundle.
+   * to determine when the bundle is loaded.
+   *   - inline: Inline bundles are not written to a separate file, but embedded into the parent bundle.
+   *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
+   */
+  +bundleBehavior: ?BundleBehavior;
+  /**
+   * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept
+   * internal to the bundle, rather than referring to other bundles. This may result in assets
+   * being duplicated between multiple bundles, but can be useful for things like server side rendering.
+   */
+  +isSplittable: ?boolean;
+  /**
+   * A placeholder for the bundle's content hash that can be used in the bundle's name or the contents of another
+   * bundle. Hash references are replaced with a content hash of the bundle after packaging and optimizing.
+   */
+  +hashReference: string;
+  /**
+   * Returns the assets that are executed immediately when the bundle is loaded.
+   * Some bundles may not have any entry assets, for example, shared bundles.
+   */
   getEntryAssets(): Array<Asset>;
-  /** The actual entry (which won't be a runtime). */
+  /**
+   * Returns the main entry of the bundle, which will provide the bundle's exports.
+   * Some bundles do not have a main entry, for example, shared bundles.
+   */
   getMainEntry(): ?Asset;
+  /** Returns whether the bundle includes the given asset. */
   hasAsset(Asset): boolean;
+  /** Returns whether the bundle includes the given dependency. */
   hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
-  /** Traverses assets and dependencies (see BundleTraversable). */
+  /** Traverses assets and dependencies in the bundle. */
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,
   ): ?TContext;
@@ -941,27 +1255,39 @@ export interface Bundle {
  * @section bundler
  */
 export interface NamedBundle extends Bundle {
+  /** A shortened version of the bundle id that is used to refer to the bundle at runtime. */
   +publicId: string;
+  /**
+   * The bundle's name. This is a file path relative to the bundle's target directory.
+   * The bundle name may include a hash reference, but not the final content hash.
+   */
   +name: string;
+  /** A version of the bundle's name with hash references removed for display. */
   +displayName: string;
 }
 
 export interface PackagedBundle extends NamedBundle {
+  /** The absolute file path of the written bundle, including the final content hash if any. */
   +filePath: FilePath;
+  /** Statistics about the bundle. */
+  +stats: Stats;
 }
 
 /**
  * A collection of sibling bundles (which are stored in the BundleGraph) that should be loaded together (in order).
  * @section bundler
  */
-export type BundleGroup = {|
-  +target: Target,
-  +entryAssetId: string,
-|};
+export interface BundleGroup {
+  /** The target of the bundle group. */
+  +target: Target;
+  /** The id of the entry asset in the bundle group, which is executed immediately when the bundle group is loaded. */
+  +entryAssetId: string;
+}
 
 /**
  * A BundleGraph in the Bundler that can be modified
  * @section bundler
+ * @experimental
  */
 export interface MutableBundleGraph extends BundleGraph<Bundle> {
   /** Add asset and all child nodes to the bundle. */
@@ -989,12 +1315,6 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
-  traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
-  traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
 }
 
 /**
@@ -1002,18 +1322,36 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
  * @section bundler
  */
 export interface BundleGraph<TBundle: Bundle> {
+  /** Retrieves an asset by id. */
   getAssetById(id: string): Asset;
+  /** Returns the public (short) id for an asset. */
   getAssetPublicId(asset: Asset): string;
-  getBundles(): Array<TBundle>;
+  /** Returns a list of bundles in the bundle graph. By default, inline bundles are excluded. */
+  getBundles(opts?: {|includeInline: boolean|}): Array<TBundle>;
+  /** Traverses the assets and dependencies in the bundle graph, in depth first order. */
+  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
+  /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
+  traverseBundles<TContext>(
+    visit: GraphVisitor<TBundle, TContext>,
+    startBundle: ?Bundle,
+  ): ?TContext;
+  /** Returns a list of bundle groups that load the given bundle. */
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
-  /** Child bundles are Bundles that might be loaded by an asset in the bundle */
+  /** Returns a list of bundles that load together in the given bundle group. */
+  getBundlesInBundleGroup(
+    bundleGroup: BundleGroup,
+    opts?: {|includeInline: boolean|},
+  ): Array<TBundle>;
+  /** Returns a list of bundles that this bundle loads asynchronously. */
   getChildBundles(bundle: Bundle): Array<TBundle>;
+  /** Returns a list of bundles that load this bundle asynchronously. */
   getParentBundles(bundle: Bundle): Array<TBundle>;
-  /** Bundles that are referenced (by filename) */
+  /** Returns whether the bundle was loaded by another bundle of the given type. */
+  hasParentBundleOfType(bundle: Bundle, type: string): boolean;
+  /** Returns a list of bundles that are referenced by this bundle. By default, inline bundles are excluded. */
   getReferencedBundles(
     bundle: Bundle,
-    opts?: {|recursive: boolean|},
+    opts?: {|recursive?: boolean, includeInline?: boolean|},
   ): Array<TBundle>;
   /** Get the dependencies that the asset requires */
   getDependencies(asset: Asset): Array<Dependency>;
@@ -1021,6 +1359,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   /** Get the asset that created the dependency. */
   getAssetWithDependency(dep: Dependency): ?Asset;
+  /** Returns whether the given bundle group is an entry. */
   isEntryBundleGroup(bundleGroup: BundleGroup): boolean;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
@@ -1033,20 +1372,30 @@ export interface BundleGraph<TBundle: Bundle> {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   );
-  /** If a dependency was excluded since it's unused based on symbol data. */
+  /** Returns whether a dependency was excluded because it had no used symbols. */
   isDependencySkipped(dependency: Dependency): boolean;
-  /** Find out which asset the dependency resolved to. */
-  getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
-  getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
-  findBundlesWithAsset(Asset): Array<TBundle>;
-  findBundlesWithDependency(Dependency): Array<TBundle>;
-  /** Whether the asset is already included in a compatible (regarding EnvironmentContext) parent bundle. */
-  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
-  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
-  isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
-  hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   /**
-   * Resolve the export `symbol` of `asset` to the source,
+   * Returns the asset that the dependency resolved to.
+   * If a bundle is given, assets in that bundle are preferred.
+   * Returns null if the dependency was excluded.
+   */
+  getResolvedAsset(dependency: Dependency, bundle: ?Bundle): ?Asset;
+  /** Returns the bundle that a dependency in a given bundle references, if any. */
+  getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
+  /** Returns a list of bundles that contain the given asset. */
+  getBundlesWithAsset(Asset): Array<TBundle>;
+  /** Returns a list of bundles that contain the given dependency. */
+  getBundlesWithDependency(Dependency): Array<TBundle>;
+  /**
+   * Returns whether the given asset is reachable in a sibling, or all possible
+   * ancestries of the given bundle. This indicates that the asset may be excluded
+   * from the given bundle.
+   */
+  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
+  /** Returns whether an asset is referenced outside the given bundle. */
+  isAssetReferenced(bundle: Bundle, asset: Asset): boolean;
+  /**
+   * Resolves the export `symbol` of `asset` to the source,
    * stopping at the first asset after leaving `bundle`.
    * `symbol === null`: bailout (== caller should do `asset.exports[exportsSymbol]`)
    * `symbol === undefined`: symbol not found
@@ -1056,21 +1405,24 @@ export interface BundleGraph<TBundle: Bundle> {
    * corresponding variable lives (resolves re-exports). Stop resolving transitively once \
    * <code>boundary</code> was left (<code>bundle.hasAsset(asset) === false</code>), then <code>result.symbol</code> is undefined.
    */
-  resolveSymbol(
+  getSymbolResolution(
     asset: Asset,
     symbol: Symbol,
     boundary: ?Bundle,
   ): SymbolResolution;
-  /** Gets the symbols that are (transivitely) exported by the asset */
+  /** Returns a list of symbols that are exported by the asset, including re-exports. */
   getExportedSymbols(
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
-  traverseBundles<TContext>(
-    visit: GraphVisitor<TBundle, TContext>,
-    startBundle: ?Bundle,
-  ): ?TContext;
-  getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
+  /**
+   * Returns a list of symbols from an asset or dependency that are referenced by a dependent asset.
+   *
+   * Returns null if symbol propagation didn't run (so the result is unknown).
+   */
+  getUsedSymbols(Asset | Dependency): ?$ReadOnlySet<Symbol>;
+  /** Returns the common root directory for the entry assets of a target. */
+  getEntryRoot(target: Target): FilePath;
 }
 
 /**
@@ -1105,11 +1457,19 @@ export type FileCreateInvalidation =
  * @section resolver
  */
 export type ResolveResult = {|
+  /** An absolute path to the resolved file. */
   +filePath?: FilePath,
+  /** An optional named pipeline to use to compile the resolved file. */
+  +pipeline?: ?string,
+  /** Query parameters to be used by transformers when compiling the resolved file. */
+  +query?: URLSearchParams,
+  /** Whether the resolved file should be excluded from the build. */
   +isExcluded?: boolean,
+  /** Overrides the priority set on the dependency. */
+  +priority?: DependencyPriority,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */
   +sideEffects?: boolean,
-  /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
+  /** The code of the resolved asset. If provided, this is used rather than reading the file from disk. */
   +code?: string,
   /** Whether this dependency can be deferred by Parcel itself (true by default). */
   +canDefer?: boolean,
@@ -1117,13 +1477,10 @@ export type ResolveResult = {|
   +diagnostics?: Diagnostic | Array<Diagnostic>,
   /** Is spread (shallowly merged) onto the request's dependency.meta */
   +meta?: JSONObject,
+  /** A list of file paths or patterns that should invalidate the resolution if created. */
   +invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  /** A list of files that should invalidate the resolution if modified or deleted. */
   +invalidateOnFileChange?: Array<FilePath>,
-|};
-
-export type ConfigOutput = {|
-  config: ConfigResult,
-  files: Array<File>,
 |};
 
 /**
@@ -1132,21 +1489,21 @@ export type ConfigOutput = {|
  * bundle and optimize run in series and are functionally identitical.
  * @section bundler
  */
-export type Bundler = {|
+export type Bundler<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   bundle({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
@@ -1155,17 +1512,17 @@ export type Bundler = {|
 /**
  * @section namer
  */
-export type Namer = {|
+export type Namer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
   name({|
     bundle: Bundle,
     bundleGraph: BundleGraph<Bundle>,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -1180,21 +1537,22 @@ export type RuntimeAsset = {|
   +code: string,
   +dependency?: Dependency,
   +isEntry?: boolean,
+  +env?: EnvironmentOptions,
 |};
 
 /**
  * @section runtime
  */
-export type Runtime = {|
+export type Runtime<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
@@ -1203,18 +1561,18 @@ export type Runtime = {|
 /**
  * @section packager
  */
-export type Packager = {|
+export type Packager<ConfigType> = {|
   loadConfig?: ({|
-    bundle: NamedBundle,
+    config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<?ConfigOutput>,
+  |}) => Promise<ConfigType> | ConfigType,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-    config: ?ConfigResult,
+    config: ConfigType,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,
@@ -1226,7 +1584,12 @@ export type Packager = {|
 /**
  * @section optimizer
  */
-export type Optimizer = {|
+export type Optimizer<ConfigType> = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Promise<ConfigType> | ConfigType,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1234,8 +1597,23 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    config: ConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
+|};
+
+/**
+ * @section compressor
+ */
+export type Compressor = {|
+  compress({|
+    stream: Readable,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}): Async<{|
+    stream: Readable,
+    type?: string,
+  |}>,
 |};
 
 /**
@@ -1246,7 +1624,8 @@ export type Resolver = {|
     dependency: Dependency,
     options: PluginOptions,
     logger: PluginLogger,
-    filePath: FilePath,
+    specifier: FilePath,
+    pipeline: ?string,
   |}): Async<?ResolveResult>,
 |};
 
@@ -1434,6 +1813,6 @@ export interface IDisposable {
   dispose(): mixed;
 }
 
-export interface AsyncSubscription {
-  unsubscribe(): Promise<mixed>;
-}
+export type AsyncSubscription = {|
+  unsubscribe(): Promise<mixed>,
+|};

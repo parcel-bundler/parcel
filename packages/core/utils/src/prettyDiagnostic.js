@@ -7,12 +7,15 @@ import mdAnsi from '@parcel/markdown-ansi';
 import chalk from 'chalk';
 import path from 'path';
 import nullthrows from 'nullthrows';
+// $FlowFixMe
+import terminalLink from 'terminal-link';
 
 export type AnsiDiagnosticResult = {|
   message: string,
   stack: string,
   codeframe: string,
   hints: Array<string>,
+  documentation: string,
 |};
 
 export default async function prettyDiagnostic(
@@ -24,16 +27,11 @@ export default async function prettyDiagnostic(
     origin,
     message,
     stack,
-    codeFrame,
+    codeFrames,
     hints,
-    filePath,
-    language,
     skipFormatting,
+    documentationURL,
   } = diagnostic;
-
-  if (filePath != null && options && !path.isAbsolute(filePath)) {
-    filePath = path.join(options.projectRoot, filePath);
-  }
 
   let result = {
     message:
@@ -42,47 +40,61 @@ export default async function prettyDiagnostic(
     stack: '',
     codeframe: '',
     hints: [],
+    documentation: '',
   };
 
-  if (codeFrame !== undefined) {
-    let highlights = codeFrame.codeHighlights;
-    let code =
-      codeFrame.code ??
-      (options &&
-        (await options.inputFS.readFile(nullthrows(filePath), 'utf8')));
+  if (codeFrames != null) {
+    for (let codeFrame of codeFrames) {
+      let filePath = codeFrame.filePath;
+      if (filePath != null && options && !path.isAbsolute(filePath)) {
+        filePath = path.join(options.projectRoot, filePath);
+      }
 
-    let formattedCodeFrame = '';
-    if (code != null) {
-      formattedCodeFrame = formatCodeFrame(code, highlights, {
-        useColor: true,
-        syntaxHighlighting: true,
-        language:
-          // $FlowFixMe sketchy null checks do not matter here...
-          language || (filePath ? path.extname(filePath).substr(1) : undefined),
-        terminalWidth,
-      });
+      let highlights = codeFrame.codeHighlights;
+      let code =
+        codeFrame.code ??
+        (options &&
+          (await options.inputFS.readFile(nullthrows(filePath), 'utf8')));
+
+      let formattedCodeFrame = '';
+      if (code != null) {
+        formattedCodeFrame = formatCodeFrame(code, highlights, {
+          useColor: true,
+          syntaxHighlighting: true,
+          language:
+            // $FlowFixMe sketchy null checks do not matter here...
+            codeFrame.language ||
+            (filePath != null ? path.extname(filePath).substr(1) : undefined),
+          terminalWidth,
+        });
+      }
+
+      result.codeframe +=
+        typeof filePath !== 'string'
+          ? ''
+          : chalk.gray.underline(
+              `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
+            );
+      result.codeframe += formattedCodeFrame;
+      if (codeFrame !== codeFrames[codeFrames.length - 1]) {
+        result.codeframe += '\n\n';
+      }
     }
-
-    result.codeframe +=
-      typeof filePath !== 'string'
-        ? ''
-        : chalk.underline(
-            `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
-          );
-    result.codeframe += formattedCodeFrame;
-  } else if (typeof filePath === 'string') {
-    result.codeframe += chalk.underline(filePath);
   }
 
   if (stack != null) {
     result.stack = stack;
-  } else if (filePath != null && result.codeframe == null) {
-    result.stack = filePath;
   }
 
   if (Array.isArray(hints) && hints.length) {
     result.hints = hints.map(h => {
       return mdAnsi(h);
+    });
+  }
+
+  if (documentationURL != null) {
+    result.documentation = terminalLink('Learn more', documentationURL, {
+      fallback: (text, url) => `${text}: ${url}`,
     });
   }
 

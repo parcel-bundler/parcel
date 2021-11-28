@@ -17,9 +17,13 @@ declare module 'posthtml-parser' {
     options?: {
       lowerCaseAttributeNames?: boolean,
       lowerCaseTags?: boolean,
+      sourceLocations?: boolean,
       ...
     }
   ) => PostHTMLNode;
 
-  declare module.exports: typeof parser;
+  declare module.exports: {
+    parser: typeof parser;
+    ...
+  }
 }

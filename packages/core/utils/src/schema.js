@@ -378,7 +378,7 @@ export function fuzzySearch(
   return result.map(([v]) => v);
 }
 
-validateSchema.diagnostic = function(
+validateSchema.diagnostic = function (
   schema: SchemaEntity,
   data: {|
     ...
@@ -478,25 +478,27 @@ validateSchema.diagnostic = function(
       map = data.source ?? JSON.stringify(nullthrows(data.data), 0, '\t');
       code = map;
     }
-    let codeFrame = {
-      code,
-      codeHighlights: generateJSONCodeHighlights(
-        map,
-        keys.map(({key, type, message}) => ({
-          key: (data.prependKey ?? '') + key,
-          type: type,
-          message: message != null ? escapeMarkdown(message) : message,
-        })),
-      ),
-    };
+    let codeFrames = [
+      {
+        filePath: data.filePath ?? undefined,
+        language: 'json',
+        code,
+        codeHighlights: generateJSONCodeHighlights(
+          map,
+          keys.map(({key, type, message}) => ({
+            key: (data.prependKey ?? '') + key,
+            type: type,
+            message: message != null ? escapeMarkdown(message) : message,
+          })),
+        ),
+      },
+    ];
 
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: message,
         origin,
-        filePath: data.filePath ?? undefined,
-        language: 'json',
-        codeFrame,
+        codeFrames,
       },
     });
   }

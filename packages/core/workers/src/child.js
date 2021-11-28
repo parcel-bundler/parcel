@@ -46,8 +46,10 @@ export class Child {
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
-      this.messageListener.bind(this),
-      this.handleEnd.bind(this),
+      m => {
+        this.messageListener(m);
+      },
+      () => this.handleEnd(),
     );
 
     // Monitior all logging events inside this child process and forward to
@@ -93,10 +95,14 @@ export class Child {
     this.child.send(data);
   }
 
-  childInit(module: string, childId: number): void {
+  async childInit(module: string, childId: number): Promise<void> {
     // $FlowFixMe this must be dynamic
     this.module = require(module);
     this.childId = childId;
+
+    if (this.module.childInit != null) {
+      await this.module.childInit();
+    }
   }
 
   async handleRequest(data: WorkerRequest): Promise<void> {
@@ -136,7 +142,7 @@ export class Child {
           unpatchConsole();
         }
 
-        result = responseFromContent(this.childInit(moduleName, child));
+        result = responseFromContent(await this.childInit(moduleName, child));
       } catch (e) {
         result = errorResponseFromError(e);
       }

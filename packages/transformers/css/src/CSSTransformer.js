@@ -5,11 +5,7 @@ import type {FilePath} from '@parcel/types';
 
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {
-  createDependencyLocation,
-  isURL,
-  remapSourceLocation,
-} from '@parcel/utils';
+import {createDependencyLocation, remapSourceLocation} from '@parcel/utils';
 import postcss from 'postcss';
 import nullthrows from 'nullthrows';
 import valueParser from 'postcss-value-parser';
@@ -66,12 +62,6 @@ export default (new Transformer({
       sourceMap: asset.env.sourceMap,
     });
 
-    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
-    // Only set here if it is null to allow previous transformers to override this behavior.
-    if (asset.isSplittable == null) {
-      asset.isSplittable = true;
-    }
-
     // Check for `hasDependencies` being false here as well, as it's possible
     // another transformer (such as PostCSSTransformer) has already parsed an
     // ast and CSSTransformer's parse was never called.
@@ -99,7 +89,7 @@ export default (new Transformer({
     program.walkAtRules('import', rule => {
       let params = valueParser(rule.params);
       let [name, ...media] = params.nodes;
-      let moduleSpecifier;
+      let specifier;
       if (
         name.type === 'function' &&
         name.value === 'url' &&
@@ -108,38 +98,35 @@ export default (new Transformer({
         name = name.nodes[0];
       }
 
-      moduleSpecifier = name.value;
+      specifier = name.value;
 
-      if (!moduleSpecifier) {
+      if (!specifier) {
         throw new Error('Could not find import name for ' + String(rule));
       }
 
-      if (isURL(moduleSpecifier)) {
-        name.value = asset.addURLDependency(moduleSpecifier, {
-          loc: createLoc(nullthrows(rule.source.start), asset.filePath, 0, 8),
-        });
-      } else {
-        // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
-        // TODO: run CSSPackager on inline style tags.
-        // let inlineHTML =
-        //   this.options.rendition && this.options.rendition.inlineHTML;
-        // if (inlineHTML) {
-        //   name.value = asset.addURLDependency(dep, {loc: rule.source.start});
-        //   rule.params = params.toString();
-        // } else {
-        media = valueParser.stringify(media).trim();
-        let dep = {
-          moduleSpecifier,
-          // Offset by 8 as it does not include `@import `
-          loc: createLoc(nullthrows(rule.source.start), moduleSpecifier, 0, 8),
-          meta: {
-            media,
-          },
-        };
-        asset.addDependency(dep);
-        rule.remove();
-        // }
-      }
+      // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
+      // TODO: run CSSPackager on inline style tags.
+      // let inlineHTML =
+      //   this.options.rendition && this.options.rendition.inlineHTML;
+      // if (inlineHTML) {
+      //   name.value = asset.addURLDependency(dep, {loc: rule.source.start});
+      //   rule.params = params.toString();
+      // } else {
+      media = valueParser.stringify(media).trim();
+      let dep = {
+        specifier,
+        specifierType: 'url',
+        // Offset by 8 as it does not include `@import `
+        loc: createLoc(nullthrows(rule.source.start), specifier, 0, 8),
+        meta: {
+          // For the glob resolver to distinguish between `@import` and other URL dependencies.
+          isCSSImport: true,
+          media,
+        },
+      };
+      asset.addDependency(dep);
+      rule.remove();
+      // }
       isDirty = true;
     });
 
@@ -156,12 +143,15 @@ export default (new Transformer({
             !node.nodes[0].value.startsWith('#') // IE's `behavior: url(#default#VML)`
           ) {
             let url = asset.addURLDependency(node.nodes[0].value, {
-              loc: createLoc(
-                nullthrows(decl.source.start),
-                node.nodes[0].value,
-                0,
-                node.nodes[0].sourceIndex,
-              ),
+              loc:
+                decl.source &&
+                decl.source.start &&
+                createLoc(
+                  decl.source.start,
+                  node.nodes[0].value,
+                  0,
+                  node.nodes[0].sourceIndex,
+                ),
             });
             isDeclDirty = node.nodes[0].value !== url;
             node.nodes[0].value = url;

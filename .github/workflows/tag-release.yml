@@ -70,9 +70,11 @@ jobs:
           - target: arm-unknown-linux-gnueabihf
             arch: armhf
             strip: arm-linux-gnueabihf-strip
+            cflags: -mfpu=neon
           - target: aarch64-unknown-linux-gnu
             arch: arm64
             strip: aarch64-linux-gnu-strip
+            cflags: ''
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     steps:
@@ -93,6 +95,7 @@ jobs:
         run: yarn build-native-release
         env:
           RUST_TARGET: ${{ matrix.target }}
+          CFLAGS: ${{ matrix.cflags }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts
@@ -118,17 +121,21 @@ jobs:
         include:
           - target: x86_64-unknown-linux-musl
             strip: strip
+            cflags: -msse4.2
           - target: aarch64-unknown-linux-musl
             strip: aarch64-linux-musl-strip
+            cflags: ''
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     container:
-      image: docker.pkg.github.com/napi-rs/napi-rs/rust-nodejs-alpine:lts
+      image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GHCR_TOKEN }}
     steps:
       - uses: actions/checkout@v1
+      - name: Install build tools
+        run: apk add --no-cache python3 make gcc g++ musl-dev curl
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -139,7 +146,7 @@ jobs:
       - name: Install cross compile toolchains
         if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
         run: |
-          curl -O https://musl.cc/aarch64-linux-musl-cross.tgz
+          curl -O http://musl.cc/aarch64-linux-musl-cross.tgz
           tar xzf aarch64-linux-musl-cross.tgz
           cp -R aarch64-linux-musl-cross/* /usr
       - uses: bahmutov/npm-install@v1.1.0
@@ -147,6 +154,7 @@ jobs:
         run: yarn build-native-release
         env:
           RUST_TARGET: ${{ matrix.target }}
+          CFLAGS: ${{ matrix.cflags }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts

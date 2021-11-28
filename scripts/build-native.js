@@ -34,9 +34,8 @@ async function build() {
         shell: true,
       });
 
-      yarn.on('error', reject);
-      yarn.on('close', resolve);
-    });
+      yarn.on('close', code => (code === 0 ? resolve() : reject()));
+    }).catch(() => process.exit(1));
   }
 }
 
@@ -50,4 +49,5 @@ function setupMacBuild() {
     encoding: 'utf8',
   }).trim();
   process.env.CFLAGS = `-isysroot ${sysRoot} -isystem ${sysRoot}`;
+  process.env.MACOSX_DEPLOYMENT_TARGET = '10.9';
 }

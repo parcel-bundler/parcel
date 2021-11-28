@@ -153,6 +153,47 @@ describe('postcss', () => {
     );
   });
 
+  it('should produce correct css without symbol propagation for css modules classes with a namespace import', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-namespace/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['global.css', 'style.module.css'],
+      },
+    ]);
+
+    let {output} = await run(b, null, {require: false});
+    assert(/_b-2_[0-9a-z]/.test(output));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert(includedRules.has('body'));
+    assert(includedRules.has(`.${output}`));
+    assert(includedRules.has('.page'));
+  });
+
   it('should support importing css modules with a non-static namespace import', async () => {
     let b = await bundle(
       path.join(
@@ -208,6 +249,16 @@ describe('postcss', () => {
     let [run1, run2] = await Promise.all([run(b), run(c)]);
 
     assert.equal(run1(), run2());
+  });
+
+  it('should support transforming declarations with missing source', async () => {
+    await bundle(
+      path.join(__dirname, '/integration/postcss-plugins-decl/index.css'),
+    );
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+
+    assert(css.includes('url("data:image/gif;base64,quotes")'));
   });
 
   it('should support postcss composes imports', async () => {
@@ -442,7 +493,7 @@ describe('postcss', () => {
     // https://stackoverflow.com/questions/15971167/how-to-increase-timeout-for-a-single-test-case-in-mocha
   });
 
-  it('should support using postcss for importing', async function() {
+  it('should support using postcss for importing', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-import/style.css'),
     );
@@ -458,7 +509,7 @@ describe('postcss', () => {
     assert.equal(css.split('red').length - 1, 1);
   });
 
-  it('should support using a postcss config in package.json', async function() {
+  it('should support using a postcss config in package.json', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-config-package/style.css'),
     );
@@ -475,7 +526,7 @@ describe('postcss', () => {
     assert(/background-color:\s*red/.test(css));
   });
 
-  it('Should support postcss.config.js config file with PostCSS 7 plugin', async function() {
+  it('Should support postcss.config.js config file with PostCSS 7 plugin', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-js-config-7/style.css'),
     );
@@ -491,7 +542,7 @@ describe('postcss', () => {
     assert(css.includes('background-color: red;'));
   });
 
-  it('Should support postcss.config.js config file with PostCSS 8 plugin', async function() {
+  it('Should support postcss.config.js config file with PostCSS 8 plugin', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-js-config-8/style.css'),
     );
@@ -504,13 +555,11 @@ describe('postcss', () => {
     ]);
   });
 
-  it('should support dir-dependency messages from plugins', async function() {
+  it('should support dir-dependency messages from plugins', async function () {
     let inputDir = path.join(
       __dirname,
       '/input',
-      Math.random()
-        .toString(36)
-        .slice(2),
+      Math.random().toString(36).slice(2),
     );
     await inputFS.mkdirp(inputDir);
     await inputFS.ncp(
@@ -573,5 +622,54 @@ describe('postcss', () => {
     assert(contents.includes('background: yellow, orange'));
 
     await subscription.unsubscribe();
+  });
+
+  it('should throw an error when importing a missing class', async function () {
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(
+            __dirname,
+            '/integration/no-export-error-with-correct-filetype/src/App.jsx',
+          ),
+          {
+            shouldDisableCache: true,
+            defaultTargetOptions: {
+              shouldScopeHoist: true,
+            },
+          },
+        ),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/no-export-error-with-correct-filetype/src/App.jsx',
+                ),
+                language: 'js',
+                codeHighlights: [
+                  {
+                    end: {
+                      column: 45,
+                      line: 7,
+                    },
+                    start: {
+                      column: 28,
+                      line: 7,
+                    },
+                  },
+                ],
+              },
+            ],
+            message:
+              "integration/no-export-error-with-correct-filetype/src/app.module.css does not export 'notExisting'",
+            origin: '@parcel/core',
+          },
+        ],
+      },
+    );
   });
 });

@@ -1,27 +1,30 @@
 // @flow strict-local
 
+import type {PackageName, ConfigResult} from '@parcel/types';
 import type {
-  FileCreateInvalidation,
-  FilePath,
-  PackageName,
-  ConfigResult,
-  DevDepOptions,
-} from '@parcel/types';
-import {md5FromString} from '@parcel/utils';
-import type {Config, Environment} from './types';
+  Config,
+  Environment,
+  InternalFileCreateInvalidation,
+  InternalDevDepOptions,
+} from './types';
+import type {ProjectPath} from './projectPath';
+
+import {fromProjectPathRelative} from './projectPath';
 import {createEnvironment} from './Environment';
+import {hashString} from '@parcel/hash';
 
 type ConfigOpts = {|
   plugin: PackageName,
-  searchPath: FilePath,
+  searchPath: ProjectPath,
   isSource?: boolean,
   env?: Environment,
   result?: ConfigResult,
-  includedFiles?: Set<FilePath>,
-  invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  invalidateOnFileChange?: Set<ProjectPath>,
+  invalidateOnFileCreate?: Array<InternalFileCreateInvalidation>,
+  invalidateOnEnvChange?: Set<string>,
   invalidateOnOptionChange?: Set<string>,
-  devDeps?: Array<DevDepOptions>,
-  shouldInvalidateOnStartup?: boolean,
+  devDeps?: Array<InternalDevDepOptions>,
+  invalidateOnStartup?: boolean,
 |};
 
 export function createConfig({
@@ -30,24 +33,31 @@ export function createConfig({
   searchPath,
   env,
   result,
-  includedFiles,
+  invalidateOnFileChange,
   invalidateOnFileCreate,
+  invalidateOnEnvChange,
   invalidateOnOptionChange,
   devDeps,
-  shouldInvalidateOnStartup,
+  invalidateOnStartup,
 }: ConfigOpts): Config {
   let environment = env ?? createEnvironment();
   return {
-    id: md5FromString(plugin + searchPath + environment.id + String(isSource)),
+    id: hashString(
+      plugin +
+        fromProjectPathRelative(searchPath) +
+        environment.id +
+        String(isSource),
+    ),
     isSource: isSource ?? false,
     searchPath,
     env: environment,
     result: result ?? null,
-    resultHash: null,
-    includedFiles: includedFiles ?? new Set(),
+    cacheKey: null,
+    invalidateOnFileChange: invalidateOnFileChange ?? new Set(),
     invalidateOnFileCreate: invalidateOnFileCreate ?? [],
+    invalidateOnEnvChange: invalidateOnEnvChange ?? new Set(),
     invalidateOnOptionChange: invalidateOnOptionChange ?? new Set(),
     devDeps: devDeps ?? [],
-    shouldInvalidateOnStartup: shouldInvalidateOnStartup ?? false,
+    invalidateOnStartup: invalidateOnStartup ?? false,
   };
 }

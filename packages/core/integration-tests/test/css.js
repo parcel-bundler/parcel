@@ -91,7 +91,7 @@ describe('css', () => {
     assert.equal(await output(), 3);
   });
 
-  it('should support importing CSS from a CSS file', async function() {
+  it('should support importing CSS from a CSS file', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-import/index.js'),
     );
@@ -118,7 +118,7 @@ describe('css', () => {
     assert(css.includes('.index'));
   });
 
-  it('should support linking to assets with url() from CSS', async function() {
+  it('should support linking to assets with url() from CSS', async function () {
     let b = await bundle(path.join(__dirname, '/integration/css-url/index.js'));
 
     assertBundles(b, [
@@ -156,7 +156,7 @@ describe('css', () => {
     );
   });
 
-  it('should support linking to assets with url() from CSS in production', async function() {
+  it('should support linking to assets with url() from CSS in production', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url/index.js'),
       {
@@ -201,7 +201,7 @@ describe('css', () => {
     );
   });
 
-  it('should support linking to assets in parent folders with url() from CSS', async function() {
+  it('should support linking to assets in parent folders with url() from CSS', async function () {
     let b = await bundle(
       [
         path.join(__dirname, '/integration/css-url-relative/src/a/style1.css'),
@@ -244,7 +244,7 @@ describe('css', () => {
     );
   });
 
-  it('should ignore url() with IE behavior specifiers', async function() {
+  it('should ignore url() with IE behavior specifiers', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url-behavior/index.css'),
     );
@@ -261,7 +261,7 @@ describe('css', () => {
     assert(css.includes('url(#default#VML)'));
   });
 
-  it('should minify CSS when minify is set', async function() {
+  it('should minify CSS when minify is set', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
       {
@@ -283,7 +283,7 @@ describe('css', () => {
     assert.equal(css.split('\n').length, 1);
   });
 
-  it('should produce a sourcemap when sourceMaps are used', async function() {
+  it('should produce a sourcemap when sourceMaps are used', async function () {
     await bundle(path.join(__dirname, '/integration/cssnano/index.js'), {
       defaultTargetOptions: {
         shouldOptimize: true,
@@ -319,7 +319,7 @@ describe('css', () => {
     assert.equal(
       css.trim(),
       `.svg-img {
-  background-image: url('data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A');
+  background-image: url('data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A');
 }`,
     );
   });
@@ -353,22 +353,24 @@ describe('css', () => {
           {
             message: "Failed to resolve 'x.png' from './index.scss'",
             origin: '@parcel/core',
-            filePath: fixture,
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  start: {
-                    line: 5,
-                    column: 3,
+            codeFrames: [
+              {
+                filePath: fixture,
+                code,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 5,
+                      column: 3,
+                    },
+                    end: {
+                      line: 5,
+                      column: 3,
+                    },
                   },
-                  end: {
-                    line: 5,
-                    column: 3,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
           {
             message: "Cannot load file './x.png' in './'.",
@@ -377,6 +379,43 @@ describe('css', () => {
           },
         ],
       },
+    );
+  });
+
+  it('should support importing CSS from node_modules with the npm: scheme', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-node-modules/index.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.css', 'foo.css'],
+      },
+    ]);
+  });
+
+  it('should support external CSS imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-external/a.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'a.css',
+        assets: ['a.css', 'b.css'],
+      },
+    ]);
+
+    let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      res.startsWith(`@import "http://example.com/external.css";
+.b {
+  color: red;
+}
+.a {
+  color: blue;
+}`),
     );
   });
 });

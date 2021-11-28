@@ -88,6 +88,7 @@ function urlPlugin({asset}) {
         },
       });
 
+      // $FlowFixMe[method-unbinding]
       visitor.run = visitor.visit;
       pluginManager.addVisitor(visitor);
     },
@@ -156,7 +157,7 @@ function resolvePathPlugin({asset, resolve}) {
           }
 
           if (filePath) {
-            asset.addIncludedFile(filePath);
+            asset.invalidateOnFileChange(filePath);
           }
 
           return {

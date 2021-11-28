@@ -28,8 +28,22 @@ export default (new Packager({
     let queue = new PromiseQueue({
       maxConcurrent: 32,
     });
-    bundle.traverseAssets({
-      exit: asset => {
+    let hoistedImports = [];
+    bundle.traverse({
+      exit: node => {
+        if (node.type === 'dependency') {
+          // Hoist unresolved external dependencies (i.e. http: imports)
+          if (
+            node.value.priority === 'sync' &&
+            !bundleGraph.getResolvedAsset(node.value, bundle)
+          ) {
+            hoistedImports.push(node.value.specifier);
+          }
+          return;
+        }
+
+        let asset = node.value;
+
         // Figure out which media types this asset was imported with.
         // We only want to import the asset once, so group them all together.
         let media = [];
@@ -75,6 +89,12 @@ export default (new Packager({
     let contents = '';
     let map = new SourceMap(options.projectRoot);
     let lineOffset = 0;
+
+    for (let url of hoistedImports) {
+      contents += `@import "${url}";\n`;
+      lineOffset++;
+    }
+
     for (let [asset, code, mapBuffer] of outputs) {
       contents += code + '\n';
       if (bundle.env.sourceMap) {
@@ -133,46 +153,52 @@ async function processCSSModule(
   let ast: Root = postcss.fromJSON(nullthrows((await asset.getAST())?.program));
 
   let usedSymbols = bundleGraph.getUsedSymbols(asset);
-  let localSymbols = new Set(
-    [...asset.symbols].map(([, {local}]) => `.${local}`),
-  );
+  if (usedSymbols != null) {
+    let localSymbols = new Set(
+      [...asset.symbols].map(([, {local}]) => `.${local}`),
+    );
 
-  let defaultImport = null;
-  if (usedSymbols.has('default')) {
-    let incoming = bundleGraph.getIncomingDependencies(asset);
-    defaultImport = incoming.find(d => d.symbols.hasExportSymbol('default'));
-    if (defaultImport) {
-      let loc = defaultImport.symbols.get('default')?.loc;
-      logger.warn({
-        message:
-          'CSS modules cannot be tree shaken when imported with a default specifier',
-        filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
-        ...(loc && {
-          codeFrame: {
-            codeHighlights: [{start: loc.start, end: loc.end}],
-          },
-        }),
-        hints: [
-          `Instead do: import * as style from "${defaultImport.moduleSpecifier}";`,
-        ],
+    let defaultImport = null;
+    if (usedSymbols.has('default')) {
+      let incoming = bundleGraph.getIncomingDependencies(asset);
+      defaultImport = incoming.find(d => d.symbols.hasExportSymbol('default'));
+      if (defaultImport) {
+        let loc = defaultImport.symbols.get('default')?.loc;
+        logger.warn({
+          message:
+            'CSS modules cannot be tree shaken when imported with a default specifier',
+          ...(loc && {
+            codeFrames: [
+              {
+                filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
+                codeHighlights: [{start: loc.start, end: loc.end}],
+              },
+            ],
+          }),
+          hints: [
+            `Instead do: import * as style from "${defaultImport.specifier}";`,
+          ],
+          documentationURL: 'https://parceljs.org/languages/css/#tree-shaking',
+        });
+      }
+    }
+
+    if (!defaultImport && !usedSymbols.has('*')) {
+      let usedLocalSymbols = new Set(
+        [...usedSymbols].map(
+          exportSymbol =>
+            `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
+        ),
+      );
+      ast.walkRules(rule => {
+        if (
+          localSymbols.has(rule.selector) &&
+          !usedLocalSymbols.has(rule.selector)
+        ) {
+          rule.remove();
+        }
       });
     }
-  }
-
-  if (!defaultImport && !usedSymbols.has('*')) {
-    let usedLocalSymbols = new Set(
-      [...usedSymbols].map(
-        exportSymbol => `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
-      ),
-    );
-    ast.walkRules(rule => {
-      if (
-        localSymbols.has(rule.selector) &&
-        !usedLocalSymbols.has(rule.selector)
-      ) {
-        rule.remove();
-      }
-    });
   }
 
   let {content, map} = await postcss().process(ast, {

@@ -54,28 +54,30 @@ async function collectDependencies(
           {
             message: 'Invalid Web Extension manifest',
             origin: '@parcel/transformer-webextension',
-            filePath,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  ...getJSONSourceLocation(ptrs['/default_locale'], err),
-                  message: md`Localization directory${
-                    err == 'value' ? ' for ' + program.default_locale : ''
-                  } does not exist: ${path.relative(
-                    path.dirname(filePath),
-                    path.join(locales, program.default_locale),
-                  )}`,
-                },
-              ],
-            },
+            codeFrames: [
+              {
+                filePath,
+                codeHighlights: [
+                  {
+                    ...getJSONSourceLocation(ptrs['/default_locale'], err),
+                    message: md`Localization directory${
+                      err == 'value' ? ' for ' + program.default_locale : ''
+                    } does not exist: ${path.relative(
+                      path.dirname(filePath),
+                      path.join(locales, program.default_locale),
+                    )}`,
+                  },
+                ],
+              },
+            ],
           },
         ],
       });
     }
     for (const locale of await fs.readdir(locales)) {
       asset.addURLDependency(`_locales/${locale}/messages.json`, {
-        isEntry: true,
-        pipeline: 'url',
+        needsStableName: true,
+        pipeline: 'raw',
       });
     }
   }
@@ -87,7 +89,7 @@ async function collectDependencies(
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
           assets[j] = asset.addURLDependency(assets[j], {
-            isEntry: true,
+            needsStableName: true,
             loc: {
               filePath,
               ...getJSONSourceLocation(
@@ -125,25 +127,27 @@ async function collectDependencies(
             {
               message: 'Invalid Web Extension manifest',
               origin: '@parcel/transformer-webextension',
-              filePath,
-              codeFrame: {
-                codeHighlights: [
-                  {
-                    ...sourceLoc,
-                    message: 'Dictionaries must be .dic files',
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath,
+                  codeHighlights: [
+                    {
+                      ...sourceLoc,
+                      message: 'Dictionaries must be .dic files',
+                    },
+                  ],
+                },
+              ],
             },
           ],
         });
       }
       program.dictionaries[dict] = asset.addURLDependency(dictFile, {
-        isEntry: true,
+        needsStableName: true,
         loc,
       });
       asset.addURLDependency(dictFile.slice(0, -4) + '.aff', {
-        isEntry: true,
+        needsStableName: true,
         loc,
       });
     }
@@ -157,7 +161,7 @@ async function collectDependencies(
           'value',
         );
         themeIcon[k] = asset.addURLDependency(themeIcon[k], {
-          isEntry: true,
+          needsStableName: true,
           loc: {
             ...loc,
             filePath,
@@ -181,7 +185,7 @@ async function collectDependencies(
         )
       ).map(fp =>
         asset.addURLDependency(path.relative(path.dirname(filePath), fp), {
-          isEntry: true,
+          needsStableName: true,
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
@@ -203,7 +207,7 @@ async function collectDependencies(
     const obj = parent[lastLoc];
     if (typeof obj == 'string')
       parent[lastLoc] = asset.addURLDependency(obj, {
-        isEntry: true,
+        needsStableName: true,
         loc: {
           filePath,
           ...getJSONSourceLocation(ptrs[location], 'value'),
@@ -213,7 +217,7 @@ async function collectDependencies(
     else {
       for (const k of Object.keys(obj)) {
         obj[k] = asset.addURLDependency(obj[k], {
-          isEntry: true,
+          needsStableName: true,
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),

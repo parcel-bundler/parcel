@@ -4,5 +4,8 @@
     "module": {
       "includeNodeModules": false
     }
+  },
+  "dependencies": {
+    "b": "*"
   }
 }

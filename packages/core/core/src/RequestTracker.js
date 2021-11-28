@@ -1,21 +1,21 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {
-  Async,
-  File,
-  FilePath,
-  FileCreateInvalidation,
-  Glob,
-  EnvMap,
-} from '@parcel/types';
-import type {Event, Options as WatcherOptions} from '@parcel/watcher';
+import type {Async, EnvMap} from '@parcel/types';
+import type {EventType, Options as WatcherOptions} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
 import type {
+  ContentGraphOpts,
   ContentKey,
   NodeId,
+  SerializedContentGraph,
+} from '@parcel/graph';
+import type {
   ParcelOptions,
   RequestInvalidation,
+  InternalFile,
+  InternalFileCreateInvalidation,
+  InternalGlob,
 } from './types';
 import type {Deferred} from '@parcel/utils';
 
@@ -26,11 +26,18 @@ import {
   isGlobMatch,
   isDirectoryInside,
   makeDeferredWithPromise,
-  md5FromObject,
-  md5FromString,
 } from '@parcel/utils';
-import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
+import {hashString} from '@parcel/hash';
+import {ContentGraph} from '@parcel/graph';
+import {deserialize, serialize} from './serializer';
 import {assertSignalNotAborted, hashFromOption} from './utils';
+import {
+  type ProjectPath,
+  fromProjectPathRelative,
+  toProjectPathUnsafe,
+  toProjectPath,
+} from './projectPath';
+
 import {
   PARCEL_VERSION,
   VALID,
@@ -44,6 +51,27 @@ import {
   ERROR,
 } from './constants';
 
+export const requestGraphEdgeTypes = {
+  subrequest: 2,
+  invalidated_by_update: 3,
+  invalidated_by_delete: 4,
+  invalidated_by_create: 5,
+  invalidated_by_create_above: 6,
+  dirname: 7,
+};
+
+export type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;
+
+type RequestGraphOpts = {|
+  ...ContentGraphOpts<RequestGraphNode, RequestGraphEdgeType>,
+  invalidNodeIds: Set<NodeId>,
+  incompleteNodeIds: Set<NodeId>,
+  globNodeIds: Set<NodeId>,
+  envNodeIds: Set<NodeId>,
+  optionNodeIds: Set<NodeId>,
+  unpredicatableNodeIds: Set<NodeId>,
+|};
+
 type SerializedRequestGraph = {|
   ...SerializedContentGraph<RequestGraphNode, RequestGraphEdgeType>,
   invalidNodeIds: Set<NodeId>,
@@ -54,8 +82,8 @@ type SerializedRequestGraph = {|
   unpredicatableNodeIds: Set<NodeId>,
 |};
 
-type FileNode = {|id: ContentKey, +type: 'file', value: File|};
-type GlobNode = {|id: ContentKey, +type: 'glob', value: Glob|};
+type FileNode = {|id: ContentKey, +type: 'file', value: InternalFile|};
+type GlobNode = {|id: ContentKey, +type: 'glob', value: InternalGlob|};
 type FileNameNode = {|
   id: ContentKey,
   +type: 'file_name',
@@ -102,18 +130,10 @@ type RequestGraphNode =
   | EnvNode
   | OptionNode;
 
-type RequestGraphEdgeType =
-  | 'subrequest'
-  | 'invalidated_by_update'
-  | 'invalidated_by_delete'
-  | 'invalidated_by_create'
-  | 'invalidated_by_create_above'
-  | 'dirname';
-
 export type RunAPI = {|
-  invalidateOnFileCreate: FileCreateInvalidation => void,
-  invalidateOnFileDelete: FilePath => void,
-  invalidateOnFileUpdate: FilePath => void,
+  invalidateOnFileCreate: InternalFileCreateInvalidation => void,
+  invalidateOnFileDelete: ProjectPath => void,
+  invalidateOnFileUpdate: ProjectPath => void,
   invalidateOnStartup: () => void,
   invalidateOnEnvChange: string => void,
   invalidateOnOptionChange: string => void,
@@ -140,32 +160,32 @@ export type StaticRunOpts = {|
   invalidateReason: InvalidateReason,
 |};
 
-const nodeFromFilePath = (filePath: string) => ({
-  id: filePath,
+const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
+  id: fromProjectPathRelative(filePath),
   type: 'file',
   value: {filePath},
 });
 
-const nodeFromGlob = (glob: Glob) => ({
-  id: glob,
+const nodeFromGlob = (glob: InternalGlob): RequestGraphNode => ({
+  id: fromProjectPathRelative(glob),
   type: 'glob',
   value: glob,
 });
 
-const nodeFromFileName = (fileName: string) => ({
+const nodeFromFileName = (fileName: string): RequestGraphNode => ({
   id: 'file_name:' + fileName,
   type: 'file_name',
   value: fileName,
 });
 
-const nodeFromRequest = (request: StoredRequest) => ({
+const nodeFromRequest = (request: StoredRequest): RequestGraphNode => ({
   id: request.id,
   type: 'request',
   value: request,
   invalidateReason: INITIAL_BUILD,
 });
 
-const nodeFromEnv = (env: string, value: string | void) => ({
+const nodeFromEnv = (env: string, value: string | void): RequestGraphNode => ({
   id: 'env:' + env,
   type: 'env',
   value: {
@@ -174,7 +194,7 @@ const nodeFromEnv = (env: string, value: string | void) => ({
   },
 });
 
-const nodeFromOption = (option: string, value: mixed) => ({
+const nodeFromOption = (option: string, value: mixed): RequestGraphNode => ({
   id: 'option:' + option,
   type: 'option',
   value: {
@@ -198,7 +218,7 @@ export class RequestGraph extends ContentGraph<
   unpredicatableNodeIds: Set<NodeId> = new Set();
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: SerializedRequestGraph): RequestGraph {
+  static deserialize(opts: RequestGraphOpts): RequestGraph {
     // $FlowFixMe[prop-missing]
     let deserialized = new RequestGraph(opts);
     deserialized.invalidNodeIds = opts.invalidNodeIds;
@@ -246,6 +266,7 @@ export class RequestGraph extends ContentGraph<
     this.invalidNodeIds.delete(nodeId);
     this.incompleteNodeIds.delete(nodeId);
     this.incompleteNodePromises.delete(nodeId);
+    this.unpredicatableNodeIds.delete(nodeId);
     let node = nullthrows(this.getNode(nodeId));
     if (node.type === 'glob') {
       this.globNodeIds.delete(nodeId);
@@ -278,7 +299,7 @@ export class RequestGraph extends ContentGraph<
       requestNodeId,
       subrequestNodeIds,
       null,
-      'subrequest',
+      requestGraphEdgeTypes.subrequest,
     );
   }
 
@@ -288,7 +309,10 @@ export class RequestGraph extends ContentGraph<
     node.invalidateReason |= reason;
     this.invalidNodeIds.add(nodeId);
 
-    let parentNodes = this.getNodeIdsConnectedTo(nodeId, 'subrequest');
+    let parentNodes = this.getNodeIdsConnectedTo(
+      nodeId,
+      requestGraphEdgeTypes.subrequest,
+    );
     for (let parentNode of parentNodes) {
       this.invalidateNode(parentNode, reason);
     }
@@ -309,7 +333,7 @@ export class RequestGraph extends ContentGraph<
       if (env[node.value.key] !== node.value.value) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
-          'invalidated_by_update',
+          requestGraphEdgeTypes.invalidated_by_update,
         );
         for (let parentNode of parentNodes) {
           this.invalidateNode(parentNode, ENV_CHANGE);
@@ -325,7 +349,7 @@ export class RequestGraph extends ContentGraph<
       if (hashFromOption(options[node.value.key]) !== node.value.hash) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
-          'invalidated_by_update',
+          requestGraphEdgeTypes.invalidated_by_update,
         );
         for (let parentNode of parentNodes) {
           this.invalidateNode(parentNode, OPTION_CHANGE);
@@ -334,23 +358,46 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  invalidateOnFileUpdate(requestNodeId: NodeId, filePath: FilePath) {
+  invalidateOnFileUpdate(requestNodeId: NodeId, filePath: ProjectPath) {
     let fileNodeId = this.addNode(nodeFromFilePath(filePath));
 
-    if (!this.hasEdge(requestNodeId, fileNodeId, 'invalidated_by_update')) {
-      this.addEdge(requestNodeId, fileNodeId, 'invalidated_by_update');
+    if (
+      !this.hasEdge(
+        requestNodeId,
+        fileNodeId,
+        requestGraphEdgeTypes.invalidated_by_update,
+      )
+    ) {
+      this.addEdge(
+        requestNodeId,
+        fileNodeId,
+        requestGraphEdgeTypes.invalidated_by_update,
+      );
     }
   }
 
-  invalidateOnFileDelete(requestNodeId: NodeId, filePath: FilePath) {
+  invalidateOnFileDelete(requestNodeId: NodeId, filePath: ProjectPath) {
     let fileNodeId = this.addNode(nodeFromFilePath(filePath));
 
-    if (!this.hasEdge(requestNodeId, fileNodeId, 'invalidated_by_delete')) {
-      this.addEdge(requestNodeId, fileNodeId, 'invalidated_by_delete');
+    if (
+      !this.hasEdge(
+        requestNodeId,
+        fileNodeId,
+        requestGraphEdgeTypes.invalidated_by_delete,
+      )
+    ) {
+      this.addEdge(
+        requestNodeId,
+        fileNodeId,
+        requestGraphEdgeTypes.invalidated_by_delete,
+      );
     }
   }
 
-  invalidateOnFileCreate(requestNodeId: NodeId, input: FileCreateInvalidation) {
+  invalidateOnFileCreate(
+    requestNodeId: NodeId,
+    input: InternalFileCreateInvalidation,
+  ) {
     let node;
     if (input.glob != null) {
       node = nodeFromGlob(input.glob);
@@ -370,9 +417,17 @@ export class RequestGraph extends ContentGraph<
         let fileNameNodeId = this.addNode(fileNameNode);
         if (
           lastNodeId != null &&
-          !this.hasEdge(lastNodeId, fileNameNodeId, 'dirname')
+          !this.hasEdge(
+            lastNodeId,
+            fileNameNodeId,
+            requestGraphEdgeTypes.dirname,
+          )
         ) {
-          this.addEdge(lastNodeId, fileNameNodeId, 'dirname');
+          this.addEdge(
+            lastNodeId,
+            fileNameNodeId,
+            requestGraphEdgeTypes.dirname,
+          );
         }
 
         lastNodeId = fileNameNodeId;
@@ -394,13 +449,33 @@ export class RequestGraph extends ContentGraph<
       // node will be invalidated.
       let firstId = 'file_name:' + parts[0];
       let firstNodeId = this.getNodeIdByContentKey(firstId);
-      if (!this.hasEdge(nodeId, firstNodeId, 'invalidated_by_create_above')) {
-        this.addEdge(nodeId, firstNodeId, 'invalidated_by_create_above');
+      if (
+        !this.hasEdge(
+          nodeId,
+          firstNodeId,
+          requestGraphEdgeTypes.invalidated_by_create_above,
+        )
+      ) {
+        this.addEdge(
+          nodeId,
+          firstNodeId,
+          requestGraphEdgeTypes.invalidated_by_create_above,
+        );
       }
 
       invariant(lastNodeId != null);
-      if (!this.hasEdge(lastNodeId, nodeId, 'invalidated_by_create_above')) {
-        this.addEdge(lastNodeId, nodeId, 'invalidated_by_create_above');
+      if (
+        !this.hasEdge(
+          lastNodeId,
+          nodeId,
+          requestGraphEdgeTypes.invalidated_by_create_above,
+        )
+      ) {
+        this.addEdge(
+          lastNodeId,
+          nodeId,
+          requestGraphEdgeTypes.invalidated_by_create_above,
+        );
       }
     } else if (input.filePath != null) {
       node = nodeFromFilePath(input.filePath);
@@ -409,8 +484,18 @@ export class RequestGraph extends ContentGraph<
     }
 
     let nodeId = this.addNode(node);
-    if (!this.hasEdge(requestNodeId, nodeId, 'invalidated_by_create')) {
-      this.addEdge(requestNodeId, nodeId, 'invalidated_by_create');
+    if (
+      !this.hasEdge(
+        requestNodeId,
+        nodeId,
+        requestGraphEdgeTypes.invalidated_by_create,
+      )
+    ) {
+      this.addEdge(
+        requestNodeId,
+        nodeId,
+        requestGraphEdgeTypes.invalidated_by_create,
+      );
     }
   }
 
@@ -427,8 +512,18 @@ export class RequestGraph extends ContentGraph<
     let envNode = nodeFromEnv(env, value);
     let envNodeId = this.addNode(envNode);
 
-    if (!this.hasEdge(requestNodeId, envNodeId, 'invalidated_by_update')) {
-      this.addEdge(requestNodeId, envNodeId, 'invalidated_by_update');
+    if (
+      !this.hasEdge(
+        requestNodeId,
+        envNodeId,
+        requestGraphEdgeTypes.invalidated_by_update,
+      )
+    ) {
+      this.addEdge(
+        requestNodeId,
+        envNodeId,
+        requestGraphEdgeTypes.invalidated_by_update,
+      );
     }
   }
 
@@ -440,16 +535,41 @@ export class RequestGraph extends ContentGraph<
     let optionNode = nodeFromOption(option, value);
     let optionNodeId = this.addNode(optionNode);
 
-    if (!this.hasEdge(requestNodeId, optionNodeId, 'invalidated_by_update')) {
-      this.addEdge(requestNodeId, optionNodeId, 'invalidated_by_update');
+    if (
+      !this.hasEdge(
+        requestNodeId,
+        optionNodeId,
+        requestGraphEdgeTypes.invalidated_by_update,
+      )
+    ) {
+      this.addEdge(
+        requestNodeId,
+        optionNodeId,
+        requestGraphEdgeTypes.invalidated_by_update,
+      );
     }
   }
 
   clearInvalidations(nodeId: NodeId) {
     this.unpredicatableNodeIds.delete(nodeId);
-    this.replaceNodeIdsConnectedTo(nodeId, [], null, 'invalidated_by_update');
-    this.replaceNodeIdsConnectedTo(nodeId, [], null, 'invalidated_by_delete');
-    this.replaceNodeIdsConnectedTo(nodeId, [], null, 'invalidated_by_create');
+    this.replaceNodeIdsConnectedTo(
+      nodeId,
+      [],
+      null,
+      requestGraphEdgeTypes.invalidated_by_update,
+    );
+    this.replaceNodeIdsConnectedTo(
+      nodeId,
+      [],
+      null,
+      requestGraphEdgeTypes.invalidated_by_delete,
+    );
+    this.replaceNodeIdsConnectedTo(
+      nodeId,
+      [],
+      null,
+      requestGraphEdgeTypes.invalidated_by_create,
+    );
   }
 
   getInvalidations(requestNodeId: NodeId): Array<RequestInvalidation> {
@@ -460,7 +580,7 @@ export class RequestGraph extends ContentGraph<
     // For now just handling updates. Could add creates/deletes later if needed.
     let invalidations = this.getNodeIdsConnectedFrom(
       requestNodeId,
-      'invalidated_by_update',
+      requestGraphEdgeTypes.invalidated_by_update,
     );
     return invalidations
       .map(nodeId => {
@@ -482,7 +602,10 @@ export class RequestGraph extends ContentGraph<
       return [];
     }
 
-    let subRequests = this.getNodeIdsConnectedFrom(requestNodeId, 'subrequest');
+    let subRequests = this.getNodeIdsConnectedFrom(
+      requestNodeId,
+      requestGraphEdgeTypes.subrequest,
+    );
 
     return subRequests.map(nodeId => {
       let node = nullthrows(this.getNode(nodeId));
@@ -493,24 +616,31 @@ export class RequestGraph extends ContentGraph<
 
   invalidateFileNameNode(
     node: FileNameNode,
-    filePath: FilePath,
+    filePath: ProjectPath,
     matchNodes: Array<FileNode>,
   ) {
     // If there is an edge between this file_name node and one of the original file nodes pointed to
     // by the original file_name node, and the matched node is inside the current directory, invalidate
     // all connected requests pointed to by the file node.
-    let dirname = path.dirname(filePath);
+    let dirname = path.dirname(fromProjectPathRelative(filePath));
 
     let nodeId = this.getNodeIdByContentKey(node.id);
     for (let matchNode of matchNodes) {
       let matchNodeId = this.getNodeIdByContentKey(matchNode.id);
       if (
-        this.hasEdge(nodeId, matchNodeId, 'invalidated_by_create_above') &&
-        isDirectoryInside(path.dirname(matchNode.value.filePath), dirname)
+        this.hasEdge(
+          nodeId,
+          matchNodeId,
+          requestGraphEdgeTypes.invalidated_by_create_above,
+        ) &&
+        isDirectoryInside(
+          path.dirname(fromProjectPathRelative(matchNode.value.filePath)),
+          dirname,
+        )
       ) {
         let connectedNodes = this.getNodeIdsConnectedTo(
           matchNodeId,
-          'invalidated_by_create',
+          requestGraphEdgeTypes.invalidated_by_create,
         );
         for (let connectedNode of connectedNodes) {
           this.invalidateNode(connectedNode, FILE_CREATE);
@@ -524,26 +654,52 @@ export class RequestGraph extends ContentGraph<
     let contentKey = 'file_name:' + basename;
     if (this.hasContentKey(contentKey)) {
       if (
-        this.hasEdge(nodeId, this.getNodeIdByContentKey(contentKey), 'dirname')
+        this.hasEdge(
+          nodeId,
+          this.getNodeIdByContentKey(contentKey),
+          requestGraphEdgeTypes.dirname,
+        )
       ) {
         let parent = nullthrows(this.getNodeByContentKey(contentKey));
         invariant(parent.type === 'file_name');
-        this.invalidateFileNameNode(parent, dirname, matchNodes);
+        this.invalidateFileNameNode(
+          parent,
+          toProjectPathUnsafe(dirname),
+          matchNodes,
+        );
       }
     }
   }
 
-  respondToFSEvents(events: Array<Event>): boolean {
+  respondToFSEvents(
+    events: Array<{|path: ProjectPath, type: EventType|}>,
+  ): boolean {
     let didInvalidate = false;
-    for (let {path: filePath, type} of events) {
+    for (let {path: _filePath, type} of events) {
+      let filePath = fromProjectPathRelative(_filePath);
       let hasFileRequest = this.hasContentKey(filePath);
+
+      // If we see a 'create' event for the project root itself,
+      // this means the project root was moved and we need to
+      // re-run all requests.
+      if (type === 'create' && filePath === '') {
+        for (let [id, node] of this.nodes) {
+          if (node.type === 'request') {
+            this.invalidNodeIds.add(id);
+          }
+        }
+        return true;
+      }
 
       // sometimes mac os reports update events as create events.
       // if it was a create event, but the file already exists in the graph,
       // then also invalidate nodes connected by invalidated_by_update edges.
       if (hasFileRequest && (type === 'create' || type === 'update')) {
         let nodeId = this.getNodeIdByContentKey(filePath);
-        let nodes = this.getNodeIdsConnectedTo(nodeId, 'invalidated_by_update');
+        let nodes = this.getNodeIdsConnectedTo(
+          nodeId,
+          requestGraphEdgeTypes.invalidated_by_update,
+        );
 
         for (let connectedNode of nodes) {
           didInvalidate = true;
@@ -553,7 +709,7 @@ export class RequestGraph extends ContentGraph<
         if (type === 'create') {
           let nodes = this.getNodeIdsConnectedTo(
             nodeId,
-            'invalidated_by_create',
+            requestGraphEdgeTypes.invalidated_by_create,
           );
           for (let connectedNode of nodes) {
             didInvalidate = true;
@@ -570,7 +726,7 @@ export class RequestGraph extends ContentGraph<
           // Find potential file nodes to be invalidated if this file name pattern matches
           let above = this.getNodeIdsConnectedTo(
             fileNameNodeId,
-            'invalidated_by_create_above',
+            requestGraphEdgeTypes.invalidated_by_create_above,
           ).map(nodeId => {
             let node = nullthrows(this.getNode(nodeId));
             invariant(node.type === 'file');
@@ -579,7 +735,7 @@ export class RequestGraph extends ContentGraph<
 
           if (above.length > 0) {
             didInvalidate = true;
-            this.invalidateFileNameNode(fileNameNode, filePath, above);
+            this.invalidateFileNameNode(fileNameNode, _filePath, above);
           }
         }
 
@@ -587,10 +743,10 @@ export class RequestGraph extends ContentGraph<
           let globNode = this.getNode(globeNodeId);
           invariant(globNode && globNode.type === 'glob');
 
-          if (isGlobMatch(filePath, globNode.value)) {
+          if (isGlobMatch(filePath, fromProjectPathRelative(globNode.value))) {
             let connectedNodes = this.getNodeIdsConnectedTo(
               globeNodeId,
-              'invalidated_by_create',
+              requestGraphEdgeTypes.invalidated_by_create,
             );
             for (let connectedNode of connectedNodes) {
               didInvalidate = true;
@@ -602,11 +758,16 @@ export class RequestGraph extends ContentGraph<
         let nodeId = this.getNodeIdByContentKey(filePath);
         for (let connectedNode of this.getNodeIdsConnectedTo(
           nodeId,
-          'invalidated_by_delete',
+          requestGraphEdgeTypes.invalidated_by_delete,
         )) {
           didInvalidate = true;
           this.invalidateNode(connectedNode, FILE_DELETE);
         }
+
+        // Delete the file node since it doesn't exist anymore.
+        // This ensures that files that don't exist aren't sent
+        // to requests as invalidations for future requests.
+        this.removeNode(nodeId);
       }
     }
 
@@ -639,9 +800,10 @@ export default class RequestTracker {
     this.signal = signal;
   }
 
-  startRequest(
-    request: StoredRequest,
-  ): {|requestNodeId: NodeId, deferred: Deferred<boolean>|} {
+  startRequest(request: StoredRequest): {|
+    requestNodeId: NodeId,
+    deferred: Deferred<boolean>,
+  |} {
     let didPreviouslyExist = this.graph.hasContentKey(request.id);
     let requestNodeId;
     if (didPreviouslyExist) {
@@ -695,10 +857,11 @@ export default class RequestTracker {
       let result: T = (node.value.result: any);
       return result;
     } else if (node.value.resultCacheKey != null && ifMatch == null) {
-      let cachedResult: T = (nullthrows(
-        await this.options.cache.get(node.value.resultCacheKey),
-        // $FlowFixMe
-      ): any);
+      let key = node.value.resultCacheKey;
+      invariant(this.options.cache.hasLargeBlob(key));
+      let cachedResult: T = deserialize(
+        await this.options.cache.getLargeBlob(key),
+      );
       node.value.result = cachedResult;
       return cachedResult;
     }
@@ -724,7 +887,9 @@ export default class RequestTracker {
     }
   }
 
-  respondToFSEvents(events: Array<Event>): boolean {
+  respondToFSEvents(
+    events: Array<{|path: ProjectPath, type: EventType|}>,
+  ): boolean {
     return this.graph.respondToFSEvents(events);
   }
 
@@ -778,12 +943,17 @@ export default class RequestTracker {
       }
     }
 
+    let previousInvalidations =
+      requestId != null ? this.graph.getInvalidations(requestId) : [];
     let {requestNodeId, deferred} = this.startRequest({
       id: request.id,
       type: request.type,
     });
 
-    let {api, subRequestContentKeys} = this.createAPI(requestNodeId);
+    let {api, subRequestContentKeys} = this.createAPI(
+      requestNodeId,
+      previousInvalidations,
+    );
 
     try {
       let node = this.graph.getRequestNode(requestNodeId);
@@ -812,9 +982,9 @@ export default class RequestTracker {
 
   createAPI(
     requestId: NodeId,
+    previousInvalidations: Array<RequestInvalidation>,
   ): {|api: RunAPI, subRequestContentKeys: Set<ContentKey>|} {
     let subRequestContentKeys = new Set<ContentKey>();
-    let invalidations = this.graph.getInvalidations(requestId);
     let api: RunAPI = {
       invalidateOnFileCreate: input =>
         this.graph.invalidateOnFileCreate(requestId, input),
@@ -831,7 +1001,7 @@ export default class RequestTracker {
           option,
           this.options[option],
         ),
-      getInvalidations: () => invalidations,
+      getInvalidations: () => previousInvalidations,
       storeResult: (result, cacheKey) => {
         this.storeResult(requestId, result, cacheKey);
       },
@@ -865,13 +1035,9 @@ export default class RequestTracker {
   }
 
   async writeToCache() {
-    let cacheKey = md5FromObject({
-      parcelVersion: PARCEL_VERSION,
-      entries: this.options.entries,
-    });
-
-    let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
-    let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
+    let cacheKey = getCacheKey(this.options);
+    let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
+    let snapshotKey = hashString(`${cacheKey}:snapshot`);
 
     if (this.options.shouldDisableCache) {
       return;
@@ -886,13 +1052,18 @@ export default class RequestTracker {
       let resultCacheKey = node.value.resultCacheKey;
       if (resultCacheKey != null && node.value.result != null) {
         promises.push(
-          this.options.cache.set(resultCacheKey, node.value.result),
+          this.options.cache.setLargeBlob(
+            resultCacheKey,
+            serialize(node.value.result),
+          ),
         );
         delete node.value.result;
       }
     }
 
-    promises.push(this.options.cache.set(requestGraphKey, this.graph));
+    promises.push(
+      this.options.cache.setLargeBlob(requestGraphKey, serialize(this.graph)),
+    );
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
@@ -925,22 +1096,23 @@ export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
   return {ignore};
 }
 
+function getCacheKey(options) {
+  return `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}`;
+}
+
 async function loadRequestGraph(options): Async<RequestGraph> {
   if (options.shouldDisableCache) {
     return new RequestGraph();
   }
 
-  let cacheKey = md5FromObject({
-    parcelVersion: PARCEL_VERSION,
-    entries: options.entries,
-  });
-
-  let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
-  let requestGraph = await options.cache.get<RequestGraph>(requestGraphKey);
-
-  if (requestGraph) {
+  let cacheKey = getCacheKey(options);
+  let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
+  if (await options.cache.hasLargeBlob(requestGraphKey)) {
+    let requestGraph: RequestGraph = deserialize(
+      await options.cache.getLargeBlob(requestGraphKey),
+    );
     let opts = getWatcherOptions(options);
-    let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
+    let snapshotKey = hashString(`${cacheKey}:snapshot`);
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
       options.projectRoot,
@@ -950,7 +1122,12 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     requestGraph.invalidateUnpredictableNodes();
     requestGraph.invalidateEnvNodes(options.env);
     requestGraph.invalidateOptionNodes(options);
-    requestGraph.respondToFSEvents(events);
+    requestGraph.respondToFSEvents(
+      events.map(e => ({
+        type: e.type,
+        path: toProjectPath(options.projectRoot, e.path),
+      })),
+    );
 
     return requestGraph;
   }

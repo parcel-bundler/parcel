@@ -1,19 +1,13 @@
 // @flow strict-local
 
-import type {
-  AST,
-  Blob,
-  ConfigResult,
-  FilePath,
-  PackageJSON,
-} from '@parcel/types';
+import type {AST, Blob} from '@parcel/types';
 import type {Asset, Dependency, ParcelOptions} from './types';
 
-import v8 from 'v8';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
-import {getConfig, generateFromAST} from './assetUtils';
+import {generateFromAST} from './assetUtils';
+import {deserializeRaw} from './serializer';
 
 export default class CommittedAsset {
   value: Asset;
@@ -33,7 +27,11 @@ export default class CommittedAsset {
   getContent(): Blob | Promise<Buffer | string> {
     if (this.content == null) {
       if (this.value.contentKey != null) {
-        return this.options.cache.getStream(this.value.contentKey);
+        if (this.value.isLargeBlob) {
+          return this.options.cache.getStream(this.value.contentKey);
+        } else {
+          return this.options.cache.getBlob(this.value.contentKey);
+        }
       } else if (this.value.astKey != null) {
         return streamFromPromise(
           generateFromAST(this).then(({content}) => {
@@ -115,7 +113,7 @@ export default class CommittedAsset {
         let mapBuffer = await this.getMapBuffer();
         if (mapBuffer) {
           // Get sourcemap from flatbuffer
-          return new SourceMap(mapBuffer);
+          return new SourceMap(this.options.projectRoot, mapBuffer);
         }
       })();
     }
@@ -131,10 +129,7 @@ export default class CommittedAsset {
     if (this.ast == null) {
       this.ast = this.options.cache
         .getBlob(this.value.astKey)
-        .then(serializedAst =>
-          // $FlowFixMe
-          v8.deserialize(serializedAst),
-        );
+        .then(serializedAst => deserializeRaw(serializedAst));
     }
 
     return this.ast;
@@ -142,19 +137,5 @@ export default class CommittedAsset {
 
   getDependencies(): Array<Dependency> {
     return Array.from(this.value.dependencies.values());
-  }
-
-  async getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-    |},
-  ): Promise<ConfigResult | null> {
-    return (await getConfig(this, filePaths, options))?.config;
-  }
-
-  getPackage(): Promise<PackageJSON | null> {
-    return this.getConfig(['package.json']);
   }
 }

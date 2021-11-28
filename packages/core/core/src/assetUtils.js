@@ -2,6 +2,7 @@
 
 import type {
   ASTGenerator,
+  BundleBehavior,
   FilePath,
   GenerateOutput,
   Meta,
@@ -10,7 +11,6 @@ import type {
   Symbol,
   SourceLocation,
   Transformer,
-  QueryParameters,
 } from '@parcel/types';
 import type {
   Asset,
@@ -19,11 +19,8 @@ import type {
   Environment,
   ParcelOptions,
 } from './types';
-import {objectSortedEntries} from '@parcel/utils';
-import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
-import crypto from 'crypto';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import CommittedAsset from './CommittedAsset';
@@ -31,31 +28,32 @@ import UncommittedAsset from './UncommittedAsset';
 import loadPlugin from './loadParcelPlugin';
 import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
-import {
-  blobToStream,
-  loadConfig,
-  md5FromOrderedObject,
-  md5FromFilePath,
-} from '@parcel/utils';
-import {hashFromOption} from './utils';
+import {blobToStream, hashFile} from '@parcel/utils';
+import {hashFromOption, toInternalSourceLocation} from './utils';
 import {createBuildCache} from './buildCache';
+import {
+  type ProjectPath,
+  fromProjectPath,
+  fromProjectPathRelative,
+} from './projectPath';
+import {hashString} from '@parcel/hash';
+import {BundleBehavior as BundleBehaviorMap} from './types';
 
 type AssetOptions = {|
   id?: string,
   committed?: boolean,
   hash?: ?string,
   idBase?: ?string,
-  filePath: FilePath,
-  query?: ?QueryParameters,
+  filePath: ProjectPath,
+  query?: ?string,
   type: string,
   contentKey?: ?string,
   mapKey?: ?string,
   astKey?: ?string,
   astGenerator?: ?ASTGenerator,
   dependencies?: Map<string, Dependency>,
-  isIsolated?: boolean,
-  isInline?: boolean,
-  isSplittable?: ?boolean,
+  bundleBehavior?: ?BundleBehavior,
+  isBundleSplittable?: ?boolean,
   isSource: boolean,
   env: Environment,
   meta?: Meta,
@@ -66,35 +64,43 @@ type AssetOptions = {|
   sideEffects?: boolean,
   uniqueKey?: ?string,
   plugin?: PackageName,
-  configPath?: FilePath,
+  configPath?: ProjectPath,
   configKeyPath?: string,
 |};
 
 export function createAssetIdFromOptions(options: AssetOptions): string {
   let uniqueKey = options.uniqueKey ?? '';
-  let idBase = options.idBase != null ? options.idBase : options.filePath;
-  let queryString = options.query ? objectSortedEntries(options.query) : '';
+  let idBase =
+    options.idBase != null
+      ? options.idBase
+      : fromProjectPathRelative(options.filePath);
 
-  return md5FromOrderedObject({
-    idBase,
-    type: options.type,
-    env: options.env.id,
-    uniqueKey,
-    pipeline: options.pipeline ?? '',
-    queryString,
-  });
+  return hashString(
+    idBase +
+      options.type +
+      options.env.id +
+      uniqueKey +
+      ':' +
+      (options.pipeline ?? '') +
+      ':' +
+      (options.query ?? ''),
+  );
 }
 
-export function createAsset(options: AssetOptions): Asset {
+export function createAsset(
+  projectRoot: FilePath,
+  options: AssetOptions,
+): Asset {
   return {
     id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
     query: options.query,
-    isIsolated: options.isIsolated ?? false,
-    isInline: options.isInline ?? false,
-    isSplittable: options.isSplittable,
+    bundleBehavior: options.bundleBehavior
+      ? BundleBehaviorMap[options.bundleBehavior]
+      : null,
+    isBundleSplittable: options.isBundleSplittable ?? true,
     type: options.type,
     contentKey: options.contentKey,
     mapKey: options.mapKey,
@@ -107,7 +113,18 @@ export function createAsset(options: AssetOptions): Asset {
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
-    symbols: options.symbols,
+    symbols:
+      options.symbols &&
+      new Map(
+        [...options.symbols].map(([k, v]) => [
+          k,
+          {
+            local: v.local,
+            meta: v.meta,
+            loc: toInternalSourceLocation(projectRoot, v.loc),
+          },
+        ]),
+      ),
     sideEffects: options.sideEffects ?? true,
     uniqueKey: options.uniqueKey ?? '',
     plugin: options.plugin,
@@ -136,9 +153,12 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   }
 
   let pluginName = nullthrows(asset.value.plugin);
-  let {plugin} = await loadPlugin<Transformer>(
+  let {plugin} = await loadPlugin<Transformer<mixed>>(
     pluginName,
-    nullthrows(asset.value.configPath),
+    fromProjectPath(
+      asset.options.projectRoot,
+      nullthrows(asset.value.configPath),
+    ),
     nullthrows(asset.value.configKeyPath),
     asset.options,
   );
@@ -174,46 +194,10 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   };
 }
 
-export async function getConfig(
-  asset: CommittedAsset | UncommittedAsset,
-  filePaths: Array<FilePath>,
-  options: ?{|
-    packageKey?: string,
-    parse?: boolean,
-  |},
-): Promise<ConfigOutput | null> {
-  let packageKey = options?.packageKey;
-  let parse = options && options.parse;
-
-  if (packageKey != null) {
-    let pkg = await asset.getPackage();
-    if (pkg && pkg[packageKey]) {
-      return {
-        config: pkg[packageKey],
-        // The package.json file was already registered by asset.getPackage() -> asset.getConfig()
-        files: [],
-      };
-    }
-  }
-
-  let conf = await loadConfig(
-    asset.options.inputFS,
-    asset.value.filePath,
-    filePaths,
-    asset.options.projectRoot,
-    parse == null ? null : {parse},
-  );
-  if (!conf) {
-    return null;
-  }
-
-  return conf;
-}
-
 export function getInvalidationId(invalidation: RequestInvalidation): string {
   switch (invalidation.type) {
     case 'file':
-      return 'file:' + invalidation.filePath;
+      return 'file:' + fromProjectPathRelative(invalidation.filePath);
     case 'env':
       return 'env:' + invalidation.key;
     case 'option':
@@ -237,33 +221,34 @@ export async function getInvalidationHash(
     .slice()
     .sort((a, b) => (getInvalidationId(a) < getInvalidationId(b) ? -1 : 1));
 
-  let hash = crypto.createHash('md5');
+  let hashes = '';
   for (let invalidation of sortedInvalidations) {
     switch (invalidation.type) {
       case 'file': {
         // Only recompute the hash of this file if we haven't seen it already during this build.
         let fileHash = hashCache.get(invalidation.filePath);
         if (fileHash == null) {
-          fileHash = md5FromFilePath(options.inputFS, invalidation.filePath);
+          fileHash = hashFile(
+            options.inputFS,
+            fromProjectPath(options.projectRoot, invalidation.filePath),
+          );
           hashCache.set(invalidation.filePath, fileHash);
         }
-        hash.update(await fileHash);
+        hashes += await fileHash;
         break;
       }
       case 'env':
-        hash.update(
-          invalidation.key + ':' + (options.env[invalidation.key] || ''),
-        );
+        hashes +=
+          invalidation.key + ':' + (options.env[invalidation.key] || '');
         break;
       case 'option':
-        hash.update(
-          invalidation.key + ':' + hashFromOption(options[invalidation.key]),
-        );
+        hashes +=
+          invalidation.key + ':' + hashFromOption(options[invalidation.key]);
         break;
       default:
         throw new Error('Unknown invalidation type: ' + invalidation.type);
     }
   }
 
-  return hash.digest('hex');
+  return hashString(hashes);
 }

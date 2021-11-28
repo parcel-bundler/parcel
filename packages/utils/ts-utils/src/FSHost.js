@@ -13,9 +13,9 @@ export class FSHost {
     this.ts = ts;
   }
 
-  getCurrentDirectory(): FilePath {
+  getCurrentDirectory: () => FilePath = () => {
     return this.fs.cwd();
-  }
+  };
 
   fileExists(filePath: FilePath): boolean {
     try {
@@ -53,9 +53,10 @@ export class FSHost {
     }
   }
 
-  getAccessibleFileSystemEntries(
-    dirPath: FilePath,
-  ): {|directories: Array<FilePath>, files: Array<FilePath>|} {
+  getAccessibleFileSystemEntries(dirPath: FilePath): {|
+    directories: Array<FilePath>,
+    files: Array<FilePath>,
+  |} {
     try {
       let entries = this.fs.readdirSync(dirPath || '.').sort();
       let files = [];
@@ -85,12 +86,12 @@ export class FSHost {
 
   readDirectory(
     root: FilePath,
-    extensions: $ReadOnlyArray<string>,
-    excludes: ?$ReadOnlyArray<string>,
-    includes: $ReadOnlyArray<string>,
+    extensions?: $ReadOnlyArray<string>,
+    excludes?: $ReadOnlyArray<string>,
+    includes?: $ReadOnlyArray<string>,
     depth?: number,
   ): any {
-    // $FlowFixMe
+    // $FlowFixMe[prop-missing]
     return this.ts.matchFiles(
       root,
       extensions,
@@ -99,8 +100,9 @@ export class FSHost {
       this.ts.sys.useCaseSensitiveFileNames,
       this.getCurrentDirectory(),
       depth,
-      this.getAccessibleFileSystemEntries.bind(this),
-      this.realpath.bind(this),
+      dirPath => this.getAccessibleFileSystemEntries(dirPath),
+      filePath => this.realpath(filePath),
+      dirPath => this.directoryExists(dirPath),
     );
   }
 }

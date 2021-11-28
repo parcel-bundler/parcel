@@ -45,10 +45,10 @@ function Module(moduleName) {
     data: module.bundle.hotData,
     _acceptCallbacks: [],
     _disposeCallbacks: [],
-    accept: function(fn) {
-      this._acceptCallbacks.push(fn || function() {});
+    accept: function (fn) {
+      this._acceptCallbacks.push(fn || function () {});
     },
-    dispose: function(fn) {
+    dispose: function (fn) {
       this._disposeCallbacks.push(fn);
     },
   };
@@ -86,7 +86,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );
   // $FlowFixMe
-  ws.onmessage = function(event /*: {data: string, ...} */) {
+  ws.onmessage = function (event /*: {data: string, ...} */) {
     checkedAssets = ({} /*: {|[string]: boolean|} */);
     acceptedAssets = ({} /*: {|[string]: boolean|} */);
     assetsToAccept = [];
@@ -95,26 +95,25 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'update') {
       // Remove error overlay if there is one
-      removeErrorOverlay();
+      if (typeof document !== 'undefined') {
+        removeErrorOverlay();
+      }
 
       let assets = data.assets.filter(asset => asset.envHash === HMR_ENV_HASH);
 
       // Handle HMR Update
-      var handled = false;
-      assets.forEach(asset => {
-        var didAccept =
+      let handled = assets.every(asset => {
+        return (
           asset.type === 'css' ||
           (asset.type === 'js' &&
-            hmrAcceptCheck(module.bundle.root, asset.id, asset.depsByBundle));
-        if (didAccept) {
-          handled = true;
-        }
+            hmrAcceptCheck(module.bundle.root, asset.id, asset.depsByBundle))
+        );
       });
 
       if (handled) {
         console.clear();
 
-        assets.forEach(function(asset) {
+        assets.forEach(function (asset) {
           hmrApply(module.bundle.root, asset);
         });
 
@@ -146,17 +145,19 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         );
       }
 
-      // Render the fancy html overlay
-      removeErrorOverlay();
-      var overlay = createErrorOverlay(data.diagnostics.html);
-      // $FlowFixMe
-      document.body.appendChild(overlay);
+      if (typeof document !== 'undefined') {
+        // Render the fancy html overlay
+        removeErrorOverlay();
+        var overlay = createErrorOverlay(data.diagnostics.html);
+        // $FlowFixMe
+        document.body.appendChild(overlay);
+      }
     }
   };
-  ws.onerror = function(e) {
+  ws.onerror = function (e) {
     console.error(e.message);
   };
-  ws.onclose = function(e) {
+  ws.onclose = function (e) {
     if (process.env.PARCEL_BUILD_ENV !== 'test') {
       console.warn('[parcel] 🚨 Connection to the HMR server was lost');
     }
@@ -186,12 +187,15 @@ function createErrorOverlay(diagnostics) {
         <div style="font-size: 18px; font-weight: bold; margin-top: 20px;">
           🚨 ${diagnostic.message}
         </div>
-        <pre>
-          ${stack}
-        </pre>
+        <pre>${stack}</pre>
         <div>
-          ${diagnostic.hints.map(hint => '<div>' + hint + '</div>').join('')}
+          ${diagnostic.hints.map(hint => '<div>💡 ' + hint + '</div>').join('')}
         </div>
+        ${
+          diagnostic.documentation
+            ? `<div>📝 <a style="color: violet" href="${diagnostic.documentation}" target="_blank">Learn more</a></div>`
+            : ''
+        }
       </div>
     `;
   }
@@ -231,7 +235,7 @@ function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
 
 function updateLink(link) {
   var newLink = link.cloneNode();
-  newLink.onload = function() {
+  newLink.onload = function () {
     if (link.parentNode !== null) {
       // $FlowFixMe
       link.parentNode.removeChild(link);
@@ -252,7 +256,7 @@ function reloadCSS() {
     return;
   }
 
-  cssTimeout = setTimeout(function() {
+  cssTimeout = setTimeout(function () {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
       // $FlowFixMe[incompatible-type]
@@ -285,15 +289,14 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
 
   if (asset.type === 'css') {
     reloadCSS();
-    return;
-  }
-
-  let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
-  if (deps) {
-    var fn = new Function('require', 'module', 'exports', asset.output);
-    modules[asset.id] = [fn, deps];
-  } else if (bundle.parent) {
-    hmrApply(bundle.parent, asset);
+  } else if (asset.type === 'js') {
+    let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
+    if (deps) {
+      var fn = new Function('require', 'module', 'exports', asset.output);
+      modules[asset.id] = [fn, deps];
+    } else if (bundle.parent) {
+      hmrApply(bundle.parent, asset);
+    }
   }
 }
 
@@ -318,7 +321,7 @@ function hmrAcceptCheck(
   }
 
   if (checkedAssets[id]) {
-    return;
+    return true;
   }
 
   checkedAssets[id] = true;
@@ -331,7 +334,14 @@ function hmrAcceptCheck(
     return true;
   }
 
-  return getParents(module.bundle.root, id).some(function(v) {
+  let parents = getParents(module.bundle.root, id);
+
+  // If no parents, the asset is new. Prevent reloading the page.
+  if (!parents.length) {
+    return true;
+  }
+
+  return parents.some(function (v) {
     return hmrAcceptCheck(v[0], v[1], null);
   });
 }
@@ -344,7 +354,7 @@ function hmrAcceptRun(bundle /*: ParcelRequire */, id /*: string */) {
   }
 
   if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
-    cached.hot._disposeCallbacks.forEach(function(cb) {
+    cached.hot._disposeCallbacks.forEach(function (cb) {
       cb(bundle.hotData);
     });
   }
@@ -354,11 +364,12 @@ function hmrAcceptRun(bundle /*: ParcelRequire */, id /*: string */) {
 
   cached = bundle.cache[id];
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
-    cached.hot._acceptCallbacks.forEach(function(cb) {
-      var assetsToAlsoAccept = cb(function() {
+    cached.hot._acceptCallbacks.forEach(function (cb) {
+      var assetsToAlsoAccept = cb(function () {
         return getParents(module.bundle.root, id);
       });
       if (assetsToAlsoAccept && assetsToAccept.length) {
+        // $FlowFixMe[method-unbinding]
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
       }
     });

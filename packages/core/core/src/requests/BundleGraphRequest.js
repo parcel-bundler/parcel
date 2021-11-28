@@ -5,6 +5,7 @@ import type {SharedReference} from '@parcel/workers';
 import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {
+  Asset,
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
@@ -13,18 +14,18 @@ import type {
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import assert from 'assert';
-import path from 'path';
 import nullthrows from 'nullthrows';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import AssetGraph from '../AssetGraph';
 import BundleGraph from '../public/BundleGraph';
-import InternalBundleGraph from '../BundleGraph';
+import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
-import {unique, md5FromOrderedObject} from '@parcel/utils';
+import {unique} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
 import {PARCEL_VERSION} from '../constants';
@@ -47,6 +48,11 @@ import {
   type PluginWithLoadConfig,
 } from './ConfigRequest';
 import {cacheSerializedObject, deserializeToCache} from '../serializer';
+import {
+  joinProjectPath,
+  fromProjectPathRelative,
+  toProjectPathUnsafe,
+} from '../projectPath';
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
@@ -58,10 +64,15 @@ type RunInput = {|
   ...StaticRunOpts,
 |};
 
+type BundleGraphResult = {|
+  bundleGraph: InternalBundleGraph,
+  changedAssets: Map<string, Asset>,
+|};
+
 type BundleGraphRequest = {|
   id: string,
   +type: 'bundle_graph_request',
-  run: RunInput => Async<InternalBundleGraph>,
+  run: RunInput => Async<BundleGraphResult>,
   input: BundleGraphRequestInput,
 |};
 
@@ -135,7 +146,7 @@ class BundlerRunner {
   async loadConfig<T: PluginWithLoadConfig>(plugin: LoadedPlugin<T>) {
     let config = createConfig({
       plugin: plugin.name,
-      searchPath: path.join(this.options.projectRoot, 'index'),
+      searchPath: toProjectPathUnsafe('index'),
     });
 
     await loadPluginConfig(plugin, config, this.options);
@@ -143,7 +154,6 @@ class BundlerRunner {
     for (let devDep of config.devDeps) {
       let devDepRequest = await createDevDependency(
         devDep,
-        plugin,
         this.previousDevDeps,
         this.options,
       );
@@ -154,13 +164,13 @@ class BundlerRunner {
   }
 
   async runDevDepRequest(devDepRequest: DevDepRequest) {
-    let {moduleSpecifier, resolveFrom} = devDepRequest;
-    let key = `${moduleSpecifier}:${resolveFrom}`;
+    let {specifier, resolveFrom} = devDepRequest;
+    let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
     this.devDepRequests.set(key, devDepRequest);
     await runDevDepRequest(this.api, devDepRequest);
   }
 
-  async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
+  async bundle(graph: AssetGraph): Promise<BundleGraphResult> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -190,20 +200,30 @@ class BundlerRunner {
         // Deserialize, and store the original buffer in an in memory cache so we avoid
         // re-serializing it when sending to workers, and in build mode, when writing to cache on shutdown.
         let graph = deserializeToCache(cached);
-        this.api.storeResult(graph, cacheKey);
+        this.api.storeResult(
+          {
+            bundleGraph: graph,
+            changedAssets: new Map(),
+          },
+          cacheKey,
+        );
         return graph;
       }
     }
 
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
+    await dumpGraphToGraphViz(
+      // $FlowFixMe
+      internalBundleGraph._graph,
+      'before_bundle',
+      bundleGraphEdgeTypes,
+    );
     let mutableBundleGraph = new MutableBundleGraph(
       internalBundleGraph,
       this.options,
     );
 
-    let logger = new PluginLogger({origin: this.config.getBundlerName()});
+    let logger = new PluginLogger({origin: name});
 
     try {
       await bundler.bundle({
@@ -215,12 +235,16 @@ class BundlerRunner {
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
-          origin: this.config.getBundlerName(),
+          origin: name,
         }),
       });
     } finally {
-      // $FlowFixMe[incompatible-call]
-      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
+      await dumpGraphToGraphViz(
+        // $FlowFixMe[incompatible-call]
+        internalBundleGraph._graph,
+        'after_bundle',
+        bundleGraphEdgeTypes,
+      );
     }
 
     if (this.pluginOptions.mode === 'production') {
@@ -234,12 +258,16 @@ class BundlerRunner {
       } catch (e) {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
-            origin: this.config.getBundlerName(),
+            origin: name,
           }),
         });
       } finally {
-        // $FlowFixMe[incompatible-call]
-        await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+        await dumpGraphToGraphViz(
+          // $FlowFixMe[incompatible-call]
+          internalBundleGraph._graph,
+          'after_optimize',
+          bundleGraphEdgeTypes,
+        );
       }
     }
 
@@ -247,10 +275,9 @@ class BundlerRunner {
     // the potential for lazy require() that aren't executed until the request runs.
     let devDepRequest = await createDevDependency(
       {
-        moduleSpecifier: name,
+        specifier: name,
         resolveFrom,
       },
-      plugin,
       this.previousDevDeps,
       this.options,
     );
@@ -258,7 +285,7 @@ class BundlerRunner {
 
     await this.nameBundles(internalBundleGraph);
 
-    await applyRuntimes({
+    let changedAssets = await applyRuntimes({
       bundleGraph: internalBundleGraph,
       api: this.api,
       config: this.config,
@@ -270,37 +297,64 @@ class BundlerRunner {
       configs: this.configs,
     });
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
+    await dumpGraphToGraphViz(
+      // $FlowFixMe
+      internalBundleGraph._graph,
+      'after_runtimes',
+      bundleGraphEdgeTypes,
+    );
 
     // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
     // many times to send to each worker, and in build mode, when writing to cache on shutdown.
+    // Also, pre-compute the hashes for each bundle so they are only computed once and shared between workers.
+    internalBundleGraph.getBundleGraphHash();
     cacheSerializedObject(internalBundleGraph);
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
     cacheKey = await this.getCacheKey(graph);
-    this.api.storeResult(internalBundleGraph, cacheKey);
-    return internalBundleGraph;
+    this.api.storeResult(
+      {
+        bundleGraph: internalBundleGraph,
+        changedAssets: new Map(),
+      },
+      cacheKey,
+    );
+
+    return {
+      bundleGraph: internalBundleGraph,
+      changedAssets,
+    };
   }
 
   async getCacheKey(assetGraph: AssetGraph): Promise<string> {
-    return md5FromOrderedObject({
-      parcelVersion: PARCEL_VERSION,
-      hash: assetGraph.getHash(),
-      configs: [...this.configs].map(([pluginName, config]) =>
+    let configs = [...this.configs]
+      .map(([pluginName, config]) =>
         getConfigHash(config, pluginName, this.options),
-      ),
-      devDepRequests: [...this.devDepRequests.values()].map(d => d.hash),
-      invalidations: await getInvalidationHash(
-        this.api.getInvalidations(),
-        this.options,
-      ),
-    });
+      )
+      .join('');
+    let devDepRequests = [...this.devDepRequests.values()]
+      .map(d => d.hash)
+      .join('');
+    let invalidations = await getInvalidationHash(
+      this.api.getInvalidations(),
+      this.options,
+    );
+
+    return hashString(
+      PARCEL_VERSION +
+        assetGraph.getHash() +
+        configs +
+        devDepRequests +
+        invalidations +
+        this.options.mode,
+    );
   }
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
     let namers = await this.config.getNamers();
-    let bundles = bundleGraph.getBundles();
+    // inline bundles must still be named so the PackagerRunner
+    // can match them to the correct packager/optimizer plugins.
+    let bundles = bundleGraph.getBundles({includeInline: true});
     await Promise.all(
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph)),
     );
@@ -309,10 +363,9 @@ class BundlerRunner {
     for (let namer of namers) {
       let devDepRequest = await createDevDependency(
         {
-          moduleSpecifier: namer.name,
+          specifier: namer.name,
           resolveFrom: namer.resolveFrom,
         },
-        namer,
         this.previousDevDeps,
         this.options,
       );
@@ -320,7 +373,7 @@ class BundlerRunner {
     }
 
     let bundleNames = bundles.map(b =>
-      path.join(b.target.distDir, nullthrows(b.name)),
+      joinProjectPath(b.target.distDir, nullthrows(b.name)),
     );
     assert.deepEqual(
       bundleNames,
@@ -330,14 +383,14 @@ class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<LoadedPlugin<Namer>>,
+    namers: Array<LoadedPlugin<Namer<mixed>>>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {
     let bundle = Bundle.get(internalBundle, internalBundleGraph, this.options);
     let bundleGraph = new BundleGraph<IBundle>(
       internalBundleGraph,
-      NamedBundle.get,
+      NamedBundle.get.bind(NamedBundle),
       this.options,
     );
 
@@ -352,12 +405,6 @@ class BundlerRunner {
         });
 
         if (name != null) {
-          if (path.extname(name).slice(1) !== bundle.type) {
-            throw new Error(
-              `Destination name ${name} extension does not match bundle type "${bundle.type}"`,
-            );
-          }
-
           internalBundle.name = name;
           let {hashReference} = internalBundle;
           internalBundle.displayName = name.includes(hashReference)

@@ -1,21 +1,16 @@
 // @flow
 
-import {startService} from 'esbuild';
+import {transform} from 'esbuild';
 import {Optimizer} from '@parcel/plugin';
 import {blobToString, normalizePath} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import path from 'path';
 import invariant from 'assert';
 
-let service = null;
 export default (new Optimizer({
   async optimize({contents, map, bundle, options, getSourceMapReference}) {
     if (!bundle.env.shouldOptimize) {
       return {contents, map};
-    }
-
-    if (!service) {
-      service = await startService();
     }
 
     let relativeBundlePath = path.relative(
@@ -33,10 +28,12 @@ export default (new Optimizer({
       code += `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${vlqMappings}`;
     }
 
-    let {code: js, map: jsSourceMap} = await service.transform(code, {
+    let {code: js, map: jsSourceMap} = await transform(code, {
       sourcemap: 'external',
       sourcefile: relativeBundlePath,
       minify: true,
+      treeShaking: true,
+      format: 'esm',
     });
 
     let sourcemap = null;

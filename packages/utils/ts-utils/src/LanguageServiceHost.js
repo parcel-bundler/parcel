@@ -4,14 +4,22 @@ import type {FilePath} from '@parcel/types';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {
   CompilerOptions,
+  LanguageServiceHost as ILanguageServiceHost,
   IScriptSnapshot,
   ParsedCommandLine,
 } from 'typescript';
 import {FSHost} from './FSHost';
 
-export class LanguageServiceHost extends FSHost {
+// the typings from flow-typed define the ILanguageServiceHost interface as
+// having its methods as properties with arrow functions. These should probably
+// be methods instead.
+// $FlowFixMe[method-unbinding]
+export class LanguageServiceHost
+  extends FSHost
+  implements ILanguageServiceHost
+{
   config: ParsedCommandLine;
-  files: {[key: string]: {version: number, ...}, ...};
+  files: {|[key: FilePath]: {|version: number|}|};
 
   constructor(fs: FileSystem, ts: TypeScriptModule, config: ParsedCommandLine) {
     super(fs, ts);
