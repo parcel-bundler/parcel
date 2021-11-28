@@ -77,6 +77,7 @@ const OPTIONS = {
 
 export default function collectDependencies(asset: MutableAsset, ast: AST) {
   let isDirty = false;
+  const errors = [];
   PostHTML().walk.call(ast.program, node => {
     // Ideally we'd have location information for specific attributes...
     let getLoc = () =>
@@ -104,6 +105,15 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
       // Check for id references
       if (attrs[attr][0] === '#') {
         continue;
+      }
+
+      // Check for empty string
+      if (attrs[attr].length === 0) {
+        errors.push({
+          message: `${attr} should not be empty string`,
+          filePath: asset.filePath,
+          loc: node.location,
+        });
       }
 
       const elements = ATTRS[attr];
@@ -142,6 +152,10 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
 
     return node;
   });
+
+  if (errors.length > 0) {
+    throw errors;
+  }
 
   if (isDirty) {
     asset.setAST(ast);

@@ -10,6 +10,7 @@ import {render} from 'posthtml-render';
 import semver from 'semver';
 import collectDependencies from './dependencies';
 import extractInlineAssets from './inline';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default (new Transformer({
   canReuseAST({ast}) {
@@ -33,9 +34,27 @@ export default (new Transformer({
     if (asset.type === 'htm') {
       asset.type = 'html';
     }
+
     asset.bundleBehavior = 'isolated';
     let ast = nullthrows(await asset.getAST());
-    let hasScripts = collectDependencies(asset, ast);
+    let hasScripts;
+    try {
+      hasScripts = collectDependencies(asset, ast);
+    } catch (errors) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errors.map(error => ({
+          message: error.message,
+          origin: '@parcel/transformer-html',
+          codeFrames: [
+            {
+              filePath: error.filePath,
+              language: 'html',
+              codeHighlights: [error.loc],
+            },
+          ],
+        })),
+      });
+    }
 
     const {assets: inlineAssets, hasScripts: hasInlineScripts} =
       extractInlineAssets(asset, ast);
