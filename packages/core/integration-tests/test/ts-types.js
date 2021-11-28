@@ -306,7 +306,7 @@ describe('typescript types', function () {
     assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
   });
 
-  it('should generate a typescript declaration file even when composite is true', async function () {
+  it('should generate a typescript declaration file even when composite and incremental are true', async function () {
     await bundle(
       path.join(__dirname, '/integration/ts-types/composite/index.ts'),
     );
