@@ -4,7 +4,12 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {Async, EnvMap} from '@parcel/types';
 import type {EventType, Options as WatcherOptions} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
-import type {ContentKey, NodeId, SerializedContentGraph} from '@parcel/graph';
+import type {
+  ContentGraphOpts,
+  ContentKey,
+  NodeId,
+  SerializedContentGraph,
+} from '@parcel/graph';
 import type {
   ParcelOptions,
   RequestInvalidation,
@@ -24,6 +29,7 @@ import {
 } from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import {ContentGraph} from '@parcel/graph';
+import {deserialize, serialize} from './serializer';
 import {assertSignalNotAborted, hashFromOption} from './utils';
 import {
   type ProjectPath,
@@ -55,6 +61,17 @@ export const requestGraphEdgeTypes = {
 };
 
 export type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;
+
+type RequestGraphOpts = {|
+  ...ContentGraphOpts<RequestGraphNode, RequestGraphEdgeType>,
+  invalidNodeIds: Set<NodeId>,
+  incompleteNodeIds: Set<NodeId>,
+  globNodeIds: Set<NodeId>,
+  envNodeIds: Set<NodeId>,
+  optionNodeIds: Set<NodeId>,
+  unpredicatableNodeIds: Set<NodeId>,
+|};
+
 type SerializedRequestGraph = {|
   ...SerializedContentGraph<RequestGraphNode, RequestGraphEdgeType>,
   invalidNodeIds: Set<NodeId>,
@@ -201,7 +218,7 @@ export class RequestGraph extends ContentGraph<
   unpredicatableNodeIds: Set<NodeId> = new Set();
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: SerializedRequestGraph): RequestGraph {
+  static deserialize(opts: RequestGraphOpts): RequestGraph {
     // $FlowFixMe[prop-missing]
     let deserialized = new RequestGraph(opts);
     deserialized.invalidNodeIds = opts.invalidNodeIds;
@@ -840,10 +857,11 @@ export default class RequestTracker {
       let result: T = (node.value.result: any);
       return result;
     } else if (node.value.resultCacheKey != null && ifMatch == null) {
-      let cachedResult: T = (nullthrows(
-        await this.options.cache.get(node.value.resultCacheKey),
-        // $FlowFixMe
-      ): any);
+      let key = node.value.resultCacheKey;
+      invariant(this.options.cache.hasLargeBlob(key));
+      let cachedResult: T = deserialize(
+        await this.options.cache.getLargeBlob(key),
+      );
       node.value.result = cachedResult;
       return cachedResult;
     }
@@ -1034,13 +1052,18 @@ export default class RequestTracker {
       let resultCacheKey = node.value.resultCacheKey;
       if (resultCacheKey != null && node.value.result != null) {
         promises.push(
-          this.options.cache.set(resultCacheKey, node.value.result),
+          this.options.cache.setLargeBlob(
+            resultCacheKey,
+            serialize(node.value.result),
+          ),
         );
         delete node.value.result;
       }
     }
 
-    promises.push(this.options.cache.set(requestGraphKey, this.graph));
+    promises.push(
+      this.options.cache.setLargeBlob(requestGraphKey, serialize(this.graph)),
+    );
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
@@ -1084,9 +1107,10 @@ async function loadRequestGraph(options): Async<RequestGraph> {
 
   let cacheKey = getCacheKey(options);
   let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
-  let requestGraph = await options.cache.get<RequestGraph>(requestGraphKey);
-
-  if (requestGraph) {
+  if (await options.cache.hasLargeBlob(requestGraphKey)) {
+    let requestGraph: RequestGraph = deserialize(
+      await options.cache.getLargeBlob(requestGraphKey),
+    );
     let opts = getWatcherOptions(options);
     let snapshotKey = hashString(`${cacheKey}:snapshot`);
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');

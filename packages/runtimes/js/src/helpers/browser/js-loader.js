@@ -19,9 +19,12 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
     script.charset = 'utf-8';
     script.src = bundle;
     script.onerror = function (e) {
+      var error = new TypeError(
+        `Failed to fetch dynamically imported module: ${bundle}. Error: ${e.message}`,
+      );
       script.onerror = script.onload = null;
       script.remove();
-      reject(e);
+      reject(error);
     };
 
     script.onload = function () {

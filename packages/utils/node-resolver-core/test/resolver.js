@@ -1015,6 +1015,99 @@ describe('resolver', function () {
       });
     });
 
+    describe('sideEffects: globs', function () {
+      it('should determine sideEffects correctly (matched)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false-glob/a/index',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(
+          {filePath: resolved?.filePath, sideEffects: resolved?.sideEffects},
+          {
+            filePath: path.resolve(
+              rootDir,
+              'node_modules/side-effects-false-glob/a/index.js',
+            ),
+            sideEffects: undefined,
+          },
+        );
+      });
+      it('should determine sideEffects correctly (unmatched)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false-glob/b/index.js',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(
+          {filePath: resolved?.filePath, sideEffects: resolved?.sideEffects},
+          {
+            filePath: path.resolve(
+              rootDir,
+              'node_modules/side-effects-false-glob/b/index.js',
+            ),
+            sideEffects: false,
+          },
+        );
+      });
+      it('should determine sideEffects correctly (matched dotslash)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false-glob/sub/index.js',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(
+          {filePath: resolved?.filePath, sideEffects: resolved?.sideEffects},
+          {
+            filePath: path.resolve(
+              rootDir,
+              'node_modules/side-effects-false-glob/sub/index.js',
+            ),
+            sideEffects: undefined,
+          },
+        );
+      });
+      it('should determine sideEffects correctly (unmatched, prefix in subdir)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false-glob/sub/a/index.js',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(
+          {filePath: resolved?.filePath, sideEffects: resolved?.sideEffects},
+          {
+            filePath: path.resolve(
+              rootDir,
+              'node_modules/side-effects-false-glob/sub/a/index.js',
+            ),
+            sideEffects: false,
+          },
+        );
+      });
+      it('should determine sideEffects correctly (only name)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false-glob/sub/index.json',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(
+          {filePath: resolved?.filePath, sideEffects: resolved?.sideEffects},
+          {
+            filePath: path.resolve(
+              rootDir,
+              'node_modules/side-effects-false-glob/sub/index.json',
+            ),
+            sideEffects: undefined,
+          },
+        );
+      });
+    });
+
     it('should not resolve a node module for URL dependencies', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
@@ -2280,6 +2373,25 @@ describe('resolver', function () {
           DEFAULT_OPTIONS,
         ),
         filename: 'atom',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'env-dep/foo.js'),
+        sourcePath: path.join(rootDir, 'env-dep/foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
+    });
+
+    it('should not error on builtin node modules', async function () {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'buffer',
         specifierType: 'esm',
         parent: path.join(rootDir, 'env-dep/foo.js'),
         sourcePath: path.join(rootDir, 'env-dep/foo.js'),

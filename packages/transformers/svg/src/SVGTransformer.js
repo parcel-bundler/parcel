@@ -8,6 +8,7 @@ import {parser as parse} from 'posthtml-parser';
 import {render} from 'posthtml-render';
 import collectDependencies from './dependencies';
 import extractInlineAssets from './inline';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default (new Transformer({
   canReuseAST({ast}) {
@@ -37,7 +38,23 @@ export default (new Transformer({
 
     const ast = nullthrows(await asset.getAST());
 
-    collectDependencies(asset, ast);
+    try {
+      collectDependencies(asset, ast);
+    } catch (errors) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errors.map(error => ({
+          message: error.message,
+          origin: '@parcel/transformer-svg',
+          codeFrames: [
+            {
+              filePath: error.filePath,
+              language: 'svg',
+              codeHighlights: [error.loc],
+            },
+          ],
+        })),
+      });
+    }
 
     const inlineAssets = extractInlineAssets(asset, ast);
 
