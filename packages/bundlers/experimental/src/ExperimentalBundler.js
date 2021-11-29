@@ -699,24 +699,6 @@ function createIdealGraph(
       }
     } else if (reachable.length > 0) {
       let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
-      let sourceBundleSet = new Set([...sourceBundles]);
-      let toRemove: Set<NodeId> = new Set();
-      for (let bundleId of sourceBundles) {
-        // entries should not be considered in reachablility
-        for (let id of bundleGraph.getNodeIdsConnectedTo(bundleId)) {
-          if (sourceBundleSet.has(id)) {
-            toRemove.add(id);
-          }
-        }
-      }
-      reachable = reachable.filter(
-        a => !toRemove.has(nullthrows(bundles.get(a.id))),
-      );
-
-      if (reachable.length < 1) {
-        continue;
-      }
-
       let key = reachable.map(a => a.id).join(',');
       let bundleId = bundles.get(key);
       let bundle;
@@ -733,7 +715,6 @@ function createIdealGraph(
         bundle.sourceBundles = sourceBundles;
         bundleId = bundleGraph.addNode(bundle);
         bundles.set(key, bundleId);
-        bundleGraph.addEdge(bundleGraphRootNodeId, bundleId);
       } else {
         bundle = nullthrows(bundleGraph.getNode(bundleId));
         invariant(bundle !== 'root');
@@ -777,10 +758,12 @@ function createIdealGraph(
       ) {
         continue;
       }
+
       for (let asset of sibling.assets) {
         entryBundle.assets.add(asset);
         entryBundle.size += asset.stats.size;
       }
+
       bundleGraph.removeEdge(entryBundleId, siblingId);
       if (sibling.sourceBundles.length > 1) {
         let entryBundleIndex = sibling.sourceBundles.indexOf(entryBundleId);
@@ -796,6 +779,7 @@ function createIdealGraph(
             bundle.size += asset.stats.size;
           }
           bundleGraph.removeEdge(id, siblingId);
+          sharedToSourceBundleIds.delete(siblingId);
         }
       }
     }
