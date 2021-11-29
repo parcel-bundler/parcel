@@ -2718,7 +2718,7 @@ describe('html', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: 'src should not be empty string',
+            message: "'src' should not be empty string",
             origin: '@parcel/transformer-html',
             codeFrames: [
               {
@@ -2744,7 +2744,7 @@ describe('html', function () {
           },
 
           {
-            message: 'src should not be empty string',
+            message: "'src' should not be empty string",
             origin: '@parcel/transformer-html',
             codeFrames: [
               {
@@ -2770,7 +2770,7 @@ describe('html', function () {
           },
 
           {
-            message: 'href should not be empty string',
+            message: "'href' should not be empty string",
             origin: '@parcel/transformer-html',
             codeFrames: [
               {
