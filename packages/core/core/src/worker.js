@@ -76,6 +76,8 @@ export function clearConfigCache() {
   clearBuildCaches();
 }
 
+let lastInstanceId = null;
+
 export async function runTransform(
   workerApi: WorkerApi,
   opts: WorkerTransformationOpts,
@@ -83,6 +85,13 @@ export async function runTransform(
   let {optionsRef, configCachePath, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
+
+  // Clear config cache if worker farm is reused between Parcel instances.
+  if (options.instanceId !== lastInstanceId) {
+    clearConfigCache();
+  }
+
+  lastInstanceId = options.instanceId;
 
   return new Transformation({
     workerApi,
