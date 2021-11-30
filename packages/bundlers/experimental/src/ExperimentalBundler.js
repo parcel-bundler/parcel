@@ -261,9 +261,8 @@ function createIdealGraph(
   let stack: Array<[BundleRoot, NodeId]> = [];
 
   // bundleGraph that models bundleRoots and async deps only
-  let asyncBundleRootGraph: ContentGraph<
-    BundleRoot | 'root',
-  > = new ContentGraph();
+  let asyncBundleRootGraph: ContentGraph<BundleRoot | 'root'> =
+    new ContentGraph();
   let bundleGroupBundleIds: Array<NodeId> = [];
 
   // Step 1: Find and create bundles for entries from assetGraph
