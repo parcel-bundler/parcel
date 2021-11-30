@@ -79,7 +79,8 @@ export default function createAssetGraphRequest(
     type: 'asset_graph_request',
     id: input.name,
     run: async input => {
-      let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
+      let prevResult =
+        await input.api.getPreviousResult<AssetGraphRequestResult>();
       let builder = new AssetGraphBuilder(input, prevResult);
       return builder.build();
     },
@@ -553,7 +554,7 @@ export class AssetGraphBuilder {
                           this.options.projectRoot,
                           loc?.filePath,
                         ) ?? undefined,
-                      language: assetNode.value.type,
+                      language: incomingDep.value.sourceAssetType ?? undefined,
                       codeHighlights: [
                         {
                           start: loc.start,
@@ -709,7 +710,6 @@ export class AssetGraphBuilder {
           }
         }
         if (node.usedSymbolsUpDirty) {
-          node.usedSymbolsUpDirty = false;
           let e = visit(
             node,
             incoming,
@@ -720,8 +720,10 @@ export class AssetGraphBuilder {
             }),
           );
           if (e.length > 0) {
+            node.usedSymbolsUpDirty = true;
             errors.set(nodeId, e);
           } else {
+            node.usedSymbolsUpDirty = false;
             errors.delete(nodeId);
           }
         }
@@ -767,8 +769,10 @@ export class AssetGraphBuilder {
         if (node.usedSymbolsUpDirty) {
           let e = visit(node, incoming, outgoing);
           if (e.length > 0) {
+            node.usedSymbolsUpDirty = true;
             errors.set(queuedNodeId, e);
           } else {
+            node.usedSymbolsUpDirty = false;
             errors.delete(queuedNodeId);
           }
         }
@@ -778,9 +782,8 @@ export class AssetGraphBuilder {
           }
         }
       } else {
-        let connectedNodes = this.assetGraph.getNodeIdsConnectedTo(
-          queuedNodeId,
-        );
+        let connectedNodes =
+          this.assetGraph.getNodeIdsConnectedTo(queuedNodeId);
         if (connectedNodes.length > 0) {
           queue.add(...connectedNodes);
         }

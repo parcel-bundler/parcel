@@ -56,8 +56,19 @@ export default (new Transformer({
     // this can be removed after https://github.com/isaacs/node-graceful-fs/pull/200 was mergend and used in parcel
     // $FlowFixMe[method-unbinding]
     process.chdir.disabled = isWorker;
+    let code;
+    try {
+      code = await compileToString(elm, elmBinary, asset, compilerConfig);
+    } catch (e) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: 'Compilation failed',
+          origin: '@parcel/elm-transformer',
+          stack: e.toString(),
+        },
+      });
+    }
 
-    let code = await compileToString(elm, elmBinary, asset, compilerConfig);
     if (options.hmrOptions) {
       code = elmHMR.inject(code);
     }

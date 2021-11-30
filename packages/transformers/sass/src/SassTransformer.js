@@ -174,7 +174,7 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
     }
   }
 
-  return function(rawUrl, prev, done) {
+  return function (rawUrl, prev, done) {
     const url = rawUrl.replace(/^file:\/\//, '');
     resolvePath(url, prev)
       .then(resolved => {

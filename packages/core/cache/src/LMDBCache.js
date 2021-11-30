@@ -1,21 +1,24 @@
 // @flow strict-local
-import type {Readable} from 'stream';
 import type {FilePath} from '@parcel/types';
 import type {Cache} from './types';
 
+import {Readable} from 'stream';
+import path from 'path';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
-import {blobToStream, bufferStream} from '@parcel/utils';
+import {NodeFS} from '@parcel/fs';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 // $FlowFixMe
-import lmdb from 'lmdb-store';
+import lmdb from 'lmdb';
 
 export class LMDBCache implements Cache {
+  fs: NodeFS;
   dir: FilePath;
   // $FlowFixMe
   store: any;
 
   constructor(cacheDir: FilePath) {
+    this.fs = new NodeFS();
     this.dir = cacheDir;
 
     this.store = lmdb.open(cacheDir, {
@@ -53,16 +56,20 @@ export class LMDBCache implements Cache {
   }
 
   async set(key: string, value: mixed): Promise<void> {
-    await this.store.put(key, serialize(value));
+    await this.setBlob(key, serialize(value));
   }
 
   getStream(key: string): Readable {
-    return blobToStream(this.store.get(key));
+    return this.fs.createReadStream(path.join(this.dir, key));
   }
 
-  async setStream(key: string, stream: Readable): Promise<void> {
-    let buf = await bufferStream(stream);
-    await this.store.put(key, buf);
+  setStream(key: string, stream: Readable): Promise<void> {
+    return new Promise((resolve, reject) => {
+      stream
+        .pipe(this.fs.createWriteStream(path.join(this.dir, key)))
+        .on('error', reject)
+        .on('finish', resolve);
+    });
   }
 
   getBlob(key: string): Promise<Buffer> {
@@ -78,6 +85,18 @@ export class LMDBCache implements Cache {
 
   getBuffer(key: string): Promise<?Buffer> {
     return Promise.resolve(this.store.get(key));
+  }
+
+  hasLargeBlob(key: string): Promise<boolean> {
+    return this.fs.exists(path.join(this.dir, key));
+  }
+
+  getLargeBlob(key: string): Promise<Buffer> {
+    return this.fs.readFile(path.join(this.dir, key));
+  }
+
+  async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
+    await this.fs.writeFile(path.join(this.dir, key), contents);
   }
 }
 

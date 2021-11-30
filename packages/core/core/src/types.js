@@ -148,9 +148,8 @@ export const BundleBehavior = {
   isolated: 1,
 };
 
-export const BundleBehaviorNames: Array<
-  $Keys<typeof BundleBehavior>,
-> = Object.keys(BundleBehavior);
+export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
+  Object.keys(BundleBehavior);
 
 export type Asset = {|
   id: ContentKey,
@@ -181,6 +180,7 @@ export type Asset = {|
   configPath?: ProjectPath,
   plugin: ?PackageName,
   configKeyPath?: string,
+  isLargeBlob?: boolean,
 |};
 
 export type InternalGlob = ProjectPath;
@@ -307,6 +307,7 @@ export type DependencyNode = {|
   hasDeferred?: boolean,
   usedSymbolsDown: Set<Symbol>,
   usedSymbolsUp: Set<Symbol>,
+  /** for the "down" pass, the dependency resolution asset needs to be updated */
   usedSymbolsDownDirty: boolean,
   /** for the "up" pass, the parent asset needs to be updated */
   usedSymbolsUpDirtyUp: boolean,

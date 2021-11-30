@@ -154,10 +154,8 @@ export class TargetResolver {
       optionTargets = [exclusiveTarget];
     }
 
-    let packageTargets: Map<
-      string,
-      Target | null,
-    > = await this.resolvePackageTargets(rootDir, exclusiveTarget);
+    let packageTargets: Map<string, Target | null> =
+      await this.resolvePackageTargets(rootDir, exclusiveTarget);
     let targets: Array<Target>;
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
@@ -279,7 +277,7 @@ export class TargetResolver {
       }
 
       let serve = this.options.serveOptions;
-      if (serve) {
+      if (serve && targets.length > 0) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
@@ -322,8 +320,8 @@ export class TargetResolver {
               engines: {},
               shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
               outputFormat: this.options.defaultTargetOptions.outputFormat,
-              shouldScopeHoist: this.options.defaultTargetOptions
-                .shouldScopeHoist,
+              shouldScopeHoist:
+                this.options.defaultTargetOptions.shouldScopeHoist,
               sourceMap: this.options.defaultTargetOptions.sourceMaps
                 ? {}
                 : undefined,

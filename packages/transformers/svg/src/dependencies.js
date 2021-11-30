@@ -55,7 +55,8 @@ const FUNC_IRI_ATTRS = new Set([
 ]);
 
 // https://www.w3.org/TR/css3-values/#urls
-const FUNC_IRI_RE = /^url\((?:((['"])(.*?)\2(\s+.*)?)|((?:\\[\s'"]|[^\s'"])+))\)$/;
+const FUNC_IRI_RE =
+  /^url\((?:((['"])(.*?)\2(\s+.*)?)|((?:\\[\s'"]|[^\s'"])+))\)$/;
 const ESCAPE_RE = /\\(.|\n|\r|\u2028|\u2029)/;
 export function parseFuncIRI(value: string): ?[string, string] {
   let m = value.match(FUNC_IRI_RE);
@@ -76,6 +77,7 @@ const OPTIONS = {
 
 export default function collectDependencies(asset: MutableAsset, ast: AST) {
   let isDirty = false;
+  const errors = [];
   PostHTML().walk.call(ast.program, node => {
     // Ideally we'd have location information for specific attributes...
     let getLoc = () =>
@@ -103,6 +105,15 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
       // Check for id references
       if (attrs[attr][0] === '#') {
         continue;
+      }
+
+      // Check for empty string
+      if (attrs[attr].length === 0) {
+        errors.push({
+          message: `${attr} should not be empty string`,
+          filePath: asset.filePath,
+          loc: node.location,
+        });
       }
 
       const elements = ATTRS[attr];
@@ -141,6 +152,10 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
 
     return node;
   });
+
+  if (errors.length > 0) {
+    throw errors;
+  }
 
   if (isDirty) {
     asset.setAST(ast);

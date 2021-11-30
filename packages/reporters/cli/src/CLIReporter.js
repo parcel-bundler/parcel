@@ -171,13 +171,8 @@ async function writeDiagnostic(
   let columns = getTerminalWidth().columns;
   let indent = 2;
   for (let diagnostic of diagnostics) {
-    let {
-      message,
-      stack,
-      codeframe,
-      hints,
-      documentation,
-    } = await prettyDiagnostic(diagnostic, options, columns - indent);
+    let {message, stack, codeframe, hints, documentation} =
+      await prettyDiagnostic(diagnostic, options, columns - indent);
     message = chalk[color](message);
 
     if (isError) {
