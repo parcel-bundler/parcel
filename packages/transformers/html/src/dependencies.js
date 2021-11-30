@@ -254,17 +254,17 @@ export default function collectDependencies(
         continue;
       }
 
-      // Check for empty string
-      if (attrs[attr].length === 0) {
-        errors.push({
-          message: `${attr} should not be empty string`,
-          filePath: asset.filePath,
-          loc: node.location,
-        });
-      }
-
       let elements = ATTRS[attr];
       if (elements && elements.includes(node.tag)) {
+        // Check for empty string
+        if (attrs[attr].length === 0) {
+          errors.push({
+            message: `'${attr}' should not be empty string`,
+            filePath: asset.filePath,
+            loc: node.location,
+          });
+        }
+
         let depHandler = getAttrDepHandler(attr);
         let depOptionsHandler = OPTIONS[node.tag];
         let depOptions =
