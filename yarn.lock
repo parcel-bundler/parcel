@@ -8300,10 +8300,10 @@ listr2@^2.1.0:
     rxjs "^6.5.5"
     through "^2.3.8"
 
-lmdb@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/lmdb/-/lmdb-2.0.0.tgz#6c1ebe25c6b83595f20c5c1b9e284d78882dcacc"
-  integrity sha512-Ab8dyyrvY6gHCVN4mzPSna6s1MeNZ1PM0GGkDNcIkH+bkGzYzBYdYdFaCDtLT0I401UV1jF4KxfWoKeqebMSCg==
+lmdb@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/lmdb/-/lmdb-2.0.1.tgz#db6096a61ee1ab3cc72e6dd925d062eef9efe79d"
+  integrity sha512-U1XEpQw04HiqxLok5g/aEyfObwo2v79QWvwYrl32fCrzvk3VPN/BpWPN4Hmfna7YJ3IoyFskc/StQaB1uRdWlw==
   dependencies:
     msgpackr "^1.5.0"
     nan "^2.14.2"
