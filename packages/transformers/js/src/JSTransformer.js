@@ -402,6 +402,7 @@ export default (new Transformer({
       source_type: asset.env.sourceType === 'script' ? 'Script' : 'Module',
       supports_module_workers: supportsModuleWorkers,
       is_library: asset.env.isLibrary,
+      standalone: asset.query.has('standalone'),
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
     });

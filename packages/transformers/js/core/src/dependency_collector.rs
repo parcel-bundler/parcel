@@ -108,10 +108,11 @@ impl<'a> DependencyCollector<'a> {
     // to the same specifier can be used within the same file.
     let placeholder = match kind {
       DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => None,
-      _ => Some(format!(
+      _ if !self.config.standalone => Some(format!(
         "{:x}",
         hash!(format!("{}:{}:{}", self.config.filename, specifier, kind))
       )),
+      _ => None,
     };
 
     self.items.push(DependencyDescriptor {
@@ -136,7 +137,7 @@ impl<'a> DependencyCollector<'a> {
     source_type: SourceType,
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
-    if !self.config.is_library {
+    if !self.config.is_library && !self.config.standalone {
       let placeholder =
         self.add_dependency(specifier.clone(), span, kind, None, false, source_type);
       let specifier = if let Some(placeholder) = placeholder {
@@ -150,13 +151,17 @@ impl<'a> DependencyCollector<'a> {
     // For library builds, we need to create something that can be statically analyzed by another bundler,
     // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
     // call with a placeholder for the relative path to be replaced during packaging.
-    let placeholder = format!(
-      "{:x}",
-      hash!(format!(
-        "parcel_url:{}:{}:{}",
-        self.config.filename, specifier, kind
-      ))
-    );
+    let placeholder = if self.config.standalone {
+      specifier.as_ref().into()
+    } else {
+      format!(
+        "{:x}",
+        hash!(format!(
+          "parcel_url:{}:{}:{}",
+          self.config.filename, specifier, kind
+        ))
+      )
+    };
     self.items.push(DependencyDescriptor {
       kind,
       loc: SourceLocation::from(self.source_map, span),
@@ -632,7 +637,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
       let mut call = node;
-      if !self.config.scope_hoist {
+      if !self.config.scope_hoist && !self.config.is_esm_output {
         let name = match &self.config.source_type {
           SourceType::Module => "require",
           SourceType::Script => "__parcel__require__",
@@ -649,7 +654,30 @@ impl<'a> Fold for DependencyCollector<'a> {
       // Track the returned require call to be replaced with a promise chain.
       let rewritten_call = rewrite_require_specifier(call);
       self.require_node = Some(rewritten_call.clone());
-      rewritten_call
+
+      if self.config.standalone && !self.config.scope_hoist && !self.config.is_esm_output {
+        use ast::*;
+        // require('foo') => Promise.resolve(require('foo'))
+        CallExpr {
+          callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
+            obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident::new(
+              js_word!("Promise"),
+              DUMMY_SP,
+            )))),
+            prop: Box::new(Expr::Ident(Ident::new("resolve".into(), DUMMY_SP))),
+            span: DUMMY_SP,
+            computed: false,
+          }))),
+          args: vec![ExprOrSpread {
+            expr: Box::new(Expr::Call(rewritten_call)),
+            spread: None,
+          }],
+          type_args: None,
+          span: DUMMY_SP,
+        }
+      } else {
+        rewritten_call
+      }
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
       rewrite_require_specifier(node)
@@ -804,7 +832,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
       // If this is a library, we will already have a URL object. Otherwise, we need to
       // construct one from the string returned by the JSRuntime.
-      if !self.config.is_library {
+      if !self.config.is_library && !self.config.standalone {
         return Expr::New(NewExpr {
           span: DUMMY_SP,
           callee: Box::new(Expr::Ident(Ident::new(js_word!("URL"), DUMMY_SP))),

@@ -100,6 +100,17 @@ describe('Parcel', function () {
       let code = await res[0].getCode();
       assert(code.includes("exports.default = 'test'"));
     });
+
+    it('should transform with standalone mode', async () => {
+      let parcel = createParcel({workerFarm});
+      let res = await parcel.transform({
+        filePath: path.join(__dirname, 'fixtures/parcel/other.js'),
+        query: 'standalone=true',
+      });
+      let code = await res[0].getCode();
+      assert(code.includes('new URL("index.js", "file:" + __filename)'));
+      assert(code.includes("Promise.resolve(require('index.js'))"));
+    });
   });
 });
 

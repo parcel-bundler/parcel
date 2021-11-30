@@ -86,6 +86,8 @@ pub struct Config {
   supports_module_workers: bool,
   is_library: bool,
   is_esm_output: bool,
+  /// Produces standalone output, i.e. could be run directly without packaging.
+  standalone: bool,
   trace_bailouts: bool,
 }
 
