@@ -4,6 +4,7 @@ import type {ContentKey} from '@parcel/graph';
 import type {
   ASTGenerator,
   BuildMode,
+  DependencyOptions,
   Engines,
   EnvironmentContext,
   EnvironmentOptions,
@@ -18,6 +19,7 @@ import type {
   SemverRange,
   ServerOptions,
   SourceType,
+  SpecifierType as PublicSpecifierType,
   Stats,
   Symbol,
   TargetSourceMapOptions,
@@ -335,16 +337,25 @@ export type AssetRequestInput = {|
 |};
 
 export type ParcelTransformOptions = {|
-  ...$Rest<AssetRequestInput, {|optionsRef: SharedReference|}>,
-  env: EnvironmentOptions
+  filePath: FilePath,
+  code?: string,
+  env?: EnvironmentOptions,
+  pipeline?: ?string,
+  query?: ?string,
 |};
 
 export type ParcelResolveOptions = {|
-  ...$Rest<DependencyOptions, {|target: Target|}>,
-  symbols?: Map<
-    Symbol,
-    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
-  >,
+  specifier: DependencySpecifier,
+  specifierType: PublicSpecifierType,
+  env?: EnvironmentOptions,
+  resolveFrom?: FilePath,
+|};
+
+export type ParcelResolveResult = {|
+  filePath: FilePath,
+  code?: string,
+  query?: ?string,
+  sideEffects?: boolean,
 |};
 
 export type AssetRequestResult = Array<Asset>;

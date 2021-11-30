@@ -11,16 +11,16 @@ export class ParcelNode {
   constructor(options: InitialParcelOptions) {
     // $FlowFixMe
     this.signal = new Int32Array(new SharedArrayBuffer(4));
-    const { port1, port2 } = new MessageChannel();
+    const {port1, port2} = new MessageChannel();
     this.port = port2;
     // $FlowFixMe
     const worker = new Worker(__dirname + '/worker.js', {
       workerData: {
         signal: this.signal,
         port: port1,
-        options
+        options,
       },
-      transferList: [port1]
+      transferList: [port1],
     });
 
     worker.unref();
@@ -48,7 +48,7 @@ export class ParcelNode {
     return this._send({transform: {filePath, code}});
   }
 
-  resolve(moduleSpecifier: string, resolveFrom: ?FilePath): FilePath {
-    return this._send({resolve: {moduleSpecifier, resolveFrom}})
+  resolve(specifier: string, resolveFrom: ?FilePath): FilePath {
+    return this._send({resolve: {specifier, resolveFrom}});
   }
 }

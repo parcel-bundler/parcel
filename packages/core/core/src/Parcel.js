@@ -9,17 +9,26 @@ import type {
   InitialParcelOptions,
   PackagedBundle as IPackagedBundle,
 } from '@parcel/types';
-import type {ParcelOptions, AssetRequestInput, AssetGroup, ParcelTransformOptions, ParcelResolveOptions} from './types';
+import type {
+  ParcelOptions,
+  AssetRequestInput,
+  AssetGroup,
+  ParcelTransformOptions,
+  ParcelResolveOptions,
+  ParcelResolveResult,
+} from './types';
 // eslint-disable-next-line no-unused-vars
 import type {FarmOptions, SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
+import path from 'path';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {assetFromValue} from './public/Asset';
 import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
+import PluginOptions from './public/PluginOptions';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import {BuildAbortError} from './utils';
@@ -46,7 +55,11 @@ import createPathRequest from './requests/PathRequest';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
 import {init as initHash} from '@parcel/hash';
-import {toProjectPath} from './projectPath';
+import {
+  toProjectPath,
+  fromProjectPath,
+  fromProjectPathRelative,
+} from './projectPath';
 
 registerCoreWithSerializer();
 
@@ -438,37 +451,84 @@ export default class Parcel {
     return this.#farm.takeHeapSnapshot();
   }
 
+  async resolvedOptions(): Promise<PluginOptions> {
+    if (!this.#initialized) {
+      await this._init();
+    }
+
+    return new PluginOptions(nullthrows(this.#resolvedOptions));
+  }
+
   async transform(options: ParcelTransformOptions): Promise<Array<Asset>> {
     if (!this.#initialized) {
       await this._init();
     }
 
+    let projectRoot = nullthrows(this.#resolvedOptions).projectRoot;
     let request = createAssetRequest({
       ...options,
+      filePath: toProjectPath(projectRoot, options.filePath),
       optionsRef: this.#optionsRef,
-      env: createEnvironment(options.env)
+      env: createEnvironment({
+        ...options.env,
+        loc:
+          options.env?.loc != null
+            ? {
+                ...options.env.loc,
+                filePath: toProjectPath(projectRoot, options.env.loc.filePath),
+              }
+            : undefined,
+      }),
     });
 
     let res = await this.#requestTracker.runRequest(request, {force: true});
-    return res.map(asset => assetFromValue(asset, nullthrows(this.#resolvedOptions)));
+    return res.map(asset =>
+      assetFromValue(asset, nullthrows(this.#resolvedOptions)),
+    );
   }
 
-  async resolve(request: ParcelResolveOptions): Promise<?AssetGroup> {
+  async resolve(request: ParcelResolveOptions): Promise<?ParcelResolveResult> {
     if (!this.#initialized) {
       await this._init();
     }
 
-    let dependency = createDependency({
+    let projectRoot = nullthrows(this.#resolvedOptions).projectRoot;
+    if (request.resolveFrom == null && path.isAbsolute(request.specifier)) {
+      request.specifier = fromProjectPathRelative(
+        toProjectPath(projectRoot, request.specifier),
+      );
+    }
+
+    let dependency = createDependency(projectRoot, {
       ...request,
-      env: createEnvironment(request.env)
+      env: createEnvironment({
+        ...request.env,
+        loc:
+          request.env?.loc != null
+            ? {
+                ...request.env.loc,
+                filePath: toProjectPath(projectRoot, request.env.loc.filePath),
+              }
+            : undefined,
+      }),
     });
 
     let req = createPathRequest({
       dependency,
-      name: 'test'
+      name: 'test',
     });
-    
-    return await this.#requestTracker.runRequest(req, {force: true});
+
+    let res = await this.#requestTracker.runRequest(req, {force: true});
+    if (!res) {
+      return null;
+    }
+
+    return {
+      filePath: fromProjectPath(projectRoot, res.filePath),
+      code: res.code,
+      query: res.query,
+      sideEffects: res.sideEffects,
+    };
   }
 }
 

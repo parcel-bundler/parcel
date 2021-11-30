@@ -8,7 +8,7 @@ import {NodeFS} from '@parcel/fs';
 let {signal, port, options} = workerData;
 let parcel = new Parcel(options);
 
-port.on('message', async (msg) => {
+port.on('message', async msg => {
   if (msg.transform) {
     try {
       let {filePath, code} = msg.transform;
@@ -20,8 +20,8 @@ port.on('message', async (msg) => {
           engines: {
             node: process.versions.node,
           },
-          shouldScopeHoist: false
-        }
+          shouldScopeHoist: false,
+        },
       });
 
       let output = '';
@@ -34,24 +34,27 @@ port.on('message', async (msg) => {
 
       port.postMessage({result: {code: output}});
     } catch (err) {
-      port.postMessage({error: await prettyDiagnostic(anyToDiagnostic(err)[0], {
-        projectRoot: '/',
-        inputFS: new NodeFS()
-      })});
+      port.postMessage({
+        error: await prettyDiagnostic(
+          anyToDiagnostic(err)[0],
+          await parcel.resolvedOptions(),
+        ),
+      });
     }
   } else if (msg.resolve) {
     try {
-      let {moduleSpecifier, resolveFrom} = msg.resolve;
+      let {specifier, resolveFrom} = msg.resolve;
       let res = await parcel.resolve({
-        moduleSpecifier,
+        specifier,
         resolveFrom,
+        specifierType: 'esm',
         env: {
           context: 'node',
           engines: {
             node: process.versions.node,
           },
-          shouldScopeHoist: false
-        }
+          shouldScopeHoist: false,
+        },
       });
 
       port.postMessage({result: res?.filePath});
@@ -64,5 +67,5 @@ port.on('message', async (msg) => {
   }
 
   Atomics.store(signal, 0, 1);
-  Atomics.notify(signal, 0);
-}); 
+  Atomics.notify(signal, 0, Infinity);
+});

@@ -588,6 +588,7 @@ export default class Transformation {
 
     for (let transformer of transformers) {
       let config = await this.loadTransformerConfig(
+        filePath,
         transformer,
         isSource,
       );

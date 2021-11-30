@@ -73,6 +73,34 @@ describe('Parcel', function () {
       await workerFarm.end();
     });
   });
+
+  describe('resolve', () => {
+    it('should resolve', async () => {
+      let parcel = createParcel({workerFarm});
+      let res = await parcel.resolve({
+        specifier: './other',
+        specifierType: 'esm',
+        resolveFrom: path.join(__dirname, 'fixtures/parcel/index.js'),
+      });
+      assert.deepEqual(res, {
+        filePath: path.join(__dirname, 'fixtures/parcel/other.js'),
+        code: undefined,
+        query: undefined,
+        sideEffects: undefined,
+      });
+    });
+  });
+
+  describe('transform', () => {
+    it('should transform', async () => {
+      let parcel = createParcel({workerFarm});
+      let res = await parcel.transform({
+        filePath: path.join(__dirname, 'fixtures/parcel/index.js'),
+      });
+      let code = await res[0].getCode();
+      assert(code.includes("exports.default = 'test'"));
+    });
+  });
 });
 
 function createParcel(opts?: InitialParcelOptions) {
