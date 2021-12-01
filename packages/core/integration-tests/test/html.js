@@ -13,6 +13,7 @@ import {
   ncp,
 } from '@parcel/test-utils';
 import path from 'path';
+import sharp from 'sharp';
 
 describe('html', function () {
   beforeEach(async () => {
@@ -859,6 +860,318 @@ describe('html', function () {
         assets: ['300x300.png'],
       },
     ]);
+  });
+
+  describe('with a width attribute on an img element', () => {
+    it('should resize the image', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/html-image-width/no-query.html'),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" width="100">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'png').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `100x50`);
+    });
+
+    it('should not override a width on the src attribute', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/html-image-width/width-query.html'),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" width="100">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'png').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `150x75`);
+    });
+
+    it('should not override a height on the src attribute', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/html-image-width/height-query.html'),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" width="100">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'png').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `300x150`);
+    });
+
+    it('should keep other options on the src attribute', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/html-image-width/as-query.html'),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" width="100">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'webp').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `100x50`);
+    });
+
+    it('should ignore external images', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/html-image-width/absolute.html'),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.strictEqual(
+        html.trim(),
+        '<img src="http://example.com/img.png" width="100">',
+      );
+    });
+  });
+
+  describe('with a height attribute on an img element', () => {
+    it('should resize the image', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/html-image-height/no-query.html'),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" height="50">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'png').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `100x50`);
+    });
+
+    it('should not override a height on the src attribute', async function () {
+      const b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/html-image-height/height-query.html',
+        ),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" height="50">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'png').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `300x150`);
+    });
+
+    it('should not override a width on the src attribute', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/html-image-height/width-query.html'),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" height="50">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'png').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `150x75`);
+    });
+
+    it('should keep other options on the src attribute', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/html-image-height/as-query.html'),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" height="50">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'webp').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `100x50`);
+    });
+
+    it('should ignore external images', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/html-image-height/absolute.html'),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.strictEqual(
+        html.trim(),
+        '<img src="http://example.com/img.png" height="50">',
+      );
+    });
+  });
+
+  describe('with width and height attributes on an img element', () => {
+    it('should resize the image', async function () {
+      const b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/html-image-width-height/no-query.html',
+        ),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" width="100" height="50">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'png').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `100x50`);
+    });
+
+    it('should not override a width on the src attribute', async function () {
+      const b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/html-image-width-height/width-query.html',
+        ),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" width="100" height="50">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'png').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `150x75`);
+    });
+
+    it('should not override a height on the src attribute', async function () {
+      const b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/html-image-width-height/height-query.html',
+        ),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" width="100" height="50">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'png').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `300x150`);
+    });
+
+    it('should keep other options on the src attribute', async function () {
+      const b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/html-image-width-height/as-query.html',
+        ),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.match(html, /<img src=".+?" width="100" height="50">/);
+
+      const image = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'webp').filePath,
+      );
+      const {width, height} = await sharp(image).metadata();
+
+      assert.strictEqual(`${width}x${height}`, `100x50`);
+    });
+
+    it('should ignore external images', async function () {
+      const b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/html-image-width-height/absolute.html',
+        ),
+      );
+
+      const html = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'html').filePath,
+        'utf8',
+      );
+
+      assert.strictEqual(
+        html.trim(),
+        '<img src="http://example.com/img.png" width="100" height="50">',
+      );
+    });
   });
 
   it.skip('should support webmanifest', async function () {
