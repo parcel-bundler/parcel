@@ -281,49 +281,44 @@ export default (new Transformer({
     ]);
 
     let targets;
-    if (asset.isSource) {
-      if (asset.env.isElectron() && asset.env.engines.electron) {
-        targets = {
-          electron: semver.minVersion(asset.env.engines.electron)?.toString(),
-        };
-      } else if (asset.env.isBrowser() && asset.env.engines.browsers) {
-        targets = {};
+    if (asset.env.isElectron() && asset.env.engines.electron) {
+      targets = {
+        electron: semver.minVersion(asset.env.engines.electron)?.toString(),
+      };
+    } else if (asset.env.isBrowser() && asset.env.engines.browsers) {
+      targets = {};
 
-        let browsers = Array.isArray(asset.env.engines.browsers)
-          ? asset.env.engines.browsers
-          : [asset.env.engines.browsers];
+      let browsers = Array.isArray(asset.env.engines.browsers)
+        ? asset.env.engines.browsers
+        : [asset.env.engines.browsers];
 
-        // If the output format is esmodule, exclude browsers
-        // that support them natively so that we transpile less.
-        if (asset.env.outputFormat === 'esmodule') {
-          browsers = [...browsers, ...ESMODULE_BROWSERS];
-        }
-
-        browsers = browserslist(browsers);
-        for (let browser of browsers) {
-          let [name, version] = browser.split(' ');
-          if (BROWSER_MAPPING.hasOwnProperty(name)) {
-            name = BROWSER_MAPPING[name];
-            if (!name) {
-              continue;
-            }
-          }
-
-          let [major, minor = '0', patch = '0'] = version
-            .split('-')[0]
-            .split('.');
-          let semverVersion = `${major}.${minor}.${patch}`;
-
-          if (
-            targets[name] == null ||
-            semver.gt(targets[name], semverVersion)
-          ) {
-            targets[name] = semverVersion;
-          }
-        }
-      } else if (asset.env.isNode() && asset.env.engines.node) {
-        targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
+      // If the output format is esmodule, exclude browsers
+      // that support them natively so that we transpile less.
+      if (asset.env.outputFormat === 'esmodule') {
+        browsers = [...browsers, ...ESMODULE_BROWSERS];
       }
+
+      browsers = browserslist(browsers);
+      for (let browser of browsers) {
+        let [name, version] = browser.split(' ');
+        if (BROWSER_MAPPING.hasOwnProperty(name)) {
+          name = BROWSER_MAPPING[name];
+          if (!name) {
+            continue;
+          }
+        }
+
+        let [major, minor = '0', patch = '0'] = version
+          .split('-')[0]
+          .split('.');
+        let semverVersion = `${major}.${minor}.${patch}`;
+
+        if (targets[name] == null || semver.gt(targets[name], semverVersion)) {
+          targets[name] = semverVersion;
+        }
+      }
+    } else if (asset.env.isNode() && asset.env.engines.node) {
+      targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
     }
 
     let env: EnvMap = {};
