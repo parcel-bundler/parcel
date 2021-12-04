@@ -6,6 +6,8 @@ import path from 'path';
 import sinon from 'sinon';
 import logger from '@parcel/logger';
 import {inputFS} from '@parcel/test-utils';
+import {escapeMarkdown} from '@parcel/diagnostic';
+import {clearPromiseQueue} from '@parcel/package-manager';
 import {parseAndProcessConfig} from '../src/requests/ParcelConfigRequest';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {toProjectPath} from '../src/projectPath';
@@ -240,12 +242,9 @@ describe('ParcelConfig', () => {
         '.parcelrc',
       );
       let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
-      let {config} = await parseAndProcessConfig(
-        configFilePath,
-        code,
-        DEFAULT_OPTIONS,
-      );
-      let parcelConfig = new ParcelConfig(config, DEFAULT_OPTIONS);
+      const options = {...DEFAULT_OPTIONS, shouldAutoInstall: true};
+      let {config} = await parseAndProcessConfig(configFilePath, code, options);
+      let parcelConfig = new ParcelConfig(config, options);
 
       // $FlowFixMe
       await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
@@ -267,6 +266,36 @@ describe('ParcelConfig', () => {
                   },
                 ],
               },
+            ],
+          },
+        ],
+      });
+
+      clearPromiseQueue();
+    });
+
+    it('should error when autoinstall is disabled', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-plugin-not-found',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+      const options = {...DEFAULT_OPTIONS, shouldAutoInstall: false};
+      let {config} = await parseAndProcessConfig(configFilePath, code, options);
+      let parcelConfig = new ParcelConfig(config, options);
+
+      // $FlowFixMe
+      await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
+        name: 'Error',
+        diagnostics: [
+          {
+            message: `Could not resolve module "@parcel/transformer-jj" from "${escapeMarkdown(
+              configFilePath,
+            )}"`,
+            hints: [
+              'Autoinstall is disabled, please install this package manually and restart Parcel.',
             ],
           },
         ],

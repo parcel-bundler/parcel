@@ -7,7 +7,10 @@ import tempy from 'tempy';
 import path from 'path';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {relativePath} from '@parcel/utils';
-import {NodePackageManager} from '@parcel/package-manager';
+import {
+  NodePackageManager,
+  MockPackageInstaller,
+} from '@parcel/package-manager';
 import {createEnvironment} from '../src/Environment';
 import {toProjectPath} from '../src/projectPath';
 
@@ -34,7 +37,11 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   outputFS,
   cache,
   shouldPatchConsole: false,
-  packageManager: new NodePackageManager(inputFS, '/'),
+  packageManager: new NodePackageManager(
+    inputFS,
+    '/',
+    new MockPackageInstaller(),
+  ),
   additionalReporters: [],
   instanceId: 'test',
   defaultTargetOptions: {

@@ -100,7 +100,7 @@ export default async function loadPlugin<T>(
       },
     ));
   } catch (err) {
-    if (err.code !== 'MODULE_NOT_FOUND') {
+    if (err.code !== 'MODULE_NOT_FOUND' || options.shouldAutoInstall !== true) {
       throw err;
     }
 

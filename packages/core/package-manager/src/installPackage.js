@@ -62,7 +62,10 @@ async function install(
       fs,
     });
   } catch (err) {
-    throw new Error(`Failed to install ${moduleNames}: ${err.message}`);
+    let error = new Error(`Failed to install ${moduleNames}: ${err.message}`);
+    // $FlowFixMe
+    error.code = 'MODULE_NOT_FOUND';
+    throw error;
   }
 
   if (installPeers) {
@@ -182,8 +185,15 @@ async function determinePackageInstaller(
   }
 }
 
-let queue = new PromiseQueue({maxConcurrent: 1});
+const promiseQueueOptions = {maxConcurrent: 1};
+let queue = new PromiseQueue(promiseQueueOptions);
 let modulesInstalling: Set<string> = new Set();
+
+// This function is needed to clear _error field between different unit test files
+// PromiseQueue only saves a first error and returns it each time even though another error is thrown
+export function clearPromiseQueue() {
+  queue = new PromiseQueue(promiseQueueOptions);
+}
 
 // Exported so that it may be invoked from the worker api below.
 // Do not call this directly! This can result in concurrent package installations

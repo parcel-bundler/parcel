@@ -22,6 +22,7 @@ import {
 import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
 import Logger from '@parcel/logger';
+import {escapeMarkdown} from '@parcel/diagnostic';
 import nullthrows from 'nullthrows';
 
 describe('javascript', function () {
@@ -5308,8 +5309,10 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: `Failed to resolve '@swc/helpers' from '${normalizePath(
-              require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+            message: `Failed to resolve '@swc/helpers' from '${escapeMarkdown(
+              normalizePath(
+                require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+              ),
             )}'`,
             origin: '@parcel/core',
             codeFrames: [
