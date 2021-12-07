@@ -446,6 +446,7 @@ export default class BundleGraph {
       .find(node => node.type === 'bundle');
 
     if (bundleNode) {
+      invariant(bundleNode.type === 'bundle');
       return bundleNode.value;
     }
   }
