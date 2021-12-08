@@ -1,5 +1,5 @@
 // @flow
-const xxhash = require('xxhash-wasm');
+import xxhash from 'xxhash-wasm';
 
 let h64, h64Raw;
 module.exports.init = (xxhash().then(xxh => {

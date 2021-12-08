@@ -1,6 +1,7 @@
 // @flow
 import assert from 'assert';
 import nullthrows from 'nullthrows';
+import {SharedBuffer} from '@parcel/utils';
 import {fromNodeId, toNodeId} from './types';
 import {ALL_EDGE_TYPES, type NullEdgeType, type AllEdgeTypes} from './Graph';
 import type {NodeId} from './types';
@@ -610,9 +611,7 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
       let CAPACITY = SharedTypeMap.#CAPACITY;
       // $FlowFixMe[incompatible-call]
       this.data = new Uint32Array(
-        new SharedArrayBuffer(
-          this.getLength(capacityOrData) * BYTES_PER_ELEMENT,
-        ),
+        new SharedBuffer(this.getLength(capacityOrData) * BYTES_PER_ELEMENT),
       );
       this.data[CAPACITY] = capacityOrData;
     } else {
