@@ -82,7 +82,7 @@ export async function loadConfig(
       }
 
       let configContent = await fs.readFile(configFile, 'utf8');
-      if (!configContent) return null;
+      if (!configContent && !allowEmptyStringConfig(extname)) return null;
 
       let config;
       if (parse === false) {
@@ -124,4 +124,9 @@ function getParser(extname) {
     default:
       return json5;
   }
+}
+
+function allowEmptyStringConfig(extname): boolean {
+  const allowList = ['toml'];
+  return allowList.includes(extname);
 }
