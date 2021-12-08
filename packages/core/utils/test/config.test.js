@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import assert from 'assert';
 import {loadConfig} from '../src/config';
@@ -23,15 +23,15 @@ describe('loadConfig', () => {
   });
 
   it('should throw error with empty string json', async () => {
-    assert.equal(
+    // $FlowFixMe[prop-missing]
+    await assert.rejects(async () => {
       await loadConfig(
         fs,
         path.join(__dirname, './input/config/empty.json'),
         ['empty.json'],
         path.join(__dirname, './input/config/'),
-      ),
-      null,
-    );
+      );
+    });
   });
 
   it('should load with empty string config toml', async () => {
