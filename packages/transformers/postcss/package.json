@@ -28,7 +28,7 @@
     "nullthrows": "^1.1.1",
     "postcss-modules": "^3.2.2",
     "postcss-value-parser": "^4.1.0",
-    "semver": "^5.4.1"
+    "semver": "^5.7.1"
   },
   "devDependencies": {
     "postcss": "^8.3.0"

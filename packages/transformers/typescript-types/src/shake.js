@@ -19,6 +19,12 @@ export function shake(
   // Propagate exports from the main module to determine what types should be included
   let exportedNames = moduleGraph.propagate(context);
 
+  // When module definitions are nested inside each other (e.g with module augmentation),
+  // we want to keep track of the hierarchy so we can associated nodes with the right module.
+  const moduleStack: Array<?TSModule> = [];
+
+  let addedGeneratedImports = false;
+
   let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
@@ -27,12 +33,22 @@ export function shake(
 
     // Flatten all module declarations into the top-level scope
     if (ts.isModuleDeclaration(node)) {
+      // Deeply nested module declarations are assumed to be module augmentations and left alone.
+      if (moduleStack.length >= 1) {
+        // Since we are hoisting them to the top-level scope, we need to add a "declare" keyword to make them ambient.
+        node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.DeclareKeyword));
+        return node;
+      }
+
+      moduleStack.push(_currentModule);
       let isFirstModule = !_currentModule;
       _currentModule = moduleGraph.getModule(node.name.text);
       let statements = ts.visitEachChild(node, visit, context).body.statements;
+      _currentModule = moduleStack.pop();
 
-      if (isFirstModule) {
+      if (isFirstModule && !addedGeneratedImports) {
         statements.unshift(...generateImports(moduleGraph));
+        addedGeneratedImports = true;
       }
 
       return statements;

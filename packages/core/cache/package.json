@@ -26,7 +26,7 @@
   "dependencies": {
     "@parcel/logger": "2.0.10",
     "@parcel/utils": "2.0.11",
-    "lmdb-store": "^1.5.5"
+    "lmdb": "^2.0.2"
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0"

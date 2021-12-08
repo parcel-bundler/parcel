@@ -260,7 +260,7 @@ export default class NodeResolver {
     }
 
     if (!this.shouldIncludeNodeModule(env, filename)) {
-      if (sourcePath && env.isLibrary) {
+      if (sourcePath && env.isLibrary && !builtin) {
         await this.checkExcludedDependency(sourcePath, filename, ctx);
       }
       return null;
