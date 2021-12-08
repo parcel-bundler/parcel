@@ -25,6 +25,6 @@
     "@parcel/utils": "^2.0.1",
     "coffeescript": "^2.0.3",
     "nullthrows": "^1.1.1",
-    "semver": "^5.4.1"
+    "semver": "^5.7.1"
   }
 }

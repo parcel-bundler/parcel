@@ -2704,4 +2704,98 @@ describe('html', function () {
     assert(output.includes('<filter'));
     assert(output.includes('<feGaussianBlur in="SourceGraphic" stdDeviation='));
   });
+
+  it('should throw error with empty string reference to other resource', async function () {
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(__dirname, 'integration/html-empty-reference/index.html'),
+          {
+            mode: 'production',
+          },
+        ),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: "'src' should not be empty string",
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/html-empty-reference/index.html',
+                ),
+                language: 'html',
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 1,
+                      line: 1,
+                    },
+                    end: {
+                      column: 14,
+                      line: 1,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+
+          {
+            message: "'src' should not be empty string",
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/html-empty-reference/index.html',
+                ),
+                language: 'html',
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 1,
+                      line: 2,
+                    },
+                    end: {
+                      column: 24,
+                      line: 2,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+
+          {
+            message: "'href' should not be empty string",
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/html-empty-reference/index.html',
+                ),
+                language: 'html',
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 1,
+                      line: 3,
+                    },
+                    end: {
+                      column: 16,
+                      line: 3,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    );
+  });
 });

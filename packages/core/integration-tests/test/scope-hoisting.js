@@ -576,6 +576,62 @@ describe('scope hoisting', function () {
       });
     });
 
+    it('throws when importing a missing symbol on cached builds without changes', async function () {
+      let entry = 'integration/scope-hoisting/es6/import-missing/a.js';
+      let message = md`${normalizePath(
+        'integration/scope-hoisting/es6/import-missing/b.js',
+        false,
+      )} does not export 'foo'`;
+      let error = {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                filePath: path.join(__dirname, entry),
+                language: 'js',
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 9,
+                    },
+                    end: {
+                      line: 1,
+                      column: 11,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      let source = path.join(__dirname, entry);
+      await assert.rejects(
+        () =>
+          bundle(source, {
+            inputFS: overlayFS,
+            outputFS: overlayFS,
+            shouldDisableCache: false,
+          }),
+        error,
+      );
+      await assert.rejects(
+        () =>
+          bundle(source, {
+            inputFS: overlayFS,
+            outputFS: overlayFS,
+            shouldDisableCache: false,
+          }),
+        error,
+      );
+    });
+
     it('supports multiple exports of the same variable', async function () {
       let b = await bundle(
         path.join(
