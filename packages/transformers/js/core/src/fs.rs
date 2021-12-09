@@ -49,7 +49,7 @@ struct InlineFS<'a> {
 
 impl<'a> Fold for InlineFS<'a> {
   fn fold_module(&mut self, node: Module) -> Module {
-    node.visit_with(&Invalid { span: DUMMY_SP } as _, &mut self.collect);
+    node.visit_with(&mut self.collect);
     node.fold_children_with(self)
   }
 

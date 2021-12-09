@@ -40,5 +40,8 @@
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0"
+  },
+  "browser": {
+    "./src/NodeFS.js": "./src/NodeFS.browser.js"
   }
 }
