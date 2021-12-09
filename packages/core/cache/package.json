@@ -30,5 +30,12 @@
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0"
+  },
+  "devDependencies": {
+    "idb": "^5.0.8"
+  },
+  "browser": {
+    "./src/IDBCache.js": "./src/IDBCache.browser.js",
+    "./src/LMDBCache.js": false
   }
 }
