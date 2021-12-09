@@ -143,10 +143,13 @@ export class TSModuleGraph {
       if (e.name === name) {
         return this.getExport(module, e);
       } else if (e.specifier) {
-        return this.resolveExport(
+        const m = this.resolveExport(
           nullthrows(this.getModule(e.specifier)),
           name,
         );
+        if (m) {
+          return m;
+        }
       }
     }
   }
