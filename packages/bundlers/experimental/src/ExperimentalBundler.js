@@ -764,41 +764,56 @@ function createIdealGraph(
         }
       }
     } else if (reachable.length > 0) {
-      let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
-      let key = reachable.map(a => a.id).join(',');
-      let bundleId = bundles.get(key);
-      let bundle;
-      if (bundleId == null) {
-        let firstSourceBundle = nullthrows(
-          bundleGraph.getNode(sourceBundles[0]),
-        );
-        invariant(firstSourceBundle !== 'root');
-        bundle = createBundle({
-          target: firstSourceBundle.target,
-          type: firstSourceBundle.type,
-          env: firstSourceBundle.env,
-        });
-        bundle.sourceBundles = sourceBundles;
-        bundleId = bundleGraph.addNode(bundle);
-        bundles.set(key, bundleId);
-      } else {
-        bundle = nullthrows(bundleGraph.getNode(bundleId));
+      let reachableEntries = reachable.filter(a => entries.has(a) || !a.isBundleSplittable);
+      reachable = reachable.filter(a => !entries.has(a) && a.isBundleSplittable);
+
+      // Add assets to non-splittable bundles.
+      for (let entry of reachableEntries) {
+        let bundleId = nullthrows(bundles.get(entry.id));
+        let bundle = nullthrows(bundleGraph.getNode(bundleId));
         invariant(bundle !== 'root');
+        bundle.assets.add(asset);
+        bundle.size += asset.stats.size;
       }
-      bundle.assets.add(asset);
-      bundle.size += asset.stats.size;
 
-      for (let sourceBundleId of sourceBundles) {
-        if (bundleId !== sourceBundleId) {
-          bundleGraph.addEdge(sourceBundleId, bundleId);
+      // Create shared bundles for splittable bundles.
+      if (reachable.length > 0) {
+        let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
+        let key = reachable.map(a => a.id).join(',');
+        let bundleId = bundles.get(key);
+        let bundle;
+        if (bundleId == null) {
+          let firstSourceBundle = nullthrows(
+            bundleGraph.getNode(sourceBundles[0]),
+          );
+          invariant(firstSourceBundle !== 'root');
+          bundle = createBundle({
+            target: firstSourceBundle.target,
+            type: firstSourceBundle.type,
+            env: firstSourceBundle.env,
+          });
+          bundle.sourceBundles = sourceBundles;
+          bundleId = bundleGraph.addNode(bundle);
+          bundles.set(key, bundleId);
+        } else {
+          bundle = nullthrows(bundleGraph.getNode(bundleId));
+          invariant(bundle !== 'root');
         }
-      }
-      sharedToSourceBundleIds.set(bundleId, sourceBundles);
+        bundle.assets.add(asset);
+        bundle.size += asset.stats.size;
 
-      dependencyBundleGraph.addNodeByContentKeyIfNeeded(String(bundleId), {
-        value: bundle,
-        type: 'bundle',
-      });
+        for (let sourceBundleId of sourceBundles) {
+          if (bundleId !== sourceBundleId) {
+            bundleGraph.addEdge(sourceBundleId, bundleId);
+          }
+        }
+        sharedToSourceBundleIds.set(bundleId, sourceBundles);
+
+        dependencyBundleGraph.addNodeByContentKeyIfNeeded(String(bundleId), {
+          value: bundle,
+          type: 'bundle',
+        });
+      }
     }
   }
 
@@ -809,45 +824,6 @@ function createIdealGraph(
     if (bundle.sourceBundles.length > 0 && bundle.size < config.minBundleSize) {
       sharedToSourceBundleIds.delete(bundleNodeId);
       removeBundle(bundleGraph, bundleNodeId);
-    }
-  }
-
-  for (let entryAsset of entries.keys()) {
-    let entryBundleId = nullthrows(bundleRoots.get(entryAsset)?.[0]);
-    let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
-    for (let siblingId of bundleGraph.getNodeIdsConnectedFrom(entryBundleId)) {
-      let sibling = nullthrows(bundleGraph.getNode(siblingId));
-      invariant(entryBundle !== 'root' && sibling !== 'root');
-      if (
-        sibling.type !== entryBundle.type ||
-        sibling.bundleBehavior === 'inline'
-      ) {
-        continue;
-      }
-
-      for (let asset of sibling.assets) {
-        entryBundle.assets.add(asset);
-        entryBundle.size += asset.stats.size;
-      }
-
-      bundleGraph.removeEdge(entryBundleId, siblingId);
-      if (sibling.sourceBundles.length > 1) {
-        let entryBundleIndex = sibling.sourceBundles.indexOf(entryBundleId);
-        invariant(entryBundleIndex >= 0);
-        sibling.sourceBundles.splice(entryBundleIndex, 1);
-
-        if (sibling.sourceBundles.length === 1) {
-          let id = sibling.sourceBundles.pop();
-          let bundle = nullthrows(bundleGraph.getNode(id));
-          invariant(bundle !== 'root');
-          for (let asset of sibling.assets) {
-            bundle.assets.add(asset);
-            bundle.size += asset.stats.size;
-          }
-          bundleGraph.removeEdge(id, siblingId);
-          sharedToSourceBundleIds.delete(siblingId);
-        }
-      }
     }
   }
 
