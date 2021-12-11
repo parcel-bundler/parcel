@@ -120,7 +120,7 @@ describe('transpilation', function () {
     await bundle(path.join(__dirname, '/integration/jsx-react-alias/index.js'));
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('React.createElement("div"'));
+    assert(file.includes('h("div"'));
   });
 
   it('should support compiling JSX in JS files with Preact dependency', async function () {
@@ -176,6 +176,19 @@ describe('transpilation', function () {
   it('should support the automatic JSX runtime with preact >= 10.5', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/jsx-automatic-preact/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('preact/jsx-runtime'));
+    assert(file.includes('_jsxRuntime.jsx("div"'));
+  });
+
+  it('should support the automatic JSX runtime with preact with alias', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/jsx-automatic-preact-with-alias/index.js',
+      ),
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
