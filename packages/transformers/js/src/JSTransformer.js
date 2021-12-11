@@ -126,6 +126,37 @@ const SCRIPT_ERRORS = {
   },
 };
 
+function convertAliasReactIntoPragma(
+  alias: string | {|[string]: string|},
+): 'react' | 'preact' | 'hyperapp' | 'nervjs' {
+  if (typeof alias === 'string') {
+    switch (alias) {
+      case 'react': {
+        return 'react';
+      }
+      case 'preact/compat':
+      case 'preact': {
+        return 'preact';
+      }
+      case 'hyperapp': {
+        return 'hyperapp';
+      }
+      case 'nervjs': {
+        return 'nervjs';
+      }
+      default: {
+        return 'react';
+      }
+    }
+  } else {
+    for (const key in alias) {
+      return convertAliasReactIntoPragma(alias[key]);
+    }
+  }
+
+  return 'react';
+}
+
 type TSConfig = {
   compilerOptions?: {
     // https://www.typescriptlang.org/tsconfig#jsx
@@ -157,7 +188,7 @@ export default (new Transformer({
       let reactLib;
       if (pkg?.alias && pkg.alias['react']) {
         // e.g.: `{ alias: { "react": "preact/compat" } }`
-        reactLib = 'react';
+        reactLib = convertAliasReactIntoPragma(pkg.alias['react']);
       } else {
         // Find a dependency that we can map to a JSX pragma
         reactLib = Object.keys(JSX_PRAGMA).find(
