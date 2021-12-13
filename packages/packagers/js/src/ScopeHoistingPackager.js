@@ -238,7 +238,7 @@ export class ScopeHoistingPackager {
     };
   }
 
-  async loadAssets() {
+  async loadAssets(): Promise<Array<Asset>> {
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrapped = [];
     this.bundle.traverseAssets((asset, shouldWrap) => {

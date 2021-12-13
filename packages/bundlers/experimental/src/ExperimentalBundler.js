@@ -22,7 +22,6 @@ import {Bundler} from '@parcel/plugin';
 import {validateSchema, DefaultMap} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
-// import dumpGraphToGraphViz from "../../../core/core/src/dumpGraphToGraphViz";
 
 type BundlerConfig = {|
   http?: number,
@@ -316,8 +315,6 @@ function createIdealGraph(
     bundleGroupBundleIds.push(nodeId);
   }
 
-  // console.log(entries)
-
   let assets = [];
 
   // Step 2: Traverse the asset graph and create bundles for asset type changes and async dependencies,
@@ -346,8 +343,6 @@ function createIdealGraph(
           return node;
         }
 
-        // invariant(assets.length === 1);
-        // let childAsset = assets[0];
         for (let childAsset of assets) {
           if (
             dependency.priority === 'lazy' ||
@@ -510,10 +505,6 @@ function createIdealGraph(
       }
     },
   });
-
-  // process.env.PARCEL_DUMP_GRAPHVIZ = 1;
-  // dumpGraphToGraphViz(bundleGraph, 'test');
-  // process.env.PARCEL_DUMP_GRAPHVIZ = 0;
 
   // Step 3: Determine reachability for every asset from each bundleRoot.
   // This is later used to determine which bundles to place each asset in.
@@ -764,8 +755,12 @@ function createIdealGraph(
         }
       }
     } else if (reachable.length > 0) {
-      let reachableEntries = reachable.filter(a => entries.has(a) || !a.isBundleSplittable);
-      reachable = reachable.filter(a => !entries.has(a) && a.isBundleSplittable);
+      let reachableEntries = reachable.filter(
+        a => entries.has(a) || !a.isBundleSplittable,
+      );
+      reachable = reachable.filter(
+        a => !entries.has(a) && a.isBundleSplittable,
+      );
 
       // Add assets to non-splittable bundles.
       for (let entry of reachableEntries) {
