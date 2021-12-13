@@ -1,5 +1,5 @@
 // @flow
-const xxhash = require('xxhash-wasm');
+import xxhash from 'xxhash-wasm';
 
 let h64, h64Raw;
 module.exports.init = (xxhash().then(xxh => {
@@ -8,7 +8,7 @@ module.exports.init = (xxhash().then(xxh => {
 
 const encoder = new TextEncoder();
 function hashString(s /*: string */) /*: string */ {
-  return h64(s);
+  return h64(s).padStart(16, '0');
 }
 module.exports.hashString = hashString;
 function hashBuffer(b /*: Uint8Array */) /*: string */ {
@@ -49,7 +49,7 @@ function concatUint8Arrays(arrays) {
 function toHex(arr) {
   let dataView = new DataView(arr.buffer);
   return (
-    dataView.getUint32(0, true).toString(16) +
-    dataView.getUint32(4, true).toString(16)
+    dataView.getUint32(0, true).toString(16).padStart(8, '0') +
+    dataView.getUint32(4, true).toString(16).padStart(8, '0')
   );
 }
