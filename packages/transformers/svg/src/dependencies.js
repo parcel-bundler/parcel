@@ -107,17 +107,17 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
         continue;
       }
 
-      // Check for empty string
-      if (attrs[attr].length === 0) {
-        errors.push({
-          message: `${attr} should not be empty string`,
-          filePath: asset.filePath,
-          loc: node.location,
-        });
-      }
-
       const elements = ATTRS[attr];
       if (elements && elements.includes(node.tag)) {
+        // Check for empty string
+        if (attrs[attr].length === 0) {
+          errors.push({
+            message: `'${attr}' should not be empty string`,
+            filePath: asset.filePath,
+            loc: node.location,
+          });
+        }
+
         let options = OPTIONS[tag]?.[attr];
         if (node.tag === 'script') {
           options = {
