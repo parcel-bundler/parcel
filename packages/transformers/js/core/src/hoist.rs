@@ -1406,10 +1406,12 @@ impl Visit for Collect {
               source,
             },
           );
-          self
-            .exports_locals
-            .entry(named.orig.sym.clone())
-            .or_insert_with(|| exported.sym.clone());
+          if node.src.is_none() {
+            self
+              .exports_locals
+              .entry(named.orig.sym.clone())
+              .or_insert_with(|| exported.sym.clone());
+          }
         }
         ExportSpecifier::Default(default) => {
           self.exports.insert(
@@ -1420,10 +1422,12 @@ impl Visit for Collect {
               source,
             },
           );
-          self
-            .exports_locals
-            .entry(default.exported.sym.clone())
-            .or_insert_with(|| js_word!("default"));
+          if node.src.is_none() {
+            self
+              .exports_locals
+              .entry(default.exported.sym.clone())
+              .or_insert_with(|| js_word!("default"));
+          }
         }
         ExportSpecifier::Namespace(namespace) => {
           self.exports.insert(
@@ -2262,6 +2266,16 @@ mod tests {
       let mut map = HashMap::new();
       for sym in $m {
         map.insert(sym.local, (sym.source, sym.imported));
+      }
+      assert_eq!(map, $match);
+    }};
+  }
+
+  macro_rules! assert_eq_exported_symbols {
+    ($m: expr, $match: expr) => {{
+      let mut map = HashMap::new();
+      for sym in $m {
+        map.insert(sym.exported, sym.local);
       }
       assert_eq!(map, $match);
     }};
@@ -3382,6 +3396,34 @@ mod tests {
       indoc! {r#"
     import "abc:bar";
     "#}
+    );
+
+    let (_collect, code, hoist) = parse(
+      r#"
+    export { settings as siteSettings } from "./settings";
+    export const settings = "hi";
+    "#,
+    );
+
+    assert_eq!(
+      code,
+      indoc! {r#"
+    import "abc:./settings";
+    const $abc$export$a5a6e0b888b2c992 = "hi";
+    "#}
+    );
+
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("settings") => w!("$abc$export$a5a6e0b888b2c992")
+      }
+    );
+    assert_eq_imported_symbols!(
+      hoist.re_exports,
+      map! {
+        w!("siteSettings") => (w!("./settings"), w!("settings"))
+      }
     );
   }
 
