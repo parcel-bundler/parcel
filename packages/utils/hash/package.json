@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "detect-libc": "^1.0.3",
-    "self-published": "npm:@parcel/hash/@2.0.2-nightly.2566",
+    "self-published": "npm:@parcel/hash/@2.0.2-nightly.2569",
     "xxhash-wasm": "^0.4.2"
   },
   "devDependencies": {
