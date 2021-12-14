@@ -12,6 +12,7 @@
     "test-ci": "yarn test --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json"
   },
   "devDependencies": {
+    "autoprefixer": "^10.4.0",
     "@babel/core": "^7.12.0",
     "@babel/plugin-syntax-class-properties": "^7.12.1",
     "@babel/plugin-syntax-export-default-from": "^7.2.0",
@@ -52,6 +53,7 @@
     "react-dom": "^16.11.0",
     "rimraf": "^2.6.1",
     "sugarss": "^3.0.3",
+    "tailwindcss": "^3.0.2",
     "tempy": "^0.3.0",
     "ws": "^7.0.0"
   }
