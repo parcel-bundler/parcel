@@ -188,7 +188,7 @@ export default (new Transformer({
       let reactLib;
       if (pkg?.alias && pkg.alias['react']) {
         // e.g.: `{ alias: { "react": "preact/compat" } }`
-        reactLib = convertAliasReactIntoPragma(pkg.alias['react']);
+        reactLib = 'react';
       } else {
         // Find a dependency that we can map to a JSX pragma
         reactLib = Object.keys(JSX_PRAGMA).find(
@@ -230,6 +230,10 @@ export default (new Transformer({
         jsxImportSource = compilerOptions?.jsxImportSource;
         automaticJSXRuntime = true;
       } else if (reactLib) {
+        reactLib =
+          pkg.alias && pkg.alias['react']
+            ? convertAliasReactIntoPragma(pkg.alias['react'])
+            : reactLib;
         let automaticVersion = JSX_PRAGMA[reactLib]?.automatic;
         let reactLibVersion =
           pkg?.dependencies?.[reactLib] ||
