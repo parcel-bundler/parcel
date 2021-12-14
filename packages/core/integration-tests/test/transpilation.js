@@ -120,7 +120,7 @@ describe('transpilation', function () {
     await bundle(path.join(__dirname, '/integration/jsx-react-alias/index.js'));
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('h("div"'));
+    assert(file.includes('React.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with Preact dependency', async function () {
