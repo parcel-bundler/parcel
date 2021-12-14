@@ -648,10 +648,11 @@ export default class PackagerRunner {
       );
       hash = h.finish();
     } else if (typeof contents === 'string') {
-      size = Buffer.byteLength(contents);
-      hash = hashString(contents);
+      let buffer = Buffer.from(contents);
+      size = buffer.byteLength;
+      hash = hashBuffer(buffer);
       hashReferences = contents.match(HASH_REF_REGEX) ?? [];
-      await this.options.cache.setBlob(cacheKeys.content, contents);
+      await this.options.cache.setBlob(cacheKeys.content, buffer);
     } else {
       size = contents.length;
       hash = hashBuffer(contents);
