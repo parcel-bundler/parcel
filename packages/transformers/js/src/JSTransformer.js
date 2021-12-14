@@ -231,7 +231,7 @@ export default (new Transformer({
         automaticJSXRuntime = true;
       } else if (reactLib) {
         reactLib =
-          pkg.alias && pkg.alias['react']
+          pkg?.alias && pkg.alias['react']
             ? convertAliasReactIntoPragma(pkg.alias['react'])
             : reactLib;
         let automaticVersion = JSX_PRAGMA[reactLib]?.automatic;
