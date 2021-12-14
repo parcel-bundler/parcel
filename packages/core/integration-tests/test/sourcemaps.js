@@ -1365,8 +1365,8 @@ describe('sourcemaps', function () {
 
     let sourceMap = new SourceMap('/');
     sourceMap.addVLQMap(map);
-    let sourceContent = map.sourcesContent[0];
     let sourcePath = 'index.js';
+    let sourceContent = sourceMap.getSourceContent(sourcePath);
 
     checkSourceMapping({
       map: sourceMap,
@@ -1410,8 +1410,8 @@ describe('sourcemaps', function () {
 
     let sourceMap = new SourceMap('/');
     sourceMap.addVLQMap(map);
-    let sourceContent = map.sourcesContent[0];
     let sourcePath = 'index.tsx';
+    let sourceContent = sourceMap.getSourceContent(sourcePath);
 
     checkSourceMapping({
       map: sourceMap,
