@@ -135,6 +135,7 @@ function convertAliasReactIntoPragma(
         return 'react';
       }
       case 'preact/compat':
+      case 'preact-compat':
       case 'preact': {
         return 'preact';
       }
