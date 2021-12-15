@@ -41,6 +41,13 @@ export default class MutableBundleGraph
     this.#options = options;
   }
 
+  addAssetToBundle(asset: IAsset, bundle: IBundle) {
+    this.#graph.addAssetToBundle(
+      assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
+    );
+  }
+
   addAssetGraphToBundle(
     asset: IAsset,
     bundle: IBundle,
@@ -53,61 +60,6 @@ export default class MutableBundleGraph
         ? d => shouldSkipDependency(new Dependency(d, this.#options))
         : undefined,
     );
-  }
-  //TODO: Lift function to bundlegraph.js
-  addAssetToBundle(asset: IAsset, bundle: IBundle) {
-    let bundleNodeId = this.#graph._graph.getNodeIdByContentKey(bundle.id);
-    this.#graph._graph.addEdge(
-      bundleNodeId,
-      this.#graph._graph.getNodeIdByContentKey(asset.id),
-      bundleGraphEdgeTypes.contains,
-    );
-    this.#graph._graph.addEdge(
-      bundleNodeId,
-      this.#graph._graph.getNodeIdByContentKey(asset.id),
-    );
-
-    let dependencies = this.#graph.getDependencies(assetToAssetValue(asset));
-    for (let dependency of dependencies) {
-      let dependencyNodeId = this.#graph._graph.getNodeIdByContentKey(
-        dependency.id,
-      );
-      this.#graph._graph.addEdge(
-        bundleNodeId,
-        dependencyNodeId,
-        bundleGraphEdgeTypes.contains,
-      );
-
-      for (let [bundleGroupNodeId, bundleGroupNode] of this.#graph._graph
-        .getNodeIdsConnectedFrom(dependencyNodeId)
-        .map(id => [id, nullthrows(this.#graph._graph.getNode(id))])
-        .filter(([, node]) => node.type === 'bundle_group')) {
-        invariant(bundleGroupNode.type === 'bundle_group');
-        this.#graph._graph.addEdge(
-          bundleNodeId,
-          bundleGroupNodeId,
-          bundleGraphEdgeTypes.bundle,
-        );
-      }
-      // If the dependency references a target bundle, add a reference edge from
-      // the source bundle to the dependency for easy traversal.
-      //TODO Consider bundle being created from dependency
-      if (
-        this.#graph._graph
-          .getNodeIdsConnectedFrom(
-            dependencyNodeId,
-            bundleGraphEdgeTypes.references,
-          )
-          .map(id => nullthrows(this.#graph._graph.getNode(id)))
-          .some(node => node.type === 'bundle')
-      ) {
-        this.#graph._graph.addEdge(
-          bundleNodeId,
-          dependencyNodeId,
-          bundleGraphEdgeTypes.references,
-        );
-      }
-    }
   }
 
   addEntryToBundle(

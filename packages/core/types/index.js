@@ -1331,8 +1331,8 @@ export interface BundleGraph<TBundle: Bundle> {
   getBundles(opts?: {|includeInline: boolean|}): Array<TBundle>;
   /** Traverses the assets and dependencies in the bundle graph, in depth first order. */
   traverse<TContext>(
-    GraphVisitor<BundleGraphTraversable, TContext>,
-    ?Asset,
+    visit: GraphVisitor<BundleGraphTraversable, TContext>,
+    startAsset: ?Asset,
   ): ?TContext;
   /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
   traverseBundles<TContext>(
