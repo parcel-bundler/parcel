@@ -4,7 +4,7 @@ import type {TSModuleGraph} from './TSModuleGraph';
 
 import ts from 'typescript';
 import nullthrows from 'nullthrows';
-import {getExportedName, isDeclaration} from './utils';
+import {getExportedName, isDeclaration, createImportSpecifier} from './utils';
 
 export function shake(
   moduleGraph: TSModuleGraph,
@@ -238,7 +238,8 @@ function generateImports(moduleGraph: TSModuleGraph) {
         );
       } else {
         namedSpecifiers.push(
-          ts.createImportSpecifier(
+          createImportSpecifier(
+            ts,
             name === imported ? undefined : ts.createIdentifier(imported),
             ts.createIdentifier(name),
           ),
