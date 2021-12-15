@@ -245,6 +245,60 @@ export default class BundleGraph {
     });
   }
 
+  addAssetToBundle(asset: Asset, bundle: Bundle) {
+    console.log('hi in bundleGraph');
+    let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
+    this._graph.addEdge(
+      bundleNodeId,
+      this._graph.getNodeIdByContentKey(asset.id),
+      bundleGraphEdgeTypes.contains,
+    );
+    this._graph.addEdge(
+      bundleNodeId,
+      this._graph.getNodeIdByContentKey(asset.id),
+    );
+
+    let dependencies = this.getDependencies(asset);
+    for (let dependency of dependencies) {
+      let dependencyNodeId = this._graph.getNodeIdByContentKey(dependency.id);
+      this._graph.addEdge(
+        bundleNodeId,
+        dependencyNodeId,
+        bundleGraphEdgeTypes.contains,
+      );
+
+      for (let [bundleGroupNodeId, bundleGroupNode] of this._graph
+        .getNodeIdsConnectedFrom(dependencyNodeId)
+        .map(id => [id, nullthrows(this._graph.getNode(id))])
+        .filter(([, node]) => node.type === 'bundle_group')) {
+        invariant(bundleGroupNode.type === 'bundle_group');
+        this._graph.addEdge(
+          bundleNodeId,
+          bundleGroupNodeId,
+          bundleGraphEdgeTypes.bundle,
+        );
+      }
+      // If the dependency references a target bundle, add a reference edge from
+      // the source bundle to the dependency for easy traversal.
+      // TODO: Consider bundle being created from dependency
+      if (
+        this._graph
+          .getNodeIdsConnectedFrom(
+            dependencyNodeId,
+            bundleGraphEdgeTypes.references,
+          )
+          .map(id => nullthrows(this._graph.getNode(id)))
+          .some(node => node.type === 'bundle')
+      ) {
+        this._graph.addEdge(
+          bundleNodeId,
+          dependencyNodeId,
+          bundleGraphEdgeTypes.references,
+        );
+      }
+    }
+  }
+
   addAssetGraphToBundle(
     asset: Asset,
     bundle: Bundle,
