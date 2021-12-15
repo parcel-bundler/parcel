@@ -673,7 +673,7 @@ describe('postcss', () => {
     );
   });
 
-  it('should throw an error when importing a missing class', async function () {
+  it('should throw an error with code frame when .postcssrc is invalid', async function () {
     let configFilePath = path.join(
       __dirname,
       '/integration/postcss-modules-config-invalid/.postcssrc',
