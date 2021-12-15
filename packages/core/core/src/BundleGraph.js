@@ -246,7 +246,6 @@ export default class BundleGraph {
   }
 
   addAssetToBundle(asset: Asset, bundle: Bundle) {
-    console.log('hi in bundleGraph');
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
     this._graph.addEdge(
       bundleNodeId,

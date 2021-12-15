@@ -526,28 +526,11 @@ function createIdealGraph(
       if (node.type === 'dependency') {
         let dependency = node.value;
 
-        if (
-          dependency.sourceAssetType === 'html' &&
-          [...entries.keys()]
-            .map(a => a.filePath)
-            .includes(dependency.sourcePath)
-        ) {
-          let assets = assetGraph.getDependencyAssets(dependency);
-          if (assets.length === 0) {
-            return node;
-          }
-
-          invariant(assets.length === 1);
-          let bundleRoot = assets[0];
-          asyncBundleRootGraph.addEdge(
-            asyncBundleRootGraph.getNodeIdByContentKey(root.id),
-            asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
-          );
-          return;
-        }
-
         if (dependencyBundleGraph.hasContentKey(dependency.id)) {
-          if (dependency.priority === 'lazy') {
+          if (
+            dependency.priority === 'lazy' ||
+            dependency.priority === 'parallel'
+          ) {
             let assets = assetGraph.getDependencyAssets(dependency);
             if (assets.length === 0) {
               return node;
@@ -555,7 +538,15 @@ function createIdealGraph(
 
             invariant(assets.length === 1);
             let bundleRoot = assets[0];
-            if (dependency.specifierType !== 'url') {
+            let bundle = nullthrows(
+              bundleGraph.getNode(nullthrows(bundles.get(bundleRoot.id))),
+            );
+            if (
+              bundle !== 'root' &&
+              bundle.bundleBehavior !== 'isolated' &&
+              bundle.bundleBehavior !== 'inline' &&
+              !bundle.env.isIsolated()
+            ) {
               asyncBundleRootGraph.addEdge(
                 asyncBundleRootGraph.getNodeIdByContentKey(root.id),
                 asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
