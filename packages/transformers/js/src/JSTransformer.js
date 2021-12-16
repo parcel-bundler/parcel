@@ -126,38 +126,6 @@ const SCRIPT_ERRORS = {
   },
 };
 
-function convertAliasReactIntoPragma(
-  alias: string | {|[string]: string|},
-): 'react' | 'preact' | 'hyperapp' | 'nervjs' {
-  if (typeof alias === 'string') {
-    switch (alias) {
-      case 'react': {
-        return 'react';
-      }
-      case 'preact/compat':
-      case 'preact-compat':
-      case 'preact': {
-        return 'preact';
-      }
-      case 'hyperapp': {
-        return 'hyperapp';
-      }
-      case 'nervjs': {
-        return 'nervjs';
-      }
-      default: {
-        return 'react';
-      }
-    }
-  } else {
-    for (const key in alias) {
-      return convertAliasReactIntoPragma(alias[key]);
-    }
-  }
-
-  return 'react';
-}
-
 type TSConfig = {
   compilerOptions?: {
     // https://www.typescriptlang.org/tsconfig#jsx
@@ -231,15 +199,15 @@ export default (new Transformer({
         jsxImportSource = compilerOptions?.jsxImportSource;
         automaticJSXRuntime = true;
       } else if (reactLib) {
-        reactLib =
-          pkg?.alias && pkg.alias['react']
-            ? convertAliasReactIntoPragma(pkg.alias['react'])
+        let effectiveReactLib =
+          pkg?.alias && pkg.alias['react'] === 'preact/compat'
+            ? 'preact'
             : reactLib;
-        let automaticVersion = JSX_PRAGMA[reactLib]?.automatic;
+        let automaticVersion = JSX_PRAGMA[effectiveReactLib]?.automatic;
         let reactLibVersion =
-          pkg?.dependencies?.[reactLib] ||
-          pkg?.devDependencies?.[reactLib] ||
-          pkg?.peerDependencies?.[reactLib];
+          pkg?.dependencies?.[effectiveReactLib] ||
+          pkg?.devDependencies?.[effectiveReactLib] ||
+          pkg?.peerDependencies?.[effectiveReactLib];
         let minReactLibVersion =
           reactLibVersion != null && reactLibVersion !== '*'
             ? semver.minVersion(reactLibVersion)?.toString()

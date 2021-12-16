@@ -192,7 +192,6 @@ describe('transpilation', function () {
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(file.includes('preact/jsx-runtime'));
     assert(file.includes('_jsxRuntime.jsx("div"'));
   });
 
