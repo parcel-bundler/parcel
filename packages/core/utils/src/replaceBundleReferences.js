@@ -66,7 +66,7 @@ export function replaceURLReferences({
       continue;
     }
 
-    if (!resolved || resolved.bundleBehavior === 'inline') {
+    if (resolved.bundleBehavior === 'inline') {
       // If a bundle is inline, it should be replaced with inline contents,
       // not a URL.
       continue;

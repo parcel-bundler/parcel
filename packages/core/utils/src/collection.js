@@ -43,3 +43,15 @@ export function setDifference<T>(a: Set<T>, b: Set<T>): Set<T> {
   }
   return difference;
 }
+
+export function setIntersect<T>(a: Set<T>, b: Set<T>): void {
+  for (let entry of a) {
+    if (!b.has(entry)) {
+      a.delete(entry);
+    }
+  }
+}
+
+export function setUnion<T>(a: Iterable<T>, b: Iterable<T>): Set<T> {
+  return new Set([...a, ...b]);
+}
