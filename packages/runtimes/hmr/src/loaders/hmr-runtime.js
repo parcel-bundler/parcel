@@ -45,10 +45,10 @@ function Module(moduleName) {
     data: module.bundle.hotData,
     _acceptCallbacks: [],
     _disposeCallbacks: [],
-    accept: function(fn) {
-      this._acceptCallbacks.push(fn || function() {});
+    accept: function (fn) {
+      this._acceptCallbacks.push(fn || function () {});
     },
-    dispose: function(fn) {
+    dispose: function (fn) {
       this._disposeCallbacks.push(fn);
     },
   };
@@ -86,7 +86,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );
   // $FlowFixMe
-  ws.onmessage = function(event /*: {data: string, ...} */) {
+  ws.onmessage = function (event /*: {data: string, ...} */) {
     checkedAssets = ({} /*: {|[string]: boolean|} */);
     acceptedAssets = ({} /*: {|[string]: boolean|} */);
     assetsToAccept = [];
@@ -113,7 +113,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       if (handled) {
         console.clear();
 
-        assets.forEach(function(asset) {
+        assets.forEach(function (asset) {
           hmrApply(module.bundle.root, asset);
         });
 
@@ -154,10 +154,10 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       }
     }
   };
-  ws.onerror = function(e) {
+  ws.onerror = function (e) {
     console.error(e.message);
   };
-  ws.onclose = function(e) {
+  ws.onclose = function (e) {
     if (process.env.PARCEL_BUILD_ENV !== 'test') {
       console.warn('[parcel] 🚨 Connection to the HMR server was lost');
     }
@@ -235,7 +235,7 @@ function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
 
 function updateLink(link) {
   var newLink = link.cloneNode();
-  newLink.onload = function() {
+  newLink.onload = function () {
     if (link.parentNode !== null) {
       // $FlowFixMe
       link.parentNode.removeChild(link);
@@ -256,7 +256,7 @@ function reloadCSS() {
     return;
   }
 
-  cssTimeout = setTimeout(function() {
+  cssTimeout = setTimeout(function () {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
       // $FlowFixMe[incompatible-type]
@@ -341,7 +341,7 @@ function hmrAcceptCheck(
     return true;
   }
 
-  return parents.some(function(v) {
+  return parents.some(function (v) {
     return hmrAcceptCheck(v[0], v[1], null);
   });
 }
@@ -354,7 +354,7 @@ function hmrAcceptRun(bundle /*: ParcelRequire */, id /*: string */) {
   }
 
   if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
-    cached.hot._disposeCallbacks.forEach(function(cb) {
+    cached.hot._disposeCallbacks.forEach(function (cb) {
       cb(bundle.hotData);
     });
   }
@@ -364,8 +364,8 @@ function hmrAcceptRun(bundle /*: ParcelRequire */, id /*: string */) {
 
   cached = bundle.cache[id];
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
-    cached.hot._acceptCallbacks.forEach(function(cb) {
-      var assetsToAlsoAccept = cb(function() {
+    cached.hot._acceptCallbacks.forEach(function (cb) {
+      var assetsToAlsoAccept = cb(function () {
         return getParents(module.bundle.root, id);
       });
       if (assetsToAlsoAccept && assetsToAccept.length) {

@@ -91,7 +91,7 @@ describe('css', () => {
     assert.equal(await output(), 3);
   });
 
-  it('should support importing CSS from a CSS file', async function() {
+  it('should support importing CSS from a CSS file', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-import/index.js'),
     );
@@ -118,7 +118,7 @@ describe('css', () => {
     assert(css.includes('.index'));
   });
 
-  it('should support linking to assets with url() from CSS', async function() {
+  it('should support linking to assets with url() from CSS', async function () {
     let b = await bundle(path.join(__dirname, '/integration/css-url/index.js'));
 
     assertBundles(b, [
@@ -156,7 +156,7 @@ describe('css', () => {
     );
   });
 
-  it('should support linking to assets with url() from CSS in production', async function() {
+  it('should support linking to assets with url() from CSS in production', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url/index.js'),
       {
@@ -201,7 +201,7 @@ describe('css', () => {
     );
   });
 
-  it('should support linking to assets in parent folders with url() from CSS', async function() {
+  it('should support linking to assets in parent folders with url() from CSS', async function () {
     let b = await bundle(
       [
         path.join(__dirname, '/integration/css-url-relative/src/a/style1.css'),
@@ -244,7 +244,7 @@ describe('css', () => {
     );
   });
 
-  it('should ignore url() with IE behavior specifiers', async function() {
+  it('should ignore url() with IE behavior specifiers', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url-behavior/index.css'),
     );
@@ -261,7 +261,7 @@ describe('css', () => {
     assert(css.includes('url(#default#VML)'));
   });
 
-  it('should minify CSS when minify is set', async function() {
+  it('should minify CSS when minify is set', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
       {
@@ -283,7 +283,7 @@ describe('css', () => {
     assert.equal(css.split('\n').length, 1);
   });
 
-  it('should produce a sourcemap when sourceMaps are used', async function() {
+  it('should produce a sourcemap when sourceMaps are used', async function () {
     await bundle(path.join(__dirname, '/integration/cssnano/index.js'), {
       defaultTargetOptions: {
         shouldOptimize: true,

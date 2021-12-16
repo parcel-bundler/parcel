@@ -10,7 +10,7 @@ import CustomBundler from './integration/incremental-bundling/node_modules/parce
 
 const CONFIG = Symbol.for('parcel-plugin-config');
 
-describe('incremental bundling', function() {
+describe('incremental bundling', function () {
   // $FlowFixMe[prop-missing]
   let defaultBundlerSpy = sinon.spy(Bundler[CONFIG], 'bundle');
   let customBundlerSpy = sinon.spy(CustomBundler[CONFIG], 'bundle');

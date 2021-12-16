@@ -243,9 +243,7 @@ export default (new Runtime({
   },
 }): Runtime);
 
-function getDependencies(
-  bundle: NamedBundle,
-): {|
+function getDependencies(bundle: NamedBundle): {|
   asyncDependencies: Array<Dependency>,
   otherDependencies: Array<Dependency>,
 |} {
@@ -461,9 +459,8 @@ function getHintLoaders(
 ): Array<string> {
   let hintLoaders = [];
   for (let bundleGroupToPreload of bundleGroups) {
-    let bundlesToPreload = bundleGraph.getBundlesInBundleGroup(
-      bundleGroupToPreload,
-    );
+    let bundlesToPreload =
+      bundleGraph.getBundlesInBundleGroup(bundleGroupToPreload);
 
     for (let bundleToPreload of bundlesToPreload) {
       let relativePathExpr = getRelativePathExpr(

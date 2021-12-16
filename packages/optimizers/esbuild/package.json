@@ -17,14 +17,14 @@
   "source": "src/ESBuildOptimizer.js",
   "engines": {
     "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.1"
   },
   "dependencies": {
     "@parcel/diagnostic": "2.0.10",
     "@parcel/plugin": "2.0.11",
     "@parcel/source-map": "^2.0.0",
     "@parcel/utils": "2.0.11",
-    "esbuild": "^0.8.11",
+    "esbuild": "^0.13.0",
     "nullthrows": "^1.1.1"
   }
 }

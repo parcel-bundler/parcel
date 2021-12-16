@@ -21,9 +21,9 @@ import {md} from '@parcel/diagnostic';
 const parcelCli = require.resolve('parcel/src/bin.js');
 const inputDir = path.join(__dirname, '/input');
 
-describe('babel', function() {
+describe('babel', function () {
   let subscription;
-  beforeEach(async function() {
+  beforeEach(async function () {
     // TODO maybe don't do this for all tests
     await sleep(100);
     await outputFS.rimraf(inputDir);
@@ -38,7 +38,7 @@ describe('babel', function() {
     }
   });
 
-  it.skip('should auto install @babel/core v7', async function() {
+  it.skip('should auto install @babel/core v7', async function () {
     let originalPkg = await fs.readFile(
       __dirname + '/integration/babel-7-autoinstall/package.json',
     );
@@ -61,7 +61,7 @@ describe('babel', function() {
     );
   });
 
-  it.skip('should auto install babel plugins', async function() {
+  it.skip('should auto install babel plugins', async function () {
     let originalPkg = await fs.readFile(
       __dirname + '/integration/babel-plugin-autoinstall/package.json',
     );
@@ -89,7 +89,7 @@ describe('babel', function() {
     );
   });
 
-  it('should support compiling with babel using .babelrc config', async function() {
+  it('should support compiling with babel using .babelrc config', async function () {
     await bundle(path.join(__dirname, '/integration/babelrc-custom/index.js'));
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
@@ -97,7 +97,7 @@ describe('babel', function() {
     assert(file.includes('hello there'));
   });
 
-  it('should support compiling with babel using babel.config.json config without warnings', async function() {
+  it('should support compiling with babel using babel.config.json config without warnings', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
       messages.push(message);
@@ -116,12 +116,14 @@ describe('babel', function() {
     assert.deepEqual(messages, []);
   });
 
-  it.skip('should support compiling with babel using browserslist for different environments', async function() {
+  it.skip('should support compiling with babel using browserslist for different environments', async function () {
     async function testBrowserListMultipleEnv(projectBasePath) {
       // Transpiled destructuring, like r = p.prop1, o = p.prop2, a = p.prop3;
-      const prodRegExp = /\S+ ?= ?\S+\.prop1,\s*?\S+ ?= ?\S+\.prop2,\s*?\S+ ?= ?\S+\.prop3;/;
+      const prodRegExp =
+        /\S+ ?= ?\S+\.prop1,\s*?\S+ ?= ?\S+\.prop2,\s*?\S+ ?= ?\S+\.prop3;/;
       // ES6 Destructuring, like in the source;
-      const devRegExp = /const ?{\s*prop1(:.+)?,\s*prop2(:.+)?,\s*prop3(:.+)?\s*} ?= ?.*/;
+      const devRegExp =
+        /const ?{\s*prop1(:.+)?,\s*prop2(:.+)?,\s*prop3(:.+)?\s*} ?= ?.*/;
       let file;
       // Dev build test
       await bundle(path.join(__dirname, projectBasePath, '/index.js'));
@@ -147,7 +149,7 @@ describe('babel', function() {
     );
   });
 
-  it.skip('should compile node_modules with browserslist to app target', async function() {
+  it.skip('should compile node_modules with browserslist to app target', async function () {
     await bundle(
       path.join(
         __dirname,
@@ -160,7 +162,7 @@ describe('babel', function() {
     assert(file.includes('function Bar'));
   });
 
-  it('should strip away flow types', async function() {
+  it('should strip away flow types', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-strip-flow-types/index.js'),
     );
@@ -173,7 +175,7 @@ describe('babel', function() {
     assert(!file.includes('OptionsType'));
   });
 
-  it('should support compiling with babel using babel.config.js config', async function() {
+  it('should support compiling with babel using babel.config.js config', async function () {
     await bundle(
       path.join(__dirname, '/integration/babel-config-js/src/index.js'),
     );
@@ -183,7 +185,7 @@ describe('babel', function() {
     assert(file.match(/return \d+;/));
   });
 
-  it('should support compiling with babel using babel.config.js config with a require in it', async function() {
+  it('should support compiling with babel using babel.config.js config with a require in it', async function () {
     await bundle(
       path.join(__dirname, '/integration/babel-config-js-require/src/index.js'),
     );
@@ -193,7 +195,7 @@ describe('babel', function() {
     assert(file.match(/return \d+;/));
   });
 
-  it('should support multitarget builds using a custom babel config with @parcel/babel-preset-env', async function() {
+  it('should support multitarget builds using a custom babel config with @parcel/babel-preset-env', async function () {
     let fixtureDir = path.join(
       __dirname,
       '/integration/babel-config-js-multitarget',
@@ -215,7 +217,7 @@ describe('babel', function() {
     await outputFS.rimraf(path.join(fixtureDir, 'dist'));
   });
 
-  it('should support multitarget builds using a custom babel config with @parcel/babel-plugin-transform-runtime', async function() {
+  it('should support multitarget builds using a custom babel config with @parcel/babel-plugin-transform-runtime', async function () {
     let fixtureDir = path.join(
       __dirname,
       '/integration/babel-config-js-multitarget-transform-runtime',
@@ -240,7 +242,7 @@ describe('babel', function() {
     await outputFS.rimraf(path.join(fixtureDir, 'dist'));
   });
 
-  it('should support building with custom babel config when running parcel globally', async function() {
+  it('should support building with custom babel config when running parcel globally', async function () {
     let tmpDir = tempy.directory();
     let distDir = path.join(tmpDir, 'dist');
     await fs.ncp(
@@ -263,7 +265,7 @@ describe('babel', function() {
     assert(file.includes('hello there'));
   });
 
-  it('should support merging .babelrc and babel.config.json in a monorepo', async function() {
+  it('should support merging .babelrc and babel.config.json in a monorepo', async function () {
     await bundle(
       path.join(
         __dirname,
@@ -373,7 +375,7 @@ describe('babel', function() {
       }
     });
 
-    it('should rebuild when .babelrc changes', async function() {
+    it('should rebuild when .babelrc changes', async function () {
       let inputDir = tempy.directory();
       let differentPath = path.join(inputDir, 'differentConfig');
       let configPath = path.join(inputDir, '.babelrc');
@@ -407,7 +409,7 @@ describe('babel', function() {
       assert(distFile.includes('something different'));
     });
 
-    it('should invalidate babel.config.js across runs', async function() {
+    it('should invalidate babel.config.js across runs', async function () {
       let dateRe = /return (\d+);/;
 
       let fixtureDir = path.join(__dirname, '/integration/babel-config-js');
@@ -452,7 +454,7 @@ describe('babel', function() {
       assert.notEqual(firstDatestamp, secondDatestamp);
     });
 
-    it('should invalidate when babel plugins are upgraded across runs', async function() {
+    it('should invalidate when babel plugins are upgraded across runs', async function () {
       let fixtureDir = path.join(
         __dirname,
         '/integration/babel-plugin-upgrade',
@@ -502,7 +504,7 @@ describe('babel', function() {
     });
   });
 
-  it('should enable shippedProposals with @parcel/babel-preset-env in custom babelrc', async function() {
+  it('should enable shippedProposals with @parcel/babel-preset-env in custom babelrc', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -518,7 +520,7 @@ describe('babel', function() {
     assert.strictEqual(output.default, 123);
   });
 
-  it('should compile with custom babel plugin plus default transforms', async function() {
+  it('should compile with custom babel plugin plus default transforms', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-custom/index.js'),
     );
@@ -533,7 +535,7 @@ describe('babel', function() {
     assert.strictEqual(output.default, 'hello');
   });
 
-  it('should compile with custom babel plugin and jsx', async function() {
+  it('should compile with custom babel plugin and jsx', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-custom/jsx.js'),
     );
@@ -543,7 +545,7 @@ describe('babel', function() {
     assert(file.includes('React.createElement'));
   });
 
-  it('should compile with custom babel plugin and typescript', async function() {
+  it('should compile with custom babel plugin and typescript', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-custom/ts.ts'),
     );
@@ -559,7 +561,7 @@ describe('babel', function() {
     assert.strictEqual(output.default, 'hello');
   });
 
-  it('should compile with custom babel plugin and tsx', async function() {
+  it('should compile with custom babel plugin and tsx', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-custom/tsx.tsx'),
     );
@@ -570,7 +572,7 @@ describe('babel', function() {
     assert(file.includes('React.createElement'));
   });
 
-  it('should warn when a babel config contains only redundant plugins', async function() {
+  it('should warn when a babel config contains only redundant plugins', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
       messages.push(message);
@@ -648,7 +650,7 @@ describe('babel', function() {
     ]);
   });
 
-  it('should warn when a babel config contains redundant plugins', async function() {
+  it('should warn when a babel config contains redundant plugins', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
       messages.push(message);

@@ -6,6 +6,7 @@
     "node": ">= 10.x"
   },
   "dependencies": {
-    "lodash": "*"
+    "lodash": "*",
+    "test": "*"
   }
 }

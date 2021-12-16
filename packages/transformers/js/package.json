@@ -19,7 +19,7 @@
     "name": "parcel-swc"
   },
   "engines": {
-    "parcel": "^2.0.0-beta.1",
+    "parcel": "^2.0.1",
     "node": ">= 12.0.0"
   },
   "files": [
@@ -40,12 +40,12 @@
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.884",
-    "semver": "^5.4.1"
+    "self-published": "npm:@parcel/transformer-js/@2.0.0-nightly.944",
+    "semver": "^5.7.1"
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.884"
+    "self-published": "npm:@parcel/transformer-js/@2.0.0-nightly.947"
   },
   "scripts": {
     "build": "napi build --platform --cargo-cwd napi",

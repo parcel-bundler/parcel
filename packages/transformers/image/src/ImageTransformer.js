@@ -54,10 +54,7 @@ export default (new Transformer({
     const quality = asset.query.has('quality')
       ? parseInt(asset.query.get('quality'), 10)
       : config.quality;
-    let targetFormat = asset.query
-      .get('as')
-      ?.toLowerCase()
-      .trim();
+    let targetFormat = asset.query.get('as')?.toLowerCase().trim();
     if (targetFormat && !FORMATS.has(targetFormat)) {
       throw new Error(
         `The image transformer does not support ${targetFormat} images.`,

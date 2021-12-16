@@ -41,16 +41,18 @@ use swc_ecmascript::transforms::{
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
   pass::Optional, proposals::decorators, react, typescript,
 };
-use swc_ecmascript::visit::FoldWith;
+use swc_ecmascript::visit::{FoldWith, VisitWith};
 
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::hoist;
+use hoist::{hoist, CollectResult, HoistResult};
 use modules::esm2cjs;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+
+use crate::hoist::Collect;
 
 type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
 
@@ -86,14 +88,15 @@ pub struct Config {
   trace_bailouts: bool,
 }
 
-#[derive(Serialize, Debug, Deserialize, Default)]
+#[derive(Serialize, Debug, Default)]
 pub struct TransformResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   map: Option<String>,
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
-  hoist_result: Option<hoist::HoistResult>,
+  hoist_result: Option<HoistResult>,
+  symbol_result: Option<CollectResult>,
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
@@ -255,6 +258,32 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let ignore_mark = Mark::fresh(Mark::root());
             module = {
               let mut passes = chain!(
+                // Decorators can use type information, so must run before the TypeScript pass.
+                Optional::new(
+                  decorators::decorators(decorators::Config {
+                    legacy: true,
+                    // Always disabled for now, SWC's implementation doesn't match TSC.
+                    emit_metadata: false
+                  }),
+                  config.decorators
+                ),
+                Optional::new(
+                  typescript::strip_with_jsx(
+                    source_map.clone(),
+                    typescript::Config {
+                      pragma: Some(react_options.pragma.clone()),
+                      pragma_frag: Some(react_options.pragma_frag.clone()),
+                      ..Default::default()
+                    },
+                    Some(&comments),
+                    global_mark,
+                  ),
+                  config.is_type_script && config.is_jsx
+                ),
+                Optional::new(
+                  typescript::strip(global_mark),
+                  config.is_type_script && !config.is_jsx
+                ),
                 resolver_with_mark(global_mark),
                 Optional::new(
                   react::react(
@@ -265,18 +294,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   ),
                   config.is_jsx
                 ),
-                // Decorators can use type information, so must run before the TypeScript pass.
-                Optional::new(
-                  decorators::decorators(decorators::Config {
-                    legacy: true,
-                    // Always disabled for now, SWC's implementation doesn't match TSC.
-                    emit_metadata: false
-                  }),
-                  config.decorators
-                ),
-                Optional::new(typescript::strip(), config.is_type_script),
-                // Run resolver again. TS pass messes things up.
-                resolver_with_mark(global_mark),
               );
 
               module.fold_with(&mut passes)
@@ -381,16 +398,20 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               return Ok(result);
             }
 
+            let mut collect = Collect::new(
+              source_map.clone(),
+              decls,
+              ignore_mark,
+              global_mark,
+              config.trace_bailouts,
+            );
+            module.visit_with(&mut collect);
+            if let Some(bailouts) = &collect.bailouts {
+              diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
+            }
+
             let module = if config.scope_hoist {
-              let res = hoist(
-                module,
-                source_map.clone(),
-                config.module_id.as_str(),
-                decls,
-                ignore_mark,
-                global_mark,
-                config.trace_bailouts,
-              );
+              let res = hoist(module, config.module_id.as_str(), &collect);
               match res {
                 Ok((module, hoist_result, hoist_diagnostics)) => {
                   result.hoist_result = Some(hoist_result);
@@ -403,6 +424,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
+              result.symbol_result = Some(collect.into());
+
               let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;
               module
@@ -459,17 +482,13 @@ fn parse(
   let syntax = if config.is_type_script {
     Syntax::Typescript(TsConfig {
       tsx: config.is_jsx,
-      dynamic_import: true,
       decorators: config.decorators,
       ..Default::default()
     })
   } else {
     Syntax::Es(EsConfig {
       jsx: config.is_jsx,
-      dynamic_import: true,
       export_default_from: true,
-      export_namespace_from: true,
-      import_meta: true,
       decorators: config.decorators,
       ..Default::default()
     })

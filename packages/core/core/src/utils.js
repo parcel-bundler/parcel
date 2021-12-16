@@ -67,7 +67,8 @@ export function registerCoreWithSerializer() {
     Graph,
     ParcelConfig,
     RequestGraph,
-  }): Array<[string, Class<*>]>)) {
+    // $FlowFixMe[unclear-type]
+  }): Array<[string, Class<any>]>)) {
     registerSerializableClass(packageVersion + ':' + name, ctor);
   }
 

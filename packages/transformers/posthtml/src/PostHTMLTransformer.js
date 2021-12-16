@@ -13,6 +13,10 @@ import loadPlugins from './loadPlugins';
 
 export default (new Transformer({
   async loadConfig({config, options, logger}) {
+    if (!config.isSource) {
+      return;
+    }
+
     let configFile = await config.getConfig(
       ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
       {

@@ -1,9 +1,10 @@
 // @flow
-import type {AllEdgeTypes, NodeId, NullEdgeType} from './types';
-
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import {ALL_EDGE_TYPES, fromNodeId, toNodeId} from './types';
+import {SharedBuffer} from '@parcel/utils';
+import {fromNodeId, toNodeId} from './types';
+import {ALL_EDGE_TYPES, type NullEdgeType, type AllEdgeTypes} from './Graph';
+import type {NodeId} from './types';
 
 /** The address of the node in the nodes map. */
 opaque type NodeAddress = number;
@@ -534,7 +535,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
  *             └─────────────────────────────────────────────┘
  */
 export class SharedTypeMap<TItemType, THash, TAddress: number>
-  implements Iterable<TAddress> {
+  implements Iterable<TAddress>
+{
   /**
    * The header for the `SharedTypeMap` comprises 2 4-byte chunks:
    *
@@ -609,9 +611,7 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
       let CAPACITY = SharedTypeMap.#CAPACITY;
       // $FlowFixMe[incompatible-call]
       this.data = new Uint32Array(
-        new SharedArrayBuffer(
-          this.getLength(capacityOrData) * BYTES_PER_ELEMENT,
-        ),
+        new SharedBuffer(this.getLength(capacityOrData) * BYTES_PER_ELEMENT),
       );
       this.data[CAPACITY] = capacityOrData;
     } else {

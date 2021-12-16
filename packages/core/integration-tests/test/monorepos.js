@@ -14,7 +14,7 @@ import {
 
 const distDir = path.join(__dirname, '/integration/monorepo/dist/default');
 
-describe('monorepos', function() {
+describe('monorepos', function () {
   beforeEach(async () => {
     await outputFS.rimraf(path.join(__dirname, '/monorepo'));
   });
@@ -27,7 +27,7 @@ describe('monorepos', function() {
     }
   });
 
-  it('should compile packages with target source overrides', async function() {
+  it('should compile packages with target source overrides', async function () {
     let fixture = path.join(__dirname, '/integration/target-source');
     let oldcwd = inputFS.cwd();
     inputFS.chdir(fixture);
@@ -91,7 +91,7 @@ describe('monorepos', function() {
     }
   });
 
-  it('should compile packages with target source overrides and --target option', async function() {
+  it('should compile packages with target source overrides and --target option', async function () {
     let fixture = path.join(__dirname, '/integration/target-source');
     let oldcwd = inputFS.cwd();
     inputFS.chdir(fixture);
@@ -142,7 +142,29 @@ describe('monorepos', function() {
     }
   });
 
-  it('should build using root targets with entry files inside packages and cwd at project root', async function() {
+  it('should compile packages with target source overrides and --target option in serve mode', async function () {
+    let fixture = path.join(__dirname, '/integration/target-source');
+    let oldcwd = inputFS.cwd();
+    inputFS.chdir(fixture);
+
+    try {
+      let b = await bundle(path.join(fixture, 'packages/package-b'), {
+        targets: ['alternate'],
+        serveOptions: {port: 1234},
+      });
+
+      assertBundles(b, [
+        {
+          name: 'indexAlternate.js',
+          assets: ['bar.js', 'esmodule-helpers.js', 'indexAlternate.js'],
+        },
+      ]);
+    } finally {
+      inputFS.chdir(oldcwd);
+    }
+  });
+
+  it('should build using root targets with entry files inside packages and cwd at project root', async function () {
     let fixture = path.join(__dirname, '/integration/monorepo');
     let oldcwd = inputFS.cwd();
     inputFS.chdir(fixture);
@@ -198,7 +220,7 @@ describe('monorepos', function() {
     }
   });
 
-  it('should build multiple packages in a monorepo at once, pointing at directories with "source" field in package.json', async function() {
+  it('should build multiple packages in a monorepo at once, pointing at directories with "source" field in package.json', async function () {
     let b = await bundle(
       [
         path.join(__dirname, '/integration/monorepo/packages/pkg-a'),
@@ -280,7 +302,7 @@ describe('monorepos', function() {
     assert(contents.includes('import "./pkg-b.cjs.css"'));
   });
 
-  it('should build using root targets with a glob pointing at files inside packages and cwd at project root', async function() {
+  it('should build using root targets with a glob pointing at files inside packages and cwd at project root', async function () {
     let fixture = path.join(__dirname, '/integration/monorepo');
     let oldcwd = inputFS.cwd();
     inputFS.chdir(fixture);
@@ -330,7 +352,7 @@ describe('monorepos', function() {
     }
   });
 
-  it('should build using root targets with a glob pointing at files inside packages and cwd outside project root', async function() {
+  it('should build using root targets with a glob pointing at files inside packages and cwd outside project root', async function () {
     let oldcwd = inputFS.cwd();
     inputFS.chdir(path.join(__dirname, '/integration'));
 
@@ -382,7 +404,7 @@ describe('monorepos', function() {
     }
   });
 
-  it('should build a single package with an entry file and cwd at a package', async function() {
+  it('should build a single package with an entry file and cwd at a package', async function () {
     let fixture = path.join(__dirname, '/integration/monorepo/packages/pkg-a');
     let oldcwd = inputFS.cwd();
     inputFS.chdir(fixture);
@@ -428,7 +450,7 @@ describe('monorepos', function() {
     }
   });
 
-  it('should build a single package with an entry file and cwd inside a package', async function() {
+  it('should build a single package with an entry file and cwd inside a package', async function () {
     let fixture = path.join(
       __dirname,
       '/integration/monorepo/packages/pkg-a/src',
@@ -477,7 +499,7 @@ describe('monorepos', function() {
     }
   });
 
-  it('should build multiple packages in a monorepo at once, pointing at a glob of directories', async function() {
+  it('should build multiple packages in a monorepo at once, pointing at a glob of directories', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/monorepo/packages/*'),
       {
@@ -556,7 +578,7 @@ describe('monorepos', function() {
     assert(contents.includes('import "./pkg-b.cjs.css"'));
   });
 
-  it('should watch glob entries and build new packages that are added', async function() {
+  it('should watch glob entries and build new packages that are added', async function () {
     // copy into memory fs
     await ncp(
       path.join(__dirname, '/integration/monorepo/packages/pkg-a'),
@@ -614,7 +636,7 @@ describe('monorepos', function() {
     ]);
   });
 
-  it('should watch package.json containing "source" field for changes', async function() {
+  it('should watch package.json containing "source" field for changes', async function () {
     // copy into memory fs
     await ncp(
       path.join(__dirname, '/integration/monorepo/packages/pkg-a'),
@@ -675,7 +697,7 @@ describe('monorepos', function() {
     assert(contents.includes('return 3'));
   });
 
-  it('should watch package.json containing targets for changes', async function() {
+  it('should watch package.json containing targets for changes', async function () {
     // copy into memory fs
     await ncp(
       path.join(__dirname, '/integration/monorepo/packages/pkg-a'),
@@ -739,7 +761,7 @@ describe('monorepos', function() {
     assert(contents.includes('return 2'));
   });
 
-  it('should not share bundles between targets', async function() {
+  it('should not share bundles between targets', async function () {
     let b = await bundle(
       [
         path.join(__dirname, '/integration/monorepo-shared/packages/pkg-a'),

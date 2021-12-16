@@ -10,6 +10,11 @@
     "url": "https://opencollective.com/parcel"
   },
   "description": "Lightweight Babylon AST traversal",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git",
+    "directory": "packages/utils/babylon-walk"
+  },
   "main": "lib/index.js",
   "source": "src/index.js",
   "engines": {

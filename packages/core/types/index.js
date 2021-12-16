@@ -188,7 +188,7 @@ export type EnvironmentOptions = {|
  */
 export type VersionMap = {
   [string]: string,
-  ...,
+  ...
 };
 
 export type EnvironmentFeature =
@@ -401,9 +401,11 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|};
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    meta?: ?Meta,
+  |};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -442,9 +444,12 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|};
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    isWeak: boolean,
+    meta?: ?Meta,
+  |};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;

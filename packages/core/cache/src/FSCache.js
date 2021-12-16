@@ -41,13 +41,13 @@ export class FSCache implements Cache {
   }
 
   getStream(key: string): Readable {
-    return this.fs.createReadStream(this._getCachePath(key));
+    return this.fs.createReadStream(this._getCachePath(`${key}-large`));
   }
 
   setStream(key: string, stream: Readable): Promise<void> {
     return new Promise((resolve, reject) => {
       stream
-        .pipe(this.fs.createWriteStream(this._getCachePath(key)))
+        .pipe(this.fs.createWriteStream(this._getCachePath(`${key}-large`)))
         .on('error', reject)
         .on('finish', resolve);
     });
@@ -75,6 +75,18 @@ export class FSCache implements Cache {
         throw err;
       }
     }
+  }
+
+  hasLargeBlob(key: string): Promise<boolean> {
+    return this.fs.exists(this._getCachePath(`${key}-large`));
+  }
+
+  getLargeBlob(key: string): Promise<Buffer> {
+    return this.fs.readFile(this._getCachePath(`${key}-large`));
+  }
+
+  async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
+    await this.fs.writeFile(this._getCachePath(`${key}-large`), contents);
   }
 
   async get<T>(key: string): Promise<?T> {

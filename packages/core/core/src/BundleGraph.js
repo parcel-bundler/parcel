@@ -6,7 +6,11 @@ import type {
   Symbol,
   TraversalActions,
 } from '@parcel/types';
-import type {NodeId, SerializedContentGraph} from '@parcel/graph';
+import type {
+  ContentGraphOpts,
+  NodeId,
+  SerializedContentGraph,
+} from '@parcel/graph';
 
 import type {
   Asset,
@@ -26,12 +30,7 @@ import type {ProjectPath} from './projectPath';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {
-  ContentGraph,
-  type ContentGraphOpts,
-  ALL_EDGE_TYPES,
-  mapVisitor,
-} from '@parcel/graph';
+import {ContentGraph, ALL_EDGE_TYPES, mapVisitor} from '@parcel/graph';
 import {Hash, hashString} from '@parcel/hash';
 import {objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 
@@ -1501,7 +1500,9 @@ export default class BundleGraph {
         if (!resolved) continue;
         let exported = this.getExportedSymbols(resolved, boundary)
           .filter(s => s.exportSymbol !== 'default')
-          .map(s => ({...s, exportAs: s.exportSymbol}));
+          .map(s =>
+            s.exportSymbol !== '*' ? {...s, exportAs: s.exportSymbol} : s,
+          );
         symbols.push(...exported);
       }
     }
