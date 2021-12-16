@@ -1,6 +1,6 @@
 {
   "name": "@parcel/core",
-  "version": "2.0.11",
+  "version": "2.0.12",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -24,19 +24,19 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
-    "@parcel/cache": "2.0.11",
-    "@parcel/diagnostic": "2.0.10",
+    "@parcel/cache": "2.0.12",
+    "@parcel/diagnostic": "2.0.11",
     "@parcel/events": "2.0.9",
-    "@parcel/fs": "2.0.11",
-    "@parcel/graph": "2.0.11",
-    "@parcel/hash": "2.0.11",
-    "@parcel/logger": "2.0.10",
-    "@parcel/package-manager": "2.0.11",
-    "@parcel/plugin": "2.0.11",
+    "@parcel/fs": "2.0.12",
+    "@parcel/graph": "2.0.12",
+    "@parcel/hash": "2.0.12",
+    "@parcel/logger": "2.0.11",
+    "@parcel/package-manager": "2.0.12",
+    "@parcel/plugin": "2.0.12",
     "@parcel/source-map": "^2.0.0",
-    "@parcel/types": "2.0.11",
-    "@parcel/utils": "2.0.11",
-    "@parcel/workers": "2.0.11",
+    "@parcel/types": "2.0.12",
+    "@parcel/utils": "2.0.12",
+    "@parcel/workers": "2.0.12",
     "abortcontroller-polyfill": "^1.1.9",
     "base-x": "^3.0.8",
     "browserslist": "^4.6.6",
@@ -45,8 +45,8 @@
     "dotenv-expand": "^5.1.0",
     "json-source-map": "^0.6.1",
     "json5": "^1.0.1",
-    "msgpackr": "^1.5.1",
     "micromatch": "^4.0.2",
+    "msgpackr": "^1.5.1",
     "nullthrows": "^1.1.1",
     "semver": "^5.7.1"
   },
