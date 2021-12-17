@@ -424,7 +424,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
-              result.symbol_result = Some(collect.into());
+              // Bail if we could not statically analyze.
+              if collect.static_cjs_exports && !collect.should_wrap {
+                result.symbol_result = Some(collect.into());
+              }
 
               let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;
