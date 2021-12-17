@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-default",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -37,7 +37,7 @@
     "@parcel/runtime-js": "2.0.12",
     "@parcel/runtime-react-refresh": "2.0.12",
     "@parcel/runtime-service-worker": "2.0.12",
-    "@parcel/transformer-babel": "2.0.12",
+    "@parcel/transformer-babel": "2.0.13",
     "@parcel/transformer-css": "2.0.12",
     "@parcel/transformer-html": "2.0.12",
     "@parcel/transformer-js": "2.0.12",
