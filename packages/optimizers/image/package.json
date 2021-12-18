@@ -35,6 +35,7 @@
     "@parcel/diagnostic": "^2.0.1",
     "@parcel/plugin": "^2.0.1",
     "@parcel/utils": "^2.0.1",
+    "@parcel/workers": "^2.0.1",
     "detect-libc": "^1.0.3"
   },
   "devDependencies": {
