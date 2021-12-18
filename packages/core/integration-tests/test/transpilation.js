@@ -192,6 +192,7 @@ describe('transpilation', function () {
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(/\Wreact\/jsx-runtime\W/.test(file));
     assert(file.includes('_jsxRuntime.jsx("div"'));
   });
 
