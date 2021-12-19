@@ -183,6 +183,19 @@ describe('transpilation', function () {
     assert(file.includes('_jsxRuntime.jsx("div"'));
   });
 
+  it('should support the automatic JSX runtime with preact with alias', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/jsx-automatic-preact-with-alias/index.js',
+      ),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(/\Wreact\/jsx-runtime\W/.test(file));
+    assert(file.includes('_jsxRuntime.jsx("div"'));
+  });
+
   it('should support the automatic JSX runtime with explicit tsconfig.json', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/jsx-automatic-tsconfig/index.js'),
