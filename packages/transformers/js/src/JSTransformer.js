@@ -200,11 +200,15 @@ export default (new Transformer({
         jsxImportSource = compilerOptions?.jsxImportSource;
         automaticJSXRuntime = true;
       } else if (reactLib) {
-        let automaticVersion = JSX_PRAGMA[reactLib]?.automatic;
+        let effectiveReactLib =
+          pkg?.alias && pkg.alias['react'] === 'preact/compat'
+            ? 'preact'
+            : reactLib;
+        let automaticVersion = JSX_PRAGMA[effectiveReactLib]?.automatic;
         let reactLibVersion =
-          pkg?.dependencies?.[reactLib] ||
-          pkg?.devDependencies?.[reactLib] ||
-          pkg?.peerDependencies?.[reactLib];
+          pkg?.dependencies?.[effectiveReactLib] ||
+          pkg?.devDependencies?.[effectiveReactLib] ||
+          pkg?.peerDependencies?.[effectiveReactLib];
         let minReactLibVersion =
           reactLibVersion != null && reactLibVersion !== '*'
             ? semver.minVersion(reactLibVersion)?.toString()
