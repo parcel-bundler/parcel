@@ -209,10 +209,9 @@ export default (new Transformer({
           pkg?.dependencies?.[effectiveReactLib] ||
           pkg?.devDependencies?.[effectiveReactLib] ||
           pkg?.peerDependencies?.[effectiveReactLib];
-        let minReactLibVersion =
-          reactLibVersion != null && reactLibVersion !== '*'
-            ? semver.minVersion(reactLibVersion)?.toString()
-            : null;
+        let minReactLibVersion = semver.valid(reactLibVersion)
+          ? semver.minVersion(reactLibVersion)?.toString()
+          : null;
 
         automaticJSXRuntime =
           automaticVersion &&
