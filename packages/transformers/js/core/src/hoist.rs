@@ -886,7 +886,7 @@ impl<'a> Fold for Hoist<'a> {
 
       if is_cjs_exports {
         let key: JsWord = if self.collect.static_cjs_exports {
-          if let Some((name, _)) = match_property_name(&member) {
+          if let Some((name, _)) = match_property_name(member) {
             name
           } else {
             unreachable!("Unexpected non-static CJS export");
@@ -1701,7 +1701,7 @@ impl Visit for Collect {
           }
 
           // `import` isn't really an identifier...
-          if match_property_name(&node).is_none() && ident.sym != js_word!("import") {
+          if match_property_name(node).is_none() && ident.sym != js_word!("import") {
             self
               .non_static_access
               .entry(id!(ident))
