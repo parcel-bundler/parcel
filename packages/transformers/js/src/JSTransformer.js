@@ -209,8 +209,11 @@ export default (new Transformer({
           pkg?.dependencies?.[effectiveReactLib] ||
           pkg?.devDependencies?.[effectiveReactLib] ||
           pkg?.peerDependencies?.[effectiveReactLib];
+        reactLibVersion = reactLibVersion
+          ? semver.validRange(reactLibVersion)
+          : null;
         let minReactLibVersion =
-          reactLibVersion != null && reactLibVersion !== '*'
+          reactLibVersion !== null && reactLibVersion !== '*'
             ? semver.minVersion(reactLibVersion)?.toString()
             : null;
 
