@@ -587,11 +587,7 @@ export default class Transformation {
     );
 
     for (let transformer of transformers) {
-      let config = await this.loadTransformerConfig(
-        filePath,
-        transformer,
-        isSource,
-      );
+      let config = await this.loadTransformerConfig(transformer, isSource);
       if (config) {
         this.configs.set(transformer.name, config);
       }
@@ -650,7 +646,6 @@ export default class Transformation {
   }
 
   async loadTransformerConfig(
-    filePath: ProjectPath,
     transformer: LoadedPlugin<Transformer<mixed>>,
     isSource: boolean,
   ): Promise<?Config> {
@@ -662,7 +657,7 @@ export default class Transformation {
     let config = createConfig({
       plugin: transformer.name,
       isSource,
-      searchPath: filePath,
+      searchPath: this.request.filePath,
       env: this.request.env,
     });
 
