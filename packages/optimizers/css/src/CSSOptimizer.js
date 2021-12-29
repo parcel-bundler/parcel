@@ -3,7 +3,7 @@
 import SourceMap from '@parcel/source-map';
 import {Optimizer} from '@parcel/plugin';
 // $FlowFixMe
-import {transform} from '@parcel/css';
+import {transform, transformStyleAttribute} from '@parcel/css';
 import {blobToBuffer} from '@parcel/utils';
 import browserslist from 'browserslist';
 
@@ -21,6 +21,21 @@ export default (new Optimizer({
 
     let targets = getTargets(bundle.env.engines.browsers);
     let code = await blobToBuffer(prevContents);
+
+    // Inline style attributes in HTML need to be parsed differently from full CSS files.
+    if (bundle.bundleBehavior === 'inline') {
+      let entry = bundle.getMainEntry();
+      if (entry?.meta.type === 'attr') {
+        let contents = transformStyleAttribute({
+          code,
+          minify: true,
+          targets,
+        });
+
+        return {contents};
+      }
+    }
+
     let result = transform({
       filename: bundle.name,
       code,

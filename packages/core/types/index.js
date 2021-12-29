@@ -1296,6 +1296,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
     Bundle,
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
+  addAssetToBundle(Asset, Bundle): void;
   addEntryToBundle(
     Asset,
     Bundle,
@@ -1329,7 +1330,10 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Returns a list of bundles in the bundle graph. By default, inline bundles are excluded. */
   getBundles(opts?: {|includeInline: boolean|}): Array<TBundle>;
   /** Traverses the assets and dependencies in the bundle graph, in depth first order. */
-  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
+  traverse<TContext>(
+    visit: GraphVisitor<BundleGraphTraversable, TContext>,
+    startAsset: ?Asset,
+  ): ?TContext;
   /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,

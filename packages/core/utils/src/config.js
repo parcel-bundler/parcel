@@ -2,6 +2,7 @@
 
 import type {ConfigResult, File, FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import path from 'path';
 import clone from 'clone';
 import {parse as json5} from 'json5';
@@ -82,14 +83,45 @@ export async function loadConfig(
       }
 
       let configContent = await fs.readFile(configFile, 'utf8');
-      if (!configContent) return null;
 
       let config;
       if (parse === false) {
         config = configContent;
       } else {
         let parse = opts?.parser ?? getParser(extname);
-        config = parse(configContent);
+        try {
+          config = parse(configContent);
+        } catch (e) {
+          if (extname !== '' && extname !== 'json') {
+            throw e;
+          }
+
+          let pos = {
+            line: e.lineNumber,
+            column: e.columnNumber,
+          };
+
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: `Failed to parse ${path.basename(configFile)}`,
+              origin: '@parcel/utils',
+              codeFrames: [
+                {
+                  language: 'json5',
+                  filePath: configFile,
+                  code: configContent,
+                  codeHighlights: [
+                    {
+                      start: pos,
+                      end: pos,
+                      message: e.message,
+                    },
+                  ],
+                },
+              ],
+            },
+          });
+        }
       }
 
       let output = {

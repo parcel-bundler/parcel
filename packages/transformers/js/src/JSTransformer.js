@@ -12,6 +12,7 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import {validateSchema, remapSourceLocation} from '@parcel/utils';
 import {isMatch} from 'micromatch';
+import WorkerFarm from '@parcel/workers';
 
 const JSX_EXTENSIONS = {
   jsx: true,
@@ -199,13 +200,20 @@ export default (new Transformer({
         jsxImportSource = compilerOptions?.jsxImportSource;
         automaticJSXRuntime = true;
       } else if (reactLib) {
-        let automaticVersion = JSX_PRAGMA[reactLib]?.automatic;
+        let effectiveReactLib =
+          pkg?.alias && pkg.alias['react'] === 'preact/compat'
+            ? 'preact'
+            : reactLib;
+        let automaticVersion = JSX_PRAGMA[effectiveReactLib]?.automatic;
         let reactLibVersion =
-          pkg?.dependencies?.[reactLib] ||
-          pkg?.devDependencies?.[reactLib] ||
-          pkg?.peerDependencies?.[reactLib];
+          pkg?.dependencies?.[effectiveReactLib] ||
+          pkg?.devDependencies?.[effectiveReactLib] ||
+          pkg?.peerDependencies?.[effectiveReactLib];
+        reactLibVersion = reactLibVersion
+          ? semver.validRange(reactLibVersion)
+          : null;
         let minReactLibVersion =
-          reactLibVersion != null && reactLibVersion !== '*'
+          reactLibVersion !== null && reactLibVersion !== '*'
             ? semver.minVersion(reactLibVersion)?.toString()
             : null;
 
@@ -278,6 +286,7 @@ export default (new Transformer({
       asset.getBuffer(),
       asset.getMap(),
       init,
+      loadOnMainThreadIfNeeded(),
     ]);
 
     let targets;
@@ -653,7 +662,12 @@ export default (new Transformer({
         }
 
         // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
-        let isHelper = dep.is_helper && !dep.specifier.endsWith('/jsx-runtime');
+        let isHelper =
+          dep.is_helper &&
+          !(
+            dep.specifier.endsWith('/jsx-runtime') ||
+            dep.specifier.endsWith('/jsx-dev-runtime')
+          );
         if (isHelper && !asset.env.isLibrary) {
           env = {
             ...env,
@@ -840,3 +854,27 @@ export default (new Transformer({
     return [asset];
   },
 }): Transformer);
+
+// On linux with older versions of glibc (e.g. CentOS 7), we encounter a segmentation fault
+// when worker threads exit due to thread local variables used by SWC. A workaround is to
+// also load the native module on the main thread, so that it is not unloaded until process exit.
+// See https://github.com/rust-lang/rust/issues/91979.
+let isLoadedOnMainThread = false;
+async function loadOnMainThreadIfNeeded() {
+  if (
+    !isLoadedOnMainThread &&
+    process.platform === 'linux' &&
+    WorkerFarm.isWorker()
+  ) {
+    let {family, version} = require('detect-libc');
+    if (family === 'glibc' && parseFloat(version) <= 2.17) {
+      let api = WorkerFarm.getWorkerApi();
+      await api.callMaster({
+        location: __dirname + '/loadNative.js',
+        args: [],
+      });
+
+      isLoadedOnMainThread = true;
+    }
+  }
+}
