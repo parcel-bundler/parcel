@@ -672,4 +672,50 @@ describe('postcss', () => {
       },
     );
   });
+
+  it('should throw an error with code frame when .postcssrc is invalid', async function () {
+    let configFilePath = path.join(
+      __dirname,
+      '/integration/postcss-modules-config-invalid/.postcssrc',
+    );
+    let code = await inputFS.readFile(configFilePath, 'utf8');
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(
+            __dirname,
+            '/integration/postcss-modules-config-invalid/src/index.css',
+          ),
+        ),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            codeFrames: [
+              {
+                code,
+                filePath: configFilePath,
+                language: 'json5',
+                codeHighlights: [
+                  {
+                    end: {
+                      column: 5,
+                      line: 5,
+                    },
+                    start: {
+                      column: 5,
+                      line: 5,
+                    },
+                    message: `JSON5: invalid character '\\"' at 5:5`,
+                  },
+                ],
+              },
+            ],
+            message: 'Failed to parse .postcssrc',
+            origin: '@parcel/utils',
+          },
+        ],
+      },
+    );
+  });
 });

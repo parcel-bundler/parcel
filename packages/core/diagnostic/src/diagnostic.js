@@ -177,7 +177,10 @@ export function errorToDiagnostic(
       origin: defaultValues?.origin ?? 'Error',
       message: escapeMarkdown(error.message),
       name: error.name,
-      stack: error.highlightedCodeFrame ?? error.codeFrame ?? error.stack,
+      stack:
+        codeFrames == null
+          ? error.highlightedCodeFrame ?? error.codeFrame ?? error.stack
+          : undefined,
       codeFrames,
     },
   ];

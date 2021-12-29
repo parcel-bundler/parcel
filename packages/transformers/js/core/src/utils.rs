@@ -90,6 +90,38 @@ fn is_marked(span: Span, mark: Mark) -> bool {
   }
 }
 
+pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
+  use ast::*;
+
+  match node {
+    // "string" or 'string'
+    Expr::Lit(Lit::Str(s)) => Some((s.value.clone(), s.span)),
+    // `string`
+    Expr::Tpl(tpl) if tpl.quasis.len() == 1 && tpl.exprs.is_empty() => {
+      Some((tpl.quasis[0].raw.value.clone(), tpl.span))
+    }
+    _ => None,
+  }
+}
+
+pub fn match_str_or_ident(node: &ast::Expr) -> Option<(JsWord, Span)> {
+  use ast::*;
+
+  if let Expr::Ident(id) = node {
+    return Some((id.sym.clone(), id.span));
+  }
+
+  match_str(node)
+}
+
+pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
+  if node.computed {
+    match_str(&*node.prop)
+  } else {
+    match_str_or_ident(&*node.prop)
+  }
+}
+
 pub fn match_require(
   node: &ast::Expr,
   decls: &HashSet<(JsWord, SyntaxContext)>,
@@ -106,9 +138,7 @@ pub fn match_require(
             && !is_marked(ident.span, ignore_mark)
           {
             if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
-                return Some(str_.value.clone());
-              }
+              return match_str(&*arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -117,9 +147,7 @@ pub fn match_require(
         Expr::Member(member) => {
           if match_member_expr(member, vec!["module", "require"], decls) {
             if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
-                return Some(str_.value.clone());
-              }
+              return match_str(&*arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -142,9 +170,7 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
         Expr::Ident(ident) => {
           if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
             if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
-                return Some(str_.value.clone());
-              }
+              return match_str(&*arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -160,10 +186,10 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct SourceLocation {
-  start_line: usize,
-  start_col: usize,
-  end_line: usize,
-  end_col: usize,
+  pub start_line: usize,
+  pub start_col: usize,
+  pub end_line: usize,
+  pub end_col: usize,
 }
 
 impl SourceLocation {

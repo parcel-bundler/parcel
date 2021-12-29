@@ -38,6 +38,11 @@
     "split2": "^3.1.1"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.0.0"
+    "@parcel/core": "^2.0.1"
+  },
+  "browser": {
+    "./src/Npm.js": false,
+    "./src/Pnpm.js": false,
+    "./src/Yarn.js": false
   }
 }

@@ -22,6 +22,7 @@
   "dependencies": {
     "@parcel/hash": "^2.0.1",
     "@parcel/plugin": "^2.0.1",
+    "@parcel/diagnostic": "^2.0.1",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.16.5",
     "posthtml-parser": "^0.10.1",

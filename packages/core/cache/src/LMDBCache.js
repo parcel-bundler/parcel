@@ -9,7 +9,7 @@ import {NodeFS} from '@parcel/fs';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 // $FlowFixMe
-import lmdb from 'lmdb-store';
+import lmdb from 'lmdb';
 
 export class LMDBCache implements Cache {
   fs: NodeFS;

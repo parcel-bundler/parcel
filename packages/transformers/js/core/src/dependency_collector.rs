@@ -217,10 +217,10 @@ impl<'a> DependencyCollector<'a> {
 
 fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
   if let Some(arg) = node.args.get(0) {
-    if let ast::Expr::Lit(ast::Lit::Str(str_)) = &*arg.expr {
-      if str_.value.starts_with("node:") {
+    if let Some((value, _)) = match_str(&*arg.expr) {
+      if value.starts_with("node:") {
         // create_require will take care of replacing the node: prefix...
-        return create_require(str_.value.clone());
+        return create_require(value);
       }
     }
   }
@@ -559,7 +559,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           } else {
             (
               "Registering worklets with a string literal is not supported.",
-              "http://localhost:8080/languages/javascript/#worklets",
+              "https://parceljs.org/languages/javascript/#worklets",
             )
           };
           self.diagnostics.push(Diagnostic {
@@ -594,7 +594,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         return node;
       }
 
-      if let Lit(ast::Lit::Str(str_)) = &*arg.expr {
+      if let Some((specifier, span)) = match_str(&*arg.expr) {
         // require() calls aren't allowed in scripts, flag as an error.
         if kind == DependencyKind::Require && self.config.source_type == SourceType::Script {
           self.add_script_error(node.span);
@@ -602,8 +602,8 @@ impl<'a> Fold for DependencyCollector<'a> {
         }
 
         let placeholder = self.add_dependency(
-          str_.value.clone(),
-          str_.span,
+          specifier,
+          span,
           kind.clone(),
           attributes,
           kind == DependencyKind::Require && self.in_try,
@@ -614,7 +614,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           let mut node = node.clone();
           node.args[0].expr = Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
             value: placeholder,
-            span: str_.span,
+            span,
             has_escape: false,
             kind: ast::StrKind::Synthesized,
           })));
@@ -1129,18 +1129,15 @@ impl<'a> DependencyCollector<'a> {
       }
 
       if let Some(args) = &new.args {
-        let specifier = if let Some(arg) = args.get(0) {
-          match &*arg.expr {
-            Expr::Lit(Lit::Str(s)) => s,
-            _ => return None,
-          }
+        let (specifier, span) = if let Some(arg) = args.get(0) {
+          match_str(&*arg.expr)?
         } else {
           return None;
         };
 
         if let Some(arg) = args.get(1) {
           if self.is_import_meta_url(&*arg.expr) {
-            return Some((specifier.value.clone(), specifier.span));
+            return Some((specifier, span));
           }
         }
       }
@@ -1170,10 +1167,16 @@ impl<'a> DependencyCollector<'a> {
           _ => return false,
         }
 
-        match &*member.prop {
-          Expr::Ident(id) => id.sym == js_word!("url") && !member.computed,
-          Expr::Lit(Lit::Str(str)) => str.value == js_word!("url"),
-          _ => false,
+        let name = if !member.computed {
+          match_str_or_ident(&*member.prop)
+        } else {
+          match_str(&*member.prop)
+        };
+
+        if let Some((name, _)) = name {
+          name == js_word!("url")
+        } else {
+          false
         }
       }
       Expr::Bin(BinExpr {
@@ -1183,9 +1186,10 @@ impl<'a> DependencyCollector<'a> {
         ..
       }) => {
         // Match "file:" + __filename
-        match (&**left, &**right) {
-          (Expr::Lit(Lit::Str(Str { value: left, .. })), Expr::Ident(Ident { sym: right, .. })) => {
-            left == "file:" && right == "__filename"
+        let left = match_str(&*left);
+        match (left, &**right) {
+          (Some((left, _)), Expr::Ident(Ident { sym: right, .. })) => {
+            &left == "file:" && right == "__filename"
           }
           _ => false,
         }
@@ -1361,12 +1365,13 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
             _ => return true,
           };
 
-          let v = match &*kv.value {
-            Expr::Lit(Lit::Str(Str { value, .. })) => value,
-            _ => return true,
+          let v = if let Some((v, _)) = match_str(&*kv.value) {
+            v
+          } else {
+            return true;
           };
 
-          source_type = Some(match *v {
+          source_type = Some(match v {
             js_word!("module") => SourceType::Module,
             _ => SourceType::Script,
           });

@@ -4422,6 +4422,45 @@ describe('javascript', function () {
     assert.equal(await run(b), 2);
   });
 
+  it('should detect requires in commonjs with plain template literals', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/commonjs-template-literal-plain/index.js',
+      ),
+    );
+    let dist = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'js').filePath,
+      'utf8',
+    );
+    assert(dist.includes('$cPUKg$lodash = require("lodash");'));
+
+    let add = await run(b);
+    assert.equal(add(2, 3), 5);
+  });
+
+  it(`should detect requires in commonjs with plain template literals`, async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/commonjs-template-literal-interpolation/index.js',
+      ),
+    );
+    let dist = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'js').filePath,
+      'utf8',
+    );
+
+    assert(
+      dist.includes(
+        'const add = require(`lodash/${$8cad8166811e0063$var$fn}`);',
+      ),
+    );
+
+    let add = await run(b);
+    assert.equal(add(2, 3), 5);
+  });
+
   it('only updates bundle names of changed bundles for browsers', async () => {
     let fixtureDir = path.join(__dirname, '/integration/name-invalidation');
     let _bundle = () =>
