@@ -2380,6 +2380,25 @@ describe('resolver', function () {
 
       assert.deepEqual(result, {isExcluded: true});
     });
+
+    it('should not error on builtin node modules', async function () {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'buffer',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'env-dep/foo.js'),
+        sourcePath: path.join(rootDir, 'env-dep/foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
+    });
   });
 
   describe('urls', function () {

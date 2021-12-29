@@ -17,6 +17,8 @@ import browserslist from 'browserslist';
 import semver from 'semver';
 import {fromInternalSourceLocation} from '../utils';
 
+const inspect = Symbol.for('nodejs.util.inspect.custom');
+
 export const BROWSER_ENVS: Set<string> = new Set<string>([
   'browser',
   'web-worker',
@@ -193,6 +195,11 @@ export default class Environment implements IEnvironment {
       this.#options.projectRoot,
       this.#environment.loc,
     );
+  }
+
+  // $FlowFixMe[unsupported-syntax]
+  [inspect](): string {
+    return `Env(${this.#environment.context})`;
   }
 
   isBrowser(): boolean {

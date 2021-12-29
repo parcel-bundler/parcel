@@ -30,7 +30,7 @@
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions --exact",
     "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions",
-    "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines.js",
+    "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines-peerdeps.js",
     "release": "lerna publish -y from-package --pre-dist-tag=next --no-git-tag-version --no-push",
     "prepare": "husky install"
   },
@@ -41,7 +41,7 @@
     "@types/node": "^15.12.4",
     "cross-env": "^7.0.0",
     "eslint": "^7.20.0",
-    "flow-bin": "0.161.0",
+    "flow-bin": "0.164.0",
     "glob": "^7.1.6",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
@@ -53,7 +53,7 @@
     "mocha-multi-reporters": "^1.5.1",
     "prettier": "2.4.1",
     "rimraf": "^2.6.3",
-    "semver": "^5.4.1",
+    "semver": "^5.7.1",
     "sinon": "^7.3.1"
   },
   "engines": {

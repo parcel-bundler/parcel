@@ -3,7 +3,6 @@
 import type {AST, MutableAsset} from '@parcel/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
-
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
@@ -19,7 +18,7 @@ const ATTRS = {
     'amp-img',
   ],
   // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
-  href: ['link', 'a', 'use', 'script'],
+  href: ['link', 'a', 'use', 'script', 'image'],
   srcset: ['img', 'source'],
   imagesrcset: ['link'],
   poster: ['video'],
@@ -115,6 +114,7 @@ export default function collectDependencies(
   let isDirty = false;
   let hasScripts = false;
   let seen = new Set();
+  const errors = [];
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
     if (!attrs || seen.has(node)) {
@@ -256,6 +256,15 @@ export default function collectDependencies(
 
       let elements = ATTRS[attr];
       if (elements && elements.includes(node.tag)) {
+        // Check for empty string
+        if (attrs[attr].length === 0) {
+          errors.push({
+            message: `'${attr}' should not be empty string`,
+            filePath: asset.filePath,
+            loc: node.location,
+          });
+        }
+
         let depHandler = getAttrDepHandler(attr);
         let depOptionsHandler = OPTIONS[node.tag];
         let depOptions =
@@ -273,6 +282,10 @@ export default function collectDependencies(
 
     return node;
   });
+
+  if (errors.length > 0) {
+    throw errors;
+  }
 
   return hasScripts;
 }

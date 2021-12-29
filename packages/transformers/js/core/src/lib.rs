@@ -29,10 +29,9 @@ use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
-use swc_common::DUMMY_SP;
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
 use swc_ecma_preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
-use swc_ecmascript::ast::{Invalid, Module};
+use swc_ecmascript::ast::Module;
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
@@ -281,7 +280,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   ),
                   config.is_type_script && config.is_jsx
                 ),
-                Optional::new(typescript::strip(), config.is_type_script && !config.is_jsx),
+                Optional::new(
+                  typescript::strip(global_mark),
+                  config.is_type_script && !config.is_jsx
+                ),
                 resolver_with_mark(global_mark),
                 Optional::new(
                   react::react(
@@ -403,7 +405,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               global_mark,
               config.trace_bailouts,
             );
-            module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
+            module.visit_with(&mut collect);
             if let Some(bailouts) = &collect.bailouts {
               diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
             }
@@ -422,7 +424,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
-              result.symbol_result = Some(collect.into());
+              // Bail if we could not statically analyze.
+              if collect.static_cjs_exports && !collect.should_wrap {
+                result.symbol_result = Some(collect.into());
+              }
 
               let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;
@@ -480,17 +485,13 @@ fn parse(
   let syntax = if config.is_type_script {
     Syntax::Typescript(TsConfig {
       tsx: config.is_jsx,
-      dynamic_import: true,
       decorators: config.decorators,
       ..Default::default()
     })
   } else {
     Syntax::Es(EsConfig {
       jsx: config.is_jsx,
-      dynamic_import: true,
       export_default_from: true,
-      export_namespace_from: true,
-      import_meta: true,
       decorators: config.decorators,
       ..Default::default()
     })

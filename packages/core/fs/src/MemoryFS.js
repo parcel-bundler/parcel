@@ -11,6 +11,7 @@ import type {
 import path from 'path';
 import {Readable, Writable} from 'stream';
 import {registerSerializableClass} from '@parcel/core';
+import {SharedBuffer} from '@parcel/utils';
 import packageJSON from '../package.json';
 import WorkerFarm, {Handle} from '@parcel/workers';
 import nullthrows from 'nullthrows';
@@ -904,15 +905,12 @@ class Directory extends Entry {
 }
 
 function makeShared(contents: Buffer | string): Buffer {
-  if (
-    typeof contents !== 'string' &&
-    contents.buffer instanceof SharedArrayBuffer
-  ) {
+  if (typeof contents !== 'string' && contents.buffer instanceof SharedBuffer) {
     return contents;
   }
 
   let length = Buffer.byteLength(contents);
-  let shared = new SharedArrayBuffer(length);
+  let shared = new SharedBuffer(length);
   let buffer = Buffer.from(shared);
   if (typeof contents === 'string') {
     buffer.write(contents);

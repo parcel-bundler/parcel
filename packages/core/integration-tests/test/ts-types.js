@@ -306,7 +306,7 @@ describe('typescript types', function () {
     assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
   });
 
-  it('should generate a typescript declaration file even when composite is true', async function () {
+  it('should generate a typescript declaration file even when composite and incremental are true', async function () {
     await bundle(
       path.join(__dirname, '/integration/ts-types/composite/index.ts'),
     );
@@ -319,6 +319,71 @@ describe('typescript types', function () {
     ).replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/composite/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
+
+  it('should work with module augmentation', async function () {
+    let fixtureDir = path.join(__dirname, 'integration/ts-types/augmentation');
+    await outputFS.mkdirp(path.join(fixtureDir, 'node_modules'));
+    await ncp(fixtureDir, fixtureDir);
+    await outputFS.symlink(
+      path.join(fixtureDir, 'original'),
+      path.join(fixtureDir, 'node_modules/original'),
+    );
+
+    let b = await bundle(path.join(fixtureDir, 'augmenter'), {
+      inputFS: overlayFS,
+    });
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        type: 'js',
+        assets: ['index.ts'],
+      },
+      {
+        name: 'index.d.ts',
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(fixtureDir, 'augmenter/dist/index.d.ts'),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(fixtureDir, 'augmenter/src/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
+
+  it('should handle re-exporting aggregating correctly', async function () {
+    await bundle(
+      path.join(
+        __dirname,
+        '/integration/ts-types/re-exporting-aggregating/index.ts',
+      ),
+    );
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/re-exporting-aggregating/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/re-exporting-aggregating/expected.d.ts',
+      ),
       'utf8',
     );
     assert.equal(dist, expected);

@@ -130,6 +130,15 @@ describe('transpilation', function () {
     assert(file.includes('h("div"'));
   });
 
+  it('should support compiling JSX in JS files with Preact url dependency', async function () {
+    await bundle(
+      path.join(__dirname, '/integration/jsx-preact-with-url/index.js'),
+    );
+
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(file.includes('h("div"'));
+  });
+
   it('should support compiling JSX in TS files with Preact dependency', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/jsx-preact-ts/index.tsx'),
@@ -180,6 +189,19 @@ describe('transpilation', function () {
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(file.includes('preact/jsx-runtime'));
+    assert(file.includes('_jsxRuntime.jsx("div"'));
+  });
+
+  it('should support the automatic JSX runtime with preact with alias', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/jsx-automatic-preact-with-alias/index.js',
+      ),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(/\Wreact\/jsx-runtime\W/.test(file));
     assert(file.includes('_jsxRuntime.jsx("div"'));
   });
 
