@@ -2,8 +2,8 @@ use inflector::Inflector;
 use std::collections::{HashMap, HashSet};
 use swc_atoms::JsWord;
 use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
-use swc_ecma_preset_env::{Feature, Versions};
 use swc_ecmascript::ast::*;
+use swc_ecmascript::preset_env::{Feature, Versions};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::fold_member_expr_skip_prop;

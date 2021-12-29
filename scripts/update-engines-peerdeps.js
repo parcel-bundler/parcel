@@ -26,4 +26,8 @@ for (let [, {location}] of packageVersions) {
     pkg.engines.parcel = coreRange;
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
   }
+  if (pkg.peerDependencies?.['@parcel/core'] != null) {
+    pkg.peerDependencies['@parcel/core'] = coreRange;
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+  }
 }

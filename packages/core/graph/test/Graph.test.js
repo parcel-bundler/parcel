@@ -83,11 +83,14 @@ describe('Graph', () => {
 
   it('isOrphanedNode should return true or false if the node is orphaned or not', () => {
     let graph = new Graph();
+    let rootNode = graph.addNode('root');
+    graph.setRootNodeId(rootNode);
+
     let nodeA = graph.addNode('a');
     let nodeB = graph.addNode('b');
     let nodeC = graph.addNode('c');
-    graph.addEdge(nodeA, nodeB);
-    graph.addEdge(nodeA, nodeC, 1);
+    graph.addEdge(rootNode, nodeB);
+    graph.addEdge(nodeB, nodeC, 1);
     assert(graph.isOrphanedNode(nodeA));
     assert(!graph.isOrphanedNode(nodeB));
     assert(!graph.isOrphanedNode(nodeC));
@@ -101,6 +104,7 @@ describe('Graph', () => {
     //     c
     let graph = new Graph();
     let nodeA = graph.addNode('a');
+    graph.setRootNodeId(nodeA);
     let nodeB = graph.addNode('b');
     let nodeC = graph.addNode('c');
     let nodeD = graph.addNode('d');
@@ -140,6 +144,7 @@ describe('Graph', () => {
 
     let graph = new Graph();
     let nodeA = graph.addNode('a');
+    graph.setRootNodeId(nodeA);
     let nodeB = graph.addNode('b');
     let nodeC = graph.addNode('c');
     let nodeD = graph.addNode('d');
@@ -268,6 +273,7 @@ describe('Graph', () => {
   it("replaceNodeIdsConnectedTo should update a node's downstream nodes", () => {
     let graph = new Graph();
     let nodeA = graph.addNode('a');
+    graph.setRootNodeId(nodeA);
     let nodeB = graph.addNode('b');
     let nodeC = graph.addNode('c');
     graph.addEdge(nodeA, nodeB);

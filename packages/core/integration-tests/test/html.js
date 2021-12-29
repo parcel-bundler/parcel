@@ -1278,6 +1278,23 @@ describe('html', function () {
     ]);
   });
 
+  it("should support href attribute in <image /> in HTMLTransformer's collectDependencies", async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-image-href-attr/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'png',
+        assets: ['100x100.png'],
+      },
+    ]);
+  });
+
   // Based on https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
   it('should bundle scripts inside svg', async function () {
     let b = await bundle(

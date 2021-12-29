@@ -19,7 +19,7 @@ const ATTRS = {
     'amp-img',
   ],
   // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
-  href: ['link', 'a', 'use', 'script'],
+  href: ['link', 'a', 'use', 'script', 'image'],
   srcset: ['img', 'source'],
   imagesrcset: ['link'],
   poster: ['video'],
