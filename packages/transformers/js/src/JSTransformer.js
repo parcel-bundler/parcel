@@ -662,7 +662,12 @@ export default (new Transformer({
         }
 
         // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
-        let isHelper = dep.is_helper && !dep.specifier.endsWith('/jsx-runtime');
+        let isHelper =
+          dep.is_helper &&
+          !(
+            dep.specifier.endsWith('/jsx-runtime') ||
+            dep.specifier.endsWith('/jsx-dev-runtime')
+          );
         if (isHelper && !asset.env.isLibrary) {
           env = {
             ...env,
