@@ -42,6 +42,7 @@
     "*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{xml,rss,atom}": ["@parcel/transformer-xml"],
+    "*.svelte": ["@parcel/transformer-svelte"],
     "url:*": ["...", "@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],

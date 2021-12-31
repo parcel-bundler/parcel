@@ -1,0 +1,29 @@
+{
+  "name": "@parcel/transformer-svelte",
+  "version": "2.0.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/SvelteTransformer.js",
+  "source": "src/SvelteTransformer.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.1"
+  },
+  "dependencies": {
+    "@parcel/diagnostic": "^2.0.1",
+    "@parcel/plugin": "^2.0.1",
+    "@parcel/source-map": "^2.0.0",
+    "@parcel/utils": "^2.0.1",
+    "svelte": "^3.44.3"
+  }
+}
