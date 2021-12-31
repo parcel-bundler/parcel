@@ -43,6 +43,9 @@ export default (new Transformer({
     let source = await asset.getCode();
     const filename = relativeUrl(options.projectRoot, asset.filePath);
 
+    // If the preprocessor config is never defined in the svelte config, attempt
+    // to import `svelte-preprocess`. If that is importable, use that to
+    // preprocess the file. Otherwise, do not run any preprocessors.
     if (preprocessConf === undefined) {
       let preprocessor = null;
       logger.verbose({
@@ -50,7 +53,7 @@ export default (new Transformer({
           'No preprocess specified; attempting to use `svelte-preprocess`.',
       });
       try {
-        preprocessor = await import('svelte-preprocess');
+        preprocessor = require('svelte-preprocess');
       } catch (e) {
         logger.verbose({
           message:
@@ -58,10 +61,11 @@ export default (new Transformer({
         });
       }
       if (preprocessor) {
-        preprocessConf = preprocessor.default();
+        preprocessConf = preprocessor();
       }
     }
 
+    // Only preprocess if there is a config for it.
     if (preprocessConf) {
       logger.verbose({message: 'Preprocessing svelte file.'});
       const processed = await catchDiag(
