@@ -5,10 +5,11 @@ import {relativeUrl} from '@parcel/utils';
 import {compile, preprocess} from 'svelte/compiler';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config, options, logger}) {
     const svelteConfig = await config.getConfig([
       '.svelterc',
+      '.svelterc.json',
       'svelte.config.js',
     ]);
     if (!svelteConfig) return {};
@@ -26,7 +27,6 @@ export default new Transformer({
     return {
       ...svelteConfig.contents,
       compilerOptions: {
-        // TODO: Call this out in the documentation.
         css: false,
         ...svelteConfig.contents.compilerOptions,
         dev: options.mode !== 'production',
@@ -34,38 +34,39 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, config, options, logger}) {
+  async transform({
+    asset,
+    config: {preprocess: preprocessConf, compilerOptions},
+    options,
+    logger,
+  }) {
     let source = await asset.getCode();
     const filename = relativeUrl(options.projectRoot, asset.filePath);
 
-    if (!config.preprocess) {
+    if (preprocessConf === undefined) {
       let preprocessor = null;
+      logger.verbose({
+        message:
+          'No preprocess specified; attempting to use `svelte-preprocess`.',
+      });
       try {
-        // This seems sufficiently batteries included. Only apply
-        // svelte-preprocess if it is importable. Otherwise, assume the lack of
-        // a preprocess entry is intentional.
-        // TODO: Is it possible to utilize parcel's pipelines in lieu of
-        // svelte-preprocess?
-        // TODO: Call this out in the documenation.
-        logger.verbose({message: 'Attempting to use svelte-preprocess.'});
         preprocessor = await import('svelte-preprocess');
       } catch (e) {
-        logger.warn({message: JSON.stringify(e)});
         logger.verbose({
           message:
-            'svelte-preprocess is not available; not using any preprocessor.',
+            'Unable to import `svelte-preprocess`; not running any preprocessor.',
         });
       }
       if (preprocessor) {
-        config.preprocess = {preprocess: preprocessor()};
+        preprocessConf = preprocessor.default();
       }
     }
 
-    if (config.preprocess) {
+    if (preprocessConf) {
       logger.verbose({message: 'Preprocessing svelte file.'});
       const processed = await catchDiag(
         async () =>
-          await preprocess(source, config.preprocess, {
+          await preprocess(source, preprocessConf, {
             filename,
           }),
         source,
@@ -77,7 +78,7 @@ export default new Transformer({
     const compiled = await catchDiag(
       async () =>
         await compile(source, {
-          ...config.compilerOptions,
+          ...compilerOptions,
           filename,
         }),
       source,
@@ -110,7 +111,7 @@ export default new Transformer({
 
     return assets;
   },
-});
+}): Transformer);
 
 function extractSourceMaps(asset, sourceMap) {
   if (!sourceMap) return;
