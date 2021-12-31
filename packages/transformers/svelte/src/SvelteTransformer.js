@@ -1,3 +1,4 @@
+// @flow
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
 import {relativeUrl} from '@parcel/utils';
