@@ -45,7 +45,7 @@ async function nextWSMessage(ws: WebSocket) {
   return json5.parse(await new Promise(resolve => ws.once('message', resolve)));
 }
 
-describe('hmr', function () {
+describe.only('hmr', function () {
   let subscription, ws;
 
   async function testHMRClient(
@@ -79,9 +79,16 @@ describe('hmr', function () {
     ws = await openSocket('ws://localhost:' + port);
 
     let outputs = [];
+    let reloaded = false;
     await run(bundleGraph, {
       output(o) {
         outputs.push(o);
+      },
+      location: {
+        reload() {
+          reloaded = true;
+          outputs = [];
+        },
       },
     });
 
@@ -94,13 +101,16 @@ describe('hmr', function () {
           fsUpdates[f],
         );
       }
+
+      await nextWSMessage(nullthrows(ws));
+      await sleep(100);
     }
 
-    await nextWSMessage(nullthrows(ws));
-    await sleep(100);
-
     // Fixup the prototypes so that strict assertions work
-    return JSON.parse(JSON.stringify(outputs));
+    return {
+      outputs: JSON.parse(JSON.stringify(outputs)),
+      reloaded,
+    };
   }
 
   afterEach(async () => {
@@ -330,7 +340,7 @@ describe('hmr', function () {
     });
 
     it('should support self accepting', async function () {
-      let outputs = await testHMRClient('hmr-accept-self', outputs => {
+      let {outputs} = await testHMRClient('hmr-accept-self', outputs => {
         assert.deepStrictEqual(outputs, [
           ['other', 1],
           ['local', 1],
@@ -352,7 +362,7 @@ describe('hmr', function () {
     });
 
     it('should bubble through parents', async function () {
-      let outputs = await testHMRClient('hmr-bubble', outputs => {
+      let {outputs} = await testHMRClient('hmr-bubble', outputs => {
         assert.deepStrictEqual(outputs, [
           ['other', 1],
           ['local', 1],
@@ -375,7 +385,7 @@ describe('hmr', function () {
     });
 
     it('should call dispose callbacks', async function () {
-      let outputs = await testHMRClient('hmr-dispose', outputs => {
+      let {outputs} = await testHMRClient('hmr-dispose', outputs => {
         assert.deepStrictEqual(outputs, [
           ['eval:other', 1, null],
           ['eval:local', 1, null],
@@ -417,7 +427,7 @@ module.hot.dispose((data) => {
     });
 
     it('should work with circular dependencies', async function () {
-      let outputs = await testHMRClient('hmr-circular', outputs => {
+      let {outputs} = await testHMRClient('hmr-circular', outputs => {
         assert.deepEqual(outputs, [3]);
 
         return {
@@ -427,6 +437,117 @@ module.hot.dispose((data) => {
       });
 
       assert.deepEqual(outputs, [3, 10]);
+    });
+
+    it('should reload if not accepted', async function () {
+      let {reloaded} = await testHMRClient('hmr-reload', outputs => {
+        assert.deepEqual(outputs, [3]);
+        return {
+          'local.js': 'exports.a = 5; exports.b = 5;',
+        };
+      });
+
+      assert(reloaded);
+    });
+
+    it('should reload when modifying the entry', async function () {
+      let {reloaded} = await testHMRClient('hmr-reload', outputs => {
+        assert.deepEqual(outputs, [3]);
+        return {
+          'index.js': 'output(5)',
+        };
+      });
+
+      assert(reloaded);
+    });
+
+    it('should work with multiple parents', async function () {
+      let {outputs} = await testHMRClient('hmr-multiple-parents', outputs => {
+        assert.deepEqual(outputs, ['a: fn1 b: fn2']);
+        return {
+          'fn2.js': 'export function fn2() { return "UPDATED"; }',
+        };
+      });
+
+      assert.deepEqual(outputs, ['a: fn1 b: fn2', 'a: fn1 b: UPDATED']);
+    });
+
+    it('should reload if only one parent accepts', async function () {
+      let {reloaded} = await testHMRClient(
+        'hmr-multiple-parents-reload',
+        outputs => {
+          assert.deepEqual(outputs, ['a: fn1', 'b: fn2']);
+          return {
+            'fn2.js': 'export function fn2() { return "UPDATED"; }',
+          };
+        },
+      );
+
+      assert(reloaded);
+    });
+
+    it('should work across bundles', async function () {
+      let {reloaded} = await testHMRClient('hmr-dynamic', outputs => {
+        assert.deepEqual(outputs, [3]);
+        return {
+          'local.js': 'exports.a = 5; exports.b = 5;',
+        };
+      });
+
+      // assert.deepEqual(outputs, [3, 10]);
+      assert(reloaded); // TODO: this should eventually not reload...
+    });
+
+    it('should work with urls', async function () {
+      let search;
+      let {outputs} = await testHMRClient('hmr-url', outputs => {
+        // assert.deepEqual(outputs, [3]);
+        assert.equal(outputs.length, 1);
+        let url = new URL(outputs[0]);
+        assert(/test\.[0-9a-f]+\.txt/, url.pathname);
+        assert(!isNaN(url.search.slice(1)));
+        search = url.search;
+        return {
+          'test.txt': 'yo',
+        };
+      });
+
+      assert.equal(outputs.length, 2);
+      let url = new URL(outputs[1]);
+      assert(/test\.[0-9a-f]+\.txt/, url.pathname);
+      assert(!isNaN(url.search.slice(1)));
+      assert.notEqual(url.search, search);
+    });
+
+    it('should clean up orphaned assets when deleting a dependency', async function () {
+      let search;
+      let {outputs} = await testHMRClient('hmr-url', [
+        outputs => {
+          // assert.deepEqual(outputs, [3]);
+          assert.equal(outputs.length, 1);
+          let url = new URL(outputs[0]);
+          assert(/test\.[0-9a-f]+\.txt/, url.pathname);
+          assert(!isNaN(url.search.slice(1)));
+          search = url.search;
+          return {
+            'index.js': 'output("yo"); module.hot.accept();',
+          };
+        },
+        outputs => {
+          assert.equal(outputs.length, 2);
+          assert.equal(outputs[1], 'yo');
+          return {
+            'index.js':
+              'output(new URL("test.txt", import.meta.url)); module.hot.accept();',
+          };
+        },
+      ]);
+
+      assert.equal(outputs.length, 3);
+      let url = new URL(outputs[2]);
+      assert(/test\.[0-9a-f]+\.txt/, url.pathname);
+      assert(!isNaN(url.search.slice(1)));
+      assert.notEqual(url.search, search);
     });
 
     /*
@@ -528,90 +649,6 @@ module.hot.dispose((data) => {
         10,
         'accept-' + moduleId,
       ]);
-    });
-
-    it.skip('should work across bundles', async function() {
-      await ncp(
-        path.join(__dirname, '/integration/hmr-dynamic'),
-        path.join(__dirname, '/input'),
-      );
-
-      let port = await getPort();
-      let b = await bundle(path.join(__dirname, '/input/index.js'), {
-        hmrOptions: {
-          https: false,
-          port,
-          host: 'localhost',
-        },
-        env: {
-          HMR_HOSTNAME: 'localhost',
-          HMR_PORT: port,
-        },
-        watch: true,
-      });
-
-      let outputs = [];
-
-      await run(b, {
-        output(o) {
-          outputs.push(o);
-        },
-      });
-
-      await sleep(50);
-      assert.deepEqual(outputs, [3]);
-
-      let ws = new WebSocket('ws://localhost:' + port);
-
-      await sleep(50);
-      fs.writeFile(
-        path.join(__dirname, '/input/local.js'),
-        'exports.a = 5; exports.b = 5;',
-      );
-
-      await nextWSMessage(ws);
-      await sleep(50);
-
-      assert.deepEqual(outputs, [3, 10]);
-    });
-
-    it.skip('should bubble up HMR events to a page reload', async function() {
-      await ncp(
-        path.join(__dirname, '/integration/hmr-reload'),
-        path.join(__dirname, '/input'),
-      );
-
-      let b = bundler(path.join(__dirname, '/input/index.js'), {
-        watch: true,
-        hmr: true,
-      });
-      let bundle = await b.bundle();
-
-      let outputs = [];
-      let ctx = await run(
-        bundle,
-        {
-          output(o) {
-            outputs.push(o);
-          },
-        },
-        {require: false},
-      );
-      let spy = sinon.spy(ctx.location, 'reload');
-
-      await sleep(50);
-      assert.deepEqual(outputs, [3]);
-      assert(spy.notCalled);
-
-      await sleep(100);
-      fs.writeFile(
-        path.join(__dirname, '/input/local.js'),
-        'exports.a = 5; exports.b = 5;',
-      );
-
-      // await nextEvent(b, 'bundled');
-      assert.deepEqual(outputs, [3]);
-      assert(spy.calledOnce);
     });
 
     it.skip('should trigger a page reload when a new bundle is created', async function() {
