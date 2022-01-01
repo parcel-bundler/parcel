@@ -135,23 +135,6 @@ export default async function dumpGraphToGraphViz(
         } else {
           label += '\\nsymbols: cleared';
         }
-      }
-    } else if (node.type === 'asset') {
-      label +=
-        path.basename(fromProjectPathRelative(node.value.filePath)) +
-        '#' +
-        node.value.type;
-      if (detailedSymbols) {
-        if (!node.value.symbols) {
-          label += '\\nsymbols: cleared';
-        } else if (node.value.symbols.size) {
-          label +=
-            '\\nsymbols: ' +
-            [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
-        }
-        if (node.usedSymbols.size) {
-          label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
-        }
       } else if (node.type === 'asset_group') {
         if (node.deferred) label += '(deferred)';
         // $FlowFixMe
@@ -166,8 +149,8 @@ export default async function dumpGraphToGraphViz(
       } else if (node.type === 'bundle') {
         let parts = [];
         if (node.value.needsStableName) parts.push('stable name');
-        if (node.value.name) parts.push('[name ', node.value.name, ']');
-        parts.push('bb-', node.value.bundleBehavior);
+        parts.push(node.value.name);
+        parts.push('bb:' + (node.value.bundleBehavior ?? 'null'));
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
         // $FlowFixMe
