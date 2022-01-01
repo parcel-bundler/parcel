@@ -501,7 +501,6 @@ module.hot.dispose((data) => {
     it('should work with urls', async function () {
       let search;
       let {outputs} = await testHMRClient('hmr-url', outputs => {
-        // assert.deepEqual(outputs, [3]);
         assert.equal(outputs.length, 1);
         let url = new URL(outputs[0]);
         assert(/test\.[0-9a-f]+\.txt/, url.pathname);
@@ -523,7 +522,6 @@ module.hot.dispose((data) => {
       let search;
       let {outputs} = await testHMRClient('hmr-url', [
         outputs => {
-          // assert.deepEqual(outputs, [3]);
           assert.equal(outputs.length, 1);
           let url = new URL(outputs[0]);
           assert(/test\.[0-9a-f]+\.txt/, url.pathname);
