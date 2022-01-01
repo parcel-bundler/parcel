@@ -9,7 +9,7 @@ export default (new Compressor({
     }
 
     return {
-      stream: stream.pipe(zlib.createGzip()),
+      stream: stream.pipe(zlib.createGzip({ level: 9 })),
       type: 'gz',
     };
   },
