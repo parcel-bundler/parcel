@@ -5454,6 +5454,7 @@ describe('cache', function () {
             }),
           );
         },
+        mode: 'production',
       });
 
       let files = await outputFS.readdir(distDir);

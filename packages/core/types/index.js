@@ -1614,7 +1614,7 @@ export type Compressor = {|
     stream: Readable,
     options: PluginOptions,
     logger: PluginLogger,
-  |}): Async<{|
+  |}): Async<?{|
     stream: Readable,
     type?: string,
   |}>,
