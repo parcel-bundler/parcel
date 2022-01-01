@@ -2,8 +2,16 @@
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
 import {relativeUrl} from '@parcel/utils';
-import {compile, preprocess} from 'svelte/compiler';
+import {compile, preprocess, walk} from 'svelte/compiler';
 import ThrowableDiagnostic from '@parcel/diagnostic';
+import {createMakeHot} from 'svelte-hmr';
+
+const makeHot = createMakeHot({
+  walk,
+  meta: 'module',
+  absoluteImports: false,
+  versionNonAbsoluteImports: false,
+});
 
 export default (new Transformer({
   async loadConfig({config, options, logger}) {
@@ -12,7 +20,13 @@ export default (new Transformer({
       '.svelterc.json',
       'svelte.config.js',
     ]);
-    if (!svelteConfig) return {};
+    if (!svelteConfig)
+      return {
+        compilerOptions: {
+          css: false,
+          dev: options.mode !== 'production',
+        },
+      };
     if (svelteConfig.filePath.endsWith('.js')) {
       // TODO: Is there a better way of handling this warning? Probably just
       // mention it in the documentation and silently invalidate.
@@ -36,7 +50,7 @@ export default (new Transformer({
 
   async transform({
     asset,
-    config: {preprocess: preprocessConf, compilerOptions},
+    config: {preprocess: preprocessConf, compilerOptions, hmrOptions},
     options,
     logger,
   }) {
@@ -87,6 +101,17 @@ export default (new Transformer({
         }),
       source,
     );
+
+    if (options.hmrOptions) {
+      compiled.js.code = makeHot({
+        id: filename,
+        compiledCode: compiled.js.code,
+        hotOptions: hmrOptions,
+        compiled,
+        originalCode: source,
+        compileOptions: compilerOptions,
+      });
+    }
 
     // Create the new assets from the compilation result.
     const assets = [
