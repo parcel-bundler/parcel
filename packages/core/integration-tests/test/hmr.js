@@ -867,5 +867,68 @@ module.hot.dispose((data) => {
         }
       }
     });
+
+    it('should handle CSS Modules update correctly', async () => {
+      let testDir = path.join(__dirname, '/input');
+      await overlayFS.rimraf(testDir);
+      await overlayFS.mkdirp(testDir);
+      await ncp(path.join(__dirname, '/integration/hmr-css-modules'), testDir);
+
+      let port = await getPort();
+      let b = bundler(path.join(testDir, 'index.html'), {
+        inputFS: overlayFS,
+        outputFS: overlayFS,
+        serveOptions: {
+          https: false,
+          port,
+          host: '127.0.0.1',
+        },
+        hmrOptions: {port},
+        shouldContentHash: false,
+        config,
+      });
+
+      subscription = await b.watch();
+      let bundleEvent = await getNextBuild(b);
+      assert.equal(bundleEvent.type, 'buildSuccess');
+
+      let window;
+      try {
+        let dom = await JSDOM.JSDOM.fromURL(
+          'http://127.0.0.1:' + port + '/index.html',
+          {
+            runScripts: 'dangerously',
+            resources: 'usable',
+            pretendToBeVisual: true,
+          },
+        );
+        let _window = (window = dom.window); // For Flow
+        window.WebSocket = WebSocket;
+        await new Promise(res =>
+          dom.window.document.addEventListener('load', () => {
+            res();
+          }),
+        );
+        _window.console.clear = () => {};
+        _window.console.warn = () => {};
+
+        let initialHref = _window.document.querySelector('link').href;
+
+        await overlayFS.copyFile(
+          path.join(testDir, 'index2.module.css'),
+          path.join(testDir, 'index.module.css'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+        await sleep(200);
+
+        let newHref = _window.document.querySelector('link').href;
+
+        assert.notStrictEqual(initialHref, newHref);
+      } finally {
+        if (window) {
+          window.close();
+        }
+      }
+    });
   });
 });
