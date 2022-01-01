@@ -45,7 +45,7 @@ async function nextWSMessage(ws: WebSocket) {
   return json5.parse(await new Promise(resolve => ws.once('message', resolve)));
 }
 
-describe.only('hmr', function () {
+describe('hmr', function () {
   let subscription, ws;
 
   async function testHMRClient(
