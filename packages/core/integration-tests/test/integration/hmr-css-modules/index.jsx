@@ -1,3 +1,4 @@
 import * as styles from "./index.module.css";
+import React from 'react';
 
-const Hello = () => <div classNames={styles.hello}>hello</div>;
+export const Hello = () => <div classNames={styles.hello}>hello</div>;
