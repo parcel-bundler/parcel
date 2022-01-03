@@ -114,6 +114,14 @@ pub fn match_str_or_ident(node: &ast::Expr) -> Option<(JsWord, Span)> {
   match_str(node)
 }
 
+pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
+  if node.computed {
+    match_str(&*node.prop)
+  } else {
+    match_str_or_ident(&*node.prop)
+  }
+}
+
 pub fn match_require(
   node: &ast::Expr,
   decls: &HashSet<(JsWord, SyntaxContext)>,
@@ -178,10 +186,10 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct SourceLocation {
-  start_line: usize,
-  start_col: usize,
-  end_line: usize,
-  end_col: usize,
+  pub start_line: usize,
+  pub start_col: usize,
+  pub end_line: usize,
+  pub end_col: usize,
 }
 
 impl SourceLocation {
