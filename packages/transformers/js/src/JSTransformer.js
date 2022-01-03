@@ -320,6 +320,9 @@ export default (new Transformer({
         let [major, minor = '0', patch = '0'] = version
           .split('-')[0]
           .split('.');
+        if (isNaN(major) || isNaN(minor) || isNaN(patch)) {
+          continue;
+        }
         let semverVersion = `${major}.${minor}.${patch}`;
 
         if (targets[name] == null || semver.gt(targets[name], semverVersion)) {
