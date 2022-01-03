@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "detect-libc": "^1.0.3",
-    "xxhash-wasm": "^0.4.1"
+    "xxhash-wasm": "^0.4.2"
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4",

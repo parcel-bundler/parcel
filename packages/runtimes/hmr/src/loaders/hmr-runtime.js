@@ -292,6 +292,21 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
   } else if (asset.type === 'js') {
     let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
     if (deps) {
+      if (modules[asset.id]) {
+        // Remove dependencies that are removed and will become orphaned.
+        // This is necessary so that if the asset is added back again, the cache is gone, and we prevent a full page reload.
+        let oldDeps = modules[asset.id][1];
+        for (let dep in oldDeps) {
+          if (!deps[dep] || deps[dep] !== oldDeps[dep]) {
+            let id = oldDeps[dep];
+            let parents = getParents(module.bundle.root, id);
+            if (parents.length === 1) {
+              hmrDelete(module.bundle.root, id);
+            }
+          }
+        }
+      }
+
       var fn = new Function('require', 'module', 'exports', asset.output);
       modules[asset.id] = [fn, deps];
     } else if (bundle.parent) {
@@ -300,7 +315,70 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
   }
 }
 
+function hmrDelete(bundle, id) {
+  let modules = bundle.modules;
+  if (!modules) {
+    return;
+  }
+
+  if (modules[id]) {
+    // Collect dependencies that will become orphaned when this module is deleted.
+    let deps = modules[id][1];
+    let orphans = [];
+    for (let dep in deps) {
+      let parents = getParents(module.bundle.root, deps[dep]);
+      if (parents.length === 1) {
+        orphans.push(deps[dep]);
+      }
+    }
+
+    // Delete the module. This must be done before deleting dependencies in case of circular dependencies.
+    delete modules[id];
+    delete bundle.cache[id];
+
+    // Now delete the orphans.
+    orphans.forEach(id => {
+      hmrDelete(module.bundle.root, id);
+    });
+  } else if (bundle.parent) {
+    hmrDelete(bundle.parent, id);
+  }
+}
+
 function hmrAcceptCheck(
+  bundle /*: ParcelRequire */,
+  id /*: string */,
+  depsByBundle /*: ?{ [string]: { [string]: string } }*/,
+) {
+  if (hmrAcceptCheckOne(bundle, id, depsByBundle)) {
+    return true;
+  }
+
+  // Traverse parents breadth first. All possible ancestries must accept the HMR update, or we'll reload.
+  let parents = getParents(module.bundle.root, id);
+  let accepted = false;
+  while (parents.length > 0) {
+    let v = parents.shift();
+    let a = hmrAcceptCheckOne(v[0], v[1], null);
+    if (a) {
+      // If this parent accepts, stop traversing upward, but still consider siblings.
+      accepted = true;
+    } else {
+      // Otherwise, queue the parents in the next level upward.
+      let p = getParents(module.bundle.root, v[1]);
+      if (p.length === 0) {
+        // If there are no parents, then we've reached an entry without accepting. Reload.
+        accepted = false;
+        break;
+      }
+      parents.push(...p);
+    }
+  }
+
+  return accepted;
+}
+
+function hmrAcceptCheckOne(
   bundle /*: ParcelRequire */,
   id /*: string */,
   depsByBundle /*: ?{ [string]: { [string]: string } }*/,
@@ -330,20 +408,9 @@ function hmrAcceptCheck(
 
   assetsToAccept.push([bundle, id]);
 
-  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
+  if (!cached || (cached.hot && cached.hot._acceptCallbacks.length)) {
     return true;
   }
-
-  let parents = getParents(module.bundle.root, id);
-
-  // If no parents, the asset is new. Prevent reloading the page.
-  if (!parents.length) {
-    return true;
-  }
-
-  return parents.some(function (v) {
-    return hmrAcceptCheck(v[0], v[1], null);
-  });
 }
 
 function hmrAcceptRun(bundle /*: ParcelRequire */, id /*: string */) {

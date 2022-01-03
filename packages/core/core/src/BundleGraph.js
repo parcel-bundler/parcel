@@ -245,6 +245,59 @@ export default class BundleGraph {
     });
   }
 
+  addAssetToBundle(asset: Asset, bundle: Bundle) {
+    let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
+    this._graph.addEdge(
+      bundleNodeId,
+      this._graph.getNodeIdByContentKey(asset.id),
+      bundleGraphEdgeTypes.contains,
+    );
+    this._graph.addEdge(
+      bundleNodeId,
+      this._graph.getNodeIdByContentKey(asset.id),
+    );
+
+    let dependencies = this.getDependencies(asset);
+    for (let dependency of dependencies) {
+      let dependencyNodeId = this._graph.getNodeIdByContentKey(dependency.id);
+      this._graph.addEdge(
+        bundleNodeId,
+        dependencyNodeId,
+        bundleGraphEdgeTypes.contains,
+      );
+
+      for (let [bundleGroupNodeId, bundleGroupNode] of this._graph
+        .getNodeIdsConnectedFrom(dependencyNodeId)
+        .map(id => [id, nullthrows(this._graph.getNode(id))])
+        .filter(([, node]) => node.type === 'bundle_group')) {
+        invariant(bundleGroupNode.type === 'bundle_group');
+        this._graph.addEdge(
+          bundleNodeId,
+          bundleGroupNodeId,
+          bundleGraphEdgeTypes.bundle,
+        );
+      }
+      // If the dependency references a target bundle, add a reference edge from
+      // the source bundle to the dependency for easy traversal.
+      // TODO: Consider bundle being created from dependency
+      if (
+        this._graph
+          .getNodeIdsConnectedFrom(
+            dependencyNodeId,
+            bundleGraphEdgeTypes.references,
+          )
+          .map(id => nullthrows(this._graph.getNode(id)))
+          .some(node => node.type === 'bundle')
+      ) {
+        this._graph.addEdge(
+          bundleNodeId,
+          dependencyNodeId,
+          bundleGraphEdgeTypes.references,
+        );
+      }
+    }
+  }
+
   addAssetGraphToBundle(
     asset: Asset,
     bundle: Bundle,
@@ -303,10 +356,22 @@ export default class BundleGraph {
             nodeId,
             bundleGraphEdgeTypes.references,
           );
+          this.markDependencyReferenceable(node.value);
+          //all bundles that have this dependency need to have an edge from bundle to that dependency
         }
       }
     }, assetNodeId);
     this._bundleContentHashes.delete(bundle.id);
+  }
+
+  markDependencyReferenceable(dependency: Dependency) {
+    for (let bundle of this.getBundlesWithDependency(dependency)) {
+      this._graph.addEdge(
+        this._graph.getNodeIdByContentKey(bundle.id),
+        this._graph.getNodeIdByContentKey(dependency.id),
+        bundleGraphEdgeTypes.references,
+      );
+    }
   }
 
   addEntryToBundle(
@@ -323,6 +388,30 @@ export default class BundleGraph {
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency) {
     if (dependency.priority === Priority.sync) {
       throw new Error('Expected an async dependency');
+    }
+
+    // It's possible for internalized async dependencies to not have
+    // reference edges and still have untyped edges.
+    // TODO: Maybe don't use internalized async edges at all?
+    let dependencyNodeId = this._graph.getNodeIdByContentKey(dependency.id);
+    let resolved = this.getResolvedAsset(dependency);
+    if (resolved) {
+      let resolvedNodeId = this._graph.getNodeIdByContentKey(resolved.id);
+
+      if (
+        !this._graph.hasEdge(
+          dependencyNodeId,
+          resolvedNodeId,
+          bundleGraphEdgeTypes.references,
+        )
+      ) {
+        this._graph.addEdge(
+          dependencyNodeId,
+          resolvedNodeId,
+          bundleGraphEdgeTypes.references,
+        );
+        this._graph.removeEdge(dependencyNodeId, resolvedNodeId);
+      }
     }
 
     this._graph.addEdge(
@@ -417,6 +506,7 @@ export default class BundleGraph {
     };
   }
 
+  // eslint-disable-next-line no-unused-vars
   getReferencedBundle(dependency: Dependency, fromBundle: Bundle): ?Bundle {
     let dependencyNodeId = this._graph.getNodeIdByContentKey(dependency.id);
 
@@ -436,24 +526,18 @@ export default class BundleGraph {
       });
     }
 
-    // Otherwise, it may be a reference to another asset in the same bundle group.
-    // Resolve the dependency to an asset, and look for it in one of the referenced bundles.
-    let referencedBundles = this.getReferencedBundles(fromBundle, {
-      includeInline: true,
-    });
-    let referenced = this._graph
+    // Otherwise, find an attached bundle via a reference edge (e.g. from createAssetReference).
+    let bundleNode = this._graph
       .getNodeIdsConnectedFrom(
         dependencyNodeId,
         bundleGraphEdgeTypes.references,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
-      .find(node => node.type === 'asset');
+      .find(node => node.type === 'bundle');
 
-    if (referenced != null) {
-      invariant(referenced.type === 'asset');
-      return referencedBundles.find(b =>
-        this.bundleHasAsset(b, referenced.value),
-      );
+    if (bundleNode) {
+      invariant(bundleNode.type === 'bundle');
+      return bundleNode.value;
     }
   }
 
@@ -518,6 +602,7 @@ export default class BundleGraph {
             nodeId,
             bundleGraphEdgeTypes.references,
           );
+          this.markDependencyReferenceable(node.value);
         }
         if (
           this._graph.hasEdge(
@@ -679,6 +764,7 @@ export default class BundleGraph {
       bundleId,
       bundleGraphEdgeTypes.references,
     );
+    this.markDependencyReferenceable(dependency);
     if (this._graph.hasEdge(dependencyId, assetId)) {
       this._graph.removeEdge(dependencyId, assetId);
     }
@@ -1033,6 +1119,7 @@ export default class BundleGraph {
 
   traverse<TContext>(
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
+    start?: Asset,
   ): ?TContext {
     return this._graph.filteredTraverse(
       nodeId => {
@@ -1042,7 +1129,7 @@ export default class BundleGraph {
         }
       },
       visit,
-      undefined, // start with root
+      start ? this._graph.getNodeIdByContentKey(start.id) : undefined, // start with root
       ALL_EDGE_TYPES,
     );
   }

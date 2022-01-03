@@ -45,6 +45,7 @@
     "dotenv-expand": "^5.1.0",
     "json-source-map": "^0.6.1",
     "json5": "^1.0.1",
+    "msgpackr": "^1.5.1",
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
     "semver": "^5.7.1"
@@ -52,5 +53,8 @@
   "devDependencies": {
     "graphviz": "^0.0.9",
     "tempy": "^0.2.1"
+  },
+  "browser": {
+    "./src/serializerCore.js": "./src/serializerCore.browser.js"
   }
 }

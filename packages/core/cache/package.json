@@ -24,11 +24,19 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
+    "@parcel/fs": "^2.0.1",
     "@parcel/logger": "^2.0.1",
     "@parcel/utils": "^2.0.1",
-    "lmdb": "^2.0.1"
+    "lmdb": "^2.0.2"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.0.0"
+    "@parcel/core": "^2.0.1"
+  },
+  "devDependencies": {
+    "idb": "^5.0.8"
+  },
+  "browser": {
+    "./src/IDBCache.js": "./src/IDBCache.browser.js",
+    "./src/LMDBCache.js": false
   }
 }
