@@ -66,9 +66,9 @@ describe('transpilation', function () {
     assert(file.includes('function Bar'));
   });
 
-  it('should not support JSX in node_modules', function () {
+  it('should not support JSX in node_modules', async function () {
     // $FlowFixMe
-    assert.rejects(
+    await assert.rejects(() =>
       bundle(
         path.join(__dirname, '/integration/babel-node-modules-jsx/index.js'),
       ),
