@@ -67,6 +67,7 @@ describe('transpilation', function () {
   });
 
   it('should not support JSX in node_modules', async function () {
+    // $FlowFixMe
     assert.rejects(
       bundle(
         path.join(__dirname, '/integration/babel-node-modules-jsx/index.js'),
