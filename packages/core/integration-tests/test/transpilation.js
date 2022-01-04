@@ -66,7 +66,7 @@ describe('transpilation', function () {
     assert(file.includes('function Bar'));
   });
 
-  it('should not support JSX in node_modules', async function () {
+  it('should not support JSX in node_modules', function () {
     // $FlowFixMe
     assert.rejects(
       bundle(
