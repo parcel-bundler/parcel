@@ -13,7 +13,12 @@ function shouldExclude(asset, options) {
     options.mode !== 'development' ||
     !asset
       .getDependencies()
-      .find(v => v.specifier === 'react' || v.specifier === 'react/jsx-runtime')
+      .find(
+        v =>
+          v.specifier === 'react' ||
+          v.specifier === 'react/jsx-runtime' ||
+          v.specifier === 'react/jsx-dev-runtime',
+      )
   );
 }
 

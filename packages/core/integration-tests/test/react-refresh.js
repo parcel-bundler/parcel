@@ -28,6 +28,41 @@ try {
 
 if (MessageChannel) {
   describe('react-refresh', function () {
+    describe('synchronous (automatic runtime)', () => {
+      const testDir = path.join(
+        __dirname,
+        '/integration/react-refresh-automatic',
+      );
+
+      let b,
+        root,
+        randoms = {};
+
+      beforeEach(async () => {
+        ({b, root, randoms} = await setup(path.join(testDir, 'index.html')));
+      });
+
+      it('retains state in functional components', async function () {
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Foo.1.js'),
+          path.join(testDir, 'Foo.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await sleep(100);
+
+        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+        );
+        assert.equal(randoms.indexNum, indexNum);
+        assert.equal(randoms.appNum, appNum);
+        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(fooText, 'OtherFunctional');
+      });
+    });
+
     describe('synchronous', () => {
       const testDir = path.join(__dirname, '/integration/react-refresh');
 
