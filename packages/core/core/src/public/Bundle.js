@@ -314,6 +314,10 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     );
   }
 
+  get type(): string {
+    return nullthrows(this.#bundleInfo).type;
+  }
+
   get stats(): Stats {
     return nullthrows(this.#bundleInfo).stats;
   }
