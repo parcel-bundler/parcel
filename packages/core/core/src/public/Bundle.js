@@ -315,7 +315,9 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   }
 
   get type(): string {
-    return nullthrows(this.#bundleInfo).type;
+    // The bundle type may be overridden in the packager.
+    // However, inline bundles will not have a bundleInfo here since they are not written to the filesystem.
+    return this.#bundleInfo ? this.#bundleInfo.type : this.#bundle.type;
   }
 
   get stats(): Stats {
