@@ -57,13 +57,15 @@ describe('transpilation', function () {
   });
 
   it('should transpile node_modules by default', async function () {
-    await bundle(
+    let b = await bundle(
       path.join(__dirname, '/integration/babel-node-modules/index.js'),
     );
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!/class \S+ \{/.test(file));
     assert(file.includes('function Bar'));
+    let res = await run(b);
+    assert.equal(res.t, 'function');
   });
 
   it('should not support JSX in node_modules', async function () {
