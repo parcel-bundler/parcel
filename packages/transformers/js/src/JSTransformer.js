@@ -334,7 +334,7 @@ export default (new Transformer({
     }
 
     // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
-    if (asset.filePath.includes('@swc/helpers')) {
+    if (/@swc[/\\]helpers/.test(asset.filePath)) {
       targets = null;
     }
 
