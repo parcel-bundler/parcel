@@ -5789,6 +5789,53 @@ describe('cache', function () {
     }
   });
 
+  it('properly handles included files even after when changing back to a cached state', async function () {
+    this.timeout(15000);
+    let subscription;
+    let fixture = path.join(__dirname, '/integration/included-file');
+    try {
+      let b = bundler(path.join(fixture, 'index.txt'), {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+      });
+      await overlayFS.mkdirp(fixture);
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'a');
+      subscription = await b.watch();
+      let event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output1 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output1, 'a');
+
+      // Change included file
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'b');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output2 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output2, 'b');
+
+      // Change included file back
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'a');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output3 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output3, 'a');
+    } finally {
+      if (subscription) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
+  });
+
   it('should support moving the project root', async function () {
     // This test relies on the real filesystem because the memory fs doesn't support renames.
     // But renameSync is broken on windows in CI with EPERM errors. Just skip this test for now.

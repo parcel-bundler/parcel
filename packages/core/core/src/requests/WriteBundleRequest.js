@@ -181,6 +181,7 @@ async function run({input, options, api}: RunInput) {
 
   let res = {
     filePath,
+    type: info.type,
     stats: {
       size,
       time: info.time ?? 0,
