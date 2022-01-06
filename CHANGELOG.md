@@ -5,7 +5,7 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - 2021-01-05
+## [2.1.0] - 2022-01-05
 
 ### Added
 
