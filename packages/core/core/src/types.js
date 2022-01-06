@@ -500,6 +500,7 @@ export type BundleGroupNode = {|
 
 export type PackagedBundleInfo = {|
   filePath: ProjectPath,
+  type: string,
   stats: Stats,
 |};
 
