@@ -283,15 +283,21 @@ export default class Transformation {
 
     if (!initialCacheEntry) {
       let pipelineHash = await this.getPipelineHash(pipeline);
+      let invalidationCacheKey = await getInvalidationHash(
+        assets.flatMap(asset => asset.getInvalidations()),
+        this.options,
+      );
       let resultCacheKey = this.getCacheKey(
         [initialAsset],
-        await getInvalidationHash(
-          assets.flatMap(asset => asset.getInvalidations()),
-          this.options,
-        ),
+        invalidationCacheKey,
         pipelineHash,
       );
-      await this.writeToCache(resultCacheKey, assets, pipelineHash);
+      await this.writeToCache(
+        resultCacheKey,
+        assets,
+        invalidationCacheKey,
+        pipelineHash,
+      );
     } else {
       // See above TODO, this should be per-pipeline
       for (let i of this.request.invalidations) {
@@ -541,9 +547,12 @@ export default class Transformation {
   async writeToCache(
     cacheKey: string,
     assets: Array<UncommittedAsset>,
+    invalidationHash: string,
     pipelineHash: string,
   ): Promise<void> {
-    await Promise.all(assets.map(asset => asset.commit(pipelineHash)));
+    await Promise.all(
+      assets.map(asset => asset.commit(invalidationHash + pipelineHash)),
+    );
 
     this.options.cache.set(cacheKey, {
       $$raw: true,
