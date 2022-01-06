@@ -333,6 +333,11 @@ export default (new Transformer({
       targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
     }
 
+    // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
+    if (asset.filePath.includes('@swc/helpers')) {
+      targets = null;
+    }
+
     let env: EnvMap = {};
 
     if (!config?.inlineEnvironment) {
