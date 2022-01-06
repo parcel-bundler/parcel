@@ -7,7 +7,7 @@ import sinon from 'sinon';
 import logger from '@parcel/logger';
 import {inputFS} from '@parcel/test-utils';
 import {escapeMarkdown} from '@parcel/diagnostic';
-import {clearPromiseQueue} from '@parcel/package-manager';
+import {clearPromiseQueue} from '../../package-manager/src/installPackage';
 import {parseAndProcessConfig} from '../src/requests/ParcelConfigRequest';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {toProjectPath} from '../src/projectPath';
