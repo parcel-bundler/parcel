@@ -49,7 +49,15 @@ export default async function resolveOptions(
     entries = [path.resolve(inputCwd, initialOptions.entries)];
   }
 
-  let entryRoot = getRootDir(entries);
+  let entryRoot = getRootDir(
+    entries.map(entry =>
+      // if the entry refers entryRootDir, getRootDir returns the parent directory of entryRootDir.
+      // In this case, each entry should refers some file, but without cli build target entry refers entryRootDir directory.
+      // So, we add /. to entry to make entry refers some (virtual) file in such case.
+      path.extname(entry) !== '' ? entry : entry + '/.',
+    ),
+  );
+
   let projectRootFile =
     (await resolveConfig(
       inputFS,
