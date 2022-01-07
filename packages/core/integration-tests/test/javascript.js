@@ -2955,6 +2955,26 @@ describe('javascript', function () {
     assert.equal(output, 'barbaz');
   });
 
+  it('should insert environment variables from a file even if entry file is specified with source value in package.json', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/env-file-with-package-source/index.js',
+      ),
+      {
+        // when the entry file is specified with a source value in package.json and not specified with cli build target value,
+        // the entry file is resolved to the entry root directory in packages/core/core/src/resolveOptions.js as InitialParcelOptions.
+        // So, entry root directory is specified as InitialParcelOptions' entries value.
+        entries: [
+          path.join(__dirname, '/integration/env-file-with-package-source'),
+        ],
+      },
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'bartest');
+  });
+
   it('should error on process.env mutations', async function () {
     let filePath = path.join(__dirname, '/integration/env-mutate/index.js');
     await assert.rejects(bundle(filePath), {
