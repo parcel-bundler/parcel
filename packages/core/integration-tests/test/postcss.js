@@ -16,7 +16,6 @@ import {
   NodePackageManager,
   MockPackageInstaller,
 } from '@parcel/package-manager';
-import postcss from 'postcss';
 
 describe('postcss', () => {
   it('should build successfully with only postcss-modules config', async () => {

@@ -1,8 +1,5 @@
 // @flow strict-local
 
-import type {Root} from 'postcss';
-import type {FilePath, SourceLocation} from '@parcel/types';
-
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';

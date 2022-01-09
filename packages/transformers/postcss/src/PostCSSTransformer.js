@@ -51,7 +51,7 @@ export default (new Transformer({
     };
   },
 
-  async transform({asset, config, options, resolve, logger}) {
+  async transform({asset, config, options, resolve}) {
     asset.type = 'css';
     let isLegacy = await isLegacyCssModule(asset);
     if (isLegacy && !config) {

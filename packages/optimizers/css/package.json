@@ -24,6 +24,7 @@
     "@parcel/plugin": "^2.1.1",
     "@parcel/source-map": "^2.0.0",
     "@parcel/utils": "^2.1.1",
-    "browserslist": "^4.6.6"
+    "browserslist": "^4.6.6",
+    "nullthrows": "^1.1.1"
   }
 }

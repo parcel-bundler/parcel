@@ -2,15 +2,10 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
-  bundler,
   run,
   assertBundles,
   distDir,
-  inputFS,
   outputFS,
-  overlayFS,
-  ncp,
-  getNextBuild,
 } from '@parcel/test-utils';
 import postcss from 'postcss';
 

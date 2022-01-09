@@ -13,8 +13,6 @@ import {POSTCSS_RANGE} from './constants';
 
 import loadExternalPlugins from './loadPlugins';
 
-const MODULE_BY_NAME_RE = /\.module\./;
-
 type ConfigResult = {|
   raw: any,
   hydrated: {|
