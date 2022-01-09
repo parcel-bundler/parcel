@@ -2648,11 +2648,7 @@ describe('html', function () {
       path.join(__dirname, 'integration/html-inline-escape/style.html'),
     );
     let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    let name = path.basename(
-      b.getBundles().find(b => b.type === 'png').filePath,
-      'utf8',
-    );
-    assert(output.includes(`url(&quot;${name}&quot;)`));
+    assert(output.includes(`content: &quot;hi&quot;`));
     assert(output.includes('<\\/style>'));
   });
 

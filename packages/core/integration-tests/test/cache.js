@@ -3982,7 +3982,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background: blue'));
+        assert(output.includes('background: #00f'));
       });
 
       it('should invalidate when a JS postcss config changes', async function () {
@@ -4021,7 +4021,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: blue'));
+        assert(output.includes('background-color: #00f'));
       });
 
       it('should invalidate when a JSON postcss config changes', async function () {
@@ -4052,7 +4052,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: blue'));
+        assert(output.includes('background-color: #00f'));
       });
 
       it('should invalidate when a closer postcss config is added', async function () {
@@ -4083,7 +4083,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: blue'));
+        assert(output.includes('background-color: #00f'));
       });
     });
 
