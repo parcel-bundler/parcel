@@ -878,7 +878,7 @@ export type TransformerResult = {|
   /** The dependencies of the asset. */
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
   /** The environment of the asset. The options are merged with the input asset's environment. */
-  +env?: EnvironmentOptions,
+  +env?: EnvironmentOptions | Environment,
   /**
    * Controls which bundle the asset is placed into.
    *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
