@@ -128,6 +128,7 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
   let {
     assets,
     configRequests,
+    error,
     invalidations,
     invalidateOnFileCreate,
     devDepRequests,
@@ -138,8 +139,10 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
   }): TransformationResult);
 
   let time = Date.now() - start;
-  for (let asset of assets) {
-    asset.stats.time = time;
+  if (assets) {
+    for (let asset of assets) {
+      asset.stats.time = time;
+    }
   }
 
   for (let invalidation of invalidateOnFileCreate) {
@@ -171,5 +174,9 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
     await runConfigRequest(api, configRequest);
   }
 
-  return assets;
+  if (error != null) {
+    throw error;
+  } else {
+    return nullthrows(assets);
+  }
 }
