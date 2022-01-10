@@ -2133,10 +2133,10 @@
   dependencies:
     "@octokit/openapi-types" "^6.2.0"
 
-"@parcel/css@1.0.0-alpha.10":
-  version "1.0.0-alpha.10"
-  resolved "https://registry.yarnpkg.com/@parcel/css/-/css-1.0.0-alpha.10.tgz#f73e174c5255587225ae7cf019205971db41a6f4"
-  integrity sha512-97hXUA6vWl4VR84DRBvMe2H59+uvxKBekq3bSw/pieN/w/XU8MS5Lm/9o4O/IriWW8ilK+IDspkfAdPJJEgJbA==
+"@parcel/css@1.0.0-alpha.11":
+  version "1.0.0-alpha.11"
+  resolved "https://registry.yarnpkg.com/@parcel/css/-/css-1.0.0-alpha.11.tgz#c41bc3cecd91209c851dbfeec2941eefe4261d36"
+  integrity sha512-GMeCZvv8MD01hWoe/JkCo9QY7HyijgTfz/3yBuMWAxzV0KQXZhU9vdWA2sK5+KtoqPsifUOfDmjpsiT5t/obxg==
   dependencies:
     detect-libc "^1.0.3"
 
