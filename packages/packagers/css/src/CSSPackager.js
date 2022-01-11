@@ -57,7 +57,6 @@ export default (new Packager({
         }
 
         queue.add(() => {
-          // This condition needs to align with the one in Transformation#runPipeline !
           if (
             !asset.symbols.isCleared &&
             options.mode === 'production' &&
