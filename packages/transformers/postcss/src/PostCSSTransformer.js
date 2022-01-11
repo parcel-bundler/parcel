@@ -1,6 +1,6 @@
 // @flow
 
-import type {FilePath, MutableAsset, PluginOptions} from '@parcel/types';
+import type {FilePath, Asset, MutableAsset, PluginOptions} from '@parcel/types';
 
 import {hashString} from '@parcel/hash';
 import {glob} from '@parcel/utils';
@@ -18,6 +18,8 @@ import {POSTCSS_RANGE} from './constants';
 
 const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
+const LEGACY_MODULE_RE = /@value|(:global|:local)(?!\s*\()/i;
+const MODULE_BY_NAME_RE = /\.module\./;
 
 export default (new Transformer({
   loadConfig({config, options, logger}) {
@@ -31,7 +33,8 @@ export default (new Transformer({
   },
 
   async parse({asset, config, options}) {
-    if (!config) {
+    let isLegacy = await isLegacyCssModule(asset);
+    if (!config && !isLegacy) {
       return;
     }
 
@@ -50,55 +53,70 @@ export default (new Transformer({
 
   async transform({asset, config, options, resolve}) {
     asset.type = 'css';
+    let isLegacy = await isLegacyCssModule(asset);
+    if (isLegacy && !config) {
+      config = {
+        hydrated: {
+          plugins: [],
+          from: asset.filePath,
+          to: asset.filePath,
+          modules: {},
+        },
+      };
+
+      // TODO: warning?
+    }
+
     if (!config) {
       return [asset];
     }
 
     const postcss: Postcss = await loadPostcss(options, asset.filePath);
+    let ast = nullthrows(await asset.getAST());
+    let program = postcss.fromJSON(ast.program);
 
     let plugins = [...config.hydrated.plugins];
     let cssModules: ?{|[string]: string|} = null;
     if (config.hydrated.modules) {
+      asset.meta.cssModulesCompiled = true;
       plugins.push(
         postcssModules({
           getJSON: (filename, json) => (cssModules = json),
           Loader: createLoader(asset, resolve),
           generateScopedName: (name, filename) =>
-            `_${name}_${hashString(
+            `${name}_${hashString(
               path.relative(options.projectRoot, filename),
             ).substr(0, 6)}`,
           ...config.hydrated.modules,
         }),
       );
-    }
 
-    let ast = nullthrows(await asset.getAST());
-    let program = postcss.fromJSON(ast.program);
-    let code = asset.isASTDirty() ? null : await asset.getCode();
-    if (code == null || COMPOSES_RE.test(code)) {
-      program.walkDecls(decl => {
-        let [, importPath] = FROM_IMPORT_RE.exec(decl.value) || [];
-        if (decl.prop === 'composes' && importPath != null) {
-          let parsed = valueParser(decl.value);
+      let code = asset.isASTDirty() ? null : await asset.getCode();
+      if (code == null || COMPOSES_RE.test(code)) {
+        program.walkDecls(decl => {
+          let [, importPath] = FROM_IMPORT_RE.exec(decl.value) || [];
+          if (decl.prop === 'composes' && importPath != null) {
+            let parsed = valueParser(decl.value);
 
-          parsed.walk(node => {
-            if (node.type === 'string') {
-              asset.addDependency({
-                specifier: importPath,
-                specifierType: 'url',
-                loc: {
-                  filePath: asset.filePath,
-                  start: decl.source.start,
-                  end: {
-                    line: decl.source.start.line,
-                    column: decl.source.start.column + importPath.length,
+            parsed.walk(node => {
+              if (node.type === 'string') {
+                asset.addDependency({
+                  specifier: importPath,
+                  specifierType: 'url',
+                  loc: {
+                    filePath: asset.filePath,
+                    start: decl.source.start,
+                    end: {
+                      line: decl.source.start.line,
+                      column: decl.source.start.column + importPath.length,
+                    },
                   },
-                },
-              });
-            }
-          });
-        }
-      });
+                });
+              }
+            });
+          }
+        });
+      }
     }
 
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
@@ -217,4 +235,13 @@ function loadPostcss(options: PluginOptions, from: FilePath): Promise<Postcss> {
     saveDev: true,
     shouldAutoInstall: options.shouldAutoInstall,
   });
+}
+
+async function isLegacyCssModule(asset: Asset | MutableAsset) {
+  if (!MODULE_BY_NAME_RE.test(asset.filePath)) {
+    return false;
+  }
+
+  let code = await asset.getCode();
+  return LEGACY_MODULE_RE.test(code);
 }

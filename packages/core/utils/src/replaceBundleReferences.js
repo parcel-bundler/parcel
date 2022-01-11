@@ -139,8 +139,10 @@ export async function replaceInlineReferences({
 
     let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
     if (inlineType == null || inlineType === 'string') {
+      let placeholder = dependency.meta?.placeholder ?? dependency.id;
+      invariant(typeof placeholder === 'string');
       replacements.set(
-        dependency.id,
+        placeholder,
         getInlineReplacement(dependency, inlineType, packagedContents),
       );
     }

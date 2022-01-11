@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/optimizer-css",
+  "name": "@parcel/transformer-css-experimental",
   "version": "2.1.1",
   "license": "MIT",
   "publishConfig": {
@@ -13,17 +13,17 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/CSSOptimizer.js",
-  "source": "src/CSSOptimizer.js",
+  "main": "lib/CSSTransformer.js",
+  "source": "src/CSSTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
     "parcel": "^2.1.1"
   },
   "dependencies": {
     "@parcel/css": "1.0.0-alpha.11",
-    "@parcel/plugin": "^2.1.1",
+    "@parcel/plugin": "^2.0.1",
     "@parcel/source-map": "^2.0.0",
-    "@parcel/utils": "^2.1.1",
+    "@parcel/utils": "^2.0.1",
     "browserslist": "^4.6.6",
     "nullthrows": "^1.1.1"
   }
