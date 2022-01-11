@@ -183,7 +183,7 @@ describe('sass', function () {
     let css = (
       await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8')
     ).replace(/\s+/g, ' ');
-    assert(css.includes('.foo { color: #00f;'));
+    assert(css.includes('.foo { color: pink;'));
     assert(css.includes('.bar { color: green;'));
   });
 

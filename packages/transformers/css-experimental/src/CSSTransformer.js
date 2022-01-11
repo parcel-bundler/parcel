@@ -15,7 +15,7 @@ import nullthrows from 'nullthrows';
 export default (new Transformer({
   async loadConfig({config, options}) {
     let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
-      packageKey: '@parcel/transformer-css2',
+      packageKey: '@parcel/transformer-css',
     });
     return conf?.contents;
   },

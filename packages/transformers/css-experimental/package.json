@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/transformer-css2",
+  "name": "@parcel/transformer-css-experimental",
   "version": "2.1.1",
   "license": "MIT",
   "publishConfig": {

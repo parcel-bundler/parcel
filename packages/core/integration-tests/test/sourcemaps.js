@@ -732,7 +732,6 @@ describe('sourcemaps', function () {
       );
 
       await bundle(inputFilePath, {
-        // outputFS: inputFS,
         defaultTargetOptions: {
           shouldOptimize,
         },
@@ -754,17 +753,11 @@ describe('sourcemaps', function () {
 
       let mapData = sourceMap.getMap();
       assert.equal(mapData.sources.length, shouldOptimize ? 2 : 1);
-      assert.strictEqual(
-        mapData.sources[mapData.sources.length - 1],
-        'style.scss',
-      );
+      let index = mapData.sources.indexOf('style.scss');
+      assert.strictEqual(mapData.sources[index], 'style.scss');
 
       let input = await inputFS.readFile(
-        path.join(
-          path.dirname(filename),
-          map.sourceRoot,
-          map.sources[mapData.sources.length - 1],
-        ),
+        path.join(path.dirname(filename), map.sourceRoot, map.sources[index]),
         'utf-8',
       );
 
@@ -855,24 +848,15 @@ describe('sourcemaps', function () {
 
       let mapData = sourceMap.getMap();
       // TODO: htmlnano inserts `./<input css 1>`
-      assert.equal(mapData.sources.length, 2);
-      assert.deepEqual(mapData.sources[shouldOptimize ? 1 : 0], 'other.scss');
-      assert.deepEqual(mapData.sources[shouldOptimize ? 0 : 1], 'style.css');
+      assert(mapData.sources.includes('other.scss'));
+      assert(mapData.sources.includes('style.css'));
 
       let style = await inputFS.readFile(
-        path.join(
-          path.dirname(filename),
-          map.sourceRoot,
-          map.sources[shouldOptimize ? 0 : 1],
-        ),
+        path.join(path.dirname(filename), map.sourceRoot, 'style.css'),
         'utf-8',
       );
       let other = await inputFS.readFile(
-        path.join(
-          path.dirname(filename),
-          map.sourceRoot,
-          map.sources[shouldOptimize ? 1 : 0],
-        ),
+        path.join(path.dirname(filename), map.sourceRoot, 'other.scss'),
         'utf-8',
       );
 
@@ -926,14 +910,9 @@ describe('sourcemaps', function () {
       sourceMap.addVLQMap(map);
 
       let mapData = sourceMap.getMap();
-      assert.equal(mapData.sources.length, shouldOptimize ? 2 : 1);
-      assert.deepEqual(mapData.sources[shouldOptimize ? 1 : 0], 'style.less');
+      assert(mapData.sources.includes('style.less'));
       let input = await inputFS.readFile(
-        path.join(
-          path.dirname(filename),
-          map.sourceRoot,
-          map.sources[shouldOptimize ? 1 : 0],
-        ),
+        path.join(path.dirname(filename), map.sourceRoot, 'style.less'),
         'utf-8',
       );
 

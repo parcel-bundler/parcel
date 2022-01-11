@@ -38,9 +38,9 @@ describe('postcss', () => {
     assert.equal(typeof output, 'function');
 
     let value = output();
-    assert(/_foo_[0-9a-z]/.test(value));
+    assert(/foo_[0-9a-z]/.test(value));
 
-    let cssClass = value.match(/(_foo_[0-9a-z])/)[1];
+    let cssClass = value.match(/(foo_[0-9a-z])/)[1];
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes(`.${cssClass}`));
@@ -208,14 +208,14 @@ describe('postcss', () => {
     );
     assert(
       contents.includes(
-        'background: linear-gradient(green, #00f), linear-gradient(red, orange)',
+        'background: linear-gradient(green, pink), linear-gradient(red, orange)',
       ),
     );
 
     // update
     await inputFS.writeFile(
       path.join(inputDir, 'backgrounds', 'green.txt'),
-      'linear-gradient(yellow, orange)',
+      'linear-gradient(purple, orange)',
     );
 
     buildEvent = await getNextBuild(b);
@@ -227,7 +227,7 @@ describe('postcss', () => {
     );
     assert(
       contents.includes(
-        'background: linear-gradient(#ff0, orange), linear-gradient(red, orange)',
+        'background: linear-gradient(purple, orange), linear-gradient(red, orange)',
       ),
     );
 
@@ -246,7 +246,7 @@ describe('postcss', () => {
     );
     assert(
       contents.includes(
-        'background: linear-gradient(#ff0, orange), linear-gradient(orange, purple), linear-gradient(red, orange)',
+        'background: linear-gradient(purple, orange), linear-gradient(orange, purple), linear-gradient(red, orange)',
       ),
     );
 
@@ -262,7 +262,7 @@ describe('postcss', () => {
     );
     assert(
       contents.includes(
-        'background: linear-gradient(#ff0, orange), linear-gradient(orange, purple)',
+        'background: linear-gradient(purple, orange), linear-gradient(orange, purple)',
       ),
     );
 

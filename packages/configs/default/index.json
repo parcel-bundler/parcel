@@ -24,7 +24,7 @@
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
     "*.{sass,scss}": ["@parcel/transformer-sass"],
     "*.less": ["@parcel/transformer-less"],
-    "*.{css,pcss}": ["@parcel/transformer-postcss", "@parcel/transformer-css2"],
+    "*.{css,pcss}": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
     "*.sss": ["@parcel/transformer-sugarss"],
     "*.{htm,html,xhtml}": [
       "@parcel/transformer-posthtml",
@@ -53,7 +53,7 @@
   ],
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
-    "*.css": ["@parcel/optimizer-css"],
+    "*.css": ["@parcel/optimizer-cssnano"],
     "*.{html,xhtml}": ["@parcel/optimizer-htmlnano"],
     "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
     "*.svg": ["@parcel/optimizer-svgo"],

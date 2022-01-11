@@ -84,7 +84,7 @@ export default (new Transformer({
           getJSON: (filename, json) => (cssModules = json),
           Loader: createLoader(asset, resolve),
           generateScopedName: (name, filename) =>
-            `_${name}_${hashString(
+            `${name}_${hashString(
               path.relative(options.projectRoot, filename),
             ).substr(0, 6)}`,
           ...config.hydrated.modules,

@@ -3971,7 +3971,7 @@ describe('cache', function () {
               let pluginContents = await overlayFS.readFile(plugin, 'utf8');
               await overlayFS.writeFile(
                 plugin,
-                pluginContents.replace('green', 'blue'),
+                pluginContents.replace('green', 'red'),
               );
             },
           },
@@ -3982,7 +3982,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background: #00f'));
+        assert(output.includes('background: red'));
       });
 
       it('should invalidate when a JS postcss config changes', async function () {
@@ -4009,7 +4009,7 @@ describe('cache', function () {
               let configContents = await inputFS.readFile(config, 'utf8');
               await inputFS.writeFile(
                 config,
-                configContents.replace('red', 'blue'),
+                configContents.replace('red', 'green'),
               );
               await sleep(100);
             },
@@ -4021,7 +4021,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: #00f'));
+        assert(output.includes('background-color: green'));
       });
 
       it('should invalidate when a JSON postcss config changes', async function () {
@@ -4041,7 +4041,7 @@ describe('cache', function () {
               );
               await overlayFS.writeFile(
                 path.join(inputDir, '.postcssrc'),
-                configContents.replace('green', 'blue'),
+                configContents.replace('green', 'red'),
               );
             },
           },
@@ -4052,7 +4052,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: #00f'));
+        assert(output.includes('background-color: red'));
       });
 
       it('should invalidate when a closer postcss config is added', async function () {
@@ -4072,7 +4072,7 @@ describe('cache', function () {
               );
               await overlayFS.writeFile(
                 path.join(inputDir, 'nested', '.postcssrc'),
-                configContents.replace('green', 'blue'),
+                configContents.replace('green', 'red'),
               );
             },
           },
@@ -4083,7 +4083,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: #00f'));
+        assert(output.includes('background-color: red'));
       });
     });
 

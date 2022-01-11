@@ -151,7 +151,7 @@ export function getSpecifier(dep: Dependency): string {
     return dep.meta.placeholder;
   }
 
-  return dep.specifier;
+  return dep.id;
 }
 
 async function processCSSModule(
