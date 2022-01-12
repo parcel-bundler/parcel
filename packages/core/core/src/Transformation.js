@@ -26,9 +26,11 @@ import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {
+  anyToDiagnostic,
   errorToDiagnostic,
   escapeMarkdown,
   md,
+  type Diagnostic,
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
@@ -84,7 +86,7 @@ export type TransformationOpts = {|
 
 export type TransformationResult = {|
   assets?: Array<AssetValue>,
-  error?: Error,
+  error?: Array<Diagnostic>,
   configRequests: Array<ConfigRequest>,
   invalidations: Array<RequestInvalidation>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
@@ -197,7 +199,8 @@ export default class Transformation {
       $$raw: true,
       assets,
       configRequests,
-      error,
+      // When throwing an error, this (de)serialization is done automatically by the WorkerFarm
+      error: error ? anyToDiagnostic(error) : undefined,
       invalidateOnFileCreate: this.invalidateOnFileCreate,
       invalidations: [...this.invalidations.values()],
       devDepRequests,

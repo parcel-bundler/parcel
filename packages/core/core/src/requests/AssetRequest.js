@@ -13,6 +13,7 @@ import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
 import nullthrows from 'nullthrows';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import {hashString} from '@parcel/hash';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
@@ -175,7 +176,7 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
   }
 
   if (error != null) {
-    throw error;
+    throw new ThrowableDiagnostic({diagnostic: error});
   } else {
     return nullthrows(assets);
   }
