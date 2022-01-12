@@ -37,7 +37,7 @@
     "json5": "^1.0.1",
     "lru-cache": "^6.0.0",
     "micromatch": "^4.0.4",
-    "node-forge": "^0.10.0",
+    "node-forge": "^1.2.1",
     "nullthrows": "^1.1.1",
     "open": "^7.0.3",
     "terminal-link": "^2.1.1"
