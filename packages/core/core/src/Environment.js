@@ -25,6 +25,7 @@ export function createEnvironment({
   engines,
   includeNodeModules,
   outputFormat,
+  global,
   sourceType = 'module',
   shouldOptimize = false,
   isLibrary = false,
@@ -92,12 +93,19 @@ export function createEnvironment({
     }
   }
 
+  if (global !== null) {
+    if (outputFormat !== 'global') {
+      global = null;
+    }
+  }
+
   let res: Environment = {
     id: '',
     context,
     engines,
     includeNodeModules,
     outputFormat,
+    global,
     sourceType,
     isLibrary,
     shouldOptimize,
@@ -138,6 +146,7 @@ function getEnvironmentHash(env: Environment): string {
       env.context,
       env.engines,
       env.includeNodeModules,
+      env.global,
       env.outputFormat,
       env.sourceType,
       env.isLibrary,

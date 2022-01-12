@@ -132,6 +132,7 @@ export type PackageTargetDescriptor = {|
     | {[PackageName]: boolean, ...},
   +outputFormat?: OutputFormat,
   +publicUrl?: string,
+  +global?: string,
   +distDir?: FilePath,
   +sourceMap?: boolean | TargetSourceMapOptions,
   +isLibrary?: boolean,
@@ -166,6 +167,7 @@ export type EnvironmentOptions = {|
   +outputFormat?: OutputFormat,
   +sourceType?: SourceType,
   +isLibrary?: boolean,
+  +global?: ?string,
   +shouldOptimize?: boolean,
   +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
@@ -222,6 +224,7 @@ export interface Environment {
   +shouldScopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
   +loc: ?SourceLocation;
+  +global: ?string;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
@@ -308,6 +311,7 @@ export type InitialParcelOptions = {|
     +sourceMaps?: boolean,
     +publicUrl?: string,
     +distDir?: FilePath,
+    +global?: string,
     +engines?: Engines,
     +outputFormat?: OutputFormat,
     +isLibrary?: boolean,
@@ -317,9 +321,6 @@ export type InitialParcelOptions = {|
     packageName: DependencySpecifier,
     resolveFrom: FilePath,
   |}>,
-
-  // throwErrors
-  // global?
 |};
 
 export type InitialServerOptions = {|

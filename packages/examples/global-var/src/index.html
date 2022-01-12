@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Var Example</title>
+    <script src="../dist/index.js"></script>
+  </head>
+  <body>
+    <div id="main">
+      <b>ListChecker</b><br>
+      <p>List: [1, 2, 3], Item: 2</p>
+    </div>
+
+    <script>
+      const list = [1, 2, 3];
+      const item = 2;
+
+      const isList = ListChecker.checkIsList(list);
+      const hasItem = ListChecker.hasItem(list, item);
+
+      console.log('ListChecker checkIsList', isList);
+      console.log('ListChecker hasItem', hasItem);
+
+      document.getElementById('main').insertAdjacentHTML('beforeend', `<p>checkIsList: ${isList}</p>`);
+      document.getElementById('main').insertAdjacentHTML('beforeend', `<p>hasItem: ${hasItem}</p>`);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "@parcel/global-var-example",
+  "version": "2.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "PARCEL_WORKERS=0 yarn parcel build ./ --no-cache",
+    "clean-demo": "rm -rf .parcel-cache dist && yarn demo",
+    "serve": "yarn parcel serve src/index.html"
+  },
+  "devDependencies": {
+    "@parcel/core": "^2.0.0"
+  },
+  "modules": "dist/index.js",
+  "targets": {
+    "modules": {
+      "context": "browser",
+      "includeNodeModules": true,
+      "outputFormat": "global",
+      "sourceMap": false,
+      "optimize": false,
+      "global": "ListChecker",
+      "source": "./src/index.js",
+      "scopeHoist": false
+    }
+  },
+  "dependencies": {
+    "lodash": "^4.17.11"
+  }
+}
