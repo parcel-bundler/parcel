@@ -11,12 +11,12 @@ export default (new Resolver({
     if (!isGlob(specifier)) {
       return;
     }
-
+    
     let sourceAssetType = nullthrows(dependency.sourceAssetType);
     let sourceFile = nullthrows(
       dependency.resolveFrom ?? dependency.sourcePath,
     );
-
+    console.log(sourceAssetType, sourceFile)
     let error;
     if (sourceAssetType !== 'js' && sourceAssetType !== 'css') {
       error = `Glob imports are not supported in ${sourceAssetType} files.`;
@@ -79,6 +79,7 @@ export default (new Resolver({
 
       let {value, imports} = generate(matches, dependency.priority === 'lazy');
       code = imports + 'module.exports = ' + value;
+      console.log(code)
     } else if (sourceAssetType === 'css') {
       for (let [, relative] of results) {
         code += `@import "${relative}";\n`;
@@ -125,6 +126,7 @@ function generate(matches, isAsync, indent = '', count = 0) {
     }
 
     let key = `_temp${count++}`;
+    console.log('resolve require', `const ${key} = require(${JSON.stringify(matches)});`)
     return {
       imports: `const ${key} = require(${JSON.stringify(matches)});`,
       value: key,
