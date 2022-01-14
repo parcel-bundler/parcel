@@ -11,12 +11,12 @@ export default (new Resolver({
     if (!isGlob(specifier)) {
       return;
     }
-    
+
     let sourceAssetType = nullthrows(dependency.sourceAssetType);
     let sourceFile = nullthrows(
       dependency.resolveFrom ?? dependency.sourcePath,
     );
-    console.log(sourceAssetType, sourceFile)
+
     let error;
     if (sourceAssetType !== 'js' && sourceAssetType !== 'css') {
       error = `Glob imports are not supported in ${sourceAssetType} files.`;
@@ -77,9 +77,14 @@ export default (new Resolver({
         set(matches, parts, relative);
       }
 
-      let {value, imports} = generate(matches, dependency.priority === 'lazy');
+      let {value, imports} = generate(
+        matches,
+        dependency.priority === 'lazy',
+        '',
+        0,
+        dependency.specifierType,
+      );
       code = imports + 'module.exports = ' + value;
-      console.log(code)
     } else if (sourceAssetType === 'css') {
       for (let [, relative] of results) {
         code += `@import "${relative}";\n`;
@@ -115,7 +120,13 @@ function set(obj, path, value) {
   obj[path[path.length - 1]] = value;
 }
 
-function generate(matches, isAsync, indent = '', count = 0) {
+function generate(
+  matches,
+  isAsync,
+  indent = '',
+  count = 0,
+  specifierType = 'commonjs',
+) {
   if (typeof matches === 'string') {
     if (isAsync) {
       return {
@@ -126,9 +137,14 @@ function generate(matches, isAsync, indent = '', count = 0) {
     }
 
     let key = `_temp${count++}`;
-    console.log('resolve require', `const ${key} = require(${JSON.stringify(matches)});`)
+    let imports;
+    if (specifierType === 'esm') {
+      imports = `import ${key} from ${JSON.stringify(matches)};`;
+    } else {
+      `const ${key} = require(${JSON.stringify(matches)});`;
+    }
     return {
-      imports: `const ${key} = require(${JSON.stringify(matches)});`,
+      imports,
       value: key,
       count,
     };
@@ -147,7 +163,7 @@ function generate(matches, isAsync, indent = '', count = 0) {
       imports: i,
       value,
       count: c,
-    } = generate(matches[key], isAsync, indent + '  ', count);
+    } = generate(matches[key], isAsync, indent + '  ', count, specifierType);
     imports += `${i}\n`;
     count = c;
 
