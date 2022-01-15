@@ -186,7 +186,7 @@ describe('svg', function () {
     const svg = await outputFS.readFile(path.join(distDir, 'img.svg'), 'utf8');
 
     assert(!svg.includes('@import'));
-    assert(svg.includes(':root {\n  fill: red\n}'));
+    assert(svg.includes(':root {\n  fill: red;\n}'));
     assert(
       svg.includes(
         `"fill: url(${path.basename(
