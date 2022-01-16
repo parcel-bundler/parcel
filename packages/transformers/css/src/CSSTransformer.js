@@ -15,7 +15,7 @@ import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
 import semver from 'semver';
 import path from 'path';
 
-const URL_RE = /url\s*\("?(?![a-z]+:)/;
+const URL_RE = /url\s*\(/;
 const IMPORT_RE = /@import/;
 const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
@@ -185,7 +185,8 @@ export default (new Transformer({
                 ),
             });
             isDeclDirty = urlNode.value !== url;
-            urlNode.type = 'word';
+            urlNode.type = 'string';
+            urlNode.quote = '"';
             urlNode.value = url;
           }
         });
