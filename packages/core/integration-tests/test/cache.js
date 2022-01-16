@@ -5862,7 +5862,7 @@ describe('cache', function () {
       invariant(event.type === 'buildFailure');
       assert.strictEqual(event.diagnostics[0].message, 'Custom error');
 
-      // Change included file back
+      // Clear transformer error
       await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'b');
       event = await getNextBuild(b);
       invariant(event.type === 'buildSuccess');
