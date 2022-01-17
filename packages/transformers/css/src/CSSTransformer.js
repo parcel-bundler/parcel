@@ -11,7 +11,7 @@ import postcss from 'postcss';
 import nullthrows from 'nullthrows';
 import valueParser from 'postcss-value-parser';
 import postcssModules from 'postcss-modules';
-import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
+import FileSystemLoader from 'postcss-modules/build/css-loader-core/loader';
 import semver from 'semver';
 import path from 'path';
 
