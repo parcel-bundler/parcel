@@ -30,6 +30,6 @@
     "semver": "^5.7.1"
   },
   "devDependencies": {
-    "vue": "^3.0.0"
+    "vue": "^3.2.27"
   }
 }

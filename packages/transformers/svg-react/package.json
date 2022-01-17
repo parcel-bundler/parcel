@@ -21,9 +21,9 @@
   },
   "dependencies": {
     "@parcel/plugin": "^2.2.0",
-    "@svgr/core": "^5.5.0",
-    "@svgr/plugin-jsx": "^5.5.0",
-    "@svgr/plugin-svgo": "^5.5.0",
-    "camelcase": "^5.3.1"
+    "@svgr/core": "^6.2.0",
+    "@svgr/plugin-jsx": "^6.2.0",
+    "@svgr/plugin-svgo": "^6.2.0",
+    "camelcase": "^6.3.0"
   }
 }
