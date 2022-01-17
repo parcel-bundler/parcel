@@ -469,4 +469,21 @@ describe('css', () => {
       });
     });
   }
+
+  it('should support css nesting with @parcel/css', async function () {
+    let b = await originalBundle(
+      path.join(__dirname, '/integration/css-nesting/a.css'),
+      {
+        defaultConfig:
+          path.dirname(require.resolve('@parcel/test-utils')) +
+          '/.parcelrc-css',
+        defaultTargetOptions: {
+          engines: {},
+        },
+      },
+    );
+
+    let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('.foo.bar'));
+  });
 });
