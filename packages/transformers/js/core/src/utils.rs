@@ -11,21 +11,21 @@ pub fn match_member_expr(
   idents: Vec<&str>,
   decls: &HashSet<(JsWord, SyntaxContext)>,
 ) -> bool {
-  use ast::{Expr::*, ExprOrSuper::*, Ident, Lit, Str};
+  use ast::{Expr, Ident, Lit, MemberProp, Str};
 
   let mut member = expr;
   let mut idents = idents;
   while idents.len() > 1 {
     let expected = idents.pop().unwrap();
-    let prop = match &*member.prop {
-      Lit(Lit::Str(Str { value: ref sym, .. })) => sym,
-      Ident(Ident { ref sym, .. }) => {
-        if member.computed {
+    let prop = match member.prop {
+      MemberProp::Computed(comp) => {
+        if let Expr::Lit(Lit::Str(Str { value: ref sym, .. })) = *comp.expr {
+          sym
+        } else {
           return false;
         }
-
-        sym
       }
+      MemberProp::Ident(Ident { ref sym, .. }) => sym,
       _ => return false,
     };
 
@@ -33,16 +33,13 @@ pub fn match_member_expr(
       return false;
     }
 
-    match &member.obj {
-      Expr(expr) => match &**expr {
-        Member(m) => member = m,
-        Ident(Ident { ref sym, span, .. }) => {
-          return idents.len() == 1
-            && sym == idents.pop().unwrap()
-            && !decls.contains(&(sym.clone(), span.ctxt()));
-        }
-        _ => return false,
-      },
+    match &*member.obj {
+      Expr::Member(m) => member = m,
+      Expr::Ident(Ident { ref sym, span, .. }) => {
+        return idents.len() == 1
+          && sym == idents.pop().unwrap()
+          && !decls.contains(&(sym.clone(), span.ctxt()));
+      }
       _ => return false,
     }
   }
@@ -57,7 +54,7 @@ pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
   }
 
   ast::CallExpr {
-    callee: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+    callee: ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
       "require".into(),
       DUMMY_SP,
     )))),
@@ -131,7 +128,7 @@ pub fn match_require(
 
   match node {
     Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
+      Callee::Expr(expr) => match &**expr {
         Expr::Ident(ident) => {
           if ident.sym == js_word!("require")
             && !decls.contains(&(ident.sym.clone(), ident.span.ctxt))

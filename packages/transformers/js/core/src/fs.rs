@@ -55,7 +55,7 @@ impl<'a> Fold for InlineFS<'a> {
 
   fn fold_expr(&mut self, node: Expr) -> Expr {
     if let Expr::Call(call) = &node {
-      if let ExprOrSuper::Expr(expr) = &call.callee {
+      if let Callee::Expr(expr) = &call.callee {
         if let Some((source, specifier)) = self.match_module_reference(expr) {
           if &source == "fs" && &specifier == "readFileSync" {
             if let Some(arg) = call.args.get(0) {
@@ -84,19 +84,15 @@ impl<'a> InlineFS<'a> {
         }
       }
       Expr::Member(member) => {
-        let prop = match &*member.prop {
-          Expr::Ident(ident) => {
-            if !member.computed {
-              ident.sym.clone()
-            } else {
-              return None;
-            }
-          }
-          Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
+        let prop = match &member.prop {
+          MemberProp::Ident(ident) => ident.sym.clone(),
+          MemberProp::Computed(ComputedPropName {
+            expr: Expr::Lit(Lit::Str(str_)),
+          }) => str_.value.clone(),
           _ => return None,
         };
 
-        if let ExprOrSuper::Expr(expr) = &member.obj {
+        if let Callee::Expr(expr) = &member.obj {
           if let Some(source) = self.collect.match_require(expr) {
             return Some((source, prop));
           }
@@ -196,13 +192,12 @@ impl<'a> InlineFS<'a> {
         // If buffer, wrap in Buffer.from(base64String, 'base64')
         if encoding == "buffer" {
           Some(Expr::Call(CallExpr {
-            callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
-              obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident::new(
+            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+              obj: Box::new(Expr::Ident(Ident::new(
                 "Buffer".into(),
                 DUMMY_SP.apply_mark(self.global_mark),
-              )))),
-              prop: Box::new(Expr::Ident(Ident::new("from".into(), DUMMY_SP))),
-              computed: false,
+              ))),
+              prop: MemberProp::Ident(Ident::new("from".into(), DUMMY_SP)),
               span: DUMMY_SP,
             }))),
             args: vec![
@@ -286,7 +281,7 @@ impl<'a> Fold for Evaluator<'a> {
       },
       Expr::Call(call) => {
         let callee = match &call.callee {
-          ExprOrSuper::Expr(expr) => &*expr,
+          Callee::Expr(expr) => &*expr,
           _ => return node,
         };
 
