@@ -22,7 +22,7 @@
   "dependencies": {
     "@parcel/plugin": "^2.2.0",
     "@parcel/source-map": "^2.0.0",
-    "cssnano": "^5.0.5",
-    "postcss": "^8.3.0"
+    "cssnano": "^5.0.15",
+    "postcss": "^8.4.5"
   }
 }

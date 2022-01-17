@@ -24,11 +24,10 @@
     "@parcel/plugin": "^2.2.0",
     "@parcel/source-map": "^2.0.0",
     "@parcel/utils": "^2.2.0",
-    "css-modules-loader-core": "^1.1.0",
     "nullthrows": "^1.1.1",
-    "postcss": "^8.3.0",
-    "postcss-modules": "^3.2.2",
-    "postcss-value-parser": "^4.1.0",
+    "postcss": "^8.4.5",
+    "postcss-modules": "^4.3.0",
+    "postcss-value-parser": "^4.2.0",
     "semver": "^5.7.1"
   }
 }

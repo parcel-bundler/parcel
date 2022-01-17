@@ -5,7 +5,7 @@ import type {FilePath, Asset, MutableAsset, PluginOptions} from '@parcel/types';
 import {hashString} from '@parcel/hash';
 import {glob} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
-import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
+import FileSystemLoader from 'postcss-modules/build/css-loader-core/loader';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import semver from 'semver';
