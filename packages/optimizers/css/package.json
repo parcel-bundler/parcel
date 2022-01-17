@@ -17,7 +17,7 @@
   "source": "src/CSSOptimizer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.1.0"
+    "parcel": "^2.2.0"
   },
   "dependencies": {
     "@parcel/css": "^1.0.3",
