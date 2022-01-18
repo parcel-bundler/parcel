@@ -25,7 +25,6 @@
     "@parcel/source-map": "^2.0.0",
     "@parcel/utils": "^2.2.1",
     "browserslist": "^4.6.6",
-    "core-js": "^3.2.1",
     "json5": "^2.2.0",
     "nullthrows": "^1.1.1",
     "semver": "^5.7.0"
