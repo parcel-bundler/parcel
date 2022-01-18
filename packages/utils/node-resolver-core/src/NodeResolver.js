@@ -18,12 +18,13 @@ import {
   findAlternativeNodeModules,
   findAlternativeFiles,
   loadConfig,
+  globToRegex,
+  isGlobMatch,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   md,
 } from '@parcel/diagnostic';
-import micromatch from 'micromatch';
 import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
 import _Module from 'module';
@@ -1087,7 +1088,7 @@ export default class NodeResolver {
           if (filename.startsWith('./')) {
             filename = filename.slice(2);
           }
-          let re = micromatch.makeRe(key, {capture: true});
+          let re = globToRegex(key, {capture: true});
           if (re.test(filename)) {
             alias = filename.replace(re, val);
             break;
@@ -1184,7 +1185,7 @@ export default class NodeResolver {
           glob = glob.substr(2);
         }
 
-        return micromatch.isMatch(relative, glob, {dot: true});
+        return isGlobMatch(relative, glob, {dot: true});
       }
       case 'object':
         return pkg.sideEffects.some(sideEffects =>

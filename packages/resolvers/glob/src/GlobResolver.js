@@ -1,7 +1,12 @@
 // @flow
 import {Resolver} from '@parcel/plugin';
-import {isGlob, glob, relativePath, normalizeSeparators} from '@parcel/utils';
-import micromatch from 'micromatch';
+import {
+  isGlob,
+  glob,
+  globToRegex,
+  relativePath,
+  normalizeSeparators,
+} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
@@ -65,7 +70,7 @@ export default (new Resolver({
 
     let code = '';
     if (sourceAssetType === 'js') {
-      let re = micromatch.makeRe(normalized, {capture: true});
+      let re = globToRegex(normalized, {capture: true});
       let matches = {};
       for (let [file, relative] of results) {
         let match = file.match(re);

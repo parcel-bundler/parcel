@@ -22,7 +22,6 @@
     "@parcel/diagnostic": "^2.2.1",
     "@parcel/node-libs-browser": "^2.2.1",
     "@parcel/utils": "^2.2.1",
-    "micromatch": "^4.0.4",
     "nullthrows": "^1.1.1"
   }
 }
