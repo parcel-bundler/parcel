@@ -217,6 +217,9 @@ export class ResolverRunner {
           }
 
           if (result.isExcluded) {
+            if (result.filePath != null) {
+              dependency.specifier = result.filePath;
+            }
             return {
               assetGroup: null,
               invalidateOnFileCreate,

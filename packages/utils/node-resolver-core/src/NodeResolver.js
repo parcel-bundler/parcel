@@ -60,6 +60,7 @@ type Module = {|
   filePath?: FilePath,
   code?: string,
   query?: URLSearchParams,
+  isExcluded?: boolean,
 |};
 
 type ResolverContext = {|
@@ -143,6 +144,13 @@ export default class NodeResolver {
       if (!module) {
         return {
           isExcluded: true,
+        };
+      }
+
+      if (module.isExcluded) {
+        return {
+          filePath: module.filePath,
+          isExcluded: module.isExcluded,
         };
       }
 
@@ -252,12 +260,24 @@ export default class NodeResolver {
 
     let builtin = this.findBuiltin(filename, env);
     if (builtin === null) {
+      if (alias) {
+        return {
+          filePath: filename,
+          isExcluded: true,
+        };
+      }
       return null;
     }
 
     if (!this.shouldIncludeNodeModule(env, filename)) {
       if (sourcePath && env.isLibrary && !builtin) {
         await this.checkExcludedDependency(sourcePath, filename, ctx);
+      }
+      if (alias) {
+        return {
+          filePath: filename,
+          isExcluded: true,
+        };
       }
       return null;
     }
