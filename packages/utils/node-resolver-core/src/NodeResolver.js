@@ -596,7 +596,7 @@ export default class NodeResolver {
   findBuiltin(filename: string, env: Environment): ?Module {
     const isExplicitNode = filename.startsWith('node:');
     if (isExplicitNode || builtins[filename]) {
-      if (env.isNode()) {
+      if (env.isNode() || env.includeNodeModules['node:'] === false) {
         return null;
       }
 
