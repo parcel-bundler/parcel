@@ -7,9 +7,9 @@ import type {BabelConfig} from './types';
 
 import json5 from 'json5';
 import path from 'path';
-import * as internalBabelCore from '@babel/core';
 import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
 import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
+import {BABEL_CORE_RANGE} from './constants';
 
 import isJSX from './jsx';
 import getFlowOptions from './flow';
@@ -30,8 +30,6 @@ const BABEL_CONFIG_FILENAMES = [
   'babel.config.mjs',
   'babel.config.cjs',
 ];
-
-const BABEL_CORE_RANGE = '^7.12.0';
 
 type BabelConfigResult = {|
   internal: boolean,
@@ -233,19 +231,6 @@ async function buildDefaultBabelConfig(
   if (await isJSX(options, config)) {
     syntaxPlugins.push('jsx');
   }
-
-  babelOptions.presets = (babelOptions.presets || []).map(preset =>
-    internalBabelCore.createConfigItem(preset, {
-      type: 'preset',
-      dirname: BABEL_TRANSFORMER_DIR,
-    }),
-  );
-  babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
-    internalBabelCore.createConfigItem(plugin, {
-      type: 'plugin',
-      dirname: BABEL_TRANSFORMER_DIR,
-    }),
-  );
 
   definePluginDependencies(config, babelOptions, options);
   return {

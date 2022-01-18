@@ -20,12 +20,6 @@
     "parcel": "^2.2.1"
   },
   "dependencies": {
-    "@babel/core": "^7.12.0",
-    "@babel/generator": "^7.9.0",
-    "@babel/helper-compilation-targets": "^7.8.4",
-    "@babel/plugin-transform-flow-strip-types": "^7.0.0",
-    "@babel/traverse": "^7.0.0",
-    "@parcel/babel-ast-utils": "^2.2.1",
     "@parcel/diagnostic": "^2.2.1",
     "@parcel/plugin": "^2.2.1",
     "@parcel/source-map": "^2.0.0",
