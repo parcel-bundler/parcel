@@ -81,6 +81,7 @@ export class NodeResolverBase<T> {
     if (
       process.env.PARCEL_BUILD_ENV !== 'production' &&
       typeof pkg.name === 'string' &&
+      typeof pkg.source === 'string' &&
       pkg.name.startsWith('@parcel/') &&
       pkg.name !== '@parcel/watcher'
     ) {

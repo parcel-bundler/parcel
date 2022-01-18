@@ -615,7 +615,7 @@ describe('html', function () {
     );
 
     // mergeStyles
-    assert(html.includes('<style>h1{color:red}</style>'));
+    assert(html.includes('<style>h1{color:red}div{font-size:20px}</style>'));
 
     assert(!html.includes('sourceMappingURL'));
 
@@ -943,7 +943,7 @@ describe('html', function () {
     let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
       contents.includes(
-        '<svg><symbol id="all"><rect width="100" height="100"/></symbol></svg><svg xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#all" href="#all"/></svg>',
+        '<svg><symbol id="all"><rect width="100" height="100"/></symbol></svg><svg><use xlink:href="#all" href="#all"/></svg>',
       ),
     );
   });

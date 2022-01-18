@@ -163,17 +163,20 @@ describe('css', () => {
           path.join(distDir, 'index.css'),
           'utf8',
         );
-        assert(/url\(test\.[0-9a-f]+\.woff2\)/.test(css));
-        assert(css.includes('url(http://google.com)'));
+        assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
+        assert(css.includes('url("http://google.com")'));
         assert(css.includes('.index'));
-        assert(css.includes('url(data:image/gif;base64,quotes)'));
+        assert(css.includes('url("data:image/gif;base64,quotes")'));
         assert(css.includes('.quotes'));
-        assert(css.includes('url(data:image/gif;base64,no-quote)'));
+        assert(css.includes('url("data:image/gif;base64,no-quote")'));
         assert(css.includes('.no-quote'));
 
         assert(
           await outputFS.exists(
-            path.join(distDir, css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]),
+            path.join(
+              distDir,
+              css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1],
+            ),
           ),
         );
       });
@@ -217,9 +220,9 @@ describe('css', () => {
         );
         assert(css.includes('url(http://google.com)'), 'url() found');
         assert(css.includes('.index'), '.index found');
-        assert(css.includes('url(data:image/gif;base64,quotes)'));
+        assert(/url\("?data:image\/gif;base64,quotes"?\)/.test(css));
         assert(css.includes('.quotes'));
-        assert(css.includes('url(data:image/gif;base64,no-quote)'));
+        assert(/url\("?data:image\/gif;base64,no-quote"?\)/.test(css));
         assert(css.includes('.no-quote'));
 
         assert(
@@ -362,7 +365,7 @@ describe('css', () => {
         assert.equal(
           css.trim(),
           `.svg-img {
-  background-image: url(data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A);
+  background-image: url("data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A");
 }`,
         );
       });
@@ -375,7 +378,7 @@ describe('css', () => {
         );
         assert(
           css.startsWith(`.webp-img {
-  background-image: url(data:image/webp;base64,UklGR`),
+  background-image: url("data:image/webp;base64,UklGR`),
         );
       });
 
@@ -466,4 +469,21 @@ describe('css', () => {
       });
     });
   }
+
+  it('should support css nesting with @parcel/css', async function () {
+    let b = await originalBundle(
+      path.join(__dirname, '/integration/css-nesting/a.css'),
+      {
+        defaultConfig:
+          path.dirname(require.resolve('@parcel/test-utils')) +
+          '/.parcelrc-css',
+        defaultTargetOptions: {
+          engines: {},
+        },
+      },
+    );
+
+    let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('.foo.bar'));
+  });
 });

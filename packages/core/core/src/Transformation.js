@@ -26,9 +26,11 @@ import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {
+  anyToDiagnostic,
   errorToDiagnostic,
   escapeMarkdown,
   md,
+  type Diagnostic,
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
@@ -83,7 +85,8 @@ export type TransformationOpts = {|
 |};
 
 export type TransformationResult = {|
-  assets: Array<AssetValue>,
+  assets?: Array<AssetValue>,
+  error?: Array<Diagnostic>,
   configRequests: Array<ConfigRequest>,
   invalidations: Array<RequestInvalidation>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
@@ -178,19 +181,26 @@ export default class Transformation {
       asset.value.isSource,
       asset.value.pipeline,
     );
-    let results = await this.runPipelines(pipeline, asset);
-    let assets = results.map(a => a.value);
+    let assets, error;
+    try {
+      let results = await this.runPipelines(pipeline, asset);
+      assets = results.map(a => a.value);
+    } catch (e) {
+      error = e;
+    }
 
     let configRequests = getConfigRequests([...this.configs.values()]);
     let devDepRequests = getWorkerDevDepRequests([
       ...this.devDepRequests.values(),
     ]);
 
-    // $FlowFixMe
+    // $FlowFixMe because of $$raw
     return {
       $$raw: true,
       assets,
       configRequests,
+      // When throwing an error, this (de)serialization is done automatically by the WorkerFarm
+      error: error ? anyToDiagnostic(error) : undefined,
       invalidateOnFileCreate: this.invalidateOnFileCreate,
       invalidations: [...this.invalidations.values()],
       devDepRequests,

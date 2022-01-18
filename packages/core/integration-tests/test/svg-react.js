@@ -16,7 +16,7 @@ describe('svg-react', function () {
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
     assert(!file.includes('inkscape'));
-    assert(file.includes('function SvgIcon'));
+    assert(file.includes('const SvgIcon ='));
     assert(file.includes('_react.createElement("svg"'));
   });
 });

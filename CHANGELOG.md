@@ -5,6 +5,19 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2022-01-17
+
+### Fixed
+
+- Fix background image data urls missing quotes - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
+- Fix development builds not downleveling nested selectors with `@parcel/css`. Now Parcel has default modern browser targets. - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
+- Upgrades htmlnano to v2 to remove uncss which had a dependency on a vulnerable old version of PostCSS - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
+- Upgrades postcss-modules and removes css-module-loader-core with old PostCSS dependencies - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
+- Upgrade Vue compiler - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
+- Upgrade SVGR to v6 - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
+- Upgade JSON5 to v2 - [Details](https://github.com/parcel-bundler/parcel/pull/7564)
+- Don't discard invalidations when transformer throws an error - [Details](https://github.com/parcel-bundler/parcel/pull/7547)
+
 ## [2.2.0] - 2022-01-12
 
 ### Added
