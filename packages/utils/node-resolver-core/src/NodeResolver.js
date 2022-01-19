@@ -6,8 +6,11 @@ import type {
   ResolveResult,
   Environment,
   SpecifierType,
+  PluginLogger,
+  SourceLocation,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import type {PackageManager} from '@parcel/package-manager';
 
 import invariant from 'assert';
 import path from 'path';
@@ -38,6 +41,8 @@ type Options = {|
   projectRoot: FilePath,
   extensions: Array<string>,
   mainFields: Array<string>,
+  packageManager?: PackageManager,
+  logger?: PluginLogger,
 |};
 type ResolvedFile = {|
   path: string,
@@ -67,6 +72,7 @@ type ResolverContext = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
   specifierType: SpecifierType,
+  loc: ?SourceLocation,
 |};
 
 /**
@@ -89,6 +95,8 @@ export default class NodeResolver {
   mainFields: Array<string>;
   packageCache: Map<string, InternalPackageJSON>;
   rootPackage: InternalPackageJSON | null;
+  packageManager: ?PackageManager;
+  logger: ?PluginLogger;
 
   constructor(opts: Options) {
     this.extensions = opts.extensions.map(ext =>
@@ -99,6 +107,8 @@ export default class NodeResolver {
     this.projectRoot = opts.projectRoot;
     this.packageCache = new Map();
     this.rootPackage = null;
+    this.packageManager = opts.packageManager;
+    this.logger = opts.logger;
   }
 
   async resolve({
@@ -107,17 +117,20 @@ export default class NodeResolver {
     specifierType,
     env,
     sourcePath,
+    loc,
   }: {|
     filename: FilePath,
     parent: ?FilePath,
     specifierType: SpecifierType,
     env: Environment,
     sourcePath?: ?FilePath,
+    loc?: ?SourceLocation,
   |}): Promise<?ResolveResult> {
     let ctx = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
       specifierType,
+      loc,
     };
 
     // Get file extensions to search
@@ -218,6 +231,7 @@ export default class NodeResolver {
     ctx: ResolverContext,
     sourcePath: ?FilePath,
   |}): Promise<?Module> {
+    let specifier = filename;
     let sourceFile = parent || path.join(this.projectRoot, 'index');
     let query;
 
@@ -267,6 +281,10 @@ export default class NodeResolver {
         };
       }
       return null;
+    } else if (builtin === empty) {
+      return {filePath: empty};
+    } else if (builtin !== undefined) {
+      filename = builtin;
     }
 
     if (!this.shouldIncludeNodeModule(env, filename)) {
@@ -282,16 +300,50 @@ export default class NodeResolver {
       return null;
     }
 
-    if (builtin) {
-      return builtin;
-    }
-
     // Resolve the module in node_modules
     let resolved: ?Module;
     try {
       resolved = this.findNodeModulePath(filename, sourceFile, ctx);
     } catch (err) {
       // ignore
+    }
+
+    // Auto install node builtin polyfills if not already available
+    if (resolved === undefined && builtin != null) {
+      let packageManager = this.packageManager;
+      if (packageManager) {
+        this.logger?.warn({
+          message: md`Auto installing polyfill for Node builtin module "${specifier}"...`,
+          codeFrames: [
+            {
+              filePath: ctx.loc?.filePath ?? sourceFile,
+              codeHighlights: ctx.loc
+                ? [
+                    {
+                      message: 'used here',
+                      start: ctx.loc.start,
+                      end: ctx.loc.end,
+                    },
+                  ]
+                : [],
+            },
+          ],
+          documentationURL:
+            'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
+        });
+
+        await packageManager.resolve(builtin, this.projectRoot + '/index', {
+          saveDev: true,
+          shouldAutoInstall: true,
+        });
+
+        // Re-resolve
+        try {
+          resolved = this.findNodeModulePath(filename, sourceFile, ctx);
+        } catch (err) {
+          // ignore
+        }
+      }
     }
 
     if (resolved === undefined && process.versions.pnp != null && parent) {
@@ -613,7 +665,7 @@ export default class NodeResolver {
     return resolvedFile;
   }
 
-  findBuiltin(filename: string, env: Environment): ?Module {
+  findBuiltin(filename: string, env: Environment): ?string {
     const isExplicitNode = filename.startsWith('node:');
     if (isExplicitNode || builtins[filename]) {
       if (env.isNode() || env.includeNodeModules['node:'] === false) {
@@ -623,7 +675,7 @@ export default class NodeResolver {
       if (isExplicitNode) {
         filename = filename.substr(5);
       }
-      return {filePath: builtins[filename] || empty};
+      return builtins[filename] || empty;
     }
 
     if (env.isElectron() && filename === 'electron') {
