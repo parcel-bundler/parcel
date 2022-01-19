@@ -504,7 +504,8 @@ export class TargetResolver {
       if (
         targetName === 'browser' &&
         pkg[targetName] != null &&
-        typeof pkg[targetName] === 'object'
+        typeof pkg[targetName] === 'object' &&
+        pkg.name
       ) {
         // The `browser` field can be a file path or an alias map.
         _targetDist = pkg[targetName][pkg.name];

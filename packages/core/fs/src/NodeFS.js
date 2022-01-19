@@ -137,10 +137,22 @@ export class NodeFS implements FileSystem {
   }
 
   async rimraf(filePath: FilePath): Promise<void> {
-    // TODO: use fs.promises.rm once we drop node 12.
-    let stat = await this.stat(filePath);
+    if (fs.promises.rm) {
+      await fs.promises.rm(filePath, {recursive: true, force: true});
+      return;
+    }
+
+    // fs.promises.rm is not supported in node 12...
+    let stat;
+    try {
+      stat = await this.stat(filePath);
+    } catch (err) {
+      return;
+    }
+
     if (stat.isDirectory()) {
-      await nativeFS.promises.rmdir(filePath);
+      // $FlowFixMe
+      await nativeFS.promises.rmdir(filePath, {recursive: true});
     } else {
       await nativeFS.promises.unlink(filePath);
     }

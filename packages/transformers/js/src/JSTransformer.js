@@ -349,7 +349,7 @@ export default (new Transformer({
       }
     } else if (Array.isArray(config?.inlineEnvironment)) {
       for (let key in options.env) {
-        if (isMatch(key, config.inlineEnvironment)) {
+        if (isGlobMatch(key, config.inlineEnvironment)) {
           env[key] = String(options.env[key]);
         }
       }

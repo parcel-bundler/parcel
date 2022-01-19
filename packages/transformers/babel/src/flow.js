@@ -57,7 +57,7 @@ export default async function getFlowOptions(
       babelCore.createConfigItem(
         ['@babel/plugin-transform-flow-strip-types', {requireDirective: true}],
         {
-          type: 'preset',
+          type: 'plugin',
           dirname: path.dirname(config.searchPath),
         },
       ),
