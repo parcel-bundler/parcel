@@ -3,6 +3,15 @@ module.exports = api => {
   if (name === 'parcel') {
     return {
       presets: [require('@babel/preset-flow')],
+      plugins: [
+        // Inline the value of PARCEL_BUILD_ENV during self builds.
+        // Parcel does not do this itself for node targets...
+        [
+          'babel-plugin-transform-inline-environment-variables',
+          {include: ['PARCEL_BUILD_ENV']},
+        ],
+        'babel-plugin-minify-dead-code-elimination',
+      ],
     };
   }
 
@@ -35,7 +44,16 @@ module.exports = api => {
           // it can be removed through dead code elimination below
           [
             'babel-plugin-transform-inline-environment-variables',
-            {include: ['PARCEL_BUILD_ENV']},
+            {
+              include: [
+                'PARCEL_BUILD_ENV',
+                // Eliminate the PARCEL_SELF_BUILD environment variable to get
+                //  rid of @babel/register in bin.js, when compiling with gulp.
+                ...(!process.env.PARCEL_SELF_BUILD
+                  ? ['PARCEL_SELF_BUILD']
+                  : []),
+              ],
+            },
           ],
           'babel-plugin-minify-dead-code-elimination',
         ],
