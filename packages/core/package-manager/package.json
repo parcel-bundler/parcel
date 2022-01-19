@@ -35,8 +35,7 @@
         "@parcel/types": false,
         "@parcel/utils": false,
         "@parcel/workers": false,
-        "semver": false,
-        "node:": false
+        "semver": false
       }
     }
   },

@@ -39,8 +39,7 @@
         "@parcel/types": false,
         "@parcel/utils": false,
         "@parcel/watcher": false,
-        "@parcel/workers": false,
-        "node:": false
+        "@parcel/workers": false
       }
     }
   },

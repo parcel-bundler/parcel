@@ -65,7 +65,6 @@ type Module = {|
   filePath?: FilePath,
   code?: string,
   query?: URLSearchParams,
-  isExcluded?: boolean,
 |};
 
 type ResolverContext = {|
@@ -157,13 +156,6 @@ export default class NodeResolver {
       if (!module) {
         return {
           isExcluded: true,
-        };
-      }
-
-      if (module.isExcluded) {
-        return {
-          filePath: module.filePath,
-          isExcluded: module.isExcluded,
         };
       }
 
@@ -274,12 +266,6 @@ export default class NodeResolver {
 
     let builtin = this.findBuiltin(filename, env);
     if (builtin === null) {
-      if (alias) {
-        return {
-          filePath: filename,
-          isExcluded: true,
-        };
-      }
       return null;
     } else if (builtin === empty) {
       return {filePath: empty};
@@ -287,15 +273,9 @@ export default class NodeResolver {
       filename = builtin;
     }
 
-    if (!this.shouldIncludeNodeModule(env, filename)) {
+    if (this.shouldIncludeNodeModule(env, filename) === false) {
       if (sourcePath && env.isLibrary && !builtin) {
         await this.checkExcludedDependency(sourcePath, filename, ctx);
-      }
-      if (alias) {
-        return {
-          filePath: filename,
-          isExcluded: true,
-        };
       }
       return null;
     }
@@ -413,7 +393,7 @@ export default class NodeResolver {
   shouldIncludeNodeModule(
     {includeNodeModules}: Environment,
     name: string,
-  ): boolean {
+  ): ?boolean {
     if (includeNodeModules === false) {
       return false;
     }
@@ -430,8 +410,6 @@ export default class NodeResolver {
         return !!include;
       }
     }
-
-    return true;
   }
 
   async checkExcludedDependency(
@@ -668,13 +646,22 @@ export default class NodeResolver {
   findBuiltin(filename: string, env: Environment): ?string {
     const isExplicitNode = filename.startsWith('node:');
     if (isExplicitNode || builtins[filename]) {
-      if (env.isNode() || env.includeNodeModules['node:'] === false) {
+      if (env.isNode()) {
         return null;
       }
 
       if (isExplicitNode) {
         filename = filename.substr(5);
       }
+
+      // By default, exclude node builtins from libraries unless explicitly opted in.
+      if (
+        env.isLibrary &&
+        this.shouldIncludeNodeModule(env, filename) !== true
+      ) {
+        return null;
+      }
+
       return builtins[filename] || empty;
     }
 
