@@ -16,7 +16,6 @@ import getFlowOptions from './flow';
 import {enginesToBabelTargets} from './utils';
 
 const TYPESCRIPT_EXTNAME_RE = /\.tsx?$/;
-const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 const JS_EXTNAME_RE = /^\.(js|cjs|mjs)$/;
 const BABEL_CONFIG_FILENAMES = [
   '.babelrc',

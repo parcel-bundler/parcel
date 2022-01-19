@@ -9,7 +9,6 @@ import type {
   AsyncSubscription,
 } from '@parcel/watcher';
 
-import path from 'path';
 import fs from 'graceful-fs';
 import nativeFS from 'fs';
 import ncp from 'ncp';

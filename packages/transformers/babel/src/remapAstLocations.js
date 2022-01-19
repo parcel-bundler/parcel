@@ -1,16 +1,6 @@
 // @flow strict-local
 
-import type {
-  AST,
-  BaseAsset,
-  PluginOptions,
-  SourceLocation,
-  FilePath,
-} from '@parcel/types';
-import type {
-  SourceLocation as BabelSourceLocation,
-  File as BabelNodeFile,
-} from '@babel/types';
+import type {File as BabelNodeFile} from '@babel/types';
 import type SourceMap from '@parcel/source-map';
 import type {Node} from '@babel/types';
 import typeof * as BabelTypes from '@babel/types';
