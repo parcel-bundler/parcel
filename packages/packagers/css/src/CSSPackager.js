@@ -1,7 +1,7 @@
 // @flow
 
 import type {Root} from 'postcss';
-import type {Asset} from '@parcel/types';
+import type {Asset, Dependency} from '@parcel/types';
 
 import path from 'path';
 import SourceMap from '@parcel/source-map';
@@ -57,8 +57,11 @@ export default (new Packager({
         }
 
         queue.add(() => {
-          // This condition needs to align with the one in Transformation#runPipeline !
-          if (!asset.symbols.isCleared && options.mode === 'production') {
+          if (
+            !asset.symbols.isCleared &&
+            options.mode === 'production' &&
+            asset.astGenerator?.type === 'postcss'
+          ) {
             // a CSS Modules asset
             return processCSSModule(
               options,
@@ -134,13 +137,21 @@ export default (new Packager({
       contents,
       getInlineBundleContents,
       getInlineReplacement: (dep, inlineType, contents) => ({
-        from: dep.id,
+        from: getSpecifier(dep),
         to: contents,
       }),
       map,
     });
   },
 }): Packager);
+
+export function getSpecifier(dep: Dependency): string {
+  if (typeof dep.meta.placeholder === 'string') {
+    return dep.meta.placeholder;
+  }
+
+  return dep.id;
+}
 
 async function processCSSModule(
   options,

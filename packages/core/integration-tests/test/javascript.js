@@ -4104,7 +4104,7 @@ describe('javascript', function () {
     assert(
       cssBundleContent.startsWith(
         `body {
-  background-color: #000000;
+  background-color: #000;
 }
 
 .svg-img {
@@ -4146,7 +4146,7 @@ describe('javascript', function () {
     assert(
       cssBundleContent.startsWith(
         `body {
-  background-color: #000000;
+  background-color: #000;
 }
 
 .svg-img {
@@ -4234,7 +4234,7 @@ describe('javascript', function () {
     assert(
       cssBundleContent.startsWith(
         `body {
-  background-color: #000000;
+  background-color: #000;
 }
 
 .svg-img {

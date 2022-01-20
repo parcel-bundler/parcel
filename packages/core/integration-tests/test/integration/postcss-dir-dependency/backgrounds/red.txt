@@ -1,1 +1,1 @@
-red
+linear-gradient(red, orange)

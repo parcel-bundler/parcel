@@ -62,6 +62,12 @@ export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
     return nodeId;
   }
 
+  addNodeByContentKeyIfNeeded(contentKey: ContentKey, node: TNode): NodeId {
+    return this.hasContentKey(contentKey)
+      ? this.getNodeIdByContentKey(contentKey)
+      : this.addNodeByContentKey(contentKey, node);
+  }
+
   getNodeByContentKey(contentKey: ContentKey): ?TNode {
     let nodeId = this._contentKeyToNodeId.get(contentKey);
     if (nodeId != null) {

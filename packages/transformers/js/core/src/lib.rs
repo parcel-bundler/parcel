@@ -1,5 +1,4 @@
 extern crate swc_common;
-extern crate swc_ecma_preset_env;
 extern crate swc_ecmascript;
 #[macro_use]
 extern crate swc_atoms;
@@ -30,11 +29,11 @@ use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_ecma_preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
+use swc_ecmascript::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
 use swc_ecmascript::transforms::resolver::resolver_with_mark;
 use swc_ecmascript::transforms::{
   compat::reserved_words::reserved_words, fixer, helpers, hygiene,
@@ -301,7 +300,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
             let mut decls = collect_decls(&module);
 
-            let mut preset_env_config = swc_ecma_preset_env::Config {
+            let mut preset_env_config = swc_ecmascript::preset_env::Config {
               dynamic_import: true,
               ..Default::default()
             };
@@ -424,7 +423,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
-              result.symbol_result = Some(collect.into());
+              // Bail if we could not statically analyze.
+              if collect.static_cjs_exports && !collect.should_wrap {
+                result.symbol_result = Some(collect.into());
+              }
 
               let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;
