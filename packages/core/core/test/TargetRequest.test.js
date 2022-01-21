@@ -672,7 +672,7 @@ describe('TargetResolver', () => {
     );
   });
 
-  it.only('resolves main target with context from package.json', async () => {
+  it('resolves main target with context from package.json', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
     assert.deepEqual(await targetResolver.resolve(CONTEXT_FIXTURE_PATH), [
       {

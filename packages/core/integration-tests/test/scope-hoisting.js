@@ -5231,7 +5231,7 @@ describe('scope hoisting', function () {
     assert.deepEqual(res, 'x: 123');
   });
 
-  it.only('should insert the prelude for sibling bundles referenced in HTML', async function () {
+  it('should insert the prelude for sibling bundles referenced in HTML', async function () {
     let b = await bundle(
       path.join(
         __dirname,
