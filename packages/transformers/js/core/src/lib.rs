@@ -160,24 +160,23 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
       let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
       err.into_diagnostic(&handler).emit();
 
-      let s = error_buffer.0.lock().unwrap().clone();
+      let s = error_buffer.0.lock().unwrap();
       let diagnostics: Vec<Diagnostic> = s
         .iter()
         .map(|diagnostic| {
           let message = diagnostic.message();
-          let span = diagnostic.span.clone();
-          let suggestions = diagnostic.suggestions.clone();
+          let span = &diagnostic.span;
+          let suggestions = &diagnostic.suggestions;
 
           let span_labels = span.span_labels();
           let code_highlights = if !span_labels.is_empty() {
-            let mut highlights = vec![];
-            for span_label in span_labels {
-              highlights.push(CodeHighlight {
+            let highlights = span_labels
+              .into_iter()
+              .map(|span_label| CodeHighlight {
                 message: span_label.label,
                 loc: SourceLocation::from(&source_map, span_label.span),
-              });
-            }
-
+              })
+              .collect();
             Some(highlights)
           } else {
             None
@@ -186,8 +185,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
           let hints = if !suggestions.is_empty() {
             Some(
               suggestions
-                .into_iter()
-                .map(|suggestion| suggestion.msg)
+                .iter()
+                .map(|suggestion| suggestion.msg.clone())
                 .collect(),
             )
           } else {

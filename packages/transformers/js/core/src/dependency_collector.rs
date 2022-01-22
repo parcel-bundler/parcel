@@ -125,7 +125,7 @@ impl<'a> DependencyCollector<'a> {
       placeholder: placeholder.clone(),
     });
 
-    placeholder.map(|p| p.into())
+    placeholder.map(Into::into)
   }
 
   fn add_url_dependency(
@@ -139,11 +139,7 @@ impl<'a> DependencyCollector<'a> {
     if !self.config.is_library {
       let placeholder =
         self.add_dependency(specifier.clone(), span, kind, None, false, source_type);
-      let specifier = if let Some(placeholder) = placeholder {
-        placeholder
-      } else {
-        specifier
-      };
+      let specifier = placeholder.unwrap_or(specifier);
       return ast::Expr::Call(self.create_require(specifier));
     }
 
@@ -677,7 +673,7 @@ impl<'a> Fold for DependencyCollector<'a> {
   }
 
   fn fold_new_expr(&mut self, node: ast::NewExpr) -> ast::NewExpr {
-    use ast::Expr::*;
+    use ast::Expr::{Ident, Lit};
 
     let matched = match &*node.callee {
       Ident(id) => {
@@ -848,7 +844,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
 impl<'a> DependencyCollector<'a> {
   fn fold_new_promise(&mut self, node: ast::NewExpr) -> ast::NewExpr {
-    use ast::Expr::*;
+    use ast::Expr::{Arrow, Fn};
 
     // Match requires inside promises (e.g. Rollup compiled dynamic imports)
     // new Promise(resolve => resolve(require('foo')))
@@ -860,11 +856,11 @@ impl<'a> DependencyCollector<'a> {
         let (resolve, expr) = match &*arg.expr {
           Fn(f) => {
             let param = f.function.params.get(0).map(|param| &param.pat);
-            let body = if let Some(body) = &f.function.body {
-              self.match_block_stmt_expr(body)
-            } else {
-              None
-            };
+            let body = f
+              .function
+              .body
+              .as_ref()
+              .and_then(|body| self.match_block_stmt_expr(body));
             (param, body)
           }
           Arrow(f) => {
@@ -909,13 +905,7 @@ impl<'a> DependencyCollector<'a> {
   fn match_block_stmt_expr<'x>(&self, block: &'x ast::BlockStmt) -> Option<&'x ast::Expr> {
     match block.stmts.last() {
       Some(ast::Stmt::Expr(ast::ExprStmt { expr, .. })) => Some(&**expr),
-      Some(ast::Stmt::Return(ast::ReturnStmt { arg, .. })) => {
-        if let Some(arg) = arg {
-          Some(&**arg)
-        } else {
-          None
-        }
-      }
+      Some(ast::Stmt::Return(ast::ReturnStmt { arg, .. })) => arg.as_ref().map(|arg| &**arg),
       _ => None,
     }
   }

@@ -54,7 +54,7 @@ fn optimize(ctx: CallContext) -> Result<JsBuffer> {
 
 fn finalize(ptr: *mut u8, _env: Env) {
   unsafe {
-    libc::free(ptr as *mut c_void);
+    libc::free(ptr.cast::<c_void>());
   }
 }
 
@@ -123,14 +123,16 @@ unsafe fn create_error_handler() -> jpeg_error_mgr {
 extern "C" fn unwind_error_exit(cinfo: &mut jpeg_common_struct) {
   let message = unsafe {
     let err = cinfo.err.as_ref().unwrap();
-    if let Some(fmt) = err.format_message {
-      let buffer = mem::zeroed();
-      fmt(cinfo, &buffer);
-      let len = buffer.iter().take_while(|&&c| c != 0).count();
-      String::from_utf8_lossy(&buffer[..len]).into()
-    } else {
-      format!("libjpeg error: {}", err.msg_code)
-    }
+
+    err.format_message.map_or_else(
+      || format!("libjpeg error: {}", err.msg_code),
+      |fmt| {
+        let buffer = mem::zeroed();
+        fmt(cinfo, &buffer);
+        let len = buffer.iter().take_while(|&&c| c != 0).count();
+        String::from_utf8_lossy(&buffer[..len]).into()
+      },
+    )
   };
   std::panic::resume_unwind(Box::new(message))
 }

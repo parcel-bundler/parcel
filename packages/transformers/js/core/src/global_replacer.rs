@@ -135,15 +135,12 @@ impl<'a> Fold for GlobalReplacer<'a> {
           self.decls.insert(id.to_id());
         }
         "__dirname" => {
-          let dirname = if let Some(dirname) = self.filename.parent() {
-            if let Some(relative) = pathdiff::diff_paths(dirname, self.project_root) {
-              relative.to_slash_lossy()
-            } else {
-              String::from("/")
-            }
-          } else {
-            String::from("/")
-          };
+          let dirname = self
+            .filename
+            .parent()
+            .and_then(|dirname| pathdiff::diff_paths(dirname, self.project_root))
+            .map(|relative| relative.to_slash_lossy())
+            .unwrap_or_else(|| String::from("/"));
 
           self.globals.insert(
             id.sym.clone(),

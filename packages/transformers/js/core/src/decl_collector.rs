@@ -24,7 +24,7 @@ struct DeclCollector {
 
 impl Visit for DeclCollector {
   fn visit_decl(&mut self, node: &ast::Decl) {
-    use ast::Decl::*;
+    use ast::Decl::{Class, Fn};
 
     match node {
       Class(class) => {
@@ -87,7 +87,7 @@ impl Visit for DeclCollector {
   }
 
   fn visit_import_specifier(&mut self, node: &ast::ImportSpecifier) {
-    use ast::ImportSpecifier::*;
+    use ast::ImportSpecifier::{Default, Named, Namespace};
     swc_ecmascript::visit::visit_import_specifier(self, node);
 
     match node {

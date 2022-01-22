@@ -101,11 +101,10 @@ impl<'a> Fold for EnvReplacer<'a> {
                     span: DUMMY_SP,
                     op: AssignOp::Assign,
                     left: PatOrExpr::Pat(Box::new(decl.name.clone())),
-                    right: Box::new(if let Some(init) = &decl.init {
-                      *init.clone()
-                    } else {
-                      Expr::Ident(Ident::new(js_word!("undefined"), DUMMY_SP))
-                    }),
+                    right: Box::new(decl.init.as_ref().map_or_else(
+                      || Expr::Ident(Ident::new(js_word!("undefined"), DUMMY_SP)),
+                      |init| *init.clone(),
+                    )),
                   }))
                 })
                 .collect();
@@ -241,11 +240,7 @@ impl<'a> EnvReplacer<'a> {
               decls.push(VarDeclarator {
                 span: DUMMY_SP,
                 name: *kv.value.clone().fold_with(self),
-                init: if let Some(key) = key {
-                  self.replace(&key, false).map(Box::new)
-                } else {
-                  None
-                },
+                init: key.and_then(|key| self.replace(&key, false)).map(Box::new),
                 definite: false,
               });
             }
@@ -255,11 +250,10 @@ impl<'a> EnvReplacer<'a> {
               decls.push(VarDeclarator {
                 span: DUMMY_SP,
                 name: Pat::Ident(BindingIdent::from(assign.key.clone())),
-                init: if let Some(init) = self.replace(&assign.key.sym, false) {
-                  Some(Box::new(init))
-                } else {
-                  assign.value.clone().fold_with(self)
-                },
+                init: self
+                  .replace(&assign.key.sym, false)
+                  .map(Box::new)
+                  .or_else(|| assign.value.clone().fold_with(self)),
                 definite: false,
               });
             }
