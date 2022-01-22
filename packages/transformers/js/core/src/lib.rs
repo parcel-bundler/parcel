@@ -42,9 +42,9 @@ use swc_ecmascript::transforms::{
 };
 use swc_ecmascript::visit::{FoldWith, VisitWith};
 
-use decl_collector::*;
-use dependency_collector::*;
-use env_replacer::*;
+use decl_collector::collect_decls;
+use dependency_collector::{dependency_collector, DependencyDescriptor};
+use env_replacer::EnvReplacer;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::{hoist, CollectResult, HoistResult};

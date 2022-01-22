@@ -91,7 +91,7 @@ fn is_marked(span: Span, mark: Mark) -> bool {
 }
 
 pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
-  use ast::*;
+  use ast::{Expr, Lit};
 
   match node {
     // "string" or 'string'
@@ -105,7 +105,7 @@ pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
 }
 
 pub fn match_str_or_ident(node: &ast::Expr) -> Option<(JsWord, Span)> {
-  use ast::*;
+  use ast::Expr;
 
   if let Expr::Ident(id) = node {
     return Some((id.sym.clone(), id.span));
@@ -162,7 +162,7 @@ pub fn match_require(
 }
 
 pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
-  use ast::*;
+  use ast::{Expr, ExprOrSuper};
 
   match node {
     Expr::Call(call) => match &call.callee {

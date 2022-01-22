@@ -1116,7 +1116,7 @@ impl<'a> DependencyCollector<'a> {
     expr: &ast::Expr,
     decls: &HashSet<(JsWord, SyntaxContext)>,
   ) -> Option<(JsWord, swc_common::Span)> {
-    use ast::*;
+    use ast::Expr;
 
     if let Expr::New(new) = expr {
       let is_url = match &*new.callee {
@@ -1199,7 +1199,7 @@ impl<'a> DependencyCollector<'a> {
   }
 
   fn is_import_meta(&mut self, expr: &ast::Expr) -> bool {
-    use ast::*;
+    use ast::{Ident, MetaPropExpr};
 
     match &expr {
       ast::Expr::MetaProp(MetaPropExpr {
@@ -1235,7 +1235,7 @@ impl<'a> DependencyCollector<'a> {
   }
 
   fn get_import_meta_url(&mut self) -> ast::Expr {
-    use ast::*;
+    use ast::{Expr, Lit, Str, StrKind};
 
     // Get a relative path from the project root.
     let filename = if let Some(relative) =
