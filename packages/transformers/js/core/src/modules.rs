@@ -213,7 +213,7 @@ impl ESMFold {
     self.exports.push(export);
   }
 
-  fn create_exports_assign(&mut self, name: JsWord, right: Expr, span: Span) -> ModuleItem {
+  fn create_exports_assign(name: JsWord, right: Expr, span: Span) -> ModuleItem {
     ModuleItem::Stmt(Stmt::Expr(ExprStmt {
       expr: Box::new(Expr::Assign(AssignExpr {
         op: AssignOp::Assign,
@@ -402,7 +402,7 @@ impl Fold for ESMFold {
             }
             ModuleDecl::ExportDefaultExpr(export) => {
               needs_interop_flag = true;
-              items.push(self.create_exports_assign(
+              items.push(Self::create_exports_assign(
                 "default".into(),
                 *export.expr.clone(),
                 export.span,
@@ -419,13 +419,13 @@ impl Fold for ESMFold {
                       declare: false,
                       class: class.class.clone(),
                     }))));
-                    items.push(self.create_exports_assign(
+                    items.push(Self::create_exports_assign(
                       "default".into(),
                       Expr::Ident(ident.clone()),
                       DUMMY_SP,
                     ));
                   } else {
-                    items.push(self.create_exports_assign(
+                    items.push(Self::create_exports_assign(
                       "default".into(),
                       Expr::Class(ClassExpr {
                         ident: None,
@@ -442,13 +442,13 @@ impl Fold for ESMFold {
                       declare: false,
                       function: func.function.clone(),
                     }))));
-                    items.push(self.create_exports_assign(
+                    items.push(Self::create_exports_assign(
                       "default".into(),
                       Expr::Ident(ident.clone()),
                       DUMMY_SP,
                     ));
                   } else {
-                    items.push(self.create_exports_assign(
+                    items.push(Self::create_exports_assign(
                       "default".into(),
                       Expr::Fn(FnExpr {
                         ident: None,
