@@ -2216,7 +2216,7 @@ mod tests {
               let module = module.fold_with(&mut hoist);
               (module, hoist.get_result())
             };
-            let code = emit(source_map, comments, &module);
+            let code = emit(source_map, &comments, &module);
             (collect, code, res)
           },
         )
@@ -2229,7 +2229,7 @@ mod tests {
 
   fn emit(
     source_map: Lrc<SourceMap>,
-    comments: SingleThreadedComments,
+    comments: &SingleThreadedComments,
     program: &Module,
   ) -> String {
     let mut src_map_buf = vec![];

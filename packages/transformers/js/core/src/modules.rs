@@ -122,7 +122,7 @@ impl ESMFold {
         name: Pat::Ident(ident.into()),
         init: Some(Box::new(self.create_helper_call(
           "interopDefault".into(),
-          vec![Expr::Ident(local)],
+          &[Expr::Ident(local)],
           DUMMY_SP,
         ))),
         definite: false,
@@ -134,7 +134,7 @@ impl ESMFold {
     self.interops.insert(src);
   }
 
-  fn create_helper_call(&mut self, name: JsWord, args: Vec<Expr>, span: Span) -> Expr {
+  fn create_helper_call(&mut self, name: JsWord, args: &[Expr], span: Span) -> Expr {
     self.needs_helpers = true;
     let ident = Ident::new("parcelHelpers".into(), DUMMY_SP.apply_mark(self.mark));
     Expr::Call(CallExpr {
@@ -156,7 +156,7 @@ impl ESMFold {
     })
   }
 
-  fn call_helper(&mut self, name: JsWord, args: Vec<Expr>, span: Span) -> ModuleItem {
+  fn call_helper(&mut self, name: JsWord, args: &[Expr], span: Span) -> ModuleItem {
     ModuleItem::Stmt(Stmt::Expr(ExprStmt {
       expr: Box::new(self.create_helper_call(name, args, span)),
       span,
@@ -166,7 +166,7 @@ impl ESMFold {
   fn create_export(&mut self, exported: JsWord, local: Expr, span: Span) {
     let export = self.call_helper(
       js_word!("export"),
-      vec![
+      &[
         Expr::Ident(Ident::new("exports".into(), DUMMY_SP)),
         Expr::Lit(Lit::Str(Str {
           value: exported,
@@ -392,7 +392,7 @@ impl Fold for ESMFold {
               let require_name = self.get_require_name(&export.src.value, export.span);
               let export = self.call_helper(
                 "exportAll".into(),
-                vec![
+                &[
                   Expr::Ident(require_name),
                   Expr::Ident(Ident::new("exports".into(), DUMMY_SP)),
                 ],
@@ -519,7 +519,7 @@ impl Fold for ESMFold {
     if needs_interop_flag {
       let helper = self.call_helper(
         "defineInteropFlag".into(),
-        vec![Expr::Ident(Ident::new("exports".into(), DUMMY_SP))],
+        &[Expr::Ident(Ident::new("exports".into(), DUMMY_SP))],
         DUMMY_SP,
       );
       self.exports.insert(0, helper);

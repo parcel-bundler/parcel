@@ -446,7 +446,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             }
 
             let (buf, mut src_map_buf) =
-              emit(source_map.clone(), comments, &program, config.source_maps)?;
+              emit(source_map.clone(), &comments, &program, config.source_maps)?;
             if config.source_maps
               && source_map
                 .build_source_map(&mut src_map_buf)
@@ -512,7 +512,7 @@ fn parse(
 
 fn emit(
   source_map: Lrc<SourceMap>,
-  comments: SingleThreadedComments,
+  comments: &SingleThreadedComments,
   program: &Module,
   source_maps: bool,
 ) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
