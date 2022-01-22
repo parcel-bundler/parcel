@@ -2009,33 +2009,30 @@ impl Collect {
                 }
               };
 
-              match &*kv.value {
-                Pat::Ident(ident) => {
-                  // let {x: y} = require('y');
-                  // Need to track `x` as a used symbol.
-                  self.imports.insert(
-                    id!(ident.id),
-                    Import {
-                      source: src.clone(),
-                      specifier: imported,
-                      kind,
-                      loc: SourceLocation::from(&self.source_map, ident.id.span),
-                    },
-                  );
+              if let Pat::Ident(ident) = &*kv.value {
+                // let {x: y} = require('y');
+                // Need to track `x` as a used symbol.
+                self.imports.insert(
+                  id!(ident.id),
+                  Import {
+                    source: src.clone(),
+                    specifier: imported,
+                    kind,
+                    loc: SourceLocation::from(&self.source_map, ident.id.span),
+                  },
+                );
 
-                  // Mark as non-constant. CJS exports can be mutated by other modules,
-                  // so it's not safe to reference them directly.
-                  self
-                    .non_const_bindings
-                    .entry(id!(ident.id))
-                    .or_default()
-                    .push(ident.id.span);
-                }
-                _ => {
-                  // Non-static.
-                  self.non_static_requires.insert(src.clone());
-                  self.add_bailout(object.span, BailoutReason::NonStaticDestructuring);
-                }
+                // Mark as non-constant. CJS exports can be mutated by other modules,
+                // so it's not safe to reference them directly.
+                self
+                  .non_const_bindings
+                  .entry(id!(ident.id))
+                  .or_default()
+                  .push(ident.id.span);
+              } else {
+                // Non-static.
+                self.non_static_requires.insert(src.clone());
+                self.add_bailout(object.span, BailoutReason::NonStaticDestructuring);
               }
             }
             ObjectPatProp::Assign(assign) => {

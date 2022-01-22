@@ -123,14 +123,13 @@ unsafe fn create_error_handler() -> jpeg_error_mgr {
 extern "C" fn unwind_error_exit(cinfo: &mut jpeg_common_struct) {
   let message = unsafe {
     let err = cinfo.err.as_ref().unwrap();
-    match err.format_message {
-      Some(fmt) => {
-        let buffer = mem::zeroed();
-        fmt(cinfo, &buffer);
-        let len = buffer.iter().take_while(|&&c| c != 0).count();
-        String::from_utf8_lossy(&buffer[..len]).into()
-      }
-      None => format!("libjpeg error: {}", err.msg_code),
+    if let Some(fmt) = err.format_message {
+      let buffer = mem::zeroed();
+      fmt(cinfo, &buffer);
+      let len = buffer.iter().take_while(|&&c| c != 0).count();
+      String::from_utf8_lossy(&buffer[..len]).into()
+    } else {
+      format!("libjpeg error: {}", err.msg_code)
     }
   };
   std::panic::resume_unwind(Box::new(message))
