@@ -261,7 +261,7 @@ impl<'a> EnvReplacer<'a> {
                   assign.value.clone().fold_with(self)
                 },
                 definite: false,
-              })
+              });
             }
             ObjectPatProp::Rest(rest) => {
               if let Pat::Ident(ident) = &*rest.arg {
@@ -273,7 +273,7 @@ impl<'a> EnvReplacer<'a> {
                     props: vec![],
                   }))),
                   definite: false,
-                })
+                });
               }
             }
           }

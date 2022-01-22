@@ -104,7 +104,7 @@ impl ESMFold {
       declare: false,
     })));
 
-    self.requires.push(require)
+    self.requires.push(require);
   }
 
   fn create_interop_default(&mut self, src: JsWord) {
@@ -210,7 +210,7 @@ impl ESMFold {
       ],
       span,
     );
-    self.exports.push(export)
+    self.exports.push(export);
   }
 
   fn create_exports_assign(&mut self, name: JsWord, right: Expr, span: Span) -> ModuleItem {
@@ -360,7 +360,7 @@ impl Fold for ESMFold {
                         namespace.name.sym.clone(),
                         Expr::Ident(local),
                         export.span,
-                      )
+                      );
                     }
                   }
                 }
@@ -406,7 +406,7 @@ impl Fold for ESMFold {
                 "default".into(),
                 *export.expr.clone(),
                 export.span,
-              ))
+              ));
             }
             ModuleDecl::ExportDefaultDecl(export) => {
               needs_interop_flag = true;
@@ -547,7 +547,7 @@ impl Fold for ESMFold {
           }],
           declare: false,
         }))),
-      )
+      );
     }
 
     node.body = items;

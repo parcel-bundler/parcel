@@ -180,7 +180,7 @@ impl<'a> Fold for Hoist<'a> {
                     show_environment: false,
                     severity: DiagnosticSeverity::Error,
                     documentation_url: None,
-                  })
+                  });
                 }
               }
             }
@@ -348,7 +348,7 @@ impl<'a> Fold for Hoist<'a> {
             }
             item => {
               let d = item.fold_with(self);
-              self.module_items.push(ModuleItem::ModuleDecl(d))
+              self.module_items.push(ModuleItem::ModuleDecl(d));
             }
           }
         }
@@ -483,12 +483,12 @@ impl<'a> Fold for Hoist<'a> {
                     };
                     self
                       .module_items
-                      .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))))
+                      .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
                   }
                 }
                 item => {
                   let d = item.fold_with(self);
-                  self.module_items.push(ModuleItem::Stmt(Stmt::Decl(d)))
+                  self.module_items.push(ModuleItem::Stmt(Stmt::Decl(d)));
                 }
               }
             }
@@ -503,12 +503,12 @@ impl<'a> Fold for Hoist<'a> {
                 let d = expr.fold_with(self);
                 self
                   .module_items
-                  .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr: d, span })))
+                  .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr: d, span })));
               }
             }
             item => {
               let d = item.fold_with(self);
-              self.module_items.push(ModuleItem::Stmt(d))
+              self.module_items.push(ModuleItem::Stmt(d));
             }
           }
         }
@@ -1255,7 +1255,7 @@ impl From<Collect> for CollectResult {
           end_line: 1,
           end_col: 1,
         },
-      })
+      });
     }
 
     Self {
@@ -1305,7 +1305,7 @@ impl Visit for Collect {
             bailouts.push(Bailout {
               loc: SourceLocation::from(&self.source_map, *span),
               reason: BailoutReason::NonStaticAccess,
-            })
+            });
           }
         }
       }
@@ -1588,7 +1588,7 @@ impl Visit for Collect {
       self.add_bailout(node.span, BailoutReason::TopLevelReturn);
     }
 
-    node.visit_children_with(self)
+    node.visit_children_with(self);
   }
 
   fn visit_binding_ident(&mut self, node: &BindingIdent) {
@@ -2121,7 +2121,7 @@ impl Collect {
       bailouts.push(Bailout {
         loc: SourceLocation::from(&self.source_map, span),
         reason,
-      })
+      });
     }
   }
 }

@@ -249,7 +249,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         | ast::ModuleDecl::ExportDefaultDecl(ast::ExportDefaultDecl { span, .. })
         | ast::ModuleDecl::ExportDefaultExpr(ast::ExportDefaultExpr { span, .. })
         | ast::ModuleDecl::ExportNamed(ast::NamedExport { span, .. }) => {
-          self.add_script_error(span)
+          self.add_script_error(span);
         }
         _ => {}
       }
@@ -1070,7 +1070,7 @@ impl Fold for PromiseTransformer {
       if let ast::Expr::Call(call) = &**arg {
         if let Some(require_node) = &self.require_node {
           if require_node == call {
-            self.require_node = None
+            self.require_node = None;
           }
         }
       }
@@ -1084,7 +1084,7 @@ impl Fold for PromiseTransformer {
       if let ast::Expr::Call(call) = &**expr {
         if let Some(require_node) = &self.require_node {
           if require_node == call {
-            self.require_node = None
+            self.require_node = None;
           }
         }
       }
@@ -1226,7 +1226,7 @@ impl<'a> DependencyCollector<'a> {
             documentation_url: Some(String::from(
               "https://parceljs.org/languages/javascript/#classic-scripts",
             )),
-          })
+          });
         }
         true
       }
