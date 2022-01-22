@@ -199,7 +199,7 @@ impl SourceLocation {
     // - SWC's columns are exclusive, ours are inclusive (column - 1)
     // - SWC has 0-based columns, ours are 1-based (column + 1)
     // = +-0
-    SourceLocation {
+    Self {
       start_line: start.line,
       start_col: start.col_display + 1,
       end_line: end.line,
@@ -209,7 +209,7 @@ impl SourceLocation {
 }
 
 impl PartialOrd for SourceLocation {
-  fn partial_cmp(&self, other: &SourceLocation) -> Option<Ordering> {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     match self.start_line.cmp(&other.start_line) {
       Ordering::Equal => self.start_col.partial_cmp(&other.start_col),
       o => Some(o),

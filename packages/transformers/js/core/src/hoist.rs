@@ -1194,7 +1194,7 @@ impl Collect {
     global_mark: Mark,
     trace_bailouts: bool,
   ) -> Self {
-    Collect {
+    Self {
       source_map,
       decls,
       ignore_mark,
@@ -1222,7 +1222,7 @@ impl Collect {
 }
 
 impl From<Collect> for CollectResult {
-  fn from(collect: Collect) -> CollectResult {
+  fn from(collect: Collect) -> Self {
     let mut exports: Vec<CollectExportedSymbol> = collect
       .exports
       .into_iter()
@@ -1258,7 +1258,7 @@ impl From<Collect> for CollectResult {
       })
     }
 
-    CollectResult {
+    Self {
       imports: collect
         .imports
         .into_iter()

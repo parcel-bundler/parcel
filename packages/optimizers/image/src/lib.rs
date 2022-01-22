@@ -64,8 +64,8 @@ struct JPEGOptimizer {
 }
 
 impl JPEGOptimizer {
-  unsafe fn new() -> JPEGOptimizer {
-    JPEGOptimizer {
+  unsafe fn new() -> Self {
+    Self {
       srcinfo: mem::zeroed(),
       dstinfo: mem::zeroed(),
     }
