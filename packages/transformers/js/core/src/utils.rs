@@ -129,9 +129,9 @@ pub fn match_require(
 ) -> Option<JsWord> {
   use ast::*;
 
-  match node {
-    Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
+  if let Expr::Call(call) = node {
+    if let ExprOrSuper::Expr(expr) = &call.callee {
+      match &**expr {
         Expr::Ident(ident) => {
           if ident.sym == js_word!("require")
             && !decls.contains(&(ident.sym.clone(), ident.span.ctxt))
@@ -141,8 +141,6 @@ pub fn match_require(
               return match_str(&*arg.expr).map(|(name, _)| name);
             }
           }
-
-          None
         }
         Expr::Member(member) => {
           if match_member_expr(member, vec!["module", "require"], decls) {
@@ -150,38 +148,29 @@ pub fn match_require(
               return match_str(&*arg.expr).map(|(name, _)| name);
             }
           }
-
-          None
         }
-        _ => None,
-      },
-      _ => None,
-    },
-    _ => None,
+        _ => (),
+      }
+    }
   }
+  None
 }
 
 pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
   use ast::*;
 
-  match node {
-    Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
-        Expr::Ident(ident) => {
-          if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
-            if let Some(arg) = call.args.get(0) {
-              return match_str(&*arg.expr).map(|(name, _)| name);
-            }
+  if let Expr::Call(call) = node {
+    if let ExprOrSuper::Expr(expr) = &call.callee {
+      if let Expr::Ident(ident) = &**expr {
+        if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
+          if let Some(arg) = call.args.get(0) {
+            return match_str(&*arg.expr).map(|(name, _)| name);
           }
-
-          None
         }
-        _ => None,
-      },
-      _ => None,
-    },
-    _ => None,
+      }
+    }
   }
+  None
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
