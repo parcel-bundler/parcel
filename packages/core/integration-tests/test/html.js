@@ -1416,8 +1416,10 @@ describe('html', function () {
       ),
       {
         defaultTargetOptions: {
-          // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#browser_compatibility
-          browsers: ['Chrome 48'],
+          engines: {
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#browser_compatibility
+            browsers: ['Chrome 48'],
+          },
         },
       },
     );
