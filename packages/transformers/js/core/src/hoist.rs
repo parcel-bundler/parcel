@@ -2258,12 +2258,9 @@ mod tests {
   macro_rules! map(
     { $($key:expr => $value:expr),* } => {
       {
-        #[allow(unused_mut)]
-        let mut m = HashMap::new();
-        $(
-          m.insert($key, $value);
-        )*
-        m
+        HashMap::from([
+          $(($key, $value),)*
+        ])
       }
     };
   );
@@ -2271,12 +2268,9 @@ mod tests {
   macro_rules! set(
     { $($key:expr),* } => {
       {
-        #[allow(unused_mut)]
-        let mut m = HashSet::new();
-        $(
-          m.insert($key);
-        )*
-        m
+        HashSet::from([
+          $($key,)*
+        ])
       }
     };
   );
