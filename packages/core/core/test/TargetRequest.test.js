@@ -681,7 +681,7 @@ describe('TargetResolver', () => {
         distEntry: 'index.js',
         publicUrl: '/',
         env: {
-          id: '6aafdb9eaa4a3812',
+          id: '8607cdf17b3205c2',
           context: 'node',
           engines: {
             browsers: [
@@ -1060,7 +1060,7 @@ describe('TargetResolver', () => {
         publicUrl: '/',
         stableEntries: undefined,
         env: {
-          id: '439701173a9199ea',
+          id: 'e7012abb50a20318',
           context: 'browser',
           engines: {
             browsers: [
@@ -1106,7 +1106,7 @@ describe('TargetResolver', () => {
         publicUrl: '/',
         stableEntries: undefined,
         env: {
-          id: '439701173a9199ea',
+          id: 'e7012abb50a20318',
           context: 'browser',
           engines: {
             browsers: [
@@ -1237,7 +1237,7 @@ describe('TargetResolver', () => {
           distDir: '.parcel-cache/dist',
           publicUrl: '/',
           env: {
-            id: 'd6ea1d42532a7575',
+            id: '9f46731a32ecebda',
             context: 'browser',
             engines: {
               browsers: [
