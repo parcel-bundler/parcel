@@ -25,7 +25,9 @@ export default (new Resolver({
           ? ['ts', 'tsx', 'js', 'jsx', 'json']
           : [],
       mainFields: ['source', 'browser', 'module', 'main'],
-      packageManager: options.packageManager,
+      packageManager: options.shouldAutoInstall
+        ? options.packageManager
+        : undefined,
       logger,
     });
 
