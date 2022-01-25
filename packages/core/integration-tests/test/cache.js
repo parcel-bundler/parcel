@@ -155,7 +155,7 @@ describe('cache', function () {
   });
 
   it.skip('should support adding a dependency which changes the referenced bundles of a parent bundle', async function () {
-    async function exec(bundleGraph, bundle) {
+    async function exec(bundleGraph) {
       let calls = [];
       await run(bundleGraph, {
         call(v) {
