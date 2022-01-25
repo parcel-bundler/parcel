@@ -2,13 +2,11 @@
 import type {InitialParcelOptions, BuildSuccessEvent} from '@parcel/types';
 import assert from 'assert';
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import path from 'path';
 import {
   assertBundles,
   bundler,
   run,
-  runBundle as runSingleBundle,
   overlayFS,
   outputFS,
   inputFS,
@@ -159,7 +157,7 @@ describe('cache', function () {
   it.skip('should support adding a dependency which changes the referenced bundles of a parent bundle', async function () {
     async function exec(bundleGraph, bundle) {
       let calls = [];
-      await runSingleBundle(bundleGraph, nullthrows(bundle), {
+      await run(bundleGraph, {
         call(v) {
           calls.push(v);
         },
@@ -169,28 +167,19 @@ describe('cache', function () {
 
     let b = await testCache(
       {
-        entries: ['a.html', 'b.html'],
-        mode: 'production',
+        entries: ['index.html'],
         update: async b => {
-          let html = b.bundleGraph.getBundles().filter(b => b.type === 'html');
-          assert.deepEqual(await exec(b.bundleGraph, html[0]), ['a']);
-          assert.deepEqual(await exec(b.bundleGraph, html[1]), ['b']);
+          assert.deepEqual(await exec(b.bundleGraph), ['a', 'b']);
           await overlayFS.writeFile(
             path.join(inputDir, 'a.js'),
-            'import "./c.js"; call("a");',
-          );
-          await overlayFS.writeFile(
-            path.join(inputDir, 'b.js'),
-            'import "./c.js"; call("b");',
+            'import "./b.js"; call("a");',
           );
         },
       },
       'cache-add-dep-referenced',
     );
 
-    let html = b.bundleGraph.getBundles().filter(b => b.type === 'html');
-    assert.deepEqual(await exec(b.bundleGraph, html[0]), ['c', 'a']);
-    assert.deepEqual(await exec(b.bundleGraph, html[1]), ['c', 'b']);
+    assert.deepEqual(await exec(b.bundleGraph), ['b', 'a']);
   });
 
   it('should error when deleting a file', async function () {
