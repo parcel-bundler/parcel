@@ -1408,6 +1408,30 @@ describe('html', function () {
     assert(errored);
   });
 
+  it('should not import swc/helpers without type="module"', async function () {
+    await bundle(
+      path.join(
+        __dirname,
+        '/integration/html-js-not-import-swc-helpers-without-module/index.html',
+      ),
+      {
+        defaultTargetOptions: {
+          engines: {
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#browser_compatibility
+            browsers: ['Chrome 48'],
+          },
+        },
+      },
+    );
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(!html.includes('swc/helpers'));
+    assert(html.includes('slicedToArray'));
+  });
+
   it('should allow imports and requires in inline <script> tags', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-require/index.html'),
