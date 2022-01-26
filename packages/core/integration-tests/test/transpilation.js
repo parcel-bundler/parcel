@@ -56,17 +56,28 @@ describe('transpilation', function () {
     assert(modern.includes('class Bar'));
   });
 
-  it('should not transpile node_modules by default', async function () {
-    await bundle(
+  it('should transpile node_modules by default', async function () {
+    let b = await bundle(
       path.join(__dirname, '/integration/babel-node-modules/index.js'),
     );
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(/class \S+ \{/.test(file));
+    assert(!/class \S+ \{/.test(file));
     assert(file.includes('function Bar'));
+    let res = await run(b);
+    assert.equal(res.t, 'function');
   });
 
-  it('should not compile node_modules with a source field in package.json when not symlinked', async function () {
+  it('should not support JSX in node_modules', async function () {
+    // $FlowFixMe
+    await assert.rejects(() =>
+      bundle(
+        path.join(__dirname, '/integration/babel-node-modules-jsx/index.js'),
+      ),
+    );
+  });
+
+  it('should compile node_modules with a source field in package.json when not symlinked', async function () {
     await bundle(
       path.join(
         __dirname,
@@ -75,7 +86,7 @@ describe('transpilation', function () {
     );
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(!file.includes('function Foo'));
+    assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));
   });
 
