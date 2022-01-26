@@ -266,8 +266,12 @@ class BundlerRunner {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
         invariant(internalBundleGraph != null); // ensures the graph was created
 
-        // $FlowFixMe
-        await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
+        await dumpGraphToGraphViz(
+          // $FlowFixMe[incompatible-call]
+          internalBundleGraph._graph,
+          'before_bundle',
+          bundleGraphEdgeTypes,
+        );
         mutableBundleGraph = new MutableBundleGraph(
           internalBundleGraph,
           this.options,
@@ -300,6 +304,7 @@ class BundlerRunner {
               // $FlowFixMe[incompatible-call]
               internalBundleGraph._graph,
               'after_optimize',
+              bundleGraphEdgeTypes,
             );
           }
         }
@@ -312,8 +317,12 @@ class BundlerRunner {
       });
     } finally {
       invariant(internalBundleGraph != null); // ensures the graph was created
-      // $FlowFixMe[incompatible-call]
-      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
+      await dumpGraphToGraphViz(
+        // $FlowFixMe[incompatible-call]
+        internalBundleGraph._graph,
+        'after_bundle',
+        bundleGraphEdgeTypes,
+      );
     }
 
     // Add dev dependency for the bundler. This must be done AFTER running it due to
