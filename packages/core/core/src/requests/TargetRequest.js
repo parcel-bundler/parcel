@@ -74,6 +74,16 @@ const COMMON_TARGETS = {
   },
 };
 
+const DEFAULT_ENGINES = {
+  node: 'current',
+  browsers: [
+    'last 1 Chrome version',
+    'last 1 Safari version',
+    'last 1 Firefox version',
+    'last 1 Edge version',
+  ],
+};
+
 export type TargetRequest = {|
   id: string,
   +type: 'target_request',
@@ -317,7 +327,9 @@ export class TargetResolver {
             publicUrl: this.options.defaultTargetOptions.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
-              engines: {},
+              engines: {
+                browsers: DEFAULT_ENGINES.browsers,
+              },
               shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
               outputFormat: this.options.defaultTargetOptions.outputFormat,
               shouldScopeHoist:
@@ -473,23 +485,15 @@ export class TargetResolver {
 
     let defaultEngines = this.options.defaultTargetOptions.engines;
     let context = browsers ?? !node ? 'browser' : 'node';
-    if (
-      context === 'browser' &&
-      pkgEngines.browsers == null &&
-      defaultEngines?.browsers != null
-    ) {
+    if (context === 'browser' && pkgEngines.browsers == null) {
       pkgEngines = {
         ...pkgEngines,
-        browsers: defaultEngines.browsers,
+        browsers: defaultEngines?.browsers ?? DEFAULT_ENGINES.browsers,
       };
-    } else if (
-      context === 'node' &&
-      pkgEngines.node == null &&
-      defaultEngines?.node != null
-    ) {
+    } else if (context === 'node' && pkgEngines.node == null) {
       pkgEngines = {
         ...pkgEngines,
-        node: defaultEngines.node,
+        node: defaultEngines?.node ?? DEFAULT_ENGINES.node,
       };
     }
 
