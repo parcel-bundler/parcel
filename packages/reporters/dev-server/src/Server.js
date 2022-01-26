@@ -161,16 +161,16 @@ export default class Server {
   sendIndex(req: Request, res: Response) {
     if (this.bundleGraph) {
       // If the main asset is an HTML file, serve it
-      let htmlBundleFilePaths = [];
-      this.bundleGraph.traverseBundles(bundle => {
-        if (bundle.type === 'html' && bundle.bundleBehavior !== 'inline') {
-          htmlBundleFilePaths.push(bundle.filePath);
-        }
-      });
-
-      htmlBundleFilePaths = htmlBundleFilePaths.map(p => {
-        return `/${relativePath(this.options.distDir, p, false)}`;
-      });
+      let htmlBundleFilePaths = this.bundleGraph
+        .getBundles()
+        .filter(bundle => bundle.type === 'html')
+        .map(bundle => {
+          return `/${relativePath(
+            this.options.distDir,
+            bundle.filePath,
+            false,
+          )}`;
+        });
 
       let indexFilePath = null;
       if (htmlBundleFilePaths.length === 1) {

@@ -16,37 +16,8 @@ import {
   NodePackageManager,
   MockPackageInstaller,
 } from '@parcel/package-manager';
-import postcss from 'postcss';
 
 describe('postcss', () => {
-  it('should support transforming css modules with postcss (require)', async () => {
-    let b = await bundle(
-      path.join(__dirname, '/integration/postcss-modules-cjs/index.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js', 'foo.module.css'],
-      },
-      {
-        name: 'index.css',
-        assets: ['index.css', 'foo.module.css'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-
-    let value = output();
-    assert(/_foo_[0-9a-z]/.test(value));
-
-    let cssClass = value.match(/(_foo_[0-9a-z])/)[1];
-
-    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(css.includes(`.${cssClass}`));
-  });
-
   it('should build successfully with only postcss-modules config', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-modules-config/index.js'),
@@ -67,175 +38,12 @@ describe('postcss', () => {
     assert.equal(typeof output, 'function');
 
     let value = output();
-    assert(/_foo_[0-9a-z]/.test(value));
+    assert(/foo_[0-9a-z]/.test(value));
 
-    let cssClass = value.match(/(_foo_[0-9a-z])/)[1];
+    let cssClass = value.match(/(foo_[0-9a-z])/)[1];
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes(`.${cssClass}`));
-  });
-
-  it('should support transforming css modules with postcss (import default)', async () => {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/postcss-modules-import-default/index.js',
-      ),
-      {mode: 'production'},
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js', 'style.module.css'],
-      },
-      {
-        name: 'index.css',
-        assets: ['style.module.css'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert(/_b-2_[0-9a-z]/.test(output));
-
-    let css = await outputFS.readFile(
-      b.getBundles().find(b => b.type === 'css').filePath,
-      'utf8',
-    );
-    let includedRules = new Set();
-    postcss.parse(css).walkRules(rule => {
-      includedRules.add(rule.selector);
-    });
-    assert(includedRules.has('.page'));
-    assert(includedRules.has(`.${output}`));
-  });
-
-  it('should tree shake unused css modules classes with a namespace import', async () => {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/postcss-modules-import-namespace/index.js',
-      ),
-      {mode: 'production'},
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js', 'style.module.css'],
-      },
-      {
-        name: 'index.css',
-        assets: ['global.css', 'style.module.css'],
-      },
-    ]);
-
-    let js = await outputFS.readFile(
-      b.getBundles().find(b => b.type === 'js').filePath,
-      'utf8',
-    );
-    assert(!js.includes('unused'));
-
-    let output = await run(b);
-    assert(/_b-2_[0-9a-z]/.test(output));
-
-    let css = await outputFS.readFile(
-      b.getBundles().find(b => b.type === 'css').filePath,
-      'utf8',
-    );
-    let includedRules = new Set();
-    postcss.parse(css).walkRules(rule => {
-      includedRules.add(rule.selector);
-    });
-    assert.deepStrictEqual(
-      includedRules,
-      new Set(['body', `.${output}`, '.page']),
-    );
-  });
-
-  it('should produce correct css without symbol propagation for css modules classes with a namespace import', async () => {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/postcss-modules-import-namespace/index.js',
-      ),
-      {
-        mode: 'production',
-        defaultTargetOptions: {
-          shouldScopeHoist: false,
-        },
-      },
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js', 'style.module.css'],
-      },
-      {
-        name: 'index.css',
-        assets: ['global.css', 'style.module.css'],
-      },
-    ]);
-
-    let {output} = await run(b, null, {require: false});
-    assert(/_b-2_[0-9a-z]/.test(output));
-
-    let css = await outputFS.readFile(
-      b.getBundles().find(b => b.type === 'css').filePath,
-      'utf8',
-    );
-    let includedRules = new Set();
-    postcss.parse(css).walkRules(rule => {
-      includedRules.add(rule.selector);
-    });
-    assert(includedRules.has('body'));
-    assert(includedRules.has(`.${output}`));
-    assert(includedRules.has('.page'));
-  });
-
-  it('should support importing css modules with a non-static namespace import', async () => {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/postcss-modules-import-namespace-whole/index.js',
-      ),
-      {mode: 'production'},
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js', 'style.module.css'],
-      },
-      {
-        name: 'index.css',
-        assets: ['global.css', 'style.module.css'],
-      },
-    ]);
-
-    let js = await outputFS.readFile(
-      b.getBundles().find(b => b.type === 'js').filePath,
-      'utf8',
-    );
-    assert(js.includes('unused'));
-
-    let output = await run(b);
-    assert(/_b-2_[0-9a-z]/.test(output['b-2']));
-    assert(/_unused_[0-9a-z]/.test(output['unused']));
-
-    let css = await outputFS.readFile(
-      b.getBundles().find(b => b.type === 'css').filePath,
-      'utf8',
-    );
-    let includedRules = new Set();
-    postcss.parse(css).walkRules(rule => {
-      includedRules.add(rule.selector);
-    });
-    assert.deepStrictEqual(
-      includedRules,
-      new Set(['body', `.${output['b-2']}`, `.${output['unused']}`, '.page']),
-    );
   });
 
   it('should support transforming with postcss twice with the same result', async () => {
@@ -259,185 +67,6 @@ describe('postcss', () => {
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
 
     assert(css.includes('url("data:image/gif;base64,quotes")'));
-  });
-
-  it('should support postcss composes imports', async () => {
-    let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: [
-          'index.js',
-          'composes-1.module.css',
-          'composes-2.module.css',
-          'mixins.module.css',
-        ],
-      },
-      {
-        name: 'index.css',
-        assets: [
-          'composes-1.module.css',
-          'composes-2.module.css',
-          'mixins.module.css',
-        ],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-
-    let value = output();
-    const composes1Classes = value.composes1.split(' ');
-    const composes2Classes = value.composes2.split(' ');
-    assert(composes1Classes[0].startsWith('_composes1_'));
-    assert(composes1Classes[1].startsWith('_test_'));
-    assert(composes2Classes[0].startsWith('_composes2_'));
-    assert(composes2Classes[1].startsWith('_test_'));
-
-    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    let cssClass1 = value.composes1.match(/(_composes1_[0-9a-z]+)/)[1];
-    assert(css.includes(`.${cssClass1}`));
-    let cssClass2 = value.composes2.match(/(_composes2_[0-9a-z]+)/)[1];
-    assert(css.includes(`.${cssClass2}`));
-  });
-
-  it('should not include css twice for postcss composes imports', async () => {
-    let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index.js'),
-    );
-
-    await run(b);
-
-    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert.equal(
-      css.indexOf('height: 100px;'),
-      css.lastIndexOf('height: 100px;'),
-    );
-  });
-
-  it('should support postcss composes imports for sass', async () => {
-    let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index2.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index2.js',
-        assets: ['index2.js', 'composes-3.module.css', 'mixins.module.scss'],
-      },
-      {
-        name: 'index2.css',
-        assets: ['composes-3.module.css', 'mixins.module.scss'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-
-    let value = output();
-    const composes3Classes = value.composes3.split(' ');
-    assert(composes3Classes[0].startsWith('_composes3_'));
-    assert(composes3Classes[1].startsWith('_test_'));
-
-    let css = await outputFS.readFile(path.join(distDir, 'index2.css'), 'utf8');
-    assert(css.includes('height: 200px;'));
-  });
-
-  it('should support postcss composes imports with custom path names', async () => {
-    let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index3.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index3.js',
-        assets: ['index3.js', 'composes-4.module.css', 'mixins.module.css'],
-      },
-      {
-        name: 'index3.css',
-        assets: ['composes-4.module.css', 'mixins.module.css'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-
-    let value = output();
-    const composes4Classes = value.composes4.split(' ');
-    assert(composes4Classes[0].startsWith('_composes4_'));
-    assert(composes4Classes[1].startsWith('_test_'));
-
-    let css = await outputFS.readFile(path.join(distDir, 'index3.css'), 'utf8');
-    assert(css.includes('height: 100px;'));
-  });
-
-  it('should support deep nested postcss composes imports', async () => {
-    let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index4.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index4.js',
-        assets: [
-          'index4.js',
-          'composes-5.module.css',
-          'mixins-intermediate.module.css',
-          'mixins.module.css',
-        ],
-      },
-      {
-        name: 'index4.css',
-        assets: [
-          'composes-5.module.css',
-          'mixins-intermediate.module.css',
-          'mixins.module.css',
-        ],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-
-    let value = output();
-    const composes5Classes = value.composes5.split(' ');
-    assert(composes5Classes[0].startsWith('_composes5_'));
-    assert(composes5Classes[1].startsWith('_intermediate_'));
-    assert(composes5Classes[2].startsWith('_test_'));
-
-    let css = await outputFS.readFile(path.join(distDir, 'index4.css'), 'utf8');
-    assert(css.includes('height: 100px;'));
-    assert(css.includes('height: 300px;'));
-    assert(css.indexOf('._test_') < css.indexOf('._intermediate_'));
-  });
-
-  it('should support postcss composes imports for multiple selectors', async () => {
-    let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index5.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index5.js',
-        assets: ['index5.js', 'composes-6.module.css', 'mixins.module.css'],
-      },
-      {
-        name: 'index5.css',
-        assets: ['composes-6.module.css', 'mixins.module.css'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-
-    let value = output();
-    const composes6Classes = value.composes6.split(' ');
-    assert(composes6Classes[0].startsWith('_composes6_'));
-    assert(composes6Classes[1].startsWith('_test_'));
-    assert(composes6Classes[2].startsWith('_test-2_'));
   });
 
   it('should automatically install postcss plugins if needed', async () => {
@@ -577,12 +206,16 @@ describe('postcss', () => {
       buildEvent.bundleGraph.getBundles()[0].filePath,
       'utf8',
     );
-    assert(contents.includes('background: green, red'));
+    assert(
+      contents.includes(
+        'background: linear-gradient(green, pink), linear-gradient(red, orange)',
+      ),
+    );
 
     // update
     await inputFS.writeFile(
       path.join(inputDir, 'backgrounds', 'green.txt'),
-      'yellow',
+      'linear-gradient(purple, orange)',
     );
 
     buildEvent = await getNextBuild(b);
@@ -592,12 +225,16 @@ describe('postcss', () => {
       buildEvent.bundleGraph.getBundles()[0].filePath,
       'utf8',
     );
-    assert(contents.includes('background: yellow, red'));
+    assert(
+      contents.includes(
+        'background: linear-gradient(purple, orange), linear-gradient(red, orange)',
+      ),
+    );
 
     // create
     await inputFS.writeFile(
       path.join(inputDir, 'backgrounds', 'orange.txt'),
-      'orange',
+      'linear-gradient(orange, purple)',
     );
 
     buildEvent = await getNextBuild(b);
@@ -607,7 +244,11 @@ describe('postcss', () => {
       buildEvent.bundleGraph.getBundles()[0].filePath,
       'utf8',
     );
-    assert(contents.includes('background: yellow, orange, red'));
+    assert(
+      contents.includes(
+        'background: linear-gradient(purple, orange), linear-gradient(orange, purple), linear-gradient(red, orange)',
+      ),
+    );
 
     // delete
     await inputFS.unlink(path.join(inputDir, 'backgrounds', 'red.txt'));
@@ -619,58 +260,13 @@ describe('postcss', () => {
       buildEvent.bundleGraph.getBundles()[0].filePath,
       'utf8',
     );
-    assert(contents.includes('background: yellow, orange'));
+    assert(
+      contents.includes(
+        'background: linear-gradient(purple, orange), linear-gradient(orange, purple)',
+      ),
+    );
 
     await subscription.unsubscribe();
-  });
-
-  it('should throw an error when importing a missing class', async function () {
-    await assert.rejects(
-      () =>
-        bundle(
-          path.join(
-            __dirname,
-            '/integration/no-export-error-with-correct-filetype/src/App.jsx',
-          ),
-          {
-            shouldDisableCache: true,
-            defaultTargetOptions: {
-              shouldScopeHoist: true,
-            },
-          },
-        ),
-      {
-        name: 'BuildError',
-        diagnostics: [
-          {
-            codeFrames: [
-              {
-                filePath: path.join(
-                  __dirname,
-                  '/integration/no-export-error-with-correct-filetype/src/App.jsx',
-                ),
-                language: 'js',
-                codeHighlights: [
-                  {
-                    end: {
-                      column: 45,
-                      line: 7,
-                    },
-                    start: {
-                      column: 28,
-                      line: 7,
-                    },
-                  },
-                ],
-              },
-            ],
-            message:
-              "integration/no-export-error-with-correct-filetype/src/app.module.css does not export 'notExisting'",
-            origin: '@parcel/core',
-          },
-        ],
-      },
-    );
   });
 
   it('should throw an error with code frame when .postcssrc is invalid', async function () {

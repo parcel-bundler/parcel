@@ -13,8 +13,6 @@ import {POSTCSS_RANGE} from './constants';
 
 import loadExternalPlugins from './loadPlugins';
 
-const MODULE_BY_NAME_RE = /\.module\./;
-
 type ConfigResult = {|
   raw: any,
   hydrated: {|
@@ -31,17 +29,6 @@ async function configHydrator(
   resolveFrom: ?FilePath,
   options: PluginOptions,
 ): Promise<?ConfigResult> {
-  // Use a basic, modules-only PostCSS config if the file opts in by a name
-  // like foo.module.css
-  if (configFile == null && config.searchPath.match(MODULE_BY_NAME_RE)) {
-    configFile = {
-      plugins: {
-        'postcss-modules': {},
-      },
-    };
-    resolveFrom = __filename;
-  }
-
   if (configFile == null) {
     return;
   }
