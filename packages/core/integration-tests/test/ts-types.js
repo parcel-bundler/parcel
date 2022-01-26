@@ -361,4 +361,31 @@ describe('typescript types', function () {
     );
     assert.equal(dist, expected);
   });
+
+  it('should handle re-exporting aggregating correctly', async function () {
+    await bundle(
+      path.join(
+        __dirname,
+        '/integration/ts-types/re-exporting-aggregating/index.ts',
+      ),
+    );
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/re-exporting-aggregating/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/re-exporting-aggregating/expected.d.ts',
+      ),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
 });

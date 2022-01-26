@@ -12,6 +12,8 @@ import Environment from './Environment';
 import {fromProjectPath} from '../projectPath';
 import {fromInternalSourceLocation} from '../utils';
 
+const inspect = Symbol.for('nodejs.util.inspect.custom');
+
 const internalTargetToTarget: WeakMap<TargetValue, Target> = new WeakMap();
 const _targetToInternalTarget: WeakMap<ITarget, TargetValue> = new WeakMap();
 export function targetToInternalTarget(target: ITarget): TargetValue {
@@ -64,5 +66,10 @@ export default class Target implements ITarget {
 
   get stableEntries(): boolean {
     return this.#target.stableEntries !== false;
+  }
+
+  // $FlowFixMe[unsupported-syntax]
+  [inspect](): string {
+    return `Target(${this.name} - ${this.env[inspect]()})`;
   }
 }

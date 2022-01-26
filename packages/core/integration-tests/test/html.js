@@ -615,7 +615,7 @@ describe('html', function () {
     );
 
     // mergeStyles
-    assert(html.includes('<style>h1{color:red}</style>'));
+    assert(html.includes('<style>h1{color:red}div{font-size:20px}</style>'));
 
     assert(!html.includes('sourceMappingURL'));
 
@@ -943,7 +943,7 @@ describe('html', function () {
     let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
       contents.includes(
-        '<svg><symbol id="all"><rect width="100" height="100"/></symbol></svg><svg xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#all" href="#all"/></svg>',
+        '<svg><symbol id="all"><rect width="100" height="100"/></symbol></svg><svg><use xlink:href="#all" href="#all"/></svg>',
       ),
     );
   });
@@ -961,6 +961,23 @@ describe('html', function () {
       {
         type: 'svg',
         assets: ['file.svg'],
+      },
+    ]);
+  });
+
+  it("should support href attribute in <image /> in HTMLTransformer's collectDependencies", async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-image-href-attr/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'png',
+        assets: ['100x100.png'],
       },
     ]);
   });
@@ -2633,11 +2650,7 @@ describe('html', function () {
       path.join(__dirname, 'integration/html-inline-escape/style.html'),
     );
     let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    let name = path.basename(
-      b.getBundles().find(b => b.type === 'png').filePath,
-      'utf8',
-    );
-    assert(output.includes(`url(&quot;${name}&quot;)`));
+    assert(output.includes(`content: &quot;hi&quot;`));
     assert(output.includes('<\\/style>'));
   });
 

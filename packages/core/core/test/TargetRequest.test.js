@@ -681,9 +681,16 @@ describe('TargetResolver', () => {
         distEntry: 'index.js',
         publicUrl: '/',
         env: {
-          id: '607a315cd4cef41a',
+          id: '8607cdf17b3205c2',
           context: 'node',
-          engines: {},
+          engines: {
+            browsers: [
+              'last 1 Chrome version',
+              'last 1 Safari version',
+              'last 1 Firefox version',
+              'last 1 Edge version',
+            ],
+          },
           includeNodeModules: false,
           isLibrary: true,
           outputFormat: 'commonjs',
@@ -1053,9 +1060,16 @@ describe('TargetResolver', () => {
         publicUrl: '/',
         stableEntries: undefined,
         env: {
-          id: '16ba55b36df659ab',
+          id: 'e7012abb50a20318',
           context: 'browser',
-          engines: {},
+          engines: {
+            browsers: [
+              'last 1 Chrome version',
+              'last 1 Safari version',
+              'last 1 Firefox version',
+              'last 1 Edge version',
+            ],
+          },
           includeNodeModules: true,
           outputFormat: 'esmodule',
           isLibrary: false,
@@ -1092,9 +1106,16 @@ describe('TargetResolver', () => {
         publicUrl: '/',
         stableEntries: undefined,
         env: {
-          id: '16ba55b36df659ab',
+          id: 'e7012abb50a20318',
           context: 'browser',
-          engines: {},
+          engines: {
+            browsers: [
+              'last 1 Chrome version',
+              'last 1 Safari version',
+              'last 1 Firefox version',
+              'last 1 Edge version',
+            ],
+          },
           includeNodeModules: true,
           outputFormat: 'esmodule',
           isLibrary: false,
@@ -1216,9 +1237,16 @@ describe('TargetResolver', () => {
           distDir: '.parcel-cache/dist',
           publicUrl: '/',
           env: {
-            id: '3a724be1e83713c3',
+            id: '9f46731a32ecebda',
             context: 'browser',
-            engines: {},
+            engines: {
+              browsers: [
+                'last 1 Chrome version',
+                'last 1 Safari version',
+                'last 1 Firefox version',
+                'last 1 Edge version',
+              ],
+            },
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,

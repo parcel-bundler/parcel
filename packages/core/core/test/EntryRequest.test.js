@@ -1,6 +1,7 @@
 // @flow strict-local
 import assert from 'assert';
 import path from 'path';
+import {md} from '@parcel/diagnostic';
 import {inputFS as fs} from '@parcel/test-utils';
 import {EntryResolver} from '../src/requests/EntryRequest';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './test-utils';
@@ -45,7 +46,7 @@ describe('EntryResolver', function () {
         diagnostics: [
           {
             origin: '@parcel/core',
-            message: `${path.join(
+            message: md`${path.join(
               path.relative(fs.cwd(), INVALID_SOURCE_MISSING_FIXTURE_PATH),
               'missing.js',
             )} does not exist.`,
@@ -85,7 +86,7 @@ describe('EntryResolver', function () {
         diagnostics: [
           {
             origin: '@parcel/core',
-            message: `${path.join(
+            message: md`${path.join(
               path.relative(fs.cwd(), INVALID_SOURCE_NOT_FILE_FIXTURE_PATH),
               'src',
             )} is not a file.`,
@@ -125,7 +126,7 @@ describe('EntryResolver', function () {
         diagnostics: [
           {
             origin: '@parcel/core',
-            message: `${path.join(
+            message: md`${path.join(
               path.relative(
                 fs.cwd(),
                 INVALID_TARGET_SOURCE_MISSING_FIXTURE_PATH,
@@ -169,7 +170,7 @@ describe('EntryResolver', function () {
         diagnostics: [
           {
             origin: '@parcel/core',
-            message: `${path.join(
+            message: md`${path.join(
               path.relative(
                 fs.cwd(),
                 INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH,
