@@ -10,8 +10,7 @@ import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation} from '@parcel/utils';
-import {isMatch} from 'micromatch';
+import {validateSchema, remapSourceLocation, isGlobMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 
 const JSX_EXTENSIONS = {
@@ -350,7 +349,7 @@ export default (new Transformer({
       }
     } else if (Array.isArray(config?.inlineEnvironment)) {
       for (let key in options.env) {
-        if (isMatch(key, config.inlineEnvironment)) {
+        if (isGlobMatch(key, config.inlineEnvironment)) {
           env[key] = String(options.env[key]);
         }
       }

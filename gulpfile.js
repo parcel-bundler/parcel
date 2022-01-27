@@ -12,7 +12,15 @@ const IGNORED_PACKAGES = [
   '!packages/core/is-v2-ready-yet/**',
   '!packages/core/test-utils/**',
   '!packages/core/types/**',
-  '!packages/utils/node-libs-browser/**',
+
+  // These packages are bundled.
+  '!packages/core/codeframe/**',
+  '!packages/core/fs/**',
+  '!packages/core/package-manager/**',
+  '!packages/core/utils/**',
+  '!packages/reporters/cli/**',
+  '!packages/reporters/dev-server/**',
+  '!packages/utils/fs-write-stream-atomic/**',
 ];
 
 const paths = {

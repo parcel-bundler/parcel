@@ -297,8 +297,8 @@ describe('resolver', function () {
             aboveFilePath: path.join(rootDir, 'foo.js'),
           },
           {
-            fileName: 'package.json',
-            aboveFilePath: require.resolve('browserify-zlib'),
+            fileName: 'node_modules/browserify-zlib',
+            aboveFilePath: path.join(rootDir, 'foo.js'),
           },
         ],
         invalidateOnFileChange: [
@@ -329,8 +329,8 @@ describe('resolver', function () {
             aboveFilePath: path.join(rootDir, 'foo.js'),
           },
           {
-            fileName: 'package.json',
-            aboveFilePath: require.resolve('browserify-zlib'),
+            fileName: 'node_modules/browserify-zlib',
+            aboveFilePath: path.join(rootDir, 'foo.js'),
           },
         ],
         invalidateOnFileChange: [
