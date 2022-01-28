@@ -25,7 +25,6 @@
     "@parcel/utils": "^2.2.1",
     "clone": "^2.1.1",
     "nullthrows": "^1.1.1",
-    "postcss-modules": "^4.3.0",
     "postcss-value-parser": "^4.2.0",
     "semver": "^5.7.1"
   },

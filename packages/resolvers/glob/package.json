@@ -23,7 +23,6 @@
     "@parcel/diagnostic": "^2.2.1",
     "@parcel/plugin": "^2.2.1",
     "@parcel/utils": "^2.2.1",
-    "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1"
   }
 }

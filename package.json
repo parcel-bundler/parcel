@@ -11,7 +11,8 @@
     "packages/*/*"
   ],
   "scripts": {
-    "build": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
+    "build": "yarn build-bundles && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
+    "build-bundles": "rm -rf packages/*/*/lib && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server}",
     "build-ts": "lerna run build-ts && lerna run check-ts",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
@@ -52,7 +53,7 @@
     "mocha-junit-reporter": "^2.0.0",
     "mocha-multi-reporters": "^1.5.1",
     "prettier": "2.4.1",
-    "rimraf": "^2.6.3",
+    "rimraf": "^3.0.2",
     "semver": "^5.7.1",
     "sinon": "^7.3.1"
   },

@@ -19,11 +19,23 @@
     "node": ">= 12.0.0",
     "parcel": "^2.2.1"
   },
+  "targets": {
+    "main": {
+      "includeNodeModules": {
+        "@parcel/plugin": false,
+        "@parcel/types": false,
+        "@parcel/utils": false,
+        "chalk": false
+      }
+    }
+  },
   "dependencies": {
     "@parcel/plugin": "^2.2.1",
     "@parcel/types": "^2.2.1",
     "@parcel/utils": "^2.2.1",
-    "chalk": "^4.1.0",
+    "chalk": "^4.1.0"
+  },
+  "devDependencies": {
     "filesize": "^6.1.0",
     "nullthrows": "^1.1.1",
     "ora": "^5.2.0",

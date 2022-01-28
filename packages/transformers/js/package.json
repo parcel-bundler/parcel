@@ -38,7 +38,6 @@
     "@swc/helpers": "^0.2.11",
     "browserslist": "^4.6.6",
     "detect-libc": "^1.0.3",
-    "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",
     "semver": "^5.7.1"
