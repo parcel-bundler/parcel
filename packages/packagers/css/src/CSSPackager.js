@@ -2,6 +2,7 @@
 
 import type {Root} from 'postcss';
 import type {Asset, Dependency} from '@parcel/types';
+import typeof PostCSS from 'postcss';
 
 import path from 'path';
 import SourceMap from '@parcel/source-map';
@@ -13,7 +14,6 @@ import {
   replaceURLReferences,
 } from '@parcel/utils';
 
-import postcss from 'postcss';
 import nullthrows from 'nullthrows';
 
 export default (new Packager({
@@ -161,6 +161,16 @@ async function processCSSModule(
   asset,
   media,
 ): Promise<[Asset, string, ?Buffer]> {
+  let postcss: PostCSS = await options.packageManager.require(
+    'postcss',
+    options.projectRoot + '/index',
+    {
+      range: '^8.4.5',
+      saveDev: true,
+      shouldAutoInstall: options.shouldAutoInstall,
+    },
+  );
+
   let ast: Root = postcss.fromJSON(nullthrows((await asset.getAST())?.program));
 
   let usedSymbols = bundleGraph.getUsedSymbols(asset);

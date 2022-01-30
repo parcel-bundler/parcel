@@ -223,9 +223,15 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
       let should_inline_fs = config.inline_fs
         && config.source_type != SourceType::Script
         && code.contains("readFileSync");
+      let should_import_swc_helpers = match config.source_type {
+        SourceType::Module => true,
+        SourceType::Script => false,
+      };
       swc_common::GLOBALS.set(&Globals::new(), || {
         helpers::HELPERS.set(
-          &helpers::Helpers::new(/* external helpers from @swc/helpers */ true),
+          &helpers::Helpers::new(
+            /* external helpers from @swc/helpers */ should_import_swc_helpers,
+          ),
           || {
             let mut react_options = react::Options::default();
             if config.is_jsx {

@@ -66,7 +66,7 @@ describe('postcss', () => {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
 
-    assert(css.includes('url(data:image/gif;base64,quotes)'));
+    assert(css.includes('url("data:image/gif;base64,quotes")'));
   });
 
   it('should automatically install postcss plugins if needed', async () => {

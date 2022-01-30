@@ -5,12 +5,10 @@ import type {FilePath, Asset, MutableAsset, PluginOptions} from '@parcel/types';
 import {hashString} from '@parcel/hash';
 import {glob} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
-import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import semver from 'semver';
 import valueParser from 'postcss-value-parser';
-import postcssModules from 'postcss-modules';
 import typeof * as Postcss from 'postcss';
 
 import {load} from './loadConfig';
@@ -79,10 +77,22 @@ export default (new Transformer({
     let cssModules: ?{|[string]: string|} = null;
     if (config.hydrated.modules) {
       asset.meta.cssModulesCompiled = true;
+
+      // TODO: should this be resolved from the project root?
+      let postcssModules = await options.packageManager.require(
+        'postcss-modules',
+        asset.filePath,
+        {
+          range: '^4.3.0',
+          saveDev: true,
+          shouldAutoInstall: options.shouldAutoInstall,
+        },
+      );
+
       plugins.push(
         postcssModules({
           getJSON: (filename, json) => (cssModules = json),
-          Loader: createLoader(asset, resolve),
+          Loader: await createLoader(asset, resolve, options),
           generateScopedName: (name, filename) =>
             `${name}_${hashString(
               path.relative(options.projectRoot, filename),
@@ -196,10 +206,15 @@ export default (new Transformer({
   },
 }): Transformer);
 
-function createLoader(
+async function createLoader(
   asset: MutableAsset,
   resolve: (from: FilePath, to: string) => Promise<FilePath>,
+  options: PluginOptions,
 ) {
+  let {default: FileSystemLoader} = await options.packageManager.require(
+    'postcss-modules/build/css-loader-core/loader',
+    asset.filePath,
+  );
   return class ParcelFileSystemLoader extends FileSystemLoader {
     async fetch(composesPath, relativeTo) {
       let importPath = composesPath.replace(/^["']|["']$/g, '');

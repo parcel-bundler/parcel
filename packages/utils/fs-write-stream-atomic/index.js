@@ -1,5 +1,5 @@
 var fs = require('graceful-fs');
-var Writable = require('readable-stream').Writable;
+var Writable = require('stream').Writable;
 var util = require('util');
 var MurmurHash3 = require('imurmurhash');
 var iferr = require('iferr');
@@ -64,25 +64,25 @@ function WriteStreamAtomic(path, options) {
 // data has been written to our target stream. So we suppress
 // finish from being emitted here, and only emit it after our
 // target stream is closed and we've moved everything around.
-WriteStreamAtomic.prototype.emit = function(event) {
+WriteStreamAtomic.prototype.emit = function (event) {
   if (event === 'finish') return this.__atomicStream.end();
   return Writable.prototype.emit.apply(this, arguments);
 };
 
-WriteStreamAtomic.prototype._write = function(buffer, encoding, cb) {
+WriteStreamAtomic.prototype._write = function (buffer, encoding, cb) {
   var flushed = this.__atomicStream.write(buffer, encoding);
   if (flushed) return cb();
   this.__atomicStream.once('drain', cb);
 };
 
 function handleOpen(writeStream) {
-  return function(fd) {
+  return function (fd) {
     writeStream.emit('open', fd);
   };
 }
 
 function handleClose(writeStream) {
-  return function() {
+  return function () {
     if (writeStream.__atomicClosed) return;
     writeStream.__atomicClosed = true;
     if (writeStream.__atomicChown) {
@@ -127,13 +127,13 @@ function handleClose(writeStream) {
     var targetFileHash = crypto.createHash('sha512');
 
     fs.createReadStream(writeStream.__atomicTmp)
-      .on('data', function(data, enc) {
+      .on('data', function (data, enc) {
         tmpFileHash.update(data, enc);
       })
       .on('error', fileHashError)
       .on('end', fileHashComplete);
     fs.createReadStream(writeStream.__atomicTarget)
-      .on('data', function(data, enc) {
+      .on('data', function (data, enc) {
         targetFileHash.update(data, enc);
       })
       .on('error', fileHashError)
@@ -157,7 +157,7 @@ function handleClose(writeStream) {
   }
 
   function cleanup(err) {
-    fs.unlink(writeStream.__atomicTmp, function() {
+    fs.unlink(writeStream.__atomicTmp, function () {
       if (err) {
         writeStream.emit('error', err);
         writeStream.emit('close');
@@ -175,14 +175,14 @@ function handleClose(writeStream) {
     // Delay the close to provide the same temporal separation a physical
     // file operation would have– that is, the close event is emitted only
     // after the async close operation completes.
-    setImmediate(function() {
+    setImmediate(function () {
       writeStream.emit('close');
     });
   }
 }
 
 function handleError(writeStream) {
-  return function(er) {
+  return function (er) {
     cleanupSync();
     writeStream.emit('error', er);
     writeStream.__atomicClosed = true;
