@@ -486,4 +486,31 @@ describe('css', () => {
     let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(res.includes('.foo.bar'));
   });
+  it.only('should duplicate shared css bundles for entries that import the same css', async () => {
+    let b = await originalBundle(
+      ['entry1.js', 'entry2.js'].map(entry =>
+        path.join(
+          __dirname,
+          '/integration/css-no-more-than-one-entry-bundle-same-type/',
+          entry,
+        ),
+      ),
+    );
+
+    assertBundles(b, [
+      //these bundles may be "wrong", the test errors before assertion
+      {
+        name: 'entry1.js',
+        assets: ['a.js', 'entry1.js', 'esmodule-helpers.js'],
+      },
+      {
+        name: 'entry2.js',
+        assets: ['a.js', 'entry2.js', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'css',
+        assets: ['index.css', 'foo.css'],
+      },
+    ]);
+  });
 });
