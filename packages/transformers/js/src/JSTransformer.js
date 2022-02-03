@@ -22,7 +22,7 @@ const JSX_PRAGMA = {
   react: {
     pragma: 'React.createElement',
     pragmaFrag: 'React.Fragment',
-    automatic: '>= 17.0.0',
+    automatic: '>= 17.0.0 || >= 0.0.0-0 < 0.0.0',
   },
   preact: {
     pragma: 'h',
@@ -220,7 +220,9 @@ export default (new Transformer({
           automaticVersion &&
           !compilerOptions?.jsxFactory &&
           minReactLibVersion != null &&
-          semver.satisfies(minReactLibVersion, automaticVersion);
+          semver.satisfies(minReactLibVersion, automaticVersion, {
+            includePrerelease: true,
+          });
 
         if (automaticJSXRuntime) {
           jsxImportSource = reactLib;

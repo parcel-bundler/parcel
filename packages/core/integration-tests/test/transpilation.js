@@ -203,6 +203,26 @@ describe('transpilation', function () {
     assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
   });
 
+  it('should support the automatic JSX runtime with React 18 prereleases', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-automatic-18/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('react/jsx-dev-runtime'));
+    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+  });
+
+  it('should support the automatic JSX runtime with experimental React versions', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-automatic-experimental/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('react/jsx-dev-runtime'));
+    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+  });
+
   it('should support the automatic JSX runtime with preact with alias', async function () {
     let b = await bundle(
       path.join(
