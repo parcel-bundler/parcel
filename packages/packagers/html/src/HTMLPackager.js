@@ -63,6 +63,7 @@ export default (new Packager({
       tree => insertBundleReferences(referencedBundles, tree),
       tree =>
         replaceInlineAssetContent(bundleGraph, getInlineBundleContents, tree),
+      tree => addIntrinsicImageSizes(bundle, bundleGraph, tree),
     ]).process(code, {
       ...renderConfig,
       xmlMode: bundle.type === 'xhtml',
@@ -114,6 +115,36 @@ async function getAssetContent(
   }
 
   return null;
+}
+
+function addIntrinsicImageSizes(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+  tree,
+) {
+  tree.match({tag: 'img', attrs: {src: true}}, node => {
+    const dependency = bundle
+      .getMainEntry()
+      ?.getDependencies()
+      .find(bundle => bundle.id === node.attrs['src']);
+
+    if (!dependency) {
+      return node;
+    }
+
+    const image = bundleGraph.getResolvedAsset(dependency);
+
+    if (!image) {
+      return node;
+    }
+
+    node.attrs.width = image.meta.width;
+    node.attrs.height = image.meta.height;
+
+    return node;
+  });
+
+  return tree;
 }
 
 async function replaceInlineAssetContent(

@@ -34,7 +34,7 @@ describe('xml', function () {
       contents.includes(
         `<img src="http://example.org/${path.basename(
           b.getBundles().find(b => b.type === 'png').filePath,
-        )}"/>`,
+        )}" width="100" height="100"/>`,
       ),
     );
     assert(contents.includes(`<link href="http://example.org/post.html"/>`));
@@ -74,7 +74,7 @@ describe('xml', function () {
       contents.includes(
         `<img src="http://example.org/${path.basename(
           b.getBundles().find(b => b.type === 'png').filePath,
-        )}"/>`,
+        )}" width="100" height="100"/>`,
       ),
     );
     assert(
@@ -117,7 +117,7 @@ describe('xml', function () {
       contents.includes(
         `&lt;img src="http://example.org/${path.basename(
           b.getBundles().find(b => b.type === 'png').filePath,
-        )}">`,
+        )}" width="100" height="100">`,
       ),
     );
     assert(contents.includes(`<link>http://example.org/post.html</link>`));

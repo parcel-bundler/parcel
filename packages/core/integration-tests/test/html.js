@@ -13,6 +13,7 @@ import {
   ncp,
 } from '@parcel/test-utils';
 import path from 'path';
+import {JSDOM} from 'jsdom';
 
 describe('html', function () {
   beforeEach(async () => {
@@ -2610,7 +2611,7 @@ describe('html', function () {
     );
     assert.equal(
       contents.trim(),
-      `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A">`,
+      `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A" width="120" height="120">`,
     );
   });
 
@@ -2740,6 +2741,43 @@ describe('html', function () {
     assert(output.includes('<svg role="img" viewBox='));
     assert(output.includes('<filter'));
     assert(output.includes('<feGaussianBlur in="SourceGraphic" stdDeviation='));
+  });
+
+  it('should set intrinsic image sizes', async function () {
+    const b = await bundle(
+      path.join(__dirname, 'integration/html-image-size/index.html'),
+    );
+
+    const html = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'html').filePath,
+      'utf8',
+    );
+
+    const {document} = new JSDOM(html).window;
+
+    assert(document.getElementById('image1').getAttribute('width') === '100');
+    assert(document.getElementById('image1').getAttribute('height') === '100');
+
+    assert(document.getElementById('image2').getAttribute('width') === '150');
+    assert(document.getElementById('image2').getAttribute('height') === '150');
+
+    assert(document.getElementById('image3').getAttribute('width') === '150');
+    assert(document.getElementById('image3').getAttribute('height') === '150');
+
+    assert(document.getElementById('image4').getAttribute('width') === '200');
+    assert(document.getElementById('image4').getAttribute('height') === '150');
+
+    assert(document.getElementById('image5').getAttribute('width') === '200');
+    assert(document.getElementById('image5').getAttribute('height') === '200');
+
+    assert(document.getElementById('image6').getAttribute('width') === '200');
+    assert(document.getElementById('image6').getAttribute('height') === '200');
+
+    assert(document.getElementById('image7').getAttribute('width') === '300');
+    assert(document.getElementById('image7').getAttribute('height') === '300');
+
+    assert(document.getElementById('image8').getAttribute('width') === '240');
+    assert(document.getElementById('image8').getAttribute('height') === '80');
   });
 
   it('should throw error with empty string reference to other resource', async function () {

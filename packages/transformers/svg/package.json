@@ -23,6 +23,7 @@
     "@parcel/diagnostic": "^2.2.1",
     "@parcel/hash": "^2.2.1",
     "@parcel/plugin": "^2.2.1",
+    "image-size": "^1.0.0",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.16.5",
     "posthtml-parser": "^0.10.1",

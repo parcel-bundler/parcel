@@ -1,6 +1,7 @@
 // @flow
 import {validateConfig} from './validateConfig';
 import {Transformer} from '@parcel/plugin';
+import imageSize from 'image-size';
 import nullthrows from 'nullthrows';
 import WorkerFarm from '@parcel/workers';
 import loadSharp from './loadSharp';
@@ -111,8 +112,16 @@ export default (new Transformer({
 
       asset.type = format;
 
-      let buffer = await imagePipeline.toBuffer();
-      asset.setBuffer(buffer);
+      const {data, info} = await imagePipeline.toBuffer({
+        resolveWithObject: true,
+      });
+      asset.setBuffer(data);
+      asset.meta.width = info.width;
+      asset.meta.height = info.height;
+    } else {
+      const size = imageSize(await asset.getBuffer());
+      asset.meta.width = size.width;
+      asset.meta.height = size.height;
     }
 
     return [asset];
