@@ -38,7 +38,6 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
       resolve();
     };
 
-    document.getElementsByTagName('head')[0].appendChild(preloadLink);
     document.getElementsByTagName('head')[0].appendChild(script);
   });
 });
