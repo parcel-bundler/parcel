@@ -1,7 +1,7 @@
 // @flow
 
 import type {Root} from 'postcss';
-import type {FilePath, MutableAsset} from '@parcel/types';
+import type {FilePath, MutableAsset, PluginOptions} from '@parcel/types';
 
 import {hashString} from '@parcel/hash';
 import SourceMap from '@parcel/source-map';
@@ -10,8 +10,6 @@ import {createDependencyLocation, remapSourceLocation} from '@parcel/utils';
 import postcss from 'postcss';
 import nullthrows from 'nullthrows';
 import valueParser from 'postcss-value-parser';
-import postcssModules from 'postcss-modules';
-import FileSystemLoader from 'postcss-modules/build/css-loader-core/loader';
 import semver from 'semver';
 import path from 'path';
 
@@ -274,10 +272,20 @@ async function compileCSSModules(asset, env, program, resolve, options) {
     });
   }
 
+  let postcssModules = await options.packageManager.require(
+    'postcss-modules',
+    asset.filePath,
+    {
+      range: '^4.3.0',
+      saveDev: true,
+      shouldAutoInstall: options.shouldAutoInstall,
+    },
+  );
+
   let {root} = await postcss([
     postcssModules({
       getJSON: (filename, json) => (cssModules = json),
-      Loader: createLoader(asset, resolve),
+      Loader: await createLoader(asset, resolve, options),
       generateScopedName: (name, filename) =>
         `${name}_${hashString(
           path.relative(options.projectRoot, filename),
@@ -329,10 +337,15 @@ async function compileCSSModules(asset, env, program, resolve, options) {
   return assets;
 }
 
-function createLoader(
+async function createLoader(
   asset: MutableAsset,
   resolve: (from: FilePath, to: string) => Promise<FilePath>,
+  options: PluginOptions,
 ) {
+  let {default: FileSystemLoader} = await options.packageManager.require(
+    'postcss-modules/build/css-loader-core/loader',
+    asset.filePath,
+  );
   return class ParcelFileSystemLoader extends FileSystemLoader {
     async fetch(composesPath, relativeTo) {
       let importPath = composesPath.replace(/^["']|["']$/g, '');
