@@ -27,7 +27,11 @@ export default class CommittedAsset {
   getContent(): Blob | Promise<Buffer | string> {
     if (this.content == null) {
       if (this.value.contentKey != null) {
-        return this.options.cache.getStream(this.value.contentKey);
+        if (this.value.isLargeBlob) {
+          return this.options.cache.getStream(this.value.contentKey);
+        } else {
+          return this.options.cache.getBlob(this.value.contentKey);
+        }
       } else if (this.value.astKey != null) {
         return streamFromPromise(
           generateFromAST(this).then(({content}) => {

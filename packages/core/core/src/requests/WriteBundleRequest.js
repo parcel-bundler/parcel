@@ -16,7 +16,7 @@ import {HASH_REF_PREFIX, HASH_REF_REGEX} from '../constants';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {NamedBundle} from '../public/Bundle';
-import {TapStream} from '@parcel/utils';
+import {blobToStream, TapStream} from '@parcel/utils';
 import {Readable, Transform, pipeline} from 'stream';
 import {
   fromProjectPath,
@@ -123,7 +123,14 @@ async function run({input, options, api}: RunInput) {
       : {
           mode: (await inputFS.stat(mainEntry.filePath)).mode,
         };
-  let contentStream = options.cache.getStream(cacheKeys.content);
+  let contentStream: Readable;
+  if (info.isLargeBlob) {
+    contentStream = options.cache.getStream(cacheKeys.content);
+  } else {
+    contentStream = blobToStream(
+      await options.cache.getBlob(cacheKeys.content),
+    );
+  }
   let size = 0;
   contentStream = contentStream.pipe(
     new TapStream(buf => {
@@ -159,7 +166,7 @@ async function run({input, options, api}: RunInput) {
     (await options.cache.has(mapKey))
   ) {
     await writeFiles(
-      options.cache.getStream(mapKey),
+      blobToStream(await options.cache.getBlob(mapKey)),
       info,
       hashRefToNameHash,
       options,
@@ -174,6 +181,7 @@ async function run({input, options, api}: RunInput) {
 
   let res = {
     filePath,
+    type: info.type,
     stats: {
       size,
       time: info.time ?? 0,
@@ -241,19 +249,21 @@ async function runCompressor(
       logger: new PluginLogger({origin: compressor.name}),
     });
 
-    await new Promise((resolve, reject) =>
-      pipeline(
-        res.stream,
-        outputFS.createWriteStream(
-          filePath + (res.type != null ? '.' + res.type : ''),
-          writeOptions,
+    if (res != null) {
+      await new Promise((resolve, reject) =>
+        pipeline(
+          res.stream,
+          outputFS.createWriteStream(
+            filePath + (res.type != null ? '.' + res.type : ''),
+            writeOptions,
+          ),
+          err => {
+            if (err) reject(err);
+            else resolve();
+          },
         ),
-        err => {
-          if (err) reject(err);
-          else resolve();
-        },
-      ),
-    );
+      );
+    }
   } catch (err) {
     throw new ThrowableDiagnostic({
       diagnostic: errorToDiagnostic(err, {

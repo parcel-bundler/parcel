@@ -2,8 +2,8 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles, outputFS} from '@parcel/test-utils';
 
-describe('webextension', function() {
-  it('should resolve a full webextension bundle', async function() {
+describe('webextension', function () {
+  it('should resolve a full webextension bundle', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/webextension/manifest.json'),
     );
@@ -39,7 +39,7 @@ describe('webextension', function() {
     ]);
   });
 
-  it('should resolve the web_accessible_resources globs', async function() {
+  it('should resolve the web_accessible_resources globs', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -62,13 +62,11 @@ describe('webextension', function() {
       {
         name: 'index-jsx.js',
         assets: [
-          'checkPropTypes.js',
           'esmodule-helpers.js',
           'index-jsx.jsx',
           'index.js',
           'index.js',
           'react.development.js',
-          'ReactPropTypesSecret.js',
         ],
       },
       {assets: ['single.js', 'esmodule-helpers.js']},

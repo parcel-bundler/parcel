@@ -1,11 +1,13 @@
 // @flow
 
+import type {Asset, BundleBehavior} from '@parcel/types';
 import type {Graph} from '@parcel/graph';
 import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
 import {bundleGraphEdgeTypes} from './BundleGraph';
 import {requestGraphEdgeTypes} from './RequestTracker';
 
 import path from 'path';
+import {fromNodeId} from '@parcel/graph';
 import {fromProjectPathRelative} from './projectPath';
 import {SpecifierType, Priority} from './types';
 
@@ -32,7 +34,14 @@ const TYPE_COLORS = {
 
 export default async function dumpGraphToGraphViz(
   // $FlowFixMe
-  graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
+  graph:
+    | Graph<AssetGraphNode>
+    | Graph<{|
+        assets: Array<Asset>,
+        sourceBundles: Array<number>,
+        bundleBehavior?: ?BundleBehavior,
+      |}>
+    | Graph<BundleGraphNode>,
   name: string,
   edgeTypes?: typeof bundleGraphEdgeTypes | typeof requestGraphEdgeTypes,
 ): Promise<void> {
@@ -55,80 +64,99 @@ export default async function dumpGraphToGraphViz(
     n.set('color', COLORS[node.type || 'default']);
     n.set('shape', 'box');
     n.set('style', 'filled');
-    let label = `${node.type || 'No Type'}: [${node.id}]: `;
-    if (node.type === 'dependency') {
-      label += node.value.specifier;
-      let parts = [];
-      if (node.value.priority !== Priority.sync)
-        parts.push(node.value.priority);
-      if (node.value.isOptional) parts.push('optional');
-      if (node.value.specifierType === SpecifierType.url) parts.push('url');
-      if (node.hasDeferred) parts.push('deferred');
-      if (node.excluded) parts.push('excluded');
-      if (parts.length) label += ' (' + parts.join(', ') + ')';
-      if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-      let depSymbols = node.value.symbols;
-      if (detailedSymbols) {
-        if (depSymbols) {
-          if (depSymbols.size) {
+    let label;
+    if (typeof node === 'string') {
+      label = node;
+    } else if (node.assets) {
+      label = `(${nodeId(id)}), (assetIds: ${[...node.assets]
+        .map(a => {
+          let arr = a.filePath.split('/');
+          return arr[arr.length - 1];
+        })
+        .join(', ')}) (sourceBundles: ${node.sourceBundles.join(', ')}) (bb ${
+        node.bundleBehavior ?? 'none'
+      })`;
+    } else if (node.type) {
+      label = `[${fromNodeId(id)}] ${node.type || 'No Type'}: [${node.id}]: `;
+      if (node.type === 'dependency') {
+        label += node.value.specifier;
+        let parts = [];
+        if (node.value.priority !== Priority.sync)
+          parts.push(node.value.priority);
+        if (node.value.isOptional) parts.push('optional');
+        if (node.value.specifierType === SpecifierType.url) parts.push('url');
+        if (node.hasDeferred) parts.push('deferred');
+        if (node.excluded) parts.push('excluded');
+        if (parts.length) label += ' (' + parts.join(', ') + ')';
+        if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
+        let depSymbols = node.value.symbols;
+        if (detailedSymbols) {
+          if (depSymbols) {
+            if (depSymbols.size) {
+              label +=
+                '\\nsymbols: ' +
+                [...depSymbols].map(([e, {local}]) => [e, local]).join(';');
+            }
+            let weakSymbols = [...depSymbols]
+              .filter(([, {isWeak}]) => isWeak)
+              .map(([s]) => s);
+            if (weakSymbols.length) {
+              label += '\\nweakSymbols: ' + weakSymbols.join(',');
+            }
+            if (node.usedSymbolsUp.size > 0) {
+              label += '\\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
+            }
+            if (node.usedSymbolsDown.size > 0) {
+              label +=
+                '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
+            }
+          } else {
+            label += '\\nsymbols: cleared';
+          }
+        }
+      } else if (node.type === 'asset') {
+        label +=
+          path.basename(fromProjectPathRelative(node.value.filePath)) +
+          '#' +
+          node.value.type;
+        if (detailedSymbols) {
+          if (!node.value.symbols) {
+            label += '\\nsymbols: cleared';
+          } else if (node.value.symbols.size) {
             label +=
               '\\nsymbols: ' +
-              [...depSymbols].map(([e, {local}]) => [e, local]).join(';');
+              [...node.value.symbols]
+                .map(([e, {local}]) => [e, local])
+                .join(';');
           }
-          let weakSymbols = [...depSymbols]
-            .filter(([, {isWeak}]) => isWeak)
-            .map(([s]) => s);
-          if (weakSymbols.length) {
-            label += '\\nweakSymbols: ' + weakSymbols.join(',');
-          }
-          if (node.usedSymbolsUp.size > 0) {
-            label += '\\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
-          }
-          if (node.usedSymbolsDown.size > 0) {
-            label +=
-              '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
+          if (node.usedSymbols.size) {
+            label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
           }
         } else {
           label += '\\nsymbols: cleared';
         }
+      } else if (node.type === 'asset_group') {
+        if (node.deferred) label += '(deferred)';
+        // $FlowFixMe
+      } else if (node.type === 'file') {
+        label += path.basename(node.value.filePath);
+        // $FlowFixMe
+      } else if (node.type === 'transformer_request') {
+        label +=
+          path.basename(node.value.filePath) +
+          ` (${getEnvDescription(node.value.env)})`;
+        // $FlowFixMe
+      } else if (node.type === 'bundle') {
+        let parts = [];
+        if (node.value.needsStableName) parts.push('stable name');
+        parts.push(node.value.name);
+        parts.push('bb:' + (node.value.bundleBehavior ?? 'null'));
+        if (parts.length) label += ' (' + parts.join(', ') + ')';
+        if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
+        // $FlowFixMe
+      } else if (node.type === 'request') {
+        label = node.value.type + ':' + node.id;
       }
-    } else if (node.type === 'asset') {
-      label +=
-        path.basename(fromProjectPathRelative(node.value.filePath)) +
-        '#' +
-        node.value.type;
-      if (detailedSymbols) {
-        if (!node.value.symbols) {
-          label += '\\nsymbols: cleared';
-        } else if (node.value.symbols.size) {
-          label +=
-            '\\nsymbols: ' +
-            [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
-        }
-        if (node.usedSymbols.size) {
-          label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
-        }
-      }
-    } else if (node.type === 'asset_group') {
-      if (node.deferred) label += '(deferred)';
-      // $FlowFixMe
-    } else if (node.type === 'file') {
-      label += path.basename(node.value.filePath);
-      // $FlowFixMe
-    } else if (node.type === 'transformer_request') {
-      label +=
-        path.basename(node.value.filePath) +
-        ` (${getEnvDescription(node.value.env)})`;
-      // $FlowFixMe
-    } else if (node.type === 'bundle') {
-      let parts = [];
-      if (node.value.needsStableName) parts.push('stable name');
-      if (node.value.bundleBehavior) parts.push(node.value.bundleBehavior);
-      if (parts.length) label += ' (' + parts.join(', ') + ')';
-      if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-      // $FlowFixMe
-    } else if (node.type === 'request') {
-      label = node.value.type + ':' + node.id;
     }
     n.set('label', label);
   }

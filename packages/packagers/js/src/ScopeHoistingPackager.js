@@ -28,7 +28,8 @@ const NON_ID_CONTINUE_RE = /[^$_\u200C\u200D\p{ID_Continue}]/gu;
 
 // General regex used to replace imports with the resolved code, references with resolutions,
 // and count the number of newlines in the file for source maps.
-const REPLACEMENT_RE = /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
+const REPLACEMENT_RE =
+  /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
 
 const BUILTINS = Object.keys(globals.builtin);
 const GLOBALS_BY_CONTEXT = {
@@ -108,7 +109,7 @@ export class ScopeHoistingPackager {
   }
 
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
-    await this.loadAssets();
+    let wrappedAssets = await this.loadAssets();
     this.buildExportedSymbols();
 
     // If building a library, the target is actually another bundler rather
@@ -126,17 +127,10 @@ export class ScopeHoistingPackager {
       }
     }
 
-    // Add each asset that is directly connected to the bundle. Dependencies will be handled
-    // by replacing `import` statements in the code.
     let res = '';
     let lineCount = 0;
     let sourceMap = null;
-    this.bundle.traverseAssets((asset, _, actions) => {
-      if (this.seenAssets.has(asset.id)) {
-        actions.skipChildren();
-        return;
-      }
-
+    let processAsset = asset => {
       let [content, map, lines] = this.visitAsset(asset);
       if (sourceMap && map) {
         sourceMap.addSourceMap(map, lineCount);
@@ -146,6 +140,25 @@ export class ScopeHoistingPackager {
 
       res += content + '\n';
       lineCount += lines + 1;
+    };
+
+    // Hoist wrapped asset to the top of the bundle to ensure that they are registered
+    // before they are used.
+    for (let asset of wrappedAssets) {
+      if (!this.seenAssets.has(asset.id)) {
+        processAsset(asset);
+      }
+    }
+
+    // Add each asset that is directly connected to the bundle. Dependencies will be handled
+    // by replacing `import` statements in the code.
+    this.bundle.traverseAssets((asset, _, actions) => {
+      if (this.seenAssets.has(asset.id)) {
+        actions.skipChildren();
+        return;
+      }
+
+      processAsset(asset);
       actions.skipChildren();
     });
 
@@ -225,8 +238,9 @@ export class ScopeHoistingPackager {
     };
   }
 
-  async loadAssets() {
+  async loadAssets(): Promise<Array<Asset>> {
     let queue = new PromiseQueue({maxConcurrent: 32});
+    let wrapped = [];
     this.bundle.traverseAssets((asset, shouldWrap) => {
       queue.add(async () => {
         let [code, map] = await Promise.all([
@@ -247,11 +261,13 @@ export class ScopeHoistingPackager {
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
         this.wrappedAssets.add(asset.id);
+        wrapped.push(asset);
         return true;
       }
     });
 
     this.assetOutputs = new Map(await queue.run());
+    return wrapped;
   }
 
   buildExportedSymbols() {
@@ -580,7 +596,7 @@ ${code}
               if (imported === '*') {
                 replacement = renamed;
               } else if (imported === 'default') {
-                replacement = `$parcel$interopDefault(${renamed})`;
+                replacement = `($parcel$interopDefault(${renamed}))`;
                 this.usedHelpers.add('$parcel$interopDefault');
               } else {
                 replacement = this.getPropertyAccess(renamed, imported);
@@ -1043,10 +1059,8 @@ ${code}
     }
 
     // The output format may have specific things to add at the start of the bundle (e.g. imports).
-    let [
-      outputFormatPrelude,
-      outputFormatLines,
-    ] = this.outputFormat.buildBundlePrelude();
+    let [outputFormatPrelude, outputFormatLines] =
+      this.outputFormat.buildBundlePrelude();
     res += outputFormatPrelude;
     lines += outputFormatLines;
 

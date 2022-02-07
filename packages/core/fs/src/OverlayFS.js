@@ -14,7 +14,7 @@ import packageJSON from '../package.json';
 import {findAncestorFile, findNodeModule, findFirstFile} from './find';
 
 function read(method) {
-  return async function(...args: Array<any>) {
+  return async function (...args: Array<any>) {
     try {
       return await this.writable[method](...args);
     } catch (err) {
@@ -24,7 +24,7 @@ function read(method) {
 }
 
 function readSync(method) {
-  return function(...args: Array<any>) {
+  return function (...args: Array<any>) {
     try {
       return this.writable[method](...args);
     } catch (err) {
@@ -34,13 +34,13 @@ function readSync(method) {
 }
 
 function write(method) {
-  return function(...args: Array<any>) {
+  return function (...args: Array<any>) {
     return this.writable[method](...args);
   };
 }
 
 function checkExists(method) {
-  return function(filePath: FilePath, ...args: Array<any>) {
+  return function (filePath: FilePath, ...args: Array<any>) {
     if (this.writable.existsSync(filePath)) {
       return this.writable[method](filePath, ...args);
     }
@@ -69,9 +69,8 @@ export class OverlayFS implements FileSystem {
     };
   }
 
-  readFile: (
-    ...args: Array<any>
-  ) => Promise<Buffer & string & $Shape<Stats>> = read('readFile');
+  readFile: (...args: Array<any>) => Promise<Buffer & string & $Shape<Stats>> =
+    read('readFile');
   writeFile: (...args: Array<any>) => any = write('writeFile');
   async copyFile(source: FilePath, destination: FilePath) {
     if (await this.writable.exists(source)) {
@@ -86,30 +85,25 @@ export class OverlayFS implements FileSystem {
       );
     }
   }
-  stat: (
-    ...args: Array<any>
-  ) => Promise<Buffer & string & $Shape<Stats>> = read('stat');
+  stat: (...args: Array<any>) => Promise<Buffer & string & $Shape<Stats>> =
+    read('stat');
   unlink: (...args: Array<any>) => any = write('unlink');
   mkdirp: (...args: Array<any>) => any = write('mkdirp');
   rimraf: (...args: Array<any>) => any = write('rimraf');
   ncp: (...args: Array<any>) => any = write('ncp');
-  createReadStream: (
-    filePath: FilePath,
-    ...args: Array<any>
-  ) => any = checkExists('createReadStream');
+  createReadStream: (filePath: FilePath, ...args: Array<any>) => any =
+    checkExists('createReadStream');
   createWriteStream: (...args: Array<any>) => any = write('createWriteStream');
   cwd: (...args: Array<any>) => any = readSync('cwd');
   chdir: (...args: Array<any>) => any = readSync('chdir');
-  realpath: (filePath: FilePath, ...args: Array<any>) => any = checkExists(
-    'realpath',
-  );
+  realpath: (filePath: FilePath, ...args: Array<any>) => any =
+    checkExists('realpath');
 
   readFileSync: (...args: Array<any>) => any = readSync('readFileSync');
   statSync: (...args: Array<any>) => any = readSync('statSync');
   existsSync: (...args: Array<any>) => any = readSync('existsSync');
-  realpathSync: (filePath: FilePath, ...args: Array<any>) => any = checkExists(
-    'realpathSync',
-  );
+  realpathSync: (filePath: FilePath, ...args: Array<any>) => any =
+    checkExists('realpathSync');
 
   async exists(filePath: FilePath): Promise<boolean> {
     return (

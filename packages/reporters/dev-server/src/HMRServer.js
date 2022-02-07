@@ -100,7 +100,7 @@ export default class HMRServer {
 
     let queue = new PromiseQueue({maxConcurrent: FS_CONCURRENCY});
     for (let asset of changedAssets) {
-      if (asset.type !== 'js') {
+      if (asset.type !== 'js' && asset.type !== 'css') {
         // If all of the incoming dependencies of the asset actually resolve to a JS asset
         // rather than the original, we can mark the runtimes as changed instead. URL runtimes
         // have a cache busting query param added with HMR enabled which will trigger a reload.
@@ -132,9 +132,8 @@ export default class HMRServer {
           for (let dep of dependencies) {
             let resolved = event.bundleGraph.getResolvedAsset(dep, bundle);
             if (resolved) {
-              deps[getSpecifier(dep)] = event.bundleGraph.getAssetPublicId(
-                resolved,
-              );
+              deps[getSpecifier(dep)] =
+                event.bundleGraph.getAssetPublicId(resolved);
             }
           }
           depsByBundle[bundle.id] = deps;

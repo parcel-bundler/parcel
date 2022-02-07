@@ -6,7 +6,7 @@ import path from 'path';
 import camelcase from 'camelcase';
 import svgoPlugin from '@svgr/plugin-svgo';
 import jsxPlugin from '@svgr/plugin-jsx';
-import convert from '@svgr/core';
+import {transform} from '@svgr/core';
 
 function getComponentName(filePath) {
   let validCharacters = /[^a-zA-Z0-9_-]/g;
@@ -21,7 +21,7 @@ export default (new Transformer({
     let code = await asset.getCode();
     let componentName = getComponentName(asset.filePath);
 
-    const jsx = await convert(
+    const jsx = await transform(
       code,
       {},
       {

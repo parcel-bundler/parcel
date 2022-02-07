@@ -1,13 +1,17 @@
 // @flow strict-local
 import type {ContentKey, NodeId} from './types';
 
-import Graph, {type GraphOpts} from './Graph';
+import Graph, {type SerializedGraph, type GraphOpts} from './Graph';
 import nullthrows from 'nullthrows';
 
-export type SerializedContentGraph<TNode, TEdgeType: number = 1> = {|
+export type ContentGraphOpts<TNode, TEdgeType: number = 1> = {|
   ...GraphOpts<TNode, TEdgeType>,
   _contentKeyToNodeId: Map<ContentKey, NodeId>,
   _nodeIdToContentKey: Map<NodeId, ContentKey>,
+|};
+export type SerializedContentGraph<TNode, TEdgeType: number = 1> = {|
+  ...SerializedGraph<TNode, TEdgeType>,
+  _contentKeyToNodeId: Map<ContentKey, NodeId>,
 |};
 
 export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
@@ -17,7 +21,7 @@ export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
   _contentKeyToNodeId: Map<ContentKey, NodeId>;
   _nodeIdToContentKey: Map<NodeId, ContentKey>;
 
-  constructor(opts: ?SerializedContentGraph<TNode, TEdgeType>) {
+  constructor(opts: ?ContentGraphOpts<TNode, TEdgeType>) {
     if (opts) {
       let {_contentKeyToNodeId, _nodeIdToContentKey, ...rest} = opts;
       super(rest);
@@ -32,13 +36,14 @@ export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
 
   // $FlowFixMe[prop-missing]
   static deserialize(
-    opts: SerializedContentGraph<TNode, TEdgeType>,
+    opts: ContentGraphOpts<TNode, TEdgeType>,
   ): ContentGraph<TNode, TEdgeType> {
     return new ContentGraph(opts);
   }
 
   // $FlowFixMe[prop-missing]
   serialize(): SerializedContentGraph<TNode, TEdgeType> {
+    // $FlowFixMe[prop-missing]
     return {
       ...super.serialize(),
       _contentKeyToNodeId: this._contentKeyToNodeId,
@@ -55,6 +60,12 @@ export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
     this._contentKeyToNodeId.set(contentKey, nodeId);
     this._nodeIdToContentKey.set(nodeId, contentKey);
     return nodeId;
+  }
+
+  addNodeByContentKeyIfNeeded(contentKey: ContentKey, node: TNode): NodeId {
+    return this.hasContentKey(contentKey)
+      ? this.getNodeIdByContentKey(contentKey)
+      : this.addNodeByContentKey(contentKey, node);
   }
 
   getNodeByContentKey(contentKey: ContentKey): ?TNode {

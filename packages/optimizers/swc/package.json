@@ -1,0 +1,29 @@
+{
+  "name": "@parcel/optimizer-swc",
+  "version": "2.2.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/SwcOptimizer.js",
+  "source": "src/SwcOptimizer.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.2.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.2.1",
+    "@parcel/source-map": "^2.0.0",
+    "@parcel/utils": "^2.2.1",
+    "@swc/core": "^1.2.106",
+    "nullthrows": "^1.1.1"
+  }
+}

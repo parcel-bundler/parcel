@@ -7,16 +7,15 @@ import type {BabelConfig} from './types';
 
 import json5 from 'json5';
 import path from 'path';
-import * as internalBabelCore from '@babel/core';
 import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
 import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
+import {BABEL_CORE_RANGE} from './constants';
 
 import isJSX from './jsx';
 import getFlowOptions from './flow';
 import {enginesToBabelTargets} from './utils';
 
 const TYPESCRIPT_EXTNAME_RE = /\.tsx?$/;
-const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 const JS_EXTNAME_RE = /^\.(js|cjs|mjs)$/;
 const BABEL_CONFIG_FILENAMES = [
   '.babelrc',
@@ -30,8 +29,6 @@ const BABEL_CONFIG_FILENAMES = [
   'babel.config.mjs',
   'babel.config.cjs',
 ];
-
-const BABEL_CORE_RANGE = '^7.12.0';
 
 type BabelConfigResult = {|
   internal: boolean,
@@ -110,10 +107,9 @@ export async function load(
       // We need to invalidate on startup in case the config is non-static,
       // e.g. uses unknown environment variables, reads from the filesystem, etc.
       logger.warn({
-        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${path.basename(
-          file,
-          path.extname(file),
-        ) + '.json'} file instead.`,
+        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${
+          path.basename(file, path.extname(file)) + '.json'
+        } file instead.`,
       });
       config.invalidateOnStartup();
 
@@ -234,19 +230,6 @@ async function buildDefaultBabelConfig(
   if (await isJSX(options, config)) {
     syntaxPlugins.push('jsx');
   }
-
-  babelOptions.presets = (babelOptions.presets || []).map(preset =>
-    internalBabelCore.createConfigItem(preset, {
-      type: 'preset',
-      dirname: BABEL_TRANSFORMER_DIR,
-    }),
-  );
-  babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
-    internalBabelCore.createConfigItem(plugin, {
-      type: 'plugin',
-      dirname: BABEL_TRANSFORMER_DIR,
-    }),
-  );
 
   definePluginDependencies(config, babelOptions, options);
   return {

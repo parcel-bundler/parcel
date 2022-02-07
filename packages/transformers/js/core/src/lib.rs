@@ -1,5 +1,4 @@
 extern crate swc_common;
-extern crate swc_ecma_preset_env;
 extern crate swc_ecmascript;
 #[macro_use]
 extern crate swc_atoms;
@@ -30,27 +29,29 @@ use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_ecma_preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
+use swc_ecmascript::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
 use swc_ecmascript::transforms::resolver::resolver_with_mark;
 use swc_ecmascript::transforms::{
   compat::reserved_words::reserved_words, fixer, helpers, hygiene,
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
   pass::Optional, proposals::decorators, react, typescript,
 };
-use swc_ecmascript::visit::FoldWith;
+use swc_ecmascript::visit::{FoldWith, VisitWith};
 
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::hoist;
+use hoist::{hoist, CollectResult, HoistResult};
 use modules::esm2cjs;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+
+use crate::hoist::Collect;
 
 type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
 
@@ -86,14 +87,15 @@ pub struct Config {
   trace_bailouts: bool,
 }
 
-#[derive(Serialize, Debug, Deserialize, Default)]
+#[derive(Serialize, Debug, Default)]
 pub struct TransformResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   map: Option<String>,
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
-  hoist_result: Option<hoist::HoistResult>,
+  hoist_result: Option<HoistResult>,
+  symbol_result: Option<CollectResult>,
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
@@ -221,9 +223,15 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
       let should_inline_fs = config.inline_fs
         && config.source_type != SourceType::Script
         && code.contains("readFileSync");
+      let should_import_swc_helpers = match config.source_type {
+        SourceType::Module => true,
+        SourceType::Script => false,
+      };
       swc_common::GLOBALS.set(&Globals::new(), || {
         helpers::HELPERS.set(
-          &helpers::Helpers::new(/* external helpers from @swc/helpers */ true),
+          &helpers::Helpers::new(
+            /* external helpers from @swc/helpers */ should_import_swc_helpers,
+          ),
           || {
             let mut react_options = react::Options::default();
             if config.is_jsx {
@@ -277,7 +285,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   ),
                   config.is_type_script && config.is_jsx
                 ),
-                Optional::new(typescript::strip(), config.is_type_script && !config.is_jsx),
+                Optional::new(
+                  typescript::strip(global_mark),
+                  config.is_type_script && !config.is_jsx
+                ),
                 resolver_with_mark(global_mark),
                 Optional::new(
                   react::react(
@@ -295,7 +306,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
             let mut decls = collect_decls(&module);
 
-            let mut preset_env_config = swc_ecma_preset_env::Config {
+            let mut preset_env_config = swc_ecmascript::preset_env::Config {
               dynamic_import: true,
               ..Default::default()
             };
@@ -392,16 +403,20 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               return Ok(result);
             }
 
+            let mut collect = Collect::new(
+              source_map.clone(),
+              decls,
+              ignore_mark,
+              global_mark,
+              config.trace_bailouts,
+            );
+            module.visit_with(&mut collect);
+            if let Some(bailouts) = &collect.bailouts {
+              diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
+            }
+
             let module = if config.scope_hoist {
-              let res = hoist(
-                module,
-                source_map.clone(),
-                config.module_id.as_str(),
-                decls,
-                ignore_mark,
-                global_mark,
-                config.trace_bailouts,
-              );
+              let res = hoist(module, config.module_id.as_str(), &collect);
               match res {
                 Ok((module, hoist_result, hoist_diagnostics)) => {
                   result.hoist_result = Some(hoist_result);
@@ -414,6 +429,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
+              // Bail if we could not statically analyze.
+              if collect.static_cjs_exports && !collect.should_wrap {
+                result.symbol_result = Some(collect.into());
+              }
+
               let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;
               module
@@ -470,17 +490,13 @@ fn parse(
   let syntax = if config.is_type_script {
     Syntax::Typescript(TsConfig {
       tsx: config.is_jsx,
-      dynamic_import: true,
       decorators: config.decorators,
       ..Default::default()
     })
   } else {
     Syntax::Es(EsConfig {
       jsx: config.is_jsx,
-      dynamic_import: true,
       export_default_from: true,
-      export_namespace_from: true,
-      import_meta: true,
       decorators: config.decorators,
       ..Default::default()
     })

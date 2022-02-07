@@ -186,7 +186,7 @@ export type EnvironmentOptions = {|
  */
 export type VersionMap = {
   [string]: string,
-  ...,
+  ...
 };
 
 export type EnvironmentFeature =
@@ -398,9 +398,11 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|};
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    meta?: ?Meta,
+  |};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -439,9 +441,12 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|};
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    isWeak: boolean,
+    meta?: ?Meta,
+  |};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -873,7 +878,7 @@ export type TransformerResult = {|
   /** The dependencies of the asset. */
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
   /** The environment of the asset. The options are merged with the input asset's environment. */
-  +env?: EnvironmentOptions,
+  +env?: EnvironmentOptions | Environment,
   /**
    * Controls which bundle the asset is placed into.
    *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
@@ -1291,6 +1296,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
     Bundle,
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
+  addAssetToBundle(Asset, Bundle): void;
   addEntryToBundle(
     Asset,
     Bundle,
@@ -1324,7 +1330,10 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Returns a list of bundles in the bundle graph. By default, inline bundles are excluded. */
   getBundles(opts?: {|includeInline: boolean|}): Array<TBundle>;
   /** Traverses the assets and dependencies in the bundle graph, in depth first order. */
-  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
+  traverse<TContext>(
+    visit: GraphVisitor<BundleGraphTraversable, TContext>,
+    startAsset: ?Asset,
+  ): ?TContext;
   /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
@@ -1605,7 +1614,7 @@ export type Compressor = {|
     stream: Readable,
     options: PluginOptions,
     logger: PluginLogger,
-  |}): Async<{|
+  |}): Async<?{|
     stream: Readable,
     type?: string,
   |}>,

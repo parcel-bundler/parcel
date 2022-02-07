@@ -105,7 +105,7 @@ async function assertFile(
     throw new ThrowableDiagnostic({
       diagnostic: {
         origin: '@parcel/core',
-        message: `${path.relative(process.cwd(), source)} does not exist.`,
+        message: md`${path.relative(process.cwd(), source)} does not exist.`,
         codeFrames: [
           {
             filePath: pkgFilePath,
@@ -118,7 +118,7 @@ async function assertFile(
           },
         ],
         hints: alternatives.map(r => {
-          return `Did you mean '__${r}__'?`;
+          return md`Did you mean '__${r}__'?`;
         }),
       },
     });
@@ -129,7 +129,7 @@ async function assertFile(
     throw new ThrowableDiagnostic({
       diagnostic: {
         origin: '@parcel/core',
-        message: `${path.relative(process.cwd(), source)} is not a file.`,
+        message: md`${path.relative(process.cwd(), source)} is not a file.`,
         codeFrames: [
           {
             filePath: pkgFilePath,
@@ -309,14 +309,12 @@ export class EntryResolver {
 
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: `Unknown entry: ${entry}`,
+        message: md`Unknown entry: ${entry}`,
       },
     });
   }
 
-  async readPackage(
-    entry: FilePath,
-  ): Promise<?{
+  async readPackage(entry: FilePath): Promise<?{
     ...PackageJSON,
     filePath: FilePath,
     map: {|data: mixed, pointers: {|[string]: Mapping|}|},

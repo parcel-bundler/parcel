@@ -1,11 +1,11 @@
 // @flow
 
 import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
+import typeof * as BabelCore from '@babel/core';
 
 import invariant from 'assert';
-import * as internalBabelCore from '@babel/core';
 import {relativeUrl} from '@parcel/utils';
-import {remapAstLocations} from '@parcel/babel-ast-utils';
+import {remapAstLocations} from './remapAstLocations';
 
 import packageJson from '../package.json';
 
@@ -23,13 +23,15 @@ export default async function babel7(
   opts: Babel7TransformOptions,
 ): Promise<?AST> {
   let {asset, options, babelOptions, additionalPlugins = []} = opts;
-  const babelCore = babelOptions.internal
-    ? internalBabelCore
-    : await options.packageManager.require('@babel/core', asset.filePath, {
-        range: '^7.12.0',
-        saveDev: true,
-        shouldAutoInstall: options.shouldAutoInstall,
-      });
+  const babelCore: BabelCore = await options.packageManager.require(
+    '@babel/core',
+    asset.filePath,
+    {
+      range: '^7.12.0',
+      saveDev: true,
+      shouldAutoInstall: options.shouldAutoInstall,
+    },
+  );
 
   let config = {
     ...babelOptions.config,
@@ -77,7 +79,7 @@ export default async function babel7(
     if (res.ast) {
       let map = await asset.getMap();
       if (map) {
-        remapAstLocations(res.ast, map);
+        remapAstLocations(babelCore.types, res.ast, map);
       }
     }
   }

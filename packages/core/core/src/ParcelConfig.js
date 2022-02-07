@@ -29,7 +29,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import json5 from 'json5';
 
-import {makeRe} from 'micromatch';
+import {globToRegex} from '@parcel/utils';
 import {basename} from 'path';
 import loadPlugin from './loadParcelPlugin';
 import {
@@ -116,9 +116,7 @@ export default class ParcelConfig {
     };
   }
 
-  _loadPlugin<T>(
-    node: ParcelPluginNode,
-  ): Promise<{|
+  _loadPlugin<T>(node: ParcelPluginNode): Promise<{|
     plugin: T,
     version: Semver,
     resolveFrom: ProjectPath,
@@ -179,9 +177,8 @@ export default class ParcelConfig {
   }
 
   getValidatorNames(filePath: ProjectPath): Array<string> {
-    let validators: PureParcelConfigPipeline = this._getValidatorNodes(
-      filePath,
-    );
+    let validators: PureParcelConfigPipeline =
+      this._getValidatorNodes(filePath);
     return validators.map(v => v.packageName);
   }
 
@@ -203,11 +200,8 @@ export default class ParcelConfig {
     pipeline?: ?string,
     allowEmpty?: boolean,
   ): Promise<Array<LoadedPlugin<Transformer<mixed>>>> {
-    let transformers: PureParcelConfigPipeline | null = this.matchGlobMapPipelines(
-      filePath,
-      this.transformers,
-      pipeline,
-    );
+    let transformers: PureParcelConfigPipeline | null =
+      this.matchGlobMapPipelines(filePath, this.transformers, pipeline);
     if (!transformers || transformers.length === 0) {
       if (allowEmpty) {
         return [];
@@ -353,7 +347,7 @@ export default class ParcelConfig {
 
     let re = this.regexCache.get(patternGlob);
     if (!re) {
-      re = makeRe(patternGlob, {dot: true, nocase: true});
+      re = globToRegex(patternGlob, {dot: true, nocase: true});
       this.regexCache.set(patternGlob, re);
     }
 

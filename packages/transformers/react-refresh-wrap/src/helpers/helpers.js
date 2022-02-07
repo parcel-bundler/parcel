@@ -2,21 +2,21 @@ var Refresh = require('react-refresh/runtime');
 
 function debounce(func, delay) {
   if (process.env.NODE_ENV === 'test') {
-    return function(args) {
+    return function (args) {
       func.call(null, args);
     };
   } else {
     var timeout = undefined;
-    return function(args) {
+    return function (args) {
       clearTimeout(timeout);
-      timeout = setTimeout(function() {
+      timeout = setTimeout(function () {
         timeout = undefined;
         func.call(null, args);
       }, delay);
     };
   }
 }
-var enqueueUpdate = debounce(function() {
+var enqueueUpdate = debounce(function () {
   Refresh.performReactRefresh();
 }, 30);
 
@@ -24,19 +24,19 @@ var enqueueUpdate = debounce(function() {
 // https://github.com/facebook/metro/blob/61de16bd1edd7e738dd0311c89555a644023ab2d/packages/metro/src/lib/polyfills/require.js
 // MIT License - Copyright (c) Facebook, Inc. and its affiliates.
 
-module.exports.prelude = function(module) {
-  window.$RefreshReg$ = function(type, id) {
+module.exports.prelude = function (module) {
+  window.$RefreshReg$ = function (type, id) {
     Refresh.register(type, module.id + ' ' + id);
   };
   window.$RefreshSig$ = Refresh.createSignatureFunctionForTransform;
 };
 
-module.exports.postlude = function(module) {
+module.exports.postlude = function (module) {
   if (isReactRefreshBoundary(module.exports)) {
     registerExportsForReactRefresh(module);
 
     if (module.hot) {
-      module.hot.dispose(function(data) {
+      module.hot.dispose(function (data) {
         if (Refresh.hasUnrecoverableErrors()) {
           window.location.reload();
         }
@@ -44,7 +44,7 @@ module.exports.postlude = function(module) {
         data.prevExports = module.exports;
       });
 
-      module.hot.accept(function(getParents) {
+      module.hot.accept(function (getParents) {
         var prevExports = module.hot.data.prevExports;
         var nextExports = module.exports;
         // Since we just executed the code for it, it's possible

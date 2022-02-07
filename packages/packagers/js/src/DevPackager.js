@@ -98,10 +98,11 @@ export class DevPackager {
         let dependencies = this.bundleGraph.getDependencies(asset);
         for (let dep of dependencies) {
           let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
-          if (resolved) {
-            deps[getSpecifier(dep)] = this.bundleGraph.getAssetPublicId(
-              resolved,
-            );
+          if (this.bundleGraph.isDependencySkipped(dep)) {
+            deps[getSpecifier(dep)] = false;
+          } else if (resolved) {
+            deps[getSpecifier(dep)] =
+              this.bundleGraph.getAssetPublicId(resolved);
           }
         }
 

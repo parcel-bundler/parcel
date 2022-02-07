@@ -12,7 +12,7 @@ import {MockPackageInstaller, NodePackageManager} from '../src';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
-describe('NodePackageManager', function() {
+describe('NodePackageManager', function () {
   let fs;
   let packageManager;
   let packageInstaller;
