@@ -388,4 +388,27 @@ describe('typescript types', function () {
     );
     assert.equal(dist, expected);
   });
+
+  it('should handle correctly an imported type declaration when module is declared with the specifier of import', async function () {
+    await bundle(
+      path.join(
+        __dirname,
+        '/integration/ts-types/typescript-types-with-module-declaration/index.ts',
+      ),
+    );
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/typescript-types-with-module-declaration/dist/index.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+
+    assert(
+      dist.includes('node_modules/hoge') && dist.includes('interface Bar'),
+    );
+  });
 });
