@@ -1,0 +1,9 @@
+{
+    "name": "typescript-types-with-module-declaration",
+    "private": true,
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "dependencies": {
+        "hoge": "*"
+    }
+}
