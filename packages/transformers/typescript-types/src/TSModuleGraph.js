@@ -127,12 +127,19 @@ export class TSModuleGraph {
     }
 
     let m = this.getModule(i.specifier);
+
+    let externalModule = {
+      module,
+      name: local,
+      imported: imported || i.imported,
+    };
     if (!m) {
       // External module. pass through the import.
-      return {module, name: local, imported: imported || i.imported};
+      return externalModule;
     }
 
-    return this.resolveExport(m, imported || i.imported);
+    // passing through the import as a fallback for declare module with external module specifier
+    return this.resolveExport(m, imported || i.imported) ?? externalModule;
   }
 
   resolveExport(
