@@ -12,8 +12,9 @@
   },
   "dependencies": {
     "@atlassian/internal-parcel-utils": "2.0.15",
+    "@atlassiansox/analytics-node-client": "^2.2.2",
+    "@parcel/hash": "2.0.15",
     "@parcel/plugin": "2.0.15",
-    "amplitude": "^4.0.0",
     "uuid": "^3.3.3"
   }
 }

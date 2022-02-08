@@ -1,12 +1,11 @@
 // @flow strict-local
 
-import type {PluginOptions, ReporterEvent} from '@parcel/types';
+import type {FilePath, PluginOptions, ReporterEvent} from '@parcel/types';
 
 import {Reporter} from '@parcel/plugin';
 import os from 'os';
+import fs from 'fs';
 import path from 'path';
-// $FlowFixMe
-import uuid from 'uuid/v4';
 // $FlowFixMe
 import {performance} from 'perf_hooks';
 import {getSentry} from '@atlassian/internal-parcel-utils';
@@ -17,7 +16,6 @@ const PROGRESS_SAMPLE_RATE = 3000;
 
 let buildStartTime;
 let buildStartCpuUsage;
-let buildId;
 let userNotified;
 
 export default (new Reporter({
@@ -25,7 +23,6 @@ export default (new Reporter({
     if (event.type === 'buildStart') {
       buildStartCpuUsage = process.cpuUsage();
       buildStartTime = performance.now();
-      buildId = uuid();
       if (!userNotified) {
         logger.info({
           message: `This internal Atlassian build of Parcel includes telemetry recording
@@ -45,51 +42,61 @@ Please visit #help-parcel for help or #parcel for general discussion in Slack.
 
     switch (event.type) {
       case 'buildStart':
-        analytics.track('buildStart', getAdditionalProperties(event, options));
+        analytics.track({
+          subject: 'build',
+          action: 'start',
+          additionalAttributes: getAdditionalProperties(event, options),
+        });
         break;
       case 'buildProgress': {
         // Don't await these.
-        analytics.trackSampled(
-          event.type,
-          () => {
-            let filePath = null;
-            let bundle = null;
-            switch (event.phase) {
-              case 'transforming':
-                filePath = event.filePath;
-                break;
-              case 'packaging':
-              case 'optimizing':
-                filePath = path.join(
-                  event.bundle.target.distDir,
-                  event.bundle.name,
-                );
-                bundle = {
-                  filePath: path.relative(options.projectRoot, filePath),
-                  name: event.bundle.name,
-                };
-            }
+        analytics.trackSampled(PROGRESS_SAMPLE_RATE, () => {
+          let subject;
+          let subjectId;
+          switch (event.phase) {
+            case 'resolving':
+              subject = 'asset';
+              subjectId = event.dependency.specifier;
+              break;
+            case 'transforming':
+              subject = 'asset';
+              subjectId = path.relative(options.projectRoot, event.filePath);
+              break;
+            case 'packaging':
+            case 'optimizing':
+              subject = 'bundle';
+              subjectId = path.relative(
+                options.projectRoot,
+                path.join(event.bundle.target.distDir, event.bundle.name),
+              );
+              break;
+            case 'bundling':
+              subject = 'bundleGraph';
+              break;
+            default:
+              throw new Error('Unknown event phase');
+          }
 
-            return {
-              phase: event.phase,
-              filePath:
-                filePath != null
-                  ? path.relative(options.projectRoot, filePath)
-                  : null,
-              bundle,
-              ...getAdditionalProperties(event, options),
-            };
-          },
-          PROGRESS_SAMPLE_RATE,
-        );
+          return {
+            action: event.phase,
+            subject,
+            subjectId,
+            additionalAttributes: getAdditionalProperties(event, options),
+          };
+        });
 
         break;
       }
       case 'buildSuccess':
-        analytics.track(event.type, {
-          buildTime: event.buildTime,
-          numChangedAssets: Array.from(event.changedAssets).length,
-          ...getAdditionalProperties(event, options),
+        analytics.track({
+          action: 'success',
+          subject: 'build',
+          subjectId: options.instanceId,
+          additionalAttributes: {
+            buildTime: event.buildTime,
+            numChangedAssets: Array.from(event.changedAssets).length,
+            ...getAdditionalProperties(event, options),
+          },
         });
         break;
       case 'buildFailure': {
@@ -98,15 +105,20 @@ Please visit #help-parcel for help or #parcel for general discussion in Slack.
           diagnostic => diagnostic.name !== 'SyntaxError',
         );
 
-        analytics.track(event.type, {
-          relevantDiagnostics: relevantDiagnostics.map(diagnostic => ({
-            stack:
-              diagnostic.stack != null
-                ? sanitizePaths(diagnostic.stack, options)
-                : null,
-            message: sanitizePaths(diagnostic.message, options),
-          })),
-          ...getAdditionalProperties(event, options),
+        analytics.track({
+          action: 'failure',
+          subject: 'build',
+          subjectId: options.instanceId,
+          additionalAttributes: {
+            relevantDiagnostics: relevantDiagnostics.map(diagnostic => ({
+              stack:
+                diagnostic.stack != null
+                  ? sanitizePaths(diagnostic.stack, options)
+                  : null,
+              message: sanitizePaths(diagnostic.message, options),
+            })),
+            ...getAdditionalProperties(event, options),
+          },
         });
 
         for (const diagnostic of relevantDiagnostics) {
@@ -124,13 +136,33 @@ Please visit #help-parcel for help or #parcel for general discussion in Slack.
   },
 }): Reporter);
 
+const projectRootToProjectName: Map<FilePath, ?string> = new Map();
 function getAdditionalProperties(event: ReporterEvent, options: PluginOptions) {
+  const cpuUsage =
+    event.type === 'buildStart' ? null : process.cpuUsage(buildStartCpuUsage);
+  const timeSinceBuildStart =
+    event.type === 'buildStart' ? 0 : performance.now() - buildStartTime;
+
+  let projectName;
+  if (projectRootToProjectName.has(options.projectRoot)) {
+    projectName = projectRootToProjectName.get(options.projectRoot);
+  } else {
+    try {
+      projectName = JSON.parse(
+        fs.readFileSync(path.join(options.projectRoot, 'package.json'), 'utf8'),
+      ).name;
+    } catch {
+      // leave undefined on failure
+    }
+    projectRootToProjectName.set(options.projectRoot, projectName);
+  }
+
   return {
-    buildId,
-    timeSinceBuildStart:
-      event.type === 'buildStart' ? 0 : performance.now() - buildStartTime,
-    cpuUsageSinceBuildStart:
-      event.type === 'buildStart' ? null : process.cpuUsage(buildStartCpuUsage),
+    buildId: options.instanceId,
+    projectName,
+    timeSinceBuildStart,
+    userCpuUsage: cpuUsage?.user,
+    systemCpuUsage: cpuUsage?.system,
     mode: options.mode,
     serve: Boolean(options.serveOptions),
   };
