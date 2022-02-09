@@ -182,6 +182,7 @@ function decorateLegacyGraph(
       bundleGraph.addAssetToBundle(asset, bundle);
     }
   }
+
   // Step 2: Internalize dependencies for bundles
   for (let [, idealBundle] of idealBundleGraph.nodes) {
     if (idealBundle === 'root') continue;
@@ -200,6 +201,7 @@ function decorateLegacyGraph(
       }
     }
   }
+
   // Step 3: Add bundles to their bundle groups
   for (let [bundleId, bundleGroup] of entryBundleToBundleGroup) {
     let outboundNodeIds = idealBundleGraph.getNodeIdsConnectedFrom(bundleId);
@@ -571,6 +573,7 @@ function createIdealGraph(
       reachableRoots.addEdge(rootNodeId, nodeId);
     }, root);
   }
+
   // Maps a given bundleRoot to the assets reachable from it,
   // and the bundleRoots reachable from each of these assets
   let ancestorAssets: Map<

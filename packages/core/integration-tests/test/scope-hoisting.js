@@ -3019,7 +3019,7 @@ describe('scope hoisting', function () {
       assert.deepEqual(await run(b), 42);
     });
 
-    it.only('individually exports symbols from intermediately wrapped reexports', async () => {
+    it('individually exports symbols from intermediately wrapped reexports', async () => {
       let b = await bundle(
         path.join(
           __dirname,
