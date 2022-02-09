@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-webextension",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,12 +16,12 @@
   "main": "lib/WebExtensionTransformer.js",
   "source": "src/WebExtensionTransformer.js",
   "engines": {
-    "parcel": "^2.2.1"
+    "parcel": "^2.3.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "^2.2.1",
-    "@parcel/plugin": "^2.2.1",
-    "@parcel/utils": "^2.2.1",
+    "@parcel/diagnostic": "^2.3.0",
+    "@parcel/plugin": "^2.3.0",
+    "@parcel/utils": "^2.3.0",
     "content-security-policy-parser": "^0.3.0",
     "json-source-map": "^0.6.1"
   }
