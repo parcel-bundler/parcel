@@ -11,7 +11,8 @@
     "packages/*/*"
   ],
   "scripts": {
-    "build": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
+    "build": "yarn build-bundles && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
+    "build-bundles": "rm -rf packages/*/*/lib && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server}",
     "build-ts": "lerna run build-ts && lerna run check-ts",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
@@ -22,7 +23,7 @@
     "unlink-all": "node scripts/unlink-all.js packages",
     "check": "flow check",
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different && cargo fmt --all -- --check",
-    "prepublishOnly": "yarn build && yarn build-ts && yarn adjust-versions",
+    "prepublishOnly": "yarn adjust-versions && yarn build && yarn build-ts",
     "test:unit": "cross-env NODE_ENV=test mocha",
     "test:integration": "yarn workspace @parcel/integration-tests test",
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
@@ -30,7 +31,7 @@
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions --exact",
     "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions",
-    "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines.js",
+    "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines-peerdeps.js",
     "release": "lerna publish -y from-package --pre-dist-tag=next --no-git-tag-version --no-push",
     "prepare": "husky install"
   },
@@ -46,13 +47,13 @@
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
     "husky": "^6.0.0",
-    "lerna": "^3.3.2",
+    "lerna": "^3.22.1",
     "lint-staged": "^10.2.11",
     "mocha": "^8.3.0",
     "mocha-junit-reporter": "^2.0.0",
     "mocha-multi-reporters": "^1.5.1",
     "prettier": "2.4.1",
-    "rimraf": "^2.6.3",
+    "rimraf": "^3.0.2",
     "semver": "^5.7.1",
     "sinon": "^7.3.1"
   },

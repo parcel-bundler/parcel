@@ -675,9 +675,16 @@ describe('TargetResolver', () => {
         distEntry: 'index.js',
         publicUrl: '/',
         env: {
-          id: 'bebcf0293c911f03',
+          id: '6aafdb9eaa4a3812',
           context: 'node',
-          engines: {},
+          engines: {
+            browsers: [
+              'last 1 Chrome version',
+              'last 1 Safari version',
+              'last 1 Firefox version',
+              'last 1 Edge version',
+            ],
+          },
           includeNodeModules: false,
           isLibrary: true,
           outputFormat: 'commonjs',
@@ -1046,9 +1053,16 @@ describe('TargetResolver', () => {
         distEntry: 'index.mjs',
         publicUrl: '/',
         env: {
-          id: 'fa77701547623794',
+          id: '439701173a9199ea',
           context: 'browser',
-          engines: {},
+          engines: {
+            browsers: [
+              'last 1 Chrome version',
+              'last 1 Safari version',
+              'last 1 Firefox version',
+              'last 1 Edge version',
+            ],
+          },
           includeNodeModules: true,
           outputFormat: 'esmodule',
           isLibrary: false,
@@ -1084,9 +1098,16 @@ describe('TargetResolver', () => {
         distEntry: 'index.js',
         publicUrl: '/',
         env: {
-          id: 'fa77701547623794',
+          id: '439701173a9199ea',
           context: 'browser',
-          engines: {},
+          engines: {
+            browsers: [
+              'last 1 Chrome version',
+              'last 1 Safari version',
+              'last 1 Firefox version',
+              'last 1 Edge version',
+            ],
+          },
           includeNodeModules: true,
           outputFormat: 'esmodule',
           isLibrary: false,
@@ -1208,9 +1229,16 @@ describe('TargetResolver', () => {
           distDir: '.parcel-cache/dist',
           publicUrl: '/',
           env: {
-            id: '4a236f9275d0a351',
+            id: 'd6ea1d42532a7575',
             context: 'browser',
-            engines: {},
+            engines: {
+              browsers: [
+                'last 1 Chrome version',
+                'last 1 Safari version',
+                'last 1 Firefox version',
+                'last 1 Edge version',
+              ],
+            },
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,

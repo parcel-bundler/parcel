@@ -181,6 +181,7 @@ async function run({input, options, api}: RunInput) {
 
   let res = {
     filePath,
+    type: info.type,
     stats: {
       size,
       time: info.time ?? 0,
@@ -248,19 +249,21 @@ async function runCompressor(
       logger: new PluginLogger({origin: compressor.name}),
     });
 
-    await new Promise((resolve, reject) =>
-      pipeline(
-        res.stream,
-        outputFS.createWriteStream(
-          filePath + (res.type != null ? '.' + res.type : ''),
-          writeOptions,
+    if (res != null) {
+      await new Promise((resolve, reject) =>
+        pipeline(
+          res.stream,
+          outputFS.createWriteStream(
+            filePath + (res.type != null ? '.' + res.type : ''),
+            writeOptions,
+          ),
+          err => {
+            if (err) reject(err);
+            else resolve();
+          },
         ),
-        err => {
-          if (err) reject(err);
-          else resolve();
-        },
-      ),
-    );
+      );
+    }
   } catch (err) {
     throw new ThrowableDiagnostic({
       diagnostic: errorToDiagnostic(err, {

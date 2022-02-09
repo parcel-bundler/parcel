@@ -10,8 +10,7 @@ import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation} from '@parcel/utils';
-import {isMatch} from 'micromatch';
+import {validateSchema, remapSourceLocation, isGlobMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 
 const JSX_EXTENSIONS = {
@@ -23,7 +22,7 @@ const JSX_PRAGMA = {
   react: {
     pragma: 'React.createElement',
     pragmaFrag: 'React.Fragment',
-    automatic: '>= 17.0.0',
+    automatic: '>= 17.0.0 || >= 0.0.0-0 < 0.0.0',
   },
   preact: {
     pragma: 'h',
@@ -200,13 +199,20 @@ export default (new Transformer({
         jsxImportSource = compilerOptions?.jsxImportSource;
         automaticJSXRuntime = true;
       } else if (reactLib) {
-        let automaticVersion = JSX_PRAGMA[reactLib]?.automatic;
+        let effectiveReactLib =
+          pkg?.alias && pkg.alias['react'] === 'preact/compat'
+            ? 'preact'
+            : reactLib;
+        let automaticVersion = JSX_PRAGMA[effectiveReactLib]?.automatic;
         let reactLibVersion =
-          pkg?.dependencies?.[reactLib] ||
-          pkg?.devDependencies?.[reactLib] ||
-          pkg?.peerDependencies?.[reactLib];
+          pkg?.dependencies?.[effectiveReactLib] ||
+          pkg?.devDependencies?.[effectiveReactLib] ||
+          pkg?.peerDependencies?.[effectiveReactLib];
+        reactLibVersion = reactLibVersion
+          ? semver.validRange(reactLibVersion)
+          : null;
         let minReactLibVersion =
-          reactLibVersion != null && reactLibVersion !== '*'
+          reactLibVersion !== null && reactLibVersion !== '*'
             ? semver.minVersion(reactLibVersion)?.toString()
             : null;
 
@@ -214,7 +220,9 @@ export default (new Transformer({
           automaticVersion &&
           !compilerOptions?.jsxFactory &&
           minReactLibVersion != null &&
-          semver.satisfies(minReactLibVersion, automaticVersion);
+          semver.satisfies(minReactLibVersion, automaticVersion, {
+            includePrerelease: true,
+          });
 
         if (automaticJSXRuntime) {
           jsxImportSource = reactLib;
@@ -283,49 +291,52 @@ export default (new Transformer({
     ]);
 
     let targets;
-    if (asset.isSource) {
-      if (asset.env.isElectron() && asset.env.engines.electron) {
-        targets = {
-          electron: semver.minVersion(asset.env.engines.electron)?.toString(),
-        };
-      } else if (asset.env.isBrowser() && asset.env.engines.browsers) {
-        targets = {};
+    if (asset.env.isElectron() && asset.env.engines.electron) {
+      targets = {
+        electron: semver.minVersion(asset.env.engines.electron)?.toString(),
+      };
+    } else if (asset.env.isBrowser() && asset.env.engines.browsers) {
+      targets = {};
 
-        let browsers = Array.isArray(asset.env.engines.browsers)
-          ? asset.env.engines.browsers
-          : [asset.env.engines.browsers];
+      let browsers = Array.isArray(asset.env.engines.browsers)
+        ? asset.env.engines.browsers
+        : [asset.env.engines.browsers];
 
-        // If the output format is esmodule, exclude browsers
-        // that support them natively so that we transpile less.
-        if (asset.env.outputFormat === 'esmodule') {
-          browsers = [...browsers, ...ESMODULE_BROWSERS];
-        }
-
-        browsers = browserslist(browsers);
-        for (let browser of browsers) {
-          let [name, version] = browser.split(' ');
-          if (BROWSER_MAPPING.hasOwnProperty(name)) {
-            name = BROWSER_MAPPING[name];
-            if (!name) {
-              continue;
-            }
-          }
-
-          let [major, minor = '0', patch = '0'] = version
-            .split('-')[0]
-            .split('.');
-          let semverVersion = `${major}.${minor}.${patch}`;
-
-          if (
-            targets[name] == null ||
-            semver.gt(targets[name], semverVersion)
-          ) {
-            targets[name] = semverVersion;
-          }
-        }
-      } else if (asset.env.isNode() && asset.env.engines.node) {
-        targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
+      // If the output format is esmodule, exclude browsers
+      // that support them natively so that we transpile less.
+      if (asset.env.outputFormat === 'esmodule') {
+        browsers = [...browsers, ...ESMODULE_BROWSERS];
       }
+
+      browsers = browserslist(browsers);
+      for (let browser of browsers) {
+        let [name, version] = browser.split(' ');
+        if (BROWSER_MAPPING.hasOwnProperty(name)) {
+          name = BROWSER_MAPPING[name];
+          if (!name) {
+            continue;
+          }
+        }
+
+        let [major, minor = '0', patch = '0'] = version
+          .split('-')[0]
+          .split('.');
+        if (isNaN(major) || isNaN(minor) || isNaN(patch)) {
+          continue;
+        }
+        let semverVersion = `${major}.${minor}.${patch}`;
+
+        if (targets[name] == null || semver.gt(targets[name], semverVersion)) {
+          targets[name] = semverVersion;
+        }
+      }
+    } else if (asset.env.isNode() && asset.env.engines.node) {
+      targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
+    }
+
+    // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
+    if (/@swc[/\\]helpers/.test(asset.filePath)) {
+      targets = null;
     }
 
     let env: EnvMap = {};
@@ -340,7 +351,7 @@ export default (new Transformer({
       }
     } else if (Array.isArray(config?.inlineEnvironment)) {
       for (let key in options.env) {
-        if (isMatch(key, config.inlineEnvironment)) {
+        if (isGlobMatch(key, config.inlineEnvironment)) {
           env[key] = String(options.env[key]);
         }
       }
@@ -655,7 +666,12 @@ export default (new Transformer({
         }
 
         // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
-        let isHelper = dep.is_helper && !dep.specifier.endsWith('/jsx-runtime');
+        let isHelper =
+          dep.is_helper &&
+          !(
+            dep.specifier.endsWith('/jsx-runtime') ||
+            dep.specifier.endsWith('/jsx-dev-runtime')
+          );
         if (isHelper && !asset.env.isLibrary) {
           env = {
             ...env,
