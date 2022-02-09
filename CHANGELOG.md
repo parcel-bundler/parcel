@@ -5,6 +5,18 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2022-02-09
+
+## Added
+
+- Reduce the number of npm dependencies needed by parcel [Details](https://github.com/parcel-bundler/parcel/pull/7576)
+- Support React 18 prereleases and experimental versions with automatic JSX runtime - [Details](https://github.com/parcel-bundler/parcel/pull/7642)
+
+## Fixed
+
+- Fix `@swc/helpers` in non-module scripts - [Details](https://github.com/parcel-bundler/parcel/pull/7599)
+- Fix auto installing dependencies in PNPM monorepos - [Details](https://github.com/parcel-bundler/parcel/pull/7566)
+
 ## [2.2.1] - 2022-01-17
 
 ### Fixed

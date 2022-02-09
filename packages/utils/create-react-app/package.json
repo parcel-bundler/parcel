@@ -1,6 +1,6 @@
 {
   "name": "@parcel/create-react-app",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "bin": {
     "parcel-create-react-app": "src/bin.js"
   },
@@ -31,6 +31,6 @@
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "^2.2.1"
+    "@parcel/babel-register": "^2.3.0"
   }
 }
