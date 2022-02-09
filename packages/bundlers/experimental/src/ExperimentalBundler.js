@@ -532,7 +532,7 @@ function createIdealGraph(
           ) {
             let assets = assetGraph.getDependencyAssets(dependency);
             if (assets.length === 0) {
-              return node;
+              return dependency.priority === 'lazy';
             }
 
             invariant(assets.length === 1);
@@ -552,21 +552,15 @@ function createIdealGraph(
               );
             }
           }
-          return;
         }
-        return;
+        return dependency.priority === 'lazy';
       }
 
-      if (bundleRoots.has(node.value)) {
+      if (
+        bundleRoots.has(node.value) &&
+        (!node.value.isBundleSplittable || isAsync)
+      ) {
         actions.skipChildren();
-        // for (let bundleGroupId of bundleGraph.getNodeIdsConnectedTo(
-        //   nullthrows(bundles.get(root.id)),
-        // )) {
-        //   bundleGraph.addEdge(
-        //     bundleGroupId,
-        //     nullthrows(bundles.get(node.value.id)),
-        //   );
-        // }
         return;
       }
 
@@ -577,8 +571,6 @@ function createIdealGraph(
       reachableRoots.addEdge(rootNodeId, nodeId);
     }, root);
   }
-  reachableRoots;
-  debugger;
   // Maps a given bundleRoot to the assets reachable from it,
   // and the bundleRoots reachable from each of these assets
   let ancestorAssets: Map<
@@ -597,7 +589,6 @@ function createIdealGraph(
     const bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
     invariant(bundleRoot != null);
-    debugger;
     let ancestors = ancestorAssets.get(bundleRoot);
 
     // First consider bundle group asset availability, processing only
@@ -775,7 +766,8 @@ function createIdealGraph(
           }
         }
       }
-    } else if (reachable.length > 0) {
+    }
+    if (reachable.length > 0) {
       let reachableEntries = reachable.filter(
         a => entries.has(a) || !a.isBundleSplittable,
       );

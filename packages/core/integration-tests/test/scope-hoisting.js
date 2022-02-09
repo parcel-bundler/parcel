@@ -14,7 +14,6 @@ import {
   getNextBuild,
   mergeParcelOptions,
   outputFS,
-  inputFS,
   overlayFS,
   run,
   runBundle,
