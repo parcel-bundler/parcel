@@ -14,6 +14,7 @@ import {
   getNextBuild,
   mergeParcelOptions,
   outputFS,
+  inputFS,
   overlayFS,
   run,
   runBundle,
@@ -3023,7 +3024,7 @@ describe('scope hoisting', function () {
       let b = await bundle(
         path.join(
           __dirname,
-          'integration/scope-hoisting/es6/export-intermediate-wrapped-reexports/index.html',
+          'integration/scope-hoisting/es6/export-intermediate-wrapped-reexports/index.mjs',
         ),
       );
 
