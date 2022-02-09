@@ -290,6 +290,7 @@ export default class NodeResolver {
 
     // Auto install node builtin polyfills if not already available
     if (resolved === undefined && builtin != null) {
+      let packageName = builtin.split('/')[0];
       let packageManager = this.packageManager;
       if (packageManager) {
         this.logger?.warn({
@@ -312,7 +313,7 @@ export default class NodeResolver {
             'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
         });
 
-        await packageManager.resolve(builtin, this.projectRoot + '/index', {
+        await packageManager.resolve(packageName, this.projectRoot + '/index', {
           saveDev: true,
           shouldAutoInstall: true,
         });
@@ -323,6 +324,31 @@ export default class NodeResolver {
         } catch (err) {
           // ignore
         }
+      } else {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: md`Node builtin polyfill "${packageName}" is not installed, but auto install is disabled.`,
+            codeFrames: [
+              {
+                filePath: ctx.loc?.filePath ?? sourceFile,
+                codeHighlights: ctx.loc
+                  ? [
+                      {
+                        message: 'used here',
+                        start: ctx.loc.start,
+                        end: ctx.loc.end,
+                      },
+                    ]
+                  : [],
+              },
+            ],
+            documentationURL:
+              'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
+            hints: [
+              md`Install the "${packageName}" package with your package manager, and run Parcel again.`,
+            ],
+          },
+        });
       }
     }
 
