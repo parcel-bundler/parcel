@@ -77,10 +77,6 @@ jobs:
         displayName: 'Run unit tests'
       - script: yarn test:integration-ci
         displayName: 'Run integration tests'
-      - script: yarn flow check
-        displayName: 'Type check with Flow'
-      - script: yarn lint
-        displayName: 'Lint'
       - task: PublishTestResults@2
         displayName: 'Publish Test Results'
         condition: succeededOrFailed()

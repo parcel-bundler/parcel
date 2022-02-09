@@ -1,6 +1,6 @@
 on: pull_request
 
-name: Generate benchmarks
+name: Test
 
 jobs:
   prBenchmarks:
@@ -11,3 +11,29 @@ jobs:
         uses: parcel-bundler/parcel-benchmark-action@master
         env:
           PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          cache: yarn
+      - uses: actions-rs/toolchain@v1
+      - uses: Swatinem/rust-cache@v1
+      # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
+      # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
+      - run: yarn --frozen-lockfile
+      - run: yarn lint
+
+  flow:
+    name: Flow
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          cache: yarn
+      - run: yarn --frozen-lockfile
+      - run: yarn flow check
