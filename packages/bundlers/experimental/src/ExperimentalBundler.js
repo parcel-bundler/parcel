@@ -186,6 +186,7 @@ function decorateLegacyGraph(
   for (let [, idealBundle] of idealBundleGraph.nodes) {
     if (idealBundle === 'root') continue;
     let bundle = nullthrows(idealBundleToLegacyBundle.get(idealBundle));
+    console.log(idealBundle.internalizedAssetIds);
     for (let internalized of idealBundle.internalizedAssetIds) {
       let incomingDeps = bundleGraph.getIncomingDependencies(
         bundleGraph.getAssetById(internalized),
@@ -522,7 +523,7 @@ function createIdealGraph(
       if (node.value === root) {
         return;
       }
-
+      debugger;
       if (node.type === 'dependency') {
         let dependency = node.value;
 
@@ -560,6 +561,19 @@ function createIdealGraph(
 
       if (bundleRoots.has(node.value)) {
         actions.skipChildren();
+        for (let bundleGroupId of bundleGraph.getNodeIdsConnectedTo(
+          nullthrows(bundles.get(root.id)),
+        )) {
+          console.log(
+            'connecting bundlegroup',
+            bundleGroupId,
+            bundles.get(node.value.id),
+          );
+          bundleGraph.addEdge(
+            bundleGroupId,
+            nullthrows(bundles.get(node.value.id)),
+          );
+        }
         return;
       }
 
@@ -570,7 +584,8 @@ function createIdealGraph(
       reachableRoots.addEdge(rootNodeId, nodeId);
     }, root);
   }
-
+  reachableRoots;
+  debugger;
   // Maps a given bundleRoot to the assets reachable from it,
   // and the bundleRoots reachable from each of these assets
   let ancestorAssets: Map<
@@ -589,6 +604,7 @@ function createIdealGraph(
     const bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
     invariant(bundleRoot != null);
+    debugger;
     let ancestors = ancestorAssets.get(bundleRoot);
 
     // First consider bundle group asset availability, processing only
@@ -617,7 +633,7 @@ function createIdealGraph(
         )
         .map(id => nullthrows(reachableRoots.getNode(id)));
 
-      for (let asset of assetsFromBundleRoot) {
+      for (let asset of [bundleRoot, ...assetsFromBundleRoot]) {
         assetRefs.set(asset, assetRefs.get(asset) + 1);
       }
     }
@@ -743,6 +759,10 @@ function createIdealGraph(
               return false;
             }
 
+            console.log('checking br', bundleRoot.filePath);
+            console.log('checking asset', asset.filePath);
+            debugger;
+
             return (
               reachableRoots.hasEdge(
                 reachableRoots.getNodeIdByContentKey(bundleRoot.id),
@@ -755,6 +775,8 @@ function createIdealGraph(
             invariant(bundleRoot !== 'root');
             return bundleRoot;
           });
+
+        console.log(willInternalizeRoots);
 
         for (let bundleRoot of willInternalizeRoots) {
           if (bundleRoot !== asset) {
