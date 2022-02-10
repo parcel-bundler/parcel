@@ -20,8 +20,8 @@
     "parcel": "^2.3.1"
   },
   "dependencies": {
-    "@parcel/node-resolver-core": "^2.3.1",
-    "@parcel/plugin": "^2.3.1"
+    "@parcel/node-resolver-core": "2.3.1",
+    "@parcel/plugin": "2.3.1"
   },
   "devDependencies": {
     "@babel/core": "^7.12.2"

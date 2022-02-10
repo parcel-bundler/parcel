@@ -29,12 +29,12 @@
     }
   },
   "dependencies": {
-    "@parcel/plugin": "^2.3.1",
-    "@parcel/utils": "^2.3.1"
+    "@parcel/plugin": "2.3.1",
+    "@parcel/utils": "2.3.1"
   },
   "devDependencies": {
-    "@parcel/babel-preset": "^2.3.1",
-    "@parcel/types": "^2.3.1",
+    "@parcel/babel-preset": "2.3.1",
+    "@parcel/types": "2.3.1",
     "connect": "^3.7.0",
     "ejs": "^3.1.6",
     "http-proxy-middleware": "^2.0.1",

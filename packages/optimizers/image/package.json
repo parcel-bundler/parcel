@@ -32,10 +32,10 @@
     "build-release": "napi build --platform --release"
   },
   "dependencies": {
-    "@parcel/diagnostic": "^2.3.1",
-    "@parcel/plugin": "^2.3.1",
-    "@parcel/utils": "^2.3.1",
-    "@parcel/workers": "^2.3.1",
+    "@parcel/diagnostic": "2.3.1",
+    "@parcel/plugin": "2.3.1",
+    "@parcel/utils": "2.3.1",
+    "@parcel/workers": "2.3.1",
     "detect-libc": "^1.0.3"
   },
   "devDependencies": {

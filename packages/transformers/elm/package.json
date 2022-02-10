@@ -20,8 +20,8 @@
     "parcel": "^2.3.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "^2.3.1",
-    "@parcel/plugin": "^2.3.1",
+    "@parcel/diagnostic": "2.3.1",
+    "@parcel/plugin": "2.3.1",
     "command-exists": "^1.2.8",
     "cross-spawn": "^7.0.3",
     "elm-hot": "^1.1.5",

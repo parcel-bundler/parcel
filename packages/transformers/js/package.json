@@ -30,11 +30,11 @@
     "*.node"
   ],
   "dependencies": {
-    "@parcel/diagnostic": "^2.3.1",
-    "@parcel/plugin": "^2.3.1",
+    "@parcel/diagnostic": "2.3.1",
+    "@parcel/plugin": "2.3.1",
     "@parcel/source-map": "^2.0.0",
-    "@parcel/utils": "^2.3.1",
-    "@parcel/workers": "^2.3.1",
+    "@parcel/utils": "2.3.1",
+    "@parcel/workers": "2.3.1",
     "@swc/helpers": "^0.2.11",
     "browserslist": "^4.6.6",
     "detect-libc": "^1.0.3",

@@ -20,7 +20,7 @@
     "parcel": "^2.3.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.3.1",
+    "@parcel/plugin": "2.3.1",
     "@svgr/core": "^6.2.0",
     "@svgr/plugin-jsx": "^6.2.0",
     "@svgr/plugin-svgo": "^6.2.0",
