@@ -205,6 +205,11 @@ function decorateLegacyGraph(
   // Step 3: Add bundles to their bundle groups
   for (let [bundleId, bundleGroup] of entryBundleToBundleGroup) {
     let outboundNodeIds = idealBundleGraph.getNodeIdsConnectedFrom(bundleId);
+    let entryBundle = nullthrows(idealBundleGraph.getNode(bundleId));
+    invariant(entryBundle !== 'root');
+    let legacyEntryBundle = nullthrows(
+      idealBundleToLegacyBundle.get(entryBundle),
+    );
     for (let id of outboundNodeIds) {
       let siblingBundle = nullthrows(idealBundleGraph.getNode(id));
       invariant(siblingBundle !== 'root');
@@ -212,6 +217,7 @@ function decorateLegacyGraph(
         idealBundleToLegacyBundle.get(siblingBundle),
       );
       bundleGraph.addBundleToBundleGroup(legacySiblingBundle, bundleGroup);
+      bundleGraph.createBundleReference(legacyEntryBundle, legacySiblingBundle);
     }
   }
 
@@ -561,6 +567,12 @@ function createIdealGraph(
           isAsync ||
           root.type !== node.value.type)
       ) {
+        if (!isAsync) {
+          bundleGraph.addEdge(
+            nullthrows(bundles.get(root.id)),
+            nullthrows(bundles.get(node.value.id)),
+          );
+        }
         actions.skipChildren();
         return;
       }
