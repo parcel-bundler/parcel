@@ -528,13 +528,10 @@ function createIdealGraph(
         let dependency = node.value;
 
         if (dependencyBundleGraph.hasContentKey(dependency.id)) {
-          if (
-            dependency.priority === 'lazy' ||
-            dependency.priority === 'parallel'
-          ) {
+          if (dependency.priority !== 'sync') {
             let assets = assetGraph.getDependencyAssets(dependency);
             if (assets.length === 0) {
-              return dependency.priority === 'lazy';
+              return true;
             }
 
             invariant(assets.length === 1);
@@ -555,12 +552,14 @@ function createIdealGraph(
             }
           }
         }
-        return dependency.priority === 'lazy';
+        return dependency.priority !== 'sync';
       }
 
       if (
         bundleRoots.has(node.value) &&
-        (!node.value.isBundleSplittable || isAsync)
+        ((root.isBundleSplittable && !entries.has(root)) ||
+          isAsync ||
+          root.type !== node.value.type)
       ) {
         actions.skipChildren();
         return;
