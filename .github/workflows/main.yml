@@ -48,33 +48,45 @@ jobs:
           PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
 
   unit_tests:
-    name: Run unit tests
-    runs-on: ubuntu-latest
+    name: Unit tests (${{matrix.os}}, Node ${{matrix.node}})
+    strategy:
+      matrix:
+        node: [12, 14]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{matrix.os}}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
           cache: yarn
+          node-version: ${{matrix.node}}
       - uses: actions-rs/toolchain@v1
       - uses: Swatinem/rust-cache@v1
-      # Bump max inotify watches
+      # Bump max inotify watches on Linux
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
+        if: ${{matrix.os == 'ubuntu-latest'}}
       - run: yarn --frozen-lockfile
       - run: yarn build-native-release
       - run: yarn test:unit
 
   integration_tests:
-    name: Run integration tests
-    runs-on: ubuntu-latest
+    name: Integration tests (${{matrix.os}}, Node ${{matrix.node}})
+    strategy:
+      matrix:
+        node: [12, 14]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{matrix.os}}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
           cache: yarn
+          node-version: ${{matrix.node}}
       - uses: actions-rs/toolchain@v1
       - uses: Swatinem/rust-cache@v1
-      # Bump max inotify watches
+      # Bump max inotify watches on Linux
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
+        if: ${{matrix.os == 'ubuntu-latest'}}
       - run: yarn --frozen-lockfile
       - run: yarn build-native-release
       - run: yarn test:integration-ci
