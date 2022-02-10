@@ -3,15 +3,6 @@ on: pull_request
 name: Test
 
 jobs:
-  prBenchmarks:
-    name: PR Benchmarks
-    runs-on: ubuntu-latest
-    steps:
-      - name: PR Benchmarks
-        uses: parcel-bundler/parcel-benchmark-action@master
-        env:
-          PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -62,8 +53,8 @@ jobs:
           node-version: ${{matrix.node}}
       - uses: actions-rs/toolchain@v1
       - uses: Swatinem/rust-cache@v1
-      # Bump max inotify watches on Linux
-      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
+      - name: Bump max inotify watches (Linux only)
+        run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
         if: ${{matrix.os == 'ubuntu-latest'}}
       - run: yarn --frozen-lockfile
       - run: yarn build-native-release
@@ -84,8 +75,8 @@ jobs:
           node-version: ${{matrix.node}}
       - uses: actions-rs/toolchain@v1
       - uses: Swatinem/rust-cache@v1
-      # Bump max inotify watches on Linux
-      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
+      - name: Bump max inotify watches (Linux only)
+        run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
         if: ${{matrix.os == 'ubuntu-latest'}}
       - run: yarn --frozen-lockfile
       - run: yarn build-native-release
