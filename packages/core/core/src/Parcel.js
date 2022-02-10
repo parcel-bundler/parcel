@@ -164,7 +164,6 @@ export default class Parcel {
       this.#disposable.dispose(),
       await this.#requestTracker.writeToCache(),
     ]);
-    await this.#farm.callAllWorkers('clearConfigCache', []);
   }
 
   async _startNextBuild(): Promise<?BuildEvent> {
@@ -359,6 +358,8 @@ export default class Parcel {
       if (this.isProfiling) {
         await this.stopProfiling();
       }
+
+      await this.#farm.callAllWorkers('clearConfigCache', []);
     }
   }
 

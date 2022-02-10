@@ -643,15 +643,6 @@ describe('sourcemaps', function () {
         sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
-
-      checkSourceMapping({
-        map: sourceMap,
-        source: input,
-        generated: raw,
-        str: 'background-color',
-        sourcePath: 'style.css',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
-      });
     }
 
     await test(false);
@@ -712,15 +703,6 @@ describe('sourcemaps', function () {
 
       checkSourceMapping({
         map: sourceMap,
-        source: style,
-        generated: raw,
-        str: 'background-color',
-        sourcePath: 'style.css',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
-      });
-
-      checkSourceMapping({
-        map: sourceMap,
         source: otherStyle,
         generated: raw,
         str: 'div',
@@ -730,27 +712,9 @@ describe('sourcemaps', function () {
 
       checkSourceMapping({
         map: sourceMap,
-        source: otherStyle,
-        generated: raw,
-        str: 'width',
-        sourcePath: 'other-style.css',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
-      });
-
-      checkSourceMapping({
-        map: sourceMap,
         source: anotherStyle,
         generated: raw,
         str: 'main',
-        sourcePath: 'another-style.css',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
-      });
-
-      checkSourceMapping({
-        map: sourceMap,
-        source: anotherStyle,
-        generated: raw,
-        str: 'font-family',
         sourcePath: 'another-style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
@@ -789,10 +753,11 @@ describe('sourcemaps', function () {
 
       let mapData = sourceMap.getMap();
       assert.equal(mapData.sources.length, shouldOptimize ? 2 : 1);
-      assert.strictEqual(mapData.sources[0], 'style.scss');
+      let index = mapData.sources.indexOf('style.scss');
+      assert.strictEqual(mapData.sources[index], 'style.scss');
 
       let input = await inputFS.readFile(
-        path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+        path.join(path.dirname(filename), map.sourceRoot, map.sources[index]),
         'utf-8',
       );
 
@@ -801,15 +766,6 @@ describe('sourcemaps', function () {
         source: input,
         generated: raw,
         str: 'body',
-        sourcePath: 'style.scss',
-        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
-      });
-
-      checkSourceMapping({
-        map: sourceMap,
-        source: input,
-        generated: raw,
-        str: 'color',
         sourcePath: 'style.scss',
         msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
@@ -861,14 +817,6 @@ describe('sourcemaps', function () {
       str: 'body',
       sourcePath: 'integration/scss-sourcemap-imports/with_url.scss',
     });
-
-    checkSourceMapping({
-      map: sourceMap,
-      source: input,
-      generated: raw,
-      str: 'background-color',
-      sourcePath: 'integration/scss-sourcemap-imports/with_url.scss',
-    });
   });
 
   it('should create a valid sourcemap when for a CSS asset importing Sass', async function () {
@@ -900,20 +848,15 @@ describe('sourcemaps', function () {
 
       let mapData = sourceMap.getMap();
       // TODO: htmlnano inserts `./<input css 1>`
-      assert.equal(mapData.sources.length, shouldOptimize ? 3 : 2);
-      assert.deepEqual(mapData.sources[0], 'other.scss');
-      assert.deepEqual(mapData.sources[shouldOptimize ? 2 : 1], 'style.css');
+      assert(mapData.sources.includes('other.scss'));
+      assert(mapData.sources.includes('style.css'));
 
       let style = await inputFS.readFile(
-        path.join(
-          path.dirname(filename),
-          map.sourceRoot,
-          map.sources[shouldOptimize ? 2 : 1],
-        ),
+        path.join(path.dirname(filename), map.sourceRoot, 'style.css'),
         'utf-8',
       );
       let other = await inputFS.readFile(
-        path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+        path.join(path.dirname(filename), map.sourceRoot, 'other.scss'),
         'utf-8',
       );
 
@@ -928,27 +871,9 @@ describe('sourcemaps', function () {
 
       checkSourceMapping({
         map: sourceMap,
-        source: style,
-        generated: raw,
-        str: 'color',
-        sourcePath: 'style.css',
-        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
-      });
-
-      checkSourceMapping({
-        map: sourceMap,
         source: other,
         generated: raw,
         str: 'div',
-        sourcePath: 'other.scss',
-        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
-      });
-
-      checkSourceMapping({
-        map: sourceMap,
-        source: other,
-        generated: raw,
-        str: 'font-family',
         sourcePath: 'other.scss',
         msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
@@ -985,10 +910,9 @@ describe('sourcemaps', function () {
       sourceMap.addVLQMap(map);
 
       let mapData = sourceMap.getMap();
-      assert.equal(mapData.sources.length, shouldOptimize ? 2 : 1);
-      assert.deepEqual(mapData.sources[0], 'style.less');
+      assert(mapData.sources.includes('style.less'));
       let input = await inputFS.readFile(
-        path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+        path.join(path.dirname(filename), map.sourceRoot, 'style.less'),
         'utf-8',
       );
 
@@ -997,15 +921,6 @@ describe('sourcemaps', function () {
         source: input,
         generated: raw,
         str: 'div',
-        sourcePath: 'style.less',
-        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
-      });
-
-      checkSourceMapping({
-        map: sourceMap,
-        source: input,
-        generated: raw,
-        str: 'width',
         sourcePath: 'style.less',
         msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
@@ -1365,8 +1280,8 @@ describe('sourcemaps', function () {
 
     let sourceMap = new SourceMap('/');
     sourceMap.addVLQMap(map);
-    let sourceContent = map.sourcesContent[0];
     let sourcePath = 'index.js';
+    let sourceContent = sourceMap.getSourceContent(sourcePath);
 
     checkSourceMapping({
       map: sourceMap,
@@ -1410,8 +1325,8 @@ describe('sourcemaps', function () {
 
     let sourceMap = new SourceMap('/');
     sourceMap.addVLQMap(map);
-    let sourceContent = map.sourcesContent[0];
     let sourcePath = 'index.tsx';
+    let sourceContent = sourceMap.getSourceContent(sourcePath);
 
     checkSourceMapping({
       map: sourceMap,

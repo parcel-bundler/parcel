@@ -62,13 +62,11 @@ describe('webextension', function () {
       {
         name: 'index-jsx.js',
         assets: [
-          'checkPropTypes.js',
           'esmodule-helpers.js',
           'index-jsx.jsx',
           'index.js',
           'index.js',
           'react.development.js',
-          'ReactPropTypesSecret.js',
         ],
       },
       {assets: ['single.js', 'esmodule-helpers.js']},
