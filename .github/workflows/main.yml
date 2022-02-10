@@ -37,3 +37,44 @@ jobs:
           cache: yarn
       - run: yarn --frozen-lockfile
       - run: yarn flow check
+
+  benchmarks:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR Benchmarks
+        uses: parcel-bundler/parcel-benchmark-action@master
+        env:
+          PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
+
+  unit_tests:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          cache: yarn
+      - uses: actions-rs/toolchain@v1
+      - uses: Swatinem/rust-cache@v1
+      # Bump max inotify watches
+      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
+      - run: yarn --frozen-lockfile
+      - run: yarn build-native-release
+      - run: yarn test:unit
+
+  integration_tests:
+    name: Run integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          cache: yarn
+      - uses: actions-rs/toolchain@v1
+      - uses: Swatinem/rust-cache@v1
+      # Bump max inotify watches
+      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
+      - run: yarn --frozen-lockfile
+      - run: yarn build-native-release
+      - run: yarn test:integration-ci
