@@ -22,8 +22,7 @@ for (let config of configs) {
         throw new Error(`Unknown parcel dependency ${dep}`);
       }
 
-      pkg.parcelDependencies[dep] =
-        (semver.parse(version).prerelease.length === 0 ? '^' : '') + version;
+      pkg.parcelDependencies[dep] = version;
     }
 
     fs.writeFileSync(configPkgPath, JSON.stringify(pkg, null, 2) + '\n');
