@@ -81,3 +81,22 @@ jobs:
       - run: yarn --frozen-lockfile
       - run: yarn build-native-release
       - run: yarn test:integration-ci
+      # Similar to
+      # https://github.com/marketplace/actions/publish-unit-test-results#use-with-matrix-strategy
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: Integration tests (${{matrix.os}}, node ${{matrix.node}})
+          path: '**/junit-*.xml'
+
+  test_report:
+    name: Test report
+    runs-on: ubuntu-latest
+    needs: [unit_tests, integration_tests]
+    if: always()
+    steps:
+      - name: Create test report
+        uses: mikepenz/action-junit-report@v2
+        with:
+          report_paths: artifacts/**/*.xml
