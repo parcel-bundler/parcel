@@ -722,6 +722,11 @@ export interface MutableAsset extends BaseAsset {
    * This is initially set by the resolver, but can be overridden by transformers.
    */
   sideEffects: boolean;
+  /**
+   * The asset's pipeline. This initially corresponds to what developer specified with import,
+   * but it may be changed during transformation.
+   */
+  pipeline: ?string;
   /** The symbols that the asset exports. */
   +symbols: MutableAssetSymbols;
 
