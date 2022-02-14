@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@babel/register": "^7.4.4",
-    "@parcel/babel-preset": "^2.3.1",
+    "@parcel/babel-preset": "2.3.1",
     "resolve": "^1.12.0"
   }
 }

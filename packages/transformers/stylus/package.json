@@ -20,8 +20,8 @@
     "parcel": "^2.3.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.3.1",
-    "@parcel/utils": "^2.3.1",
+    "@parcel/plugin": "2.3.1",
+    "@parcel/utils": "2.3.1",
     "stylus": "^0.55.0"
   }
 }

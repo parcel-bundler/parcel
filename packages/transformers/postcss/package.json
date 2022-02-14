@@ -20,9 +20,9 @@
     "parcel": "^2.3.1"
   },
   "dependencies": {
-    "@parcel/hash": "^2.3.1",
-    "@parcel/plugin": "^2.3.1",
-    "@parcel/utils": "^2.3.1",
+    "@parcel/hash": "2.3.1",
+    "@parcel/plugin": "2.3.1",
+    "@parcel/utils": "2.3.1",
     "clone": "^2.1.1",
     "nullthrows": "^1.1.1",
     "postcss-value-parser": "^4.2.0",

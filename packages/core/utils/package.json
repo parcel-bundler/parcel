@@ -33,11 +33,11 @@
     }
   },
   "dependencies": {
-    "@parcel/codeframe": "^2.3.1",
-    "@parcel/diagnostic": "^2.3.1",
-    "@parcel/hash": "^2.3.1",
-    "@parcel/logger": "^2.3.1",
-    "@parcel/markdown-ansi": "^2.3.1",
+    "@parcel/codeframe": "2.3.1",
+    "@parcel/diagnostic": "2.3.1",
+    "@parcel/hash": "2.3.1",
+    "@parcel/logger": "2.3.1",
+    "@parcel/markdown-ansi": "2.3.1",
     "@parcel/source-map": "^2.0.0",
     "chalk": "^4.1.0"
   },
