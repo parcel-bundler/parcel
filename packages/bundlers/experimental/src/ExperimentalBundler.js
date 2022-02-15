@@ -204,15 +204,20 @@ function decorateLegacyGraph(
 
   // Step 3: Add bundles to their bundle groups
   for (let [bundleId, bundleGroup] of entryBundleToBundleGroup) {
-    let outboundNodeIds = idealBundleGraph.getNodeIdsConnectedFrom(bundleId);
-    for (let id of outboundNodeIds) {
-      let siblingBundle = nullthrows(idealBundleGraph.getNode(id));
-      invariant(siblingBundle !== 'root');
-      let legacySiblingBundle = nullthrows(
-        idealBundleToLegacyBundle.get(siblingBundle),
-      );
-      bundleGraph.addBundleToBundleGroup(legacySiblingBundle, bundleGroup);
-    }
+    idealBundleGraph.traverse(
+      {
+        exit: (nodeId, _, actions) => {
+          let siblingBundle = nullthrows(idealBundleGraph.getNode(nodeId));
+          invariant(siblingBundle !== 'root');
+          let legacySiblingBundle = nullthrows(
+            idealBundleToLegacyBundle.get(siblingBundle),
+          );
+
+          bundleGraph.addBundleToBundleGroup(legacySiblingBundle, bundleGroup);
+        },
+      },
+      bundleId,
+    );
   }
 
   idealBundleGraph.traverse((nodeId, _, actions) => {
@@ -585,27 +590,11 @@ function createIdealGraph(
           root.type !== node.value.type)
       ) {
         if (!isAsync) {
-          // bundleGraph.addEdge(
-          //   nullthrows(bundles.get(root.id)),
-          //   nullthrows(bundles.get(node.value.id)),
-          // );
-          let bundleGroupIds = bundleGraph.getNodeIdsConnectedTo(
+          bundleGraph.addEdge(
             nullthrows(bundles.get(root.id)),
+            nullthrows(bundles.get(node.value.id)),
           );
-          for (let bundleGroupId of bundleGroupIds) {
-            bundleGraph.addEdge(
-              bundleGroupId,
-              nullthrows(bundles.get(node.value.id)),
-            );
-          }
         }
-        console.log(
-          'skipping',
-          node.value.filePath,
-          'from',
-          root.filePath,
-          isAsync,
-        );
         actions.skipChildren();
         return;
       }
@@ -715,6 +704,20 @@ function createIdealGraph(
         ancestorAssets.set(bundleRoot, siblingAncestors);
       }
     }
+  }
+  for (let bundleNodeId of bundleGroupBundleIds) {
+    let bundleNode = nullthrows(bundleGraph.getNode(bundleNodeId));
+    if (
+      bundleNode.bundleBehavior !== 'isolated' &&
+      bundleNode.bundleBehavior !== 'inline'
+    ) {
+      continue;
+    }
+    bundleGraph.traverse((nodeId, _, actions) => {
+      let node = nullthrows(bundleGraph.getNode(nodeId));
+      invariant(node !== 'root');
+      ancestorAssets.set([...node.assets][0], new Map());
+    }, bundleNodeId);
   }
 
   // Step 5: Place all assets into bundles or create shared bundles. Each asset

@@ -1243,6 +1243,7 @@ export default class BundleGraph {
     bundleGroup: BundleGroup,
     opts?: {|includeInline: boolean|},
   ): Array<Bundle> {
+    debugger;
     let bundles: Set<Bundle> = new Set();
     for (let bundleNodeId of this._graph.getNodeIdsConnectedFrom(
       this._graph.getNodeIdByContentKey(getBundleGroupId(bundleGroup)),
@@ -1258,11 +1259,11 @@ export default class BundleGraph {
         bundles.add(bundle);
       }
 
-      for (let referencedBundle of this.getReferencedBundles(bundle, {
-        includeInline: true,
-      })) {
-        bundles.add(referencedBundle);
-      }
+      // for (let referencedBundle of this.getReferencedBundles(bundle, {
+      //   includeInline: true,
+      // })) {
+      //   bundles.add(referencedBundle);
+      // }
     }
 
     return [...bundles];
