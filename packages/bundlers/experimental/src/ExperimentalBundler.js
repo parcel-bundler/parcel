@@ -205,7 +205,25 @@ function decorateLegacyGraph(
   // Step 3: Add bundles to their bundle groups
   for (let [bundleId, bundleGroup] of entryBundleToBundleGroup) {
     let outboundNodeIds = idealBundleGraph.getNodeIdsConnectedFrom(bundleId);
-    let entryBundle = nullthrows(idealBundleGraph.getNode(bundleId));
+    for (let id of outboundNodeIds) {
+      let siblingBundle = nullthrows(idealBundleGraph.getNode(id));
+      invariant(siblingBundle !== 'root');
+      let legacySiblingBundle = nullthrows(
+        idealBundleToLegacyBundle.get(siblingBundle),
+      );
+      bundleGraph.addBundleToBundleGroup(legacySiblingBundle, bundleGroup);
+    }
+  }
+
+  idealBundleGraph.traverse((nodeId, _, actions) => {
+    let node = idealBundleGraph.getNode(nodeId);
+    if (node === 'root') {
+      return;
+    }
+    actions.skipChildren();
+
+    let outboundNodeIds = idealBundleGraph.getNodeIdsConnectedFrom(nodeId);
+    let entryBundle = nullthrows(idealBundleGraph.getNode(nodeId));
     invariant(entryBundle !== 'root');
     let legacyEntryBundle = nullthrows(
       idealBundleToLegacyBundle.get(entryBundle),
@@ -216,10 +234,9 @@ function decorateLegacyGraph(
       let legacySiblingBundle = nullthrows(
         idealBundleToLegacyBundle.get(siblingBundle),
       );
-      bundleGraph.addBundleToBundleGroup(legacySiblingBundle, bundleGroup);
       bundleGraph.createBundleReference(legacyEntryBundle, legacySiblingBundle);
     }
-  }
+  });
 
   // Step 4: Add references to all bundles
   for (let [asset, references] of idealGraph.assetReference) {
@@ -568,11 +585,27 @@ function createIdealGraph(
           root.type !== node.value.type)
       ) {
         if (!isAsync) {
-          bundleGraph.addEdge(
+          // bundleGraph.addEdge(
+          //   nullthrows(bundles.get(root.id)),
+          //   nullthrows(bundles.get(node.value.id)),
+          // );
+          let bundleGroupIds = bundleGraph.getNodeIdsConnectedTo(
             nullthrows(bundles.get(root.id)),
-            nullthrows(bundles.get(node.value.id)),
           );
+          for (let bundleGroupId of bundleGroupIds) {
+            bundleGraph.addEdge(
+              bundleGroupId,
+              nullthrows(bundles.get(node.value.id)),
+            );
+          }
         }
+        console.log(
+          'skipping',
+          node.value.filePath,
+          'from',
+          root.filePath,
+          isAsync,
+        );
         actions.skipChildren();
         return;
       }
