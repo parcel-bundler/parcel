@@ -268,6 +268,7 @@ function createIdealGraph(
   // Step 1: Find and create bundles for entries from assetGraph
   let entries: Map<Asset, Dependency> = new Map();
   let sharedToSourceBundleIds: Map<NodeId, Array<NodeId>> = new Map();
+  let entryBundleGroupBundleIds: Set<NodeId> = new Set();
 
   assetGraph.traverse((node, context, actions) => {
     if (node.type !== 'asset') {
@@ -313,9 +314,14 @@ function createIdealGraph(
       dependencyPriorityEdges[dependency.priority],
     );
     bundleGroupBundleIds.push(nodeId);
+    entryBundleGroupBundleIds.add(nodeId);
   }
 
   let assets = [];
+
+  let entryBundleGroupsAssets: DefaultMap<string, Set<NodeId>> = new DefaultMap(
+    () => new Set(),
+  ); //This struct will hold Asset Ids to BundleGroupIds of BundlesGroups they are part of.
 
   // Step 2: Traverse the asset graph and create bundles for asset type changes and async dependencies,
   // only adding the entry asset of each bundle, not the subgraph.
@@ -372,6 +378,7 @@ function createIdealGraph(
               bundleGroupBundleIds.push(bundleId);
               bundleGraph.addEdge(bundleGraphRootNodeId, bundleId);
             } else {
+              entryBundleGroupsAssets.get(childAsset.id).add(bundleId); //maybe only do this for entry bundlegroups though (so it doesnt get huge)
               bundle = nullthrows(bundleGraph.getNode(bundleId));
               invariant(bundle !== 'root');
             }
@@ -494,6 +501,93 @@ function createIdealGraph(
 
             assetReference.get(childAsset).push([dependency, bundle]);
             continue;
+          } else if (
+            (dependency.priority === 'sync' ||
+              childAsset.bundleBehavior === 'inline') &&
+            entryBundleGroupBundleIds.has(stack[0][1])
+          ) {
+            //only enter for Sync Dependencies that are part of more than 1 ENTRY bundlegroup
+            if (entryBundleGroupsAssets.get(childAsset.id).size > 0) {
+              let deps = assetGraph.getDependencies(childAsset);
+              for (let dependency of deps) {
+                let descendantAssets =
+                  assetGraph.getDependencyAssets(dependency);
+                for (let descAsset of descendantAssets) {
+                  if (
+                    descAsset.type !== childAsset.type ||
+                    dependency.priority === 'parallel' ||
+                    descAsset.bundleBehavior === 'inline'
+                  ) {
+                    let entryBundleGroupId = stack[0][1];
+                    let bundle;
+
+                    let bundleId = bundleGraph
+                      .getNodeIdsConnectedFrom(entryBundleGroupId)
+                      .find(id => {
+                        let node = bundleGraph.getNode(id);
+                        return node !== 'root' && node?.type == descAsset.type;
+                      });
+                    if (bundleId) {
+                      bundle = bundleGraph.getNode(bundleId);
+                      invariant(bundle != null && bundle !== 'root');
+                      bundle.assets.add(descAsset);
+                    } else {
+                      if (bundleId == null) {
+                        let parentBundle = nullthrows(
+                          bundleGraph.getNode(entryBundleGroupId),
+                        );
+                        invariant(parentBundle !== 'root');
+
+                        // Create a new bundle if none of the same type exists already.
+                        bundle = createBundle({
+                          asset: descAsset,
+                          target: parentBundle.target,
+                          needsStableName:
+                            descAsset.bundleBehavior === 'inline' ||
+                            dependency.bundleBehavior === 'inline' ||
+                            (dependency.priority === 'parallel' &&
+                              !dependency.needsStableName)
+                              ? false
+                              : parentBundle.needsStableName,
+                        });
+                        bundleId = bundleGraph.addNode(bundle);
+                      }
+                    }
+                    bundles.set(descAsset.id, bundleId);
+                    bundleRoots.set(descAsset, [bundleId, entryBundleGroupId]);
+                    bundleGraph.addEdge(bundleGraphRootNodeId, bundleId);
+
+                    if (bundleId != entryBundleGroupId) {
+                      dependencyBundleGraph.addEdge(
+                        dependencyBundleGraph.addNodeByContentKeyIfNeeded(
+                          dependency.id,
+                          {
+                            value: dependency,
+                            type: 'dependency',
+                          },
+                        ),
+                        dependencyBundleGraph.addNodeByContentKeyIfNeeded(
+                          String(bundleId),
+                          {
+                            value: bundle,
+                            type: 'bundle',
+                          },
+                        ),
+                        dependencyPriorityEdges.parallel,
+                      );
+
+                      // Add an edge from the bundle group entry to the new bundle.
+                      // This indicates that the bundle is loaded together with the entry
+                      bundleGraph.addEdge(entryBundleGroupId, bundleId);
+                    }
+
+                    assetReference.get(descAsset).push([dependency, bundle]);
+                    continue;
+                  }
+                }
+              }
+            }
+            entryBundleGroupsAssets.get(childAsset.id).add(stack[0][1]);
           }
         }
       }

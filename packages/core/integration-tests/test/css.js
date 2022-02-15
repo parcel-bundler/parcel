@@ -486,7 +486,8 @@ describe('css', () => {
     let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(res.includes('.foo.bar'));
   });
-  it.only('should duplicate shared css bundles for entries that import the same css', async () => {
+
+  it('should duplicate shared css bundles for entries that import the same css', async () => {
     let b = await originalBundle(
       ['entry1.js', 'entry2.js'].map(entry =>
         path.join(
@@ -508,8 +509,14 @@ describe('css', () => {
         assets: ['a.js', 'entry2.js', 'esmodule-helpers.js'],
       },
       {
+        name: 'entry1.css',
         type: 'css',
-        assets: ['index.css', 'foo.css'],
+        assets: ['c.css'],
+      },
+      {
+        name: 'entry2.css',
+        type: 'css',
+        assets: ['b.css', 'c.css'],
       },
     ]);
   });
