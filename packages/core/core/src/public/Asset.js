@@ -271,6 +271,10 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset.value.sideEffects = sideEffects;
   }
 
+  get pipeline(): ?string {
+    return this.#asset.value.pipeline;
+  }
+
   set pipeline(pipeline: ?string): void {
     this.#asset.value.pipeline = pipeline;
   }
