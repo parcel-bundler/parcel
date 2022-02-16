@@ -203,23 +203,6 @@ function decorateLegacyGraph(
   }
 
   // Step 3: Add bundles to their bundle groups
-  for (let [bundleId, bundleGroup] of entryBundleToBundleGroup) {
-    idealBundleGraph.traverse(
-      {
-        exit: (nodeId, _, actions) => {
-          let siblingBundle = nullthrows(idealBundleGraph.getNode(nodeId));
-          invariant(siblingBundle !== 'root');
-          let legacySiblingBundle = nullthrows(
-            idealBundleToLegacyBundle.get(siblingBundle),
-          );
-
-          bundleGraph.addBundleToBundleGroup(legacySiblingBundle, bundleGroup);
-        },
-      },
-      bundleId,
-    );
-  }
-
   idealBundleGraph.traverse((nodeId, _, actions) => {
     let node = idealBundleGraph.getNode(nodeId);
     if (node === 'root') {
@@ -233,6 +216,7 @@ function decorateLegacyGraph(
     let legacyEntryBundle = nullthrows(
       idealBundleToLegacyBundle.get(entryBundle),
     );
+
     for (let id of outboundNodeIds) {
       let siblingBundle = nullthrows(idealBundleGraph.getNode(id));
       invariant(siblingBundle !== 'root');
@@ -713,7 +697,7 @@ function createIdealGraph(
     ) {
       continue;
     }
-    bundleGraph.traverse((nodeId, _, actions) => {
+    bundleGraph.traverse(nodeId => {
       let node = nullthrows(bundleGraph.getNode(nodeId));
       invariant(node !== 'root');
       ancestorAssets.set([...node.assets][0], new Map());

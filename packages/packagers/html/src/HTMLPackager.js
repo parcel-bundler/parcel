@@ -51,15 +51,13 @@ export default (new Packager({
 
     // Add bundles in the same bundle group that are not inline. For example, if two inline
     // bundles refer to the same library that is extracted into a shared bundle.
-    let referencedBundles = bundleGraph
-      .getBundlesInBundleGroup(
-        nullthrows(
-          bundleGraph
-            .getBundleGroupsContainingBundle(bundle)
-            .find(b => b.entryAssetId === nullthrows(bundle.getMainEntry()).id),
-        ),
-      )
-      .filter(b => b.bundleBehavior !== 'inline' && b.id !== bundle.id);
+    let referencedBundles = [
+      ...setDifference(
+        new Set(bundleGraph.getReferencedBundles(bundle)),
+        new Set(bundleGraph.getReferencedBundles(bundle, {recursive: false})),
+      ),
+    ];
+
     let renderConfig = config?.render;
 
     let {html} = await posthtml([
