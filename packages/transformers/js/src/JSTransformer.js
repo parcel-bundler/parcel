@@ -22,7 +22,7 @@ const JSX_PRAGMA = {
   react: {
     pragma: 'React.createElement',
     pragmaFrag: 'React.Fragment',
-    automatic: '>= 17.0.0 || ^ 16.14.0 || >= 0.0.0-0 < 0.0.0',
+    automatic: '>= 17.0.0 || ^16.14.0 || >= 0.0.0-0 < 0.0.0',
   },
   preact: {
     pragma: 'h',
