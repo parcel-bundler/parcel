@@ -66,6 +66,7 @@ pub struct Config {
   env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
   inline_fs: bool,
   insert_node_globals: bool,
+  relative_context: bool,
   is_browser: bool,
   is_worker: bool,
   is_type_script: bool,
@@ -367,7 +368,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     filename: Path::new(&config.filename),
                     decls: &mut decls,
                     global_mark,
-                    scope_hoist: config.scope_hoist
+                    scope_hoist: config.scope_hoist,
+                    relative_context: config.relative_context
                   },
                   config.insert_node_globals && config.source_type != SourceType::Script
                 ),

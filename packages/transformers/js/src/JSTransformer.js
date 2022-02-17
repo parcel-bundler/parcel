@@ -85,6 +85,9 @@ const CONFIG_SCHEMA: SchemaEntity = {
     inlineFS: {
       type: 'boolean',
     },
+    relativeContext: {
+      type: 'boolean',
+    },
     inlineEnvironment: {
       oneOf: [
         {
@@ -106,6 +109,7 @@ type PackageJSONConfig = {|
   '@parcel/transformer-js'?: {|
     inlineFS?: boolean,
     inlineEnvironment?: boolean | Array<string>,
+    relativeContext?: boolean,
   |},
 |};
 
@@ -248,6 +252,8 @@ export default (new Transformer({
     let rootPkg = result?.contents;
 
     let inlineEnvironment = config.isSource;
+    const relativeContext =
+      pkg['@parcel/transformer-js']?.relativeContext ?? false;
     let inlineFS = !ignoreFS;
     if (result && rootPkg?.['@parcel/transformer-js']) {
       validateSchema.diagnostic(
@@ -280,6 +286,7 @@ export default (new Transformer({
       inlineFS,
       reactRefresh,
       decorators,
+      relativeContext,
     };
   },
   async transform({asset, config, options, logger}) {
@@ -392,6 +399,7 @@ export default (new Transformer({
       replace_env: !asset.env.isNode(),
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
       insert_node_globals: !asset.env.isNode(),
+      relative_context: Boolean(config?.relativeContext),
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
       env,

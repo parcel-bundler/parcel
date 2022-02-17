@@ -20,6 +20,7 @@ pub struct GlobalReplacer<'a> {
   pub decls: &'a mut HashSet<(JsWord, SyntaxContext)>,
   pub global_mark: swc_common::Mark,
   pub scope_hoist: bool,
+  pub relative_context: bool,
 }
 
 impl<'a> Fold for GlobalReplacer<'a> {
@@ -136,27 +137,61 @@ impl<'a> Fold for GlobalReplacer<'a> {
         }
         "__dirname" => {
           let dirname = if let Some(dirname) = self.filename.parent() {
-            if let Some(relative) = pathdiff::diff_paths(dirname, self.project_root) {
-              relative.to_slash_lossy()
+            if self.relative_context {
+              if let Some(relative) = pathdiff::diff_paths(self.project_root, dirname) {
+                relative.to_slash_lossy()
+              } else {
+                String::from("/")
+              }
             } else {
-              String::from("/")
+              if let Some(relative) = pathdiff::diff_paths(dirname, self.project_root) {
+                relative.to_slash_lossy()
+              } else {
+                String::from("/")
+              }
             }
           } else {
             String::from("/")
           };
 
+          let ce = ast::CallExpr {
+            span: DUMMY_SP,
+            type_args: None,
+            args: vec![
+              ast::ExprOrSpread {
+                spread: None,
+                expr: Box::new(ast::Expr::Ident(ast::Ident {
+                  optional: false,
+                  span: DUMMY_SP,
+                  sym: swc_atoms::JsWord::from("__dirname"),
+                })),
+              },
+              ast::ExprOrSpread {
+                spread: None,
+                expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+                  has_escape: false,
+                  span: DUMMY_SP,
+                  kind: ast::StrKind::Synthesized,
+                  value: swc_atoms::JsWord::from(dirname),
+                }))),
+              },
+            ],
+            callee: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
+              span: DUMMY_SP,
+              computed: false,
+              obj: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+                "path".into(),
+                DUMMY_SP,
+              )))),
+              prop: Box::new(ast::Expr::Ident(ast::Ident::new("join".into(), DUMMY_SP))),
+            }))),
+          };
+
+          let pathjoin = ast::Expr::Call(ce);
+
           self.globals.insert(
             id.sym.clone(),
-            create_decl_stmt(
-              id.sym.clone(),
-              self.global_mark,
-              ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                span: DUMMY_SP,
-                value: swc_atoms::JsWord::from(dirname),
-                has_escape: false,
-                kind: ast::StrKind::Synthesized,
-              })),
-            ),
+            create_decl_stmt(id.sym.clone(), self.global_mark, pathjoin),
           );
 
           self.decls.insert(id.to_id());
