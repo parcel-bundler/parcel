@@ -142,7 +142,7 @@ async function getBundleNode(bundle: PackagedBundle, options: PluginOptions) {
   }
 
   return {
-    label: bundle.filePath,
+    label: relativePath,
     weight: bundle.stats.size,
     groups: generateGroups(dirMap),
   };
