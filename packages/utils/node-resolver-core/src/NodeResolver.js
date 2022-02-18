@@ -313,7 +313,7 @@ export default class NodeResolver {
             'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
         });
 
-        await packageManager.resolve(packageName, this.projectRoot + '/index', {
+        await packageManager.resolve(builtin, this.projectRoot + '/index', {
           saveDev: true,
           shouldAutoInstall: true,
         });
