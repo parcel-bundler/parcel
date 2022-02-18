@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -48,21 +48,21 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
-    "@parcel/fs-search": "^2.2.1",
-    "@parcel/types": "^2.2.1",
-    "@parcel/utils": "^2.2.1",
+    "@parcel/fs-search": "^2.3.0",
+    "@parcel/types": "^2.3.0",
+    "@parcel/utils": "^2.3.0",
     "@parcel/watcher": "^2.0.0",
-    "@parcel/workers": "^2.2.1"
+    "@parcel/workers": "^2.3.0"
   },
   "devDependencies": {
-    "@parcel/fs-write-stream-atomic": "^2.2.1",
+    "@parcel/fs-write-stream-atomic": "^2.3.0",
     "graceful-fs": "^4.2.4",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
     "utility-types": "^3.10.0"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.2.1"
+    "@parcel/core": "^2.3.0"
   },
   "browser": {
     "@parcel/fs": "./lib/browser.js",

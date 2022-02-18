@@ -57,6 +57,7 @@ export default (new Packager({
         new Set(bundleGraph.getReferencedBundles(bundle, {recursive: false})),
       ),
     ];
+
     let renderConfig = config?.render;
 
     let {html} = await posthtml([
