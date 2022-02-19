@@ -535,7 +535,7 @@ function createIdealGraph(
   let reachableRoots: ContentGraph<Asset> = new ContentGraph();
   for (let [root] of bundleRoots) {
     let rootNodeId = reachableRoots.addNodeByContentKeyIfNeeded(root.id, root);
-    assetGraph.traverse((node, isAsync, actions) => {
+    assetGraph.traverse((node, _, actions) => {
       if (node.value === root) {
         return;
       }
@@ -547,7 +547,7 @@ function createIdealGraph(
           if (dependency.priority !== 'sync') {
             let assets = assetGraph.getDependencyAssets(dependency);
             if (assets.length === 0) {
-              return true;
+              return;
             }
 
             invariant(assets.length === 1);
@@ -568,22 +568,29 @@ function createIdealGraph(
             }
           }
         }
-        return dependency.priority !== 'sync';
-      }
 
-      if (
-        bundleRoots.has(node.value) &&
-        ((root.isBundleSplittable && !entries.has(root)) ||
-          isAsync ||
-          root.type !== node.value.type)
-      ) {
-        if (!isAsync) {
-          bundleGraph.addEdge(
-            nullthrows(bundles.get(root.id)),
-            nullthrows(bundles.get(node.value.id)),
-          );
+        let assets = assetGraph.getDependencyAssets(dependency);
+        if (assets.length === 0) {
+          return;
         }
-        actions.skipChildren();
+
+        invariant(assets.length === 1);
+        let resolved = assets[0];
+        let isAsync = dependency.priority !== 'sync';
+        if (
+          bundleRoots.has(resolved) &&
+          ((root.isBundleSplittable && !entries.has(root)) ||
+            isAsync ||
+            root.type !== resolved.type)
+        ) {
+          let rootNodeId = nullthrows(bundles.get(root.id));
+          let resolvedNodeId = nullthrows(bundles.get(resolved.id));
+          if (!isAsync && !bundleGraph.hasEdge(rootNodeId, resolvedNodeId)) {
+            bundleGraph.addEdge(rootNodeId, resolvedNodeId);
+          }
+          actions.skipChildren();
+        }
+
         return;
       }
 
