@@ -19,4 +19,22 @@ describe('svg-react', function () {
     assert(file.includes('const SvgIcon ='));
     assert(file.includes('_react.createElement("svg"'));
   });
+
+  it('should find and use a .svgrrc config file', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/svg-react-svgrrc/react.js'),
+      {
+        defaultConfig: path.join(
+          __dirname,
+          'integration/custom-configs/.parcelrc-svg-react',
+        ),
+      },
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
+    assert(!file.includes('inkscape'));
+    assert(file.includes('const SvgIcon ='));
+    assert(file.includes('h("svg"'));
+    assert(file.includes('width: "1em"'));
+  });
 });
