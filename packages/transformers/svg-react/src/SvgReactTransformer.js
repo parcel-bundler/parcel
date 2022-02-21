@@ -17,13 +17,18 @@ function getComponentName(filePath) {
 }
 
 export default (new Transformer({
-  async transform({asset}) {
+  async loadConfig({config}) {
+    let { contents } = await config.getConfig(['.svgrrc', '.svgrrc.json']);
+    return contents;
+  },
+
+  async transform({asset,config}) {
     let code = await asset.getCode();
     let componentName = getComponentName(asset.filePath);
 
     const jsx = await transform(
       code,
-      {},
+      { ...config, runtimeConfig: false },
       {
         caller: {
           name: '@parcel/transformer-svg-react',
