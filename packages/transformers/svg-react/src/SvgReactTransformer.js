@@ -29,7 +29,8 @@ export default (new Transformer({
           name: '@parcel/transformer-svg-react',
           defaultPlugins: [svgoPlugin, jsxPlugin],
         },
-        filePath: componentName,
+        componentName,
+        filePath: asset.filePath,
       },
     );
 
