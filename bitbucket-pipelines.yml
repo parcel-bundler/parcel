@@ -8,29 +8,37 @@ definitions:
     - step: &flow
         name: Run flow
         script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - . .artifactory/activate.sh
           - yarn install --frozen-lockfile
           - yarn run flow check
     - step: &lint
         name: Run lint
         script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - . .artifactory/activate.sh
           - yarn install --frozen-lockfile
           - yarn run lint
     - step: &test-unit
         name: Run unit tests
         size: 2x
         script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - . .artifactory/activate.sh
           - yarn install --frozen-lockfile
           - yarn run test:unit
     - step: &test-integration
         name: Run integration tests
         size: 2x
         script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - . .artifactory/activate.sh
           - yarn install --frozen-lockfile
           - yarn run test:integration-ci
     - step: &build-release-parcel
         name: Build and Release Parcel
         script:
-          - pipe: docker://atlassian/artifactory-sidekick:staging
+          - pipe: docker://atlassian/artifactory-sidekick:latest
           - . .artifactory/activate.sh
           - npm set unsafe-perm true
           - yarn install --frozen-lockfile
