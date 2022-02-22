@@ -2655,8 +2655,16 @@ describe('javascript', function () {
     });
   });
 
-  it.only('todo', async function () {
-    // todo
+  it('__dirname', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-node-context/index.js'),
+    );
+
+    let output = await run(b);
+    // let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    // console.log({ js })
+    // console.log(output())
+    assert(output().includes('data'));
   });
 
   it('should work when multiple files use globals with scope hoisting', async function () {
