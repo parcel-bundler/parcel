@@ -136,65 +136,89 @@ impl<'a> Fold for GlobalReplacer<'a> {
           self.decls.insert(id.to_id());
         }
         "__dirname" => {
-          let dirname = if let Some(dirname) = self.filename.parent() {
-            if self.relative_context {
+          let inserted_expr: ast::Expr;
+          let specifier = swc_atoms::JsWord::from("path");
+
+          if self.relative_context {
+            let dirname = if let Some(dirname) = self.filename.parent() {
               if let Some(relative) = pathdiff::diff_paths(self.project_root, dirname) {
                 relative.to_slash_lossy()
               } else {
                 String::from("/")
               }
             } else {
+              String::from("/")
+            };
+
+            let path_join_call_expr = ast::CallExpr {
+              span: DUMMY_SP,
+              type_args: None,
+              args: vec![
+                ast::ExprOrSpread {
+                  spread: None,
+                  expr: Box::new(ast::Expr::Ident(ast::Ident {
+                    optional: false,
+                    span: DUMMY_SP,
+                    sym: swc_atoms::JsWord::from("__dirname"),
+                  })),
+                },
+                ast::ExprOrSpread {
+                  spread: None,
+                  expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+                    has_escape: false,
+                    span: DUMMY_SP,
+                    kind: ast::StrKind::Synthesized,
+                    value: swc_atoms::JsWord::from(dirname),
+                  }))),
+                },
+              ],
+              callee: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
+                span: DUMMY_SP,
+                computed: false,
+                obj: ast::ExprOrSuper::Expr(Box::new(Call(create_require(specifier.clone())))),
+                prop: Box::new(ast::Expr::Ident(ast::Ident::new("join".into(), DUMMY_SP))),
+              }))),
+            };
+
+            inserted_expr = ast::Expr::Call(path_join_call_expr);
+          } else {
+            let dirname = if let Some(dirname) = self.filename.parent() {
               if let Some(relative) = pathdiff::diff_paths(dirname, self.project_root) {
                 relative.to_slash_lossy()
               } else {
                 String::from("/")
               }
-            }
-          } else {
-            String::from("/")
-          };
+            } else {
+              String::from("/")
+            };
 
-          let ce = ast::CallExpr {
-            span: DUMMY_SP,
-            type_args: None,
-            args: vec![
-              ast::ExprOrSpread {
-                spread: None,
-                expr: Box::new(ast::Expr::Ident(ast::Ident {
-                  optional: false,
-                  span: DUMMY_SP,
-                  sym: swc_atoms::JsWord::from("__dirname"),
-                })),
-              },
-              ast::ExprOrSpread {
-                spread: None,
-                expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                  has_escape: false,
-                  span: DUMMY_SP,
-                  kind: ast::StrKind::Synthesized,
-                  value: swc_atoms::JsWord::from(dirname),
-                }))),
-              },
-            ],
-            callee: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
+            inserted_expr = ast::Expr::Lit(ast::Lit::Str(ast::Str {
               span: DUMMY_SP,
-              computed: false,
-              obj: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-                "path".into(),
-                DUMMY_SP,
-              )))),
-              prop: Box::new(ast::Expr::Ident(ast::Ident::new("join".into(), DUMMY_SP))),
-            }))),
+              value: swc_atoms::JsWord::from(dirname),
+              has_escape: false,
+              kind: ast::StrKind::Synthesized,
+            }));
           };
-
-          let pathjoin = ast::Expr::Call(ce);
 
           self.globals.insert(
             id.sym.clone(),
-            create_decl_stmt(id.sym.clone(), self.global_mark, pathjoin),
+            create_decl_stmt(id.sym.clone(), self.global_mark, inserted_expr),
           );
 
           self.decls.insert(id.to_id());
+
+          if self.relative_context {
+            self.items.push(DependencyDescriptor {
+              kind: DependencyKind::Require,
+              loc: SourceLocation::from(self.source_map, id.span),
+              specifier,
+              attributes: None,
+              is_optional: false,
+              is_helper: false,
+              source_type: Some(SourceType::Module),
+              placeholder: None,
+            });
+          };
         }
         "global" => {
           if !self.scope_hoist {
