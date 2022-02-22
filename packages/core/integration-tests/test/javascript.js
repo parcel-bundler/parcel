@@ -2655,6 +2655,10 @@ describe('javascript', function () {
     });
   });
 
+  it.only('todo', async function () {
+    // todo
+  });
+
   it('should work when multiple files use globals with scope hoisting', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/globals/multiple.js'),
