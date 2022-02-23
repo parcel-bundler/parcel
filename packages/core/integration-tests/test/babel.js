@@ -376,6 +376,11 @@ describe('babel', function () {
     });
 
     it('should rebuild when .babelrc changes', async function () {
+      if (process.platform !== 'linux') {
+        // This test is flaky outside of Linux. Skip it for now.
+        return;
+      }
+
       let inputDir = tempy.directory();
       let differentPath = path.join(inputDir, 'differentConfig');
       let configPath = path.join(inputDir, '.babelrc');
