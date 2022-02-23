@@ -2835,4 +2835,20 @@ describe('html', function () {
       },
     );
   });
+
+  it('extracts shared bundles that load referenced bundle roots across entries', async () => {
+    let b = await bundle(
+      ['index1.html', 'index2.html'].map(entry =>
+        path.join(__dirname, 'integration/html-shared-referenced', entry),
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    await run(b);
+  });
 });
