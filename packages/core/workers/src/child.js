@@ -10,7 +10,7 @@ import type {
   ChildImpl,
 } from './types';
 import type {Async, IDisposable} from '@parcel/types';
-import type {SharedReference, WorkerApi} from './WorkerFarm';
+import type {SharedReference} from './WorkerFarm';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -39,7 +39,6 @@ export class Child {
   loggerDisposable: IDisposable;
   child: ChildImpl;
   profiler: ?Profiler;
-  workerApi: WorkerApi;
   handles: Map<number, Handle> = new Map();
   sharedReferences: Map<SharedReference, mixed> = new Map();
   sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
