@@ -130,6 +130,7 @@ export default function extractInlineAssets(
           content: value,
           uniqueKey: parcelKey,
           bundleBehavior: 'inline',
+          isBundleSplittable: false,
           env,
           meta: {
             type: 'tag',

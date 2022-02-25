@@ -148,7 +148,6 @@ function decorateLegacyGraph(
           needsStableName: idealBundle.needsStableName,
           bundleBehavior: idealBundle.bundleBehavior,
           target: idealBundle.target,
-          env: idealBundle.env,
         }),
       );
 
@@ -173,7 +172,6 @@ function decorateLegacyGraph(
           needsStableName: idealBundle.needsStableName,
           bundleBehavior: idealBundle.bundleBehavior,
           target: idealBundle.target,
-          env: idealBundle.env,
         }),
       );
     }
@@ -372,7 +370,6 @@ function createIdealGraph(
               invariant(firstBundleGroup !== 'root');
               bundle = createBundle({
                 asset: childAsset,
-                env: firstBundleGroup.target.env,
                 target: firstBundleGroup.target,
                 needsStableName:
                   dependency.bundleBehavior === 'inline' ||
@@ -463,7 +460,6 @@ function createIdealGraph(
               // Create a new bundle if none of the same type exists already.
               bundle = createBundle({
                 asset: childAsset,
-                env: bundleGroup.target.env,
                 target: bundleGroup.target,
                 needsStableName:
                   childAsset.bundleBehavior === 'inline' ||
@@ -578,6 +574,7 @@ function createIdealGraph(
         let resolved = assets[0];
         let isAsync = dependency.priority !== 'sync';
         if (
+          root.bundleBehavior !== 'inline' &&
           bundleRoots.has(resolved) &&
           ((root.isBundleSplittable && !entries.has(root)) ||
             isAsync ||
