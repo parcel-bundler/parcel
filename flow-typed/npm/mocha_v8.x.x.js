@@ -1,5 +1,5 @@
-// flow-typed signature: 195cec6dc98ab7533f0eb927ee493f99
-// flow-typed version: 1a6d5d1968/mocha_v8.x.x/flow_>=v0.104.x
+// flow-typed signature: a9c051e037cdcce97b16e692321e6856
+// flow-typed version: b074eb3e38/mocha_v8.x.x/flow_>=v0.104.x
 
 declare interface $npm$mocha$SetupOptions {
   slow?: number;
@@ -206,7 +206,7 @@ type AfterEach =
 declare var setup: Setup;
 declare var teardown: Teardown;
 declare var suiteSetup: SuiteSetup;
-declare var suiteTeardown;
+declare var suiteTeardown: SuiteTeardown;
 declare var before: Before
 declare var after: After;
 declare var beforeEach: BeforeEach;
