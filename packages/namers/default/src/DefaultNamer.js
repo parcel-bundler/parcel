@@ -28,7 +28,7 @@ export default (new Namer({
       assert(
         entryBundlesOfType.length === 1,
         // Otherwise, we'd end up naming two bundles the same thing.
-        'Bundle group cannot have more than one entry bundle of the same type',
+        'Entry Bundle group cannot have more than one bundle of the same type since both need stable name',
       );
     }
 
