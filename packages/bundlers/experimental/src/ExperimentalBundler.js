@@ -582,8 +582,34 @@ function createIdealGraph(
         ) {
           let rootNodeId = nullthrows(bundles.get(root.id));
           let resolvedNodeId = nullthrows(bundles.get(resolved.id));
-          if (!isAsync && !bundleGraph.hasEdge(rootNodeId, resolvedNodeId)) {
-            bundleGraph.addEdge(rootNodeId, resolvedNodeId);
+          if (!isAsync) {
+            if (!bundleGraph.hasEdge(rootNodeId, resolvedNodeId)) {
+              bundleGraph.addEdge(rootNodeId, resolvedNodeId);
+            }
+
+            // Reflect this connection in the async bundle root graph by
+            // connecting the reused bundle to every case where the original
+            // root bundle is loaded. This only necessary in cases that
+            // bundles in a group are executed in serial (e.g. js referenced
+            // by html)
+            for (let inboundAsync of asyncBundleRootGraph.getNodeIdsConnectedTo(
+              nullthrows(asyncBundleRootGraph.getNodeIdByContentKey(root.id)),
+            )) {
+              let resolvedInAsyncRootGraph = nullthrows(
+                asyncBundleRootGraph.getNodeIdByContentKey(resolved.id),
+              );
+              if (
+                !asyncBundleRootGraph.hasEdge(
+                  inboundAsync,
+                  resolvedInAsyncRootGraph,
+                )
+              ) {
+                asyncBundleRootGraph.addEdge(
+                  inboundAsync,
+                  resolvedInAsyncRootGraph,
+                );
+              }
+            }
           }
           actions.skipChildren();
         }
@@ -696,20 +722,6 @@ function createIdealGraph(
         ancestorAssets.set(bundleRoot, siblingAncestors);
       }
     }
-  }
-  for (let bundleNodeId of bundleGroupBundleIds) {
-    let bundleNode = nullthrows(bundleGraph.getNode(bundleNodeId));
-    if (
-      bundleNode.bundleBehavior !== 'isolated' &&
-      bundleNode.bundleBehavior !== 'inline'
-    ) {
-      continue;
-    }
-    bundleGraph.traverse(nodeId => {
-      let node = nullthrows(bundleGraph.getNode(nodeId));
-      invariant(node !== 'root');
-      ancestorAssets.set([...node.assets][0], new Map());
-    }, bundleNodeId);
   }
 
   // Step 5: Place all assets into bundles or create shared bundles. Each asset
