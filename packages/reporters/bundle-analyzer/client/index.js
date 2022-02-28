@@ -102,10 +102,10 @@ function translate3d(x, y, z) {
 }
 
 function formatSize(x){
-  const units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
   let l = 0, n = parseInt(x, 10) || 0;
-  while(n >= 1024 && ++l){
-      n /= 1024;
+  while(n >= 1000 && ++l){
+      n /= 1000;
   }
-  return(`${n.toFixed(n < 10 && l > 0 ? 1 : 0)} ${units[l]}` + (l ? ` (${x} bytes)` : ''));
+  return(`${n.toFixed(n < 10 && l > 0 ? 1 : 0)} ${units[l]}`);
 }
