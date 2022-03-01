@@ -1019,25 +1019,43 @@ describe('javascript', function () {
       },
     );
 
-    assertBundles(b, [
-      {
-        assets: ['dedicated-worker.js', 'index.js'],
-      },
-      {
-        name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
-      },
-      {
-        assets: ['shared-worker.js', 'index.js'],
-      },
-    ]);
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      assertBundles(b, [
+        {
+          assets: ['dedicated-worker.js'],
+        },
+        {
+          name: 'index.js',
+          assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
+        },
+        {
+          assets: ['shared-worker.js'],
+        },
+        {
+          assets: ['index.js'],
+        },
+      ]);
+    } else {
+      assertBundles(b, [
+        {
+          assets: ['dedicated-worker.js', 'index.js'],
+        },
+        {
+          name: 'index.js',
+          assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
+        },
+        {
+          assets: ['shared-worker.js', 'index.js'],
+        },
+      ]);
+    }
 
     let dedicated, shared;
     b.traverseBundles((bundle, ctx, traversal) => {
-      if (bundle.getMainEntry().filePath.endsWith('shared-worker.js')) {
+      if (bundle.getMainEntry()?.filePath.endsWith('shared-worker.js')) {
         shared = bundle;
       } else if (
-        bundle.getMainEntry().filePath.endsWith('dedicated-worker.js')
+        bundle.getMainEntry()?.filePath.endsWith('dedicated-worker.js')
       ) {
         dedicated = bundle;
       }
