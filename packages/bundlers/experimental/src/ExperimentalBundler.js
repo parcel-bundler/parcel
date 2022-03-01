@@ -879,8 +879,8 @@ function createIdealGraph(
     }
   }
 
-  // Step 7: Merge any sibling bundles required by entry bundles back into the entry bundle.
-  // Entry bundles must be predictable, so cannot have unpredictable siblings.
+  // Step 7: Merge any shared bundles under the minimum bundle size back into
+  // their source bundles, and remove the bundle.
   for (let [bundleNodeId, bundle] of bundleGraph.nodes) {
     if (bundle === 'root') continue;
     if (bundle.sourceBundles.length > 0 && bundle.size < config.minBundleSize) {
