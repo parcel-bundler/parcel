@@ -577,11 +577,12 @@ function createIdealGraph(
           bundleRoots.has(resolved) &&
           ((root.isBundleSplittable && !entries.has(root)) ||
             isAsync ||
+            resolved.bundleBehavior === 'isolated' ||
             root.type !== resolved.type)
         ) {
           let rootNodeId = nullthrows(bundles.get(root.id));
           let resolvedNodeId = nullthrows(bundles.get(resolved.id));
-          if (!isAsync) {
+          if (!isAsync && resolved.bundleBehavior !== 'isolated') {
             if (!bundleGraph.hasEdge(rootNodeId, resolvedNodeId)) {
               bundleGraph.addEdge(rootNodeId, resolvedNodeId);
             }
