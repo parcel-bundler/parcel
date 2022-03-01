@@ -741,10 +741,22 @@ ${code}
         this.hoistedRequires.set(dep.id, hoisted);
       }
 
-      hoisted.set(
-        resolvedAsset.id,
-        `var $${publicId} = parcelRequire(${JSON.stringify(publicId)});`,
+      let resolvedAssetUsedSymbols = nullthrows(
+        this.bundleGraph.getUsedSymbols(resolvedAsset),
       );
+
+      if (
+        nullthrows(this.bundleGraph.getUsedSymbols(dep)).has(exportSymbol) ||
+        resolvedAssetUsedSymbols.has(exportSymbol) ||
+        (exportSymbol === 'default' &&
+          resolvedAssetUsedSymbols.has(exportSymbol)) ||
+        (exportSymbol === '*' && resolvedAssetUsedSymbols.size > 0)
+      ) {
+        hoisted.set(
+          resolvedAsset.id,
+          `var $${publicId} = parcelRequire(${JSON.stringify(publicId)});`,
+        );
+      }
     }
 
     if (isWrapped) {
