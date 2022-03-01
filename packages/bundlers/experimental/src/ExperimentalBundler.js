@@ -639,6 +639,11 @@ function createIdealGraph(
   > = new DefaultMap(() => new DefaultMap(() => 0));
 
   // Step 4: Determine assets that should be duplicated by computing asset availability in each bundle group
+  for (let entry of entries.keys()) {
+    // Initialize an empty set of ancestors available to entries
+    ancestorAssets.set(entry, new Map());
+  }
+
   for (let nodeId of asyncBundleRootGraph.topoSort()) {
     const bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
