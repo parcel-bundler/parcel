@@ -53,16 +53,10 @@ impl<'a> Fold for EnvReplacer<'a> {
         return node.fold_children_with(self);
       }
 
-      if let Expr::Member(member) = &*member.obj {
-        if match_member_expr(member, vec!["process", "env"], self.decls) {
-          if let MemberProp::Computed(ComputedPropName { expr, .. }) = &member.prop {
-            if let Expr::Lit(Lit::Str(Str { value: sym, .. })) = &**expr {
-              if let Some(replacement) = self.replace(sym, true) {
-                return replacement;
-              }
-            }
-          } else if let MemberProp::Ident(Ident { sym, .. }) = &member.prop {
-            if let Some(replacement) = self.replace(sym, true) {
+      if let Expr::Member(obj) = &*member.obj {
+        if match_member_expr(obj, vec!["process", "env"], self.decls) {
+          if let Some((sym, _)) = match_property_name(member) {
+            if let Some(replacement) = self.replace(&sym, true) {
               return replacement;
             }
           }
