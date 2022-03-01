@@ -2851,4 +2851,18 @@ describe('html', function () {
 
     await run(b);
   });
+
+  it('should not skip bundleRoots if an asset is both async required and static required', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-sync-async-asset/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    await run(b, {output: null}, {require: false});
+  });
 });
