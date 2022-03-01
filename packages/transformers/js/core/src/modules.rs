@@ -1,3 +1,5 @@
+use crate::id;
+use crate::utils::IdentId;
 use inflector::Inflector;
 use std::collections::{HashMap, HashSet};
 use swc_atoms::JsWord;
@@ -7,13 +9,6 @@ use swc_ecmascript::preset_env::{Feature, Versions};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::fold_member_expr_skip_prop;
-
-type IdentId = (JsWord, SyntaxContext);
-macro_rules! id {
-  ($ident: expr) => {
-    ($ident.sym.clone(), $ident.span.ctxt)
-  };
-}
 
 pub fn esm2cjs(node: Module, versions: Option<Versions>) -> (Module, bool) {
   let mut fold = ESMFold {
@@ -138,10 +133,9 @@ impl ESMFold {
     self.needs_helpers = true;
     let ident = Ident::new("parcelHelpers".into(), DUMMY_SP.apply_mark(self.mark));
     Expr::Call(CallExpr {
-      callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
-        obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident))),
-        prop: Box::new(Expr::Ident(Ident::new(name, DUMMY_SP))),
-        computed: false,
+      callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+        obj: Box::new(Expr::Ident(ident)),
+        prop: MemberProp::Ident(Ident::new(name, DUMMY_SP)),
         span: DUMMY_SP,
       }))),
       args: args
@@ -218,12 +212,8 @@ impl ESMFold {
       expr: Box::new(Expr::Assign(AssignExpr {
         op: AssignOp::Assign,
         left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-          obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident::new(
-            "exports".into(),
-            DUMMY_SP,
-          )))),
-          prop: Box::new(Expr::Ident(Ident::new(name, DUMMY_SP))),
-          computed: false,
+          obj: Box::new(Expr::Ident(Ident::new("exports".into(), DUMMY_SP))),
+          prop: MemberProp::Ident(Ident::new(name, DUMMY_SP)),
           span: DUMMY_SP,
         }))),
         right: Box::new(right),
@@ -246,9 +236,8 @@ impl ESMFold {
     };
 
     Expr::Member(MemberExpr {
-      obj: ExprOrSuper::Expr(Box::new(Expr::Ident(obj))),
-      prop: Box::new(Expr::Ident(Ident::new(imported.clone(), DUMMY_SP))),
-      computed: false,
+      obj: Box::new(Expr::Ident(obj)),
+      prop: MemberProp::Ident(Ident::new(imported.clone(), DUMMY_SP)),
       span,
     })
   }

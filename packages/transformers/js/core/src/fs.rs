@@ -1,20 +1,14 @@
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::hoist::{Collect, Import};
-use crate::utils::SourceLocation;
+use crate::id;
+use crate::utils::{IdentId, SourceLocation};
 use data_encoding::{BASE64, HEXLOWER};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use swc_atoms::JsWord;
-use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_common::{Mark, Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
-
-type IdentId = (JsWord, SyntaxContext);
-macro_rules! id {
-  ($ident: expr) => {
-    ($ident.sym.clone(), $ident.span.ctxt)
-  };
-}
 
 pub fn inline_fs<'a>(
   filename: &str,
@@ -86,25 +80,27 @@ impl<'a> InlineFS<'a> {
       Expr::Member(member) => {
         let prop = match &member.prop {
           MemberProp::Ident(ident) => ident.sym.clone(),
-          MemberProp::Computed(ComputedPropName {
-            expr: Expr::Lit(Lit::Str(str_)),
-          }) => str_.value.clone(),
+          MemberProp::Computed(ComputedPropName { expr, .. }) => {
+            if let Expr::Lit(Lit::Str(str_)) = &**expr {
+              str_.value.clone()
+            } else {
+              return None;
+            }
+          }
           _ => return None,
         };
 
-        if let Callee::Expr(expr) = &member.obj {
-          if let Some(source) = self.collect.match_require(expr) {
-            return Some((source, prop));
-          }
+        if let Some(source) = self.collect.match_require(&*member.obj) {
+          return Some((source, prop));
+        }
 
-          if let Expr::Ident(ident) = &**expr {
-            if let Some(Import {
-              source, specifier, ..
-            }) = self.collect.imports.get(&id!(ident))
-            {
-              if specifier == "default" || specifier == "*" {
-                return Some((source.clone(), prop));
-              }
+        if let Expr::Ident(ident) = &*member.obj {
+          if let Some(Import {
+            source, specifier, ..
+          }) = self.collect.imports.get(&id!(ident))
+          {
+            if specifier == "default" || specifier == "*" {
+              return Some((source.clone(), prop));
             }
           }
         }

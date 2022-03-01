@@ -112,10 +112,10 @@ pub fn match_str_or_ident(node: &ast::Expr) -> Option<(JsWord, Span)> {
 }
 
 pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
-  if node.computed {
-    match_str(&*node.prop)
-  } else {
-    match_str_or_ident(&*node.prop)
+  match &node.prop {
+    ast::MemberProp::Computed(s) => match_str(&*s.expr),
+    ast::MemberProp::Ident(id) => Some((id.sym.clone(), id.span)),
+    ast::MemberProp::PrivateName(_) => None,
   }
 }
 
@@ -163,18 +163,12 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
 
   match node {
     Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
-        Expr::Ident(ident) => {
-          if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
-            if let Some(arg) = call.args.get(0) {
-              return match_str(&*arg.expr).map(|(name, _)| name);
-            }
-          }
-
-          None
+      Callee::Import(ident) if !is_marked(ident.span, ignore_mark) => {
+        if let Some(arg) = call.args.get(0) {
+          return match_str(&*arg.expr).map(|(name, _)| name);
         }
-        _ => None,
-      },
+        None
+      }
       _ => None,
     },
     _ => None,
@@ -342,7 +336,7 @@ macro_rules! fold_member_expr_skip_prop {
     ) -> swc_ecmascript::ast::MemberExpr {
       node.obj = node.obj.fold_with(self);
 
-      if node.computed {
+      if let swc_ecmascript::ast::MemberProp::Computed(_) = node.prop {
         node.prop = node.prop.fold_with(self);
       }
 
