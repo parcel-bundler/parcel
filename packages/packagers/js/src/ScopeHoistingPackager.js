@@ -746,8 +746,8 @@ ${code}
       );
 
       if (
-        nullthrows(this.bundleGraph.getUsedSymbols(dep)).has(exportSymbol) ||
         resolvedAssetUsedSymbols.has(exportSymbol) ||
+        nullthrows(this.bundleGraph.getUsedSymbols(dep)).has(exportSymbol) ||
         (exportSymbol === 'default' &&
           resolvedAssetUsedSymbols.has(exportSymbol)) ||
         (exportSymbol === '*' && resolvedAssetUsedSymbols.size > 0)
