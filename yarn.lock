@@ -2412,10 +2412,10 @@
     "@swc/core-win32-ia32-msvc" "^1.2.106"
     "@swc/core-win32-x64-msvc" "^1.2.106"
 
-"@swc/helpers@^0.2.11":
-  version "0.2.11"
-  resolved "https://registry.yarnpkg.com/@swc/helpers/-/helpers-0.2.11.tgz#34c842dcd8182810b4ab72d0d1fc34b553909e2e"
-  integrity sha512-0FFPZrCwRDLsbJDKzs1Oo+TAqfAyxnZWZoTF6rUrfWQCYpwuKFj7tAEt/wa830fqCPE5Uk6qIo9KMkPe7Qgukg==
+"@swc/helpers@^0.3.6":
+  version "0.3.6"
+  resolved "https://registry.yarnpkg.com/@swc/helpers/-/helpers-0.3.6.tgz#b41e77dbf14e9cb138988484563ad9680ae5dc3d"
+  integrity sha512-xVl7Sddrl9/eMjEMqkH9lT8fLOGCuWHH9VmR2IBKQ8xTcjA6UQw4O3/4oS3xnyZHLtL9vC3P+C0kLneHpiqeEg==
 
 "@tootallnate/once@2":
   version "2.0.0"
