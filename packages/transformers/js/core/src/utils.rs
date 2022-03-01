@@ -17,7 +17,7 @@ pub fn match_member_expr(
   let mut idents = idents;
   while idents.len() > 1 {
     let expected = idents.pop().unwrap();
-    let prop = match member.prop {
+    let prop = match &member.prop {
       MemberProp::Computed(comp) => {
         if let Expr::Lit(Lit::Str(Str { value: ref sym, .. })) = *comp.expr {
           sym
@@ -101,21 +101,26 @@ pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
   }
 }
 
-pub fn match_str_or_ident(node: &ast::Expr) -> Option<(JsWord, Span)> {
-  use ast::*;
-
-  if let Expr::Ident(id) = node {
-    return Some((id.sym.clone(), id.span));
-  }
-
-  match_str(node)
-}
-
 pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
   match &node.prop {
     ast::MemberProp::Computed(s) => match_str(&*s.expr),
     ast::MemberProp::Ident(id) => Some((id.sym.clone(), id.span)),
     ast::MemberProp::PrivateName(_) => None,
+  }
+}
+
+pub fn match_export_name(name: &ast::ModuleExportName) -> (JsWord, Span) {
+  match name {
+    ast::ModuleExportName::Ident(id) => (id.sym.clone(), id.span),
+    ast::ModuleExportName::Str(s) => (s.value.clone(), s.span),
+  }
+}
+
+/// Properties like `ExportNamedSpecifier::orig` have to be an Ident if `src` is `None`
+pub fn match_export_name_ident(name: &ast::ModuleExportName) -> &ast::Ident {
+  match name {
+    ast::ModuleExportName::Ident(id) => id,
+    ast::ModuleExportName::Str(_) => unreachable!(),
   }
 }
 

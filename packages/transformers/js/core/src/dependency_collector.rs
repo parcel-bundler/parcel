@@ -427,22 +427,18 @@ impl<'a> Fold for DependencyCollector<'a> {
             }
           }
           Member(member) => {
-            if match_member_expr(&member, vec!["module", "require"], self.decls) {
+            if match_member_expr(member, vec!["module", "require"], self.decls) {
               DependencyKind::Require
             } else if self.config.is_browser
               && match_member_expr(
-                &member,
+                member,
                 vec!["navigator", "serviceWorker", "register"],
                 self.decls,
               )
             {
               DependencyKind::ServiceWorker
             } else if self.config.is_browser
-              && match_member_expr(
-                &member,
-                vec!["CSS", "paintWorklet", "addModule"],
-                self.decls,
-              )
+              && match_member_expr(member, vec!["CSS", "paintWorklet", "addModule"], self.decls)
             {
               DependencyKind::Worklet
             } else {
@@ -450,7 +446,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
               // Match compiled dynamic imports (Parcel)
               // Promise.resolve(require('foo'))
-              if match_member_expr(&member, vec!["Promise", "resolve"], self.decls) {
+              if match_member_expr(member, vec!["Promise", "resolve"], self.decls) {
                 if let Some(expr) = node.args.get(0) {
                   if match_require(&*expr.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
                     self.in_promise = true;
@@ -1164,7 +1160,7 @@ impl<'a> DependencyCollector<'a> {
           return false;
         }
 
-        let name = match_property_name(&member);
+        let name = match_property_name(member);
 
         if let Some((name, _)) = name {
           name == js_word!("url")

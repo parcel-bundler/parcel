@@ -1,4 +1,4 @@
-use crate::utils::match_property_name;
+use crate::utils::{match_export_name, match_export_name_ident, match_property_name};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
@@ -206,13 +206,13 @@ impl<'a> Fold for Hoist<'a> {
                   match specifier {
                     ExportSpecifier::Named(named) => {
                       let exported = match named.exported {
-                        Some(exported) => exported.sym,
-                        None => named.orig.sym.clone(),
+                        Some(exported) => match_export_name(&exported).0,
+                        None => match_export_name(&named.orig).0.clone(),
                       };
                       self.re_exports.push(ImportedSymbol {
                         source: src.value.clone(),
                         local: exported,
-                        imported: named.orig.sym,
+                        imported: match_export_name(&named.orig).0,
                         loc: SourceLocation::from(&self.collect.source_map, named.span),
                       });
                     }
@@ -227,7 +227,7 @@ impl<'a> Fold for Hoist<'a> {
                     ExportSpecifier::Namespace(namespace) => {
                       self.re_exports.push(ImportedSymbol {
                         source: src.value.clone(),
-                        local: namespace.name.sym,
+                        local: match_export_name(&namespace.name).0,
                         imported: "*".into(),
                         loc: SourceLocation::from(&self.collect.source_map, namespace.span),
                       });
@@ -237,10 +237,10 @@ impl<'a> Fold for Hoist<'a> {
               } else {
                 for specifier in export.specifiers {
                   if let ExportSpecifier::Named(named) = specifier {
-                    let id = id!(named.orig);
+                    let id = id!(match_export_name_ident(&named.orig));
                     let exported = match named.exported {
-                      Some(exported) => exported.sym,
-                      None => named.orig.sym,
+                      Some(exported) => match_export_name(&exported).0,
+                      None => match_export_name(&named.orig).0,
                     };
                     if let Some(Import {
                       source, specifier, ..
@@ -616,7 +616,7 @@ impl<'a> Fold for Hoist<'a> {
             // module.exports.foo -> $id$export$foo
             if self.collect.static_cjs_exports
               && !self.collect.should_wrap
-              && match_member_expr(&mem, vec!["module", "exports"], &self.collect.decls)
+              && match_member_expr(mem, vec!["module", "exports"], &self.collect.decls)
             {
               self.self_references.insert(key.clone());
               return Expr::Ident(self.get_export_ident(member.span, &key));
@@ -1346,7 +1346,7 @@ impl Visit for Collect {
       match specifier {
         ImportSpecifier::Named(named) => {
           let imported = match &named.imported {
-            Some(imported) => imported.sym.clone(),
+            Some(imported) => match_export_name(imported).0.clone(),
             None => named.local.sym.clone(),
           };
           self.imports.insert(
@@ -1391,22 +1391,22 @@ impl Visit for Collect {
       match specifier {
         ExportSpecifier::Named(named) => {
           let exported = match &named.exported {
-            Some(exported) => exported.clone(),
-            None => named.orig.clone(),
+            Some(exported) => match_export_name(exported),
+            None => match_export_name(&named.orig),
           };
           self.exports.insert(
-            exported.sym.clone(),
+            exported.0.clone(),
             Export {
-              specifier: named.orig.sym.clone(),
-              loc: SourceLocation::from(&self.source_map, exported.span),
+              specifier: match_export_name_ident(&named.orig).sym.clone(),
+              loc: SourceLocation::from(&self.source_map, exported.1),
               source,
             },
           );
           if node.src.is_none() {
             self
               .exports_locals
-              .entry(named.orig.sym.clone())
-              .or_insert_with(|| exported.sym.clone());
+              .entry(match_export_name_ident(&named.orig).sym.clone())
+              .or_insert_with(|| exported.0.clone());
           }
         }
         ExportSpecifier::Default(default) => {
@@ -1427,7 +1427,7 @@ impl Visit for Collect {
         }
         ExportSpecifier::Namespace(namespace) => {
           self.exports.insert(
-            namespace.name.sym.clone(),
+            match_export_name(&namespace.name).0,
             Export {
               specifier: "*".into(),
               loc: SourceLocation::from(&self.source_map, namespace.span),
@@ -1833,7 +1833,7 @@ impl Visit for Collect {
             // Convert member expression on require to a destructuring assignment.
             // const yx = require('y').x; -> const {x: yx} = require('x');
             let key = match &member.prop {
-              MemberProp::Computed(expr) => PropName::Computed(ComputedPropName {
+              MemberProp::Computed(_) => PropName::Computed(ComputedPropName {
                 span: DUMMY_SP,
                 expr: Box::new(*member.obj.clone()),
               }),
