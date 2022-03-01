@@ -107,5 +107,5 @@ function formatSize(x){
   while(n >= 1000 && ++l){
       n /= 1000;
   }
-  return(`${n.toFixed(n < 10 && l > 0 ? 1 : 0)} ${units[l]}`);
+  return(`${n.toFixed(l > 0 ? 2 : 0)} ${units[l]}`);
 }
