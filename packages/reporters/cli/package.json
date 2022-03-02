@@ -25,7 +25,8 @@
         "@parcel/plugin": false,
         "@parcel/types": false,
         "@parcel/utils": false,
-        "chalk": false
+        "chalk": false,
+        "term-size": false
       }
     }
   },
@@ -33,7 +34,8 @@
     "@parcel/plugin": "2.3.2",
     "@parcel/types": "2.3.2",
     "@parcel/utils": "2.3.2",
-    "chalk": "^4.1.0"
+    "chalk": "^4.1.0",
+    "term-size": "^2.2.1"
   },
   "devDependencies": {
     "filesize": "^6.1.0",
@@ -41,7 +43,6 @@
     "ora": "^5.2.0",
     "string-width": "^4.2.0",
     "strip-ansi": "^6.0.0",
-    "term-size": "^2.2.1",
     "wrap-ansi": "^7.0.0"
   }
 }
