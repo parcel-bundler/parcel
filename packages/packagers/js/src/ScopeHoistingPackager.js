@@ -732,7 +732,7 @@ ${code}
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
 
-    // If the rsolved asset is wrapped, but imported at the top-level by this asset,
+    // If the resolved asset is wrapped, but imported at the top-level by this asset,
     // then we hoist parcelRequire calls to the top of this asset so side effects run immediately.
     if (isWrapped && dep && !dep?.meta.shouldWrap && symbol !== false) {
       let hoisted = this.hoistedRequires.get(dep.id);
@@ -745,13 +745,19 @@ ${code}
         this.bundleGraph.getUsedSymbols(resolvedAsset),
       );
 
-      if (
+      // Check to see if the exportSymbol is in the resolved asset or the dependency's
+      // set of used symbols. If the exportSymbol is 'default', check that the
+      // default export from the resolved asset is used.
+      // If the exportSymbol is '*', a non-empty set of the resolved asset's used symbols
+      // indicates the export(s) is used.
+      let isExportSymbolUsed =
         resolvedAssetUsedSymbols.has(exportSymbol) ||
         nullthrows(this.bundleGraph.getUsedSymbols(dep)).has(exportSymbol) ||
         (exportSymbol === 'default' &&
           resolvedAssetUsedSymbols.has(exportSymbol)) ||
-        (exportSymbol === '*' && resolvedAssetUsedSymbols.size > 0)
-      ) {
+        (exportSymbol === '*' && resolvedAssetUsedSymbols.size > 0);
+
+      if (isExportSymbolUsed) {
         hoisted.set(
           resolvedAsset.id,
           `var $${publicId} = parcelRequire(${JSON.stringify(publicId)});`,
