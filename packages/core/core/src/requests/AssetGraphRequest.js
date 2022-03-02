@@ -97,14 +97,13 @@ const typesWithRequests = new Set([
 
 export class AssetGraphBuilder {
   assetGraph: AssetGraph;
-  assetRequests: Array<AssetGroup>;
+  assetRequests: Array<AssetGroup> = [];
   queue: PromiseQueue<mixed>;
   changedAssets: Map<string, Asset> = new Map();
   optionsRef: SharedReference;
   options: ParcelOptions;
   api: RunAPI;
   name: string;
-  assetRequests: Array<AssetGroup> = [];
   cacheKey: string;
   shouldBuildLazily: boolean;
   requestedAssetIds: Set<string>;
