@@ -27,7 +27,7 @@
     "@parcel/fs": "2.3.2",
     "@parcel/logger": "2.3.2",
     "@parcel/utils": "2.3.2",
-    "lmdb": "^2.0.2"
+    "lmdb": "2.2.3"
   },
   "peerDependencies": {
     "@parcel/core": "^2.3.2"
