@@ -5008,7 +5008,11 @@ describe('scope hoisting', function () {
         ],
       },
       {assets: ['dep.js']},
-      {assets: ['async-has-dep.js', 'dep.js', 'get-dep.js']},
+      {
+        assets: process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER
+          ? ['async-has-dep.js']
+          : ['async-has-dep.js', 'dep.js', 'get-dep.js'],
+      },
       {assets: ['get-dep.js']},
     ]);
 
