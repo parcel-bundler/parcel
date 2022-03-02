@@ -792,28 +792,25 @@ function createIdealGraph(
           }
         }
 
-        let willInternalizeRoots = asyncBundleRootGraph
-          .getNodeIdsConnectedTo(
-            asyncBundleRootGraph.getNodeIdByContentKey(asset.id),
-          )
+        let asyncAssetId = asyncBundleRootGraph.getNodeIdByContentKey(asset.id);
+        let loadedBy = asyncBundleRootGraph
+          .getNodeIdsConnectedTo(asyncAssetId)
           .map(id => nullthrows(asyncBundleRootGraph.getNode(id)))
-          .filter(bundleRoot => {
-            if (bundleRoot === 'root') {
-              return false;
-            }
-
-            return (
-              reachableRoots.hasEdge(
-                reachableRoots.getNodeIdByContentKey(bundleRoot.id),
-                reachableRoots.getNodeIdByContentKey(asset.id),
-              ) || ancestorAssets.get(bundleRoot)?.has(asset)
-            );
-          })
+          .filter(bundleRoot => bundleRoot !== 'root')
           .map(bundleRoot => {
             // For Flow
             invariant(bundleRoot !== 'root');
             return bundleRoot;
           });
+
+        let reachableAssetId = reachableRoots.getNodeIdByContentKey(asset.id);
+        let willInternalizeRoots = loadedBy.filter(
+          bundleRoot =>
+            reachableRoots.hasEdge(
+              reachableRoots.getNodeIdByContentKey(bundleRoot.id),
+              reachableAssetId,
+            ) || ancestorAssets.get(bundleRoot)?.has(asset),
+        );
 
         for (let bundleRoot of willInternalizeRoots) {
           if (bundleRoot !== asset) {
@@ -822,10 +819,33 @@ function createIdealGraph(
             );
             invariant(bundle !== 'root');
             bundle.internalizedAssetIds.push(asset.id);
+            asyncBundleRootGraph.removeEdge(
+              asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
+              asyncAssetId,
+            );
           }
+        }
+
+        if (
+          !entries.has(asset) &&
+          loadedBy.length > 0 &&
+          loadedBy.length === willInternalizeRoots.length
+        ) {
+          // The contents of this async bundle are accessible already in every
+          // use without it. Remove the async bundle entirely.
+          let bundleId = nullthrows(bundles.get(asset.id));
+          bundleGraph.removeNode(bundleId);
+          bundles.delete(asset.id);
+          bundleRoots.delete(asset);
+          if (asyncBundleRootGraph.hasNode(asyncAssetId)) {
+            asyncBundleRootGraph.removeNode(asyncAssetId);
+          }
+          ancestorAssets.delete(asset);
+          reachableRoots.replaceNodeIdsConnectedTo(reachableAssetId, []);
         }
       }
     }
+
     if (reachable.length > 0) {
       let reachableEntries = reachable.filter(
         a => entries.has(a) || !a.isBundleSplittable,
