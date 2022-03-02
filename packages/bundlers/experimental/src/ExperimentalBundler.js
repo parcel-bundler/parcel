@@ -574,15 +574,15 @@ function createIdealGraph(
         let resolved = assets[0];
         let isAsync = dependency.priority !== 'sync';
         if (
-          root.bundleBehavior !== 'inline' &&
           bundleRoots.has(resolved) &&
           ((root.isBundleSplittable && !entries.has(root)) ||
             isAsync ||
+            resolved.bundleBehavior === 'isolated' ||
             root.type !== resolved.type)
         ) {
           let rootNodeId = nullthrows(bundles.get(root.id));
           let resolvedNodeId = nullthrows(bundles.get(resolved.id));
-          if (!isAsync) {
+          if (!isAsync && resolved.bundleBehavior !== 'isolated') {
             if (!bundleGraph.hasEdge(rootNodeId, resolvedNodeId)) {
               bundleGraph.addEdge(rootNodeId, resolvedNodeId);
             }
@@ -639,6 +639,11 @@ function createIdealGraph(
   > = new DefaultMap(() => new DefaultMap(() => 0));
 
   // Step 4: Determine assets that should be duplicated by computing asset availability in each bundle group
+  for (let entry of entries.keys()) {
+    // Initialize an empty set of ancestors available to entries
+    ancestorAssets.set(entry, new Map());
+  }
+
   for (let nodeId of asyncBundleRootGraph.topoSort()) {
     const bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
@@ -787,28 +792,25 @@ function createIdealGraph(
           }
         }
 
-        let willInternalizeRoots = asyncBundleRootGraph
-          .getNodeIdsConnectedTo(
-            asyncBundleRootGraph.getNodeIdByContentKey(asset.id),
-          )
+        let asyncAssetId = asyncBundleRootGraph.getNodeIdByContentKey(asset.id);
+        let loadedBy = asyncBundleRootGraph
+          .getNodeIdsConnectedTo(asyncAssetId)
           .map(id => nullthrows(asyncBundleRootGraph.getNode(id)))
-          .filter(bundleRoot => {
-            if (bundleRoot === 'root') {
-              return false;
-            }
-
-            return (
-              reachableRoots.hasEdge(
-                reachableRoots.getNodeIdByContentKey(bundleRoot.id),
-                reachableRoots.getNodeIdByContentKey(asset.id),
-              ) || ancestorAssets.get(bundleRoot)?.has(asset)
-            );
-          })
+          .filter(bundleRoot => bundleRoot !== 'root')
           .map(bundleRoot => {
             // For Flow
             invariant(bundleRoot !== 'root');
             return bundleRoot;
           });
+
+        let reachableAssetId = reachableRoots.getNodeIdByContentKey(asset.id);
+        let willInternalizeRoots = loadedBy.filter(
+          bundleRoot =>
+            reachableRoots.hasEdge(
+              reachableRoots.getNodeIdByContentKey(bundleRoot.id),
+              reachableAssetId,
+            ) || ancestorAssets.get(bundleRoot)?.has(asset),
+        );
 
         for (let bundleRoot of willInternalizeRoots) {
           if (bundleRoot !== asset) {
@@ -817,10 +819,33 @@ function createIdealGraph(
             );
             invariant(bundle !== 'root');
             bundle.internalizedAssetIds.push(asset.id);
+            asyncBundleRootGraph.removeEdge(
+              asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
+              asyncAssetId,
+            );
           }
+        }
+
+        if (
+          !entries.has(asset) &&
+          loadedBy.length > 0 &&
+          loadedBy.length === willInternalizeRoots.length
+        ) {
+          // The contents of this async bundle are accessible already in every
+          // use without it. Remove the async bundle entirely.
+          let bundleId = nullthrows(bundles.get(asset.id));
+          bundleGraph.removeNode(bundleId);
+          bundles.delete(asset.id);
+          bundleRoots.delete(asset);
+          if (asyncBundleRootGraph.hasNode(asyncAssetId)) {
+            asyncBundleRootGraph.removeNode(asyncAssetId);
+          }
+          ancestorAssets.delete(asset);
+          reachableRoots.replaceNodeIdsConnectedTo(reachableAssetId, []);
         }
       }
     }
+
     if (reachable.length > 0) {
       let reachableEntries = reachable.filter(
         a => entries.has(a) || !a.isBundleSplittable,
@@ -879,8 +904,8 @@ function createIdealGraph(
     }
   }
 
-  // Step 7: Merge any sibling bundles required by entry bundles back into the entry bundle.
-  // Entry bundles must be predictable, so cannot have unpredictable siblings.
+  // Step 7: Merge any shared bundles under the minimum bundle size back into
+  // their source bundles, and remove the bundle.
   for (let [bundleNodeId, bundle] of bundleGraph.nodes) {
     if (bundle === 'root') continue;
     if (bundle.sourceBundles.length > 0 && bundle.size < config.minBundleSize) {
