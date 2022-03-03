@@ -613,7 +613,7 @@ function createIdealGraph(
     BundleRoot,
     Map<Asset, BundleRoot>,
   > = new DefaultMap(() => new Map());
-  let borrowedAssets: DefaultMap<BundleRoot, Set<Asset>> = new DefaultMap(
+  let lentAssets: DefaultMap<BundleRoot, Set<Asset>> = new DefaultMap(
     () => new Set(),
   );
 
@@ -629,6 +629,10 @@ function createIdealGraph(
     ancestorAssets.set(entry, new Set());
   }
 
+  // Visit nodes in a topological order, visiting parent nodes before child nodes.
+  // This allows us to construct an understanding of which assets will already be
+  // loaded and available when a bundle runs, by pushing available assets downwards and
+  // computing the intersection of assets available through all possible paths to a bundle.
   for (let nodeId of asyncBundleRootGraph.topoSort()) {
     const bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
@@ -694,14 +698,14 @@ function createIdealGraph(
         for (let asset of childAvailableAssets) {
           if (!available.has(asset)) {
             if (childrenAssets.has(asset)) {
-              borrowedAssets.get(childrenAssets.get(asset)[0]).add(asset);
+              lentAssets.get(childrenAssets.get(asset)[0]).add(asset);
             } else {
               childAvailableAssets.delete(asset);
             }
           }
         }
       } else {
-        ancestorAssets.set(child, new Set(available));
+        asyncAncestorAssets.set(child, new Set(available));
       }
     }
   }
