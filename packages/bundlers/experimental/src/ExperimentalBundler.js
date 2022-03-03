@@ -179,7 +179,6 @@ function decorateLegacyGraph(
     }
 
     idealBundleToLegacyBundle.set(idealBundle, bundle);
-
     for (let asset of idealBundle.assets) {
       bundleGraph.addAssetToBundle(asset, bundle);
     }
@@ -230,13 +229,12 @@ function decorateLegacyGraph(
   });
 
   // Step 4: Add references to all bundles
-  for (let [asset, references] of idealGraph.assetReference) {
-    for (let [dependency, bundle] of references) {
-      let legacyBundle = nullthrows(idealBundleToLegacyBundle.get(bundle));
-      bundleGraph.createAssetReference(dependency, asset, legacyBundle);
-    }
-  }
-
+  // for (let [asset, references] of idealGraph.assetReference) {
+  //   for (let [dependency, bundle] of references) {
+  //     let legacyBundle = nullthrows(idealBundleToLegacyBundle.get(bundle));
+  //     bundleGraph.createAssetReference(dependency, asset, legacyBundle);
+  //   }
+  // }
   for (let [sharedBundleId, sourceBundleIds] of sharedToSourceBundleIds) {
     let sharedBundle = nullthrows(idealBundleGraph.getNode(sharedBundleId));
     if (sharedBundle === 'root') continue;
@@ -882,7 +880,7 @@ function createIdealGraph(
   // Step 7: Clean up non-entry type bundles for entry bundlegroups
   for (let [entryAsset] of entries) {
     let bundleTuple = bundleRoots.get(entryAsset);
-    let entryBundle = bundleGraph.getNode(bundleTuple[0]);
+    let entryBundle = bundleGraph.getNode(bundleTuple[0]); //bundles.get(entryAsset.id);
     invariant(entryBundle !== 'root');
     if (!entryBundle) {
       continue;
@@ -895,10 +893,10 @@ function createIdealGraph(
     let entryBundleIdsOfType = bundleGroupBundleIds.filter(id => {
       let b = nullthrows(bundleGraph.getNode(id));
       invariant(b !== 'root');
-      return b.needsStableName && nullthrows(b.type) !== entryAsset.type;
+      return b.needsStableName;
     });
 
-    let processed: Map<string, NodeId> = new Map();
+    let processed: Map<string, NodeId> = new Map(); // map of type to bundle
 
     for (let nodeId of entryBundleIdsOfType) {
       let b = nullthrows(bundleGraph.getNode(nodeId));
@@ -918,6 +916,7 @@ function createIdealGraph(
             entryBundleForType.size += a.stats.size;
             entryBundle.internalizedAssetIds.push(a.id);
           }
+          //make asset reference here for newly added asset
         }
       } else {
         let assets = nullthrows(b?.assets);
@@ -944,10 +943,28 @@ function createIdealGraph(
         //replace dependency in the dependency bundlegraph
       }
 
+      // should replace any old assetReferences with the new bundles
+      for (let a of entryBundleForType.assets) {
+        let existingReference = assetReference
+          .get(a)
+          .find(tuple => tuple[1] === b);
+        if (existingReference) {
+          existingReference[1] = entryBundleForType;
+        } else {
+          if (assetReference.get(a).length > 0) {
+            let entrydep = assetReference.get(a)[0][0];
+            let newReference = [entrydep, entryBundleForType];
+            assetReference.get(a).concat([newReference]);
+          }
+        }
+      }
+
       // Clean old bundles
       bundleGraph.removeEdge(bundleGroupId, nodeId);
       if (bundleGraph.getNodeIdsConnectedTo(nodeId).length <= 1) {
         bundleGraph.removeNode(nodeId);
+        if (sharedToSourceBundleIds.has(nodeId))
+          sharedToSourceBundleIds.delete(nodeId);
       }
     }
   }
