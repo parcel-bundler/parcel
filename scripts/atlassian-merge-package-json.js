@@ -35,6 +35,11 @@ function writePackageJson(filepath, data) {
   return fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
 }
 
+function has(obj, key) {
+  if (obj == null) return false;
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
 function copyValue(path, ours, base, theirs) {
   let name = path;
   if (Array.isArray(path)) {
@@ -45,14 +50,7 @@ function copyValue(path, ours, base, theirs) {
     }
     name = path[path.length - 1];
   }
-  if (
-    ours &&
-    name in ours &&
-    base &&
-    name in base &&
-    theirs &&
-    name in theirs
-  ) {
+  if (has(ours, name) && has(base, name) && has(theirs, name)) {
     base[name] = ours[name];
     theirs[name] = ours[name];
     return true;
@@ -85,8 +83,8 @@ function patchVersions(ours, base, theirs) {
     'peerDependencies',
     'parcelDependencies',
   ]) {
-    if (type in ours) {
-      for (let name in ours[type]) {
+    if (has(ours, type)) {
+      for (let name of Object.keys(ours[type])) {
         if (shouldPatch(name)) {
           patched = copyValue([type, name], ours, base, theirs) || patched;
         }
