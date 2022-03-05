@@ -86,7 +86,7 @@ function patchVersions(ours, base, theirs) {
     'parcelDependencies',
   ]) {
     if (type in ours) {
-      for (let [name, version] of Object.entries(ours[type])) {
+      for (let name in ours[type]) {
         if (shouldPatch(name)) {
           patched = copyValue([type, name], ours, base, theirs) || patched;
         }
