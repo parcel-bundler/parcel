@@ -1,9 +1,10 @@
 // @flow strict-local
-import type {Async} from '@parcel/types';
+import type {Async, PackagedBundle} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
+import type BundleGraph from '../public/BundleGraph';
 
 import nullthrows from 'nullthrows';
 import ParcelConfig from '../ParcelConfig';
@@ -26,6 +27,7 @@ type RunOpts = {|
 type ValidationRequestInput = {|
   assetRequests: Array<AssetGroup>,
   optionsRef: SharedReference,
+  bundleGraph: BundleGraph<PackagedBundle>,
 |};
 
 export default function createValidationRequest(
@@ -34,7 +36,12 @@ export default function createValidationRequest(
   return {
     id: 'validation',
     type: 'validation_request',
-    run: async ({input: {assetRequests, optionsRef}, api, options, farm}) => {
+    run: async ({
+      input: {assetRequests, optionsRef, bundleGraph},
+      api,
+      options,
+      farm,
+    }) => {
       let {config: processedConfig, cachePath} = nullthrows(
         await api.runRequest<null, ConfigAndCachePath>(
           createParcelConfigRequest(),
@@ -66,6 +73,7 @@ export default function createValidationRequest(
           config,
           report,
           dedicatedThread: true,
+          bundleGraph,
         }).run(),
       );
       await Promise.all(promises);

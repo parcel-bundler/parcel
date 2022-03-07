@@ -276,7 +276,17 @@ export default class Parcel {
         'RequestGraph',
         requestGraphEdgeTypes,
       );
-
+      let publicBundleGraph = new BundleGraph<IPackagedBundle>(
+        bundleGraph,
+        (bundle, bundleGraph, options) =>
+          PackagedBundle.getWithInfo(
+            bundle,
+            bundleGraph,
+            options,
+            bundleInfo.get(bundle.id),
+          ),
+        options,
+      );
       let event = {
         type: 'buildSuccess',
         changedAssets: new Map(
@@ -285,17 +295,7 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph<IPackagedBundle>(
-          bundleGraph,
-          (bundle, bundleGraph, options) =>
-            PackagedBundle.getWithInfo(
-              bundle,
-              bundleGraph,
-              options,
-              bundleInfo.get(bundle.id),
-            ),
-          options,
-        ),
+        bundleGraph: publicBundleGraph,
         buildTime: Date.now() - startTime,
         requestBundle: async bundle => {
           let bundleNode = bundleGraph._graph.getNodeByContentKey(bundle.id);
@@ -336,7 +336,11 @@ export default class Parcel {
 
       await this.#reporterRunner.report(event);
       await this.#requestTracker.runRequest(
-        createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),
+        createValidationRequest({
+          optionsRef: this.#optionsRef,
+          assetRequests,
+          bundleGraph: publicBundleGraph,
+        }),
         {force: assetRequests.length > 0},
       );
       return event;

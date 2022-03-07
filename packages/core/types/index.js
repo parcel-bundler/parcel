@@ -977,9 +977,14 @@ export type ValidateResult = {|
  * @experimental
  */
 export type DedicatedThreadValidator = {|
-  validateAll: ({|
+  validateAll?: ({|
     assets: Asset[],
     resolveConfigWithPath: ResolveConfigWithPathFn,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<Array<?ValidateResult>>,
+  validateBundles?: ({|
+    bundleGraph: BundleGraph<PackagedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<Array<?ValidateResult>>,

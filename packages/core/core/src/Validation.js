@@ -2,7 +2,7 @@
 
 import type {WorkerApi} from '@parcel/workers';
 import type {AssetGroup, ParcelOptions, ReportFn} from './types';
-import type {Validator, ValidateResult} from '@parcel/types';
+import type {Validator, ValidateResult, PackagedBundle} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import path from 'path';
@@ -16,6 +16,8 @@ import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 import {fromProjectPath, fromProjectPathRelative} from './projectPath';
+import BundleGraph from './public/BundleGraph';
+import invariant from 'assert';
 
 export type ValidationOpts = {|
   config: ParcelConfig,
@@ -28,6 +30,7 @@ export type ValidationOpts = {|
   requests: AssetGroup[],
   report: ReportFn,
   workerApi?: WorkerApi,
+  bundleGraph?: BundleGraph<PackagedBundle>,
 |};
 
 export default class Validation {
@@ -40,6 +43,7 @@ export default class Validation {
   report: ReportFn;
   requests: AssetGroup[];
   workerApi: ?WorkerApi;
+  bundleGraph: ?BundleGraph<PackagedBundle>;
 
   constructor({
     config,
@@ -48,6 +52,7 @@ export default class Validation {
     requests,
     report,
     workerApi,
+    bundleGraph,
   }: ValidationOpts) {
     this.dedicatedThread = dedicatedThread ?? false;
     this.options = options;
@@ -55,6 +60,7 @@ export default class Validation {
     this.report = report;
     this.requests = requests;
     this.workerApi = workerApi;
+    this.bundleGraph = bundleGraph;
   }
 
   async run(): Promise<void> {
@@ -69,22 +75,36 @@ export default class Validation {
           let validatorResults: Array<?ValidateResult> = [];
           try {
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
-            if (plugin.validateAll && this.dedicatedThread) {
-              validatorResults = await plugin.validateAll({
-                assets: assets.map(asset => new Asset(asset)),
-                options: pluginOptions,
-                logger: validatorLogger,
-                resolveConfigWithPath: (
-                  configNames: Array<string>,
-                  assetFilePath: string,
-                ) =>
-                  resolveConfig(
-                    this.options.inputFS,
-                    assetFilePath,
-                    configNames,
-                    this.options.projectRoot,
-                  ),
-              });
+            if (this.dedicatedThread) {
+              if (plugin.validateAll) {
+                // $FlowFixMe[not-a-function]
+                validatorResults = await plugin.validateAll({
+                  assets: assets.map(asset => new Asset(asset)),
+                  options: pluginOptions,
+                  logger: validatorLogger,
+                  resolveConfigWithPath: (
+                    configNames: Array<string>,
+                    assetFilePath: string,
+                  ) =>
+                    resolveConfig(
+                      this.options.inputFS,
+                      assetFilePath,
+                      configNames,
+                      this.options.projectRoot,
+                    ),
+                });
+              }
+
+              if (plugin.validateBundles) {
+                invariant(this.bundleGraph);
+                validatorResults.push(
+                  ...(await plugin.validateBundles({
+                    bundleGraph: this.bundleGraph,
+                    options: pluginOptions,
+                    logger: validatorLogger,
+                  })),
+                );
+              }
             }
 
             // Otherwise, pass the assets one-at-a-time
