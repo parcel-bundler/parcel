@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# ATLASSIAN: Configure a custom merge driver to make merges from upstream easier
+git config merge.atlassian-package-json.name "Merge driver for @atlassian/parcel package.json files"
+git config merge.atlassian-package-json.driver "./scripts/atlassian-merge-package-json.js %A %O %B %P"
