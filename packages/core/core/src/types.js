@@ -53,7 +53,7 @@ export type ProcessedParcelConfig = {|
   optimizers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   compressors?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   reporters?: PureParcelConfigPipeline,
-  validators?: {[Glob]: ExtendableParcelConfigPipeline, ...},
+  validators?: PureParcelConfigPipeline,
   filePath: ProjectPath,
   resolveFrom?: ProjectPath,
 |};

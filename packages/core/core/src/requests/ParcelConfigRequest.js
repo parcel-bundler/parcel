@@ -400,11 +400,11 @@ export async function processConfig(
       '/reporters',
       configFile.filePath,
     ),
-    validators: await processMap(
+    validators: processPipeline(
+      options,
       configFile.validators,
       '/validators',
       configFile.filePath,
-      options,
     ),
   };
 }
@@ -602,7 +602,9 @@ export function mergeConfigs(
       ext.transformers,
       mergePipelines,
     ),
-    validators: mergeMaps(base.validators, ext.validators, mergePipelines),
+    validators: assertPurePipeline(
+      mergePipelines(base.validators, ext.validators),
+    ),
     bundler: ext.bundler || base.bundler,
     namers: assertPurePipeline(mergePipelines(base.namers, ext.namers)),
     runtimes: assertPurePipeline(mergePipelines(base.runtimes, ext.runtimes)),

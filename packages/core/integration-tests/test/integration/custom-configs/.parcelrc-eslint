@@ -1,7 +1,7 @@
 {
   "extends": "@parcel/config-default",
-  "validators": {
-    "*.{js,jsx,ts,tsx}": ["@parcel/validator-eslint"]
-  },
+  "validators": [
+    "@parcel/validator-eslint"
+  ],
   "reporters": []
 }

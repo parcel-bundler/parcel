@@ -142,9 +142,7 @@ export default class Validation {
 
         let asset = await this.loadAsset(request);
 
-        let validators = await this.parcelConfig.getValidators(
-          request.filePath,
-        );
+        let validators = await this.parcelConfig.getValidators();
 
         for (let validator of validators) {
           this.allValidators[validator.name] = validator.plugin;

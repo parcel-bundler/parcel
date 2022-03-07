@@ -42,9 +42,7 @@ export default function createValidationRequest(
       );
 
       let config = new ParcelConfig(processedConfig, options);
-      let trackedRequestsDesc = assetRequests.filter(request => {
-        return config.getValidatorNames(request.filePath).length > 0;
-      });
+      let trackedRequestsDesc = assetRequests;
 
       // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
       let promises = trackedRequestsDesc.map(async request =>

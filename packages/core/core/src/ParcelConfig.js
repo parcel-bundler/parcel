@@ -64,7 +64,7 @@ export default class ParcelConfig {
   namers: PureParcelConfigPipeline;
   runtimes: PureParcelConfigPipeline;
   packagers: GlobMap<ParcelPluginNode>;
-  validators: GlobMap<ExtendableParcelConfigPipeline>;
+  validators: $ReadOnlyArray<ParcelPluginNode>;
   optimizers: GlobMap<ExtendableParcelConfigPipeline>;
   compressors: GlobMap<ExtendableParcelConfigPipeline>;
   reporters: PureParcelConfigPipeline;
@@ -83,7 +83,7 @@ export default class ParcelConfig {
     this.optimizers = config.optimizers || {};
     this.compressors = config.compressors || {};
     this.reporters = config.reporters || [];
-    this.validators = config.validators || {};
+    this.validators = config.validators || [];
     this.pluginCache = new Map();
     this.regexCache = new Map();
   }
@@ -169,23 +169,17 @@ export default class ParcelConfig {
     return this.loadPlugins<Resolver>(this.resolvers);
   }
 
-  _getValidatorNodes(filePath: ProjectPath): $ReadOnlyArray<ParcelPluginNode> {
-    let validators: PureParcelConfigPipeline =
-      this.matchGlobMapPipelines(filePath, this.validators) || [];
-
-    return validators;
+  _getValidatorNodes(): $ReadOnlyArray<ParcelPluginNode> {
+    return this.validators;
   }
 
-  getValidatorNames(filePath: ProjectPath): Array<string> {
-    let validators: PureParcelConfigPipeline =
-      this._getValidatorNodes(filePath);
+  getValidatorNames(): Array<string> {
+    let validators: PureParcelConfigPipeline = this._getValidatorNodes();
     return validators.map(v => v.packageName);
   }
 
-  getValidators(
-    filePath: ProjectPath,
-  ): Promise<Array<LoadedPlugin<Validator>>> {
-    let validators = this._getValidatorNodes(filePath);
+  getValidators(): Promise<Array<LoadedPlugin<Validator>>> {
+    let validators = this._getValidatorNodes();
     return this.loadPlugins<Validator>(validators);
   }
 

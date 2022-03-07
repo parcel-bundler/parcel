@@ -117,7 +117,7 @@ export default {
       'transformer',
       'transformers',
     ): SchemaEntity),
-    validators: (mapPipelineSchema('validator', 'validators'): SchemaEntity),
+    validators: (pipelineSchema('validator', 'validators'): SchemaEntity),
     namers: (pipelineSchema('namer', 'namers'): SchemaEntity),
     packagers: (mapStringSchema('packager', 'packagers'): SchemaEntity),
     optimizers: (mapPipelineSchema('optimizer', 'optimizers'): SchemaEntity),

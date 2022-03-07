@@ -64,7 +64,7 @@ export type RawParcelConfig = {|
   optimizers?: {[Glob]: RawParcelConfigPipeline, ...},
   compressors?: {[Glob]: RawParcelConfigPipeline, ...},
   reporters?: RawParcelConfigPipeline,
-  validators?: {[Glob]: RawParcelConfigPipeline, ...},
+  validators?: RawParcelConfigPipeline,
 |};
 
 /** A .parcelrc where all package names are resolved */
