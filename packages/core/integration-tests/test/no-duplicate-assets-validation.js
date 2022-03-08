@@ -4,7 +4,7 @@ import path from 'path';
 import {bundle} from '@parcel/test-utils';
 
 describe('nodup-validator', function () {
-  it.only('should throw validation error with eslint errors', async function () {
+  it('should throw validation error for duplicate specified asset', async function () {
     let didThrow = false;
     let entry = ['entry1.js', 'entry2.js'].map(entry =>
       path.join(
@@ -16,8 +16,36 @@ describe('nodup-validator', function () {
     try {
       await bundle(entry);
     } catch (e) {
-      console.log(e.diagnostics[0]);
       assert.equal(e.name, 'BuildError');
+      didThrow = true;
+    }
+    assert(didThrow);
+  });
+
+  //TODO: move to cache test?
+  it.only('should throw validation error on subsequent builds for duplicate specified assets', async function () {
+    let didThrow = false;
+    let entry = ['entry1.js', 'entry2.js'].map(entry =>
+      path.join(
+        __dirname,
+        '/integration/no-duplicate-assets-validation/',
+        entry,
+      ),
+    );
+    try {
+      await bundle(entry, {
+        shouldDisableCache: false,
+      });
+    } catch (e) {
+      assert.equal(e.name, 'BuildError');
+      didThrow = true;
+    }
+    assert(didThrow);
+    didThrow = false;
+    try {
+      await bundle(entry, {shouldDisableCache: false});
+    } catch (e2) {
+      assert.equal(e2.name, 'BuildError');
       didThrow = true;
     }
     assert(didThrow);
