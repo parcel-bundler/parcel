@@ -5,13 +5,17 @@
   "source": "src/SyncDynamicImportTransformer.js",
   "engines": {
     "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.15"
   },
   "dependencies": {
     "@babel/core": "^7.8.7",
-    "@parcel/babel-ast-utils": "2.0.15",
+    "@babel/parser": "^7.0.0",
+    "@babel/types": "^7.12.13",
+    "@parcel/source-map": "^2.0.0",
     "@parcel/plugin": "2.0.15",
     "@parcel/utils": "2.0.15",
+    "astring": "^1.6.2",
+    "lodash.clone": "^4.5.0",
     "react-loadable": "^5.5.0",
     "semver": "^7.3.2"
   }
