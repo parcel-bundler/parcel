@@ -98,11 +98,11 @@ export default class Validation {
               if (plugin.validateBundles) {
                 invariant(this.bundleGraph);
                 validatorResults.push(
-                  ...(await plugin.validateBundles({
+                  await plugin.validateBundles({
                     bundleGraph: this.bundleGraph,
                     options: pluginOptions,
                     logger: validatorLogger,
-                  })),
+                  }),
                 );
               }
             }

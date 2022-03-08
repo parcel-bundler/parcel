@@ -987,7 +987,7 @@ export type DedicatedThreadValidator = {|
     bundleGraph: BundleGraph<PackagedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<Array<?ValidateResult>>,
+  |}) => ValidateResult,
 |};
 
 /**
