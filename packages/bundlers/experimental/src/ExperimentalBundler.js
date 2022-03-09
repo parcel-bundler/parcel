@@ -265,11 +265,6 @@ function createIdealGraph(
     Array<[Dependency, Bundle]>,
   > = new DefaultMap(() => []);
 
-  // Connects bundleRoot assets to the assets that must be in the bundle
-  let reachableBundles: DefaultMap<BundleRoot, Set<Asset>> = new DefaultMap(
-    () => new Set(),
-  );
-
   let bundleGraph: Graph<Bundle | 'root'> = new Graph();
   let stack: Array<[BundleRoot, NodeId]> = [];
 
@@ -403,20 +398,6 @@ function createIdealGraph(
               ),
               dependencyPriorityEdges[dependency.priority],
             );
-
-            // Walk up the stack until we hit a different asset type
-            // and mark each bundle as reachable from every parent bundle
-            for (let i = stack.length - 1; i >= 0; i--) {
-              let [stackAsset] = stack[i];
-              if (
-                stackAsset.type !== childAsset.type ||
-                stackAsset.env.context !== childAsset.env.context ||
-                stackAsset.env.isIsolated()
-              ) {
-                break;
-              }
-              reachableBundles.get(stackAsset).add(childAsset);
-            }
             continue;
           }
           if (
