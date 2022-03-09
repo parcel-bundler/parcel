@@ -15,9 +15,19 @@ import {createAsset} from './assetUtils';
 import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
-import {fromProjectPath, fromProjectPathRelative} from './projectPath';
+import {
+  type ProjectPath,
+  fromProjectPath,
+  fromProjectPathRelative,
+} from './projectPath';
 import BundleGraph from './public/BundleGraph';
 import invariant from 'assert';
+
+export type ValidationMap = {|
+  validate: Map<ProjectPath, ValidateResult>,
+  validateAll: Array<ValidateResult>,
+  validateBundles: Array<ValidateResult>,
+|};
 
 export type ValidationOpts = {|
   config: ParcelConfig,
@@ -27,118 +37,126 @@ export type ValidationOpts = {|
    */
   dedicatedThread?: boolean,
   options: ParcelOptions,
-  requests: AssetGroup[],
   report: ReportFn,
   workerApi?: WorkerApi,
   bundleGraph?: BundleGraph<PackagedBundle>,
 |};
 
 export default class Validation {
-  allAssets: {[validatorName: string]: UncommittedAsset[], ...} = {};
-  allValidators: {[validatorName: string]: Validator, ...} = {};
-  dedicatedThread: boolean;
   impactfulOptions: $Shape<ParcelOptions>;
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
   report: ReportFn;
   requests: AssetGroup[];
   workerApi: ?WorkerApi;
-  bundleGraph: ?BundleGraph<PackagedBundle>;
 
-  constructor({
-    config,
-    dedicatedThread,
-    options,
-    requests,
-    report,
-    workerApi,
-    bundleGraph,
-  }: ValidationOpts) {
-    this.dedicatedThread = dedicatedThread ?? false;
+  constructor({config, options, report, workerApi}: ValidationOpts) {
     this.options = options;
     this.parcelConfig = config;
     this.report = report;
-    this.requests = requests;
     this.workerApi = workerApi;
-    this.bundleGraph = bundleGraph;
+  }
+  async runValidateAsset(assetGroup: AssetGroup): Promise<?ValidateResult> {
+    this.report({
+      type: 'validation',
+      filePath: fromProjectPath(this.options.projectRoot, assetGroup.filePath),
+    });
+    let pluginOptions = new PluginOptions(this.options);
+    let validators = await this.parcelConfig.getValidators();
+    let result = (
+      await Promise.all(
+        validators.map(async validator => {
+          let validatorName = validator.name;
+          let plugin = validator.plugin;
+          let validatorLogger = new PluginLogger({origin: validatorName});
+
+          if (!plugin.validate) {
+            return;
+          }
+          try {
+            let config = null;
+            let publicAsset = new Asset(await this.loadAsset(assetGroup));
+            if (plugin.getConfig) {
+              config = await plugin.getConfig({
+                asset: publicAsset,
+                options: pluginOptions,
+                logger: validatorLogger,
+                resolveConfig: (configNames: Array<string>) =>
+                  resolveConfig(
+                    this.options.inputFS,
+                    publicAsset.filePath,
+                    configNames,
+                    this.options.projectRoot,
+                  ),
+              });
+            }
+
+            return plugin.validate({
+              asset: publicAsset,
+              options: pluginOptions,
+              config,
+              logger: validatorLogger,
+            });
+          } catch (e) {
+            throw new ThrowableDiagnostic({
+              diagnostic: errorToDiagnostic(e, {
+                origin: validatorName,
+              }),
+            });
+          }
+        }),
+      )
+    ).filter(Boolean);
+    // $FlowFixMe[incompatible-call]
+    return combineValidateResults(result);
   }
 
-  async run(): Promise<void> {
+  async run(
+    changedAssets: Array<AssetGroup>,
+    bundleGraph: BundleGraph<PackagedBundle>,
+  ): Promise<{|
+    validateAll: Array<ValidateResult>,
+    validateBundles: Array<ValidateResult>,
+  |}> {
     let pluginOptions = new PluginOptions(this.options);
-    await this.buildAssetsAndValidators();
+    let validators = await this.parcelConfig.getValidators();
+    let result = {
+      validateAll: [],
+      validateBundles: [],
+    };
+
+    let assets = await Promise.all(
+      changedAssets.map(async a => new Asset(await this.loadAsset(a))),
+    );
     await Promise.all(
-      Object.keys(this.allValidators).map(async validatorName => {
-        let assets = this.allAssets[validatorName];
-        if (assets) {
-          let plugin = this.allValidators[validatorName];
-          let validatorLogger = new PluginLogger({origin: validatorName});
-          let validatorResults: Array<?ValidateResult> = [];
+      validators.map(async validator => {
+        let validatorName = validator.name;
+        //if (assets) {
+        let plugin = validator.plugin;
+        let validatorLogger = new PluginLogger({origin: validatorName});
+        let validatorResults: Array<?ValidateResult> = [];
+
+        // If the plugin supports the single-threading validateAll method, pass all assets to it.
+        if (plugin.validateAll) {
           try {
-            // If the plugin supports the single-threading validateAll method, pass all assets to it.
-            if (this.dedicatedThread) {
-              if (plugin.validateAll) {
-                // $FlowFixMe[not-a-function]
-                validatorResults = await plugin.validateAll({
-                  assets: assets.map(asset => new Asset(asset)),
-                  options: pluginOptions,
-                  logger: validatorLogger,
-                  resolveConfigWithPath: (
-                    configNames: Array<string>,
-                    assetFilePath: string,
-                  ) =>
-                    resolveConfig(
-                      this.options.inputFS,
-                      assetFilePath,
-                      configNames,
-                      this.options.projectRoot,
-                    ),
-                });
-              }
-
-              if (plugin.validateBundles) {
-                invariant(this.bundleGraph);
-                validatorResults.push(
-                  await plugin.validateBundles({
-                    bundleGraph: this.bundleGraph,
-                    options: pluginOptions,
-                    logger: validatorLogger,
-                  }),
-                );
-              }
-            }
-
-            // Otherwise, pass the assets one-at-a-time
-            else if (plugin.validate && !this.dedicatedThread) {
-              await Promise.all(
-                assets.map(async input => {
-                  let config = null;
-                  let publicAsset = new Asset(input);
-                  if (plugin.getConfig) {
-                    config = await plugin.getConfig({
-                      asset: publicAsset,
-                      options: pluginOptions,
-                      logger: validatorLogger,
-                      resolveConfig: (configNames: Array<string>) =>
-                        resolveConfig(
-                          this.options.inputFS,
-                          publicAsset.filePath,
-                          configNames,
-                          this.options.projectRoot,
-                        ),
-                    });
-                  }
-
-                  let validatorResult = await plugin.validate({
-                    asset: publicAsset,
-                    options: pluginOptions,
-                    config,
-                    logger: validatorLogger,
-                  });
-                  validatorResults.push(validatorResult);
-                }),
-              );
-            }
-            this.handleResults(validatorResults);
+            // $FlowFixMe[not-a-function]
+            let validateAllResults = await plugin.validateAll({
+              assets,
+              options: pluginOptions,
+              logger: validatorLogger,
+              resolveConfigWithPath: (
+                configNames: Array<string>,
+                assetFilePath: string,
+              ) =>
+                resolveConfig(
+                  this.options.inputFS,
+                  assetFilePath,
+                  configNames,
+                  this.options.projectRoot,
+                ),
+            });
+            result.validateAll = validateAllResults;
+            validatorResults.push(...validateAllResults);
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, {
@@ -147,54 +165,21 @@ export default class Validation {
             });
           }
         }
-      }),
-    );
-  }
 
-  async buildAssetsAndValidators() {
-    // Figure out what validators need to be run, and group the assets by the relevant validators.
-    await Promise.all(
-      this.requests.map(async request => {
-        this.report({
-          type: 'validation',
-          filePath: fromProjectPath(this.options.projectRoot, request.filePath),
-        });
-
-        let asset = await this.loadAsset(request);
-
-        let validators = await this.parcelConfig.getValidators();
-
-        for (let validator of validators) {
-          this.allValidators[validator.name] = validator.plugin;
-          if (this.allAssets[validator.name]) {
-            this.allAssets[validator.name].push(asset);
-          } else {
-            this.allAssets[validator.name] = [asset];
-          }
+        if (plugin.validateBundles) {
+          let validateBundlesResult = await plugin.validateBundles({
+            bundleGraph,
+            options: pluginOptions,
+            logger: validatorLogger,
+          });
+          validatorResults.push(...validateBundlesResult);
+          result.validateBundles = validateBundlesResult;
         }
+
+        // }
       }),
     );
-  }
-
-  handleResults(validatorResults: Array<?ValidateResult>) {
-    let warnings: Array<Diagnostic> = [];
-    let errors: Array<Diagnostic> = [];
-    validatorResults.forEach(result => {
-      if (result) {
-        warnings.push(...result.warnings);
-        errors.push(...result.errors);
-      }
-    });
-
-    if (errors.length > 0) {
-      throw new ThrowableDiagnostic({
-        diagnostic: errors,
-      });
-    }
-
-    if (warnings.length > 0) {
-      logger.warn(warnings);
-    }
+    return result;
   }
 
   async loadAsset(request: AssetGroup): Promise<UncommittedAsset> {
@@ -229,4 +214,12 @@ export default class Validation {
       content,
     });
   }
+}
+export function combineValidateResults(
+  validateResults: Array<ValidateResult>,
+): ValidateResult {
+  return validateResults.reduce((previous, current) => ({
+    warnings: previous.warnings.concat(current.warnings),
+    errors: previous.errors.concat(current.errors),
+  }));
 }

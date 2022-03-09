@@ -23,7 +23,7 @@ describe('nodup-validator', function () {
   });
 
   //TODO: move to cache test?
-  it.only('should throw validation error on subsequent builds for duplicate specified assets', async function () {
+  it('should throw validation error on subsequent builds for duplicate specified assets', async function () {
     let didThrow = false;
     let entry = ['entry1.js', 'entry2.js'].map(entry =>
       path.join(

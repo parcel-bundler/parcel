@@ -1,10 +1,11 @@
 // @flow strict-local
-import type {Async, PackagedBundle} from '@parcel/types';
+import type {PackagedBundle} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type BundleGraph from '../public/BundleGraph';
+import type {ValidationMap} from '../Validation';
 
 import nullthrows from 'nullthrows';
 import ParcelConfig from '../ParcelConfig';
@@ -15,7 +16,7 @@ import createParcelConfigRequest from './ParcelConfigRequest';
 type ValidationRequest = {|
   id: string,
   +type: 'validation_request',
-  run: RunOpts => Async<void>,
+  run: RunOpts => Promise<ValidationMap>,
   input: ValidationRequestInput,
 |};
 
@@ -25,7 +26,7 @@ type RunOpts = {|
 |};
 
 type ValidationRequestInput = {|
-  assetRequests: Array<AssetGroup>,
+  changedAssetGroups: Array<AssetGroup>,
   optionsRef: SharedReference,
   bundleGraph: BundleGraph<PackagedBundle>,
 |};
@@ -37,7 +38,7 @@ export default function createValidationRequest(
     id: 'validation',
     type: 'validation_request',
     run: async ({
-      input: {assetRequests, optionsRef, bundleGraph},
+      input: {changedAssetGroups, optionsRef, bundleGraph},
       api,
       options,
       farm,
@@ -49,34 +50,34 @@ export default function createValidationRequest(
       );
 
       let config = new ParcelConfig(processedConfig, options);
-      let trackedRequestsDesc = assetRequests;
+      let [assetValidations, {validateAll, validateBundles}] =
+        await Promise.all([
+          // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
+          Promise.all(
+            changedAssetGroups.map(async assetGroup => [
+              assetGroup.filePath,
+              await farm.createHandle('runValidate')({
+                assetGroup,
+                optionsRef: optionsRef,
+                configCachePath: cachePath,
+              }),
+            ]),
+          ),
+          // Schedule validations on the main thread for all validation plugins that implement "validateAll".
+          new Validation({
+            options,
+            config,
+            report,
+          }).run(changedAssetGroups, bundleGraph),
+        ]);
 
-      // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
-      let promises = trackedRequestsDesc.map(async request =>
-        (await farm.createHandle('runValidate'))({
-          requests: [request],
-          optionsRef: optionsRef,
-          configCachePath: cachePath,
-        }),
-      );
-
-      // Skip sending validation requests if no validators were configured
-      if (trackedRequestsDesc.length === 0) {
-        return;
-      }
-
-      // Schedule validations on the main thread for all validation plugins that implement "validateAll".
-      promises.push(
-        new Validation({
-          requests: trackedRequestsDesc,
-          options,
-          config,
-          report,
-          dedicatedThread: true,
-          bundleGraph,
-        }).run(),
-      );
-      await Promise.all(promises);
+      let result = {
+        validate: new Map(assetValidations.filter(([, val]) => val != null)),
+        validateAll,
+        validateBundles,
+      };
+      api.storeResult(result);
+      return result;
     },
     input,
   };

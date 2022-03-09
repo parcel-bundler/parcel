@@ -81,4 +81,37 @@ describe('eslint-validator', function () {
 
     assert(didThrow);
   });
+
+  it.only('should throw validation error with eslint errors on subsequent build', async function () {
+    let didThrow = false;
+    let entry = path.join(__dirname, '/integration/eslint-error/index.js');
+    try {
+      await bundle(entry, {
+        defaultConfig: config,
+        shouldDisableCache: false,
+      });
+    } catch (e) {
+      assert.equal(e.name, 'BuildError');
+      assert(Array.isArray(e.diagnostics));
+      assert(e.diagnostics[0].codeFrames);
+      assert.equal(e.diagnostics[0].origin, '@parcel/validator-eslint');
+      didThrow = true;
+    }
+
+    assert(didThrow);
+    didThrow = false;
+    try {
+      await bundle(entry, {
+        defaultConfig: config,
+        shouldDisableCache: false,
+      });
+    } catch (e) {
+      assert.equal(e.name, 'BuildError');
+      assert(Array.isArray(e.diagnostics));
+      assert(e.diagnostics[0].codeFrames);
+      assert.equal(e.diagnostics[0].origin, '@parcel/validator-eslint');
+      didThrow = true;
+    }
+    assert(didThrow);
+  });
 });

@@ -41,6 +41,8 @@ import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
 import {init as initHash} from '@parcel/hash';
 import {toProjectPath} from './projectPath';
+import type {ValidationMap} from './Validation';
+import {combineValidateResults} from './Validation';
 
 registerCoreWithSerializer();
 
@@ -335,14 +337,15 @@ export default class Parcel {
       };
 
       await this.#reporterRunner.report(event);
-      await this.#requestTracker.runRequest(
+      let validationResult = await this.#requestTracker.runRequest(
         createValidationRequest({
           optionsRef: this.#optionsRef,
-          assetRequests,
+          changedAssetGroups: assetRequests,
           bundleGraph: publicBundleGraph,
         }),
         {force: assetRequests.length > 0},
       );
+      handleValidationResults(validationResult);
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -448,4 +451,19 @@ export function createWorkerFarm(
     ...options,
     workerPath: require.resolve('./worker'),
   });
+}
+function handleValidationResults(validatorResults: ValidationMap) {
+  let combined = combineValidateResults([
+    ...validatorResults.validate.values(),
+    ...validatorResults.validateAll,
+    ...validatorResults.validateBundles,
+  ]);
+  if (combined.warnings.length > 0) {
+    logger.warn(combined.warnings);
+  }
+  if (combined.errors.length > 0) {
+    throw new ThrowableDiagnostic({
+      diagnostic: combined.errors,
+    });
+  }
 }

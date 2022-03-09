@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {
+  AssetGroup,
   Bundle,
   ParcelOptions,
   ProcessedParcelConfig,
@@ -9,6 +10,7 @@ import type {
 import type {SharedReference, WorkerApi} from '@parcel/workers';
 import {loadConfig as configCache} from '@parcel/utils';
 import type {DevDepSpecifier} from './requests/DevDepRequest';
+import type {ValidateResult} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -43,6 +45,7 @@ type WorkerValidationOpts = {|
   ...$Diff<ValidationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
   optionsRef: SharedReference,
   configCachePath: string,
+  assetGroup: AssetGroup,
 |};
 
 // TODO: this should eventually be replaced by an in memory cache layer
@@ -95,8 +98,8 @@ export async function runTransform(
 export async function runValidate(
   workerApi: WorkerApi,
   opts: WorkerValidationOpts,
-): Promise<void> {
-  let {optionsRef, configCachePath, ...rest} = opts;
+): Promise<?ValidateResult> {
+  let {optionsRef, configCachePath, assetGroup, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
 
@@ -106,7 +109,7 @@ export async function runValidate(
     options,
     config,
     ...rest,
-  }).run();
+  }).runValidateAsset(assetGroup);
 }
 
 export async function runPackage(
