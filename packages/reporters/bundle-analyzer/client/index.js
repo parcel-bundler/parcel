@@ -101,11 +101,11 @@ function translate3d(x, y, z) {
   return `translate3d(${x}px, ${y}px, ${z}px)`;
 }
 
-function formatSize(x){
-  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+const UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+function formatSize(x) {
   let l = 0, n = parseInt(x, 10) || 0;
   while(n >= 1000 && ++l){
       n /= 1000;
   }
-  return(`${n.toFixed(l > 0 ? 2 : 0)} ${units[l]}`);
+  return(`${n.toFixed(l > 0 ? 2 : 0)} ${UNITS[l]}`);
 }
