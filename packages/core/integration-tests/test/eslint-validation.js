@@ -82,7 +82,7 @@ describe('eslint-validator', function () {
     assert(didThrow);
   });
 
-  it.only('should throw validation error with eslint errors on subsequent build', async function () {
+  it('should throw validation error with eslint errors on subsequent build', async function () {
     let didThrow = false;
     let entry = path.join(__dirname, '/integration/eslint-error/index.js');
     try {

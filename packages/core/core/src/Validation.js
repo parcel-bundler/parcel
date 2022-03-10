@@ -172,8 +172,9 @@ export default class Validation {
             options: pluginOptions,
             logger: validatorLogger,
           });
-          validatorResults.push(...validateBundlesResult);
-          result.validateBundles = validateBundlesResult;
+
+          validatorResults.push(validateBundlesResult);
+          result.validateBundles = [validateBundlesResult];
         }
 
         // }
@@ -218,8 +219,11 @@ export default class Validation {
 export function combineValidateResults(
   validateResults: Array<ValidateResult>,
 ): ValidateResult {
-  return validateResults.reduce((previous, current) => ({
-    warnings: previous.warnings.concat(current.warnings),
-    errors: previous.errors.concat(current.errors),
-  }));
+  return validateResults.reduce(
+    (previous, current) => ({
+      warnings: previous.warnings.concat(current.warnings),
+      errors: previous.errors.concat(current.errors),
+    }),
+    {warnings: [], errors: []},
+  );
 }
