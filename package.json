@@ -11,7 +11,8 @@
     "packages/*/*"
   ],
   "scripts": {
-    "build": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
+    "build": "yarn build-bundles && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
+    "build-bundles": "rm -rf packages/*/*/lib && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server}",
     "build-ts": "lerna run build-ts && lerna run check-ts",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
@@ -22,7 +23,7 @@
     "unlink-all": "node scripts/unlink-all.js packages",
     "check": "flow check",
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
-    "prepublishOnly": "yarn build && yarn build-ts && yarn adjust-versions && rename-parcel-packages",
+    "prepublishOnly": "yarn adjust-versions yarn build && yarn build-ts && rename-parcel-packages",
     "test:unit": "cross-env NODE_ENV=test mocha",
     "test:integration": "yarn workspace @parcel/integration-tests test",
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
@@ -31,7 +32,7 @@
     "version:atlassian": "yarn lerna version patch --exact --force-publish=@atlassian/internal-parcel-utils,@atlassian/parcel-reporter-analytics",
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions --exact",
-    "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions",
+    "tag:release": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions",
     "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines-peerdeps.js",
     "release": "lerna publish -y from-package --pre-dist-tag=next --no-git-tag-version --no-push",
     "prepare": "husky install"
@@ -43,7 +44,7 @@
     "@types/node": "^15.12.4",
     "cross-env": "^7.0.0",
     "eslint": "^7.20.0",
-    "flow-bin": "0.164.0",
+    "flow-bin": "0.173.0",
     "glob": "^7.1.6",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
@@ -54,7 +55,7 @@
     "mocha-junit-reporter": "^2.0.0",
     "mocha-multi-reporters": "^1.5.1",
     "prettier": "2.4.1",
-    "rimraf": "^2.6.3",
+    "rimraf": "^3.0.2",
     "semver": "^5.7.1",
     "sinon": "^7.3.1"
   },

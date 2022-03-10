@@ -18,6 +18,7 @@ mod fs;
 mod global_replacer;
 mod hoist;
 mod modules;
+mod typeof_replacer;
 mod utils;
 
 use std::collections::{HashMap, HashSet};
@@ -49,6 +50,7 @@ use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::{hoist, CollectResult, HoistResult};
 use modules::esm2cjs;
+use typeof_replacer::*;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 use crate::hoist::Collect;
@@ -223,9 +225,15 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
       let should_inline_fs = config.inline_fs
         && config.source_type != SourceType::Script
         && code.contains("readFileSync");
+      let should_import_swc_helpers = match config.source_type {
+        SourceType::Module => true,
+        SourceType::Script => false,
+      };
       swc_common::GLOBALS.set(&Globals::new(), || {
         helpers::HELPERS.set(
-          &helpers::Helpers::new(/* external helpers from @swc/helpers */ true),
+          &helpers::Helpers::new(
+            /* external helpers from @swc/helpers */ should_import_swc_helpers,
+          ),
           || {
             let mut react_options = react::Options::default();
             if config.is_jsx {
@@ -315,6 +323,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let mut diagnostics = vec![];
             let module = {
               let mut passes = chain!(
+                Optional::new(
+                  TypeofReplacer { decls: &decls },
+                  config.source_type != SourceType::Script
+                ),
                 // Inline process.env and process.browser
                 Optional::new(
                   EnvReplacer {

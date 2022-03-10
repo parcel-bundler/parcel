@@ -84,7 +84,7 @@ export class Pnpm implements PackageInstaller {
   }: InstallerOptions): Promise<void> {
     let args = ['add', '--reporter', 'ndjson'];
     if (saveDev) {
-      args.push('-D');
+      args.push('-D', '-W');
     }
     args = args.concat(modules.map(npmSpecifierFromModuleRequest));
 

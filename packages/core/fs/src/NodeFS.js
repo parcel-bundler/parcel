@@ -10,9 +10,8 @@ import type {
 } from '@parcel/watcher';
 
 import fs from 'graceful-fs';
+import nativeFS from 'fs';
 import ncp from 'ncp';
-import mkdirp from 'mkdirp';
-import rimraf from 'rimraf';
 import {promisify} from 'util';
 import {registerSerializableClass} from '@parcel/core';
 import fsWriteStreamAtomic from '@parcel/fs-write-stream-atomic';
@@ -37,8 +36,6 @@ export class NodeFS implements FileSystem {
   readdir: any = promisify(fs.readdir);
   unlink: any = promisify(fs.unlink);
   utimes: any = promisify(fs.utimes);
-  mkdirp: any = promisify(mkdirp);
-  rimraf: any = promisify(rimraf);
   ncp: any = promisify(ncp);
   createReadStream: (path: string, options?: any) => ReadStream =
     fs.createReadStream;
@@ -132,6 +129,32 @@ export class NodeFS implements FileSystem {
 
   serialize(): null {
     return null;
+  }
+
+  async mkdirp(filePath: FilePath): Promise<void> {
+    await nativeFS.promises.mkdir(filePath, {recursive: true});
+  }
+
+  async rimraf(filePath: FilePath): Promise<void> {
+    if (fs.promises.rm) {
+      await fs.promises.rm(filePath, {recursive: true, force: true});
+      return;
+    }
+
+    // fs.promises.rm is not supported in node 12...
+    let stat;
+    try {
+      stat = await this.stat(filePath);
+    } catch (err) {
+      return;
+    }
+
+    if (stat.isDirectory()) {
+      // $FlowFixMe
+      await nativeFS.promises.rmdir(filePath, {recursive: true});
+    } else {
+      await nativeFS.promises.unlink(filePath);
+    }
   }
 }
 

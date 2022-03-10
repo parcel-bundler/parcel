@@ -24,6 +24,21 @@
     "build-ts": "mkdir -p lib && flow-to-ts src/types.js > lib/types.d.ts",
     "check-ts": "tsc --noEmit index.d.ts"
   },
+  "targets": {
+    "types": false,
+    "main": {
+      "includeNodeModules": {
+        "@parcel/core": false,
+        "@parcel/diagnostic": false,
+        "@parcel/fs": false,
+        "@parcel/logger": false,
+        "@parcel/types": false,
+        "@parcel/utils": false,
+        "@parcel/workers": false,
+        "semver": false
+      }
+    }
+  },
   "dependencies": {
     "@parcel/diagnostic": "2.0.15",
     "@parcel/fs": "2.0.15",
@@ -31,10 +46,12 @@
     "@parcel/types": "2.0.15",
     "@parcel/utils": "2.0.15",
     "@parcel/workers": "2.0.15",
+    "semver": "^5.7.1"
+  },
+  "devDependencies": {
     "command-exists": "^1.2.6",
     "cross-spawn": "^6.0.4",
     "nullthrows": "^1.1.1",
-    "semver": "^5.7.1",
     "split2": "^3.1.1"
   },
   "peerDependencies": {
