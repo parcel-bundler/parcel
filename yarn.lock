@@ -2283,6 +2283,7 @@
   integrity sha512-/HFVveBcFmRCTpLTOGo9WLZ49H/j0MUNbk9oSeDRQ1hVm/qZdyRSw0UtV5nb2VKDYDuoPyys1Dg8QQNM//PNew==
 
 "@parcel/fs-search@2.3.3-nightly.2635+083e530c0", "self-published@npm:@parcel/fs-search@2.3.3-nightly.2635":
+  name self-published
   version "2.3.3-nightly.2635"
   resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/fs-search/-/fs-search-2.3.3-nightly.2635.tgz#ee8e6d057ac7248712a7a2b1e8d2b1bdaf86ee50"
   integrity sha512-FA3n5jJ9zOh2BKePJEcpkis421/459S+Cvveo4AT39Y3a6/h7bSfIKMnJWNAXyuRwqXIYZLY4PHi/qqDdi3dLw==
@@ -2301,6 +2302,7 @@
     "@parcel/workers" "2.0.0-nightly.1012+083e530c0"
 
 "@parcel/hash@2.3.3-nightly.2635+083e530c0", "self-published@npm:@parcel/hash@2.3.3-nightly.2635":
+  name self-published
   version "2.3.3-nightly.2635"
   resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/hash/-/hash-2.3.3-nightly.2635.tgz#0ae522b3503070ca72ac39c9560b270d4a7480b8"
   integrity sha512-RZIa2r96hXI/iq7xM+A6KQF5Ev10u37wLkEAEF/UDcMBqVVRfV2nuS6CY7bRYf6PDXHaqnuy/aV/n2Mlr6WAIA==
@@ -2405,72 +2407,60 @@
     component-type "^1.2.1"
     join-component "^1.1.0"
 
-"@sentry/apm@5.11.0":
-  version "5.11.0"
-  resolved "https://registry.yarnpkg.com/@sentry/apm/-/apm-5.11.0.tgz#b1f375f72a586351fdcc63d81c2d413309ce665c"
-  integrity sha512-Eb/xsw5V8Cl80XRy2Pgknj121WlPVlbZ2huiQUcVm48+elg9k2H8FxK2mTyL/A26QZvQFgxAJ+ASVrE+Nff3NA==
+"@sentry/core@6.18.2":
+  version "6.18.2"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@sentry/core/-/core-6.18.2.tgz#d27619b7b4a4b90e2cfdc254d40ee9d630b251b9"
+  integrity sha512-r5ad/gq5S/JHc9sd5CUhZQT9ojQ+f+thk/AoGeGawX/8HURZYAgIqD565d6FK0VsZEDkdRMl58z1Qon20h3y1g==
   dependencies:
-    "@sentry/hub" "5.11.0"
-    "@sentry/minimal" "5.11.0"
-    "@sentry/types" "5.11.0"
-    "@sentry/utils" "5.11.0"
+    "@sentry/hub" "6.18.2"
+    "@sentry/minimal" "6.18.2"
+    "@sentry/types" "6.18.2"
+    "@sentry/utils" "6.18.2"
     tslib "^1.9.3"
 
-"@sentry/core@5.11.0":
-  version "5.11.0"
-  resolved "https://registry.yarnpkg.com/@sentry/core/-/core-5.11.0.tgz#fc21acefbb58bacda7b1b33e4a67b56d7f7064b4"
-  integrity sha512-bofpzY5Sgcrq69eg1iA13kGJqWia4s/jVOB3DCU3rPUKGHVL8hh9CjrIho1C0XygQxjuPAJznOj0cCaRxD1vJQ==
+"@sentry/hub@6.18.2":
+  version "6.18.2"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@sentry/hub/-/hub-6.18.2.tgz#fdb8536f61899fd48f3d1b49a6957348ad729ec5"
+  integrity sha512-d0AugekMkbnN12b4EXMjseJxtLPc9S20DGobCPUb4oAQT6S2oDQEj1jwP6PQ5vtgyy+GMYWxBMgqAQ4pjVYISQ==
   dependencies:
-    "@sentry/hub" "5.11.0"
-    "@sentry/minimal" "5.11.0"
-    "@sentry/types" "5.11.0"
-    "@sentry/utils" "5.11.0"
+    "@sentry/types" "6.18.2"
+    "@sentry/utils" "6.18.2"
     tslib "^1.9.3"
 
-"@sentry/hub@5.11.0":
-  version "5.11.0"
-  resolved "https://registry.yarnpkg.com/@sentry/hub/-/hub-5.11.0.tgz#d427432fff13d9b34d83da8651ad5c4207260796"
-  integrity sha512-ZtCcbq3BLkQo/y07amvP21ZjmL7up/fD1032XrA+44U7M1d2w+CDCVRWcCJGK/otzPz7cw8yc5oS4Cn68wLVxw==
+"@sentry/minimal@6.18.2":
+  version "6.18.2"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@sentry/minimal/-/minimal-6.18.2.tgz#581c2fc030b9c89f1fcdc3e4855b91ce6c95db56"
+  integrity sha512-n7KYuo34W2LxE+3dnZ47of7XHuORINCnXq66XH72eoj67tf0XeWbIhEJrYGmoLRyRfoCYYrBLWiDl/uTjLzrzQ==
   dependencies:
-    "@sentry/types" "5.11.0"
-    "@sentry/utils" "5.11.0"
+    "@sentry/hub" "6.18.2"
+    "@sentry/types" "6.18.2"
     tslib "^1.9.3"
 
-"@sentry/minimal@5.11.0":
-  version "5.11.0"
-  resolved "https://registry.yarnpkg.com/@sentry/minimal/-/minimal-5.11.0.tgz#5a5f334794f03044e7d0316757abd0a236fcb1f3"
-  integrity sha512-fplz8sCmYE9Hdm+qnoATls5FPKjVyXcCuav9UKFLV6L+MAPjWVINbHFPBcYAmR5bjK4/Otfi1SPCBe1MQT/FtA==
+"@sentry/node@^6.18.2":
+  version "6.18.2"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@sentry/node/-/node-6.18.2.tgz#0d3a294ad89434b108f79da5c4d9fcde4f251993"
+  integrity sha512-1S+44c09n3KVpCYjwOfnA9jKvnpPegpQWM81Nu5J6ToGx+ZiddMq6B9GRXUnFfZ7Z6fJHZzFtySasQC7KqkQoA==
   dependencies:
-    "@sentry/hub" "5.11.0"
-    "@sentry/types" "5.11.0"
-    tslib "^1.9.3"
-
-"@sentry/node@^5.11.0":
-  version "5.11.0"
-  resolved "https://registry.yarnpkg.com/@sentry/node/-/node-5.11.0.tgz#9342ae0669ad47389b6e0c3048ceed30464d68e7"
-  integrity sha512-WgcNTEDqud9eD2tT/2/MXmVUngivMeYmzVSUrRG05C7k9HiXwMr2v7H7HCMumlCLAqflr2qAsGa8tZa/nR+ZHw==
-  dependencies:
-    "@sentry/apm" "5.11.0"
-    "@sentry/core" "5.11.0"
-    "@sentry/hub" "5.11.0"
-    "@sentry/types" "5.11.0"
-    "@sentry/utils" "5.11.0"
-    cookie "^0.3.1"
-    https-proxy-agent "^4.0.0"
+    "@sentry/core" "6.18.2"
+    "@sentry/hub" "6.18.2"
+    "@sentry/types" "6.18.2"
+    "@sentry/utils" "6.18.2"
+    cookie "^0.4.1"
+    https-proxy-agent "^5.0.0"
     lru_map "^0.3.3"
     tslib "^1.9.3"
 
-"@sentry/types@5.11.0":
-  version "5.11.0"
-  resolved "https://registry.yarnpkg.com/@sentry/types/-/types-5.11.0.tgz#40f0f3174362928e033ddd9725d55e7c5cb7c5b6"
-  integrity sha512-1Uhycpmeo1ZK2GLvrtwZhTwIodJHcyIS6bn+t4IMkN9MFoo6ktbAfhvexBDW/IDtdLlCGJbfm8nIZerxy0QUpg==
+"@sentry/types@6.18.2":
+  version "6.18.2"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@sentry/types/-/types-6.18.2.tgz#f528fec8b75c19d5a6976004e71703184c6cf7be"
+  integrity sha512-WzpJf/Q5aORTzrSwer/As1NlO90dBAQpaHV2ikDDKqOyMWEgjKb5/4gh59p9gH8JMMnLetP1AvQel0fOj5UnUw==
 
-"@sentry/utils@5.11.0":
-  version "5.11.0"
-  resolved "https://registry.yarnpkg.com/@sentry/utils/-/utils-5.11.0.tgz#c07313eaf2331ecdecfd240c350bb28c7bd38e9c"
-  integrity sha512-84MNM08ANmda/tWMBCCb9tga0b4ZD7tSo0i20RJalkdLk9zJmmepKw+sA5PyztO/YxkqAt9KijSmtIafd0LlOQ==
+"@sentry/utils@6.18.2":
+  version "6.18.2"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@sentry/utils/-/utils-6.18.2.tgz#c572a3ff49113e7dc4c97db1a18d117f199b9fff"
+  integrity sha512-EC619jesknyu4xpwud5WC/5odYLz6JUy7OSFy5405PpdGeh/m8XUvuJAx4zDx0Iz/Mlk0S1Md+ZcQwqkv39dkw==
   dependencies:
-    "@sentry/types" "5.11.0"
+    "@sentry/types" "6.18.2"
     tslib "^1.9.3"
 
 "@sinonjs/commons@^1", "@sinonjs/commons@^1.3.0", "@sinonjs/commons@^1.4.0", "@sinonjs/commons@^1.7.0":
@@ -2942,11 +2932,6 @@ agent-base@4, agent-base@^4.3.0:
   integrity sha512-salcGninV0nPrwpGNn4VTXBb1SOuXQBiqbrNXoeizJsHrsL6ERFM2Ne3JUSBWRE6aeNJI2ROP/WEEIDUiDe3cg==
   dependencies:
     es6-promisify "^5.0.0"
-
-agent-base@5:
-  version "5.1.1"
-  resolved "https://registry.yarnpkg.com/agent-base/-/agent-base-5.1.1.tgz#e8fb3f242959db44d63be665db7a8e739537a32c"
-  integrity sha512-TMeqbNl2fMW0nMjTEPOwe3J/PRFP4vqeoNuQMG0HlMrtm5QxKqdvAkZ1pRBQ/ulIyDD5Yq0nJ7YbdD8ey0TO3g==
 
 agent-base@6:
   version "6.0.2"
@@ -4566,10 +4551,10 @@ convert-source-map@^1.5.0, convert-source-map@^1.7.0:
   dependencies:
     safe-buffer "~5.1.1"
 
-cookie@^0.3.1:
-  version "0.3.1"
-  resolved "https://registry.yarnpkg.com/cookie/-/cookie-0.3.1.tgz#e7e0a1f9ef43b4c8ba925c5c5a96e806d16873bb"
-  integrity sha1-5+Ch+e9DtMi6klxcWpboBtFoc7s=
+cookie@^0.4.1:
+  version "0.4.2"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/cookie/-/cookie-0.4.2.tgz#0e41f24de5ecf317947c82fc789e06a884824432"
+  integrity sha512-aSWTXFzaKWkvHO1Ny/s+ePFpvKsPnjc551iI41v3ny/ow6tBG5Vd+FuqGNhh1LxOmVzOlGUriIlOaokOvhaStA==
 
 copy-anything@^2.0.1:
   version "2.0.3"
@@ -7470,14 +7455,6 @@ https-proxy-agent@^2.2.1, https-proxy-agent@^2.2.3:
   dependencies:
     agent-base "^4.3.0"
     debug "^3.1.0"
-
-https-proxy-agent@^4.0.0:
-  version "4.0.0"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/https-proxy-agent/-/https-proxy-agent-4.0.0.tgz#702b71fb5520a132a66de1f67541d9e62154d82b"
-  integrity sha1-cCtx+1UgoTKmbeH2dUHZ5iFU2Cs=
-  dependencies:
-    agent-base "5"
-    debug "4"
 
 https-proxy-agent@^5.0.0:
   version "5.0.0"

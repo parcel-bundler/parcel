@@ -41,7 +41,8 @@ export function getSentry(): ISentry {
 
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
-      release: process.env.BITBUCKET_COMMIT,
+      release:
+        process.env.BITBUCKET_COMMIT /* Parcel repo commit on Bitbucket */,
     });
   }
 
