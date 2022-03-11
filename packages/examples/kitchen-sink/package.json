@@ -1,6 +1,6 @@
 {
   "name": "@parcel/kitchen-sink-example",
-  "version": "2.0.16",
+  "version": "2.0.17",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -12,7 +12,7 @@
     "@parcel/config-default": "2.0.16",
     "@parcel/optimizer-esbuild": "2.0.16",
     "@parcel/reporter-sourcemap-visualiser": "2.0.16",
-    "parcel": "2.0.16"
+    "parcel": "2.0.17"
   },
   "browser": "dist/legacy/index.html",
   "browserModern": "dist/modern/index.html",
