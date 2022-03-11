@@ -2,12 +2,11 @@
 
 import type {WorkerApi} from '@parcel/workers';
 import type {AssetGroup, ParcelOptions, ReportFn} from './types';
-import type {Validator, ValidateResult, PackagedBundle} from '@parcel/types';
-import type {Diagnostic} from '@parcel/diagnostic';
+import type {ValidateResult, PackagedBundle} from '@parcel/types';
 
 import path from 'path';
 import {resolveConfig} from '@parcel/utils';
-import logger, {PluginLogger} from '@parcel/logger';
+import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
 import UncommittedAsset from './UncommittedAsset';
@@ -21,7 +20,6 @@ import {
   fromProjectPathRelative,
 } from './projectPath';
 import BundleGraph from './public/BundleGraph';
-import invariant from 'assert';
 
 export type ValidationMap = {|
   validate: Map<ProjectPath, ValidateResult>,
@@ -156,7 +154,7 @@ export default class Validation {
                 ),
             });
             result.validateAll = validateAllResults;
-            validatorResults.push(...validateAllResults);
+            validatorResults.push(...validateAllResults); //could this ever be an array ?
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, {

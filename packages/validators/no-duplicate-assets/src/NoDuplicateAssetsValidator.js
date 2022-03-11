@@ -1,10 +1,8 @@
 // @flow
 import {Validator} from '@parcel/plugin';
-import {type DiagnosticCodeFrame, escapeMarkdown} from '@parcel/diagnostic';
-import invariant from 'assert';
 import path from 'path';
 
-let assetNoDupPath = 'nodup.js';
+let assetNoDupPath = 'noDup.js';
 
 // only do this in prod?
 export default (new Validator({
@@ -27,11 +25,14 @@ export default (new Validator({
     });
     if (duplicateAsset) {
       let bundlesWithAsset = bundleGraph.getBundlesWithAsset(duplicateAsset);
-      if (bundlesWithAsset.length > 0) {
+      if (bundlesWithAsset.length > 1) {
         validatorResult.errors.push({
           origin: '@parcel/validator-no-duplicate-assets',
-          message: `Found duplicate asset **${assetNoDupPath}** in ${bundlesWithAsset
-            .map(b => b.filePath)
+          message: `Found duplicate asset **${assetNoDupPath}** in bundle(s) ${bundlesWithAsset
+            .map(b => {
+              let splitArray = b.filePath.split('/');
+              return splitArray[splitArray.length - 1];
+            })
             .join(', ')}`,
         });
       }
