@@ -1,14 +1,14 @@
 {
   "name": "@parcel/ts-example",
-  "version": "2.0.15",
+  "version": "2.0.16",
   "license": "MIT",
   "private": true,
   "scripts": {
     "demo": "parcel build src/index.ts"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.15",
-    "@parcel/core": "2.0.15"
+    "@parcel/babel-register": "2.0.16",
+    "@parcel/core": "2.0.16"
   },
   "main": "dist/main.js",
   "module": "dist/module.js",

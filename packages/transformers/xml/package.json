@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-xml",
-  "version": "2.0.15",
+  "version": "2.0.16",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
     "parcel": "^2.0.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.15",
+    "@parcel/plugin": "2.0.16",
     "@xmldom/xmldom": "^0.7.5"
   }
 }
