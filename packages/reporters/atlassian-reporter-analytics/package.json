@@ -1,6 +1,6 @@
 {
   "name": "@atlassian/parcel-reporter-analytics",
-  "version": "2.0.18",
+  "version": "2.0.20",
   "publishConfig": {
     "access": "public"
   },
@@ -11,10 +11,10 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@atlassian/internal-parcel-utils": "2.0.18",
+    "@atlassian/internal-parcel-utils": "2.0.20",
     "@atlassiansox/analytics-node-client": "^2.2.2",
-    "@parcel/hash": "2.0.16",
-    "@parcel/plugin": "2.0.16",
+    "@parcel/hash": "2.0.20",
+    "@parcel/plugin": "2.0.20",
     "execa": "^5.1.1",
     "uuid": "^3.3.3"
   }
