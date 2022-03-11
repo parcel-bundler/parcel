@@ -28,6 +28,7 @@ let Sentry;
 export function getSentry(): ISentry {
   if (
     process.env.PARCEL_BUILD_ENV !== 'production' ||
+    process.env.PARCEL_SELF_BUILD != null ||
     process.env.PARCEL_ANALYTICS_DISABLE != null
   ) {
     return NullSentry;
@@ -40,7 +41,8 @@ export function getSentry(): ISentry {
 
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
-      release: process.env.BITBUCKET_COMMIT,
+      release:
+        process.env.BITBUCKET_COMMIT /* Parcel repo commit on Bitbucket */,
     });
   }
 
