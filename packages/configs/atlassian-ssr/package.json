@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-atlassian-ssr",
-  "version": "2.0.17",
+  "version": "2.0.18",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -14,10 +14,10 @@
     "test-ci": "mocha"
   },
   "dependencies": {
-    "@atlassian/parcel-reporter-analytics": "2.0.17",
-    "@parcel/config-default": "2.0.16",
+    "@atlassian/parcel-reporter-analytics": "2.0.18",
+    "@parcel/config-default": "2.0.17",
     "@parcel/reporter-bundle-analyzer": "2.0.16",
-    "@parcel/reporter-dev-server": "2.0.16",
+    "@parcel/reporter-dev-server": "2.0.17",
     "@parcel/reporter-manifest": "2.0.16",
     "@parcel/resolver-atlassian-ssr": "2.0.16",
     "@parcel/transformer-babel": "2.0.16",

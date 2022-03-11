@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-atlassian",
-  "version": "2.0.17",
+  "version": "2.0.18",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -18,8 +18,8 @@
     "test-ci": "mocha"
   },
   "dependencies": {
-    "@atlassian/parcel-reporter-analytics": "2.0.17",
-    "@parcel/config-default": "2.0.16",
+    "@atlassian/parcel-reporter-analytics": "2.0.18",
+    "@parcel/config-default": "2.0.17",
     "@parcel/reporter-manifest": "2.0.16",
     "@parcel/reporter-react-loadable": "2.0.16",
     "@parcel/transformer-image": "2.0.16",
