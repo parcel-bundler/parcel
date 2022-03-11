@@ -9,12 +9,7 @@ module.exports = api => {
         [
           'babel-plugin-transform-inline-environment-variables',
           {
-            include: [
-              'PARCEL_BUILD_ENV',
-              'AMPLITUDE_API_KEY',
-              'BITBUCKET_COMMIT',
-              'SENTRY_DSN',
-            ],
+            include: ['PARCEL_BUILD_ENV', 'BITBUCKET_COMMIT', 'SENTRY_DSN'],
           },
         ],
         'babel-plugin-minify-dead-code-elimination',
@@ -54,6 +49,8 @@ module.exports = api => {
             {
               include: [
                 'PARCEL_BUILD_ENV',
+                'BITBUCKET_COMMIT',
+                'SENTRY_DSN',
                 // Eliminate the PARCEL_SELF_BUILD environment variable to get
                 //  rid of @babel/register in bin.js, when compiling with gulp.
                 ...(!process.env.PARCEL_SELF_BUILD
