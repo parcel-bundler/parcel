@@ -391,9 +391,11 @@ export class NodePackageManager implements PackageManager {
         return;
       }
 
-      let module = require.cache[resolved.resolved];
+      // $FlowFixMe
+      let module = Module._cache[resolved.resolved];
       if (module) {
-        delete require.cache[resolved.resolved];
+        // $FlowFixMe
+        delete Module._cache[resolved.resolved];
       }
 
       let moduleChildren = children.get(resolved.resolved);

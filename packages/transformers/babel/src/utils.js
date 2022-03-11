@@ -5,7 +5,22 @@ import type {Targets as BabelTargets} from '@babel/preset-env';
 
 import invariant from 'assert';
 import semver from 'semver';
-import {TargetNames} from '@babel/helper-compilation-targets/lib/options';
+
+// Copied from @babel/helper-compilation-targets/lib/options.js
+const TargetNames = {
+  node: 'node',
+  chrome: 'chrome',
+  opera: 'opera',
+  edge: 'edge',
+  firefox: 'firefox',
+  safari: 'safari',
+  ie: 'ie',
+  ios: 'ios',
+  android: 'android',
+  electron: 'electron',
+  samsung: 'samsung',
+  rhino: 'rhino',
+};
 
 // List of browsers to exclude when the esmodule target is specified.
 // Based on https://caniuse.com/#feat=es6-module

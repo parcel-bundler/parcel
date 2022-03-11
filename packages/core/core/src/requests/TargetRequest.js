@@ -18,6 +18,7 @@ import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   getJSONSourceLocation,
+  encodeJSONKeyComponent,
   md,
 } from '@parcel/diagnostic';
 import path from 'path';
@@ -503,11 +504,12 @@ export class TargetResolver {
       if (
         targetName === 'browser' &&
         pkg[targetName] != null &&
-        typeof pkg[targetName] === 'object'
+        typeof pkg[targetName] === 'object' &&
+        pkg.name
       ) {
         // The `browser` field can be a file path or an alias map.
         _targetDist = pkg[targetName][pkg.name];
-        pointer = `/${targetName}/${pkg.name}`;
+        pointer = `/${targetName}/${encodeJSONKeyComponent(pkg.name)}`;
       } else {
         _targetDist = pkg[targetName];
         pointer = `/${targetName}`;

@@ -1,6 +1,7 @@
 {
   "name": "@parcel/register",
   "version": "2.0.15",
+  "private": true,
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -27,7 +28,6 @@
     "@parcel/core": "2.0.15",
     "@parcel/fs": "2.0.15",
     "@parcel/package-manager": "2.0.15",
-    "deasync": "^0.1.14",
     "pirates": "^4.0.0"
   }
 }

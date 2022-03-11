@@ -40,6 +40,7 @@
     "@parcel/transformer-babel": "2.0.15",
     "@parcel/transformer-css": "2.0.15",
     "@parcel/transformer-html": "2.0.15",
+    "@parcel/transformer-image": "2.0.15",
     "@parcel/transformer-js": "2.0.15",
     "@parcel/transformer-json": "2.0.15",
     "@parcel/transformer-postcss": "2.0.15",
@@ -57,7 +58,6 @@
     "@parcel/transformer-elm": "2.0.7",
     "@parcel/transformer-glsl": "2.0.7",
     "@parcel/transformer-graphql": "2.0.7",
-    "@parcel/transformer-image": "2.0.7",
     "@parcel/transformer-inline-string": "2.0.7",
     "@parcel/transformer-jsonld": "2.0.7",
     "@parcel/transformer-less": "2.0.7",
@@ -75,6 +75,6 @@
     "@parcel/transformer-yaml": "2.0.7"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.2.1"
+    "@parcel/core": "^2.3.2"
   }
 }

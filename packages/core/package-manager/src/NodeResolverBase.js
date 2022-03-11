@@ -79,7 +79,8 @@ export class NodeResolverBase<T> {
   getPackageEntries(dir: FilePath, pkg: PackageJSON): Array<string> {
     let main = pkg.main;
     if (
-      process.env.PARCEL_BUILD_ENV !== 'production' &&
+      (process.env.PARCEL_BUILD_ENV !== 'production' ||
+        process.env.PARCEL_SELF_BUILD) &&
       typeof pkg.name === 'string' &&
       typeof pkg.source === 'string' &&
       pkg.name.startsWith('@parcel/') &&

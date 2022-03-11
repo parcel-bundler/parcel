@@ -38,15 +38,13 @@
     "@swc/helpers": "^0.2.11",
     "browserslist": "^4.6.6",
     "detect-libc": "^1.0.3",
-    "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.986",
+    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.1012",
     "semver": "^5.7.1"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.4",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.986"
+    "@napi-rs/cli": "1.0.4"
   },
   "scripts": {
     "build": "napi build --platform --cargo-cwd napi",

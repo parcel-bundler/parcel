@@ -5,7 +5,7 @@ import type {FileSystem} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import path from 'path';
 import clone from 'clone';
-import {parse as json5} from 'json5';
+import json5 from 'json5';
 import {parse as toml} from '@iarna/toml';
 import LRU from 'lru-cache';
 
@@ -154,6 +154,6 @@ function getParser(extname) {
       return toml;
     case 'json':
     default:
-      return json5;
+      return json5.parse;
   }
 }
