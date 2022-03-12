@@ -4,6 +4,7 @@ import type {
   FilePath,
   InitialParcelOptions,
   DependencySpecifier,
+  InitialServerOptions,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
@@ -95,6 +96,19 @@ export default async function resolveOptions(
     throw new Error('Lazy bundling does not work with content hashing');
   }
 
+  let env = {
+    ...(await loadDotEnv(
+      initialOptions.env ?? {},
+      inputFS,
+      path.join(projectRoot, 'index'),
+      projectRoot,
+    )),
+    ...process.env,
+    ...initialOptions.env,
+  };
+
+  let port = determinePort(initialOptions.serveOptions, env.PORT);
+
   return {
     config: getRelativeConfigSpecifier(
       inputFS,
@@ -107,16 +121,7 @@ export default async function resolveOptions(
       initialOptions.defaultConfig,
     ),
     shouldPatchConsole: initialOptions.shouldPatchConsole ?? false,
-    env: {
-      ...(await loadDotEnv(
-        initialOptions.env ?? {},
-        inputFS,
-        path.join(projectRoot, 'index'),
-        projectRoot,
-      )),
-      ...process.env,
-      ...initialOptions.env,
-    },
+    env,
     mode,
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
     hmrOptions: initialOptions.hmrOptions ?? null,
@@ -126,6 +131,7 @@ export default async function resolveOptions(
       ? {
           ...initialOptions.serveOptions,
           distDir: distDir ?? path.join(outputCwd, 'dist'),
+          port,
         }
       : false,
     shouldDisableCache: initialOptions.shouldDisableCache ?? false,
@@ -177,4 +183,35 @@ function getRelativeConfigSpecifier(
   } else {
     return specifier;
   }
+}
+
+function determinePort(
+  initialServerOptions: InitialServerOptions | false | void,
+  portInEnv: string | void,
+  defaultPort: number = 1234,
+): number {
+  function parsePort(port: string): number | void {
+    let parsedPort = Number(port);
+
+    // return undefined if port number defined in .env is not valid integer
+    if (!Number.isInteger(parsedPort)) {
+      return undefined;
+    }
+    return parsedPort;
+  }
+
+  if (!initialServerOptions) {
+    return typeof portInEnv !== 'undefined'
+      ? parsePort(portInEnv) ?? defaultPort
+      : defaultPort;
+  }
+
+  // if initialServerOptions.port is equal to defaultPort, then this means that port number is provided via PORT=~~~~ on cli. In this case, we should ignore port number defined in .env.
+  if (initialServerOptions.port !== defaultPort) {
+    return initialServerOptions.port;
+  }
+
+  return typeof portInEnv !== 'undefined'
+    ? parsePort(portInEnv) ?? defaultPort
+    : defaultPort;
 }
