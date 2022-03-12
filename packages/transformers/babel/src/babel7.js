@@ -82,6 +82,11 @@ export default async function babel7(
         remapAstLocations(babelCore.types, res.ast, map);
       }
     }
+    if (res.externalDependencies) {
+      for (let f of res.externalDependencies) {
+        asset.invalidateOnFileChange(f);
+      }
+    }
   }
 
   if (res.ast) {
