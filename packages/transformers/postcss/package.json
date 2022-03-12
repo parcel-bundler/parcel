@@ -20,6 +20,7 @@
     "parcel": "^2.3.2"
   },
   "dependencies": {
+    "@parcel/diagnostic": "2.3.2",
     "@parcel/hash": "2.3.2",
     "@parcel/plugin": "2.3.2",
     "@parcel/utils": "2.3.2",
