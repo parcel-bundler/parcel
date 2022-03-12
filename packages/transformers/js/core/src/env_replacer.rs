@@ -53,25 +53,11 @@ impl<'a> Fold for EnvReplacer<'a> {
         return node.fold_children_with(self);
       }
 
-      if let MemberExpr {
-        obj: ExprOrSuper::Expr(ref expr),
-        ref prop,
-        computed,
-        ..
-      } = member
-      {
-        if let Expr::Member(member) = &**expr {
-          if match_member_expr(member, vec!["process", "env"], self.decls) {
-            if let Expr::Lit(Lit::Str(Str { value: ref sym, .. })) = &**prop {
-              if let Some(replacement) = self.replace(sym, true) {
-                return replacement;
-              }
-            } else if let Expr::Ident(Ident { ref sym, .. }) = &**prop {
-              if !computed {
-                if let Some(replacement) = self.replace(sym, true) {
-                  return replacement;
-                }
-              }
+      if let Expr::Member(obj) = &*member.obj {
+        if match_member_expr(obj, vec!["process", "env"], self.decls) {
+          if let Some((sym, _)) = match_property_name(member) {
+            if let Some(replacement) = self.replace(&sym, true) {
+              return replacement;
             }
           }
         }
@@ -128,11 +114,7 @@ impl<'a> Fold for EnvReplacer<'a> {
         PatOrExpr::Expr(expr) => Some(&**expr),
       };
 
-      if let Some(Expr::Member(MemberExpr {
-        obj: ExprOrSuper::Expr(ref obj),
-        ..
-      })) = expr
-      {
+      if let Some(Expr::Member(MemberExpr { obj, .. })) = &expr {
         if let Expr::Member(member) = &**obj {
           if match_member_expr(member, vec!["process", "env"], self.decls) {
             self.emit_mutating_error(assign.span);
@@ -148,7 +130,7 @@ impl<'a> Fold for EnvReplacer<'a> {
         Expr::Unary(UnaryExpr { op: UnaryOp::Delete, arg, span, .. }) |
         // e.g. process.env.UPDATE++
         Expr::Update(UpdateExpr { arg, span, .. }) => {
-          if let Expr::Member(MemberExpr { obj: ExprOrSuper::Expr(ref obj), .. }) = &**arg {
+          if let Expr::Member(MemberExpr { ref obj, .. }) = &**arg {
             if let Expr::Member(member) = &**obj {
               if match_member_expr(member, vec!["process", "env"], self.decls) {
                 self.emit_mutating_error(*span);
