@@ -50,11 +50,15 @@ export default async function resolveOptions(
   }
 
   let entryRoot = getRootDir(
-    entries.map(entry =>
-      // if the entry refers entryRootDir, getRootDir returns the parent directory of entryRootDir.
-      // In this case, each entry should refers some file, but without cli build target entry refers entryRootDir directory.
-      // So, we add /. to entry to make entry refers some (virtual) file in such case.
-      path.extname(entry) !== '' ? entry : entry + '/.',
+    await Promise.all(
+      entries.map(async entry =>
+        // if the entry refers entryRootDir, getRootDir returns the parent directory of entryRootDir.
+        // In this case, each entry should refers some file, but without cli build target entry refers entryRootDir directory.
+        // So, we resolve with index as entry to make entry refers some (virtual) file in such case.
+        (await inputFS.stat(entry)).isFile()
+          ? entry
+          : path.join(entry, 'index'),
+      ),
     ),
   );
 
