@@ -11,21 +11,21 @@ pub fn match_member_expr(
   idents: Vec<&str>,
   decls: &HashSet<(JsWord, SyntaxContext)>,
 ) -> bool {
-  use ast::{Expr::*, ExprOrSuper::*, Ident, Lit, Str};
+  use ast::{Expr, Ident, Lit, MemberProp, Str};
 
   let mut member = expr;
   let mut idents = idents;
   while idents.len() > 1 {
     let expected = idents.pop().unwrap();
-    let prop = match &*member.prop {
-      Lit(Lit::Str(Str { value: ref sym, .. })) => sym,
-      Ident(Ident { ref sym, .. }) => {
-        if member.computed {
+    let prop = match &member.prop {
+      MemberProp::Computed(comp) => {
+        if let Expr::Lit(Lit::Str(Str { value: ref sym, .. })) = *comp.expr {
+          sym
+        } else {
           return false;
         }
-
-        sym
       }
+      MemberProp::Ident(Ident { ref sym, .. }) => sym,
       _ => return false,
     };
 
@@ -33,16 +33,13 @@ pub fn match_member_expr(
       return false;
     }
 
-    match &member.obj {
-      Expr(expr) => match &**expr {
-        Member(m) => member = m,
-        Ident(Ident { ref sym, span, .. }) => {
-          return idents.len() == 1
-            && sym == idents.pop().unwrap()
-            && !decls.contains(&(sym.clone(), span.ctxt()));
-        }
-        _ => return false,
-      },
+    match &*member.obj {
+      Expr::Member(m) => member = m,
+      Expr::Ident(Ident { ref sym, span, .. }) => {
+        return idents.len() == 1
+          && sym == idents.pop().unwrap()
+          && !decls.contains(&(sym.clone(), span.ctxt()));
+      }
       _ => return false,
     }
   }
@@ -57,7 +54,7 @@ pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
   }
 
   ast::CallExpr {
-    callee: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+    callee: ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
       "require".into(),
       DUMMY_SP,
     )))),
@@ -104,21 +101,26 @@ pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
   }
 }
 
-pub fn match_str_or_ident(node: &ast::Expr) -> Option<(JsWord, Span)> {
-  use ast::*;
-
-  if let Expr::Ident(id) = node {
-    return Some((id.sym.clone(), id.span));
+pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
+  match &node.prop {
+    ast::MemberProp::Computed(s) => match_str(&*s.expr),
+    ast::MemberProp::Ident(id) => Some((id.sym.clone(), id.span)),
+    ast::MemberProp::PrivateName(_) => None,
   }
-
-  match_str(node)
 }
 
-pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
-  if node.computed {
-    match_str(&*node.prop)
-  } else {
-    match_str_or_ident(&*node.prop)
+pub fn match_export_name(name: &ast::ModuleExportName) -> (JsWord, Span) {
+  match name {
+    ast::ModuleExportName::Ident(id) => (id.sym.clone(), id.span),
+    ast::ModuleExportName::Str(s) => (s.value.clone(), s.span),
+  }
+}
+
+/// Properties like `ExportNamedSpecifier::orig` have to be an Ident if `src` is `None`
+pub fn match_export_name_ident(name: &ast::ModuleExportName) -> &ast::Ident {
+  match name {
+    ast::ModuleExportName::Ident(id) => id,
+    ast::ModuleExportName::Str(_) => unreachable!(),
   }
 }
 
@@ -131,7 +133,7 @@ pub fn match_require(
 
   match node {
     Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
+      Callee::Expr(expr) => match &**expr {
         Expr::Ident(ident) => {
           if ident.sym == js_word!("require")
             && !decls.contains(&(ident.sym.clone(), ident.span.ctxt))
@@ -166,18 +168,12 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
 
   match node {
     Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
-        Expr::Ident(ident) => {
-          if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
-            if let Some(arg) = call.args.get(0) {
-              return match_str(&*arg.expr).map(|(name, _)| name);
-            }
-          }
-
-          None
+      Callee::Import(ident) if !is_marked(ident.span, ignore_mark) => {
+        if let Some(arg) = call.args.get(0) {
+          return match_str(&*arg.expr).map(|(name, _)| name);
         }
-        _ => None,
-      },
+        None
+      }
       _ => None,
     },
     _ => None,
@@ -345,7 +341,7 @@ macro_rules! fold_member_expr_skip_prop {
     ) -> swc_ecmascript::ast::MemberExpr {
       node.obj = node.obj.fold_with(self);
 
-      if node.computed {
+      if let swc_ecmascript::ast::MemberProp::Computed(_) = node.prop {
         node.prop = node.prop.fold_with(self);
       }
 
