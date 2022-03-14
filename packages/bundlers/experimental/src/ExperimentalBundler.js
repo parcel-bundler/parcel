@@ -19,7 +19,7 @@ import {ContentGraph, Graph} from '@parcel/graph';
 import invariant from 'assert';
 import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
-import {validateSchema, DefaultMap} from '@parcel/utils';
+import {setIntersect, validateSchema, DefaultMap} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
@@ -698,19 +698,7 @@ function createIdealGraph(
 
       const childAvailableAssets = asyncAncestorAssets.get(child);
       if (childAvailableAssets != null) {
-        for (let asset of childAvailableAssets) {
-          if (!available.has(asset)) {
-            let lender = childrenAssets
-              .get(asset)
-              ?.find(root => root !== child);
-            if (lender != null) {
-              // TODO: Unborrow if this is intersected away later
-              lentAssets.get(lender).add(asset);
-            } else {
-              childAvailableAssets.delete(asset);
-            }
-          }
-        }
+        setIntersect(childAvailableAssets, available);
       } else {
         asyncAncestorAssets.set(child, new Set(available));
       }
