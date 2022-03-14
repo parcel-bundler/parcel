@@ -109,6 +109,7 @@ export default async function resolveOptions(
     shouldPatchConsole: initialOptions.shouldPatchConsole ?? false,
     env: {
       ...(await loadDotEnv(
+        initialOptions.envFile,
         initialOptions.env ?? {},
         inputFS,
         path.join(projectRoot, 'index'),

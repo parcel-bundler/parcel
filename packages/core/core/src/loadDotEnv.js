@@ -6,8 +6,10 @@ import type {EnvMap, FilePath} from '@parcel/types';
 import {resolveConfig} from '@parcel/utils';
 import dotenv from 'dotenv';
 import variableExpansion from 'dotenv-expand';
+import path from 'path';
 
 export default async function loadEnv(
+  envFileName?: string,
   env: EnvMap,
   fs: FileSystem,
   filePath: FilePath,
@@ -23,6 +25,7 @@ export default async function loadEnv(
     NODE_ENV === 'test' ? null : '.env.local',
     `.env.${NODE_ENV}`,
     `.env.${NODE_ENV}.local`,
+    envFileName ? path.resolve(envFileName) : null,
   ].filter(Boolean);
 
   let envs = await Promise.all(

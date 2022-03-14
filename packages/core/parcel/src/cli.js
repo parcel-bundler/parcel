@@ -90,6 +90,7 @@ const commonOptions = {
   '--no-autoinstall': 'disable autoinstall',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
+  '--env-file <name>': 'custom env file name',
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
     parseOptionInt,
@@ -481,6 +482,7 @@ async function normalizeOptions(
             assetsPerBundle: parseInt(command.detailedReport, 10),
           }
         : null,
+    envFile: command.envFile,
     env: {
       NODE_ENV: nodeEnv,
     },

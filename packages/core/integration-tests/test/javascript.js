@@ -2936,6 +2936,24 @@ describe('javascript', function () {
     assert.equal(output, 'bartest');
   });
 
+  it('should support custom env file', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/custom-env-file/index.js'),
+      {
+        envFile: path.join(
+          __dirname,
+          '/integration/custom-env-file/.custom-env-file',
+        ),
+      },
+    );
+
+    // Make sure dotenv doesn't leak its values into the main process's env
+    assert(process.env.FOO == null);
+
+    let output = await run(b);
+    assert.equal(output, 'custom-test');
+  });
+
   it("should insert environment variables matching the user's NODE_ENV if passed", async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js'),
