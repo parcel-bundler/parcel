@@ -85,7 +85,7 @@ export default function createBundleGraphRequest(
 ): BundleGraphRequest {
   return {
     type: 'bundle_graph_request',
-    id: 'BundleGraph:' + input.assetGraph.getHash(),
+    id: 'BundleGraph:' + input.assetGraph.getHash() + String(Math.random()),
     run: async input => {
       let configResult = nullthrows(
         await input.api.runRequest<null, ConfigAndCachePath>(

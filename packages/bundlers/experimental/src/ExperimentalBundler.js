@@ -19,7 +19,7 @@ import {ContentGraph, Graph} from '@parcel/graph';
 import invariant from 'assert';
 import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
-import {setIntersect, validateSchema, DefaultMap} from '@parcel/utils';
+import {validateSchema, DefaultMap} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
@@ -35,6 +35,8 @@ type ResolvedBundlerConfig = {|
   minBundleSize: number,
   maxParallelRequests: number,
 |};
+
+type AssetAncestry = Map<Asset, Set<BundleRoot>>;
 
 // Default options by http version.
 const HTTP_OPTIONS = {
@@ -628,7 +630,7 @@ function createIdealGraph(
 
   // Maps a given bundleRoot to the assets reachable from it,
   // and the bundleRoots reachable from each of these assets
-  let ancestorAssets: Map<BundleRoot, Set<Asset>> = new Map();
+  let ancestorAssets: Map<BundleRoot, AssetAncestry> = new Map();
   let lentAssets: DefaultMap<BundleRoot, Set<Asset>> = new DefaultMap(
     () => new Set(),
   );
@@ -636,7 +638,7 @@ function createIdealGraph(
   // Step 4: Determine assets that should be duplicated by computing asset availability in each bundle group
   for (let entry of entries.keys()) {
     // Initialize an empty set of ancestors available to entries
-    ancestorAssets.set(entry, new Set());
+    ancestorAssets.set(entry, new Map());
   }
 
   for (let nodeId of asyncBundleRootGraph.topoSort()) {
@@ -647,42 +649,15 @@ function createIdealGraph(
 
     let available;
     if (bundleRoot.bundleBehavior === 'isolated') {
-      available = new Set();
+      available = new Map();
     } else {
-      available = new Set(ancestorAssets.get(bundleRoot));
-      for (let bundleIdInGroup of [
-        bundleGroupId,
-        ...bundleGraph.getNodeIdsConnectedFrom(bundleGroupId),
-      ]) {
-        let bundleInGroup = nullthrows(bundleGraph.getNode(bundleIdInGroup));
-        invariant(bundleInGroup !== 'root');
-        if (
-          bundleInGroup.bundleBehavior === 'isolated' ||
-          bundleInGroup.bundleBehavior === 'inline'
-        ) {
-          continue;
-        }
-        let [siblingBundleRoot] = [...bundleInGroup.assets];
-        // Assets directly connected to current bundleRoot
-        let assetsFromBundleRoot = reachableRoots
-          .getNodeIdsConnectedFrom(
-            reachableRoots.getNodeIdByContentKey(siblingBundleRoot.id),
-          )
-          .map(id => nullthrows(reachableRoots.getNode(id)));
-
-        for (let asset of [siblingBundleRoot, ...assetsFromBundleRoot]) {
-          available.add(asset);
-        }
-      }
+      available = ancestryUnion(
+        ancestorAssets.get(bundleRoot) || new Map(),
+        getAssetsInBundleGroup(bundleGraph, reachableRoots, bundleGroupId),
+      );
     }
 
-    let childrenAssets: DefaultMap<Asset, Array<BundleRoot>> = new DefaultMap(
-      () => [],
-    );
     let children = asyncBundleRootGraph.getNodeIdsConnectedFrom(nodeId);
-
-    // Group assets available across our children by the child. This will be used
-    // to determine borrowers if needed below.
     for (let childId of children) {
       let child = asyncBundleRootGraph.getNode(childId);
       invariant(child !== 'root' && child != null);
@@ -690,32 +665,18 @@ function createIdealGraph(
         child.bundleBehavior === 'isolated' ||
         child.bundleBehavior === 'inline'
       ) {
-        continue;
-      }
-
-      let assets = reachableRoots
-        .getNodeIdsConnectedFrom(reachableRoots.getNodeIdByContentKey(child.id))
-        .map(id => nullthrows(reachableRoots.getNode(id)));
-      for (let asset of [child, ...assets]) {
-        childrenAssets.get(asset).push(child);
-      }
-    }
-
-    for (let childId of children) {
-      let child = asyncBundleRootGraph.getNode(childId);
-      invariant(child !== 'root' && child != null);
-      if (
-        child.bundleBehavior === 'isolated' ||
-        child.bundleBehavior === 'inline'
-      ) {
+        ancestorAssets.set(child, new Map());
         continue;
       }
 
       const childAvailableAssets = ancestorAssets.get(child);
       if (childAvailableAssets != null) {
-        setIntersect(childAvailableAssets, available);
+        ancestorAssets.set(
+          child,
+          ancestryIntersect(childAvailableAssets, available),
+        );
       } else {
-        ancestorAssets.set(child, new Set(available));
+        ancestorAssets.set(child, ancestryCopy(available));
       }
     }
   }
@@ -736,7 +697,12 @@ function createIdealGraph(
     // meaning it may not be deduplicated. Otherwise, decrement all references in
     // the ancestry and keep it
     reachable = reachable.filter(b => {
-      if (ancestorAssets.get(b)?.has(asset)) {
+      if (
+        ancestorAssets.get(b)?.has(asset) &&
+        [...nullthrows(nullthrows(ancestorAssets.get(b)).get(asset))].some(
+          root => root !== asset,
+        )
+      ) {
         // Asset is available asynchronously
         return false;
       } else if (lentAssets.get(b).has(asset)) {
@@ -746,8 +712,6 @@ function createIdealGraph(
         return true;
       }
 
-      let canBorrow = false;
-      let potentialLenders = new Set();
       let bundleGroupIds = bundleGraph
         .getNodeIdsConnectedTo(nullthrows(bundles.get(b.id)))
         .filter(n => bundleGraph.getNode(n) !== 'root');
@@ -759,6 +723,9 @@ function createIdealGraph(
       ) {
         bundleGroupIds.push(nullthrows(bundles.get(b.id)));
       }
+
+      let canBorrow = false;
+      let potentialLenders = new Set();
       for (let bundleGroupId of bundleGroupIds) {
         if (bundleGroupId === bundleGraph.rootNodeId) {
           break;
@@ -1073,4 +1040,70 @@ function getReachableBundleRoots(asset, graph): Array<BundleRoot> {
   return graph
     .getNodeIdsConnectedTo(graph.getNodeIdByContentKey(asset.id))
     .map(nodeId => nullthrows(graph.getNode(nodeId)));
+}
+
+function getAssetsInBundleGroup(
+  bundleGraph: Graph<Bundle | 'root'>,
+  reachableRoots: ContentGraph<Asset>,
+  bundleGroupId: NodeId,
+): AssetAncestry {
+  let assets = new DefaultMap(() => new Set());
+  for (let bundleIdInGroup of [
+    bundleGroupId,
+    ...bundleGraph.getNodeIdsConnectedFrom(bundleGroupId),
+  ]) {
+    let bundleInGroup = nullthrows(bundleGraph.getNode(bundleIdInGroup));
+    invariant(bundleInGroup !== 'root');
+    if (
+      bundleInGroup.bundleBehavior === 'isolated' ||
+      bundleInGroup.bundleBehavior === 'inline'
+    ) {
+      continue;
+    }
+
+    let [siblingBundleRoot] = [...bundleInGroup.assets];
+    // Assets directly connected to current bundleRoot
+    let assetsFromBundleRoot = reachableRoots
+      .getNodeIdsConnectedFrom(
+        reachableRoots.getNodeIdByContentKey(siblingBundleRoot.id),
+      )
+      .map(id => nullthrows(reachableRoots.getNode(id)));
+
+    for (let asset of [siblingBundleRoot, ...assetsFromBundleRoot]) {
+      assets.get(asset).add(siblingBundleRoot);
+    }
+  }
+
+  return assets;
+}
+
+function ancestryIntersect(a: AssetAncestry, b: AssetAncestry): AssetAncestry {
+  let res = new Map();
+  for (let [asset, referencedBundles] of a) {
+    if (b.has(asset)) {
+      res.set(
+        asset,
+        new Set([...referencedBundles, ...nullthrows(b.get(asset))]),
+      );
+    }
+  }
+  return res;
+}
+
+function ancestryUnion(a: AssetAncestry, b: AssetAncestry): AssetAncestry {
+  let res = new DefaultMap(() => new Set());
+  for (let [asset, referencedRoots] of [...a, ...b]) {
+    for (let root of referencedRoots) {
+      res.get(asset).add(root);
+    }
+  }
+  return new Map(res);
+}
+
+function ancestryCopy(input: AssetAncestry): AssetAncestry {
+  let res = new Map();
+  for (let [asset, roots] of input) {
+    res.set(asset, new Set(roots));
+  }
+  return res;
 }
