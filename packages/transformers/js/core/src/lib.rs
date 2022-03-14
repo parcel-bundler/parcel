@@ -379,7 +379,12 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ),
                 // Transpile new syntax to older syntax if needed
                 Optional::new(
-                  preset_env(global_mark, Some(&comments), preset_env_config),
+                  preset_env(
+                    global_mark,
+                    Some(&comments),
+                    preset_env_config,
+                    Default::default()
+                  ),
                   config.targets.is_some()
                 ),
                 // Inject SWC helpers if needed.
