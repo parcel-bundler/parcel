@@ -171,11 +171,10 @@ impl<'a> Fold for GlobalReplacer<'a> {
                   }))),
                 },
               ],
-              callee: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
+              callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
                 span: DUMMY_SP,
-                computed: false,
-                obj: ast::ExprOrSuper::Expr(Box::new(Call(create_require(specifier.clone())))),
-                prop: Box::new(ast::Expr::Ident(ast::Ident::new("join".into(), DUMMY_SP))),
+                obj: (Box::new(Call(create_require(specifier.clone())))),
+                prop: MemberProp::Ident(ast::Ident::new("join".into(), DUMMY_SP)),
               }))),
             };
 
