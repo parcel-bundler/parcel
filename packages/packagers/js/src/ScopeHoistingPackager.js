@@ -745,14 +745,21 @@ ${code}
         this.bundleGraph.getUsedSymbols(resolvedAsset),
       );
 
-      // Check to see if the exportSymbol is in the resolved asset or the dependency's
-      // set of used symbols. If the exportSymbol is 'default', check that the
+      // Check to see if the exportSymbol is in the resolved asset
+      // or the dependency's set of used symbols,
+      // or if any of the resolved asset's dependencies export the symbol.
+      // If the exportSymbol is 'default', check that the
       // default export from the resolved asset is used.
       // If the exportSymbol is '*', a non-empty set of the resolved asset's used symbols
       // indicates the export(s) is used.
       let isExportSymbolUsed =
         resolvedAssetUsedSymbols.has(exportSymbol) ||
         nullthrows(this.bundleGraph.getUsedSymbols(dep)).has(exportSymbol) ||
+        this.bundleGraph
+          .getDependencies(resolvedAsset)
+          .some(dep =>
+            nullthrows(this.bundleGraph.getUsedSymbols(dep)).has(exportSymbol),
+          ) ||
         (exportSymbol === 'default' &&
           resolvedAssetUsedSymbols.has(exportSymbol)) ||
         (exportSymbol === '*' && resolvedAssetUsedSymbols.size > 0);
