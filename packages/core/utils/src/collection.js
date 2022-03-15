@@ -44,10 +44,11 @@ export function setDifference<T>(a: Set<T>, b: Set<T>): Set<T> {
   return difference;
 }
 
-export function setIntersect<T>(a: Set<T>, b: Set<T>): Set<T> {
+export function setIntersect<T>(...sets: Array<Set<T>>): Set<T> {
+  let [a, ...others] = sets;
   let intersected = new Set();
   for (let e of a) {
-    if (b.has(e)) {
+    if (others.every(set => set.has(e))) {
       intersected.add(e);
     }
   }
