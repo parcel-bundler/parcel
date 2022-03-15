@@ -53,7 +53,7 @@ let foamtree = new CarrotSearchFoamTree({
         <dl>
           <div>
             <dt>Size</dt>
-            <dd>${e.group.weight} bytes</dd>
+            <dd>${formatSize(e.group.weight)}</dd>
           </div>
         </dl>
       </div>
@@ -99,4 +99,13 @@ function debounce(fn, delay) {
 
 function translate3d(x, y, z) {
   return `translate3d(${x}px, ${y}px, ${z}px)`;
+}
+
+const UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+function formatSize(x) {
+  let l = 0, n = parseInt(x, 10) || 0;
+  while(n >= 1000 && ++l){
+      n /= 1000;
+  }
+  return(`${n.toFixed(l > 0 ? 2 : 0)} ${UNITS[l]}`);
 }
