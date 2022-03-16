@@ -661,31 +661,9 @@ function createIdealGraph(
       }
     }
 
-    let childrenAssets: DefaultMap<Asset, Array<BundleRoot>> = new DefaultMap(
-      () => [],
-    );
     let children = asyncBundleRootGraph.getNodeIdsConnectedFrom(nodeId);
-
     // Group assets available across our children by the child. This will be used
     // to determine borrowers if needed below.
-    for (let childId of children) {
-      let child = asyncBundleRootGraph.getNode(childId);
-      invariant(child !== 'root' && child != null);
-      if (
-        child.bundleBehavior === 'isolated' ||
-        child.bundleBehavior === 'inline'
-      ) {
-        continue;
-      }
-
-      let assets = reachableRoots
-        .getNodeIdsConnectedFrom(reachableRoots.getNodeIdByContentKey(child.id))
-        .map(id => nullthrows(reachableRoots.getNode(id)));
-      for (let asset of [child, ...assets]) {
-        childrenAssets.get(asset).push(child);
-      }
-    }
-
     for (let childId of children) {
       let child = asyncBundleRootGraph.getNode(childId);
       invariant(child !== 'root' && child != null);
