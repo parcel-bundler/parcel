@@ -241,10 +241,13 @@ function updateLink(link) {
       link.parentNode.removeChild(link);
     }
   };
+  var newLinkUrl = link.getAttribute('href').replace(/[?&]__parcel__timestamp__=\d+/, '');
+  newLinkUrl += (newLinkUrl.indexOf('?') < 0 ? '?' : '&') + '__parcel__timestamp__=' + Date.now()
+
   newLink.setAttribute(
     'href',
     // $FlowFixMe
-    link.getAttribute('href').split('?')[0] + '?' + Date.now(),
+    newLinkUrl,
   );
   // $FlowFixMe
   link.parentNode.insertBefore(newLink, link.nextSibling);
