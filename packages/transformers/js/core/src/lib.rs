@@ -35,6 +35,7 @@ use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
 use swc_ecmascript::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
+use swc_ecmascript::transforms::fixer::paren_remover;
 use swc_ecmascript::transforms::resolver::resolver_with_mark;
 use swc_ecmascript::transforms::{
   compat::reserved_words::reserved_words, fixer, helpers, hygiene,
@@ -340,6 +341,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   },
                   config.source_type != SourceType::Script
                 ),
+                paren_remover(Some(&comments)),
                 // Simplify expressions and remove dead branches so that we
                 // don't include dependencies inside conditionals that are always false.
                 expr_simplifier(Default::default()),
