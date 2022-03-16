@@ -19,7 +19,7 @@ import {ContentGraph, Graph} from '@parcel/graph';
 import invariant from 'assert';
 import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
-import {setIntersect, validateSchema, DefaultMap} from '@parcel/utils';
+import {validateSchema, DefaultMap} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
@@ -531,9 +531,6 @@ function createIdealGraph(
 
   // Models bundleRoots and the assets that require it synchronously
   let reachableRoots: ContentGraph<Asset> = new ContentGraph();
-  let bundleReuse: DefaultMap<BundleRoot, Set<BundleRoot>> = new DefaultMap(
-    () => new Set(),
-  );
   for (let [root] of bundleRoots) {
     let rootNodeId = reachableRoots.addNodeByContentKeyIfNeeded(root.id, root);
     assetGraph.traverse((node, _, actions) => {
@@ -541,66 +538,93 @@ function createIdealGraph(
         return;
       }
 
-      if (node.type === 'asset') {
-        let nodeId = reachableRoots.addNodeByContentKeyIfNeeded(
-          node.value.id,
-          node.value,
-        );
-        reachableRoots.addEdge(rootNodeId, nodeId);
-        return;
-      }
+      if (node.type === 'dependency') {
+        let dependency = node.value;
 
-      let dependency = node.value;
-      if (dependencyBundleGraph.hasContentKey(dependency.id)) {
-        if (dependency.priority !== 'sync') {
-          let assets = assetGraph.getDependencyAssets(dependency);
-          if (assets.length === 0) {
-            return;
-          }
+        if (dependencyBundleGraph.hasContentKey(dependency.id)) {
+          if (dependency.priority !== 'sync') {
+            let assets = assetGraph.getDependencyAssets(dependency);
+            if (assets.length === 0) {
+              return;
+            }
 
-          invariant(assets.length === 1);
-          let bundleRoot = assets[0];
-          let bundle = nullthrows(
-            bundleGraph.getNode(nullthrows(bundles.get(bundleRoot.id))),
-          );
-          if (
-            bundle !== 'root' &&
-            bundle.bundleBehavior !== 'isolated' &&
-            bundle.bundleBehavior !== 'inline' &&
-            !bundle.env.isIsolated()
-          ) {
-            asyncBundleRootGraph.addEdge(
-              asyncBundleRootGraph.getNodeIdByContentKey(root.id),
-              asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
+            invariant(assets.length === 1);
+            let bundleRoot = assets[0];
+            let bundle = nullthrows(
+              bundleGraph.getNode(nullthrows(bundles.get(bundleRoot.id))),
             );
+            if (
+              bundle !== 'root' &&
+              bundle.bundleBehavior !== 'isolated' &&
+              bundle.bundleBehavior !== 'inline' &&
+              !bundle.env.isIsolated()
+            ) {
+              asyncBundleRootGraph.addEdge(
+                asyncBundleRootGraph.getNodeIdByContentKey(root.id),
+                asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
+              );
+            }
           }
         }
-      }
 
-      let assets = assetGraph.getDependencyAssets(dependency);
-      if (assets.length === 0) {
+        let assets = assetGraph.getDependencyAssets(dependency);
+        if (assets.length === 0) {
+          return;
+        }
+
+        invariant(assets.length === 1);
+        let resolved = assets[0];
+        let isAsync = dependency.priority !== 'sync';
+        if (
+          bundleRoots.has(resolved) &&
+          ((root.isBundleSplittable && !entries.has(root)) ||
+            isAsync ||
+            resolved.bundleBehavior === 'isolated' ||
+            resolved.bundleBehavior === 'inline' ||
+            root.type !== resolved.type)
+        ) {
+          let rootNodeId = nullthrows(bundles.get(root.id));
+          let resolvedNodeId = nullthrows(bundles.get(resolved.id));
+          if (!isAsync && resolved.bundleBehavior !== 'isolated') {
+            if (!bundleGraph.hasEdge(rootNodeId, resolvedNodeId)) {
+              bundleGraph.addEdge(rootNodeId, resolvedNodeId);
+            }
+
+            // Reflect this connection in the async bundle root graph by
+            // connecting the reused bundle to every case where the original
+            // root bundle is loaded. This only necessary in cases that
+            // bundles in a group are executed in serial (e.g. js referenced
+            // by html)
+            for (let inboundAsync of asyncBundleRootGraph.getNodeIdsConnectedTo(
+              nullthrows(asyncBundleRootGraph.getNodeIdByContentKey(root.id)),
+            )) {
+              let resolvedInAsyncRootGraph = nullthrows(
+                asyncBundleRootGraph.getNodeIdByContentKey(resolved.id),
+              );
+              if (
+                !asyncBundleRootGraph.hasEdge(
+                  inboundAsync,
+                  resolvedInAsyncRootGraph,
+                )
+              ) {
+                asyncBundleRootGraph.addEdge(
+                  inboundAsync,
+                  resolvedInAsyncRootGraph,
+                );
+              }
+            }
+          }
+          actions.skipChildren();
+        }
+
         return;
       }
 
-      invariant(assets.length === 1);
-      let resolved = assets[0];
-      let isAsync = dependency.priority !== 'sync';
-      if (
-        resolved.bundleBehavior === 'isolated' ||
-        resolved.bundleBehavior === 'inline' ||
-        root.type !== resolved.type ||
-        isAsync
-      ) {
-        invariant(bundleRoots.has(resolved));
-        actions.skipChildren();
-      } else if (
-        !isAsync &&
-        bundleRoots.has(resolved) &&
-        root.isBundleSplittable &&
-        !entries.has(root)
-      ) {
-        bundleReuse.get(root).add(resolved);
-      }
+      let nodeId = reachableRoots.addNodeByContentKeyIfNeeded(
+        node.value.id,
+        node.value,
+      );
+      reachableRoots.addEdge(rootNodeId, nodeId);
     }, root);
   }
 
@@ -647,45 +671,15 @@ function createIdealGraph(
 
       const childAvailableAssets = ancestorAssets.get(child);
       if (childAvailableAssets != null) {
-        ancestryIntersect(childAvailableAssets, available);
+        ancestorAssets.set(
+          child,
+          ancestryIntersect(childAvailableAssets, available),
+        );
       } else {
         ancestorAssets.set(child, ancestryCopy(available));
       }
     }
   }
-
-  // let rootNodeId = nullthrows(bundles.get(root.id));
-  // let resolvedNodeId = nullthrows(bundles.get(resolved.id));
-  // if (!isAsync && resolved.bundleBehavior !== 'isolated') {
-  //   if (!bundleGraph.hasEdge(rootNodeId, resolvedNodeId)) {
-  //     bundleGraph.addEdge(rootNodeId, resolvedNodeId);
-  //   }
-
-  //   // Reflect this connection in the async bundle root graph by
-  //   // connecting the reused bundle to every case where the original
-  //   // root bundle is loaded. This only necessary in cases that
-  //   // bundles in a group are executed in serial (e.g. js referenced
-  //   // by html)
-  //   for (let inboundAsync of asyncBundleRootGraph.getNodeIdsConnectedTo(
-  //     nullthrows(asyncBundleRootGraph.getNodeIdByContentKey(root.id)),
-  //   )) {
-  //     let resolvedInAsyncRootGraph = nullthrows(
-  //       asyncBundleRootGraph.getNodeIdByContentKey(resolved.id),
-  //     );
-  //     if (
-  //       !asyncBundleRootGraph.hasEdge(
-  //         inboundAsync,
-  //         resolvedInAsyncRootGraph,
-  //       )
-  //     ) {
-  //       asyncBundleRootGraph.addEdge(
-  //         inboundAsync,
-  //         resolvedInAsyncRootGraph,
-  //       );
-  //     }
-  //   }
-  // }
-  // actions.skipChildren();
 
   // Step 5: Place all assets into bundles or create shared bundles. Each asset
   // is placed into a single bundle based on the bundle entries it is reachable from.
@@ -889,15 +883,6 @@ function createIdealGraph(
         }
         bundle.assets.add(asset);
         bundle.size += asset.stats.size;
-        bundle.internalizedAssetIds = [
-          ...setIntersect(
-            ...sourceBundles.map(id => {
-              let bundle = nullthrows(bundleGraph.getNode(id));
-              invariant(bundle !== 'root');
-              return new Set(bundle.internalizedAssetIds);
-            }),
-          ),
-        ];
 
         for (let sourceBundleId of sourceBundles) {
           if (bundleId !== sourceBundleId) {
@@ -1062,7 +1047,7 @@ function getAssetsInBundleGroup(
   reachableRoots: ContentGraph<Asset>,
   bundleGroupId: NodeId,
 ): AssetAncestry {
-  let assets = new Map();
+  let assets = new DefaultMap(() => new Set());
   for (let bundleIdInGroup of [
     bundleGroupId,
     ...bundleGraph.getNodeIdsConnectedFrom(bundleGroupId),
@@ -1085,44 +1070,34 @@ function getAssetsInBundleGroup(
       .map(id => nullthrows(reachableRoots.getNode(id)));
 
     for (let asset of [siblingBundleRoot, ...assetsFromBundleRoot]) {
-      let roots = assets.get(asset);
-      if (roots == null) {
-        roots = new Set();
-        assets.set(asset, roots);
-      }
-      roots.add(siblingBundleRoot);
+      assets.get(asset).add(siblingBundleRoot);
     }
   }
 
   return assets;
 }
 
-function ancestryIntersect(a: AssetAncestry, b: AssetAncestry): void {
-  for (let [asset, referencedBundles] of a) {
-    let bBundles = b.get(asset);
-    if (bBundles != null) {
-      for (let bundle of bBundles) {
-        referencedBundles.add(bundle);
-      }
-    } else {
-      a.delete(asset);
-    }
-  }
-}
-
-function ancestryUnion(a: AssetAncestry, b: AssetAncestry): AssetAncestry {
+function ancestryIntersect(a: AssetAncestry, b: AssetAncestry): AssetAncestry {
   let res = new Map();
-  for (let [asset, referencedRoots] of [...a, ...b]) {
-    for (let root of referencedRoots) {
-      let roots = res.get(asset);
-      if (roots == null) {
-        roots = new Set();
-        res.set(asset, roots);
-      }
-      roots.add(root);
+  for (let [asset, referencedBundles] of a) {
+    if (b.has(asset)) {
+      res.set(
+        asset,
+        new Set([...referencedBundles, ...nullthrows(b.get(asset))]),
+      );
     }
   }
   return res;
+}
+
+function ancestryUnion(a: AssetAncestry, b: AssetAncestry): AssetAncestry {
+  let res = new DefaultMap(() => new Set());
+  for (let [asset, referencedRoots] of [...a, ...b]) {
+    for (let root of referencedRoots) {
+      res.get(asset).add(root);
+    }
+  }
+  return new Map(res);
 }
 
 function ancestryCopy(input: AssetAncestry): AssetAncestry {
