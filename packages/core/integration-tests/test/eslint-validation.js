@@ -114,4 +114,21 @@ describe('eslint-validator', function () {
     }
     assert(didThrow);
   });
+
+  it('should not validate patterns ignored by eslintrc', async function () {
+    let didThrow = true;
+    let entry = path.join(
+      __dirname,
+      '/integration/eslint-ignore-patterns/index.js',
+    );
+    try {
+      await bundle(entry, {
+        defaultConfig: config,
+      });
+    } catch (e) {
+      didThrow = false;
+    }
+
+    assert(didThrow);
+  });
 });
