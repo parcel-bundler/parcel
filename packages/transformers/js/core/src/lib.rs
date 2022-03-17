@@ -508,6 +508,7 @@ fn parse(
     Syntax::Es(EsConfig {
       jsx: config.is_jsx,
       export_default_from: true,
+      static_blocks: true,
       decorators: config.decorators,
       ..Default::default()
     })
