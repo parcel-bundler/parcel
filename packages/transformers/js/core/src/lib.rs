@@ -11,6 +11,7 @@ extern crate serde;
 extern crate serde_bytes;
 extern crate sha1;
 
+mod context_replacer;
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
@@ -43,6 +44,7 @@ use swc_ecmascript::transforms::{
 };
 use swc_ecmascript::visit::{FoldWith, VisitWith};
 
+use context_replacer::ContextReplacer;
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
@@ -375,7 +377,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     decls: &mut decls,
                     global_mark,
                     scope_hoist: config.scope_hoist,
-                    relative_context: config.relative_context
                   },
                   config.insert_node_globals && config.source_type != SourceType::Script
                 ),
@@ -388,6 +389,29 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     Default::default()
                   ),
                   config.targets.is_some()
+                ),
+                // Inject SWC helpers if needed.
+                helpers::inject_helpers(),
+              );
+
+              module.fold_with(&mut passes)
+            };
+
+            let module = {
+              let mut passes = chain!(
+                // Insert placeholders for context variables like __dirname and __filename
+                Optional::new(
+                  ContextReplacer {
+                    source_map: &source_map,
+                    items: &mut global_deps,
+                    globals: HashMap::new(),
+                    project_root: Path::new(&config.project_root),
+                    filename: Path::new(&config.filename),
+                    decls: &mut decls,
+                    global_mark,
+                    scope_hoist: config.scope_hoist,
+                  },
+                  config.relative_context
                 ),
                 // Inject SWC helpers if needed.
                 helpers::inject_helpers(),

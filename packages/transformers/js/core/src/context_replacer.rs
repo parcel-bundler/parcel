@@ -4,14 +4,14 @@ use std::path::Path;
 
 use swc_atoms::JsWord;
 use swc_common::{SourceMap, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::{self, ComputedPropName};
+use swc_ecmascript::ast::{self};
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::utils::{create_require, SourceLocation, SourceType};
 
-pub struct GlobalReplacer<'a> {
+pub struct ContextReplacer<'a> {
   pub source_map: &'a SourceMap,
   pub items: &'a mut Vec<DependencyDescriptor>,
   pub globals: HashMap<JsWord, ast::Stmt>,
@@ -22,9 +22,9 @@ pub struct GlobalReplacer<'a> {
   pub scope_hoist: bool,
 }
 
-impl<'a> Fold for GlobalReplacer<'a> {
+impl<'a> Fold for ContextReplacer<'a> {
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
-    use ast::{Expr::*, Ident, MemberExpr, MemberProp};
+    use ast::{Expr::*, MemberExpr, MemberProp};
 
     // Do not traverse into the `prop` side of member expressions unless computed.
     let node = match node {
@@ -54,135 +54,123 @@ impl<'a> Fold for GlobalReplacer<'a> {
       }
 
       match id.sym.to_string().as_str() {
-        "process" => {
-          self.globals.insert(
-            id.sym.clone(),
-            create_decl_stmt(
-              id.sym.clone(),
-              self.global_mark,
-              Call(create_require(js_word!("process"))),
-            ),
-          );
-
-          // So it gets renamed during scope hoisting.
-          self.decls.insert(id.to_id());
-
-          let specifier = id.sym.clone();
-          self.items.push(DependencyDescriptor {
-            kind: DependencyKind::Require,
-            loc: SourceLocation::from(self.source_map, id.span),
-            specifier,
-            attributes: None,
-            is_optional: false,
-            is_helper: false,
-            source_type: Some(SourceType::Module),
-            placeholder: None,
-          });
-        }
-        "Buffer" => {
-          let specifier = swc_atoms::JsWord::from("buffer");
-          self.globals.insert(
-            id.sym.clone(),
-            create_decl_stmt(
-              id.sym.clone(),
-              self.global_mark,
-              Member(MemberExpr {
-                obj: Box::new(Call(create_require(specifier.clone()))),
-                prop: MemberProp::Ident(ast::Ident::new("Buffer".into(), DUMMY_SP)),
-                span: DUMMY_SP,
-              }),
-            ),
-          );
-
-          self.decls.insert(id.to_id());
-
-          self.items.push(DependencyDescriptor {
-            kind: DependencyKind::Require,
-            loc: SourceLocation::from(self.source_map, id.span),
-            specifier,
-            attributes: None,
-            is_optional: false,
-            is_helper: false,
-            source_type: Some(SourceType::Module),
-            placeholder: None,
-          });
-        }
         "__filename" => {
+          let specifier = swc_atoms::JsWord::from("path");
+          let replace_me_value = swc_atoms::JsWord::from("$parcel$filenameReplace");
+
           let filename =
             if let Some(relative) = pathdiff::diff_paths(self.filename, self.project_root) {
               relative.to_slash_lossy()
-            } else if let Some(filename) = self.filename.file_name() {
-              format!("/{}", filename.to_string_lossy())
             } else {
               String::from("/unknown.js")
             };
 
+          let inserted_expr = ast::Expr::Call(ast::CallExpr {
+            span: DUMMY_SP,
+            type_args: None,
+            args: vec![
+              ast::ExprOrSpread {
+                spread: None,
+                expr: Box::new(ast::Expr::Ident(ast::Ident {
+                  optional: false,
+                  span: DUMMY_SP,
+                  sym: swc_atoms::JsWord::from("__filename"),
+                })),
+              },
+              ast::ExprOrSpread {
+                spread: None,
+                expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+                  has_escape: false,
+                  span: DUMMY_SP,
+                  kind: ast::StrKind::Synthesized,
+                  value: replace_me_value,
+                }))),
+              },
+              ast::ExprOrSpread {
+                spread: None,
+                expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+                  has_escape: false,
+                  span: DUMMY_SP,
+                  kind: ast::StrKind::Synthesized,
+                  value: swc_atoms::JsWord::from(filename),
+                }))),
+              },
+            ],
+            callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
+              span: DUMMY_SP,
+              obj: (Box::new(Call(create_require(specifier.clone())))),
+              prop: MemberProp::Ident(ast::Ident::new("join".into(), DUMMY_SP)),
+            }))),
+          });
+
           self.globals.insert(
             id.sym.clone(),
-            create_decl_stmt(
-              id.sym.clone(),
-              self.global_mark,
-              ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                span: DUMMY_SP,
-                value: swc_atoms::JsWord::from(filename),
-                has_escape: false,
-                kind: ast::StrKind::Synthesized,
-              })),
-            ),
+            create_decl_stmt(id.sym.clone(), self.global_mark, inserted_expr),
           );
 
           self.decls.insert(id.to_id());
+
+          self.items.push(DependencyDescriptor {
+            kind: DependencyKind::Require,
+            loc: SourceLocation::from(self.source_map, id.span),
+            specifier,
+            attributes: None,
+            is_optional: false,
+            is_helper: false,
+            source_type: Some(SourceType::Module),
+            placeholder: None,
+          });
         }
         "__dirname" => {
-          let dirname = if let Some(dirname) = self.filename.parent() {
-            if let Some(relative) = pathdiff::diff_paths(dirname, self.project_root) {
-              relative.to_slash_lossy()
-            } else {
-              String::from("/")
-            }
-          } else {
-            String::from("/")
-          };
+          let specifier = swc_atoms::JsWord::from("path");
+          let replace_me_value = swc_atoms::JsWord::from("$parcel$dirnameReplace");
+
+          let inserted_expr = ast::Expr::Call(ast::CallExpr {
+            span: DUMMY_SP,
+            type_args: None,
+            args: vec![
+              ast::ExprOrSpread {
+                spread: None,
+                expr: Box::new(ast::Expr::Ident(ast::Ident {
+                  optional: false,
+                  span: DUMMY_SP,
+                  sym: swc_atoms::JsWord::from("__dirname"),
+                })),
+              },
+              ast::ExprOrSpread {
+                spread: None,
+                expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+                  has_escape: false,
+                  span: DUMMY_SP,
+                  kind: ast::StrKind::Synthesized,
+                  value: replace_me_value,
+                }))),
+              },
+            ],
+            callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
+              span: DUMMY_SP,
+              obj: (Box::new(Call(create_require(specifier.clone())))),
+              prop: MemberProp::Ident(ast::Ident::new("join".into(), DUMMY_SP)),
+            }))),
+          });
 
           self.globals.insert(
             id.sym.clone(),
-            create_decl_stmt(
-              id.sym.clone(),
-              self.global_mark,
-              ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                span: DUMMY_SP,
-                value: swc_atoms::JsWord::from(dirname),
-                has_escape: false,
-                kind: ast::StrKind::Synthesized,
-              })),
-            ),
+            create_decl_stmt(id.sym.clone(), self.global_mark, inserted_expr),
           );
 
           self.decls.insert(id.to_id());
-        }
-        "global" => {
-          if !self.scope_hoist {
-            self.globals.insert(
-              id.sym.clone(),
-              create_decl_stmt(
-                id.sym.clone(),
-                self.global_mark,
-                ast::Expr::Member(ast::MemberExpr {
-                  obj: Box::new(Ident(Ident::new(js_word!("arguments"), DUMMY_SP))),
-                  prop: MemberProp::Computed(ComputedPropName {
-                    span: DUMMY_SP,
-                    expr: Box::new(Lit(ast::Lit::Num(ast::Number {
-                      value: 3.0,
-                      span: DUMMY_SP,
-                    }))),
-                  }),
-                  span: DUMMY_SP,
-                }),
-              ),
-            );
 
-            self.decls.insert(id.to_id());
-          }
+          self.items.push(DependencyDescriptor {
+            kind: DependencyKind::Require,
+            loc: SourceLocation::from(self.source_map, id.span),
+            specifier,
+            attributes: None,
+            is_optional: false,
+            is_helper: false,
+            source_type: Some(SourceType::Module),
+            placeholder: None,
+          });
         }
         _ => {}
       }

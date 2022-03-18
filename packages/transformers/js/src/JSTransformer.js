@@ -399,7 +399,7 @@ export default (new Transformer({
       replace_env: !asset.env.isNode(),
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
       insert_node_globals: !asset.env.isNode(),
-      relative_context: Boolean(config?.relativeContext),
+      relative_context: Boolean(config?.relativeContext) && asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
       env,
