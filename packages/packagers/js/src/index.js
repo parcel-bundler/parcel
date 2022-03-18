@@ -18,8 +18,11 @@ export default (new Packager({
       ['package.json'],
     );
     let name = pkg?.contents?.name ?? '';
+    let relativeContext =
+      pkg?.contents?.['@parcel/transformer-js']?.relativeContext ?? false;
     return {
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
+      relativeContext,
     };
   },
   async package({
@@ -73,6 +76,12 @@ export default (new Packager({
         contents,
         map,
       }));
+    }
+
+    if (config.relativeContext) {
+      const relPath = path.relative(bundle.target.distDir, options.projectRoot);
+      contents = contents.replace('$parcel$dirnameReplace', relPath);
+      contents = contents.replace('$parcel$filenameReplace', relPath);
     }
 
     return replaceInlineReferences({
