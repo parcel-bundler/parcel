@@ -382,4 +382,20 @@ describe('resolver', function() {
     let output = await run(b);
     assert.strictEqual(output.default, 2);
   });
+
+  it('should support very long dependency specifiers', async function() {
+    this.timeout(8000);
+
+    let inputDir = path.join(__dirname, 'input');
+
+    await outputFS.mkdirp(inputDir);
+    await outputFS.writeFile(
+      path.join(inputDir, 'index.html'),
+      `<img src="data:image/jpeg;base64,/9j/${'A'.repeat(200000)}">`,
+    );
+
+    await bundle(path.join(inputDir, 'index.html'), {
+      inputFS: overlayFS,
+    });
+  });
 });

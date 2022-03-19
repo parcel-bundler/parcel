@@ -22,4 +22,23 @@ describe('glsl', function() {
       }, true),
     );
   });
+
+  it('should correctly resolve relative GLSL imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/glsl-relative-import/index.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(
+      output.trim(),
+      `#define GLSLIFY 1
+float b(float p) { return p*2.0; }
+
+float c(float p) { return b(p)*3.0; }
+
+varying float x;
+
+void main() { gl_FragColor = vec4(c(x)); }`,
+    );
+  });
 });

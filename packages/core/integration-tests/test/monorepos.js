@@ -142,6 +142,28 @@ describe('monorepos', function() {
     }
   });
 
+  it('should compile packages with target source overrides and --target option in serve mode', async function() {
+    let fixture = path.join(__dirname, '/integration/target-source');
+    let oldcwd = inputFS.cwd();
+    inputFS.chdir(fixture);
+
+    try {
+      let b = await bundle(path.join(fixture, 'packages/package-b'), {
+        targets: ['alternate'],
+        serveOptions: {port: 1234},
+      });
+
+      assertBundles(b, [
+        {
+          name: 'indexAlternate.js',
+          assets: ['bar.js', 'esmodule-helpers.js', 'indexAlternate.js'],
+        },
+      ]);
+    } finally {
+      inputFS.chdir(oldcwd);
+    }
+  });
+
   it('should build using root targets with entry files inside packages and cwd at project root', async function() {
     let fixture = path.join(__dirname, '/integration/monorepo');
     let oldcwd = inputFS.cwd();
@@ -192,7 +214,7 @@ describe('monorepos', function() {
         path.join(distDir, '/pkg-b/src/index.css'),
         'utf8',
       );
-      assert(contents.includes('._foo'));
+      assert(contents.includes('.foo_'));
     } finally {
       inputFS.chdir(oldcwd);
     }
@@ -268,7 +290,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('._foo'));
+    assert(contents.includes('.foo_'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -324,7 +346,7 @@ describe('monorepos', function() {
         path.join(distDir, '/pkg-b/src/index.css'),
         'utf8',
       );
-      assert(contents.includes('._foo'));
+      assert(contents.includes('.foo_'));
     } finally {
       inputFS.chdir(oldcwd);
     }
@@ -376,7 +398,7 @@ describe('monorepos', function() {
         path.join(distDir, '/pkg-b/src/index.css'),
         'utf8',
       );
-      assert(contents.includes('._foo'));
+      assert(contents.includes('.foo_'));
     } finally {
       inputFS.chdir(oldcwd);
     }
@@ -544,7 +566,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('._foo'));
+    assert(contents.includes('.foo_'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -806,7 +828,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('._foo'));
+    assert(contents.includes('.foo_'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -824,7 +846,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('._foo'));
+    assert(contents.includes('.foo_'));
 
     contents = await outputFS.readFile(
       path.join(

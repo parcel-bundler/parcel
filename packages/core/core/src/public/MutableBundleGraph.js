@@ -39,6 +39,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#options = options;
   }
 
+  addAssetToBundle(asset: IAsset, bundle: IBundle) {
+    this.#graph.addAssetToBundle(
+      assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
+    );
+  }
+
   addAssetGraphToBundle(
     asset: IAsset,
     bundle: IBundle,

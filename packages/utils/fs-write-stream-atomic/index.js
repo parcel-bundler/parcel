@@ -1,5 +1,5 @@
 var fs = require('graceful-fs');
-var Writable = require('readable-stream').Writable;
+var Writable = require('stream').Writable;
 var util = require('util');
 var MurmurHash3 = require('imurmurhash');
 var iferr = require('iferr');

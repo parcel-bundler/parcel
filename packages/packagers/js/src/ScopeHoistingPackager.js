@@ -108,7 +108,7 @@ export class ScopeHoistingPackager {
   }
 
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
-    await this.loadAssets();
+    let wrappedAssets = await this.loadAssets();
     this.buildExportedSymbols();
 
     // If building a library, the target is actually another bundler rather
@@ -126,17 +126,10 @@ export class ScopeHoistingPackager {
       }
     }
 
-    // Add each asset that is directly connected to the bundle. Dependencies will be handled
-    // by replacing `import` statements in the code.
     let res = '';
     let lineCount = 0;
     let sourceMap = null;
-    this.bundle.traverseAssets((asset, _, actions) => {
-      if (this.seenAssets.has(asset.id)) {
-        actions.skipChildren();
-        return;
-      }
-
+    let processAsset = asset => {
       let [content, map, lines] = this.visitAsset(asset);
       if (sourceMap && map) {
         sourceMap.addSourceMap(map, lineCount);
@@ -146,6 +139,25 @@ export class ScopeHoistingPackager {
 
       res += content + '\n';
       lineCount += lines + 1;
+    };
+
+    // Hoist wrapped asset to the top of the bundle to ensure that they are registered
+    // before they are used.
+    for (let asset of wrappedAssets) {
+      if (!this.seenAssets.has(asset.id)) {
+        processAsset(asset);
+      }
+    }
+
+    // Add each asset that is directly connected to the bundle. Dependencies will be handled
+    // by replacing `import` statements in the code.
+    this.bundle.traverseAssets((asset, _, actions) => {
+      if (this.seenAssets.has(asset.id)) {
+        actions.skipChildren();
+        return;
+      }
+
+      processAsset(asset);
       actions.skipChildren();
     });
 
@@ -225,8 +237,9 @@ export class ScopeHoistingPackager {
     };
   }
 
-  async loadAssets() {
+  async loadAssets(): Promise<Array<Asset>> {
     let queue = new PromiseQueue({maxConcurrent: 32});
+    let wrapped = [];
     this.bundle.traverseAssets((asset, shouldWrap) => {
       queue.add(async () => {
         let [code, map] = await Promise.all([
@@ -247,11 +260,13 @@ export class ScopeHoistingPackager {
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
         this.wrappedAssets.add(asset.id);
+        wrapped.push(asset);
         return true;
       }
     });
 
     this.assetOutputs = new Map(await queue.run());
+    return wrapped;
   }
 
   buildExportedSymbols() {

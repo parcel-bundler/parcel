@@ -18,6 +18,7 @@ import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   getJSONSourceLocation,
+  encodeJSONKeyComponent,
   md,
 } from '@parcel/diagnostic';
 import path from 'path';
@@ -72,6 +73,16 @@ const COMMON_TARGETS = {
     match: /\.d\.ts$/,
     extensions: ['.d.ts'],
   },
+};
+
+const DEFAULT_ENGINES = {
+  node: 'current',
+  browsers: [
+    'last 1 Chrome version',
+    'last 1 Safari version',
+    'last 1 Firefox version',
+    'last 1 Edge version',
+  ],
 };
 
 export type TargetRequest = {|
@@ -279,7 +290,7 @@ export class TargetResolver {
       }
 
       let serve = this.options.serveOptions;
-      if (serve) {
+      if (serve && targets.length > 0) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
@@ -319,7 +330,9 @@ export class TargetResolver {
             publicUrl: this.options.defaultTargetOptions.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
-              engines: {},
+              engines: {
+                browsers: DEFAULT_ENGINES.browsers,
+              },
               shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
               outputFormat: this.options.defaultTargetOptions.outputFormat,
               shouldScopeHoist: this.options.defaultTargetOptions
@@ -475,23 +488,15 @@ export class TargetResolver {
 
     let defaultEngines = this.options.defaultTargetOptions.engines;
     let context = browsers ?? !node ? 'browser' : 'node';
-    if (
-      context === 'browser' &&
-      pkgEngines.browsers == null &&
-      defaultEngines?.browsers != null
-    ) {
+    if (context === 'browser' && pkgEngines.browsers == null) {
       pkgEngines = {
         ...pkgEngines,
-        browsers: defaultEngines.browsers,
+        browsers: defaultEngines?.browsers ?? DEFAULT_ENGINES.browsers,
       };
-    } else if (
-      context === 'node' &&
-      pkgEngines.node == null &&
-      defaultEngines?.node != null
-    ) {
+    } else if (context === 'node' && pkgEngines.node == null) {
       pkgEngines = {
         ...pkgEngines,
-        node: defaultEngines.node,
+        node: defaultEngines?.node ?? DEFAULT_ENGINES.node,
       };
     }
 
@@ -501,11 +506,12 @@ export class TargetResolver {
       if (
         targetName === 'browser' &&
         pkg[targetName] != null &&
-        typeof pkg[targetName] === 'object'
+        typeof pkg[targetName] === 'object' &&
+        pkg.name
       ) {
         // The `browser` field can be a file path or an alias map.
         _targetDist = pkg[targetName][pkg.name];
-        pointer = `/${targetName}/${pkg.name}`;
+        pointer = `/${targetName}/${encodeJSONKeyComponent(pkg.name)}`;
       } else {
         _targetDist = pkg[targetName];
         pointer = `/${targetName}`;

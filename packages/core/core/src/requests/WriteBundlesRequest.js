@@ -71,6 +71,7 @@ async function run({input, api, farm, options}: RunInput) {
       let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
       res.set(bundle.id, {
         filePath: joinProjectPath(bundle.target.distDir, name),
+        type: bundle.type, // FIXME: this is wrong if the packager changes the type...
         stats: {
           time: 0,
           size: 0,

@@ -168,11 +168,11 @@ describe('glob', function() {
               codeHighlights: [
                 {
                   start: {
-                    column: 7,
+                    column: 19,
                     line: 2,
                   },
                   end: {
-                    column: 20,
+                    column: 30,
                     line: 2,
                   },
                 },
@@ -188,11 +188,11 @@ describe('glob', function() {
               codeHighlights: [
                 {
                   start: {
-                    column: 7,
+                    column: 19,
                     line: 2,
                   },
                   end: {
-                    column: 20,
+                    column: 30,
                     line: 2,
                   },
                 },

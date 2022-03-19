@@ -100,7 +100,7 @@ export default class HMRServer {
 
     let queue = new PromiseQueue({maxConcurrent: FS_CONCURRENCY});
     for (let asset of changedAssets) {
-      if (asset.type !== 'js') {
+      if (asset.type !== 'js' && asset.type !== 'css') {
         // If all of the incoming dependencies of the asset actually resolve to a JS asset
         // rather than the original, we can mark the runtimes as changed instead. URL runtimes
         // have a cache busting query param added with HMR enabled which will trigger a reload.

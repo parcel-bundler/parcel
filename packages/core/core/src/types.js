@@ -181,6 +181,7 @@ export type Asset = {|
   configPath?: ProjectPath,
   plugin: ?PackageName,
   configKeyPath?: string,
+  isLargeBlob?: boolean,
 |};
 
 export type InternalGlob = ProjectPath;
@@ -307,6 +308,7 @@ export type DependencyNode = {|
   hasDeferred?: boolean,
   usedSymbolsDown: Set<Symbol>,
   usedSymbolsUp: Set<Symbol>,
+  /** for the "down" pass, the dependency resolution asset needs to be updated */
   usedSymbolsDownDirty: boolean,
   /** for the "up" pass, the parent asset needs to be updated */
   usedSymbolsUpDirtyUp: boolean,
@@ -499,6 +501,7 @@ export type BundleGroupNode = {|
 
 export type PackagedBundleInfo = {|
   filePath: ProjectPath,
+  type: string,
   stats: Stats,
 |};
 

@@ -26,9 +26,11 @@ import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {
+  anyToDiagnostic,
   errorToDiagnostic,
   escapeMarkdown,
   md,
+  type Diagnostic,
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
@@ -83,7 +85,8 @@ export type TransformationOpts = {|
 |};
 
 export type TransformationResult = {|
-  assets: Array<AssetValue>,
+  assets?: Array<AssetValue>,
+  error?: Array<Diagnostic>,
   configRequests: Array<ConfigRequest>,
   invalidations: Array<RequestInvalidation>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
@@ -178,19 +181,26 @@ export default class Transformation {
       asset.value.isSource,
       asset.value.pipeline,
     );
-    let results = await this.runPipelines(pipeline, asset);
-    let assets = results.map(a => a.value);
+    let assets, error;
+    try {
+      let results = await this.runPipelines(pipeline, asset);
+      assets = results.map(a => a.value);
+    } catch (e) {
+      error = e;
+    }
 
     let configRequests = getConfigRequests([...this.configs.values()]);
     let devDepRequests = getWorkerDevDepRequests([
       ...this.devDepRequests.values(),
     ]);
 
-    // $FlowFixMe
+    // $FlowFixMe because of $$raw
     return {
       $$raw: true,
       assets,
       configRequests,
+      // When throwing an error, this (de)serialization is done automatically by the WorkerFarm
+      error: error ? anyToDiagnostic(error) : undefined,
       invalidateOnFileCreate: this.invalidateOnFileCreate,
       invalidations: [...this.invalidations.values()],
       devDepRequests,
@@ -283,15 +293,21 @@ export default class Transformation {
 
     if (!initialCacheEntry) {
       let pipelineHash = await this.getPipelineHash(pipeline);
+      let invalidationCacheKey = await getInvalidationHash(
+        assets.flatMap(asset => asset.getInvalidations()),
+        this.options,
+      );
       let resultCacheKey = this.getCacheKey(
         [initialAsset],
-        await getInvalidationHash(
-          assets.flatMap(asset => asset.getInvalidations()),
-          this.options,
-        ),
+        invalidationCacheKey,
         pipelineHash,
       );
-      await this.writeToCache(resultCacheKey, assets, pipelineHash);
+      await this.writeToCache(
+        resultCacheKey,
+        assets,
+        invalidationCacheKey,
+        pipelineHash,
+      );
     } else {
       // See above TODO, this should be per-pipeline
       for (let i of this.request.invalidations) {
@@ -512,7 +528,9 @@ export default class Transformation {
       cachedAssets.map(async (value: AssetValue) => {
         let content =
           value.contentKey != null
-            ? this.options.cache.getStream(value.contentKey)
+            ? value.isLargeBlob
+              ? this.options.cache.getStream(value.contentKey)
+              : await this.options.cache.getBlob(value.contentKey)
             : null;
         let mapBuffer =
           value.astKey != null
@@ -539,9 +557,12 @@ export default class Transformation {
   async writeToCache(
     cacheKey: string,
     assets: Array<UncommittedAsset>,
+    invalidationHash: string,
     pipelineHash: string,
   ): Promise<void> {
-    await Promise.all(assets.map(asset => asset.commit(pipelineHash)));
+    await Promise.all(
+      assets.map(asset => asset.commit(invalidationHash + pipelineHash)),
+    );
 
     this.options.cache.set(cacheKey, {
       $$raw: true,
@@ -585,11 +606,7 @@ export default class Transformation {
     );
 
     for (let transformer of transformers) {
-      let config = await this.loadTransformerConfig(
-        filePath,
-        transformer,
-        isSource,
-      );
+      let config = await this.loadTransformerConfig(transformer, isSource);
       if (config) {
         this.configs.set(transformer.name, config);
       }
@@ -648,7 +665,6 @@ export default class Transformation {
   }
 
   async loadTransformerConfig(
-    filePath: ProjectPath,
     transformer: LoadedPlugin<Transformer<mixed>>,
     isSource: boolean,
   ): Promise<?Config> {
@@ -660,7 +676,7 @@ export default class Transformation {
     let config = createConfig({
       plugin: transformer.name,
       isSource,
-      searchPath: filePath,
+      searchPath: this.request.filePath,
       env: this.request.env,
     });
 

@@ -254,6 +254,7 @@ export default class BundleGraph<TBundle: IBundle>
 
   traverse<TContext>(
     visit: GraphVisitor<BundleGraphTraversable, TContext>,
+    start?: ?IAsset,
   ): ?TContext {
     return this.#graph.traverse(
       mapVisitor(
@@ -266,6 +267,7 @@ export default class BundleGraph<TBundle: IBundle>
               },
         visit,
       ),
+      start ? assetToAssetValue(start) : undefined,
     );
   }
 

@@ -111,7 +111,12 @@ export function getParcelOptions(
       entries,
       shouldDisableCache: true,
       logLevel: 'none',
-      defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
+      defaultConfig: path.join(
+        __dirname,
+        process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER == null
+          ? '.parcelrc-no-reporters'
+          : '.parcelrc-experimental-bundler',
+      ),
       inputFS,
       outputFS,
       workerFarm,
@@ -193,7 +198,7 @@ export function mergeParcelOptions(
   };
 }
 
-export function assertDependencyWasDeferred(
+export function assertDependencyWasExcluded(
   bundleGraph: BundleGraph<PackagedBundle>,
   assetFileName: string,
   specifier: string,
@@ -698,6 +703,9 @@ function prepareBrowserContext(
         hostname: 'localhost',
         origin: 'http://localhost',
         protocol: 'http',
+      },
+      navigator: {
+        userAgent: '',
       },
       fetch(url) {
         return Promise.resolve({

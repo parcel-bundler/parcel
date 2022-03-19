@@ -34,21 +34,6 @@ describe('vue', function() {
     assert(contents.includes('background: red'));
     assert(contents.includes('color: green'));
   });
-  it('should produce a vue bundle using a functional component', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/vue-functional/functional.vue'),
-    );
-    let output = (await run(b)).default;
-    assert.equal(typeof output.render, 'function');
-    assert.equal(typeof output.__cssModules, 'object');
-    let modules = output.__cssModules;
-    assert.equal(typeof modules.$style.red, 'string');
-    let contents = await outputFS.readFile(
-      path.join(distDir, 'functional.css'),
-      'utf8',
-    );
-    assert(contents.includes('.' + modules.$style.red));
-  });
   it('should produce a vue bundle using scoped styles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/vue-scoped/App.vue'),

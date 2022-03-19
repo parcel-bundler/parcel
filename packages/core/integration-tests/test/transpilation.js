@@ -56,17 +56,28 @@ describe('transpilation', function() {
     assert(modern.includes('class Bar'));
   });
 
-  it('should not transpile node_modules by default', async function() {
-    await bundle(
+  it('should transpile node_modules by default', async function() {
+    let b = await bundle(
       path.join(__dirname, '/integration/babel-node-modules/index.js'),
     );
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(/class \S+ \{/.test(file));
+    assert(!/class \S+ \{/.test(file));
     assert(file.includes('function Bar'));
+    let res = await run(b);
+    assert.equal(res.t, 'function');
   });
 
-  it('should not compile node_modules with a source field in package.json when not symlinked', async function() {
+  it('should not support JSX in node_modules', async function() {
+    // $FlowFixMe
+    await assert.rejects(() =>
+      bundle(
+        path.join(__dirname, '/integration/babel-node-modules-jsx/index.js'),
+      ),
+    );
+  });
+
+  it('should compile node_modules with a source field in package.json when not symlinked', async function() {
     await bundle(
       path.join(
         __dirname,
@@ -75,7 +86,7 @@ describe('transpilation', function() {
     );
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(!file.includes('function Foo'));
+    assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));
   });
 
@@ -130,6 +141,15 @@ describe('transpilation', function() {
     assert(file.includes('h("div"'));
   });
 
+  it('should support compiling JSX in JS files with Preact url dependency', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/jsx-preact-with-url/index.js'),
+    );
+
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(file.includes('h("div"'));
+  });
+
   it('should support compiling JSX in TS files with Preact dependency', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/jsx-preact-ts/index.tsx'),
@@ -169,8 +189,8 @@ describe('transpilation', function() {
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(file.includes('react/jsx-runtime'));
-    assert(file.includes('_jsxRuntime.jsx("div"'));
+    assert(file.includes('react/jsx-dev-runtime'));
+    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
   });
 
   it('should support the automatic JSX runtime with preact >= 10.5', async function() {
@@ -179,8 +199,41 @@ describe('transpilation', function() {
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(file.includes('preact/jsx-runtime'));
-    assert(file.includes('_jsxRuntime.jsx("div"'));
+    assert(file.includes('preact/jsx-dev-runtime'));
+    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+  });
+
+  it('should support the automatic JSX runtime with React 18 prereleases', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-automatic-18/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('react/jsx-dev-runtime'));
+    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+  });
+
+  it('should support the automatic JSX runtime with experimental React versions', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-automatic-experimental/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('react/jsx-dev-runtime'));
+    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+  });
+
+  it('should support the automatic JSX runtime with preact with alias', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/jsx-automatic-preact-with-alias/index.js',
+      ),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(/\Wreact\/jsx-dev-runtime\W/.test(file));
+    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
   });
 
   it('should support the automatic JSX runtime with explicit tsconfig.json', async function() {
@@ -189,8 +242,8 @@ describe('transpilation', function() {
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(file.includes('preact/jsx-runtime'));
-    assert(file.includes('_jsxRuntime.jsx("div"'));
+    assert(file.includes('preact/jsx-dev-runtime'));
+    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
   });
 
   it('should support explicit JSX pragma in tsconfig.json', async function() {

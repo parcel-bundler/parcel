@@ -1,5 +1,4 @@
 // @flow
-
 import path from 'path';
 import {promisify} from 'util';
 import {Transformer} from '@parcel/plugin';
@@ -8,15 +7,16 @@ import glslifyBundle from 'glslify-bundle';
 
 export default (new Transformer({
   async transform({asset, resolve}) {
-    asset.type = 'js';
-
     // Parse and collect dependencies with glslify-deps
     let cwd = path.dirname(asset.filePath);
     let depper = glslifyDeps({
       cwd,
       resolve: async (target, opts, next) => {
         try {
-          let filePath = await resolve(asset.filePath, target);
+          let filePath = await resolve(
+            path.join(opts.basedir, 'index.glsl'),
+            target,
+          );
 
           next(null, filePath);
         } catch (err) {
@@ -36,6 +36,7 @@ export default (new Transformer({
     let glsl = await glslifyBundle(ast);
 
     asset.setCode(`module.exports=${JSON.stringify(glsl)};`);
+    asset.type = 'js';
 
     return [asset];
   },

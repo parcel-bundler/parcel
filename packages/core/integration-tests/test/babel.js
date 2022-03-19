@@ -393,6 +393,7 @@ describe('babel', function() {
       let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert(distFile.includes('hello there'));
       await fs.copyFile(differentPath, configPath);
+      await new Promise(resolve => setTimeout(resolve, 100));
       // On Windows only, `fs.utimes` arguments must be instances of `Date`,
       // otherwise it fails. For Mac instances on Azure CI, using a Date instance
       // does not update the utime correctly, so for all other platforms, use a

@@ -2,6 +2,7 @@
 
 import type {Blob} from '@parcel/types';
 
+import {Buffer} from 'buffer';
 import {bufferStream} from './';
 import {Readable} from 'stream';
 

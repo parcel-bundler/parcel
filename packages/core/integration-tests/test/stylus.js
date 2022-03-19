@@ -86,13 +86,13 @@ describe('stylus', function() {
     assert.equal(output(), 2);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
-    assert(css.includes('url("http://google.com")'));
+    assert(/url\("?test\.[0-9a-f]+\.woff2"?\)/.test(css));
+    assert(/url\("?http:\/\/google.com"?\)/.test(css));
     assert(css.includes('.index'));
 
     assert(
       await outputFS.exists(
-        path.join(distDir, css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]),
+        path.join(distDir, css.match(/url\("?(test\.[0-9a-f]+\.woff2)"?\)/)[1]),
       ),
     );
   });
@@ -140,10 +140,10 @@ describe('stylus', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert(output().startsWith('_index_'));
+    assert(output().startsWith('index_'));
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(css.includes('._index_'));
+    assert(css.includes('.index_'));
   });
 
   it('should support requiring stylus files with glob dependencies', async function() {

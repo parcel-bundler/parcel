@@ -553,7 +553,7 @@ export class AssetGraphBuilder {
                           this.options.projectRoot,
                           loc?.filePath,
                         ) ?? undefined,
-                      language: assetNode.value.type,
+                      language: incomingDep.value.sourceAssetType ?? undefined,
                       codeHighlights: [
                         {
                           start: loc.start,
@@ -709,7 +709,6 @@ export class AssetGraphBuilder {
           }
         }
         if (node.usedSymbolsUpDirty) {
-          node.usedSymbolsUpDirty = false;
           let e = visit(
             node,
             incoming,
@@ -720,8 +719,10 @@ export class AssetGraphBuilder {
             }),
           );
           if (e.length > 0) {
+            node.usedSymbolsUpDirty = true;
             errors.set(nodeId, e);
           } else {
+            node.usedSymbolsUpDirty = false;
             errors.delete(nodeId);
           }
         }
@@ -767,8 +768,10 @@ export class AssetGraphBuilder {
         if (node.usedSymbolsUpDirty) {
           let e = visit(node, incoming, outgoing);
           if (e.length > 0) {
+            node.usedSymbolsUpDirty = true;
             errors.set(queuedNodeId, e);
           } else {
+            node.usedSymbolsUpDirty = false;
             errors.delete(queuedNodeId);
           }
         }

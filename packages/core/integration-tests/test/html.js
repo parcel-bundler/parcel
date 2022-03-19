@@ -615,7 +615,7 @@ describe('html', function() {
     );
 
     // mergeStyles
-    assert(html.includes('<style>h1{color:red}</style>'));
+    assert(html.includes('<style>h1{color:red}div{font-size:20px}</style>'));
 
     assert(!html.includes('sourceMappingURL'));
 
@@ -943,7 +943,7 @@ describe('html', function() {
     let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
       contents.includes(
-        '<svg><symbol id="all"><rect width="100" height="100"/></symbol></svg><svg xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#all" href="#all"/></svg>',
+        '<svg><symbol id="all"><rect width="100" height="100"/></symbol></svg><svg><use xlink:href="#all" href="#all"/></svg>',
       ),
     );
   });
@@ -961,6 +961,23 @@ describe('html', function() {
       {
         type: 'svg',
         assets: ['file.svg'],
+      },
+    ]);
+  });
+
+  it("should support href attribute in <image /> in HTMLTransformer's collectDependencies", async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-image-href-attr/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'png',
+        assets: ['100x100.png'],
       },
     ]);
   });
@@ -1389,6 +1406,30 @@ describe('html', function() {
     }
 
     assert(errored);
+  });
+
+  it('should not import swc/helpers without type="module"', async function() {
+    await bundle(
+      path.join(
+        __dirname,
+        '/integration/html-js-not-import-swc-helpers-without-module/index.html',
+      ),
+      {
+        defaultTargetOptions: {
+          engines: {
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#browser_compatibility
+            browsers: ['Chrome 48'],
+          },
+        },
+      },
+    );
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(!html.includes('swc/helpers'));
+    assert(html.includes('slicedToArray'));
   });
 
   it('should allow imports and requires in inline <script> tags', async function() {
@@ -2631,11 +2672,7 @@ describe('html', function() {
       path.join(__dirname, 'integration/html-inline-escape/style.html'),
     );
     let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    let name = path.basename(
-      b.getBundles().find(b => b.type === 'png').filePath,
-      'utf8',
-    );
-    assert(output.includes(`url(&quot;${name}&quot;)`));
+    assert(output.includes(`content: &quot;hi&quot;`));
     assert(output.includes('<\\/style>'));
   });
 
@@ -2703,5 +2740,99 @@ describe('html', function() {
     assert(output.includes('<svg role="img" viewBox='));
     assert(output.includes('<filter'));
     assert(output.includes('<feGaussianBlur in="SourceGraphic" stdDeviation='));
+  });
+
+  it('should throw error with empty string reference to other resource', async function() {
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(__dirname, 'integration/html-empty-reference/index.html'),
+          {
+            mode: 'production',
+          },
+        ),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: "'src' should not be empty string",
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/html-empty-reference/index.html',
+                ),
+                language: 'html',
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 1,
+                      line: 1,
+                    },
+                    end: {
+                      column: 14,
+                      line: 1,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+
+          {
+            message: "'src' should not be empty string",
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/html-empty-reference/index.html',
+                ),
+                language: 'html',
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 1,
+                      line: 2,
+                    },
+                    end: {
+                      column: 24,
+                      line: 2,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+
+          {
+            message: "'href' should not be empty string",
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/html-empty-reference/index.html',
+                ),
+                language: 'html',
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 1,
+                      line: 3,
+                    },
+                    end: {
+                      column: 16,
+                      line: 3,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    );
   });
 });

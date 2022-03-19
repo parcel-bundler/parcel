@@ -6,8 +6,11 @@ import type {
   ResolveResult,
   Environment,
   SpecifierType,
+  PluginLogger,
+  SourceLocation,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import type {PackageManager} from '@parcel/package-manager';
 
 import invariant from 'assert';
 import path from 'path';
@@ -18,12 +21,13 @@ import {
   findAlternativeNodeModules,
   findAlternativeFiles,
   loadConfig,
+  globToRegex,
+  isGlobMatch,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   md,
 } from '@parcel/diagnostic';
-import micromatch from 'micromatch';
 import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
 import _Module from 'module';
@@ -37,6 +41,8 @@ type Options = {|
   projectRoot: FilePath,
   extensions: Array<string>,
   mainFields: Array<string>,
+  packageManager?: PackageManager,
+  logger?: PluginLogger,
 |};
 type ResolvedFile = {|
   path: string,
@@ -65,6 +71,7 @@ type ResolverContext = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
   specifierType: SpecifierType,
+  loc: ?SourceLocation,
 |};
 
 /**
@@ -87,6 +94,8 @@ export default class NodeResolver {
   mainFields: Array<string>;
   packageCache: Map<string, InternalPackageJSON>;
   rootPackage: InternalPackageJSON | null;
+  packageManager: ?PackageManager;
+  logger: ?PluginLogger;
 
   constructor(opts: Options) {
     this.extensions = opts.extensions.map(ext =>
@@ -97,6 +106,8 @@ export default class NodeResolver {
     this.projectRoot = opts.projectRoot;
     this.packageCache = new Map();
     this.rootPackage = null;
+    this.packageManager = opts.packageManager;
+    this.logger = opts.logger;
   }
 
   async resolve({
@@ -105,17 +116,20 @@ export default class NodeResolver {
     specifierType,
     env,
     sourcePath,
+    loc,
   }: {|
     filename: FilePath,
     parent: ?FilePath,
     specifierType: SpecifierType,
     env: Environment,
     sourcePath?: ?FilePath,
+    loc?: ?SourceLocation,
   |}): Promise<?ResolveResult> {
     let ctx = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
       specifierType,
+      loc,
     };
 
     // Get file extensions to search
@@ -209,6 +223,7 @@ export default class NodeResolver {
     ctx: ResolverContext,
     sourcePath: ?FilePath,
   |}): Promise<?Module> {
+    let specifier = filename;
     let sourceFile = parent || path.join(this.projectRoot, 'index');
     let query;
 
@@ -252,17 +267,17 @@ export default class NodeResolver {
     let builtin = this.findBuiltin(filename, env);
     if (builtin === null) {
       return null;
+    } else if (builtin === empty) {
+      return {filePath: empty};
+    } else if (builtin !== undefined) {
+      filename = builtin;
     }
 
-    if (!this.shouldIncludeNodeModule(env, filename)) {
-      if (sourcePath && env.isLibrary) {
+    if (this.shouldIncludeNodeModule(env, filename) === false) {
+      if (sourcePath && env.isLibrary && !builtin) {
         await this.checkExcludedDependency(sourcePath, filename, ctx);
       }
       return null;
-    }
-
-    if (builtin) {
-      return builtin;
     }
 
     // Resolve the module in node_modules
@@ -271,6 +286,70 @@ export default class NodeResolver {
       resolved = this.findNodeModulePath(filename, sourceFile, ctx);
     } catch (err) {
       // ignore
+    }
+
+    // Auto install node builtin polyfills if not already available
+    if (resolved === undefined && builtin != null) {
+      let packageName = builtin.split('/')[0];
+      let packageManager = this.packageManager;
+      if (packageManager) {
+        this.logger?.warn({
+          message: md`Auto installing polyfill for Node builtin module "${specifier}"...`,
+          codeFrames: [
+            {
+              filePath: ctx.loc?.filePath ?? sourceFile,
+              codeHighlights: ctx.loc
+                ? [
+                    {
+                      message: 'used here',
+                      start: ctx.loc.start,
+                      end: ctx.loc.end,
+                    },
+                  ]
+                : [],
+            },
+          ],
+          documentationURL:
+            'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
+        });
+
+        await packageManager.resolve(packageName, this.projectRoot + '/index', {
+          saveDev: true,
+          shouldAutoInstall: true,
+        });
+
+        // Re-resolve
+        try {
+          resolved = this.findNodeModulePath(filename, sourceFile, ctx);
+        } catch (err) {
+          // ignore
+        }
+      } else {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: md`Node builtin polyfill "${packageName}" is not installed, but auto install is disabled.`,
+            codeFrames: [
+              {
+                filePath: ctx.loc?.filePath ?? sourceFile,
+                codeHighlights: ctx.loc
+                  ? [
+                      {
+                        message: 'used here',
+                        start: ctx.loc.start,
+                        end: ctx.loc.end,
+                      },
+                    ]
+                  : [],
+              },
+            ],
+            documentationURL:
+              'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
+            hints: [
+              md`Install the "${packageName}" package with your package manager, and run Parcel again.`,
+            ],
+          },
+        });
+      }
     }
 
     if (resolved === undefined && process.versions.pnp != null && parent) {
@@ -340,7 +419,7 @@ export default class NodeResolver {
   shouldIncludeNodeModule(
     {includeNodeModules}: Environment,
     name: string,
-  ): boolean {
+  ): ?boolean {
     if (includeNodeModules === false) {
       return false;
     }
@@ -357,8 +436,6 @@ export default class NodeResolver {
         return !!include;
       }
     }
-
-    return true;
   }
 
   async checkExcludedDependency(
@@ -592,7 +669,7 @@ export default class NodeResolver {
     return resolvedFile;
   }
 
-  findBuiltin(filename: string, env: Environment): ?Module {
+  findBuiltin(filename: string, env: Environment): ?string {
     const isExplicitNode = filename.startsWith('node:');
     if (isExplicitNode || builtins[filename]) {
       if (env.isNode()) {
@@ -602,7 +679,16 @@ export default class NodeResolver {
       if (isExplicitNode) {
         filename = filename.substr(5);
       }
-      return {filePath: builtins[filename] || empty};
+
+      // By default, exclude node builtins from libraries unless explicitly opted in.
+      if (
+        env.isLibrary &&
+        this.shouldIncludeNodeModule(env, filename) !== true
+      ) {
+        return null;
+      }
+
+      return builtins[filename] || empty;
     }
 
     if (env.isElectron() && filename === 'electron') {
@@ -1087,7 +1173,7 @@ export default class NodeResolver {
           if (filename.startsWith('./')) {
             filename = filename.slice(2);
           }
-          let re = micromatch.makeRe(key, {capture: true});
+          let re = globToRegex(key, {capture: true});
           if (re.test(filename)) {
             alias = filename.replace(re, val);
             break;
@@ -1170,13 +1256,21 @@ export default class NodeResolver {
       case 'boolean':
         return pkg.sideEffects;
       case 'string': {
-        let sideEffects = pkg.sideEffects;
-        invariant(typeof sideEffects === 'string');
-        return micromatch.isMatch(
-          path.relative(pkg.pkgdir, filePath),
-          sideEffects,
-          {matchBase: true},
-        );
+        let glob = pkg.sideEffects;
+        invariant(typeof glob === 'string');
+
+        let relative = path.relative(pkg.pkgdir, filePath);
+        if (!glob.includes('/')) {
+          glob = `**/${glob}`;
+        }
+
+        // Trim off "./" to make micromatch behave correctly,
+        // `path.relative` never returns a leading "./"
+        if (glob.startsWith('./')) {
+          glob = glob.substr(2);
+        }
+
+        return isGlobMatch(relative, glob, {dot: true});
       }
       case 'object':
         return pkg.sideEffects.some(sideEffects =>

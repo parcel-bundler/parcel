@@ -83,6 +83,7 @@ export type BundleInfo = {|
   +hashReferences: Array<string>,
   +time?: number,
   +cacheKeys: CacheKeyMap,
+  +isLargeBlob: boolean,
 |};
 
 type CacheKeyMap = {|
@@ -598,7 +599,9 @@ export default class PackagerRunner {
     let contentKey = PackagerRunner.getContentKey(cacheKey);
     let mapKey = PackagerRunner.getMapKey(cacheKey);
 
-    let contentExists = await this.options.cache.has(contentKey);
+    let isLargeBlob = await this.options.cache.hasLargeBlob(contentKey);
+    let contentExists =
+      isLargeBlob || (await this.options.cache.has(contentKey));
     if (!contentExists) {
       return null;
     }
@@ -606,8 +609,12 @@ export default class PackagerRunner {
     let mapExists = await this.options.cache.has(mapKey);
 
     return {
-      contents: this.options.cache.getStream(contentKey),
-      map: mapExists ? this.options.cache.getStream(mapKey) : null,
+      contents: isLargeBlob
+        ? this.options.cache.getStream(contentKey)
+        : blobToStream(await this.options.cache.getBlob(contentKey)),
+      map: mapExists
+        ? blobToStream(await this.options.cache.getBlob(mapKey))
+        : null,
     };
   }
 
@@ -620,9 +627,11 @@ export default class PackagerRunner {
     let size = 0;
     let hash;
     let hashReferences = [];
+    let isLargeBlob = false;
 
     // TODO: don't replace hash references in binary files??
     if (contents instanceof Readable) {
+      isLargeBlob = true;
       let boundaryStr = '';
       let h = new Hash();
       await this.options.cache.setStream(
@@ -641,10 +650,11 @@ export default class PackagerRunner {
       );
       hash = h.finish();
     } else if (typeof contents === 'string') {
-      size = Buffer.byteLength(contents);
-      hash = hashString(contents);
+      let buffer = Buffer.from(contents);
+      size = buffer.byteLength;
+      hash = hashBuffer(buffer);
       hashReferences = contents.match(HASH_REF_REGEX) ?? [];
-      await this.options.cache.setBlob(cacheKeys.content, contents);
+      await this.options.cache.setBlob(cacheKeys.content, buffer);
     } else {
       size = contents.length;
       hash = hashBuffer(contents);
@@ -661,6 +671,7 @@ export default class PackagerRunner {
       hash,
       hashReferences,
       cacheKeys,
+      isLargeBlob,
     };
     await this.options.cache.set(cacheKeys.info, info);
     return info;

@@ -1,3 +1,3 @@
 // @flow strict-local
 
-export const BABEL_RANGE = '^7.0.0';
+export const BABEL_CORE_RANGE = '^7.12.0';

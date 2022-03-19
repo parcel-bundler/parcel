@@ -55,7 +55,10 @@ export class FSHost {
 
   getAccessibleFileSystemEntries(
     dirPath: FilePath,
-  ): {|directories: Array<FilePath>, files: Array<FilePath>|} {
+  ): {|
+    directories: Array<FilePath>,
+    files: Array<FilePath>,
+  |} {
     try {
       let entries = this.fs.readdirSync(dirPath || '.').sort();
       let files = [];

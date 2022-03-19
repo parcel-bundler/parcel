@@ -1,0 +1,13 @@
+{
+  "name": "commonjs-require",
+  "private": true,
+  "main": "dist/index.js",
+  "targets": {
+    "main": {
+      "context": "node"
+    }
+  },
+  "dependencies": {
+    "lodash": "*"
+  }
+}

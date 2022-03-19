@@ -35,12 +35,15 @@ export {
   objectSortedEntries,
   objectSortedEntriesDeep,
   setDifference,
+  setIntersect,
+  setUnion,
 } from './collection';
 export {resolveConfig, resolveConfigSync, loadConfig} from './config';
 export {DefaultMap, DefaultWeakMap} from './DefaultMap';
 export {makeDeferredWithPromise} from './Deferred';
-export {isGlob, isGlobMatch, globSync, glob} from './glob';
+export {isGlob, isGlobMatch, globSync, glob, globToRegex} from './glob';
 export {hashStream, hashObject, hashFile} from './hash';
+export {SharedBuffer} from './shared-buffer';
 export {fuzzySearch} from './schema';
 export {createHTTPServer} from './http-server';
 export {normalizePath, normalizeSeparators, relativePath} from './path';
