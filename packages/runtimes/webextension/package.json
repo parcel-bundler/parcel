@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/config-webextension",
+  "name": "@parcel/runtime-webextension",
   "version": "2.0.0",
   "license": "MIT",
   "publishConfig": {
@@ -13,11 +13,15 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "index.json",
+  "main": "lib/WebExtensionRuntime.js",
+  "source": "src/WebExtensionRuntime.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0"
+  },
   "dependencies": {
-    "@parcel/config-default": "^2.0.0",
-    "@parcel/packager-raw-url": "^2.0.0",
-    "@parcel/transformer-webextension": "^2.0.0",
-    "@parcel/runtime-webextension": "^2.0.0"
+    "@parcel/plugin": "^2.0.0",
+    "@parcel/utils": "^2.0.0",
+    "nullthrows": "^1.1.1"
   }
 }

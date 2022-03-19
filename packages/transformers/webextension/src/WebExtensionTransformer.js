@@ -23,7 +23,6 @@ const DEP_LOCS = [
   ['action', 'default_icon'],
   ['action', 'default_popup'],
   ['background', 'scripts'],
-  ['background', 'page'],
   ['chrome_url_overrides'],
   ['devtools_page'],
   ['options_ui', 'page'],
@@ -34,11 +33,6 @@ const DEP_LOCS = [
   ['theme', 'images', 'additional_backgrounds'],
   ['user_scripts', 'api_script'],
 ];
-
-const AUTORELOAD_BG = fs.readFileSync(
-  path.join(__dirname, 'runtime', 'autoreload-bg.js'),
-  'utf8',
-);
 
 async function collectDependencies(
   asset: MutableAsset,
@@ -99,7 +93,6 @@ async function collectDependencies(
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
           assets[j] = asset.addURLDependency(assets[j], {
-            needsStableName: true,
             loc: {
               filePath,
               ...getJSONSourceLocation(
@@ -172,7 +165,6 @@ async function collectDependencies(
           'value',
         );
         themeIcon[k] = asset.addURLDependency(themeIcon[k], {
-          needsStableName: true,
           loc: {
             ...loc,
             filePath,
@@ -185,31 +177,31 @@ async function collectDependencies(
     let war = [];
     for (let i = 0; i < program.web_accessible_resources.length; ++i) {
       // TODO: this doesn't support Parcel resolution
-      const files = program.web_accessible_resources[i];
-      const globFiles = (
-        await glob(
-          path.join(path.dirname(filePath), isMV2 ? files : files.resources),
-          fs,
-          {},
-        )
-      ).map(fp =>
-        asset.addURLDependency(path.relative(path.dirname(filePath), fp), {
-          needsStableName: true,
-          loc: {
-            filePath,
-            ...getJSONSourceLocation(
-              ptrs[
-                `/web_accessible_resources/${i}${isMV2 ? '' : '/resources'}`
-              ],
-            ),
-          },
-        }),
-      );
-      if (isMV2) {
-        war = war.concat(globFiles);
-      } else {
-        files.resources = globFiles;
-        war.push(files);
+      const currentEntry = program.web_accessible_resources[i];
+      const files = isMV2 ? [currentEntry] : currentEntry.resources;
+      for (let j = 0; j < files.length; ++j) {
+        const globFiles = (
+          await glob(path.join(path.dirname(filePath), files[j]), fs, {})
+        ).map(fp =>
+          asset.addURLDependency(path.relative(path.dirname(filePath), fp), {
+            loc: {
+              filePath,
+              ...getJSONSourceLocation(
+                ptrs[
+                  `/web_accessible_resources/${i}${
+                    isMV2 ? '' : `/resources/${j}`
+                  }`
+                ],
+              ),
+            },
+          }),
+        );
+        if (isMV2) {
+          war = war.concat(globFiles);
+        } else {
+          currentEntry.resources = globFiles;
+          war.push(currentEntry);
+        }
       }
     }
     program.web_accessible_resources = war;
@@ -225,7 +217,6 @@ async function collectDependencies(
     const obj = parent[lastLoc];
     if (typeof obj == 'string')
       parent[lastLoc] = asset.addURLDependency(obj, {
-        needsStableName: true,
         loc: {
           filePath,
           ...getJSONSourceLocation(ptrs[location], 'value'),
@@ -235,7 +226,6 @@ async function collectDependencies(
     else {
       for (const k of Object.keys(obj)) {
         obj[k] = asset.addURLDependency(obj[k], {
-          needsStableName: true,
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
@@ -246,13 +236,27 @@ async function collectDependencies(
     }
   }
   if (isMV2) {
+    if (program.background?.page) {
+      program.background.page = asset.addURLDependency(
+        program.background.page,
+        {
+          loc: {
+            filePath,
+            ...getJSONSourceLocation(ptrs['/background/page'], 'value'),
+          },
+        },
+      );
+      if (needRuntimeBG) {
+        asset.meta.webextBGInsert = program.background.page;
+      }
+    }
     if (hot) {
       // To enable HMR, we must override the CSP to allow 'unsafe-eval'
       program.content_security_policy = cspPatchHMR(
         program.content_security_policy,
       );
 
-      if (needRuntimeBG) {
+      if (needRuntimeBG && !program.background?.page) {
         if (!program.background) {
           program.background = {};
         }
@@ -271,9 +275,13 @@ async function collectDependencies(
       program.background.service_worker = asset.addURLDependency(
         program.background.service_worker,
         {
-          needsStableName: true,
-          // Extra pipeline needed to accept URL specifier
-          pipeline: needRuntimeBG ? 'mv3-bg-sw' : '',
+          loc: {
+            filePath,
+            ...getJSONSourceLocation(
+              ptrs['/background/service_worker'],
+              'value',
+            ),
+          },
           env: {
             context: 'service-worker',
             sourceType:
@@ -281,6 +289,9 @@ async function collectDependencies(
           },
         },
       );
+      if (needRuntimeBG) {
+        asset.meta.webextBGInsert = program.background.service_worker;
+      }
     } else if (needRuntimeBG) {
       if (!program.background) {
         program.background = {};
@@ -321,44 +332,45 @@ function cspPatchHMR(policy: ?string) {
 export default (new Transformer({
   async transform({asset, options}) {
     const code = await asset.getCode();
-    if (asset.pipeline == 'mv3-bg-sw') {
-      asset.setCode(`
-        (function() {
-          ${AUTORELOAD_BG}
-        })();
-        ${code}
-      `);
-      return [asset];
-    } else {
-      const parsed = jsm.parse(code);
-      const data: any = parsed.data;
+    const parsed = jsm.parse(code);
+    const data: any = parsed.data;
 
-      // Not using a unified schema dramatically improves error messages
-      let schema = VersionSchema;
-      if (data.manifest_version === 3) {
-        schema = MV3Schema;
-      } else if (data.manifest_version === 2) {
-        schema = MV2Schema;
-      }
-
-      validateSchema.diagnostic(
-        schema,
-        {
-          data: data,
-          source: code,
-          filePath: asset.filePath,
-        },
-        '@parcel/transformer-webextension',
-        'Invalid Web Extension manifest',
-      );
-      await collectDependencies(
-        asset,
-        data,
-        parsed.pointers,
-        Boolean(options.hmrOptions),
-      );
-      asset.setCode(JSON.stringify(data, null, 2));
-      return [asset];
+    // Not using a unified schema dramatically improves error messages
+    let schema = VersionSchema;
+    if (data.manifest_version === 3) {
+      schema = MV3Schema;
+    } else if (data.manifest_version === 2) {
+      schema = MV2Schema;
     }
+
+    validateSchema.diagnostic(
+      schema,
+      {
+        data: data,
+        source: code,
+        filePath: asset.filePath,
+      },
+      '@parcel/transformer-webextension',
+      'Invalid Web Extension manifest',
+    );
+    asset.setEnvironment({
+      context: 'browser',
+      engines: asset.env.engines,
+      shouldOptimize: asset.env.shouldOptimize,
+      sourceMap: {
+        ...asset.env.sourceMap,
+        inline: true,
+        inlineSources: true,
+      },
+    });
+    await collectDependencies(
+      asset,
+      data,
+      parsed.pointers,
+      Boolean(options.hmrOptions),
+    );
+    asset.setCode(JSON.stringify(data, null, 2));
+    asset.meta.webextEntry = true;
+    return [asset];
   },
 }): Transformer);

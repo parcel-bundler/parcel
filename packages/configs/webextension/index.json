@@ -2,10 +2,10 @@
   "extends": "@parcel/config-default",
   "transformers": {
     "manifest.json": ["@parcel/transformer-webextension"],
-    "mv3-bg-sw:*": ["...", "@parcel/transformer-webextension"],
     "raw:*": ["@parcel/transformer-raw"]
   },
+  "runtimes": ["...", "@parcel/runtime-webextension"],
   "packagers": {
-    "manifest.json": "@parcel/packager-raw-url"
+    "manifest.json": "@parcel/packager-webextension"
   }
 }
