@@ -8,9 +8,10 @@ import {
   transformStyleAttribute,
   browserslistToTargets,
 } from '@parcel/css';
-import {remapSourceLocation} from '@parcel/utils';
+import {remapSourceLocation, relativePath} from '@parcel/utils';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 export default (new Transformer({
   async loadConfig({config, options}) {
@@ -27,25 +28,48 @@ export default (new Transformer({
 
     let targets = getTargets(asset.env.engines.browsers);
     let res;
-    if (asset.meta.type === 'attr') {
-      res = transformStyleAttribute({
-        code,
-        analyzeDependencies: true,
-        targets,
+    try {
+      if (asset.meta.type === 'attr') {
+        res = transformStyleAttribute({
+          code,
+          analyzeDependencies: true,
+          targets,
+        });
+      } else {
+        res = transform({
+          filename: path.relative(options.projectRoot, asset.filePath),
+          code,
+          cssModules:
+            config?.cssModules ??
+            (asset.meta.cssModulesCompiled !== true &&
+              /\.module\./.test(asset.filePath)),
+          analyzeDependencies: asset.meta.hasDependencies !== false,
+          sourceMap: !!asset.env.sourceMap,
+          drafts: config?.drafts,
+          pseudoClasses: config?.pseudoClasses,
+          targets,
+        });
+      }
+    } catch (err) {
+      err.filePath = asset.filePath;
+      let diagnostic = errorToDiagnostic(err, {
+        origin: '@parcel/transformer-css',
       });
-    } else {
-      res = transform({
-        filename: path.relative(options.projectRoot, asset.filePath),
-        code,
-        cssModules:
-          config?.cssModules ??
-          (asset.meta.cssModulesCompiled !== true &&
-            /\.module\./.test(asset.filePath)),
-        analyzeDependencies: asset.meta.hasDependencies !== false,
-        sourceMap: !!asset.env.sourceMap,
-        drafts: config?.drafts,
-        pseudoClasses: config?.pseudoClasses,
-        targets,
+      if (err.data?.type === 'AmbiguousUrlInCustomProperty' && err.data.url) {
+        let p =
+          '/' +
+          relativePath(
+            options.projectRoot,
+            path.resolve(path.dirname(asset.filePath), err.data.url),
+            false,
+          );
+        diagnostic[0].hints = [`Replace with: url(${p})`];
+        diagnostic[0].documentationURL =
+          'https://parceljs.org/languages/css/#url()';
+      }
+
+      throw new ThrowableDiagnostic({
+        diagnostic,
       });
     }
 
@@ -108,14 +132,6 @@ export default (new Transformer({
       let js = '';
 
       let jsDeps = [];
-      for (let dep of asset.getDependencies()) {
-        if (dep.priority === 'sync') {
-          // TODO: Figure out how to treeshake this
-          let d = `dep_$${c++}`;
-          depjs += `import * as ${d} from ${JSON.stringify(dep.specifier)};\n`;
-          depjs += `for (let key in ${d}) { if (key in module.exports) module.exports[key] += ' ' + ${d}[key]; else module.exports[key] = ${d}[key]; }\n`;
-        }
-      }
 
       for (let key in exports) {
         locals.set(exports[key].name, key);
@@ -172,6 +188,15 @@ export default (new Transformer({
       for (let key in exports) {
         asset.symbols.set(key, exports[key].name);
         add(key);
+      }
+
+      for (let dep of asset.getDependencies()) {
+        if (dep.priority === 'sync') {
+          // TODO: Figure out how to treeshake this
+          let d = `dep_$${c++}`;
+          depjs += `import * as ${d} from ${JSON.stringify(dep.specifier)};\n`;
+          depjs += `for (let key in ${d}) { if (key in module.exports) module.exports[key] += ' ' + ${d}[key]; else module.exports[key] = ${d}[key]; }\n`;
+        }
       }
 
       assets.push({
