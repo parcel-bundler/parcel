@@ -20,16 +20,11 @@
     "parcel": "^2.3.2"
   },
   "dependencies": {
-    "@parcel/hash": "2.3.2",
+    "@parcel/css": "^1.6.0",
     "@parcel/plugin": "2.3.2",
     "@parcel/source-map": "^2.0.0",
     "@parcel/utils": "2.3.2",
-    "nullthrows": "^1.1.1",
-    "postcss": "^8.4.5",
-    "postcss-value-parser": "^4.2.0",
-    "semver": "^5.7.1"
-  },
-  "devDependencies": {
-    "postcss-modules": "^4.3.0"
+    "browserslist": "^4.6.6",
+    "nullthrows": "^1.1.1"
   }
 }

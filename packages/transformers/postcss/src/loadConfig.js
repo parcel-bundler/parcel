@@ -7,6 +7,7 @@ import type {
 } from '@parcel/types';
 import path from 'path';
 import {relativePath} from '@parcel/utils';
+import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
 import {POSTCSS_RANGE} from './constants';
@@ -15,6 +16,7 @@ import loadExternalPlugins from './loadPlugins';
 
 type ConfigResult = {|
   raw: any,
+  filePath: string,
   hydrated: {|
     plugins: Array<any>,
     from: FilePath,
@@ -26,8 +28,9 @@ type ConfigResult = {|
 async function configHydrator(
   configFile: any,
   config: Config,
-  resolveFrom: ?FilePath,
+  resolveFrom: FilePath,
   options: PluginOptions,
+  logger: PluginLogger,
 ): Promise<?ConfigResult> {
   if (configFile == null) {
     return;
@@ -71,8 +74,67 @@ async function configHydrator(
     }
   }
 
+  let redundantPlugins = pluginArray.filter(
+    p => p === 'autoprefixer' || p === 'postcss-preset-env',
+  );
+  if (redundantPlugins.length > 0) {
+    let filename = path.basename(resolveFrom);
+    let message;
+    let hints = [];
+    if (redundantPlugins.length === pluginArray.length) {
+      message = md`Parcel includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains only redundant plugins. Deleting it may significantly improve build performance.`;
+      hints.push(md`Delete __${filename}__`);
+    } else {
+      message = md`Parcel includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains the following redundant plugins: ${[
+        ...redundantPlugins,
+      ].map(p =>
+        md.underline(p),
+      )}. Removing these may improve build performance.`;
+      hints.push(md`Remove the above plugins from __${filename}__`);
+    }
+
+    let codeFrames;
+    if (path.extname(filename) !== '.js') {
+      let contents = await options.inputFS.readFile(resolveFrom, 'utf8');
+      codeFrames = [
+        {
+          language: 'json',
+          filePath: resolveFrom,
+          code: contents,
+          codeHighlights: generateJSONCodeHighlights(
+            contents,
+            redundantPlugins.map(plugin => ({
+              key: `/plugins/${plugin}`,
+              type: 'key',
+            })),
+          ),
+        },
+      ];
+    } else {
+      codeFrames = [
+        {
+          filePath: resolveFrom,
+          codeHighlights: [
+            {
+              start: {line: 1, column: 1},
+              end: {line: 1, column: 1},
+            },
+          ],
+        },
+      ];
+    }
+
+    logger.warn({
+      message,
+      hints,
+      documentationURL: 'https://parceljs.org/languages/css/#default-plugins',
+      codeFrames,
+    });
+  }
+
   return {
     raw: configFile,
+    filePath: resolveFrom,
     hydrated: {
       plugins,
       from: config.searchPath,
@@ -143,5 +205,11 @@ export async function load({
     }
   }
 
-  return configHydrator(contents, config, configFile?.filePath, options);
+  return configHydrator(
+    contents,
+    config,
+    configFile?.filePath,
+    options,
+    logger,
+  );
 }
