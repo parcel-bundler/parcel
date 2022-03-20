@@ -915,7 +915,7 @@ export default class NodeResolver {
       let realpath = await this.fs.realpath(file);
       if (
         realpath === file ||
-        normalizeSeparators(realpath).includes('/node_modules/')
+        realpath.includes(`${path.sep}node_modules${path.sep}`)
       ) {
         delete pkg.source;
       }
