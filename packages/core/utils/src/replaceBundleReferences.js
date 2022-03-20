@@ -61,7 +61,7 @@ export function replaceURLReferences({
     if (resolved == null) {
       replacements.set(placeholder, {
         from: placeholder,
-        to: dependency.specifier.replace(/"/g, '\\"').replace(/'/g, "\\'"),
+        to: dependency.specifier.replace(/"/g, '\\"'),
       });
       continue;
     }
@@ -192,7 +192,7 @@ export function getURLReplacement({
   let placeholder = dependency.meta?.placeholder ?? dependency.id;
   invariant(typeof placeholder === 'string');
 
-  to = to.replace(/"/g, '\\"').replace(/'/g, "\\'");
+  to = to.replace(/"/g, '\\"');
 
   return {
     from: placeholder,
