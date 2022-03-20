@@ -83,12 +83,15 @@ export default (new Transformer({
             symbols: new Map([['*', {local: '*', isWeak: true, loc}]]),
           });
         } else if (dep.type === 'url') {
-          asset.addURLDependency(dep.url, {
-            loc,
-            meta: {
-              placeholder: dep.placeholder,
+          asset.addURLDependency(
+            dep.url.replace(/\\"/g, '"').replace(/\\'/g, "'"),
+            {
+              loc,
+              meta: {
+                placeholder: dep.placeholder,
+              },
             },
-          });
+          );
         }
       }
     }

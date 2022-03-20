@@ -191,6 +191,9 @@ export function getURLReplacement({
 
   let placeholder = dependency.meta?.placeholder ?? dependency.id;
   invariant(typeof placeholder === 'string');
+
+  to = to.replace(/"/g, '\\"');
+
   return {
     from: placeholder,
     to,
