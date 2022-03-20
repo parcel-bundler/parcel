@@ -48,7 +48,10 @@ describe('resolver', function () {
       path.join(rootDir, 'node_modules/source'),
     );
     await outputFS.symlink(
-      path.join(rootDir, 'pnpm-store/node_modules/source-pnpm'),
+      path.join(
+        rootDir,
+        'node_modules/.pnpm/source-pnpm@1.0.0/node_modules/source-pnpm',
+      ),
       path.join(rootDir, 'node_modules/source-pnpm'),
     );
     await outputFS.symlink(
@@ -2121,7 +2124,9 @@ describe('resolver', function () {
         assert.deepEqual(resolved, {
           filePath: path.join(
             rootDir,
-            'pnpm-store',
+            'node_modules',
+            '.pnpm',
+            'source-pnpm@1.0.0',
             'node_modules',
             'source-pnpm',
             'dist.js',
