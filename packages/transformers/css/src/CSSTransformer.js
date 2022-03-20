@@ -83,16 +83,12 @@ export default (new Transformer({
             symbols: new Map([['*', {local: '*', isWeak: true, loc}]]),
           });
         } else if (dep.type === 'url') {
-          asset.addURLDependency(
-            // when URL is escaped, parcel resolver cannot resolve URL, so we need to unescape it in transformer
-            dep.url.replace(/\\"/g, '"').replace(/\\'/g, "'"),
-            {
-              loc,
-              meta: {
-                placeholder: dep.placeholder,
-              },
+          asset.addURLDependency(dep.url, {
+            loc,
+            meta: {
+              placeholder: dep.placeholder,
             },
-          );
+          });
         }
       }
     }
