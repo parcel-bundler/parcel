@@ -249,7 +249,11 @@ describe('css', () => {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
 
-    assert(css.includes('url("data:image/svg+xml;utf8,with quote \\"");'));
+    assert(
+      css.includes(
+        'url("data:image/svg+xml;utf8,with quote \\" and escape \\\\");',
+      ),
+    );
   });
 
   it('should ignore url() with IE behavior specifiers', async function () {
