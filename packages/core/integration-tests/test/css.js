@@ -244,6 +244,14 @@ describe('css', () => {
     );
   });
 
+  it('should handle quote in CSS URL correctly', async function () {
+    await bundle(path.join(__dirname, '/integration/css-url-quote/index.css'));
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+
+    assert(css.includes('url("data:image/svg+xml;utf8,with quote \\"");'));
+  });
+
   it('should ignore url() with IE behavior specifiers', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url-behavior/index.css'),
