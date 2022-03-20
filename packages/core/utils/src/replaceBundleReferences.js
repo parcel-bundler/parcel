@@ -33,7 +33,7 @@ export function replaceURLReferences({
   bundleGraph,
   contents,
   map,
-  getReplacement,
+  getReplacement = s => s,
   relative = true,
 }: {|
   bundle: NamedBundle,
@@ -41,7 +41,7 @@ export function replaceURLReferences({
   contents: string,
   relative?: boolean,
   map?: ?SourceMap,
-  getReplacement: string => string,
+  getReplacement?: string => string,
 |}): {|+contents: string, +map: ?SourceMap|} {
   let replacements = new Map();
   let urlDependencies = [];
