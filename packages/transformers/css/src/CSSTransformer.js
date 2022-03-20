@@ -84,6 +84,7 @@ export default (new Transformer({
           });
         } else if (dep.type === 'url') {
           asset.addURLDependency(
+            // when URL is escaped, parcel resolver cannot resolve URL, so we need to unescape it in transformer
             dep.url.replace(/\\"/g, '"').replace(/\\'/g, "'"),
             {
               loc,
