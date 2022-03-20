@@ -34,6 +34,7 @@ import _Module from 'module';
 import {fileURLToPath} from 'url';
 
 const EMPTY_SHIM = require.resolve('./_empty');
+const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
 type InternalPackageJSON = PackageJSON & {pkgdir: string, pkgfile: string, ...};
 type Options = {|
@@ -913,7 +914,7 @@ export default class NodeResolver {
     // installed with package managers, rather than including a source code.
     if (pkg.source) {
       let realpath = await this.fs.realpath(file);
-      if (realpath === file || realpath.includes('/node_modules/')) {
+      if (realpath === file || realpath.includes(NODE_MODULES)) {
         delete pkg.source;
       }
     }
