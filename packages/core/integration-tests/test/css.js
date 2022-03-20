@@ -258,7 +258,58 @@ describe('css', () => {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
 
-    assert(css.includes('url(#default#VML)'));
+    assert(css.includes('url("#default#VML")'));
+  });
+
+  it('should throw a diagnostic for relative url() dependencies in custom properties', async function () {
+    let fixture = path.join(
+      __dirname,
+      'integration/css-url-custom-property/index.css',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    // $FlowFixMe
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message:
+              'Ambiguous url() in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead.',
+            origin: '@parcel/transformer-css',
+            name: 'SyntaxError',
+            stack: undefined,
+            codeFrames: [
+              {
+                filePath: fixture,
+                code,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 2,
+                      column: 11,
+                    },
+                    end: {
+                      line: 2,
+                      column: 11,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              'Replace with: url(/integration/css-url-custom-property/foo.png)',
+            ],
+            documentationURL: 'https://parceljs.org/languages/css/#url()',
+          },
+        ],
+      },
+    );
   });
 
   it('should minify CSS when minify is set', async function () {
