@@ -265,11 +265,6 @@ function createIdealGraph(
     Array<[Dependency, Bundle]>,
   > = new DefaultMap(() => []);
 
-  // Connects bundleRoot assets to the assets that must be in the bundle
-  let reachableBundles: DefaultMap<BundleRoot, Set<Asset>> = new DefaultMap(
-    () => new Set(),
-  );
-
   let bundleGraph: Graph<Bundle | 'root'> = new Graph();
   let stack: Array<[BundleRoot, NodeId]> = [];
 
@@ -403,20 +398,6 @@ function createIdealGraph(
               ),
               dependencyPriorityEdges[dependency.priority],
             );
-
-            // Walk up the stack until we hit a different asset type
-            // and mark each bundle as reachable from every parent bundle
-            for (let i = stack.length - 1; i >= 0; i--) {
-              let [stackAsset] = stack[i];
-              if (
-                stackAsset.type !== childAsset.type ||
-                stackAsset.env.context !== childAsset.env.context ||
-                stackAsset.env.isIsolated()
-              ) {
-                break;
-              }
-              reachableBundles.get(stackAsset).add(childAsset);
-            }
             continue;
           }
           if (
@@ -628,7 +609,7 @@ function createIdealGraph(
 
   // Maps a given bundleRoot to the assets reachable from it,
   // and the bundleRoots reachable from each of these assets
-  let ancestorAssets: Map<BundleRoot, Set<Asset>> = new Map();
+  let asyncAncestorAssets: Map<BundleRoot, Set<Asset>> = new Map();
   let lentAssets: DefaultMap<BundleRoot, Set<Asset>> = new DefaultMap(
     () => new Set(),
   );
@@ -636,9 +617,13 @@ function createIdealGraph(
   // Step 4: Determine assets that should be duplicated by computing asset availability in each bundle group
   for (let entry of entries.keys()) {
     // Initialize an empty set of ancestors available to entries
-    ancestorAssets.set(entry, new Set());
+    asyncAncestorAssets.set(entry, new Set());
   }
 
+  // Visit nodes in a topological order, visiting parent nodes before child nodes.
+  // This allows us to construct an understanding of which assets will already be
+  // loaded and available when a bundle runs, by pushing available assets downwards and
+  // computing the intersection of assets available through all possible paths to a bundle.
   for (let nodeId of asyncBundleRootGraph.topoSort()) {
     const bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
@@ -649,7 +634,7 @@ function createIdealGraph(
     if (bundleRoot.bundleBehavior === 'isolated') {
       available = new Set();
     } else {
-      available = new Set(ancestorAssets.get(bundleRoot));
+      available = new Set(asyncAncestorAssets.get(bundleRoot));
       for (let bundleIdInGroup of [
         bundleGroupId,
         ...bundleGraph.getNodeIdsConnectedFrom(bundleGroupId),
@@ -676,11 +661,7 @@ function createIdealGraph(
       }
     }
 
-    let childrenAssets: DefaultMap<Asset, Array<BundleRoot>> = new DefaultMap(
-      () => [],
-    );
     let children = asyncBundleRootGraph.getNodeIdsConnectedFrom(nodeId);
-
     // Group assets available across our children by the child. This will be used
     // to determine borrowers if needed below.
     for (let childId of children) {
@@ -693,29 +674,11 @@ function createIdealGraph(
         continue;
       }
 
-      let assets = reachableRoots
-        .getNodeIdsConnectedFrom(reachableRoots.getNodeIdByContentKey(child.id))
-        .map(id => nullthrows(reachableRoots.getNode(id)));
-      for (let asset of [child, ...assets]) {
-        childrenAssets.get(asset).push(child);
-      }
-    }
-
-    for (let childId of children) {
-      let child = asyncBundleRootGraph.getNode(childId);
-      invariant(child !== 'root' && child != null);
-      if (
-        child.bundleBehavior === 'isolated' ||
-        child.bundleBehavior === 'inline'
-      ) {
-        continue;
-      }
-
-      const childAvailableAssets = ancestorAssets.get(child);
+      const childAvailableAssets = asyncAncestorAssets.get(child);
       if (childAvailableAssets != null) {
         setIntersect(childAvailableAssets, available);
       } else {
-        ancestorAssets.set(child, new Set(available));
+        asyncAncestorAssets.set(child, new Set(available));
       }
     }
   }
@@ -736,7 +699,7 @@ function createIdealGraph(
     // meaning it may not be deduplicated. Otherwise, decrement all references in
     // the ancestry and keep it
     reachable = reachable.filter(b => {
-      if (ancestorAssets.get(b)?.has(asset)) {
+      if (asyncAncestorAssets.get(b)?.has(asset)) {
         // Asset is available asynchronously
         return false;
       } else if (lentAssets.get(b).has(asset)) {
@@ -837,7 +800,7 @@ function createIdealGraph(
             reachableRoots.hasEdge(
               reachableRoots.getNodeIdByContentKey(bundleRoot.id),
               reachableAssetId,
-            ) || ancestorAssets.get(bundleRoot)?.has(asset),
+            ) || asyncAncestorAssets.get(bundleRoot)?.has(asset),
         );
 
         for (let bundleRoot of willInternalizeRoots) {
@@ -868,7 +831,7 @@ function createIdealGraph(
           if (asyncBundleRootGraph.hasNode(asyncAssetId)) {
             asyncBundleRootGraph.removeNode(asyncAssetId);
           }
-          ancestorAssets.delete(asset);
+          asyncAncestorAssets.delete(asset);
           reachableRoots.replaceNodeIdsConnectedTo(reachableAssetId, []);
         }
       }
