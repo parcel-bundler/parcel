@@ -17,6 +17,7 @@ export default (new Packager({
       bundleGraph,
       contents: await assets[0].getCode(),
       relative: false,
+      getReplacement: s => s,
     });
     return {contents};
   },

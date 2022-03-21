@@ -1,0 +1,3 @@
+.foo {
+  --test: url(foo.png);
+}
