@@ -48,6 +48,13 @@ describe('resolver', function () {
       path.join(rootDir, 'node_modules/source'),
     );
     await outputFS.symlink(
+      path.join(
+        rootDir,
+        'node_modules/.pnpm/source-pnpm@1.0.0/node_modules/source-pnpm',
+      ),
+      path.join(rootDir, 'node_modules/source-pnpm'),
+    );
+    await outputFS.symlink(
       path.join(rootDir, 'packages/source-alias'),
       path.join(rootDir, 'node_modules/source-alias'),
     );
@@ -2074,152 +2081,121 @@ describe('resolver', function () {
   });
 
   describe('source field', function () {
-    it('should use the source field when symlinked', async function () {
-      let resolved = await resolver.resolve({
-        env: BROWSER_ENV,
-        filename: 'source',
-        specifierType: 'esm',
-        parent: path.join(rootDir, 'foo.js'),
+    describe('package behind symlinks', function () {
+      it('should use the source field, when its realpath is not under `node_modules`', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'source',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(resolved, {
+          filePath: path.join(rootDir, 'packages', 'source', 'source.js'),
+          sideEffects: undefined,
+          query: undefined,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'index'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'node_modules/source',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'node_modules', 'source', 'package.json'),
+          ],
+        });
       });
-      assert.deepEqual(resolved, {
-        filePath: path.join(rootDir, 'packages', 'source', 'source.js'),
-        sideEffects: undefined,
-        query: undefined,
-        invalidateOnFileCreate: [
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'node_modules/source',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-        ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'source', 'package.json'),
-        ],
+
+      it('should not use the source field, when its realpath is under `node_modules`', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'source-pnpm',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(resolved, {
+          filePath: path.join(
+            rootDir,
+            'node_modules',
+            '.pnpm',
+            'source-pnpm@1.0.0',
+            'node_modules',
+            'source-pnpm',
+            'dist.js',
+          ),
+          sideEffects: undefined,
+          query: undefined,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'index'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'node_modules/source-pnpm',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'node_modules', 'source-pnpm', 'package.json'),
+          ],
+        });
       });
     });
 
-    it('should not use the source field when not symlinked', async function () {
-      let resolved = await resolver.resolve({
-        env: BROWSER_ENV,
-        filename: 'source-not-symlinked',
-        specifierType: 'esm',
-        parent: path.join(rootDir, 'foo.js'),
-      });
-      assert.deepEqual(resolved, {
-        filePath: path.join(
-          rootDir,
-          'node_modules',
-          'source-not-symlinked',
-          'dist.js',
-        ),
-        sideEffects: undefined,
-        query: undefined,
-        invalidateOnFileCreate: [
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'node_modules/source-not-symlinked',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-        ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-          path.join(
+    describe('package not behind symlinks', function () {
+      it('should not use the source field', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'source-not-symlinked',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(resolved, {
+          filePath: path.join(
             rootDir,
             'node_modules',
             'source-not-symlinked',
-            'package.json',
+            'dist.js',
           ),
-        ],
-      });
-    });
-
-    it('should use the source field as an alias when symlinked', async function () {
-      let resolved = await resolver.resolve({
-        env: BROWSER_ENV,
-        filename: 'source-alias/dist',
-        specifierType: 'esm',
-        parent: path.join(rootDir, 'foo.js'),
-      });
-      assert.deepEqual(resolved, {
-        filePath: path.join(rootDir, 'packages', 'source-alias', 'source.js'),
-        sideEffects: undefined,
-        query: undefined,
-        invalidateOnFileCreate: [
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'node_modules/source-alias',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-        ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'source-alias', 'package.json'),
-        ],
-      });
-    });
-
-    it('should use the source field as a glob alias when symlinked', async function () {
-      let resolved = await resolver.resolve({
-        env: BROWSER_ENV,
-        filename: 'source-alias-glob',
-        specifierType: 'esm',
-        parent: path.join(rootDir, 'foo.js'),
-      });
-      assert.deepEqual(resolved, {
-        filePath: path.join(
-          rootDir,
-          'packages',
-          'source-alias-glob',
-          'src',
-          'test.js',
-        ),
-        sideEffects: undefined,
-        query: undefined,
-        invalidateOnFileCreate: [
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'node_modules/source-alias-glob',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-        ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-          path.join(
-            rootDir,
-            'node_modules',
-            'source-alias-glob',
-            'package.json',
-          ),
-        ],
+          sideEffects: undefined,
+          query: undefined,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'index'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'node_modules/source-not-symlinked',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(
+              rootDir,
+              'node_modules',
+              'source-not-symlinked',
+              'package.json',
+            ),
+          ],
+        });
       });
     });
   });

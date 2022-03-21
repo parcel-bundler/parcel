@@ -13,6 +13,12 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
       return;
     }
 
+    var preloadLink = document.createElement('link');
+    preloadLink.href = bundle;
+    preloadLink.rel = 'preload';
+    preloadLink.as = 'script';
+    document.head.appendChild(preloadLink);
+
     var script = document.createElement('script');
     script.async = true;
     script.type = 'text/javascript';
