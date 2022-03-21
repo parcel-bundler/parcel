@@ -53,9 +53,8 @@ export default async function resolveOptions(
   let entryRoot = getRootDir(
     await Promise.all(
       entries.map(async entry =>
-        // if the entry refers entryRootDir, getRootDir returns the parent directory of entryRootDir.
-        // In this case, each entry should refers some file, but without cli build target entry refers entryRootDir directory.
-        // So, we resolve with index as entry to make entry refers some (virtual) file in such case.
+        // getRootDir treats the input as files, so getRootDir(["/home/user/myproject"]) returns "/home/user".
+        // Instead we need to make the entries refer to some file inside the specified folders.
         (await inputFS.stat(entry)).isFile()
           ? entry
           : path.join(entry, 'index'),
