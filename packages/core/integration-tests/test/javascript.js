@@ -2659,13 +2659,33 @@ describe('javascript', function () {
   it('__dirname', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-node-context/index.js'),
+      {
+        targets: {
+          main: {
+            engines: {
+              node: '>=14',
+            },
+            distDir,
+          },
+        },
+      },
     );
 
-    let output = await run(b);
-    // let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    // console.log({ js })
-    // console.log(output())
-    assert(output().includes('data'));
+    await run(b);
+    let contents = await outputFS.readFile(
+      path.join(distDir, 'index.js'),
+      'utf8',
+    );
+    assert(
+      contents.includes(
+        'require("path").join(__dirname, "$parcel$dirnameReplace")',
+      ),
+    );
+    assert(
+      contents.includes(
+        'require("path").join(__filename, "$parcel$filenameReplace", "test/integration/env-node-context/index.js")',
+      ),
+    );
   });
 
   it('should work when multiple files use globals with scope hoisting', async function () {

@@ -1,7 +1,7 @@
 {
   "name": "env-node-context",
   "engines": {
-    "node": ">= 14"
+    "node": ">=14"
   },
   "@parcel/transformer-js": {
     "relativeContext": true
