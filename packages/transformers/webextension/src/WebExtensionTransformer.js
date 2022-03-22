@@ -92,6 +92,9 @@ async function collectDependencies(
       for (const k of ['css', 'js']) {
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
+          if (k == 'js') {
+            asset.invalidateOnFileChange(assets[j]);
+          }
           assets[j] = asset.addURLDependency(assets[j], {
             loc: {
               filePath,

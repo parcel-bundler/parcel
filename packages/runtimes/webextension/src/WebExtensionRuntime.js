@@ -20,7 +20,6 @@ export default (new Runtime({
       bundle.type != 'js' ||
       !options.hmrOptions ||
       !bundle.env.isBrowser() ||
-      bundle.env.isWorker() ||
       bundle.env.isWorklet()
     ) {
       return;
