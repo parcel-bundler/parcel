@@ -41,19 +41,22 @@ export default (new Transformer({
     try {
       hasScripts = collectDependencies(asset, ast);
     } catch (errors) {
-      throw new ThrowableDiagnostic({
-        diagnostic: errors.map(error => ({
-          message: error.message,
-          origin: '@parcel/transformer-html',
-          codeFrames: [
-            {
-              filePath: error.filePath,
-              language: 'html',
-              codeHighlights: [error.loc],
-            },
-          ],
-        })),
-      });
+      if (Array.isArray(errors)) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errors.map(error => ({
+            message: error.message,
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: error.filePath,
+                language: 'html',
+                codeHighlights: [error.loc],
+              },
+            ],
+          })),
+        });
+      }
+      throw errors;
     }
 
     const {assets: inlineAssets, hasScripts: hasInlineScripts} =
