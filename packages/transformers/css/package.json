@@ -27,5 +27,11 @@
     "browserslist": "^4.6.6",
     "lightningcss": "^1.16.1",
     "nullthrows": "^1.1.1"
+  },
+  "devDependencies": {
+    "lightningcss-wasm": "^1.16.1"
+  },
+  "browser": {
+    "lightningcss": "./wasm-wrapper.js"
   }
 }
