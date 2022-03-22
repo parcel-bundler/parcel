@@ -3,7 +3,6 @@ import type {MutableAsset} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
-import fs from 'fs';
 import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
@@ -187,6 +186,7 @@ async function collectDependencies(
           await glob(path.join(path.dirname(filePath), files[j]), fs, {})
         ).map(fp =>
           asset.addURLDependency(path.relative(path.dirname(filePath), fp), {
+            needsStableName: true,
             loc: {
               filePath,
               ...getJSONSourceLocation(
@@ -266,7 +266,7 @@ async function collectDependencies(
         if (!program.background.scripts) {
           program.background.scripts = [];
         }
-        program.background.scripts.push(
+        program.background.scripts.unshift(
           asset.addURLDependency('./runtime/autoreload-bg.js', {
             resolveFrom: __filename,
           }),

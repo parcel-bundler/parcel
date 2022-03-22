@@ -64,6 +64,17 @@ const browserAction = {
   additionalProperties: false,
 };
 
+const warBase = {
+  type: 'object',
+  properties: {
+    resources: arrStr,
+    matches: arrStr,
+    extension_ids: arrStr,
+    use_dynamic_url: boolean,
+  },
+  additionalProperties: false,
+};
+
 const commonProps = {
   name: string,
   version: {
@@ -423,23 +434,11 @@ export const MV3Schema = ({
       items: {
         oneOf: [
           {
-            type: 'object',
-            properties: {
-              resources: arrStr,
-              matches: arrStr,
-              use_dynamic_url: boolean,
-            },
-            additionalProperties: false,
+            ...warBase,
             required: ['resources', 'matches'],
           },
           {
-            type: 'object',
-            properties: {
-              resources: arrStr,
-              extension_ids: arrStr,
-              use_dynamic_url: boolean,
-            },
-            additionalProperties: false,
+            ...warBase,
             required: ['resources', 'extension_ids'],
           },
         ],
