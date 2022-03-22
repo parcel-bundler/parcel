@@ -52,6 +52,17 @@ export function setIntersect<T>(a: Set<T>, b: Set<T>): void {
   }
 }
 
+export function setIntersectAll<T>(...sets: Array<Set<T>>): Set<T> {
+  let [a, ...others] = sets;
+  let intersected = new Set();
+  for (let e of a) {
+    if (others.every(set => set.has(e))) {
+      intersected.add(e);
+    }
+  }
+  return intersected;
+}
+
 export function setUnion<T>(a: Iterable<T>, b: Iterable<T>): Set<T> {
   return new Set([...a, ...b]);
 }

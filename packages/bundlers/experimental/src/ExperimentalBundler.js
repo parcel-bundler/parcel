@@ -19,7 +19,12 @@ import {ContentGraph, Graph} from '@parcel/graph';
 import invariant from 'assert';
 import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
-import {setIntersect, validateSchema, DefaultMap} from '@parcel/utils';
+import {
+  setIntersect,
+  setIntersectAll,
+  validateSchema,
+  DefaultMap,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
@@ -509,23 +514,36 @@ function createIdealGraph(
   }
 
   // Models bundleRoots and the assets that require it synchronously
-  let reachableRoots: ContentGraph<Asset> = new ContentGraph();
+  let syncRequired: ContentGraph<Asset> = new ContentGraph();
+  let effectiveSyncRequired: ContentGraph<Asset> = new ContentGraph();
   let bundleReuse: DefaultMap<BundleRoot, Set<BundleRoot>> = new DefaultMap(
     () => new Set(),
   );
   for (let [root] of bundleRoots) {
-    let rootNodeId = reachableRoots.addNodeByContentKeyIfNeeded(root.id, root);
-    assetGraph.traverse((node, _, actions) => {
+    let syncRootId = syncRequired.addNodeByContentKeyIfNeeded(root.id, root);
+    let effectiveSyncRootId = effectiveSyncRequired.addNodeByContentKeyIfNeeded(
+      root.id,
+      root,
+    );
+    assetGraph.traverse((node, isReusing, actions) => {
       if (node.value === root) {
         return;
       }
 
       if (node.type === 'asset') {
-        let nodeId = reachableRoots.addNodeByContentKeyIfNeeded(
-          node.value.id,
-          node.value,
+        syncRequired.addEdge(
+          syncRootId,
+          syncRequired.addNodeByContentKeyIfNeeded(node.value.id, node.value),
         );
-        reachableRoots.addEdge(rootNodeId, nodeId);
+        if (!isReusing) {
+          effectiveSyncRequired.addEdge(
+            effectiveSyncRootId,
+            effectiveSyncRequired.addNodeByContentKeyIfNeeded(
+              node.value.id,
+              node.value,
+            ),
+          );
+        }
         return;
       }
 
@@ -579,6 +597,7 @@ function createIdealGraph(
         !entries.has(root)
       ) {
         bundleReuse.get(root).add(resolved);
+        return true;
       }
     }, root);
   }
@@ -625,11 +644,11 @@ function createIdealGraph(
         }
         let [siblingBundleRoot] = [...bundleInGroup.assets];
         // Assets directly connected to current bundleRoot
-        let assetsFromBundleRoot = reachableRoots
+        let assetsFromBundleRoot = syncRequired
           .getNodeIdsConnectedFrom(
-            reachableRoots.getNodeIdByContentKey(siblingBundleRoot.id),
+            syncRequired.getNodeIdByContentKey(siblingBundleRoot.id),
           )
-          .map(id => nullthrows(reachableRoots.getNode(id)));
+          .map(id => nullthrows(syncRequired.getNode(id)));
 
         for (let asset of [siblingBundleRoot, ...assetsFromBundleRoot]) {
           available.add(asset);
@@ -659,38 +678,34 @@ function createIdealGraph(
     }
   }
 
-  // let rootNodeId = nullthrows(bundles.get(root.id));
-  // let resolvedNodeId = nullthrows(bundles.get(resolved.id));
-  // if (!isAsync && resolved.bundleBehavior !== 'isolated') {
-  //   if (!bundleGraph.hasEdge(rootNodeId, resolvedNodeId)) {
-  //     bundleGraph.addEdge(rootNodeId, resolvedNodeId);
-  //   }
+  for (let [bundleRoot, references] of bundleReuse) {
+    let bundleNodeId = nullthrows(bundles.get(bundleRoot.id));
 
-  //   // Reflect this connection in the async bundle root graph by
-  //   // connecting the reused bundle to every case where the original
-  //   // root bundle is loaded. This only necessary in cases that
-  //   // bundles in a group are executed in serial (e.g. js referenced
-  //   // by html)
-  //   for (let inboundAsync of asyncBundleRootGraph.getNodeIdsConnectedTo(
-  //     nullthrows(asyncBundleRootGraph.getNodeIdByContentKey(root.id)),
-  //   )) {
-  //     let resolvedInAsyncRootGraph = nullthrows(
-  //       asyncBundleRootGraph.getNodeIdByContentKey(resolved.id),
-  //     );
-  //     if (
-  //       !asyncBundleRootGraph.hasEdge(
-  //         inboundAsync,
-  //         resolvedInAsyncRootGraph,
-  //       )
-  //     ) {
-  //       asyncBundleRootGraph.addEdge(
-  //         inboundAsync,
-  //         resolvedInAsyncRootGraph,
-  //       );
-  //     }
-  //   }
-  // }
-  // actions.skipChildren();
+    for (let referenced of references) {
+      let referencedNodeId = nullthrows(bundles.get(referenced.id));
+      if (!bundleGraph.hasEdge(bundleNodeId, referencedNodeId)) {
+        bundleGraph.addEdge(bundleNodeId, referencedNodeId);
+      }
+
+      // Reflect this connection in the async bundle root graph by
+      // connecting the reused bundle to every case where the original
+      // root bundle is loaded. This only necessary in cases that
+      // bundles in a group are executed in serial (e.g. js referenced
+      // by html)
+      for (let inboundAsync of asyncBundleRootGraph.getNodeIdsConnectedTo(
+        nullthrows(asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id)),
+      )) {
+        let resolvedInAsyncRootGraph = nullthrows(
+          asyncBundleRootGraph.getNodeIdByContentKey(referenced.id),
+        );
+        if (
+          !asyncBundleRootGraph.hasEdge(inboundAsync, resolvedInAsyncRootGraph)
+        ) {
+          asyncBundleRootGraph.addEdge(inboundAsync, resolvedInAsyncRootGraph);
+        }
+      }
+    }
+  }
 
   // Step 5: Place all assets into bundles or create shared bundles. Each asset
   // is placed into a single bundle based on the bundle entries it is reachable from.
@@ -699,7 +714,7 @@ function createIdealGraph(
     // Unreliable bundleRoot assets which need to pulled in by shared bundles or other means
     let reachable: Array<BundleRoot> = getReachableBundleRoots(
       asset,
-      reachableRoots,
+      effectiveSyncRequired,
     ).reverse();
 
     // Filter out bundles from this asset's reachable array if
@@ -745,11 +760,11 @@ function createIdealGraph(
               [...siblingBundle.assets][0] !== b &&
               siblingBundle.bundleBehavior !== 'isolated' &&
               siblingBundle.bundleBehavior !== 'inline' &&
-              reachableRoots.hasEdge(
-                reachableRoots.getNodeIdByContentKey(
+              effectiveSyncRequired.hasEdge(
+                effectiveSyncRequired.getNodeIdByContentKey(
                   [...siblingBundle.assets][0].id,
                 ),
-                reachableRoots.getNodeIdByContentKey(asset.id),
+                effectiveSyncRequired.getNodeIdByContentKey(asset.id),
               )
             );
           });
@@ -803,11 +818,11 @@ function createIdealGraph(
             return bundleRoot;
           });
 
-        let reachableAssetId = reachableRoots.getNodeIdByContentKey(asset.id);
+        let reachableAssetId = syncRequired.getNodeIdByContentKey(asset.id);
         let willInternalizeRoots = loadedBy.filter(
           bundleRoot =>
-            reachableRoots.hasEdge(
-              reachableRoots.getNodeIdByContentKey(bundleRoot.id),
+            syncRequired.hasEdge(
+              syncRequired.getNodeIdByContentKey(bundleRoot.id),
               reachableAssetId,
             ) || asyncAncestorAssets.get(bundleRoot)?.has(asset),
         );
@@ -841,7 +856,7 @@ function createIdealGraph(
             asyncBundleRootGraph.removeNode(asyncAssetId);
           }
           asyncAncestorAssets.delete(asset);
-          reachableRoots.replaceNodeIdsConnectedTo(reachableAssetId, []);
+          effectiveSyncRequired.replaceNodeIdsConnectedTo(reachableAssetId, []);
         }
       }
     }
@@ -889,7 +904,7 @@ function createIdealGraph(
         bundle.assets.add(asset);
         bundle.size += asset.stats.size;
         bundle.internalizedAssetIds = [
-          ...setIntersect(
+          ...setIntersectAll(
             ...sourceBundles.map(id => {
               let bundle = nullthrows(bundleGraph.getNode(id));
               invariant(bundle !== 'root');
