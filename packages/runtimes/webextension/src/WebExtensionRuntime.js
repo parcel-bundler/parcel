@@ -6,11 +6,7 @@ import fs from 'fs';
 import path from 'path';
 
 const AUTORELOAD_BG = fs.readFileSync(
-  path.join(
-    path.dirname(require.resolve('@parcel/transformer-webextension')),
-    'runtime',
-    'autoreload-bg.js',
-  ),
+  path.join(__dirname, 'autoreload-bg.js'),
   'utf8',
 );
 

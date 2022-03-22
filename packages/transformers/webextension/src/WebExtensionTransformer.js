@@ -266,11 +266,14 @@ async function collectDependencies(
         if (!program.background.scripts) {
           program.background.scripts = [];
         }
-        program.background.scripts.unshift(
-          asset.addURLDependency('./runtime/autoreload-bg.js', {
-            resolveFrom: __filename,
-          }),
-        );
+        if (program.background.scripts.length == 0) {
+          program.background.scripts.push(
+            asset.addURLDependency('./runtime/default-bg.js', {
+              resolveFrom: __filename,
+            }),
+          );
+        }
+        asset.meta.webextBGInsert = program.background.scripts[0];
       }
     }
   } else {
@@ -292,20 +295,20 @@ async function collectDependencies(
           },
         },
       );
-      if (needRuntimeBG) {
-        asset.meta.webextBGInsert = program.background.service_worker;
-      }
     } else if (needRuntimeBG) {
       if (!program.background) {
         program.background = {};
       }
       program.background.service_worker = asset.addURLDependency(
-        './runtime/autoreload-bg.js',
+        './runtime/default-bg.js',
         {
           resolveFrom: __filename,
           env: {context: 'service-worker'},
         },
       );
+    }
+    if (needRuntimeBG) {
+      asset.meta.webextBGInsert = program.background.service_worker;
     }
   }
 }
