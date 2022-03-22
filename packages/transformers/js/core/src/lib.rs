@@ -378,7 +378,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     filename: Path::new(&config.filename),
                     decls: &mut decls,
                     global_mark,
-                    scope_hoist: config.scope_hoist,
+                    scope_hoist: config.scope_hoist
                   },
                   config.insert_node_globals && config.source_type != SourceType::Script
                 ),
