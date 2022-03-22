@@ -5,6 +5,32 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2022-03-22
+
+## Added
+
+- Replace default CSS transformer and minifier with `@parcel/css` - [Details](https://github.com/parcel-bundler/parcel/pull/7821)
+- Replace `typeof` before dead code elimination to improve bundle size - [Details](https://github.com/parcel-bundler/parcel/pull/7788)
+- Human readable file size in bundle analyzer report - [Details](https://github.com/parcel-bundler/parcel/pull/7766)
+- Improve emoji support detection - [Details](https://github.com/parcel-bundler/parcel/pull/7775)
+- Enable parsing static class initialization blocks - [Details](https://github.com/parcel-bundler/parcel/pull/7839)
+- Use `PORT` environment variable from `.env` files - [Details](https://github.com/parcel-bundler/parcel/pull/7819)
+- Use new react-jsx transform in React 16.14.0 - [Details](https://github.com/parcel-bundler/parcel/pull/7728)
+- Use relative path for bundle labels in bundle analysis - [Details](https://github.com/parcel-bundler/parcel/pull/7737)
+- Load dynamic imports at higher network priority in non-ESM builds - [Details](https://github.com/parcel-bundler/parcel/pull/7061)
+
+## Fixed
+
+- Pin lmdb to 2.2.3 - [Details](https://github.com/parcel-bundler/parcel/pull/7763)
+- Prevent term-size from being bundled - [Details](https://github.com/parcel-bundler/parcel/pull/7750)
+- Fix cache when non-ascii chars are used in path - [Details](https://github.com/parcel-bundler/parcel/pull/7797)
+- Bump SWC. Fixes issue with `String` constructor. - [Details](https://github.com/parcel-bundler/parcel/pull/7777)
+- Fix DCE with PURE comments - [Details](https://github.com/parcel-bundler/parcel/pull/7833)
+- Escape double quote of url value in CSS `url()` - [Details](https://github.com/parcel-bundler/parcel/pull/7718)
+- Fix documentation comment in API - [Details](https://github.com/parcel-bundler/parcel/pull/7689)
+- Fix package.json `source` field resolution with pnpm - [Details](https://github.com/parcel-bundler/parcel/pull/7846)
+- Fix `errors.map is not a function` - [Details](https://github.com/parcel-bundler/parcel/pull/7672)
+
 ## [2.3.1] - 2022-02-09
 
 ## Fixed
