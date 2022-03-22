@@ -555,50 +555,17 @@ function createIdealGraph(
         let resolved = assets[0];
         let isAsync = dependency.priority !== 'sync';
         if (
-          bundleRoots.has(resolved) &&
-          ((root.isBundleSplittable && !entries.has(root)) ||
-            isAsync ||
-            resolved.bundleBehavior === 'isolated' ||
-            resolved.bundleBehavior === 'inline' ||
-            root.type !== resolved.type)
+          isAsync ||
+          resolved.bundleBehavior === 'isolated' ||
+          resolved.bundleBehavior === 'inline' ||
+          root.type !== resolved.type
         ) {
-          let rootNodeId = nullthrows(bundles.get(root.id));
-          let resolvedNodeId = nullthrows(bundles.get(resolved.id));
-          if (!isAsync && resolved.bundleBehavior !== 'isolated') {
-            if (!bundleGraph.hasEdge(rootNodeId, resolvedNodeId)) {
-              bundleGraph.addEdge(rootNodeId, resolvedNodeId);
-            }
-
-            // Reflect this connection in the async bundle root graph by
-            // connecting the reused bundle to every case where the original
-            // root bundle is loaded. This only necessary in cases that
-            // bundles in a group are executed in serial (e.g. js referenced
-            // by html)
-            for (let inboundAsync of asyncBundleRootGraph.getNodeIdsConnectedTo(
-              nullthrows(asyncBundleRootGraph.getNodeIdByContentKey(root.id)),
-            )) {
-              let resolvedInAsyncRootGraph = nullthrows(
-                asyncBundleRootGraph.getNodeIdByContentKey(resolved.id),
-              );
-              if (
-                !asyncBundleRootGraph.hasEdge(
-                  inboundAsync,
-                  resolvedInAsyncRootGraph,
-                )
-              ) {
-                asyncBundleRootGraph.addEdge(
-                  inboundAsync,
-                  resolvedInAsyncRootGraph,
-                );
-              }
-            }
-          }
           actions.skipChildren();
         }
 
         return;
       }
-
+      //asset node type
       let nodeId = reachableRoots.addNodeByContentKeyIfNeeded(
         node.value.id,
         node.value,
@@ -695,147 +662,7 @@ function createIdealGraph(
 
     // Filter out bundles from this asset's reachable array if
     // bundle does not contain the asset in its ancestry
-    // or if any of the bundles in the ancestry have a refcount of <= 1 for that asset,
-    // meaning it may not be deduplicated. Otherwise, decrement all references in
-    // the ancestry and keep it
-    reachable = reachable.filter(b => {
-      if (asyncAncestorAssets.get(b)?.has(asset)) {
-        // Asset is available asynchronously
-        return false;
-      } else if (lentAssets.get(b).has(asset)) {
-        // Some other bundle depends on this asset from us, and it's not already
-        // available in our async ancestry. We can't borrow it.
-        // TODO: Allow borrowing as long as it doesn't form a cycle?
-        return true;
-      }
-
-      let canBorrow = false;
-      let potentialLenders = new Set();
-      let bundleGroupIds = bundleGraph
-        .getNodeIdsConnectedTo(nullthrows(bundles.get(b.id)))
-        .filter(n => bundleGraph.getNode(n) !== 'root');
-      if (
-        bundleGraph.hasEdge(
-          nullthrows(bundleGraph.rootNodeId),
-          nullthrows(bundles.get(b.id)),
-        )
-      ) {
-        bundleGroupIds.push(nullthrows(bundles.get(b.id)));
-      }
-      for (let bundleGroupId of bundleGroupIds) {
-        if (bundleGroupId === bundleGraph.rootNodeId) {
-          break;
-        }
-
-        let lender = bundleGraph
-          .getNodeIdsConnectedFrom(bundleGroupId)
-          .map(id => bundleGraph.getNode(id))
-          .find(siblingBundle => {
-            invariant(siblingBundle !== 'root' && siblingBundle != null);
-            return (
-              [...siblingBundle.assets][0] !== b &&
-              siblingBundle.bundleBehavior !== 'isolated' &&
-              siblingBundle.bundleBehavior !== 'inline' &&
-              reachableRoots.hasEdge(
-                reachableRoots.getNodeIdByContentKey(
-                  [...siblingBundle.assets][0].id,
-                ),
-                reachableRoots.getNodeIdByContentKey(asset.id),
-              )
-            );
-          });
-        if (lender == null) {
-          break;
-        } else {
-          invariant(typeof lender !== 'string');
-          potentialLenders.add(lender);
-        }
-        canBorrow = true;
-      }
-
-      if (canBorrow) {
-        for (let lender of potentialLenders) {
-          lentAssets.get([...lender.assets][0]).add(asset);
-        }
-        // Borrow this asset from siblings across each bundle group
-        return false;
-      }
-
-      return true;
-    });
-
-    let rootBundleTuple = bundleRoots.get(asset);
-    if (rootBundleTuple != null) {
-      let rootBundle = nullthrows(bundleGraph.getNode(rootBundleTuple[0]));
-      invariant(rootBundle !== 'root');
-
-      if (!rootBundle.env.isIsolated()) {
-        if (!bundles.has(asset.id)) {
-          bundles.set(asset.id, rootBundleTuple[0]);
-        }
-
-        for (let reachableAsset of reachable) {
-          if (reachableAsset !== asset) {
-            bundleGraph.addEdge(
-              nullthrows(bundleRoots.get(reachableAsset))[1],
-              rootBundleTuple[0],
-            );
-          }
-        }
-
-        let asyncAssetId = asyncBundleRootGraph.getNodeIdByContentKey(asset.id);
-        let loadedBy = asyncBundleRootGraph
-          .getNodeIdsConnectedTo(asyncAssetId)
-          .map(id => nullthrows(asyncBundleRootGraph.getNode(id)))
-          .filter(bundleRoot => bundleRoot !== 'root')
-          .map(bundleRoot => {
-            // For Flow
-            invariant(bundleRoot !== 'root');
-            return bundleRoot;
-          });
-
-        let reachableAssetId = reachableRoots.getNodeIdByContentKey(asset.id);
-        let willInternalizeRoots = loadedBy.filter(
-          bundleRoot =>
-            reachableRoots.hasEdge(
-              reachableRoots.getNodeIdByContentKey(bundleRoot.id),
-              reachableAssetId,
-            ) || asyncAncestorAssets.get(bundleRoot)?.has(asset),
-        );
-
-        for (let bundleRoot of willInternalizeRoots) {
-          if (bundleRoot !== asset) {
-            let bundle = nullthrows(
-              bundleGraph.getNode(nullthrows(bundles.get(bundleRoot.id))),
-            );
-            invariant(bundle !== 'root');
-            bundle.internalizedAssetIds.push(asset.id);
-            asyncBundleRootGraph.removeEdge(
-              asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
-              asyncAssetId,
-            );
-          }
-        }
-
-        if (
-          !entries.has(asset) &&
-          loadedBy.length > 0 &&
-          loadedBy.length === willInternalizeRoots.length
-        ) {
-          // The contents of this async bundle are accessible already in every
-          // use without it. Remove the async bundle entirely.
-          let bundleId = nullthrows(bundles.get(asset.id));
-          bundleGraph.removeNode(bundleId);
-          bundles.delete(asset.id);
-          bundleRoots.delete(asset);
-          if (asyncBundleRootGraph.hasNode(asyncAssetId)) {
-            asyncBundleRootGraph.removeNode(asyncAssetId);
-          }
-          asyncAncestorAssets.delete(asset);
-          reachableRoots.replaceNodeIdsConnectedTo(reachableAssetId, []);
-        }
-      }
-    }
+    reachable = reachable.filter(b => !asyncAncestorAssets.get(b)?.has(asset));
 
     if (reachable.length > 0) {
       let reachableEntries = reachable.filter(
