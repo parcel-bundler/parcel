@@ -117,14 +117,12 @@ const SCRIPT_ERRORS = {
   'web-worker': {
     message:
       'Web workers cannot have imports or exports without the `type: "module"` option.',
-    hint:
-      "Add {type: 'module'} as a second argument to the Worker constructor.",
+    hint: "Add {type: 'module'} as a second argument to the Worker constructor.",
   },
   'service-worker': {
     message:
       'Service workers cannot have imports or exports without the `type: "module"` option.',
-    hint:
-      "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
+    hint: "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
   },
 };
 

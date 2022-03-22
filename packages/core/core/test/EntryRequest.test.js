@@ -34,10 +34,10 @@ const INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH = path.join(
   'fixtures/invalid-target-source-not-file',
 );
 
-describe('EntryResolver', function() {
+describe('EntryResolver', function () {
   let entryResolver = new EntryResolver({...DEFAULT_OPTIONS});
 
-  it('rejects missing source in package.json', async function() {
+  it('rejects missing source in package.json', async function () {
     this.timeout(10000);
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
@@ -77,7 +77,7 @@ describe('EntryResolver', function() {
       },
     );
   });
-  it('rejects non-file source in package.json', async function() {
+  it('rejects non-file source in package.json', async function () {
     this.timeout(10000);
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
@@ -116,7 +116,7 @@ describe('EntryResolver', function() {
       },
     );
   });
-  it('rejects missing target source in package.json', async function() {
+  it('rejects missing target source in package.json', async function () {
     this.timeout(10000);
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
@@ -160,7 +160,7 @@ describe('EntryResolver', function() {
       },
     );
   });
-  it('rejects non-file target source in package.json', async function() {
+  it('rejects non-file target source in package.json', async function () {
     this.timeout(10000);
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(

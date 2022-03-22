@@ -122,7 +122,7 @@ describe('postcss', () => {
     // https://stackoverflow.com/questions/15971167/how-to-increase-timeout-for-a-single-test-case-in-mocha
   });
 
-  it('should support using postcss for importing', async function() {
+  it('should support using postcss for importing', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-import/style.css'),
     );
@@ -138,7 +138,7 @@ describe('postcss', () => {
     assert.equal(css.split('red').length - 1, 1);
   });
 
-  it('should support using a postcss config in package.json', async function() {
+  it('should support using a postcss config in package.json', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-config-package/style.css'),
     );
@@ -155,7 +155,7 @@ describe('postcss', () => {
     assert(/background-color:\s*red/.test(css));
   });
 
-  it('Should support postcss.config.js config file with PostCSS 7 plugin', async function() {
+  it('Should support postcss.config.js config file with PostCSS 7 plugin', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-js-config-7/style.css'),
     );
@@ -171,7 +171,7 @@ describe('postcss', () => {
     assert(css.includes('background-color: red;'));
   });
 
-  it('Should support postcss.config.js config file with PostCSS 8 plugin', async function() {
+  it('Should support postcss.config.js config file with PostCSS 8 plugin', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-js-config-8/style.css'),
     );
@@ -184,13 +184,11 @@ describe('postcss', () => {
     ]);
   });
 
-  it('should support dir-dependency messages from plugins', async function() {
+  it('should support dir-dependency messages from plugins', async function () {
     let inputDir = path.join(
       __dirname,
       '/input',
-      Math.random()
-        .toString(36)
-        .slice(2),
+      Math.random().toString(36).slice(2),
     );
     await inputFS.mkdirp(inputDir);
     await inputFS.ncp(
@@ -271,7 +269,7 @@ describe('postcss', () => {
     await subscription.unsubscribe();
   });
 
-  it('should throw an error with code frame when .postcssrc is invalid', async function() {
+  it('should throw an error with code frame when .postcssrc is invalid', async function () {
     let configFilePath = path.join(
       __dirname,
       '/integration/postcss-modules-config-invalid/.postcssrc',

@@ -79,7 +79,8 @@ export default function createAssetGraphRequest(
     type: 'asset_graph_request',
     id: input.name,
     run: async input => {
-      let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
+      let prevResult =
+        await input.api.getPreviousResult<AssetGraphRequestResult>();
       let builder = new AssetGraphBuilder(input, prevResult);
       return builder.build();
     },
@@ -781,9 +782,8 @@ export class AssetGraphBuilder {
           }
         }
       } else {
-        let connectedNodes = this.assetGraph.getNodeIdsConnectedTo(
-          queuedNodeId,
-        );
+        let connectedNodes =
+          this.assetGraph.getNodeIdsConnectedTo(queuedNodeId);
         if (connectedNodes.length > 0) {
           queue.add(...connectedNodes);
         }

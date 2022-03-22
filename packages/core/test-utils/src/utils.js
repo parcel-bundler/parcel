@@ -605,7 +605,7 @@ function prepareBrowserContext(
       if (el.tag === 'script') {
         let {deferred, promise} = makeDeferredWithPromise();
         promises.push(promise);
-        setTimeout(function() {
+        setTimeout(function () {
           let pathname = url.parse(el.src).pathname;
           let file = path.join(bundle.target.distDir, pathname);
 
@@ -1013,7 +1013,7 @@ export async function runESM(
       // $FlowFixMe Experimental
       m = new vm.SyntheticModule(
         Object.keys(ns),
-        function() {
+        function () {
           for (let [k, v] of Object.entries(ns)) {
             this.setExport(k, v);
           }

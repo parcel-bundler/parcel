@@ -56,10 +56,8 @@ export default (new Transformer({
       });
     }
 
-    const {
-      assets: inlineAssets,
-      hasScripts: hasInlineScripts,
-    } = extractInlineAssets(asset, ast);
+    const {assets: inlineAssets, hasScripts: hasInlineScripts} =
+      extractInlineAssets(asset, ast);
 
     const result = [asset, ...inlineAssets];
 

@@ -27,7 +27,7 @@ try {
 }
 
 if (MessageChannel) {
-  describe('react-refresh', function() {
+  describe('react-refresh', function () {
     describe('synchronous (automatic runtime)', () => {
       const testDir = path.join(
         __dirname,
@@ -42,7 +42,7 @@ if (MessageChannel) {
         ({b, root, randoms} = await setup(path.join(testDir, 'index.html')));
       });
 
-      it('retains state in functional components', async function() {
+      it('retains state in functional components', async function () {
         await fs.mkdirp(testDir);
         await fs.copyFile(
           path.join(testDir, 'Foo.1.js'),
@@ -78,7 +78,7 @@ if (MessageChannel) {
         ));
       });
 
-      it('retains state in functional components', async function() {
+      it('retains state in functional components', async function () {
         await fs.mkdirp(testDir);
         await fs.copyFile(
           path.join(testDir, 'Foo.1.js'),
@@ -98,7 +98,7 @@ if (MessageChannel) {
         assert.equal(fooText, 'OtherFunctional');
       });
 
-      it('supports changing hooks in functional components', async function() {
+      it('supports changing hooks in functional components', async function () {
         await fs.mkdirp(testDir);
         await fs.copyFile(
           path.join(testDir, 'Foo.2-hooks.js'),
@@ -109,16 +109,10 @@ if (MessageChannel) {
         // Wait for the hmr-runtime to process the event
         await sleep(100);
 
-        let [
-          ,
-          indexNum,
-          appNum,
-          fooText,
-          fooNum,
-          fooNum2,
-        ] = root.textContent.match(
-          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
-        );
+        let [, indexNum, appNum, fooText, fooNum, fooNum2] =
+          root.textContent.match(
+            /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
+          );
         assert.equal(randoms.indexNum, indexNum);
         assert.equal(randoms.appNum, appNum);
         assert.notEqual(randoms.fooNum, fooNum);
@@ -126,7 +120,7 @@ if (MessageChannel) {
         assert.equal(fooText, 'Hooks');
       });
 
-      it('retains state in parent components when swapping function and class component', async function() {
+      it('retains state in parent components when swapping function and class component', async function () {
         await fs.mkdirp(testDir);
         await fs.copyFile(
           path.join(testDir, 'Foo.3-class.js'),
@@ -169,7 +163,7 @@ if (MessageChannel) {
         ));
       });
 
-      it('retains state in async components on change', async function() {
+      it('retains state in async components on change', async function () {
         assert.equal(randoms.fooText, 'Async');
 
         await fs.mkdirp(testDir);

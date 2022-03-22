@@ -535,7 +535,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
  *             └─────────────────────────────────────────────┘
  */
 export class SharedTypeMap<TItemType, THash, TAddress: number>
-  implements Iterable<TAddress> {
+  implements Iterable<TAddress>
+{
   /**
    * The header for the `SharedTypeMap` comprises 2 4-byte chunks:
    *

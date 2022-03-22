@@ -101,9 +101,8 @@ export class DevPackager {
           if (this.bundleGraph.isDependencySkipped(dep)) {
             deps[getSpecifier(dep)] = false;
           } else if (resolved) {
-            deps[getSpecifier(dep)] = this.bundleGraph.getAssetPublicId(
-              resolved,
-            );
+            deps[getSpecifier(dep)] =
+              this.bundleGraph.getAssetPublicId(resolved);
           }
         }
 

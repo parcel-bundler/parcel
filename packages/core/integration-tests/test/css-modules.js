@@ -419,7 +419,7 @@ describe('css modules', () => {
         assert(composes6Classes[2].startsWith('test-2_'));
       });
 
-      it('should throw an error when importing a missing class', async function() {
+      it('should throw an error when importing a missing class', async function () {
         await assert.rejects(
           () =>
             bundle(
@@ -468,7 +468,7 @@ describe('css modules', () => {
         );
       });
 
-      it('should fall back to postcss for legacy css modules', async function() {
+      it('should fall back to postcss for legacy css modules', async function () {
         let b = await bundle(
           path.join(__dirname, '/integration/css-modules-legacy/index.js'),
         );
