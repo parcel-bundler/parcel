@@ -2671,19 +2671,28 @@ describe('javascript', function () {
       },
     );
 
-    await run(b);
-    let contents = await outputFS.readFile(
-      path.join(distDir, 'index.js'),
-      'utf8',
-    );
+    let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
-      contents.includes(
-        'require("path").join(__dirname, "$parcel$dirnameReplace")',
+      dist.includes(
+        'require("path").join(__dirname, "../test/integration/env-node-context")',
       ),
     );
     assert(
-      contents.includes(
-        'require("path").join(__filename, "$parcel$filenameReplace", "test/integration/env-node-context/index.js")',
+      dist.includes(
+        'require("path").join(__dirname, "../test/integration/env-node-context", "index.js")',
+      ),
+    );
+    let f = await run(b);
+    let output = f();
+    assert.equal(output.data, 'hello');
+    assert(
+      output.filenameTest.includes(
+        'integration-tests/test/integration/env-node-context/index.js',
+      ),
+    );
+    assert(
+      output.dirnameTest.includes(
+        'integration-tests/test/integration/env-node-context/data',
       ),
     );
   });

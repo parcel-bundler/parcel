@@ -74,7 +74,7 @@ impl<'a> Fold for ContextReplacer<'a> {
                 expr: Box::new(ast::Expr::Ident(ast::Ident {
                   optional: false,
                   span: DUMMY_SP,
-                  sym: swc_atoms::JsWord::from("__filename"),
+                  sym: swc_atoms::JsWord::from("__dirname"),
                 })),
               },
               ast::ExprOrSpread {
