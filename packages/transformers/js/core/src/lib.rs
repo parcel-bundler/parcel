@@ -11,7 +11,6 @@ extern crate serde;
 extern crate serde_bytes;
 extern crate sha1;
 
-mod context_replacer;
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
@@ -19,6 +18,7 @@ mod fs;
 mod global_replacer;
 mod hoist;
 mod modules;
+mod node_replacer;
 mod typeof_replacer;
 mod utils;
 
@@ -45,7 +45,6 @@ use swc_ecmascript::transforms::{
 };
 use swc_ecmascript::visit::{FoldWith, VisitWith};
 
-use context_replacer::ContextReplacer;
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
@@ -53,6 +52,7 @@ use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::{hoist, CollectResult, HoistResult};
 use modules::esm2cjs;
+use node_replacer::NodeReplacer;
 use typeof_replacer::*;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
@@ -71,7 +71,7 @@ pub struct Config {
   env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
   inline_fs: bool,
   insert_node_globals: bool,
-  relative_context: bool,
+  node_replacer: bool,
   is_browser: bool,
   is_worker: bool,
   is_type_script: bool,
@@ -403,7 +403,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               let mut passes = chain!(
                 // Insert placeholders for context variables like __dirname and __filename
                 Optional::new(
-                  ContextReplacer {
+                  NodeReplacer {
                     source_map: &source_map,
                     items: &mut global_deps,
                     globals: HashMap::new(),
@@ -413,7 +413,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     global_mark,
                     scope_hoist: config.scope_hoist,
                   },
-                  config.relative_context
+                  config.node_replacer
                 ),
                 // Inject SWC helpers if needed.
                 helpers::inject_helpers(),

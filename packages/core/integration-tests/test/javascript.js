@@ -2656,43 +2656,43 @@ describe('javascript', function () {
     });
   });
 
-  it('__dirname', async function () {
+  it('should replace __dirname and __filename with path.join calls relative to projectRoot', async function () {
     let b = await bundle(
-      path.join(__dirname, '/integration/env-node-context/index.js'),
-      {
-        targets: {
-          main: {
-            engines: {
-              node: '>=14',
-            },
-            distDir,
-          },
-        },
-      },
+      path.join(__dirname, '/integration/env-node-replacements/index.js'),
     );
 
     let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
       dist.includes(
-        'require("path").join(__dirname, "../test/integration/env-node-context")',
+        'require("path").join(__dirname, "../test/integration/env-node-replacements")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").join(__dirname, "../test/integration/env-node-context", "index.js")',
+        'require("path").join(__dirname, "../test/integration/env-node-replacements", "index.js")',
       ),
     );
     let f = await run(b);
     let output = f();
     assert.equal(output.data, 'hello');
     assert(
-      output.filenameTest.includes(
-        'integration-tests/test/integration/env-node-context/index.js',
+      output.firstDirnameTest.includes(
+        'integration-tests/test/integration/env-node-replacements/data',
       ),
     );
     assert(
-      output.dirnameTest.includes(
-        'integration-tests/test/integration/env-node-context/data',
+      output.secondDirnameTest.includes(
+        'integration-tests/test/integration/env-node-replacements/other-data',
+      ),
+    );
+    assert(
+      output.firstFilenameTest.includes(
+        'integration-tests/test/integration/env-node-replacements/index.js',
+      ),
+    );
+    assert(
+      output.secondFilenameTest.includes(
+        'integration-tests/test/integration/env-node-replacements/index.js?query-string=test',
       ),
     );
   });

@@ -18,11 +18,8 @@ export default (new Packager({
       ['package.json'],
     );
     let name = pkg?.contents?.name ?? '';
-    let relativeContext =
-      pkg?.contents?.['@parcel/transformer-js']?.relativeContext ?? false;
     return {
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
-      relativeContext,
     };
   },
   async package({
@@ -78,7 +75,10 @@ export default (new Packager({
       }));
     }
 
-    if (config.relativeContext) {
+    // For node environment @parcel/transformer-js replaces __dirname and __filename calls with
+    // path.join containing placeholders. The packager now replaces those placeholders with
+    // relative paths so that in the end the __dirname/__filename calls resolve to the correct files
+    if (bundle.env.isNode()) {
       const relPath = path.relative(bundle.target.distDir, options.projectRoot);
       contents = contents.replace('$parcel$dirnameReplace', relPath);
       contents = contents.replace('$parcel$filenameReplace', relPath);

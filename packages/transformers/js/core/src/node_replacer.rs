@@ -11,7 +11,7 @@ use swc_ecmascript::visit::{Fold, FoldWith};
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::utils::{create_require, SourceLocation, SourceType};
 
-pub struct ContextReplacer<'a> {
+pub struct NodeReplacer<'a> {
   pub source_map: &'a SourceMap,
   pub items: &'a mut Vec<DependencyDescriptor>,
   pub globals: HashMap<JsWord, ast::Stmt>,
@@ -22,7 +22,7 @@ pub struct ContextReplacer<'a> {
   pub scope_hoist: bool,
 }
 
-impl<'a> Fold for ContextReplacer<'a> {
+impl<'a> Fold for NodeReplacer<'a> {
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
     use ast::{Expr::*, MemberExpr, MemberProp};
 
