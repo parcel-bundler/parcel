@@ -5332,8 +5332,10 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: md`Failed to resolve '@swc/helpers' from '${normalizePath(
-              require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+            message: md`Failed to resolve '@swc/helpers' from '${escapeMarkdown(
+              normalizePath(
+                require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+              ),
             )}'`,
             origin: '@parcel/core',
             codeFrames: [
