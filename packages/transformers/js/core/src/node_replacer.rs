@@ -74,6 +74,8 @@ impl<'a> Fold for NodeReplacer<'a> {
                 expr: Box::new(ast::Expr::Ident(ast::Ident {
                   optional: false,
                   span: DUMMY_SP,
+                  // This also uses __dirname as later in the path.join call the hierarchy is then correct
+                  // Otherwise path.join(__filename, '..') would be one level to shallow (due to the /filename.js at the end)
                   sym: swc_atoms::JsWord::from("__dirname"),
                 })),
               },
