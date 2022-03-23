@@ -760,8 +760,6 @@ ${code}
           .some(dep =>
             nullthrows(this.bundleGraph.getUsedSymbols(dep)).has(exportSymbol),
           ) ||
-        (exportSymbol === 'default' &&
-          resolvedAssetUsedSymbols.has(exportSymbol)) ||
         (exportSymbol === '*' && resolvedAssetUsedSymbols.size > 0);
 
       if (isExportSymbolUsed) {
