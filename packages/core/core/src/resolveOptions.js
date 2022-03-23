@@ -51,7 +51,6 @@ export default async function resolveOptions(
   }
 
   let shouldMakeEntryReferFolder = false;
-  // if entries have the only one entry and the one is not glob and refers to directory, we need to make the entry refer to some file.
   if (entries.length === 1 && !isGlob(entries[0])) {
     let [entry] = entries;
     try {
