@@ -26,7 +26,7 @@ import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
 // Allow writing paths like path/to/thing, even on Windows
-const xplatPath = uri => uri.split(`/`).join(path.sep);
+const xplatPath = uri => uri.split('/').join(path.sep);
 
 describe('javascript', function () {
   beforeEach(async () => {
