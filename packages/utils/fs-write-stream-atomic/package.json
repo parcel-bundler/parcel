@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs-write-stream-atomic",
-  "version": "2.1.1",
+  "version": "2.4.0",
   "description": "Like `fs.createWriteStream(...)`, but atomic.",
   "main": "index.js",
   "repository": {
@@ -21,8 +21,7 @@
   "dependencies": {
     "graceful-fs": "^4.1.2",
     "iferr": "^1.0.2",
-    "imurmurhash": "^0.1.4",
-    "readable-stream": "1 || 2"
+    "imurmurhash": "^0.1.4"
   },
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
   "license": "ISC"

@@ -744,9 +744,9 @@ export interface MutableAsset extends BaseAsset {
   setBuffer(Buffer): void;
   /** Sets the asset contents as a stream. */
   setStream(Readable): void;
-  /** Returns whether the AST has been modified. */
-  setAST(AST): void;
   /** Sets the asset's AST. */
+  setAST(AST): void;
+  /** Returns whether the AST has been modified. */
   isASTDirty(): boolean;
   /** Sets the asset's source map. */
   setMap(?SourceMap): void;
@@ -878,7 +878,7 @@ export type TransformerResult = {|
   /** The dependencies of the asset. */
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
   /** The environment of the asset. The options are merged with the input asset's environment. */
-  +env?: EnvironmentOptions,
+  +env?: EnvironmentOptions | Environment,
   /**
    * Controls which bundle the asset is placed into.
    *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written

@@ -146,7 +146,7 @@ describe('css', () => {
     assert(css.includes('.index'));
     assert(css.includes('url("data:image/gif;base64,quotes")'));
     assert(css.includes('.quotes'));
-    assert(css.includes('url(data:image/gif;base64,no-quote)'));
+    assert(css.includes('url("data:image/gif;base64,no-quote")'));
     assert(css.includes('.no-quote'));
 
     assert(
@@ -189,9 +189,9 @@ describe('css', () => {
     assert(/url\(test\.[0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
     assert(css.includes('url(http://google.com)'), 'url() found');
     assert(css.includes('.index'), '.index found');
-    assert(css.includes('url("data:image/gif;base64,quotes")'));
+    assert(/url\("?data:image\/gif;base64,quotes"?\)/.test(css));
     assert(css.includes('.quotes'));
-    assert(css.includes('url(data:image/gif;base64,no-quote)'));
+    assert(/url\("?data:image\/gif;base64,no-quote"?\)/.test(css));
     assert(css.includes('.no-quote'));
 
     assert(
@@ -244,6 +244,18 @@ describe('css', () => {
     );
   });
 
+  it('should handle quote in CSS URL correctly', async function () {
+    await bundle(path.join(__dirname, '/integration/css-url-quote/index.css'));
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+
+    assert(
+      css.includes(
+        'url("data:image/svg+xml;utf8,with quote \\" and escape \\\\");',
+      ),
+    );
+  });
+
   it('should ignore url() with IE behavior specifiers', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url-behavior/index.css'),
@@ -258,7 +270,58 @@ describe('css', () => {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
 
-    assert(css.includes('url(#default#VML)'));
+    assert(css.includes('url("#default#VML")'));
+  });
+
+  it('should throw a diagnostic for relative url() dependencies in custom properties', async function () {
+    let fixture = path.join(
+      __dirname,
+      'integration/css-url-custom-property/index.css',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    // $FlowFixMe
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message:
+              'Ambiguous url() in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead.',
+            origin: '@parcel/transformer-css',
+            name: 'SyntaxError',
+            stack: undefined,
+            codeFrames: [
+              {
+                filePath: fixture,
+                code,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 2,
+                      column: 11,
+                    },
+                    end: {
+                      line: 2,
+                      column: 11,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              'Replace with: url(/integration/css-url-custom-property/foo.png)',
+            ],
+            documentationURL: 'https://parceljs.org/languages/css/#url()',
+          },
+        ],
+      },
+    );
   });
 
   it('should minify CSS when minify is set', async function () {
@@ -302,11 +365,8 @@ describe('css', () => {
       await outputFS.readFile(path.join(distDir, 'index.css.map'), 'utf8'),
     );
     assert.equal(map.file, 'index.css.map');
-    assert.equal(map.mappings, 'AAAA,OACA,WACA,CCFA,OACA,SACA');
-    assert.deepEqual(map.sources, [
-      'integration/cssnano/local.css',
-      'integration/cssnano/index.css',
-    ]);
+    assert(map.sources.includes('integration/cssnano/local.css'));
+    assert(map.sources.includes('integration/cssnano/index.css'));
   });
 
   it('should inline data-urls for text-encoded files', async () => {
@@ -319,7 +379,7 @@ describe('css', () => {
     assert.equal(
       css.trim(),
       `.svg-img {
-  background-image: url('data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A');
+  background-image: url("data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A");
 }`,
     );
   });
@@ -329,7 +389,7 @@ describe('css', () => {
     let css = await outputFS.readFile(path.join(distDir, 'binary.css'), 'utf8');
     assert(
       css.startsWith(`.webp-img {
-  background-image: url('data:image/webp;base64,UklGR`),
+  background-image: url("data:image/webp;base64,UklGR`),
     );
   });
 
@@ -409,13 +469,27 @@ describe('css', () => {
 
     let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
-      res.startsWith(`@import "http://example.com/external.css";
+      new RegExp(`@import "http://example.com/external.css";
 .b {
   color: red;
-}
+}\n?
 .a {
-  color: blue;
-}`),
+  color: green;
+}`).test(res),
     );
+  });
+
+  it('should support css nesting with @parcel/css', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-nesting/a.css'),
+      {
+        defaultTargetOptions: {
+          engines: {},
+        },
+      },
+    );
+
+    let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('.foo.bar'));
   });
 });

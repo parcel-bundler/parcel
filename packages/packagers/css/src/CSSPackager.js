@@ -1,7 +1,8 @@
 // @flow
 
 import type {Root} from 'postcss';
-import type {Asset} from '@parcel/types';
+import type {Asset, Dependency} from '@parcel/types';
+import typeof PostCSS from 'postcss';
 
 import path from 'path';
 import SourceMap from '@parcel/source-map';
@@ -13,7 +14,6 @@ import {
   replaceURLReferences,
 } from '@parcel/utils';
 
-import postcss from 'postcss';
 import nullthrows from 'nullthrows';
 
 export default (new Packager({
@@ -57,8 +57,11 @@ export default (new Packager({
         }
 
         queue.add(() => {
-          // This condition needs to align with the one in Transformation#runPipeline !
-          if (!asset.symbols.isCleared && options.mode === 'production') {
+          if (
+            !asset.symbols.isCleared &&
+            options.mode === 'production' &&
+            asset.astGenerator?.type === 'postcss'
+          ) {
             // a CSS Modules asset
             return processCSSModule(
               options,
@@ -126,6 +129,7 @@ export default (new Packager({
       bundleGraph,
       contents,
       map,
+      getReplacement: escapeString,
     }));
 
     return replaceInlineReferences({
@@ -134,13 +138,25 @@ export default (new Packager({
       contents,
       getInlineBundleContents,
       getInlineReplacement: (dep, inlineType, contents) => ({
-        from: dep.id,
-        to: contents,
+        from: getSpecifier(dep),
+        to: escapeString(contents),
       }),
       map,
     });
   },
 }): Packager);
+
+export function getSpecifier(dep: Dependency): string {
+  if (typeof dep.meta.placeholder === 'string') {
+    return dep.meta.placeholder;
+  }
+
+  return dep.id;
+}
+
+function escapeString(contents: string): string {
+  return contents.replace(/(["\\])/g, '\\$1');
+}
 
 async function processCSSModule(
   options,
@@ -150,6 +166,16 @@ async function processCSSModule(
   asset,
   media,
 ): Promise<[Asset, string, ?Buffer]> {
+  let postcss: PostCSS = await options.packageManager.require(
+    'postcss',
+    options.projectRoot + '/index',
+    {
+      range: '^8.4.5',
+      saveDev: true,
+      shouldAutoInstall: options.shouldAutoInstall,
+    },
+  );
+
   let ast: Root = postcss.fromJSON(nullthrows((await asset.getAST())?.program));
 
   let usedSymbols = bundleGraph.getUsedSymbols(asset);

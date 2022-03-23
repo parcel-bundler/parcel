@@ -704,6 +704,9 @@ function prepareBrowserContext(
         origin: 'http://localhost',
         protocol: 'http',
       },
+      navigator: {
+        userAgent: '',
+      },
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {
