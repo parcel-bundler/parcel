@@ -2,11 +2,25 @@
 
 // flowlint-next-line untyped-import:off
 import {analyticsClient, userTypes} from '@atlassiansox/analytics-node-client';
+// flowlint-next-line untyped-import:off
+import SegmentAnalytics from 'analytics-node';
 import os from 'os';
 import {hashString} from '@parcel/hash';
 import getMachineModel from './getMachineModel';
 
 const HASHED_EMAIL = hashString(`${os.userInfo().username}@${os.hostname()}`);
+
+// Monkeypatch SegmentAnalytics not to create unhandled promise rejections.
+// TODO: Remove when https://github.com/segmentio/analytics-node/issues/326
+//       is resolved
+const originalSegmentAnalyticsFlush = SegmentAnalytics.prototype.flush;
+SegmentAnalytics.prototype.flush = function flush(callback, ...rest) {
+  return originalSegmentAnalyticsFlush
+    .call(this, callback, ...rest)
+    .catch(err => {
+      callback(null, err);
+    });
+};
 
 let client;
 if (
@@ -74,13 +88,13 @@ const analytics = {
 
     if (client != null) {
       try {
-        return await client.sendTrackEvent(trackEvent);
+        await client.sendTrackEvent(trackEvent);
       } catch (err) {
-        if (process.env.ANALYTICS_DEBUG != null) {
+        // Don't let a failure to report analytics crash Parcel
+        if (process.env.PARCEL_ANALYTICS_DEBUG != null) {
           // eslint-disable-next-line no-console
           console.error('Failed to send analytics', err);
         }
-        // Don't let a failure to report analytics crash Parcel
       }
     }
   },
