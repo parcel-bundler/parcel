@@ -906,11 +906,17 @@ export default class NodeResolver {
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
 
-    // If the package has a `source` field, check if it is behind a symlink.
-    // If so, we treat the module as source code rather than a pre-compiled module.
+    // If the package has a `source` field, make sure
+    // - the package is behind symlinks
+    // - and the realpath to the packages does not includes `node_modules`.
+    // Since such package is likely a pre-compiled module
+    // installed with package managers, rather than including a source code.
     if (pkg.source) {
       let realpath = await this.fs.realpath(file);
-      if (realpath === file) {
+      if (
+        realpath === file ||
+        realpath.includes(`${path.sep}node_modules${path.sep}`)
+      ) {
         delete pkg.source;
       }
     }
