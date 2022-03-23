@@ -25,6 +25,9 @@ import Logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
+// Allow writing paths like path/to/thing, even on Windows
+const xplatPath = uri => uri.split(`/`).join(path.sep);
+
 describe('javascript', function () {
   beforeEach(async () => {
     await removeDistDirectory();
@@ -2664,12 +2667,16 @@ describe('javascript', function () {
     let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
       dist.includes(
-        'require("path").join(__dirname, "../test/integration/env-node-replacements")',
+        xplatPath(
+          'require("path").join(__dirname, "../test/integration/env-node-replacements")',
+        ),
       ),
     );
     assert(
       dist.includes(
-        'require("path").join(__dirname, "../test/integration/env-node-replacements", "index.js")',
+        xplatPath(
+          'require("path").join(__dirname, "../test/integration/env-node-replacements", "index.js")',
+        ),
       ),
     );
     let f = await run(b);
@@ -2677,22 +2684,30 @@ describe('javascript', function () {
     assert.equal(output.data, 'hello');
     assert(
       output.firstDirnameTest.includes(
-        'integration-tests/test/integration/env-node-replacements/data',
+        xplatPath(
+          'integration-tests/test/integration/env-node-replacements/data',
+        ),
       ),
     );
     assert(
       output.secondDirnameTest.includes(
-        'integration-tests/test/integration/env-node-replacements/other-data',
+        xplatPath(
+          'integration-tests/test/integration/env-node-replacements/other-data',
+        ),
       ),
     );
     assert(
       output.firstFilenameTest.includes(
-        'integration-tests/test/integration/env-node-replacements/index.js',
+        xplatPath(
+          'integration-tests/test/integration/env-node-replacements/index.js',
+        ),
       ),
     );
     assert(
       output.secondFilenameTest.includes(
-        'integration-tests/test/integration/env-node-replacements/index.js?query-string=test',
+        xplatPath(
+          'integration-tests/test/integration/env-node-replacements/index.js?query-string=test',
+        ),
       ),
     );
   });

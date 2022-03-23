@@ -201,9 +201,8 @@ describe('fs', function () {
       assert(contents.includes("require('fs')"));
       assert(contents.includes('readFileSync'));
 
-      await outputFS.writeFile(path.join(distDir, 'test.txt'), 'hey');
       let output = await run(b);
-      assert.equal(output, 'hey');
+      assert.equal(output, 'hello');
     });
   });
 
