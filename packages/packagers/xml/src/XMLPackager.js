@@ -68,6 +68,7 @@ export default (new Packager({
       bundleGraph,
       contents: code,
       relative: false,
+      getReplacement: contents => contents.replace(/"/g, '&quot;'),
     });
 
     return replaceInlineReferences({
