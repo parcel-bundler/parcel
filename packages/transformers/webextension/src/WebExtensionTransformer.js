@@ -5,7 +5,7 @@ import {Transformer} from '@parcel/plugin';
 import path from 'path';
 import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
-import {validateSchema} from '@parcel/utils';
+import {validateSchema, relativePath} from '@parcel/utils';
 import ThrowableDiagnostic, {
   getJSONSourceLocation,
   md,
@@ -41,9 +41,10 @@ async function collectDependencies(
 ) {
   const fs = asset.fs;
   const filePath = asset.filePath;
+  const assetDir = path.dirname(filePath);
   const isMV2 = program.manifest_version == 2;
   if (program.default_locale) {
-    const locales = path.join(path.dirname(filePath), '_locales');
+    const locales = path.join(assetDir, '_locales');
     let err = !(await fs.exists(locales))
       ? 'key'
       : !(await fs.exists(path.join(locales, program.default_locale)))
@@ -64,7 +65,7 @@ async function collectDependencies(
                     message: md`Localization directory${
                       err == 'value' ? ' for ' + program.default_locale : ''
                     } does not exist: ${path.relative(
-                      path.dirname(filePath),
+                      assetDir,
                       path.join(locales, program.default_locale),
                     )}`,
                   },
@@ -92,7 +93,7 @@ async function collectDependencies(
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
           if (k == 'js') {
-            asset.invalidateOnFileChange(assets[j]);
+            asset.invalidateOnFileChange(path.join(assetDir, assets[j]));
           }
           assets[j] = asset.addURLDependency(assets[j], {
             loc: {
@@ -183,9 +184,9 @@ async function collectDependencies(
       const files = isMV2 ? [currentEntry] : currentEntry.resources;
       for (let j = 0; j < files.length; ++j) {
         const globFiles = (
-          await glob(path.join(path.dirname(filePath), files[j]), fs, {})
+          await glob(path.join(assetDir, files[j]), fs, {})
         ).map(fp =>
-          asset.addURLDependency(path.relative(path.dirname(filePath), fp), {
+          asset.addURLDependency(path.relative(assetDir, fp), {
             needsStableName: true,
             loc: {
               filePath,
