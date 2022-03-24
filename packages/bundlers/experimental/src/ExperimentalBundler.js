@@ -788,7 +788,6 @@ function createIdealGraph(
         let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
         let key = reachable.map(a => a.id).join(',');
         let bundleId = bundles.get(key);
-        let bundle;
 
         sourceBundles.filter(sourceBundleId => {
           if (bundleId !== sourceBundleId) {
@@ -807,6 +806,7 @@ function createIdealGraph(
           }
         });
 
+        let bundle;
         if (bundleId == null) {
           let firstSourceBundle = nullthrows(
             bundleGraph.getNode(sourceBundles[0]),
@@ -826,6 +826,7 @@ function createIdealGraph(
         }
         bundle.assets.add(asset);
         bundle.size += asset.stats.size;
+
         for (let sourceBundleId of sourceBundles) {
           if (bundleId !== sourceBundleId) {
             bundleGraph.addEdge(sourceBundleId, bundleId);
