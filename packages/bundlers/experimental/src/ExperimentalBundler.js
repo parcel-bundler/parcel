@@ -789,6 +789,24 @@ function createIdealGraph(
         let key = reachable.map(a => a.id).join(',');
         let bundleId = bundles.get(key);
         let bundle;
+
+        sourceBundles.filter(sourceBundleId => {
+          if (bundleId !== sourceBundleId) {
+            let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
+            invariant(sourceBundle !== 'root');
+            let bundleGroupIds = bundleGraph
+              .getNodeIdsConnectedTo(sourceBundleId)
+              .filter(n => bundleGraph.getNode(n) !== 'root');
+            // Check that all bundle groups the source bundle belongs to
+            // are within the parallel request limit
+            return bundleGroupIds.every(
+              groupId =>
+                bundleGraph.getNodeIdsConnectedFrom(groupId).length <
+                config.maxParallelRequests,
+            );
+          }
+        });
+
         if (bundleId == null) {
           let firstSourceBundle = nullthrows(
             bundleGraph.getNode(sourceBundles[0]),
@@ -808,7 +826,6 @@ function createIdealGraph(
         }
         bundle.assets.add(asset);
         bundle.size += asset.stats.size;
-
         for (let sourceBundleId of sourceBundles) {
           if (bundleId !== sourceBundleId) {
             bundleGraph.addEdge(sourceBundleId, bundleId);
