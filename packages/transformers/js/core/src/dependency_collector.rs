@@ -6,7 +6,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
 use swc_common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast;
+use swc_ecmascript::ast::{self, Callee, MemberProp};
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
@@ -185,7 +185,7 @@ impl<'a> DependencyCollector<'a> {
     // For scripts, we replace with __parcel__require__, which is later replaced
     // by a real parcelRequire of the resolved asset in the packager.
     if self.config.source_type == SourceType::Script {
-      res.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+      res.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
         "__parcel__require__".into(),
         DUMMY_SP,
       ))));
@@ -326,166 +326,164 @@ impl<'a> Fold for DependencyCollector<'a> {
   }
 
   fn fold_call_expr(&mut self, node: ast::CallExpr) -> ast::CallExpr {
-    use ast::{Expr::*, ExprOrSuper::*, Ident};
+    use ast::{Expr::*, Ident};
 
-    let call_expr = match node.callee.clone() {
-      Super(_) => return node,
-      Expr(boxed) => boxed,
-    };
-
-    let kind = match &*call_expr {
-      Ident(ident) => {
-        // Bail if defined in scope
-        if self.decls.contains(&ident.to_id()) {
-          return node.fold_children_with(self);
-        }
-
-        match ident.sym.to_string().as_str() {
-          "import" => DependencyKind::DynamicImport,
-          "require" => {
-            if self.in_promise {
-              DependencyKind::DynamicImport
-            } else {
-              DependencyKind::Require
+    let kind = match &node.callee {
+      Callee::Import(_) => DependencyKind::DynamicImport,
+      Callee::Expr(expr) => {
+        match &**expr {
+          Ident(ident) => {
+            // Bail if defined in scope
+            if self.decls.contains(&ident.to_id()) {
+              return node.fold_children_with(self);
             }
-          }
-          "importScripts" => {
-            if self.config.is_worker {
-              let (msg, span) = if self.config.source_type == SourceType::Script {
-                // Ignore if argument is not a string literal.
-                let span = if let Some(ast::ExprOrSpread { expr, .. }) = node.args.get(0) {
-                  match &**expr {
-                    Lit(ast::Lit::Str(ast::Str { value, span, .. })) => {
-                      // Ignore absolute URLs.
-                      if value.starts_with("http:")
-                        || value.starts_with("https:")
-                        || value.starts_with("//")
-                      {
-                        return node.fold_children_with(self);
-                      }
-                      span
-                    }
-                    _ => {
-                      return node.fold_children_with(self);
-                    }
-                  }
+
+            match ident.sym.to_string().as_str() {
+              "require" => {
+                if self.in_promise {
+                  DependencyKind::DynamicImport
                 } else {
-                  return node.fold_children_with(self);
-                };
-
-                (
-                  "Argument to importScripts() must be a fully qualified URL.",
-                  *span,
-                )
-              } else {
-                (
-                  "importScripts() is not supported in module workers.",
-                  node.span,
-                )
-              };
-              self.diagnostics.push(Diagnostic {
-                message: msg.to_string(),
-                code_highlights: Some(vec![CodeHighlight {
-                  message: None,
-                  loc: SourceLocation::from(self.source_map, span),
-                }]),
-                hints: Some(vec![String::from(
-                  "Use a static `import`, or dynamic `import()` instead.",
-                )]),
-                show_environment: self.config.source_type == SourceType::Script,
-                severity: DiagnosticSeverity::Error,
-                documentation_url: Some(String::from(
-                  "https://parceljs.org/languages/javascript/#classic-script-workers",
-                )),
-              });
-            }
-
-            return node.fold_children_with(self);
-          }
-          "__parcel__require__" => {
-            let mut call = node.fold_children_with(self);
-            call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-              "require".into(),
-              DUMMY_SP.apply_mark(self.ignore_mark),
-            ))));
-            return call;
-          }
-          "__parcel__import__" => {
-            let mut call = node.fold_children_with(self);
-            call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-              "import".into(),
-              DUMMY_SP.apply_mark(self.ignore_mark),
-            ))));
-            return call;
-          }
-          "__parcel__importScripts__" => {
-            let mut call = node.fold_children_with(self);
-            call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-              "importScripts".into(),
-              DUMMY_SP.apply_mark(self.ignore_mark),
-            ))));
-            return call;
-          }
-          _ => return node.fold_children_with(self),
-        }
-      }
-      Member(member) => {
-        if match_member_expr(member, vec!["module", "require"], self.decls) {
-          DependencyKind::Require
-        } else if self.config.is_browser
-          && match_member_expr(
-            member,
-            vec!["navigator", "serviceWorker", "register"],
-            self.decls,
-          )
-        {
-          DependencyKind::ServiceWorker
-        } else if self.config.is_browser
-          && match_member_expr(member, vec!["CSS", "paintWorklet", "addModule"], self.decls)
-        {
-          DependencyKind::Worklet
-        } else {
-          let was_in_promise = self.in_promise;
-
-          // Match compiled dynamic imports (Parcel)
-          // Promise.resolve(require('foo'))
-          if match_member_expr(member, vec!["Promise", "resolve"], self.decls) {
-            if let Some(expr) = node.args.get(0) {
-              if match_require(&*expr.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
-                self.in_promise = true;
-                let node = node.fold_children_with(self);
-                self.in_promise = was_in_promise;
-                return node;
+                  DependencyKind::Require
+                }
               }
+              "importScripts" => {
+                if self.config.is_worker {
+                  let (msg, span) = if self.config.source_type == SourceType::Script {
+                    // Ignore if argument is not a string literal.
+                    let span = if let Some(ast::ExprOrSpread { expr, .. }) = node.args.get(0) {
+                      match &**expr {
+                        Lit(ast::Lit::Str(ast::Str { value, span, .. })) => {
+                          // Ignore absolute URLs.
+                          if value.starts_with("http:")
+                            || value.starts_with("https:")
+                            || value.starts_with("//")
+                          {
+                            return node.fold_children_with(self);
+                          }
+                          span
+                        }
+                        _ => {
+                          return node.fold_children_with(self);
+                        }
+                      }
+                    } else {
+                      return node.fold_children_with(self);
+                    };
+
+                    (
+                      "Argument to importScripts() must be a fully qualified URL.",
+                      *span,
+                    )
+                  } else {
+                    (
+                      "importScripts() is not supported in module workers.",
+                      node.span,
+                    )
+                  };
+                  self.diagnostics.push(Diagnostic {
+                    message: msg.to_string(),
+                    code_highlights: Some(vec![CodeHighlight {
+                      message: None,
+                      loc: SourceLocation::from(self.source_map, span),
+                    }]),
+                    hints: Some(vec![String::from(
+                      "Use a static `import`, or dynamic `import()` instead.",
+                    )]),
+                    show_environment: self.config.source_type == SourceType::Script,
+                    severity: DiagnosticSeverity::Error,
+                    documentation_url: Some(String::from(
+                      "https://parceljs.org/languages/javascript/#classic-script-workers",
+                    )),
+                  });
+                }
+
+                return node.fold_children_with(self);
+              }
+              "__parcel__require__" => {
+                let mut call = node.fold_children_with(self);
+                call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+                  "require".into(),
+                  DUMMY_SP.apply_mark(self.ignore_mark),
+                ))));
+                return call;
+              }
+              "__parcel__import__" => {
+                let mut call = node.fold_children_with(self);
+                call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+                  "import".into(),
+                  DUMMY_SP.apply_mark(self.ignore_mark),
+                ))));
+                return call;
+              }
+              "__parcel__importScripts__" => {
+                let mut call = node.fold_children_with(self);
+                call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+                  "importScripts".into(),
+                  DUMMY_SP.apply_mark(self.ignore_mark),
+                ))));
+                return call;
+              }
+              _ => return node.fold_children_with(self),
             }
           }
+          Member(member) => {
+            if match_member_expr(member, vec!["module", "require"], self.decls) {
+              DependencyKind::Require
+            } else if self.config.is_browser
+              && match_member_expr(
+                member,
+                vec!["navigator", "serviceWorker", "register"],
+                self.decls,
+              )
+            {
+              DependencyKind::ServiceWorker
+            } else if self.config.is_browser
+              && match_member_expr(member, vec!["CSS", "paintWorklet", "addModule"], self.decls)
+            {
+              DependencyKind::Worklet
+            } else {
+              let was_in_promise = self.in_promise;
 
-          // Match compiled dynamic imports (TypeScript)
-          // Promise.resolve().then(() => require('foo'))
-          // Promise.resolve().then(() => { return require('foo') })
-          // Promise.resolve().then(function () { return require('foo') })
-          if let Expr(ref expr) = member.obj {
-            if let Call(call) = &**expr {
-              if let Expr(e) = &call.callee {
-                if let Member(m) = &**e {
-                  if match_member_expr(m, vec!["Promise", "resolve"], self.decls) {
-                    if let Ident(id) = &*member.prop {
-                      if id.sym.to_string().as_str() == "then" {
-                        if let Some(arg) = node.args.get(0) {
-                          match &*arg.expr {
-                            Fn(_) | Arrow(_) => {
-                              self.in_promise = true;
-                              let node = swc_ecmascript::visit::fold_call_expr(self, node.clone());
-                              self.in_promise = was_in_promise;
+              // Match compiled dynamic imports (Parcel)
+              // Promise.resolve(require('foo'))
+              if match_member_expr(member, vec!["Promise", "resolve"], self.decls) {
+                if let Some(expr) = node.args.get(0) {
+                  if match_require(&*expr.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
+                    self.in_promise = true;
+                    let node = node.fold_children_with(self);
+                    self.in_promise = was_in_promise;
+                    return node;
+                  }
+                }
+              }
 
-                              // Transform Promise.resolve().then(() => __importStar(require('foo')))
-                              //   => Promise.resolve().then(() => require('foo')).then(res => __importStar(res))
-                              if let Some(require_node) = self.require_node.clone() {
-                                self.require_node = None;
-                                return build_promise_chain(node, require_node);
+              // Match compiled dynamic imports (TypeScript)
+              // Promise.resolve().then(() => require('foo'))
+              // Promise.resolve().then(() => { return require('foo') })
+              // Promise.resolve().then(function () { return require('foo') })
+              if let Call(call) = &*member.obj {
+                if let Callee::Expr(e) = &call.callee {
+                  if let Member(m) = &**e {
+                    if match_member_expr(m, vec!["Promise", "resolve"], self.decls) {
+                      if let MemberProp::Ident(id) = &member.prop {
+                        if id.sym.to_string().as_str() == "then" {
+                          if let Some(arg) = node.args.get(0) {
+                            match &*arg.expr {
+                              Fn(_) | Arrow(_) => {
+                                self.in_promise = true;
+                                let node =
+                                  swc_ecmascript::visit::fold_call_expr(self, node.clone());
+                                self.in_promise = was_in_promise;
+
+                                // Transform Promise.resolve().then(() => __importStar(require('foo')))
+                                //   => Promise.resolve().then(() => require('foo')).then(res => __importStar(res))
+                                if let Some(require_node) = self.require_node.clone() {
+                                  self.require_node = None;
+                                  return build_promise_chain(node, require_node);
+                                }
                               }
+                              _ => {}
                             }
-                            _ => {}
                           }
                         }
                       }
@@ -493,10 +491,11 @@ impl<'a> Fold for DependencyCollector<'a> {
                   }
                 }
               }
+
+              return node.fold_children_with(self);
             }
           }
-
-          return node.fold_children_with(self);
+          _ => return node.fold_children_with(self),
         }
       }
       _ => return node.fold_children_with(self),
@@ -637,7 +636,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           SourceType::Module => "require",
           SourceType::Script => "__parcel__require__",
         };
-        call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+        call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
           name.into(),
           DUMMY_SP,
         ))));
@@ -824,10 +823,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         // Free `require` -> undefined
         sym == &js_word!("require") && !self.decls.contains(&(sym.clone(), span.ctxt()))
       }
-      Expr::Member(MemberExpr {
-        obj: ExprOrSuper::Expr(expr),
-        ..
-      }) => {
+      Expr::Member(MemberExpr { obj: expr, .. }) => {
         // e.g. `require.extensions` -> undefined
         if let Expr::Ident(Ident { sym, span, .. }) = &**expr {
           sym == &js_word!("require") && !self.decls.contains(&(sym.clone(), span.ctxt()))
@@ -884,7 +880,7 @@ impl<'a> DependencyCollector<'a> {
         };
 
         if let Some(ast::Expr::Call(call)) = expr {
-          if let ast::ExprOrSuper::Expr(callee) = &call.callee {
+          if let ast::Callee::Expr(callee) = &call.callee {
             if let ast::Expr::Ident(id) = &**callee {
               if id.to_id() == resolve_id {
                 if let Some(arg) = call.args.get(0) {
@@ -969,10 +965,9 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
       };
 
       return ast::CallExpr {
-        callee: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
+        callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
           span: DUMMY_SP,
-          computed: false,
-          obj: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Call(ast::CallExpr {
+          obj: (Box::new(ast::Expr::Call(ast::CallExpr {
             callee: node.callee,
             args: vec![ast::ExprOrSpread {
               expr: Box::new(ast::Expr::Fn(ast::FnExpr {
@@ -999,7 +994,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
             span: DUMMY_SP,
             type_args: None,
           }))),
-          prop: Box::new(ast::Expr::Ident(ast::Ident::new("then".into(), DUMMY_SP))),
+          prop: MemberProp::Ident(ast::Ident::new("then".into(), DUMMY_SP)),
         }))),
         args: vec![ast::ExprOrSpread {
           expr: Box::new(f),
@@ -1020,12 +1015,11 @@ fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
   let expr = if use_import_meta {
     Expr::Member(MemberExpr {
       span: DUMMY_SP,
-      obj: ExprOrSuper::Expr(Box::new(Expr::MetaProp(MetaPropExpr {
-        meta: Ident::new(js_word!("import"), DUMMY_SP),
-        prop: Ident::new(js_word!("meta"), DUMMY_SP),
-      }))),
-      prop: Box::new(Expr::Ident(Ident::new(js_word!("url"), DUMMY_SP))),
-      computed: false,
+      obj: Box::new(Expr::MetaProp(MetaPropExpr {
+        kind: MetaPropKind::ImportMeta,
+        span: DUMMY_SP,
+      })),
+      prop: MemberProp::Ident(Ident::new(js_word!("url"), DUMMY_SP)),
     })
   } else {
     // CJS output: "file:" + __filename
@@ -1162,16 +1156,11 @@ impl<'a> DependencyCollector<'a> {
 
     match expr {
       Expr::Member(member) => {
-        match &member.obj {
-          ExprOrSuper::Expr(expr) if self.is_import_meta(&**expr) => {}
-          _ => return false,
+        if !self.is_import_meta(&member.obj) {
+          return false;
         }
 
-        let name = if !member.computed {
-          match_str_or_ident(&*member.prop)
-        } else {
-          match_str(&*member.prop)
-        };
+        let name = match_property_name(member);
 
         if let Some((name, _)) = name {
           name == js_word!("url")
@@ -1203,15 +1192,8 @@ impl<'a> DependencyCollector<'a> {
 
     match &expr {
       ast::Expr::MetaProp(MetaPropExpr {
-        meta: Ident {
-          sym: js_word!("import"),
-          ..
-        },
-        prop: Ident {
-          sym: js_word!("meta"),
-          span,
-          ..
-        },
+        kind: MetaPropKind::ImportMeta,
+        span,
       }) => {
         if self.config.source_type == SourceType::Script {
           self.diagnostics.push(Diagnostic {
@@ -1279,25 +1261,17 @@ impl<'a> DependencyCollector<'a> {
         decls: vec![VarDeclarator {
           name: Pat::Ident(BindingIdent::from(ident.clone())),
           init: Some(Box::new(Expr::Call(CallExpr {
-            callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
-              obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident::new(
-                js_word!("Object"),
-                DUMMY_SP,
-              )))),
-              prop: Box::new(Expr::Ident(Ident::new("assign".into(), DUMMY_SP))),
-              computed: false,
+            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+              obj: Box::new(Expr::Ident(Ident::new(js_word!("Object"), DUMMY_SP))),
+              prop: MemberProp::Ident(Ident::new("assign".into(), DUMMY_SP)),
               span: DUMMY_SP,
             }))),
             args: vec![
               ExprOrSpread {
                 expr: Box::new(Expr::Call(CallExpr {
-                  callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
-                    obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident::new(
-                      js_word!("Object"),
-                      DUMMY_SP,
-                    )))),
-                    prop: Box::new(Expr::Ident(Ident::new("create".into(), DUMMY_SP))),
-                    computed: false,
+                  callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                    obj: (Box::new(Expr::Ident(Ident::new(js_word!("Object"), DUMMY_SP)))),
+                    prop: MemberProp::Ident(Ident::new("create".into(), DUMMY_SP)),
                     span: DUMMY_SP,
                   }))),
                   args: vec![ExprOrSpread {

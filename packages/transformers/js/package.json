@@ -35,12 +35,12 @@
     "@parcel/source-map": "^2.0.0",
     "@parcel/utils": "2.0.20",
     "@parcel/workers": "2.0.20",
-    "@swc/helpers": "^0.2.11",
+    "@swc/helpers": "^0.3.6",
     "browserslist": "^4.6.6",
     "detect-libc": "^1.0.3",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.1012",
+    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.1031",
     "semver": "^5.7.1"
   },
   "devDependencies": {

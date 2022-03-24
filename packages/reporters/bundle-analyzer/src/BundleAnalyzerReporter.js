@@ -158,7 +158,7 @@ async function getBundleNode(bundle: PackagedBundle, options: PluginOptions) {
   }
 
   return {
-    label: bundle.filePath,
+    label: path.relative(options.projectRoot, bundle.filePath),
     weight: bundle.stats.size,
     groups: generateGroups(dirMap),
   };

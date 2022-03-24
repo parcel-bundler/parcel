@@ -23,6 +23,7 @@ import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
 import Logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
+import {md} from '@parcel/diagnostic';
 
 describe('javascript', function () {
   beforeEach(async () => {
@@ -593,20 +594,20 @@ describe('javascript', function () {
     let output = await run(b);
     let headChildren = await output.default;
 
-    assert.equal(headChildren.length, 3);
+    assert.strictEqual(headChildren.length, 4);
 
-    assert(headChildren[0].tag === 'script');
-    assert(headChildren[0].src.match(/async\..*\.js/));
+    assert.strictEqual(headChildren[1].tag, 'script');
+    assert(headChildren[1].src.match(/async\..*\.js/));
 
-    assert(headChildren[1].tag === 'link');
-    assert(headChildren[1].rel === 'prefetch');
-    assert(headChildren[1].as === 'script');
-    assert(headChildren[1].href.match(/prefetched\..*\.js/));
+    assert.strictEqual(headChildren[2].tag, 'link');
+    assert.strictEqual(headChildren[2].rel, 'prefetch');
+    assert.strictEqual(headChildren[2].as, 'script');
+    assert(headChildren[2].href.match(/prefetched\..*\.js/));
 
-    assert(headChildren[2].tag === 'link');
-    assert(headChildren[2].rel === 'prefetch');
-    assert(headChildren[2].as === 'style');
-    assert(headChildren[2].href.match(/prefetched\..*\.css/));
+    assert.strictEqual(headChildren[3].tag, 'link');
+    assert.strictEqual(headChildren[3].rel, 'prefetch');
+    assert.strictEqual(headChildren[3].as, 'style');
+    assert(headChildren[3].href.match(/prefetched\..*\.css/));
   });
 
   it('should load additional links that were prefetched', async function () {
@@ -622,7 +623,7 @@ describe('javascript', function () {
     await outputReturn.loadDependency();
 
     let headChildren = outputReturn.children;
-    assert.equal(headChildren.length, 5);
+    assert.equal(headChildren.length, 7);
     let cssBundles = headChildren.filter(child =>
       child.href?.match(/prefetched-loaded\..*\.css/),
     );
@@ -646,20 +647,17 @@ describe('javascript', function () {
     let output = await run(b);
     let headChildren = await output.default;
 
-    assert(headChildren.length === 3);
-
-    assert(headChildren[0].tag === 'script');
-    assert(headChildren[0].src.match(/async\..*\.js/));
-
-    assert(headChildren[1].tag === 'link');
-    assert(headChildren[1].rel === 'preload');
-    assert(headChildren[1].as === 'script');
-    assert(headChildren[1].href.match(/preloaded\..*\.js/));
+    assert(headChildren.length === 4);
 
     assert(headChildren[2].tag === 'link');
     assert(headChildren[2].rel === 'preload');
-    assert(headChildren[2].as === 'style');
-    assert(headChildren[2].href.match(/preloaded\..*\.css/));
+    assert(headChildren[2].as === 'script');
+    assert(headChildren[2].href.match(/preloaded\..*\.js/));
+
+    assert(headChildren[3].tag === 'link');
+    assert(headChildren[3].rel === 'preload');
+    assert(headChildren[3].as === 'style');
+    assert(headChildren[3].href.match(/preloaded\..*\.css/));
   });
 
   // TODO: Implement when we can evaluate bundles against esmodule targets
@@ -871,6 +869,31 @@ describe('javascript', function () {
       });
     });
     assert.deepEqual(res, {default: 42});
+  });
+
+  it('dynamic imports loaded as high-priority scripts when not all engines support esmodules natively', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-imports-high-prio/index.js'),
+      {
+        defaultTargetOptions: {
+          engines: {
+            browsers: 'IE 11',
+          },
+        },
+      },
+    );
+
+    let output = await run(b);
+    let headChildren = await output.default;
+
+    assert(headChildren[0].tag === 'link');
+    assert(headChildren[0].rel === 'preload');
+    assert(headChildren[0].as === 'script');
+
+    assert(headChildren[1].tag === 'script');
+    assert(headChildren[1].src.match(/async\..*\.js/));
+
+    assert(headChildren[0].href === headChildren[1].src);
   });
 
   it('should support bundling workers with dynamic import in both page and worker', async function () {
@@ -5307,7 +5330,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: `Failed to resolve '@swc/helpers' from '${normalizePath(
+            message: md`Failed to resolve '@swc/helpers' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',

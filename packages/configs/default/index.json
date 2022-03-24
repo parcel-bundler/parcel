@@ -53,7 +53,7 @@
   ],
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
-    "*.css": ["@parcel/optimizer-cssnano"],
+    "*.css": ["@parcel/optimizer-css"],
     "*.{html,xhtml}": ["@parcel/optimizer-htmlnano"],
     "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
     "*.svg": ["@parcel/optimizer-svgo"],
