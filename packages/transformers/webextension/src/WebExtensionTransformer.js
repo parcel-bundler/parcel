@@ -39,8 +39,6 @@ async function collectDependencies(
   ptrs: {[key: string]: any, ...},
   hot: boolean,
 ) {
-  // isEntry used whenever strictly necessary to preserve filename
-  // also for globs because it's wasteful to write out every file name
   const fs = asset.fs;
   const filePath = asset.filePath;
   const isMV2 = program.manifest_version == 2;
@@ -78,10 +76,12 @@ async function collectDependencies(
       });
     }
     for (const locale of await fs.readdir(locales)) {
-      asset.addURLDependency(`_locales/${locale}/messages.json`, {
-        needsStableName: true,
-        pipeline: 'raw',
-      });
+      if (await fs.exists(path.join(locales, locale))) {
+        asset.addURLDependency(`_locales/${locale}/messages.json`, {
+          needsStableName: true,
+          pipeline: 'raw',
+        });
+      }
     }
   }
   let needRuntimeBG = false;
@@ -224,7 +224,7 @@ async function collectDependencies(
           filePath,
           ...getJSONSourceLocation(ptrs[location], 'value'),
         },
-        pipeline: path.extname(obj) == '.json' ? 'url' : undefined,
+        pipeline: path.extname(obj) == '.json' ? 'raw' : undefined,
       });
     else {
       for (const k of Object.keys(obj)) {
@@ -233,7 +233,7 @@ async function collectDependencies(
             filePath,
             ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
           },
-          pipeline: path.extname(obj[k]) == '.json' ? 'url' : undefined,
+          pipeline: path.extname(obj[k]) == '.json' ? 'raw' : undefined,
         });
       }
     }
@@ -295,19 +295,20 @@ async function collectDependencies(
           },
         },
       );
-    } else if (needRuntimeBG) {
+    }
+    if (needRuntimeBG) {
       if (!program.background) {
         program.background = {};
       }
-      program.background.service_worker = asset.addURLDependency(
-        './runtime/default-bg.js',
-        {
-          resolveFrom: __filename,
-          env: {context: 'service-worker'},
-        },
-      );
-    }
-    if (needRuntimeBG) {
+      if (!program.background.service_worker) {
+        program.background.service_worker = asset.addURLDependency(
+          './runtime/default-bg.js',
+          {
+            resolveFrom: __filename,
+            env: {context: 'service-worker'},
+          },
+        );
+      }
       asset.meta.webextBGInsert = program.background.service_worker;
     }
   }

@@ -123,8 +123,19 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
             hmrAcceptRun(assetsToAccept[i][0], id);
           }
         }
+      } else if (location.reload) {
+        location.reload();
       } else {
-        window.location.reload();
+        // Web extension context
+        var ext =
+          typeof chrome === 'undefined'
+            ? typeof browser === 'undefined'
+              ? null
+              : browser
+            : chrome;
+        if (ext && ext.runtime && ext.runtime.reload) {
+          ext.runtime.reload();
+        }
       }
     }
 
@@ -270,7 +281,7 @@ function reloadCSS() {
           : href.indexOf(hostname + ':' + getPort());
       var absolute =
         /^https?:\/\//i.test(href) &&
-        href.indexOf(window.location.origin) !== 0 &&
+        href.indexOf(location.origin) !== 0 &&
         !servedFromHMRServer;
       if (!absolute) {
         updateLink(links[i]);

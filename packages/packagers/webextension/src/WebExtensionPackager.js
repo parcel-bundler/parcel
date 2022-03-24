@@ -52,7 +52,11 @@ export default (new Packager({
     }
     manifest.web_accessible_resources = (
       manifest.web_accessible_resources || []
-    ).concat(war);
+    ).concat(
+      manifest.manifest_version == 2
+        ? [...new Set(war.flatMap(entry => entry.resources))]
+        : war,
+    );
     let {contents} = replaceURLReferences({
       bundle,
       bundleGraph,
