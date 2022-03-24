@@ -5,7 +5,7 @@ import {Transformer} from '@parcel/plugin';
 import path from 'path';
 import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
-import {validateSchema, relativePath} from '@parcel/utils';
+import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {
   getJSONSourceLocation,
   md,
