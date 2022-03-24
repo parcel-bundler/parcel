@@ -201,8 +201,12 @@ describe('fs', function () {
       assert(contents.includes("require('fs')"));
       assert(contents.includes('readFileSync'));
 
+      await outputFS.writeFile(
+        path.join(__dirname, '/integration/fs-node/', 'test.txt'),
+        'hey',
+      );
       let output = await run(b);
-      assert.equal(output, 'hello');
+      assert.equal(output, 'hey');
     });
   });
 

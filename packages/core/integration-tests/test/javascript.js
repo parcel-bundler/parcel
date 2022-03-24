@@ -2704,32 +2704,23 @@ describe('javascript', function () {
     let f = await run(b);
     let output = f();
     assert.equal(output.data, 'hello');
-    assert(
-      output.firstDirnameTest.includes(
-        xplatPath(
-          'integration-tests/test/integration/env-node-replacements/data',
-        ),
-      ),
+    assert.equal(
+      output.firstDirnameTest,
+      path.join(__dirname, '/integration/env-node-replacements/data'),
     );
-    assert(
-      output.secondDirnameTest.includes(
-        xplatPath(
-          'integration-tests/test/integration/env-node-replacements/other-data',
-        ),
-      ),
+    assert.equal(
+      output.secondDirnameTest,
+      path.join(__dirname, '/integration/env-node-replacements/other-data'),
     );
-    assert(
-      output.firstFilenameTest.includes(
-        xplatPath(
-          'integration-tests/test/integration/env-node-replacements/index.js',
-        ),
-      ),
+    assert.equal(
+      output.firstFilenameTest,
+      path.join(__dirname, '/integration/env-node-replacements/index.js'),
     );
-    assert(
-      output.secondFilenameTest.includes(
-        xplatPath(
-          'integration-tests/test/integration/env-node-replacements/index.js?query-string=test',
-        ),
+    assert.equal(
+      output.secondFilenameTest,
+      path.join(
+        __dirname,
+        '/integration/env-node-replacements/index.js?query-string=test',
       ),
     );
   });
