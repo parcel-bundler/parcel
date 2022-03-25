@@ -79,7 +79,7 @@ export default (new Transformer({
     let plugins = [...config.hydrated.plugins];
     let cssModules: ?{|[string]: string|} = null;
     if (config.hydrated.modules) {
-      asset.meta.cssModulesCompiled = true;
+      asset.meta.cssModulesCompiled = 'postcss';
 
       let code = asset.isASTDirty() ? null : await asset.getCode();
       if (

@@ -41,7 +41,7 @@ export default (new Transformer({
           code,
           cssModules:
             config?.cssModules ??
-            (asset.meta.cssModulesCompiled !== true &&
+            (asset.meta.cssModulesCompiled == null &&
               /\.module\./.test(asset.filePath)),
           analyzeDependencies: asset.meta.hasDependencies !== false,
           sourceMap: !!asset.env.sourceMap,

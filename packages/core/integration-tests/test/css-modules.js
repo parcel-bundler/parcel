@@ -448,4 +448,52 @@ describe('css modules', () => {
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('color: red'));
   });
+
+  it('should optimize away unused @keyframes', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-keyframes/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.module.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('@keyframes test'));
+    assert(!css.includes('@keyframes unused'));
+  });
+
+  it('should not double optimize css modules processed with postcss', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-modules-optimize/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('@keyframes test'));
+    assert(css.includes('@keyframes unused'));
+  });
 });
