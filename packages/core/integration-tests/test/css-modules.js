@@ -3,6 +3,7 @@ import path from 'path';
 import {
   bundle,
   run,
+  runBundle,
   assertBundles,
   distDir,
   outputFS,
@@ -447,5 +448,143 @@ describe('css modules', () => {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('color: red'));
+  });
+
+  it('should optimize away unused @keyframes', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-keyframes/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.module.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('@keyframes test'));
+    assert(!css.includes('@keyframes unused'));
+  });
+
+  it('should not double optimize css modules processed with postcss', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-modules-optimize/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('@keyframes test'));
+    assert(css.includes('@keyframes unused'));
+  });
+
+  it('should compile css modules for multiple targets', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-targets/index.html'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js', 'foo.module.css'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js', 'foo.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['foo.module.css'],
+      },
+    ]);
+  });
+
+  it('should handle @import in css modules', async function () {
+    let b = await bundle([
+      path.join(__dirname, '/integration/css-modules-import/page1.html'),
+      path.join(__dirname, '/integration/css-modules-import/page2.html'),
+    ]);
+
+    let res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'page1.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+
+    assert.deepEqual(res, ['page1']);
+
+    res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'page2.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+
+    assert.deepEqual(res, ['page2']);
+
+    assertBundles(b, [
+      {
+        name: 'page1.html',
+        assets: ['page1.html'],
+      },
+      {
+        name: 'page2.html',
+        assets: ['page2.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page1.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page2.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'css',
+        assets: ['index.module.css', 'a.module.css', 'b.module.css'],
+      },
+    ]);
   });
 });
