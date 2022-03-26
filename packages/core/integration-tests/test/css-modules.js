@@ -450,6 +450,26 @@ describe('css modules', () => {
     assert(css.includes('color: red'));
   });
 
+  it('should fall back to postcss for legacy css modules with :export', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-legacy/b.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'b.js',
+        assets: ['b.js', 'b.module.css'],
+      },
+      {
+        name: 'b.css',
+        assets: ['b.module.css'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.deepEqual(res, {color: 'red'});
+  });
+
   it('should optimize away unused @keyframes', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-modules-keyframes/index.js'),
