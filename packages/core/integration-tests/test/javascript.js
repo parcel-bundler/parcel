@@ -2690,14 +2690,14 @@ describe('javascript', function () {
     assert(
       dist.includes(
         xplatPath(
-          'require("path").join(__dirname, "../test/integration/env-node-replacements")',
+          'require("path").resolve(__dirname, "../test/integration/env-node-replacements")',
         ),
       ),
     );
     assert(
       dist.includes(
         xplatPath(
-          'require("path").join(__dirname, "../test/integration/env-node-replacements", "index.js")',
+          'require("path").resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
         ),
       ),
     );

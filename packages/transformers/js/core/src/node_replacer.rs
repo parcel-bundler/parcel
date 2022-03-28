@@ -101,7 +101,7 @@ impl<'a> Fold for NodeReplacer<'a> {
             callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
               span: DUMMY_SP,
               obj: (Box::new(Call(create_require(specifier.clone())))),
-              prop: MemberProp::Ident(ast::Ident::new("join".into(), DUMMY_SP)),
+              prop: MemberProp::Ident(ast::Ident::new("resolve".into(), DUMMY_SP)),
             }))),
           });
 
@@ -152,7 +152,7 @@ impl<'a> Fold for NodeReplacer<'a> {
             callee: ast::Callee::Expr(Box::new(ast::Expr::Member(ast::MemberExpr {
               span: DUMMY_SP,
               obj: (Box::new(Call(create_require(specifier.clone())))),
-              prop: MemberProp::Ident(ast::Ident::new("join".into(), DUMMY_SP)),
+              prop: MemberProp::Ident(ast::Ident::new("resolve".into(), DUMMY_SP)),
             }))),
           });
 
