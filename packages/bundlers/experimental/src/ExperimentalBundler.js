@@ -577,9 +577,6 @@ function createIdealGraph(
   // Maps a given bundleRoot to the assets reachable from it,
   // and the bundleRoots reachable from each of these assets
   let asyncAncestorAssets: Map<BundleRoot, Set<Asset>> = new Map();
-  let lentAssets: DefaultMap<BundleRoot, Set<Asset>> = new DefaultMap(
-    () => new Set(),
-  );
 
   // Step 4: Determine assets that should be duplicated by computing asset availability in each bundle group
   for (let entry of entries.keys()) {
@@ -666,10 +663,20 @@ function createIdealGraph(
 
     if (reachable.length > 0) {
       let reachableEntries = reachable.filter(
-        a => entries.has(a) || !a.isBundleSplittable,
+        a =>
+          entries.has(a) ||
+          !a.isBundleSplittable ||
+          getBundleFromBundleRoot(a).needsStableName ||
+          getBundleFromBundleRoot(a).bundleBehavior === 'inline' ||
+          getBundleFromBundleRoot(a).bundleBehavior === 'isolated',
       );
       reachable = reachable.filter(
-        a => !entries.has(a) && a.isBundleSplittable,
+        a =>
+          !entries.has(a) &&
+          a.isBundleSplittable &&
+          !getBundleFromBundleRoot(a).needsStableName &&
+          getBundleFromBundleRoot(a).bundleBehavior !== 'inline' &&
+          getBundleFromBundleRoot(a).bundleBehavior !== 'isolated',
       );
 
       // Add assets to non-splittable bundles.
