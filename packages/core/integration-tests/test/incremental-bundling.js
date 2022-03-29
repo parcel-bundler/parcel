@@ -465,7 +465,7 @@ console.log(a);
         assert.equal(bundleCSS.type, 'css');
 
         let cssContent = await overlayFS.readFile(bundleCSS.filePath, 'utf8');
-        assert(cssContent.includes(`color: blue;`));
+        assert(cssContent.includes(`color: #00f;`));
       } finally {
         if (subscription) {
           await subscription.unsubscribe();
