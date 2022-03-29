@@ -336,7 +336,7 @@ function createIdealGraph(
   // Step 2: Traverse the asset graph and create bundles for asset type changes and async dependencies,
   // only adding the entry asset of each bundle, not the subgraph.
   assetGraph.traverse({
-    enter(node, context) {
+    enter(node, context, actions) {
       if (node.type === 'asset') {
         assets.push(node.value);
 
@@ -350,6 +350,11 @@ function createIdealGraph(
           return node;
         }
         let dependency = node.value;
+
+        if (assetGraph.isDependencySkipped(dependency)) {
+          actions.skipChildren();
+          return node;
+        }
 
         invariant(context?.type === 'asset');
         let parentAsset = context.value;
