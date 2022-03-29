@@ -547,10 +547,13 @@ describe('css modules', () => {
   });
 
   it('should handle @import in css modules', async function () {
-    let b = await bundle([
-      path.join(__dirname, '/integration/css-modules-import/page1.html'),
-      path.join(__dirname, '/integration/css-modules-import/page2.html'),
-    ]);
+    let b = await bundle(
+      [
+        path.join(__dirname, '/integration/css-modules-import/page1.html'),
+        path.join(__dirname, '/integration/css-modules-import/page2.html'),
+      ],
+      {mode: 'production'},
+    );
 
     let res = [];
     await runBundle(
@@ -561,7 +564,7 @@ describe('css modules', () => {
       },
     );
 
-    assert.deepEqual(res, ['page1']);
+    assert.deepEqual(res, [['page1', 'a_1ZEqVW']]);
 
     res = [];
     await runBundle(
@@ -572,7 +575,7 @@ describe('css modules', () => {
       },
     );
 
-    assert.deepEqual(res, ['page2']);
+    assert.deepEqual(res, [['page2', 'foo_4fY2uG foo_1ZEqVW foo_j1UkRG']]);
 
     assertBundles(b, [
       {

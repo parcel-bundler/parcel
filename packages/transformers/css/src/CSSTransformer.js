@@ -205,7 +205,8 @@ export default (new Transformer({
             // TODO: Figure out how to treeshake this
             let d = `dep_$${c++}`;
             depjs += `import * as ${d} from ${JSON.stringify(dep.url)};\n`;
-            depjs += `for (let key in ${d}) { if (key in module.exports) module.exports[key] += ' ' + ${d}[key]; else module.exports[key] = ${d}[key]; }\n`;
+            js += `for (let key in ${d}) { if (key in module.exports) module.exports[key] += ' ' + ${d}[key]; else module.exports[key] = ${d}[key]; }\n`;
+            asset.symbols.set('*', '*');
           }
         }
       }
