@@ -5,6 +5,7 @@ import {Packager} from '@parcel/plugin';
 import {replaceInlineReferences, replaceURLReferences} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import path from 'path';
+import os from 'os';
 import nullthrows from 'nullthrows';
 import {DevPackager} from './DevPackager';
 import {ScopeHoistingPackager} from './ScopeHoistingPackager';
@@ -80,7 +81,12 @@ export default (new Packager({
     // path.join containing placeholders. The packager now replaces those placeholders with
     // relative paths so that in the end the __dirname/__filename calls resolve to the correct files
     if (bundle.env.isNode()) {
-      const relPath = path.relative(bundle.target.distDir, options.projectRoot);
+      let relPath = path.relative(bundle.target.distDir, options.projectRoot);
+      // On windows the path.relative creates paths with single backslash
+      // Those need to be escaped in the final bundle
+      if (os.platform() === `win32`) {
+        relPath = relPath.replace(/\\/g, '\\\\');
+      }
       contents = contents.replace('$parcel$dirnameReplace', relPath);
       contents = contents.replace('$parcel$filenameReplace', relPath);
     }

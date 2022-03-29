@@ -1,5 +1,6 @@
 import assert from 'assert';
 import path from 'path';
+import os from 'os';
 import url from 'url';
 import {
   assertDependencyWasExcluded,
@@ -26,7 +27,14 @@ import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
 // Allow writing paths like path/to/thing, even on Windows
-const xplatPath = uri => uri.split('/').join(path.sep);
+const xplatPath = uri => {
+  const uriParts = uri.split('/');
+  if (os.platform() === `win32`) {
+    return uriParts.join('\\\\');
+  } else {
+    return uriParts.join(path.sep);
+  }
+};
 
 describe('javascript', function () {
   beforeEach(async () => {
