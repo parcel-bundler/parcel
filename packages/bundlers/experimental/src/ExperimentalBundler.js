@@ -744,6 +744,14 @@ function createIdealGraph(
     }
   }
 
+  function getBundleFromBundleRoot(bundleRoot: BundleRoot): Bundle {
+    let bundle = bundleGraph.getNode(
+      nullthrows(bundleRoots.get(bundleRoot))[0],
+    );
+    invariant(bundle !== 'root' && bundle != null);
+    return bundle;
+  }
+
   return {
     bundleGraph,
     dependencyBundleGraph,
