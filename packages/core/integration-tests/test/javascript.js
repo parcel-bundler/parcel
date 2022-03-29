@@ -26,16 +26,6 @@ import Logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
-// Allow writing paths like path/to/thing, even on Windows
-const xplatPath = uri => {
-  const uriParts = uri.split('/');
-  if (os.platform() === `win32`) {
-    return uriParts.join('\\\\');
-  } else {
-    return uriParts.join(path.sep);
-  }
-};
-
 describe('javascript', function () {
   beforeEach(async () => {
     await removeDistDirectory();
@@ -2697,16 +2687,12 @@ describe('javascript', function () {
     let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
       dist.includes(
-        xplatPath(
-          'require("path").resolve(__dirname, "../test/integration/env-node-replacements")',
-        ),
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements")',
       ),
     );
     assert(
       dist.includes(
-        xplatPath(
-          'require("path").resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
-        ),
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
       ),
     );
     let f = await run(b);
