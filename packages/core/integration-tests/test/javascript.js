@@ -1,6 +1,5 @@
 import assert from 'assert';
 import path from 'path';
-import os from 'os';
 import url from 'url';
 import {
   assertDependencyWasExcluded,
