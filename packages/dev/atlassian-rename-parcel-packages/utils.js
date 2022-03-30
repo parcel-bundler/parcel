@@ -1,4 +1,8 @@
-const EXCLUDED_PACKAGES = new Set(['@parcel/source-map', '@parcel/watcher']);
+const EXCLUDED_PACKAGES = new Set([
+  '@parcel/css',
+  '@parcel/source-map',
+  '@parcel/watcher',
+]);
 
 function getReplacementName(packageName) {
   return packageName.replace(/^@parcel\//, '@atlassian/parcel-');
