@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-sync-dynamic-import",
-  "version": "2.0.22",
+  "version": "2.0.23",
   "main": "lib/SyncDynamicImportTransformer.js",
   "source": "src/SyncDynamicImportTransformer.js",
   "engines": {
