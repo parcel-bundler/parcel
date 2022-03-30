@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-webextension",
-  "version": "2.0.20",
+  "version": "2.0.21",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,9 +15,9 @@
   },
   "main": "index.json",
   "dependencies": {
-    "@parcel/config-default": "2.0.20",
-    "@parcel/packager-raw-url": "2.0.20",
-    "@parcel/transformer-raw": "2.0.20",
-    "@parcel/transformer-webextension": "2.0.20"
+    "@parcel/config-default": "2.0.21",
+    "@parcel/packager-raw-url": "2.0.21",
+    "@parcel/transformer-raw": "2.0.21",
+    "@parcel/transformer-webextension": "2.0.21"
   }
 }
