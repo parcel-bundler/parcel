@@ -1,6 +1,6 @@
 {
   "name": "@parcel/validator-eslint",
-  "version": "2.0.21",
+  "version": "2.0.22",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
