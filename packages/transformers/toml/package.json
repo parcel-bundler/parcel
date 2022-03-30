@@ -21,6 +21,6 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.3",
-    "@parcel/plugin": "2.0.21"
+    "@parcel/plugin": "2.0.23"
   }
 }

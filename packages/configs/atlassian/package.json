@@ -18,10 +18,10 @@
     "test-ci": "mocha"
   },
   "dependencies": {
-    "@atlassian/parcel-reporter-analytics": "2.0.21",
+    "@atlassian/parcel-reporter-analytics": "2.0.23",
     "@parcel/config-default": "2.0.23",
-    "@parcel/reporter-manifest": "2.0.21",
-    "@parcel/reporter-react-loadable": "2.0.21",
+    "@parcel/reporter-manifest": "2.0.23",
+    "@parcel/reporter-react-loadable": "2.0.23",
     "@parcel/transformer-image": "2.0.23",
     "@parcel/transformer-raw": "2.0.23",
     "@parcel/transformer-workerize": "2.0.23"

@@ -23,8 +23,8 @@
     "test": "yarn workspace @parcel/integration-tests test -g jsonld"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.21",
-    "@parcel/types": "2.0.21",
+    "@parcel/plugin": "2.0.23",
+    "@parcel/types": "2.0.23",
     "json5": "^2.2.0"
   }
 }

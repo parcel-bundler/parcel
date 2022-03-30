@@ -16,7 +16,7 @@
   "main": "index.json",
   "dependencies": {
     "@parcel/config-default": "2.0.23",
-    "@parcel/packager-raw-url": "2.0.21",
+    "@parcel/packager-raw-url": "2.0.23",
     "@parcel/transformer-raw": "2.0.23",
     "@parcel/transformer-webextension": "2.0.23"
   }

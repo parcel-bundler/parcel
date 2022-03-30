@@ -21,10 +21,10 @@
   },
   "dependencies": {
     "@parcel/diagnostic": "2.0.23",
-    "@parcel/plugin": "2.0.21",
+    "@parcel/plugin": "2.0.23",
     "@parcel/ts-utils": "2.0.23",
-    "@parcel/types": "2.0.21",
-    "@parcel/utils": "2.0.21"
+    "@parcel/types": "2.0.23",
+    "@parcel/utils": "2.0.23"
   },
   "devDependencies": {
     "typescript": ">=3.0.0"

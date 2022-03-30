@@ -25,9 +25,9 @@
   },
   "dependencies": {
     "@parcel/config-default": "2.0.23",
-    "@parcel/core": "2.0.21",
-    "@parcel/fs": "2.0.21",
-    "@parcel/package-manager": "2.0.21",
+    "@parcel/core": "2.0.23",
+    "@parcel/fs": "2.0.23",
+    "@parcel/package-manager": "2.0.23",
     "pirates": "^4.0.0"
   }
 }

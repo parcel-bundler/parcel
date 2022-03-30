@@ -10,8 +10,8 @@
   "devDependencies": {
     "@parcel/babel-register": "2.0.23",
     "@parcel/config-default": "2.0.23",
-    "@parcel/optimizer-esbuild": "2.0.21",
-    "@parcel/reporter-sourcemap-visualiser": "2.0.21",
+    "@parcel/optimizer-esbuild": "2.0.23",
+    "@parcel/reporter-sourcemap-visualiser": "2.0.23",
     "parcel": "2.0.23"
   },
   "browser": "dist/legacy/index.html",

@@ -8,6 +8,6 @@
   "main": "lib/WorkerizeTransformer.js",
   "source": "src/WorkerizeTransformer.js",
   "dependencies": {
-    "@parcel/plugin": "2.0.21"
+    "@parcel/plugin": "2.0.23"
   }
 }

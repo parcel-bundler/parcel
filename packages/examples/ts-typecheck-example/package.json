@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "2.0.23",
-    "@parcel/core": "2.0.21",
+    "@parcel/core": "2.0.23",
     "@parcel/validator-typescript": "2.0.23"
   }
 }
