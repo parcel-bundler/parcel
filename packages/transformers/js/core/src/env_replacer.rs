@@ -185,8 +185,7 @@ impl<'a> EnvReplacer<'a> {
       return Some(Expr::Lit(Lit::Str(Str {
         span: DUMMY_SP,
         value: val.into(),
-        has_escape: false,
-        kind: StrKind::Synthesized,
+        raw: None,
       })));
     } else if fallback_undefined {
       match sym as &str {

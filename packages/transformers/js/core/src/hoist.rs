@@ -145,8 +145,7 @@ impl<'a> Fold for Hoist<'a> {
                   src: Str {
                     value: format!("{}:{}", self.module_id, import.src.value).into(),
                     span: DUMMY_SP,
-                    kind: StrKind::Synthesized,
-                    has_escape: false,
+                    raw: None,
                   },
                   type_only: false,
                 })));
@@ -196,8 +195,7 @@ impl<'a> Fold for Hoist<'a> {
                     src: Str {
                       value: format!("{}:{}", self.module_id, src.value).into(),
                       span: DUMMY_SP,
-                      kind: StrKind::Synthesized,
-                      has_escape: false,
+                      raw: None,
                     },
                     type_only: false,
                   })));
@@ -286,8 +284,7 @@ impl<'a> Fold for Hoist<'a> {
                   src: Str {
                     value: format!("{}:{}", self.module_id, export.src.value).into(),
                     span: DUMMY_SP,
-                    kind: StrKind::Synthesized,
-                    has_escape: false,
+                    raw: None,
                   },
                   type_only: false,
                 })));
@@ -393,8 +390,7 @@ impl<'a> Fold for Hoist<'a> {
                               src: Str {
                                 value: format!("{}:{}", self.module_id, source).into(),
                                 span: DUMMY_SP,
-                                kind: StrKind::Synthesized,
-                                has_escape: false,
+                                raw: None,
                               },
                               type_only: false,
                             })));
@@ -436,8 +432,7 @@ impl<'a> Fold for Hoist<'a> {
                                 src: Str {
                                   value: format!("{}:{}", self.module_id, source).into(),
                                   span: DUMMY_SP,
-                                  kind: StrKind::Synthesized,
-                                  has_escape: false,
+                                  raw: None,
                                 },
                                 type_only: false,
                               })));
@@ -951,8 +946,7 @@ impl<'a> Hoist<'a> {
         src: Str {
           value: format!("{}:{}", self.module_id, source).into(),
           span: DUMMY_SP,
-          kind: StrKind::Synthesized,
-          has_escape: false,
+          raw: None,
         },
         type_only: false,
       })));
