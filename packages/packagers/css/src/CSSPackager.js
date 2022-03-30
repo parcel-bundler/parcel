@@ -129,6 +129,7 @@ export default (new Packager({
       bundleGraph,
       contents,
       map,
+      getReplacement: escapeString,
     }));
 
     return replaceInlineReferences({
@@ -138,7 +139,7 @@ export default (new Packager({
       getInlineBundleContents,
       getInlineReplacement: (dep, inlineType, contents) => ({
         from: getSpecifier(dep),
-        to: contents,
+        to: escapeString(contents),
       }),
       map,
     });
@@ -151,6 +152,10 @@ export function getSpecifier(dep: Dependency): string {
   }
 
   return dep.id;
+}
+
+function escapeString(contents: string): string {
+  return contents.replace(/(["\\])/g, '\\$1');
 }
 
 async function processCSSModule(

@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "detect-libc": "^1.0.3",
-    "self-published": "npm:@parcel/fs-search@2.3.3-nightly.2635"
+    "self-published": "npm:@parcel/fs-search@2.4.1-nightly.2654"
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4"

@@ -4,7 +4,7 @@ use std::path::Path;
 
 use swc_atoms::JsWord;
 use swc_common::{SourceMap, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast;
+use swc_ecmascript::ast::{self, ComputedPropName};
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
@@ -24,12 +24,12 @@ pub struct GlobalReplacer<'a> {
 
 impl<'a> Fold for GlobalReplacer<'a> {
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
-    use ast::{Expr::*, Ident, MemberExpr};
+    use ast::{Expr::*, Ident, MemberExpr, MemberProp};
 
     // Do not traverse into the `prop` side of member expressions unless computed.
     let node = match node {
       Member(expr) => {
-        if expr.computed {
+        if let MemberProp::Computed(_) = expr.prop {
           Member(MemberExpr {
             obj: expr.obj.fold_with(self),
             prop: expr.prop.fold_with(self),
@@ -87,9 +87,8 @@ impl<'a> Fold for GlobalReplacer<'a> {
               id.sym.clone(),
               self.global_mark,
               Member(MemberExpr {
-                obj: ast::ExprOrSuper::Expr(Box::new(Call(create_require(specifier.clone())))),
-                prop: Box::new(Ident(ast::Ident::new("Buffer".into(), DUMMY_SP))),
-                computed: false,
+                obj: Box::new(Call(create_require(specifier.clone()))),
+                prop: MemberProp::Ident(ast::Ident::new("Buffer".into(), DUMMY_SP)),
                 span: DUMMY_SP,
               }),
             ),
@@ -169,15 +168,14 @@ impl<'a> Fold for GlobalReplacer<'a> {
                 id.sym.clone(),
                 self.global_mark,
                 ast::Expr::Member(ast::MemberExpr {
-                  obj: ast::ExprOrSuper::Expr(Box::new(Ident(Ident::new(
-                    js_word!("arguments"),
-                    DUMMY_SP,
-                  )))),
-                  prop: Box::new(Lit(ast::Lit::Num(ast::Number {
-                    value: 3.0,
+                  obj: Box::new(Ident(Ident::new(js_word!("arguments"), DUMMY_SP))),
+                  prop: MemberProp::Computed(ComputedPropName {
                     span: DUMMY_SP,
-                  }))),
-                  computed: true,
+                    expr: Box::new(Lit(ast::Lit::Num(ast::Number {
+                      value: 3.0,
+                      span: DUMMY_SP,
+                    }))),
+                  }),
                   span: DUMMY_SP,
                 }),
               ),
