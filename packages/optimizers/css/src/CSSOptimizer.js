@@ -78,7 +78,10 @@ Parcel\'s default CSS minifer changed from cssnano to @parcel/css, but a "cssnan
     if (bundle.env.shouldScopeHoist) {
       unusedSymbols = [];
       bundle.traverseAssets(asset => {
-        if (asset.symbols.isCleared) {
+        if (
+          asset.symbols.isCleared ||
+          asset.meta.cssModulesCompiled === 'postcss'
+        ) {
           return;
         }
 
