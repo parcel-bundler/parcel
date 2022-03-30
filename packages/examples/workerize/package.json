@@ -1,6 +1,6 @@
 {
   "name": "@parcel/workerize-example",
-  "version": "2.0.23",
+  "version": "2.0.24",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -9,8 +9,8 @@
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.23",
-    "@parcel/core": "2.0.23"
+    "@parcel/babel-register": "2.0.24",
+    "@parcel/core": "2.0.24"
   },
   "main": "dist/index.js",
   "dependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-raw-url",
-  "version": "2.0.23",
+  "version": "2.0.24",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
     "parcel": "^2.0.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.23",
-    "@parcel/utils": "2.0.23"
+    "@parcel/plugin": "2.0.24",
+    "@parcel/utils": "2.0.24"
   }
 }
