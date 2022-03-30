@@ -82,19 +82,17 @@ impl<'a> Fold for NodeReplacer<'a> {
               ast::ExprOrSpread {
                 spread: None,
                 expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                  has_escape: false,
                   span: DUMMY_SP,
-                  kind: ast::StrKind::Synthesized,
                   value: replace_me_value,
+                  raw: None,
                 }))),
               },
               ast::ExprOrSpread {
                 spread: None,
                 expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                  has_escape: false,
                   span: DUMMY_SP,
-                  kind: ast::StrKind::Synthesized,
                   value: swc_atoms::JsWord::from(filename),
+                  raw: None,
                 }))),
               },
             ],
@@ -142,10 +140,9 @@ impl<'a> Fold for NodeReplacer<'a> {
               ast::ExprOrSpread {
                 spread: None,
                 expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                  has_escape: false,
                   span: DUMMY_SP,
-                  kind: ast::StrKind::Synthesized,
                   value: replace_me_value,
+                  raw: None,
                 }))),
               },
             ],
