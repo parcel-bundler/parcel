@@ -2,11 +2,7 @@
 import type {Async} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
-import {
-  replaceInlineReferences,
-  replaceURLReferences,
-  normalizeSeparators,
-} from '@parcel/utils';
+import {replaceInlineReferences, replaceURLReferences} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -78,17 +74,6 @@ export default (new Packager({
         map,
         getReplacement: s => JSON.stringify(s).slice(1, -1),
       }));
-    }
-
-    // For node environment @parcel/transformer-js replaces __dirname and __filename calls with
-    // path.join containing placeholders. The packager now replaces those placeholders with
-    // relative paths so that in the end the __dirname/__filename calls resolve to the correct files
-    if (bundle.env.isNode()) {
-      const relPath = normalizeSeparators(
-        path.relative(bundle.target.distDir, options.projectRoot),
-      );
-      contents = contents.replace('$parcel$dirnameReplace', relPath);
-      contents = contents.replace('$parcel$filenameReplace', relPath);
     }
 
     return replaceInlineReferences({

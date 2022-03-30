@@ -1,7 +1,12 @@
 // @flow strict-local
 import type {BundleGraph, PluginOptions, NamedBundle} from '@parcel/types';
 
-import {PromiseQueue, relativeBundlePath, countLines} from '@parcel/utils';
+import {
+  PromiseQueue,
+  relativeBundlePath,
+  countLines,
+  normalizeSeparators,
+} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import invariant from 'assert';
 import path from 'path';
@@ -115,6 +120,20 @@ export class DevPackager {
           '\n},';
         wrapped += JSON.stringify(deps);
         wrapped += ']';
+
+        // For node environment @parcel/transformer-js replaces __dirname and __filename calls with
+        // path.join containing placeholders. The packager now replaces those placeholders with
+        // relative paths so that in the end the __dirname/__filename calls resolve to the correct files
+        if (this.bundle.env.isNode()) {
+          const relPath = normalizeSeparators(
+            path.relative(
+              this.bundle.target.distDir,
+              path.dirname(asset.filePath),
+            ),
+          );
+          wrapped = wrapped.replace('$parcel$dirnameReplace', relPath);
+          wrapped = wrapped.replace('$parcel$filenameReplace', relPath);
+        }
 
         if (this.bundle.env.sourceMap) {
           if (mapBuffer) {
