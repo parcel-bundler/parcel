@@ -121,10 +121,10 @@ export class DevPackager {
         wrapped += JSON.stringify(deps);
         wrapped += ']';
 
-        // For node environment @parcel/transformer-js replaces __dirname and __filename calls with
-        // path.join containing placeholders. The packager now replaces those placeholders with
-        // relative paths so that in the end the __dirname/__filename calls resolve to the correct files
-        if (this.bundle.env.isNode() && asset.meta.has_node_replacements) {
+        if (
+          this.bundle.env.isNode() &&
+          asset.meta.has_node_replacements === true
+        ) {
           const relPath = normalizeSeparators(
             path.relative(
               this.bundle.target.distDir,
