@@ -21,6 +21,19 @@ export default (new Transformer({
     return conf?.contents;
   },
   async transform({asset, config, options}) {
+    // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
+    // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
+    let env = asset.env;
+    asset.setEnvironment({
+      context: 'browser',
+      engines: {
+        browsers: asset.env.engines.browsers,
+      },
+      shouldOptimize: asset.env.shouldOptimize,
+      shouldScopeHoist: asset.env.shouldScopeHoist,
+      sourceMap: asset.env.sourceMap,
+    });
+
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
@@ -41,7 +54,7 @@ export default (new Transformer({
           code,
           cssModules:
             config?.cssModules ??
-            (asset.meta.cssModulesCompiled !== true &&
+            (asset.meta.cssModulesCompiled == null &&
               /\.module\./.test(asset.filePath)),
           analyzeDependencies: asset.meta.hasDependencies !== false,
           sourceMap: !!asset.env.sourceMap,
@@ -94,7 +107,7 @@ export default (new Transformer({
           loc = remapSourceLocation(loc, originalMap);
         }
 
-        if (dep.type === 'import') {
+        if (dep.type === 'import' && !res.exports) {
           asset.addDependency({
             specifier: dep.url,
             specifierType: 'url',
@@ -104,7 +117,6 @@ export default (new Transformer({
               isCSSImport: true,
               media: dep.media,
             },
-            symbols: new Map([['*', {local: '*', isWeak: true, loc}]]),
           });
         } else if (dep.type === 'url') {
           asset.addURLDependency(dep.url, {
@@ -125,7 +137,6 @@ export default (new Transformer({
       asset.symbols.set('default', 'default');
 
       let dependencies = new Map();
-      let selfReferences = new Set();
       let locals = new Map();
       let c = 0;
       let depjs = '';
@@ -147,10 +158,6 @@ export default (new Transformer({
         let e = exports[key];
         let s = `module.exports[${JSON.stringify(key)}] = \`${e.name}`;
 
-        if (e.isReferenced) {
-          selfReferences.add(e.name);
-        }
-
         for (let ref of e.composes) {
           s += ' ';
           if (ref.type === 'local') {
@@ -171,17 +178,19 @@ export default (new Transformer({
                 ref.specifier,
               )};\n`;
               dependencies.set(ref.specifier, d);
-
-              asset.addDependency({
-                specifier: ref.specifier,
-                specifierType: 'url',
-              });
             }
             s += '${' + `${d}[${JSON.stringify(ref.name)}]` + '}';
           }
         }
 
         s += '`;\n';
+
+        // If the export is referenced internally (e.g. used @keyframes), add a self-reference
+        // to the JS so the symbol is retained during tree-shaking.
+        if (e.isReferenced) {
+          s += `module.exports[${JSON.stringify(key)}];\n`;
+        }
+
         js += s;
       };
 
@@ -190,12 +199,15 @@ export default (new Transformer({
         add(key);
       }
 
-      for (let dep of asset.getDependencies()) {
-        if (dep.priority === 'sync') {
-          // TODO: Figure out how to treeshake this
-          let d = `dep_$${c++}`;
-          depjs += `import * as ${d} from ${JSON.stringify(dep.specifier)};\n`;
-          depjs += `for (let key in ${d}) { if (key in module.exports) module.exports[key] += ' ' + ${d}[key]; else module.exports[key] = ${d}[key]; }\n`;
+      if (res.dependencies) {
+        for (let dep of res.dependencies) {
+          if (dep.type === 'import') {
+            // TODO: Figure out how to treeshake this
+            let d = `dep_$${c++}`;
+            depjs += `import * as ${d} from ${JSON.stringify(dep.url)};\n`;
+            js += `for (let key in ${d}) { if (key in module.exports) module.exports[key] += ' ' + ${d}[key]; else module.exports[key] = ${d}[key]; }\n`;
+            asset.symbols.set('*', '*');
+          }
         }
       }
 
@@ -203,36 +215,9 @@ export default (new Transformer({
         type: 'js',
         content: depjs + js,
         dependencies: jsDeps,
-        env: asset.env,
+        env,
       });
-
-      if (selfReferences.size > 0) {
-        asset.addDependency({
-          specifier: `./${path.basename(asset.filePath)}`,
-          specifierType: 'url',
-          symbols: new Map(
-            [...locals]
-              .filter(([local]) => selfReferences.has(local))
-              .map(([local, exported]) => [
-                exported,
-                {local, isWeak: false, loc: null},
-              ]),
-          ),
-        });
-      }
     }
-
-    // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
-    // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
-    asset.setEnvironment({
-      context: 'browser',
-      engines: {
-        browsers: asset.env.engines.browsers,
-      },
-      shouldOptimize: asset.env.shouldOptimize,
-      shouldScopeHoist: asset.env.shouldScopeHoist,
-      sourceMap: asset.env.sourceMap,
-    });
 
     return assets;
   },
