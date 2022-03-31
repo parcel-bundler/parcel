@@ -105,6 +105,7 @@ pub struct TransformResult {
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
+  has_node_replacements: bool,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -399,6 +400,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               module.fold_with(&mut passes)
             };
 
+            let mut has_node_replacements = false;
+
             let module = {
               let mut passes = chain!(
                 // Insert placeholders for context variables like __dirname and __filename
@@ -412,6 +415,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     decls: &mut decls,
                     global_mark,
                     scope_hoist: config.scope_hoist,
+                    has_node_replacements: &mut has_node_replacements,
                   },
                   config.node_replacer
                 ),
@@ -421,6 +425,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
               module.fold_with(&mut passes)
             };
+
+            result.has_node_replacements = has_node_replacements;
 
             let module = module.fold_with(
               // Collect dependencies

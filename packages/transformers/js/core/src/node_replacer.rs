@@ -20,6 +20,7 @@ pub struct NodeReplacer<'a> {
   pub decls: &'a mut HashSet<(JsWord, SyntaxContext)>,
   pub global_mark: swc_common::Mark,
   pub scope_hoist: bool,
+  pub has_node_replacements: &'a mut bool,
 }
 
 impl<'a> Fold for NodeReplacer<'a> {
@@ -120,6 +121,8 @@ impl<'a> Fold for NodeReplacer<'a> {
             source_type: Some(SourceType::Module),
             placeholder: None,
           });
+
+          *self.has_node_replacements = true;
         }
         "__dirname" => {
           let specifier = swc_atoms::JsWord::from("path");
@@ -170,6 +173,8 @@ impl<'a> Fold for NodeReplacer<'a> {
             source_type: Some(SourceType::Module),
             placeholder: None,
           });
+
+          *self.has_node_replacements = true;
         }
         _ => {}
       }

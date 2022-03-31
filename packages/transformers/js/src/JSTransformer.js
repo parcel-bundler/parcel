@@ -384,6 +384,7 @@ export default (new Transformer({
       needs_esm_helpers,
       diagnostics,
       used_env,
+      has_node_replacements,
     } = transform({
       filename: asset.filePath,
       code,
@@ -519,6 +520,10 @@ export default (new Transformer({
 
     if (shebang) {
       asset.meta.interpreter = shebang;
+    }
+
+    if (has_node_replacements) {
+      asset.meta.has_node_replacements = has_node_replacements;
     }
 
     for (let env of used_env) {

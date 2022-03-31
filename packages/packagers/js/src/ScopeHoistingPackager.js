@@ -544,7 +544,7 @@ ${code}
       this.needsPrelude = true;
     }
 
-    if (this.bundle.env.isNode()) {
+    if (this.bundle.env.isNode() && asset.meta.has_node_replacements) {
       const relPath = normalizeSeparators(
         path.relative(this.bundle.target.distDir, path.dirname(asset.filePath)),
       );
