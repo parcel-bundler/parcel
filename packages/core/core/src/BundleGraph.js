@@ -860,10 +860,12 @@ export default class BundleGraph {
   traverseAssets<TContext>(
     bundle: Bundle,
     visit: GraphVisitor<Asset, TContext>,
+    startAsset?: Asset,
   ): ?TContext {
     return this.traverseBundle(
       bundle,
       mapVisitor(node => (node.type === 'asset' ? node.value : null), visit),
+      startAsset,
     );
   }
 
@@ -1057,8 +1059,9 @@ export default class BundleGraph {
   traverseBundle<TContext>(
     bundle: Bundle,
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
+    startAsset?: Asset,
   ): ?TContext {
-    let entries = true;
+    let entries = !startAsset;
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
 
     // A modified DFS traversal which traverses entry assets in the same order
@@ -1085,7 +1088,9 @@ export default class BundleGraph {
 
         actions.skipChildren();
       }, visit),
-      startNodeId: bundleNodeId,
+      startNodeId: startAsset
+        ? this._graph.getNodeIdByContentKey(startAsset.id)
+        : bundleNodeId,
       getChildren: nodeId => {
         let children = this._graph
           .getNodeIdsConnectedFrom(nodeId)
