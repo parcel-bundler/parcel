@@ -10,6 +10,10 @@
     "scripting",
     "activeTab"
   ],
+  "content_scripts": [{
+    "matches": ["https://*.google.com/*"],
+    "js": ["other-content-script.js"]
+  }],
   "action": {
     "default_popup": "popup.html"
   }

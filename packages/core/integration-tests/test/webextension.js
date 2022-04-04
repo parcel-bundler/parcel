@@ -1,6 +1,6 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, assertBundles, outputFS} from '@parcel/test-utils';
+import {bundle, assertBundles, outputFS, distDir} from '@parcel/test-utils';
 
 describe('webextension', function () {
   it('should resolve a full webextension bundle', async function () {
@@ -85,14 +85,24 @@ describe('webextension', function () {
         name: 'manifest.json',
         assets: ['manifest.json'],
       },
-      {
-        assets: ['background.js'],
-      },
+      {assets: ['background.js']},
       {assets: ['popup.html']},
       {assets: ['popup.css']},
       {assets: ['popup.js', 'esmodule-helpers.js', 'bundle-url.js']},
       {assets: ['content-script.js']},
+      {assets: ['other-content-script.js']},
+      {assets: ['injected.css']},
     ]);
+    const manifest = JSON.parse(
+      await outputFS.readFile(path.join(distDir, 'manifest.json'), 'utf-8'),
+    );
+    const css = manifest.content_scripts[0].css;
+    assert.equal(css.length, 1);
+    assert(
+      (await outputFS.readFile(path.join(distDir, css[0]), 'utf-8')).includes(
+        'Comic Sans MS',
+      ),
+    );
   });
   // TODO: Test error-checking
 });

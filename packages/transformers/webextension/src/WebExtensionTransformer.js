@@ -47,7 +47,9 @@ async function collectDependencies(
     const locales = path.join(assetDir, '_locales');
     let err = !(await fs.exists(locales))
       ? 'key'
-      : !(await fs.exists(path.join(locales, program.default_locale)))
+      : !(await fs.exists(
+          path.join(locales, program.default_locale, 'messages.json'),
+        ))
       ? 'value'
       : null;
     if (err) {
@@ -62,8 +64,10 @@ async function collectDependencies(
                 codeHighlights: [
                   {
                     ...getJSONSourceLocation(ptrs['/default_locale'], err),
-                    message: md`Localization directory${
-                      err == 'value' ? ' for ' + program.default_locale : ''
+                    message: md`Localization ${
+                      err == 'value'
+                        ? 'file for ' + program.default_locale
+                        : 'directory'
                     } does not exist: ${path.relative(
                       assetDir,
                       path.join(locales, program.default_locale),
@@ -77,7 +81,7 @@ async function collectDependencies(
       });
     }
     for (const locale of await fs.readdir(locales)) {
-      if (await fs.exists(path.join(locales, locale))) {
+      if (await fs.exists(path.join(locales, locale, 'messages.json'))) {
         asset.addURLDependency(`_locales/${locale}/messages.json`, {
           needsStableName: true,
           pipeline: 'raw',
@@ -339,6 +343,18 @@ function cspPatchHMR(policy: ?string) {
 
 export default (new Transformer({
   async transform({asset, options}) {
+    // Set environment to browser, since web extensions are always used in
+    // browsers, and because it avoids delegating extra config to the user
+    asset.setEnvironment({
+      context: 'browser',
+      engines: asset.env.engines,
+      shouldOptimize: asset.env.shouldOptimize,
+      sourceMap: {
+        ...asset.env.sourceMap,
+        inline: true,
+        inlineSources: true,
+      },
+    });
     const code = await asset.getCode();
     const parsed = jsm.parse(code);
     const data: any = parsed.data;
@@ -361,16 +377,6 @@ export default (new Transformer({
       '@parcel/transformer-webextension',
       'Invalid Web Extension manifest',
     );
-    asset.setEnvironment({
-      context: 'browser',
-      engines: asset.env.engines,
-      shouldOptimize: asset.env.shouldOptimize,
-      sourceMap: {
-        ...asset.env.sourceMap,
-        inline: true,
-        inlineSources: true,
-      },
-    });
     await collectDependencies(
       asset,
       data,
