@@ -17,7 +17,7 @@ import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
 
 const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
-const LEGACY_MODULE_RE = /@value|(:global|:local)(?!\s*\()/i;
+const LEGACY_MODULE_RE = /@value|:export|(:global|:local|:import)(?!\s*\()/i;
 const MODULE_BY_NAME_RE = /\.module\./;
 
 export default (new Transformer({
@@ -79,7 +79,7 @@ export default (new Transformer({
     let plugins = [...config.hydrated.plugins];
     let cssModules: ?{|[string]: string|} = null;
     if (config.hydrated.modules) {
-      asset.meta.cssModulesCompiled = true;
+      asset.meta.cssModulesCompiled = 'postcss';
 
       let code = asset.isASTDirty() ? null : await asset.getCode();
       if (

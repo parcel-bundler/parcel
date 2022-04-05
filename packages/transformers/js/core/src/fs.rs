@@ -168,9 +168,8 @@ impl<'a> InlineFS<'a> {
 
         let contents = Expr::Lit(Lit::Str(Str {
           value: contents.into(),
-          kind: StrKind::Synthesized,
-          has_escape: false,
           span: DUMMY_SP,
+          raw: None,
         }));
 
         // Add a file dependency so the cache is invalidated when this file changes.
@@ -204,9 +203,8 @@ impl<'a> InlineFS<'a> {
               ExprOrSpread {
                 expr: Box::new(Expr::Lit(Lit::Str(Str {
                   value: "base64".into(),
-                  kind: StrKind::Synthesized,
-                  has_escape: false,
                   span: DUMMY_SP,
+                  raw: None,
                 }))),
                 spread: None,
               },
@@ -242,15 +240,13 @@ impl<'a> Fold for Evaluator<'a> {
             .to_str()
             .unwrap()
             .into(),
-          kind: StrKind::Synthesized,
-          has_escape: false,
           span: DUMMY_SP,
+          raw: None,
         })),
         "__filename" => Expr::Lit(Lit::Str(Str {
           value: self.inline.filename.to_str().unwrap().into(),
-          kind: StrKind::Synthesized,
-          has_escape: false,
           span: DUMMY_SP,
+          raw: None,
         })),
         _ => node,
       },
@@ -268,9 +264,8 @@ impl<'a> Fold for Evaluator<'a> {
 
           Expr::Lit(Lit::Str(Str {
             value: format!("{}{}", left, right).into(),
-            kind: StrKind::Synthesized,
-            has_escape: false,
             span: DUMMY_SP,
+            raw: None,
           }))
         }
         _ => node,
@@ -307,9 +302,8 @@ impl<'a> Fold for Evaluator<'a> {
 
               return Expr::Lit(Lit::Str(Str {
                 value: path.to_str().unwrap().into(),
-                kind: StrKind::Synthesized,
-                has_escape: false,
                 span: DUMMY_SP,
+                raw: None,
               }));
             }
             _ => return node,

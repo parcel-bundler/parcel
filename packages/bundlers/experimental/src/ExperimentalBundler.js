@@ -53,6 +53,7 @@ const HTTP_OPTIONS = {
 type AssetId = string;
 type BundleRoot = Asset;
 export type Bundle = {|
+  uniqueKey: ?string,
   assets: Set<Asset>,
   internalizedAssetIds: Array<AssetId>,
   bundleBehavior?: ?BundleBehavior,
@@ -158,6 +159,17 @@ function decorateLegacyGraph(
           uniqueKey:
             [...idealBundle.assets].map(asset => asset.id).join(',') +
             idealBundle.sourceBundles.join(','),
+          needsStableName: idealBundle.needsStableName,
+          bundleBehavior: idealBundle.bundleBehavior,
+          type: idealBundle.type,
+          target: idealBundle.target,
+          env: idealBundle.env,
+        }),
+      );
+    } else if (idealBundle.uniqueKey != null) {
+      bundle = nullthrows(
+        bundleGraph.createBundle({
+          uniqueKey: idealBundle.uniqueKey,
           needsStableName: idealBundle.needsStableName,
           bundleBehavior: idealBundle.bundleBehavior,
           type: idealBundle.type,
@@ -316,11 +328,15 @@ function createIdealGraph(
   }
 
   let assets = [];
+  let assetsToAddOnExit: DefaultMap<
+    Dependency,
+    Array<[Bundle, Asset]>,
+  > = new DefaultMap(() => []);
 
   // Step 2: Traverse the asset graph and create bundles for asset type changes and async dependencies,
   // only adding the entry asset of each bundle, not the subgraph.
   assetGraph.traverse({
-    enter(node, context) {
+    enter(node, context, actions) {
       if (node.type === 'asset') {
         assets.push(node.value);
 
@@ -334,6 +350,11 @@ function createIdealGraph(
           return node;
         }
         let dependency = node.value;
+
+        if (assetGraph.isDependencySkipped(dependency)) {
+          actions.skipChildren();
+          return node;
+        }
 
         invariant(context?.type === 'asset');
         let parentAsset = context.value;
@@ -421,10 +442,16 @@ function createIdealGraph(
 
             // Find an existing bundle of the same type within the bundle group.
             let bundleId;
+            let entryAsset;
+            let uniqueKey;
             if (
               childAsset.bundleBehavior !== 'inline' &&
               dependency.priority !== 'parallel'
             ) {
+              uniqueKey = childAsset.id;
+              // TODO: share bundles even across different bundle groups by looking if the child
+              // asset is already a bundle root. In order for this to work, bundleRoots must be
+              // keyed by asset + target, not just asset, so that bundles are not shared between targets.
               bundleId =
                 bundleGroup.type == childAsset.type
                   ? bundleGroupNodeId
@@ -434,6 +461,8 @@ function createIdealGraph(
                         let node = bundleGraph.getNode(id);
                         return node !== 'root' && node?.type == childAsset.type;
                       });
+            } else {
+              entryAsset = childAsset;
             }
 
             let bundle;
@@ -446,7 +475,13 @@ function createIdealGraph(
 
               // Create a new bundle if none of the same type exists already.
               bundle = createBundle({
-                asset: childAsset,
+                // We either have an entry asset or a unique key.
+                // Bundles created from type changes shouldn't have an entry asset.
+                asset: entryAsset,
+                uniqueKey,
+                type: childAsset.type,
+                env: childAsset.env,
+                bundleBehavior: childAsset.bundleBehavior,
                 target: bundleGroup.target,
                 needsStableName:
                   childAsset.bundleBehavior === 'inline' ||
@@ -461,7 +496,11 @@ function createIdealGraph(
               // Otherwise, merge this asset into the existing bundle.
               bundle = bundleGraph.getNode(bundleId);
               invariant(bundle != null && bundle !== 'root');
-              bundle.assets.add(childAsset);
+            }
+
+            if (!entryAsset) {
+              // Queue the asset to be added on exit of this node, so we add dependencies first.
+              assetsToAddOnExit.get(dependency).push([bundle, childAsset]);
             }
 
             bundles.set(childAsset.id, bundleId);
@@ -500,6 +539,15 @@ function createIdealGraph(
       return node;
     },
     exit(node) {
+      if (node.type === 'dependency' && assetsToAddOnExit.has(node.value)) {
+        let assetsToAdd = assetsToAddOnExit.get(node.value);
+        for (let [bundle, asset] of assetsToAdd) {
+          bundle.assets.add(asset);
+          bundle.size += asset.stats.size;
+        }
+        assetsToAddOnExit.delete(node.value);
+      }
+
       if (stack[stack.length - 1]?.[0] === node.value) {
         stack.pop();
       }
@@ -884,7 +932,7 @@ function createIdealGraph(
           bundleGraph.getNodeIdsConnectedTo(bundleId).length;
         if (incomingNodeCount === 1) {
           removeBundle(bundleGraph, bundleId);
-        } else if (incomingNodeCount == 0) {
+        } else if (incomingNodeCount === 0) {
           bundleGraph.removeNode(bundleId);
         }
       }
@@ -920,26 +968,18 @@ const CONFIG_SCHEMA: SchemaEntity = {
   additionalProperties: false,
 };
 
-function createBundle(
-  opts:
-    | {|
-        target: Target,
-        env: Environment,
-        type: string,
-        needsStableName?: boolean,
-        bundleBehavior?: ?BundleBehavior,
-      |}
-    | {|
-        target: Target,
-        asset: Asset,
-        env?: Environment,
-        type?: string,
-        needsStableName?: boolean,
-        bundleBehavior?: ?BundleBehavior,
-      |},
-): Bundle {
+function createBundle(opts: {|
+  uniqueKey?: string,
+  target: Target,
+  asset?: Asset,
+  env?: Environment,
+  type?: string,
+  needsStableName?: boolean,
+  bundleBehavior?: ?BundleBehavior,
+|}): Bundle {
   if (opts.asset == null) {
     return {
+      uniqueKey: opts.uniqueKey,
       assets: new Set(),
       internalizedAssetIds: [],
       size: 0,
@@ -954,6 +994,7 @@ function createBundle(
 
   let asset = nullthrows(opts.asset);
   return {
+    uniqueKey: opts.uniqueKey,
     assets: new Set([asset]),
     internalizedAssetIds: [],
     size: asset.stats.size,
