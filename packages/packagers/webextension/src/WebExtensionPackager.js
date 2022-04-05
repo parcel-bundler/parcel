@@ -46,7 +46,11 @@ export default (new Packager({
         matches: contentScript.matches,
         extension_ids: [],
         resources: referencedBundles
-          .flatMap(b => bundleGraph.getChildBundles(b))
+          .flatMap(b => {
+            const children = [];
+            bundleGraph.traverseBundles(child => children.push(child), b);
+            return children;
+          })
           .map(relPath),
       });
     }

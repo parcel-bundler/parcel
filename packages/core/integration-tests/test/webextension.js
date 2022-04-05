@@ -36,6 +36,24 @@ describe('webextension', function () {
       {assets: ['content.js']},
       {assets: ['content.css']},
     ]);
+    assert(
+      await outputFS.exists(
+        path.join(distDir, '_locales', 'en_US', 'messages.json'),
+      ),
+    );
+    const manifest = JSON.parse(
+      await outputFS.readFile(
+        b.getBundles().find(b => b.name == 'manifest.json').filePath,
+        'utf8',
+      ),
+    );
+    const scripts = manifest.background.scripts;
+    assert.equal(scripts.length, 1);
+    assert(
+      (
+        await outputFS.readFile(path.join(distDir, scripts[0]), 'utf-8')
+      ).includes('Hello Parcel!'),
+    );
   });
 
   it('should resolve the web_accessible_resources globs', async function () {
