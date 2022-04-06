@@ -202,10 +202,10 @@ describe('less', function () {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert(output().startsWith('index_'));
+    assert(output().endsWith('_index'));
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(css.includes('.index_'));
+    assert(/\.[_0-9a-zA-Z]+_index/.test(css));
   });
 
   it('should throw an exception when using webpack syntax', async function () {
