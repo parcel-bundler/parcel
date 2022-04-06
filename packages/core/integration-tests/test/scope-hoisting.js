@@ -2264,6 +2264,40 @@ describe('scope hoisting', function () {
       assert.equal(await output, 42);
     });
 
+    describe("considers an asset's closest package.json for sideEffects, not the package through which it found the asset", () => {
+      it('handles redirects up the tree', async () => {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-package-redirect-up/index.js',
+          ),
+        );
+
+        let result = await run(b);
+        assert.strictEqual(result, 1);
+
+        let bar = findAsset(b, 'real-bar.js');
+        assert(bar);
+        assert.strictEqual(bar.sideEffects, false);
+      });
+
+      it('handles redirects down the tree', async () => {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-package-redirect-down/index.js',
+          ),
+        );
+
+        let result = await run(b);
+        assert.strictEqual(result, 1);
+
+        let bar = findAsset(b, 'real-bar.js');
+        assert(bar);
+        assert.strictEqual(bar.sideEffects, false);
+      });
+    });
+
     describe('correctly updates used symbols on changes', () => {
       it('dependency symbols change', async function () {
         let testDir = path.join(
