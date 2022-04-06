@@ -1020,6 +1020,154 @@ describe('resolver', function () {
           ],
         });
       });
+
+      it('should determine sideEffects correctly (main field exists in upward package)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-package-redirect-up/foo/bar',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(resolved, {
+          filePath: path.resolve(
+            rootDir,
+            'node_modules/side-effects-package-redirect-up/foo/real-bar.js',
+          ),
+          sideEffects: false,
+          query: undefined,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'index'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'node_modules/side-effects-package-redirect-up',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-up',
+                'foo',
+                'bar.js',
+              ),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-up',
+                'foo',
+                'bar.json',
+              ),
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(
+              rootDir,
+              'node_modules',
+              'side-effects-package-redirect-up',
+              'package.json',
+            ),
+            path.join(
+              rootDir,
+              'node_modules',
+              'side-effects-package-redirect-up',
+              'foo',
+              'bar',
+              'package.json',
+            ),
+            path.join(
+              rootDir,
+              'node_modules',
+              'side-effects-package-redirect-up',
+              'foo',
+              'package.json',
+            ),
+          ],
+        });
+      });
+
+      it('should determine sideEffects correctly (main field exists in downward package)', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-package-redirect-down/foo/bar',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(resolved, {
+          filePath: path.resolve(
+            rootDir,
+            'node_modules/side-effects-package-redirect-down/foo/bar/baz/real-bar.js',
+          ),
+          sideEffects: false,
+          query: undefined,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'index'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'node_modules/side-effects-package-redirect-down',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-down',
+                'foo',
+                'bar.js',
+              ),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-down',
+                'foo',
+                'bar.json',
+              ),
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(
+              rootDir,
+              'node_modules',
+              'side-effects-package-redirect-down',
+              'package.json',
+            ),
+            path.join(
+              rootDir,
+              'node_modules',
+              'side-effects-package-redirect-down',
+              'foo',
+              'bar',
+              'package.json',
+            ),
+            path.join(
+              rootDir,
+              'node_modules',
+              'side-effects-package-redirect-down',
+              'foo',
+              'bar',
+              'baz',
+              'package.json',
+            ),
+          ],
+        });
+      });
     });
 
     describe('sideEffects: globs', function () {
