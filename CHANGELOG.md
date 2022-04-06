@@ -5,9 +5,20 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2022-03-31
+
+### Fixed
+
+- Fix `:export` in CSS modules
+- Don't remove unused classes or `@keyframes` when a CSS module is processed by postcss
+- Fix bundling issue with CSS modules where unintended side effects from a different page could be run
+- Fix crash with CSS in multiple environments
+- Update Parcel CSS. Fixes issues with `::-webkit-scrollbar`, list styles in CSS modules, `@-moz-document`, and more. See [release notes](https://github.com/parcel-bundler/parcel-css/releases/tag/v1.7.4).
+- Update SWC. Fixes an issue with parenthesized expressions following a return statement.
+
 ## [2.4.0] - 2022-03-22
 
-## Added
+### Added
 
 - Replace default CSS transformer and minifier with `@parcel/css` - [Details](https://github.com/parcel-bundler/parcel/pull/7821)
 - Replace `typeof` before dead code elimination to improve bundle size - [Details](https://github.com/parcel-bundler/parcel/pull/7788)
@@ -19,7 +30,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Use relative path for bundle labels in bundle analysis - [Details](https://github.com/parcel-bundler/parcel/pull/7737)
 - Load dynamic imports at higher network priority in non-ESM builds - [Details](https://github.com/parcel-bundler/parcel/pull/7061)
 
-## Fixed
+### Fixed
 
 - Pin lmdb to 2.2.3 - [Details](https://github.com/parcel-bundler/parcel/pull/7763)
 - Prevent term-size from being bundled - [Details](https://github.com/parcel-bundler/parcel/pull/7750)
