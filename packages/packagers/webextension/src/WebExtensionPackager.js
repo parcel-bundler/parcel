@@ -27,14 +27,14 @@ export default (new Packager({
     const deps = asset.getDependencies();
     const war = [];
     for (const contentScript of manifest.content_scripts || []) {
-      const referencedBundles = deps
+      const jsBundles = deps
         .filter(d => contentScript.js?.includes(d.id))
         .map(d => nullthrows(bundleGraph.getReferencedBundle(d, bundle)));
 
       contentScript.css = [
         ...new Set(
           (contentScript.css || []).concat(
-            referencedBundles
+            jsBundles
               .flatMap(b => bundleGraph.getReferencedBundles(b))
               .filter(b => b.type == 'css')
               .map(relPath),
@@ -45,10 +45,15 @@ export default (new Packager({
       war.push({
         matches: contentScript.matches,
         extension_ids: [],
-        resources: referencedBundles
+        resources: jsBundles
           .flatMap(b => {
             const children = [];
-            bundleGraph.traverseBundles(child => children.push(child), b);
+            const siblings = bundleGraph.getReferencedBundles(b);
+            bundleGraph.traverseBundles(child => {
+              if (b !== child && !siblings.includes(child)) {
+                children.push(child);
+              }
+            }, b);
             return children;
           })
           .map(relPath),

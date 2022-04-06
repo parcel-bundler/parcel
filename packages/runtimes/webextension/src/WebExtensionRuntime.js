@@ -39,7 +39,7 @@ export default (new Runtime({
     }, insertBundle);
 
     // Add autoreload
-    if (bundle.id === firstInsertableBundle?.id) {
+    if (bundle === firstInsertableBundle) {
       return {
         filePath: __filename,
         code: AUTORELOAD_BG,

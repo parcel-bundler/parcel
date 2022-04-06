@@ -96,10 +96,9 @@ async function collectDependencies(
       for (const k of ['css', 'js']) {
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
-          if (k == 'js') {
-            asset.invalidateOnFileChange(path.join(assetDir, assets[j]));
-          }
           assets[j] = asset.addURLDependency(assets[j], {
+            // This causes the packager to re-run when these assets update
+            priority: 'parallel',
             loc: {
               filePath,
               ...getJSONSourceLocation(
