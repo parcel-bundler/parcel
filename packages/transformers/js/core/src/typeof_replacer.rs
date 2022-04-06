@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use swc_atoms::JsWord;
-use swc_ecmascript::ast::{Expr, Lit, Str, StrKind, UnaryOp};
+use swc_atoms::{js_word, JsWord};
+use swc_ecmascript::ast::{Expr, Lit, Str, UnaryOp};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::id;
@@ -20,28 +20,25 @@ impl<'a> Fold for TypeofReplacer<'a> {
         if let Expr::Ident(ident) = &*unary.arg {
           if ident.sym == js_word!("require") && !self.decls.contains(&id!(ident)) {
             return Expr::Lit(Lit::Str(Str {
-              kind: StrKind::Synthesized,
-              has_escape: false,
               span: unary.span,
               value: js_word!("function"),
+              raw: None,
             }));
           }
           let exports: JsWord = "exports".into();
           if ident.sym == exports && !self.decls.contains(&id!(ident)) {
             return Expr::Lit(Lit::Str(Str {
-              kind: StrKind::Synthesized,
-              has_escape: false,
               span: unary.span,
               value: js_word!("object"),
+              raw: None,
             }));
           }
 
           if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) {
             return Expr::Lit(Lit::Str(Str {
-              kind: StrKind::Synthesized,
-              has_escape: false,
               span: unary.span,
               value: js_word!("object"),
+              raw: None,
             }));
           }
         }

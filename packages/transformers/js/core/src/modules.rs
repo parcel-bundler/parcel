@@ -164,9 +164,8 @@ impl ESMFold {
         Expr::Ident(Ident::new("exports".into(), DUMMY_SP)),
         Expr::Lit(Lit::Str(Str {
           value: exported,
-          has_escape: false,
-          kind: StrKind::Synthesized,
           span: DUMMY_SP,
+          raw: None,
         })),
         if matches!(self.versions, Some(versions) if Feature::ArrowFunctions.should_enable(versions, true, false)) {
           Expr::Fn(FnExpr {

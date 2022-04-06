@@ -406,7 +406,7 @@ validateSchema.diagnostic = function (
     !data
   ) {
     throw new Error(
-      'At least one of data.source and data.source must be defined!',
+      'At least one of data.source and data.data must be defined!',
     );
   }
   let object = data.map
