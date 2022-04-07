@@ -20,7 +20,7 @@
     "@babel/preset-env": "^7.12.11",
     "@babel/preset-typescript": "^7.14.5",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
-    "@mdx-js/react": "^1.5.3",
+    "@mdx-js/react": "^2",
     "autoprefixer": "^10.4.0",
     "chalk": "^4.1.0",
     "codecov": "^3.0.0",
