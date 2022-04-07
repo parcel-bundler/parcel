@@ -96,7 +96,7 @@ function collectSrcSetDependencies(asset, srcset, opts) {
     newSources.push(pair.join(' '));
   }
 
-  return newSources.join(',');
+  return newSources.join(', ');
 }
 
 function getAttrDepHandler(attr) {
