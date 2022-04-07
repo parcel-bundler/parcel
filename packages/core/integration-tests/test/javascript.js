@@ -2699,6 +2699,16 @@ describe('javascript', function () {
         'require("path").resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
       ),
     );
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
+      ),
+    );
     let f = await run(b);
     let output = f();
     assert.equal(output.data, 'hello');
@@ -2721,6 +2731,14 @@ describe('javascript', function () {
         __dirname,
         '/integration/env-node-replacements/index.js?query-string=test',
       ),
+    );
+    assert.equal(
+      output.sub.dirname,
+      path.join(__dirname, '/integration/env-node-replacements/sub'),
+    );
+    assert.equal(
+      output.sub.filename,
+      path.join(__dirname, '/integration/env-node-replacements/sub/index.js'),
     );
   });
 
@@ -2752,6 +2770,16 @@ describe('javascript', function () {
         'path.resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
       ),
     );
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements/sub")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
+      ),
+    );
     let f = await run(b);
     let output = f();
     assert.equal(output.data, 'hello');
@@ -2774,6 +2802,14 @@ describe('javascript', function () {
         __dirname,
         '/integration/env-node-replacements/index.js?query-string=test',
       ),
+    );
+    assert.equal(
+      output.sub.dirname,
+      path.join(__dirname, '/integration/env-node-replacements/sub'),
+    );
+    assert.equal(
+      output.sub.filename,
+      path.join(__dirname, '/integration/env-node-replacements/sub/index.js'),
     );
   });
 

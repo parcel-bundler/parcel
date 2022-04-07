@@ -1,5 +1,5 @@
-use path_slash::PathBufExt;
 use std::collections::{HashMap, HashSet};
+use std::ffi::OsStr;
 use std::path::Path;
 
 use swc_atoms::JsWord;
@@ -59,12 +59,11 @@ impl<'a> Fold for NodeReplacer<'a> {
           let specifier = swc_atoms::JsWord::from("path");
           let replace_me_value = swc_atoms::JsWord::from("$parcel$filenameReplace");
 
-          let filename =
-            if let Some(relative) = pathdiff::diff_paths(self.filename, self.project_root) {
-              relative.to_slash_lossy()
-            } else {
-              String::from("/unknown.js")
-            };
+          let filename = if let Some(name) = self.filename.file_name() {
+            name
+          } else {
+            OsStr::new("unknown.js")
+          };
 
           let inserted_expr = ast::Expr::Call(ast::CallExpr {
             span: DUMMY_SP,
@@ -92,7 +91,7 @@ impl<'a> Fold for NodeReplacer<'a> {
                 spread: None,
                 expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
                   span: DUMMY_SP,
-                  value: swc_atoms::JsWord::from(filename),
+                  value: swc_atoms::JsWord::from(filename.to_string_lossy()),
                   raw: None,
                 }))),
               },

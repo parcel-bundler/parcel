@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const otherFunction = require('./other/function')
+const subFunction = require('./sub/index')
 
 module.exports = function () {
   const data = fs.readFileSync(path.join(__dirname, 'data', 'test.txt'), 'utf8')
@@ -9,6 +10,7 @@ module.exports = function () {
   const firstFilenameTest = __filename
   const secondFilenameTest = `${__filename}?query-string=test`
   const other = otherFunction()
+  const sub = subFunction()
 
   return {
     data,
@@ -17,5 +19,6 @@ module.exports = function () {
     firstFilenameTest,
     secondFilenameTest,
     other,
+    sub,
   }
 }
