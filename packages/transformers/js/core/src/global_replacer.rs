@@ -125,8 +125,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               ast::Expr::Lit(ast::Lit::Str(ast::Str {
                 span: DUMMY_SP,
                 value: swc_atoms::JsWord::from(filename),
-                has_escape: false,
-                kind: ast::StrKind::Synthesized,
+                raw: None,
               })),
             ),
           );
@@ -152,8 +151,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               ast::Expr::Lit(ast::Lit::Str(ast::Str {
                 span: DUMMY_SP,
                 value: swc_atoms::JsWord::from(dirname),
-                has_escape: false,
-                kind: ast::StrKind::Synthesized,
+                raw: None,
               })),
             ),
           );

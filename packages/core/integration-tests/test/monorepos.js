@@ -214,7 +214,7 @@ describe('monorepos', function () {
         path.join(distDir, '/pkg-b/src/index.css'),
         'utf8',
       );
-      assert(contents.includes('.foo_'));
+      assert(/\.[_0-9a-zA-Z]+_foo/.test(contents));
     } finally {
       inputFS.chdir(oldcwd);
     }
@@ -290,7 +290,7 @@ describe('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('.foo_'));
+    assert(/\.[_0-9a-zA-Z]+_foo/.test(contents));
 
     contents = await outputFS.readFile(
       path.join(
@@ -346,7 +346,7 @@ describe('monorepos', function () {
         path.join(distDir, '/pkg-b/src/index.css'),
         'utf8',
       );
-      assert(contents.includes('.foo_'));
+      assert(/\.[_0-9a-zA-Z]+_foo/.test(contents));
     } finally {
       inputFS.chdir(oldcwd);
     }
@@ -398,7 +398,7 @@ describe('monorepos', function () {
         path.join(distDir, '/pkg-b/src/index.css'),
         'utf8',
       );
-      assert(contents.includes('.foo_'));
+      assert(/\.[_0-9a-zA-Z]+_foo/.test(contents));
     } finally {
       inputFS.chdir(oldcwd);
     }
@@ -566,7 +566,7 @@ describe('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('.foo_'));
+    assert(/\.[_0-9a-zA-Z]+_foo/.test(contents));
 
     contents = await outputFS.readFile(
       path.join(
@@ -828,7 +828,7 @@ describe('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('.foo_'));
+    assert(/\.[_0-9a-zA-Z]+_foo/.test(contents));
 
     contents = await outputFS.readFile(
       path.join(
@@ -846,7 +846,7 @@ describe('monorepos', function () {
       ),
       'utf8',
     );
-    assert(contents.includes('.foo_'));
+    assert(/\.[_0-9a-zA-Z]+_foo/.test(contents));
 
     contents = await outputFS.readFile(
       path.join(
