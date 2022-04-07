@@ -402,29 +402,23 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
             let mut has_node_replacements = false;
 
-            let module = {
-              let mut passes = chain!(
-                // Insert placeholders for context variables like __dirname and __filename
-                Optional::new(
-                  NodeReplacer {
-                    source_map: &source_map,
-                    items: &mut global_deps,
-                    globals: HashMap::new(),
-                    project_root: Path::new(&config.project_root),
-                    filename: Path::new(&config.filename),
-                    decls: &mut decls,
-                    global_mark,
-                    scope_hoist: config.scope_hoist,
-                    has_node_replacements: &mut has_node_replacements,
-                  },
-                  config.node_replacer
-                ),
-                // Inject SWC helpers if needed.
-                helpers::inject_helpers(),
-              );
-
-              module.fold_with(&mut passes)
-            };
+            let module = module.fold_with(
+              // Replace __dirname and __filename with placeholders in Node env
+              &mut Optional::new(
+                NodeReplacer {
+                  source_map: &source_map,
+                  items: &mut global_deps,
+                  globals: HashMap::new(),
+                  project_root: Path::new(&config.project_root),
+                  filename: Path::new(&config.filename),
+                  decls: &mut decls,
+                  global_mark,
+                  scope_hoist: config.scope_hoist,
+                  has_node_replacements: &mut has_node_replacements,
+                },
+                config.node_replacer,
+              ),
+            );
 
             result.has_node_replacements = has_node_replacements;
 
