@@ -411,6 +411,14 @@ export class ScopeHoistingPackager {
       this.usedHelpers.add('$parcel$global');
     }
 
+    if (this.bundle.env.isNode() && asset.meta.has_node_replacements) {
+      const relPath = normalizeSeparators(
+        path.relative(this.bundle.target.distDir, path.dirname(asset.filePath)),
+      );
+      code = code.replace('$parcel$dirnameReplace', relPath);
+      code = code.replace('$parcel$filenameReplace', relPath);
+    }
+
     let [depMap, replacements] = this.buildReplacements(asset, deps);
     let [prepend, prependLines, append] = this.buildAssetPrelude(asset, deps);
     if (prependLines > 0) {
@@ -542,14 +550,6 @@ ${code}
       }
 
       this.needsPrelude = true;
-    }
-
-    if (this.bundle.env.isNode() && asset.meta.has_node_replacements) {
-      const relPath = normalizeSeparators(
-        path.relative(this.bundle.target.distDir, path.dirname(asset.filePath)),
-      );
-      code = code.replace('$parcel$dirnameReplace', relPath);
-      code = code.replace('$parcel$filenameReplace', relPath);
     }
 
     return [code, sourceMap, lineCount];
