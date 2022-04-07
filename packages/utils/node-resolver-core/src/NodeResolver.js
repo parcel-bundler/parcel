@@ -779,7 +779,6 @@ export default class NodeResolver {
           let res =
             (await this.loadAsFile({
               file: entry.filename,
-              asPackageEntry: true,
               extensions,
               env,
               pkg,
@@ -973,14 +972,12 @@ export default class NodeResolver {
     extensions,
     env,
     pkg,
-    asPackageEntry,
     ctx,
   }: {|
     file: string,
     extensions: Array<string>,
     env: Environment,
     pkg: InternalPackageJSON | null,
-    asPackageEntry?: boolean,
     ctx: ResolverContext,
   |}): Promise<?ResolvedFile> {
     // Try all supported extensions
@@ -1002,9 +999,12 @@ export default class NodeResolver {
     if (found) {
       return {
         path: found,
-        // If this is an entrypoint in package.json, it's possible pkg is not the
+        // If this package.json isn't a sibling of found, it's possible pkg is not the
         // closest package.json to the resolved file. Reload it instead.
-        pkg: asPackageEntry ? await this.findPackage(found, ctx) : pkg,
+        pkg:
+          pkg == null || pkg?.pkgdir !== path.dirname(found)
+            ? await this.findPackage(found, ctx)
+            : pkg,
       };
     }
 

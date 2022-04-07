@@ -379,6 +379,10 @@ describe('resolver', function () {
             fileName: 'package.json',
             aboveFilePath: path.join(__dirname, '..', 'src', '_empty.js'),
           },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(__dirname, '..', 'src', '_empty.js'),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
@@ -721,6 +725,16 @@ describe('resolver', function () {
               'package.json',
             ),
           },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested',
+              'index.js',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
@@ -757,6 +771,16 @@ describe('resolver', function () {
           {
             fileName: 'node_modules/foo',
             aboveFilePath: path.join(rootDir, 'foo.js'),
+          },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'foo',
+              'nested',
+              'baz.js',
+            ),
           },
         ],
         invalidateOnFileChange: [
@@ -822,6 +846,17 @@ describe('resolver', function () {
             fileName: 'node_modules/@scope/pkg',
             aboveFilePath: path.join(rootDir, 'foo.js'),
           },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              '@scope',
+              'pkg',
+              'foo',
+              'bar.js',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
@@ -857,6 +892,16 @@ describe('resolver', function () {
             {
               fileName: 'node_modules/side-effects-false',
               aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'index.js',
+              ),
             },
           ],
           invalidateOnFileChange: [
@@ -897,6 +942,16 @@ describe('resolver', function () {
             {
               fileName: 'node_modules/side-effects-false',
               aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'index.js',
+              ),
             },
           ],
           invalidateOnFileChange: [
@@ -957,6 +1012,16 @@ describe('resolver', function () {
               ),
               fileName: 'package.json',
             },
+            {
+              aboveFilePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'index.js',
+              ),
+              fileName: 'package.json',
+            },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
@@ -1013,6 +1078,16 @@ describe('resolver', function () {
                 'side-effects-false',
                 'src',
                 'index',
+              ),
+              fileName: 'package.json',
+            },
+            {
+              aboveFilePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'index.js',
               ),
               fileName: 'package.json',
             },
@@ -1582,6 +1657,17 @@ describe('resolver', function () {
               'nested',
             ),
           },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-browser-alias',
+              'subfolder1',
+              'subfolder2',
+              'subfile.js',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
@@ -1718,6 +1804,16 @@ describe('resolver', function () {
               'package-alias-glob',
               'src',
               'test',
+            ),
+          },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias-glob',
+              'src',
+              'test.js',
             ),
           },
         ],
@@ -1941,6 +2037,10 @@ describe('resolver', function () {
             fileName: 'package.json',
             aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
           },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
+          },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
@@ -1979,6 +2079,10 @@ describe('resolver', function () {
           {
             filePath: path.join(rootDir, 'nested', 'package.json'),
           },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(rootDir, 'nested/index.js'),
+          },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
@@ -2003,6 +2107,10 @@ describe('resolver', function () {
           {
             fileName: 'package.json',
             aboveFilePath: path.join(rootDir, 'foo.js'),
+          },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
           },
           {
             fileName: 'package.json',
@@ -2045,6 +2153,10 @@ describe('resolver', function () {
           },
           {
             filePath: path.join(rootDir, 'nested', 'package.json'),
+          },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(rootDir, 'nested/index.js'),
           },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
@@ -2104,6 +2216,10 @@ describe('resolver', function () {
             fileName: 'package.json',
             aboveFilePath: path.join(rootDir, 'nested', 'test'),
           },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
+          },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
@@ -2128,6 +2244,10 @@ describe('resolver', function () {
           {
             fileName: 'package.json',
             aboveFilePath: path.join(rootDir, 'foo.js'),
+          },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
           },
           {
             fileName: 'package.json',
@@ -2162,6 +2282,10 @@ describe('resolver', function () {
               'package-alias',
               'foo.js',
             ),
+          },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
           },
           {
             fileName: 'package.json',
