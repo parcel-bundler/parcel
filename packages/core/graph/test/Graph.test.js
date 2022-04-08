@@ -318,7 +318,7 @@ describe('Graph', () => {
     assert.deepEqual(visited, [nodeA, nodeB, nodeD]);
   });
 
-  it('foo', () => {
+  it('correctly removes non-tree subgraphs', () => {
     let graph = new Graph();
     let nodeRoot = graph.addNode('root');
     let node1 = graph.addNode('1');
