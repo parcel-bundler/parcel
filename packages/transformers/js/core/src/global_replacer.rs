@@ -172,6 +172,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
                     expr: Box::new(Lit(ast::Lit::Num(ast::Number {
                       value: 3.0,
                       span: DUMMY_SP,
+                      raw: None,
                     }))),
                   }),
                   span: DUMMY_SP,
