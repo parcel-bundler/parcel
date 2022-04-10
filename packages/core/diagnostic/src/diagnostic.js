@@ -215,8 +215,8 @@ export default class ThrowableDiagnostic extends Error {
 }
 
 /**
- * Turns a list of positions in a JSON file with messages into a list of diagnostics.
- * Uses <a href="https://github.com/epoberezkin/json-source-map">epoberezkin/json-source-map</a>.
+ * Turns a list of positions in a JSON5 file with messages into a list of diagnostics.
+ * Uses <a href="https://github.com/mischnic/json-sourcemap">@mischnic/json-sourcemap</a>.
  *
  * @param code the JSON code
  * @param ids A list of JSON keypaths (<code>key: "/some/parent/child"</code>) with corresponding messages, \
@@ -245,7 +245,7 @@ export function generateJSONCodeHighlights(
 }
 
 /**
- * Converts entries in <a href="https://github.com/epoberezkin/json-source-map">epoberezkin/json-source-map</a>'s
+ * Converts entries in <a href="https://github.com/mischnic/json-sourcemap">@mischnic/json-sourcemap</a>'s
  * <code>result.pointers</code> array.
  */
 export function getJSONSourceLocation(
