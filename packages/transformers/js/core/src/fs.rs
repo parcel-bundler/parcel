@@ -166,11 +166,7 @@ impl<'a> InlineFS<'a> {
           _ => return None,
         };
 
-        let contents = Expr::Lit(Lit::Str(Str {
-          value: contents.into(),
-          span: DUMMY_SP,
-          raw: None,
-        }));
+        let contents = Expr::Lit(Lit::Str(contents.into()));
 
         // Add a file dependency so the cache is invalidated when this file changes.
         self.deps.push(DependencyDescriptor {
@@ -201,11 +197,7 @@ impl<'a> InlineFS<'a> {
                 spread: None,
               },
               ExprOrSpread {
-                expr: Box::new(Expr::Lit(Lit::Str(Str {
-                  value: "base64".into(),
-                  span: DUMMY_SP,
-                  raw: None,
-                }))),
+                expr: Box::new(Expr::Lit(Lit::Str("base64".into()))),
                 spread: None,
               },
             ],
@@ -231,8 +223,8 @@ impl<'a> Fold for Evaluator<'a> {
 
     match &node {
       Expr::Ident(ident) => match ident.sym.to_string().as_str() {
-        "__dirname" => Expr::Lit(Lit::Str(Str {
-          value: self
+        "__dirname" => Expr::Lit(Lit::Str(
+          self
             .inline
             .filename
             .parent()
@@ -240,14 +232,8 @@ impl<'a> Fold for Evaluator<'a> {
             .to_str()
             .unwrap()
             .into(),
-          span: DUMMY_SP,
-          raw: None,
-        })),
-        "__filename" => Expr::Lit(Lit::Str(Str {
-          value: self.inline.filename.to_str().unwrap().into(),
-          span: DUMMY_SP,
-          raw: None,
-        })),
+        )),
+        "__filename" => Expr::Lit(Lit::Str(self.inline.filename.to_str().unwrap().into())),
         _ => node,
       },
       Expr::Bin(bin) => match bin.op {
@@ -262,11 +248,7 @@ impl<'a> Fold for Evaluator<'a> {
             _ => return node,
           };
 
-          Expr::Lit(Lit::Str(Str {
-            value: format!("{}{}", left, right).into(),
-            span: DUMMY_SP,
-            raw: None,
-          }))
+          Expr::Lit(Lit::Str(format!("{}{}", left, right).into()))
         }
         _ => node,
       },
@@ -300,11 +282,7 @@ impl<'a> Fold for Evaluator<'a> {
                 }
               }
 
-              return Expr::Lit(Lit::Str(Str {
-                value: path.to_str().unwrap().into(),
-                span: DUMMY_SP,
-                raw: None,
-              }));
+              return Expr::Lit(Lit::Str(path.to_str().unwrap().into()));
             }
             _ => return node,
           }
