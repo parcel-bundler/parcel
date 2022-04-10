@@ -404,6 +404,7 @@ export default (new Transformer({
       is_development: options.mode === 'development',
       react_refresh:
         asset.env.isBrowser() &&
+        !asset.env.isLibrary &&
         !asset.env.isWorker() &&
         !asset.env.isWorklet() &&
         Boolean(config?.reactRefresh),
