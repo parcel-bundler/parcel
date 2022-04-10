@@ -2,7 +2,7 @@
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import jsonMap, {type Mapping} from 'json-source-map';
+import {parse, type Mapping} from '@mischnic/json-sourcemap';
 
 /** These positions are 1-based (so <code>1</code> is the first line/column) */
 export type DiagnosticHighlightLocation = {|
@@ -231,9 +231,10 @@ export function generateJSONCodeHighlights(
       |},
   ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
 ): Array<DiagnosticCodeHighlight> {
-  // json-source-map doesn't support a tabWidth option (yet)
   let map =
-    typeof data == 'string' ? jsonMap.parse(data.replace(/\t/g, ' ')) : data;
+    typeof data == 'string'
+      ? parse(data, undefined, {dialect: 'JSON5', tabWidth: 1})
+      : data;
   return ids.map(({key, type, message}) => {
     let pos = nullthrows(map.pointers[key]);
     return {
@@ -276,7 +277,7 @@ export function getJSONSourceLocation(
 
 /** Sanitizes object keys before using them as <code>key</code> in generateJSONCodeHighlights */
 export function encodeJSONKeyComponent(component: string): string {
-  return component.replace(/\//g, '~1');
+  return component.replace(/~/g, '~0').replace(/\//g, '~1');
 }
 
 const escapeCharacters = ['\\', '*', '_', '~'];
