@@ -18,7 +18,7 @@ if (process.env.PARCEL_BUILD_ENV === 'production') {
 } else if (process.env.PARCEL_SWC_WASM) {
   const {transform} = require('./wasm/dist-node/parcel_js_swc_wasm.js');
 
-  module.exports.transform = function (config) {
+  module.exports.transform = function(config) {
     let result = transform(config);
     return {
       ...result,
