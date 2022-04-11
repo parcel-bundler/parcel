@@ -610,4 +610,15 @@ describe('css modules', () => {
       },
     ]);
   });
+
+  it('should not process inline <style> elements as a CSS module', async function () {
+    await bundle(
+      path.join(__dirname, '/integration/css-modules-style/index.html'),
+    );
+    let contents = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(contents.includes('.index {'));
+  });
 });

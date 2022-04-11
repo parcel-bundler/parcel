@@ -162,11 +162,7 @@ impl ESMFold {
       js_word!("export"),
       vec![
         Expr::Ident(Ident::new("exports".into(), DUMMY_SP)),
-        Expr::Lit(Lit::Str(Str {
-          value: exported,
-          span: DUMMY_SP,
-          raw: None,
-        })),
+        Expr::Lit(Lit::Str(exported.into())),
         if matches!(self.versions, Some(versions) if Feature::ArrowFunctions.should_enable(versions, true, false)) {
           Expr::Fn(FnExpr {
             ident: None,

@@ -8,6 +8,7 @@ function shouldExclude(asset, options) {
     !asset.isSource ||
     !options.hmrOptions ||
     !asset.env.isBrowser() ||
+    asset.env.isLibrary ||
     asset.env.isWorker() ||
     asset.env.isWorklet() ||
     options.mode !== 'development' ||

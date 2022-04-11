@@ -8,12 +8,18 @@ import type {
   NamedBundle,
 } from '@parcel/types';
 
-import {PromiseQueue, relativeBundlePath, countLines} from '@parcel/utils';
+import {
+  PromiseQueue,
+  relativeBundlePath,
+  countLines,
+  normalizeSeparators,
+} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import globals from 'globals';
+import path from 'path';
 
 import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
@@ -403,6 +409,14 @@ export class ScopeHoistingPackager {
     // TODO: maybe a meta prop?
     if (code.includes('$parcel$global')) {
       this.usedHelpers.add('$parcel$global');
+    }
+
+    if (this.bundle.env.isNode() && asset.meta.has_node_replacements) {
+      const relPath = normalizeSeparators(
+        path.relative(this.bundle.target.distDir, path.dirname(asset.filePath)),
+      );
+      code = code.replace('$parcel$dirnameReplace', relPath);
+      code = code.replace('$parcel$filenameReplace', relPath);
     }
 
     let [depMap, replacements] = this.buildReplacements(asset, deps);

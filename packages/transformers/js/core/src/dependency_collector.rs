@@ -169,11 +169,7 @@ impl<'a> DependencyCollector<'a> {
     });
 
     create_url_constructor(
-      ast::Expr::Lit(ast::Lit::Str(ast::Str {
-        span,
-        value: placeholder.into(),
-        raw: None,
-      })),
+      ast::Expr::Lit(ast::Lit::Str(placeholder.into())),
       self.config.is_esm_output,
     )
   }
@@ -1023,11 +1019,7 @@ fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
     // CJS output: "file:" + __filename
     Expr::Bin(BinExpr {
       span: DUMMY_SP,
-      left: Box::new(Expr::Lit(Lit::Str(Str {
-        value: "file:".into(),
-        span: DUMMY_SP,
-        raw: None,
-      }))),
+      left: Box::new(Expr::Lit(Lit::Str("file:".into()))),
       op: BinaryOp::Add,
       right: Box::new(Expr::Ident(Ident::new("__filename".into(), DUMMY_SP))),
     })
@@ -1227,11 +1219,7 @@ impl<'a> DependencyCollector<'a> {
       String::from("unknown.js")
     };
 
-    Expr::Lit(Lit::Str(Str {
-      value: format!("file:///{}", filename).into(),
-      span: DUMMY_SP,
-      raw: None,
-    }))
+    Expr::Lit(Lit::Str(format!("file:///{}", filename).into()))
   }
 
   fn get_import_meta(&mut self) -> ast::Expr {

@@ -18,6 +18,7 @@ mod fs;
 mod global_replacer;
 mod hoist;
 mod modules;
+mod node_replacer;
 mod typeof_replacer;
 mod utils;
 
@@ -51,6 +52,7 @@ use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::{hoist, CollectResult, HoistResult};
 use modules::esm2cjs;
+use node_replacer::NodeReplacer;
 use typeof_replacer::*;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
@@ -69,6 +71,7 @@ pub struct Config {
   env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
   inline_fs: bool,
   insert_node_globals: bool,
+  node_replacer: bool,
   is_browser: bool,
   is_worker: bool,
   is_type_script: bool,
@@ -102,6 +105,7 @@ pub struct TransformResult {
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
+  has_node_replacements: bool,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -395,6 +399,28 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
               module.fold_with(&mut passes)
             };
+
+            let mut has_node_replacements = false;
+
+            let module = module.fold_with(
+              // Replace __dirname and __filename with placeholders in Node env
+              &mut Optional::new(
+                NodeReplacer {
+                  source_map: &source_map,
+                  items: &mut global_deps,
+                  globals: HashMap::new(),
+                  project_root: Path::new(&config.project_root),
+                  filename: Path::new(&config.filename),
+                  decls: &mut decls,
+                  global_mark,
+                  scope_hoist: config.scope_hoist,
+                  has_node_replacements: &mut has_node_replacements,
+                },
+                config.node_replacer,
+              ),
+            );
+
+            result.has_node_replacements = has_node_replacements;
 
             let module = module.fold_with(
               // Collect dependencies
