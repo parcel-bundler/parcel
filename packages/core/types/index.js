@@ -186,7 +186,7 @@ export type EnvironmentOptions = {|
  */
 export type VersionMap = {
   [string]: string,
-  ...
+  ...,
 };
 
 export type EnvironmentFeature =
@@ -398,7 +398,9 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(exportSymbol: Symbol): ?{|
+  get(
+    exportSymbol: Symbol,
+  ): ?{|
     local: Symbol,
     loc: ?SourceLocation,
     meta?: ?Meta,
@@ -441,7 +443,9 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(exportSymbol: Symbol): ?{|
+  get(
+    exportSymbol: Symbol,
+  ): ?{|
     local: Symbol,
     loc: ?SourceLocation,
     isWeak: boolean,
