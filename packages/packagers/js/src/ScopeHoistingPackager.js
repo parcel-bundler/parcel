@@ -247,7 +247,7 @@ export class ScopeHoistingPackager {
   async loadAssets(): Promise<Array<Asset>> {
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrapped = [];
-    this.bundle.traverseAssets((asset, shouldWrap) => {
+    this.bundle.traverseAssets(asset => {
       queue.add(async () => {
         let [code, map] = await Promise.all([
           asset.getCode(),
@@ -257,7 +257,6 @@ export class ScopeHoistingPackager {
       });
 
       if (
-        shouldWrap ||
         asset.meta.shouldWrap ||
         this.isAsyncBundle ||
         this.bundle.env.sourceType === 'script' ||
@@ -268,9 +267,24 @@ export class ScopeHoistingPackager {
       ) {
         this.wrappedAssets.add(asset.id);
         wrapped.push(asset);
-        return true;
       }
     });
+
+    for (let wrappedAssetRoot of [...wrapped]) {
+      this.bundle.traverseAssets((asset, _, actions) => {
+        if (asset === wrappedAssetRoot) {
+          return;
+        }
+
+        if (this.wrappedAssets.has(asset.id)) {
+          actions.skipChildren();
+          return;
+        }
+
+        this.wrappedAssets.add(asset.id);
+        wrapped.push(asset);
+      }, wrappedAssetRoot);
+    }
 
     this.assetOutputs = new Map(await queue.run());
     return wrapped;
