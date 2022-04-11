@@ -42,7 +42,7 @@ jobs:
     name: Unit tests (${{matrix.os}}, Node ${{matrix.node}})
     strategy:
       matrix:
-        node: [12, 14]
+        node: [14, 16]
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{matrix.os}}
     steps:
@@ -64,7 +64,7 @@ jobs:
     name: Integration tests (${{matrix.os}}, Node ${{matrix.node}})
     strategy:
       matrix:
-        node: [12, 14]
+        node: [14, 16]
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{matrix.os}}
     steps:
