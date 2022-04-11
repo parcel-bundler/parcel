@@ -53,9 +53,10 @@ export default (new Transformer({
           filename: path.relative(options.projectRoot, asset.filePath),
           code,
           cssModules:
-            config?.cssModules ??
-            (asset.meta.cssModulesCompiled == null &&
-              /\.module\./.test(asset.filePath)),
+            asset.meta.type !== 'tag' &&
+            (config?.cssModules ??
+              (asset.meta.cssModulesCompiled == null &&
+                /\.module\./.test(asset.filePath))),
           analyzeDependencies: asset.meta.hasDependencies !== false,
           sourceMap: !!asset.env.sourceMap,
           drafts: config?.drafts,

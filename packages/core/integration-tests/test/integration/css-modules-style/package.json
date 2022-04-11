@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "@parcel/transformer-css": {
+    "cssModules": true
+  }
+}
