@@ -142,11 +142,7 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: Str {
-                    value: format!("{}:{}", self.module_id, import.src.value).into(),
-                    span: DUMMY_SP,
-                    raw: None,
-                  },
+                  src: format!("{}:{}", self.module_id, import.src.value).into(),
                   type_only: false,
                 })));
 
@@ -281,11 +277,7 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: Str {
-                    value: format!("{}:{}", self.module_id, export.src.value).into(),
-                    span: DUMMY_SP,
-                    raw: None,
-                  },
+                  src: format!("{}:{}", self.module_id, export.src.value).into(),
                   type_only: false,
                 })));
               self.re_exports.push(ImportedSymbol {
@@ -943,11 +935,7 @@ impl<'a> Hoist<'a> {
         specifiers: vec![],
         asserts: None,
         span: DUMMY_SP,
-        src: Str {
-          value: format!("{}:{}", self.module_id, source).into(),
-          span: DUMMY_SP,
-          raw: None,
-        },
+        src: format!("{}:{}", self.module_id, source).into(),
         type_only: false,
       })));
   }

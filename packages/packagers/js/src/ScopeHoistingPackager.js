@@ -8,12 +8,18 @@ import type {
   NamedBundle,
 } from '@parcel/types';
 
-import {PromiseQueue, relativeBundlePath, countLines} from '@parcel/utils';
+import {
+  PromiseQueue,
+  relativeBundlePath,
+  countLines,
+  normalizeSeparators,
+} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import globals from 'globals';
+import path from 'path';
 
 import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
@@ -241,7 +247,7 @@ export class ScopeHoistingPackager {
   async loadAssets(): Promise<Array<Asset>> {
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrapped = [];
-    this.bundle.traverseAssets((asset, shouldWrap) => {
+    this.bundle.traverseAssets(asset => {
       queue.add(async () => {
         let [code, map] = await Promise.all([
           asset.getCode(),
@@ -251,7 +257,6 @@ export class ScopeHoistingPackager {
       });
 
       if (
-        shouldWrap ||
         asset.meta.shouldWrap ||
         this.isAsyncBundle ||
         this.bundle.env.sourceType === 'script' ||
@@ -262,9 +267,24 @@ export class ScopeHoistingPackager {
       ) {
         this.wrappedAssets.add(asset.id);
         wrapped.push(asset);
-        return true;
       }
     });
+
+    for (let wrappedAssetRoot of [...wrapped]) {
+      this.bundle.traverseAssets((asset, _, actions) => {
+        if (asset === wrappedAssetRoot) {
+          return;
+        }
+
+        if (this.wrappedAssets.has(asset.id)) {
+          actions.skipChildren();
+          return;
+        }
+
+        this.wrappedAssets.add(asset.id);
+        wrapped.push(asset);
+      }, wrappedAssetRoot);
+    }
 
     this.assetOutputs = new Map(await queue.run());
     return wrapped;
@@ -403,6 +423,14 @@ export class ScopeHoistingPackager {
     // TODO: maybe a meta prop?
     if (code.includes('$parcel$global')) {
       this.usedHelpers.add('$parcel$global');
+    }
+
+    if (this.bundle.env.isNode() && asset.meta.has_node_replacements) {
+      const relPath = normalizeSeparators(
+        path.relative(this.bundle.target.distDir, path.dirname(asset.filePath)),
+      );
+      code = code.replace('$parcel$dirnameReplace', relPath);
+      code = code.replace('$parcel$filenameReplace', relPath);
     }
 
     let [depMap, replacements] = this.buildReplacements(asset, deps);

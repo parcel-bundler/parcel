@@ -186,7 +186,7 @@ export type EnvironmentOptions = {|
  */
 export type VersionMap = {
   [string]: string,
-  ...
+  ...,
 };
 
 export type EnvironmentFeature =
@@ -398,7 +398,9 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(exportSymbol: Symbol): ?{|
+  get(
+    exportSymbol: Symbol,
+  ): ?{|
     local: Symbol,
     loc: ?SourceLocation,
     meta?: ?Meta,
@@ -441,7 +443,9 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(exportSymbol: Symbol): ?{|
+  get(
+    exportSymbol: Symbol,
+  ): ?{|
     local: Symbol,
     loc: ?SourceLocation,
     isWeak: boolean,
@@ -1243,7 +1247,10 @@ export interface Bundle {
   /** Returns whether the bundle includes the given dependency. */
   hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
-  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
+  traverseAssets<TContext>(
+    visit: GraphVisitor<Asset, TContext>,
+    startAsset?: Asset,
+  ): ?TContext;
   /** Traverses assets and dependencies in the bundle. */
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,

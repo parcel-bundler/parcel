@@ -59,11 +59,7 @@ pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
       DUMMY_SP,
     )))),
     args: vec![ast::ExprOrSpread {
-      expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-        span: DUMMY_SP,
-        value: normalized_specifier,
-        raw: None,
-      }))),
+      expr: Box::new(ast::Expr::Lit(ast::Lit::Str(normalized_specifier.into()))),
       spread: None,
     }],
     span: DUMMY_SP,
