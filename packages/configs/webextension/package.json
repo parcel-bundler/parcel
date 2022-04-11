@@ -16,8 +16,8 @@
   "main": "index.json",
   "dependencies": {
     "@parcel/config-default": "2.4.1",
-    "@parcel/packager-webextension": "2.4.0",
-    "@parcel/runtime-webextension": "2.4.0",
+    "@parcel/packager-webextension": "2.4.1",
+    "@parcel/runtime-webextension": "2.4.1",
     "@parcel/transformer-raw": "2.4.1",
     "@parcel/transformer-webextension": "2.4.1"
   }
