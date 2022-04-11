@@ -50,12 +50,18 @@ export default async function resolveOptions(
     entries = [path.resolve(inputCwd, initialOptions.entries)];
   }
 
-  let entryRoot = getRootDir(entries);
+  let entryRoot;
+  if(entries[0] === inputCwd) {
+    entryRoot = getRootDir([`${inputCwd}/package.json`])
+  } else {
+    entryRoot = getRootDir(entries);
+  }
+
   let projectRootFile =
     (await resolveConfig(
       inputFS,
       path.join(entryRoot, 'index'),
-      [...LOCK_FILE_NAMES, '.git', '.hg'],
+      [...LOCK_FILE_NAMES, '.git', '.hg', 'node_modules'],
       path.parse(entryRoot).root,
     )) || path.join(inputCwd, 'index'); // ? Should this just be rootDir
 
