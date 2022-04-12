@@ -32,8 +32,8 @@
     "@parcel/core": "^2.10.3"
   },
   "browser": {
+    "./src/core-worker.js": "./src/core-worker.browser.js",
     "./src/process/ProcessWorker.js": false,
-    "./src/threads/ThreadsWorker.js": false,
-    "./src/core-worker.js": "./src/core-worker.browser.js"
+    "./src/threads/ThreadsWorker.js": false
   }
 }
