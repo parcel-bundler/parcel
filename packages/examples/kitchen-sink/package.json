@@ -10,6 +10,7 @@
   "devDependencies": {
     "@parcel/babel-register": "2.4.1",
     "@parcel/config-default": "2.4.1",
+    "@parcel/core": "2.4.1",
     "@parcel/optimizer-esbuild": "2.4.1",
     "@parcel/reporter-sourcemap-visualiser": "2.4.1",
     "parcel": "2.4.1"
