@@ -445,6 +445,7 @@ export const MV3Schema = ({
       },
     },
   },
+  required: ['manifest_version', 'name', 'version'],
   additionalProperties: false,
 }: SchemaEntity);
 
@@ -480,6 +481,7 @@ export const MV2Schema = ({
     content_security_policy: string,
     web_accessible_resources: arrStr,
   },
+  required: ['manifest_version', 'name', 'version'],
   additionalProperties: false,
 }: SchemaEntity);
 
@@ -491,4 +493,5 @@ export const VersionSchema = ({
       enum: [2, 3],
     },
   },
+  required: ['manifest_version'],
 }: SchemaEntity);
