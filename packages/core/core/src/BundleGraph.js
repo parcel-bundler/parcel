@@ -1398,13 +1398,14 @@ export default class BundleGraph {
     }
 
     let found = false;
+    let nonStaticDependency = false;
     let skipped = false;
     let deps = this.getDependencies(asset).reverse();
     let potentialResults = [];
     for (let dep of deps) {
       let depSymbols = dep.symbols;
       if (!depSymbols) {
-        found = true;
+        nonStaticDependency = true;
         continue;
       }
       // If this is a re-export, find the original module.
@@ -1523,15 +1524,31 @@ export default class BundleGraph {
       // ..., but if it does exist, it has to be behind this one reexport.
       return potentialResults[0];
     } else {
-      // ... and there is no single reexport, but `bailout` tells us if it might still be exported.
+      let result = identifier;
+      if (skipped) {
+        // ... and it was excluded (by symbol propagation) or deferred.
+        result = false;
+      } else {
+        // ... and there is no single reexport, but it might still be exported:
+        if (found) {
+          // Fallback to namespace access, because of a bundle boundary.
+          result = null;
+        } else if (result === undefined) {
+          // If not exported explicitly by the asset (= would have to be in * or a reexport-all) ...
+          if (nonStaticDependency || asset.symbols?.has('*')) {
+            // ... and if there are non-statically analyzable dependencies or it's a CJS asset,
+            // fallback to namespace access.
+            result = null;
+          }
+          // (It shouldn't be possible for the symbol to be in a reexport-all and to end up here).
+          // Otherwise return undefined to report that the symbol wasn't found.
+        }
+      }
+
       return {
         asset,
         exportSymbol: symbol,
-        symbol: skipped
-          ? false
-          : found
-          ? null
-          : identifier ?? (asset.symbols?.has('*') ? null : undefined),
+        symbol: result,
         loc: asset.symbols?.get(symbol)?.loc,
       };
     }
