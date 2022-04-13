@@ -7,12 +7,13 @@ import type {
   Config,
   MutableBundleGraph,
   PluginOptions,
+  Dependency,
 } from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
-import {validateSchema} from '@parcel/utils';
+import {validateSchema, DefaultMap} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
@@ -54,6 +55,10 @@ export default (new Bundler({
   bundle({bundleGraph, config}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
+    let assetsToAddOnExit: DefaultMap<
+      Dependency,
+      Array<[Bundle, Asset]>,
+    > = new DefaultMap(() => []);
 
     // Step 1: create bundles for each of the explicit code split points.
     bundleGraph.traverse({
@@ -157,7 +162,7 @@ export default (new Bundler({
           if (existingBundle) {
             // If a bundle of this type has already been created in this group,
             // merge this subgraph into it.
-            nullthrows(bundleRoots.get(existingBundle)).push(asset);
+            assetsToAddOnExit.get(node.value).push([existingBundle, asset]);
             bundlesByEntryAsset.set(asset, existingBundle);
             bundleGraph.createAssetReference(dependency, asset, existingBundle);
           } else {
@@ -181,10 +186,8 @@ export default (new Bundler({
             bundlesByEntryAsset.set(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset, bundle);
 
-            // The bundle may have already been created, and the graph gave us back the original one...
-            if (!bundleRoots.has(bundle)) {
-              bundleRoots.set(bundle, [asset]);
-            }
+            // Queue the asset to be added on exit of this node, so we add dependencies first.
+            assetsToAddOnExit.get(node.value).push([bundle, asset]);
           }
         }
 
@@ -192,6 +195,21 @@ export default (new Bundler({
           ...context,
           parentNode: node,
         };
+      },
+      exit: node => {
+        if (node.type === 'dependency' && assetsToAddOnExit.has(node.value)) {
+          let assetsToAdd = assetsToAddOnExit.get(node.value);
+          for (let [bundle, asset] of assetsToAdd) {
+            let root = bundleRoots.get(bundle);
+            if (root) {
+              root.push(asset);
+            } else {
+              bundleRoots.set(bundle, [asset]);
+            }
+          }
+
+          assetsToAddOnExit.delete(node.value);
+        }
       },
     });
 

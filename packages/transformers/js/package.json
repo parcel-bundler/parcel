@@ -40,7 +40,7 @@
     "detect-libc": "^1.0.3",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.1031",
+    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.1043",
     "semver": "^5.7.1"
   },
   "devDependencies": {
