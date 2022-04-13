@@ -13,6 +13,7 @@ import {
   findDependency,
   getNextBuild,
   mergeParcelOptions,
+  inputFS,
   outputFS,
   overlayFS,
   run,
@@ -5314,5 +5315,19 @@ describe('scope hoisting', function () {
 
     let output = await run(b);
     assert.strictEqual(output, 'bar foo bar');
+  });
+
+  it('test', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/exported-free-functions-undefined-this/index.mjs',
+      ),
+      {outputFS: inputFS},
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output[0], undefined);
+    assert.deepEqual(Object.keys(output[1]), ['returnThis']);
   });
 });
