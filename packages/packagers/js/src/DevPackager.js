@@ -1,7 +1,12 @@
 // @flow strict-local
 import type {BundleGraph, PluginOptions, NamedBundle} from '@parcel/types';
 
-import {PromiseQueue, relativeBundlePath, countLines} from '@parcel/utils';
+import {
+  PromiseQueue,
+  relativeBundlePath,
+  countLines,
+  normalizeSeparators,
+} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import invariant from 'assert';
 import path from 'path';
@@ -115,6 +120,20 @@ export class DevPackager {
           '\n},';
         wrapped += JSON.stringify(deps);
         wrapped += ']';
+
+        if (
+          this.bundle.env.isNode() &&
+          asset.meta.has_node_replacements === true
+        ) {
+          const relPath = normalizeSeparators(
+            path.relative(
+              this.bundle.target.distDir,
+              path.dirname(asset.filePath),
+            ),
+          );
+          wrapped = wrapped.replace('$parcel$dirnameReplace', relPath);
+          wrapped = wrapped.replace('$parcel$filenameReplace', relPath);
+        }
 
         if (this.bundle.env.sourceMap) {
           if (mapBuffer) {
