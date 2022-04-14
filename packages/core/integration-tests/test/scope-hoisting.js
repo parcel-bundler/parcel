@@ -1007,6 +1007,27 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['a', true]);
     });
 
+    it('wraps an asset if any of its ancestors is wrapped, even if one is not', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/multiple-ancestors-wrap/index.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(
+        contents.match(/parcelRequire.register\(/g).length,
+        2 /* once for parent asset, once for child wrapped asset */,
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [42, 43]);
+    });
+
     it('supports importing from a wrapped asset with multiple bailouts', async function () {
       let b = await bundle(
         path.join(
