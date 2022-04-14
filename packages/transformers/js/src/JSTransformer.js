@@ -384,6 +384,7 @@ export default (new Transformer({
       needs_esm_helpers,
       diagnostics,
       used_env,
+      has_node_replacements,
     } = transform({
       filename: asset.filePath,
       code,
@@ -392,6 +393,7 @@ export default (new Transformer({
       replace_env: !asset.env.isNode(),
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
       insert_node_globals: !asset.env.isNode(),
+      node_replacer: asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
       env,
@@ -404,6 +406,7 @@ export default (new Transformer({
       is_development: options.mode === 'development',
       react_refresh:
         asset.env.isBrowser() &&
+        !asset.env.isLibrary &&
         !asset.env.isWorker() &&
         !asset.env.isWorklet() &&
         Boolean(config?.reactRefresh),
@@ -518,6 +521,10 @@ export default (new Transformer({
 
     if (shebang) {
       asset.meta.interpreter = shebang;
+    }
+
+    if (has_node_replacements) {
+      asset.meta.has_node_replacements = has_node_replacements;
     }
 
     for (let env of used_env) {

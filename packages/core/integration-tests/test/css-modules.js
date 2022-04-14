@@ -3,6 +3,7 @@ import path from 'path';
 import {
   bundle,
   run,
+  runBundle,
   assertBundles,
   distDir,
   outputFS,
@@ -30,9 +31,9 @@ describe('css modules', () => {
     assert.equal(typeof output, 'function');
 
     let value = output();
-    assert(/foo_[0-9a-zA-Z]/.test(value));
+    assert(/[_0-9a-zA-Z]+_foo/.test(value));
 
-    let cssClass = value.match(/(foo_[0-9a-zA-Z])/)[1];
+    let cssClass = value.match(/([_0-9a-zA-Z]+_foo)/)[1];
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes(`.${cssClass}`));
@@ -59,7 +60,7 @@ describe('css modules', () => {
     ]);
 
     let output = await run(b);
-    assert(/b-2_[0-9a-zA-Z]/.test(output));
+    assert(/[_0-9a-zA-Z]+_b-2/.test(output));
 
     let css = await outputFS.readFile(
       b.getBundles().find(b => b.type === 'css').filePath,
@@ -100,7 +101,7 @@ describe('css modules', () => {
     assert(!js.includes('unused'));
 
     let output = await run(b);
-    assert(/b-2_[0-9a-zA-Z]/.test(output));
+    assert(/[_0-9a-zA-Z]+_b-2/.test(output));
 
     let css = await outputFS.readFile(
       b.getBundles().find(b => b.type === 'css').filePath,
@@ -142,7 +143,7 @@ describe('css modules', () => {
     ]);
 
     let {output} = await run(b, null, {require: false});
-    assert(/b-2_[0-9a-zA-Z]/.test(output));
+    assert(/[_0-9a-zA-Z]+_b-2/.test(output));
 
     let css = await outputFS.readFile(
       b.getBundles().find(b => b.type === 'css').filePath,
@@ -184,8 +185,8 @@ describe('css modules', () => {
     assert(js.includes('unused'));
 
     let output = await run(b);
-    assert(/b-2_[0-9a-zA-Z]/.test(output['b-2']));
-    assert(/unused_[0-9a-zA-Z]/.test(output['unused']));
+    assert(/[_0-9a-zA-Z]+_b-2/.test(output['b-2']));
+    assert(/[_0-9a-zA-Z]+_unused/.test(output['unused']));
 
     let css = await outputFS.readFile(
       b.getBundles().find(b => b.type === 'css').filePath,
@@ -232,15 +233,15 @@ describe('css modules', () => {
     let value = output();
     const composes1Classes = value.composes1.split(' ');
     const composes2Classes = value.composes2.split(' ');
-    assert(composes1Classes[0].startsWith('composes1_'));
-    assert(composes1Classes[1].startsWith('test_'));
-    assert(composes2Classes[0].startsWith('composes2_'));
-    assert(composes2Classes[1].startsWith('test_'));
+    assert(composes1Classes[0].endsWith('_composes1'));
+    assert(composes1Classes[1].endsWith('_test'));
+    assert(composes2Classes[0].endsWith('_composes2'));
+    assert(composes2Classes[1].endsWith('_test'));
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    let cssClass1 = value.composes1.match(/(composes1_[0-9a-zA-Z]+)/)[1];
+    let cssClass1 = value.composes1.match(/([_0-9a-zA-Z]+_composes1)/)[1];
     assert(css.includes(`.${cssClass1}`));
-    let cssClass2 = value.composes2.match(/(composes2_[0-9a-zA-Z]+)/)[1];
+    let cssClass2 = value.composes2.match(/([_0-9a-zA-Z]+_composes2)/)[1];
     assert(css.includes(`.${cssClass2}`));
   });
 
@@ -279,8 +280,8 @@ describe('css modules', () => {
 
     let value = output();
     const composes3Classes = value.composes3.split(' ');
-    assert(composes3Classes[0].startsWith('composes3_'));
-    assert(composes3Classes[1].startsWith('test_'));
+    assert(composes3Classes[0].endsWith('_composes3'));
+    assert(composes3Classes[1].endsWith('_test'));
 
     let css = await outputFS.readFile(path.join(distDir, 'index2.css'), 'utf8');
     assert(css.includes('height: 200px;'));
@@ -307,8 +308,8 @@ describe('css modules', () => {
 
     let value = output();
     const composes4Classes = value.composes4.split(' ');
-    assert(composes4Classes[0].startsWith('composes4_'));
-    assert(composes4Classes[1].startsWith('test_'));
+    assert(composes4Classes[0].endsWith('_composes4'));
+    assert(composes4Classes[1].endsWith('_test'));
 
     let css = await outputFS.readFile(path.join(distDir, 'index3.css'), 'utf8');
     assert(css.includes('height: 100px;'));
@@ -344,14 +345,14 @@ describe('css modules', () => {
 
     let value = output();
     const composes5Classes = value.composes5.split(' ');
-    assert(composes5Classes[0].startsWith('composes5_'));
-    assert(composes5Classes[1].startsWith('intermediate_'));
-    assert(composes5Classes[2].startsWith('test_'));
+    assert(composes5Classes[0].endsWith('_composes5'));
+    assert(composes5Classes[1].endsWith('_intermediate'));
+    assert(composes5Classes[2].endsWith('_test'));
 
     let css = await outputFS.readFile(path.join(distDir, 'index4.css'), 'utf8');
     assert(css.includes('height: 100px;'));
     assert(css.includes('height: 300px;'));
-    assert(css.indexOf('.test_') < css.indexOf('.intermediate_'));
+    assert(css.indexOf('_test') < css.indexOf('_intermediate'));
   });
 
   it('should support composes imports for multiple selectors', async () => {
@@ -375,9 +376,9 @@ describe('css modules', () => {
 
     let value = output();
     const composes6Classes = value.composes6.split(' ');
-    assert(composes6Classes[0].startsWith('composes6_'));
-    assert(composes6Classes[1].startsWith('test_'));
-    assert(composes6Classes[2].startsWith('test-2_'));
+    assert(composes6Classes[0].endsWith('_composes6'));
+    assert(composes6Classes[1].endsWith('_test'));
+    assert(composes6Classes[2].endsWith('_test-2'));
   });
 
   it('should throw an error when importing a missing class', async function () {
@@ -447,5 +448,177 @@ describe('css modules', () => {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('color: red'));
+  });
+
+  it('should fall back to postcss for legacy css modules with :export', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-legacy/b.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'b.js',
+        assets: ['b.js', 'b.module.css'],
+      },
+      {
+        name: 'b.css',
+        assets: ['b.module.css'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.deepEqual(res, {color: 'red'});
+  });
+
+  it('should optimize away unused @keyframes', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-keyframes/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.module.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(/@keyframes _[_0-9a-zA-Z]+_test/.test(css));
+    assert(!css.includes('unused'));
+  });
+
+  it('should not double optimize css modules processed with postcss', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-modules-optimize/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('@keyframes test'));
+    assert(css.includes('@keyframes unused'));
+  });
+
+  it('should compile css modules for multiple targets', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-targets/index.html'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js', 'foo.module.css'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js', 'foo.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['foo.module.css'],
+      },
+    ]);
+  });
+
+  it('should handle @import in css modules', async function () {
+    let b = await bundle(
+      [
+        path.join(__dirname, '/integration/css-modules-import/page1.html'),
+        path.join(__dirname, '/integration/css-modules-import/page2.html'),
+      ],
+      {mode: 'production'},
+    );
+
+    let res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'page1.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+
+    assert.deepEqual(res, [['page1', '_1ZEqVW_a']]);
+
+    res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'page2.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+
+    assert.deepEqual(res, [['page2', '_4fY2uG_foo _1ZEqVW_foo j1UkRG_foo']]);
+
+    assertBundles(b, [
+      {
+        name: 'page1.html',
+        assets: ['page1.html'],
+      },
+      {
+        name: 'page2.html',
+        assets: ['page2.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page1.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page2.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'css',
+        assets: ['index.module.css', 'a.module.css', 'b.module.css'],
+      },
+    ]);
+  });
+
+  it('should not process inline <style> elements as a CSS module', async function () {
+    await bundle(
+      path.join(__dirname, '/integration/css-modules-style/index.html'),
+    );
+    let contents = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(contents.includes('.index {'));
   });
 });

@@ -1,5 +1,5 @@
 // @flow
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser */
 
 /*::
 import type {
@@ -28,11 +28,18 @@ interface ParcelModule {
     _disposeCallbacks: Array<(mixed) => void>,
   |};
 }
+interface ExtensionContext {
+  runtime: {|
+    reload(): void,
+  |};
+}
 declare var module: {bundle: ParcelRequire, ...};
 declare var HMR_HOST: string;
 declare var HMR_PORT: string;
 declare var HMR_ENV_HASH: string;
 declare var HMR_SECURE: boolean;
+declare var chrome: ExtensionContext;
+declare var browser: ExtensionContext;
 */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -123,8 +130,19 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
             hmrAcceptRun(assetsToAccept[i][0], id);
           }
         }
+      } else if ('reload' in location) {
+        location.reload();
       } else {
-        window.location.reload();
+        // Web extension context
+        var ext =
+          typeof chrome === 'undefined'
+            ? typeof browser === 'undefined'
+              ? null
+              : browser
+            : chrome;
+        if (ext && ext.runtime && ext.runtime.reload) {
+          ext.runtime.reload();
+        }
       }
     }
 
@@ -270,7 +288,7 @@ function reloadCSS() {
           : href.indexOf(hostname + ':' + getPort());
       var absolute =
         /^https?:\/\//i.test(href) &&
-        href.indexOf(window.location.origin) !== 0 &&
+        href.indexOf(location.origin) !== 0 &&
         !servedFromHMRServer;
       if (!absolute) {
         updateLink(links[i]);
