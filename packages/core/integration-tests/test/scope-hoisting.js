@@ -1985,6 +1985,17 @@ describe('scope hoisting', function () {
       assert(new output[3]() instanceof output[2]);
     });
 
+    it('should support chained reexports from hybrid files', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-hybrid/a.js',
+        ),
+      );
+      let output = await run(b);
+      assert.deepEqual(output, 2);
+    });
+
     it('support chained namespace reexports of CommonJS', async function () {
       let b = await bundle(
         path.join(
