@@ -3081,7 +3081,7 @@ describe('javascript', function () {
     });
   });
 
-  it('should inline environment variables in the left branch of in binary expression', async function () {
+  it('should inline environment variables with in binary expression whose right branch is process.env and left branch is string literal', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-binary-in-expression/index.js'),
       {
