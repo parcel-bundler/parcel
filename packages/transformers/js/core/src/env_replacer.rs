@@ -6,6 +6,7 @@ use swc_common::{SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
+use crate::id;
 use crate::utils::*;
 use ast::*;
 
@@ -45,7 +46,7 @@ impl<'a> Fold for EnvReplacer<'a> {
       if let Expr::Member(ref member) = &*binary.right {
         if let Expr::Lit(Lit::Str(ref left)) = &*binary.left {
           if let Expr::Ident(ref ident) = &*member.obj {
-            if &ident.sym == "process" {
+            if !self.decls.contains(&id!(ident)) && &ident.sym == "process" {
               if let MemberProp::Ident(ref prop) = member.prop {
                 if &prop.sym == "env" {
                   if self.env.contains_key(&left.value) {
