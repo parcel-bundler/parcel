@@ -99,6 +99,7 @@ async function collectDependencies(
           assets[j] = asset.addURLDependency(assets[j], {
             // This causes the packager to re-run when these assets update
             priority: 'parallel',
+            bundleBehavior: 'isolated',
             loc: {
               filePath,
               ...getJSONSourceLocation(
@@ -190,6 +191,8 @@ async function collectDependencies(
           await glob(path.join(assetDir, files[j]), fs, {})
         ).map(fp =>
           asset.addURLDependency(path.relative(assetDir, fp), {
+            priority: 'parallel',
+            bundleBehavior: 'isolated',
             needsStableName: true,
             loc: {
               filePath,
@@ -224,6 +227,8 @@ async function collectDependencies(
     const obj = parent[lastLoc];
     if (typeof obj == 'string')
       parent[lastLoc] = asset.addURLDependency(obj, {
+        priority: 'parallel',
+        bundleBehavior: 'isolated',
         loc: {
           filePath,
           ...getJSONSourceLocation(ptrs[location], 'value'),
@@ -233,6 +238,8 @@ async function collectDependencies(
     else {
       for (const k of Object.keys(obj)) {
         obj[k] = asset.addURLDependency(obj[k], {
+          priority: 'parallel',
+          bundleBehavior: 'isolated',
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
@@ -247,6 +254,8 @@ async function collectDependencies(
       program.background.page = asset.addURLDependency(
         program.background.page,
         {
+          priority: 'parallel',
+          bundleBehavior: 'isolated',
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs['/background/page'], 'value'),
@@ -285,6 +294,8 @@ async function collectDependencies(
       program.background.service_worker = asset.addURLDependency(
         program.background.service_worker,
         {
+          priority: 'parallel',
+          bundleBehavior: 'isolated',
           loc: {
             filePath,
             ...getJSONSourceLocation(

@@ -42,22 +42,26 @@ export default (new Packager({
         ),
       ];
 
-      war.push({
-        matches: contentScript.matches,
-        extension_ids: [],
-        resources: jsBundles
-          .flatMap(b => {
-            const children = [];
-            const siblings = bundleGraph.getReferencedBundles(b);
-            bundleGraph.traverseBundles(child => {
-              if (b !== child && !siblings.includes(child)) {
-                children.push(child);
-              }
-            }, b);
-            return children;
-          })
-          .map(relPath),
-      });
+      const resources = jsBundles
+        .flatMap(b => {
+          const children = [];
+          const siblings = bundleGraph.getReferencedBundles(b);
+          bundleGraph.traverseBundles(child => {
+            if (b !== child && !siblings.includes(child)) {
+              children.push(child);
+            }
+          }, b);
+          return children;
+        })
+        .map(relPath);
+
+      if (resources.length > 0) {
+        // In the future, maybe use "matches" as well
+        war.push({
+          extension_ids: [],
+          resources,
+        });
+      }
     }
     manifest.web_accessible_resources = (
       manifest.web_accessible_resources || []
