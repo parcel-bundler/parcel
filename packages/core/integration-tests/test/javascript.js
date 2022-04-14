@@ -5267,6 +5267,21 @@ describe('javascript', function () {
     assert.deepEqual(res.default, 'x: 123');
   });
 
+  it('should call named imports without this context', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-this/index.js'),
+    );
+    let res = await run(b, {output: null}, {strict: true});
+    assert.deepEqual(res.default, {
+      unwrappedNamed: [true, false],
+      unwrappedDefault: [true, false],
+      unwrappedNamespace: [false, true],
+      wrappedNamed: [true, false],
+      wrappedDefault: [true, false],
+      wrappedNamespace: [false, true],
+    });
+  });
+
   it('should only replace free references to require', async () => {
     let b = await bundle(
       path.join(__dirname, 'integration/js-require-free/index.js'),
