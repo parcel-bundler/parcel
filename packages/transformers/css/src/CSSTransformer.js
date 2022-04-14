@@ -65,7 +65,6 @@ export default (new Transformer({
         });
       }
     } catch (err) {
-      console.log('err: ', err);
       err.filePath = asset.filePath;
       let diagnostic = errorToDiagnostic(err, {
         origin: '@parcel/transformer-css',
