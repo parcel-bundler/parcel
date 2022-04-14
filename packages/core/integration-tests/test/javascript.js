@@ -3081,6 +3081,29 @@ describe('javascript', function () {
     });
   });
 
+  it('should inline environment variables in the left branch of in binary expression', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-binary-in-expression/index.js'),
+      {
+        env: {ABC: 'any'},
+        defaultTargetOptions: {
+          engines: {
+            browsers: '>= 0.25%',
+          },
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.deepEqual(output, {
+      existVar: 'correct',
+      notExistVar: 'correct',
+    });
+  });
+
   it('should insert environment variables from a file', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js'),
