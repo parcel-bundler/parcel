@@ -20,13 +20,6 @@ describe('Graph', () => {
     assert.equal(graph.nodes.get(id), node);
   });
 
-  it("errors when removeNode is called with a node that doesn't belong", () => {
-    let graph = new Graph();
-    assert.throws(() => {
-      graph.removeNode(toNodeId(-1));
-    }, /Does not have node/);
-  });
-
   it('errors when traversing a graph with no root', () => {
     let graph = new Graph();
 
