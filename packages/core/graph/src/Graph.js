@@ -141,10 +141,6 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       return;
     }
 
-    for (let {type, to} of this.adjacencyList.getOutboundEdgesByType(nodeId)) {
-      this.removeEdge(nodeId, to, type);
-    }
-
     for (let {type, from} of this.adjacencyList.getInboundEdgesByType(nodeId)) {
       this.removeEdge(
         from,
@@ -154,6 +150,10 @@ export default class Graph<TNode, TEdgeType: number = 1> {
         // and is already being removed.
         false,
       );
+    }
+
+    for (let {type, to} of this.adjacencyList.getOutboundEdgesByType(nodeId)) {
+      this.removeEdge(nodeId, to, type);
     }
 
     let wasRemoved = this.nodes.delete(nodeId);
