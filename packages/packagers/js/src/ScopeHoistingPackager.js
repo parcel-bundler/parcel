@@ -762,37 +762,26 @@ ${code}
 
     // If the resolved asset is wrapped, but imported at the top-level by this asset,
     // then we hoist parcelRequire calls to the top of this asset so side effects run immediately.
-    if (isWrapped && dep && !dep?.meta.shouldWrap && symbol !== false) {
+    if (
+      isWrapped &&
+      dep &&
+      !dep?.meta.shouldWrap &&
+      symbol !== false &&
+      // Only do this if the asset is part of a different bundle (so it was definitely
+      // parcelRequire.register'ed there), or if it is indeed registered in this bundle.
+      (!this.bundle.hasAsset(resolvedAsset) ||
+        !this.shouldSkipAsset(resolvedAsset))
+    ) {
       let hoisted = this.hoistedRequires.get(dep.id);
       if (!hoisted) {
         hoisted = new Map();
         this.hoistedRequires.set(dep.id, hoisted);
       }
 
-      let resolvedAssetUsedSymbols = nullthrows(
-        this.bundleGraph.getUsedSymbols(resolvedAsset),
+      hoisted.set(
+        resolvedAsset.id,
+        `var $${publicId} = parcelRequire(${JSON.stringify(publicId)});`,
       );
-
-      // Check to see if the exportSymbol is in the resolved asset or the dependency's
-      // set of used symbols, or if any of the resolved asset's dependencies export the symbol.
-      // If the exportSymbol is '*', a non-empty set of the resolved asset's used symbols
-      // indicates the export(s) is used.
-      let isExportSymbolUsed =
-        resolvedAssetUsedSymbols.has(exportSymbol) ||
-        nullthrows(this.bundleGraph.getUsedSymbols(dep)).has(exportSymbol) ||
-        this.bundleGraph
-          .getDependencies(resolvedAsset)
-          .some(dep =>
-            nullthrows(this.bundleGraph.getUsedSymbols(dep)).has(exportSymbol),
-          ) ||
-        (exportSymbol === '*' && resolvedAssetUsedSymbols.size > 0);
-
-      if (isExportSymbolUsed) {
-        hoisted.set(
-          resolvedAsset.id,
-          `var $${publicId} = parcelRequire(${JSON.stringify(publicId)});`,
-        );
-      }
     }
 
     if (isWrapped) {
