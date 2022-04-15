@@ -12,6 +12,7 @@
     "not firefox < 67"
   ],
   "devDependencies": {
+    "@babel/core": "^7.0.0",
     "@parcel/babel-register": "2.4.1",
     "parcel": "2.4.1"
   },
