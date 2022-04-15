@@ -49,17 +49,10 @@ impl<'a> Fold for EnvReplacer<'a> {
             if !self.decls.contains(&id!(ident)) && &ident.sym == "process" {
               if let MemberProp::Ident(ref prop) = member.prop {
                 if &prop.sym == "env" {
-                  if self.env.contains_key(&left.value) {
-                    return Expr::Lit(Lit::Bool(Bool {
-                      value: true,
-                      span: DUMMY_SP,
-                    }));
-                  } else {
-                    return Expr::Lit(Lit::Bool(Bool {
-                      value: false,
-                      span: DUMMY_SP,
-                    }));
-                  }
+                  return Expr::Lit(Lit::Bool(Bool {
+                    value: self.env.contains_key(&left.value),
+                    span: DUMMY_SP,
+                  }));
                 }
               }
             }
