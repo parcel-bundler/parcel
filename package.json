@@ -39,6 +39,7 @@
     "@babel/core": "^7.12.0",
     "@khanacademy/flow-to-ts": "^0.5.2",
     "@napi-rs/cli": "1.0.4",
+    "@parcel/babel-register": "2.4.1",
     "@types/node": "^15.12.4",
     "cross-env": "^7.0.0",
     "eslint": "^7.20.0",
