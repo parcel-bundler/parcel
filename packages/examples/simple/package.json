@@ -8,6 +8,7 @@
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
   },
   "devDependencies": {
+    "@babel/core": "^7.0.0",
     "@parcel/babel-register": "2.4.1",
     "@parcel/core": "2.4.1"
   },

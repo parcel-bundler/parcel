@@ -7,6 +7,7 @@
     "demo": "parcel build src/index.ts --no-cache"
   },
   "devDependencies": {
+    "@babel/core": "^7.0.0",
     "@parcel/babel-register": "2.4.1",
     "@parcel/core": "2.4.1"
   },
