@@ -91,7 +91,7 @@ const commonProps = {
     additionalProperties: {
       type: 'object',
       properties: {},
-    }
+    },
   },
   chrome_settings_overrides: {
     type: 'object',
