@@ -1206,6 +1206,17 @@ describe('output formats', function () {
       assert.deepEqual({...ns}, {default: {default: 'default'}});
     });
 
+    it('should support rewriting filename and importing path', async function () {
+      let input = path.join(
+        __dirname,
+        '/integration/formats/esm-filename-import/index.js',
+      );
+      let b = await bundle(input);
+
+      let ns = await run(b);
+      assert.deepEqual(ns.foo, input);
+    });
+
     it('should rename shadowed imported specifiers to something unique', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-import-shadow/a.mjs'),

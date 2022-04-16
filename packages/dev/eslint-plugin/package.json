@@ -8,6 +8,7 @@
     "read-pkg-up": "^5.0.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.0.0",
     "@babel/eslint-parser": "^7.12.1",
     "eslint": "^7.20.0"
   }

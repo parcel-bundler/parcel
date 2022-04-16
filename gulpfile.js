@@ -29,10 +29,7 @@ const paths = {
     '!**/dev-prelude.js',
     ...IGNORED_PACKAGES,
   ],
-  packageOther: [
-    'packages/*/*/src/**/dev-prelude.js',
-    'packages/*/dev-server/src/templates/**',
-  ],
+  packageOther: ['packages/*/*/src/**/dev-prelude.js'],
   packageJson: [
     'packages/core/parcel/package.json',
     'packages/utils/create-react-app/package.json',
