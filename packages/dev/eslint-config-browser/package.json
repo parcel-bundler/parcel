@@ -4,5 +4,9 @@
   "version": "2.4.1",
   "dependencies": {
     "@parcel/eslint-config": "2.4.1"
+  },
+  "peerDependencies": {
+    "@babel/core": "^7.0.0",
+    "eslint": ">= 7.0.0"
   }
 }

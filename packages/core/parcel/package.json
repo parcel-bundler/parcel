@@ -37,6 +37,7 @@
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.0.0",
     "@parcel/babel-register": "2.4.1"
   }
 }
