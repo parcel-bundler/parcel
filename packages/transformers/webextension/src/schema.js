@@ -85,6 +85,14 @@ const commonProps = {
   description: string,
   icons,
   author: string,
+  browser_specific_settings: {
+    type: 'object',
+    properties: {},
+    additionalProperties: {
+      type: 'object',
+      properties: {},
+    },
+  },
   chrome_settings_overrides: {
     type: 'object',
     properties: {
