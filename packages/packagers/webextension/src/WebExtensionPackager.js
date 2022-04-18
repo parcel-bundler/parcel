@@ -11,14 +11,13 @@ export default (new Packager({
     bundle.traverseAssets(asset => {
       assets.push(asset);
     });
+    const manifestAssets = assets.filter(a => a.meta.webextEntry === true);
 
-    assert.equal(
-      assets.length,
-      1,
-      'Web extension manifest bundles must only contain one asset',
+    assert(
+      assets.length == 2 && manifestAssets.length == 1,
+      'Web extension bundles must contain exactly one manifest asset and one runtime asset',
     );
-    const asset = assets[0];
-    assert(asset.meta.webextEntry === true);
+    const asset = manifestAssets[0];
 
     const relPath = b =>
       relativeBundlePath(bundle, b, {leadingDotSlash: false});
@@ -27,22 +26,25 @@ export default (new Packager({
     const deps = asset.getDependencies();
     const war = [];
     for (const contentScript of manifest.content_scripts || []) {
-      const jsBundles = deps
-        .filter(d => contentScript.js?.includes(d.id))
+      const srcBundles = deps
+        .filter(
+          d =>
+            contentScript.js?.includes(d.id) ||
+            contentScript.css?.includes(d.id),
+        )
         .map(d => nullthrows(bundleGraph.getReferencedBundle(d, bundle)));
 
       contentScript.css = [
         ...new Set(
           (contentScript.css || []).concat(
-            jsBundles
+            srcBundles
               .flatMap(b => bundleGraph.getReferencedBundles(b))
               .filter(b => b.type == 'css')
               .map(relPath),
           ),
         ),
       ];
-
-      const resources = jsBundles
+      const resources = srcBundles
         .flatMap(b => {
           const children = [];
           const siblings = bundleGraph.getReferencedBundles(b);
@@ -56,9 +58,16 @@ export default (new Packager({
         .map(relPath);
 
       if (resources.length > 0) {
-        // In the future, maybe use "matches" as well
         war.push({
-          extension_ids: [],
+          matches: contentScript.matches.map(match => {
+            if (/^(((http|ws)s?)|ftp|\*):\/\//.test(match)) {
+              let pathIndex = match.indexOf('/', match.indexOf('://') + 3);
+              // Avoids creating additional errors in invalid match URLs
+              if (pathIndex == -1) pathIndex = match.length;
+              return match.slice(0, pathIndex) + '/*';
+            }
+            return match;
+          }),
           resources,
         });
       }
