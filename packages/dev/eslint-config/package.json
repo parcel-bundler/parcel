@@ -11,5 +11,9 @@
     "eslint-plugin-mocha": "^8.0.0",
     "eslint-plugin-monorepo": "^0.3.2",
     "eslint-plugin-react": "^7.22.0"
+  },
+  "peerDependencies": {
+    "@babel/core": "^7.0.0",
+    "eslint": ">= 7.0.0"
   }
 }

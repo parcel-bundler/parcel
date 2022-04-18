@@ -3113,6 +3113,15 @@ describe('javascript', function () {
     assert.equal(output, 'barbaz');
   });
 
+  it('should insert environment variables from a file even if entry file is specified with source value in package.json', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-file-with-package-source'),
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'bartest');
+  });
+
   it('should error on process.env mutations', async function () {
     let filePath = path.join(__dirname, '/integration/env-mutate/index.js');
     await assert.rejects(bundle(filePath), {
