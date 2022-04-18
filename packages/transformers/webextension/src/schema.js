@@ -76,6 +76,7 @@ const warBase = {
 };
 
 const commonProps = {
+  "$schema": string,
   name: string,
   version: {
     type: 'string',
