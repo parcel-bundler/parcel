@@ -1993,7 +1993,7 @@ describe('scope hoisting', function () {
         ),
       );
       let output = await run(b);
-      assert.deepEqual(output, 2);
+      assert.strictEqual(output, 2);
     });
 
     it('should support chained reexports as default from hybrid files', async function () {
@@ -2004,7 +2004,7 @@ describe('scope hoisting', function () {
         ),
       );
       let output = await run(b);
-      assert.deepEqual(output, 2);
+      assert.strictEqual(output, 2);
     });
 
     it('support chained namespace reexports of CommonJS', async function () {
