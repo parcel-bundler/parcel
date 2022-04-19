@@ -1996,6 +1996,17 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, 2);
     });
 
+    it('should support chained reexports as default from hybrid files', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-default-hybrid/a.js',
+        ),
+      );
+      let output = await run(b);
+      assert.deepEqual(output, 2);
+    });
+
     it('support chained namespace reexports of CommonJS', async function () {
       let b = await bundle(
         path.join(
