@@ -76,7 +76,7 @@ const warBase = {
 };
 
 const commonProps = {
-  "$schema": string,
+  $schema: string,
   name: string,
   version: {
     type: 'string',
@@ -497,6 +497,7 @@ export const MV2Schema = ({
 export const VersionSchema = ({
   type: 'object',
   properties: {
+    $schema: string,
     manifest_version: {
       type: 'number',
       enum: [2, 3],

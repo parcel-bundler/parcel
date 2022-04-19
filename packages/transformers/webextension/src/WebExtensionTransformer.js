@@ -43,6 +43,7 @@ async function collectDependencies(
   const filePath = asset.filePath;
   const assetDir = path.dirname(filePath);
   const isMV2 = program.manifest_version == 2;
+  delete program.$schema;
   if (program.default_locale) {
     const locales = path.join(assetDir, '_locales');
     let err = !(await fs.exists(locales))
