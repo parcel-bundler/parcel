@@ -22,5 +22,8 @@
   },
   "devDependencies": {
     "sharp": "^0.29.1"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.4.1"
   }
 }
