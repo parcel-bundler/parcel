@@ -4,7 +4,6 @@ import {Runtime} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 import fs from 'fs';
 import path from 'path';
-import {relativeBundlePath} from '@parcel/utils';
 
 const AUTORELOAD_BG = fs.readFileSync(
   path.join(__dirname, 'autoreload-bg.js'),
@@ -12,7 +11,7 @@ const AUTORELOAD_BG = fs.readFileSync(
 );
 
 export default (new Runtime({
-  async apply({bundle, bundleGraph, options}) {
+  apply({bundle, bundleGraph, options}) {
     if (!bundle.env.isBrowser() || bundle.env.isWorklet()) {
       return;
     }
