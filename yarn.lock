@@ -8268,16 +8268,54 @@ listr2@^2.1.0:
     rxjs "^6.5.5"
     through "^2.3.8"
 
-lmdb@2.2.4:
-  version "2.2.4"
-  resolved "https://registry.yarnpkg.com/lmdb/-/lmdb-2.2.4.tgz#6494d5a1d1db152e0be759edcfa06893e4cbdb53"
-  integrity sha512-gto+BB2uEob8qRiTlOq+R3uX0YNHsX9mjxj9Sbdue/LIKqu6IlZjrsjKeGyOMquc/474GEqFyX2pdytpydp0rQ==
+lmdb-darwin-arm64@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-darwin-arm64/-/lmdb-darwin-arm64-2.3.4.tgz#66521ee6e9b40e2b2229fa8da3cd10c0e16a0da7"
+  integrity sha512-5SUBoUSxI6cfEHLNdDZsbOx2Rs1H1R7sxW4KBoayrSl+KBqHiuAd/N1MEwPsyQb0DCKXp1ULIOqEByGVJc9fVA==
+
+lmdb-darwin-x64@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-darwin-x64/-/lmdb-darwin-x64-2.3.4.tgz#ccf37fe0f1801c77b53daf058a6deee59c853c48"
+  integrity sha512-+VdCZql92iuO1IDChb423OEuMiYnPLUZYSVUvYXrQFAOXpgwv2BNns6FbgtYYVLawQAojFlEr7jJ9FG7DlSJEg==
+
+lmdb-linux-arm64@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-linux-arm64/-/lmdb-linux-arm64-2.3.4.tgz#565489cfff32953d30ac76ec9462d72f3d417491"
+  integrity sha512-MGoxL6fnYGS9E2rVR7fzazDp1C+CsO4KsPfM3BqPM/OHWEzKSFutQLUR5HvI6HvzdYA9NjpWbOZNmxBVibMBqA==
+
+lmdb-linux-arm@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-linux-arm/-/lmdb-linux-arm-2.3.4.tgz#5fcc694ce42d2dbf946c6781826aaba84539b8e6"
+  integrity sha512-wOpVzFeNUUhJp/nNqwiS7trvlboaCt9LsWIvqxs7uAlUptF1b71AsW+WKG5lMOR2KTxqtQ1m4aRTJgOQmIarzQ==
+
+lmdb-linux-x64@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-linux-x64/-/lmdb-linux-x64-2.3.4.tgz#99ddcd87449d0a690aaa8835a40be7b7c7bce81a"
+  integrity sha512-xNcXs1DTwQPPSOzk+iYiFZ4Fgxx7jfIqX8P/QMJTHb1MSi7jSJ+FWVBWJsuYgnQjiLgeftupEYTKOjxwy2vwsw==
+
+lmdb-win32-x64@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-win32-x64/-/lmdb-win32-x64-2.3.4.tgz#c2478965497f3964fc7345f14d0ee91691e0a603"
+  integrity sha512-cWhfVaVnlfJvXU0Q+avnLob44J7Rzg8CMpteaw1i4xcH9Lh/IJ5HLezBTXf+N92kSDatE4RTq+1XLf3FY7HDxA==
+
+lmdb@2.3.5:
+  version "2.3.5"
+  resolved "https://registry.yarnpkg.com/lmdb/-/lmdb-2.3.5.tgz#5b336f4310acc0fb54d3049bace8cdfc212afa5e"
+  integrity sha512-kzhN5+8DFc9/AzRLRXPEQNUkRToqOlZGQK8pBdGtzQPbZuSfvhAifzWuJfWTrM2prOz7Hy1dabtOEndg4so2TQ==
   dependencies:
     msgpackr "^1.5.4"
     nan "^2.14.2"
-    node-gyp-build "^4.2.3"
+    node-addon-api "^4.3.0"
+    node-gyp-build-optional-packages "^4.3.2"
     ordered-binary "^1.2.4"
     weak-lru-cache "^1.2.2"
+  optionalDependencies:
+    lmdb-darwin-arm64 "2.3.4"
+    lmdb-darwin-x64 "2.3.4"
+    lmdb-linux-arm "2.3.4"
+    lmdb-linux-arm64 "2.3.4"
+    lmdb-linux-x64 "2.3.4"
+    lmdb-win32-x64 "2.3.4"
 
 load-json-file@^1.0.0:
   version "1.1.0"
@@ -9144,6 +9182,11 @@ node-addon-api@^4.2.0:
   resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-4.2.0.tgz#117cbb5a959dff0992e1c586ae0393573e4d2a87"
   integrity sha512-eazsqzwG2lskuzBqCGPi7Ac2UgOoMz8JVOXVhTvvPDYhthvNpefx8jWD8Np7Gv+2Sz0FlPWZk0nJV0z598Wn8Q==
 
+node-addon-api@^4.3.0:
+  version "4.3.0"
+  resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-4.3.0.tgz#52a1a0b475193e0928e98e0426a0d1254782b77f"
+  integrity sha512-73sE9+3UaLYYFmDsFZnqCInzPyh3MqIwZO9cw58yIqAZhONrrabrYyYe3TuIqtIiOuTXVhsGau8hcrhhwSsDIQ==
+
 node-elm-compiler@^5.0.5:
   version "5.0.5"
   resolved "https://registry.yarnpkg.com/node-elm-compiler/-/node-elm-compiler-5.0.5.tgz#a47c027d766d0fba53ea0f19c8e2e82992e9c87d"
@@ -9172,6 +9215,11 @@ node-forge@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/node-forge/-/node-forge-1.2.1.tgz#82794919071ef2eb5c509293325cec8afd0fd53c"
   integrity sha512-Fcvtbb+zBcZXbTTVwqGA5W+MKBj56UjVRevvchv5XrcyXbmNdesfZL37nlcWOfpgHhgmxApw3tQbTr4CqNmX4w==
+
+node-gyp-build-optional-packages@^4.3.2:
+  version "4.3.2"
+  resolved "https://registry.yarnpkg.com/node-gyp-build-optional-packages/-/node-gyp-build-optional-packages-4.3.2.tgz#82de9bdf9b1ad042457533afb2f67469dc2264bb"
+  integrity sha512-P5Ep3ISdmwcCkZIaBaQamQtWAG0facC89phWZgi5Z3hBU//J6S48OIvyZWSPPf6yQMklLZiqoosWAZUj7N+esA==
 
 node-gyp-build@^4.2.3, node-gyp-build@^4.3.0:
   version "4.3.0"
