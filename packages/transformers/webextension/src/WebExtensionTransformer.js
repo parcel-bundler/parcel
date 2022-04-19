@@ -97,8 +97,6 @@ async function collectDependencies(
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
           assets[j] = asset.addURLDependency(assets[j], {
-            // This causes the packager to re-run when these assets update
-            priority: 'parallel',
             bundleBehavior: 'isolated',
             loc: {
               filePath,
@@ -186,12 +184,12 @@ async function collectDependencies(
       // TODO: this doesn't support Parcel resolution
       const currentEntry = program.web_accessible_resources[i];
       const files = isMV2 ? [currentEntry] : currentEntry.resources;
+      let currentFiles = [];
       for (let j = 0; j < files.length; ++j) {
         const globFiles = (
           await glob(path.join(assetDir, files[j]), fs, {})
         ).map(fp =>
           asset.addURLDependency(path.relative(assetDir, fp), {
-            priority: 'parallel',
             bundleBehavior: 'isolated',
             needsStableName: true,
             loc: {
@@ -206,12 +204,13 @@ async function collectDependencies(
             },
           }),
         );
-        if (isMV2) {
-          war = war.concat(globFiles);
-        } else {
-          currentEntry.resources = globFiles;
-          war.push(currentEntry);
-        }
+        currentFiles = currentFiles.concat(globFiles);
+      }
+      if (isMV2) {
+        war = war.concat(currentFiles);
+      } else {
+        currentEntry.resources = currentFiles;
+        war.push(currentEntry);
       }
     }
     program.web_accessible_resources = war;
@@ -227,7 +226,6 @@ async function collectDependencies(
     const obj = parent[lastLoc];
     if (typeof obj == 'string')
       parent[lastLoc] = asset.addURLDependency(obj, {
-        priority: 'parallel',
         bundleBehavior: 'isolated',
         loc: {
           filePath,
@@ -238,7 +236,6 @@ async function collectDependencies(
     else {
       for (const k of Object.keys(obj)) {
         obj[k] = asset.addURLDependency(obj[k], {
-          priority: 'parallel',
           bundleBehavior: 'isolated',
           loc: {
             filePath,
@@ -254,7 +251,6 @@ async function collectDependencies(
       program.background.page = asset.addURLDependency(
         program.background.page,
         {
-          priority: 'parallel',
           bundleBehavior: 'isolated',
           loc: {
             filePath,
@@ -294,7 +290,6 @@ async function collectDependencies(
       program.background.service_worker = asset.addURLDependency(
         program.background.service_worker,
         {
-          priority: 'parallel',
           bundleBehavior: 'isolated',
           loc: {
             filePath,
