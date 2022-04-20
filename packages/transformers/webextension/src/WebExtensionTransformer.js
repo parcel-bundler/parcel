@@ -3,7 +3,7 @@ import type {MutableAsset} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
-import jsm from 'json-source-map';
+import {parse} from '@mischnic/json-sourcemap';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {
@@ -362,7 +362,7 @@ export default (new Transformer({
       },
     });
     const code = await asset.getCode();
-    const parsed = jsm.parse(code);
+    const parsed = parse(code);
     const data: any = parsed.data;
 
     // Not using a unified schema dramatically improves error messages

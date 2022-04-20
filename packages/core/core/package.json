@@ -24,6 +24,7 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
+    "@mischnic/json-sourcemap": "^0.1.0",
     "@parcel/cache": "2.4.1",
     "@parcel/diagnostic": "2.4.1",
     "@parcel/events": "2.4.1",
@@ -43,7 +44,6 @@
     "clone": "^2.1.1",
     "dotenv": "^7.0.0",
     "dotenv-expand": "^5.1.0",
-    "json-source-map": "^0.6.1",
     "json5": "^2.2.0",
     "msgpackr": "^1.5.4",
     "nullthrows": "^1.1.1",
