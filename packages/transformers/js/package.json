@@ -45,6 +45,9 @@
   "devDependencies": {
     "@napi-rs/cli": "1.0.4"
   },
+  "peerDependencies": {
+    "@parcel/core": "^2.4.1"
+  },
   "scripts": {
     "build": "napi build --platform --cargo-cwd napi",
     "build-release": "napi build --platform --release --cargo-cwd napi",
