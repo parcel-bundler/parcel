@@ -41,6 +41,21 @@ impl<'a> Fold for EnvReplacer<'a> {
       }
     }
 
+    // Replace `'foo' in process.env` with a boolean.
+    match &node {
+      Expr::Bin(binary) if binary.op == BinaryOp::In => {
+        if let (Expr::Lit(Lit::Str(left)), Expr::Member(member)) = (&*binary.left, &*binary.right) {
+          if match_member_expr(member, vec!["process", "env"], self.decls) {
+            return Expr::Lit(Lit::Bool(Bool {
+              value: self.env.contains_key(&left.value),
+              span: DUMMY_SP,
+            }));
+          }
+        }
+      }
+      _ => {}
+    }
+
     if let Expr::Member(ref member) = node {
       if self.is_browser && match_member_expr(member, vec!["process", "browser"], self.decls) {
         return Expr::Lit(Lit::Bool(Bool {

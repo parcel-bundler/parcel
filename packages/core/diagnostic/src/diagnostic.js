@@ -2,7 +2,7 @@
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import jsonMap, {type Mapping} from 'json-source-map';
+import {parse, type Mapping} from '@mischnic/json-sourcemap';
 
 /** These positions are 1-based (so <code>1</code> is the first line/column) */
 export type DiagnosticHighlightLocation = {|
@@ -215,8 +215,8 @@ export default class ThrowableDiagnostic extends Error {
 }
 
 /**
- * Turns a list of positions in a JSON file with messages into a list of diagnostics.
- * Uses <a href="https://github.com/epoberezkin/json-source-map">epoberezkin/json-source-map</a>.
+ * Turns a list of positions in a JSON5 file with messages into a list of diagnostics.
+ * Uses <a href="https://github.com/mischnic/json-sourcemap">@mischnic/json-sourcemap</a>.
  *
  * @param code the JSON code
  * @param ids A list of JSON keypaths (<code>key: "/some/parent/child"</code>) with corresponding messages, \
@@ -231,9 +231,10 @@ export function generateJSONCodeHighlights(
       |},
   ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
 ): Array<DiagnosticCodeHighlight> {
-  // json-source-map doesn't support a tabWidth option (yet)
   let map =
-    typeof data == 'string' ? jsonMap.parse(data.replace(/\t/g, ' ')) : data;
+    typeof data == 'string'
+      ? parse(data, undefined, {dialect: 'JSON5', tabWidth: 1})
+      : data;
   return ids.map(({key, type, message}) => {
     let pos = nullthrows(map.pointers[key]);
     return {
@@ -244,7 +245,7 @@ export function generateJSONCodeHighlights(
 }
 
 /**
- * Converts entries in <a href="https://github.com/epoberezkin/json-source-map">epoberezkin/json-source-map</a>'s
+ * Converts entries in <a href="https://github.com/mischnic/json-sourcemap">@mischnic/json-sourcemap</a>'s
  * <code>result.pointers</code> array.
  */
 export function getJSONSourceLocation(
@@ -254,17 +255,19 @@ export function getJSONSourceLocation(
   start: DiagnosticHighlightLocation,
   end: DiagnosticHighlightLocation,
 |} {
-  if (!type && pos.key && pos.value) {
+  let key = 'key' in pos ? pos.key : undefined;
+  let keyEnd = 'keyEnd' in pos ? pos.keyEnd : undefined;
+  if (!type && key && pos.value) {
     // key and value
     return {
-      start: {line: pos.key.line + 1, column: pos.key.column + 1},
+      start: {line: key.line + 1, column: key.column + 1},
       end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
     };
   } else if (type == 'key' || !pos.value) {
-    invariant(pos.key && pos.keyEnd);
+    invariant(key && keyEnd);
     return {
-      start: {line: pos.key.line + 1, column: pos.key.column + 1},
-      end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column},
+      start: {line: key.line + 1, column: key.column + 1},
+      end: {line: keyEnd.line + 1, column: keyEnd.column},
     };
   } else {
     return {
@@ -276,7 +279,7 @@ export function getJSONSourceLocation(
 
 /** Sanitizes object keys before using them as <code>key</code> in generateJSONCodeHighlights */
 export function encodeJSONKeyComponent(component: string): string {
-  return component.replace(/\//g, '~1');
+  return component.replace(/~/g, '~0').replace(/\//g, '~1');
 }
 
 const escapeCharacters = ['\\', '*', '_', '~'];
