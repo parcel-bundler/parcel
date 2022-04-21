@@ -4359,7 +4359,7 @@ describe('scope hoisting', function () {
       assert.deepEqual(output.default, obj);
     });
 
-    it.only('should add a default interop for a CJS module', async function () {
+    it('should add a default interop for a CJS module', async function () {
       let b = await bundle(
         path.join(
           __dirname,
