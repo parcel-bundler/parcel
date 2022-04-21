@@ -43,16 +43,18 @@ impl<'a> Fold for EnvReplacer<'a> {
     }
 
     if let Expr::Bin(ref binary) = node {
-      if let Expr::Member(ref member) = &*binary.right {
-        if let Expr::Lit(Lit::Str(ref left)) = &*binary.left {
-          if let Expr::Ident(ref ident) = &*member.obj {
-            if !self.decls.contains(&id!(ident)) && &ident.sym == "process" {
-              if let MemberProp::Ident(ref prop) = member.prop {
-                if &prop.sym == "env" {
-                  return Expr::Lit(Lit::Bool(Bool {
-                    value: self.env.contains_key(&left.value),
-                    span: DUMMY_SP,
-                  }));
+      if let BinaryOp::In = binary.op {
+        if let Expr::Member(ref member) = &*binary.right {
+          if let Expr::Lit(Lit::Str(ref left)) = &*binary.left {
+            if let Expr::Ident(ref ident) = &*member.obj {
+              if !self.decls.contains(&id!(ident)) && &ident.sym == "process" {
+                if let MemberProp::Ident(ref prop) = member.prop {
+                  if &prop.sym == "env" {
+                    return Expr::Lit(Lit::Bool(Bool {
+                      value: self.env.contains_key(&left.value),
+                      span: DUMMY_SP,
+                    }));
+                  }
                 }
               }
             }
