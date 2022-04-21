@@ -6,7 +6,6 @@ use swc_common::{SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
-use crate::id;
 use crate::utils::*;
 use ast::*;
 
@@ -42,25 +41,19 @@ impl<'a> Fold for EnvReplacer<'a> {
       }
     }
 
-    if let Expr::Bin(ref binary) = node {
-      if let BinaryOp::In = binary.op {
-        if let Expr::Member(ref member) = &*binary.right {
-          if let Expr::Lit(Lit::Str(ref left)) = &*binary.left {
-            if let Expr::Ident(ref ident) = &*member.obj {
-              if !self.decls.contains(&id!(ident)) && &ident.sym == "process" {
-                if let MemberProp::Ident(ref prop) = member.prop {
-                  if &prop.sym == "env" {
-                    return Expr::Lit(Lit::Bool(Bool {
-                      value: self.env.contains_key(&left.value),
-                      span: DUMMY_SP,
-                    }));
-                  }
-                }
-              }
-            }
+    // Replace `'foo' in process.env` with a boolean.
+    match &node {
+      Expr::Bin(binary) if binary.op == BinaryOp::In => {
+        if let (Expr::Lit(Lit::Str(left)), Expr::Member(member)) = (&*binary.left, &*binary.right) {
+          if match_member_expr(member, vec!["process", "env"], self.decls) {
+            return Expr::Lit(Lit::Bool(Bool {
+              value: self.env.contains_key(&left.value),
+              span: DUMMY_SP,
+            }));
           }
         }
       }
+      _ => {}
     }
 
     if let Expr::Member(ref member) = node {
