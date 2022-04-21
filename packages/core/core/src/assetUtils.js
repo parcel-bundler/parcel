@@ -243,7 +243,7 @@ export async function getInvalidationHash(
         break;
       case 'option':
         hashes +=
-          invalidation.key + ':' + hashFromOption(options[invalidation.key]);
+          invalidation.key + ':' + hashFromOption(options[invalidation.key]); //goes here for options
         break;
       default:
         throw new Error('Unknown invalidation type: ' + invalidation.type);

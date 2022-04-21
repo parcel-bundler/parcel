@@ -23,6 +23,7 @@ import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
 import Logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
+import {md} from '@parcel/diagnostic';
 
 describe('javascript', function () {
   beforeEach(async () => {
@@ -593,20 +594,20 @@ describe('javascript', function () {
     let output = await run(b);
     let headChildren = await output.default;
 
-    assert.equal(headChildren.length, 3);
+    assert.strictEqual(headChildren.length, 4);
 
-    assert(headChildren[0].tag === 'script');
-    assert(headChildren[0].src.match(/async\..*\.js/));
+    assert.strictEqual(headChildren[1].tag, 'script');
+    assert(headChildren[1].src.match(/async\..*\.js/));
 
-    assert(headChildren[1].tag === 'link');
-    assert(headChildren[1].rel === 'prefetch');
-    assert(headChildren[1].as === 'script');
-    assert(headChildren[1].href.match(/prefetched\..*\.js/));
+    assert.strictEqual(headChildren[2].tag, 'link');
+    assert.strictEqual(headChildren[2].rel, 'prefetch');
+    assert.strictEqual(headChildren[2].as, 'script');
+    assert(headChildren[2].href.match(/prefetched\..*\.js/));
 
-    assert(headChildren[2].tag === 'link');
-    assert(headChildren[2].rel === 'prefetch');
-    assert(headChildren[2].as === 'style');
-    assert(headChildren[2].href.match(/prefetched\..*\.css/));
+    assert.strictEqual(headChildren[3].tag, 'link');
+    assert.strictEqual(headChildren[3].rel, 'prefetch');
+    assert.strictEqual(headChildren[3].as, 'style');
+    assert(headChildren[3].href.match(/prefetched\..*\.css/));
   });
 
   it('should load additional links that were prefetched', async function () {
@@ -622,7 +623,7 @@ describe('javascript', function () {
     await outputReturn.loadDependency();
 
     let headChildren = outputReturn.children;
-    assert.equal(headChildren.length, 5);
+    assert.equal(headChildren.length, 7);
     let cssBundles = headChildren.filter(child =>
       child.href?.match(/prefetched-loaded\..*\.css/),
     );
@@ -646,20 +647,17 @@ describe('javascript', function () {
     let output = await run(b);
     let headChildren = await output.default;
 
-    assert(headChildren.length === 3);
-
-    assert(headChildren[0].tag === 'script');
-    assert(headChildren[0].src.match(/async\..*\.js/));
-
-    assert(headChildren[1].tag === 'link');
-    assert(headChildren[1].rel === 'preload');
-    assert(headChildren[1].as === 'script');
-    assert(headChildren[1].href.match(/preloaded\..*\.js/));
+    assert(headChildren.length === 4);
 
     assert(headChildren[2].tag === 'link');
     assert(headChildren[2].rel === 'preload');
-    assert(headChildren[2].as === 'style');
-    assert(headChildren[2].href.match(/preloaded\..*\.css/));
+    assert(headChildren[2].as === 'script');
+    assert(headChildren[2].href.match(/preloaded\..*\.js/));
+
+    assert(headChildren[3].tag === 'link');
+    assert(headChildren[3].rel === 'preload');
+    assert(headChildren[3].as === 'style');
+    assert(headChildren[3].href.match(/preloaded\..*\.css/));
   });
 
   // TODO: Implement when we can evaluate bundles against esmodule targets
@@ -871,6 +869,31 @@ describe('javascript', function () {
       });
     });
     assert.deepEqual(res, {default: 42});
+  });
+
+  it('dynamic imports loaded as high-priority scripts when not all engines support esmodules natively', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-imports-high-prio/index.js'),
+      {
+        defaultTargetOptions: {
+          engines: {
+            browsers: 'IE 11',
+          },
+        },
+      },
+    );
+
+    let output = await run(b);
+    let headChildren = await output.default;
+
+    assert(headChildren[0].tag === 'link');
+    assert(headChildren[0].rel === 'preload');
+    assert(headChildren[0].as === 'script');
+
+    assert(headChildren[1].tag === 'script');
+    assert(headChildren[1].src.match(/async\..*\.js/));
+
+    assert(headChildren[0].href === headChildren[1].src);
   });
 
   it('should support bundling workers with dynamic import in both page and worker', async function () {
@@ -1140,8 +1163,7 @@ describe('javascript', function () {
       assertBundles(b, [
         {
           type: 'js',
-          // ATLASSIAN: Don't share across workers for now as worker-specific code is added
-          assets: ['dedicated-worker.js', 'index.js'],
+          assets: ['dedicated-worker.js'],
         },
         {
           name: 'index.js',
@@ -1149,8 +1171,11 @@ describe('javascript', function () {
         },
         {
           type: 'js',
-          // ATLASSIAN: Don't share across workers for now as worker-specific code is added
-          assets: ['shared-worker.js', 'index.js'],
+          assets: ['shared-worker.js'],
+        },
+        {
+          type: 'js',
+          assets: ['index.js'],
         },
       ]);
 
@@ -1899,8 +1924,7 @@ describe('javascript', function () {
     });
   });
 
-  // ATLASSIAN: Don't share bundles between workers and page scripts
-  it.skip('should create a shared bundle to deduplicate assets in workers', async () => {
+  it('should create a shared bundle to deduplicate assets in workers', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
       {
@@ -2055,8 +2079,7 @@ describe('javascript', function () {
     ]);
   });
 
-  // ATLASSIAN: Don't share bundles between workers and page scripts
-  it.skip('should create a shared bundle between browser and worker contexts', async () => {
+  it('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
       {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
@@ -2653,6 +2676,141 @@ describe('javascript', function () {
       buf: Buffer.from('browser').toString('base64'),
       global: true,
     });
+  });
+
+  it('should replace __dirname and __filename with path relative to asset.filePath', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-node-replacements/index.js'),
+    );
+
+    let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/other")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
+      ),
+    );
+    let f = await run(b);
+    let output = f();
+    assert.equal(output.data, 'hello');
+    assert.equal(output.other, 'hello');
+    assert.equal(
+      output.firstDirnameTest,
+      path.join(__dirname, '/integration/env-node-replacements/data'),
+    );
+    assert.equal(
+      output.secondDirnameTest,
+      path.join(__dirname, '/integration/env-node-replacements/other-data'),
+    );
+    assert.equal(
+      output.firstFilenameTest,
+      path.join(__dirname, '/integration/env-node-replacements/index.js'),
+    );
+    assert.equal(
+      output.secondFilenameTest,
+      path.join(
+        __dirname,
+        '/integration/env-node-replacements/index.js?query-string=test',
+      ),
+    );
+    assert.equal(
+      output.sub.dirname,
+      path.join(__dirname, '/integration/env-node-replacements/sub'),
+    );
+    assert.equal(
+      output.sub.filename,
+      path.join(__dirname, '/integration/env-node-replacements/sub/index.js'),
+    );
+  });
+
+  it('should replace __dirname and __filename with path relative to asset.filePath with scope hoisting', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-node-replacements/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements/other")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements/sub")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
+      ),
+    );
+    let f = await run(b);
+    let output = f();
+    assert.equal(output.data, 'hello');
+    assert.equal(output.other, 'hello');
+    assert.equal(
+      output.firstDirnameTest,
+      path.join(__dirname, '/integration/env-node-replacements/data'),
+    );
+    assert.equal(
+      output.secondDirnameTest,
+      path.join(__dirname, '/integration/env-node-replacements/other-data'),
+    );
+    assert.equal(
+      output.firstFilenameTest,
+      path.join(__dirname, '/integration/env-node-replacements/index.js'),
+    );
+    assert.equal(
+      output.secondFilenameTest,
+      path.join(
+        __dirname,
+        '/integration/env-node-replacements/index.js?query-string=test',
+      ),
+    );
+    assert.equal(
+      output.sub.dirname,
+      path.join(__dirname, '/integration/env-node-replacements/sub'),
+    );
+    assert.equal(
+      output.sub.filename,
+      path.join(__dirname, '/integration/env-node-replacements/sub/index.js'),
+    );
   });
 
   it('should work when multiple files use globals with scope hoisting', async function () {
@@ -4433,7 +4591,7 @@ describe('javascript', function () {
       b.getBundles().find(b => b.type === 'js').filePath,
       'utf8',
     );
-    assert(dist.includes('$accoi$lodash = require("lodash");'));
+    assert(dist.includes('$cPUKg$lodash = require("lodash");'));
 
     let add = await run(b);
     assert.equal(add(2, 3), 5);
@@ -4450,9 +4608,10 @@ describe('javascript', function () {
       b.getBundles().find(b => b.type === 'js').filePath,
       'utf8',
     );
+
     assert(
       dist.includes(
-        'const add = require(`lodash/${$9b3d93bfdf73f5b0$var$fn}`);',
+        'const add = require(`lodash/${$8cad8166811e0063$var$fn}`);',
       ),
     );
 
@@ -5307,7 +5466,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: `Failed to resolve '@swc/helpers' from '${normalizePath(
+            message: md`Failed to resolve '@swc/helpers' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',
@@ -6876,6 +7035,27 @@ describe('javascript', function () {
           shouldScopeHoist ? ['commonjs'] : ['esm', 'commonjs', 'index'],
         );
         assert.deepEqual(res.output, 'Message 2');
+      });
+
+      it.only('test', async function () {
+        let b = await bundle(
+          ['index.js', 'other-entry.js'].map(basename =>
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/test',
+              basename,
+            ),
+          ),
+          {outputFS: inputFS},
+        );
+        // let b = await bundle(
+        //   path.join(__dirname, '/integration/scope-hoisting/es6/test/index.js'),
+        // );
+        // assert.deepEqual(
+        //   calls,
+        //   shouldScopeHoist ? ['esm1'] : ['esm1', 'other', 'esm2', 'index'],
+        // );
+        // assert.deepEqual(res.output, 'Message 1');
       });
     });
   }

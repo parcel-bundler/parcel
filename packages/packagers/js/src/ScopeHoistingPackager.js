@@ -344,7 +344,20 @@ export class ScopeHoistingPackager {
     return name + count;
   }
 
+  // getPropertyAccess(obj: string, property: string, unbind?: boolean): string {
+  //   let result;
+
+  //   if (IDENTIFIER_RE.test(property)) {
+  //     result = `${obj}.${property}`;
+  //   } else {
+  //     result = `${obj}[${JSON.stringify(property)}]`;
+  //   }
+
+  //   return unbind ? `(0, ${result})` : result;
+  // }
+
   getPropertyAccess(obj: string, property: string): string {
+    console.log('hi in getpropaccess');
     if (IDENTIFIER_RE.test(property)) {
       return `${obj}.${property}`;
     }
@@ -367,7 +380,7 @@ export class ScopeHoistingPackager {
   ): [string, ?SourceMap, number] {
     let shouldWrap = this.wrappedAssets.has(asset.id);
     let deps = this.bundleGraph.getDependencies(asset);
-
+    console.log('asset', asset.filePath, 'deps', deps);
     let sourceMap =
       this.bundle.env.sourceMap && map
         ? new SourceMap(this.options.projectRoot, map)
@@ -599,7 +612,7 @@ ${code}
                 replacement = `($parcel$interopDefault(${renamed}))`;
                 this.usedHelpers.add('$parcel$interopDefault');
               } else {
-                replacement = this.getPropertyAccess(renamed, imported);
+                replacement = this.getPropertyAccess(renamed, imported); //unbind true here
               }
 
               replacements.set(local, replacement);
@@ -716,6 +729,7 @@ ${code}
     imported: string,
     dep?: Dependency,
   ): string {
+    debugger;
     let {
       asset: resolvedAsset,
       exportSymbol,
@@ -774,7 +788,7 @@ ${code}
           `(parcelRequire(${JSON.stringify(publicId)}))`
         : isWrapped && dep
         ? `$${publicId}`
-        : resolvedAsset.symbols.get('*')?.local || `$${assetId}$exports`;
+        : resolvedAsset.symbols.get('*')?.local || `$${assetId}$exports`; //for returnThis(), resolvedAsset.symbols.get('*')?.local
 
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
       // Resolve to the namespace object if requested or this is a CJS default interop reqiure.
@@ -963,6 +977,8 @@ ${code}
             )}, ${get}${set});`;
           })
           .join('\n')}\n`;
+
+        console.log('prepend:', prepend);
         this.usedHelpers.add('$parcel$export');
         prependLineCount += 1 + usedExports.length;
       }

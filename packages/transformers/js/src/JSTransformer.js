@@ -693,6 +693,7 @@ export default (new Transformer({
 
     asset.meta.id = asset.id;
     if (hoist_result) {
+      console.log('hoistresult:', hoist_result);
       asset.symbols.ensure();
       for (let {exported, local, loc} of hoist_result.exported_symbols) {
         asset.symbols.set(exported, local, convertLoc(loc));
@@ -757,6 +758,7 @@ export default (new Transformer({
           }
 
           let local = nullthrows(asset.symbols.get(name)).local;
+          console.log('local', local);
           symbols.set(name, {
             local,
             isWeak: false,
@@ -863,7 +865,6 @@ export default (new Transformer({
       }
       asset.setMap(sourceMap);
     }
-
     return [asset];
   },
 }): Transformer);

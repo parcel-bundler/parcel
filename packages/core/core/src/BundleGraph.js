@@ -1072,6 +1072,7 @@ export default class BundleGraph {
     bundle: Bundle,
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
   ): ?TContext {
+    //debugger;
     let entries = true;
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
 
@@ -1110,7 +1111,7 @@ export default class BundleGraph {
             ? children.sort(([, a], [, b]) => {
                 let aIndex = bundle.entryAssetIds.indexOf(a.id);
                 let bIndex = bundle.entryAssetIds.indexOf(b.id);
-
+                // [b,a,foo]
                 if (aIndex === bIndex) {
                   // If both don't exist in the entry asset list, or
                   // otherwise have the same index.
@@ -1126,6 +1127,12 @@ export default class BundleGraph {
             : children;
 
         entries = false;
+        if (bundle.id === '50ba09b642034450') {
+          console.log(
+            'sorted children:',
+            sorted.map(([id]) => id),
+          );
+        }
         return sorted.map(([id]) => id);
       },
     });

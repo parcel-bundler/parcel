@@ -125,6 +125,7 @@ export default class UncommittedAsset {
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
+    debugger;
     this.value.outputHash = hashString(
       (this.value.hash ?? '') +
         pipelineKey +

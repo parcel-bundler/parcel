@@ -34,7 +34,6 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   inputFS,
   outputFS,
   cache,
-  shouldPatchConsole: false,
   packageManager: new NodePackageManager(inputFS, '/'),
   additionalReporters: [],
   instanceId: 'test',

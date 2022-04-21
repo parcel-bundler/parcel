@@ -93,6 +93,8 @@ export type TransformationResult = {|
   devDepRequests: Array<DevDepRequest>,
 |};
 
+let wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 export default class Transformation {
   request: TransformationRequest;
   configs: Map<string, Config>;
@@ -136,6 +138,10 @@ export default class Transformation {
 
   async run(): Promise<TransformationResult> {
     let asset = await this.loadAsset();
+    if (asset.value.filePath.includes('a.js')) {
+      //await wait(3000);
+    }
+    console.log(asset.value.filePath);
     let existing;
 
     if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
@@ -305,8 +311,8 @@ export default class Transformation {
       await this.writeToCache(
         resultCacheKey,
         assets,
-        invalidationCacheKey,
-        pipelineHash,
+        invalidationCacheKey, //these
+        pipelineHash, //2 are determine pipelineKey -- seems like pipelineHash is the one that differs
       );
     } else {
       // See above TODO, this should be per-pipeline
