@@ -169,12 +169,7 @@ impl<'a> DependencyCollector<'a> {
     });
 
     create_url_constructor(
-      ast::Expr::Lit(ast::Lit::Str(ast::Str {
-        span,
-        value: placeholder.into(),
-        kind: ast::StrKind::Synthesized,
-        has_escape: false,
-      })),
+      ast::Expr::Lit(ast::Lit::Str(placeholder.into())),
       self.config.is_esm_output,
     )
   }
@@ -614,8 +609,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           node.args[0].expr = Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
             value: placeholder,
             span,
-            has_escape: false,
-            kind: ast::StrKind::Synthesized,
+            raw: None,
           })));
           node
         } else {
@@ -1025,12 +1019,7 @@ fn create_url_constructor(url: ast::Expr, use_import_meta: bool) -> ast::Expr {
     // CJS output: "file:" + __filename
     Expr::Bin(BinExpr {
       span: DUMMY_SP,
-      left: Box::new(Expr::Lit(Lit::Str(Str {
-        value: "file:".into(),
-        kind: StrKind::Synthesized,
-        span: DUMMY_SP,
-        has_escape: false,
-      }))),
+      left: Box::new(Expr::Lit(Lit::Str("file:".into()))),
       op: BinaryOp::Add,
       right: Box::new(Expr::Ident(Ident::new("__filename".into(), DUMMY_SP))),
     })
@@ -1230,12 +1219,7 @@ impl<'a> DependencyCollector<'a> {
       String::from("unknown.js")
     };
 
-    Expr::Lit(Lit::Str(Str {
-      value: format!("file:///{}", filename).into(),
-      kind: StrKind::Synthesized,
-      has_escape: false,
-      span: DUMMY_SP,
-    }))
+    Expr::Lit(Lit::Str(format!("file:///{}", filename).into()))
   }
 
   fn get_import_meta(&mut self) -> ast::Expr {

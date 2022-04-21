@@ -122,12 +122,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
             create_decl_stmt(
               id.sym.clone(),
               self.global_mark,
-              ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                span: DUMMY_SP,
-                value: swc_atoms::JsWord::from(filename),
-                has_escape: false,
-                kind: ast::StrKind::Synthesized,
-              })),
+              ast::Expr::Lit(ast::Lit::Str(swc_atoms::JsWord::from(filename).into())),
             ),
           );
 
@@ -149,12 +144,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
             create_decl_stmt(
               id.sym.clone(),
               self.global_mark,
-              ast::Expr::Lit(ast::Lit::Str(ast::Str {
-                span: DUMMY_SP,
-                value: swc_atoms::JsWord::from(dirname),
-                has_escape: false,
-                kind: ast::StrKind::Synthesized,
-              })),
+              ast::Expr::Lit(ast::Lit::Str(swc_atoms::JsWord::from(dirname).into())),
             ),
           );
 
@@ -171,10 +161,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
                   obj: Box::new(Ident(Ident::new(js_word!("arguments"), DUMMY_SP))),
                   prop: MemberProp::Computed(ComputedPropName {
                     span: DUMMY_SP,
-                    expr: Box::new(Lit(ast::Lit::Num(ast::Number {
-                      value: 3.0,
-                      span: DUMMY_SP,
-                    }))),
+                    expr: Box::new(Lit(ast::Lit::Num(3.into()))),
                   }),
                   span: DUMMY_SP,
                 }),

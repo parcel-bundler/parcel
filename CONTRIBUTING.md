@@ -27,9 +27,7 @@ yarn install
 yarn build-native
 ```
 
-In the folder `packages/examples`, create a temporary example to debug. You can start by copying the `simple` example and try to reproduce the bug.
-
-In the newly created example run `yarn parcel build index.html` to build.
+In the folder `packages/examples`, create a temporary example to debug. You can start by copying the `simple` example and try to reproduce the bug. It has everything set up for working on local changes. You can run `yarn build` to build the project. If you're re-using another example or creating one from scratch, make sure to use the `--no-cache` flag for `parcel build` to see your local changes reflected.
 
 After you've figured out where the issue originated from and found a fix, try to add a test case or ask for help on how to proceed if the use case it more complex.
 

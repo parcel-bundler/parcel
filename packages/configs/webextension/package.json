@@ -17,6 +17,8 @@
   "dependencies": {
     "@parcel/config-default": "2.0.24",
     "@parcel/packager-raw-url": "2.0.24",
+    "@parcel/packager-webextension": "2.0.24",
+    "@parcel/runtime-webextension": "2.0.24",
     "@parcel/transformer-raw": "2.0.24",
     "@parcel/transformer-webextension": "2.0.24"
   }
