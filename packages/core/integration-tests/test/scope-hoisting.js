@@ -1985,7 +1985,7 @@ describe('scope hoisting', function () {
       assert(new output[3]() instanceof output[2]);
     });
 
-    it('should support chained reexports from hybrid files', async function () {
+    it('should support chained reexports from hybrid modules', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -1996,7 +1996,7 @@ describe('scope hoisting', function () {
       assert.strictEqual(output, 2);
     });
 
-    it('should support chained reexports as default from hybrid files', async function () {
+    it('should support chained reexports as default from hybrid modules', async function () {
       let b = await bundle(
         path.join(
           __dirname,
