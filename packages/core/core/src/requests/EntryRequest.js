@@ -17,7 +17,7 @@ import ThrowableDiagnostic, {
   getJSONSourceLocation,
 } from '@parcel/diagnostic';
 import path from 'path';
-import jsonMap, {type Mapping} from 'json-source-map';
+import {parse, type Mapping} from '@mischnic/json-sourcemap';
 import {
   type ProjectPath,
   fromProjectPath,
@@ -345,7 +345,7 @@ export class EntryResolver {
     return {
       ...pkg,
       filePath: pkgFile,
-      map: jsonMap.parse(content.replace(/\t/g, ' ')),
+      map: parse(content, undefined, {tabWidth: 1}),
     };
   }
 }
