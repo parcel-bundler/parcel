@@ -1245,6 +1245,18 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, 1);
     });
 
+    it('supports wrapped assets importing their own namespace', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-namespace-wrapped-self/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, true);
+    });
+
     it('supports importing a namespace from a transpiled CommonJS module', async function () {
       let b = await bundle(
         path.join(

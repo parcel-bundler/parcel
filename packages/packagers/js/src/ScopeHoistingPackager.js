@@ -815,7 +815,15 @@ ${code}
 
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
       // Resolve to the namespace object if requested or this is a CJS default interop reqiure.
-      return obj;
+      if (
+        parentAsset === resolvedAsset &&
+        this.wrappedAssets.has(resolvedAsset.id)
+      ) {
+        // Directly use module.exports for wrapped assets importing themselves.
+        return 'module.exports';
+      } else {
+        return obj;
+      }
     } else if (
       (!staticExports || isWrapped || !symbol) &&
       resolvedAsset !== parentAsset
