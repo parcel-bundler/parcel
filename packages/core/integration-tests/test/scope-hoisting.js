@@ -5336,4 +5336,16 @@ describe('scope hoisting', function () {
     let output = await run(b);
     assert.strictEqual(output, 'bar foo bar');
   });
+
+  it("not insert unused requires that aren't registered anywhere", async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/unused-require/index.js',
+      ),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output, 'foo');
+  });
 });

@@ -760,9 +760,18 @@ ${code}
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
 
-    // If the rsolved asset is wrapped, but imported at the top-level by this asset,
+    // If the resolved asset is wrapped, but imported at the top-level by this asset,
     // then we hoist parcelRequire calls to the top of this asset so side effects run immediately.
-    if (isWrapped && dep && !dep?.meta.shouldWrap && symbol !== false) {
+    if (
+      isWrapped &&
+      dep &&
+      !dep?.meta.shouldWrap &&
+      symbol !== false &&
+      // Only do this if the asset is part of a different bundle (so it was definitely
+      // parcelRequire.register'ed there), or if it is indeed registered in this bundle.
+      (!this.bundle.hasAsset(resolvedAsset) ||
+        !this.shouldSkipAsset(resolvedAsset))
+    ) {
       let hoisted = this.hoistedRequires.get(dep.id);
       if (!hoisted) {
         hoisted = new Map();
