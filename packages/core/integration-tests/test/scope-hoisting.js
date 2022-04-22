@@ -4375,7 +4375,7 @@ describe('scope hoisting', function () {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/interop-commonjs/a.js',
+          '/integration/scope-hoisting/commonjs/interop-commonjs-hybrid-dynamic/a.js',
         ),
       );
 
