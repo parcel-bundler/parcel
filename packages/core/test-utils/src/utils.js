@@ -988,7 +988,8 @@ export async function runESM(
         identifier: `${normalizeSeparators(
           path.relative(baseDir, filename),
         )}?id=${id}`,
-        importModuleDynamically: entry,
+        importModuleDynamically: (specifier, referrer) =>
+          entry(specifier, referrer),
         context,
         initializeImportMeta(meta) {
           meta.url = `http://localhost/${path.basename(filename)}`;
