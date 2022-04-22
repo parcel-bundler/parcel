@@ -6,6 +6,7 @@
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules -r @parcel/babel-register index.js"
   },
   "dependencies": {
+    "@babel/core": "^7.0.0",
     "@babel/generator": "^7.9.0",
     "@babel/template": "^7.8.6",
     "@babel/types": "^7.9.0",

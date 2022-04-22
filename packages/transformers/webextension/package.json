@@ -19,10 +19,10 @@
     "parcel": "^2.0.1"
   },
   "dependencies": {
+    "@mischnic/json-sourcemap": "^0.1.0",
     "@parcel/diagnostic": "2.0.24",
     "@parcel/plugin": "2.0.24",
     "@parcel/utils": "2.0.24",
-    "content-security-policy-parser": "^0.3.0",
-    "json-source-map": "^0.6.1"
+    "content-security-policy-parser": "^0.3.0"
   }
 }

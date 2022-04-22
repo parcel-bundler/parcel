@@ -8,8 +8,10 @@
     "build": "rm -rf dist && parcel build src/index.html --no-cache"
   },
   "devDependencies": {
+    "@babel/core": "^7.0.0",
     "@parcel/babel-register": "2.0.24",
     "@parcel/config-default": "2.0.24",
+    "@parcel/core": "2.5.0",
     "@parcel/optimizer-esbuild": "2.0.24",
     "@parcel/reporter-sourcemap-visualiser": "2.0.24",
     "parcel": "2.0.24"
