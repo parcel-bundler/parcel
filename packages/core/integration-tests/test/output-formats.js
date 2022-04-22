@@ -30,6 +30,231 @@ const bundle = (name, opts = {}) => {
 };
 
 describe('output formats', function () {
+  describe('amd', function () {
+    const LODASH_STUB = {
+      upperCase: () => 'HELLO WORLD',
+      kebabCase: () => 'hello-world',
+    };
+    const REACT_DOM_STUB = {
+      renderToString: () => 123,
+    };
+
+    it('should support named and default exports', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/formats/amd/exports.js'),
+        {
+          targets: {
+            main: {
+              isLibrary: true,
+              outputFormat: 'amd',
+              distDir: 'dist',
+              sourceMap: false,
+            },
+          },
+        },
+      );
+
+      const dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.strictEqual(dist.startsWith('define('), true);
+      assert.deepStrictEqual(await run(b), {
+        LuckySeven: 777,
+        default: 'foo',
+      });
+    });
+
+    it('should support imports from external dependencies', async function () {
+      const b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/amd/imports-from-external-deps.js',
+        ),
+        {
+          targets: {
+            main: {
+              isLibrary: true,
+              outputFormat: 'amd',
+              distDir: 'dist',
+              sourceMap: false,
+              includeNodeModules: {
+                lodash: false,
+              },
+            },
+          },
+        },
+      );
+
+      const dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.strictEqual(dist.startsWith('define(['), true);
+      assert.deepStrictEqual(
+        await run(b, undefined, undefined, {
+          lodash: LODASH_STUB,
+        }),
+        {
+          UPPER_CASE: 'HELLO WORLD',
+          KEBAB_CASE: 'hello-world',
+        },
+      );
+    });
+
+    it('should support import star', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/formats/amd/import-star.js'),
+        {
+          targets: {
+            main: {
+              isLibrary: true,
+              outputFormat: 'amd',
+              distDir: 'dist',
+              sourceMap: false,
+              includeNodeModules: {
+                lodash: false,
+              },
+            },
+          },
+        },
+      );
+
+      const dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.strictEqual(dist.startsWith('define(['), true);
+      assert.deepStrictEqual(
+        await run(b, undefined, undefined, {
+          lodash: LODASH_STUB,
+        }),
+        {
+          UPPER_CASE: 'HELLO WORLD',
+        },
+      );
+    });
+
+    it('should support CommonJS require', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/formats/amd/cjs-require.js'),
+        {
+          targets: {
+            main: {
+              isLibrary: true,
+              outputFormat: 'amd',
+              distDir: 'dist',
+              sourceMap: false,
+              includeNodeModules: {
+                lodash: false,
+                'react-dom': false,
+              },
+            },
+          },
+        },
+      );
+
+      const dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.strictEqual(dist.startsWith('define(['), true);
+      assert.deepStrictEqual(
+        await run(b, undefined, undefined, {
+          lodash: LODASH_STUB,
+          'react-dom': REACT_DOM_STUB,
+        }),
+        {
+          UPPER_CASE: 'HELLO WORLD',
+          REACT_DOM: REACT_DOM_STUB,
+        },
+      );
+    });
+
+    it('should handle names correctly', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/formats/amd/conflicting-names.js'),
+        {
+          targets: {
+            main: {
+              isLibrary: true,
+              outputFormat: 'amd',
+              distDir: 'dist',
+              sourceMap: false,
+              includeNodeModules: {
+                lodash: false,
+              },
+            },
+          },
+        },
+      );
+
+      const dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.strictEqual(dist.startsWith('define(['), true);
+      assert.deepStrictEqual(
+        await run(b, undefined, undefined, {
+          lodash: LODASH_STUB,
+        }),
+        {
+          foo: 'print-HELLO WORLD',
+        },
+      );
+    });
+
+    it('should support module import without variable assignment', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/amd/import-external-module.js',
+        ),
+        {
+          targets: {
+            main: {
+              isLibrary: true,
+              outputFormat: 'amd',
+              distDir: 'dist',
+              sourceMap: false,
+              includeNodeModules: {
+                react: false,
+              },
+            },
+          },
+        },
+      );
+
+      const dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.strictEqual(dist.includes('"react"]'), true);
+      assert.strictEqual(dist.startsWith('define(['), true);
+      assert.deepStrictEqual(
+        await run(b, undefined, undefined, {
+          react: {},
+        }),
+        {
+          foo: 123,
+        },
+      );
+    });
+
+    it('should support dynamic imports', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/formats/amd/with-dynamic-import.js'),
+        {
+          targets: {
+            main: {
+              isLibrary: true,
+              outputFormat: 'amd',
+              distDir: 'dist',
+              sourceMap: false,
+            },
+          },
+        },
+      );
+
+      const mainChunk = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(mainChunk.startsWith('define(['), true);
+
+      const result = await run(b, undefined, undefined, undefined);
+      assert.strictEqual(typeof result.getLazyLoadedExports, 'function');
+
+      let lazyChunk = await outputFS.readFile(
+        b.getBundles()[1].filePath,
+        'utf8',
+      );
+      assert.strictEqual(lazyChunk.startsWith('define(['), false);
+    });
+  });
+
   describe('commonjs', function () {
     it('should support commonjs output (exports)', async function () {
       let b = await bundle(

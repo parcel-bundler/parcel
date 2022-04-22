@@ -21,6 +21,7 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import globals from 'globals';
 import path from 'path';
 
+import {AMDOutputFormat} from './AMDOutputFormat';
 import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
@@ -58,6 +59,7 @@ const GLOBALS_BY_CONTEXT = {
 const OUTPUT_FORMATS = {
   esmodule: ESMOutputFormat,
   commonjs: CJSOutputFormat,
+  amd: AMDOutputFormat,
   global: GlobalOutputFormat,
 };
 
@@ -953,7 +955,7 @@ ${code}
       // the `module.exports` object provided by CJS.
       if (
         !shouldWrap &&
-        (this.bundle.env.outputFormat !== 'commonjs' ||
+        (!['commonjs', 'amd'].includes(this.bundle.env.outputFormat) ||
           asset !== this.bundle.getMainEntry())
       ) {
         prepend += `var $${assetId}$exports = {};\n`;

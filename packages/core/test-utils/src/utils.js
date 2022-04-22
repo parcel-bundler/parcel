@@ -290,9 +290,17 @@ export async function runBundles(
   let ctx, promises;
   switch (target) {
     case 'browser': {
-      let prepared = prepareBrowserContext(parent, globals);
-      ctx = prepared.ctx;
-      promises = prepared.promises;
+      if (outputFormat === 'amd') {
+        nodeCache.clear();
+        ctx = prepareNodeContext(parent.filePath, {
+          ...globals,
+          $$externals: externalModules,
+        });
+      } else {
+        let prepared = prepareBrowserContext(parent, globals);
+        ctx = prepared.ctx;
+        promises = prepared.promises;
+      }
       break;
     }
     case 'node':
@@ -348,11 +356,9 @@ export async function runBundles(
 
     esmOutput = bundles.length === 1 ? res[0] : res;
   } else {
-    invariant(
-      externalModules == null,
-      'externalModules are only supported with ESM',
-    );
     for (let [code, b] of bundles) {
+      code = addOutputFormatInitCode(outputFormat, code, ctx);
+
       // require, parcelRequire was set up in prepare*Context
       new vm.Script((opts.strict ? '"use strict";\n' : '') + code, {
         filename:
@@ -394,6 +400,7 @@ export async function runBundles(
           }
         }
         return;
+      case 'amd': // amdefine allows us to load AMD in Node environment
       case 'commonjs':
         invariant(typeof ctx.module === 'object' && ctx.module != null);
         return ctx.module.exports;
@@ -583,6 +590,25 @@ export function assertBundles(
 
 export function normaliseNewlines(text: string): string {
   return text.replace(/(\r\n|\n|\r)/g, '\n');
+}
+
+/**
+ * Prepends initialization code specific to the loader for 'outputFormat'.
+ * Also adds code for declaring externalModules in the format specified by 'outputFormat'.
+ * Returns resulting string.
+ */
+function addOutputFormatInitCode(outputFormat, code, ctx) {
+  if (outputFormat === 'amd') {
+    // $FlowFixMe[prop-missing]  ctx.global is previously set in prepareNodeContext
+    const externalDepsCode = Object.keys(ctx.global.$$externals || {}).map(
+      depName => `define("${depName}", [], $$externals["${depName}"])`,
+    );
+
+    return `if (typeof global.define !== 'function') { global.define = require('amdefine')(module) }
+      ${externalDepsCode.join('\n')}
+      ${code}`;
+  }
+  return code;
 }
 
 function prepareBrowserContext(
