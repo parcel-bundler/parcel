@@ -4359,6 +4359,18 @@ describe('scope hoisting', function () {
       assert.deepEqual(output.default, obj);
     });
 
+    it('should add a default interop for a CJS module used in a hybrid module', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-commonjs-hybrid/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+
     it('should add a default interop for a CJS module', async function () {
       let b = await bundle(
         path.join(
