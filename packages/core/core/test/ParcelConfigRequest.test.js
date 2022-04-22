@@ -813,6 +813,45 @@ describe('ParcelConfigRequest', () => {
       );
     });
 
+    it('should emit a codeframe when an extended parcel config file is not found in JSON5', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-extends-not-found',
+        '.parcelrc-json5',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+
+      // $FlowFixMe[prop-missing]
+      await assert.rejects(
+        () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
+        {
+          name: 'Error',
+          diagnostics: [
+            {
+              message: 'Cannot find extended parcel config',
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message:
+                        '"./.parclrc-node-modules" does not exist, did you mean "./.parcelrc-node-modules"?',
+                      start: {line: 2, column: 12},
+                      end: {line: 2, column: 36},
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      );
+    });
+
     it('should emit a codeframe when an extended parcel config node module is not found', async () => {
       let configFilePath = path.join(
         __dirname,

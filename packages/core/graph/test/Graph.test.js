@@ -20,13 +20,6 @@ describe('Graph', () => {
     assert.equal(graph.nodes.get(id), node);
   });
 
-  it("errors when removeNode is called with a node that doesn't belong", () => {
-    let graph = new Graph();
-    assert.throws(() => {
-      graph.removeNode(toNodeId(-1));
-    }, /Does not have node/);
-  });
-
   it('errors when traversing a graph with no root', () => {
     let graph = new Graph();
 
@@ -316,5 +309,25 @@ describe('Graph', () => {
     );
 
     assert.deepEqual(visited, [nodeA, nodeB, nodeD]);
+  });
+
+  it('correctly removes non-tree subgraphs', () => {
+    let graph = new Graph();
+    let nodeRoot = graph.addNode('root');
+    let node1 = graph.addNode('1');
+    let node2 = graph.addNode('2');
+    let node3 = graph.addNode('3');
+
+    graph.addEdge(nodeRoot, node1);
+    graph.addEdge(node1, node2);
+    graph.addEdge(node1, node3);
+    graph.addEdge(node2, node3);
+
+    graph.setRootNodeId(nodeRoot);
+
+    graph.removeNode(node1);
+
+    assert.strictEqual(graph.nodes.size, 1);
+    assert.deepStrictEqual(Array.from(graph.getAllEdges()), []);
   });
 });
