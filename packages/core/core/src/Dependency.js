@@ -85,12 +85,29 @@ export function createDependency(
 }
 
 export function mergeDependencies(a: Dependency, b: Dependency): void {
-  let {meta, symbols, ...other} = b;
+  let {
+    meta,
+    symbols,
+    needsStableName,
+    isEntry,
+    isOptional,
+    bundleBehavior,
+    ...other
+  } = b;
   Object.assign(a, other);
   Object.assign(a.meta, meta);
   if (a.symbols && symbols) {
     for (let [k, v] of symbols) {
       a.symbols.set(k, v);
     }
+  }
+  if (needsStableName) a.needsStableName = true;
+  if (isEntry) a.isEntry = true;
+  if (!isOptional) a.isOptional = false;
+  if (
+    bundleBehavior == BundleBehavior['isolated'] ||
+    a.bundleBehavior == null
+  ) {
+    a.bundleBehavior = bundleBehavior;
   }
 }

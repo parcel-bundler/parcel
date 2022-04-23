@@ -229,6 +229,7 @@ const commonProps = {
     type: 'string',
     enum: ['spanning', 'split', 'not_allowed'],
   },
+  key: string,
   minimum_chrome_version: {
     type: 'string',
     __validate: validateVersion,
@@ -240,6 +241,7 @@ const commonProps = {
     properties: {},
     additionalProperties: string,
   }: SchemaEntity),
+  optional_host_permissions: arrStr,
   optional_permissions: arrStr,
   // options_page is deprecated
   options_ui: {
@@ -455,7 +457,6 @@ export const MV3Schema = ({
     },
   },
   required: ['manifest_version', 'name', 'version'],
-  additionalProperties: false,
 }: SchemaEntity);
 
 export const MV2Schema = ({
@@ -491,7 +492,6 @@ export const MV2Schema = ({
     web_accessible_resources: arrStr,
   },
   required: ['manifest_version', 'name', 'version'],
-  additionalProperties: false,
 }: SchemaEntity);
 
 export const VersionSchema = ({
