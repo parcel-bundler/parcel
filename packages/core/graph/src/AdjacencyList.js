@@ -246,7 +246,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): boolean {
-    assert(type > 0, `Unsupported edge type ${0}`);
+    assert(type > 0, `Unsupported edge type ${type}`);
 
     let hash = this.#edges.hash(from, to, type);
     let edge = this.#edges.addressOf(hash, from, to, type);
