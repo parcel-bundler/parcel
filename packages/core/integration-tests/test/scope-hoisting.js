@@ -4371,7 +4371,7 @@ describe('scope hoisting', function () {
       assert.equal(output, 2);
     });
 
-    it('should add a default interop for a CJS module used dynamically in a hybrid module', async function () {
+    it('should add a default interop for a CJS module used non-statically in a hybrid module', async function () {
       let b = await bundle(
         path.join(
           __dirname,
