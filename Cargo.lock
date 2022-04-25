@@ -281,6 +281,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
+name = "convert_case"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb4a24b1aaf0fd0ce8b45161144d6f42cd91677fd5940fd431183eb023b3a2b8"
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -375,6 +381,16 @@ checksum = "57952ca27b5e3606ff4dd79b0020231aaf9d6aa76dc05fd30137538c50bd3ce8"
 dependencies = [
  "generic-array",
  "typenum",
+]
+
+[[package]]
+name = "ctor"
+version = "0.1.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f877be4f7c9f246b183111634f75baa039715e3f46ce860677d3b19a69fb229c"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -922,14 +938,16 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "1.8.0"
+version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5586ff59e18f42d41f68139a8ca72ef1dbcc243ec62c5696e6383169a8a05a4"
+checksum = "0ca25f170ab2b239d56dfbe9f33d8c434b6d0595a0c11553c243a4ea20d3011e"
 dependencies = [
+ "ctor",
+ "lazy_static",
  "napi-sys",
  "serde",
  "serde_json",
- "winapi",
+ "windows",
 ]
 
 [[package]]
@@ -940,20 +958,36 @@ checksum = "ebd4419172727423cf30351406c54f6cc1b354a2cfb4f1dba3e6cd07f6d5522b"
 
 [[package]]
 name = "napi-derive"
-version = "1.1.2"
+version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ee880798e942fc785e2e234544b9db578019a1d7676f45dad7f38d432ab0fe4"
+checksum = "1521d4188f3ad5908598bf1004ddd967a0cdaba0546f943e60d25d77a915727a"
 dependencies = [
+ "convert_case",
+ "napi-derive-backend",
  "proc-macro2",
  "quote",
  "syn",
 ]
 
 [[package]]
-name = "napi-sys"
-version = "1.1.2"
+name = "napi-derive-backend"
+version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67cf20e0081fea04e044aa4adf74cfea8ddc0324eec2894b1c700f4cafc72a56"
+checksum = "71eb0e251cdb40e50792ee2553bfbb95704b3e0307c94da4bbb679e1dfc8a14c"
+dependencies = [
+ "convert_case",
+ "once_cell",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn",
+]
+
+[[package]]
+name = "napi-sys"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a385494dac3c52cbcacb393bb3b42669e7db8ab240c7ad5115f549eb061f2cc"
 
 [[package]]
 name = "nasm-rs"
@@ -2497,6 +2531,19 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "windows"
+version = "0.34.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45296b64204227616fdbf2614cefa4c236b98ee64dfaaaa435207ed99fe7829f"
+dependencies = [
+ "windows_aarch64_msvc",
+ "windows_i686_gnu",
+ "windows_i686_msvc",
+ "windows_x86_64_gnu",
+ "windows_x86_64_msvc",
+]
 
 [[package]]
 name = "windows-sys"
