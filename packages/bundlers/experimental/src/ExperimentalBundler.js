@@ -732,6 +732,66 @@ function createIdealGraph(
         let bundleId = nullthrows(bundles.get(entry.id));
         let bundle = nullthrows(bundleGraph.getNode(bundleId));
         invariant(bundle !== 'root');
+        let internalizedBundleId = bundles.get(asset.id);
+        if (internalizedBundleId !== undefined) {
+          let bundleRootsRequiring = nullthrows(
+            asyncBundleRootGraph.getNodeIdsConnectedTo(
+              asyncBundleRootGraph.getNodeIdByContentKey(asset.id),
+            ),
+          );
+          for (let rootId of bundleRootsRequiring) {
+            let root = asyncBundleRootGraph.getNode(rootId);
+            if (root === 'root') continue;
+            let toBeInternalizedNodeId =
+              asyncBundleRootGraph.getNodeIdByContentKey(asset.id);
+            if (asyncAncestorAssets.get(root)?.has(asset)) {
+              let bundleId = bundles.get(root.id);
+              let b = bundleGraph.getNode(bundleId);
+              if (b && b !== 'root') {
+                b.internalizedAssetIds.push(asset.id);
+              }
+
+              asyncBundleRootGraph.removeEdge(rootId, toBeInternalizedNodeId);
+              let remainingConnections = asyncBundleRootGraph.getNode(
+                toBeInternalizedNodeId,
+              )
+                ? asyncBundleRootGraph
+                    .getNodeIdsConnectedTo(toBeInternalizedNodeId)
+                    .map(id => asyncBundleRootGraph.getNode(id))
+                : [];
+              let containsRoot = remainingConnections.find(
+                node => node === 'root',
+              );
+              if (remainingConnections.length === 1 && containsRoot) {
+                asyncBundleRootGraph.removeNode(toBeInternalizedNodeId);
+              }
+              if (!asyncBundleRootGraph.hasNode(toBeInternalizedNodeId)) {
+                bundleGraph.removeNode(bundles.get(asset.id));
+                bundleRoots.delete(asset);
+              }
+            } else if (root === entry) {
+              let hasSync = reachableRoots
+                .getNodeIdsConnectedFrom(
+                  reachableRoots.getNodeIdByContentKey(entry.id),
+                )
+                .some(id => {
+                  let a = reachableRoots.getNode(id);
+                  return a === asset;
+                });
+              if (hasSync) {
+                bundle.internalizedAssetIds.push(asset.id);
+                asyncBundleRootGraph.removeEdge(
+                  asyncBundleRootGraph.getNodeIdByContentKey(entry.id),
+                  toBeInternalizedNodeId,
+                );
+              }
+              if (!asyncBundleRootGraph.hasNode(toBeInternalizedNodeId)) {
+                bundleRoots.delete(asset);
+                bundleGraph.removeNode(bundles.get(asset.id));
+              }
+            }
+          }
+        }
         bundle.assets.add(asset);
         bundle.size += asset.stats.size;
       }

@@ -4578,6 +4578,45 @@ describe('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [42, 42, 42]);
   });
 
+  it('async dependency can be resolved internally and externally from two different bundles', async () => {
+    let b = await bundle(
+      ['entry1.js', 'entry2.js'].map(entry =>
+        path.join(
+          __dirname,
+          '/integration/async-dep-internal-external/',
+          entry,
+        ),
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['async.js'],
+      },
+      {
+        name: 'entry1.js',
+        assets: ['child.js', 'entry1.js', 'async.js'],
+      },
+      {
+        name: 'entry2.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'child.js',
+          'entry2.js',
+          'js-loader.js',
+        ],
+      },
+    ]);
+  });
+
   it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async/same-ancestry.js'),
