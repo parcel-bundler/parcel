@@ -291,7 +291,7 @@ function createIdealGraph(
 
   // Attempt to replace reachable roots by building it earlier.
   // this models bundleRoots and the assets that require it synchronously
-  let syncRequiredAssets: ContentGraph<Asset> = new ContentGraph();
+  let syncRootsAvailable: ContentGraph<Asset> = new ContentGraph();
 
   assetGraph.traverse((node, context, actions) => {
     if (node.type !== 'asset') {
@@ -337,7 +337,7 @@ function createIdealGraph(
       dependencyPriorityEdges[dependency.priority],
     );
     bundleGroupBundleIds.push(nodeId);
-    syncRequiredAssets.addNodeByContentKeyIfNeeded(asset.id, asset);
+    syncRootsAvailable.addNodeByContentKeyIfNeeded(asset.id, asset);
     assetGraph.traverse((node, _, actions) => {
       if (node.value === asset) {
         return;
@@ -366,11 +366,11 @@ function createIdealGraph(
         return;
       }
       //asset node type
-      let nodeId = syncRequiredAssets.addNodeByContentKeyIfNeeded(
+      let nodeId = syncRootsAvailable.addNodeByContentKeyIfNeeded(
         node.value.id,
         node.value,
       );
-      syncRequiredAssets.addEdge(rootNodeId, nodeId);
+      syncRootsAvailable.addEdge(rootNodeId, nodeId);
     }, asset);
   }
 
@@ -430,22 +430,24 @@ function createIdealGraph(
                 bundleGraph.getNode(stack[0][1]),
               );
               invariant(firstBundleGroup !== 'root');
-              let entry = [...firstBundleGroup.assets][0]; //this may not be entry
-              let entrynodeId = syncRequiredAssets.getNodeIdByContentKey(
+              let entry = [...firstBundleGroup.assets][0];
+              let entrynodeId = syncRootsAvailable.getNodeIdByContentKey(
                 entry.id,
               );
               if (entrynodeId !== null) {
-                if (
-                  syncRequiredAssets
-                    .getNodeIdsConnectedFrom(entrynodeId)
-                    .some(nodeId => {
-                      let child = syncRequiredAssets.getNode(nodeId);
-                      return child?.id === childAsset.id;
-                    })
-                ) {
+                let hasThisAssetBySync = false;
+                syncRootsAvailable
+                  .getNodeIdsConnectedFrom(entrynodeId)
+                  .forEach(nodeId => {
+                    let child = syncRootsAvailable.getNode(nodeId);
+                    if (child?.id === childAsset.id) {
+                      hasThisAssetBySync = true;
+                    }
+                  });
+                if (hasThisAssetBySync) {
                   //for this dependency mark it internally resolvable for that bundle
                   let parentBundleId = bundles.has(parentAsset.id)
-                    ? nullthrows(bundles.get(parentAsset.id))
+                    ? bundles.get(parentAsset.id)
                     : null;
                   let parentBundle;
                   if (parentBundleId !== null) {
@@ -472,7 +474,10 @@ function createIdealGraph(
               bundleId = bundleGraph.addNode(bundle);
               bundles.set(childAsset.id, bundleId);
               bundleRoots.set(childAsset, [bundleId, bundleId]);
-
+              syncRootsAvailable.addNodeByContentKeyIfNeeded(
+                childAsset.id,
+                childAsset,
+              );
               bundleGroupBundleIds.push(bundleId);
               bundleGraph.addEdge(bundleGraphRootNodeId, bundleId);
             } else {
@@ -574,7 +579,10 @@ function createIdealGraph(
 
             bundles.set(childAsset.id, bundleId);
             bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
-
+            syncRootsAvailable.addNodeByContentKeyIfNeeded(
+              childAsset.id,
+              childAsset,
+            );
             bundleGraph.addEdge(bundleGraphRootNodeId, bundleId);
 
             if (bundleId != bundleGroupNodeId) {
@@ -603,6 +611,13 @@ function createIdealGraph(
 
             assetReference.get(childAsset).push([dependency, bundle]);
             continue;
+          }
+          if (dependency.priority === 'sync') {
+            let nodeId = syncRootsAvailable.addNodeByContentKeyIfNeeded(
+              childAsset.id,
+              childAsset,
+            );
+            syncRootsAvailable.addEdge(currentRoot, nodeId);
           }
         }
       }
@@ -633,11 +648,9 @@ function createIdealGraph(
   }
 
   // Models bundleRoots and the assets that require it synchronously
+  let reachableRoots: ContentGraph<Asset> = new ContentGraph();
   for (let [root] of bundleRoots) {
-    let rootNodeId = syncRequiredAssets.addNodeByContentKeyIfNeeded(
-      root.id,
-      root,
-    );
+    let rootNodeId = reachableRoots.addNodeByContentKeyIfNeeded(root.id, root);
     assetGraph.traverse((node, _, actions) => {
       if (node.value === root) {
         return;
@@ -691,15 +704,12 @@ function createIdealGraph(
 
         return;
       }
-      if (entries.has(root)) {
-        actions.skipChildren();
-      }
       //asset node type
-      let nodeId = syncRequiredAssets.addNodeByContentKeyIfNeeded(
+      let nodeId = reachableRoots.addNodeByContentKeyIfNeeded(
         node.value.id,
         node.value,
       );
-      syncRequiredAssets.addEdge(rootNodeId, nodeId);
+      reachableRoots.addEdge(rootNodeId, nodeId);
     }, root);
   }
 
@@ -742,11 +752,11 @@ function createIdealGraph(
         }
         let [siblingBundleRoot] = [...bundleInGroup.assets];
         // Assets directly connected to current bundleRoot
-        let assetsFromBundleRoot = syncRequiredAssets
+        let assetsFromBundleRoot = reachableRoots
           .getNodeIdsConnectedFrom(
-            syncRequiredAssets.getNodeIdByContentKey(siblingBundleRoot.id),
+            reachableRoots.getNodeIdByContentKey(siblingBundleRoot.id),
           )
-          .map(id => nullthrows(syncRequiredAssets.getNode(id)));
+          .map(id => nullthrows(reachableRoots.getNode(id)));
 
         for (let asset of [siblingBundleRoot, ...assetsFromBundleRoot]) {
           available.add(asset);
@@ -783,7 +793,7 @@ function createIdealGraph(
     // Unreliable bundleRoot assets which need to pulled in by shared bundles or other means
     let reachable: Array<BundleRoot> = getReachableBundleRoots(
       asset,
-      syncRequiredAssets,
+      reachableRoots,
     ).reverse();
 
     // Filter out bundles from this asset's reachable array if
