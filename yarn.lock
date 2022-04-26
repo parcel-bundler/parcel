@@ -1853,6 +1853,18 @@
     npmlog "^4.1.2"
     write-file-atomic "^2.3.0"
 
+"@lezer/common@^0.15.0", "@lezer/common@^0.15.7":
+  version "0.15.12"
+  resolved "https://registry.yarnpkg.com/@lezer/common/-/common-0.15.12.tgz#2f21aec551dd5fd7d24eb069f90f54d5bc6ee5e9"
+  integrity sha512-edfwCxNLnzq5pBA/yaIhwJ3U3Kz8VAUOTRg0hhxaizaI1N+qxV7EXDv/kLCkLeq2RzSFvxexlaj5Mzfn2kY0Ig==
+
+"@lezer/lr@^0.15.4":
+  version "0.15.8"
+  resolved "https://registry.yarnpkg.com/@lezer/lr/-/lr-0.15.8.tgz#1564a911e62b0a0f75ca63794a6aa8c5dc63db21"
+  integrity sha512-bM6oE6VQZ6hIFxDNKk8bKPa14hqFrV07J/vHGOeiAbJReIaQXmkVb6xQu4MR+JBTLa5arGRyAAjJe1qaQt3Uvg==
+  dependencies:
+    "@lezer/common" "^0.15.0"
+
 "@mdx-js/mdx@^1.6.22":
   version "1.6.22"
   resolved "https://registry.yarnpkg.com/@mdx-js/mdx/-/mdx-1.6.22.tgz#8a723157bf90e78f17dc0f27995398e6c731f1ba"
@@ -1887,6 +1899,15 @@
   version "1.6.22"
   resolved "https://registry.yarnpkg.com/@mdx-js/util/-/util-1.6.22.tgz#219dfd89ae5b97a8801f015323ffa4b62f45718b"
   integrity sha512-H1rQc1ZOHANWBvPcW+JpGwr+juXSxM8Q8YCkm3GhZd8REu1fHR3z99CErO1p9pkcfcxZnMdIZdIsXkOHY0NilA==
+
+"@mischnic/json-sourcemap@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@mischnic/json-sourcemap/-/json-sourcemap-0.1.0.tgz#38af657be4108140a548638267d02a2ea3336507"
+  integrity sha512-dQb3QnfNqmQNYA4nFSN/uLaByIic58gOXq4Y4XqLOWmOrw73KmJPt/HLyG0wvn1bnR6mBKs/Uwvkh+Hns1T0XA==
+  dependencies:
+    "@lezer/common" "^0.15.7"
+    "@lezer/lr" "^0.15.4"
+    json5 "^2.2.1"
 
 "@mrmlnc/readdir-enhanced@^2.2.1":
   version "2.2.1"
@@ -2141,61 +2162,61 @@
   dependencies:
     "@octokit/openapi-types" "^6.2.0"
 
-"@parcel/css-darwin-arm64@1.7.4":
-  version "1.7.4"
-  resolved "https://registry.yarnpkg.com/@parcel/css-darwin-arm64/-/css-darwin-arm64-1.7.4.tgz#9d173f8d9a3f6dec34e49999654ba091121f1f22"
-  integrity sha512-fA+aBZAAgXSV7jUQFRYuKpJr5EEqNq++mFu4o/pU/lBFMJhL6Z11aqzrBecC1JziWT3t/BgryWdznf1QkNtM4w==
+"@parcel/css-darwin-arm64@1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@parcel/css-darwin-arm64/-/css-darwin-arm64-1.8.1.tgz#1d7694185626f956504cc6f099317455145bb880"
+  integrity sha512-PbpIlqLMAhWZlimKCdNP/ZfGNJUlEWgNeTcO2LDjPIK5JK6oTAJHfP/PPzjLS8mu+JIznZ//9MnVOUi1xcjXMA==
 
-"@parcel/css-darwin-x64@1.7.4":
-  version "1.7.4"
-  resolved "https://registry.yarnpkg.com/@parcel/css-darwin-x64/-/css-darwin-x64-1.7.4.tgz#e36f8a4c941c9059d6fc96e1f52c8022f04c32ef"
-  integrity sha512-qx/+vEXSmed7eeBgVvV/1lrEjk8KnKUiAN+CCes8d6ddJJzK5evTKQsWkywe1jNdHC33d2mlLlhLFmC2+2IPOw==
+"@parcel/css-darwin-x64@1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@parcel/css-darwin-x64/-/css-darwin-x64-1.8.1.tgz#40ce6bff78c7aecc32759faa9b52954247bc2ec1"
+  integrity sha512-R4FrwXQGAgW3/YRCSRCBNcV6mz+OKqYuyrVnZBmKTLDuTGhZHCF12qLL7SV5jYsKXBDauYAXDv/SOFIwlikVXg==
 
-"@parcel/css-linux-arm-gnueabihf@1.7.4":
-  version "1.7.4"
-  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm-gnueabihf/-/css-linux-arm-gnueabihf-1.7.4.tgz#783407f8179164e6555c9498436bc0e8d1c6c4e3"
-  integrity sha512-+Qf+j8dqJ+t7V/w9LnyWBzNcMG/GnlzjlWNQhiUkt1aYFYPr5i/eRWuWLYxVlz8EGQOUbYlinDGLXTUJDt31gA==
+"@parcel/css-linux-arm-gnueabihf@1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm-gnueabihf/-/css-linux-arm-gnueabihf-1.8.1.tgz#f540f8a92ed99ec6b07408aeef443804a8c7aba5"
+  integrity sha512-MVRlPGipRrs+f6nURR6cJbFw85YSXkPbR6l/0Hm1vyFlNn0HmRDCEWZFPwvvSavibU968Wgc5yKaC78D6Ecgsw==
 
-"@parcel/css-linux-arm64-gnu@1.7.4":
-  version "1.7.4"
-  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm64-gnu/-/css-linux-arm64-gnu-1.7.4.tgz#34ed91540fe31001a835f7f5dfc86c90419fb2db"
-  integrity sha512-ITP0HZT/Ay6JCgH3W7JpoRUYfciW+jBVBTjglZjYgyYPLLWk2J1kXB+qC3jHp5XCeH4feh7eFB1pyQcE7kqCjA==
+"@parcel/css-linux-arm64-gnu@1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm64-gnu/-/css-linux-arm64-gnu-1.8.1.tgz#4a63ea53eea93d2858bf2096fdad5ddeb3e65ee8"
+  integrity sha512-s6UpF9CjUMeeCELx0Cu+HtR8RKycm516b1mJlQC8hsPtAyDYlByW4tSDwC3By4Fqf3xCan6IH/oaq0ujS0Iqew==
 
-"@parcel/css-linux-arm64-musl@1.7.4":
-  version "1.7.4"
-  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm64-musl/-/css-linux-arm64-musl-1.7.4.tgz#3937fdadb0581e96b9f76a37713241b35a3250fa"
-  integrity sha512-or61QRhhpsDlHfrc73KP4bPwnnVZWni1jkuRv1mCi+0SzYzoaO190JEaj7VWh/boUvjGiIl//FsLoZleQIWKNA==
+"@parcel/css-linux-arm64-musl@1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm64-musl/-/css-linux-arm64-musl-1.8.1.tgz#7fe489a92cd74139b904216813a4002ae44300cf"
+  integrity sha512-Tp3Pe2tx7mltPrZ1ZDV8PLkgYcwQOigrH9YjPPOaf8iFptDpHOv1y2cs1eSgnvP+5kBdIXd7H87kGSC7OosuXg==
 
-"@parcel/css-linux-x64-gnu@1.7.4":
-  version "1.7.4"
-  resolved "https://registry.yarnpkg.com/@parcel/css-linux-x64-gnu/-/css-linux-x64-gnu-1.7.4.tgz#ee883af8a97b99519c581cb2971c414e962a6ae1"
-  integrity sha512-GHGsM06F26FAkvPcnsGw7NHxPVD7TQvg7OC7cVAYmETccO8mqs9DyRzBTevk+1kl7EQXNnHDojn7VpVN6q+phg==
+"@parcel/css-linux-x64-gnu@1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@parcel/css-linux-x64-gnu/-/css-linux-x64-gnu-1.8.1.tgz#6a1d733eca71367735d8a7f841f779a03d30272e"
+  integrity sha512-8yqXRlei4qBFSv9R8yru6yB2ak7frA/z6rMB2E5lNN8kMhpB1E0xKYMhsTZdMOV5A/gkPZlP3sHZG4qQ3GOLgQ==
 
-"@parcel/css-linux-x64-musl@1.7.4":
-  version "1.7.4"
-  resolved "https://registry.yarnpkg.com/@parcel/css-linux-x64-musl/-/css-linux-x64-musl-1.7.4.tgz#fd14e88683026665543bc48dee138edc553fcf75"
-  integrity sha512-H/9wvQ7LNqng9yIwulpfUUhs6zm9+vLCzri2qnC4vm8geyTjA0W0H5fphV8IlzNJ/DfHmoesJ+TXw5NG+QC9hg==
+"@parcel/css-linux-x64-musl@1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@parcel/css-linux-x64-musl/-/css-linux-x64-musl-1.8.1.tgz#603245a11222fad815f8fa704fe59d15f0abdd46"
+  integrity sha512-S1Qf9tZzX7AnmqKRhR/qpFYsqSCxYSz5KdekdxIijPEMxyI5tpWp6g2adGYxrCuV0E5EpcpmXlBT6d6+8FrgPg==
 
-"@parcel/css-win32-x64-msvc@1.7.4":
-  version "1.7.4"
-  resolved "https://registry.yarnpkg.com/@parcel/css-win32-x64-msvc/-/css-win32-x64-msvc-1.7.4.tgz#ed6dfb63600610ba555124262d84fa537ee7e6a4"
-  integrity sha512-xmg18iISCn1f9IyYUif6yR8FuEmi93qzH55oUiri5vZWuCY8xfraHsRA6i8yLWnxgDmVeHyiN0IICl7rgZo10A==
+"@parcel/css-win32-x64-msvc@1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@parcel/css-win32-x64-msvc/-/css-win32-x64-msvc-1.8.1.tgz#175a909ae80cd7634f1c9ffa84063b85161df22b"
+  integrity sha512-tZ5s2zM/63mEdpdnE82xtfDDR7tAN32REii1EU5LOdfpB2PIw902p30fvklj1pOFBji/v/JdpAdLIYc4W7Gb6w==
 
-"@parcel/css@^1.7.4":
-  version "1.7.4"
-  resolved "https://registry.yarnpkg.com/@parcel/css/-/css-1.7.4.tgz#87b522681a5527ad38baec4193a26a94fde37a5e"
-  integrity sha512-K1N9mxEkWQQmSINMNuGvlyPq7yCY+AtHskGxWav97lhu2i8GMMXRV9kc8/x/jkZh5KDBWO5vHhdQiujRBrgR8g==
+"@parcel/css@^1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@parcel/css/-/css-1.8.1.tgz#d5a756c18eefcc407267c5675c8e66edf206c483"
+  integrity sha512-TOfe+msei+NuPPKb60Kc+nPuCThl07L3Fut67nfot1OXy2hKYr/eF7AiAguCaIlRXkjEtXRR4S7fO24dLZ1C9g==
   dependencies:
     detect-libc "^1.0.3"
   optionalDependencies:
-    "@parcel/css-darwin-arm64" "1.7.4"
-    "@parcel/css-darwin-x64" "1.7.4"
-    "@parcel/css-linux-arm-gnueabihf" "1.7.4"
-    "@parcel/css-linux-arm64-gnu" "1.7.4"
-    "@parcel/css-linux-arm64-musl" "1.7.4"
-    "@parcel/css-linux-x64-gnu" "1.7.4"
-    "@parcel/css-linux-x64-musl" "1.7.4"
-    "@parcel/css-win32-x64-msvc" "1.7.4"
+    "@parcel/css-darwin-arm64" "1.8.1"
+    "@parcel/css-darwin-x64" "1.8.1"
+    "@parcel/css-linux-arm-gnueabihf" "1.8.1"
+    "@parcel/css-linux-arm64-gnu" "1.8.1"
+    "@parcel/css-linux-arm64-musl" "1.8.1"
+    "@parcel/css-linux-x64-gnu" "1.8.1"
+    "@parcel/css-linux-x64-musl" "1.8.1"
+    "@parcel/css-win32-x64-msvc" "1.8.1"
 
 "@parcel/source-map@^2.0.0":
   version "2.0.0"
@@ -6118,10 +6139,10 @@ flatted@^3.1.0:
   resolved "https://registry.yarnpkg.com/flatted/-/flatted-3.1.1.tgz#c4b489e80096d9df1dfc97c79871aea7c617c469"
   integrity sha512-zAoAQiudy+r5SvnSw3KJy5os/oRJYHzrzja/tBDqrZtNhUw8bt6y8OBzMWcjWr+8liV8Eb6yOhw8WZ7VFZ5ZzA==
 
-flow-bin@0.175.1:
-  version "0.175.1"
-  resolved "https://registry.yarnpkg.com/flow-bin/-/flow-bin-0.175.1.tgz#72237070ba4f293f9e04113481e18929c1de50df"
-  integrity sha512-zMCP0BPa9BrfBSR7QTcyT/XBwzUbyLdNG0eXvBuNxfHCbMRkUzSceRoOaEZIw+R+GH0UHjVfUvPJ30hXxz1Nfw==
+flow-bin@0.176.3:
+  version "0.176.3"
+  resolved "https://registry.yarnpkg.com/flow-bin/-/flow-bin-0.176.3.tgz#d32de04e044ab474afe543b9fd245608bb6a6ac8"
+  integrity sha512-lbNqgjr2GlGLAEVp5+dhG4LdnFE7ekbvVNifAdlvTx58/nE8GrCOMiUwEQy4dLnfL2NIRMk2dbEVTrugeQJ3mA==
 
 flush-write-stream@^1.0.0, flush-write-stream@^1.0.2:
   version "1.1.1"
@@ -7998,11 +8019,6 @@ json-schema@0.2.3:
   resolved "https://registry.yarnpkg.com/json-schema/-/json-schema-0.2.3.tgz#b480c892e59a2f05954ce727bd3f2a4e882f9e13"
   integrity sha1-tIDIkuWaLwWVTOcnvT8qTogvnhM=
 
-json-source-map@^0.6.1:
-  version "0.6.1"
-  resolved "https://registry.yarnpkg.com/json-source-map/-/json-source-map-0.6.1.tgz#e0b1f6f4ce13a9ad57e2ae165a24d06e62c79a0f"
-  integrity sha512-1QoztHPsMQqhDq0hlXY5ZqcEdUzxQEIxgFkKl4WUp2pgShObl+9ovi4kRh2TfvAfxAoHOJ9vIMEqk3k4iex7tg==
-
 json-stable-stringify-without-jsonify@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/json-stable-stringify-without-jsonify/-/json-stable-stringify-without-jsonify-1.0.1.tgz#9db7b59496ad3f3cfef30a75142d2d930ad72651"
@@ -8020,12 +8036,10 @@ json5@^1.0.1:
   dependencies:
     minimist "^1.2.0"
 
-json5@^2.1.2, json5@^2.2.0:
-  version "2.2.0"
-  resolved "https://registry.yarnpkg.com/json5/-/json5-2.2.0.tgz#2dfefe720c6ba525d9ebd909950f0515316c89a3"
-  integrity sha512-f+8cldu7X/y7RAJurMEJmdoKXGB/X550w2Nr3tTbezL6RwEE/iMcm+tZnXeoZtKuOq6ft8+CqzEkrIgx1fPoQA==
-  dependencies:
-    minimist "^1.2.5"
+json5@^2.1.2, json5@^2.2.0, json5@^2.2.1:
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/json5/-/json5-2.2.1.tgz#655d50ed1e6f95ad1a3caababd2b0efda10b395c"
+  integrity sha512-1hqLFMSrGHRHxav9q9gNjJ5EXznIxGVO09xQRrwplcS8qs28pZ8s8hupZAmqDwZUmVZ2Qb2jnyPOWcDH8m8dlA==
 
 jsonfile@^4.0.0:
   version "4.0.0"
@@ -8254,16 +8268,54 @@ listr2@^2.1.0:
     rxjs "^6.5.5"
     through "^2.3.8"
 
-lmdb@2.2.4:
-  version "2.2.4"
-  resolved "https://registry.yarnpkg.com/lmdb/-/lmdb-2.2.4.tgz#6494d5a1d1db152e0be759edcfa06893e4cbdb53"
-  integrity sha512-gto+BB2uEob8qRiTlOq+R3uX0YNHsX9mjxj9Sbdue/LIKqu6IlZjrsjKeGyOMquc/474GEqFyX2pdytpydp0rQ==
+lmdb-darwin-arm64@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-darwin-arm64/-/lmdb-darwin-arm64-2.3.4.tgz#66521ee6e9b40e2b2229fa8da3cd10c0e16a0da7"
+  integrity sha512-5SUBoUSxI6cfEHLNdDZsbOx2Rs1H1R7sxW4KBoayrSl+KBqHiuAd/N1MEwPsyQb0DCKXp1ULIOqEByGVJc9fVA==
+
+lmdb-darwin-x64@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-darwin-x64/-/lmdb-darwin-x64-2.3.4.tgz#ccf37fe0f1801c77b53daf058a6deee59c853c48"
+  integrity sha512-+VdCZql92iuO1IDChb423OEuMiYnPLUZYSVUvYXrQFAOXpgwv2BNns6FbgtYYVLawQAojFlEr7jJ9FG7DlSJEg==
+
+lmdb-linux-arm64@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-linux-arm64/-/lmdb-linux-arm64-2.3.4.tgz#565489cfff32953d30ac76ec9462d72f3d417491"
+  integrity sha512-MGoxL6fnYGS9E2rVR7fzazDp1C+CsO4KsPfM3BqPM/OHWEzKSFutQLUR5HvI6HvzdYA9NjpWbOZNmxBVibMBqA==
+
+lmdb-linux-arm@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-linux-arm/-/lmdb-linux-arm-2.3.4.tgz#5fcc694ce42d2dbf946c6781826aaba84539b8e6"
+  integrity sha512-wOpVzFeNUUhJp/nNqwiS7trvlboaCt9LsWIvqxs7uAlUptF1b71AsW+WKG5lMOR2KTxqtQ1m4aRTJgOQmIarzQ==
+
+lmdb-linux-x64@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-linux-x64/-/lmdb-linux-x64-2.3.4.tgz#99ddcd87449d0a690aaa8835a40be7b7c7bce81a"
+  integrity sha512-xNcXs1DTwQPPSOzk+iYiFZ4Fgxx7jfIqX8P/QMJTHb1MSi7jSJ+FWVBWJsuYgnQjiLgeftupEYTKOjxwy2vwsw==
+
+lmdb-win32-x64@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/lmdb-win32-x64/-/lmdb-win32-x64-2.3.4.tgz#c2478965497f3964fc7345f14d0ee91691e0a603"
+  integrity sha512-cWhfVaVnlfJvXU0Q+avnLob44J7Rzg8CMpteaw1i4xcH9Lh/IJ5HLezBTXf+N92kSDatE4RTq+1XLf3FY7HDxA==
+
+lmdb@2.3.5:
+  version "2.3.5"
+  resolved "https://registry.yarnpkg.com/lmdb/-/lmdb-2.3.5.tgz#5b336f4310acc0fb54d3049bace8cdfc212afa5e"
+  integrity sha512-kzhN5+8DFc9/AzRLRXPEQNUkRToqOlZGQK8pBdGtzQPbZuSfvhAifzWuJfWTrM2prOz7Hy1dabtOEndg4so2TQ==
   dependencies:
     msgpackr "^1.5.4"
     nan "^2.14.2"
-    node-gyp-build "^4.2.3"
+    node-addon-api "^4.3.0"
+    node-gyp-build-optional-packages "^4.3.2"
     ordered-binary "^1.2.4"
     weak-lru-cache "^1.2.2"
+  optionalDependencies:
+    lmdb-darwin-arm64 "2.3.4"
+    lmdb-darwin-x64 "2.3.4"
+    lmdb-linux-arm "2.3.4"
+    lmdb-linux-arm64 "2.3.4"
+    lmdb-linux-x64 "2.3.4"
+    lmdb-win32-x64 "2.3.4"
 
 load-json-file@^1.0.0:
   version "1.1.0"
@@ -9130,6 +9182,11 @@ node-addon-api@^4.2.0:
   resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-4.2.0.tgz#117cbb5a959dff0992e1c586ae0393573e4d2a87"
   integrity sha512-eazsqzwG2lskuzBqCGPi7Ac2UgOoMz8JVOXVhTvvPDYhthvNpefx8jWD8Np7Gv+2Sz0FlPWZk0nJV0z598Wn8Q==
 
+node-addon-api@^4.3.0:
+  version "4.3.0"
+  resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-4.3.0.tgz#52a1a0b475193e0928e98e0426a0d1254782b77f"
+  integrity sha512-73sE9+3UaLYYFmDsFZnqCInzPyh3MqIwZO9cw58yIqAZhONrrabrYyYe3TuIqtIiOuTXVhsGau8hcrhhwSsDIQ==
+
 node-elm-compiler@^5.0.5:
   version "5.0.5"
   resolved "https://registry.yarnpkg.com/node-elm-compiler/-/node-elm-compiler-5.0.5.tgz#a47c027d766d0fba53ea0f19c8e2e82992e9c87d"
@@ -9158,6 +9215,11 @@ node-forge@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/node-forge/-/node-forge-1.2.1.tgz#82794919071ef2eb5c509293325cec8afd0fd53c"
   integrity sha512-Fcvtbb+zBcZXbTTVwqGA5W+MKBj56UjVRevvchv5XrcyXbmNdesfZL37nlcWOfpgHhgmxApw3tQbTr4CqNmX4w==
+
+node-gyp-build-optional-packages@^4.3.2:
+  version "4.3.2"
+  resolved "https://registry.yarnpkg.com/node-gyp-build-optional-packages/-/node-gyp-build-optional-packages-4.3.2.tgz#82de9bdf9b1ad042457533afb2f67469dc2264bb"
+  integrity sha512-P5Ep3ISdmwcCkZIaBaQamQtWAG0facC89phWZgi5Z3hBU//J6S48OIvyZWSPPf6yQMklLZiqoosWAZUj7N+esA==
 
 node-gyp-build@^4.2.3, node-gyp-build@^4.3.0:
   version "4.3.0"
