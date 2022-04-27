@@ -938,9 +938,9 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "2.3.2"
+version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ca25f170ab2b239d56dfbe9f33d8c434b6d0595a0c11553c243a4ea20d3011e"
+checksum = "4c7806930f3d742fade085524e131dd4407c5bd68dff77086cf6b8ef300e0b12"
 dependencies = [
  "ctor",
  "lazy_static",
@@ -958,9 +958,9 @@ checksum = "ebd4419172727423cf30351406c54f6cc1b354a2cfb4f1dba3e6cd07f6d5522b"
 
 [[package]]
 name = "napi-derive"
-version = "2.3.1"
+version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1521d4188f3ad5908598bf1004ddd967a0cdaba0546f943e60d25d77a915727a"
+checksum = "048a9a6127a77b541184324c622ddcbf15ca0af1557076a0993b304932347272"
 dependencies = [
  "convert_case",
  "napi-derive-backend",
@@ -971,9 +971,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.28"
+version = "1.0.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71eb0e251cdb40e50792ee2553bfbb95704b3e0307c94da4bbb679e1dfc8a14c"
+checksum = "5c4e5660e8013eb5027e6d8ece13c2aaec9674b2332c503e658bfff8c90b4acb"
 dependencies = [
  "convert_case",
  "once_cell",
@@ -2534,15 +2534,15 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows"
-version = "0.34.0"
+version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45296b64204227616fdbf2614cefa4c236b98ee64dfaaaa435207ed99fe7829f"
+checksum = "36e5436ab30c3d1422272fc6f7b5e7d46e93c94bfca83be808404df9ea5bea76"
 dependencies = [
- "windows_aarch64_msvc",
- "windows_i686_gnu",
- "windows_i686_msvc",
- "windows_x86_64_gnu",
- "windows_x86_64_msvc",
+ "windows_aarch64_msvc 0.36.0",
+ "windows_i686_gnu 0.36.0",
+ "windows_i686_msvc 0.36.0",
+ "windows_x86_64_gnu 0.36.0",
+ "windows_x86_64_msvc 0.36.0",
 ]
 
 [[package]]
@@ -2551,11 +2551,11 @@ version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5acdd78cb4ba54c0045ac14f62d8f94a03d10047904ae2a40afa1e99d8f70825"
 dependencies = [
- "windows_aarch64_msvc",
- "windows_i686_gnu",
- "windows_i686_msvc",
- "windows_x86_64_gnu",
- "windows_x86_64_msvc",
+ "windows_aarch64_msvc 0.34.0",
+ "windows_i686_gnu 0.34.0",
+ "windows_i686_msvc 0.34.0",
+ "windows_x86_64_gnu 0.34.0",
+ "windows_x86_64_msvc 0.34.0",
 ]
 
 [[package]]
@@ -2565,10 +2565,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17cffbe740121affb56fad0fc0e421804adf0ae00891205213b5cecd30db881d"
 
 [[package]]
+name = "windows_aarch64_msvc"
+version = "0.36.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4bee8cd327bbef19bf86d30bd66379f57905166d3103b0e2eff4a491b85e421d"
+
+[[package]]
 name = "windows_i686_gnu"
 version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2564fde759adb79129d9b4f54be42b32c89970c18ebf93124ca8870a498688ed"
+
+[[package]]
+name = "windows_i686_gnu"
+version = "0.36.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b759cc6e3d97970c98cffe461739e89ab6d424ba5e2e7d3b9b05a2d56116057"
 
 [[package]]
 name = "windows_i686_msvc"
@@ -2577,16 +2589,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9cd9d32ba70453522332c14d38814bceeb747d80b3958676007acadd7e166956"
 
 [[package]]
+name = "windows_i686_msvc"
+version = "0.36.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a0cee91bff283876711f91e7db0aa234438bc663a9d8304596df00b0a6fd6ef"
+
+[[package]]
 name = "windows_x86_64_gnu"
 version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfce6deae227ee8d356d19effc141a509cc503dfd1f850622ec4b0f84428e1f4"
 
 [[package]]
+name = "windows_x86_64_gnu"
+version = "0.36.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51e8c6f778aa4383b033ff785191aea0f1ebeceedc160c2c92f944ef7e191476"
+
+[[package]]
 name = "windows_x86_64_msvc"
 version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d19538ccc21819d01deaf88d6a17eae6596a12e9aafdbb97916fb49896d89de9"
+
+[[package]]
+name = "windows_x86_64_msvc"
+version = "0.36.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1dd6a8b0b1ea4331e4db47192729fce42ac8a110fd22bb3abac555d8d7700f29"
 
 [[package]]
 name = "xxhash-rust"
