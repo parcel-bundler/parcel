@@ -729,29 +729,35 @@ function createIdealGraph(
 
       // Add assets to non-splittable bundles.
       for (let entry of reachableEntries) {
-        let bundleId = nullthrows(bundles.get(entry.id));
-        let bundle = nullthrows(bundleGraph.getNode(bundleId));
-        invariant(bundle !== 'root');
+        let entryBundleId = nullthrows(bundles.get(entry.id));
+        let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
+        invariant(entryBundle !== 'root');
+
+        // If this asset is associated with a bundle, we must attempt to clean up
         let internalizedBundleId = bundles.get(asset.id);
         if (internalizedBundleId !== undefined) {
+          let toBeInternalizedNodeId =
+            asyncBundleRootGraph.getNodeIdByContentKey(asset.id);
           let bundleRootsRequiring = nullthrows(
-            asyncBundleRootGraph.getNodeIdsConnectedTo(
-              asyncBundleRootGraph.getNodeIdByContentKey(asset.id),
-            ),
+            asyncBundleRootGraph.getNodeIdsConnectedTo(toBeInternalizedNodeId),
           );
-          for (let rootId of bundleRootsRequiring) {
-            let root = asyncBundleRootGraph.getNode(rootId);
-            if (root === 'root') continue;
-            let toBeInternalizedNodeId =
-              asyncBundleRootGraph.getNodeIdByContentKey(asset.id);
-            if (asyncAncestorAssets.get(root)?.has(asset)) {
-              let bundleId = bundles.get(root.id);
+          //attempt to clean up for all immediate bundle connections
+          for (let parentBundleId of bundleRootsRequiring) {
+            let parentBundleRoot = asyncBundleRootGraph.getNode(parentBundleId);
+            if (parentBundleRoot === 'root') continue;
+            invariant(parentBundleRoot != null);
+            // we may remove the bundle's connection to anything that already has it from previous ancestors, i.e. asyncAnc
+            if (asyncAncestorAssets.get(parentBundleRoot)?.has(asset)) {
+              let bundleId = nullthrows(bundles.get(parentBundleRoot.id));
               let b = bundleGraph.getNode(bundleId);
               if (b && b !== 'root') {
                 b.internalizedAssetIds.push(asset.id);
               }
 
-              asyncBundleRootGraph.removeEdge(rootId, toBeInternalizedNodeId);
+              asyncBundleRootGraph.removeEdge(
+                parentBundleId,
+                toBeInternalizedNodeId,
+              );
               let remainingConnections = asyncBundleRootGraph.getNode(
                 toBeInternalizedNodeId,
               )
@@ -766,10 +772,11 @@ function createIdealGraph(
                 asyncBundleRootGraph.removeNode(toBeInternalizedNodeId);
               }
               if (!asyncBundleRootGraph.hasNode(toBeInternalizedNodeId)) {
-                bundleGraph.removeNode(bundles.get(asset.id));
+                bundleGraph.removeNode(nullthrows(bundles.get(asset.id)));
                 bundleRoots.delete(asset);
               }
-            } else if (root === entry) {
+            } else if (parentBundleRoot === entry) {
+              //entries do not have asyncAncestors so we must check if its available sync
               let hasSync = reachableRoots
                 .getNodeIdsConnectedFrom(
                   reachableRoots.getNodeIdByContentKey(entry.id),
@@ -779,7 +786,7 @@ function createIdealGraph(
                   return a === asset;
                 });
               if (hasSync) {
-                bundle.internalizedAssetIds.push(asset.id);
+                entryBundle.internalizedAssetIds.push(asset.id);
                 asyncBundleRootGraph.removeEdge(
                   asyncBundleRootGraph.getNodeIdByContentKey(entry.id),
                   toBeInternalizedNodeId,
@@ -787,13 +794,13 @@ function createIdealGraph(
               }
               if (!asyncBundleRootGraph.hasNode(toBeInternalizedNodeId)) {
                 bundleRoots.delete(asset);
-                bundleGraph.removeNode(bundles.get(asset.id));
+                bundleGraph.removeNode(nullthrows(bundles.get(asset.id)));
               }
             }
           }
         }
-        bundle.assets.add(asset);
-        bundle.size += asset.stats.size;
+        entryBundle.assets.add(asset);
+        entryBundle.size += asset.stats.size;
       }
 
       // Create shared bundles for splittable bundles.
