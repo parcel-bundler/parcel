@@ -594,26 +594,22 @@ function createIdealGraph(
           }
         }
 
-        let assets = assetGraph.getDependencyAssets(dependency);
-        if (assets.length === 0) {
-          return;
-        }
-
-        invariant(assets.length === 1);
-        let resolved = assets[0];
-        let isAsync = dependency.priority !== 'sync';
-        if (
-          isAsync ||
-          resolved.bundleBehavior === 'isolated' ||
-          resolved.bundleBehavior === 'inline' ||
-          root.type !== resolved.type
-        ) {
+        if (dependency.priority !== 'sync') {
           actions.skipChildren();
         }
 
         return;
       }
       //asset node type
+      let asset = node.value;
+      if (
+        asset.bundleBehavior === 'isolated' ||
+        asset.bundleBehavior === 'inline' ||
+        root.type !== asset.type
+      ) {
+        actions.skipChildren();
+        return;
+      }
       let nodeId = reachableRoots.addNodeByContentKeyIfNeeded(
         node.value.id,
         node.value,
