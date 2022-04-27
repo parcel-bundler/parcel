@@ -2697,6 +2697,141 @@ describe('javascript', function () {
     });
   });
 
+  it('should replace __dirname and __filename with path relative to asset.filePath', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-node-replacements/index.js'),
+    );
+
+    let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/other")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
+      ),
+    );
+    let f = await run(b);
+    let output = f();
+    assert.equal(output.data, 'hello');
+    assert.equal(output.other, 'hello');
+    assert.equal(
+      output.firstDirnameTest,
+      path.join(__dirname, '/integration/env-node-replacements/data'),
+    );
+    assert.equal(
+      output.secondDirnameTest,
+      path.join(__dirname, '/integration/env-node-replacements/other-data'),
+    );
+    assert.equal(
+      output.firstFilenameTest,
+      path.join(__dirname, '/integration/env-node-replacements/index.js'),
+    );
+    assert.equal(
+      output.secondFilenameTest,
+      path.join(
+        __dirname,
+        '/integration/env-node-replacements/index.js?query-string=test',
+      ),
+    );
+    assert.equal(
+      output.sub.dirname,
+      path.join(__dirname, '/integration/env-node-replacements/sub'),
+    );
+    assert.equal(
+      output.sub.filename,
+      path.join(__dirname, '/integration/env-node-replacements/sub/index.js'),
+    );
+  });
+
+  it('should replace __dirname and __filename with path relative to asset.filePath with scope hoisting', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-node-replacements/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements/other")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements/sub")',
+      ),
+    );
+    assert(
+      dist.includes(
+        'path.resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
+      ),
+    );
+    let f = await run(b);
+    let output = f();
+    assert.equal(output.data, 'hello');
+    assert.equal(output.other, 'hello');
+    assert.equal(
+      output.firstDirnameTest,
+      path.join(__dirname, '/integration/env-node-replacements/data'),
+    );
+    assert.equal(
+      output.secondDirnameTest,
+      path.join(__dirname, '/integration/env-node-replacements/other-data'),
+    );
+    assert.equal(
+      output.firstFilenameTest,
+      path.join(__dirname, '/integration/env-node-replacements/index.js'),
+    );
+    assert.equal(
+      output.secondFilenameTest,
+      path.join(
+        __dirname,
+        '/integration/env-node-replacements/index.js?query-string=test',
+      ),
+    );
+    assert.equal(
+      output.sub.dirname,
+      path.join(__dirname, '/integration/env-node-replacements/sub'),
+    );
+    assert.equal(
+      output.sub.filename,
+      path.join(__dirname, '/integration/env-node-replacements/sub/index.js'),
+    );
+  });
+
   it('should work when multiple files use globals with scope hoisting', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/globals/multiple.js'),
@@ -2965,6 +3100,29 @@ describe('javascript', function () {
     });
   });
 
+  it('should inline environment variables with in binary expression whose right branch is process.env and left branch is string literal', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-binary-in-expression/index.js'),
+      {
+        env: {ABC: 'any'},
+        defaultTargetOptions: {
+          engines: {
+            browsers: '>= 0.25%',
+          },
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.deepEqual(output, {
+      existVar: 'correct',
+      notExistVar: 'correct',
+    });
+  });
+
   it('should insert environment variables from a file', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js'),
@@ -2995,6 +3153,15 @@ describe('javascript', function () {
 
     let output = await run(b);
     assert.equal(output, 'barbaz');
+  });
+
+  it('should insert environment variables from a file even if entry file is specified with source value in package.json', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-file-with-package-source'),
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'bartest');
   });
 
   it('should error on process.env mutations', async function () {

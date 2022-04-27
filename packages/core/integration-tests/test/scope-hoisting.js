@@ -1003,6 +1003,27 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['a', true]);
     });
 
+    it('wraps an asset if any of its ancestors is wrapped, even if one is not', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/multiple-ancestors-wrap/index.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(
+        contents.match(/parcelRequire.register\(/g).length,
+        2 /* once for parent asset, once for child wrapped asset */,
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [42, 43]);
+    });
+
     it('supports importing from a wrapped asset with multiple bailouts', async function () {
       let b = await bundle(
         path.join(
@@ -1222,6 +1243,18 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.deepEqual(output, 1);
+    });
+
+    it('supports wrapped assets importing their own namespace', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-namespace-wrapped-self/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, true);
     });
 
     it('supports importing a namespace from a transpiled CommonJS module', async function () {
@@ -5318,5 +5351,17 @@ describe('scope hoisting', function () {
 
     let output = await run(b);
     assert.strictEqual(output, 'bar foo bar');
+  });
+
+  it("not insert unused requires that aren't registered anywhere", async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/unused-require/index.js',
+      ),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output, 'foo');
   });
 });

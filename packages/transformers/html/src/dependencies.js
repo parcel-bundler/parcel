@@ -96,7 +96,13 @@ function collectSrcSetDependencies(asset, srcset, opts) {
     newSources.push(pair.join(' '));
   }
 
-  return newSources.join(',');
+  /**
+   * https://html.spec.whatwg.org/multipage/images.html#srcset-attribute
+   *
+   * If an image candidate string in srcset contains a width descriptor or a pixel density descriptor or ASCII whitespace, the following image candidate string must begin with whitespace.
+   * So we need to join each image candidate string with ", ".
+   */
+  return newSources.join(', ');
 }
 
 function getAttrDepHandler(attr) {

@@ -188,6 +188,7 @@ program.on('--help', function () {
 });
 
 // Override to output option description if argument was missing
+// $FlowFixMe[prop-missing]
 commander.Command.prototype.optionMissingArgument = function (option) {
   INTERNAL_ORIGINAL_CONSOLE.error(
     "error: option `%s' argument missing",

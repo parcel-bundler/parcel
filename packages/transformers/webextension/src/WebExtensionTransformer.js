@@ -3,7 +3,7 @@ import type {MutableAsset} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
-import jsm from 'json-source-map';
+import {parse} from '@mischnic/json-sourcemap';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {
@@ -11,7 +11,7 @@ import ThrowableDiagnostic, {
   md,
 } from '@parcel/diagnostic';
 import {glob} from '@parcel/utils';
-import WebExtensionSchema from './schema';
+import {MV3Schema, MV2Schema, VersionSchema} from './schema';
 
 const DEP_LOCS = [
   ['icons'],
@@ -19,6 +19,8 @@ const DEP_LOCS = [
   ['browser_action', 'default_popup'],
   ['page_action', 'default_icon'],
   ['page_action', 'default_popup'],
+  ['action', 'default_icon'],
+  ['action', 'default_popup'],
   ['background', 'scripts'],
   ['chrome_url_overrides'],
   ['devtools_page'],
@@ -37,15 +39,18 @@ async function collectDependencies(
   ptrs: {[key: string]: any, ...},
   hot: boolean,
 ) {
-  // isEntry used whenever strictly necessary to preserve filename
-  // also for globs because it's wasteful to write out every file name
   const fs = asset.fs;
   const filePath = asset.filePath;
+  const assetDir = path.dirname(filePath);
+  const isMV2 = program.manifest_version == 2;
+  delete program.$schema;
   if (program.default_locale) {
-    const locales = path.join(path.dirname(filePath), '_locales');
+    const locales = path.join(assetDir, '_locales');
     let err = !(await fs.exists(locales))
       ? 'key'
-      : !(await fs.exists(path.join(locales, program.default_locale)))
+      : !(await fs.exists(
+          path.join(locales, program.default_locale, 'messages.json'),
+        ))
       ? 'value'
       : null;
     if (err) {
@@ -60,10 +65,12 @@ async function collectDependencies(
                 codeHighlights: [
                   {
                     ...getJSONSourceLocation(ptrs['/default_locale'], err),
-                    message: md`Localization directory${
-                      err == 'value' ? ' for ' + program.default_locale : ''
+                    message: md`Localization ${
+                      err == 'value'
+                        ? 'file for ' + program.default_locale
+                        : 'directory'
                     } does not exist: ${path.relative(
-                      path.dirname(filePath),
+                      assetDir,
                       path.join(locales, program.default_locale),
                     )}`,
                   },
@@ -75,10 +82,12 @@ async function collectDependencies(
       });
     }
     for (const locale of await fs.readdir(locales)) {
-      asset.addURLDependency(`_locales/${locale}/messages.json`, {
-        needsStableName: true,
-        pipeline: 'raw',
-      });
+      if (await fs.exists(path.join(locales, locale, 'messages.json'))) {
+        asset.addURLDependency(`_locales/${locale}/messages.json`, {
+          needsStableName: true,
+          pipeline: 'raw',
+        });
+      }
     }
   }
   let needRuntimeBG = false;
@@ -89,7 +98,7 @@ async function collectDependencies(
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
           assets[j] = asset.addURLDependency(assets[j], {
-            needsStableName: true,
+            bundleBehavior: 'isolated',
             loc: {
               filePath,
               ...getJSONSourceLocation(
@@ -152,16 +161,16 @@ async function collectDependencies(
       });
     }
   }
-  if (program.browser_action?.theme_icons) {
-    for (let i = 0; i < program.browser_action.theme_icons.length; ++i) {
-      const themeIcon = program.browser_action.theme_icons[i];
+  const browserActionName = isMV2 ? 'browser_action' : 'action';
+  if (program[browserActionName]?.theme_icons) {
+    for (let i = 0; i < program[browserActionName].theme_icons.length; ++i) {
+      const themeIcon = program[browserActionName].theme_icons[i];
       for (const k of ['light', 'dark']) {
         const loc = getJSONSourceLocation(
-          ptrs[`/browser_action/theme_icons/${i}/${k}`],
+          ptrs[`/${browserActionName}/theme_icons/${i}/${k}`],
           'value',
         );
         themeIcon[k] = asset.addURLDependency(themeIcon[k], {
-          needsStableName: true,
           loc: {
             ...loc,
             filePath,
@@ -174,25 +183,36 @@ async function collectDependencies(
     let war = [];
     for (let i = 0; i < program.web_accessible_resources.length; ++i) {
       // TODO: this doesn't support Parcel resolution
-      const globFiles = (
-        await glob(
-          path.join(
-            path.dirname(filePath),
-            program.web_accessible_resources[i],
-          ),
-          fs,
-          {},
-        )
-      ).map(fp =>
-        asset.addURLDependency(path.relative(path.dirname(filePath), fp), {
-          needsStableName: true,
-          loc: {
-            filePath,
-            ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
-          },
-        }),
-      );
-      war = war.concat(globFiles);
+      const currentEntry = program.web_accessible_resources[i];
+      const files = isMV2 ? [currentEntry] : currentEntry.resources;
+      let currentFiles = [];
+      for (let j = 0; j < files.length; ++j) {
+        const globFiles = (
+          await glob(path.join(assetDir, files[j]), fs, {})
+        ).map(fp =>
+          asset.addURLDependency(path.relative(assetDir, fp), {
+            bundleBehavior: 'isolated',
+            needsStableName: true,
+            loc: {
+              filePath,
+              ...getJSONSourceLocation(
+                ptrs[
+                  `/web_accessible_resources/${i}${
+                    isMV2 ? '' : `/resources/${j}`
+                  }`
+                ],
+              ),
+            },
+          }),
+        );
+        currentFiles = currentFiles.concat(globFiles);
+      }
+      if (isMV2) {
+        war = war.concat(currentFiles);
+      } else {
+        currentEntry.resources = currentFiles;
+        war.push(currentEntry);
+      }
     }
     program.web_accessible_resources = war;
   }
@@ -207,38 +227,101 @@ async function collectDependencies(
     const obj = parent[lastLoc];
     if (typeof obj == 'string')
       parent[lastLoc] = asset.addURLDependency(obj, {
-        needsStableName: true,
+        bundleBehavior: 'isolated',
         loc: {
           filePath,
           ...getJSONSourceLocation(ptrs[location], 'value'),
         },
-        pipeline: path.extname(obj) == '.json' ? 'url' : undefined,
+        pipeline: path.extname(obj) == '.json' ? 'raw' : undefined,
       });
     else {
       for (const k of Object.keys(obj)) {
         obj[k] = asset.addURLDependency(obj[k], {
-          needsStableName: true,
+          bundleBehavior: 'isolated',
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
           },
-          pipeline: path.extname(obj[k]) == '.json' ? 'url' : undefined,
+          pipeline: path.extname(obj[k]) == '.json' ? 'raw' : undefined,
         });
       }
     }
   }
-  if (needRuntimeBG) {
-    if (!program.background) {
-      program.background = {};
+  if (isMV2) {
+    if (program.background?.page) {
+      program.background.page = asset.addURLDependency(
+        program.background.page,
+        {
+          bundleBehavior: 'isolated',
+          loc: {
+            filePath,
+            ...getJSONSourceLocation(ptrs['/background/page'], 'value'),
+          },
+        },
+      );
+      if (needRuntimeBG) {
+        asset.meta.webextBGInsert = program.background.page;
+      }
     }
-    if (!program.background.scripts) {
-      program.background.scripts = [];
+    if (hot) {
+      // To enable HMR, we must override the CSP to allow 'unsafe-eval'
+      program.content_security_policy = cspPatchHMR(
+        program.content_security_policy,
+      );
+
+      if (needRuntimeBG && !program.background?.page) {
+        if (!program.background) {
+          program.background = {};
+        }
+        if (!program.background.scripts) {
+          program.background.scripts = [];
+        }
+        if (program.background.scripts.length == 0) {
+          program.background.scripts.push(
+            asset.addURLDependency('./runtime/default-bg.js', {
+              resolveFrom: __filename,
+            }),
+          );
+        }
+        asset.meta.webextBGInsert = program.background.scripts[0];
+      }
     }
-    program.background.scripts.push(
-      asset.addURLDependency('./runtime/autoreload-bg.js', {
-        resolveFrom: __filename,
-      }),
-    );
+  } else {
+    if (program.background?.service_worker) {
+      program.background.service_worker = asset.addURLDependency(
+        program.background.service_worker,
+        {
+          bundleBehavior: 'isolated',
+          loc: {
+            filePath,
+            ...getJSONSourceLocation(
+              ptrs['/background/service_worker'],
+              'value',
+            ),
+          },
+          env: {
+            context: 'service-worker',
+            sourceType:
+              program.background.type == 'module' ? 'module' : 'script',
+          },
+        },
+      );
+    }
+    if (needRuntimeBG) {
+      if (!program.background) {
+        program.background = {};
+      }
+      if (!program.background.service_worker) {
+        program.background.service_worker = asset.addURLDependency(
+          './runtime/default-bg.js',
+          {
+            resolveFrom: __filename,
+            env: {context: 'service-worker'},
+          },
+        );
+      }
+      asset.meta.webextBGInsert = program.background.service_worker;
+    }
   }
 }
 
@@ -266,11 +349,39 @@ function cspPatchHMR(policy: ?string) {
 
 export default (new Transformer({
   async transform({asset, options}) {
+    // Set environment to browser, since web extensions are always used in
+    // browsers, and because it avoids delegating extra config to the user
+    asset.setEnvironment({
+      context: 'browser',
+      engines: {
+        browsers: asset.env.engines.browsers,
+      },
+      sourceMap: asset.env.sourceMap && {
+        ...asset.env.sourceMap,
+        inline: true,
+        inlineSources: true,
+      },
+      includeNodeModules: asset.env.includeNodeModules,
+      outputFormat: asset.env.outputFormat,
+      sourceType: asset.env.sourceType,
+      isLibrary: asset.env.isLibrary,
+      shouldOptimize: asset.env.shouldOptimize,
+      shouldScopeHoist: asset.env.shouldScopeHoist,
+    });
     const code = await asset.getCode();
-    const parsed = jsm.parse(code);
+    const parsed = parse(code);
     const data: any = parsed.data;
+
+    // Not using a unified schema dramatically improves error messages
+    let schema = VersionSchema;
+    if (data.manifest_version === 3) {
+      schema = MV3Schema;
+    } else if (data.manifest_version === 2) {
+      schema = MV2Schema;
+    }
+
     validateSchema.diagnostic(
-      WebExtensionSchema,
+      schema,
       {
         data: data,
         source: code,
@@ -285,12 +396,8 @@ export default (new Transformer({
       parsed.pointers,
       Boolean(options.hmrOptions),
     );
-    if (options.hmrOptions) {
-      // To enable HMR, we must override the CSP to allow 'unsafe-eval'
-      data.content_security_policy = cspPatchHMR(data.content_security_policy);
-    }
-    asset.meta.handled = true;
     asset.setCode(JSON.stringify(data, null, 2));
+    asset.meta.webextEntry = true;
     return [asset];
   },
 }): Transformer);

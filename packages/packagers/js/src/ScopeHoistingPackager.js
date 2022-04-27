@@ -8,12 +8,18 @@ import type {
   NamedBundle,
 } from '@parcel/types';
 
-import {PromiseQueue, relativeBundlePath, countLines} from '@parcel/utils';
+import {
+  PromiseQueue,
+  relativeBundlePath,
+  countLines,
+  normalizeSeparators,
+} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import globals from 'globals';
+import path from 'path';
 
 import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
@@ -264,16 +270,20 @@ export class ScopeHoistingPackager {
       }
     });
 
-    for (let wrappedAsset of [...wrapped]) {
+    for (let wrappedAssetRoot of [...wrapped]) {
       this.bundle.traverseAssets((asset, _, actions) => {
-        if (asset !== wrappedAsset && this.wrappedAssets.has(asset.id)) {
+        if (asset === wrappedAssetRoot) {
+          return;
+        }
+
+        if (this.wrappedAssets.has(asset.id)) {
           actions.skipChildren();
           return;
         }
 
         this.wrappedAssets.add(asset.id);
         wrapped.push(asset);
-      }, wrappedAsset);
+      }, wrappedAssetRoot);
     }
 
     this.assetOutputs = new Map(await queue.run());
@@ -413,6 +423,14 @@ export class ScopeHoistingPackager {
     // TODO: maybe a meta prop?
     if (code.includes('$parcel$global')) {
       this.usedHelpers.add('$parcel$global');
+    }
+
+    if (this.bundle.env.isNode() && asset.meta.has_node_replacements) {
+      const relPath = normalizeSeparators(
+        path.relative(this.bundle.target.distDir, path.dirname(asset.filePath)),
+      );
+      code = code.replace('$parcel$dirnameReplace', relPath);
+      code = code.replace('$parcel$filenameReplace', relPath);
     }
 
     let [depMap, replacements] = this.buildReplacements(asset, deps);
@@ -742,9 +760,18 @@ ${code}
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
 
-    // If the rsolved asset is wrapped, but imported at the top-level by this asset,
+    // If the resolved asset is wrapped, but imported at the top-level by this asset,
     // then we hoist parcelRequire calls to the top of this asset so side effects run immediately.
-    if (isWrapped && dep && !dep?.meta.shouldWrap && symbol !== false) {
+    if (
+      isWrapped &&
+      dep &&
+      !dep?.meta.shouldWrap &&
+      symbol !== false &&
+      // Only do this if the asset is part of a different bundle (so it was definitely
+      // parcelRequire.register'ed there), or if it is indeed registered in this bundle.
+      (!this.bundle.hasAsset(resolvedAsset) ||
+        !this.shouldSkipAsset(resolvedAsset))
+    ) {
       let hoisted = this.hoistedRequires.get(dep.id);
       if (!hoisted) {
         hoisted = new Map();
@@ -788,7 +815,15 @@ ${code}
 
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
       // Resolve to the namespace object if requested or this is a CJS default interop reqiure.
-      return obj;
+      if (
+        parentAsset === resolvedAsset &&
+        this.wrappedAssets.has(resolvedAsset.id)
+      ) {
+        // Directly use module.exports for wrapped assets importing themselves.
+        return 'module.exports';
+      } else {
+        return obj;
+      }
     } else if (
       (!staticExports || isWrapped || !symbol) &&
       resolvedAsset !== parentAsset

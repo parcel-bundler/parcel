@@ -834,6 +834,12 @@ describe('html', function () {
         assets: ['300x300.png'],
       },
     ]);
+
+    const html = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+
+    const source = html.match(/<source srcset=".*>/)[0];
+
+    assert(source.split(', ').length === 3);
   });
 
   it('should detect imagesrcset attribute', async function () {

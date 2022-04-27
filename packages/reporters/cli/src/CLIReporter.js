@@ -173,6 +173,7 @@ async function writeDiagnostic(
   for (let diagnostic of diagnostics) {
     let {message, stack, codeframe, hints, documentation} =
       await prettyDiagnostic(diagnostic, options, columns - indent);
+    // $FlowFixMe[incompatible-use]
     message = chalk[color](message);
 
     if (isError) {
