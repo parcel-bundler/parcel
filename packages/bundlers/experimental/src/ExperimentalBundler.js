@@ -564,56 +564,55 @@ function createIdealGraph(
       if (node.value === root) {
         return;
       }
+      if (node.type === 'dependency') {
+        let dependency = node.value;
 
-      if (node.type === 'asset') {
-        let asset = node.value;
-        if (
-          asset.bundleBehavior === 'isolated' ||
-          asset.bundleBehavior === 'inline' ||
-          root.type !== asset.type
-        ) {
-          actions.skipChildren();
-          return;
+        if (dependencyBundleGraph.hasContentKey(dependency.id)) {
+          if (dependency.priority !== 'sync') {
+            let assets = assetGraph.getDependencyAssets(dependency);
+            if (assets.length === 0) {
+              return;
+            }
+
+            invariant(assets.length === 1);
+            let bundleRoot = assets[0];
+            let bundle = nullthrows(
+              bundleGraph.getNode(nullthrows(bundles.get(bundleRoot.id))),
+            );
+            if (
+              bundle !== 'root' &&
+              bundle.bundleBehavior !== 'isolated' &&
+              bundle.bundleBehavior !== 'inline' &&
+              !bundle.env.isIsolated()
+            ) {
+              asyncBundleRootGraph.addEdge(
+                asyncBundleRootGraph.getNodeIdByContentKey(root.id),
+                asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
+              );
+            }
+          }
         }
 
-        let nodeId = reachableRoots.addNodeByContentKeyIfNeeded(
-          node.value.id,
-          node.value,
-        );
-        reachableRoots.addEdge(rootNodeId, nodeId);
+        if (dependency.priority !== 'sync') {
+          actions.skipChildren();
+        }
         return;
       }
-
-      let dependency = node.value;
-      if (dependencyBundleGraph.hasContentKey(dependency.id)) {
-        if (dependency.priority !== 'sync') {
-          let assets = assetGraph.getDependencyAssets(dependency);
-          if (assets.length === 0) {
-            return;
-          }
-
-          invariant(assets.length === 1);
-          let bundleRoot = assets[0];
-          let bundle = nullthrows(
-            bundleGraph.getNode(nullthrows(bundles.get(bundleRoot.id))),
-          );
-          if (
-            bundle !== 'root' &&
-            bundle.bundleBehavior !== 'isolated' &&
-            bundle.bundleBehavior !== 'inline' &&
-            !bundle.env.isIsolated()
-          ) {
-            asyncBundleRootGraph.addEdge(
-              asyncBundleRootGraph.getNodeIdByContentKey(root.id),
-              asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
-            );
-          }
-        }
-      }
-
-      if (dependency.priority !== 'sync') {
+      //asset node type
+      let asset = node.value;
+      if (
+        asset.bundleBehavior === 'isolated' ||
+        asset.bundleBehavior === 'inline' ||
+        root.type !== asset.type
+      ) {
         actions.skipChildren();
+        return;
       }
+      let nodeId = reachableRoots.addNodeByContentKeyIfNeeded(
+        node.value.id,
+        node.value,
+      );
+      reachableRoots.addEdge(rootNodeId, nodeId);
     }, root);
   }
 
