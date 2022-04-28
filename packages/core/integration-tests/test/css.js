@@ -64,6 +64,39 @@ describe('css', () => {
         css.indexOf('.e {') < css.indexOf('.a {'),
     );
   });
+  it.only('should duplicate shared css bundles for entries that import the same css', async () => {
+    let b = await bundle(
+      ['entry1.js', 'entry2.js'].map(entry =>
+        path.join(
+          __dirname,
+          '/integration/css-no-more-than-one-entry-bundle-same-type/',
+          entry,
+        ),
+      ),
+    );
+
+    assertBundles(b, [
+      //these bundles may be "wrong", the test errors before assertion
+      {
+        name: 'entry1.js',
+        assets: ['a.js', 'entry1.js', 'esmodule-helpers.js'],
+      },
+      {
+        name: 'entry2.js',
+        assets: ['a.js', 'entry2.js', 'esmodule-helpers.js'],
+      },
+      {
+        name: 'entry1.css',
+        type: 'css',
+        assets: ['c.css'],
+      },
+      {
+        name: 'entry2.css',
+        type: 'css',
+        assets: ['b.css', 'c.css'],
+      },
+    ]);
+  });
 
   it('should support loading a CSS bundle along side dynamic imports', async () => {
     let b = await bundle(
