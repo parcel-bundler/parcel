@@ -246,8 +246,14 @@ export function installPackage(
 ): Promise<mixed> {
   if (WorkerFarm.isWorker()) {
     let workerApi = WorkerFarm.getWorkerApi();
+    // TODO this should really be `__filename` but without the rewriting.
+    let bundlePath =
+      process.env.PARCEL_BUILD_ENV === 'production' &&
+      !process.env.PARCEL_SELF_BUILD
+        ? path.join(__dirname, '..', 'lib/index.js')
+        : __filename;
     return workerApi.callMaster({
-      location: __filename,
+      location: bundlePath,
       args: [fs, packageManager, modules, filePath, projectRoot, options],
       method: '_addToInstallQueue',
     });

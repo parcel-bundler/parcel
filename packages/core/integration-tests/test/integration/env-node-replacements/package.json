@@ -1,0 +1,6 @@
+{
+  "name": "env-node-replacements",
+  "engines": {
+    "node": ">=14"
+  }
+}

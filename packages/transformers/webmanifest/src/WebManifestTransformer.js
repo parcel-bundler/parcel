@@ -3,7 +3,7 @@
 import type {SchemaEntity} from '@parcel/utils';
 
 import invariant from 'assert';
-import jsm from 'json-source-map';
+import {parse} from '@mischnic/json-sourcemap';
 import {getJSONSourceLocation} from '@parcel/diagnostic';
 import {Transformer} from '@parcel/plugin';
 import {validateSchema} from '@parcel/utils';
@@ -36,7 +36,7 @@ const MANIFEST_SCHEMA: SchemaEntity = {
 export default (new Transformer({
   async transform({asset}) {
     const source = await asset.getCode();
-    const {data, pointers} = jsm.parse(source);
+    const {data, pointers} = parse(source);
 
     validateSchema.diagnostic(
       MANIFEST_SCHEMA,

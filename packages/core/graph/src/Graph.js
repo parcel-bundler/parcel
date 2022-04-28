@@ -137,7 +137,9 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
   // Removes node and any edges coming from or to that node
   removeNode(nodeId: NodeId) {
-    this._assertHasNodeId(nodeId);
+    if (!this.hasNode(nodeId)) {
+      return;
+    }
 
     for (let {type, from} of this.adjacencyList.getInboundEdgesByType(nodeId)) {
       this.removeEdge(
@@ -159,7 +161,9 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   }
 
   removeEdges(nodeId: NodeId, type: TEdgeType | NullEdgeType = 1) {
-    this._assertHasNodeId(nodeId);
+    if (!this.hasNode(nodeId)) {
+      return;
+    }
 
     for (let to of this.getNodeIdsConnectedFrom(nodeId, type)) {
       this.removeEdge(nodeId, to, type);
@@ -174,9 +178,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     removeOrphans: boolean = true,
   ) {
     if (!this.adjacencyList.hasEdge(from, to, type)) {
-      throw new Error(
-        `Edge from ${fromNodeId(from)} to ${fromNodeId(to)} not found!`,
-      );
+      return;
     }
 
     this.adjacencyList.removeEdge(from, to, type);
@@ -186,7 +188,9 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   }
 
   isOrphanedNode(nodeId: NodeId): boolean {
-    this._assertHasNodeId(nodeId);
+    if (!this.hasNode(nodeId)) {
+      return false;
+    }
 
     if (this.rootNodeId == null) {
       // If the graph does not have a root, and there are inbound edges,
