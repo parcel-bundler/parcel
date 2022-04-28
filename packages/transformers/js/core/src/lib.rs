@@ -390,15 +390,18 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   config.insert_node_globals && config.source_type != SourceType::Script
                 ),
                 // Transpile new syntax to older syntax if needed
-                Optional::new(
-                  preset_env(
-                    global_mark,
-                    Some(&comments),
-                    preset_env_config,
-                    Default::default()
-                  ),
-                  config.targets.is_some()
-                ),
+                {
+                  let should_transpile = preset_env_config.targets.is_some();
+                  Optional::new(
+                    preset_env(
+                      global_mark,
+                      Some(&comments),
+                      preset_env_config,
+                      Default::default(),
+                    ),
+                    should_transpile,
+                  )
+                },
                 // Inject SWC helpers if needed.
                 helpers::inject_helpers(),
               );
