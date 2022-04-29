@@ -32,6 +32,6 @@
     "self-published": "npm:@parcel/fs-search@2.5.1-nightly.2696"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.4"
+    "@napi-rs/cli": "^2.6.2"
   }
 }

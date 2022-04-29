@@ -44,7 +44,7 @@
     "semver": "^5.7.1"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.4"
+    "@napi-rs/cli": "^2.6.2"
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.24"

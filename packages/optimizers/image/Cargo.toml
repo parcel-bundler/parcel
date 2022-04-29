@@ -7,8 +7,8 @@ version = "0.1.0"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = "1"
-napi-derive = "1"
+napi = {version = "2.3.3", default-features = false, features = ["napi4", "compat-mode"]}
+napi-derive = "2"
 oxipng = "5.0.0"
 mozjpeg-sys = "1.0.0"
 libc = "0.2"
