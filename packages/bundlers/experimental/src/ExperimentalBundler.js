@@ -426,9 +426,7 @@ function createIdealGraph(
             dependency.priority === 'parallel' ||
             childAsset.bundleBehavior === 'inline'
           ) {
-            let [parentBundleRoot, bundleGroupNodeId] = nullthrows(
-              stack[stack.length - 1],
-            );
+            let [, bundleGroupNodeId] = nullthrows(stack[stack.length - 1]);
             let bundleGroup = nullthrows(
               bundleGraph.getNode(bundleGroupNodeId),
             );
@@ -461,12 +459,6 @@ function createIdealGraph(
 
             let bundle;
             if (bundleId == null) {
-              let parentBundleId = nullthrows(bundles.get(parentBundleRoot.id));
-              let parentBundle = nullthrows(
-                bundleGraph.getNode(parentBundleId),
-              );
-              invariant(parentBundle !== 'root');
-
               // Create a new bundle if none of the same type exists already.
               bundle = createBundle({
                 // We either have an entry asset or a unique key.
@@ -483,7 +475,7 @@ function createIdealGraph(
                   (dependency.priority === 'parallel' &&
                     !dependency.needsStableName)
                     ? false
-                    : parentBundle.needsStableName,
+                    : bundleGroup.needsStableName,
               });
               bundleId = bundleGraph.addNode(bundle);
             } else {
