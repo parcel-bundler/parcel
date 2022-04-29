@@ -77,6 +77,10 @@ import {invalidateOnFileCreateToInternal} from './utils';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
+type PostProcessFunc = (
+  Array<UncommittedAsset>,
+) => Promise<Array<UncommittedAsset> | null>;
+
 export type TransformationOpts = {|
   options: ParcelOptions,
   config: ParcelConfig,
@@ -336,7 +340,41 @@ export default class Transformation {
       }
     }
 
-    return finalAssets;
+    if (!pipeline.postProcess) {
+      return finalAssets;
+    }
+
+    let processedCacheEntry = await this.readFromCache(
+      this.getCacheKey(
+        finalAssets,
+        pipeline.configs,
+        await getInvalidationHash(
+          finalAssets.flatMap(asset => asset.getInvalidations()),
+          this.options,
+        ),
+      ),
+    );
+
+    nullthrows(pipeline.postProcess);
+    let processedFinalAssets: Array<UncommittedAsset> =
+      processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
+
+    if (!processedCacheEntry) {
+      await this.writeToCache(
+        this.getCacheKey(
+          processedFinalAssets,
+          pipeline.configs,
+          await getInvalidationHash(
+            processedFinalAssets.flatMap(asset => asset.getInvalidations()),
+            this.options,
+          ),
+        ),
+        processedFinalAssets,
+        pipeline.configs,
+      );
+    }
+
+    return processedFinalAssets;
   }
 
   async getPipelineHash(pipeline: Pipeline): Promise<string> {
@@ -426,6 +464,8 @@ export default class Transformation {
             transformer.plugin,
             transformer.name,
             transformer.config,
+            transformer.configKeyPath,
+            this.parcelConfig,
           );
 
           for (let result of transformerResults) {
@@ -695,6 +735,8 @@ export default class Transformation {
     transformer: Transformer<mixed>,
     transformerName: string,
     preloadedConfig: ?Config,
+    configKeyPath: string,
+    parcelConfig: ParcelConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
 
@@ -805,6 +847,32 @@ export default class Transformation {
       );
     };
 
+    let postProcess = transformer.postProcess;
+    if (postProcess) {
+      pipeline.postProcess = async (
+        assets: Array<UncommittedAsset>,
+      ): Promise<Array<UncommittedAsset> | null> => {
+        let results = await postProcess.call(transformer, {
+          assets: assets.map(asset => new MutableAsset(asset)),
+          config,
+          options: pipeline.pluginOptions,
+          resolve,
+          logger,
+        });
+
+        return Promise.all(
+          results.map(result =>
+            asset.createChildAsset(
+              result,
+              transformerName,
+              parcelConfig.filePath,
+              configKeyPath,
+            ),
+          ),
+        );
+      };
+    }
+
     return results;
   }
 }
@@ -816,6 +884,7 @@ type Pipeline = {|
   pluginOptions: PluginOptions,
   resolverRunner: ResolverRunner,
   workerApi: WorkerApi,
+  postProcess?: PostProcessFunc,
   generate?: GenerateFunc,
 |};
 
