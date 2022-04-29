@@ -55,7 +55,7 @@
     "split2": "^3.1.1"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.2.1"
+    "@parcel/core": "^2.0.24"
   },
   "browser": {
     "./src/Npm.js": false,

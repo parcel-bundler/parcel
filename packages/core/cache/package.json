@@ -30,7 +30,7 @@
     "lmdb": "2.3.5"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.2.1"
+    "@parcel/core": "^2.0.24"
   },
   "devDependencies": {
     "idb": "^5.0.8"

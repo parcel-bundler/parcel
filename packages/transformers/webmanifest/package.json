@@ -16,7 +16,7 @@
   "main": "lib/WebManifestTransformer.js",
   "source": "src/WebManifestTransformer.js",
   "engines": {
-    "parcel": "^2.0.1"
+    "parcel": "^2.0.24"
   },
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",

@@ -23,6 +23,6 @@
     "@parcel/transformer-webextension": "2.0.24"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.5.0"
+    "@parcel/core": "^2.0.24"
   }
 }

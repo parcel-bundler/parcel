@@ -62,7 +62,7 @@
     "utility-types": "^3.10.0"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.3.2"
+    "@parcel/core": "^2.0.24"
   },
   "browser": {
     "@parcel/fs": "./lib/browser.js",
