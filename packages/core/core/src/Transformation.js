@@ -729,7 +729,7 @@ export default class Transformation {
     transformer: Transformer<mixed>,
     transformerName: string,
     preloadedConfig: ?Config,
-    configKeyPath: ?string,
+    configKeyPath?: string,
     parcelConfig: ParcelConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
@@ -860,7 +860,7 @@ export default class Transformation {
               result,
               transformerName,
               parcelConfig.filePath,
-              configKeyPath,
+              // configKeyPath,
             ),
           ),
         );
