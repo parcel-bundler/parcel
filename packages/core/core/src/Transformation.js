@@ -828,7 +828,7 @@ export default class Transformation {
       });
     let results = await normalizeAssets(this.options, transfomerResult);
 
-    // Create generate function that can be called later
+    // Create generate and postProcess function that can be called later
     asset.generate = (): Promise<GenerateOutput> => {
       let publicAsset = new Asset(asset);
       if (transformer.generate && asset.ast) {

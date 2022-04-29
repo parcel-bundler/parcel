@@ -1041,6 +1041,7 @@ export type Transformer<ConfigType> = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<Array<TransformerResult | MutableAsset>>,
+  /** Do some processing after the transformation  */
   postProcess?: ({|
     assets: Array<MutableAsset>,
     config: ConfigType,
