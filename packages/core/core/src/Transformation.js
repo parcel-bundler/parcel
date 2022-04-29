@@ -74,6 +74,7 @@ import {
   toProjectPath,
 } from './projectPath';
 import {invalidateOnFileCreateToInternal} from './utils';
+import invariant from 'assert';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -344,33 +345,26 @@ export default class Transformation {
       return finalAssets;
     }
 
+    let pipelineHash = await this.getPipelineHash(pipeline);
+    let invalidationHash = await getInvalidationHash(
+      finalAssets.flatMap(asset => asset.getInvalidations()),
+      this.options,
+    );
     let processedCacheEntry = await this.readFromCache(
-      this.getCacheKey(
-        finalAssets,
-        pipeline.configs,
-        await getInvalidationHash(
-          finalAssets.flatMap(asset => asset.getInvalidations()),
-          this.options,
-        ),
-      ),
+      this.getCacheKey(finalAssets, invalidationHash, pipelineHash),
     );
 
-    nullthrows(pipeline.postProcess);
+    invariant(pipeline.postProcess != null);
     let processedFinalAssets: Array<UncommittedAsset> =
       processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
 
     if (!processedCacheEntry) {
       await this.writeToCache(
-        this.getCacheKey(
-          processedFinalAssets,
-          pipeline.configs,
-          await getInvalidationHash(
-            processedFinalAssets.flatMap(asset => asset.getInvalidations()),
-            this.options,
-          ),
-        ),
+        this.getCacheKey(processedFinalAssets, invalidationHash, pipelineHash),
         processedFinalAssets,
-        pipeline.configs,
+
+        invalidationHash,
+        pipelineHash,
       );
     }
 
@@ -735,7 +729,7 @@ export default class Transformation {
     transformer: Transformer<mixed>,
     transformerName: string,
     preloadedConfig: ?Config,
-    configKeyPath: string,
+    configKeyPath: ?string,
     parcelConfig: ParcelConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
