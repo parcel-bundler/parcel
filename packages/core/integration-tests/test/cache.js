@@ -2,6 +2,7 @@
 import type {InitialParcelOptions, BuildSuccessEvent} from '@parcel/types';
 import assert from 'assert';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import {
   assertBundles,
