@@ -600,7 +600,7 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
 
   get bufferSize(): string {
     return `${(this.data.byteLength / 1024 / 1024).toLocaleString(undefined, {
-      minmumFractionDigits: 2,
+      minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })} mb`;
   }
