@@ -15,6 +15,11 @@ window.$RefreshSig$ = function() {
   };
 };
 
+ErrorOverlay.setEditorHandler(function editorHandler(errorLocation) {
+  let file = \`\${errorLocation.fileName}:\${errorLocation.lineNumber ||}:\${errorLocation.colNumber || 1}\`;
+  fetch(\`/__parcel_launch_editor?file=\${encodeURIComponent(file)}\`);
+});
+
 ErrorOverlay.startReportingRuntimeErrors({
   onError: function () {},
 });

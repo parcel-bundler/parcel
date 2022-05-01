@@ -35,7 +35,7 @@ export type HMRMessage =
       type: 'error',
       diagnostics: {|
         ansi: Array<AnsiDiagnosticResult>,
-        html: Array<AnsiDiagnosticResult>,
+        html: Array<$Rest<AnsiDiagnosticResult, {|codeframe: string|}>>,
       |},
     |};
 
@@ -90,7 +90,10 @@ export default class HMRServer {
           return {
             message: ansiHtml(d.message),
             stack: ansiHtml(d.stack),
-            codeframe: ansiHtml(d.codeframe),
+            frames: d.frames.map(f => ({
+              location: f.location,
+              code: ansiHtml(f.code),
+            })),
             hints: d.hints.map(hint => ansiHtml(hint)),
             documentation: diagnostics[i].documentationURL ?? '',
           };
