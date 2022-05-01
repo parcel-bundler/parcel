@@ -91,6 +91,7 @@ pub struct Config {
   is_library: bool,
   is_esm_output: bool,
   trace_bailouts: bool,
+  is_swc_helpers: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -318,11 +319,16 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               ..Default::default()
             };
             let versions = targets_to_versions(&config.targets);
-            if let Some(versions) = versions {
-              preset_env_config.targets = Some(Targets::Versions(versions));
-              preset_env_config.shipped_proposals = true;
-              preset_env_config.mode = Some(Entry);
-              preset_env_config.bugfixes = true;
+            if !config.is_swc_helpers {
+              // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
+              // Filter the versions for preset_env only so that syntax support checks
+              // (e.g. in esm2cjs) still work correctly.
+              if let Some(versions) = versions {
+                preset_env_config.targets = Some(Targets::Versions(versions));
+                preset_env_config.shipped_proposals = true;
+                preset_env_config.mode = Some(Entry);
+                preset_env_config.bugfixes = true;
+              }
             }
 
             let mut diagnostics = vec![];
@@ -384,15 +390,18 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   config.insert_node_globals && config.source_type != SourceType::Script
                 ),
                 // Transpile new syntax to older syntax if needed
-                Optional::new(
-                  preset_env(
-                    global_mark,
-                    Some(&comments),
-                    preset_env_config,
-                    Default::default()
-                  ),
-                  config.targets.is_some()
-                ),
+                {
+                  let should_transpile = preset_env_config.targets.is_some();
+                  Optional::new(
+                    preset_env(
+                      global_mark,
+                      Some(&comments),
+                      preset_env_config,
+                      Default::default(),
+                    ),
+                    should_transpile,
+                  )
+                },
                 // Inject SWC helpers if needed.
                 helpers::inject_helpers(),
               );
