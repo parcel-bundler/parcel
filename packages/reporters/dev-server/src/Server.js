@@ -29,6 +29,9 @@ import connect from 'connect';
 import serveHandler from 'serve-handler';
 import {createProxyMiddleware} from 'http-proxy-middleware';
 import {URL} from 'url';
+import {getHotAssetContents} from './HMRServer';
+import nullthrows from 'nullthrows';
+import mime from 'mime-types';
 
 function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,6 +46,7 @@ function setHeaders(res: Response) {
 }
 
 const SOURCES_ENDPOINT = '/__parcel_source_root';
+export const HMR_ENDPOINT = '/__parcel_hmr/';
 const TEMPLATE_404 = fs.readFileSync(
   path.join(__dirname, 'templates/404.html'),
   'utf8',
@@ -132,6 +136,9 @@ export default class Server {
 
     if (this.errors) {
       return this.send500(req, res);
+    } else if (pathname.startsWith(HMR_ENDPOINT)) {
+      let id = pathname.slice(HMR_ENDPOINT.length);
+      return this.sendAsset(id, res);
     } else if (path.extname(pathname) === '') {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
@@ -238,6 +245,16 @@ export default class Server {
     } else {
       this.send404(req, res);
     }
+  }
+
+  async sendAsset(id: string, res: Response) {
+    let bundleGraph = nullthrows(this.bundleGraph);
+    let asset = bundleGraph.getAssetById(id);
+    let output = await getHotAssetContents(bundleGraph, asset);
+
+    setHeaders(res);
+    res.setHeader('Content-Type', mime.contentType(asset.type));
+    res.end(output);
   }
 
   serveDist(

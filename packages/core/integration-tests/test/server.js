@@ -10,6 +10,7 @@ import {
   outputFS,
   overlayFS,
   ncp,
+  request as get,
 } from '@parcel/test-utils';
 import http from 'http';
 import https from 'https';
@@ -21,32 +22,6 @@ const config = path.join(
   __dirname,
   './integration/custom-configs/.parcelrc-dev-server',
 );
-
-function get(file, port, client = http) {
-  return new Promise((resolve, reject) => {
-    // $FlowFixMe
-    client.get(
-      {
-        hostname: 'localhost',
-        port: port,
-        path: file,
-        rejectUnauthorized: false,
-      },
-      res => {
-        res.setEncoding('utf8');
-        let data = '';
-        res.on('data', c => (data += c));
-        res.on('end', () => {
-          if (res.statusCode !== 200) {
-            return reject({statusCode: res.statusCode, data});
-          }
-
-          resolve(data);
-        });
-      },
-    );
-  });
-}
 
 describe('server', function () {
   let subscription;
