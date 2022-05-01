@@ -381,6 +381,7 @@ export default class Server {
       return res.end(
         ejs.render(TEMPLATE_500, {
           errors: this.errors,
+          hmrOptions: this.options.hmrOptions,
         }),
       );
     }

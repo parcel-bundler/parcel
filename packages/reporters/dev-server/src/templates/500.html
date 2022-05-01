@@ -84,5 +84,31 @@
     <div class="documentation">📝 <a href="<%- error.documentation %>" target="_blank">Learn more</a></div>
     <% } %>
     <% }); %>
+    <% if (hmrOptions) { %>
+    <script>
+      // Reload the page when an HMR update occurs.
+      var protocol =
+        (location.protocol == 'https:' &&
+          !/localhost|127.0.0.1|0.0.0.0/.test(hostname))
+          ? 'wss'
+          : 'ws';
+      var hostname = <%- JSON.stringify(hmrOptions.host || null) %> || location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost';
+      var port = <%- JSON.stringify(hmrOptions.port || null) %> || location.port;
+      var ws = new WebSocket(protocol + '://' + hostname + (port ? ':' + port : '') + '/');
+
+      var receivedInitialMessage = false;
+      ws.onmessage = (e) => {
+        let data = JSON.parse(e.data);
+
+        // The HMR server sends the pending error immediately on connect. Ignore this.
+        if (data.type == 'error' && !receivedInitialMessage) {
+          receivedInitialMessage = true;
+          return;
+        }
+
+        location.reload();
+      };
+    </script>
+    <% } %>
   </body>
 </html>
