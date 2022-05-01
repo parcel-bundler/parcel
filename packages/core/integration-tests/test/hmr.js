@@ -580,7 +580,7 @@ module.hot.dispose((data) => {
     it('should have correct source locations in errors', async function () {
       let {outputs, bundleGraph} = await testHMRClient(
         'hmr-accept-self',
-        outputs => {
+        () => {
           return {
             'local.js': 'output(new Error().stack);',
           };

@@ -12,7 +12,6 @@ import {
   ncp,
   request as get,
 } from '@parcel/test-utils';
-import http from 'http';
 import https from 'https';
 import getPort from 'get-port';
 import type {BuildEvent} from '@parcel/types';
