@@ -98,9 +98,7 @@ async function run({input, api, farm, options}: RunInput) {
         if (!info.hashReferences.length) {
           hashRefToNameHash.set(
             bundle.hashReference,
-            bundle.needsStableName
-              ? 'stable'
-              : options.shouldContentHash
+            options.shouldContentHash
               ? info.hash.slice(-8)
               : bundle.id.slice(-8),
           );
@@ -149,12 +147,9 @@ function assignComplexNameHashes(
     if (hashRefToNameHash.get(bundle.hashReference) != null) {
       continue;
     }
-
     hashRefToNameHash.set(
       bundle.hashReference,
-      bundle.needsStableName
-        ? 'stable'
-        : options.shouldContentHash
+      options.shouldContentHash
         ? hashString(
             [...getBundlesIncludedInHash(bundle.id, bundleInfoMap)]
               .map(bundleId => bundleInfoMap[bundleId].hash)
