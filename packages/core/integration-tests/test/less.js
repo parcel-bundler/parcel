@@ -262,6 +262,6 @@ describe('less', function () {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
 
-    assert(css.includes('url(#default#VML)'));
+    assert(css.includes('url("#default#VML")'));
   });
 });
