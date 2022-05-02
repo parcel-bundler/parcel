@@ -878,7 +878,7 @@ function createIdealGraph(
     if (bundle === 'root') continue;
     if (bundle.sourceBundles.length > 0 && bundle.size < config.minBundleSize) {
       sharedToSourceBundleIds.delete(bundleNodeId);
-      removeBundle(bundleGraph, bundleNodeId);
+      removeBundle(bundleGraph, bundleNodeId, assetReference);
     }
   }
 
@@ -931,7 +931,7 @@ function createIdealGraph(
         let incomingNodeCount =
           bundleGraph.getNodeIdsConnectedTo(bundleId).length;
         if (incomingNodeCount === 1) {
-          removeBundle(bundleGraph, bundleId);
+          removeBundle(bundleGraph, bundleId, assetReference);
         } else if (incomingNodeCount === 0) {
           bundleGraph.removeNode(bundleId);
         }
@@ -1007,11 +1007,18 @@ function createBundle(opts: {|
   };
 }
 
-function removeBundle(bundleGraph: Graph<Bundle | 'root'>, bundleId: NodeId) {
+function removeBundle(
+  bundleGraph: Graph<Bundle | 'root'>,
+  bundleId: NodeId,
+  assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
+) {
   let bundle = nullthrows(bundleGraph.getNode(bundleId));
   invariant(bundle !== 'root');
-
   for (let asset of bundle.assets) {
+    assetReference.set(
+      asset,
+      assetReference.get(asset).filter(t => !t.includes(bundle)),
+    );
     for (let sourceBundleId of bundle.sourceBundles) {
       let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
       invariant(sourceBundle !== 'root');
@@ -1028,7 +1035,7 @@ async function loadBundlerConfig(
   options: PluginOptions,
 ): Promise<ResolvedBundlerConfig> {
   let conf = await config.getConfig<BundlerConfig>([], {
-    packageKey: '@parcel/bundler-default',
+    packageKey: '@parcel/bundler-experimental',
   });
   if (!conf) {
     return HTTP_OPTIONS['2'];
@@ -1042,10 +1049,10 @@ async function loadBundlerConfig(
       data: conf?.contents,
       source: await options.inputFS.readFile(conf.filePath, 'utf8'),
       filePath: conf.filePath,
-      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
+      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-experimental')}`,
     },
-    '@parcel/bundler-default',
-    'Invalid config for @parcel/bundler-default',
+    '@parcel/bundler-experimental',
+    'Invalid config for @parcel/bundler-experimental',
   );
 
   let http = conf.contents.http ?? 2;
