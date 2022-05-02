@@ -94,6 +94,8 @@ const commonProps = {
       properties: {},
     },
   },
+  key: string,
+  update_url: string,
   chrome_settings_overrides: {
     type: 'object',
     properties: {
