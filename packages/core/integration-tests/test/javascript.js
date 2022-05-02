@@ -5109,6 +5109,14 @@ describe('javascript', function () {
     assert.deepEqual(res, {a: 4});
   });
 
+  it('should not use arrow functions for reexport declarations unless supported', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-arrow-support/index.js'),
+    );
+    let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!content.includes('=>'));
+  });
+
   it('should support import namespace declarations of other ES modules', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-import-namespace/a.js'),
