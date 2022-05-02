@@ -79,9 +79,10 @@ async function configHydrator(
   );
   if (redundantPlugins.length > 0) {
     let filename = path.basename(resolveFrom);
+    let isPackageJson = filename === 'package.json';
     let message;
     let hints = [];
-    if (redundantPlugins.length === pluginArray.length) {
+    if (!isPackageJson && redundantPlugins.length === pluginArray.length) {
       message = md`Parcel includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains only redundant plugins. Deleting it may significantly improve build performance.`;
       hints.push(md`Delete __${filename}__`);
     } else {
@@ -96,6 +97,7 @@ async function configHydrator(
     let codeFrames;
     if (path.extname(filename) !== '.js') {
       let contents = await options.inputFS.readFile(resolveFrom, 'utf8');
+      let prefix = isPackageJson ? '/postcss' : '';
       codeFrames = [
         {
           language: 'json',
@@ -104,7 +106,7 @@ async function configHydrator(
           codeHighlights: generateJSONCodeHighlights(
             contents,
             redundantPlugins.map(plugin => ({
-              key: `/plugins/${plugin}`,
+              key: `${prefix}/plugins/${plugin}`,
               type: 'key',
             })),
           ),
