@@ -48,7 +48,7 @@ export default (new Transformer({
   canReuseAST({ast}) {
     return ast.type === 'vue' && semver.satisfies(ast.version, '^3.0.0');
   },
-  async parse({asset}) {
+  async parse({asset, options}) {
     // TODO: This parses the vue component multiple times. Fix?
     let code = await asset.getCode();
     let parsed = compiler.parse(code, {
@@ -66,7 +66,13 @@ export default (new Transformer({
     return {
       type: 'vue',
       version: '3.0.0',
-      program: parsed.descriptor,
+      program: {
+        ...parsed.descriptor,
+        script: compiler.compileScript(parsed.descriptor, {
+          id,
+          isProd: options.mode === 'production',
+        }),
+      },
     };
   },
   async transform({asset, options, resolve, config}) {
