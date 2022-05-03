@@ -335,6 +335,65 @@ describe('transpilation', function () {
     });
   });
 
+  it('should print errors from transpilation', async function () {
+    let source = path.join(
+      __dirname,
+      '/integration/transpilation-invalid/index.js',
+    );
+    // $FlowFixMe
+    await assert.rejects(() => bundle(source), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrames: [
+            {
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    column: 15,
+                    line: 3,
+                  },
+                  end: {
+                    column: 43,
+                    line: 3,
+                  },
+                },
+              ],
+              filePath: source,
+            },
+          ],
+          hints: null,
+          message: 'Spread children are not supported in React.',
+          origin: '@parcel/transformer-js',
+        },
+        {
+          codeFrames: [
+            {
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    column: 4,
+                    line: 7,
+                  },
+                  end: {
+                    column: 4,
+                    line: 7,
+                  },
+                },
+              ],
+              filePath: source,
+            },
+          ],
+          hints: null,
+          message: 'duplicate private name #x.',
+          origin: '@parcel/transformer-js',
+        },
+      ],
+    });
+  });
+
   describe('tests needing the real filesystem', () => {
     afterEach(async () => {
       if (process.platform === 'win32') {
