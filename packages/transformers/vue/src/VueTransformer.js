@@ -74,7 +74,7 @@ export default (new Transformer({
       program: {
         ...descriptor,
         script:
-          !!descriptor.script || !!descriptor.scriptSetup
+          descriptor.script != null || descriptor.scriptSetup != null
             ? compiler.compileScript(descriptor, {
                 id,
                 isProd: options.mode === 'production',
