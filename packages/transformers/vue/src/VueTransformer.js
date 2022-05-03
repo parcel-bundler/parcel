@@ -69,7 +69,7 @@ export default (new Transformer({
       program: {
         ...parsed.descriptor,
         script: compiler.compileScript(parsed.descriptor, {
-          id,
+          id: asset.id,
           isProd: options.mode === 'production',
         }),
       },
