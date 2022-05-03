@@ -31,6 +31,7 @@
     "@parcel/reporter-cli": "2.5.0",
     "@parcel/reporter-dev-server": "2.5.0",
     "@parcel/utils": "2.5.0",
+    "@parcel/babel-register": "2.5.0",
     "chalk": "^4.1.0",
     "commander": "^7.0.0",
     "get-port": "^4.2.0",
