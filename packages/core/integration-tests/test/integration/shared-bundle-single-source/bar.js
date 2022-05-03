@@ -1,5 +1,5 @@
-import foo from './a';
-import bar from './b';
+import a from './a';
+import b from './b';
 import styles from './styles.css';
 import html from './local.html';
 

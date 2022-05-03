@@ -691,6 +691,8 @@ function createIdealGraph(
     }
   }
 
+  let markForDeletion = [];
+
   // Step 5: Place all assets into bundles or create shared bundles. Each asset
   // is placed into a single bundle based on the bundle entries it is reachable from.
   // This creates a maximally code split bundle graph with no duplication.
@@ -801,7 +803,14 @@ function createIdealGraph(
 
       // Create shared bundles for splittable bundles.
       if (reachable.length > 0) {
+        let asyncBundle;
         let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
+        // if this is a bundle root, add itself to reachable to see if we can "reuse" this bundle
+        if (bundles.has(asset.id)) {
+          asyncBundle = bundles.get(asset.id);
+          sourceBundles.push(asyncBundle);
+          reachable.push(asset);
+        }
         let key = reachable.map(a => a.id).join(',');
         let bundleId = bundles.get(key);
         let bundle;
@@ -825,6 +834,11 @@ function createIdealGraph(
         bundle.assets.add(asset);
         bundle.size += asset.stats.size;
 
+        if (bundles.has(asset.id)) {
+          //there may be more criteria for if this bundle could be removed
+          markForDeletion.push([asyncBundle, asset, bundleId]);
+        }
+
         for (let sourceBundleId of sourceBundles) {
           if (bundleId !== sourceBundleId) {
             bundleGraph.addEdge(sourceBundleId, bundleId);
@@ -837,6 +851,55 @@ function createIdealGraph(
           type: 'bundle',
         });
       }
+    }
+  }
+  //Must clean up either the old async bundle that is now effectively reused,
+  //or replace the sharedBundle "copy" that was created with the original async bundle
+  // ?
+  for (let [bundle, bundleRoot, sharedBundleId] of markForDeletion) {
+    let asyncBundle = nullthrows(bundleGraph.getNode(bundle));
+    invariant(asyncBundle !== 'root');
+    let sharedBundle = nullthrows(bundleGraph.getNode(sharedBundleId));
+    invariant(sharedBundle !== 'root');
+    //if the bundles are the same, use the original one
+    if (
+      asyncBundle.assets.size === sharedBundle.assets.size &&
+      [...asyncBundle.assets].every(a => sharedBundle.assets.has(a))
+    ) {
+      bundleGraph.getNodeIdsConnectedTo(sharedBundleId).forEach(id => {
+        let sourceBundle = nullthrows(bundleGraph.getNode(id));
+        invariant(sourceBundle !== 'root');
+        if (id === asyncBundle) return;
+        bundleGraph.addEdge(id, bundle);
+      });
+      sharedToSourceBundleIds.set(bundle, sharedBundle.sourceBundles);
+      bundleGraph.removeNode(sharedBundleId);
+      sharedToSourceBundleIds.delete(sharedBundleId);
+    } else {
+      bundleGraph.getNodeIdsConnectedFrom(bundle).forEach(id => {
+        //replace all instances of bundle
+        let connectedBundle = nullthrows(bundleGraph.getNode(id));
+        invariant(connectedBundle !== 'root');
+        let oldIndex = -1;
+        if (connectedBundle.sourceBundles)
+          oldIndex = connectedBundle.sourceBundles.indexOf(bundle);
+
+        if (id === sharedBundleId) {
+          connectedBundle.sourceBundles.splice(oldIndex, 1);
+          return;
+        }
+        connectedBundle.sourceBundles[oldIndex] = sharedBundleId;
+        bundleGraph.addEdge(sharedBundleId, id);
+      });
+      bundleGraph.removeNode(bundle);
+      let sharedBundle = nullthrows(bundleGraph.getNode(sharedBundleId));
+      invariant(sharedBundle !== 'root');
+      sharedBundle.sourceBundles = sharedBundle.sourceBundles.filter(
+        id => id !== bundle,
+      );
+      sharedToSourceBundleIds.set(sharedBundleId, sharedBundle.sourceBundles);
+      bundleRoots.delete(bundleRoot);
+      bundles.delete(bundleRoot.id);
     }
   }
 
