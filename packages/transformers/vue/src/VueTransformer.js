@@ -366,7 +366,8 @@ ${
             modules: style.module,
             preprocessLang: style.lang || 'css',
             scoped: style.scoped,
-            map: style.src ? undefined : style.map,
+            inMap: style.src ? undefined : style.map,
+            isProd: options.mode === 'production',
             id,
           });
           if (styleComp.errors.length) {
