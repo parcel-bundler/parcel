@@ -406,6 +406,15 @@ function createIdealGraph(
             } else {
               bundle = nullthrows(bundleGraph.getNode(bundleId));
               invariant(bundle !== 'root');
+
+              if (
+                // If this dependency requests isolated, but the bundle is not,
+                // make the bundle isolated for all uses.
+                dependency.bundleBehavior === 'isolated' &&
+                bundle.bundleBehavior == null
+              ) {
+                bundle.bundleBehavior = dependency.bundleBehavior;
+              }
             }
 
             dependencyBundleGraph.addEdge(
