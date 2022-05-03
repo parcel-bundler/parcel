@@ -235,6 +235,9 @@ async function processPipeline({
         inMap: template.src ? undefined : template.map,
         scoped: styles.some(style => style.scoped),
         isFunctional,
+        compilerOptions: {
+          bindingMetadata: script ? script.bindings : undefined,
+        },
         id,
       });
       if (templateComp.errors.length) {
