@@ -63,15 +63,20 @@ export default (new Transformer({
       });
     }
 
+    const descriptor = parsed.descriptor;
+
     return {
       type: 'vue',
       version: '3.0.0',
       program: {
-        ...parsed.descriptor,
-        script: compiler.compileScript(parsed.descriptor, {
-          id: asset.id,
-          isProd: options.mode === 'production',
-        }),
+        ...descriptor,
+        script:
+          !!descriptor.script || !!descriptor.scriptSetup
+            ? compiler.compileScript(descriptor, {
+                id: asset.id,
+                isProd: options.mode === 'production',
+              })
+            : null,
       },
     };
   },
