@@ -246,6 +246,7 @@ async function processPipeline({
         compilerOptions: {
           bindingMetadata: script ? script.bindings : undefined,
         },
+        isProd: options.mode === 'production',
         id,
       });
       if (templateComp.errors.length) {
