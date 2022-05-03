@@ -211,7 +211,16 @@ async function processPipeline({
       }
       let content = template.content;
       if (template.lang && !['htm', 'html'].includes(template.lang)) {
+        let options = {};
         let preprocessor = consolidate[template.lang];
+        // Pug doctype fix (fixes #7756)
+        switch (template.lang) {
+          case 'pug':
+            options.doctype = 'html';
+            break;
+          default:
+            break;
+        }
         if (!preprocessor) {
           // TODO: codeframe
           throw new ThrowableDiagnostic({
@@ -221,7 +230,7 @@ async function processPipeline({
             },
           });
         }
-        content = await preprocessor.render(content, {});
+        content = await preprocessor.render(content, options);
       }
       let templateComp = compiler.compileTemplate({
         filename: asset.filePath,
