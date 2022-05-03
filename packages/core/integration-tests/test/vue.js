@@ -105,7 +105,6 @@ describe('vue', function () {
     assert(contents.includes('h2:hover'));
     assert(contents.includes('.box p'));
   });
-
   it('should load <script setup> component files', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/vue-script-setup/App.vue'),
