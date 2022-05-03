@@ -64,6 +64,9 @@ export default (new Transformer({
     }
 
     const descriptor = parsed.descriptor;
+    let id = hashObject({
+      filePath: asset.filePath,
+    }).slice(-6);
 
     return {
       type: 'vue',
@@ -73,7 +76,7 @@ export default (new Transformer({
         script:
           !!descriptor.script || !!descriptor.scriptSetup
             ? compiler.compileScript(descriptor, {
-                id: asset.id,
+                id,
                 isProd: options.mode === 'production',
               })
             : null,
