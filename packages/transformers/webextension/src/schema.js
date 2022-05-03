@@ -406,6 +406,14 @@ const commonProps = {
     additionalProperties: false,
   },
   version_name: string,
+  oauth2: {
+    type: 'object',
+    properties: {
+      client_id: string,
+      scopes: arrStr,
+    },
+    additionalProperties: false,
+  },
 };
 
 export const MV3Schema = ({
@@ -438,14 +446,6 @@ export const MV3Schema = ({
       additionalProperties: false,
     },
     host_permissions: arrStr,
-    oauth2: {
-      type: 'object',
-      properties: {
-        client_id: string,
-        scopes: arrStr
-      },
-      additionalProperties: false
-    },
     web_accessible_resources: {
       type: 'array',
       items: {
