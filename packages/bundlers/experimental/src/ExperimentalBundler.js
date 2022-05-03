@@ -806,7 +806,7 @@ function createIdealGraph(
         let asyncBundle;
         let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
         // if this is a bundle root, add itself to reachable to see if we can "reuse" this bundle
-        if (bundles.has(asset.id)) {
+        if (bundles.has(asset.id) && asset.env.context != 'web-worker') {
           asyncBundle = bundles.get(asset.id);
           sourceBundles.push(asyncBundle);
           reachable.push(asset);
@@ -834,7 +834,7 @@ function createIdealGraph(
         bundle.assets.add(asset);
         bundle.size += asset.stats.size;
 
-        if (bundles.has(asset.id)) {
+        if (bundles.has(asset.id) && asset.env.context != 'web-worker') {
           //there may be more criteria for if this bundle could be removed
           markForDeletion.push([asyncBundle, asset, bundleId]);
         }
@@ -875,7 +875,11 @@ function createIdealGraph(
       sharedToSourceBundleIds.set(bundle, sharedBundle.sourceBundles);
       bundleGraph.removeNode(sharedBundleId);
       sharedToSourceBundleIds.delete(sharedBundleId);
-    } else {
+    } else if (
+      asyncBundle.assets.size < sharedBundle.assets.size &&
+      sharedBundle.assets.has(bundleRoot)
+    ) {
+      //else if we have foo and the shared bundle is larger than async, keep it, else keep both
       bundleGraph.getNodeIdsConnectedFrom(bundle).forEach(id => {
         //replace all instances of bundle
         let connectedBundle = nullthrows(bundleGraph.getNode(id));
