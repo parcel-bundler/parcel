@@ -33,7 +33,7 @@
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions --exact",
     "tag:release": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions",
-    "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines-peerdeps.js",
+    "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines-peerdeps.js && node scripts/update-self-published.js",
     "release": "lerna publish -y from-package --pre-dist-tag=next --no-git-tag-version --no-push",
     "prepare": "husky install"
   },
