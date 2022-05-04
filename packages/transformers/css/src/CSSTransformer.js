@@ -21,6 +21,19 @@ export default (new Transformer({
     return conf?.contents;
   },
   async transform({asset, config, options}) {
+    // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
+    // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
+    let env = asset.env;
+    asset.setEnvironment({
+      context: 'browser',
+      engines: {
+        browsers: asset.env.engines.browsers,
+      },
+      shouldOptimize: asset.env.shouldOptimize,
+      shouldScopeHoist: asset.env.shouldScopeHoist,
+      sourceMap: asset.env.sourceMap,
+    });
+
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
@@ -40,9 +53,10 @@ export default (new Transformer({
           filename: path.relative(options.projectRoot, asset.filePath),
           code,
           cssModules:
-            config?.cssModules ??
-            (asset.meta.cssModulesCompiled !== true &&
-              /\.module\./.test(asset.filePath)),
+            asset.meta.type !== 'tag' &&
+            (config?.cssModules ??
+              (asset.meta.cssModulesCompiled == null &&
+                /\.module\./.test(asset.filePath))),
           analyzeDependencies: asset.meta.hasDependencies !== false,
           sourceMap: !!asset.env.sourceMap,
           drafts: config?.drafts,
@@ -192,7 +206,8 @@ export default (new Transformer({
             // TODO: Figure out how to treeshake this
             let d = `dep_$${c++}`;
             depjs += `import * as ${d} from ${JSON.stringify(dep.url)};\n`;
-            depjs += `for (let key in ${d}) { if (key in module.exports) module.exports[key] += ' ' + ${d}[key]; else module.exports[key] = ${d}[key]; }\n`;
+            js += `for (let key in ${d}) { if (key in module.exports) module.exports[key] += ' ' + ${d}[key]; else module.exports[key] = ${d}[key]; }\n`;
+            asset.symbols.set('*', '*');
           }
         }
       }
@@ -201,21 +216,9 @@ export default (new Transformer({
         type: 'js',
         content: depjs + js,
         dependencies: jsDeps,
-        env: asset.env,
+        env,
       });
     }
-
-    // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
-    // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
-    asset.setEnvironment({
-      context: 'browser',
-      engines: {
-        browsers: asset.env.engines.browsers,
-      },
-      shouldOptimize: asset.env.shouldOptimize,
-      shouldScopeHoist: asset.env.shouldScopeHoist,
-      sourceMap: asset.env.sourceMap,
-    });
 
     return assets;
   },

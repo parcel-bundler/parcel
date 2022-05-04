@@ -1243,7 +1243,10 @@ export interface Bundle {
   /** Returns whether the bundle includes the given dependency. */
   hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
-  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
+  traverseAssets<TContext>(
+    visit: GraphVisitor<Asset, TContext>,
+    startAsset?: Asset,
+  ): ?TContext;
   /** Traverses assets and dependencies in the bundle. */
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,

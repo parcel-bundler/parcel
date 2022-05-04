@@ -4,7 +4,7 @@ import ThrowableDiagnostic, {
   escapeMarkdown,
   encodeJSONKeyComponent,
 } from '@parcel/diagnostic';
-import type {Mapping} from 'json-source-map';
+import type {Mapping} from '@mischnic/json-sourcemap';
 import nullthrows from 'nullthrows';
 // flowlint-next-line untyped-import:off
 import levenshtein from 'fastest-levenshtein';
@@ -406,7 +406,7 @@ validateSchema.diagnostic = function (
     !data
   ) {
     throw new Error(
-      'At least one of data.source and data.source must be defined!',
+      'At least one of data.source and data.data must be defined!',
     );
   }
   let object = data.map

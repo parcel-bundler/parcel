@@ -5,9 +5,46 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2022-04-21
+
+### Added
+
+- Add support for Web Extension manifest v3 - [Details](https://github.com/parcel-bundler/parcel/pull/7050)
+- Rewrite `__dirname` and `__filename` to refer to the original path when building for Node.js targets - [Details](https://github.com/parcel-bundler/parcel/pull/7727)
+- Generate codeframe positions for JSON5 - [Details](https://github.com/parcel-bundler/parcel/pull/7933)
+- Add `$schema` support in web extension manifest - [Details](https://github.com/parcel-bundler/parcel/pull/7975)
+- Add support for `in` expressions with `process.env`, e.g. `'foo' in process.env` - [Details](https://github.com/parcel-bundler/parcel/pull/7954)
+
+### Fixed
+
+- Updated SWC. - [Details](https://github.com/parcel-bundler/parcel/pull/7886) + [Details](https://github.com/parcel-bundler/parcel/pull/7931)
+- Update Parcel CSS to v1.8.1 - [Details](https://github.com/parcel-bundler/parcel-css/releases/tag/v1.8.0) + [Details](https://github.com/parcel-bundler/parcel-css/releases/tag/v1.8.1)
+- Fix diagnostic message - [Details](https://github.com/parcel-bundler/parcel/pull/7850)
+- Disable react refresh for library targets. Fixes "Asset was skipped or not found" error. - [Details](https://github.com/parcel-bundler/parcel/pull/7914)
+- Don't process inline `<style>` elements as CSS modules - [Details](https://github.com/parcel-bundler/parcel/pull/7921)
+- Fix issue with multiple images in `srcset` attribute - [Details](https://github.com/parcel-bundler/parcel/pull/7918)
+- Fix peer dependencies - [Details](https://github.com/parcel-bundler/parcel/pull/7939) + [Details](https://github.com/parcel-bundler/parcel/pull/7977)
+- Scope hoisting: Fix wrapping when any ancestor asset is wrapped - [Details](https://github.com/parcel-bundler/parcel/pull/7883)
+- Scope hoisting: Don't insert unused requires that aren't registered anywhere - [Details](https://github.com/parcel-bundler/parcel/pull/7764)
+- Scope hoisting: Fix wrapped assets importing their own namespace - [Details](https://github.com/parcel-bundler/parcel/pull/7978)
+- Fix issues with resolving symbols - [Details](https://github.com/parcel-bundler/parcel/pull/7944)
+- Fix loading `.env` files when entries are specified using `"source"` field in package.json - [Details](https://github.com/parcel-bundler/parcel/pull/7537)
+- Correctly remove orphaned non-tree subgraphs - [Details](https://github.com/parcel-bundler/parcel/pull/7927)
+
+## [2.4.1] - 2022-03-31
+
+### Fixed
+
+- Fix `:export` in CSS modules
+- Don't remove unused classes or `@keyframes` when a CSS module is processed by postcss
+- Fix bundling issue with CSS modules where unintended side effects from a different page could be run
+- Fix crash with CSS in multiple environments
+- Update Parcel CSS. Fixes issues with `::-webkit-scrollbar`, list styles in CSS modules, `@-moz-document`, and more. See [release notes](https://github.com/parcel-bundler/parcel-css/releases/tag/v1.7.4).
+- Update SWC. Fixes an issue with parenthesized expressions following a return statement.
+
 ## [2.4.0] - 2022-03-22
 
-## Added
+### Added
 
 - Replace default CSS transformer and minifier with `@parcel/css` - [Details](https://github.com/parcel-bundler/parcel/pull/7821)
 - Replace `typeof` before dead code elimination to improve bundle size - [Details](https://github.com/parcel-bundler/parcel/pull/7788)
@@ -19,7 +56,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Use relative path for bundle labels in bundle analysis - [Details](https://github.com/parcel-bundler/parcel/pull/7737)
 - Load dynamic imports at higher network priority in non-ESM builds - [Details](https://github.com/parcel-bundler/parcel/pull/7061)
 
-## Fixed
+### Fixed
 
 - Pin lmdb to 2.2.3 - [Details](https://github.com/parcel-bundler/parcel/pull/7763)
 - Prevent term-size from being bundled - [Details](https://github.com/parcel-bundler/parcel/pull/7750)

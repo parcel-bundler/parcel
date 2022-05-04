@@ -5,7 +5,8 @@
  * @flow
  */
 
-declare module 'commander' { // manually added
+declare module 'commander' {
+  // manually added
   declare var commander: typeof npm$namespace$commander;
 
   declare var npm$namespace$commander: {|
@@ -24,29 +25,27 @@ declare module 'commander' { // manually added
     ParseOptionsResult: Class<commander$ParseOptionsResult>,
     CommanderStatic: Class<commander$CommanderStatic>,
   |};
-  declare type commander$CommanderError = {
-    code: string,
-    exitCode: number,
-    message: string,
-    nestedError?: string,
-    ...
-  };
 
-  declare type commander$CommanderErrorConstructor = (
-    exitCode: number,
-    code: string,
-    message: string,
-  ) => commander$CommanderError;
+  declare class commander$CommanderError {
+    code: string;
+    exitCode: number;
+    message: string;
+    nestedError?: string;
 
-  declare type commander$InvalidOptionArgumentError = {
-    ...,
-  } & commander$CommanderError;
+    constructor(
+      exitCode: number,
+      code: string,
+      message: string,
+    ): commander$CommanderError;
+  }
 
-  declare type commander$InvalidOptionArgumentErrorConstructor = (
-    message: string,
-  ) => commander$InvalidOptionArgumentError;
+  declare class commander$InvalidOptionArgumentError
+    extends commander$CommanderError
+  {
+    constructor(message: string): commander$InvalidOptionArgumentError;
+  }
 
-  declare interface commander$Option {
+  declare class commander$Option {
     flags: string;
     description: string;
     required: boolean;
@@ -62,6 +61,8 @@ declare module 'commander' { // manually added
     parseArg?: <T>(value: string, previous: T) => T;
     hidden: boolean;
     argChoices?: string[];
+
+    constructor(flags: string, description?: string): commander$Option;
 
     /**
      * Set the default value, and optionally supply the description to be displayed in the help.
@@ -104,11 +105,6 @@ declare module 'commander' { // manually added
      */
     name(): string;
   }
-
-  declare type commander$OptionConstructor = (
-    flags: string,
-    description?: string,
-  ) => commander$Option;
 
   declare interface commander$Help {
     /**
@@ -161,9 +157,7 @@ declare module 'commander' { // manually added
     /**
      * Get an array of the arguments which have descriptions.
      */
-    visibleArguments(
-      cmd: commander$Command,
-    ): Array<{
+    visibleArguments(cmd: commander$Command): Array<{
       term: string,
       description: string,
       ...
@@ -250,7 +244,9 @@ declare module 'commander' { // manually added
     [key: string]: any;
   }
 
-  declare interface commander$Command {
+  declare class commander$Command {
+    constructor(name?: string): commander$Command;
+
     args: string[];
     commands: commander$Command[];
 
@@ -262,7 +258,11 @@ declare module 'commander' { // manually added
      *
      * You can optionally supply the  flags and description to override the defaults.
      */
-    version(str: string, flags?: string, description?: string): commander$Command;
+    version(
+      str: string,
+      flags?: string,
+      description?: string,
+    ): commander$Command;
 
     /**
      * Define a command, implemented using an action handler.
@@ -317,7 +317,10 @@ declare module 'commander' { // manually added
      * See .command() for creating an attached subcommand which inherits settings from its parent.
      * @returns `this` command for chaining
      */
-    addCommand(cmd: commander$Command, opts?: commander$CommandOptions): commander$Command;
+    addCommand(
+      cmd: commander$Command,
+      opts?: commander$CommandOptions,
+    ): commander$Command;
 
     /**
      * Define argument syntax for command.
@@ -355,7 +358,9 @@ declare module 'commander' { // manually added
      * You can customise the help by overriding Help properties using configureHelp(),
      * or with a subclass of Help by overriding createHelp().
      */
-    configureHelp(configuration: commander$HelpConfiguration): commander$Command;
+    configureHelp(
+      configuration: commander$HelpConfiguration,
+    ): commander$Command;
 
     /**
      * Get configuration
@@ -377,7 +382,9 @@ declare module 'commander' { // manually added
      *    // functions based on what is being written out
      *    outputError(str, write) // used for displaying errors, and not used for displaying help
      */
-    configureOutput(configuration: commander$OutputConfiguration): commander$Command;
+    configureOutput(
+      configuration: commander$OutputConfiguration,
+    ): commander$Command;
 
     /**
      * Get configuration
@@ -610,7 +617,7 @@ declare module 'commander' { // manually added
       str: string,
       argsDescription?: {
         [argName: string]: string,
-        ...,
+        ...
       },
     ): commander$Command;
 
@@ -689,7 +696,10 @@ declare module 'commander' { // manually added
      * flags and help description for your command. Pass in false
      * to disable the built-in help option.
      */
-    helpOption(flags?: string | boolean, description?: string): commander$Command;
+    helpOption(
+      flags?: string | boolean,
+      description?: string,
+    ): commander$Command;
 
     /**
      * Output help information and exit.
@@ -709,7 +719,10 @@ declare module 'commander' { // manually added
      * Position is 'before' or 'after' to affect just this command,
      * and 'beforeAll' or 'afterAll' to affect this command and all its subcommands.
      */
-    addHelpText(position: commander$AddHelpTextPosition, text: string): commander$Command;
+    addHelpText(
+      position: commander$AddHelpTextPosition,
+      text: string,
+    ): commander$Command;
     addHelpText(
       position: commander$AddHelpTextPosition,
       text: (context: commander$AddHelpTextContext) => string | void,
@@ -718,12 +731,11 @@ declare module 'commander' { // manually added
     /**
      * Add a listener (callback) for when events occur. (Implemented using EventEmitter.)
      */
-    on(event: string | Symbol, listener: (...args: any[]) => void): commander$Command;
+    on(
+      event: string | Symbol,
+      listener: (...args: any[]) => void,
+    ): commander$Command;
   }
-
-  declare type commander$CommandConstructor = (
-    name?: string,
-  ) => commander$Command;
 
   declare interface commander$CommandOptions {
     hidden?: boolean;
@@ -747,10 +759,10 @@ declare module 'commander' { // manually added
 
   declare type commander$CommanderStatic = {
     program: commander$Command,
-    Command: commander$CommandConstructor,
-    Option: commander$OptionConstructor,
-    CommanderError: commander$CommanderErrorConstructor,
-    InvalidOptionArgumentError: commander$InvalidOptionArgumentErrorConstructor,
+    Command: Class<commander$Command>,
+    Option: Class<commander$Option>,
+    CommanderError: Class<commander$CommanderError>,
+    InvalidOptionArgumentError: Class<commander$InvalidOptionArgumentError>,
     Help: commander$HelpConstructor,
     ...
   } & commander$Command;

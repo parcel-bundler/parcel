@@ -59,12 +59,7 @@ pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
       DUMMY_SP,
     )))),
     args: vec![ast::ExprOrSpread {
-      expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-        span: DUMMY_SP,
-        value: normalized_specifier,
-        has_escape: false,
-        kind: ast::StrKind::Synthesized,
-      }))),
+      expr: Box::new(ast::Expr::Lit(ast::Lit::Str(normalized_specifier.into()))),
       spread: None,
     }],
     span: DUMMY_SP,
@@ -95,7 +90,7 @@ pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
     Expr::Lit(Lit::Str(s)) => Some((s.value.clone(), s.span)),
     // `string`
     Expr::Tpl(tpl) if tpl.quasis.len() == 1 && tpl.exprs.is_empty() => {
-      Some((tpl.quasis[0].raw.value.clone(), tpl.span))
+      Some((tpl.quasis[0].raw.clone(), tpl.span))
     }
     _ => None,
   }

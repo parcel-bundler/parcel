@@ -58,6 +58,7 @@ export type Bundle = {|
   internalizedAssetIds: Array<AssetId>,
   bundleBehavior?: ?BundleBehavior,
   needsStableName: boolean,
+  mainEntryAsset: ?Asset,
   size: number,
   sourceBundles: Array<NodeId>,
   target: Target,
@@ -118,7 +119,7 @@ function decorateLegacyGraph(
   // Step 1: Create bundle groups, bundles, and shared bundles and add assets to them
   for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes) {
     if (idealBundle === 'root') continue;
-    let [entryAsset] = [...idealBundle.assets];
+    let entryAsset = idealBundle.mainEntryAsset;
     let bundleGroup;
     let bundle;
 
@@ -403,6 +404,15 @@ function createIdealGraph(
             } else {
               bundle = nullthrows(bundleGraph.getNode(bundleId));
               invariant(bundle !== 'root');
+
+              if (
+                // If this dependency requests isolated, but the bundle is not,
+                // make the bundle isolated for all uses.
+                dependency.bundleBehavior === 'isolated' &&
+                bundle.bundleBehavior == null
+              ) {
+                bundle.bundleBehavior = dependency.bundleBehavior;
+              }
             }
 
             dependencyBundleGraph.addEdge(
@@ -426,9 +436,7 @@ function createIdealGraph(
             dependency.priority === 'parallel' ||
             childAsset.bundleBehavior === 'inline'
           ) {
-            let [parentBundleRoot, bundleGroupNodeId] = nullthrows(
-              stack[stack.length - 1],
-            );
+            let [, bundleGroupNodeId] = nullthrows(stack[stack.length - 1]);
             let bundleGroup = nullthrows(
               bundleGraph.getNode(bundleGroupNodeId),
             );
@@ -461,12 +469,6 @@ function createIdealGraph(
 
             let bundle;
             if (bundleId == null) {
-              let parentBundleId = nullthrows(bundles.get(parentBundleRoot.id));
-              let parentBundle = nullthrows(
-                bundleGraph.getNode(parentBundleId),
-              );
-              invariant(parentBundle !== 'root');
-
               // Create a new bundle if none of the same type exists already.
               bundle = createBundle({
                 // We either have an entry asset or a unique key.
@@ -483,7 +485,7 @@ function createIdealGraph(
                   (dependency.priority === 'parallel' &&
                     !dependency.needsStableName)
                     ? false
-                    : parentBundle.needsStableName,
+                    : bundleGroup.needsStableName,
               });
               bundleId = bundleGraph.addNode(bundle);
             } else {
@@ -564,7 +566,6 @@ function createIdealGraph(
       if (node.value === root) {
         return;
       }
-
       if (node.type === 'dependency') {
         let dependency = node.value;
 
@@ -597,7 +598,6 @@ function createIdealGraph(
         if (dependency.priority !== 'sync') {
           actions.skipChildren();
         }
-
         return;
       }
       //asset node type
@@ -655,16 +655,18 @@ function createIdealGraph(
         ) {
           continue;
         }
-        let [siblingBundleRoot] = [...bundleInGroup.assets];
-        // Assets directly connected to current bundleRoot
-        let assetsFromBundleRoot = reachableRoots
-          .getNodeIdsConnectedFrom(
-            reachableRoots.getNodeIdByContentKey(siblingBundleRoot.id),
-          )
-          .map(id => nullthrows(reachableRoots.getNode(id)));
 
-        for (let asset of [siblingBundleRoot, ...assetsFromBundleRoot]) {
-          available.add(asset);
+        for (let bundleRoot of bundleInGroup.assets) {
+          // Assets directly connected to current bundleRoot
+          let assetsFromBundleRoot = reachableRoots
+            .getNodeIdsConnectedFrom(
+              reachableRoots.getNodeIdByContentKey(bundleRoot.id),
+            )
+            .map(id => nullthrows(reachableRoots.getNode(id)));
+
+          for (let asset of [bundleRoot, ...assetsFromBundleRoot]) {
+            available.add(asset);
+          }
         }
       }
     }
@@ -928,6 +930,7 @@ function createBundle(opts: {|
       uniqueKey: opts.uniqueKey,
       assets: new Set(),
       internalizedAssetIds: [],
+      mainEntryAsset: null,
       size: 0,
       sourceBundles: [],
       target: opts.target,
@@ -943,6 +946,7 @@ function createBundle(opts: {|
     uniqueKey: opts.uniqueKey,
     assets: new Set([asset]),
     internalizedAssetIds: [],
+    mainEntryAsset: asset,
     size: asset.stats.size,
     sourceBundles: [],
     target: opts.target,

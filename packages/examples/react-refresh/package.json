@@ -1,14 +1,15 @@
 {
   "name": "@parcel/react-refresh-example",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "license": "MIT",
   "private": true,
   "scripts": {
     "start": "parcel src/index.html"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.4.0",
-    "@parcel/core": "2.4.0"
+    "@babel/core": "^7.0.0",
+    "@parcel/babel-register": "2.5.0",
+    "@parcel/core": "2.5.0"
   },
   "dependencies": {
     "react": "^17.0.2",

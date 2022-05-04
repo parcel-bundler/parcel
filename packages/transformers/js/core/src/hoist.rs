@@ -142,12 +142,7 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: Str {
-                    value: format!("{}:{}", self.module_id, import.src.value).into(),
-                    span: DUMMY_SP,
-                    kind: StrKind::Synthesized,
-                    has_escape: false,
-                  },
+                  src: format!("{}:{}", self.module_id, import.src.value).into(),
                   type_only: false,
                 })));
 
@@ -196,8 +191,7 @@ impl<'a> Fold for Hoist<'a> {
                     src: Str {
                       value: format!("{}:{}", self.module_id, src.value).into(),
                       span: DUMMY_SP,
-                      kind: StrKind::Synthesized,
-                      has_escape: false,
+                      raw: None,
                     },
                     type_only: false,
                   })));
@@ -283,12 +277,7 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: Str {
-                    value: format!("{}:{}", self.module_id, export.src.value).into(),
-                    span: DUMMY_SP,
-                    kind: StrKind::Synthesized,
-                    has_escape: false,
-                  },
+                  src: format!("{}:{}", self.module_id, export.src.value).into(),
                   type_only: false,
                 })));
               self.re_exports.push(ImportedSymbol {
@@ -393,8 +382,7 @@ impl<'a> Fold for Hoist<'a> {
                               src: Str {
                                 value: format!("{}:{}", self.module_id, source).into(),
                                 span: DUMMY_SP,
-                                kind: StrKind::Synthesized,
-                                has_escape: false,
+                                raw: None,
                               },
                               type_only: false,
                             })));
@@ -436,8 +424,7 @@ impl<'a> Fold for Hoist<'a> {
                                 src: Str {
                                   value: format!("{}:{}", self.module_id, source).into(),
                                   span: DUMMY_SP,
-                                  kind: StrKind::Synthesized,
-                                  has_escape: false,
+                                  raw: None,
                                 },
                                 type_only: false,
                               })));
@@ -948,12 +935,7 @@ impl<'a> Hoist<'a> {
         specifiers: vec![],
         asserts: None,
         span: DUMMY_SP,
-        src: Str {
-          value: format!("{}:{}", self.module_id, source).into(),
-          span: DUMMY_SP,
-          kind: StrKind::Synthesized,
-          has_escape: false,
-        },
+        src: format!("{}:{}", self.module_id, source).into(),
         type_only: false,
       })));
   }

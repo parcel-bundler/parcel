@@ -166,12 +166,7 @@ impl<'a> InlineFS<'a> {
           _ => return None,
         };
 
-        let contents = Expr::Lit(Lit::Str(Str {
-          value: contents.into(),
-          kind: StrKind::Synthesized,
-          has_escape: false,
-          span: DUMMY_SP,
-        }));
+        let contents = Expr::Lit(Lit::Str(contents.into()));
 
         // Add a file dependency so the cache is invalidated when this file changes.
         self.deps.push(DependencyDescriptor {
@@ -202,12 +197,7 @@ impl<'a> InlineFS<'a> {
                 spread: None,
               },
               ExprOrSpread {
-                expr: Box::new(Expr::Lit(Lit::Str(Str {
-                  value: "base64".into(),
-                  kind: StrKind::Synthesized,
-                  has_escape: false,
-                  span: DUMMY_SP,
-                }))),
+                expr: Box::new(Expr::Lit(Lit::Str("base64".into()))),
                 spread: None,
               },
             ],
@@ -233,8 +223,8 @@ impl<'a> Fold for Evaluator<'a> {
 
     match &node {
       Expr::Ident(ident) => match ident.sym.to_string().as_str() {
-        "__dirname" => Expr::Lit(Lit::Str(Str {
-          value: self
+        "__dirname" => Expr::Lit(Lit::Str(
+          self
             .inline
             .filename
             .parent()
@@ -242,16 +232,8 @@ impl<'a> Fold for Evaluator<'a> {
             .to_str()
             .unwrap()
             .into(),
-          kind: StrKind::Synthesized,
-          has_escape: false,
-          span: DUMMY_SP,
-        })),
-        "__filename" => Expr::Lit(Lit::Str(Str {
-          value: self.inline.filename.to_str().unwrap().into(),
-          kind: StrKind::Synthesized,
-          has_escape: false,
-          span: DUMMY_SP,
-        })),
+        )),
+        "__filename" => Expr::Lit(Lit::Str(self.inline.filename.to_str().unwrap().into())),
         _ => node,
       },
       Expr::Bin(bin) => match bin.op {
@@ -266,12 +248,7 @@ impl<'a> Fold for Evaluator<'a> {
             _ => return node,
           };
 
-          Expr::Lit(Lit::Str(Str {
-            value: format!("{}{}", left, right).into(),
-            kind: StrKind::Synthesized,
-            has_escape: false,
-            span: DUMMY_SP,
-          }))
+          Expr::Lit(Lit::Str(format!("{}{}", left, right).into()))
         }
         _ => node,
       },
@@ -305,12 +282,7 @@ impl<'a> Fold for Evaluator<'a> {
                 }
               }
 
-              return Expr::Lit(Lit::Str(Str {
-                value: path.to_str().unwrap().into(),
-                kind: StrKind::Synthesized,
-                has_escape: false,
-                span: DUMMY_SP,
-              }));
+              return Expr::Lit(Lit::Str(path.to_str().unwrap().into()));
             }
             _ => return node,
           }
