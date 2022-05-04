@@ -43,6 +43,7 @@ export default (new Transformer({
     return {
       customBlocks: contents.customBlocks || {},
       filePath: conf && conf.filePath,
+      compilerOptions: contents.compilerOptions || {},
     };
   },
   canReuseAST({ast}) {
@@ -248,6 +249,7 @@ async function processPipeline({
         },
         isProd: options.mode === 'production',
         id,
+        compilerOptions: config.compilerOptions,
       });
       if (templateComp.errors.length) {
         throw new ThrowableDiagnostic({
