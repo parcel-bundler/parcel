@@ -245,11 +245,11 @@ async function processPipeline({
         scoped: styles.some(style => style.scoped),
         isFunctional,
         compilerOptions: {
+          ...config.compilerOptions,
           bindingMetadata: script ? script.bindings : undefined,
         },
         isProd: options.mode === 'production',
         id,
-        compilerOptions: config.compilerOptions,
       });
       if (templateComp.errors.length) {
         throw new ThrowableDiagnostic({
