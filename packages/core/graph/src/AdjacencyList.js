@@ -440,19 +440,19 @@ export default class AdjacencyList<TEdgeType: number = 1> {
         ? type.includes(this.#nodes.typeOf(node))
         : type === this.#nodes.typeOf(node));
 
-    let nodes = [];
+    let nodes = new Set<NodeId>();
     let node = this.#nodes.head(from);
     while (node !== null) {
       if (matches(node)) {
         let edge = this.#nodes.firstOut(node);
         while (edge !== null) {
-          nodes.push(this.#edges.to(edge));
+          nodes.add(this.#edges.to(edge));
           edge = this.#edges.nextOut(edge);
         }
       }
       node = this.#nodes.next(node);
     }
-    return nodes;
+    return [...nodes];
   }
 
   /**
@@ -472,19 +472,19 @@ export default class AdjacencyList<TEdgeType: number = 1> {
         ? type.includes(this.#nodes.typeOf(node))
         : type === this.#nodes.typeOf(node));
 
-    let nodes = [];
+    let nodes = new Set<NodeId>();
     let node = this.#nodes.head(to);
     while (node !== null) {
       if (matches(node)) {
         let edge = this.#nodes.firstIn(node);
         while (edge !== null) {
-          nodes.push(this.#edges.from(edge));
+          nodes.add(this.#edges.from(edge));
           edge = this.#edges.nextIn(edge);
         }
       }
       node = this.#nodes.next(node);
     }
-    return nodes;
+    return [...nodes];
   }
 
   inspect(): any {
