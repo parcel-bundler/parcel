@@ -353,7 +353,7 @@ function createIdealGraph(
         let bundleIdTuple = bundleRoots.get(node.value);
         if (bundleIdTuple) {
           // Push to the stack when a new bundle is created
-          stack.push([node.value, bundleIdTuple[1]]);
+          stack.push([node.value, bundleIdTuple[0]]);
         }
       } else if (node.type === 'dependency') {
         if (context == null) {
