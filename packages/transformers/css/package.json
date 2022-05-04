@@ -20,7 +20,7 @@
     "parcel": "^2.5.0"
   },
   "dependencies": {
-    "@parcel/css": "^1.8.1",
+    "@parcel/css": "^1.8.2",
     "@parcel/diagnostic": "2.5.0",
     "@parcel/plugin": "2.5.0",
     "@parcel/source-map": "^2.0.0",

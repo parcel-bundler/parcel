@@ -875,7 +875,64 @@ function createIdealGraph(
     if (bundle === 'root') continue;
     if (bundle.sourceBundles.length > 0 && bundle.size < config.minBundleSize) {
       sharedToSourceBundleIds.delete(bundleNodeId);
-      removeBundle(bundleGraph, bundleNodeId);
+      removeBundle(bundleGraph, bundleNodeId, assetReference);
+    }
+  }
+
+  // Step 8: Remove shared bundles from bundle groups that hit the parallel request limit.
+  for (let [bundleId, bundleGroupId] of bundleRoots.values()) {
+    // Only handle bundle group entries.
+    if (bundleId != bundleGroupId) {
+      continue;
+    }
+
+    // Find the bundles in this bundle group.
+    let bundleIdsInGroup = bundleGraph.getNodeIdsConnectedFrom(bundleGroupId);
+    if (bundleIdsInGroup.length > config.maxParallelRequests) {
+      // Sort the bundles so the smallest ones are removed first.
+      let bundlesInGroup = bundleIdsInGroup
+        .map(id => nullthrows(bundleGraph.getNode(id)))
+        .map(bundle => {
+          // For Flow
+          invariant(bundle !== 'root');
+          return bundle;
+        })
+        .sort((a, b) => a.size - b.size);
+
+      // Remove bundles until the bundle group is within the parallel request limit.
+      for (
+        let i = 0;
+        i < bundlesInGroup.length - config.maxParallelRequests;
+        i++
+      ) {
+        let bundleId = bundleIdsInGroup[i];
+        let bundle = nullthrows(bundleGraph.getNode(bundleId));
+        invariant(bundle !== 'root');
+        // Add all assets in the shared bundle into the source bundles that are within this bundle group.
+        let sourceBundles = bundle.sourceBundles
+          .filter(b => bundlesInGroup.includes(b))
+          .map(id => nullthrows(bundleGraph.getNode(id)));
+
+        for (let sourceBundle of sourceBundles) {
+          invariant(sourceBundle !== 'root');
+          for (let asset of bundle.assets) {
+            sourceBundle.assets.add(asset);
+            sourceBundle.size += asset.stats.size;
+          }
+        }
+
+        // Remove the edge from this bundle group to the shared bundle.
+        bundleGraph.removeEdge(bundleGroupId, bundleId);
+        // If there is now only a single bundle group that contains this bundle,
+        // merge it into the remaining source bundles. If it is orphaned entirely, remove it.
+        let incomingNodeCount =
+          bundleGraph.getNodeIdsConnectedTo(bundleId).length;
+        if (incomingNodeCount === 1) {
+          removeBundle(bundleGraph, bundleId, assetReference);
+        } else if (incomingNodeCount === 0) {
+          bundleGraph.removeNode(bundleId);
+        }
+      }
     }
   }
 
@@ -957,11 +1014,18 @@ function createBundle(opts: {|
   };
 }
 
-function removeBundle(bundleGraph: Graph<Bundle | 'root'>, bundleId: NodeId) {
+function removeBundle(
+  bundleGraph: Graph<Bundle | 'root'>,
+  bundleId: NodeId,
+  assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
+) {
   let bundle = nullthrows(bundleGraph.getNode(bundleId));
   invariant(bundle !== 'root');
-
   for (let asset of bundle.assets) {
+    assetReference.set(
+      asset,
+      assetReference.get(asset).filter(t => !t.includes(bundle)),
+    );
     for (let sourceBundleId of bundle.sourceBundles) {
       let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
       invariant(sourceBundle !== 'root');
@@ -978,7 +1042,7 @@ async function loadBundlerConfig(
   options: PluginOptions,
 ): Promise<ResolvedBundlerConfig> {
   let conf = await config.getConfig<BundlerConfig>([], {
-    packageKey: '@parcel/bundler-default',
+    packageKey: '@parcel/bundler-experimental',
   });
   if (!conf) {
     return HTTP_OPTIONS['2'];
@@ -992,10 +1056,10 @@ async function loadBundlerConfig(
       data: conf?.contents,
       source: await options.inputFS.readFile(conf.filePath, 'utf8'),
       filePath: conf.filePath,
-      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
+      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-experimental')}`,
     },
-    '@parcel/bundler-default',
-    'Invalid config for @parcel/bundler-default',
+    '@parcel/bundler-experimental',
+    'Invalid config for @parcel/bundler-experimental',
   );
 
   let http = conf.contents.http ?? 2;
