@@ -207,6 +207,7 @@ function decorateLegacyGraph(
       for (let incomingDep of incomingDeps) {
         if (
           incomingDep.priority === 'lazy' &&
+          incomingDep.specifierType !== 'url' &&
           bundle.hasDependency(incomingDep)
         ) {
           bundleGraph.internalizeAsyncDependency(bundle, incomingDep);
@@ -583,7 +584,6 @@ function createIdealGraph(
             );
             if (
               bundle !== 'root' &&
-              bundle.bundleBehavior !== 'isolated' &&
               bundle.bundleBehavior !== 'inline' &&
               !bundle.env.isIsolated()
             ) {
@@ -703,10 +703,6 @@ function createIdealGraph(
       reachableRoots,
     ).reverse();
 
-    // Filter out bundles from this asset's reachable array if
-    // bundle does not contain the asset in its ancestry
-    reachable = reachable.filter(b => !asyncAncestorAssets.get(b)?.has(asset));
-
     let reachableEntries = reachable.filter(
       a =>
         entries.has(a) ||
@@ -723,6 +719,10 @@ function createIdealGraph(
         getBundleFromBundleRoot(a).bundleBehavior !== 'inline' &&
         getBundleFromBundleRoot(a).bundleBehavior !== 'isolated',
     );
+
+    // Filter out bundles from this asset's reachable array if
+    // bundle does not contain the asset in its ancestry
+    reachable = reachable.filter(b => !asyncAncestorAssets.get(b)?.has(asset));
 
     reachable = reachable.filter(b => {
       if (b.env.isIsolated()) {
@@ -797,9 +797,12 @@ function createIdealGraph(
             if (remainingConnections.length === 1 && containsRoot) {
               asyncBundleRootGraph.removeNode(toBeInternalizedNodeId);
             }
-            if (!asyncBundleRootGraph.hasNode(toBeInternalizedNodeId)) {
-              bundleGraph.removeNode(nullthrows(bundles.get(asset.id)));
-              bundleRoots.delete(asset);
+            if (
+              !asyncBundleRootGraph.hasNode(toBeInternalizedNodeId) &&
+              nullthrows(bundleGraph.getNode(toBeInternalizedNodeId))
+                .bundleBehavior !== 'isolated'
+            ) {
+              deleteBundle(asset);
             }
           } else if (parentBundleRoot === entry) {
             //entries do not have asyncAncestors so we must check if its available sync
@@ -818,9 +821,12 @@ function createIdealGraph(
                 toBeInternalizedNodeId,
               );
             }
-            if (!asyncBundleRootGraph.hasNode(toBeInternalizedNodeId)) {
-              bundleRoots.delete(asset);
-              bundleGraph.removeNode(nullthrows(bundles.get(asset.id)));
+            if (
+              !asyncBundleRootGraph.hasNode(toBeInternalizedNodeId) &&
+              nullthrows(bundleGraph.getNode(toBeInternalizedNodeId))
+                .bundleBehavior !== 'isolated'
+            ) {
+              deleteBundle(asset);
             }
           }
         }
@@ -935,7 +941,14 @@ function createIdealGraph(
       }
     }
   }
-
+  function deleteBundle(bundleRoot: BundleRoot) {
+    bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
+    bundleRoots.delete(bundleRoot);
+    reachableRoots.replaceNodeIdsConnectedTo(
+      reachableRoots.getNodeIdByContentKey(bundleRoot.id),
+      [],
+    );
+  }
   function getBundleFromBundleRoot(bundleRoot: BundleRoot): Bundle {
     let bundle = bundleGraph.getNode(
       nullthrows(bundleRoots.get(bundleRoot))[0],

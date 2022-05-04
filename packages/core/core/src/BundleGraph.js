@@ -732,12 +732,13 @@ export default class BundleGraph {
       if (
         inboundDependencies.every(
           dependency =>
-            !this.bundleHasDependency(bundle, dependency) ||
-            this._graph.hasEdge(
-              bundleNodeId,
-              this._graph.getNodeIdByContentKey(dependency.id),
-              bundleGraphEdgeTypes.internal_async,
-            ),
+            dependency.specifierType !== SpecifierType.url &&
+            (!this.bundleHasDependency(bundle, dependency) ||
+              this._graph.hasEdge(
+                bundleNodeId,
+                this._graph.getNodeIdByContentKey(dependency.id),
+                bundleGraphEdgeTypes.internal_async,
+              )),
         )
       ) {
         this._graph.removeEdge(
