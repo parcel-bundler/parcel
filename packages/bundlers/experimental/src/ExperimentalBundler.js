@@ -705,138 +705,165 @@ function createIdealGraph(
     // bundle does not contain the asset in its ancestry
     reachable = reachable.filter(b => !asyncAncestorAssets.get(b)?.has(asset));
 
-    if (reachable.length > 0) {
-      let reachableEntries = reachable.filter(
-        a =>
-          entries.has(a) ||
-          !a.isBundleSplittable ||
-          getBundleFromBundleRoot(a).needsStableName ||
-          getBundleFromBundleRoot(a).bundleBehavior === 'inline' ||
-          getBundleFromBundleRoot(a).bundleBehavior === 'isolated',
-      );
-      reachable = reachable.filter(
-        a =>
-          !entries.has(a) &&
-          a.isBundleSplittable &&
-          !getBundleFromBundleRoot(a).needsStableName &&
-          getBundleFromBundleRoot(a).bundleBehavior !== 'inline' &&
-          getBundleFromBundleRoot(a).bundleBehavior !== 'isolated',
-      );
+    let reachableEntries = reachable.filter(
+      a =>
+        entries.has(a) ||
+        !a.isBundleSplittable ||
+        getBundleFromBundleRoot(a).needsStableName ||
+        getBundleFromBundleRoot(a).bundleBehavior === 'inline' ||
+        getBundleFromBundleRoot(a).bundleBehavior === 'isolated',
+    );
+    reachable = reachable.filter(
+      a =>
+        !entries.has(a) &&
+        a.isBundleSplittable &&
+        !getBundleFromBundleRoot(a).needsStableName &&
+        getBundleFromBundleRoot(a).bundleBehavior !== 'inline' &&
+        getBundleFromBundleRoot(a).bundleBehavior !== 'isolated',
+    );
 
-      // Add assets to non-splittable bundles.
-      for (let entry of reachableEntries) {
-        let entryBundleId = nullthrows(bundles.get(entry.id));
-        let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
-        invariant(entryBundle !== 'root');
-
-        // If this asset is associated with a bundle, we must attempt to clean up
-        let internalizedBundleId = bundles.get(asset.id);
-        if (internalizedBundleId !== undefined) {
-          let toBeInternalizedNodeId =
-            asyncBundleRootGraph.getNodeIdByContentKey(asset.id);
-          let bundleRootsRequiring = nullthrows(
-            asyncBundleRootGraph.getNodeIdsConnectedTo(toBeInternalizedNodeId),
+    reachable = reachable.filter(b => {
+      if (b.env.isIsolated()) {
+        return true;
+      }
+      let toKeep = true;
+      if (bundles.has(asset.id)) {
+        toKeep = false;
+        bundleGraph.addEdge(
+          nullthrows(bundles.get(b.id)),
+          nullthrows(bundles.get(asset.id)),
+        );
+      }
+      for (let f of reachable) {
+        if (b === f) continue;
+        let fReachable = getReachableBundleRoots(f, reachableRoots).filter(
+          b => !asyncAncestorAssets.get(b)?.has(f),
+        );
+        if (fReachable.indexOf(b) > -1) {
+          toKeep = false;
+          bundleGraph.addEdge(
+            nullthrows(bundles.get(b.id)),
+            nullthrows(bundles.get(f.id)),
           );
-          //attempt to clean up for all immediate bundle connections
-          for (let parentBundleId of bundleRootsRequiring) {
-            let parentBundleRoot = asyncBundleRootGraph.getNode(parentBundleId);
-            if (parentBundleRoot === 'root') continue;
-            invariant(parentBundleRoot != null);
-            // we may remove the bundle's connection to anything that already has it from previous ancestors, i.e. asyncAnc
-            if (asyncAncestorAssets.get(parentBundleRoot)?.has(asset)) {
-              let bundleId = nullthrows(bundles.get(parentBundleRoot.id));
-              let b = bundleGraph.getNode(bundleId);
-              if (b && b !== 'root') {
-                b.internalizedAssetIds.push(asset.id);
-              }
+        }
+      }
+      return toKeep;
+    });
 
-              asyncBundleRootGraph.removeEdge(
-                parentBundleId,
-                toBeInternalizedNodeId,
-              );
-              let remainingConnections = asyncBundleRootGraph.getNode(
-                toBeInternalizedNodeId,
+    // Add assets to non-splittable bundles.
+    for (let entry of reachableEntries) {
+      let entryBundleId = nullthrows(bundles.get(entry.id));
+      let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
+      invariant(entryBundle !== 'root');
+
+      // If this asset is associated with a bundle, we must attempt to clean up
+      let internalizedBundleId = bundles.get(asset.id);
+      if (internalizedBundleId !== undefined) {
+        let toBeInternalizedNodeId = asyncBundleRootGraph.getNodeIdByContentKey(
+          asset.id,
+        );
+        let bundleRootsRequiring = nullthrows(
+          asyncBundleRootGraph.getNodeIdsConnectedTo(toBeInternalizedNodeId),
+        );
+        //attempt to clean up for all immediate bundle connections
+        for (let parentBundleId of bundleRootsRequiring) {
+          let parentBundleRoot = asyncBundleRootGraph.getNode(parentBundleId);
+          if (parentBundleRoot === 'root') continue;
+          invariant(parentBundleRoot != null);
+          // we may remove the bundle's connection to anything that already has it from previous ancestors, i.e. asyncAnc
+          if (asyncAncestorAssets.get(parentBundleRoot)?.has(asset)) {
+            let bundleId = nullthrows(bundles.get(parentBundleRoot.id));
+            let b = bundleGraph.getNode(bundleId);
+            if (b && b !== 'root') {
+              b.internalizedAssetIds.push(asset.id);
+            }
+
+            asyncBundleRootGraph.removeEdge(
+              parentBundleId,
+              toBeInternalizedNodeId,
+            );
+            let remainingConnections = asyncBundleRootGraph.getNode(
+              toBeInternalizedNodeId,
+            )
+              ? asyncBundleRootGraph
+                  .getNodeIdsConnectedTo(toBeInternalizedNodeId)
+                  .map(id => asyncBundleRootGraph.getNode(id))
+              : [];
+            let containsRoot = remainingConnections.find(
+              node => node === 'root',
+            );
+            if (remainingConnections.length === 1 && containsRoot) {
+              asyncBundleRootGraph.removeNode(toBeInternalizedNodeId);
+            }
+            if (!asyncBundleRootGraph.hasNode(toBeInternalizedNodeId)) {
+              bundleGraph.removeNode(nullthrows(bundles.get(asset.id)));
+              bundleRoots.delete(asset);
+            }
+          } else if (parentBundleRoot === entry) {
+            //entries do not have asyncAncestors so we must check if its available sync
+            let hasSync = reachableRoots
+              .getNodeIdsConnectedFrom(
+                reachableRoots.getNodeIdByContentKey(entry.id),
               )
-                ? asyncBundleRootGraph
-                    .getNodeIdsConnectedTo(toBeInternalizedNodeId)
-                    .map(id => asyncBundleRootGraph.getNode(id))
-                : [];
-              let containsRoot = remainingConnections.find(
-                node => node === 'root',
+              .some(id => {
+                let a = reachableRoots.getNode(id);
+                return a === asset;
+              });
+            if (hasSync) {
+              entryBundle.internalizedAssetIds.push(asset.id);
+              asyncBundleRootGraph.removeEdge(
+                asyncBundleRootGraph.getNodeIdByContentKey(entry.id),
+                toBeInternalizedNodeId,
               );
-              if (remainingConnections.length === 1 && containsRoot) {
-                asyncBundleRootGraph.removeNode(toBeInternalizedNodeId);
-              }
-              if (!asyncBundleRootGraph.hasNode(toBeInternalizedNodeId)) {
-                bundleGraph.removeNode(nullthrows(bundles.get(asset.id)));
-                bundleRoots.delete(asset);
-              }
-            } else if (parentBundleRoot === entry) {
-              //entries do not have asyncAncestors so we must check if its available sync
-              let hasSync = reachableRoots
-                .getNodeIdsConnectedFrom(
-                  reachableRoots.getNodeIdByContentKey(entry.id),
-                )
-                .some(id => {
-                  let a = reachableRoots.getNode(id);
-                  return a === asset;
-                });
-              if (hasSync) {
-                entryBundle.internalizedAssetIds.push(asset.id);
-                asyncBundleRootGraph.removeEdge(
-                  asyncBundleRootGraph.getNodeIdByContentKey(entry.id),
-                  toBeInternalizedNodeId,
-                );
-              }
-              if (!asyncBundleRootGraph.hasNode(toBeInternalizedNodeId)) {
-                bundleRoots.delete(asset);
-                bundleGraph.removeNode(nullthrows(bundles.get(asset.id)));
-              }
+            }
+            if (!asyncBundleRootGraph.hasNode(toBeInternalizedNodeId)) {
+              bundleRoots.delete(asset);
+              bundleGraph.removeNode(nullthrows(bundles.get(asset.id)));
             }
           }
         }
-        entryBundle.assets.add(asset);
-        entryBundle.size += asset.stats.size;
       }
+      entryBundle.assets.add(asset);
+      entryBundle.size += asset.stats.size;
+    }
 
-      // Create shared bundles for splittable bundles.
-      if (reachable.length > 0) {
-        let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
-        let key = reachable.map(a => a.id).join(',');
-        let bundleId = bundles.get(key);
-        let bundle;
-        if (bundleId == null) {
-          let firstSourceBundle = nullthrows(
-            bundleGraph.getNode(sourceBundles[0]),
-          );
-          invariant(firstSourceBundle !== 'root');
-          bundle = createBundle({
-            target: firstSourceBundle.target,
-            type: firstSourceBundle.type,
-            env: firstSourceBundle.env,
-          });
-          bundle.sourceBundles = sourceBundles;
-          bundleId = bundleGraph.addNode(bundle);
-          bundles.set(key, bundleId);
-        } else {
-          bundle = nullthrows(bundleGraph.getNode(bundleId));
-          invariant(bundle !== 'root');
-        }
-        bundle.assets.add(asset);
-        bundle.size += asset.stats.size;
-
-        for (let sourceBundleId of sourceBundles) {
-          if (bundleId !== sourceBundleId) {
-            bundleGraph.addEdge(sourceBundleId, bundleId);
-          }
-        }
-        sharedToSourceBundleIds.set(bundleId, sourceBundles);
-
-        dependencyBundleGraph.addNodeByContentKeyIfNeeded(String(bundleId), {
-          value: bundle,
-          type: 'bundle',
+    // Create shared bundles for splittable bundles.
+    if (reachable.length > 0) {
+      let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
+      let key = reachable.map(a => a.id).join(',');
+      let bundleId = bundles.get(key);
+      let bundle;
+      if (bundleId == null) {
+        let firstSourceBundle = nullthrows(
+          bundleGraph.getNode(sourceBundles[0]),
+        );
+        invariant(firstSourceBundle !== 'root');
+        bundle = createBundle({
+          target: firstSourceBundle.target,
+          type: firstSourceBundle.type,
+          env: firstSourceBundle.env,
         });
+        bundle.sourceBundles = sourceBundles;
+        bundleId = bundleGraph.addNode(bundle);
+        bundles.set(key, bundleId);
+      } else {
+        bundle = nullthrows(bundleGraph.getNode(bundleId));
+        invariant(bundle !== 'root');
       }
+      bundle.assets.add(asset);
+      bundle.size += asset.stats.size;
+
+      for (let sourceBundleId of sourceBundles) {
+        if (bundleId !== sourceBundleId) {
+          bundleGraph.addEdge(sourceBundleId, bundleId);
+        }
+      }
+      sharedToSourceBundleIds.set(bundleId, sourceBundles);
+
+      dependencyBundleGraph.addNodeByContentKeyIfNeeded(String(bundleId), {
+        value: bundle,
+        type: 'bundle',
+      });
     }
   }
 
