@@ -1126,7 +1126,7 @@ export default class BundleGraph {
 
             let aIndex = deps.indexOf(aNode.id);
             let bIndex = deps.indexOf(bNode.id);
-            return bIndex - aIndex;
+            return aIndex - bIndex;
           });
         }
 
