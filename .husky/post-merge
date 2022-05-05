@@ -1,0 +1,15 @@
+#!/bin/sh
+# Generated with husky-init and https://github.com/typicode/husky-4-to-6
+. "$(dirname "$0")/_/husky.sh"
+
+# ATLASSIAN: Update self-published (nightly) versions as part of a merge.
+# Ideally, this would be done as part of a `pre-merge-commit` hook,
+# but git does not support modifying the index during a merge commit.
+# So, we hack it in this `post-merge` hook by immediately ammending the commit.
+# Note that in cases where the merge commit did not automatically succeed,
+# this hook will not be run. See comments in `pre-commit` hook for more.
+yarn update-self-published -a
+if [[ -f .git/MERGE_HEAD ]]; then
+  rm .git/MERGE_HEAD
+fi
+git log -n 1 --pretty=tformat:%s%n%n%b | git commit -F - --amend
