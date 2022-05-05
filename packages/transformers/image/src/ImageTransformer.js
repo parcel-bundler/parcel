@@ -89,7 +89,7 @@ export default (new Transformer({
         true,
       );
 
-      let imagePipeline = sharp(inputBuffer);
+      let imagePipeline = sharp(inputBuffer, {animated: true});
 
       imagePipeline.withMetadata();
 
