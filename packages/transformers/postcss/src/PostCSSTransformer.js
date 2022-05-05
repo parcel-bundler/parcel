@@ -101,6 +101,9 @@ export default (new Transformer({
           configKey = '/plugins/postcss-modules';
           hint = md`Remove the "postcss-modules" plugin from __${filename}__`;
         }
+        if (filename === 'package.json') {
+          configKey = `/postcss${configKey}`;
+        }
 
         let hints = [
           'Enable the "cssModules" option for "@parcel/transformer-css" in your package.json',

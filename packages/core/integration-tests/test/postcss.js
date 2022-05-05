@@ -46,6 +46,37 @@ describe('postcss', () => {
     assert(css.includes(`.${cssClass}`));
   });
 
+  it('should build successfully with only postcss-modules config in package.json', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-config-package/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['foo.css', 'foo.js', 'index.css', 'index.js'],
+      },
+      {
+        name: 'index.css',
+        assets: ['foo.css', 'index.css'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    assert(/foo_[0-9a-z]/.test(value));
+
+    let cssClass = value.match(/(foo_[0-9a-z])/)[1];
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes(`.${cssClass}`));
+  });
+
   it('should support transforming with postcss twice with the same result', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-plugins/index.js'),

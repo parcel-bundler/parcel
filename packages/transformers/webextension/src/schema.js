@@ -94,6 +94,8 @@ const commonProps = {
       properties: {},
     },
   },
+  key: string,
+  update_url: string,
   chrome_settings_overrides: {
     type: 'object',
     properties: {
@@ -408,6 +410,14 @@ const commonProps = {
     additionalProperties: false,
   },
   version_name: string,
+  oauth2: {
+    type: 'object',
+    properties: {
+      client_id: string,
+      scopes: arrStr,
+    },
+    additionalProperties: false,
+  },
 };
 
 export const MV3Schema = ({
