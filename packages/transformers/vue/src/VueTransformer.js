@@ -67,7 +67,8 @@ export default (new Transformer({
     const descriptor = parsed.descriptor;
     let id = hashObject({
       filePath: asset.filePath,
-    }).slice(-6);
+      source: options.mode === 'production' ? code : null,
+    }).substring(0, 6);
 
     return {
       type: 'vue',
@@ -81,19 +82,17 @@ export default (new Transformer({
                 isProd: options.mode === 'production',
               })
             : null,
+        id,
       },
     };
   },
   async transform({asset, options, resolve, config}) {
-    let id = hashObject({
-      filePath: asset.filePath,
-    }).slice(-6);
+    let {template, script, styles, customBlocks, id} = nullthrows(
+      await asset.getAST(),
+    ).program;
     let scopeId = 'data-v-' + id;
     let hmrId = id + '-hmr';
     let basePath = basename(asset.filePath);
-    let {template, script, styles, customBlocks} = nullthrows(
-      await asset.getAST(),
-    ).program;
     if (asset.pipeline != null) {
       return processPipeline({
         asset,
