@@ -94,8 +94,6 @@ const commonProps = {
       properties: {},
     },
   },
-  key: string,
-  update_url: string,
   chrome_settings_overrides: {
     type: 'object',
     properties: {
@@ -237,6 +235,14 @@ const commonProps = {
     __validate: validateVersion,
   },
   // No NaCl modules because deprecated
+  oauth2: {
+    type: 'object',
+    properties: {
+      client_id: string,
+      scopes: arrStr,
+    },
+    additionalProperties: false,
+  },
   offline_enabled: boolean,
   omnibox: ({
     type: 'object',
@@ -402,6 +408,7 @@ const commonProps = {
     },
     additionalProperties: false,
   },
+  update_url: string,
   user_scripts: {
     type: 'object',
     properties: {
@@ -410,14 +417,6 @@ const commonProps = {
     additionalProperties: false,
   },
   version_name: string,
-  oauth2: {
-    type: 'object',
-    properties: {
-      client_id: string,
-      scopes: arrStr,
-    },
-    additionalProperties: false,
-  },
 };
 
 export const MV3Schema = ({
