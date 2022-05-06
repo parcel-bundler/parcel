@@ -68,7 +68,7 @@ export default (new Transformer({
     let id = hashObject({
       filePath: asset.filePath,
       source: options.mode === 'production' ? code : null,
-    }).substring(0, 6);
+    }).slice(-6);
 
     return {
       type: 'vue',
