@@ -236,7 +236,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     decorators::decorators(decorators::Config {
                       legacy: true,
                       // Always disabled for now, SWC's implementation doesn't match TSC.
-                      emit_metadata: false
+                      emit_metadata: false,
+                      use_define_for_class_fields: true
                     }),
                     config.decorators
                   ),
