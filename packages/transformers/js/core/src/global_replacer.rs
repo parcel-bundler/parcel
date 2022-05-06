@@ -14,7 +14,7 @@ use crate::utils::{create_require, SourceLocation, SourceType};
 pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
   pub items: &'a mut Vec<DependencyDescriptor>,
-  pub globals: HashMap<JsWord, ast::Stmt>,
+  pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub project_root: &'a Path,
   pub filename: &'a Path,
   pub decls: &'a mut HashSet<(JsWord, SyntaxContext)>,
@@ -27,7 +27,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
     use ast::{Expr::*, Ident, MemberExpr, MemberProp};
 
     // Do not traverse into the `prop` side of member expressions unless computed.
-    let node = match node {
+    let mut node = match node {
       Member(expr) => {
         if let MemberProp::Computed(_) = expr.prop {
           Member(MemberExpr {
@@ -45,130 +45,88 @@ impl<'a> Fold for GlobalReplacer<'a> {
       _ => node.fold_children_with(self),
     };
 
-    if let Ident(ref id) = node {
+    if let Ident(id) = &mut node {
       // Only handle global variables
-      if self.globals.contains_key(&id.sym)
-        || self.decls.contains(&(id.sym.clone(), id.span.ctxt()))
-      {
+      if self.decls.contains(&(id.sym.clone(), id.span.ctxt())) {
         return node;
       }
 
       match id.sym.to_string().as_str() {
         "process" => {
-          self.globals.insert(
-            id.sym.clone(),
-            create_decl_stmt(
-              id.sym.clone(),
-              self.global_mark,
-              Call(create_require(js_word!("process"))),
-            ),
-          );
-
-          // So it gets renamed during scope hoisting.
-          self.decls.insert(id.to_id());
-
-          let specifier = id.sym.clone();
-          self.items.push(DependencyDescriptor {
-            kind: DependencyKind::Require,
-            loc: SourceLocation::from(self.source_map, id.span),
-            specifier,
-            attributes: None,
-            is_optional: false,
-            is_helper: false,
-            source_type: Some(SourceType::Module),
-            placeholder: None,
-          });
+          if self.update_binding(id, |_| Call(create_require(js_word!("process")))) {
+            let specifier = id.sym.clone();
+            self.items.push(DependencyDescriptor {
+              kind: DependencyKind::Require,
+              loc: SourceLocation::from(self.source_map, id.span),
+              specifier,
+              attributes: None,
+              is_optional: false,
+              is_helper: false,
+              source_type: Some(SourceType::Module),
+              placeholder: None,
+            });
+          }
         }
         "Buffer" => {
           let specifier = swc_atoms::JsWord::from("buffer");
-          self.globals.insert(
-            id.sym.clone(),
-            create_decl_stmt(
-              id.sym.clone(),
-              self.global_mark,
-              Member(MemberExpr {
-                obj: Box::new(Call(create_require(specifier.clone()))),
-                prop: MemberProp::Ident(ast::Ident::new("Buffer".into(), DUMMY_SP)),
-                span: DUMMY_SP,
-              }),
-            ),
-          );
-
-          self.decls.insert(id.to_id());
-
-          self.items.push(DependencyDescriptor {
-            kind: DependencyKind::Require,
-            loc: SourceLocation::from(self.source_map, id.span),
-            specifier,
-            attributes: None,
-            is_optional: false,
-            is_helper: false,
-            source_type: Some(SourceType::Module),
-            placeholder: None,
-          });
+          if self.update_binding(id, |_| {
+            Member(MemberExpr {
+              obj: Box::new(Call(create_require(specifier.clone()))),
+              prop: MemberProp::Ident(ast::Ident::new("Buffer".into(), DUMMY_SP)),
+              span: DUMMY_SP,
+            })
+          }) {
+            self.items.push(DependencyDescriptor {
+              kind: DependencyKind::Require,
+              loc: SourceLocation::from(self.source_map, id.span),
+              specifier,
+              attributes: None,
+              is_optional: false,
+              is_helper: false,
+              source_type: Some(SourceType::Module),
+              placeholder: None,
+            });
+          }
         }
         "__filename" => {
-          let filename =
-            if let Some(relative) = pathdiff::diff_paths(self.filename, self.project_root) {
-              relative.to_slash_lossy()
-            } else if let Some(filename) = self.filename.file_name() {
-              format!("/{}", filename.to_string_lossy())
-            } else {
-              String::from("/unknown.js")
-            };
-
-          self.globals.insert(
-            id.sym.clone(),
-            create_decl_stmt(
-              id.sym.clone(),
-              self.global_mark,
-              ast::Expr::Lit(ast::Lit::Str(swc_atoms::JsWord::from(filename).into())),
-            ),
-          );
-
-          self.decls.insert(id.to_id());
+          self.update_binding(id, |this| {
+            let filename =
+              if let Some(relative) = pathdiff::diff_paths(this.filename, this.project_root) {
+                relative.to_slash_lossy()
+              } else if let Some(filename) = this.filename.file_name() {
+                format!("/{}", filename.to_string_lossy())
+              } else {
+                String::from("/unknown.js")
+              };
+            ast::Expr::Lit(ast::Lit::Str(swc_atoms::JsWord::from(filename).into()))
+          });
         }
         "__dirname" => {
-          let dirname = if let Some(dirname) = self.filename.parent() {
-            if let Some(relative) = pathdiff::diff_paths(dirname, self.project_root) {
-              relative.to_slash_lossy()
+          self.update_binding(id, |this| {
+            let dirname = if let Some(dirname) = this.filename.parent() {
+              if let Some(relative) = pathdiff::diff_paths(dirname, this.project_root) {
+                relative.to_slash_lossy()
+              } else {
+                String::from("/")
+              }
             } else {
               String::from("/")
-            }
-          } else {
-            String::from("/")
-          };
-
-          self.globals.insert(
-            id.sym.clone(),
-            create_decl_stmt(
-              id.sym.clone(),
-              self.global_mark,
-              ast::Expr::Lit(ast::Lit::Str(swc_atoms::JsWord::from(dirname).into())),
-            ),
-          );
-
-          self.decls.insert(id.to_id());
+            };
+            ast::Expr::Lit(ast::Lit::Str(swc_atoms::JsWord::from(dirname).into()))
+          });
         }
         "global" => {
           if !self.scope_hoist {
-            self.globals.insert(
-              id.sym.clone(),
-              create_decl_stmt(
-                id.sym.clone(),
-                self.global_mark,
-                ast::Expr::Member(ast::MemberExpr {
-                  obj: Box::new(Ident(Ident::new(js_word!("arguments"), DUMMY_SP))),
-                  prop: MemberProp::Computed(ComputedPropName {
-                    span: DUMMY_SP,
-                    expr: Box::new(Lit(ast::Lit::Num(3.into()))),
-                  }),
+            self.update_binding(id, |_| {
+              ast::Expr::Member(ast::MemberExpr {
+                obj: Box::new(Ident(Ident::new(js_word!("arguments"), DUMMY_SP))),
+                prop: MemberProp::Computed(ComputedPropName {
                   span: DUMMY_SP,
+                  expr: Box::new(Lit(ast::Lit::Num(3.into()))),
                 }),
-              ),
-            );
-
-            self.decls.insert(id.to_id());
+                span: DUMMY_SP,
+              })
+            });
           }
         }
         _ => {}
@@ -186,7 +144,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
       self
         .globals
         .values()
-        .map(|stmt| ast::ModuleItem::Stmt(stmt.clone())),
+        .map(|(_, stmt)| ast::ModuleItem::Stmt(stmt.clone())),
     );
     node
   }
@@ -196,19 +154,40 @@ fn create_decl_stmt(
   name: swc_atoms::JsWord,
   global_mark: swc_common::Mark,
   init: ast::Expr,
-) -> ast::Stmt {
-  ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
-    kind: ast::VarDeclKind::Var,
-    declare: false,
-    span: DUMMY_SP,
-    decls: vec![ast::VarDeclarator {
-      name: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new(
-        name,
-        DUMMY_SP.apply_mark(global_mark),
-      ))),
+) -> (ast::Stmt, SyntaxContext) {
+  let span = DUMMY_SP.apply_mark(global_mark);
+  (
+    ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
+      kind: ast::VarDeclKind::Var,
+      declare: false,
       span: DUMMY_SP,
-      definite: false,
-      init: Some(Box::new(init)),
-    }],
-  }))
+      decls: vec![ast::VarDeclarator {
+        name: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new(name, span))),
+        span: DUMMY_SP,
+        definite: false,
+        init: Some(Box::new(init)),
+      }],
+    })),
+    span.ctxt,
+  )
+}
+
+impl GlobalReplacer<'_> {
+  fn update_binding<F>(&mut self, id: &mut ast::Ident, expr: F) -> bool
+  where
+    F: FnOnce(&Self) -> ast::Expr,
+  {
+    if let Some((ctxt, _)) = self.globals.get(&id.sym) {
+      id.span.ctxt = *ctxt;
+      false
+    } else {
+      let (decl, ctxt) = create_decl_stmt(id.sym.clone(), self.global_mark, expr(self));
+
+      self.globals.insert(id.sym.clone(), (ctxt, decl));
+      self.decls.insert(id.to_id());
+
+      id.span.ctxt = ctxt;
+      true
+    }
+  }
 }
