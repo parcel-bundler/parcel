@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use swc_atoms::JsWord;
-use swc_common::{SourceMap, SyntaxContext, DUMMY_SP};
+use swc_common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::{self};
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::{Fold, FoldWith};
@@ -48,9 +48,7 @@ impl<'a> Fold for NodeReplacer<'a> {
 
     if let Ident(id) = &mut node {
       // Only handle global variables
-      if self.globals.contains_key(&id.sym)
-        || self.decls.contains(&(id.sym.clone(), id.span.ctxt()))
-      {
+      if self.decls.contains(&(id.sym.clone(), id.span.ctxt())) {
         return node;
       }
 
@@ -191,7 +189,10 @@ fn create_decl_stmt(
   global_mark: swc_common::Mark,
   init: ast::Expr,
 ) -> (ast::Stmt, SyntaxContext) {
-  let span = DUMMY_SP.apply_mark(global_mark);
+  let span = DUMMY_SP
+    .apply_mark(global_mark)
+    .apply_mark(Mark::fresh(Mark::root()));
+
   (
     ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
       kind: ast::VarDeclKind::Var,
@@ -219,10 +220,11 @@ impl NodeReplacer<'_> {
     } else {
       let (decl, ctxt) = create_decl_stmt(id.sym.clone(), self.global_mark, expr(self));
 
+      id.span.ctxt = ctxt;
+
       self.globals.insert(id.sym.clone(), (ctxt, decl));
       self.decls.insert(id.to_id());
 
-      id.span.ctxt = ctxt;
       true
     }
   }
