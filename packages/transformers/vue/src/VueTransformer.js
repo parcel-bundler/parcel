@@ -49,7 +49,7 @@ export default (new Transformer({
   canReuseAST({ast}) {
     return ast.type === 'vue' && semver.satisfies(ast.version, '^3.0.0');
   },
-  async parse({asset}) {
+  async parse({asset, options}) {
     // TODO: This parses the vue component multiple times. Fix?
     let code = await asset.getCode();
     let parsed = compiler.parse(code, {
@@ -64,22 +64,35 @@ export default (new Transformer({
       });
     }
 
+    const descriptor = parsed.descriptor;
+    let id = hashObject({
+      filePath: asset.filePath,
+      source: options.mode === 'production' ? code : null,
+    }).slice(-6);
+
     return {
       type: 'vue',
       version: '3.0.0',
-      program: parsed.descriptor,
+      program: {
+        ...descriptor,
+        script:
+          descriptor.script != null || descriptor.scriptSetup != null
+            ? compiler.compileScript(descriptor, {
+                id,
+                isProd: options.mode === 'production',
+              })
+            : null,
+        id,
+      },
     };
   },
   async transform({asset, options, resolve, config}) {
-    let id = hashObject({
-      filePath: asset.filePath,
-    }).slice(-6);
+    let {template, script, styles, customBlocks, id} = nullthrows(
+      await asset.getAST(),
+    ).program;
     let scopeId = 'data-v-' + id;
     let hmrId = id + '-hmr';
     let basePath = basename(asset.filePath);
-    let {template, script, styles, customBlocks} = nullthrows(
-      await asset.getAST(),
-    ).program;
     if (asset.pipeline != null) {
       return processPipeline({
         asset,
@@ -230,8 +243,12 @@ async function processPipeline({
         inMap: template.src ? undefined : template.map,
         scoped: styles.some(style => style.scoped),
         isFunctional,
+        compilerOptions: {
+          ...config.compilerOptions,
+          bindingMetadata: script ? script.bindings : undefined,
+        },
+        isProd: options.mode === 'production',
         id,
-        compilerOptions: config.compilerOptions,
       });
       if (templateComp.errors.length) {
         throw new ThrowableDiagnostic({
@@ -351,7 +368,8 @@ ${
             modules: style.module,
             preprocessLang: style.lang || 'css',
             scoped: style.scoped,
-            map: style.src ? undefined : style.map,
+            inMap: style.src ? undefined : style.map,
+            isProd: options.mode === 'production',
             id,
           });
           if (styleComp.errors.length) {
