@@ -232,8 +232,6 @@ async function processPipeline({
           case 'pug':
             options.doctype = 'html';
             break;
-          default:
-            break;
         }
         if (!preprocessor) {
           // TODO: codeframe
