@@ -115,11 +115,20 @@ function resolveLocalElmBinary() {
 }
 
 function compileToString(elm, elmBinary, asset, config) {
-  const extraSources = asset.query.get('with');
-  const sources = extraSources
-    ? [asset.filePath, ...extraSources.split(',')]
-    : asset.filePath;
-  return elm.compileToString(sources, {
+  const withParam = asset.query.get('with');
+  const dirname = path.dirname(asset.filePath);
+  let extraSources = [];
+  if (withParam) {
+    extraSources = withParam
+      .split(',')
+      .map(relPath => path.join(dirname, relPath));
+
+    extraSources.forEach(filePath => {
+      asset.invalidateOnFileChange(filePath);
+    });
+  }
+
+  return elm.compileToString([asset.filePath, ...extraSources], {
     pathToElm: elmBinary,
     ...config,
   });
