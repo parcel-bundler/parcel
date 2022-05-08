@@ -115,7 +115,11 @@ function resolveLocalElmBinary() {
 }
 
 function compileToString(elm, elmBinary, asset, config) {
-  return elm.compileToString(asset.filePath, {
+  const extraSources = asset.query.get('with');
+  const sources = extraSources
+    ? [asset.filePath, ...extraSources.split(',')]
+    : asset.filePath;
+  return elm.compileToString(sources, {
     pathToElm: elmBinary,
     ...config,
   });
