@@ -156,6 +156,7 @@ fn create_decl_stmt(
   init: ast::Expr,
 ) -> (ast::Stmt, SyntaxContext) {
   let span = DUMMY_SP
+    // TODO this shouldn't actually be marked global because it's generated
     .apply_mark(global_mark)
     .apply_mark(Mark::fresh(Mark::root()));
 
