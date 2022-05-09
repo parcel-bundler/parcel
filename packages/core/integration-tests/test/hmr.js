@@ -10,6 +10,7 @@ import {
   overlayFS,
   sleep,
   run,
+  request,
 } from '@parcel/test-utils';
 import WebSocket from 'ws';
 import json5 from 'json5';
@@ -110,6 +111,7 @@ describe('hmr', function () {
     return {
       outputs: JSON.parse(JSON.stringify(outputs)),
       reloaded,
+      bundleGraph,
     };
   }
 
@@ -157,10 +159,12 @@ describe('hmr', function () {
       assert.equal(message.type, 'update');
 
       // Figure out why output doesn't change...
-      let localAsset = message.assets.find(
-        asset => asset.output === 'exports.a = 5;\nexports.b = 5;\n',
+      let localAsset = message.assets.find(asset =>
+        asset.output.includes('exports.a = 5;\nexports.b = 5;\n'),
       );
       assert(!!localAsset);
+      assert(localAsset.output.includes('//# sourceMappingURL'));
+      assert(localAsset.output.includes('//# sourceURL'));
     });
 
     it('should emit an HMR update for all new dependencies along with the changed file', async function () {
@@ -330,6 +334,31 @@ describe('hmr', function () {
       let message = await nextWSMessage(nullthrows(ws));
 
       assert.equal(message.type, 'update');
+    });
+
+    it('should respond to requests for assets by id', async function () {
+      let port = await getPort();
+      let b = bundler(path.join(__dirname, '/input/index.js'), {
+        serveOptions: {port},
+        hmrOptions: {port},
+        inputFS: overlayFS,
+        config,
+      });
+
+      subscription = await b.watch();
+      let event = await getNextBuild(b);
+
+      let bundleGraph = nullthrows(event.bundleGraph);
+      let asset = nullthrows(bundleGraph.getBundles()[0].getMainEntry());
+      let contents = await request('/__parcel_hmr/' + asset.id, port);
+      let publicId = nullthrows(bundleGraph).getAssetPublicId(asset);
+      assert(
+        contents.startsWith(
+          `parcelHotUpdate['${publicId}'] = function (require, module, exports) {`,
+        ),
+      );
+      assert(contents.includes('//# sourceMappingURL'));
+      assert(contents.includes('//# sourceURL'));
     });
   });
 
@@ -546,6 +575,29 @@ module.hot.dispose((data) => {
       assert(/test\.[0-9a-f]+\.txt/, url.pathname);
       assert(!isNaN(url.search.slice(1)));
       assert.notEqual(url.search, search);
+    });
+
+    it('should have correct source locations in errors', async function () {
+      let {outputs, bundleGraph} = await testHMRClient(
+        'hmr-accept-self',
+        () => {
+          return {
+            'local.js': 'output(new Error().stack);',
+          };
+        },
+      );
+
+      let asset = bundleGraph
+        .getBundles()[0]
+        .traverseAssets((asset, _, actions) => {
+          if (asset.filePath.endsWith('local.js')) {
+            actions.stop();
+            return asset;
+          }
+        });
+
+      let stack = outputs.pop();
+      assert(stack.includes('/__parcel_hmr/' + nullthrows(asset).id));
     });
 
     /*
