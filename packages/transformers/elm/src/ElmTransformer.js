@@ -59,9 +59,10 @@ export default (new Transformer({
     const dependencies = await Promise.all(
       sources.map(elm.findAllDependencies),
     );
-    for (const filePath of new Set(dependencies)) {
+    const uniqueDeps = new Set(dependencies.flat());
+    Array.from(uniqueDeps).forEach(filePath => {
       asset.invalidateOnFileChange(filePath);
-    }
+    });
 
     // Workaround for `chdir` not working in workers
     // this can be removed after https://github.com/isaacs/node-graceful-fs/pull/200 was mergend and used in parcel
