@@ -785,10 +785,6 @@ impl<'a> Fold for Hoist<'a> {
       return Ident::new("$parcel$global".into(), node.span);
     }
 
-    // TODO
-    // neither ctxt == DUMMY_SP.apply_mark(global_mark)
-    // nor     span.has_mark(self.collect.global_mark)
-    // are correct.
     if node.span.has_mark(self.collect.global_mark)
       && self.collect.decls.contains(&id!(node))
       && !self.collect.should_wrap
@@ -1078,7 +1074,6 @@ pub struct Collect {
   pub decls: HashSet<IdentId>,
   pub ignore_mark: Mark,
   pub global_mark: Mark,
-  pub global_ctxt: SyntaxContext,
   pub static_cjs_exports: bool,
   pub has_cjs_exports: bool,
   pub is_esm: bool,
@@ -1145,7 +1140,6 @@ impl Collect {
       decls,
       ignore_mark,
       global_mark,
-      global_ctxt: SyntaxContext::empty().apply_mark(global_mark),
       static_cjs_exports: true,
       has_cjs_exports: false,
       is_esm: false,
@@ -1554,11 +1548,7 @@ impl Visit for Collect {
         .or_insert_with(|| node.id.sym.clone());
     }
 
-    // TODO
-    // neither ctxt == DUMMY_SP.apply_mark(global_mark)
-    // nor     span.has_mark(self.collect.global_mark)
-    // are correct.
-    if self.in_assign && node.id.span.ctxt() == self.global_ctxt {
+    if self.in_assign && node.id.span.has_mark(self.global_mark) {
       self
         .non_const_bindings
         .entry(id!(node.id))
@@ -1583,11 +1573,7 @@ impl Visit for Collect {
         .or_insert_with(|| node.key.sym.clone());
     }
 
-    // TODO
-    // neither ctxt == DUMMY_SP.apply_mark(global_mark)
-    // nor     span.has_mark(self.collect.global_mark)
-    // are correct.
-    if self.in_assign && node.key.span.ctxt() == self.global_ctxt {
+    if self.in_assign && node.key.span.has_mark(self.global_mark) {
       self
         .non_const_bindings
         .entry(id!(node.key))

@@ -18,7 +18,6 @@ pub struct GlobalReplacer<'a> {
   pub project_root: &'a Path,
   pub filename: &'a Path,
   pub decls: &'a mut HashSet<(JsWord, SyntaxContext)>,
-  pub global_mark: swc_common::Mark,
   pub scope_hoist: bool,
 }
 
@@ -150,15 +149,8 @@ impl<'a> Fold for GlobalReplacer<'a> {
   }
 }
 
-fn create_decl_stmt(
-  name: swc_atoms::JsWord,
-  global_mark: swc_common::Mark,
-  init: ast::Expr,
-) -> (ast::Stmt, SyntaxContext) {
-  let span = DUMMY_SP
-    // TODO this shouldn't actually be marked global because it's generated
-    .apply_mark(global_mark)
-    .apply_mark(Mark::fresh(Mark::root()));
+fn create_decl_stmt(name: swc_atoms::JsWord, init: ast::Expr) -> (ast::Stmt, SyntaxContext) {
+  let span = DUMMY_SP.apply_mark(Mark::fresh(Mark::root()));
 
   (
     ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
@@ -185,7 +177,7 @@ impl GlobalReplacer<'_> {
       id.span.ctxt = *ctxt;
       false
     } else {
-      let (decl, ctxt) = create_decl_stmt(id.sym.clone(), self.global_mark, expr(self));
+      let (decl, ctxt) = create_decl_stmt(id.sym.clone(), expr(self));
 
       id.span.ctxt = ctxt;
 

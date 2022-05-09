@@ -345,7 +345,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       project_root: Path::new(&config.project_root),
                       filename: Path::new(&config.filename),
                       decls: &mut decls,
-                      global_mark,
                       scope_hoist: config.scope_hoist
                     },
                     config.insert_node_globals && config.source_type != SourceType::Script
@@ -370,6 +369,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 module.fold_with(&mut passes)
               };
 
+              // regnerate decls after preset-env ran
+              let mut decls = collect_decls(&module);
+
               let mut has_node_replacements = false;
               let module = module.fold_with(
                 // Replace __dirname and __filename with placeholders in Node env
@@ -381,7 +383,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     project_root: Path::new(&config.project_root),
                     filename: Path::new(&config.filename),
                     decls: &mut decls,
-                    global_mark,
                     scope_hoist: config.scope_hoist,
                     has_node_replacements: &mut has_node_replacements,
                   },
@@ -411,6 +412,19 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 result.diagnostics = Some(diagnostics);
                 return Ok(result);
               }
+
+              // Flush (JsWord, SyntaxContexts) into unique names and reresolve to
+              // set global_mark for all nodes, even generated ones.
+              // (This changes the syntax context ids and therefore invalidates decls)
+              let (decls, module) = if config.scope_hoist {
+                let module = module.fold_with(&mut chain!(
+                  hygiene(),
+                  resolver(unresolved_mark, global_mark, false)
+                ));
+                (collect_decls(&module), module)
+              } else {
+                (decls, module)
+              };
 
               let mut collect = Collect::new(
                 source_map.clone(),
