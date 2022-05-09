@@ -834,10 +834,7 @@ ${code}
       // use a helper to check the __esModule flag at runtime.
       let kind = dep?.meta.kind;
       if (
-        (!dep ||
-          kind === 'Import' ||
-          kind === 'Require' ||
-          kind === 'Export') &&
+        (!dep || kind === 'Import' || kind === 'Export') &&
         exportSymbol === 'default' &&
         resolvedAsset.symbols.hasExportSymbol('*') &&
         this.needsDefaultInterop(resolvedAsset)

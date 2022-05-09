@@ -51,6 +51,7 @@ struct ImportedSymbol {
   local: JsWord,
   imported: JsWord,
   loc: SourceLocation,
+  kind: ImportKind,
 }
 
 struct Hoist<'a> {
@@ -208,6 +209,7 @@ impl<'a> Fold for Hoist<'a> {
                         local: exported,
                         imported: match_export_name(&named.orig).0,
                         loc: SourceLocation::from(&self.collect.source_map, named.span),
+                        kind: ImportKind::Import,
                       });
                     }
                     ExportSpecifier::Default(default) => {
@@ -216,6 +218,7 @@ impl<'a> Fold for Hoist<'a> {
                         local: default.exported.sym,
                         imported: js_word!("default"),
                         loc: SourceLocation::from(&self.collect.source_map, default.exported.span),
+                        kind: ImportKind::Import,
                       });
                     }
                     ExportSpecifier::Namespace(namespace) => {
@@ -224,6 +227,7 @@ impl<'a> Fold for Hoist<'a> {
                         local: match_export_name(&namespace.name).0,
                         imported: "*".into(),
                         loc: SourceLocation::from(&self.collect.source_map, namespace.span),
+                        kind: ImportKind::Import,
                       });
                     }
                   }
@@ -237,7 +241,10 @@ impl<'a> Fold for Hoist<'a> {
                       None => match_export_name(&named.orig).0,
                     };
                     if let Some(Import {
-                      source, specifier, ..
+                      source,
+                      specifier,
+                      kind,
+                      ..
                     }) = self.collect.imports.get(&id)
                     {
                       self.re_exports.push(ImportedSymbol {
@@ -245,6 +252,7 @@ impl<'a> Fold for Hoist<'a> {
                         local: exported,
                         imported: specifier.clone(),
                         loc: SourceLocation::from(&self.collect.source_map, named.span),
+                        kind: *kind,
                       });
                     } else {
                       // A variable will appear only once in the `exports` mapping but
@@ -285,6 +293,7 @@ impl<'a> Fold for Hoist<'a> {
                 local: "*".into(),
                 imported: "*".into(),
                 loc: SourceLocation::from(&self.collect.source_map, export.span),
+                kind: ImportKind::Import,
               });
             }
             ModuleDecl::ExportDefaultExpr(export) => {
@@ -562,6 +571,7 @@ impl<'a> Fold for Hoist<'a> {
                     local: name,
                     imported: key.clone(),
                     loc: SourceLocation::from(&self.collect.source_map, member.span),
+                    kind: *kind,
                   });
                 } else {
                   return Expr::Ident(self.get_import_ident(
@@ -569,6 +579,7 @@ impl<'a> Fold for Hoist<'a> {
                     source,
                     &key,
                     SourceLocation::from(&self.collect.source_map, member.span),
+                    *kind,
                   ));
                 }
               }
@@ -596,6 +607,7 @@ impl<'a> Fold for Hoist<'a> {
                 &source,
                 &key,
                 SourceLocation::from(&self.collect.source_map, member.span),
+                ImportKind::Require,
               ));
             }
           }
@@ -639,6 +651,7 @@ impl<'a> Fold for Hoist<'a> {
             &source,
             &("*".into()),
             SourceLocation::from(&self.collect.source_map, call.span),
+            ImportKind::Require,
           ));
         }
 
@@ -652,6 +665,7 @@ impl<'a> Fold for Hoist<'a> {
               local: name.clone(),
               imported: "*".into(),
               loc: SourceLocation::from(&self.collect.source_map, call.span),
+              kind: ImportKind::DynamicImport,
             });
           }
           return Expr::Ident(Ident::new(name, call.span));
@@ -733,6 +747,7 @@ impl<'a> Fold for Hoist<'a> {
               local: name,
               imported: specifier.clone(),
               loc: loc.clone(),
+              kind: *kind,
             });
           } else if self.collect.non_static_access.contains_key(&id!(node)) {
             let name: JsWord =
@@ -742,6 +757,7 @@ impl<'a> Fold for Hoist<'a> {
               local: name,
               imported: "*".into(),
               loc: loc.clone(),
+              kind: *kind,
             });
           }
         } else {
@@ -754,7 +770,7 @@ impl<'a> Fold for Hoist<'a> {
             return self.get_require_ident(&node.sym);
           }
 
-          return self.get_import_ident(node.span, source, specifier, loc.clone());
+          return self.get_import_ident(node.span, source, specifier, loc.clone(), *kind);
         }
       }
     }
@@ -960,6 +976,7 @@ impl<'a> Hoist<'a> {
     source: &JsWord,
     imported: &JsWord,
     loc: SourceLocation,
+    kind: ImportKind,
   ) -> Ident {
     let new_name = self.get_import_name(source, imported);
     self.imported_symbols.push(ImportedSymbol {
@@ -967,6 +984,7 @@ impl<'a> Hoist<'a> {
       local: new_name.clone(),
       imported: imported.clone(),
       loc,
+      kind,
     });
     Ident::new(new_name, span)
   }
@@ -1007,13 +1025,17 @@ impl<'a> Hoist<'a> {
       .get_non_const_binding_idents(&v.name, &mut non_const_bindings);
 
     for ident in non_const_bindings {
-      if let Some(Import { specifier, .. }) = self.collect.imports.get(&id!(ident)) {
+      if let Some(Import {
+        specifier, kind, ..
+      }) = self.collect.imports.get(&id!(ident))
+      {
         let require_id = self.get_require_ident(&ident.sym);
         let import_id = self.get_import_ident(
           v.span,
           source,
           specifier,
           SourceLocation::from(&self.collect.source_map, v.span),
+          *kind,
         );
         self
           .module_items
@@ -1047,7 +1069,7 @@ macro_rules! collect_visit_fn {
   };
 }
 
-#[derive(Debug, PartialEq, Clone, Copy, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Clone, Copy, Serialize)]
 pub enum ImportKind {
   Require,
   Import,
