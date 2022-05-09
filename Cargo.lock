@@ -1944,9 +1944,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.82.3"
+version = "0.82.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c63c75659d4193194abf6e3d8df3e843243d4c8df9c2562d091b8824cae7de1"
+checksum = "53d19055f788b054ce3a177ccebb6ad1d698c8d8c5b32961511cdfd216bfab2e"
 dependencies = [
  "better_scoped_tls",
  "once_cell",
@@ -2042,9 +2042,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_optimization"
-version = "0.121.0"
+version = "0.121.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6186848e501bd42494a8c74cc44200d41ec9fe14c16708a953824290cc9523e0"
+checksum = "ab3967d4802307511e3f76e844695f80a3a339e67f5567b1f3b4c615b5e75218"
 dependencies = [
  "ahash",
  "dashmap",
