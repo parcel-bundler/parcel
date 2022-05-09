@@ -48,7 +48,18 @@ export default (new Transformer({
       optimize: asset.env.shouldOptimize,
     };
     asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
-    for (const filePath of await elm.findAllDependencies(asset.filePath)) {
+
+    const dirname = path.dirname(asset.filePath);
+    const extraSources = resolveExtraSources(asset);
+
+    extraSources.forEach(filePath => {
+      asset.invalidateOnFileChange(filePath);
+    });
+    const sources = [asset.filePath, ...extraSources];
+    const dependencies = await Promise.all(
+      sources.map(elm.findAllDependencies),
+    );
+    for (const filePath of new Set(dependencies)) {
       asset.invalidateOnFileChange(filePath);
     }
 
@@ -58,7 +69,7 @@ export default (new Transformer({
     process.chdir.disabled = isWorker;
     let code;
     try {
-      code = await compileToString(elm, elmBinary, asset, compilerConfig);
+      code = await compileToString(elm, elmBinary, sources, compilerConfig);
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: {
@@ -79,6 +90,16 @@ export default (new Transformer({
     return [asset];
   },
 }): Transformer);
+
+// gather extra modules that should be added to the compilation process
+function resolveExtraSources(asset) {
+  const withParam = asset.query.get('with');
+  if (withParam === null) {
+    return [];
+  }
+  const dirname = path.dirname(asset.filePath);
+  return withParam.split(',').map(relPath => path.join(dirname, relPath));
+}
 
 function elmBinaryPath() {
   let elmBinary = resolveLocalElmBinary();
@@ -114,21 +135,8 @@ function resolveLocalElmBinary() {
   }
 }
 
-function compileToString(elm, elmBinary, asset, config) {
-  const withParam = asset.query.get('with');
-  const dirname = path.dirname(asset.filePath);
-  let extraSources = [];
-  if (withParam) {
-    extraSources = withParam
-      .split(',')
-      .map(relPath => path.join(dirname, relPath));
-
-    extraSources.forEach(filePath => {
-      asset.invalidateOnFileChange(filePath);
-    });
-  }
-
-  return elm.compileToString([asset.filePath, ...extraSources], {
+function compileToString(elm, elmBinary, sources, config) {
+  return elm.compileToString(sources, {
     pathToElm: elmBinary,
     ...config,
   });
