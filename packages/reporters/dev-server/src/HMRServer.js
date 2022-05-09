@@ -1,6 +1,13 @@
 // @flow
 
-import type {BuildSuccessEvent, Dependency, PluginOptions} from '@parcel/types';
+import type {
+  BuildSuccessEvent,
+  Dependency,
+  PluginOptions,
+  BundleGraph,
+  PackagedBundle,
+  Asset,
+} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {ServerError, HMRServerOptions} from './types.js.flow';
@@ -8,9 +15,11 @@ import type {ServerError, HMRServerOptions} from './types.js.flow';
 import WebSocket from 'ws';
 import invariant from 'assert';
 import {ansiHtml, prettyDiagnostic, PromiseQueue} from '@parcel/utils';
+import {HMR_ENDPOINT} from './Server';
 
 export type HMRAsset = {|
   id: string,
+  url: string,
   type: string,
   output: string,
   envHash: string,
@@ -26,7 +35,7 @@ export type HMRMessage =
       type: 'error',
       diagnostics: {|
         ansi: Array<AnsiDiagnosticResult>,
-        html: Array<AnsiDiagnosticResult>,
+        html: Array<$Rest<AnsiDiagnosticResult, {|codeframe: string|}>>,
       |},
     |};
 
@@ -81,7 +90,10 @@ export default class HMRServer {
           return {
             message: ansiHtml(d.message),
             stack: ansiHtml(d.stack),
-            codeframe: ansiHtml(d.codeframe),
+            frames: d.frames.map(f => ({
+              location: f.location,
+              code: ansiHtml(f.code),
+            })),
             hints: d.hints.map(hint => ansiHtml(hint)),
             documentation: diagnostics[i].documentationURL ?? '',
           };
@@ -141,9 +153,13 @@ export default class HMRServer {
 
         return {
           id: event.bundleGraph.getAssetPublicId(asset),
+          url: getSourceURL(event.bundleGraph, asset),
           type: asset.type,
           // No need to send the contents of non-JS assets to the client.
-          output: asset.type === 'js' ? await asset.getCode() : '',
+          output:
+            asset.type === 'js'
+              ? await getHotAssetContents(event.bundleGraph, asset)
+              : '',
           envHash: asset.env.id,
           depsByBundle,
         };
@@ -184,4 +200,35 @@ function getSpecifier(dep: Dependency): string {
   }
 
   return dep.specifier;
+}
+
+export async function getHotAssetContents(
+  bundleGraph: BundleGraph<PackagedBundle>,
+  asset: Asset,
+): Promise<string> {
+  let output = await asset.getCode();
+  if (asset.type === 'js') {
+    let publicId = bundleGraph.getAssetPublicId(asset);
+    output = `parcelHotUpdate['${publicId}'] = function (require, module, exports) {${output}}`;
+  }
+
+  let sourcemap = await asset.getMap();
+  if (sourcemap) {
+    let sourcemapStringified = await sourcemap.stringify({
+      format: 'inline',
+      sourceRoot: '/__parcel_source_root/',
+      // $FlowFixMe
+      fs: asset.fs,
+    });
+
+    invariant(typeof sourcemapStringified === 'string');
+    output += `\n//# sourceMappingURL=${sourcemapStringified}`;
+    output += `\n//# sourceURL=${getSourceURL(bundleGraph, asset)}\n`;
+  }
+
+  return output;
+}
+
+function getSourceURL(bundleGraph, asset) {
+  return HMR_ENDPOINT + asset.id;
 }
