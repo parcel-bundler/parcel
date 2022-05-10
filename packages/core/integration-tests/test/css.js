@@ -292,7 +292,7 @@ describe('css', () => {
         diagnostics: [
           {
             message:
-              'Ambiguous url() in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead.',
+              "Ambiguous url('foo.png') in custom property. Relative paths are resolved from the location the var() is used, not where the custom property is defined. Use an absolute URL instead",
             origin: '@parcel/transformer-css',
             name: 'SyntaxError',
             stack: undefined,

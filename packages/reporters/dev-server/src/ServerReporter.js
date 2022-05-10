@@ -34,6 +34,7 @@ export default (new Reporter({
             inputFS: options.inputFS,
             outputFS: options.outputFS,
             logger,
+            hmrOptions,
           };
 
           server = new Server(serverOptions);

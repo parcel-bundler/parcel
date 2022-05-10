@@ -255,17 +255,19 @@ export function getJSONSourceLocation(
   start: DiagnosticHighlightLocation,
   end: DiagnosticHighlightLocation,
 |} {
-  if (!type && pos.key && pos.value) {
+  let key = 'key' in pos ? pos.key : undefined;
+  let keyEnd = 'keyEnd' in pos ? pos.keyEnd : undefined;
+  if (!type && key && pos.value) {
     // key and value
     return {
-      start: {line: pos.key.line + 1, column: pos.key.column + 1},
+      start: {line: key.line + 1, column: key.column + 1},
       end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
     };
   } else if (type == 'key' || !pos.value) {
-    invariant(pos.key && pos.keyEnd);
+    invariant(key && keyEnd);
     return {
-      start: {line: pos.key.line + 1, column: pos.key.column + 1},
-      end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column},
+      start: {line: key.line + 1, column: key.column + 1},
+      end: {line: keyEnd.line + 1, column: keyEnd.column},
     };
   } else {
     return {

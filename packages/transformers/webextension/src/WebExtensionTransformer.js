@@ -353,13 +353,20 @@ export default (new Transformer({
     // browsers, and because it avoids delegating extra config to the user
     asset.setEnvironment({
       context: 'browser',
-      engines: asset.env.engines,
-      shouldOptimize: asset.env.shouldOptimize,
-      sourceMap: {
+      engines: {
+        browsers: asset.env.engines.browsers,
+      },
+      sourceMap: asset.env.sourceMap && {
         ...asset.env.sourceMap,
         inline: true,
         inlineSources: true,
       },
+      includeNodeModules: asset.env.includeNodeModules,
+      outputFormat: asset.env.outputFormat,
+      sourceType: asset.env.sourceType,
+      isLibrary: asset.env.isLibrary,
+      shouldOptimize: asset.env.shouldOptimize,
+      shouldScopeHoist: asset.env.shouldScopeHoist,
     });
     const code = await asset.getCode();
     const parsed = parse(code);
