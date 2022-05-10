@@ -228,7 +228,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
               let global_mark = Mark::fresh(Mark::root());
               let unresolved_mark = Mark::fresh(Mark::root());
-              let ignore_mark = Mark::fresh(Mark::root());
               module = {
                 let mut passes = chain!(
                   // Decorators can use type information, so must run before the TypeScript pass.
@@ -391,6 +390,21 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               );
               result.has_node_replacements = has_node_replacements;
 
+              // Flush (JsWord, SyntaxContexts) into unique names and reresolve to
+              // set global_mark for all nodes, even generated ones.
+              // - This changes the syntax context ids and therefore invalidates decls
+              // - This will also remove any other other marks (like ignore_mark)
+              let (decls, module) = if config.scope_hoist {
+                let module = module.fold_with(&mut chain!(
+                  hygiene(),
+                  resolver(unresolved_mark, global_mark, false)
+                ));
+                (collect_decls(&module), module)
+              } else {
+                (decls, module)
+              };
+
+              let ignore_mark = Mark::fresh(Mark::root());
               let module = module.fold_with(
                 // Collect dependencies
                 &mut dependency_collector(
@@ -412,19 +426,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 result.diagnostics = Some(diagnostics);
                 return Ok(result);
               }
-
-              // Flush (JsWord, SyntaxContexts) into unique names and reresolve to
-              // set global_mark for all nodes, even generated ones.
-              // (This changes the syntax context ids and therefore invalidates decls)
-              let (decls, module) = if config.scope_hoist {
-                let module = module.fold_with(&mut chain!(
-                  hygiene(),
-                  resolver(unresolved_mark, global_mark, false)
-                ));
-                (collect_decls(&module), module)
-              } else {
-                (decls, module)
-              };
 
               let mut collect = Collect::new(
                 source_map.clone(),
