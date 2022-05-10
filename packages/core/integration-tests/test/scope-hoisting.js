@@ -169,6 +169,23 @@ describe('scope hoisting', function () {
       assert.equal(output, 2);
     });
 
+    it('supports renaming helpers inserted during transpiling', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/rename-helpers/a.js',
+        ),
+      );
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(/let \S* = Symbol.toStringTag;/.test(contents));
+
+      let output = await run(b);
+      assert.deepEqual(output, ['1', '2']);
+    });
+
     it('supports renaming imports', async function () {
       let b = await bundle(
         path.join(
