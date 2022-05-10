@@ -36,7 +36,7 @@
     "xxhash-wasm": "^0.4.2"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.4",
+    "@napi-rs/cli": "^2.6.2",
     "tiny-benchy": "^1.0.2"
   }
 }

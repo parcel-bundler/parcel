@@ -27,6 +27,8 @@ import nullthrows from 'nullthrows';
 import {parser as postHtmlParse} from 'posthtml-parser';
 import postHtml from 'posthtml';
 import EventEmitter from 'events';
+import http from 'http';
+import https from 'https';
 
 import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
@@ -734,6 +736,8 @@ function prepareBrowserContext(
       },
       URL,
       Worker: createWorkerClass(bundle.filePath),
+      addEventListener() {},
+      removeEventListener() {},
     },
     globals,
   );
@@ -1156,4 +1160,34 @@ export async function assertNoFilePathInCache(
       }
     }
   }
+}
+
+export function request(
+  file: string,
+  port: number,
+  client: typeof http | typeof https = http,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // $FlowFixMe
+    client.get(
+      {
+        hostname: 'localhost',
+        port: port,
+        path: file,
+        rejectUnauthorized: false,
+      },
+      res => {
+        res.setEncoding('utf8');
+        let data = '';
+        res.on('data', c => (data += c));
+        res.on('end', () => {
+          if (res.statusCode !== 200) {
+            return reject({statusCode: res.statusCode, data});
+          }
+
+          resolve(data);
+        });
+      },
+    );
+  });
 }
