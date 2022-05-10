@@ -2228,12 +2228,9 @@ describe('html', function () {
     // reuse the b.css bundle from b.html.
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
     assert.equal(
-      html.match(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/g).length,
-      1,
-    );
-    assert.equal(
-      html.match(/<link rel="stylesheet" href="\/b\.[a-z0-9]+\.css">/g).length,
-      1,
+      html.match(/<link rel="stylesheet" href="\/\w+\.[a-z0-9]+\.css">/g)
+        .length,
+      2,
     );
 
     // a.html should reference a.js only
@@ -2242,7 +2239,7 @@ describe('html', function () {
     assert.equal(html.match(/b\.[a-z0-9]+\.js/g), null);
 
     let css = await outputFS.readFile(
-      path.join(distDir, html.match(/\/a\.[a-z0-9]+\.css/)[0]),
+      path.join(distDir, html.match(/\/\w+\.[a-z0-9]+\.css/g)[0]),
       'utf8',
     );
     assert(css.includes('.a {'));
@@ -2252,11 +2249,8 @@ describe('html', function () {
     // It should not point to the bundle containing a.css from a.html
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
     assert.equal(
-      html.match(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/g),
-      null,
-    );
-    assert.equal(
-      html.match(/<link rel="stylesheet" href="\/b\.[a-z0-9]+\.css">/g).length,
+      html.match(/<link rel="stylesheet" href="\/\w+\.[a-z0-9]+\.css">/g)
+        .length,
       1,
     );
 
@@ -2266,7 +2260,7 @@ describe('html', function () {
     assert.equal(html.match(/b\.[a-z0-9]+\.js/g).length, 1);
 
     css = await outputFS.readFile(
-      path.join(distDir, html.match(/\/b\.[a-z0-9]+\.css/)[0]),
+      path.join(distDir, html.match(/\/\w+\.[a-z0-9]+\.css/)[0]),
       'utf8',
     );
     assert(!css.includes('.a {'));

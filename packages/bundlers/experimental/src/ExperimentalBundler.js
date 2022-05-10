@@ -19,7 +19,12 @@ import {ContentGraph, Graph} from '@parcel/graph';
 import invariant from 'assert';
 import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
-import {setIntersect, validateSchema, DefaultMap} from '@parcel/utils';
+import {
+  setIntersect,
+  setEqual,
+  validateSchema,
+  DefaultMap,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
@@ -86,7 +91,7 @@ type DependencyBundleGraph = ContentGraph<
 type IdealGraph = {|
   dependencyBundleGraph: DependencyBundleGraph,
   bundleGraph: Graph<Bundle | 'root'>,
-  bundleGroupBundleIds: Array<NodeId>,
+  bundleGroupBundleIds: Set<NodeId>,
   assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
   sharedToSourceBundleIds: Map<NodeId, Array<NodeId>>,
 |};
@@ -123,7 +128,7 @@ function decorateLegacyGraph(
     let bundleGroup;
     let bundle;
 
-    if (bundleGroupBundleIds.includes(bundleNodeId)) {
+    if (bundleGroupBundleIds.has(bundleNodeId)) {
       let dependencies = dependencyBundleGraph
         .getNodeIdsConnectedTo(
           dependencyBundleGraph.getNodeIdByContentKey(String(bundleNodeId)),
@@ -285,7 +290,10 @@ function createIdealGraph(
   // bundleGraph that models bundleRoots and async deps only
   let asyncBundleRootGraph: ContentGraph<BundleRoot | 'root'> =
     new ContentGraph();
-  let bundleGroupBundleIds: Array<NodeId> = [];
+  let bundleGroupBundleIds: Set<NodeId> = new Set();
+
+  // Models bundleRoots and the assets that require it synchronously
+  let reachableRoots: ContentGraph<Asset> = new ContentGraph();
 
   // Step 1: Find and create bundles for entries from assetGraph
   let entries: Map<Asset, Dependency> = new Map();
@@ -334,7 +342,7 @@ function createIdealGraph(
       }),
       dependencyPriorityEdges[dependency.priority],
     );
-    bundleGroupBundleIds.push(nodeId);
+    bundleGroupBundleIds.add(nodeId);
   }
 
   let assets = [];
@@ -343,6 +351,7 @@ function createIdealGraph(
     Array<[Bundle, Asset]>,
   > = new DefaultMap(() => []);
 
+  let typeChangeIds = new Set();
   // Step 2: Traverse the asset graph and create bundles for asset type changes and async dependencies,
   // only adding the entry asset of each bundle, not the subgraph.
   assetGraph.traverse({
@@ -351,9 +360,11 @@ function createIdealGraph(
         assets.push(node.value);
 
         let bundleIdTuple = bundleRoots.get(node.value);
-        if (bundleIdTuple) {
+        if (bundleIdTuple && bundleIdTuple[0] === bundleIdTuple[1]) {
           // Push to the stack when a new bundle is created
           stack.push([node.value, bundleIdTuple[0]]);
+        } else if (bundleIdTuple) {
+          stack.push([node.value, stack[stack.length - 1][1]]);
         }
       } else if (node.type === 'dependency') {
         if (context == null) {
@@ -400,7 +411,7 @@ function createIdealGraph(
               bundleId = bundleGraph.addNode(bundle);
               bundles.set(childAsset.id, bundleId);
               bundleRoots.set(childAsset, [bundleId, bundleId]);
-              bundleGroupBundleIds.push(bundleId);
+              bundleGroupBundleIds.add(bundleId);
               bundleGraph.addEdge(bundleGraphRootNodeId, bundleId);
             } else {
               bundle = nullthrows(bundleGraph.getNode(bundleId));
@@ -437,7 +448,9 @@ function createIdealGraph(
             dependency.priority === 'parallel' ||
             childAsset.bundleBehavior === 'inline'
           ) {
-            let [, bundleGroupNodeId] = nullthrows(stack[stack.length - 1]);
+            let [referencingBundleRoot, bundleGroupNodeId] = nullthrows(
+              stack[stack.length - 1],
+            );
             let bundleGroup = nullthrows(
               bundleGraph.getNode(bundleGroupNodeId),
             );
@@ -447,28 +460,35 @@ function createIdealGraph(
             let bundleId;
             let entryAsset;
             let uniqueKey;
-            if (
-              childAsset.bundleBehavior !== 'inline' &&
-              dependency.priority !== 'parallel'
-            ) {
-              uniqueKey = childAsset.id;
-              // TODO: share bundles even across different bundle groups by looking if the child
-              // asset is already a bundle root. In order for this to work, bundleRoots must be
-              // keyed by asset + target, not just asset, so that bundles are not shared between targets.
-              bundleId =
-                bundleGroup.type == childAsset.type
-                  ? bundleGroupNodeId
-                  : bundleGraph
-                      .getNodeIdsConnectedFrom(bundleGroupNodeId)
-                      .find(id => {
-                        let node = bundleGraph.getNode(id);
-                        return node !== 'root' && node?.type == childAsset.type;
-                      });
-            } else {
-              entryAsset = childAsset;
-            }
-
+            // if (
+            //   childAsset.bundleBehavior !== 'inline' &&
+            //   dependency.priority !== 'parallel'
+            // ) {
+            //   uniqueKey = childAsset.id;
+            //   // TODO: share bundles even across different bundle groups by looking if the child
+            //   // asset is already a bundle root. In order for this to work, bundleRoots must be
+            //   // keyed by asset + target, not just asset, so that bundles are not shared between targets.
+            //   bundleId =
+            //     bundleGroup.type == childAsset.type
+            //       ? bundleGroupNodeId
+            //       : bundleGraph
+            //           .getNodeIdsConnectedFrom(bundleGroupNodeId)
+            //           .find(id => {
+            //             let node = bundleGraph.getNode(id);
+            //             return node !== 'root' && node?.type == childAsset.type;
+            //           });
+            // } else {
+            entryAsset = childAsset;
+            //}
+            let referencingBundleId = nullthrows(
+              bundleRoots.get(referencingBundleRoot),
+            )[0];
+            let referencingBundle = nullthrows(
+              bundleGraph.getNode(referencingBundleId),
+            );
+            invariant(referencingBundle !== 'root');
             let bundle;
+            bundleId = bundles.get(childAsset.id);
             if (bundleId == null) {
               // Create a new bundle if none of the same type exists already.
               bundle = createBundle({
@@ -479,16 +499,25 @@ function createIdealGraph(
                 type: childAsset.type,
                 env: childAsset.env,
                 bundleBehavior: childAsset.bundleBehavior,
-                target: bundleGroup.target,
+                target: referencingBundle.target,
                 needsStableName:
                   childAsset.bundleBehavior === 'inline' ||
                   dependency.bundleBehavior === 'inline' ||
                   (dependency.priority === 'parallel' &&
                     !dependency.needsStableName)
                     ? false
-                    : bundleGroup.needsStableName,
+                    : referencingBundle.needsStableName,
               });
               bundleId = bundleGraph.addNode(bundle);
+              typeChangeIds.add(bundleId);
+              if (
+                // If this dependency requests isolated, but the bundle is not,
+                // make the bundle isolated for all uses.
+                dependency.bundleBehavior === 'isolated' &&
+                bundle.bundleBehavior == null
+              ) {
+                bundle.bundleBehavior = dependency.bundleBehavior;
+              }
             } else {
               // Otherwise, merge this asset into the existing bundle.
               bundle = bundleGraph.getNode(bundleId);
@@ -502,7 +531,7 @@ function createIdealGraph(
 
             bundles.set(childAsset.id, bundleId);
             bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
-            bundleGraph.addEdge(bundleGraphRootNodeId, bundleId);
+            bundleGraph.addEdge(referencingBundleId, bundleId);
 
             if (bundleId != bundleGroupNodeId) {
               dependencyBundleGraph.addEdge(
@@ -525,7 +554,7 @@ function createIdealGraph(
 
               // Add an edge from the bundle group entry to the new bundle.
               // This indicates that the bundle is loaded together with the entry
-              bundleGraph.addEdge(bundleGroupNodeId, bundleId);
+              //bundleGraph.addEdge(bundleGroupNodeId, bundleId);
             }
 
             assetReference.get(childAsset).push([dependency, bundle]);
@@ -551,6 +580,55 @@ function createIdealGraph(
     },
   });
 
+  // Clean up type change bundles within the same bundlegroups
+  for (let [nodeIdA, a] of bundleGraph.nodes) {
+    //if bundle b bundlegroups ==== bundle a bundlegroups then combine type changes
+    for (let [nodeIdB, b] of bundleGraph.nodes) {
+      if (
+        a !== 'root' &&
+        b !== 'root' &&
+        a !== b &&
+        typeChangeIds.has(nodeIdA) &&
+        typeChangeIds.has(nodeIdB) &&
+        a.bundleBehavior !== 'inline' &&
+        b.bundleBehavior !== 'inline' &&
+        a.type === b.type
+      ) {
+        let bundleBbundleGroups = new Set(
+          bundleGraph
+            .getNodeIdsConnectedTo(nodeIdB)
+            .filter(id => bundleGroupBundleIds.has(id)),
+        );
+        let bundleABundleGroups = new Set(
+          bundleGraph
+            .getNodeIdsConnectedTo(nodeIdA)
+            .filter(id => bundleGroupBundleIds.has(id)),
+        ); //the two css bundle don't share bundlegroups ALLL bundlegroups
+        //because type change bundles are considered bundlegroup starts or at least added edges
+
+        if (setEqual(bundleBbundleGroups, bundleABundleGroups)) {
+          let shouldMerge = true;
+          for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
+            dependencyBundleGraph.getNodeIdByContentKey(String(nodeIdB)),
+            ALL_EDGE_TYPES,
+          )) {
+            let depNode = dependencyBundleGraph.getNode(depId);
+            if (
+              depNode &&
+              depNode.type === 'dependency' &&
+              depNode.value.specifierType === 'url'
+            ) {
+              shouldMerge = false;
+              continue;
+            }
+          }
+          if (!shouldMerge) continue;
+          mergeBundle(nodeIdA, nodeIdB);
+        }
+      }
+    }
+  }
+
   // Step 3: Determine reachability for every asset from each bundleRoot.
   // This is later used to determine which bundles to place each asset in.
   for (let [root] of bundleRoots) {
@@ -559,8 +637,6 @@ function createIdealGraph(
     }
   }
 
-  // Models bundleRoots and the assets that require it synchronously
-  let reachableRoots: ContentGraph<Asset> = new ContentGraph();
   for (let [root] of bundleRoots) {
     let rootNodeId = reachableRoots.addNodeByContentKeyIfNeeded(root.id, root);
     assetGraph.traverse((node, _, actions) => {
@@ -941,13 +1017,58 @@ function createIdealGraph(
       }
     }
   }
+
   function deleteBundle(bundleRoot: BundleRoot) {
     bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
     bundleRoots.delete(bundleRoot);
-    reachableRoots.replaceNodeIdsConnectedTo(
-      reachableRoots.getNodeIdByContentKey(bundleRoot.id),
-      [],
-    );
+    bundles.delete(bundleRoot.id);
+    if (reachableRoots.hasContentKey(bundleRoot.id)) {
+      reachableRoots.replaceNodeIdsConnectedTo(
+        reachableRoots.getNodeIdByContentKey(bundleRoot.id),
+        [],
+      );
+    }
+    if (asyncBundleRootGraph.hasContentKey(bundleRoot.id)) {
+      asyncBundleRootGraph.removeNode(
+        asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
+      );
+    }
+  }
+
+  function mergeBundle(mainNodeId: NodeId, otherNodeId: NodeId) {
+    //merges assets of "otherRoot" into "mainBundleRoot"
+    let a = nullthrows(bundleGraph.getNode(mainNodeId));
+    let b = nullthrows(bundleGraph.getNode(otherNodeId));
+    invariant(a !== 'root' && b !== 'root');
+    let bundleRootB = nullthrows(b.mainEntryAsset);
+    let mainBundleRoot = nullthrows(a.mainEntryAsset);
+    for (let asset of b.assets) {
+      a.assets.add(asset);
+    }
+    for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
+      dependencyBundleGraph.getNodeIdByContentKey(String(otherNodeId)),
+      ALL_EDGE_TYPES,
+    )) {
+      dependencyBundleGraph.replaceNodeIdsConnectedTo(depId, [
+        dependencyBundleGraph.getNodeIdByContentKey(String(mainNodeId)),
+      ]);
+    }
+
+    //clean up asset reference
+    for (let dependencyTuple of assetReference.get(bundleRootB)) {
+      dependencyTuple[1] = a;
+    }
+    //add in any lost edges
+    for (let nodeId of bundleGraph.getNodeIdsConnectedTo(otherNodeId)) {
+      bundleGraph.addEdge(nodeId, mainNodeId);
+    }
+    deleteBundle(bundleRootB);
+
+    bundleRoots.set(bundleRootB, [
+      mainNodeId,
+      bundleRoots.get(mainBundleRoot)[1],
+    ]);
+    bundles.set(bundleRootB.id, mainNodeId);
   }
   function getBundleFromBundleRoot(bundleRoot: BundleRoot): Bundle {
     let bundle = bundleGraph.getNode(
@@ -1055,8 +1176,9 @@ async function loadBundlerConfig(
   options: PluginOptions,
 ): Promise<ResolvedBundlerConfig> {
   let conf = await config.getConfig<BundlerConfig>([], {
-    packageKey: '@parcel/bundler-experimental',
+    packageKey: '@parcel/bundler-default',
   });
+
   if (!conf) {
     return HTTP_OPTIONS['2'];
   }
@@ -1069,10 +1191,10 @@ async function loadBundlerConfig(
       data: conf?.contents,
       source: await options.inputFS.readFile(conf.filePath, 'utf8'),
       filePath: conf.filePath,
-      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-experimental')}`,
+      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
     },
-    '@parcel/bundler-experimental',
-    'Invalid config for @parcel/bundler-experimental',
+    '@parcel/bundler-default',
+    'Invalid config for @parcel/bundler-default',
   );
 
   let http = conf.contents.http ?? 2;

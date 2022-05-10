@@ -1308,9 +1308,11 @@ export default class BundleGraph {
         // Shared bundles seem to depend on being used in the opposite order
         // they were added.
         // TODO: Should this be the case?
-        this._graph
-          .getNodeIdsConnectedFrom(nodeId, bundleGraphEdgeTypes.references)
-          .reverse(),
+        this._graph.getNodeIdsConnectedFrom(
+          nodeId,
+          bundleGraphEdgeTypes.references,
+        ),
+      //.reverse(),
     });
 
     return [...referencedBundles];
