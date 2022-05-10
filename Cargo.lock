@@ -941,15 +941,16 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "2.4.1"
+version = "2.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c43e69205d47ab5e43e5c98d63bd8a75d379d6631739b05dac26d5bcfb1a6ab"
+checksum = "bbff174066eb7cd144e0fc5d4d82e47492fa2df6e29df5911c88a54cd4d6daea"
 dependencies = [
  "ctor",
  "lazy_static",
  "napi-sys",
  "serde",
  "serde_json",
+ "thread_local",
 ]
 
 [[package]]
@@ -960,9 +961,9 @@ checksum = "ebd4419172727423cf30351406c54f6cc1b354a2cfb4f1dba3e6cd07f6d5522b"
 
 [[package]]
 name = "napi-derive"
-version = "2.4.0"
+version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "478e2cae8e7e7b2f8755a5da545641ae59c72dc495dc91077e586ce8b7d9bd67"
+checksum = "bffed314331505d8a4ce6831dfb5fff9bad37113344ff55824bd398eb3157a1d"
 dependencies = [
  "convert_case",
  "napi-derive-backend",
@@ -973,9 +974,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.31"
+version = "1.0.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bcdaac1ddb4a5172aebd0a3132caf8434e8af801213b52c67df2749ce6f8754"
+checksum = "a5cab83da14f4202c1f3858dde5b68e1d8c5bb7ee804c5955911cbbe00b835b8"
 dependencies = [
  "convert_case",
  "once_cell",
@@ -987,9 +988,9 @@ dependencies = [
 
 [[package]]
 name = "napi-sys"
-version = "2.2.1"
+version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91c795d73a38586eadcb9bfda5be786b45620e3fe5fae04e5d3623d7d6abb3d0"
+checksum = "529671ebfae679f2ce9630b62dd53c72c56b3eb8b2c852e7e2fa91704ff93d67"
 dependencies = [
  "libloading",
 ]
@@ -1944,9 +1945,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.82.4"
+version = "0.82.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53d19055f788b054ce3a177ccebb6ad1d698c8d8c5b32961511cdfd216bfab2e"
+checksum = "c8a9408c084d8bebf3edb19668aa6001577fe215c3e4e5c5436503a8187cab8b"
 dependencies = [
  "better_scoped_tls",
  "once_cell",
@@ -2042,9 +2043,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_optimization"
-version = "0.121.1"
+version = "0.121.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab3967d4802307511e3f76e844695f80a3a339e67f5567b1f3b4c615b5e75218"
+checksum = "be46a9d5d6250afb88ab5bf126db8c34ac121cc953ed8d6f912f7da9e2bea670"
 dependencies = [
  "ahash",
  "dashmap",
@@ -2228,9 +2229,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.92"
+version = "1.0.93"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ff7c592601f11445996a06f8ad0c27f094a58857c2f89e97974ab9235b92c52"
+checksum = "04066589568b72ec65f42d65a1a52436e954b168773148893c020269563decf2"
 dependencies = [
  "proc-macro2",
  "quote",
