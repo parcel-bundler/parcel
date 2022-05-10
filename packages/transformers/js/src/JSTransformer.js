@@ -334,11 +334,6 @@ export default (new Transformer({
       targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
     }
 
-    // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
-    if (/@swc[/\\]helpers/.test(asset.filePath)) {
-      targets = null;
-    }
-
     let env: EnvMap = {};
 
     if (!config?.inlineEnvironment) {
@@ -420,6 +415,7 @@ export default (new Transformer({
       is_library: asset.env.isLibrary,
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
+      is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
     });
 
     let convertLoc = loc => {
