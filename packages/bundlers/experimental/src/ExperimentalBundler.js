@@ -124,6 +124,7 @@ function decorateLegacyGraph(
     let bundle;
 
     if (bundleGroupBundleIds.includes(bundleNodeId)) {
+      invariant(entryAsset != null);
       let dependencies = dependencyBundleGraph
         .getNodeIdsConnectedTo(
           dependencyBundleGraph.getNodeIdByContentKey(String(bundleNodeId)),
@@ -179,6 +180,7 @@ function decorateLegacyGraph(
         }),
       );
     } else {
+      invariant(entryAsset != null);
       bundle = nullthrows(
         bundleGraph.createBundle({
           entryAsset,
