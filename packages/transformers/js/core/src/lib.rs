@@ -202,14 +202,14 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             || {
               let mut react_options = react::Options::default();
               if config.is_jsx {
-                react_options.use_spread = true;
+                react_options.use_spread = Some(true);
                 if let Some(jsx_pragma) = &config.jsx_pragma {
-                  react_options.pragma = jsx_pragma.clone();
+                  react_options.pragma = Some(jsx_pragma.clone());
                 }
                 if let Some(jsx_pragma_frag) = &config.jsx_pragma_frag {
-                  react_options.pragma_frag = jsx_pragma_frag.clone();
+                  react_options.pragma_frag = Some(jsx_pragma_frag.clone());
                 }
-                react_options.development = config.is_development;
+                react_options.development = Some(config.is_development);
                 react_options.refresh = if config.react_refresh {
                   Some(react::RefreshOptions::default())
                 } else {
@@ -218,7 +218,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
                 react_options.runtime = if config.automatic_jsx_runtime {
                   if let Some(import_source) = &config.jsx_import_source {
-                    react_options.import_source = import_source.clone();
+                    react_options.import_source = Some(import_source.clone());
                   }
                   Some(react::Runtime::Automatic)
                 } else {
@@ -244,8 +244,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     typescript::strip_with_jsx(
                       source_map.clone(),
                       typescript::Config {
-                        pragma: Some(react_options.pragma.clone()),
-                        pragma_frag: Some(react_options.pragma_frag.clone()),
+                        pragma: react_options.pragma.clone(),
+                        pragma_frag: react_options.pragma_frag.clone(),
                         ..Default::default()
                       },
                       Some(&comments),

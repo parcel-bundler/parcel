@@ -5,7 +5,6 @@ use std::path::Path;
 use swc_atoms::JsWord;
 use swc_common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::{self};
-use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
