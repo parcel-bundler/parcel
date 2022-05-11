@@ -185,6 +185,15 @@ pub struct SourceLocation {
 
 impl SourceLocation {
   pub fn from(source_map: &swc_common::SourceMap, span: swc_common::Span) -> Self {
+    if span.lo.is_dummy() || span.hi.is_dummy() {
+      return SourceLocation {
+        start_line: 1,
+        start_col: 1,
+        end_line: 1,
+        end_col: 1,
+      };
+    }
+
     let start = source_map.lookup_char_pos(span.lo);
     let end = source_map.lookup_char_pos(span.hi);
     // - SWC's columns are exclusive, ours are inclusive (column - 1)
