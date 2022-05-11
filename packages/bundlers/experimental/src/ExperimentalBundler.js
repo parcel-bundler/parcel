@@ -784,7 +784,6 @@ function createIdealGraph(
         entries.has(a) ||
         !a.isBundleSplittable ||
         getBundleFromBundleRoot(a).needsStableName ||
-        getBundleFromBundleRoot(a).bundleBehavior === 'inline' ||
         getBundleFromBundleRoot(a).bundleBehavior === 'isolated',
     );
     reachable = reachable.filter(
@@ -792,7 +791,6 @@ function createIdealGraph(
         !entries.has(a) &&
         a.isBundleSplittable &&
         !getBundleFromBundleRoot(a).needsStableName &&
-        getBundleFromBundleRoot(a).bundleBehavior !== 'inline' &&
         getBundleFromBundleRoot(a).bundleBehavior !== 'isolated',
     );
 
