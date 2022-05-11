@@ -52,7 +52,7 @@ export function getSentry(): ISentry {
       dsn: process.env.SENTRY_DSN,
       release:
         process.env.BITBUCKET_COMMIT /* Parcel repo commit on Bitbucket */,
-      beforeSend(event, hint) {
+      beforeSend(event) {
         for (const error of event.exception.values) {
           // Sanitize any referenced UNIX-style paths in the main error message
           error.value = error.value.replace(/\w?(\/.*)\b/g, p =>
