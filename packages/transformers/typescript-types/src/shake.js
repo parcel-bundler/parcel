@@ -37,7 +37,7 @@ export function shake(
       if (moduleStack.length >= 1) {
         // Since we are hoisting them to the top-level scope, we need to add a "declare" keyword to make them ambient.
         // we also want the declare keyword to come after the export keyword.
-        const index = node.modifiers[0].kind === ts.SyntaxKind.ExportKeyword ? 1 : 0;
+        const index = node.modifiers.length && node.modifiers[0].kind === ts.SyntaxKind.ExportKeyword ? 1 : 0;
         node.modifiers.splice(index, 0, ts.createModifier(ts.SyntaxKind.DeclareKeyword));
         return node;
       }
