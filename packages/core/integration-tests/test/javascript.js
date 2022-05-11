@@ -5522,7 +5522,7 @@ describe('javascript', function () {
                     },
                     end: {
                       line: 1,
-                      column: 0,
+                      column: 1,
                     },
                   },
                 ],
