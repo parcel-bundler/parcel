@@ -33,11 +33,11 @@
   },
   "dependencies": {
     "detect-libc": "^1.0.3",
-    "self-published": "npm:@parcel/hash@2.4.2-nightly.2674",
+    "self-published": "npm:@parcel/hash@2.5.1-nightly.2700",
     "xxhash-wasm": "^0.4.2"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.4",
+    "@napi-rs/cli": "^2.6.2",
     "tiny-benchy": "^1.0.2"
   }
 }

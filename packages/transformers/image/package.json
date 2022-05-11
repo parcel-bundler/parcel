@@ -13,7 +13,7 @@
   "source": "src/ImageTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.0.1"
+    "parcel": "^2.0.24"
   },
   "dependencies": {
     "@parcel/plugin": "2.0.24",
@@ -22,5 +22,8 @@
   },
   "devDependencies": {
     "sharp": "^0.29.1"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.24"
   }
 }

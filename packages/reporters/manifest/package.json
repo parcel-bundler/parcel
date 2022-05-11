@@ -5,7 +5,7 @@
   "source": "src/ManifestReporter.js",
   "engines": {
     "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.24"
   },
   "dependencies": {
     "@parcel/plugin": "2.0.24",

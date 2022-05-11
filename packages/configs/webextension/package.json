@@ -21,5 +21,8 @@
     "@parcel/runtime-webextension": "2.0.24",
     "@parcel/transformer-raw": "2.0.24",
     "@parcel/transformer-webextension": "2.0.24"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.24"
   }
 }

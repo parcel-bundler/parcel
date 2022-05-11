@@ -17,10 +17,10 @@
   "source": "src/CSSTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.0.20"
+    "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/css": "^1.7.4",
+    "@parcel/css": "^1.8.2",
     "@parcel/diagnostic": "2.0.24",
     "@parcel/plugin": "2.0.24",
     "@parcel/source-map": "^2.0.0",

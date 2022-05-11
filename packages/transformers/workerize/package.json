@@ -3,7 +3,7 @@
   "version": "2.0.24",
   "engines": {
     "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.24"
   },
   "main": "lib/WorkerizeTransformer.js",
   "source": "src/WorkerizeTransformer.js",

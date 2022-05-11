@@ -14,7 +14,7 @@ import {hashString} from '@parcel/hash';
 import {NodeFS} from '@parcel/fs';
 import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
-import {getRootDir, relativePath, resolveConfig} from '@parcel/utils';
+import {getRootDir, relativePath, resolveConfig, isGlob} from '@parcel/utils';
 import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
@@ -50,7 +50,21 @@ export default async function resolveOptions(
     entries = [path.resolve(inputCwd, initialOptions.entries)];
   }
 
-  let entryRoot = getRootDir(entries);
+  let shouldMakeEntryReferFolder = false;
+  if (entries.length === 1 && !isGlob(entries[0])) {
+    let [entry] = entries;
+    try {
+      shouldMakeEntryReferFolder = (await inputFS.stat(entry)).isDirectory();
+    } catch {
+      // ignore failing stat call
+    }
+  }
+
+  // getRootDir treats the input as files, so getRootDir(["/home/user/myproject"]) returns "/home/user".
+  // Instead we need to make the the entry refer to some file inside the specified folders if entries refers to the directory.
+  let entryRoot = getRootDir(
+    shouldMakeEntryReferFolder ? [path.join(entries[0], 'index')] : entries,
+  );
   let projectRootFile =
     (await resolveConfig(
       inputFS,

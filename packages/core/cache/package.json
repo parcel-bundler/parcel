@@ -27,10 +27,10 @@
     "@parcel/fs": "2.0.24",
     "@parcel/logger": "2.0.24",
     "@parcel/utils": "2.0.24",
-    "lmdb": "2.2.4"
+    "lmdb": "2.3.7"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.2.1"
+    "@parcel/core": "^2.0.24"
   },
   "devDependencies": {
     "idb": "^5.0.8"

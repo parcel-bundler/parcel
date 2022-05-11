@@ -24,7 +24,7 @@
     "check-ts": "tsc --noEmit lib/diagnostic.d.ts"
   },
   "dependencies": {
-    "json-source-map": "^0.6.1",
+    "@mischnic/json-sourcemap": "^0.1.0",
     "nullthrows": "^1.1.1"
   }
 }

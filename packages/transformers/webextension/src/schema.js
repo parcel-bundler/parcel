@@ -76,6 +76,7 @@ const warBase = {
 };
 
 const commonProps = {
+  $schema: string,
   name: string,
   version: {
     type: 'string',
@@ -85,6 +86,16 @@ const commonProps = {
   description: string,
   icons,
   author: string,
+  browser_specific_settings: {
+    type: 'object',
+    properties: {},
+    additionalProperties: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  key: string,
+  update_url: string,
   chrome_settings_overrides: {
     type: 'object',
     properties: {
@@ -397,6 +408,14 @@ const commonProps = {
     additionalProperties: false,
   },
   version_name: string,
+  oauth2: {
+    type: 'object',
+    properties: {
+      client_id: string,
+      scopes: arrStr,
+    },
+    additionalProperties: false,
+  },
 };
 
 export const MV3Schema = ({
@@ -488,6 +507,7 @@ export const MV2Schema = ({
 export const VersionSchema = ({
   type: 'object',
   properties: {
+    $schema: string,
     manifest_version: {
       type: 'number',
       enum: [2, 3],

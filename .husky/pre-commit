@@ -3,3 +3,14 @@
 . "$(dirname "$0")/_/husky.sh"
 
 yarn lint-staged
+
+# ATLASSIAN: Update self-published (nightly) versions as part of a merge.
+# If a merge is committed automatically (e.g., no conflicts), this hook
+# will not be run (see comments in `post-merge` for more). However,
+# if a merge is not committed automatically  (e.g., there are conflicts),
+# the `post-merge` hook will not be run. Here we detect that a merge
+# is being manually committed and replicate the work our `post-merge` hook
+# would have done if the merge commit had proceeded automatically.
+if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+  yarn update-self-published -a
+fi
