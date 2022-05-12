@@ -38,11 +38,9 @@ export function shake(
         if (node.modifiers) {
           // Since we are hoisting them to the top-level scope, we need to add a "declare" keyword to make them ambient.
           // we also want the declare keyword to come after the export keyword to guarantee a valid typings file.
+          node.modifiers ??= [];
           const index =
-            node.modifiers.length &&
-            node.modifiers[0].kind === ts.SyntaxKind.ExportKeyword
-              ? 1
-              : 0;
+            node.modifiers[0]?.kind === ts.SyntaxKind.ExportKeyword ? 1 : 0;
           node.modifiers.splice(
             index,
             0,
