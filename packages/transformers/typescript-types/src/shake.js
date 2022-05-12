@@ -35,18 +35,16 @@ export function shake(
     if (ts.isModuleDeclaration(node)) {
       // Deeply nested module declarations are assumed to be module augmentations and left alone.
       if (moduleStack.length >= 1) {
-        if (node.modifiers) {
-          // Since we are hoisting them to the top-level scope, we need to add a "declare" keyword to make them ambient.
-          // we also want the declare keyword to come after the export keyword to guarantee a valid typings file.
-          node.modifiers ??= [];
-          const index =
-            node.modifiers[0]?.kind === ts.SyntaxKind.ExportKeyword ? 1 : 0;
-          node.modifiers.splice(
-            index,
-            0,
-            ts.createModifier(ts.SyntaxKind.DeclareKeyword),
-          );
-        }
+        // Since we are hoisting them to the top-level scope, we need to add a "declare" keyword to make them ambient.
+        // we also want the declare keyword to come after the export keyword to guarantee a valid typings file.
+        node.modifiers ??= [];
+        const index =
+          node.modifiers[0]?.kind === ts.SyntaxKind.ExportKeyword ? 1 : 0;
+        node.modifiers.splice(
+          index,
+          0,
+          ts.createModifier(ts.SyntaxKind.DeclareKeyword),
+        );
         return node;
       }
 
