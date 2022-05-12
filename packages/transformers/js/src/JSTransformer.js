@@ -728,11 +728,10 @@ export default (new Transformer({
       } of hoist_result.imported_symbols) {
         for (let dep of nullthrows(deps.get(source))) {
           if (
-            !dep ||
-            ((dep.meta.kind === 'Require' ||
+            (dep.meta.kind === 'Require' ||
               dep.meta.kind === 'Import' ||
               dep.meta.kind === 'DynamicImport') &&
-              dep.meta.kind !== kind)
+            dep.meta.kind !== kind
           ) {
             continue;
           }
@@ -741,8 +740,6 @@ export default (new Transformer({
       }
       for (let {source, local, imported, loc} of hoist_result.re_exports) {
         for (let dep of nullthrows(deps.get(source))) {
-          if (!dep) continue;
-
           if (local === '*' && imported === '*') {
             dep.symbols.set('*', '*', convertLoc(loc), true);
           } else {
@@ -757,7 +754,6 @@ export default (new Transformer({
 
       for (let specifier of hoist_result.wrapped_requires) {
         for (let dep of nullthrows(deps.get(specifier))) {
-          if (!dep) continue;
           dep.meta.shouldWrap = true;
         }
       }
@@ -766,7 +762,6 @@ export default (new Transformer({
         for (let dep of nullthrows(
           deps.get(hoist_result.dynamic_imports[name]),
         )) {
-          if (!dep) continue;
           dep.meta.promiseSymbol = name;
         }
       }
@@ -848,7 +843,6 @@ export default (new Transformer({
 
         for (let {source, local, imported, loc} of symbol_result.imports) {
           for (let dep of nullthrows(deps.get(source))) {
-            if (!dep) continue;
             dep.symbols.ensure();
             dep.symbols.set(imported, local, convertLoc(loc));
           }
@@ -856,7 +850,6 @@ export default (new Transformer({
 
         for (let {source, loc} of symbol_result.exports_all) {
           for (let dep of nullthrows(deps.get(source))) {
-            if (!dep) continue;
             dep.symbols.ensure();
             dep.symbols.set('*', '*', convertLoc(loc), true);
           }
