@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js",
-  "version": "2.0.25",
+  "version": "2.0.26",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -30,11 +30,11 @@
     "*.node"
   ],
   "dependencies": {
-    "@parcel/diagnostic": "2.0.25",
-    "@parcel/plugin": "2.0.25",
+    "@parcel/diagnostic": "2.0.26",
+    "@parcel/plugin": "2.0.26",
     "@parcel/source-map": "^2.0.0",
-    "@parcel/utils": "2.0.25",
-    "@parcel/workers": "2.0.25",
+    "@parcel/utils": "2.0.26",
+    "@parcel/workers": "2.0.26",
     "@swc/helpers": "^0.3.6",
     "browserslist": "^4.6.6",
     "detect-libc": "^1.0.3",

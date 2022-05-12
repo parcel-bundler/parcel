@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-sync-dynamic-import",
-  "version": "2.0.25",
+  "version": "2.0.26",
   "main": "lib/SyncDynamicImportTransformer.js",
   "source": "src/SyncDynamicImportTransformer.js",
   "engines": {
@@ -11,9 +11,9 @@
     "@babel/core": "^7.8.7",
     "@babel/parser": "^7.0.0",
     "@babel/types": "^7.12.13",
-    "@parcel/plugin": "2.0.25",
+    "@parcel/plugin": "2.0.26",
     "@parcel/source-map": "^2.0.0",
-    "@parcel/utils": "2.0.25",
+    "@parcel/utils": "2.0.26",
     "astring": "^1.6.2",
     "lodash.clone": "^4.5.0",
     "react-loadable": "^5.5.0",

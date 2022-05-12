@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-manifest",
-  "version": "2.0.25",
+  "version": "2.0.26",
   "main": "lib/ManifestReporter.js",
   "source": "src/ManifestReporter.js",
   "engines": {
@@ -8,7 +8,7 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.25",
-    "@parcel/utils": "2.0.25"
+    "@parcel/plugin": "2.0.26",
+    "@parcel/utils": "2.0.26"
   }
 }

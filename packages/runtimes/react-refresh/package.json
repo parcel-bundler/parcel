@@ -1,6 +1,6 @@
 {
   "name": "@parcel/runtime-react-refresh",
-  "version": "2.0.25",
+  "version": "2.0.26",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.25",
-    "@parcel/utils": "2.0.25",
+    "@parcel/plugin": "2.0.26",
+    "@parcel/utils": "2.0.26",
     "react-refresh": "^0.9.0"
   }
 }
