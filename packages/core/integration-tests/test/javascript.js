@@ -7078,4 +7078,41 @@ describe('javascript', function () {
       });
     });
   }
+
+  it.only('test', async function () {
+    let b = await bundle(
+      // ['a.js', 'b.js'].map(basename =>
+      //   path.join(
+      //     __dirname,
+      //     '/integration/scope-hoisting/es6/test2',
+      //     basename,
+      //   ),
+      // ),
+      path.join(__dirname, '/integration/scope-hoisting/es6/test2/index.html'),
+    );
+
+    b.traverseBundles(bundle => {
+      console.log('bundle filepath', bundle.filePath);
+    });
+
+    //console.log(assets);
+    // traverse the assets and compare outputHashes
+    // either pass in opts to bundle or modify inputfs to delay reading
+    let b2 = await bundle(
+      // ['a.js', 'b.js'].map(basename =>
+      //   path.join(
+      //     __dirname,
+      //     '/integration/scope-hoisting/es6/test2',
+      //     basename,
+      //   ),
+      // ),
+      path.join(__dirname, '/integration/scope-hoisting/es6/test2/index.html'),
+    );
+
+    b2.traverseBundles(bundle => {
+      console.log('bundle filepath', bundle.filePath);
+    });
+    let a2 = findAsset(b2, 'a.txt');
+    //console.log('id', a2.id);
+  });
 });

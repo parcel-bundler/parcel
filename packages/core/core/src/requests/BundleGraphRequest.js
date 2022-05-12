@@ -79,6 +79,7 @@ type BundleGraphRequest = {|
 export default function createBundleGraphRequest(
   input: BundleGraphRequestInput,
 ): BundleGraphRequest {
+  //console.log('assetgraph id', input.assetGraph.getHash());
   return {
     type: 'bundle_graph_request',
     id: 'BundleGraph:' + input.assetGraph.getHash(),

@@ -147,6 +147,7 @@ export default class PackagerRunner {
     let bundleInfo =
       (await this.getBundleInfoFromCache(bundleGraph, bundle, configs)) ??
       (await this.getBundleInfo(bundle, bundleGraph, configs));
+    console.log('bundleInfo', bundleInfo);
 
     let configRequests = getConfigRequests([...configs.values()]);
     let devDepRequests = getWorkerDevDepRequests([
@@ -154,7 +155,7 @@ export default class PackagerRunner {
     ]);
 
     return {
-      bundleInfo,
+      bundleInfo, //bundleInfo.cacheKeys differ
       configRequests,
       devDepRequests,
       invalidations: [...this.invalidations.values()],
@@ -265,6 +266,7 @@ export default class PackagerRunner {
     let cacheKey = await this.getCacheKey(bundle, bundleGraph, configs, [
       ...this.invalidations.values(),
     ]);
+    console.log('cacheKey:', cacheKey);
     let cacheKeys = {
       content: PackagerRunner.getContentKey(cacheKey),
       map: PackagerRunner.getMapKey(cacheKey),

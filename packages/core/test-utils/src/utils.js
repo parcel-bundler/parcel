@@ -216,7 +216,15 @@ export async function bundle(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
 ): Promise<BundleGraph<PackagedBundle>> {
-  return (await bundler(entries, opts).run()).bundleGraph;
+  let bg = (await bundler(entries, opts).run()).bundleGraph;
+  bg.traverse(node => {
+    if (node.type === 'asset') {
+      node.value;
+    }
+  });
+  let bundles = bg.getBundles();
+  console.log(bundles.map(b => [b.name, b.publicId]));
+  return bg;
 }
 
 export function getNextBuild(b: Parcel): Promise<BuildEvent> {

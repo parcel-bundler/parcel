@@ -1635,6 +1635,7 @@ export default class BundleGraph {
 
     let hashHex = hash.finish();
     this._bundleContentHashes.set(bundle.id, hashHex);
+    //console.log('hashHex', hashHex);
     return hashHex;
   }
 
