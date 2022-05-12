@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-image",
-  "version": "2.0.24",
+  "version": "2.0.25",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,8 +16,8 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.24",
-    "@parcel/workers": "2.0.24",
+    "@parcel/plugin": "2.0.25",
+    "@parcel/workers": "2.0.25",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/resolver-glob",
-  "version": "2.0.24",
+  "version": "2.0.25",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,9 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.24",
-    "@parcel/plugin": "2.0.24",
-    "@parcel/utils": "2.0.24",
+    "@parcel/diagnostic": "2.0.25",
+    "@parcel/plugin": "2.0.25",
+    "@parcel/utils": "2.0.25",
     "nullthrows": "^1.1.1"
   }
 }

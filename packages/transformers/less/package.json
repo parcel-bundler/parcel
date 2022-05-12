@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-less",
-  "version": "2.0.24",
+  "version": "2.0.25",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.24",
+    "@parcel/plugin": "2.0.25",
     "@parcel/source-map": "^2.0.0",
     "less": "^4.1.1"
   }
