@@ -769,11 +769,47 @@ function createIdealGraph(
     }
   }
 
+  // Step Internalize async bundles
+  for (let [id, bundleRoot] of asyncBundleRootGraph.nodes) {
+    if (bundleRoot === 'root') continue;
+    let parentRoots = asyncBundleRootGraph
+      .getNodeIdsConnectedTo(id)
+      .map(id => nullthrows(asyncBundleRootGraph.getNode(id)));
+    let canDelete =
+      getBundleFromBundleRoot(bundleRoot).bundleBehavior !== 'isolated';
+    if (parentRoots.length === 0) continue;
+    for (let parent of parentRoots) {
+      if (parent === 'root') {
+        canDelete = false;
+        continue;
+      }
+      if (
+        reachableRoots.hasEdge(
+          reachableRoots.getNodeIdByContentKey(parent.id),
+          reachableRoots.getNodeIdByContentKey(bundleRoot.id),
+        ) ||
+        asyncAncestorAssets.get(parent)?.has(bundleRoot)
+      ) {
+        let parentBundle = bundleGraph.getNode(
+          nullthrows(bundles.get(parent.id)),
+        );
+        invariant(parentBundle != null && parentBundle !== 'root');
+        parentBundle.internalizedAssetIds.push(bundleRoot.id);
+      } else {
+        canDelete = false;
+      }
+    }
+    if (canDelete) {
+      deleteBundle(bundleRoot);
+    }
+  }
+
   // Step 5: Place all assets into bundles or create shared bundles. Each asset
   // is placed into a single bundle based on the bundle entries it is reachable from.
   // This creates a maximally code split bundle graph with no duplication.
   for (let asset of assets) {
     // Unreliable bundleRoot assets which need to pulled in by shared bundles or other means
+
     let reachable: Array<BundleRoot> = getReachableBundleRoots(
       asset,
       reachableRoots,
@@ -831,80 +867,6 @@ function createIdealGraph(
       let entryBundleId = nullthrows(bundles.get(entry.id));
       let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
       invariant(entryBundle !== 'root');
-
-      // If this asset is associated with a bundle, we must attempt to clean up
-      let internalizedBundleId = bundles.get(asset.id);
-      if (internalizedBundleId !== undefined) {
-        let toBeInternalizedNodeId = asyncBundleRootGraph.getNodeIdByContentKey(
-          asset.id,
-        );
-        let bundleRootsRequiring = nullthrows(
-          asyncBundleRootGraph.getNodeIdsConnectedTo(toBeInternalizedNodeId),
-        );
-        //attempt to clean up for all immediate bundle connections
-        for (let parentBundleId of bundleRootsRequiring) {
-          let parentBundleRoot = asyncBundleRootGraph.getNode(parentBundleId);
-          if (parentBundleRoot === 'root') continue;
-          invariant(parentBundleRoot != null);
-          // we may remove the bundle's connection to anything that already has it from previous ancestors, i.e. asyncAnc
-          if (asyncAncestorAssets.get(parentBundleRoot)?.has(asset)) {
-            let bundleId = nullthrows(bundles.get(parentBundleRoot.id));
-            let b = bundleGraph.getNode(bundleId);
-            if (b && b !== 'root') {
-              b.internalizedAssetIds.push(asset.id);
-            }
-
-            asyncBundleRootGraph.removeEdge(
-              parentBundleId,
-              toBeInternalizedNodeId,
-            );
-            let remainingConnections = asyncBundleRootGraph.getNode(
-              toBeInternalizedNodeId,
-            )
-              ? asyncBundleRootGraph
-                  .getNodeIdsConnectedTo(toBeInternalizedNodeId)
-                  .map(id => asyncBundleRootGraph.getNode(id))
-              : [];
-            let containsRoot = remainingConnections.find(
-              node => node === 'root',
-            );
-            if (remainingConnections.length === 1 && containsRoot) {
-              asyncBundleRootGraph.removeNode(toBeInternalizedNodeId);
-            }
-            if (
-              !asyncBundleRootGraph.hasNode(toBeInternalizedNodeId) &&
-              nullthrows(bundleGraph.getNode(toBeInternalizedNodeId))
-                .bundleBehavior !== 'isolated'
-            ) {
-              deleteBundle(asset);
-            }
-          } else if (parentBundleRoot === entry) {
-            //entries do not have asyncAncestors so we must check if its available sync
-            let hasSync = reachableRoots
-              .getNodeIdsConnectedFrom(
-                reachableRoots.getNodeIdByContentKey(entry.id),
-              )
-              .some(id => {
-                let a = reachableRoots.getNode(id);
-                return a === asset;
-              });
-            if (hasSync) {
-              entryBundle.internalizedAssetIds.push(asset.id);
-              asyncBundleRootGraph.removeEdge(
-                asyncBundleRootGraph.getNodeIdByContentKey(entry.id),
-                toBeInternalizedNodeId,
-              );
-            }
-            if (
-              !asyncBundleRootGraph.hasNode(toBeInternalizedNodeId) &&
-              nullthrows(bundleGraph.getNode(toBeInternalizedNodeId))
-                .bundleBehavior !== 'isolated'
-            ) {
-              deleteBundle(asset);
-            }
-          }
-        }
-      }
       entryBundle.assets.add(asset);
       entryBundle.size += asset.stats.size;
     }
@@ -926,6 +888,20 @@ function createIdealGraph(
           env: firstSourceBundle.env,
         });
         bundle.sourceBundles = sourceBundles;
+        let sharedInternalizedAssets = new Set(
+          firstSourceBundle.internalizedAssetIds,
+        );
+
+        for (let p of sourceBundles) {
+          let parentBundle = nullthrows(bundleGraph.getNode(p));
+          invariant(parentBundle !== 'root');
+          if (parentBundle === firstSourceBundle) continue;
+          setIntersect(
+            sharedInternalizedAssets,
+            new Set(parentBundle.internalizedAssetIds),
+          );
+        }
+        bundle.internalizedAssetIds = [...sharedInternalizedAssets];
         bundleId = bundleGraph.addNode(bundle);
         bundles.set(key, bundleId);
       } else {
