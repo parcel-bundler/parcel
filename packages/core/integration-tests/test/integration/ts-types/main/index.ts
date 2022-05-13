@@ -23,3 +23,9 @@ export function foo() {
 var x = 2;
 var p = x + 2, q = 3;
 export {p as hi, x};
+
+export module mod {
+  export function bar() {
+    return 2;
+  }
+}

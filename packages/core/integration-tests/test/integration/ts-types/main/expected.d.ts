@@ -11,5 +11,8 @@ export default function test(params: Params): number;
 export function foo(): number;
 export var x: number;
 export var hi: number;
+export declare module mod {
+    function bar(): number;
+}
 
 //# sourceMappingURL=types.d.ts.map

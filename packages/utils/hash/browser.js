@@ -49,13 +49,7 @@ function concatUint8Arrays(arrays) {
 function toHex(arr) {
   let dataView = new DataView(arr.buffer);
   return (
-    dataView
-      .getUint32(0, true)
-      .toString(16)
-      .padStart(8, '0') +
-    dataView
-      .getUint32(4, true)
-      .toString(16)
-      .padStart(8, '0')
+    dataView.getUint32(0, true).toString(16).padStart(8, '0') +
+    dataView.getUint32(4, true).toString(16).padStart(8, '0')
   );
 }
