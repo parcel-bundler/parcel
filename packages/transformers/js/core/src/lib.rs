@@ -343,6 +343,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     GlobalReplacer {
                       source_map: &source_map,
                       items: &mut global_deps,
+                      global_mark,
                       globals: HashMap::new(),
                       project_root: Path::new(&config.project_root),
                       filename: Path::new(&config.filename),
@@ -382,6 +383,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   NodeReplacer {
                     source_map: &source_map,
                     items: &mut global_deps,
+                    global_mark,
                     globals: HashMap::new(),
                     project_root: Path::new(&config.project_root),
                     filename: Path::new(&config.filename),
@@ -397,7 +399,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               // set global_mark for all nodes, even generated ones.
               // - This changes the syntax context ids and therefore invalidates decls
               // - This will also remove any other other marks (like ignore_mark)
-              let (decls, module) = if config.scope_hoist {
+              // This only needs to be done if preset_env ran because all other transforms
+              // insert declarations with global_mark (even though they are generated).
+              let (decls, module) = if config.scope_hoist && should_run_preset_env {
                 let module = module.fold_with(&mut chain!(
                   hygiene(),
                   resolver(unresolved_mark, global_mark, false)

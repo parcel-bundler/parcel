@@ -175,6 +175,32 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
   }
 }
 
+// `name` must not be an existing binding.
+pub fn create_global_decl_stmt(
+  name: swc_atoms::JsWord,
+  init: ast::Expr,
+  global_mark: Mark,
+) -> (ast::Stmt, SyntaxContext) {
+  // The correct value would actually be `DUMMY_SP.apply_mark(Mark::fresh(Mark::root()))`.
+  // But this saves us from running the resolver again in some cases.
+  let span = DUMMY_SP.apply_mark(global_mark);
+
+  (
+    ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
+      kind: ast::VarDeclKind::Var,
+      declare: false,
+      span: DUMMY_SP,
+      decls: vec![ast::VarDeclarator {
+        name: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new(name, span))),
+        span: DUMMY_SP,
+        definite: false,
+        init: Some(Box::new(init)),
+      }],
+    })),
+    span.ctxt,
+  )
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct SourceLocation {
   pub start_line: usize,

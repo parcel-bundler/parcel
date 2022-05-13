@@ -8,11 +8,12 @@ use swc_ecmascript::ast::{self};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
-use crate::utils::{create_require, SourceLocation, SourceType};
+use crate::utils::{create_global_decl_stmt, create_require, SourceLocation, SourceType};
 
 pub struct NodeReplacer<'a> {
   pub source_map: &'a SourceMap,
   pub items: &'a mut Vec<DependencyDescriptor>,
+  pub global_mark: Mark,
   pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub project_root: &'a Path,
   pub filename: &'a Path,
@@ -182,25 +183,6 @@ impl<'a> Fold for NodeReplacer<'a> {
   }
 }
 
-fn create_decl_stmt(name: swc_atoms::JsWord, init: ast::Expr) -> (ast::Stmt, SyntaxContext) {
-  let span = DUMMY_SP.apply_mark(Mark::fresh(Mark::root()));
-
-  (
-    ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
-      kind: ast::VarDeclKind::Var,
-      declare: false,
-      span: DUMMY_SP,
-      decls: vec![ast::VarDeclarator {
-        name: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new(name, span))),
-        span: DUMMY_SP,
-        definite: false,
-        init: Some(Box::new(init)),
-      }],
-    })),
-    span.ctxt,
-  )
-}
-
 impl NodeReplacer<'_> {
   fn update_binding<F>(&mut self, id: &mut ast::Ident, expr: F) -> bool
   where
@@ -210,7 +192,7 @@ impl NodeReplacer<'_> {
       id.span.ctxt = *ctxt;
       false
     } else {
-      let (decl, ctxt) = create_decl_stmt(id.sym.clone(), expr(self));
+      let (decl, ctxt) = create_global_decl_stmt(id.sym.clone(), expr(self), self.global_mark);
 
       id.span.ctxt = ctxt;
 
