@@ -941,9 +941,9 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "2.4.2"
+version = "2.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbff174066eb7cd144e0fc5d4d82e47492fa2df6e29df5911c88a54cd4d6daea"
+checksum = "eba1b04555247b935187ea1dddac523ebc470c45806501d7203ed1bec7fa26b2"
 dependencies = [
  "ctor",
  "lazy_static",
@@ -1785,9 +1785,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "0.18.0"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5988fd245a86176271951c089f9144b7b48014bc1212872f9bd194f5f0f9dfd"
+checksum = "4ec38be09c030adbebf10014d0157df25826dba7254f60ef30d73cc24c267a06"
 dependencies = [
  "ahash",
  "ast_node",
@@ -1814,9 +1814,9 @@ dependencies = [
 
 [[package]]
 name = "swc_config"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3bddf0fdedf66f8f8b40b9689e6c600ba86d41fca8d25970ab2d2fbd8190046"
+checksum = "b8bb05ef56c14b95dd7e62e95960153af811b9a447287f1f6ca59f1337fb83d4"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -1887,9 +1887,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_loader"
-version = "0.30.0"
+version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b31692d1ac0d90760a3e835e520350bb596ebd837fd857e326b721260d8005a7"
+checksum = "0f7baaa5b99cdf49e830caf54b837891c5c38275ac94c31d555859be95f6479c"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1971,9 +1971,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.84.0"
+version = "0.84.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "900f108a324d18e40c74a4597393c6ded1a3c24f86a0092ae6e95c485c74da48"
+checksum = "6be33c0ca26095f5d8e83f9df14f5798233e29f09125d3afaf925b70920da8a1"
 dependencies = [
  "better_scoped_tls",
  "once_cell",
@@ -2070,9 +2070,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_optimization"
-version = "0.123.0"
+version = "0.123.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19b6c32214722f4f2cb33d978aa62b97f8e189f5853849d0da9d3eca905da73f"
+checksum = "cd5c7efdde630a05a3f6ff453dd54946011f4cdc92fe94fbb081f87dcd72b403"
 dependencies = [
  "ahash",
  "dashmap",
@@ -2257,9 +2257,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.93"
+version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04066589568b72ec65f42d65a1a52436e954b168773148893c020269563decf2"
+checksum = "a07e33e919ebcd69113d5be0e4d70c5707004ff45188910106854f38b960df4a"
 dependencies = [
  "proc-macro2",
  "quote",
