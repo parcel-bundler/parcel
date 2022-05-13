@@ -279,11 +279,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ..Default::default()
               };
               let versions = targets_to_versions(&config.targets);
+              let mut should_run_preset_env = false;
               if !config.is_swc_helpers {
                 // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
                 // Filter the versions for preset_env only so that syntax support checks
                 // (e.g. in esm2cjs) still work correctly.
                 if let Some(versions) = versions {
+                  should_run_preset_env = true;
                   preset_env_config.targets = Some(Targets::Versions(versions));
                   preset_env_config.shipped_proposals = true;
                   preset_env_config.mode = Some(Entry);
@@ -321,6 +323,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     inline_fs(
                       config.filename.as_str(),
                       source_map.clone(),
+                      // TODO this clone is unnecessary if we get the lifetimes right
                       decls.clone(),
                       global_mark,
                       &config.project_root,
@@ -346,21 +349,18 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       decls: &mut decls,
                       scope_hoist: config.scope_hoist
                     },
-                    config.insert_node_globals && config.source_type != SourceType::Script
+                    config.insert_node_globals
                   ),
                   // Transpile new syntax to older syntax if needed
-                  {
-                    let should_transpile = preset_env_config.targets.is_some();
-                    Optional::new(
-                      preset_env(
-                        global_mark,
-                        Some(&comments),
-                        preset_env_config,
-                        Default::default(),
-                      ),
-                      should_transpile,
-                    )
-                  },
+                  Optional::new(
+                    preset_env(
+                      global_mark,
+                      Some(&comments),
+                      preset_env_config,
+                      Default::default(),
+                    ),
+                    should_run_preset_env,
+                  ),
                   // Inject SWC helpers if needed.
                   helpers::inject_helpers(),
                 );
@@ -368,10 +368,14 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 module.fold_with(&mut passes)
               };
 
-              // regnerate decls after preset-env ran
-              let mut decls = collect_decls(&module);
+              let mut decls = if should_run_preset_env {
+                // Regnerate decls after preset-env ran. Our own transforms correctly update
+                // the decls during modifications.
+                collect_decls(&module)
+              } else {
+                decls
+              };
 
-              let mut has_node_replacements = false;
               let module = module.fold_with(
                 // Replace __dirname and __filename with placeholders in Node env
                 &mut Optional::new(
@@ -383,12 +387,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     filename: Path::new(&config.filename),
                     decls: &mut decls,
                     scope_hoist: config.scope_hoist,
-                    has_node_replacements: &mut has_node_replacements,
+                    has_node_replacements: &mut result.has_node_replacements,
                   },
                   config.node_replacer,
                 ),
               );
-              result.has_node_replacements = has_node_replacements;
 
               // Flush (JsWord, SyntaxContexts) into unique names and reresolve to
               // set global_mark for all nodes, even generated ones.
