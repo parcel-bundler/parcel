@@ -2188,7 +2188,28 @@ describe('html', function () {
       },
     );
     let bundles = b.getBundles();
-
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'index.js',
+          'index.js',
+          'index.js',
+          'index.js',
+          'client.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        type: 'js',
+        assets: ['viewer.js'],
+      },
+    ]);
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
