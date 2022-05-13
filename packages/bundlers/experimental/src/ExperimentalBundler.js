@@ -346,10 +346,6 @@ function createIdealGraph(
   }
 
   let assets = [];
-  let assetsToAddOnExit: DefaultMap<
-    Dependency,
-    Array<[Bundle, Asset]>,
-  > = new DefaultMap(() => []);
 
   let typeChangeIds = new Set();
   // Step 2: Traverse the asset graph and create bundles for asset type changes and async dependencies,
@@ -458,28 +454,6 @@ function createIdealGraph(
 
             // Find an existing bundle of the same type within the bundle group.
             let bundleId;
-            let entryAsset;
-            let uniqueKey;
-            // if (
-            //   childAsset.bundleBehavior !== 'inline' &&
-            //   dependency.priority !== 'parallel'
-            // ) {
-            //   uniqueKey = childAsset.id;
-            //   // TODO: share bundles even across different bundle groups by looking if the child
-            //   // asset is already a bundle root. In order for this to work, bundleRoots must be
-            //   // keyed by asset + target, not just asset, so that bundles are not shared between targets.
-            //   bundleId =
-            //     bundleGroup.type == childAsset.type
-            //       ? bundleGroupNodeId
-            //       : bundleGraph
-            //           .getNodeIdsConnectedFrom(bundleGroupNodeId)
-            //           .find(id => {
-            //             let node = bundleGraph.getNode(id);
-            //             return node !== 'root' && node?.type == childAsset.type;
-            //           });
-            // } else {
-            entryAsset = childAsset;
-            //}
             let referencingBundleId = nullthrows(
               bundleRoots.get(referencingBundleRoot),
             )[0];
@@ -490,12 +464,10 @@ function createIdealGraph(
             let bundle;
             bundleId = bundles.get(childAsset.id);
             if (bundleId == null) {
-              // Create a new bundle if none of the same type exists already.
               bundle = createBundle({
                 // We either have an entry asset or a unique key.
                 // Bundles created from type changes shouldn't have an entry asset.
-                asset: entryAsset,
-                uniqueKey,
+                asset: childAsset,
                 type: childAsset.type,
                 env: childAsset.env,
                 bundleBehavior: childAsset.bundleBehavior,
@@ -524,12 +496,10 @@ function createIdealGraph(
               invariant(bundle != null && bundle !== 'root');
             }
 
-            if (!entryAsset) {
-              // Queue the asset to be added on exit of this node, so we add dependencies first.
-              assetsToAddOnExit.get(dependency).push([bundle, childAsset]);
-            }
-
             bundles.set(childAsset.id, bundleId);
+            // This may be wrong
+            // A bundle can belong to multiple bundlegroups, all teh bundle groups of it's
+            // ancestors, and all async and entry bundles before it are " bundle groups "
             bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
             bundleGraph.addEdge(referencingBundleId, bundleId);
 
@@ -565,15 +535,6 @@ function createIdealGraph(
       return node;
     },
     exit(node) {
-      if (node.type === 'dependency' && assetsToAddOnExit.has(node.value)) {
-        let assetsToAdd = assetsToAddOnExit.get(node.value);
-        for (let [bundle, asset] of assetsToAdd) {
-          bundle.assets.add(asset);
-          bundle.size += asset.stats.size;
-        }
-        assetsToAddOnExit.delete(node.value);
-      }
-
       if (stack[stack.length - 1]?.[0] === node.value) {
         stack.pop();
       }
@@ -594,18 +555,9 @@ function createIdealGraph(
         b.bundleBehavior !== 'inline' &&
         a.type === b.type
       ) {
-        let bundleBbundleGroups = new Set(
-          bundleGraph
-            .getNodeIdsConnectedTo(nodeIdB)
-            .filter(id => bundleGroupBundleIds.has(id)),
-        );
-        let bundleABundleGroups = new Set(
-          bundleGraph
-            .getNodeIdsConnectedTo(nodeIdA)
-            .filter(id => bundleGroupBundleIds.has(id)),
-        ); //the two css bundle don't share bundlegroups ALLL bundlegroups
-        //because type change bundles are considered bundlegroup starts or at least added edges
-
+        //should be the set of all
+        let bundleBbundleGroups = getBundleGroupsForBundle(nodeIdB);
+        let bundleABundleGroups = getBundleGroupsForBundle(nodeIdA);
         if (setEqual(bundleBbundleGroups, bundleABundleGroups)) {
           let shouldMerge = true;
           for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
@@ -1008,6 +960,19 @@ function createIdealGraph(
       );
     }
   }
+  function getBundleGroupsForBundle(nodeId: NodeId) {
+    let bundleGroupBundleIds = new Set();
+    bundleGraph.traverseAncestors(nodeId, ancestorId => {
+      if (
+        bundleGraph
+          .getNodeIdsConnectedTo(ancestorId)
+          .includes(bundleGraph.rootNodeId)
+      ) {
+        bundleGroupBundleIds.add(ancestorId);
+      }
+    });
+    return bundleGroupBundleIds;
+  }
 
   function mergeBundle(mainNodeId: NodeId, otherNodeId: NodeId) {
     //merges assets of "otherRoot" into "mainBundleRoot"
@@ -1016,9 +981,10 @@ function createIdealGraph(
     invariant(a !== 'root' && b !== 'root');
     let bundleRootB = nullthrows(b.mainEntryAsset);
     let mainBundleRoot = nullthrows(a.mainEntryAsset);
-    for (let asset of b.assets) {
-      a.assets.add(asset);
+    for (let asset of a.assets) {
+      b.assets.add(asset);
     }
+    a.assets = b.assets;
     for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
       dependencyBundleGraph.getNodeIdByContentKey(String(otherNodeId)),
       ALL_EDGE_TYPES,
