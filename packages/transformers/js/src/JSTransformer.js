@@ -740,6 +740,9 @@ export default (new Transformer({
       }
       for (let {source, local, imported, loc} of hoist_result.re_exports) {
         for (let dep of nullthrows(deps.get(source))) {
+          if (dep.specifierType !== 'esm') {
+            continue;
+          }
           if (local === '*' && imported === '*') {
             dep.symbols.set('*', '*', convertLoc(loc), true);
           } else {
