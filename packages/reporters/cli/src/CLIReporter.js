@@ -229,7 +229,11 @@ async function writeDiagnostic(
 
 function wrapWithIndent(string, indent = 0, initialIndent = indent) {
   let width = getTerminalWidth().columns;
-  return indentString(wrapAnsi(string, width - indent), indent, initialIndent);
+  return indentString(
+    wrapAnsi(string.trimEnd(), width - indent, {trim: false}),
+    indent,
+    initialIndent,
+  );
 }
 
 function indentString(string, indent = 0, initialIndent = indent) {
