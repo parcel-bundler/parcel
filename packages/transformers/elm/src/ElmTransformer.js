@@ -163,12 +163,6 @@ async function minifyElmOutput(source) {
   throw result.error;
 }
 
-// parcel strips away leading spaces on a new line
-// to preserve the indentation we replace the first space with a >
-function preserveIndentation(str) {
-  return str.replace(/\n {4}/g, '\n>   ');
-}
-
 function formatMessagePiece(piece) {
   if (piece.string) {
     if (piece.underline) {
@@ -192,7 +186,7 @@ function elmErrorToParcelDiagnostics(error) {
     ].join('\n');
 
     return {
-      message: preserveIndentation(message),
+      message,
       origin: '@parcel/elm-transformer',
       stack: '', // set stack to empty since it is not useful
     };
