@@ -1997,6 +1997,28 @@ describe('scope hoisting', function () {
       assert(new output[3]() instanceof output[2]);
     });
 
+    it('should support chained reexports from hybrid modules', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-hybrid/a.js',
+        ),
+      );
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
+    it('should support chained reexports as default from hybrid modules', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-default-hybrid/a.js',
+        ),
+      );
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
     it('support chained namespace reexports of CommonJS', async function () {
       let b = await bundle(
         path.join(
@@ -5041,7 +5063,11 @@ describe('scope hoisting', function () {
         ],
       },
       {assets: ['dep.js']},
-      {assets: ['async-has-dep.js', 'dep.js', 'get-dep.js']},
+      {
+        assets: process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER
+          ? ['async-has-dep.js']
+          : ['async-has-dep.js', 'dep.js', 'get-dep.js'],
+      },
       {assets: ['get-dep.js']},
     ]);
 

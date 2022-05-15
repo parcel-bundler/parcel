@@ -1036,31 +1036,42 @@ describe('javascript', function () {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/index.js'),
       {
+        mode: 'production',
         defaultTargetOptions: {
+          shouldOptimize: false,
           shouldScopeHoist: true,
         },
       },
     );
-
     assertBundles(b, [
       {
-        assets: ['dedicated-worker.js', 'index.js'],
+        assets: ['dedicated-worker.js'],
       },
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'bundle-manifest.js',
+        ],
       },
       {
-        assets: ['shared-worker.js', 'index.js'],
+        assets: ['shared-worker.js'],
+      },
+      {
+        assets: ['index.js'],
       },
     ]);
 
     let dedicated, shared;
     b.traverseBundles((bundle, ctx, traversal) => {
-      if (bundle.getMainEntry().filePath.endsWith('shared-worker.js')) {
+      let mainEntry = bundle.getMainEntry();
+      if (mainEntry && mainEntry.filePath.endsWith('shared-worker.js')) {
         shared = bundle;
       } else if (
-        bundle.getMainEntry().filePath.endsWith('dedicated-worker.js')
+        mainEntry &&
+        mainEntry.filePath.endsWith('dedicated-worker.js')
       ) {
         dedicated = bundle;
       }
@@ -1086,7 +1097,9 @@ describe('javascript', function () {
       let b = await bundle(
         path.join(__dirname, '/integration/workers-module/index.js'),
         {
+          mode: 'production',
           defaultTargetOptions: {
+            shouldOptimize: false,
             shouldScopeHoist,
             engines: {
               browsers: '>= 0.25%',
@@ -1097,31 +1110,36 @@ describe('javascript', function () {
 
       assertBundles(b, [
         {
-          assets: [
-            'dedicated-worker.js',
-            !shouldScopeHoist && 'esmodule-helpers.js',
-            'index.js',
-          ].filter(Boolean),
+          assets: ['dedicated-worker.js'],
         },
         {
           name: 'index.js',
-          assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
+          assets: [
+            'index.js',
+            'bundle-url.js',
+            'get-worker-url.js',
+            'bundle-manifest.js',
+          ],
         },
         {
           assets: [
             !shouldScopeHoist && 'esmodule-helpers.js',
-            'shared-worker.js',
             'index.js',
           ].filter(Boolean),
+        },
+        {
+          assets: ['shared-worker.js'],
         },
       ]);
 
       let dedicated, shared;
       b.traverseBundles((bundle, ctx, traversal) => {
-        if (bundle.getMainEntry().filePath.endsWith('shared-worker.js')) {
+        let mainEntry = bundle.getMainEntry();
+        if (mainEntry && mainEntry.filePath.endsWith('shared-worker.js')) {
           shared = bundle;
         } else if (
-          bundle.getMainEntry().filePath.endsWith('dedicated-worker.js')
+          mainEntry &&
+          mainEntry.filePath.endsWith('dedicated-worker.js')
         ) {
           dedicated = bundle;
         }
@@ -1977,6 +1995,7 @@ describe('javascript', function () {
   });
 
   it('should contain duplicate assets in workers when in development', async () => {
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) return;
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
       {mode: 'development'},
@@ -5108,6 +5127,14 @@ describe('javascript', function () {
     );
     let res = await run(b);
     assert.deepEqual(res, {a: 4});
+  });
+
+  it('should not use arrow functions for reexport declarations unless supported', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-arrow-support/index.js'),
+    );
+    let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!content.includes('=>'));
   });
 
   it('should support import namespace declarations of other ES modules', async function () {
