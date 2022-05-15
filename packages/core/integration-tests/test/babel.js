@@ -711,4 +711,60 @@ describe('babel', function () {
       },
     ]);
   });
+
+  it('should warn when a JSON5 babel config contains redundant plugins', async function () {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    let filePath = path.join(
+      __dirname,
+      '/integration/babel-warn-some-json5/index.js',
+    );
+    await bundle(filePath);
+    loggerDisposable.dispose();
+
+    let babelrcPath = path.resolve(path.dirname(filePath), '.babelrc');
+    assert.deepEqual(messages, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/transformer-babel',
+            message: md`Parcel includes transpilation by default. Babel config __${path.relative(
+              process.cwd(),
+              babelrcPath,
+            )}__ includes the following redundant presets: __@parcel/babel-preset-env__. Removing these may improve build performance.`,
+            codeFrames: [
+              {
+                filePath: babelrcPath,
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 2,
+                      column: 13,
+                    },
+                    end: {
+                      line: 2,
+                      column: 38,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              md`Remove the above presets from __${path.relative(
+                process.cwd(),
+                babelrcPath,
+              )}__`,
+            ],
+            documentationURL:
+              'https://parceljs.org/languages/javascript/#default-presets',
+          },
+        ],
+      },
+    ]);
+  });
 });

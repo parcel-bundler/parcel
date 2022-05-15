@@ -394,12 +394,7 @@ async function getCodeHighlights(fs, filePath, redundantPresets) {
     }
 
     if (pointers.length > 0) {
-      try {
-        return generateJSONCodeHighlights(contents, pointers);
-      } catch {
-        // TODO: support code highlights for json5 sources.
-        // Babel supports json5 syntax, but json-source-map does not.
-      }
+      return generateJSONCodeHighlights(contents, pointers);
     }
   }
 
