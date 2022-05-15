@@ -81,4 +81,53 @@ describe('elm', function () {
     assert(js.includes('Elm'));
     assert(js.includes('init'));
   });
+
+  it.only('should do whatever the f*ck I want', async function () {
+    await assert.rejects(
+      () =>
+        bundle(path.join(__dirname, 'integration/elm-compile-error/index.js'), {
+          mode: 'production',
+        }),
+
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message:
+              '\n' +
+              '-- TYPE MISMATCH --------------- test/integration/elm-compile-error/src/Main.elm\n' +
+              '\n' +
+              'The 1st argument to `text` is not what I expect:\n' +
+              '\n' +
+              '7|     Html.text 5 "Hello, world!"\n' +
+              '                 **^**\n' +
+              'This argument is a number of type:\n' +
+              '\n' +
+              '    **number**\n' +
+              '\n' +
+              'But `text` needs the 1st argument to be:\n' +
+              '\n' +
+              '    **String**\n' +
+              '\n' +
+              '__Hint__: Try using **String.fromInt** to convert it to a string?',
+            origin: '@parcel/elm-transformer',
+            stack: '',
+          },
+          {
+            message:
+              '\n' +
+              '-- TOO MANY ARGS --------------- test/integration/elm-compile-error/src/Main.elm\n' +
+              '\n' +
+              'The `text` function expects 1 argument, but it got 2 instead.\n' +
+              '\n' +
+              '7|     Html.text 5 "Hello, world!"\n' +
+              '       **^^^^^^^^^**\n' +
+              'Are there any missing commas? Or missing parentheses?',
+            origin: '@parcel/elm-transformer',
+            stack: '',
+          },
+        ],
+      },
+    );
+  });
 });
