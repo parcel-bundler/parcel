@@ -10,9 +10,11 @@ import {
 import path from 'path';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
+import NodeResolver from '@parcel/node-resolver-core';
+import invariant from 'assert';
 
 export default (new Resolver({
-  async resolve({dependency, options, specifier, pipeline}) {
+  async resolve({dependency, options, specifier, pipeline, logger}) {
     if (!isGlob(specifier)) {
       return;
     }
@@ -52,7 +54,63 @@ export default (new Resolver({
       });
     }
 
-    specifier = path.resolve(path.dirname(sourceFile), specifier);
+    // if the specifier does not start with /, ~, or . then it's not a path but package-ish - we resolve
+    // the package first, and then append the rest of the path
+    if (!/^[/~.]/.test(specifier)) {
+      specifier = path.normalize(specifier);
+      let splitOn = specifier.indexOf(path.sep);
+      if (specifier.charAt(0) === '@') {
+        splitOn = specifier.indexOf(path.sep, splitOn + 1);
+      }
+
+      // Since we've already asserted earlier that there is a glob present, it shouldn't be
+      // possible for there to be only a package here without any other path parts (e.g. `import('pkg')`)
+      invariant(splitOn !== -1);
+
+      let pkg = specifier.substring(0, splitOn);
+      let rest = specifier.substring(splitOn + 1);
+
+      // This initialisation code is copied from the DefaultResolver
+      const resolver = new NodeResolver({
+        fs: options.inputFS,
+        projectRoot: options.projectRoot,
+        // Extensions are always required in URL dependencies.
+        extensions:
+          dependency.specifierType === 'commonjs' ||
+          dependency.specifierType === 'esm'
+            ? ['ts', 'tsx', 'js', 'jsx', 'json']
+            : [],
+        mainFields: ['source', 'browser', 'module', 'main'],
+        packageManager: options.shouldAutoInstall
+          ? options.packageManager
+          : undefined,
+        logger,
+      });
+
+      const result = await resolver.resolve({
+        filename: pkg,
+        specifierType: dependency.specifierType,
+        parent: dependency.resolveFrom,
+        env: dependency.env,
+        sourcePath: dependency.sourcePath,
+        loc: dependency.loc,
+      });
+
+      logger.info(result);
+
+      if (!result) {
+        throw new Error(
+          `Unable to resolve ${pkg} from ${dependency.sourcePath} when evaluating specifier ${specifier}`,
+        );
+      } else if (result.diagnostics && result.diagnostics.length > 0) {
+        throw new ThrowableDiagnostic({diagnostic: result.diagnostics});
+      }
+
+      specifier = path.resolve(path.dirname(result.filePath), rest);
+    } else {
+      specifier = path.resolve(path.dirname(sourceFile), specifier);
+    }
+
     let normalized = normalizeSeparators(specifier);
     let files = await glob(normalized, options.inputFS, {
       onlyFiles: true,
