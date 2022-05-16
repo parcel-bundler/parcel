@@ -82,7 +82,7 @@ describe('elm', function () {
     assert(js.includes('init'));
   });
 
-  it('should do whatever the f*ck I want', async function () {
+  it('should produce correct formatting and indentation when compilation fails', async function () {
     await assert.rejects(
       () =>
         bundle(path.join(__dirname, 'integration/elm-compile-error/index.js'), {
