@@ -203,4 +203,39 @@ describe('glob', function () {
       ],
     });
   });
+
+  it('should require a glob of files from a package', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/glob-package/index.js'),
+    );
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['*.js', '*.js', 'a.js', 'b.js', 'x.js', 'y.js', 'index.js'],
+      },
+    ]);
+  });
+
+  it('should require a glob of files from a package async', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/glob-package-async/index.js'),
+    );
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          '*.js',
+          '*.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+      {type: 'js', assets: ['a.js']},
+      {type: 'js', assets: ['b.js']},
+      {type: 'js', assets: ['x.js']},
+      {type: 'js', assets: ['y.js']},
+    ]);
+  });
 });

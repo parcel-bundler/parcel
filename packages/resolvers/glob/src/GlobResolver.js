@@ -13,6 +13,26 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import NodeResolver from '@parcel/node-resolver-core';
 import invariant from 'assert';
 
+function errorToThrowableDiagnostic(error, dependency): ThrowableDiagnostic {
+  return new ThrowableDiagnostic({
+    diagnostic: {
+      message: error,
+      codeFrames: dependency.loc
+        ? [
+            {
+              codeHighlights: [
+                {
+                  start: dependency.loc.start,
+                  end: dependency.loc.end,
+                },
+              ],
+            },
+          ]
+        : undefined,
+    },
+  });
+}
+
 export default (new Resolver({
   async resolve({dependency, options, specifier, pipeline, logger}) {
     if (!isGlob(specifier)) {
@@ -35,23 +55,7 @@ export default (new Resolver({
     }
 
     if (error) {
-      throw new ThrowableDiagnostic({
-        diagnostic: {
-          message: error,
-          codeFrames: dependency.loc
-            ? [
-                {
-                  codeHighlights: [
-                    {
-                      start: dependency.loc.start,
-                      end: dependency.loc.end,
-                    },
-                  ],
-                },
-              ]
-            : undefined,
-        },
-      });
+      throw errorToThrowableDiagnostic(error, dependency);
     }
 
     // if the specifier does not start with /, ~, or . then it's not a path but package-ish - we resolve
@@ -96,11 +100,10 @@ export default (new Resolver({
         loc: dependency.loc,
       });
 
-      logger.info(result);
-
       if (!result) {
-        throw new Error(
+        throw errorToThrowableDiagnostic(
           `Unable to resolve ${pkg} from ${dependency.sourcePath} when evaluating specifier ${specifier}`,
+          dependency,
         );
       } else if (result.diagnostics && result.diagnostics.length > 0) {
         throw new ThrowableDiagnostic({diagnostic: result.diagnostics});
