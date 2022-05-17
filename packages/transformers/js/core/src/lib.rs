@@ -37,7 +37,7 @@ use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
 use swc_ecmascript::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
 use swc_ecmascript::transforms::fixer::paren_remover;
-use swc_ecmascript::transforms::resolver::resolver_with_mark;
+use swc_ecmascript::transforms::resolver;
 use swc_ecmascript::transforms::{
   compat::reserved_words::reserved_words, fixer, helpers, hygiene,
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
@@ -202,14 +202,14 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             || {
               let mut react_options = react::Options::default();
               if config.is_jsx {
-                react_options.use_spread = true;
+                react_options.use_spread = Some(true);
                 if let Some(jsx_pragma) = &config.jsx_pragma {
-                  react_options.pragma = jsx_pragma.clone();
+                  react_options.pragma = Some(jsx_pragma.clone());
                 }
                 if let Some(jsx_pragma_frag) = &config.jsx_pragma_frag {
-                  react_options.pragma_frag = jsx_pragma_frag.clone();
+                  react_options.pragma_frag = Some(jsx_pragma_frag.clone());
                 }
-                react_options.development = config.is_development;
+                react_options.development = Some(config.is_development);
                 react_options.refresh = if config.react_refresh {
                   Some(react::RefreshOptions::default())
                 } else {
@@ -218,7 +218,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
                 react_options.runtime = if config.automatic_jsx_runtime {
                   if let Some(import_source) = &config.jsx_import_source {
-                    react_options.import_source = import_source.clone();
+                    react_options.import_source = Some(import_source.clone());
                   }
                   Some(react::Runtime::Automatic)
                 } else {
@@ -227,7 +227,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               }
 
               let global_mark = Mark::fresh(Mark::root());
-              let ignore_mark = Mark::fresh(Mark::root());
+              let unresolved_mark = Mark::fresh(Mark::root());
               module = {
                 let mut passes = chain!(
                   // Decorators can use type information, so must run before the TypeScript pass.
@@ -235,7 +235,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     decorators::decorators(decorators::Config {
                       legacy: true,
                       // Always disabled for now, SWC's implementation doesn't match TSC.
-                      emit_metadata: false
+                      emit_metadata: false,
+                      use_define_for_class_fields: true
                     }),
                     config.decorators
                   ),
@@ -243,8 +244,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     typescript::strip_with_jsx(
                       source_map.clone(),
                       typescript::Config {
-                        pragma: Some(react_options.pragma.clone()),
-                        pragma_frag: Some(react_options.pragma_frag.clone()),
+                        pragma: react_options.pragma.clone(),
+                        pragma_frag: react_options.pragma_frag.clone(),
                         ..Default::default()
                       },
                       Some(&comments),
@@ -256,7 +257,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     typescript::strip(global_mark),
                     config.is_type_script && !config.is_jsx
                   ),
-                  resolver_with_mark(global_mark),
+                  resolver(unresolved_mark, global_mark, config.is_type_script),
                   Optional::new(
                     react::react(
                       source_map.clone(),
@@ -278,11 +279,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ..Default::default()
               };
               let versions = targets_to_versions(&config.targets);
+              let mut should_run_preset_env = false;
               if !config.is_swc_helpers {
                 // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
                 // Filter the versions for preset_env only so that syntax support checks
                 // (e.g. in esm2cjs) still work correctly.
                 if let Some(versions) = versions {
+                  should_run_preset_env = true;
                   preset_env_config.targets = Some(Targets::Versions(versions));
                   preset_env_config.shipped_proposals = true;
                   preset_env_config.mode = Some(Entry);
@@ -313,13 +316,14 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   paren_remover(Some(&comments)),
                   // Simplify expressions and remove dead branches so that we
                   // don't include dependencies inside conditionals that are always false.
-                  expr_simplifier(Default::default()),
-                  dead_branch_remover(),
+                  expr_simplifier(unresolved_mark, Default::default()),
+                  dead_branch_remover(unresolved_mark),
                   // Inline Node fs.readFileSync calls
                   Optional::new(
                     inline_fs(
                       config.filename.as_str(),
                       source_map.clone(),
+                      // TODO this clone is unnecessary if we get the lifetimes right
                       decls.clone(),
                       global_mark,
                       &config.project_root,
@@ -332,6 +336,24 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 module.fold_with(&mut passes)
               };
 
+              let module = module.fold_with(
+                // Replace __dirname and __filename with placeholders in Node env
+                &mut Optional::new(
+                  NodeReplacer {
+                    source_map: &source_map,
+                    items: &mut global_deps,
+                    global_mark,
+                    globals: HashMap::new(),
+                    project_root: Path::new(&config.project_root),
+                    filename: Path::new(&config.filename),
+                    decls: &mut decls,
+                    scope_hoist: config.scope_hoist,
+                    has_node_replacements: &mut result.has_node_replacements,
+                  },
+                  config.node_replacer,
+                ),
+              );
+
               let module = {
                 let mut passes = chain!(
                   // Insert dependencies for node globals
@@ -339,28 +361,25 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     GlobalReplacer {
                       source_map: &source_map,
                       items: &mut global_deps,
+                      global_mark,
                       globals: HashMap::new(),
                       project_root: Path::new(&config.project_root),
                       filename: Path::new(&config.filename),
                       decls: &mut decls,
-                      global_mark,
                       scope_hoist: config.scope_hoist
                     },
-                    config.insert_node_globals && config.source_type != SourceType::Script
+                    config.insert_node_globals
                   ),
                   // Transpile new syntax to older syntax if needed
-                  {
-                    let should_transpile = preset_env_config.targets.is_some();
-                    Optional::new(
-                      preset_env(
-                        global_mark,
-                        Some(&comments),
-                        preset_env_config,
-                        Default::default(),
-                      ),
-                      should_transpile,
-                    )
-                  },
+                  Optional::new(
+                    preset_env(
+                      global_mark,
+                      Some(&comments),
+                      preset_env_config,
+                      Default::default(),
+                    ),
+                    should_run_preset_env,
+                  ),
                   // Inject SWC helpers if needed.
                   helpers::inject_helpers(),
                 );
@@ -368,26 +387,23 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 module.fold_with(&mut passes)
               };
 
-              let mut has_node_replacements = false;
-              let module = module.fold_with(
-                // Replace __dirname and __filename with placeholders in Node env
-                &mut Optional::new(
-                  NodeReplacer {
-                    source_map: &source_map,
-                    items: &mut global_deps,
-                    globals: HashMap::new(),
-                    project_root: Path::new(&config.project_root),
-                    filename: Path::new(&config.filename),
-                    decls: &mut decls,
-                    global_mark,
-                    scope_hoist: config.scope_hoist,
-                    has_node_replacements: &mut has_node_replacements,
-                  },
-                  config.node_replacer,
-                ),
-              );
-              result.has_node_replacements = has_node_replacements;
+              // Flush (JsWord, SyntaxContexts) into unique names and reresolve to
+              // set global_mark for all nodes, even generated ones.
+              // - This changes the syntax context ids and therefore invalidates decls
+              // - This will also remove any other other marks (like ignore_mark)
+              // This only needs to be done if preset_env ran because all other transforms
+              // insert declarations with global_mark (even though they are generated).
+              let (decls, module) = if config.scope_hoist && should_run_preset_env {
+                let module = module.fold_with(&mut chain!(
+                  hygiene(),
+                  resolver(unresolved_mark, global_mark, false)
+                ));
+                (collect_decls(&module), module)
+              } else {
+                (decls, module)
+              };
 
+              let ignore_mark = Mark::fresh(Mark::root());
               let module = module.fold_with(
                 // Collect dependencies
                 &mut dependency_collector(
@@ -505,7 +521,6 @@ fn parse(
     Syntax::Es(EsConfig {
       jsx: config.is_jsx,
       export_default_from: true,
-      static_blocks: true,
       decorators: config.decorators,
       ..Default::default()
     })
@@ -544,7 +559,11 @@ fn emit(
         None
       },
     ));
-    let config = swc_ecmascript::codegen::Config { minify: false };
+    let config = swc_ecmascript::codegen::Config {
+      minify: false,
+      ascii_only: false,
+      target: swc_ecmascript::ast::EsVersion::Es5,
+    };
     let mut emitter = swc_ecmascript::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
