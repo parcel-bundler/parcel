@@ -668,6 +668,17 @@ impl<'a> Fold for Hoist<'a> {
           }
         }
       }
+      Expr::Ident(ident) => {
+        if let Some(Import { specifier, .. }) = self.collect.imports.get(&id!(ident)) {
+          if specifier != "*" {
+            return Expr::Seq(SeqExpr {
+              span: ident.span,
+              exprs: vec![0.into(), Box::new(Expr::Ident(ident.fold_with(self)))],
+            });
+          }
+        }
+        return Expr::Ident(ident.fold_with(self));
+      }
       _ => {}
     }
 
