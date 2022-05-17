@@ -2162,7 +2162,11 @@ mod tests {
         &mut buf,
         Some(&mut src_map_buf),
       ));
-      let config = swc_ecmascript::codegen::Config { minify: false };
+      let config = swc_ecmascript::codegen::Config {
+        minify: false,
+        ascii_only: false,
+        target: swc_ecmascript::ast::EsVersion::Es5,
+      };
       let mut emitter = swc_ecmascript::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
