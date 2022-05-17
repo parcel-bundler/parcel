@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
 use swc_common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::{self, Callee, MemberProp};
-use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::fold_member_expr_skip_prop;

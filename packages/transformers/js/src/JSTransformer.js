@@ -387,7 +387,8 @@ export default (new Transformer({
       project_root: options.projectRoot,
       replace_env: !asset.env.isNode(),
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
-      insert_node_globals: !asset.env.isNode(),
+      insert_node_globals:
+        !asset.env.isNode() && asset.env.sourceType !== 'script',
       node_replacer: asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
