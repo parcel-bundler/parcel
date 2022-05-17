@@ -61,10 +61,10 @@ export default (new Resolver({
     // if the specifier does not start with /, ~, or . then it's not a path but package-ish - we resolve
     // the package first, and then append the rest of the path
     if (!/^[/~.]/.test(specifier)) {
-      specifier = path.normalize(specifier);
-      let splitOn = specifier.indexOf(path.sep);
+      // Globs are not paths - so they always use / (see https://github.com/micromatch/micromatch#backslashes)
+      let splitOn = specifier.indexOf('/');
       if (specifier.charAt(0) === '@') {
-        splitOn = specifier.indexOf(path.sep, splitOn + 1);
+        splitOn = specifier.indexOf('/', splitOn + 1);
       }
 
       // Since we've already asserted earlier that there is a glob present, it shouldn't be
