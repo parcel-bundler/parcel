@@ -191,7 +191,7 @@ describe('output formats', function () {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(dist.includes('= require("lodash")'));
-      assert(dist.includes('= ($parcel$interopDefault('));
+      assert(dist.includes('= (0, ($parcel$interopDefault('));
       assert(/var {add: \s*\$.+?\$add\s*} = lodash/);
       assert.equal((await run(b)).bar, 6);
     });
