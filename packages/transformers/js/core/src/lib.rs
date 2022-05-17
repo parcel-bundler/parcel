@@ -336,6 +336,24 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 module.fold_with(&mut passes)
               };
 
+              let module = module.fold_with(
+                // Replace __dirname and __filename with placeholders in Node env
+                &mut Optional::new(
+                  NodeReplacer {
+                    source_map: &source_map,
+                    items: &mut global_deps,
+                    global_mark,
+                    globals: HashMap::new(),
+                    project_root: Path::new(&config.project_root),
+                    filename: Path::new(&config.filename),
+                    decls: &mut decls,
+                    scope_hoist: config.scope_hoist,
+                    has_node_replacements: &mut result.has_node_replacements,
+                  },
+                  config.node_replacer,
+                ),
+              );
+
               let module = {
                 let mut passes = chain!(
                   // Insert dependencies for node globals
@@ -368,32 +386,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
                 module.fold_with(&mut passes)
               };
-
-              let mut decls = if should_run_preset_env {
-                // Regnerate decls after preset-env ran. Our own transforms correctly update
-                // the decls during modifications.
-                collect_decls(&module)
-              } else {
-                decls
-              };
-
-              let module = module.fold_with(
-                // Replace __dirname and __filename with placeholders in Node env
-                &mut Optional::new(
-                  NodeReplacer {
-                    source_map: &source_map,
-                    items: &mut global_deps,
-                    global_mark,
-                    globals: HashMap::new(),
-                    project_root: Path::new(&config.project_root),
-                    filename: Path::new(&config.filename),
-                    decls: &mut decls,
-                    scope_hoist: config.scope_hoist,
-                    has_node_replacements: &mut result.has_node_replacements,
-                  },
-                  config.node_replacer,
-                ),
-              );
 
               // Flush (JsWord, SyntaxContexts) into unique names and reresolve to
               // set global_mark for all nodes, even generated ones.
