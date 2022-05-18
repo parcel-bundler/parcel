@@ -199,7 +199,6 @@ describe('PathRequest', () => {
             Promise.resolve({
               invalidateOnEnvChange: ['plugin2'],
             }),
-          isExcluded: true,
         },
       ];
 
