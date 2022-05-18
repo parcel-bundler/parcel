@@ -21,22 +21,14 @@ export default (new Runtime({
       return;
     }
 
-    const {host, port} = options.hmrOptions;
+    const {host, port, https} = options.hmrOptions;
     return {
       filePath: __filename,
       code:
         `var HMR_HOST = ${JSON.stringify(host != null ? host : null)};` +
-        `var HMR_PORT = ${JSON.stringify(
-          port != null &&
-            // Default to the HTTP port in the browser, only override
-            // in watch mode or if hmr port != serve port
-            (!options.serveOptions || options.serveOptions.port !== port)
-            ? port
-            : null,
-        )};` +
-        `var HMR_SECURE = ${JSON.stringify(
-          !!(options.serveOptions && options.serveOptions.https),
-        )};` +
+        `var HMR_HOST = ${JSON.stringify(host)};` +
+        `var HMR_PORT = ${JSON.stringify(port)};` +
+        `var HMR_SECURE = ${JSON.stringify(!!(https))};` +
         `var HMR_ENV_HASH = "${bundle.env.id}";` +
         `module.bundle.HMR_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
         HMR_RUNTIME,
