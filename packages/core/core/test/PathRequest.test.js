@@ -87,7 +87,6 @@ describe('PathRequest', () => {
         options,
       });
 
-      // act
       assert(api.invalidateOnEnvChange.callCount == 2);
       assert(api.invalidateOnEnvChange.calledWith('first'));
       assert(api.invalidateOnEnvChange.calledWith('second'));
@@ -130,7 +129,6 @@ describe('PathRequest', () => {
         options,
       });
 
-      // act
       assert(api.invalidateOnEnvChange.callCount == 2);
       assert(api.invalidateOnEnvChange.calledWith('plugin1'));
       assert(api.invalidateOnEnvChange.calledWith('plugin2'));
@@ -173,7 +171,6 @@ describe('PathRequest', () => {
         options,
       });
 
-      // act
       assert(api.invalidateOnEnvChange.callCount == 2);
       assert(api.invalidateOnEnvChange.calledWith('plugin1'));
       assert(api.invalidateOnEnvChange.calledWith('plugin2'));
@@ -218,7 +215,6 @@ describe('PathRequest', () => {
         //expected exception
       }
 
-      // act
       assert(api.invalidateOnEnvChange.callCount == 2);
       assert(api.invalidateOnEnvChange.calledWith('plugin1'));
       assert(api.invalidateOnEnvChange.calledWith('plugin2'));
