@@ -100,12 +100,12 @@ export default (new Resolver({
         loc: dependency.loc,
       });
 
-      if (!result) {
+      if (!result || !result.filePath) {
         throw errorToThrowableDiagnostic(
-          `Unable to resolve ${pkg} from ${dependency.sourcePath} when evaluating specifier ${specifier}`,
+          `Unable to resolve ${pkg} from ${sourceFile} when evaluating specifier ${specifier}`,
           dependency,
         );
-      } else if (result.diagnostics && result.diagnostics.length > 0) {
+      } else if (result.diagnostics) {
         throw new ThrowableDiagnostic({diagnostic: result.diagnostics});
       }
 
