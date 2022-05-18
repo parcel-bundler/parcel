@@ -214,6 +214,10 @@ describe('glob', function () {
         assets: ['*.js', '*.js', 'a.js', 'b.js', 'x.js', 'y.js', 'index.js'],
       },
     ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 10);
   });
 
   it('should require a glob of files from a package async', async function () {
@@ -237,5 +241,9 @@ describe('glob', function () {
       {type: 'js', assets: ['x.js']},
       {type: 'js', assets: ['y.js']},
     ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 10);
   });
 });
