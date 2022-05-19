@@ -8,8 +8,8 @@ import {
   nextBundle,
 } from '@parcel/test-utils';
 
-describe.skip('bundler', function() {
-  it('should bundle once before exporting middleware', async function() {
+describe.skip('bundler', function () {
+  it('should bundle once before exporting middleware', async function () {
     let b = bundler(
       path.join(__dirname, '/integration/bundler-middleware/index.js'),
     );
@@ -58,7 +58,7 @@ describe.skip('bundler', function() {
     }, 'before bundling');
   });
 
-  it('should support multiple entry points', async function() {
+  it('should support multiple entry points', async function () {
     let b = await bundle([
       path.join(__dirname, '/integration/multi-entry/one.html'),
       path.join(__dirname, '/integration/multi-entry/two.html'),
@@ -83,7 +83,7 @@ describe.skip('bundler', function() {
     ]);
   });
 
-  it('should support multiple entry points as a glob', async function() {
+  it('should support multiple entry points as a glob', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/multi-entry/*.html'),
     );

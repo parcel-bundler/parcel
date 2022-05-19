@@ -25,12 +25,22 @@ const SIGINT_EXIT_CODE = 130;
 async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let out = await prettyDiagnostic(diagnostic);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.message);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.stack);
-      for (let h of out.hints) {
-        INTERNAL_ORIGINAL_CONSOLE.error(h);
+      let {message, codeframe, stack, hints, documentation} =
+        await prettyDiagnostic(diagnostic);
+      INTERNAL_ORIGINAL_CONSOLE.error(chalk.red(message));
+      if (codeframe || stack) {
+        INTERNAL_ORIGINAL_CONSOLE.error('');
+      }
+      INTERNAL_ORIGINAL_CONSOLE.error(codeframe);
+      INTERNAL_ORIGINAL_CONSOLE.error(stack);
+      if ((stack || codeframe) && hints.length > 0) {
+        INTERNAL_ORIGINAL_CONSOLE.error('');
+      }
+      for (let h of hints) {
+        INTERNAL_ORIGINAL_CONSOLE.error(chalk.blue(h));
+      }
+      if (documentation) {
+        INTERNAL_ORIGINAL_CONSOLE.error(chalk.magenta.bold(documentation));
       }
     }
   } else {
@@ -162,12 +172,12 @@ applyOptions(build, commonOptions);
 program
   .command('help [command]')
   .description('display help information for a command')
-  .action(function(command) {
+  .action(function (command) {
     let cmd = program.commands.find(c => c.name() === command) || program;
     cmd.help();
   });
 
-program.on('--help', function() {
+program.on('--help', function () {
   INTERNAL_ORIGINAL_CONSOLE.log('');
   INTERNAL_ORIGINAL_CONSOLE.log(
     '  Run `' +
@@ -178,7 +188,8 @@ program.on('--help', function() {
 });
 
 // Override to output option description if argument was missing
-commander.Command.prototype.optionMissingArgument = function(option) {
+// $FlowFixMe[prop-missing]
+commander.Command.prototype.optionMissingArgument = function (option) {
   INTERNAL_ORIGINAL_CONSOLE.error(
     "error: option `%s' argument missing",
     option.flags,
@@ -206,13 +217,12 @@ async function run(
   _opts: any, // using pre v7 Commander options as properties
   command: any,
 ) {
+  if (entries.length === 0) {
+    entries = ['.'];
+  }
+
   entries = entries.map(entry => path.resolve(entry));
 
-  if (entries.length === 0) {
-    // TODO move this into core, a glob could still lead to no entries
-    INTERNAL_ORIGINAL_CONSOLE.log('No entries found');
-    return;
-  }
   let Parcel = require('@parcel/core').default;
   let fs = new NodeFS();
   let options = await normalizeOptions(command, fs);
@@ -311,8 +321,9 @@ async function run(
 
     if (command.open && options.serveOptions) {
       await openInBrowser(
-        `${options.serveOptions.https ? 'https' : 'http'}://${options
-          .serveOptions.host || 'localhost'}:${options.serveOptions.port}`,
+        `${options.serveOptions.https ? 'https' : 'http'}://${
+          options.serveOptions.host || 'localhost'
+        }:${options.serveOptions.port}`,
         command.open,
       );
     }
@@ -404,7 +415,6 @@ async function normalizeOptions(
         diagnostic: {
           message: `Could not get available port: ${err.message}`,
           origin: 'parcel',
-          filePath: __filename,
           stack: err.stack,
         },
       });
@@ -456,6 +466,7 @@ async function normalizeOptions(
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
+    config: command.config,
     mode,
     hmrOptions,
     shouldContentHash: hmrOptions ? false : command.contentHash,

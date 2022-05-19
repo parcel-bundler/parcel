@@ -2,42 +2,53 @@
 import type {InitialParcelOptions, BuildSuccessEvent} from '@parcel/types';
 import assert from 'assert';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import {
   assertBundles,
   bundler,
   run,
+  runBundle as runSingleBundle,
   overlayFS,
+  outputFS,
   inputFS,
   ncp,
   workerFarm,
   mergeParcelOptions,
   sleep,
   getNextBuild,
+  distDir,
+  getParcelOptions,
+  assertNoFilePathInCache,
+  findAsset,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 import fs from 'fs';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createWorkerFarm} from '@parcel/core';
+import resolveOptions from '@parcel/core/src/resolveOptions';
 
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS, '/');
 
-function runBundle(entries = 'src/index.js', opts) {
-  entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>
+function getEntries(entries = 'src/index.js') {
+  return (Array.isArray(entries) ? entries : [entries]).map(entry =>
     path.resolve(inputDir, entry),
   );
+}
 
-  return bundler(
-    entries,
-    mergeParcelOptions(
-      {
-        inputFS: overlayFS,
-        shouldDisableCache: false,
-      },
-      opts,
-    ),
-  ).run();
+function getOptions(opts) {
+  return mergeParcelOptions(
+    {
+      inputFS: overlayFS,
+      shouldDisableCache: false,
+    },
+    opts,
+  );
+}
+
+function runBundle(entries = 'src/index.js', opts) {
+  return bundler(getEntries(entries), getOptions(opts)).run();
 }
 
 type UpdateFn = BuildSuccessEvent =>
@@ -68,18 +79,38 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
     }
   }
 
+  let resolvedOptions = await resolveOptions(
+    getParcelOptions(getEntries(entries), getOptions(options)),
+  );
+
   let b = await runBundle(entries, options);
+
+  await assertNoFilePathInCache(
+    resolvedOptions.outputFS,
+    resolvedOptions.cacheDir,
+    resolvedOptions.projectRoot,
+  );
 
   // update
   let newOptions = await update(b);
+  options = mergeParcelOptions(options || {}, newOptions);
 
   // Run cached build
-  b = await runBundle(entries, mergeParcelOptions(options || {}, newOptions));
+  b = await runBundle(entries, options);
+
+  resolvedOptions = await resolveOptions(
+    getParcelOptions(getEntries(entries), getOptions(options)),
+  );
+  await assertNoFilePathInCache(
+    resolvedOptions.outputFS,
+    resolvedOptions.cacheDir,
+    resolvedOptions.projectRoot,
+  );
 
   return b;
 }
 
-describe('cache', function() {
+describe('cache', function () {
   before(async () => {
     await inputFS.rimraf(path.join(__dirname, 'input'));
   });
@@ -88,13 +119,11 @@ describe('cache', function() {
     inputDir = path.join(
       __dirname,
       '/input',
-      Math.random()
-        .toString(36)
-        .slice(2),
+      Math.random().toString(36).slice(2),
     );
   });
 
-  it('should support updating a JS file', async function() {
+  it('should support updating a JS file', async function () {
     let b = await testCache(async b => {
       assert.equal(await run(b.bundleGraph), 4);
       await overlayFS.writeFile(
@@ -106,7 +135,7 @@ describe('cache', function() {
     assert.equal(await run(b.bundleGraph), 6);
   });
 
-  it('should support adding a dependency', async function() {
+  it('should support adding a dependency', async function () {
     let b = await testCache(async b => {
       assert.equal(await run(b.bundleGraph), 4);
       await overlayFS.writeFile(
@@ -122,10 +151,10 @@ describe('cache', function() {
     assert.equal(await run(b.bundleGraph), 8);
   });
 
-  it('should support adding a dependency which changes the referenced bundles of a parent bundle', async function() {
-    async function exec(bundleGraph) {
+  it('should support adding a dependency which changes the referenced bundles of a parent bundle', async function () {
+    async function exec(bundleGraph, bundle) {
       let calls = [];
-      await run(bundleGraph, {
+      await runSingleBundle(bundleGraph, nullthrows(bundle), {
         call(v) {
           calls.push(v);
         },
@@ -135,22 +164,31 @@ describe('cache', function() {
 
     let b = await testCache(
       {
-        entries: ['index.html'],
+        entries: ['a.html', 'b.html'],
+        mode: 'production',
         update: async b => {
-          assert.deepEqual(await exec(b.bundleGraph), ['a', 'b']);
+          let html = b.bundleGraph.getBundles().filter(b => b.type === 'html');
+          assert.deepEqual(await exec(b.bundleGraph, html[0]), ['a']);
+          assert.deepEqual(await exec(b.bundleGraph, html[1]), ['b']);
           await overlayFS.writeFile(
             path.join(inputDir, 'a.js'),
-            'import "./b.js"; call("a");',
+            'import "./c.js"; call("a");',
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'b.js'),
+            'import "./c.js"; call("b");',
           );
         },
       },
       'cache-add-dep-referenced',
     );
 
-    assert.deepEqual(await exec(b.bundleGraph), ['b', 'a']);
+    let html = b.bundleGraph.getBundles().filter(b => b.type === 'html');
+    assert.deepEqual(await exec(b.bundleGraph, html[0]), ['c', 'a']);
+    assert.deepEqual(await exec(b.bundleGraph, html[1]), ['c', 'b']);
   });
 
-  it('should error when deleting a file', async function() {
+  it('should error when deleting a file', async function () {
     // $FlowFixMe
     await assert.rejects(
       async () => {
@@ -162,7 +200,7 @@ describe('cache', function() {
     );
   });
 
-  it('should error when starting parcel from a broken state with no changes', async function() {
+  it('should error when starting parcel from a broken state with no changes', async function () {
     // $FlowFixMe
     await assert.rejects(async () => {
       await testCache(async () => {
@@ -180,7 +218,7 @@ describe('cache', function() {
     );
   });
 
-  describe('babel', function() {
+  describe('babel', function () {
     let json = config => JSON.stringify(config);
     let cjs = config => `module.exports = ${JSON.stringify(config)}`;
     // TODO: not sure how to invalidate the ESM cache in node...
@@ -207,8 +245,8 @@ describe('cache', function() {
     });
 
     for (let {name, formatter, nesting} of configs) {
-      describe(name, function() {
-        it(`should support adding a ${name}`, async function() {
+      describe(name, function () {
+        it(`should support adding a ${name}`, async function () {
           let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
@@ -255,7 +293,7 @@ describe('cache', function() {
           );
         });
 
-        it(`should support updating a ${name}`, async function() {
+        it(`should support updating a ${name}`, async function () {
           let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
@@ -306,7 +344,7 @@ describe('cache', function() {
           );
         });
 
-        it(`should support deleting a ${name}`, async function() {
+        it(`should support deleting a ${name}`, async function () {
           let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
@@ -349,7 +387,7 @@ describe('cache', function() {
           );
         });
 
-        it(`should support updating an extended ${name}`, async function() {
+        it(`should support updating an extended ${name}`, async function () {
           let extendedName = '.babelrc-extended' + path.extname(name);
           let b = await testCache({
             // Babel's config loader only works with the node filesystem
@@ -408,7 +446,7 @@ describe('cache', function() {
         });
 
         if (nesting) {
-          it(`should support adding a nested ${name}`, async function() {
+          it(`should support adding a nested ${name}`, async function () {
             let b = await testCache({
               // Babel's config loader only works with the node filesystem
               inputFS,
@@ -463,7 +501,7 @@ describe('cache', function() {
             );
           });
 
-          it(`should support updating a nested ${name}`, async function() {
+          it(`should support updating a nested ${name}`, async function () {
             let b = await testCache({
               // Babel's config loader only works with the node filesystem
               inputFS,
@@ -522,7 +560,7 @@ describe('cache', function() {
             );
           });
 
-          it(`should support deleting a nested ${name}`, async function() {
+          it(`should support deleting a nested ${name}`, async function () {
             let b = await testCache({
               // Babel's config loader only works with the node filesystem
               inputFS,
@@ -576,8 +614,8 @@ describe('cache', function() {
       });
     }
 
-    describe('.babelignore', function() {
-      it('should support adding a .babelignore', async function() {
+    describe('.babelignore', function () {
+      it('should support adding a .babelignore', async function () {
         let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
@@ -632,7 +670,7 @@ describe('cache', function() {
         );
       });
 
-      it('should support updating a .babelignore', async function() {
+      it('should support updating a .babelignore', async function () {
         let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
@@ -687,7 +725,7 @@ describe('cache', function() {
         );
       });
 
-      it('should support deleting a .babelignore', async function() {
+      it('should support deleting a .babelignore', async function () {
         let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
@@ -740,8 +778,8 @@ describe('cache', function() {
       });
     });
 
-    describe('plugins', function() {
-      it('should invalidate when plugins are updated', async function() {
+    describe('plugins', function () {
+      it('should invalidate when plugins are updated', async function () {
         let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
@@ -814,7 +852,7 @@ describe('cache', function() {
         assert(contents.includes('replaced'), 'string should be replaced');
       });
 
-      it('should invalidate when there are relative plugins', async function() {
+      it('should invalidate when there are relative plugins', async function () {
         let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
@@ -871,7 +909,7 @@ describe('cache', function() {
         assert(contents.includes('replaced'), 'string should be replaced');
       });
 
-      it('should invalidate when there are symlinked plugins', async function() {
+      it('should invalidate when there are symlinked plugins', async function () {
         // Symlinks don't work consistently on windows. Skip this test.
         if (process.platform === 'win32') {
           this.skip();
@@ -954,8 +992,8 @@ describe('cache', function() {
     });
   });
 
-  describe('parcel config', function() {
-    it('should support adding a .parcelrc', async function() {
+  describe('parcel config', function () {
+    it('should support adding a .parcelrc', async function () {
       let b = await testCache(async b => {
         assert.equal(await run(b.bundleGraph), 4);
 
@@ -983,7 +1021,7 @@ describe('cache', function() {
       assert(contents.includes('TRANSFORMED CODE'));
     });
 
-    it('should support updating a .parcelrc', async function() {
+    it('should support updating a .parcelrc', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -1021,7 +1059,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 4);
     });
 
-    it('should support updating an extended .parcelrc', async function() {
+    it('should support updating an extended .parcelrc', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -1066,7 +1104,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 4);
     });
 
-    it('should error when deleting an extended parcelrc', async function() {
+    it('should error when deleting an extended parcelrc', async function () {
       // $FlowFixMe
       await assert.rejects(
         async () => {
@@ -1104,7 +1142,7 @@ describe('cache', function() {
       );
     });
 
-    it('should support deleting a .parcelrc', async function() {
+    it('should support deleting a .parcelrc', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -1138,8 +1176,8 @@ describe('cache', function() {
     });
   });
 
-  describe('transformations', function() {
-    it('should invalidate when included files changes', async function() {
+  describe('transformations', function () {
+    it('should invalidate when included files changes', async function () {
       let b = await testCache({
         // TODO: update when the fs transform supports the MemoryFS
         inputFS,
@@ -1245,7 +1283,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), undefined);
     });
 
-    it('should invalidate when environment variables change', async function() {
+    it('should invalidate when environment variables change', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
@@ -1269,8 +1307,8 @@ describe('cache', function() {
     });
   });
 
-  describe('entries', function() {
-    it('should support adding an entry that matches a glob', async function() {
+  describe('entries', function () {
+    it('should support adding an entry that matches a glob', async function () {
       let b = await testCache({
         entries: ['src/entries/*.js'],
         async update(b) {
@@ -1308,7 +1346,7 @@ describe('cache', function() {
       ]);
     });
 
-    it('should support deleting an entry that matches a glob', async function() {
+    it('should support deleting an entry that matches a glob', async function () {
       let b = await testCache({
         entries: ['src/entries/*.js'],
         async update(b) {
@@ -1335,7 +1373,7 @@ describe('cache', function() {
       ]);
     });
 
-    it('should error when deleting a file entry', async function() {
+    it('should error when deleting a file entry', async function () {
       // $FlowFixMe
       await assert.rejects(
         async () => {
@@ -1352,7 +1390,7 @@ describe('cache', function() {
       );
     });
 
-    it('should recover from errors when adding a missing entry', async function() {
+    it('should recover from errors when adding a missing entry', async function () {
       // $FlowFixMe
       await assert.rejects(
         async () => {
@@ -1378,8 +1416,8 @@ describe('cache', function() {
     });
   });
 
-  describe('target config', function() {
-    it('should support adding a target config', async function() {
+  describe('target config', function () {
+    it('should support adding a target config', async function () {
       let b = await testCache({
         defaultTargetOptions: {
           shouldScopeHoist: true,
@@ -1400,6 +1438,7 @@ describe('cache', function() {
               targets: {
                 esmodule: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -1414,7 +1453,7 @@ describe('cache', function() {
       assert(contents.includes('export '), 'should include export');
     });
 
-    it('should support adding a second target', async function() {
+    it('should support adding a second target', async function () {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         defaultTargetOptions: {
@@ -1478,7 +1517,7 @@ describe('cache', function() {
       ]);
     });
 
-    it('should support changing target output location', async function() {
+    it('should support changing target output location', async function () {
       let pkgFile = path.join(inputDir, 'package.json');
       await testCache({
         defaultTargetOptions: {
@@ -1547,7 +1586,7 @@ describe('cache', function() {
       );
     });
 
-    it('should support updating target config options', async function() {
+    it('should support updating target config options', async function () {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         defaultTargetOptions: {
@@ -1562,6 +1601,7 @@ describe('cache', function() {
               targets: {
                 esmodule: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -1599,7 +1639,7 @@ describe('cache', function() {
       );
     });
 
-    it('should support deleting a target', async function() {
+    it('should support deleting a target', async function () {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         defaultTargetOptions: {
@@ -1663,7 +1703,7 @@ describe('cache', function() {
       ]);
     });
 
-    it('should support deleting all targets', async function() {
+    it('should support deleting all targets', async function () {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         defaultTargetOptions: {
@@ -1678,6 +1718,7 @@ describe('cache', function() {
               targets: {
                 modern: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
                 legacy: {
                   outputFormat: 'commonjs',
@@ -1742,7 +1783,7 @@ describe('cache', function() {
       );
     });
 
-    it('should update when sourcemap options change', async function() {
+    it('should update when sourcemap options change', async function () {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         defaultTargetOptions: {
@@ -1799,7 +1840,7 @@ describe('cache', function() {
       );
     });
 
-    it('should update when publicUrl changes', async function() {
+    it('should update when publicUrl changes', async function () {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         entries: ['src/index.html'],
@@ -1826,7 +1867,7 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            contents.includes('<script src="http://example.com'),
+            contents.includes('<script type="module" src="http://example.com'),
             'should include example.com',
           );
 
@@ -1850,12 +1891,14 @@ describe('cache', function() {
         'utf8',
       );
       assert(
-        contents.includes('<script src="http://mygreatwebsite.com'),
+        contents.includes(
+          '<script type="module" src="http://mygreatwebsite.com',
+        ),
         'should include example.com',
       );
     });
 
-    it('should update when a package.json is created', async function() {
+    it('should update when a package.json is created', async function () {
       let pkgFile = path.join(inputDir, 'package.json');
       let pkg;
       let b = await testCache({
@@ -1880,6 +1923,7 @@ describe('cache', function() {
               targets: {
                 modern: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -1894,7 +1938,7 @@ describe('cache', function() {
       assert(contents.includes('export '), 'should include export');
     });
 
-    it('should update when a package.json is deleted', async function() {
+    it('should update when a package.json is deleted', async function () {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         defaultTargetOptions: {
@@ -1909,6 +1953,7 @@ describe('cache', function() {
               targets: {
                 modern: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -1931,8 +1976,8 @@ describe('cache', function() {
       assert(!contents.includes('export '), 'does not include export');
     });
 
-    describe('browserslist', function() {
-      it('should update when a browserslist file is added', async function() {
+    describe('browserslist', function () {
+      it('should update when a browserslist file is added', async function () {
         let b = await testCache({
           defaultTargetOptions: {
             shouldScopeHoist: true,
@@ -1963,7 +2008,7 @@ describe('cache', function() {
         );
       });
 
-      it('should update when a .browserslistrc file is added', async function() {
+      it('should update when a .browserslistrc file is added', async function () {
         let b = await testCache({
           defaultTargetOptions: {
             shouldScopeHoist: true,
@@ -1994,7 +2039,7 @@ describe('cache', function() {
         );
       });
 
-      it('should update when a browserslist is updated', async function() {
+      it('should update when a browserslist is updated', async function () {
         let b = await testCache({
           defaultTargetOptions: {
             shouldScopeHoist: true,
@@ -2031,7 +2076,7 @@ describe('cache', function() {
         );
       });
 
-      it('should update when a browserslist is deleted', async function() {
+      it('should update when a browserslist is deleted', async function () {
         let b = await testCache({
           defaultTargetOptions: {
             shouldScopeHoist: true,
@@ -2065,7 +2110,7 @@ describe('cache', function() {
         );
       });
 
-      it('should update when BROWSERSLIST_ENV changes', async function() {
+      it('should update when BROWSERSLIST_ENV changes', async function () {
         let b = await testCache({
           defaultTargetOptions: {
             shouldScopeHoist: true,
@@ -2081,6 +2126,8 @@ describe('cache', function() {
             last 1 Chrome version
             `,
             );
+
+            process.env.BROWSERSLIST_ENV = 'production';
           },
           async update(b) {
             // "production" is the default environment for browserslist
@@ -2109,7 +2156,7 @@ describe('cache', function() {
         delete process.env.BROWSERSLIST_ENV;
       });
 
-      it('should update when NODE_ENV changes', async function() {
+      it('should update when NODE_ENV changes', async function () {
         let env = process.env.NODE_ENV;
         let b = await testCache({
           defaultTargetOptions: {
@@ -2126,6 +2173,8 @@ describe('cache', function() {
             last 1 Chrome version
             `,
             );
+
+            process.env.NODE_ENV = 'production';
           },
           async update(b) {
             // "production" is the default environment for browserslist
@@ -2156,8 +2205,8 @@ describe('cache', function() {
     });
   });
 
-  describe('options', function() {
-    it('should update when publicUrl changes', async function() {
+  describe('options', function () {
+    it('should update when publicUrl changes', async function () {
       let b = await testCache({
         entries: ['src/index.html'],
         defaultTargetOptions: {
@@ -2170,7 +2219,7 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            contents.includes('<script src="http://example.com'),
+            contents.includes('<script type="module" src="http://example.com'),
             'should include example.com',
           );
 
@@ -2187,26 +2236,30 @@ describe('cache', function() {
         'utf8',
       );
       assert(
-        contents.includes('<script src="http://mygreatwebsite.com'),
+        contents.includes(
+          '<script type="module" src="http://mygreatwebsite.com',
+        ),
         'should include example.com',
       );
     });
 
-    it('should update when minify changes', async function() {
+    it('should update when minify changes', async function () {
       let b = await testCache({
+        entries: ['src/index.html'],
         defaultTargetOptions: {
           shouldScopeHoist: true,
           shouldOptimize: false,
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.bundleGraph.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[1].filePath,
             'utf8',
           );
           assert(contents.includes('Test'), 'should include Test');
 
           return {
             defaultTargetOptions: {
+              shouldScopeHoist: true,
               shouldOptimize: true,
             },
           };
@@ -2214,13 +2267,13 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.bundleGraph.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[1].filePath,
         'utf8',
       );
       assert(!contents.includes('Test'), 'should not include Test');
     });
 
-    it('should update when scopeHoist changes', async function() {
+    it('should update when scopeHoist changes', async function () {
       let b = await testCache({
         defaultTargetOptions: {
           shouldScopeHoist: false,
@@ -2250,7 +2303,7 @@ describe('cache', function() {
       assert(!contents.includes('parcelRequire'), 'should not include Test');
     });
 
-    it('should update when sourceMaps changes', async function() {
+    it('should update when sourceMaps changes', async function () {
       let b = await testCache({
         defaultTargetOptions: {
           sourceMaps: false,
@@ -2283,7 +2336,7 @@ describe('cache', function() {
       );
     });
 
-    it('should update when distDir changes', async function() {
+    it('should update when distDir changes', async function () {
       let b = await testCache({
         defaultTargetOptions: {
           shouldScopeHoist: true,
@@ -2296,7 +2349,7 @@ describe('cache', function() {
 
           return {
             defaultTargetOptions: {
-              distDir: 'dist/test',
+              distDir: path.join(__dirname, 'integration/cache/dist/test'),
             },
           };
         },
@@ -2310,7 +2363,7 @@ describe('cache', function() {
       );
     });
 
-    it('should update when targets changes', async function() {
+    it('should update when targets changes', async function () {
       let b = await testCache({
         defaultTargetOptions: {
           shouldScopeHoist: true,
@@ -2378,7 +2431,7 @@ describe('cache', function() {
       );
     });
 
-    it('should update when defaultEngines changes', async function() {
+    it('should update when defaultEngines changes', async function () {
       let b = await testCache({
         defaultTargetOptions: {
           shouldScopeHoist: true,
@@ -2417,7 +2470,7 @@ describe('cache', function() {
       );
     });
 
-    it('should update when shouldContentHash changes', async function() {
+    it('should update when shouldContentHash changes', async function () {
       let b = await testCache({
         entries: ['src/index.html'],
         defaultTargetOptions: {
@@ -2438,7 +2491,7 @@ describe('cache', function() {
       assert(bundle.filePath.includes(bundle.id.slice(-8)));
     });
 
-    it('should update when hmr options change', async function() {
+    it('should update when hmr options change', async function () {
       let b = await testCache({
         hmrOptions: {
           host: 'localhost',
@@ -2493,7 +2546,7 @@ describe('cache', function() {
       );
     });
 
-    it('should invalidate react refresh hot options change', async function() {
+    it('should invalidate react refresh hot options change', async function () {
       let b = await testCache({
         async setup() {
           let pkgFile = path.join(inputDir, 'package.json');
@@ -2546,7 +2599,7 @@ describe('cache', function() {
       );
     });
 
-    it('should update when the config option changes', async function() {
+    it('should update when the config option changes', async function () {
       let b = await testCache({
         async update(b) {
           let contents = await overlayFS.readFile(
@@ -2578,7 +2631,7 @@ describe('cache', function() {
       assert(contents.includes('TRANSFORMED CODE'));
     });
 
-    it('should update when the defaultConfig option changes', async function() {
+    it('should update when the defaultConfig option changes', async function () {
       let b = await testCache({
         async update(b) {
           let contents = await overlayFS.readFile(
@@ -2610,7 +2663,7 @@ describe('cache', function() {
       assert(contents.includes('TRANSFORMED CODE'));
     });
 
-    it('should update env browserslist in package.json when mode changes', async function() {
+    it('should update env browserslist in package.json when mode changes', async function () {
       let env = process.env.NODE_ENV;
       delete process.env.NODE_ENV;
       try {
@@ -2660,8 +2713,8 @@ describe('cache', function() {
     });
   });
 
-  describe('resolver', function() {
-    it('should support updating a package.json#main field', async function() {
+  describe('resolver', function () {
+    it('should support updating a package.json#main field', async function () {
       let b = await testCache(async b => {
         assert.equal(await run(b.bundleGraph), 4);
         await overlayFS.writeFile(
@@ -2678,7 +2731,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 8);
     });
 
-    it('should support adding an alias', async function() {
+    it('should support adding an alias', async function () {
       let b = await testCache(async b => {
         assert.equal(await run(b.bundleGraph), 4);
         await overlayFS.writeFile(
@@ -2700,7 +2753,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 8);
     });
 
-    it('should support updating an alias', async function() {
+    it('should support updating an alias', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -2740,7 +2793,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 12);
     });
 
-    it('should support deleting an alias', async function() {
+    it('should support deleting an alias', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -2770,7 +2823,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 4);
     });
 
-    it('should support adding an alias in a closer package.json', async function() {
+    it('should support adding an alias in a closer package.json', async function () {
       let b = await testCache(async b => {
         assert.equal(await run(b.bundleGraph), 4);
         await overlayFS.writeFile(
@@ -2791,7 +2844,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 6);
     });
 
-    it('should support adding a file with a higher priority extension', async function() {
+    it('should support adding a file with a higher priority extension', async function () {
       let b = await testCache({
         async setup() {
           // Start out pointing to a .ts file from a .js file
@@ -2822,7 +2875,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 4);
     });
 
-    it('should support renaming a file to a different extension', async function() {
+    it('should support renaming a file to a different extension', async function () {
       let b = await testCache({
         async setup() {
           // Start out pointing to a .js file
@@ -2855,7 +2908,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 4);
     });
 
-    it('should resolve to a file over a directory with an index.js', async function() {
+    it('should resolve to a file over a directory with an index.js', async function () {
       let b = await testCache({
         async setup() {
           let contents = await overlayFS.readFile(
@@ -2884,7 +2937,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 4);
     });
 
-    it('should resolve to package.json#main over an index.js', async function() {
+    it('should resolve to package.json#main over an index.js', async function () {
       let b = await testCache({
         async setup() {
           let contents = await overlayFS.readFile(
@@ -2915,7 +2968,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 4);
     });
 
-    it('should recover from errors when adding a missing dependency', async function() {
+    it('should recover from errors when adding a missing dependency', async function () {
       // $FlowFixMe
       await assert.rejects(
         async () => {
@@ -2940,7 +2993,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 6);
     });
 
-    it('should recover from a missing package.json#main', async function() {
+    it('should recover from a missing package.json#main', async function () {
       let b = await testCache({
         async setup() {
           let contents = await overlayFS.readFile(
@@ -2977,7 +3030,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 10);
     });
 
-    it('should recover from an invalid package.json', async function() {
+    it('should recover from an invalid package.json', async function () {
       // $FlowFixMe
       await assert.rejects(async () => {
         await testCache({
@@ -3016,7 +3069,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 4);
     });
 
-    it('should support adding a deeper node_modules folder', async function() {
+    it('should support adding a deeper node_modules folder', async function () {
       let b = await testCache({
         async update(b) {
           assert.equal(await run(b.bundleGraph), 4);
@@ -3035,11 +3088,11 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 6);
     });
 
-    describe('pnp', function() {
-      it('should invalidate when the .pnp.js file changes', async function() {
-        // $FlowFixMe
+    describe('pnp', function () {
+      it('should invalidate when the .pnp.js file changes', async function () {
         let Module = require('module');
         let origPnpVersion = process.versions.pnp;
+        // $FlowFixMe[prop-missing]
         let origModuleResolveFilename = Module._resolveFilename;
 
         try {
@@ -3054,9 +3107,10 @@ describe('cache', function() {
                   inputDir,
                 );
 
-                // $FlowFixMe
+                // $FlowFixMe[incompatible-type]
                 process.versions.pnp = 42;
 
+                // $FlowFixMe[prop-missing]
                 Module.findPnpApi = () =>
                   // $FlowFixMe
                   require(path.join(inputDir, '.pnp.js'));
@@ -3090,14 +3144,16 @@ describe('cache', function() {
           let output = await run(b.bundleGraph);
           assert.equal(output(), 6);
         } finally {
+          // $FlowFixMe[incompatible-type]
           process.versions.pnp = origPnpVersion;
+          // $FlowFixMe[prop-missing]
           Module._resolveFilename = origModuleResolveFilename;
         }
       });
     });
 
-    describe('stylus', function() {
-      it('should support resolver inside stylus file', async function() {
+    describe('stylus', function () {
+      it('should support resolver inside stylus file', async function () {
         let b = await testCache(
           {
             entries: ['index.js'],
@@ -3151,7 +3207,7 @@ describe('cache', function() {
         assert(css.includes('.c {'));
       });
 
-      it('should support stylus default resolver', async function() {
+      it('should support stylus default resolver', async function () {
         let b = await testCache(
           {
             entries: ['index.js'],
@@ -3192,7 +3248,7 @@ describe('cache', function() {
         assert(css.includes('.b {'));
       });
 
-      it('should support glob imports in stylus files', async function() {
+      it('should support glob imports in stylus files', async function () {
         let b = await testCache(
           {
             entries: ['index.js'],
@@ -3239,7 +3295,7 @@ describe('cache', function() {
         assert(css.includes('.foo-test'));
       });
 
-      it('should support glob imports under stylus paths', async function() {
+      it('should support glob imports under stylus paths', async function () {
         let b = await testCache(
           {
             entries: ['index.js'],
@@ -3305,8 +3361,8 @@ describe('cache', function() {
       });
     });
 
-    describe('less', function() {
-      it('should support adding higher priority less include paths', async function() {
+    describe('less', function () {
+      it('should support adding higher priority less include paths', async function () {
         let b = await testCache(
           {
             entries: ['index.js'],
@@ -3355,7 +3411,7 @@ describe('cache', function() {
         assert(css.includes('.d'));
       });
 
-      it('should recover from missing import errors', async function() {
+      it('should recover from missing import errors', async function () {
         // $FlowFixMe
         await assert.rejects(
           async () => {
@@ -3406,8 +3462,8 @@ describe('cache', function() {
       });
     });
 
-    describe('sass', function() {
-      it('should support adding higher priority sass include paths', async function() {
+    describe('sass', function () {
+      it('should support adding higher priority sass include paths', async function () {
         let b = await testCache(
           {
             entries: ['index.sass'],
@@ -3446,12 +3502,12 @@ describe('cache', function() {
         assert(css.includes('.test'));
       });
 
-      it('should the SASS_PATH environment variable', async function() {
+      it('should the SASS_PATH environment variable', async function () {
         let b = await testCache(
           {
             entries: ['index.sass'],
             env: {
-              SASS_PATH: path.join(inputDir, 'include-path'),
+              SASS_PATH: 'include-path',
             },
             async setup() {
               await overlayFS.mkdirp(path.join(inputDir, 'include2'));
@@ -3472,7 +3528,7 @@ describe('cache', function() {
 
               return {
                 env: {
-                  SASS_PATH: path.join(inputDir, 'include2'),
+                  SASS_PATH: 'include2',
                 },
               };
             },
@@ -3488,7 +3544,7 @@ describe('cache', function() {
         assert(css.includes('.test'));
       });
 
-      it('should recover from missing import errors', async function() {
+      it('should recover from missing import errors', async function () {
         // $FlowFixMe
         await assert.rejects(async () => {
           await testCache(
@@ -3531,8 +3587,8 @@ describe('cache', function() {
     });
   });
 
-  describe('dev deps', function() {
-    it('should invalidate when updating a parcel transformer plugin', async function() {
+  describe('dev deps', function () {
+    it('should invalidate when updating a parcel transformer plugin', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -3571,7 +3627,60 @@ describe('cache', function() {
       assert(output.includes('UPDATED'));
     });
 
-    it('should resolve to package.json#main over an index.js', async function() {
+    it('should invalidate when updating a file required via options.packageManager.require', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+          let transformer = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-transformer-mock',
+            'index.js',
+          );
+          let contents = await overlayFS.readFile(transformer, 'utf8');
+          await overlayFS.writeFile(
+            transformer,
+            contents
+              .replace(
+                'transform({asset}) {',
+                'async transform({asset, options}) {',
+              )
+              .replace(
+                "const {message} = require('./constants');",
+                "const message = 'FOO: ' + await options.packageManager.require('foo', asset.filePath);",
+              ),
+          );
+        },
+        async update(b) {
+          let output = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(output.includes('FOO: 2'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'node_modules', 'foo', 'foo.js'),
+            'module.exports = 3;',
+          );
+        },
+      });
+
+      let output = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(output.includes('FOO: 3'));
+    });
+
+    it('should resolve to package.json#main over an index.js', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -3627,7 +3736,7 @@ describe('cache', function() {
       assert(output.includes('UPDATED'));
     });
 
-    it('should resolve to a file over a directory with an index.js', async function() {
+    it('should resolve to a file over a directory with an index.js', async function () {
       let transformerDir = path.join(
         inputDir,
         'node_modules',
@@ -3673,12 +3782,13 @@ describe('cache', function() {
       assert(output.includes('UPDATED'));
     });
 
-    it('should support adding a deeper node_modules folder', async function() {});
+    it('should support adding a deeper node_modules folder', async function () {});
 
-    it('should support yarn pnp', async function() {
-      // $FlowFixMe
+    it('should support yarn pnp', async function () {
       let Module = require('module');
+      // $FlowFixMe[incompatible-type]
       let origPnpVersion = process.versions.pnp;
+      // $FlowFixMe[prop-missing]
       let origModuleResolveFilename = Module._resolveFilename;
 
       // We must create a worker farm that only uses a single thread because our process.versions.pnp
@@ -3769,6 +3879,7 @@ describe('cache', function() {
                 `,
             );
 
+            // $FlowFixMe[prop-missing]
             Module.findPnpApi = () =>
               // $FlowFixMe
               require(path.join(inputDir, '.pnp.js'));
@@ -3820,13 +3931,14 @@ describe('cache', function() {
         assert(output.includes('UPDATED'));
       } finally {
         process.versions.pnp = origPnpVersion;
+        // $FlowFixMe[prop-missing]
         Module._resolveFilename = origModuleResolveFilename;
         await workerFarm.end();
       }
     });
 
-    describe('postcss', function() {
-      it('should invalidate when a postcss plugin changes', async function() {
+    describe('postcss', function () {
+      it('should invalidate when a postcss plugin changes', async function () {
         let b = await testCache(
           {
             entries: ['index.css'],
@@ -3860,7 +3972,7 @@ describe('cache', function() {
               let pluginContents = await overlayFS.readFile(plugin, 'utf8');
               await overlayFS.writeFile(
                 plugin,
-                pluginContents.replace('green', 'blue'),
+                pluginContents.replace('green', 'red'),
               );
             },
           },
@@ -3871,10 +3983,10 @@ describe('cache', function() {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background: blue'));
+        assert(output.includes('background: red'));
       });
 
-      it('should invalidate when a JS postcss config changes', async function() {
+      it('should invalidate when a JS postcss config changes', async function () {
         let b = await testCache(
           {
             entries: ['style.css'],
@@ -3898,7 +4010,7 @@ describe('cache', function() {
               let configContents = await inputFS.readFile(config, 'utf8');
               await inputFS.writeFile(
                 config,
-                configContents.replace('red', 'blue'),
+                configContents.replace('red', 'green'),
               );
               await sleep(100);
             },
@@ -3910,10 +4022,10 @@ describe('cache', function() {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: blue'));
+        assert(output.includes('background-color: green'));
       });
 
-      it('should invalidate when a JSON postcss config changes', async function() {
+      it('should invalidate when a JSON postcss config changes', async function () {
         let b = await testCache(
           {
             entries: ['nested/index.css'],
@@ -3930,7 +4042,7 @@ describe('cache', function() {
               );
               await overlayFS.writeFile(
                 path.join(inputDir, '.postcssrc'),
-                configContents.replace('green', 'blue'),
+                configContents.replace('green', 'red'),
               );
             },
           },
@@ -3941,10 +4053,10 @@ describe('cache', function() {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: blue'));
+        assert(output.includes('background-color: red'));
       });
 
-      it('should invalidate when a closer postcss config is added', async function() {
+      it('should invalidate when a closer postcss config is added', async function () {
         let b = await testCache(
           {
             entries: ['nested/index.css'],
@@ -3961,7 +4073,7 @@ describe('cache', function() {
               );
               await overlayFS.writeFile(
                 path.join(inputDir, 'nested', '.postcssrc'),
-                configContents.replace('green', 'blue'),
+                configContents.replace('green', 'red'),
               );
             },
           },
@@ -3972,12 +4084,12 @@ describe('cache', function() {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: blue'));
+        assert(output.includes('background-color: red'));
       });
     });
 
-    describe('posthtml', function() {
-      it('should invalidate when a posthtml plugin changes', async function() {
+    describe('posthtml', function () {
+      it('should invalidate when a posthtml plugin changes', async function () {
         let b = await testCache(
           {
             entries: ['index.html'],
@@ -4025,7 +4137,7 @@ describe('cache', function() {
         assert(output.includes('<section id="test">Test</section>'));
       });
 
-      it('should invalidate when a JS postcss config changes', async function() {
+      it('should invalidate when a JS postcss config changes', async function () {
         let b = await testCache(
           {
             entries: ['index.html'],
@@ -4072,8 +4184,8 @@ describe('cache', function() {
     });
   });
 
-  describe('bundling', function() {
-    it('should invalidate when switching to a different bundler plugin', async function() {
+  describe('bundling', function () {
+    it('should invalidate when switching to a different bundler plugin', async function () {
       let b = await testCache({
         async update(b) {
           assert.equal(b.bundleGraph.getBundles().length, 1);
@@ -4091,7 +4203,7 @@ describe('cache', function() {
       assert.equal(b.bundleGraph.getBundles().length, 4);
     });
 
-    it('should invalidate when a bundler plugin is updated', async function() {
+    it('should invalidate when a bundler plugin is updated', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -4114,10 +4226,9 @@ describe('cache', function() {
           );
           await overlayFS.writeFile(
             bundler,
-            (await overlayFS.readFile(bundler, 'utf8')).replace(
-              'Boolean(dependency.isEntry)',
-              'false',
-            ),
+            (
+              await overlayFS.readFile(bundler, 'utf8')
+            ).replace('Boolean(dependency.isEntry)', 'false'),
           );
         },
       });
@@ -4126,7 +4237,7 @@ describe('cache', function() {
       assert(b.bundleGraph.getBundles()[0].name.includes('HASH_REF'));
     });
 
-    it('should invalidate when adding a namer plugin', async function() {
+    it('should invalidate when adding a namer plugin', async function () {
       let b = await testCache({
         async update(b) {
           let bundles = b.bundleGraph.getBundles().map(b => b.name);
@@ -4149,7 +4260,7 @@ describe('cache', function() {
       );
     });
 
-    it('should invalidate when a namer plugin is updated', async function() {
+    it('should invalidate when a namer plugin is updated', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -4175,10 +4286,9 @@ describe('cache', function() {
           );
           await overlayFS.writeFile(
             namer,
-            (await overlayFS.readFile(namer, 'utf8')).replace(
-              'bundle.id',
-              'bundle.id.slice(-8)',
-            ),
+            (
+              await overlayFS.readFile(namer, 'utf8')
+            ).replace('bundle.id', 'bundle.id.slice(-8)'),
           );
         },
       });
@@ -4190,7 +4300,7 @@ describe('cache', function() {
       );
     });
 
-    it('should invalidate when adding a runtime plugin', async function() {
+    it('should invalidate when adding a runtime plugin', async function () {
       let b = await testCache({
         async update(b) {
           let res = await run(b.bundleGraph, null, {require: false});
@@ -4210,7 +4320,7 @@ describe('cache', function() {
       assert.equal(res.runtime_test, true);
     });
 
-    it('should invalidate when a runtime is updated', async function() {
+    it('should invalidate when a runtime is updated', async function () {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -4234,10 +4344,9 @@ describe('cache', function() {
           );
           await overlayFS.writeFile(
             namer,
-            (await overlayFS.readFile(namer, 'utf8')).replace(
-              'runtime_test',
-              'test_runtime',
-            ),
+            (
+              await overlayFS.readFile(namer, 'utf8')
+            ).replace('runtime_test', 'test_runtime'),
           );
         },
       });
@@ -4247,8 +4356,8 @@ describe('cache', function() {
       assert.equal(res.test_runtime, true);
     });
 
-    describe('bundler config', function() {
-      it('should support adding bundler config', async function() {
+    describe('bundler config', function () {
+      it('should support adding bundler config', async function () {
         let b = await testCache(
           {
             entries: ['*.html'],
@@ -4270,7 +4379,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              assert.equal(html.match(/<script/g)?.length, 6);
+              assert.equal(html.match(/<script/g)?.length, 7);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4292,10 +4401,10 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 4);
+        assert.equal(html.match(/<script/g)?.length, 5);
       });
 
-      it('should support updating bundler config', async function() {
+      it('should support updating bundler config', async function () {
         let b = await testCache(
           {
             entries: ['*.html'],
@@ -4306,7 +4415,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              assert.equal(html.match(/<script/g)?.length, 4);
+              assert.equal(html.match(/<script/g)?.length, 5);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4328,10 +4437,10 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 6);
+        assert.equal(html.match(/<script/g)?.length, 7);
       });
 
-      it('should support removing bundler config', async function() {
+      it('should support removing bundler config', async function () {
         let b = await testCache(
           {
             entries: ['*.html'],
@@ -4342,7 +4451,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              assert.equal(html.match(/<script/g)?.length, 4);
+              assert.equal(html.match(/<script/g)?.length, 5);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4362,21 +4471,1109 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 6);
+        assert.equal(html.match(/<script/g)?.length, 7);
       });
     });
   });
 
-  describe('scope hoisting', function() {
-    it('should support adding sideEffects config', function() {});
+  describe('packaging', function () {
+    it('should invalidate when switching to a different packager plugin', async function () {
+      let b = await testCache({
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.notEqual(res, 'packaged');
 
-    it('should support updating sideEffects config', function() {});
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              packagers: {
+                '*.js': 'parcel-packager-test',
+              },
+            }),
+          );
+        },
+      });
 
-    it('should support removing sideEffects config', function() {});
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.equal(res, 'packaged');
+    });
+
+    it('should invalidate when a packager is updated', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              packagers: {
+                '*.js': 'parcel-packager-test',
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.equal(res, 'packaged');
+
+          let packager = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-packager-test',
+            'index.js',
+          );
+          await overlayFS.writeFile(
+            packager,
+            (
+              await overlayFS.readFile(packager, 'utf8')
+            ).replace('packaged', 'updated'),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.equal(res, 'updated');
+    });
+
+    it('should invalidate when adding packager config', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              packagers: {
+                '*.js': 'parcel-packager-test',
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.equal(res, 'packaged');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.packagerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.equal(res, 'test');
+    });
+
+    it('should invalidate when updating packager config', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              packagers: {
+                '*.js': 'parcel-packager-test',
+              },
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.packagerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.equal(res, 'test');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.packagerrc'),
+            JSON.stringify({value: 'updated'}),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.equal(res, 'updated');
+    });
+
+    it('should invalidate when removing packager config', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              packagers: {
+                '*.js': 'parcel-packager-test',
+              },
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.packagerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.equal(res, 'test');
+
+          await overlayFS.unlink(path.join(inputDir, '.packagerrc'));
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.equal(res, 'packaged');
+    });
+
+    it('should invalidate when adding an optimizer plugin', async function () {
+      let b = await testCache({
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.notEqual(res, 'optimized');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.js': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.equal(res, 'optimized');
+    });
+
+    it('should invalidate when removing an optimizer plugin', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.js': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.equal(res, 'optimized');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.js': [],
+              },
+            }),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.notEqual(res, 'optimized');
+    });
+
+    it('should invalidate when an optimizer is updated', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.js': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.equal(res, 'optimized');
+
+          let optimizer = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-optimizer-test',
+            'index.js',
+          );
+          await overlayFS.writeFile(
+            optimizer,
+            (
+              await overlayFS.readFile(optimizer, 'utf8')
+            ).replace('optimized', 'updated'),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.equal(res, 'updated');
+    });
+
+    it('should invalidate when adding optimizer config', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.js': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.equal(res, 'optimized');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.optimizerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.equal(res, 'test');
+    });
+
+    it('should invalidate when updating packager config', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.js': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.optimizerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.equal(res, 'test');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.optimizerrc'),
+            JSON.stringify({value: 'updated'}),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.equal(res, 'updated');
+    });
+
+    it('should invalidate when removing packager config', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.js': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.optimizerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert.equal(res, 'test');
+
+          await overlayFS.unlink(path.join(inputDir, '.optimizerrc'));
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.equal(res, 'optimized');
+    });
+
+    it('should invalidate when an asset content changes', async function () {
+      let b = await testCache({
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 4);
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'node_modules/foo/foo.js'),
+            'module.exports = 3',
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 6);
+    });
+
+    it('should invalidate when an inline bundle changes', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./entries/a.js");',
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert(res.includes(`let a = "a"`));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/entries/a.js'),
+            `export let a = "b";`,
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert(res.includes(`let a = "b"`));
+    });
+
+    it('should invalidate when switching to a different packager for an inline bundle', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./test.txt");',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/test.txt'),
+            'test',
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.notEqual(res, 'packaged');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              packagers: {
+                '*.txt': 'parcel-packager-test',
+              },
+            }),
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 'packaged');
+    });
+
+    it('should invalidate when a packager for an inline bundle is updated', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./test.txt");',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/test.txt'),
+            'test',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              packagers: {
+                '*.txt': 'parcel-packager-test',
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 'packaged');
+
+          let packager = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-packager-test',
+            'index.js',
+          );
+          await overlayFS.writeFile(
+            packager,
+            (
+              await overlayFS.readFile(packager, 'utf8')
+            ).replace('packaged', 'updated'),
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 'updated');
+    });
+
+    it('should invalidate when adding packager config for an inline bundle', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./test.txt");',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/test.txt'),
+            'test',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              packagers: {
+                '*.txt': 'parcel-packager-test',
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 'packaged');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.packagerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 'test');
+    });
+
+    it('should invalidate when updating packager config for an inline bundle', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./test.txt");',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/test.txt'),
+            'test',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              packagers: {
+                '*.txt': 'parcel-packager-test',
+              },
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.packagerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 'test');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.packagerrc'),
+            JSON.stringify({value: 'updated'}),
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 'updated');
+    });
+
+    it('should invalidate when removing packager config for an inline bundle', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./test.txt");',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/test.txt'),
+            'test',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              packagers: {
+                '*.txt': 'parcel-packager-test',
+              },
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.packagerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 'test');
+
+          await overlayFS.unlink(path.join(inputDir, '.packagerrc'));
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 'packaged');
+    });
+
+    it('should invalidate when adding an optimizer for an inline bundle', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./test.txt");',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/test.txt'),
+            'test',
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.notEqual(res, 'packaged');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.txt': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 'optimized');
+    });
+
+    it('should invalidate when an optimizer for an inline bundle is updated', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./test.txt");',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/test.txt'),
+            'test',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.txt': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 'optimized');
+
+          let optimizer = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-optimizer-test',
+            'index.js',
+          );
+          await overlayFS.writeFile(
+            optimizer,
+            (
+              await overlayFS.readFile(optimizer, 'utf8')
+            ).replace('optimized', 'updated'),
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 'updated');
+    });
+
+    it('should invalidate when adding optimizer config for an inline bundle', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./test.txt");',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/test.txt'),
+            'test',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.txt': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 'optimized');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.optimizerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 'test');
+    });
+
+    it('should invalidate when updating optimizer config for an inline bundle', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./test.txt");',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/test.txt'),
+            'test',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.txt': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.optimizerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 'test');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.optimizerrc'),
+            JSON.stringify({value: 'updated'}),
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 'updated');
+    });
+
+    it('should invalidate when removing optimizer config for an inline bundle', async function () {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = require("bundle-text:./test.txt");',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/test.txt'),
+            'test',
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              optimizers: {
+                '*.txt': ['parcel-optimizer-test'],
+              },
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.optimizerrc'),
+            JSON.stringify({value: 'test'}),
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 'test');
+
+          await overlayFS.unlink(path.join(inputDir, '.optimizerrc'));
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 'optimized');
+    });
+
+    it('should invalidate when deleting a dist file', async function () {
+      let b = await testCache({
+        async update(b) {
+          assert(await overlayFS.exists(path.join(distDir, 'index.js')));
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 4);
+
+          await overlayFS.unlink(path.join(distDir, 'index.js'));
+        },
+      });
+
+      assert(await overlayFS.exists(path.join(distDir, 'index.js')));
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 4);
+    });
+
+    it('should invalidate when deleting a source map', async function () {
+      await testCache({
+        async update() {
+          assert(await overlayFS.exists(path.join(distDir, 'index.js.map')));
+
+          await overlayFS.unlink(path.join(distDir, 'index.js.map'));
+        },
+      });
+
+      assert(await overlayFS.exists(path.join(distDir, 'index.js.map')));
+    });
+
+    it('should invalidate when the dist directory', async function () {
+      await testCache({
+        async update() {
+          assert(await overlayFS.exists(path.join(distDir, 'index.js')));
+          assert(await overlayFS.exists(path.join(distDir, 'index.js.map')));
+
+          await overlayFS.rimraf(distDir);
+        },
+      });
+
+      assert(await overlayFS.exists(path.join(distDir, 'index.js')));
+      assert(await overlayFS.exists(path.join(distDir, 'index.js.map')));
+    });
+
+    it('should hit the cache when there are no changes', async function () {
+      let b = await testCache({
+        async update(b) {
+          let res = await run(b.bundleGraph);
+          assert.equal(res, 4);
+        },
+      });
+
+      let res = await run(b.bundleGraph);
+      assert.equal(res, 4);
+    });
+
+    it('should invalidate when a terser config is modified', async function () {
+      let b = await testCache({
+        mode: 'production',
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.terserrc'),
+            JSON.stringify({
+              mangle: false,
+            }),
+          );
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes('$parcel$interopDefault'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.terserrc'),
+            JSON.stringify({
+              mangle: true,
+            }),
+          );
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('$parcel$interopDefault'));
+    });
+
+    it('should invalidate when an htmlnano config is modified', async function () {
+      let b = await testCache({
+        mode: 'production',
+        entries: ['src/index.html'],
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.htmlnanorc.json'),
+            JSON.stringify({
+              removeAttributeQuotes: true,
+            }),
+          );
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes('type=module'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.htmlnanorc.json'),
+            JSON.stringify({
+              removeAttributeQuotes: false,
+            }),
+          );
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(contents.includes('type="module"'));
+    });
+  });
+
+  describe('compression', function () {
+    it('should invaldate when adding a compressor plugin', async function () {
+      await testCache({
+        async update() {
+          let files = await outputFS.readdir(distDir);
+          assert.deepEqual(files.sort(), ['index.js', 'index.js.map']);
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              compressors: {
+                '*.js': ['...', '@parcel/compressor-gzip'],
+              },
+            }),
+          );
+        },
+        mode: 'production',
+      });
+
+      let files = await outputFS.readdir(distDir);
+      assert.deepEqual(files.sort(), [
+        'index.js',
+        'index.js.gz',
+        'index.js.map',
+      ]);
+    });
+
+    it('should invalidate when updating a compressor plugin', async function () {
+      await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              compressors: {
+                '*.js': ['...', 'parcel-compressor-test'],
+              },
+            }),
+          );
+        },
+        async update() {
+          let files = await outputFS.readdir(distDir);
+          assert.deepEqual(files.sort(), [
+            'index.js',
+            'index.js.abc',
+            'index.js.map',
+          ]);
+
+          let compressor = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-compressor-test',
+            'index.js',
+          );
+          await overlayFS.writeFile(
+            compressor,
+            (
+              await overlayFS.readFile(compressor, 'utf8')
+            ).replace('abc', 'def'),
+          );
+        },
+      });
+
+      let files = await outputFS.readdir(distDir);
+      assert.deepEqual(files.sort(), [
+        'index.js',
+        'index.js.abc',
+        'index.js.def',
+        'index.js.map',
+      ]);
+    });
+  });
+
+  describe('scope hoisting', function () {
+    it('should support adding sideEffects config', function () {});
+
+    it('should support updating sideEffects config', function () {});
+
+    it('should support removing sideEffects config', function () {});
+
+    it('should wrap modules when they become conditional', async function () {
+      let b = await testCache(
+        {
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
+          entries: ['a.js'],
+          async setup() {
+            let contents = await overlayFS.readFile(
+              path.join(inputDir, 'a.js'),
+              'utf8',
+            );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'a.js'),
+              contents.replace(/if \(b\) \{((?:.|\n)+)\}/, '$1'),
+            );
+          },
+          async update(b) {
+            let out = [];
+            await run(b.bundleGraph, {
+              b: false,
+              output(o) {
+                out.push(o);
+              },
+            });
+
+            assert.deepEqual(out, ['a', 'b', 'c', 'd']);
+
+            let contents = await overlayFS.readFile(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/commonjs/require-conditional/a.js',
+              ),
+              'utf8',
+            );
+            await overlayFS.writeFile(path.join(inputDir, 'a.js'), contents);
+          },
+        },
+        'scope-hoisting/commonjs/require-conditional',
+      );
+
+      let out = [];
+      await run(b.bundleGraph, {
+        b: false,
+        output(o) {
+          out.push(o);
+        },
+      });
+
+      assert.deepEqual(out, ['a', 'd']);
+    });
   });
 
   describe('runtime', () => {
-    it('should support updating files added by runtimes', async function() {
+    it('should support updating files added by runtimes', async function () {
       let b = await testCache(async b => {
         let contents = await overlayFS.readFile(
           b.bundleGraph.getBundles()[0].filePath,
@@ -4398,7 +5595,7 @@ describe('cache', function() {
   });
 
   describe('Query Parameters', () => {
-    it('Should create additional assets if multiple query parameter combinations are used', async function() {
+    it('Should create additional assets if multiple query parameter combinations are used', async function () {
       let b = await testCache(
         {
           entries: ['reformat.html'],
@@ -4426,13 +5623,13 @@ describe('cache', function() {
       let bundles = b.bundleGraph.getBundles();
       let contents = await overlayFS.readFile(bundles[0].filePath, 'utf8');
       assert(contents.includes('.webp" type="image/webp">'));
-      assert(contents.includes('.jpg" type="image/jpeg">'));
-      assert(contents.includes('.jpg" alt="test image">'));
+      assert(contents.includes('.jpeg" type="image/jpeg">'));
+      assert(contents.includes('.jpeg" alt="test image">'));
       assert.equal(bundles.length, 4);
     });
   });
 
-  it('should correctly read additional child assets from cache', async function() {
+  it('should correctly read additional child assets from cache', async function () {
     await ncp(
       path.join(__dirname, '/integration/postcss-modules-cjs'),
       path.join(inputDir),
@@ -4466,7 +5663,7 @@ describe('cache', function() {
     assert.strictEqual(result1, result3);
   });
 
-  it('should correctly read additional child assets from cache 2', async function() {
+  it('should correctly read additional child assets from cache 2', async function () {
     await ncp(
       path.join(__dirname, '/integration/postcss-modules-cjs'),
       path.join(inputDir),
@@ -4509,7 +5706,7 @@ describe('cache', function() {
     assert.strictEqual(result1, result3);
   });
 
-  it('should correctly reuse intermediate pipeline results when transforming', async function() {
+  it('should correctly reuse intermediate pipeline results when transforming', async function () {
     await ncp(path.join(__dirname, '/integration/json'), path.join(inputDir));
 
     let entry = path.join(inputDir, 'index.js');
@@ -4536,7 +5733,7 @@ describe('cache', function() {
     assert.strictEqual(result3, 3);
   });
 
-  it('properly watches included files even after resaving them without changes', async function() {
+  it('properly watches included files even after resaving them without changes', async function () {
     this.timeout(15000);
     let subscription;
     let fixture = path.join(__dirname, '/integration/included-file');
@@ -4591,5 +5788,144 @@ describe('cache', function() {
         subscription = null;
       }
     }
+  });
+
+  it('properly handles included files even after when changing back to a cached state', async function () {
+    this.timeout(15000);
+    let subscription;
+    let fixture = path.join(__dirname, '/integration/included-file');
+    try {
+      let b = bundler(path.join(fixture, 'index.txt'), {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+      });
+      await overlayFS.mkdirp(fixture);
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'a');
+      subscription = await b.watch();
+      let event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output1 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output1, 'a');
+
+      // Change included file
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'b');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output2 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output2, 'b');
+
+      // Change included file back
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'a');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output3 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output3, 'a');
+    } finally {
+      if (subscription) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
+  });
+
+  it('properly watches included files after a transformer error', async function () {
+    this.timeout(15000);
+    let subscription;
+    let fixture = path.join(__dirname, '/integration/included-file');
+    try {
+      let b = bundler(path.join(fixture, 'index.txt'), {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+      });
+      await overlayFS.mkdirp(fixture);
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'a');
+      subscription = await b.watch();
+      let event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output1 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output1, 'a');
+
+      // Change included file
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'ERROR');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildFailure');
+      assert.strictEqual(event.diagnostics[0].message, 'Custom error');
+
+      // Clear transformer error
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'b');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output3 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output3, 'b');
+    } finally {
+      if (subscription) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
+  });
+
+  it('should support moving the project root', async function () {
+    // This test relies on the real filesystem because the memory fs doesn't support renames.
+    // But renameSync is broken on windows in CI with EPERM errors. Just skip this test for now.
+    if (process.platform === 'win32') {
+      return;
+    }
+
+    let b = await testCache({
+      inputFS,
+      outputFS: inputFS,
+      async setup() {
+        await inputFS.mkdirp(inputDir);
+        await inputFS.ncp(path.join(__dirname, '/integration/cache'), inputDir);
+      },
+      update: async b => {
+        assert.equal(await run(b.bundleGraph), 4);
+
+        await inputFS.writeFile(
+          path.join(inputDir, 'src/nested/test.js'),
+          'export default 4',
+        );
+
+        fs.renameSync(inputDir, (inputDir += '_2'));
+        await sleep(100);
+      },
+    });
+
+    assert.equal(await run(b.bundleGraph), 6);
+  });
+
+  it('supports multiple empty JS assets', async function () {
+    // Try to store multiple empty assets using LMDB
+    let build = await runBundle(
+      path.join(__dirname, 'integration/multiple-empty-js-assets/index.js'),
+      {
+        inputFS,
+        outputFS: inputFS,
+      },
+    );
+
+    let a = nullthrows(findAsset(build.bundleGraph, 'a.js'));
+    let b = nullthrows(findAsset(build.bundleGraph, 'a.js'));
+    assert.strictEqual((await a.getBuffer()).length, 0);
+    assert.strictEqual((await b.getBuffer()).length, 0);
+
+    let res = await run(build.bundleGraph);
+    assert.deepEqual(res, {default: 'foo'});
   });
 });

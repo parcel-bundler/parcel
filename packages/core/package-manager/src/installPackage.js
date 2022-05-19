@@ -112,20 +112,22 @@ async function installPeerDependencies(
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: md`Could not install the peer dependency "${name}" for "${module.name}", installed version ${pkg.version} is incompatible with ${range}`,
-            filePath: conflicts.filePath,
             origin: '@parcel/package-manager',
-            language: 'json',
-            codeFrame: {
-              code: conflicts.json,
-              codeHighlights: generateJSONCodeHighlights(
-                conflicts.json,
-                conflicts.fields.map(field => ({
-                  key: `/${field}/${encodeJSONKeyComponent(name)}`,
-                  type: 'key',
-                  message: 'Found this conflicting local requirement.',
-                })),
-              ),
-            },
+            codeFrames: [
+              {
+                filePath: conflicts.filePath,
+                language: 'json',
+                code: conflicts.json,
+                codeHighlights: generateJSONCodeHighlights(
+                  conflicts.json,
+                  conflicts.fields.map(field => ({
+                    key: `/${field}/${encodeJSONKeyComponent(name)}`,
+                    type: 'key',
+                    message: 'Found this conflicting local requirement.',
+                  })),
+                ),
+              },
+            ],
           },
         });
       }
@@ -244,8 +246,14 @@ export function installPackage(
 ): Promise<mixed> {
   if (WorkerFarm.isWorker()) {
     let workerApi = WorkerFarm.getWorkerApi();
+    // TODO this should really be `__filename` but without the rewriting.
+    let bundlePath =
+      process.env.PARCEL_BUILD_ENV === 'production' &&
+      !process.env.PARCEL_SELF_BUILD
+        ? path.join(__dirname, '..', 'lib/index.js')
+        : __filename;
     return workerApi.callMaster({
-      location: __filename,
+      location: bundlePath,
       args: [fs, packageManager, modules, filePath, projectRoot, options],
       method: '_addToInstallQueue',
     });

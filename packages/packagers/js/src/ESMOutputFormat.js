@@ -70,14 +70,31 @@ export class ESMOutputFormat implements OutputFormat {
     return [res, lines];
   }
 
-  buildBundlePostlude(): string {
+  buildBundlePostlude(): [string, number] {
     let res = '';
+    let lines = 0;
     let exportSpecifiers = [];
-    for (let exported of this.packager.exportedSymbols.values()) {
-      for (let {exportAs, local} of exported) {
+    for (let {
+      asset,
+      exportSymbol,
+      local,
+      exportAs,
+    } of this.packager.exportedSymbols.values()) {
+      if (this.packager.wrappedAssets.has(asset.id)) {
+        let obj = `parcelRequire("${this.packager.bundleGraph.getAssetPublicId(
+          asset,
+        )}")`;
+        res += `\nvar ${local} = ${this.packager.getPropertyAccess(
+          obj,
+          exportSymbol,
+        )};`;
+        lines++;
+      }
+
+      for (let as of exportAs) {
         let specifier = local;
         if (exportAs !== local) {
-          specifier += ` as ${exportAs}`;
+          specifier += ` as ${as}`;
         }
 
         exportSpecifiers.push(specifier);
@@ -86,8 +103,9 @@ export class ESMOutputFormat implements OutputFormat {
 
     if (exportSpecifiers.length > 0) {
       res += `\nexport {${exportSpecifiers.join(', ')}};`;
+      lines++;
     }
 
-    return res;
+    return [res, lines];
   }
 }

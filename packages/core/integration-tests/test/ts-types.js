@@ -9,8 +9,8 @@ import {
   ncp,
 } from '@parcel/test-utils';
 
-describe('typescript types', function() {
-  it('should generate a typescript declaration file', async function() {
+describe('typescript types', function () {
+  it('should generate a typescript declaration file', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/main/index.ts'),
     );
@@ -18,7 +18,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['esmodule-helpers.js', 'index.ts'],
+        assets: ['index.ts'],
       },
       {
         type: 'ts',
@@ -39,7 +39,7 @@ describe('typescript types', function() {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with imports', async function() {
+  it('should generate ts declarations with imports', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/importing/index.ts'),
     );
@@ -47,7 +47,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts', 'file.ts', 'namespace.ts', 'esmodule-helpers.js'],
+        assets: ['index.ts', 'namespace.ts'],
       },
       {
         type: 'ts',
@@ -68,7 +68,7 @@ describe('typescript types', function() {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with imports and naming collisions', async function() {
+  it('should generate ts declarations with imports and naming collisions', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -79,7 +79,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts', 'other1.ts', 'other2.ts', 'esmodule-helpers.js'],
+        assets: ['index.ts', 'other1.ts', 'other2.ts'],
       },
       {
         type: 'ts',
@@ -106,7 +106,7 @@ describe('typescript types', function() {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with exports', async function() {
+  it('should generate ts declarations with exports', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/exporting/index.ts'),
     );
@@ -114,13 +114,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: [
-          'esmodule-helpers.js',
-          'index.ts',
-          'message.ts',
-          'other.ts',
-          'test.ts',
-        ],
+        assets: ['index.ts', 'message.ts', 'other.ts', 'test.ts'],
       },
       {
         type: 'ts',
@@ -141,7 +135,42 @@ describe('typescript types', function() {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with externals', async function() {
+  it('should generate ts declarations with export of an overloaded function signature', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/ts-types/exporting-overload/index.ts'),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.ts'],
+      },
+      {
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/exporting-overload/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/exporting-overload/expected.d.ts',
+      ),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
+
+  it('should generate ts declarations with externals', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/externals/index.tsx'),
     );
@@ -149,7 +178,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.tsx', 'other.tsx', 'esmodule-helpers.js'],
+        assets: ['index.tsx', 'other.tsx'],
       },
       {
         type: 'ts',
@@ -170,7 +199,7 @@ describe('typescript types', function() {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with externals that conflict with exported names', async function() {
+  it('should generate ts declarations with externals that conflict with exported names', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -181,7 +210,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts', 'esmodule-helpers.js'],
+        assets: ['index.ts'],
       },
       {
         type: 'ts',
@@ -208,7 +237,7 @@ describe('typescript types', function() {
     assert.equal(dist, expected);
   });
 
-  it('should remove private properties', async function() {
+  it('should remove private properties', async function () {
     await bundle(
       path.join(__dirname, '/integration/ts-types/private/index.ts'),
     );
@@ -226,7 +255,7 @@ describe('typescript types', function() {
     assert.equal(dist, expected);
   });
 
-  it('should not throw errors on typing of a callback which returns a promise or value', async function() {
+  it('should not throw errors on typing of a callback which returns a promise or value', async function () {
     await bundle(
       path.join(__dirname, '/integration/ts-types/promise-or-value/index.ts'),
     );
@@ -251,7 +280,7 @@ describe('typescript types', function() {
     assert.equal(dist, expected);
   });
 
-  it('should correctly reference unbuilt monorepo packages', async function() {
+  it('should correctly reference unbuilt monorepo packages', async function () {
     let fixtureDir = path.join(__dirname, 'integration/ts-types/monorepo');
     await outputFS.mkdirp(path.join(fixtureDir, 'node_modules'));
     await ncp(fixtureDir, fixtureDir);
@@ -277,7 +306,7 @@ describe('typescript types', function() {
     assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
   });
 
-  it('should generate a typescript declaration file even when composite is true', async function() {
+  it('should generate a typescript declaration file even when composite and incremental are true', async function () {
     await bundle(
       path.join(__dirname, '/integration/ts-types/composite/index.ts'),
     );
@@ -290,6 +319,71 @@ describe('typescript types', function() {
     ).replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/composite/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
+
+  it('should work with module augmentation', async function () {
+    let fixtureDir = path.join(__dirname, 'integration/ts-types/augmentation');
+    await outputFS.mkdirp(path.join(fixtureDir, 'node_modules'));
+    await ncp(fixtureDir, fixtureDir);
+    await outputFS.symlink(
+      path.join(fixtureDir, 'original'),
+      path.join(fixtureDir, 'node_modules/original'),
+    );
+
+    let b = await bundle(path.join(fixtureDir, 'augmenter'), {
+      inputFS: overlayFS,
+    });
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        type: 'js',
+        assets: ['index.ts'],
+      },
+      {
+        name: 'index.d.ts',
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(fixtureDir, 'augmenter/dist/index.d.ts'),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(fixtureDir, 'augmenter/src/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
+
+  it('should handle re-exporting aggregating correctly', async function () {
+    await bundle(
+      path.join(
+        __dirname,
+        '/integration/ts-types/re-exporting-aggregating/index.ts',
+      ),
+    );
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/re-exporting-aggregating/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/re-exporting-aggregating/expected.d.ts',
+      ),
       'utf8',
     );
     assert.equal(dist, expected);

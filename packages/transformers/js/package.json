@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js",
-  "version": "2.0.0-beta.2",
+  "version": "2.5.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -19,33 +19,43 @@
     "name": "parcel-swc"
   },
   "engines": {
-    "parcel": "^2.0.0-beta.1",
+    "parcel": "^2.5.0",
     "node": ">= 12.0.0"
   },
   "files": [
     "lib",
-    "*.node",
-    "src"
+    "native-browser.js",
+    "native.js",
+    "src",
+    "*.node"
   ],
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-beta.2",
-    "@parcel/plugin": "2.0.0-beta.2",
-    "@parcel/source-map": "2.0.0-rc.1.0",
-    "@parcel/utils": "2.0.0-beta.2",
-    "@swc/helpers": "^0.2.11",
+    "@parcel/diagnostic": "2.5.0",
+    "@parcel/plugin": "2.5.0",
+    "@parcel/source-map": "^2.0.0",
+    "@parcel/utils": "2.5.0",
+    "@parcel/workers": "2.5.0",
+    "@swc/helpers": "^0.3.13",
     "browserslist": "^4.6.6",
     "detect-libc": "^1.0.3",
-    "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
-    "semver": "^5.4.1"
+    "regenerator-runtime": "^0.13.7",
+    "semver": "^5.7.1"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.4",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-beta.2",
-    "tiny-benchy": "^1.0.1"
+    "@napi-rs/cli": "^2.6.2"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.5.0"
   },
   "scripts": {
-    "build": "napi build --platform",
-    "build-release": "napi build --platform --release"
+    "build": "napi build --platform --cargo-cwd napi",
+    "build-release": "napi build --platform --release --cargo-cwd napi",
+    "build:wasm-base": "wasm-pack build wasm --no-typescript --release",
+    "build:wasm-node": "yarn build:wasm-base --target nodejs --out-dir dist-node",
+    "build:wasm-web": "CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_PANIC=abort CARGO_PROFILE_RELEASE_OPT_LEVEL=z yarn build:wasm-base --target web --out-dir dist-web"
+  },
+  "browser": {
+    "./native.js": "./native-browser.js"
   }
 }

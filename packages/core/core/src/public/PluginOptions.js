@@ -13,10 +13,8 @@ import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ParcelOptions} from '../types';
 
-let parcelOptionsToPluginOptions: WeakMap<
-  ParcelOptions,
-  PluginOptions,
-> = new WeakMap();
+let parcelOptionsToPluginOptions: WeakMap<ParcelOptions, PluginOptions> =
+  new WeakMap();
 
 export default class PluginOptions implements IPluginOptions {
   #options /*: ParcelOptions */;
@@ -62,10 +60,6 @@ export default class PluginOptions implements IPluginOptions {
 
   get logLevel(): LogLevel {
     return this.#options.logLevel;
-  }
-
-  get entryRoot(): FilePath {
-    return this.#options.entryRoot;
   }
 
   get cacheDir(): FilePath {

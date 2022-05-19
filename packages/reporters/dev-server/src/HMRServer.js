@@ -1,21 +1,25 @@
 // @flow
 
-import type {BuildSuccessEvent, PluginOptions} from '@parcel/types';
+import type {
+  BuildSuccessEvent,
+  Dependency,
+  PluginOptions,
+  BundleGraph,
+  PackagedBundle,
+  Asset,
+} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {ServerError, HMRServerOptions} from './types.js.flow';
 
 import WebSocket from 'ws';
 import invariant from 'assert';
-import {
-  ansiHtml,
-  md5FromObject,
-  prettyDiagnostic,
-  PromiseQueue,
-} from '@parcel/utils';
+import {ansiHtml, prettyDiagnostic, PromiseQueue} from '@parcel/utils';
+import {HMR_ENDPOINT} from './Server';
 
 export type HMRAsset = {|
   id: string,
+  url: string,
   type: string,
   output: string,
   envHash: string,
@@ -31,7 +35,7 @@ export type HMRMessage =
       type: 'error',
       diagnostics: {|
         ansi: Array<AnsiDiagnosticResult>,
-        html: Array<AnsiDiagnosticResult>,
+        html: Array<$Rest<AnsiDiagnosticResult, {|codeframe: string|}>>,
       |},
     |};
 
@@ -59,8 +63,8 @@ export default class HMRServer {
       }
     });
 
-    // $FlowFixMe[incompatible-call]
-    this.wss.on('error', this.handleSocketError);
+    // $FlowFixMe[incompatible-exact]
+    this.wss.on('error', err => this.handleSocketError(err));
 
     let address = this.wss.address();
     invariant(typeof address === 'object' && address != null);
@@ -82,12 +86,16 @@ export default class HMRServer {
       type: 'error',
       diagnostics: {
         ansi: renderedDiagnostics,
-        html: renderedDiagnostics.map(d => {
+        html: renderedDiagnostics.map((d, i) => {
           return {
             message: ansiHtml(d.message),
             stack: ansiHtml(d.stack),
-            codeframe: ansiHtml(d.codeframe),
+            frames: d.frames.map(f => ({
+              location: f.location,
+              code: ansiHtml(f.code),
+            })),
             hints: d.hints.map(hint => ansiHtml(hint)),
+            documentation: diagnostics[i].documentationURL ?? '',
           };
         }),
       },
@@ -99,25 +107,45 @@ export default class HMRServer {
   async emitUpdate(event: BuildSuccessEvent) {
     this.unresolvedError = null;
 
-    let changedAssets = Array.from(event.changedAssets.values());
-    if (changedAssets.length === 0) return;
+    let changedAssets = new Set(event.changedAssets.values());
+    if (changedAssets.size === 0) return;
 
     let queue = new PromiseQueue({maxConcurrent: FS_CONCURRENCY});
     for (let asset of changedAssets) {
+      if (asset.type !== 'js' && asset.type !== 'css') {
+        // If all of the incoming dependencies of the asset actually resolve to a JS asset
+        // rather than the original, we can mark the runtimes as changed instead. URL runtimes
+        // have a cache busting query param added with HMR enabled which will trigger a reload.
+        let runtimes = new Set();
+        let incomingDeps = event.bundleGraph.getIncomingDependencies(asset);
+        let isOnlyReferencedByRuntimes = incomingDeps.every(dep => {
+          let resolved = event.bundleGraph.getResolvedAsset(dep);
+          let isRuntime = resolved?.type === 'js' && resolved !== asset;
+          if (resolved && isRuntime) {
+            runtimes.add(resolved);
+          }
+          return isRuntime;
+        });
+
+        if (isOnlyReferencedByRuntimes) {
+          for (let runtime of runtimes) {
+            changedAssets.add(runtime);
+          }
+
+          continue;
+        }
+      }
+
       queue.add(async () => {
         let dependencies = event.bundleGraph.getDependencies(asset);
         let depsByBundle = {};
-        for (let bundle of event.bundleGraph.findBundlesWithAsset(asset)) {
+        for (let bundle of event.bundleGraph.getBundlesWithAsset(asset)) {
           let deps = {};
           for (let dep of dependencies) {
-            let resolved = event.bundleGraph.getDependencyResolution(
-              dep,
-              bundle,
-            );
+            let resolved = event.bundleGraph.getResolvedAsset(dep, bundle);
             if (resolved) {
-              deps[dep.moduleSpecifier] = event.bundleGraph.getAssetPublicId(
-                resolved,
-              );
+              deps[getSpecifier(dep)] =
+                event.bundleGraph.getAssetPublicId(resolved);
             }
           }
           depsByBundle[bundle.id] = deps;
@@ -125,9 +153,14 @@ export default class HMRServer {
 
         return {
           id: event.bundleGraph.getAssetPublicId(asset),
+          url: getSourceURL(event.bundleGraph, asset),
           type: asset.type,
-          output: await asset.getCode(),
-          envHash: md5FromObject(asset.env),
+          // No need to send the contents of non-JS assets to the client.
+          output:
+            asset.type === 'js'
+              ? await getHotAssetContents(event.bundleGraph, asset)
+              : '',
+          envHash: asset.env.id,
           depsByBundle,
         };
       });
@@ -159,4 +192,43 @@ export default class HMRServer {
       ws.send(json);
     }
   }
+}
+
+function getSpecifier(dep: Dependency): string {
+  if (typeof dep.meta.placeholder === 'string') {
+    return dep.meta.placeholder;
+  }
+
+  return dep.specifier;
+}
+
+export async function getHotAssetContents(
+  bundleGraph: BundleGraph<PackagedBundle>,
+  asset: Asset,
+): Promise<string> {
+  let output = await asset.getCode();
+  if (asset.type === 'js') {
+    let publicId = bundleGraph.getAssetPublicId(asset);
+    output = `parcelHotUpdate['${publicId}'] = function (require, module, exports) {${output}}`;
+  }
+
+  let sourcemap = await asset.getMap();
+  if (sourcemap) {
+    let sourcemapStringified = await sourcemap.stringify({
+      format: 'inline',
+      sourceRoot: '/__parcel_source_root/',
+      // $FlowFixMe
+      fs: asset.fs,
+    });
+
+    invariant(typeof sourcemapStringified === 'string');
+    output += `\n//# sourceMappingURL=${sourcemapStringified}`;
+    output += `\n//# sourceURL=${getSourceURL(bundleGraph, asset)}\n`;
+  }
+
+  return output;
+}
+
+function getSourceURL(bundleGraph, asset) {
+  return HMR_ENDPOINT + asset.id;
 }

@@ -15,8 +15,8 @@ import {collect} from './collect';
 import {shake} from './shake';
 
 export default (new Transformer({
-  async loadConfig({config, options}) {
-    await loadTSConfig(config, options);
+  loadConfig({config, options}) {
+    return loadTSConfig(config, options);
   },
 
   transform({asset, config, options, logger}) {
@@ -36,18 +36,20 @@ export default (new Transformer({
       moduleResolution: ts.ModuleResolutionKind.NodeJs,
       // createProgram doesn't support incremental mode
       composite: false,
+      incremental: false,
     };
 
     let host = new CompilerHost(options.inputFS, ts, logger);
     // $FlowFixMe
     let program = ts.createProgram([asset.filePath], opts, host);
 
-    let includedFiles = program
-      .getSourceFiles()
-      .filter(file => path.normalize(file.fileName) !== asset.filePath)
-      .map(file => ({
-        filePath: host.redirectTypes.get(file.fileName) ?? file.fileName,
-      }));
+    for (let file of program.getSourceFiles()) {
+      if (path.normalize(file.fileName) !== asset.filePath) {
+        asset.invalidateOnFileChange(
+          host.redirectTypes.get(file.fileName) ?? file.fileName,
+        );
+      }
+    }
 
     let mainModuleName = path
       .relative(program.getCommonSourceDirectory(), asset.filePath)
@@ -115,6 +117,7 @@ export default (new Transformer({
             }
 
             codeframe = {
+              filePath: filename,
               code: source,
               codeHighlights: [
                 {
@@ -129,8 +132,7 @@ export default (new Transformer({
 
         logger.warn({
           message: escapeMarkdown(diagnosticMessage),
-          filePath: filename,
-          codeFrame: codeframe ? codeframe : undefined,
+          codeFrames: codeframe ? [codeframe] : undefined,
         });
       }
     }
@@ -149,15 +151,9 @@ export default (new Transformer({
       sourceMap.addVLQMap(map);
     }
 
-    return [
-      {
-        type: 'ts',
-        // Stay on the types pipeline, even if the type changes
-        pipeline: asset.pipeline,
-        content: code,
-        map: sourceMap,
-        includedFiles,
-      },
-    ];
+    asset.type = 'ts';
+    asset.setCode(code);
+    asset.setMap(sourceMap);
+    return [asset];
   },
 }): Transformer);

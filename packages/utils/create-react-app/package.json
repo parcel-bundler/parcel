@@ -1,10 +1,15 @@
 {
   "name": "@parcel/create-react-app",
-  "version": "2.0.0-beta.2",
+  "version": "2.5.0",
   "bin": {
     "parcel-create-react-app": "src/bin.js"
   },
-  "main": "lib/bin.js",
+  "main": "src/bin.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git",
+    "directory": "packages/utils/create-react-app"
+  },
   "source": "src/bin.js",
   "files": [
     "templates",
@@ -26,6 +31,7 @@
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0-beta.2"
+    "@babel/core": "^7.0.0",
+    "@parcel/babel-register": "2.5.0"
   }
 }

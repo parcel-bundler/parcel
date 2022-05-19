@@ -10,11 +10,7 @@ import('./asyn');
 //
 //
 
-console.log(react);
-
-console.log(lodash);
-
-// new Worker('worker.js');
+new Worker(new URL('worker.js', import.meta.url));
 
 console.log(message);
 

@@ -1,19 +1,21 @@
 // @flow
 
-import type {Config, PluginOptions} from '@parcel/types';
-import type {PluginLogger} from '@parcel/logger';
+import type {Config, PluginOptions, PluginLogger} from '@parcel/types';
 import typeof * as BabelCore from '@babel/core';
+import type {Diagnostic} from '@parcel/diagnostic';
+import type {BabelConfig} from './types';
 
+import json5 from 'json5';
 import path from 'path';
-import * as internalBabelCore from '@babel/core';
-import {md5FromObject, relativePath, resolveConfig} from '@parcel/utils';
+import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
+import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
+import {BABEL_CORE_RANGE} from './constants';
 
 import isJSX from './jsx';
 import getFlowOptions from './flow';
 import {enginesToBabelTargets} from './utils';
 
 const TYPESCRIPT_EXTNAME_RE = /\.tsx?$/;
-const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 const JS_EXTNAME_RE = /^\.(js|cjs|mjs)$/;
 const BABEL_CONFIG_FILENAMES = [
   '.babelrc',
@@ -28,11 +30,18 @@ const BABEL_CONFIG_FILENAMES = [
   'babel.config.cjs',
 ];
 
+type BabelConfigResult = {|
+  internal: boolean,
+  config: BabelConfig,
+  targets?: mixed,
+  syntaxPlugins?: mixed,
+|};
+
 export async function load(
   config: Config,
   options: PluginOptions,
   logger: PluginLogger,
-): Promise<void> {
+): Promise<?BabelConfigResult> {
   // Don't transpile inside node_modules
   if (!config.isSource) {
     return;
@@ -56,24 +65,26 @@ export async function load(
       options.projectRoot,
     ))
   ) {
-    await buildDefaultBabelConfig(options, config);
-    return;
+    return buildDefaultBabelConfig(options, config);
   }
 
   const babelCore: BabelCore = await options.packageManager.require(
     '@babel/core',
     config.searchPath,
     {
-      range: '^7.12.0',
+      range: BABEL_CORE_RANGE,
       saveDev: true,
       shouldAutoInstall: options.shouldAutoInstall,
     },
   );
   config.addDevDependency({
-    moduleSpecifier: '@babel/core',
+    specifier: '@babel/core',
     resolveFrom: config.searchPath,
+    range: BABEL_CORE_RANGE,
   });
 
+  config.invalidateOnEnvChange('BABEL_ENV');
+  config.invalidateOnEnvChange('NODE_ENV');
   let babelOptions = {
     filename: config.searchPath,
     cwd: options.projectRoot,
@@ -96,23 +107,28 @@ export async function load(
       // We need to invalidate on startup in case the config is non-static,
       // e.g. uses unknown environment variables, reads from the filesystem, etc.
       logger.warn({
-        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${path.basename(
-          file,
-          path.extname(file),
-        ) + '.json'} file instead.`,
+        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${
+          path.basename(file, path.extname(file)) + '.json'
+        } file instead.`,
       });
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
 
       // But also add the config as a dev dependency so we can at least attempt invalidation in watch mode.
       config.addDevDependency({
-        moduleSpecifier: relativePath(options.projectRoot, file),
+        specifier: relativePath(options.projectRoot, file),
         resolveFrom: path.join(options.projectRoot, 'index'),
-        // Also invalidate @parcel/transformer-babel when the config or a dependency updates.
+        // Also invalidate @babel/core when the config or a dependency updates.
         // This ensures that the caches in @babel/core are also invalidated.
-        invalidateParcelPlugin: true,
+        additionalInvalidations: [
+          {
+            specifier: '@babel/core',
+            resolveFrom: config.searchPath,
+            range: BABEL_CORE_RANGE,
+          },
+        ],
       });
     } else {
-      config.addIncludedFile(file);
+      config.invalidateOnFileChange(file);
     }
   };
 
@@ -121,7 +137,7 @@ export async function load(
       message:
         'You are using an old version of @babel/core which does not support the necessary features for Parcel to cache and watch babel config files safely. You may need to restart Parcel for config changes to take effect. Please upgrade to @babel/core 7.12.0 or later to resolve this issue.',
     });
-    config.shouldInvalidateOnStartup();
+    config.invalidateOnStartup();
   };
 
   // Old versions of @babel/core return null from loadPartialConfig when the file should explicitly not be run through babel (ignore/exclude)
@@ -167,13 +183,6 @@ export async function load(
       syntaxPlugins.push('jsx');
     }
 
-    config.setResult({
-      internal: false,
-      config: partialConfig.options,
-      targets: enginesToBabelTargets(config.env),
-      syntaxPlugins,
-    });
-
     // If the config has plugins loaded with require(), or inline plugins in the config,
     // we can't cache the result of the compilation because we don't know where they came from.
     if (hasRequire(partialConfig.options)) {
@@ -182,18 +191,29 @@ export async function load(
           'It looks like you are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.',
       });
 
-      config.setResultHash(JSON.stringify(Date.now()));
-      config.shouldInvalidateOnStartup();
+      config.setCacheKey(JSON.stringify(Date.now()));
+      config.invalidateOnStartup();
     } else {
-      definePluginDependencies(config, options);
-      config.setResultHash(md5FromObject(partialConfig.options));
+      await warnOnRedundantPlugins(options.inputFS, partialConfig, logger);
+      definePluginDependencies(config, partialConfig.options, options);
+      config.setCacheKey(hashObject(partialConfig.options));
     }
+
+    return {
+      internal: false,
+      config: partialConfig.options,
+      targets: enginesToBabelTargets(config.env),
+      syntaxPlugins,
+    };
   } else {
-    await buildDefaultBabelConfig(options, config);
+    return buildDefaultBabelConfig(options, config);
   }
 }
 
-async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
+async function buildDefaultBabelConfig(
+  options: PluginOptions,
+  config: Config,
+): Promise<?BabelConfigResult> {
   // If this is a .ts or .tsx file, we don't need to enable flow.
   if (TYPESCRIPT_EXTNAME_RE.test(config.searchPath)) {
     return;
@@ -211,25 +231,12 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
     syntaxPlugins.push('jsx');
   }
 
-  babelOptions.presets = (babelOptions.presets || []).map(preset =>
-    internalBabelCore.createConfigItem(preset, {
-      type: 'preset',
-      dirname: BABEL_TRANSFORMER_DIR,
-    }),
-  );
-  babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
-    internalBabelCore.createConfigItem(plugin, {
-      type: 'plugin',
-      dirname: BABEL_TRANSFORMER_DIR,
-    }),
-  );
-
-  config.setResult({
+  definePluginDependencies(config, babelOptions, options);
+  return {
     internal: true,
     config: babelOptions,
     syntaxPlugins,
-  });
-  definePluginDependencies(config, options);
+  };
 }
 
 function hasRequire(options) {
@@ -237,26 +244,170 @@ function hasRequire(options) {
   return configItems.some(item => !item.file);
 }
 
-function definePluginDependencies(config, options) {
-  let babelConfig = config.result.config;
+function definePluginDependencies(config, babelConfig: ?BabelConfig, options) {
   if (babelConfig == null) {
     return;
   }
 
-  let configItems = [...babelConfig.presets, ...babelConfig.plugins];
+  let configItems = [
+    ...(babelConfig.presets || []),
+    ...(babelConfig.plugins || []),
+  ];
   for (let configItem of configItems) {
     // FIXME: this uses a relative path from the project root rather than resolving
     // from the config location because configItem.file.request can be a shorthand
     // rather than a full package name.
     config.addDevDependency({
-      moduleSpecifier: relativePath(
-        options.projectRoot,
-        configItem.file.resolved,
-      ),
+      specifier: relativePath(options.projectRoot, configItem.file.resolved),
       resolveFrom: path.join(options.projectRoot, 'index'),
-      // Also invalidate @parcel/transformer-babel when the plugin or a dependency updates.
+      // Also invalidate @babel/core when the plugin or a dependency updates.
       // This ensures that the caches in @babel/core are also invalidated.
-      invalidateParcelPlugin: true,
+      additionalInvalidations: [
+        {
+          specifier: '@babel/core',
+          resolveFrom: config.searchPath,
+          range: BABEL_CORE_RANGE,
+        },
+      ],
     });
   }
+}
+
+const redundantPresets = new Set([
+  '@babel/preset-env',
+  '@babel/preset-react',
+  '@babel/preset-typescript',
+  '@parcel/babel-preset-env',
+]);
+
+async function warnOnRedundantPlugins(fs, babelConfig, logger) {
+  if (babelConfig == null) {
+    return;
+  }
+
+  let configPath = babelConfig.config ?? babelConfig.babelrc;
+  if (!configPath) {
+    return;
+  }
+
+  let presets = babelConfig.options.presets || [];
+  let plugins = babelConfig.options.plugins || [];
+  let foundRedundantPresets = new Set();
+
+  let filteredPresets = presets.filter(preset => {
+    if (redundantPresets.has(preset.file.request)) {
+      foundRedundantPresets.add(preset.file.request);
+      return false;
+    }
+
+    return true;
+  });
+
+  let filePath = path.relative(process.cwd(), configPath);
+  let diagnostics: Array<Diagnostic> = [];
+
+  if (
+    filteredPresets.length === 0 &&
+    foundRedundantPresets.size > 0 &&
+    plugins.length === 0
+  ) {
+    diagnostics.push({
+      message: md`Parcel includes transpilation by default. Babel config __${filePath}__ contains only redundant presets. Deleting it may significantly improve build performance.`,
+      codeFrames: [
+        {
+          filePath: configPath,
+          codeHighlights: await getCodeHighlights(
+            fs,
+            configPath,
+            foundRedundantPresets,
+          ),
+        },
+      ],
+      hints: [md`Delete __${filePath}__`],
+      documentationURL:
+        'https://parceljs.org/languages/javascript/#default-presets',
+    });
+  } else if (foundRedundantPresets.size > 0) {
+    diagnostics.push({
+      message: md`Parcel includes transpilation by default. Babel config __${filePath}__ includes the following redundant presets: ${[
+        ...foundRedundantPresets,
+      ].map(p =>
+        md.underline(p),
+      )}. Removing these may improve build performance.`,
+      codeFrames: [
+        {
+          filePath: configPath,
+          codeHighlights: await getCodeHighlights(
+            fs,
+            configPath,
+            foundRedundantPresets,
+          ),
+        },
+      ],
+      hints: [md`Remove the above presets from __${filePath}__`],
+      documentationURL:
+        'https://parceljs.org/languages/javascript/#default-presets',
+    });
+  }
+
+  if (foundRedundantPresets.has('@babel/preset-env')) {
+    diagnostics.push({
+      message:
+        "@babel/preset-env does not support Parcel's targets, which will likely result in unnecessary transpilation and larger bundle sizes.",
+      codeFrames: [
+        {
+          filePath: babelConfig.config ?? babelConfig.babelrc,
+          codeHighlights: await getCodeHighlights(
+            fs,
+            babelConfig.config ?? babelConfig.babelrc,
+            new Set(['@babel/preset-env']),
+          ),
+        },
+      ],
+      hints: [
+        `Either remove __@babel/preset-env__ to use Parcel's builtin transpilation, or replace with __@parcel/babel-preset-env__`,
+      ],
+      documentationURL:
+        'https://parceljs.org/languages/javascript/#custom-plugins',
+    });
+  }
+
+  if (diagnostics.length > 0) {
+    logger.warn(diagnostics);
+  }
+}
+
+async function getCodeHighlights(fs, filePath, redundantPresets) {
+  let ext = path.extname(filePath);
+  if (ext !== '.js' && ext !== '.cjs' && ext !== '.mjs') {
+    let contents = await fs.readFile(filePath, 'utf8');
+    let json = json5.parse(contents);
+
+    let presets = json.presets || [];
+    let pointers = [];
+    for (let i = 0; i < presets.length; i++) {
+      if (Array.isArray(presets[i]) && redundantPresets.has(presets[i][0])) {
+        pointers.push({type: 'value', key: `/presets/${i}/0`});
+      } else if (redundantPresets.has(presets[i])) {
+        pointers.push({type: 'value', key: `/presets/${i}`});
+      }
+    }
+
+    if (pointers.length > 0) {
+      return generateJSONCodeHighlights(contents, pointers);
+    }
+  }
+
+  return [
+    {
+      start: {
+        line: 1,
+        column: 1,
+      },
+      end: {
+        line: 1,
+        column: 1,
+      },
+    },
+  ];
 }

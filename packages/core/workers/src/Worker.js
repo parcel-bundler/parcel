@@ -67,7 +67,7 @@ export default class Worker extends EventEmitter {
       // arg parsing logic adapted from https://stackoverflow.com/a/46946420/2352201
       let opts = [''];
       let quote = false;
-      for (let c of nullthrows(process.env.NODE_OPTIONS.match(/\\?.|^$/g))) {
+      for (let c of nullthrows(process.env.NODE_OPTIONS.match(/.|^$/g))) {
         if (c === '"') {
           quote = !quote;
         } else if (!quote && c === ' ') {

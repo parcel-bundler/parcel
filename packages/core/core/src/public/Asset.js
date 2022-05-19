@@ -8,7 +8,6 @@ import type {
   Asset as IAsset,
   AST,
   ASTGenerator,
-  ConfigResult,
   Dependency as IDependency,
   DependencyOptions,
   Environment as IEnvironment,
@@ -17,11 +16,10 @@ import type {
   FilePath,
   Meta,
   MutableAsset as IMutableAsset,
-  PackageJSON,
   Stats,
   MutableAssetSymbols as IMutableAssetSymbols,
   AssetSymbols as IAssetSymbols,
-  QueryParameters,
+  BundleBehavior,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -32,14 +30,19 @@ import {AssetSymbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
+import {fromProjectPath, toProjectPath} from '../projectPath';
+import {
+  BundleBehavior as BundleBehaviorMap,
+  BundleBehaviorNames,
+} from '../types';
+import {toInternalSourceLocation} from '../utils';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const assetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
-const assetValueToMutableAsset: WeakMap<
-  AssetValue,
-  MutableAsset,
-> = new WeakMap();
+const uncommittedAssetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
+const committedAssetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
+const assetValueToMutableAsset: WeakMap<AssetValue, MutableAsset> =
+  new WeakMap();
 
 const _assetToAssetValue: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
@@ -77,13 +80,14 @@ export function assetFromValue(
 
 class BaseAsset {
   #asset: CommittedAsset | UncommittedAsset;
+  #query /*: ?URLSearchParams */;
 
   constructor(asset: CommittedAsset | UncommittedAsset) {
     this.#asset = asset;
     _assetToAssetValue.set(this, asset.value);
   }
 
-  // $FlowFixMe
+  // $FlowFixMe[unsupported-syntax]
   [inspect](): string {
     return `Asset(${this.filePath})`;
   }
@@ -97,7 +101,7 @@ class BaseAsset {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#asset.value.env);
+    return new Environment(this.#asset.value.env, this.#asset.options);
   }
 
   get fs(): FileSystem {
@@ -105,27 +109,30 @@ class BaseAsset {
   }
 
   get filePath(): FilePath {
-    return this.#asset.value.filePath;
+    return fromProjectPath(
+      this.#asset.options.projectRoot,
+      this.#asset.value.filePath,
+    );
   }
 
-  get query(): QueryParameters {
-    return this.#asset.value.query ?? {};
+  get query(): URLSearchParams {
+    if (!this.#query) {
+      this.#query = new URLSearchParams(this.#asset.value.query ?? '');
+    }
+    return this.#query;
   }
 
   get meta(): Meta {
     return this.#asset.value.meta;
   }
 
-  get isIsolated(): boolean {
-    return this.#asset.value.isIsolated;
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#asset.value.bundleBehavior;
+    return bundleBehavior == null ? null : BundleBehaviorNames[bundleBehavior];
   }
 
-  get isInline(): boolean {
-    return this.#asset.value.isInline;
-  }
-
-  get isSplittable(): ?boolean {
-    return this.#asset.value.isSplittable;
+  get isBundleSplittable(): boolean {
+    return this.#asset.value.isBundleSplittable;
   }
 
   get isSource(): boolean {
@@ -137,7 +144,7 @@ class BaseAsset {
   }
 
   get symbols(): IAssetSymbols {
-    return new AssetSymbols(this.#asset.value);
+    return new AssetSymbols(this.#asset.options, this.#asset.value);
   }
 
   get uniqueKey(): ?string {
@@ -152,22 +159,10 @@ class BaseAsset {
     return this.#asset.value.pipeline;
   }
 
-  getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-    |},
-  ): Promise<ConfigResult | null> {
-    return this.#asset.getConfig(filePaths, options);
-  }
-
   getDependencies(): $ReadOnlyArray<IDependency> {
-    return this.#asset.getDependencies().map(dep => new Dependency(dep));
-  }
-
-  getPackage(): Promise<PackageJSON | null> {
-    return this.#asset.getPackage();
+    return this.#asset
+      .getDependencies()
+      .map(dep => new Dependency(dep, this.#asset.options));
   }
 
   getCode(): Promise<string> {
@@ -199,6 +194,9 @@ export class Asset extends BaseAsset implements IAsset {
   #asset /*: CommittedAsset | UncommittedAsset */;
 
   constructor(asset: CommittedAsset | UncommittedAsset): Asset {
+    let assetValueToAsset = asset.value.committed
+      ? committedAssetValueToAsset
+      : uncommittedAssetValueToAsset;
     let existing = assetValueToAsset.get(asset.value);
     if (existing != null) {
       return existing;
@@ -246,40 +244,45 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     }
   }
 
-  get isIsolated(): boolean {
-    return this.#asset.value.isIsolated;
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#asset.value.bundleBehavior;
+    return bundleBehavior == null ? null : BundleBehaviorNames[bundleBehavior];
   }
 
-  set isIsolated(isIsolated: boolean): void {
-    this.#asset.value.isIsolated = isIsolated;
+  set bundleBehavior(bundleBehavior: ?BundleBehavior): void {
+    this.#asset.value.bundleBehavior = bundleBehavior
+      ? BundleBehaviorMap[bundleBehavior]
+      : null;
   }
 
-  get isInline(): boolean {
-    return this.#asset.value.isInline;
+  get isBundleSplittable(): boolean {
+    return this.#asset.value.isBundleSplittable;
   }
 
-  set isInline(isInline: boolean): void {
-    this.#asset.value.isInline = isInline;
+  set isBundleSplittable(isBundleSplittable: boolean): void {
+    this.#asset.value.isBundleSplittable = isBundleSplittable;
   }
 
-  get isSplittable(): ?boolean {
-    return this.#asset.value.isSplittable;
+  get sideEffects(): boolean {
+    return this.#asset.value.sideEffects;
   }
 
-  set isSplittable(isSplittable: ?boolean): void {
-    this.#asset.value.isSplittable = isSplittable;
+  set sideEffects(sideEffects: boolean): void {
+    this.#asset.value.sideEffects = sideEffects;
   }
 
   get symbols(): IMutableAssetSymbols {
-    return new MutableAssetSymbols(this.#asset.value);
+    return new MutableAssetSymbols(this.#asset.options, this.#asset.value);
   }
 
   addDependency(dep: DependencyOptions): string {
     return this.#asset.addDependency(dep);
   }
 
-  addIncludedFile(filePath: FilePath): void {
-    this.#asset.addIncludedFile(filePath);
+  invalidateOnFileChange(filePath: FilePath): void {
+    this.#asset.invalidateOnFileChange(
+      toProjectPath(this.#asset.options.projectRoot, filePath),
+    );
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void {
@@ -312,15 +315,18 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string {
     return this.addDependency({
-      moduleSpecifier: url,
-      isURL: true,
-      isAsync: true, // The browser has native loaders for url dependencies
+      specifier: url,
+      specifierType: 'url',
+      priority: 'lazy',
       ...opts,
     });
   }
 
   setEnvironment(env: EnvironmentOptions): void {
-    this.#asset.value.env = createEnvironment(env);
+    this.#asset.value.env = createEnvironment({
+      ...env,
+      loc: toInternalSourceLocation(this.#asset.options.projectRoot, env.loc),
+    });
     this.#asset.updateId();
   }
 }

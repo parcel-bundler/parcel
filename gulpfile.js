@@ -12,25 +12,24 @@ const IGNORED_PACKAGES = [
   '!packages/core/is-v2-ready-yet/**',
   '!packages/core/test-utils/**',
   '!packages/core/types/**',
-  '!packages/utils/node-libs-browser/**',
+
+  // These packages are bundled.
+  '!packages/core/codeframe/**',
+  '!packages/core/fs/**',
+  '!packages/core/package-manager/**',
+  '!packages/core/utils/**',
+  '!packages/reporters/cli/**',
+  '!packages/reporters/dev-server/**',
+  '!packages/utils/fs-write-stream-atomic/**',
 ];
 
 const paths = {
   packageSrc: [
     'packages/*/*/src/**/*.js',
-    '!packages/*/scope-hoisting/src/helpers.js',
-    '!**/loaders/**',
-    '!**/prelude.js',
     '!**/dev-prelude.js',
     ...IGNORED_PACKAGES,
   ],
-  packageOther: [
-    'packages/*/scope-hoisting/src/helpers.js',
-    'packages/*/*/src/**/loaders/**',
-    'packages/*/*/src/**/prelude.js',
-    'packages/*/*/src/**/dev-prelude.js',
-    'packages/*/dev-server/src/templates/**',
-  ],
+  packageOther: ['packages/*/*/src/**/dev-prelude.js'],
   packageJson: [
     'packages/core/parcel/package.json',
     'packages/utils/create-react-app/package.json',
@@ -76,7 +75,7 @@ exports.default = exports.build = gulp.series(
 function buildBabel() {
   return gulp
     .src(paths.packageSrc)
-    .pipe(babel(babelConfig))
+    .pipe(babel({...babelConfig, babelrcRoots: [__dirname + '/packages/*/*']}))
     .pipe(renameStream(relative => relative.replace('src', 'lib')))
     .pipe(gulp.dest(paths.packages));
 }

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/kitchen-sink-example",
-  "version": "2.0.0-beta.2",
+  "version": "2.5.0",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -8,18 +8,20 @@
     "build": "rm -rf dist && parcel build src/index.html --no-cache"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0-beta.2",
-    "@parcel/config-default": "2.0.0-beta.2",
-    "@parcel/optimizer-esbuild": "2.0.0-beta.2",
+    "@babel/core": "^7.0.0",
+    "@parcel/babel-register": "2.5.0",
+    "@parcel/config-default": "2.5.0",
+    "@parcel/core": "2.5.0",
+    "@parcel/optimizer-esbuild": "2.5.0",
     "@parcel/reporter-lsp": "2.0.0-beta.2",
-    "@parcel/reporter-sourcemap-visualiser": "2.0.0-beta.2",
-    "parcel": "2.0.0-beta.2"
+    "@parcel/reporter-sourcemap-visualiser": "2.5.0",
+    "parcel": "2.5.0"
   },
   "browser": "dist/legacy/index.html",
   "browserModern": "dist/modern/index.html",
   "dependencies": {
     "lodash": "^4.17.11",
-    "react": "^16.6.3",
-    "react-dom": "^16.6.3"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   }
 }
