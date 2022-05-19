@@ -29,22 +29,10 @@ export function activate(context: ExtensionContext) {
   };
 
   // Options to control the language client
-  let clientOptions: LanguageClientOptions = {
-    // Register the server for plain text documents
-    documentSelector: [{scheme: 'file', language: 'plaintext'}],
-    synchronize: {
-      // Notify the server about file changes to '.clientrc files contained in the workspace
-      fileEvents: workspace.createFileSystemWatcher('**/.clientrc'),
-    },
-  };
+  let clientOptions: LanguageClientOptions = {};
 
   // Create the language client and start the client.
-  client = new LanguageClient(
-    'languageServerExample',
-    'Language Server Example',
-    serverOptions,
-    clientOptions,
-  );
+  client = new LanguageClient('parcel', 'Parcel', serverOptions, clientOptions);
 
   // Start the client. This will also launch the server
   client.start();
