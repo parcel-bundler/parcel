@@ -24,10 +24,9 @@ type LspDiagnostic = any;
 type ParcelSeverity = 'error' | 'warn' | 'info' | 'verbose';
 
 let watchEnded = false;
-let fileDiagnostics: DefaultMap<
-  string,
-  Array<LspDiagnostic>,
-> = new DefaultMap(() => []);
+let fileDiagnostics: DefaultMap<string, Array<LspDiagnostic>> = new DefaultMap(
+  () => [],
+);
 let pipeFilename;
 
 export default (new Reporter({
@@ -160,31 +159,72 @@ function updateDiagnostics(
   parcelSeverity: ParcelSeverity,
   projectRoot: FilePath,
 ): void {
-  let severity = parcelSeverityToLspSeverity(parcelSeverity);
   for (let diagnostic of parcelDiagnostics) {
-    let filePath =
-      diagnostic.filePath != null
-        ? normalizeFilePath(diagnostic.filePath, projectRoot)
-        : null;
+    const codeFrames = diagnostic.codeFrames;
+    if (codeFrames == null) {
+      continue;
+    }
 
-    let range = diagnostic.codeFrame?.codeHighlights[0];
-    if (filePath != null && range) {
-      fileDiagnostics.get(`file://${filePath}`).push({
+    const firstCodeFrame = codeFrames[0];
+    const filePath = firstCodeFrame.filePath;
+    if (filePath == null) {
+      continue;
+    }
+
+    const firstFrameHighlight = codeFrames[0].codeHighlights[0];
+    if (firstFrameHighlight == null) {
+      continue;
+    }
+
+    const relatedInformation = [];
+    for (const codeFrame of codeFrames) {
+      for (const highlight of codeFrame.codeHighlights) {
+        const filePath = codeFrame.filePath;
+        if (highlight === firstFrameHighlight || filePath == null) {
+          continue;
+        }
+
+        relatedInformation.push({
+          location: {
+            uri: `file://${normalizeFilePath(filePath, projectRoot)}`,
+            range: {
+              start: {
+                line: highlight.start.line - 1,
+                character: highlight.start.column - 1,
+              },
+              end: {
+                line: highlight.end.line - 1,
+                character: highlight.end.column,
+              },
+            },
+          },
+          message: highlight.message ?? diagnostic.message,
+        });
+      }
+    }
+
+    fileDiagnostics
+      .get(`file://${normalizeFilePath(filePath, projectRoot)}`)
+      .push({
         range: {
           start: {
-            line: range.start.line - 1,
-            character: range.start.column - 1,
+            line: firstFrameHighlight.start.line - 1,
+            character: firstFrameHighlight.start.column - 1,
           },
           end: {
-            line: range.end.line - 1,
-            character: range.end.column,
+            line: firstFrameHighlight.end.line - 1,
+            character: firstFrameHighlight.end.column,
           },
         },
         source: diagnostic.origin,
-        message: diagnostic.message,
-        severity,
+        severity: parcelSeverityToLspSeverity(parcelSeverity),
+        message:
+          diagnostic.message +
+          (firstFrameHighlight.message == null
+            ? ''
+            : ' ' + firstFrameHighlight.message),
+        relatedInformation,
       });
-    }
   }
 }
 

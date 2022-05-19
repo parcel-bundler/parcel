@@ -1,27 +1,5 @@
-// @flow strict-local
 /* eslint-disable no-console */
 
-// import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
-// import type {FilePath} from '@parcel/types';
-
-// import {
-//   createClientPipeTransport,
-//   generateRandomPipeName,
-// } from 'vscode-jsonrpc';
-// import {
-//   createConnection,
-//   DiagnosticSeverity,
-//   ProposedFeatures,
-// } from 'vscode-languageserver/node';
-// import {DefaultMap, getProgressMessage} from '@parcel/utils';
-// import {Reporter} from '@parcel/plugin';
-// import invariant from 'assert';
-// import path from 'path';
-// import nullthrows from 'nullthrows';
-// import os from 'os';
-// import fs from 'fs';
-// import ps from 'ps-node';
-// import {promisify} from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -175,10 +153,10 @@ function createLanguageClientIfPossible(
   let client = new IPC();
   client.config.id = `parcel-lsp-${process.pid}`;
   client.config.retry = 1500;
-  client.connectTo(transportName, function() {
+  client.connectTo(transportName, function () {
     client.of[transportName].on(
       'message', //any event or message type your server listens for
-      function(data: any) {
+      function (data: any) {
         switch (data.type) {
           case 'parcelBuildEnd':
             progressReporter.done();
@@ -213,15 +191,13 @@ function createLanguageClientIfPossible(
 }
 
 let progressReporter = new ProgressReporter();
-
 let clients = [];
-
 let parcelLspDir = path.join(os.tmpdir(), 'parcel-lsp');
+fs.mkdirSync(parcelLspDir, {recursive: true});
 for (let filename of fs.readdirSync(parcelLspDir)) {
   let client = createLanguageClientIfPossible(parcelLspDir, filename);
   if (client) {
     clients.push(client);
   }
 }
-
 connection.listen();
