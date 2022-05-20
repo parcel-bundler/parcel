@@ -7,6 +7,7 @@ import {
   run,
   outputFS,
 } from '@parcel/test-utils';
+import {normalizePath} from '@parcel/utils';
 
 describe('elm', function () {
   it('should produce a basic Elm bundle', async function () {
@@ -83,6 +84,10 @@ describe('elm', function () {
   });
 
   it('should produce correct formatting and indentation when compilation fails', async function () {
+    const normalizedPath = normalizePath(
+      'test/integration/elm-compile-error/src/Main.elm',
+      false,
+    );
     await assert.rejects(
       () =>
         bundle(path.join(__dirname, 'integration/elm-compile-error/index.js'), {
@@ -95,7 +100,7 @@ describe('elm', function () {
           {
             message:
               '\n' +
-              '-- TYPE MISMATCH --------------- test/integration/elm-compile-error/src/Main.elm\n' +
+              `-- TYPE MISMATCH --------------- ${normalizedPath}\n` +
               '\n' +
               'The 1st argument to `text` is not what I expect:\n' +
               '\n' +
@@ -116,7 +121,7 @@ describe('elm', function () {
           {
             message:
               '\n' +
-              '-- TOO MANY ARGS --------------- test/integration/elm-compile-error/src/Main.elm\n' +
+              `-- TOO MANY ARGS --------------- ${normalizedPath}\n` +
               '\n' +
               'The `text` function expects 1 argument, but it got 2 instead.\n' +
               '\n' +
