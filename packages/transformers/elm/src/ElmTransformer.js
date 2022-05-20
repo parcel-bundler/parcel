@@ -96,12 +96,8 @@ export default (new Transformer({
 
 // gather extra modules that should be added to the compilation process
 function resolveExtraSources(asset) {
-  const withParam = asset.query.get('with');
-  if (withParam === null) {
-    return [];
-  }
   const dirname = path.dirname(asset.filePath);
-  return withParam.split(',').map(relPath => path.join(dirname, relPath));
+  return asset.query.getAll('with').map(relPath => path.join(dirname, relPath));
 }
 
 function elmBinaryPath() {
