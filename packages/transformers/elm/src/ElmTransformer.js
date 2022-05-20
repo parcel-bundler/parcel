@@ -58,7 +58,7 @@ export default (new Transformer({
     });
     const sources = [asset.filePath, ...extraSources];
     const dependencies = await Promise.all(
-      sources.map(elm.findAllDependencies),
+      sources.map(source => elm.findAllDependencies(source)),
     );
     const uniqueDeps = new Set(dependencies.flat());
     Array.from(uniqueDeps).forEach(filePath => {

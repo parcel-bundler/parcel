@@ -133,4 +133,23 @@ describe('elm', function () {
       },
     );
   });
+
+  it('should produce extra Modules given in "with" query param', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/elm-multiple-apps/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['Main.elm', 'index.js', 'esmodule-helpers.js'],
+      },
+    ]);
+
+    const output = await run(b);
+    const {Elm} = output();
+    assert.equal(typeof Elm.Main.init, 'function');
+    assert.equal(typeof Elm.AnotherModule.init, 'function');
+    assert.equal(typeof Elm.YetAnotherModule.init, 'function');
+  });
 });
