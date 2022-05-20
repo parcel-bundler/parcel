@@ -191,7 +191,7 @@ describe('output formats', function () {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(dist.includes('= require("lodash")'));
-      assert(dist.includes('= ($parcel$interopDefault('));
+      assert(dist.includes('= (0, ($parcel$interopDefault('));
       assert(/var {add: \s*\$.+?\$add\s*} = lodash/);
       assert.equal((await run(b)).bar, 6);
     });
@@ -987,7 +987,7 @@ describe('output formats', function () {
       assert.equal(await res.output, 4);
     });
 
-    it('should support use an import polyfill for older browsers', async function () {
+    it('should support using an import polyfill for older browsers', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-browser/index.html'),
         {
@@ -1024,7 +1024,7 @@ describe('output formats', function () {
         .find(bundle => bundle.name.startsWith('async'));
       assert(
         new RegExp(
-          "getBundleURL\\('[a-zA-Z0-9]+'\\) \\+ \"" +
+          `getBundleURL\\("[a-zA-Z0-9]+"\\) \\+ "` +
             path.basename(asyncBundle.filePath) +
             '"',
         ).test(entry),

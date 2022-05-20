@@ -668,6 +668,17 @@ impl<'a> Fold for Hoist<'a> {
           }
         }
       }
+      Expr::Ident(ident) => {
+        if let Some(Import { specifier, .. }) = self.collect.imports.get(&id!(ident)) {
+          if specifier != "*" {
+            return Expr::Seq(SeqExpr {
+              span: ident.span,
+              exprs: vec![0.into(), Box::new(Expr::Ident(ident.fold_with(self)))],
+            });
+          }
+        }
+        return Expr::Ident(ident.fold_with(self));
+      }
       _ => {}
     }
 
@@ -785,7 +796,7 @@ impl<'a> Fold for Hoist<'a> {
       return Ident::new("$parcel$global".into(), node.span);
     }
 
-    if node.span.ctxt() == self.collect.global_ctxt
+    if node.span.has_mark(self.collect.global_mark)
       && self.collect.decls.contains(&id!(node))
       && !self.collect.should_wrap
     {
@@ -1073,7 +1084,7 @@ pub struct Collect {
   pub source_map: Lrc<swc_common::SourceMap>,
   pub decls: HashSet<IdentId>,
   pub ignore_mark: Mark,
-  pub global_ctxt: SyntaxContext,
+  pub global_mark: Mark,
   pub static_cjs_exports: bool,
   pub has_cjs_exports: bool,
   pub is_esm: bool,
@@ -1139,7 +1150,7 @@ impl Collect {
       source_map,
       decls,
       ignore_mark,
-      global_ctxt: SyntaxContext::empty().apply_mark(global_mark),
+      global_mark,
       static_cjs_exports: true,
       has_cjs_exports: false,
       is_esm: false,
@@ -1548,7 +1559,7 @@ impl Visit for Collect {
         .or_insert_with(|| node.id.sym.clone());
     }
 
-    if self.in_assign && node.id.span.ctxt() == self.global_ctxt {
+    if self.in_assign && node.id.span.has_mark(self.global_mark) {
       self
         .non_const_bindings
         .entry(id!(node.id))
@@ -1573,7 +1584,7 @@ impl Visit for Collect {
         .or_insert_with(|| node.key.sym.clone());
     }
 
-    if self.in_assign && node.key.span.ctxt() == self.global_ctxt {
+    if self.in_assign && node.key.span.has_mark(self.global_mark) {
       self
         .non_const_bindings
         .entry(id!(node.key))
@@ -2097,7 +2108,7 @@ mod tests {
   use swc_ecmascript::codegen::text_writer::JsWriter;
   use swc_ecmascript::parser::lexer::Lexer;
   use swc_ecmascript::parser::{Parser, StringInput};
-  use swc_ecmascript::transforms::resolver_with_mark;
+  use swc_ecmascript::transforms::resolver;
   extern crate indoc;
   use self::indoc::indoc;
 
@@ -2119,8 +2130,9 @@ mod tests {
         swc_ecmascript::transforms::helpers::HELPERS.set(
           &swc_ecmascript::transforms::helpers::Helpers::new(false),
           || {
+            let unresolved_mark = Mark::fresh(Mark::root());
             let global_mark = Mark::fresh(Mark::root());
-            let module = module.fold_with(&mut resolver_with_mark(global_mark));
+            let module = module.fold_with(&mut resolver(unresolved_mark, global_mark, false));
 
             let mut collect = Collect::new(
               source_map.clone(),
@@ -2161,7 +2173,11 @@ mod tests {
         &mut buf,
         Some(&mut src_map_buf),
       ));
-      let config = swc_ecmascript::codegen::Config { minify: false };
+      let config = swc_ecmascript::codegen::Config {
+        minify: false,
+        ascii_only: false,
+        target: swc_ecmascript::ast::EsVersion::Es5,
+      };
       let mut emitter = swc_ecmascript::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),

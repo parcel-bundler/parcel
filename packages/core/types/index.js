@@ -186,7 +186,7 @@ export type EnvironmentOptions = {|
  */
 export type VersionMap = {
   [string]: string,
-  ...,
+  ...
 };
 
 export type EnvironmentFeature =
@@ -398,9 +398,7 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|
+  get(exportSymbol: Symbol): ?{|
     local: Symbol,
     loc: ?SourceLocation,
     meta?: ?Meta,
@@ -443,9 +441,7 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|
+  get(exportSymbol: Symbol): ?{|
     local: Symbol,
     loc: ?SourceLocation,
     isWeak: boolean,
@@ -1045,6 +1041,17 @@ export type Transformer<ConfigType> = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<Array<TransformerResult | MutableAsset>>,
+  /**
+   * Do some processing after the transformation
+   * @experimental
+   */
+  postProcess?: ({|
+    assets: Array<MutableAsset>,
+    config: ConfigType,
+    resolve: ResolveFn,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<Array<TransformerResult>>,
   /** Stringify the AST */
   generate?: ({|
     asset: Asset,

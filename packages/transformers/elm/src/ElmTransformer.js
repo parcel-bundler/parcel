@@ -6,7 +6,7 @@ import spawn from 'cross-spawn';
 import path from 'path';
 import {minify} from 'terser';
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 // $FlowFixMe
 import elm from 'node-elm-compiler';
 // $FlowFixMe
@@ -46,6 +46,7 @@ export default (new Transformer({
       // $FlowFixMe[sketchy-null-string]
       debug: !options.env.PARCEL_ELM_NO_DEBUG && options.mode !== 'production',
       optimize: asset.env.shouldOptimize,
+      report: 'json',
     };
     asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
 
@@ -72,12 +73,13 @@ export default (new Transformer({
     try {
       code = await compileToString(elm, elmBinary, sources, compilerConfig);
     } catch (e) {
+      let compilerJson = e.message.split('\n')[1];
+      let compilerDiagnostics = JSON.parse(compilerJson);
+
       throw new ThrowableDiagnostic({
-        diagnostic: {
-          message: 'Compilation failed',
-          origin: '@parcel/elm-transformer',
-          stack: e.toString(),
-        },
+        diagnostic: compilerDiagnostics.errors.flatMap(
+          elmErrorToParcelDiagnostics,
+        ),
       });
     }
 
@@ -181,4 +183,34 @@ async function minifyElmOutput(source) {
 
   if (result.code != null) return result.code;
   throw result.error;
+}
+
+function formatMessagePiece(piece) {
+  if (piece.string) {
+    if (piece.underline) {
+      return md`${md.underline(piece.string)}`;
+    }
+    return md`${md.bold(piece.string)}`;
+  }
+  return md`${piece}`;
+}
+
+function elmErrorToParcelDiagnostics(error) {
+  const relativePath = path.relative(process.cwd(), error.path);
+  return error.problems.map(problem => {
+    const padLength = 80 - 5 - problem.title.length - relativePath.length;
+    const dashes = '-'.repeat(padLength);
+    const message = [
+      '',
+      `-- ${problem.title} ${dashes} ${relativePath}`,
+      '',
+      problem.message.map(formatMessagePiece).join(''),
+    ].join('\n');
+
+    return {
+      message,
+      origin: '@parcel/elm-transformer',
+      stack: '', // set stack to empty since it is not useful
+    };
+  });
 }
