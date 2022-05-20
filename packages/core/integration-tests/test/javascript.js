@@ -1045,7 +1045,8 @@ describe('javascript', function () {
     );
     assertBundles(b, [
       {
-        assets: ['dedicated-worker.js'],
+        // ATLASSIAN: Don't share across workers for now as worker-specific code is added
+        assets: ['dedicated-worker.js', 'index.js'],
       },
       {
         name: 'index.js',
@@ -1057,10 +1058,8 @@ describe('javascript', function () {
         ],
       },
       {
-        assets: ['shared-worker.js'],
-      },
-      {
-        assets: ['index.js'],
+        // ATLASSIAN: Don't share across workers for now as worker-specific code is added
+        assets: ['shared-worker.js', 'index.js'],
       },
     ]);
 
@@ -1110,7 +1109,12 @@ describe('javascript', function () {
 
       assertBundles(b, [
         {
-          assets: ['dedicated-worker.js'],
+          // ATLASSIAN: Don't share across workers for now as worker-specific code is added
+          assets: [
+            'dedicated-worker.js',
+            'index.js',
+            !shouldScopeHoist && 'esmodule-helpers.js',
+          ].filter(Boolean),
         },
         {
           name: 'index.js',
@@ -1122,13 +1126,12 @@ describe('javascript', function () {
           ],
         },
         {
+          // ATLASSIAN: Don't share across workers for now as worker-specific code is added
           assets: [
-            !shouldScopeHoist && 'esmodule-helpers.js',
+            'shared-worker.js',
             'index.js',
+            !shouldScopeHoist && 'esmodule-helpers.js',
           ].filter(Boolean),
-        },
-        {
-          assets: ['shared-worker.js'],
         },
       ]);
 
