@@ -79,7 +79,7 @@ console.log('adding a new console');`,
             result.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(contents.includes(`console.log('adding a new console')`));
+          assert(contents.includes(`console.log("adding a new console")`));
         } finally {
           if (subscription) {
             await subscription.unsubscribe();
@@ -122,7 +122,7 @@ console.log(a);
             'utf8',
           );
           assert(
-            contents.includes(`console.log('index.js - updated string');`),
+            contents.includes(`console.log("index.js - updated string");`),
           );
         } finally {
           if (subscription) {
@@ -213,7 +213,7 @@ module.exports = a;`,
             'utf8',
           );
 
-          assert(contents.includes(`console.log('adding a new console')`));
+          assert(contents.includes(`console.log("adding a new console")`));
 
           let bundleOutput = await run(result.bundleGraph);
           assert.equal(bundleOutput, 'a updated');
@@ -309,7 +309,9 @@ console.log(a, 'updated');`,
           'utf8',
         );
 
-        assert(contents.includes(`console.log(_aDefault.default, 'updated');`));
+        assert(
+          contents.includes(`console.log((0, _aDefault.default), "updated");`),
+        );
 
         let bundleCSS = result.bundleGraph.getBundles()[1];
         assert.equal(bundleCSS.type, 'css');
@@ -411,7 +413,7 @@ console.log(a);
         );
 
         assert(
-          contents.includes(`console.log('index.js', _bDefault.default);`),
+          contents.includes(`console.log("index.js", (0, _bDefault.default));`),
         );
       } finally {
         if (subscription) {
@@ -459,7 +461,7 @@ console.log(a);
           'utf8',
         );
 
-        assert(contents.includes(`console.log(_aDefault.default);`));
+        assert(contents.includes(`console.log((0, _aDefault.default));`));
 
         let bundleCSS = result.bundleGraph.getBundles()[1];
         assert.equal(bundleCSS.type, 'css');
@@ -513,7 +515,7 @@ console.log(a);
           'utf8',
         );
 
-        assert(contents.includes(`console.log(_aDefault.default);`));
+        assert(contents.includes(`console.log((0, _aDefault.default));`));
 
         let dynamicBundle = result.bundleGraph.getBundles()[1];
         assert.equal(dynamicBundle.type, 'js');
@@ -522,7 +524,7 @@ console.log(a);
           dynamicBundle.filePath,
           'utf8',
         );
-        assert(dynamicContent.includes(`exports.default = 'b'`));
+        assert(dynamicContent.includes(`exports.default = "b"`));
       } finally {
         if (subscription) {
           await subscription.unsubscribe();
