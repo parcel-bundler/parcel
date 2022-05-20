@@ -7,7 +7,6 @@ import {
   run,
   outputFS,
 } from '@parcel/test-utils';
-import {normalizePath} from '@parcel/utils';
 
 describe('elm', function () {
   it('should produce a basic Elm bundle', async function () {
@@ -84,9 +83,8 @@ describe('elm', function () {
   });
 
   it('should produce correct formatting and indentation when compilation fails', async function () {
-    const normalizedPath = normalizePath(
+    const normalizedPath = path.normalize(
       'test/integration/elm-compile-error/src/Main.elm',
-      false,
     );
     await assert.rejects(
       () =>

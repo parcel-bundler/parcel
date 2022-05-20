@@ -177,7 +177,7 @@ function elmErrorToParcelDiagnostics(error) {
   const relativePath = path.relative(process.cwd(), error.path);
   return error.problems.map(problem => {
     const padLength = 80 - 5 - problem.title.length - relativePath.length;
-    const dashes = ''.padStart(padLength, '-');
+    const dashes = '-'.repeat(padLength);
     const message = [
       '',
       `-- ${problem.title} ${dashes} ${relativePath}`,
