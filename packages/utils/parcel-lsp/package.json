@@ -33,6 +33,7 @@
     "@parcel/types": "2.5.0",
     "@parcel/plugin": "2.5.0",
     "@parcel/utils": "2.5.0",
+    "@parcel/watcher": "2.0.5",
     "node-ipc": "^9.1.4",
     "nullthrows": "^1.1.1",
     "ps-node": "^0.1.6",

@@ -33,6 +33,9 @@ import nullthrows from 'nullthrows';
 import {IPC} from 'node-ipc';
 
 import {TextDocument} from 'vscode-languageserver-textdocument';
+import * as watcher from '@parcel/watcher';
+
+type IPCType = InstanceType<typeof IPC>;
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -129,18 +132,14 @@ class ProgressReporter {
   }
 }
 
-function createLanguageClientIfPossible(
+function createIPCClientIfPossible(
   parcelLspDir: string,
-  filename: string,
-): any {
-  let pipeFilename = path.join(parcelLspDir, filename);
-  if (!fs.existsSync(pipeFilename)) {
-    return;
-  }
+  filePath: string,
+): {client: IPCType; uris: Set<string>} | undefined {
   let transportName: string;
   try {
     transportName = JSON.parse(
-      fs.readFileSync(pipeFilename, {
+      fs.readFileSync(filePath, {
         encoding: 'utf8',
       }),
     ).transportName;
@@ -150,6 +149,7 @@ function createLanguageClientIfPossible(
     return;
   }
 
+  let uris: Set<string> = new Set();
   let client = new IPC();
   client.config.id = `parcel-lsp-${process.pid}`;
   client.config.retry = 1500;
@@ -165,6 +165,7 @@ function createLanguageClientIfPossible(
           case 'parcelFileDiagnostics':
             for (let [uri, diagnostics] of data.fileDiagnostics) {
               connection.sendDiagnostics({uri, diagnostics});
+              uris.add(uri);
             }
             break;
 
@@ -173,6 +174,7 @@ function createLanguageClientIfPossible(
             break;
 
           case 'parcelBuildStart':
+            uris.clear();
             progressReporter.begin();
             break;
 
@@ -187,17 +189,52 @@ function createLanguageClientIfPossible(
     );
   });
 
-  return client;
+  return {client, uris};
 }
 
 let progressReporter = new ProgressReporter();
-let clients = [];
-let parcelLspDir = path.join(os.tmpdir(), 'parcel-lsp');
+let clients: Map<string, {client: IPCType; uris: Set<string>}> = new Map();
+let parcelLspDir = path.join(fs.realpathSync(os.tmpdir()), 'parcel-lsp');
 fs.mkdirSync(parcelLspDir, {recursive: true});
 for (let filename of fs.readdirSync(parcelLspDir)) {
-  let client = createLanguageClientIfPossible(parcelLspDir, filename);
+  const filepath = path.join(parcelLspDir, filename);
+  let client = createIPCClientIfPossible(parcelLspDir, filepath);
   if (client) {
-    clients.push(client);
+    clients.set(filepath, client);
   }
 }
+
+watcher.subscribe(parcelLspDir, async (err, events) => {
+  if (err) {
+    throw err;
+  }
+
+  for (let event of events) {
+    console.log('event', event);
+    if (event.type === 'create') {
+      let client = createIPCClientIfPossible(parcelLspDir, event.path);
+      console.log('created client?', client);
+      if (client) {
+        clients.set(event.path, client);
+      }
+    } else if (event.type === 'delete') {
+      let existing = clients.get(event.path);
+      console.log('path', event.path, 'clients', clients);
+      if (existing) {
+        clients.delete(event.path);
+        console.log('clearing diags for', existing.uris);
+        for (let id of Object.keys(existing.client.of)) {
+          existing.client.disconnect(id);
+        }
+        await Promise.all(
+          [...existing.uris].map(uri =>
+            connection.sendDiagnostics({uri, diagnostics: []}),
+          ),
+        );
+        console.log('cleared diags for', existing.uris);
+      }
+    }
+  }
+});
+
 connection.listen();
