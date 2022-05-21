@@ -511,6 +511,21 @@ impl<'a> Fold for Hoist<'a> {
 
   fn fold_expr(&mut self, node: Expr) -> Expr {
     match node {
+      Expr::OptChain(opt) => {
+        return Expr::OptChain(OptChainExpr {
+          span: opt.span,
+          question_dot_token: opt.question_dot_token,
+          base: match opt.base {
+            OptChainBase::Call(call) => OptChainBase::Call(call.fold_with(self)),
+            OptChainBase::Member(member) => OptChainBase::Member(MemberExpr {
+              span: member.span,
+              obj: member.obj.fold_with(self),
+              // Don't visit member.prop so we avoid the ident visitor.
+              prop: member.prop,
+            }),
+          },
+        });
+      }
       Expr::Member(member) => {
         if !self.collect.should_wrap {
           if match_member_expr(&member, vec!["module", "exports"], &self.collect.decls) {
@@ -582,7 +597,7 @@ impl<'a> Fold for Hoist<'a> {
               return Expr::Ident(self.get_export_ident(member.span, &key));
             }
           }
-          Expr::Call(_call) => {
+          Expr::Call(_) => {
             // require('foo').bar -> $id$import$foo$bar
             if let Some(source) =
               match_require(&member.obj, &self.collect.decls, self.collect.ignore_mark)
