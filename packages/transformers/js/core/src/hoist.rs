@@ -254,10 +254,7 @@ impl<'a> Fold for Hoist<'a> {
                         id.0
                       } else {
                         self
-                          .get_export_ident(
-                            DUMMY_SP,
-                            self.collect.exports_locals.get(&id.0).unwrap(),
-                          )
+                          .get_export_ident(DUMMY_SP, self.collect.exports_locals.get(&id).unwrap())
                           .sym
                       };
                       self.exported_symbols.push(ExportedSymbol {
@@ -770,7 +767,7 @@ impl<'a> Fold for Hoist<'a> {
       }
     }
 
-    if let Some(exported) = self.collect.exports_locals.get(&node.sym) {
+    if let Some(exported) = self.collect.exports_locals.get(&id!(node)) {
       // If wrapped, mark the original symbol as exported.
       // Otherwise replace with an export identifier.
       if self.collect.should_wrap {
@@ -1094,7 +1091,7 @@ pub struct Collect {
   // exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
   // local name -> exported name
-  pub exports_locals: HashMap<JsWord, JsWord>,
+  pub exports_locals: HashMap<IdentId, JsWord>,
   pub exports_all: HashMap<JsWord, SourceLocation>,
   pub non_static_access: HashMap<IdentId, Vec<Span>>,
   pub non_const_bindings: HashMap<IdentId, Vec<Span>>,
@@ -1373,7 +1370,7 @@ impl Visit for Collect {
           if node.src.is_none() {
             self
               .exports_locals
-              .entry(match_export_name_ident(&named.orig).sym.clone())
+              .entry(id!(match_export_name_ident(&named.orig)))
               .or_insert_with(|| exported.0.clone());
           }
         }
@@ -1389,7 +1386,7 @@ impl Visit for Collect {
           if node.src.is_none() {
             self
               .exports_locals
-              .entry(default.exported.sym.clone())
+              .entry(id!(default.exported))
               .or_insert_with(|| js_word!("default"));
           }
         }
@@ -1422,7 +1419,7 @@ impl Visit for Collect {
         );
         self
           .exports_locals
-          .entry(class.ident.sym.clone())
+          .entry(id!(class.ident))
           .or_insert_with(|| class.ident.sym.clone());
       }
       Decl::Fn(func) => {
@@ -1436,7 +1433,7 @@ impl Visit for Collect {
         );
         self
           .exports_locals
-          .entry(func.ident.sym.clone())
+          .entry(id!(func.ident))
           .or_insert_with(|| func.ident.sym.clone());
       }
       Decl::Var(var) => {
@@ -1468,7 +1465,7 @@ impl Visit for Collect {
           );
           self
             .exports_locals
-            .entry(ident.sym.clone())
+            .entry(id!(ident))
             .or_insert_with(|| js_word!("default"));
         } else {
           self.exports.insert(
@@ -1493,7 +1490,7 @@ impl Visit for Collect {
           );
           self
             .exports_locals
-            .entry(ident.sym.clone())
+            .entry(id!(ident))
             .or_insert_with(|| js_word!("default"));
         } else {
           self.exports.insert(
@@ -1555,7 +1552,7 @@ impl Visit for Collect {
       );
       self
         .exports_locals
-        .entry(node.id.sym.clone())
+        .entry(id!(node.id))
         .or_insert_with(|| node.id.sym.clone());
     }
 
@@ -1580,7 +1577,7 @@ impl Visit for Collect {
       );
       self
         .exports_locals
-        .entry(node.key.sym.clone())
+        .entry(id!(node.key))
         .or_insert_with(|| node.key.sym.clone());
     }
 
