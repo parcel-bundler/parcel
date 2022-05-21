@@ -297,6 +297,24 @@ describe('transpilation', function () {
     ]);
   });
 
+  it('should support enabling decorators and setting useDefineForClassFields in tsconfig.json', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/decorators-useDefineForClassFields/index.ts',
+      ),
+    );
+
+    let output = [];
+    await run(b, {
+      output(...o) {
+        output.push(...o);
+      },
+    });
+
+    assert.deepEqual(output, ['foo 15', 'foo 16']);
+  });
+
   it('should support transpiling optional chaining', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-optional-chaining/index.js'),
