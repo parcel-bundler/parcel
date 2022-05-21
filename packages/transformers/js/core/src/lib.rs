@@ -81,6 +81,7 @@ pub struct Config {
   automatic_jsx_runtime: bool,
   jsx_import_source: Option<String>,
   decorators: bool,
+  use_define_for_class_fields: bool,
   is_development: bool,
   react_refresh: bool,
   targets: Option<HashMap<String, String>>,
@@ -234,9 +235,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   Optional::new(
                     decorators::decorators(decorators::Config {
                       legacy: true,
+                      use_define_for_class_fields: config.use_define_for_class_fields,
                       // Always disabled for now, SWC's implementation doesn't match TSC.
                       emit_metadata: false,
-                      use_define_for_class_fields: true
                     }),
                     config.decorators
                   ),
