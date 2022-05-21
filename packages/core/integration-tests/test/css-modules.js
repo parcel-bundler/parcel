@@ -45,7 +45,7 @@ describe('css modules', () => {
         __dirname,
         '/integration/postcss-modules-import-default/index.js',
       ),
-      {mode: 'production'},
+      { mode: 'production' },
     );
 
     assertBundles(b, [
@@ -80,7 +80,7 @@ describe('css modules', () => {
         __dirname,
         '/integration/postcss-modules-import-namespace/index.js',
       ),
-      {mode: 'production'},
+      { mode: 'production' },
     );
 
     assertBundles(b, [
@@ -142,7 +142,7 @@ describe('css modules', () => {
       },
     ]);
 
-    let {output} = await run(b, null, {require: false});
+    let { output } = await run(b, null, { require: false });
     assert(/[_0-9a-zA-Z]+_b-2/.test(output));
 
     let css = await outputFS.readFile(
@@ -164,7 +164,7 @@ describe('css modules', () => {
         __dirname,
         '/integration/postcss-modules-import-namespace-whole/index.js',
       ),
-      {mode: 'production'},
+      { mode: 'production' },
     );
 
     assertBundles(b, [
@@ -467,7 +467,7 @@ describe('css modules', () => {
     ]);
 
     let res = await run(b);
-    assert.deepEqual(res, {color: 'red'});
+    assert.deepEqual(res, { color: 'red' });
   });
 
   it('should optimize away unused @keyframes', async function () {
@@ -552,7 +552,7 @@ describe('css modules', () => {
         path.join(__dirname, '/integration/css-modules-import/page1.html'),
         path.join(__dirname, '/integration/css-modules-import/page2.html'),
       ],
-      {mode: 'production'},
+      { mode: 'production' },
     );
 
     let res = [];
@@ -620,5 +620,19 @@ describe('css modules', () => {
       'utf8',
     );
     assert(contents.includes('.index {'));
+  });
+
+  it.only('should optimize away unused variables when dashedIdents option is used', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-vars/index.js'),
+      { mode: 'production' }
+    );
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    console.log(contents)
+    let res = await run(b);
+    console.log(res)
   });
 });

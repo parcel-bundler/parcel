@@ -1,0 +1,3 @@
+.foo {
+  color: var(--color from "./vars.module.css");
+}

@@ -1,12 +1,12 @@
 // @flow
 
-import type {Root} from 'postcss';
-import type {Asset, Dependency} from '@parcel/types';
+import type { Root } from 'postcss';
+import type { Asset, Dependency } from '@parcel/types';
 import typeof PostCSS from 'postcss';
 
 import path from 'path';
 import SourceMap from '@parcel/source-map';
-import {Packager} from '@parcel/plugin';
+import { Packager } from '@parcel/plugin';
 import {
   PromiseQueue,
   countLines,
@@ -75,6 +75,20 @@ export default (new Packager({
             return Promise.all([
               asset,
               asset.getCode().then((css: string) => {
+                if (asset.meta.hasReferences) {
+                  for (let dep of asset.getDependencies()) {
+                    for (let [exported, { local }] of dep.symbols) {
+                      let resolved = bundleGraph.getResolvedAsset(dep, bundle);
+                      if (resolved) {
+                        let resolution = bundleGraph.getSymbolResolution(resolved, exported, bundle);
+                        if (resolution.symbol) {
+                          css = css.replaceAll(local, resolution.symbol);
+                        }
+                      }
+                    }
+                  }
+                }
+
                 if (media.length) {
                   return `@media ${media.join(', ')} {\n${css}\n}\n`;
                 }
@@ -124,7 +138,7 @@ export default (new Packager({
       }
     }
 
-    ({contents, map} = replaceURLReferences({
+    ({ contents, map } = replaceURLReferences({
       bundle,
       bundleGraph,
       contents,
@@ -165,7 +179,7 @@ async function processCSSModule(
   bundle,
   asset,
   media,
-): Promise<[Asset, string, ?Buffer]> {
+): Promise<[Asset, string,?Buffer]> {
   let postcss: PostCSS = await options.packageManager.require(
     'postcss',
     options.projectRoot + '/index',
@@ -181,7 +195,7 @@ async function processCSSModule(
   let usedSymbols = bundleGraph.getUsedSymbols(asset);
   if (usedSymbols != null) {
     let localSymbols = new Set(
-      [...asset.symbols].map(([, {local}]) => `.${local}`),
+      [...asset.symbols].map(([, { local }]) => `.${local}`),
     );
 
     let defaultImport = null;
@@ -197,7 +211,7 @@ async function processCSSModule(
             codeFrames: [
               {
                 filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
-                codeHighlights: [{start: loc.start, end: loc.end}],
+                codeHighlights: [{ start: loc.start, end: loc.end }],
               },
             ],
           }),
@@ -227,7 +241,7 @@ async function processCSSModule(
     }
   }
 
-  let {content, map} = await postcss().process(ast, {
+  let { content, map } = await postcss().process(ast, {
     from: undefined,
     to: options.projectRoot + '/index',
     map: {

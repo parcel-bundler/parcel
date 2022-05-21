@@ -1,0 +1,10 @@
+:root {
+  --color: red;
+  --font: Helvetica;
+  --from-js: purple;
+  --unused: green;
+}
+
+body {
+  font: var(--font);
+}
