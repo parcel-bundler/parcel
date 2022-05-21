@@ -190,4 +190,25 @@ parcel-transformer-b`,
 
     assert.equal(await run(b), 2);
   });
+
+  it('should allow resolvers to invalidateOnEnvChange', async () => {
+    async function assertAsset(replacedCode) {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/resolver-invalidateonenvchange/index.js',
+        ),
+        {
+          shouldDisableCache: false,
+          inputFS: overlayFS,
+          logLevel: 'verbose',
+          env: {replacedCode},
+        },
+      );
+      let code = await b.getBundles()[0].getEntryAssets()[0].getCode();
+      assert(code.indexOf(replacedCode) !== -1);
+    }
+    assertAsset('const replaced = 1;');
+    assertAsset('const replaced = 2;');
+  });
 });
