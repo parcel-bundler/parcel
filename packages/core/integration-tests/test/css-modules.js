@@ -45,7 +45,7 @@ describe('css modules', () => {
         __dirname,
         '/integration/postcss-modules-import-default/index.js',
       ),
-      { mode: 'production' },
+      {mode: 'production'},
     );
 
     assertBundles(b, [
@@ -80,7 +80,7 @@ describe('css modules', () => {
         __dirname,
         '/integration/postcss-modules-import-namespace/index.js',
       ),
-      { mode: 'production' },
+      {mode: 'production'},
     );
 
     assertBundles(b, [
@@ -142,7 +142,7 @@ describe('css modules', () => {
       },
     ]);
 
-    let { output } = await run(b, null, { require: false });
+    let {output} = await run(b, null, {require: false});
     assert(/[_0-9a-zA-Z]+_b-2/.test(output));
 
     let css = await outputFS.readFile(
@@ -164,7 +164,7 @@ describe('css modules', () => {
         __dirname,
         '/integration/postcss-modules-import-namespace-whole/index.js',
       ),
-      { mode: 'production' },
+      {mode: 'production'},
     );
 
     assertBundles(b, [
@@ -467,7 +467,7 @@ describe('css modules', () => {
     ]);
 
     let res = await run(b);
-    assert.deepEqual(res, { color: 'red' });
+    assert.deepEqual(res, {color: 'red'});
   });
 
   it('should optimize away unused @keyframes', async function () {
@@ -552,7 +552,7 @@ describe('css modules', () => {
         path.join(__dirname, '/integration/css-modules-import/page1.html'),
         path.join(__dirname, '/integration/css-modules-import/page2.html'),
       ],
-      { mode: 'production' },
+      {mode: 'production'},
     );
 
     let res = [];
@@ -625,14 +625,19 @@ describe('css modules', () => {
   it.only('should optimize away unused variables when dashedIdents option is used', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-modules-vars/index.js'),
-      { mode: 'production' }
+      {mode: 'production'},
     );
     let contents = await outputFS.readFile(
       b.getBundles().find(b => b.type === 'css').filePath,
       'utf8',
     );
-    console.log(contents)
+    console.log(contents);
+    assert.equal(
+      contents.split('\n')[0],
+      ':root{--wGsoEa_color:red;--wGsoEa_font:Helvetica;--wGsoEa_theme-sizes-1\\/12:2;--wGsoEa_from-js:purple}body{font:var(--wGsoEa_font)}._4fY2uG_foo{color:var(--wGsoEa_color);width:var(--wGsoEa_theme-sizes-1\\/12);height:var(--height)}',
+    );
     let res = await run(b);
-    console.log(res)
+    console.log('HJI', res);
+    assert.deepEqual(res, ['_4fY2uG_foo', '--wGsoEa_from-js']);
   });
 });

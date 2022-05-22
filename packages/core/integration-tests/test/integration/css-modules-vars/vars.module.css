@@ -1,6 +1,7 @@
 :root {
   --color: red;
   --font: Helvetica;
+  --theme-sizes-1\/12: 2;
   --from-js: purple;
   --unused: green;
 }

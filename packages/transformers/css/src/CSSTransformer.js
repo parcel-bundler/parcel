@@ -2,25 +2,25 @@
 
 import path from 'path';
 import SourceMap from '@parcel/source-map';
-import { Transformer } from '@parcel/plugin';
+import {Transformer} from '@parcel/plugin';
 import {
   transform,
   transformStyleAttribute,
   browserslistToTargets,
 } from '@parcel/css';
-import { remapSourceLocation, relativePath } from '@parcel/utils';
+import {remapSourceLocation, relativePath} from '@parcel/utils';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic, { errorToDiagnostic } from '@parcel/diagnostic';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 export default (new Transformer({
-  async loadConfig({ config, options }) {
+  async loadConfig({config, options}) {
     let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
       packageKey: '@parcel/transformer-css',
     });
     return conf?.contents;
   },
-  async transform({ asset, config, options }) {
+  async transform({asset, config, options}) {
     // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
     // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
     let env = asset.env;
@@ -220,15 +220,15 @@ export default (new Transformer({
             specifier: reference.specifier,
             specifierType: 'esm',
             symbols: new Map([
-              [reference.name, { local: symbol, isWeak: false, loc: null }]
-            ])
+              [reference.name, {local: symbol, isWeak: false, loc: null}],
+            ]),
           });
 
           asset.meta.hasReferences = true;
         }
       }
 
-      console.log(depjs + js)
+      console.log(depjs + js);
 
       assets.push({
         type: 'js',
