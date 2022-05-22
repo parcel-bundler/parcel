@@ -283,7 +283,6 @@ async function processCSSModule(
 
 function escapeDashedIdent(name) {
   // https://drafts.csswg.org/cssom/#serialize-an-identifier
-  let chunkStart = 0;
   let res = '';
   for (let c of name) {
     let code = c.codePointAt(0);
