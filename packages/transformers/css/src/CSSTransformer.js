@@ -49,14 +49,25 @@ export default (new Transformer({
           targets,
         });
       } else {
+        let cssModules = false;
+        if (
+          asset.meta.type !== 'tag' &&
+          asset.meta.cssModulesCompiled == null
+        ) {
+          let cssModulesConfig = config?.cssModules;
+          if (
+            typeof cssModulesConfig === 'boolean' ||
+            cssModulesConfig?.global ||
+            /\.module\./.test(asset.filePath)
+          ) {
+            cssModules = cssModulesConfig ?? true;
+          }
+        }
+
         res = transform({
           filename: path.relative(options.projectRoot, asset.filePath),
           code,
-          cssModules:
-            asset.meta.type !== 'tag' &&
-            (config?.cssModules ??
-              (asset.meta.cssModulesCompiled == null &&
-                /\.module\./.test(asset.filePath))),
+          cssModules,
           analyzeDependencies: asset.meta.hasDependencies !== false,
           sourceMap: !!asset.env.sourceMap,
           drafts: config?.drafts,
@@ -227,8 +238,6 @@ export default (new Transformer({
           asset.meta.hasReferences = true;
         }
       }
-
-      console.log(depjs + js);
 
       assets.push({
         type: 'js',

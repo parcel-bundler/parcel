@@ -622,7 +622,25 @@ describe('css modules', () => {
     assert(contents.includes('.index {'));
   });
 
-  it.only('should optimize away unused variables when dashedIdents option is used', async function () {
+  it('should support global css modules via boolean config', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-global/a/index.js'),
+      {mode: 'production'},
+    );
+    let res = await run(b);
+    assert.deepEqual(res, 'C-gzXq_foo');
+  });
+
+  it('should support global css modules via object config', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-global/b/index.js'),
+      {mode: 'production'},
+    );
+    let res = await run(b);
+    assert.deepEqual(res, 'C-gzXq_foo');
+  });
+
+  it('should optimize away unused variables when dashedIdents option is used', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-modules-vars/index.js'),
       {mode: 'production'},
@@ -631,13 +649,11 @@ describe('css modules', () => {
       b.getBundles().find(b => b.type === 'css').filePath,
       'utf8',
     );
-    console.log(contents);
     assert.equal(
       contents.split('\n')[0],
       ':root{--wGsoEa_color:red;--wGsoEa_font:Helvetica;--wGsoEa_theme-sizes-1\\/12:2;--wGsoEa_from-js:purple}body{font:var(--wGsoEa_font)}._4fY2uG_foo{color:var(--wGsoEa_color);width:var(--wGsoEa_theme-sizes-1\\/12);height:var(--height)}',
     );
     let res = await run(b);
-    console.log('HJI', res);
     assert.deepEqual(res, ['_4fY2uG_foo', '--wGsoEa_from-js']);
   });
 });
