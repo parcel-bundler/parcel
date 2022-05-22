@@ -3013,11 +3013,11 @@ mod tests {
 
     let (_collect, code, hoist) = parse(
       r#"
-    var foo = (function () {
+    var foo = function () {
       if (Date.now() < 0) {
         var bar = require("other");
       }
-    })();
+    }();
     "#,
     );
 
@@ -3025,11 +3025,11 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    var $abc$var$foo = (function() {
+    var $abc$var$foo = function() {
         if (Date.now() < 0) {
             var bar = $abc$import$70a00e0a8474f72a;
         }
-    })();
+    }();
     "#}
     );
     assert_eq!(
@@ -3199,8 +3199,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:y";
-    for(let x = $abc$import$4a5767248b18ef41; x < 5; x++){
-    }
+    for(let x = $abc$import$4a5767248b18ef41; x < 5; x++){}
     "#}
     );
   }
@@ -3262,8 +3261,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    function $abc$export$2e2bcd8739ae039() {
-    }
+    function $abc$export$2e2bcd8739ae039() {}
     "#}
     );
 
@@ -3337,8 +3335,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    function $abc$export$e0969da9b8fb378d() {
-    }
+    function $abc$export$e0969da9b8fb378d() {}
     "#}
     );
 
@@ -3654,8 +3651,7 @@ mod tests {
       code,
       indoc! {r#"
     var $abc$var$module = {
-        exports: {
-        }
+        exports: {}
     };
     $abc$var$module.exports.foo = 2;
     console.log($abc$var$module.exports.foo);
@@ -3968,8 +3964,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: foo  }) {
-    });
+    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: foo  }) {});
     "#}
     );
 
@@ -3994,8 +3989,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: bar  }) {
-    });
+    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: bar  }) {});
     "#}
     );
   }
