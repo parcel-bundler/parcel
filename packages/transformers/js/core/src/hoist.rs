@@ -575,8 +575,7 @@ impl<'a> Fold for Hoist<'a> {
             }
 
             // exports.foo -> $id$export$foo
-            let exports: JsWord = "exports".into();
-            if ident.sym == exports
+            if &*ident.sym == "exports"
               && !self.collect.decls.contains(&id!(ident))
               && self.collect.static_cjs_exports
               && !self.collect.should_wrap
@@ -791,8 +790,9 @@ impl<'a> Fold for Hoist<'a> {
       }
     }
 
-    let exports: JsWord = "exports".into();
-    if node.sym == exports && !self.collect.decls.contains(&id!(node)) && !self.collect.should_wrap
+    if &*node.sym == "exports"
+      && !self.collect.decls.contains(&id!(node))
+      && !self.collect.should_wrap
     {
       self.self_references.insert("*".into());
       return self.get_export_ident(node.span, &"*".into());
@@ -841,10 +841,7 @@ impl<'a> Fold for Hoist<'a> {
         Expr::Member(member) => {
           match_member_expr(member, vec!["module", "exports"], &self.collect.decls)
         }
-        Expr::Ident(ident) => {
-          let exports: JsWord = "exports".into();
-          ident.sym == exports && !self.collect.decls.contains(&id!(ident))
-        }
+        Expr::Ident(ident) => &*ident.sym == "exports" && !self.collect.decls.contains(&id!(ident)),
         _ => false,
       };
 
@@ -1645,8 +1642,7 @@ impl Visit for Collect {
         return;
       }
       Expr::Ident(ident) => {
-        let exports: JsWord = "exports".into();
-        if ident.sym == exports && !self.decls.contains(&id!(ident)) {
+        if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
           handle_export!();
         }
 
@@ -1720,8 +1716,7 @@ impl Visit for Collect {
       Expr::Ident(ident) => {
         // Bail if `module` or `exports` are accessed non-statically.
         let is_module = ident.sym == js_word!("module");
-        let exports: JsWord = "exports".into();
-        let is_exports = ident.sym == exports;
+        let is_exports = &*ident.sym == "exports";
         if (is_module || is_exports) && !self.decls.contains(&id!(ident)) {
           self.has_cjs_exports = true;
           self.static_cjs_exports = false;
@@ -1863,8 +1858,7 @@ impl Visit for Collect {
         Expr::Member(member) => {
           // import('foo').then(foo => ...);
           if let Some(source) = match_import(&*member.obj, self.ignore_mark) {
-            let then: JsWord = "then".into();
-            if match_property_name(member).map_or(false, |f| f.0 == then) {
+            if match_property_name(member).map_or(false, |f| &*f.0 == "then") {
               if let Some(ExprOrSpread { expr, .. }) = node.args.get(0) {
                 let param = match &**expr {
                   Expr::Fn(func) => func.function.params.get(0).map(|param| &param.pat),
