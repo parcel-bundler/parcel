@@ -2737,6 +2737,7 @@ mod tests {
     import {foo as bar} from 'other';
     let test = {bar: 3};
     console.log(bar, test.bar);
+    bar();
     "#,
     );
 
@@ -2747,7 +2748,8 @@ mod tests {
     let $abc$var$test = {
         bar: 3
     };
-    console.log($abc$import$70a00e0a8474f72a$6a5cdcad01c973fa, $abc$var$test.bar);
+    console.log((0, $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa), $abc$var$test.bar);
+    (0, $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa)();
     "#}
     );
 
@@ -2755,6 +2757,7 @@ mod tests {
       r#"
     import * as foo from 'other';
     console.log(foo.bar);
+    foo.bar();
     "#,
     );
 
@@ -2763,6 +2766,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     console.log($abc$import$70a00e0a8474f72a$d927737047eb3867);
+    $abc$import$70a00e0a8474f72a$d927737047eb3867();
     "#}
     );
 
@@ -2770,6 +2774,7 @@ mod tests {
       r#"
     import other from 'other';
     console.log(other, other.bar);
+    other();
     "#,
     );
 
@@ -2777,7 +2782,8 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    console.log($abc$import$70a00e0a8474f72a$2e2bcd8739ae039, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039.bar);
+    console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039), (0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039).bar);
+    (0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039)();
     "#}
     );
   }
@@ -2798,8 +2804,8 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     import "abc:bar";
-    console.log($abc$import$70a00e0a8474f72a$2e2bcd8739ae039);
-    console.log($abc$import$d927737047eb3867$2e2bcd8739ae039);
+    console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039));
+    console.log((0, $abc$import$d927737047eb3867$2e2bcd8739ae039));
     "#}
     );
 
@@ -2819,10 +2825,10 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     import "abc:bar";
-    console.log($abc$import$70a00e0a8474f72a$2e2bcd8739ae039);
+    console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039));
     import "abc:x";
     console.log($abc$import$d141bba7fdc215a3);
-    console.log($abc$import$d927737047eb3867$2e2bcd8739ae039);
+    console.log((0, $abc$import$d927737047eb3867$2e2bcd8739ae039));
     "#}
     );
   }
