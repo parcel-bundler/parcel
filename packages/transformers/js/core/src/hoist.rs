@@ -2103,12 +2103,13 @@ mod tests {
   use super::*;
   use crate::collect_decls;
   use std::iter::FromIterator;
+  use swc_common::chain;
   use swc_common::comments::SingleThreadedComments;
   use swc_common::{sync::Lrc, FileName, Globals, Mark, SourceMap};
   use swc_ecmascript::codegen::text_writer::JsWriter;
   use swc_ecmascript::parser::lexer::Lexer;
   use swc_ecmascript::parser::{Parser, StringInput};
-  use swc_ecmascript::transforms::resolver;
+  use swc_ecmascript::transforms::{fixer, hygiene, resolver};
   extern crate indoc;
   use self::indoc::indoc;
 
@@ -2148,6 +2149,9 @@ mod tests {
               let module = module.fold_with(&mut hoist);
               (module, hoist.get_result())
             };
+
+            let module = module.fold_with(&mut chain!(hygiene(), fixer(Some(&comments))));
+
             let code = emit(source_map, comments, &module);
             (collect, code, res)
           },

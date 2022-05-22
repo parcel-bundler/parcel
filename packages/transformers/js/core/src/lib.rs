@@ -463,10 +463,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 module
               };
 
-              let program = {
-                let mut passes = chain!(reserved_words(), hygiene(), fixer(Some(&comments)),);
-                module.fold_with(&mut passes)
-              };
+              let module = module.fold_with(&mut chain!(
+                reserved_words(),
+                hygiene(),
+                fixer(Some(&comments)),
+              ));
 
               result.dependencies.extend(global_deps);
               result.dependencies.extend(fs_deps);
@@ -476,7 +477,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               }
 
               let (buf, mut src_map_buf) =
-                emit(source_map.clone(), comments, &program, config.source_maps)?;
+                emit(source_map.clone(), comments, &module, config.source_maps)?;
               if config.source_maps
                 && source_map
                   .build_source_map(&mut src_map_buf)
