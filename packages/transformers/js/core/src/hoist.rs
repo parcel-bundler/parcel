@@ -4041,25 +4041,6 @@ mod tests {
   }
 
   #[test]
-  fn fold_cjs_objects() {
-    let (_collect, code, _hoist) = parse(
-      r#"
-    console.log(typeof module);
-    console.log(typeof require);
-    console.log(module.hot);
-    "#,
-    );
-    assert_eq!(
-      code,
-      indoc! {r#"
-    console.log("object");
-    console.log("function");
-    console.log(null);
-    "#}
-    );
-  }
-
-  #[test]
   fn collect_exports() {
     let (collect, _code, _hoist) = parse("export default function () {};");
     assert_eq!(
