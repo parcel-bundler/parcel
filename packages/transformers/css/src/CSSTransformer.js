@@ -56,10 +56,15 @@ export default (new Transformer({
         ) {
           let cssModulesConfig = config?.cssModules;
           if (
-            typeof cssModulesConfig === 'boolean' ||
-            cssModulesConfig?.global ||
+            (asset.isSource &&
+              (typeof cssModulesConfig === 'boolean' ||
+                cssModulesConfig?.global)) ||
             /\.module\./.test(asset.filePath)
           ) {
+            if (cssModulesConfig?.dashedIdents && !asset.isSource) {
+              cssModulesConfig.dashedIdents = false;
+            }
+
             cssModules = cssModulesConfig ?? true;
           }
         }

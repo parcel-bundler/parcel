@@ -629,6 +629,13 @@ describe('css modules', () => {
     );
     let res = await run(b);
     assert.deepEqual(res, 'C-gzXq_foo');
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    assert(contents.includes('.C-gzXq_foo'));
+    assert(contents.includes('.x'));
   });
 
   it('should support global css modules via object config', async function () {
@@ -638,6 +645,12 @@ describe('css modules', () => {
     );
     let res = await run(b);
     assert.deepEqual(res, 'C-gzXq_foo');
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    assert(contents.includes('.C-gzXq_foo'));
+    assert(contents.includes('.x'));
   });
 
   it('should optimize away unused variables when dashedIdents option is used', async function () {
