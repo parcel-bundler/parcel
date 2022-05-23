@@ -210,19 +210,15 @@ watcher.subscribe(parcelLspDir, async (err, events) => {
   }
 
   for (let event of events) {
-    console.log('event', event);
     if (event.type === 'create') {
       let client = createIPCClientIfPossible(parcelLspDir, event.path);
-      console.log('created client?', client);
       if (client) {
         clients.set(event.path, client);
       }
     } else if (event.type === 'delete') {
       let existing = clients.get(event.path);
-      console.log('path', event.path, 'clients', clients);
       if (existing) {
         clients.delete(event.path);
-        console.log('clearing diags for', existing.uris);
         for (let id of Object.keys(existing.client.of)) {
           existing.client.disconnect(id);
         }
@@ -231,7 +227,6 @@ watcher.subscribe(parcelLspDir, async (err, events) => {
             connection.sendDiagnostics({uri, diagnostics: []}),
           ),
         );
-        console.log('cleared diags for', existing.uris);
       }
     }
   }

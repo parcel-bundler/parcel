@@ -1,4 +1,5 @@
 // @flow
+import type {BuildProgressEvent} from '@parcel/types';
 
 import path from 'path';
 import chalk from 'chalk';
@@ -11,6 +12,24 @@ let terminalSize = termSize();
 process.stdout.on('resize', function () {
   terminalSize = termSize();
 });
+
+export function getProgressMessage(event: BuildProgressEvent): ?string {
+  switch (event.phase) {
+    case 'transforming':
+      return `Building ${path.basename(event.filePath)}...`;
+
+    case 'bundling':
+      return 'Bundling...';
+
+    case 'packaging':
+      return `Packaging ${event.bundle.displayName}...`;
+
+    case 'optimizing':
+      return `Optimizing ${event.bundle.displayName}...`;
+  }
+
+  return null;
+}
 
 export function getTerminalWidth(): any {
   return terminalSize;

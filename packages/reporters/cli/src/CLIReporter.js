@@ -4,15 +4,10 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {Color} from 'chalk';
 
 import {Reporter} from '@parcel/plugin';
-import {
-  getProgressMessage,
-  prettifyTime,
-  prettyDiagnostic,
-  throttle,
-} from '@parcel/utils';
+import {prettifyTime, prettyDiagnostic, throttle} from '@parcel/utils';
 import chalk from 'chalk';
 
-import {getTerminalWidth} from './utils';
+import {getProgressMessage, getTerminalWidth} from './utils';
 import logLevels from './logLevels';
 import bundleReport from './bundleReport';
 import {
@@ -176,8 +171,13 @@ async function writeDiagnostic(
   let columns = getTerminalWidth().columns;
   let indent = 2;
   for (let diagnostic of diagnostics) {
-    let {message, stack, codeframe, hints, documentation} =
-      await prettyDiagnostic(diagnostic, options, columns - indent);
+    let {
+      message,
+      stack,
+      codeframe,
+      hints,
+      documentation,
+    } = await prettyDiagnostic(diagnostic, options, columns - indent);
     // $FlowFixMe[incompatible-use]
     message = chalk[color](message);
 
