@@ -706,6 +706,8 @@ export default (new Transformer({
         asset.symbols.set(exported, local, convertLoc(loc));
       }
 
+      // deps is a Map of specifiers/placeholders to an array of dependencies
+      // since multiple dependencies can be attributed to a single specifier
       let deps = new Map();
       for (let dep of asset.getDependencies()) {
         if (!deps.has(dep.meta.placeholder ?? dep.specifier)) {
@@ -727,6 +729,10 @@ export default (new Transformer({
         kind,
       } of hoist_result.imported_symbols) {
         for (let dep of nullthrows(deps.get(source))) {
+          // dep.meta.kind is a DependencyKind while kind is an ImportKind.
+          // We only set the symbols for the dep if both dep.meta.kind is an
+          // ImportKind and if dep.meta.kind and kind are the same, or if
+          // dep.meta.kind is not an ImportKind
           if (
             (dep.meta.kind === 'Require' ||
               dep.meta.kind === 'Import' ||
