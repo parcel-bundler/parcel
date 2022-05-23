@@ -295,7 +295,7 @@ function createIdealGraph(
   // Models bundleRoots and the assets that require it synchronously
   let reachableRoots: ContentGraph<Asset> = new ContentGraph();
 
-  // Step 1: Find and create bundles for entries from assetGraph
+  // Step Create Entry Bundles: Find and create bundles for entries from assetGraph
   let entries: Map<Asset, Dependency> = new Map();
   let sharedToSourceBundleIds: Map<NodeId, Array<NodeId>> = new Map();
 
@@ -348,7 +348,7 @@ function createIdealGraph(
   let assets = [];
 
   let typeChangeIds = new Set();
-  // Step 2: Traverse the asset graph and create bundles for asset type changes and async dependencies,
+  // Step Create Bundles: Traverse the asset graph and create bundles for asset type changes and async dependencies,
   // only adding the entry asset of each bundle, not the subgraph.
   assetGraph.traverse({
     enter(node, context, actions) {
@@ -541,7 +541,7 @@ function createIdealGraph(
     },
   });
 
-  // Clean up type change bundles within the same bundlegroups
+  // Step Merge Type Change Bundles: Clean up type change bundles within the same bundlegroups
   for (let [nodeIdA, a] of bundleGraph.nodes) {
     //if bundle b bundlegroups ==== bundle a bundlegroups then combine type changes
     for (let [nodeIdB, b] of bundleGraph.nodes) {
@@ -555,7 +555,6 @@ function createIdealGraph(
         b.bundleBehavior !== 'inline' &&
         a.type === b.type
       ) {
-        //should be the set of all
         let bundleBbundleGroups = getBundleGroupsForBundle(nodeIdB);
         let bundleABundleGroups = getBundleGroupsForBundle(nodeIdA);
         if (setEqual(bundleBbundleGroups, bundleABundleGroups)) {
@@ -581,7 +580,7 @@ function createIdealGraph(
     }
   }
 
-  // Step 3: Determine reachability for every asset from each bundleRoot.
+  // Step Determine Reachability: Determine reachability for every asset from each bundleRoot.
   // This is later used to determine which bundles to place each asset in.
   for (let [root] of bundleRoots) {
     if (!entries.has(root)) {
@@ -650,12 +649,12 @@ function createIdealGraph(
   // and the bundleRoots reachable from each of these assets
   let asyncAncestorAssets: Map<BundleRoot, Set<Asset>> = new Map();
 
-  // Step 4: Determine assets that should be duplicated by computing asset availability in each bundle group
   for (let entry of entries.keys()) {
     // Initialize an empty set of ancestors available to entries
     asyncAncestorAssets.set(entry, new Set());
   }
 
+  // Step Determine Availability
   // Visit nodes in a topological order, visiting parent nodes before child nodes.
   // This allows us to construct an understanding of which assets will already be
   // loaded and available when a bundle runs, by pushing available assets downwards and
@@ -756,7 +755,7 @@ function createIdealGraph(
     }
   }
 
-  // Step 5: Place all assets into bundles or create shared bundles. Each asset
+  // Step Insert Or Share: Place all assets into bundles or create shared bundles. Each asset
   // is placed into a single bundle based on the bundle entries it is reachable from.
   // This creates a maximally code split bundle graph with no duplication.
   for (let asset of assets) {
@@ -877,7 +876,7 @@ function createIdealGraph(
     }
   }
 
-  // Step 7: Merge any shared bundles under the minimum bundle size back into
+  // Step Merge Share Bundles: Merge any shared bundles under the minimum bundle size back into
   // their source bundles, and remove the bundle.
   for (let [bundleNodeId, bundle] of bundleGraph.nodes) {
     if (bundle === 'root') continue;
@@ -887,7 +886,7 @@ function createIdealGraph(
     }
   }
 
-  // Step 8: Remove shared bundles from bundle groups that hit the parallel request limit.
+  // Step Parallel Request Limit Cleanup: Remove shared bundles from bundle groups that hit the parallel request limit.
   for (let [bundleId, bundleGroupId] of bundleRoots.values()) {
     // Only handle bundle group entries.
     if (bundleId != bundleGroupId) {
@@ -895,7 +894,7 @@ function createIdealGraph(
     }
 
     // Find the bundles in this bundle group.
-    let bundleIdsInGroup = bundleGraph.getNodeIdsConnectedFrom(bundleGroupId);
+    let bundleIdsInGroup = [...getBundleGroupsForBundle(bundleGroupId)];
     if (bundleIdsInGroup.length > config.maxParallelRequests) {
       // Sort the bundles so the smallest ones are removed first.
       let bundlesInGroup = bundleIdsInGroup
