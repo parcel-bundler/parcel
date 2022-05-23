@@ -50,7 +50,6 @@ export default (new Transformer({
     };
     asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
 
-    const dirname = path.dirname(asset.filePath);
     const extraSources = resolveExtraSources(asset);
 
     extraSources.forEach(filePath => {
