@@ -186,10 +186,14 @@ export class Bundle implements IBundle {
     );
   }
 
-  traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>): ?TContext {
+  traverseAssets<TContext>(
+    visit: GraphVisitor<IAsset, TContext>,
+    startAsset?: IAsset,
+  ): ?TContext {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
       mapVisitor(asset => assetFromValue(asset, this.#options), visit),
+      startAsset ? assetToAssetValue(startAsset) : undefined,
     );
   }
 }

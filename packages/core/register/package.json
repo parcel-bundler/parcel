@@ -1,6 +1,7 @@
 {
   "name": "@parcel/register",
-  "version": "2.3.2",
+  "version": "2.5.0",
+  "private": true,
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -23,11 +24,10 @@
     "clean": "rimraf .parcel-cache"
   },
   "dependencies": {
-    "@parcel/config-default": "2.3.2",
-    "@parcel/core": "2.3.2",
-    "@parcel/fs": "2.3.2",
-    "@parcel/package-manager": "2.3.2",
-    "deasync": "^0.1.14",
+    "@parcel/config-default": "2.5.0",
+    "@parcel/core": "2.5.0",
+    "@parcel/fs": "2.5.0",
+    "@parcel/package-manager": "2.5.0",
     "pirates": "^4.0.0"
   }
 }

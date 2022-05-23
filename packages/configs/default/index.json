@@ -39,7 +39,7 @@
     "script:*.vue": ["@parcel/transformer-vue"],
     "style:*.vue": ["@parcel/transformer-vue"],
     "custom:*.vue": ["@parcel/transformer-vue"],
-    "*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
+    "*.{png,jpg,jpeg,webp,gif,tiff,avif,heic,heif}": ["@parcel/transformer-image"],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{xml,rss,atom}": ["@parcel/transformer-xml"],
     "url:*": ["...", "@parcel/transformer-raw"]
@@ -53,7 +53,7 @@
   ],
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
-    "*.css": ["@parcel/optimizer-cssnano"],
+    "*.css": ["@parcel/optimizer-css"],
     "*.{html,xhtml}": ["@parcel/optimizer-htmlnano"],
     "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
     "*.svg": ["@parcel/optimizer-svgo"],

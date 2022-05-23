@@ -22,7 +22,7 @@ const JSX_PRAGMA = {
   react: {
     pragma: 'React.createElement',
     pragmaFrag: 'React.Fragment',
-    automatic: '>= 17.0.0 || >= 0.0.0-0 < 0.0.0',
+    automatic: '>= 17.0.0 || ^16.14.0 || >= 0.0.0-0 < 0.0.0',
   },
   preact: {
     pragma: 'h',
@@ -138,6 +138,8 @@ type TSConfig = {
     jsxImportSource?: string,
     // https://www.typescriptlang.org/tsconfig#experimentalDecorators
     experimentalDecorators?: boolean,
+    // https://www.typescriptlang.org/tsconfig#useDefineForClassFields
+    useDefineForClassFields?: boolean,
     ...
   },
   ...
@@ -152,7 +154,8 @@ export default (new Transformer({
       jsxImportSource,
       automaticJSXRuntime,
       reactRefresh,
-      decorators;
+      decorators,
+      useDefineForClassFields;
     if (config.isSource) {
       let reactLib;
       if (pkg?.alias && pkg.alias['react']) {
@@ -231,6 +234,7 @@ export default (new Transformer({
 
       isJSX = Boolean(compilerOptions?.jsx || pragma);
       decorators = compilerOptions?.experimentalDecorators;
+      useDefineForClassFields = compilerOptions?.useDefineForClassFields;
     }
 
     // Check if we should ignore fs calls
@@ -280,6 +284,7 @@ export default (new Transformer({
       inlineFS,
       reactRefresh,
       decorators,
+      useDefineForClassFields,
     };
   },
   async transform({asset, config, options, logger}) {
@@ -334,11 +339,6 @@ export default (new Transformer({
       targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
     }
 
-    // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
-    if (/@swc[/\\]helpers/.test(asset.filePath)) {
-      targets = null;
-    }
-
     let env: EnvMap = {};
 
     if (!config?.inlineEnvironment) {
@@ -384,6 +384,7 @@ export default (new Transformer({
       needs_esm_helpers,
       diagnostics,
       used_env,
+      has_node_replacements,
     } = transform({
       filename: asset.filePath,
       code,
@@ -391,7 +392,9 @@ export default (new Transformer({
       project_root: options.projectRoot,
       replace_env: !asset.env.isNode(),
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
-      insert_node_globals: !asset.env.isNode(),
+      insert_node_globals:
+        !asset.env.isNode() && asset.env.sourceType !== 'script',
+      node_replacer: asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
       env,
@@ -404,10 +407,12 @@ export default (new Transformer({
       is_development: options.mode === 'development',
       react_refresh:
         asset.env.isBrowser() &&
+        !asset.env.isLibrary &&
         !asset.env.isWorker() &&
         !asset.env.isWorklet() &&
         Boolean(config?.reactRefresh),
       decorators: Boolean(config?.decorators),
+      use_define_for_class_fields: Boolean(config?.useDefineForClassFields),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist:
@@ -417,6 +422,7 @@ export default (new Transformer({
       is_library: asset.env.isLibrary,
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
+      is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
     });
 
     let convertLoc = loc => {
@@ -518,6 +524,10 @@ export default (new Transformer({
 
     if (shebang) {
       asset.meta.interpreter = shebang;
+    }
+
+    if (has_node_replacements) {
+      asset.meta.has_node_replacements = has_node_replacements;
     }
 
     for (let env of used_env) {

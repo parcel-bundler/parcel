@@ -834,6 +834,12 @@ describe('html', function () {
         assets: ['300x300.png'],
       },
     ]);
+
+    const html = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+
+    const source = html.match(/<source srcset=".*>/)[0];
+
+    assert(source.split(', ').length === 3);
   });
 
   it('should detect imagesrcset attribute', async function () {
@@ -2543,7 +2549,7 @@ describe('html', function () {
     await getNextBuild(b);
 
     let html = await outputFS.readFile('/dist/index.html', 'utf8');
-    assert(html.includes("console.log('test')"));
+    assert(html.includes(`console.log("test")`));
 
     await overlayFS.writeFile(
       path.join(__dirname, '/html-inline-js-require/test.js'),
@@ -2552,7 +2558,7 @@ describe('html', function () {
     await getNextBuild(b);
 
     html = await outputFS.readFile(path.join(distDir, '/index.html'), 'utf8');
-    assert(html.includes("console.log('foo')"));
+    assert(html.includes(`console.log("foo")`));
   });
 
   it('should invalidate parent bundle when nested inline bundles change', async function () {
@@ -2834,5 +2840,35 @@ describe('html', function () {
         ],
       },
     );
+  });
+
+  it('extracts shared bundles that load referenced bundle roots across entries', async () => {
+    let b = await bundle(
+      ['index1.html', 'index2.html'].map(entry =>
+        path.join(__dirname, 'integration/html-shared-referenced', entry),
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    await run(b);
+  });
+
+  it('should not skip bundleRoots if an asset is both async required and static required', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-sync-async-asset/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    await run(b, {output: null}, {require: false});
   });
 });

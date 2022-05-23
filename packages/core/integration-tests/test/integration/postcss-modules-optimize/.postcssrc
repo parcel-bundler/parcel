@@ -1,0 +1,6 @@
+{
+    "modules": true,
+    "plugins": {
+        "postcss-modules": {}
+    }
+}

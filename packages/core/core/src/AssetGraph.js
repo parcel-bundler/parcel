@@ -541,11 +541,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {
-    let nodeId = this._contentKeyToNodeId.get(asset.id);
-    if (!nodeId) {
-      return [];
-    }
-
+    let nodeId = this.getNodeIdByContentKey(asset.id);
     let assetGroupIds = this.getNodeIdsConnectedTo(nodeId);
     let dependencies = [];
     for (let i = 0; i < assetGroupIds.length; i++) {

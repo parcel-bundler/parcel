@@ -20,6 +20,7 @@ import {
   distDir,
   getParcelOptions,
   assertNoFilePathInCache,
+  findAsset,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 import fs from 'fs';
@@ -4900,17 +4901,17 @@ describe('cache', function () {
         },
         async update(b) {
           let res = await run(b.bundleGraph);
-          assert(res.includes("let a = 'a'"));
+          assert(res.includes(`let a = "a"`));
 
           await overlayFS.writeFile(
             path.join(inputDir, 'src/entries/a.js'),
-            "export let a = 'b';",
+            `export let a = "b";`,
           );
         },
       });
 
       let res = await run(b.bundleGraph);
-      assert(res.includes("let a = 'b'"));
+      assert(res.includes(`let a = "b"`));
     });
 
     it('should invalidate when switching to a different packager for an inline bundle', async function () {
@@ -5907,5 +5908,24 @@ describe('cache', function () {
     });
 
     assert.equal(await run(b.bundleGraph), 6);
+  });
+
+  it('supports multiple empty JS assets', async function () {
+    // Try to store multiple empty assets using LMDB
+    let build = await runBundle(
+      path.join(__dirname, 'integration/multiple-empty-js-assets/index.js'),
+      {
+        inputFS,
+        outputFS: inputFS,
+      },
+    );
+
+    let a = nullthrows(findAsset(build.bundleGraph, 'a.js'));
+    let b = nullthrows(findAsset(build.bundleGraph, 'a.js'));
+    assert.strictEqual((await a.getBuffer()).length, 0);
+    assert.strictEqual((await b.getBuffer()).length, 0);
+
+    let res = await run(build.bundleGraph);
+    assert.deepEqual(res, {default: 'foo'});
   });
 });

@@ -169,6 +169,35 @@ describe('scope hoisting', function () {
       assert.equal(output, 2);
     });
 
+    it('supports renaming helpers inserted during transpiling', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/rename-helpers/a.js',
+        ),
+      );
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(/let \S* = Symbol.toStringTag;/.test(contents));
+
+      let output = await run(b);
+      assert.deepEqual(output, ['1', '2']);
+    });
+
+    it("doesn't rename member expression properties", async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/rename-member-prop/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output({foo: 12}), [12, 12]);
+    });
+
     it('supports renaming imports', async function () {
       let b = await bundle(
         path.join(
@@ -1003,6 +1032,27 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['a', true]);
     });
 
+    it('wraps an asset if any of its ancestors is wrapped, even if one is not', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/multiple-ancestors-wrap/index.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(
+        contents.match(/parcelRequire.register\(/g).length,
+        2 /* once for parent asset, once for child wrapped asset */,
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [42, 43]);
+    });
+
     it('supports importing from a wrapped asset with multiple bailouts', async function () {
       let b = await bundle(
         path.join(
@@ -1222,6 +1272,18 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.deepEqual(output, 1);
+    });
+
+    it('supports wrapped assets importing their own namespace', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-namespace-wrapped-self/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, true);
     });
 
     it('supports importing a namespace from a transpiled CommonJS module', async function () {
@@ -1964,6 +2026,28 @@ describe('scope hoisting', function () {
       assert(new output[3]() instanceof output[2]);
     });
 
+    it('should support chained reexports from hybrid modules', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-hybrid/a.js',
+        ),
+      );
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
+    it('should support chained reexports as default from hybrid modules', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-default-hybrid/a.js',
+        ),
+      );
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
     it('support chained namespace reexports of CommonJS', async function () {
       let b = await bundle(
         path.join(
@@ -2262,6 +2346,40 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.equal(await output, 42);
+    });
+
+    describe("considers an asset's closest package.json for sideEffects, not the package through which it found the asset", () => {
+      it('handles redirects up the tree', async () => {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-package-redirect-up/index.js',
+          ),
+        );
+
+        let result = await run(b);
+        assert.strictEqual(result, 1);
+
+        let bar = findAsset(b, 'real-bar.js');
+        assert(bar);
+        assert.strictEqual(bar.sideEffects, false);
+      });
+
+      it('handles redirects down the tree', async () => {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-package-redirect-down/index.js',
+          ),
+        );
+
+        let result = await run(b);
+        assert.strictEqual(result, 1);
+
+        let bar = findAsset(b, 'real-bar.js');
+        assert(bar);
+        assert.strictEqual(bar.sideEffects, false);
+      });
     });
 
     describe('correctly updates used symbols on changes', () => {
@@ -5008,7 +5126,11 @@ describe('scope hoisting', function () {
         ],
       },
       {assets: ['dep.js']},
-      {assets: ['async-has-dep.js', 'dep.js', 'get-dep.js']},
+      {
+        assets: process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER
+          ? ['async-has-dep.js']
+          : ['async-has-dep.js', 'dep.js', 'get-dep.js'],
+      },
       {assets: ['get-dep.js']},
     ]);
 
@@ -5225,6 +5347,23 @@ describe('scope hoisting', function () {
     assert.deepEqual(res, 'x: 123');
   });
 
+  it('should call named imports without this context', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-this/index.js'),
+    );
+    let res = await run(b, {output: null}, {strict: true});
+    assert.deepEqual(res, {
+      unwrappedNamed: [true, false],
+      unwrappedDefault: [true, false],
+      // TODO: unwrappedNamespace should actually be `[false, true]` but we optimize
+      // the `ns.foo` expression into a named import, so that namespace isn't available anymore.
+      unwrappedNamespace: [true, false],
+      wrappedNamed: [true, false],
+      wrappedDefault: [true, false],
+      wrappedNamespace: [false, true],
+    });
+  });
+
   it('should insert the prelude for sibling bundles referenced in HTML', async function () {
     let b = await bundle(
       path.join(
@@ -5314,5 +5453,17 @@ describe('scope hoisting', function () {
 
     let output = await run(b);
     assert.strictEqual(output, 'bar foo bar');
+  });
+
+  it("not insert unused requires that aren't registered anywhere", async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/unused-require/index.js',
+      ),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output, 'foo');
   });
 });

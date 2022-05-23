@@ -744,9 +744,9 @@ export interface MutableAsset extends BaseAsset {
   setBuffer(Buffer): void;
   /** Sets the asset contents as a stream. */
   setStream(Readable): void;
-  /** Returns whether the AST has been modified. */
-  setAST(AST): void;
   /** Sets the asset's AST. */
+  setAST(AST): void;
+  /** Returns whether the AST has been modified. */
   isASTDirty(): boolean;
   /** Sets the asset's source map. */
   setMap(?SourceMap): void;
@@ -1041,6 +1041,17 @@ export type Transformer<ConfigType> = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<Array<TransformerResult | MutableAsset>>,
+  /**
+   * Do some processing after the transformation
+   * @experimental
+   */
+  postProcess?: ({|
+    assets: Array<MutableAsset>,
+    config: ConfigType,
+    resolve: ResolveFn,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<Array<TransformerResult>>,
   /** Stringify the AST */
   generate?: ({|
     asset: Asset,
@@ -1243,7 +1254,10 @@ export interface Bundle {
   /** Returns whether the bundle includes the given dependency. */
   hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
-  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
+  traverseAssets<TContext>(
+    visit: GraphVisitor<Asset, TContext>,
+    startAsset?: Asset,
+  ): ?TContext;
   /** Traverses assets and dependencies in the bundle. */
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,

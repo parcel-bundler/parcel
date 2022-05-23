@@ -4,6 +4,7 @@ import type {
   FilePath,
   InitialParcelOptions,
   DependencySpecifier,
+  InitialServerOptions,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
@@ -13,7 +14,7 @@ import {hashString} from '@parcel/hash';
 import {NodeFS} from '@parcel/fs';
 import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
-import {getRootDir, relativePath, resolveConfig} from '@parcel/utils';
+import {getRootDir, relativePath, resolveConfig, isGlob} from '@parcel/utils';
 import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
@@ -49,7 +50,21 @@ export default async function resolveOptions(
     entries = [path.resolve(inputCwd, initialOptions.entries)];
   }
 
-  let entryRoot = getRootDir(entries);
+  let shouldMakeEntryReferFolder = false;
+  if (entries.length === 1 && !isGlob(entries[0])) {
+    let [entry] = entries;
+    try {
+      shouldMakeEntryReferFolder = (await inputFS.stat(entry)).isDirectory();
+    } catch {
+      // ignore failing stat call
+    }
+  }
+
+  // getRootDir treats the input as files, so getRootDir(["/home/user/myproject"]) returns "/home/user".
+  // Instead we need to make the the entry refer to some file inside the specified folders if entries refers to the directory.
+  let entryRoot = getRootDir(
+    shouldMakeEntryReferFolder ? [path.join(entries[0], 'index')] : entries,
+  );
   let projectRootFile =
     (await resolveConfig(
       inputFS,
@@ -95,6 +110,19 @@ export default async function resolveOptions(
     throw new Error('Lazy bundling does not work with content hashing');
   }
 
+  let env = {
+    ...(await loadDotEnv(
+      initialOptions.env ?? {},
+      inputFS,
+      path.join(projectRoot, 'index'),
+      projectRoot,
+    )),
+    ...process.env,
+    ...initialOptions.env,
+  };
+
+  let port = determinePort(initialOptions.serveOptions, env.PORT);
+
   return {
     config: getRelativeConfigSpecifier(
       inputFS,
@@ -107,16 +135,7 @@ export default async function resolveOptions(
       initialOptions.defaultConfig,
     ),
     shouldPatchConsole: initialOptions.shouldPatchConsole ?? false,
-    env: {
-      ...(await loadDotEnv(
-        initialOptions.env ?? {},
-        inputFS,
-        path.join(projectRoot, 'index'),
-        projectRoot,
-      )),
-      ...process.env,
-      ...initialOptions.env,
-    },
+    env,
     mode,
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
     hmrOptions: initialOptions.hmrOptions ?? null,
@@ -126,6 +145,7 @@ export default async function resolveOptions(
       ? {
           ...initialOptions.serveOptions,
           distDir: distDir ?? path.join(outputCwd, 'dist'),
+          port,
         }
       : false,
     shouldDisableCache: initialOptions.shouldDisableCache ?? false,
@@ -177,4 +197,35 @@ function getRelativeConfigSpecifier(
   } else {
     return specifier;
   }
+}
+
+function determinePort(
+  initialServerOptions: InitialServerOptions | false | void,
+  portInEnv: string | void,
+  defaultPort: number = 1234,
+): number {
+  function parsePort(port: string): number | void {
+    let parsedPort = Number(port);
+
+    // return undefined if port number defined in .env is not valid integer
+    if (!Number.isInteger(parsedPort)) {
+      return undefined;
+    }
+    return parsedPort;
+  }
+
+  if (!initialServerOptions) {
+    return typeof portInEnv !== 'undefined'
+      ? parsePort(portInEnv) ?? defaultPort
+      : defaultPort;
+  }
+
+  // if initialServerOptions.port is equal to defaultPort, then this means that port number is provided via PORT=~~~~ on cli. In this case, we should ignore port number defined in .env.
+  if (initialServerOptions.port !== defaultPort) {
+    return initialServerOptions.port;
+  }
+
+  return typeof portInEnv !== 'undefined'
+    ? parsePort(portInEnv) ?? defaultPort
+    : defaultPort;
 }
