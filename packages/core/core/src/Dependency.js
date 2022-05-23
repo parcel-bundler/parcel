@@ -50,6 +50,7 @@ export function createDependency(
         (opts.target ? JSON.stringify(opts.target) : '') +
         (opts.pipeline ?? '') +
         opts.specifierType +
+        (opts.bundleBehavior ?? '') +
         (opts.priority ?? 'sync'),
     );
 
@@ -91,7 +92,6 @@ export function mergeDependencies(a: Dependency, b: Dependency): void {
     needsStableName,
     isEntry,
     isOptional,
-    bundleBehavior,
     ...other
   } = b;
   Object.assign(a, other);
@@ -104,10 +104,4 @@ export function mergeDependencies(a: Dependency, b: Dependency): void {
   if (needsStableName) a.needsStableName = true;
   if (isEntry) a.isEntry = true;
   if (!isOptional) a.isOptional = false;
-  if (
-    bundleBehavior == BundleBehavior['isolated'] ||
-    a.bundleBehavior == null
-  ) {
-    a.bundleBehavior = bundleBehavior;
-  }
 }
