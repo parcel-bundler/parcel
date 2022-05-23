@@ -186,6 +186,18 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['1', '2']);
     });
 
+    it("doesn't rename member expression properties", async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/rename-member-prop/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output({foo: 12}), [12, 12]);
+    });
+
     it('supports renaming imports', async function () {
       let b = await bundle(
         path.join(
