@@ -254,10 +254,7 @@ impl<'a> Fold for Hoist<'a> {
                         id.0
                       } else {
                         self
-                          .get_export_ident(
-                            DUMMY_SP,
-                            self.collect.exports_locals.get(&id.0).unwrap(),
-                          )
+                          .get_export_ident(DUMMY_SP, self.collect.exports_locals.get(&id).unwrap())
                           .sym
                       };
                       self.exported_symbols.push(ExportedSymbol {
@@ -514,6 +511,21 @@ impl<'a> Fold for Hoist<'a> {
 
   fn fold_expr(&mut self, node: Expr) -> Expr {
     match node {
+      Expr::OptChain(opt) => {
+        return Expr::OptChain(OptChainExpr {
+          span: opt.span,
+          question_dot_token: opt.question_dot_token,
+          base: match opt.base {
+            OptChainBase::Call(call) => OptChainBase::Call(call.fold_with(self)),
+            OptChainBase::Member(member) => OptChainBase::Member(MemberExpr {
+              span: member.span,
+              obj: member.obj.fold_with(self),
+              // Don't visit member.prop so we avoid the ident visitor.
+              prop: member.prop,
+            }),
+          },
+        });
+      }
       Expr::Member(member) => {
         if !self.collect.should_wrap {
           if match_member_expr(&member, vec!["module", "exports"], &self.collect.decls) {
@@ -575,8 +587,7 @@ impl<'a> Fold for Hoist<'a> {
             }
 
             // exports.foo -> $id$export$foo
-            let exports: JsWord = "exports".into();
-            if ident.sym == exports
+            if &*ident.sym == "exports"
               && !self.collect.decls.contains(&id!(ident))
               && self.collect.static_cjs_exports
               && !self.collect.should_wrap
@@ -585,7 +596,7 @@ impl<'a> Fold for Hoist<'a> {
               return Expr::Ident(self.get_export_ident(member.span, &key));
             }
           }
-          Expr::Call(_call) => {
+          Expr::Call(_) => {
             // require('foo').bar -> $id$import$foo$bar
             if let Some(source) =
               match_require(&member.obj, &self.collect.decls, self.collect.ignore_mark)
@@ -667,6 +678,23 @@ impl<'a> Fold for Hoist<'a> {
             return Expr::Ident(self.get_export_ident(this.span, &"*".into()));
           }
         }
+      }
+      Expr::Ident(ident) => {
+        // import { foo } from "..."; foo();
+        // ->
+        // import { foo } from "..."; (0, foo)();
+        if let Some(Import {
+          specifier, kind, ..
+        }) = self.collect.imports.get(&id!(ident))
+        {
+          if kind == &ImportKind::Import && specifier != "*" {
+            return Expr::Seq(SeqExpr {
+              span: ident.span,
+              exprs: vec![0.into(), Box::new(Expr::Ident(ident.fold_with(self)))],
+            });
+          }
+        }
+        return Expr::Ident(ident.fold_with(self));
       }
       _ => {}
     }
@@ -759,7 +787,7 @@ impl<'a> Fold for Hoist<'a> {
       }
     }
 
-    if let Some(exported) = self.collect.exports_locals.get(&node.sym) {
+    if let Some(exported) = self.collect.exports_locals.get(&id!(node)) {
       // If wrapped, mark the original symbol as exported.
       // Otherwise replace with an export identifier.
       if self.collect.should_wrap {
@@ -774,8 +802,9 @@ impl<'a> Fold for Hoist<'a> {
       }
     }
 
-    let exports: JsWord = "exports".into();
-    if node.sym == exports && !self.collect.decls.contains(&id!(node)) && !self.collect.should_wrap
+    if &*node.sym == "exports"
+      && !self.collect.decls.contains(&id!(node))
+      && !self.collect.should_wrap
     {
       self.self_references.insert("*".into());
       return self.get_export_ident(node.span, &"*".into());
@@ -785,7 +814,7 @@ impl<'a> Fold for Hoist<'a> {
       return Ident::new("$parcel$global".into(), node.span);
     }
 
-    if node.span.ctxt() == self.collect.global_ctxt
+    if node.span.has_mark(self.collect.global_mark)
       && self.collect.decls.contains(&id!(node))
       && !self.collect.should_wrap
     {
@@ -824,10 +853,7 @@ impl<'a> Fold for Hoist<'a> {
         Expr::Member(member) => {
           match_member_expr(member, vec!["module", "exports"], &self.collect.decls)
         }
-        Expr::Ident(ident) => {
-          let exports: JsWord = "exports".into();
-          ident.sym == exports && !self.collect.decls.contains(&id!(ident))
-        }
+        Expr::Ident(ident) => &*ident.sym == "exports" && !self.collect.decls.contains(&id!(ident)),
         _ => false,
       };
 
@@ -1073,7 +1099,7 @@ pub struct Collect {
   pub source_map: Lrc<swc_common::SourceMap>,
   pub decls: HashSet<IdentId>,
   pub ignore_mark: Mark,
-  pub global_ctxt: SyntaxContext,
+  pub global_mark: Mark,
   pub static_cjs_exports: bool,
   pub has_cjs_exports: bool,
   pub is_esm: bool,
@@ -1083,7 +1109,7 @@ pub struct Collect {
   // exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
   // local name -> exported name
-  pub exports_locals: HashMap<JsWord, JsWord>,
+  pub exports_locals: HashMap<IdentId, JsWord>,
   pub exports_all: HashMap<JsWord, SourceLocation>,
   pub non_static_access: HashMap<IdentId, Vec<Span>>,
   pub non_const_bindings: HashMap<IdentId, Vec<Span>>,
@@ -1139,7 +1165,7 @@ impl Collect {
       source_map,
       decls,
       ignore_mark,
-      global_ctxt: SyntaxContext::empty().apply_mark(global_mark),
+      global_mark,
       static_cjs_exports: true,
       has_cjs_exports: false,
       is_esm: false,
@@ -1362,7 +1388,7 @@ impl Visit for Collect {
           if node.src.is_none() {
             self
               .exports_locals
-              .entry(match_export_name_ident(&named.orig).sym.clone())
+              .entry(id!(match_export_name_ident(&named.orig)))
               .or_insert_with(|| exported.0.clone());
           }
         }
@@ -1378,7 +1404,7 @@ impl Visit for Collect {
           if node.src.is_none() {
             self
               .exports_locals
-              .entry(default.exported.sym.clone())
+              .entry(id!(default.exported))
               .or_insert_with(|| js_word!("default"));
           }
         }
@@ -1411,7 +1437,7 @@ impl Visit for Collect {
         );
         self
           .exports_locals
-          .entry(class.ident.sym.clone())
+          .entry(id!(class.ident))
           .or_insert_with(|| class.ident.sym.clone());
       }
       Decl::Fn(func) => {
@@ -1425,7 +1451,7 @@ impl Visit for Collect {
         );
         self
           .exports_locals
-          .entry(func.ident.sym.clone())
+          .entry(id!(func.ident))
           .or_insert_with(|| func.ident.sym.clone());
       }
       Decl::Var(var) => {
@@ -1457,7 +1483,7 @@ impl Visit for Collect {
           );
           self
             .exports_locals
-            .entry(ident.sym.clone())
+            .entry(id!(ident))
             .or_insert_with(|| js_word!("default"));
         } else {
           self.exports.insert(
@@ -1482,7 +1508,7 @@ impl Visit for Collect {
           );
           self
             .exports_locals
-            .entry(ident.sym.clone())
+            .entry(id!(ident))
             .or_insert_with(|| js_word!("default"));
         } else {
           self.exports.insert(
@@ -1544,11 +1570,11 @@ impl Visit for Collect {
       );
       self
         .exports_locals
-        .entry(node.id.sym.clone())
+        .entry(id!(node.id))
         .or_insert_with(|| node.id.sym.clone());
     }
 
-    if self.in_assign && node.id.span.ctxt() == self.global_ctxt {
+    if self.in_assign && node.id.span.has_mark(self.global_mark) {
       self
         .non_const_bindings
         .entry(id!(node.id))
@@ -1569,11 +1595,11 @@ impl Visit for Collect {
       );
       self
         .exports_locals
-        .entry(node.key.sym.clone())
+        .entry(id!(node.key))
         .or_insert_with(|| node.key.sym.clone());
     }
 
-    if self.in_assign && node.key.span.ctxt() == self.global_ctxt {
+    if self.in_assign && node.key.span.has_mark(self.global_mark) {
       self
         .non_const_bindings
         .entry(id!(node.key))
@@ -1628,8 +1654,7 @@ impl Visit for Collect {
         return;
       }
       Expr::Ident(ident) => {
-        let exports: JsWord = "exports".into();
-        if ident.sym == exports && !self.decls.contains(&id!(ident)) {
+        if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
           handle_export!();
         }
 
@@ -1703,8 +1728,7 @@ impl Visit for Collect {
       Expr::Ident(ident) => {
         // Bail if `module` or `exports` are accessed non-statically.
         let is_module = ident.sym == js_word!("module");
-        let exports: JsWord = "exports".into();
-        let is_exports = ident.sym == exports;
+        let is_exports = &*ident.sym == "exports";
         if (is_module || is_exports) && !self.decls.contains(&id!(ident)) {
           self.has_cjs_exports = true;
           self.static_cjs_exports = false;
@@ -1846,8 +1870,7 @@ impl Visit for Collect {
         Expr::Member(member) => {
           // import('foo').then(foo => ...);
           if let Some(source) = match_import(&*member.obj, self.ignore_mark) {
-            let then: JsWord = "then".into();
-            if match_property_name(member).map_or(false, |f| f.0 == then) {
+            if match_property_name(member).map_or(false, |f| &*f.0 == "then") {
               if let Some(ExprOrSpread { expr, .. }) = node.args.get(0) {
                 let param = match &**expr {
                   Expr::Fn(func) => func.function.params.get(0).map(|param| &param.pat),
@@ -2092,12 +2115,13 @@ mod tests {
   use super::*;
   use crate::collect_decls;
   use std::iter::FromIterator;
+  use swc_common::chain;
   use swc_common::comments::SingleThreadedComments;
   use swc_common::{sync::Lrc, FileName, Globals, Mark, SourceMap};
   use swc_ecmascript::codegen::text_writer::JsWriter;
   use swc_ecmascript::parser::lexer::Lexer;
   use swc_ecmascript::parser::{Parser, StringInput};
-  use swc_ecmascript::transforms::resolver_with_mark;
+  use swc_ecmascript::transforms::{fixer, hygiene, resolver};
   extern crate indoc;
   use self::indoc::indoc;
 
@@ -2119,8 +2143,9 @@ mod tests {
         swc_ecmascript::transforms::helpers::HELPERS.set(
           &swc_ecmascript::transforms::helpers::Helpers::new(false),
           || {
+            let unresolved_mark = Mark::fresh(Mark::root());
             let global_mark = Mark::fresh(Mark::root());
-            let module = module.fold_with(&mut resolver_with_mark(global_mark));
+            let module = module.fold_with(&mut resolver(unresolved_mark, global_mark, false));
 
             let mut collect = Collect::new(
               source_map.clone(),
@@ -2136,6 +2161,9 @@ mod tests {
               let module = module.fold_with(&mut hoist);
               (module, hoist.get_result())
             };
+
+            let module = module.fold_with(&mut chain!(hygiene(), fixer(Some(&comments))));
+
             let code = emit(source_map, comments, &module);
             (collect, code, res)
           },
@@ -2161,7 +2189,11 @@ mod tests {
         &mut buf,
         Some(&mut src_map_buf),
       ));
-      let config = swc_ecmascript::codegen::Config { minify: false };
+      let config = swc_ecmascript::codegen::Config {
+        minify: false,
+        ascii_only: false,
+        target: swc_ecmascript::ast::EsVersion::Es5,
+      };
       let mut emitter = swc_ecmascript::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
@@ -2711,6 +2743,7 @@ mod tests {
     import {foo as bar} from 'other';
     let test = {bar: 3};
     console.log(bar, test.bar);
+    bar();
     "#,
     );
 
@@ -2721,7 +2754,8 @@ mod tests {
     let $abc$var$test = {
         bar: 3
     };
-    console.log($abc$import$70a00e0a8474f72a$6a5cdcad01c973fa, $abc$var$test.bar);
+    console.log((0, $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa), $abc$var$test.bar);
+    (0, $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa)();
     "#}
     );
 
@@ -2729,6 +2763,7 @@ mod tests {
       r#"
     import * as foo from 'other';
     console.log(foo.bar);
+    foo.bar();
     "#,
     );
 
@@ -2737,6 +2772,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     console.log($abc$import$70a00e0a8474f72a$d927737047eb3867);
+    $abc$import$70a00e0a8474f72a$d927737047eb3867();
     "#}
     );
 
@@ -2744,6 +2780,7 @@ mod tests {
       r#"
     import other from 'other';
     console.log(other, other.bar);
+    other();
     "#,
     );
 
@@ -2751,7 +2788,8 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    console.log($abc$import$70a00e0a8474f72a$2e2bcd8739ae039, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039.bar);
+    console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039), (0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039).bar);
+    (0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039)();
     "#}
     );
   }
@@ -2772,8 +2810,8 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     import "abc:bar";
-    console.log($abc$import$70a00e0a8474f72a$2e2bcd8739ae039);
-    console.log($abc$import$d927737047eb3867$2e2bcd8739ae039);
+    console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039));
+    console.log((0, $abc$import$d927737047eb3867$2e2bcd8739ae039));
     "#}
     );
 
@@ -2793,10 +2831,10 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     import "abc:bar";
-    console.log($abc$import$70a00e0a8474f72a$2e2bcd8739ae039);
+    console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039));
     import "abc:x";
     console.log($abc$import$d141bba7fdc215a3);
-    console.log($abc$import$d927737047eb3867$2e2bcd8739ae039);
+    console.log((0, $abc$import$d927737047eb3867$2e2bcd8739ae039));
     "#}
     );
   }
@@ -2993,11 +3031,11 @@ mod tests {
 
     let (_collect, code, hoist) = parse(
       r#"
-    var foo = (function () {
+    var foo = function () {
       if (Date.now() < 0) {
         var bar = require("other");
       }
-    })();
+    }();
     "#,
     );
 
@@ -3005,11 +3043,11 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    var $abc$var$foo = (function() {
+    var $abc$var$foo = function() {
         if (Date.now() < 0) {
             var bar = $abc$import$70a00e0a8474f72a;
         }
-    })();
+    }();
     "#}
     );
     assert_eq!(
@@ -3179,8 +3217,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:y";
-    for(let x = $abc$import$4a5767248b18ef41; x < 5; x++){
-    }
+    for(let x = $abc$import$4a5767248b18ef41; x < 5; x++){}
     "#}
     );
   }
@@ -3242,8 +3279,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    function $abc$export$2e2bcd8739ae039() {
-    }
+    function $abc$export$2e2bcd8739ae039() {}
     "#}
     );
 
@@ -3317,8 +3353,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    function $abc$export$e0969da9b8fb378d() {
-    }
+    function $abc$export$e0969da9b8fb378d() {}
     "#}
     );
 
@@ -3634,8 +3669,7 @@ mod tests {
       code,
       indoc! {r#"
     var $abc$var$module = {
-        exports: {
-        }
+        exports: {}
     };
     $abc$var$module.exports.foo = 2;
     console.log($abc$var$module.exports.foo);
@@ -3948,8 +3982,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: foo  }) {
-    });
+    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: foo  }) {});
     "#}
     );
 
@@ -3974,8 +4007,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: bar  }) {
-    });
+    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: bar  }) {});
     "#}
     );
   }
@@ -4010,25 +4042,6 @@ mod tests {
     function $abc$var$test() {
         var x = 3;
     }
-    "#}
-    );
-  }
-
-  #[test]
-  fn fold_cjs_objects() {
-    let (_collect, code, _hoist) = parse(
-      r#"
-    console.log(typeof module);
-    console.log(typeof require);
-    console.log(module.hot);
-    "#,
-    );
-    assert_eq!(
-      code,
-      indoc! {r#"
-    console.log("object");
-    console.log("function");
-    console.log(null);
     "#}
     );
   }

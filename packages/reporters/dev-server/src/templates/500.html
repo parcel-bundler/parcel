@@ -29,6 +29,7 @@
         color: salmon;
         margin: 10px;
         font-family: Menlo, Consolas, monospace;
+        white-space: pre;
       }
 
       .error-hints-container {
@@ -72,7 +73,9 @@
     <h1 class="title-heading">🚨 Parcel encountered errors</h1>
     <% errors.forEach(function(error){ %>
     <h2 class="error-message"><%- error.message %></h2>
-    <div class="error-stack-trace"><%- error.stack %></div>
+
+    <div class="error-stack-trace"><% if (error.frames?.length) { %><% error.frames.forEach(function(frame){ %><a href="/__parcel_launch_editor?file=<%- encodeURIComponent(frame.location) %>" style="text-decoration: underline; color: #888" onclick="fetch(this.href); return false"><%- frame.location %></a>
+<%- frame.code %><% }); %><% } else { %><%- error.stack %><% } %></div>
     <ul class="error-hints-container">
       <% error.hints.forEach(function(hint){ %>
       <li class="error-hint"><%- hint %></li>
@@ -82,5 +85,31 @@
     <div class="documentation">📝 <a href="<%- error.documentation %>" target="_blank">Learn more</a></div>
     <% } %>
     <% }); %>
+    <% if (hmrOptions) { %>
+    <script>
+      // Reload the page when an HMR update occurs.
+      var protocol =
+        (location.protocol == 'https:' &&
+          !/localhost|127.0.0.1|0.0.0.0/.test(hostname))
+          ? 'wss'
+          : 'ws';
+      var hostname = <%- JSON.stringify(hmrOptions.host || null) %> || location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost';
+      var port = <%- JSON.stringify(hmrOptions.port || null) %> || location.port;
+      var ws = new WebSocket(protocol + '://' + hostname + (port ? ':' + port : '') + '/');
+
+      var receivedInitialMessage = false;
+      ws.onmessage = (e) => {
+        let data = JSON.parse(e.data);
+
+        // The HMR server sends the pending error immediately on connect. Ignore this.
+        if (data.type == 'error' && !receivedInitialMessage) {
+          receivedInitialMessage = true;
+          return;
+        }
+
+        location.reload();
+      };
+    </script>
+    <% } %>
   </body>
 </html>
