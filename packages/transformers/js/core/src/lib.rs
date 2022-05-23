@@ -81,6 +81,7 @@ pub struct Config {
   automatic_jsx_runtime: bool,
   jsx_import_source: Option<String>,
   decorators: bool,
+  use_define_for_class_fields: bool,
   is_development: bool,
   react_refresh: bool,
   targets: Option<HashMap<String, String>>,
@@ -234,9 +235,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   Optional::new(
                     decorators::decorators(decorators::Config {
                       legacy: true,
+                      use_define_for_class_fields: config.use_define_for_class_fields,
                       // Always disabled for now, SWC's implementation doesn't match TSC.
                       emit_metadata: false,
-                      use_define_for_class_fields: true
                     }),
                     config.decorators
                   ),
@@ -462,10 +463,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 module
               };
 
-              let program = {
-                let mut passes = chain!(reserved_words(), hygiene(), fixer(Some(&comments)),);
-                module.fold_with(&mut passes)
-              };
+              let module = module.fold_with(&mut chain!(
+                reserved_words(),
+                hygiene(),
+                fixer(Some(&comments)),
+              ));
 
               result.dependencies.extend(global_deps);
               result.dependencies.extend(fs_deps);
@@ -475,7 +477,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               }
 
               let (buf, mut src_map_buf) =
-                emit(source_map.clone(), comments, &program, config.source_maps)?;
+                emit(source_map.clone(), comments, &module, config.source_maps)?;
               if config.source_maps
                 && source_map
                   .build_source_map(&mut src_map_buf)

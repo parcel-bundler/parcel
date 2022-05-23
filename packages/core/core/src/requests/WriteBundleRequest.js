@@ -66,11 +66,12 @@ export type WriteBundleRequest = {|
 export default function createWriteBundleRequest(
   input: WriteBundleRequestInput,
 ): WriteBundleRequest {
+  let name = nullthrows(input.bundle.name);
   let nameHash = nullthrows(
     input.hashRefToNameHash.get(input.bundle.hashReference),
   );
   return {
-    id: `${input.bundle.id}:${input.info.hash}:${nameHash}`,
+    id: `${input.bundle.id}:${input.info.hash}:${nameHash}:${name}`,
     type: 'write_bundle_request',
     run,
     input,
