@@ -50,16 +50,26 @@ function run(cmd) {
 }
 
 function getUpstreamRemoteName() {
-  for (let name of run(`git remote`).split(/\s+/)) {
-    if (UPSTREAM.test(run(`git remote get-url ${name}`))) {
-      return name;
+  try {
+    for (let name of run(`git remote`).split(/\s+/)) {
+      if (UPSTREAM.test(run(`git remote get-url ${name}`))) {
+        return name;
+      }
     }
+  } catch {
+    // fall through to error
   }
   throw new Error('Could not determine an upstream remote name!');
 }
 
 function getDefaultBranchName(remote) {
-  return run(`git rev-parse --abbrev-ref ${remote}`).split(`${remote}/`).pop();
+  try {
+    return run(`git symbolic-ref refs/remotes/${remote}/HEAD`)
+      .split(`${remote}/`)
+      .pop();
+  } catch (e) {
+    throw new Error(`Could not determine default branch for ${remote}!`);
+  }
 }
 
 /**
