@@ -196,19 +196,18 @@ parcel-transformer-b`,
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/resolver-invalidateonenvchange/index.js',
+          '/integration/resolver-can-invalidateonenvchange/index.js',
         ),
         {
           shouldDisableCache: false,
           inputFS: overlayFS,
-          logLevel: 'verbose',
           env: {replacedCode},
         },
       );
       let code = await b.getBundles()[0].getEntryAssets()[0].getCode();
       assert(code.indexOf(replacedCode) !== -1);
     }
-    assertAsset('const replaced = 1;');
-    assertAsset('const replaced = 2;');
+    await assertAsset('const replaced = 1;');
+    await assertAsset('const replaced = 2;');
   });
 });
