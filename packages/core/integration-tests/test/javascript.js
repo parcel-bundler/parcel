@@ -5430,8 +5430,7 @@ describe('javascript', function () {
       },
     );
   });
-
-  it('should create a shared bundle from a minimum of 2 source bundles', async function () {
+  it('should reuse a bundle when its main asset (aka bundleroot) is imported sychronously', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/shared-bundle-single-source/index.js'),
       {
