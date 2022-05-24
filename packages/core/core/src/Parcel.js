@@ -255,7 +255,7 @@ export default class Parcel {
       if (options.shouldProfile) {
         await this.startProfiling();
       }
-      await this.#reporterRunner.report({
+      this.#reporterRunner.report({
         type: 'buildStart',
       });
 
