@@ -52,7 +52,7 @@ export default (new Reporter({
             };
             hmrServer = new HMRServer(hmrServerOptions);
             hmrServers.set(serveOptions.port, hmrServer);
-            hmrServer.start();
+            await hmrServer.start();
             return;
           }
         }
@@ -62,7 +62,7 @@ export default (new Reporter({
           let hmrServerOptions = {port, host: hmrOptions.host, logger};
           hmrServer = new HMRServer(hmrServerOptions);
           hmrServers.set(port, hmrServer);
-          hmrServer.start();
+          await hmrServer.start();
         }
         break;
       }

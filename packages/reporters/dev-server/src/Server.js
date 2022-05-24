@@ -61,7 +61,7 @@ type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 export default class Server {
   pending: boolean;
   pendingRequests: Array<[Request, Response]>;
-  middleware: Array<(Request, Response) => boolean>;
+  middleware: Array<(req: Request, res: Response) => boolean>;
   options: DevServerOptions;
   rootPath: string;
   bundleGraph: BundleGraph<PackagedBundle> | null;

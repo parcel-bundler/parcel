@@ -37,7 +37,9 @@ export type ServerError = Error & {|
 
 export type HMRServerOptions = {|
   devServer?: HTTPServer,
-  addMiddleware?: ((req: HTTPIncomingMessage, res: HTTPServerResponse) => boolean) => void,
+  addMiddleware?: (
+    handler: (req: HTTPIncomingMessage, res: HTTPServerResponse) => boolean
+  ) => void,
   port: number,
   host?: string,
   logger: PluginLogger,

@@ -9,7 +9,6 @@ import type {
   Asset,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {AnsiDiagnosticResult, createHTTPServer} from '@parcel/utils';
 import type {
   ServerError,
   HMRServerOptions,
@@ -21,7 +20,13 @@ import {setHeaders, SOURCES_ENDPOINT} from './Server';
 import WebSocket from 'ws';
 import invariant from 'assert';
 import connect from 'connect';
-import {ansiHtml, prettyDiagnostic, PromiseQueue} from '@parcel/utils';
+import {
+  ansiHtml,
+  prettyDiagnostic,
+  PromiseQueue,
+  AnsiDiagnosticResult,
+  createHTTPServer,
+} from '@parcel/utils';
 
 export type HMRAsset = {|
   id: string,
@@ -59,11 +64,11 @@ export default class HMRServer {
     this.options = options;
   }
 
-  start(): void {
+  async start(): void {
     let server = this.options.devServer;
     if (!server) {
-      let result = createHTTPServer({
-        listener: (req, res) => {
+      let result = await createHTTPServer({
+        listener: async (req, res) => {
           setHeaders(res);
           if (!this.handle(req, res)) {
             res.statusCode = 404;
@@ -77,7 +82,7 @@ export default class HMRServer {
     } else {
       this.options.addMiddleware(this.handle.bind(this));
     }
-    this.wss = new WebSocket.Server(server);
+    this.wss = new WebSocket.Server({server});
 
     this.wss.on('connection', ws => {
       if (this.unresolvedError) {
@@ -95,10 +100,10 @@ export default class HMRServer {
       let id = pathname.slice(HMR_ENDPOINT.length + 1);
       let bundleGraph = nullthrows(this.bundleGraph);
       let asset = bundleGraph.getAssetById(id);
-      let output = await this.getHotAssetContents(asset);
-
-      res.setHeader('Content-Type', mime.contentType(asset.type));
-      res.end(output);
+      this.getHotAssetContents(asset).then(output => {
+        res.setHeader('Content-Type', mime.contentType(asset.type));
+        res.end(output);
+      });
       return true;
     }
     return false;
@@ -209,7 +214,7 @@ export default class HMRServer {
     });
   }
 
-  getHotAssetContents(asset: Asset) {
+  async getHotAssetContents(asset: Asset) {
     let output = await asset.getCode();
     if (asset.type === 'js') {
       let publicId = this.bundleGraph.getAssetPublicId(asset);
