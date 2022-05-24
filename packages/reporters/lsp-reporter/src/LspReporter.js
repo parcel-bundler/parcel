@@ -6,7 +6,7 @@ import type {FilePath} from '@parcel/types';
 
 import {DiagnosticSeverity} from 'vscode-languageserver/node';
 
-import {DefaultMap, getProgressMessage} from '@parcel/utils';
+import {DefaultMap} from '@parcel/utils';
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
 import path from 'path';
@@ -15,6 +15,7 @@ import fs from 'fs';
 import ps from 'ps-node';
 import {promisify} from 'util';
 import ipc from 'node-ipc';
+import {getProgressMessage} from '../../cli/src/utils';
 
 const lookupPid = promisify(ps.lookup);
 
