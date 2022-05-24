@@ -230,9 +230,18 @@ impl ESMFold {
       self.get_require_name(source, DUMMY_SP)
     };
 
-    Expr::Member(MemberExpr {
-      obj: Box::new(Expr::Ident(obj)),
-      prop: MemberProp::Ident(Ident::new(imported.clone(), DUMMY_SP)),
+    // import { foo } from "..."; foo();
+    // ->
+    // import { foo } from "..."; (0, foo)();
+    Expr::Seq(SeqExpr {
+      exprs: vec![
+        0.into(),
+        Box::new(Expr::Member(MemberExpr {
+          obj: Box::new(Expr::Ident(obj)),
+          prop: MemberProp::Ident(Ident::new(imported.clone(), DUMMY_SP)),
+          span,
+        })),
+      ],
       span,
     })
   }

@@ -185,6 +185,7 @@ function decorateLegacyGraph(
         }),
       );
     } else {
+      invariant(entryAsset != null);
       bundle = nullthrows(
         bundleGraph.createBundle({
           entryAsset,

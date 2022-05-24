@@ -10,7 +10,7 @@ import type {
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
-import type {HTTPServer} from '@parcel/utils';
+import type {HTTPServer, FormattedCodeFrame} from '@parcel/utils';
 
 import invariant from 'assert';
 import path from 'path';
@@ -28,7 +28,11 @@ import ejs from 'ejs';
 import connect from 'connect';
 import serveHandler from 'serve-handler';
 import {createProxyMiddleware} from 'http-proxy-middleware';
-import {URL} from 'url';
+import {URL, URLSearchParams} from 'url';
+import {getHotAssetContents} from './HMRServer';
+import nullthrows from 'nullthrows';
+import mime from 'mime-types';
+import launchEditor from 'launch-editor';
 
 function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,6 +47,8 @@ function setHeaders(res: Response) {
 }
 
 const SOURCES_ENDPOINT = '/__parcel_source_root';
+export const HMR_ENDPOINT = '/__parcel_hmr/';
+const EDITOR_ENDPOINT = '/__parcel_launch_editor';
 const TEMPLATE_404 = fs.readFileSync(
   path.join(__dirname, 'templates/404.html'),
   'utf8',
@@ -63,7 +69,8 @@ export default class Server {
   requestBundle: ?(bundle: PackagedBundle) => Promise<BuildSuccessEvent>;
   errors: Array<{|
     message: string,
-    stack: string,
+    stack: ?string,
+    frames: Array<FormattedCodeFrame>,
     hints: Array<string>,
     documentation: string,
   |}> | null;
@@ -113,9 +120,11 @@ export default class Server {
 
         return {
           message: ansiHtml(ansiDiagnostic.message),
-          stack: ansiDiagnostic.codeframe
-            ? ansiHtml(ansiDiagnostic.codeframe)
-            : ansiHtml(ansiDiagnostic.stack),
+          stack: ansiDiagnostic.stack ? ansiHtml(ansiDiagnostic.stack) : null,
+          frames: ansiDiagnostic.frames.map(f => ({
+            location: f.location,
+            code: ansiHtml(f.code),
+          })),
           hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
           documentation: d.documentationURL ?? '',
         };
@@ -124,14 +133,29 @@ export default class Server {
   }
 
   respond(req: Request, res: Response): mixed {
-    let {pathname} = url.parse(req.originalUrl || req.url);
+    let {pathname, search} = url.parse(req.originalUrl || req.url);
 
     if (pathname == null) {
       pathname = '/';
     }
 
-    if (this.errors) {
+    if (pathname.startsWith(EDITOR_ENDPOINT) && search) {
+      let query = new URLSearchParams(search);
+      let file = query.get('file');
+      if (file) {
+        // File location might start with /__parcel_source_root if it came from a source map.
+        if (file.startsWith(SOURCES_ENDPOINT)) {
+          file = file.slice(SOURCES_ENDPOINT.length + 1);
+        }
+        launchEditor(file);
+      }
+      setHeaders(res);
+      res.end();
+    } else if (this.errors) {
       return this.send500(req, res);
+    } else if (pathname.startsWith(HMR_ENDPOINT)) {
+      let id = pathname.slice(HMR_ENDPOINT.length);
+      return this.sendAsset(id, res);
     } else if (path.extname(pathname) === '') {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
@@ -238,6 +262,16 @@ export default class Server {
     } else {
       this.send404(req, res);
     }
+  }
+
+  async sendAsset(id: string, res: Response) {
+    let bundleGraph = nullthrows(this.bundleGraph);
+    let asset = bundleGraph.getAssetById(id);
+    let output = await getHotAssetContents(bundleGraph, asset);
+
+    setHeaders(res);
+    res.setHeader('Content-Type', mime.contentType(asset.type));
+    res.end(output);
   }
 
   serveDist(
@@ -347,6 +381,7 @@ export default class Server {
       return res.end(
         ejs.render(TEMPLATE_500, {
           errors: this.errors,
+          hmrOptions: this.options.hmrOptions,
         }),
       );
     }

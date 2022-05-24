@@ -2628,7 +2628,7 @@ describe('html', function () {
     await getNextBuild(b);
 
     let html = await outputFS.readFile('/dist/index.html', 'utf8');
-    assert(html.includes("console.log('test')"));
+    assert(html.includes(`console.log("test")`));
 
     await overlayFS.writeFile(
       path.join(__dirname, '/html-inline-js-require/test.js'),
@@ -2637,7 +2637,7 @@ describe('html', function () {
     await getNextBuild(b);
 
     html = await outputFS.readFile(path.join(distDir, '/index.html'), 'utf8');
-    assert(html.includes("console.log('foo')"));
+    assert(html.includes(`console.log("foo")`));
   });
 
   it('should invalidate parent bundle when nested inline bundles change', async function () {

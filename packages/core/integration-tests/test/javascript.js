@@ -1084,8 +1084,8 @@ describe('javascript', function () {
     let main = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     dedicated = await outputFS.readFile(dedicated.filePath, 'utf8');
     shared = await outputFS.readFile(shared.filePath, 'utf8');
-    assert(/new Worker(.*?, {[\n\s]+type: 'module'[\n\s]+})/.test(main));
-    assert(/new SharedWorker(.*?, {[\n\s]+type: 'module'[\n\s]+})/.test(main));
+    assert(/new Worker(.*?, {[\n\s]+type: "module"[\n\s]+})/.test(main));
+    assert(/new SharedWorker(.*?, {[\n\s]+type: "module"[\n\s]+})/.test(main));
   });
 
   for (let shouldScopeHoist of [true, false]) {
@@ -1238,8 +1238,8 @@ describe('javascript', function () {
     );
 
     let main = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(/new Worker(.*?, {[\n\s]+name: 'worker'[\n\s]+})/.test(main));
-    assert(/new SharedWorker(.*?, {[\n\s]+name: 'shared'[\n\s]+})/.test(main));
+    assert(/new Worker(.*?, {[\n\s]+name: "worker"[\n\s]+})/.test(main));
+    assert(/new SharedWorker(.*?, {[\n\s]+name: "shared"[\n\s]+})/.test(main));
   });
 
   it('should error if importing in a worker without type: module', async function () {
@@ -1438,7 +1438,7 @@ describe('javascript', function () {
     ]);
 
     let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(res.includes("importScripts('imported.js')"));
+    assert(res.includes(`importScripts("imported.js")`));
   });
 
   it('should ignore importScripts in script workers when not passed a string literal', async function () {
@@ -1484,7 +1484,7 @@ describe('javascript', function () {
     ]);
 
     let res = await outputFS.readFile(b.getBundles()[1].filePath, 'utf8');
-    assert(res.includes("importScripts('https://unpkg.com/parcel')"));
+    assert(res.includes(`importScripts("https://unpkg.com/parcel")`));
   });
 
   it('should support bundling service-workers', async function () {
@@ -1559,7 +1559,7 @@ describe('javascript', function () {
     let main = bundles.find(b => !b.env.isWorker());
     let mainContents = await outputFS.readFile(main.filePath, 'utf8');
     assert(
-      /navigator.serviceWorker.register\(.*?, {[\n\s]*scope: 'foo'[\n\s]*}\)/.test(
+      /navigator.serviceWorker.register\(.*?, {[\n\s]*scope: "foo"[\n\s]*}\)/.test(
         mainContents,
       ),
     );
@@ -4384,7 +4384,7 @@ describe('javascript', function () {
     let res = await run(b);
     assert.equal(
       res.default,
-      "<p>test</p>\n<script>console.log('hi');\n\n</script>\n",
+      `<p>test</p>\n<script>console.log("hi");\n\n</script>\n`,
     );
   });
 
@@ -5306,6 +5306,21 @@ describe('javascript', function () {
     assert.deepEqual(res.default, 'x: 123');
   });
 
+  it('should call named imports without this context', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-this/index.js'),
+    );
+    let res = await run(b, {output: null}, {strict: true});
+    assert.deepEqual(res.default, {
+      unwrappedNamed: [true, false],
+      unwrappedDefault: [true, false],
+      unwrappedNamespace: [false, true],
+      wrappedNamed: [true, false],
+      wrappedDefault: [true, false],
+      wrappedNamespace: [false, true],
+    });
+  });
+
   it('should only replace free references to require', async () => {
     let b = await bundle(
       path.join(__dirname, 'integration/js-require-free/index.js'),
@@ -5579,7 +5594,7 @@ describe('javascript', function () {
                     },
                     end: {
                       line: 1,
-                      column: 0,
+                      column: 1,
                     },
                   },
                 ],
