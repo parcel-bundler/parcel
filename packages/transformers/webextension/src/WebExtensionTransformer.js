@@ -1,5 +1,5 @@
 // @flow
-import type {MutableAsset} from '@parcel/types';
+import type {MutableAsset, HMROptions} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
@@ -25,6 +25,7 @@ const DEP_LOCS = [
   ['chrome_url_overrides'],
   ['devtools_page'],
   ['options_ui', 'page'],
+  ['sandbox', 'pages'],
   ['sidebar_action', 'default_icon'],
   ['sidebar_action', 'default_panel'],
   ['storage', 'managed_schema'],
@@ -37,8 +38,9 @@ async function collectDependencies(
   asset: MutableAsset,
   program: any,
   ptrs: {[key: string]: any, ...},
-  hot: boolean,
+  hmrOptions: HMROptions,
 ) {
+  const hot = Boolean(hmrOptions);
   const fs = asset.fs;
   const filePath = asset.filePath;
   const assetDir = path.dirname(filePath);
@@ -267,6 +269,7 @@ async function collectDependencies(
       // To enable HMR, we must override the CSP to allow 'unsafe-eval'
       program.content_security_policy = cspPatchHMR(
         program.content_security_policy,
+        "'unsafe-eval'",
       );
 
       if (needRuntimeBG && !program.background?.page) {
@@ -307,33 +310,49 @@ async function collectDependencies(
         },
       );
     }
-    if (needRuntimeBG) {
-      if (!program.background) {
-        program.background = {};
+    if (hot) {
+      // Enable eval HMR for sandbox,
+      const csp = program.content_security_policy || {};
+      csp.extension_pages = cspPatchHMR(
+        csp.extension_pages,
+        hmrOptions.host || 'localhost',
+      );
+      // Sandbox allows eval by default
+      if (csp.sandbox) {
+        csp.sandbox = cspPatchHMR(csp.sandbox, "'unsafe-eval'");
       }
-      if (!program.background.service_worker) {
-        program.background.service_worker = asset.addURLDependency(
-          './runtime/default-bg.js',
-          {
-            resolveFrom: __filename,
-            env: {context: 'service-worker'},
-          },
-        );
+      program.content_security_policy = csp;
+      if (needRuntimeBG) {
+        if (!program.background) {
+          program.background = {};
+        }
+        if (!program.background.service_worker) {
+          program.background.service_worker = asset.addURLDependency(
+            './runtime/default-bg.js',
+            {
+              resolveFrom: __filename,
+              env: {context: 'service-worker'},
+            },
+          );
+        }
+        asset.meta.webextBGInsert = program.background.service_worker;
       }
-      asset.meta.webextBGInsert = program.background.service_worker;
     }
   }
 }
 
-function cspPatchHMR(policy: ?string) {
+function cspPatchHMR(policy: ?string, insert: string) {
   if (policy) {
     const csp = parseCSP(policy);
     policy = '';
     if (!csp['script-src']) {
-      csp['script-src'] = ["'self' 'unsafe-eval' blob: filesystem:"];
+      csp['script-src'] = ["'self' blob: filesystem:"];
     }
-    if (!csp['script-src'].includes("'unsafe-eval'")) {
-      csp['script-src'].push("'unsafe-eval'");
+    if (!csp['script-src'].includes(insert)) {
+      csp['script-src'].push(insert);
+    }
+    if (csp.sandbox && !csp.sandbox.includes('allow-scripts')) {
+      csp.sandbox.push('allow-scripts');
     }
     for (const k in csp) {
       policy += `${k} ${csp[k].join(' ')};`;
@@ -341,7 +360,7 @@ function cspPatchHMR(policy: ?string) {
     return policy;
   } else {
     return (
-      "script-src 'self' 'unsafe-eval' blob: filesystem:;" +
+      `script-src 'self' blob: filesystem: ${insert};` +
       "object-src 'self' blob: filesystem:;"
     );
   }
@@ -390,12 +409,7 @@ export default (new Transformer({
       '@parcel/transformer-webextension',
       'Invalid Web Extension manifest',
     );
-    await collectDependencies(
-      asset,
-      data,
-      parsed.pointers,
-      Boolean(options.hmrOptions),
-    );
+    await collectDependencies(asset, data, parsed.pointers, options.hmrOptions);
     asset.setCode(JSON.stringify(data, null, 2));
     asset.meta.webextEntry = true;
     return [asset];

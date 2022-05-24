@@ -29,12 +29,11 @@ import connect from 'connect';
 import serveHandler from 'serve-handler';
 import {createProxyMiddleware} from 'http-proxy-middleware';
 import {URL, URLSearchParams} from 'url';
-import {getHotAssetContents} from './HMRServer';
 import nullthrows from 'nullthrows';
 import mime from 'mime-types';
 import launchEditor from 'launch-editor';
 
-function setHeaders(res: Response) {
+export function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader(
     'Access-Control-Allow-Methods',
@@ -46,8 +45,7 @@ function setHeaders(res: Response) {
   );
 }
 
-const SOURCES_ENDPOINT = '/__parcel_source_root';
-export const HMR_ENDPOINT = '/__parcel_hmr/';
+export const SOURCES_ENDPOINT = '/__parcel_source_root';
 const EDITOR_ENDPOINT = '/__parcel_launch_editor';
 const TEMPLATE_404 = fs.readFileSync(
   path.join(__dirname, 'templates/404.html'),
@@ -63,6 +61,7 @@ type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 export default class Server {
   pending: boolean;
   pendingRequests: Array<[Request, Response]>;
+  middleware: Array<(Request, Response) => boolean>;
   options: DevServerOptions;
   rootPath: string;
   bundleGraph: BundleGraph<PackagedBundle> | null;
@@ -85,6 +84,7 @@ export default class Server {
     }
     this.pending = true;
     this.pendingRequests = [];
+    this.middleware = [];
     this.bundleGraph = null;
     this.requestBundle = null;
     this.errors = null;
@@ -149,13 +149,9 @@ export default class Server {
         }
         launchEditor(file);
       }
-      setHeaders(res);
       res.end();
     } else if (this.errors) {
       return this.send500(req, res);
-    } else if (pathname.startsWith(HMR_ENDPOINT)) {
-      let id = pathname.slice(HMR_ENDPOINT.length);
-      return this.sendAsset(id, res);
     } else if (path.extname(pathname) === '') {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
@@ -169,7 +165,10 @@ export default class Server {
         res,
         () => this.send404(req, res),
       );
-    } else if (pathname.startsWith(this.rootPath)) {
+    } else if (
+      this.middleware.every(handler => !handler(req, res)) &&
+      pathname.startsWith(this.rootPath)
+    ) {
       // Otherwise, serve the file from the dist folder
       req.url =
         this.rootPath === '/' ? pathname : pathname.slice(this.rootPath.length);
@@ -264,16 +263,6 @@ export default class Server {
     }
   }
 
-  async sendAsset(id: string, res: Response) {
-    let bundleGraph = nullthrows(this.bundleGraph);
-    let asset = bundleGraph.getAssetById(id);
-    let output = await getHotAssetContents(bundleGraph, asset);
-
-    setHeaders(res);
-    res.setHeader('Content-Type', mime.contentType(asset.type));
-    res.end(output);
-  }
-
   serveDist(
     req: Request,
     res: Response,
@@ -361,19 +350,15 @@ export default class Server {
 
   sendError(res: Response, statusCode: number) {
     res.statusCode = statusCode;
-    setHeaders(res);
     res.end();
   }
 
   send404(req: Request, res: Response) {
     res.statusCode = 404;
-    setHeaders(res);
     res.end(TEMPLATE_404);
   }
 
   send500(req: Request, res: Response): void | Response {
-    setHeaders(res);
-
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.writeHead(500);
 

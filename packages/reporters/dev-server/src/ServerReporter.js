@@ -45,6 +45,9 @@ export default (new Reporter({
             let hmrServerOptions = {
               port: serveOptions.port,
               devServer,
+              addMiddleware: handler => {
+                server.middleware.push(handler);
+              },
               logger,
             };
             hmrServer = new HMRServer(hmrServerOptions);
@@ -56,7 +59,7 @@ export default (new Reporter({
 
         let port = hmrOptions?.port;
         if (typeof port === 'number') {
-          let hmrServerOptions = {port, logger};
+          let hmrServerOptions = {port, host: hmrOptions.host, logger};
           hmrServer = new HMRServer(hmrServerOptions);
           hmrServers.set(port, hmrServer);
           hmrServer.start();
@@ -75,7 +78,7 @@ export default (new Reporter({
           servers.delete(server.options.port);
         }
         if (hmrOptions && hmrServer) {
-          hmrServer.stop();
+          await hmrServer.stop();
           // $FlowFixMe[prop-missing]
           hmrServers.delete(hmrServer.wss.options.port);
         }
