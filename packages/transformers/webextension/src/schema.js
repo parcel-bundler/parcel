@@ -94,8 +94,6 @@ const commonProps = {
       properties: {},
     },
   },
-  key: string,
-  update_url: string,
   chrome_settings_overrides: {
     type: 'object',
     properties: {
@@ -231,17 +229,27 @@ const commonProps = {
     type: 'string',
     enum: ['spanning', 'split', 'not_allowed'],
   },
+  key: string,
   minimum_chrome_version: {
     type: 'string',
     __validate: validateVersion,
   },
   // No NaCl modules because deprecated
+  oauth2: {
+    type: 'object',
+    properties: {
+      client_id: string,
+      scopes: arrStr,
+    },
+    additionalProperties: false,
+  },
   offline_enabled: boolean,
   omnibox: ({
     type: 'object',
     properties: {},
     additionalProperties: string,
   }: SchemaEntity),
+  optional_host_permissions: arrStr,
   optional_permissions: arrStr,
   // options_page is deprecated
   options_ui: {
@@ -400,6 +408,7 @@ const commonProps = {
     },
     additionalProperties: false,
   },
+  update_url: string,
   user_scripts: {
     type: 'object',
     properties: {
@@ -408,14 +417,6 @@ const commonProps = {
     additionalProperties: false,
   },
   version_name: string,
-  oauth2: {
-    type: 'object',
-    properties: {
-      client_id: string,
-      scopes: arrStr,
-    },
-    additionalProperties: false,
-  },
 };
 
 export const MV3Schema = ({
@@ -465,7 +466,6 @@ export const MV3Schema = ({
     },
   },
   required: ['manifest_version', 'name', 'version'],
-  additionalProperties: false,
 }: SchemaEntity);
 
 export const MV2Schema = ({
@@ -501,7 +501,6 @@ export const MV2Schema = ({
     web_accessible_resources: arrStr,
   },
   required: ['manifest_version', 'name', 'version'],
-  additionalProperties: false,
 }: SchemaEntity);
 
 export const VersionSchema = ({
