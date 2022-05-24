@@ -21,7 +21,7 @@ export default (new Runtime({
       return;
     }
 
-    const {host, port} = options.hmrOptions;
+    const {host, port, uri} = options.hmrOptions;
     return {
       filePath: __filename,
       code:
@@ -37,6 +37,7 @@ export default (new Runtime({
         `var HMR_SECURE = ${JSON.stringify(
           !!(options.serveOptions && options.serveOptions.https),
         )};` +
+        `var HMR_URI = "${uri}";` +
         `var HMR_ENV_HASH = "${bundle.env.id}";` +
         `module.bundle.HMR_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
         HMR_RUNTIME,

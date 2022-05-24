@@ -1,5 +1,5 @@
 // @flow
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser, importScripts */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, HMR_URI, chrome, browser, importScripts */
 
 /*::
 import type {
@@ -90,7 +90,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       ? 'wss'
       : 'ws';
   var ws = new WebSocket(
-    protocol + '://' + hostname + (port ? ':' + port : '') + '/',
+    HMR_URI || protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );
 
   // Safari doesn't support sourceURL in error stacks.
