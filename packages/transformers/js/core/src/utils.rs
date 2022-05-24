@@ -297,6 +297,7 @@ impl Bailout {
   }
 }
 
+#[derive(Eq, PartialEq)]
 pub enum BailoutReason {
   NonTopLevelRequire,
   NonStaticDestructuring,

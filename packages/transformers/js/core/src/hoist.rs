@@ -1266,13 +1266,15 @@ impl Visit for Collect {
     self.in_module_this = false;
 
     if let Some(bailouts) = &mut self.bailouts {
-      for key in self.imports.keys() {
-        if let Some(spans) = self.non_static_access.get(key) {
-          for span in spans {
-            bailouts.push(Bailout {
-              loc: SourceLocation::from(&self.source_map, *span),
-              reason: BailoutReason::NonStaticAccess,
-            })
+      for (key, Import { specifier, .. }) in &self.imports {
+        if specifier == "*" {
+          if let Some(spans) = self.non_static_access.get(key) {
+            for span in spans {
+              bailouts.push(Bailout {
+                loc: SourceLocation::from(&self.source_map, *span),
+                reason: BailoutReason::NonStaticAccess,
+              })
+            }
           }
         }
       }
@@ -1665,8 +1667,7 @@ impl Visit for Collect {
           self.add_bailout(node.span, BailoutReason::FreeModule);
         }
 
-        // `import` isn't really an identifier...
-        if match_property_name(node).is_none() && ident.sym != js_word!("import") {
+        if match_property_name(node).is_none() {
           self
             .non_static_access
             .entry(id!(ident))
@@ -1740,14 +1741,11 @@ impl Visit for Collect {
           }
         }
 
-        // `import` isn't really an identifier...
-        if ident.sym != js_word!("import") {
-          self
-            .non_static_access
-            .entry(id!(ident))
-            .or_default()
-            .push(ident.span);
-        }
+        self
+          .non_static_access
+          .entry(id!(ident))
+          .or_default()
+          .push(ident.span);
       }
       _ => {
         node.visit_children_with(self);
@@ -2738,7 +2736,7 @@ mod tests {
 
   #[test]
   fn fold_import() {
-    let (_collect, code, _hoist) = parse(
+    let (collect, code, _hoist) = parse(
       r#"
     import {foo as bar} from 'other';
     let test = {bar: 3};
@@ -2746,6 +2744,8 @@ mod tests {
     bar();
     "#,
     );
+
+    assert!(collect.bailouts.is_none());
 
     assert_eq!(
       code,
@@ -2759,13 +2759,14 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    let (collect, code, _hoist) = parse(
       r#"
     import * as foo from 'other';
     console.log(foo.bar);
     foo.bar();
     "#,
     );
+    assert!(collect.bailouts.is_none());
 
     assert_eq!(
       code,
@@ -2776,13 +2777,15 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    let (collect, code, _hoist) = parse(
       r#"
     import other from 'other';
     console.log(other, other.bar);
     other();
     "#,
     );
+
+    assert!(collect.bailouts.is_none());
 
     assert_eq!(
       code,
