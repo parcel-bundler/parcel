@@ -117,7 +117,7 @@ var hmrOptions = {
   '--key <path>': 'path to private key to use with HTTPS',
   '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
   '--hmr-host <host>': ['hot module replacement host', process.env.HMR_HOST],
-  '--hmr-secure <https>': ['hot module replacement use https?', process.env.HMR_SECURE],
+  '--hmr-secure <https>': ['use wss protocol for hot module replacement', process.env.HMR_SECURE],
 };
 
 function applyOptions(cmd, options) {
