@@ -122,7 +122,7 @@ function decorateLegacyGraph(
   } = idealGraph;
   let entryBundleToBundleGroup: Map<NodeId, BundleGroup> = new Map();
 
-  // Step 1: Create bundle groups, bundles, and shared bundles and add assets to them
+  // Step Create Bundles: Create bundle groups, bundles, and shared bundles and add assets to them
   for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes) {
     if (idealBundle === 'root') continue;
     let entryAsset = idealBundle.mainEntryAsset;
@@ -203,7 +203,7 @@ function decorateLegacyGraph(
     }
   }
 
-  // Step 2: Internalize dependencies for bundles
+  // Step Internalization: Internalize dependencies for bundles
   for (let [, idealBundle] of idealBundleGraph.nodes) {
     if (idealBundle === 'root') continue;
     let bundle = nullthrows(idealBundleToLegacyBundle.get(idealBundle));
@@ -223,7 +223,7 @@ function decorateLegacyGraph(
     }
   }
 
-  // Step 3: Add bundles to their bundle groups
+  // Step Add to BundleGroups: Add bundles to their bundle groups
   idealBundleGraph.traverse((nodeId, _, actions) => {
     let node = idealBundleGraph.getNode(nodeId);
     if (node === 'root') {
@@ -248,7 +248,7 @@ function decorateLegacyGraph(
     }
   });
 
-  // Step 4: Add references to all bundles
+  // Step References: Add references to all bundles
   for (let [asset, references] of idealGraph.assetReference) {
     for (let [dependency, bundle] of references) {
       let legacyBundle = nullthrows(idealBundleToLegacyBundle.get(bundle));
@@ -916,63 +916,6 @@ function createIdealGraph(
     if (bundle.sourceBundles.length > 0 && bundle.size < config.minBundleSize) {
       sharedToSourceBundleIds.delete(bundleNodeId);
       removeBundle(bundleGraph, bundleNodeId, assetReference);
-    }
-  }
-
-  // Step Parallel Request Limit Cleanup: Remove shared bundles from bundle groups that hit the parallel request limit.
-  for (let [bundleId, bundleGroupId] of bundleRoots.values()) {
-    // Only handle bundle group entries.
-    if (bundleId != bundleGroupId) {
-      continue;
-    }
-
-    // Find the bundles in this bundle group.
-    let bundleIdsInGroup = [...getBundleGroupsForBundle(bundleGroupId)];
-    if (bundleIdsInGroup.length > config.maxParallelRequests) {
-      // Sort the bundles so the smallest ones are removed first.
-      let bundlesInGroup = bundleIdsInGroup
-        .map(id => nullthrows(bundleGraph.getNode(id)))
-        .map(bundle => {
-          // For Flow
-          invariant(bundle !== 'root');
-          return bundle;
-        })
-        .sort((a, b) => a.size - b.size);
-
-      // Remove bundles until the bundle group is within the parallel request limit.
-      for (
-        let i = 0;
-        i < bundlesInGroup.length - config.maxParallelRequests;
-        i++
-      ) {
-        let bundleId = bundleIdsInGroup[i];
-        let bundle = nullthrows(bundleGraph.getNode(bundleId));
-        invariant(bundle !== 'root');
-        // Add all assets in the shared bundle into the source bundles that are within this bundle group.
-        let sourceBundles = bundle.sourceBundles
-          .filter(b => bundlesInGroup.includes(b))
-          .map(id => nullthrows(bundleGraph.getNode(id)));
-
-        for (let sourceBundle of sourceBundles) {
-          invariant(sourceBundle !== 'root');
-          for (let asset of bundle.assets) {
-            sourceBundle.assets.add(asset);
-            sourceBundle.size += asset.stats.size;
-          }
-        }
-
-        // Remove the edge from this bundle group to the shared bundle.
-        bundleGraph.removeEdge(bundleGroupId, bundleId);
-        // If there is now only a single bundle group that contains this bundle,
-        // merge it into the remaining source bundles. If it is orphaned entirely, remove it.
-        let incomingNodeCount =
-          bundleGraph.getNodeIdsConnectedTo(bundleId).length;
-        if (incomingNodeCount === 1) {
-          removeBundle(bundleGraph, bundleId, assetReference);
-        } else if (incomingNodeCount === 0) {
-          bundleGraph.removeNode(bundleId);
-        }
-      }
     }
   }
 
