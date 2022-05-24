@@ -451,7 +451,7 @@ async function normalizeOptions(
     let hmrhost = command.hmrHost ? command.hmrHost : host;
     let hmruri = command.hmrUri ? command.hmrUri : undefined;
 
-    hmrOptions = { port: hmrport, host: hmrhost, uri: hmruri };
+    hmrOptions = {port: hmrport, host: hmrhost, uri: hmruri};
   }
 
   if (command.detailedReport === true) {
