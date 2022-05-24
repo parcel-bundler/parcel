@@ -12,5 +12,5 @@ yarn lint-staged
 # is being manually committed and replicate the work our `post-merge` hook
 # would have done if the merge commit had proceeded automatically.
 if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
-  yarn update-self-published -a
+  node "$(dirname "$0")/../scripts/update-self-published.js" -a -o;
 fi
