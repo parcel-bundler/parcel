@@ -3824,8 +3824,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then((x)=>x.foo
-    );
+    $abc$importAsync$70a00e0a8474f72a.then((x)=>x.foo);
     "#}
     );
 
@@ -3850,8 +3849,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then((x)=>x
-    );
+    $abc$importAsync$70a00e0a8474f72a.then((x)=>x);
     "#}
     );
 
@@ -3876,8 +3874,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(({ foo: foo  })=>foo
-    );
+    $abc$importAsync$70a00e0a8474f72a.then(({ foo: foo  })=>foo);
     "#}
     );
 
@@ -3902,8 +3899,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(({ foo: bar  })=>bar
-    );
+    $abc$importAsync$70a00e0a8474f72a.then(({ foo: bar  })=>bar);
     "#}
     );
 
