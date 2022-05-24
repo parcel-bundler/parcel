@@ -8,6 +8,9 @@ const exec = require('child_process').execSync;
 const UPSTREAM = /github.+parcel-bundler\/parcel/;
 const NIGHTLY = /.*-nightly\..*/;
 
+const SUCCESS = 0;
+const SKIPPED = 2;
+
 if (process.argv.includes('-h') || process.argv.includes('--help')) {
   console.log(
     [
@@ -28,6 +31,12 @@ if (process.argv.includes('-h') || process.argv.includes('--help')) {
       '',
       '  It will use the oldest nightly version that is newer than',
       '  the latest common commit between HEAD and the upstream default branch.',
+      '',
+      '  If the update succeeds, the exit code will be `0`.',
+      '  If the upstream branch cannot be determined, or some other',
+      '  error occurs, the exit code will be `1`.',
+      '  If the update is skipped (either because the -o flag was used,',
+      '  or the versions were already up-to-date), the exit code will be `2`.',
     ].join('\n'),
   );
   process.exit();
@@ -127,7 +136,7 @@ if (upstreamMergeOnly) {
   if (mergeHead) {
     if (!mergeHead.includes(`${upstream}/`)) {
       console.log('Not an upstream merge; skipping self-published update.');
-      process.exit(1);
+      process.exit(SKIPPED);
     }
     branch = mergeHead.split(`${upstream}/`).pop();
   } else {
@@ -137,12 +146,12 @@ if (upstreamMergeOnly) {
       // so we can simply check if includes the upstream remote name.
       if (!reflogSubject.includes(`refs/remotes/${upstream}/`)) {
         console.log('Not an upstream merge; skipping self-published update.');
-        process.exit(1);
+        process.exit(SKIPPED);
       }
       branch = reflogSubject.split(`refs/remotes/${upstream}/`).pop();
     } else {
       console.log('No merge in progress; skipping self-published update.');
-      process.exit(1);
+      process.exit(SKIPPED);
     }
   }
 } else {
@@ -177,4 +186,4 @@ for (let {location, name} of packages) {
     }
   }
 }
-process.exit(updated ? 0 : 1);
+process.exit(updated ? SUCCESS : SKIPPED);
