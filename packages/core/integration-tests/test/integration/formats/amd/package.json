@@ -1,0 +1,10 @@
+{
+  "name": "amd",
+  "private": true,
+  "main": "dist/index.js",
+  "dependencies": {
+    "lodash": "^4.17.11",
+    "react": "^16.11.0",
+    "react-dom": "^16.11.0"
+  }
+}

@@ -61,7 +61,7 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
     },
     outputFormat: {
       type: 'string',
-      enum: ['global', 'esmodule', 'commonjs'],
+      enum: ['global', 'esmodule', 'commonjs', 'amd'],
     },
     distDir: {
       type: 'string',

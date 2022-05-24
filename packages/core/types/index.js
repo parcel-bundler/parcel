@@ -116,7 +116,7 @@ export type EnvironmentContext =
   | 'electron-renderer';
 
 /** The JS module format for the bundle output */
-export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
+export type OutputFormat = 'esmodule' | 'commonjs' | 'amd' | 'global';
 
 /**
  * The format of <code>pkg#targets.*</code>
