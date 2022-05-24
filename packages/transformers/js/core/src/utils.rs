@@ -275,6 +275,7 @@ pub enum SourceType {
   Module,
 }
 
+#[derive(Debug)]
 pub struct Bailout {
   pub loc: SourceLocation,
   pub reason: BailoutReason,
@@ -297,7 +298,7 @@ impl Bailout {
   }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum BailoutReason {
   NonTopLevelRequire,
   NonStaticDestructuring,

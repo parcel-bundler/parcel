@@ -2150,7 +2150,7 @@ mod tests {
               collect_decls(&module),
               Mark::fresh(Mark::root()),
               global_mark,
-              false,
+              true,
             );
             module.visit_with(&mut collect);
 
@@ -2745,7 +2745,7 @@ mod tests {
     "#,
     );
 
-    assert!(collect.bailouts.is_none());
+    assert!(collect.bailouts.unwrap().is_empty());
 
     assert_eq!(
       code,
@@ -2766,7 +2766,7 @@ mod tests {
     foo.bar();
     "#,
     );
-    assert!(collect.bailouts.is_none());
+    assert!(collect.bailouts.unwrap().is_empty());
 
     assert_eq!(
       code,
@@ -2779,13 +2779,41 @@ mod tests {
 
     let (collect, code, _hoist) = parse(
       r#"
+    import * as foo from 'other';
+    foo.bar();
+    let y = "bar";
+    foo[y]();
+    "#,
+    );
+    assert_eq!(
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|b| &b.reason)
+        .collect::<Vec<_>>(),
+      vec![&BailoutReason::NonStaticAccess]
+    );
+
+    assert_eq!(
+      code,
+      indoc! {r#"
+    import "abc:other";
+    $abc$import$70a00e0a8474f72a.bar();
+    let $abc$var$y = "bar";
+    $abc$import$70a00e0a8474f72a[$abc$var$y]();
+    "#}
+    );
+
+    let (collect, code, _hoist) = parse(
+      r#"
     import other from 'other';
     console.log(other, other.bar);
     other();
     "#,
     );
 
-    assert!(collect.bailouts.is_none());
+    assert!(collect.bailouts.unwrap().is_empty());
 
     assert_eq!(
       code,
