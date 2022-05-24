@@ -21,6 +21,7 @@ import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
 import {
   setIntersect,
+  setUnion,
   setEqual,
   validateSchema,
   DefaultMap,
@@ -287,9 +288,16 @@ function createIdealGraph(
   let bundleGraph: Graph<Bundle | 'root'> = new Graph();
   let stack: Array<[BundleRoot, NodeId]> = [];
 
+  let bundleRootEdgeTypes = {
+    parallel: 1,
+    lazy: 2,
+  };
   // bundleGraph that models bundleRoots and async deps only
-  let asyncBundleRootGraph: ContentGraph<BundleRoot | 'root'> =
-    new ContentGraph();
+  let asyncBundleRootGraph: ContentGraph<
+    BundleRoot | 'root',
+    $Values<typeof bundleRootEdgeTypes>,
+  > = new ContentGraph();
+
   let bundleGroupBundleIds: Set<NodeId> = new Set();
 
   // Models bundleRoots and the assets that require it synchronously
@@ -617,6 +625,9 @@ function createIdealGraph(
               asyncBundleRootGraph.addEdge(
                 asyncBundleRootGraph.getNodeIdByContentKey(root.id),
                 asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
+                dependency.priority === 'parallel'
+                  ? bundleRootEdgeTypes.parallel
+                  : bundleRootEdgeTypes.lazy,
               );
             }
           }
@@ -659,7 +670,7 @@ function createIdealGraph(
   // This allows us to construct an understanding of which assets will already be
   // loaded and available when a bundle runs, by pushing available assets downwards and
   // computing the intersection of assets available through all possible paths to a bundle.
-  for (let nodeId of asyncBundleRootGraph.topoSort()) {
+  for (let nodeId of asyncBundleRootGraph.topoSort(ALL_EDGE_TYPES)) {
     const bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
     invariant(bundleRoot != null);
@@ -698,33 +709,54 @@ function createIdealGraph(
       }
     }
 
-    let children = asyncBundleRootGraph.getNodeIdsConnectedFrom(nodeId);
+    let children = asyncBundleRootGraph.getNodeIdsConnectedFrom(
+      nodeId,
+      ALL_EDGE_TYPES,
+    );
     // Group assets available across our children by the child. This will be used
     // to determine borrowers if needed below.
+    let parallelAvailability: Set<BundleRoot> = new Set();
+
     for (let childId of children) {
       let child = asyncBundleRootGraph.getNode(childId);
       invariant(child !== 'root' && child != null);
-      if (
-        child.bundleBehavior === 'isolated' ||
-        child.bundleBehavior === 'inline'
-      ) {
+      let bundleBehavior = getBundleFromBundleRoot(child).bundleBehavior;
+      if (bundleBehavior === 'isolated' || bundleBehavior === 'inline') {
         continue;
       }
+      let isParallel = asyncBundleRootGraph.hasEdge(
+        nodeId,
+        childId,
+        bundleRootEdgeTypes.parallel,
+      );
 
       const childAvailableAssets = asyncAncestorAssets.get(child);
+      let currentChildAvailable = isParallel
+        ? setUnion(parallelAvailability, available)
+        : available;
       if (childAvailableAssets != null) {
-        setIntersect(childAvailableAssets, available);
+        setIntersect(childAvailableAssets, currentChildAvailable);
       } else {
-        asyncAncestorAssets.set(child, new Set(available));
+        asyncAncestorAssets.set(child, new Set(currentChildAvailable));
+      }
+      if (isParallel) {
+        let assetsFromBundleRoot = reachableRoots
+          .getNodeIdsConnectedFrom(
+            reachableRoots.getNodeIdByContentKey(child.id),
+          )
+          .map(id => nullthrows(reachableRoots.getNode(id)));
+        parallelAvailability = setUnion(
+          parallelAvailability,
+          assetsFromBundleRoot,
+        );
       }
     }
   }
-
   // Step Internalize async bundles
   for (let [id, bundleRoot] of asyncBundleRootGraph.nodes) {
     if (bundleRoot === 'root') continue;
     let parentRoots = asyncBundleRootGraph
-      .getNodeIdsConnectedTo(id)
+      .getNodeIdsConnectedTo(id, ALL_EDGE_TYPES)
       .map(id => nullthrows(asyncBundleRootGraph.getNode(id)));
     let canDelete =
       getBundleFromBundleRoot(bundleRoot).bundleBehavior !== 'isolated';
