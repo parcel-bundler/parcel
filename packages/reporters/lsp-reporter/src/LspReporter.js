@@ -178,6 +178,10 @@ function updateDiagnostics(
       continue;
     }
 
+    // We use the first highlight of the first codeFrame as the main Diagnostic,
+    // and we place everything else in the current Parcel diagnostic
+    // in relatedInformation
+    // https://code.visualstudio.com/api/references/vscode-api#DiagnosticRelatedInformation
     const firstFrameHighlight = codeFrames[0].codeHighlights[0];
     if (firstFrameHighlight == null) {
       continue;

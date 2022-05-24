@@ -196,6 +196,8 @@ let progressReporter = new ProgressReporter();
 let clients: Map<string, {client: IPCType; uris: Set<string>}> = new Map();
 let parcelLspDir = path.join(fs.realpathSync(os.tmpdir()), 'parcel-lsp');
 fs.mkdirSync(parcelLspDir, {recursive: true});
+// Search for currently running Parcel processes in the parcel-lsp dir.
+// Create an IPC client connection for each running process.
 for (let filename of fs.readdirSync(parcelLspDir)) {
   const filepath = path.join(parcelLspDir, filename);
   let client = createIPCClientIfPossible(parcelLspDir, filepath);
@@ -204,6 +206,8 @@ for (let filename of fs.readdirSync(parcelLspDir)) {
   }
 }
 
+// Watch for new Parcel processes in the parcel-lsp dir, and disconnect the
+// client for each corresponding connection when a Parcel process ends
 watcher.subscribe(parcelLspDir, async (err, events) => {
   if (err) {
     throw err;
