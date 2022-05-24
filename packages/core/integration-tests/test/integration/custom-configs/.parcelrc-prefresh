@@ -1,10 +1,10 @@
 {
-  "extends": "@parcel/config-default",
+  "extends": ["@parcel/config-default"],
+  "runtimes": ["...", "@parcel/runtime-prefresh"],
   "transformers": {
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
       "...",
       "@parcel/transformer-prefresh-wrap"
     ]
-  },
-  "runtimes": ["...", "@parcel/runtime-prefresh"]
+  }
 }
