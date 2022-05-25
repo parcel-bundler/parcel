@@ -269,7 +269,6 @@ async function collectDependencies(
       // To enable HMR, we must override the CSP to allow 'unsafe-eval'
       program.content_security_policy = cspPatchHMR(
         program.content_security_policy,
-        "'unsafe-eval'",
       );
 
       if (needRuntimeBG && !program.background?.page) {
@@ -315,12 +314,10 @@ async function collectDependencies(
       const csp = program.content_security_policy || {};
       csp.extension_pages = cspPatchHMR(
         csp.extension_pages,
-        hmrOptions?.host || 'localhost',
+        `http://${hmrOptions?.host || 'localhost'}`,
       );
       // Sandbox allows eval by default
-      if (csp.sandbox) {
-        csp.sandbox = cspPatchHMR(csp.sandbox, "'unsafe-eval'");
-      }
+      if (csp.sandbox) csp.sandbox = cspPatchHMR(csp.sandbox);
       program.content_security_policy = csp;
       if (needRuntimeBG) {
         if (!program.background) {
@@ -341,12 +338,17 @@ async function collectDependencies(
   }
 }
 
-function cspPatchHMR(policy: ?string, insert: string) {
+function cspPatchHMR(policy: ?string, insert?: string) {
+  let defaultSrc = "'self'";
+  if (insert == null) {
+    insert = "'unsafe-eval'";
+    defaultSrc = "'self' blob: filesystem:";
+  }
   if (policy) {
     const csp = parseCSP(policy);
     policy = '';
     if (!csp['script-src']) {
-      csp['script-src'] = ["'self' blob: filesystem:"];
+      csp['script-src'] = [defaultSrc];
     }
     if (!csp['script-src'].includes(insert)) {
       csp['script-src'].push(insert);
@@ -359,10 +361,7 @@ function cspPatchHMR(policy: ?string, insert: string) {
     }
     return policy;
   } else {
-    return (
-      `script-src 'self' blob: filesystem: ${insert};` +
-      "object-src 'self' blob: filesystem:;"
-    );
+    return `script-src ${defaultSrc} ${insert};` + `object-src ${defaultSrc};`;
   }
 }
 
@@ -372,6 +371,10 @@ export default (new Transformer({
     // browsers, and because it avoids delegating extra config to the user
     asset.setEnvironment({
       context: 'browser',
+      outputFormat:
+        asset.env.outputFormat == 'commonjs'
+          ? 'global'
+          : asset.env.outputFormat,
       engines: {
         browsers: asset.env.engines.browsers,
       },
@@ -381,7 +384,6 @@ export default (new Transformer({
         inlineSources: true,
       },
       includeNodeModules: asset.env.includeNodeModules,
-      outputFormat: asset.env.outputFormat,
       sourceType: asset.env.sourceType,
       isLibrary: asset.env.isLibrary,
       shouldOptimize: asset.env.shouldOptimize,

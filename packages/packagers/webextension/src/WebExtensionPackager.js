@@ -82,6 +82,16 @@ export default (new Packager({
       manifest.web_accessible_resources = warResult;
     }
 
+    // Hack to allow HMR in background service workers
+    // ref: https://github.com/w3c/ServiceWorker/issues/1585
+    if (
+      manifest.manifest_version == 3 &&
+      manifest.background?.type == 'module' &&
+      bundle.env.outputFormat != 'esmodule'
+    ) {
+      delete manifest.background.type;
+    }
+
     let {contents} = replaceURLReferences({
       bundle,
       bundleGraph,

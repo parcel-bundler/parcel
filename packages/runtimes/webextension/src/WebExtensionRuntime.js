@@ -34,7 +34,7 @@ export default (new Runtime({
         .getBundles()
         .find(b => b.getMainEntry()?.meta.webextEntry === true);
       const entry = manifest?.getMainEntry();
-      const insertDep = entry?.meta.webextBGInsert;
+      const insertDep = entry?.meta.webextBG;
       if (insertDep == null) return;
       const insertBundle = bundleGraph.getReferencedBundle(
         nullthrows(entry?.getDependencies().find(dep => dep.id === insertDep)),

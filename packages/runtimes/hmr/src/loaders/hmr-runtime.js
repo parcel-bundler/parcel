@@ -1,5 +1,5 @@
 // @flow
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser, importScripts */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser, globalThis, __parcel__import__, __parcel__importScripts__ */
 
 /*::
 import type {
@@ -40,12 +40,25 @@ declare var HMR_ENV_HASH: string;
 declare var HMR_SECURE: boolean;
 declare var chrome: ExtensionContext;
 declare var browser: ExtensionContext;
+declare var __parcel__import__: (string) => Promise<void>;
+declare var __parcel__importScripts__: (string) => Promise<void>;
+declare var globalThis: typeof self;
 */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
 
 var OldModule = module.bundle.Module;
 
+var globalObject =
+  typeof globalThis !== 'undefined'
+    ? globalThis
+    : typeof self !== 'undefined'
+    ? self
+    : typeof window !== 'undefined'
+    ? window
+    : typeof global !== 'undefined'
+    ? global
+    : {};
 function Module(moduleName) {
   OldModule.call(this, moduleName);
   this.hot = {
@@ -326,7 +339,7 @@ function reloadCSS() {
 }
 
 async function hmrApplyUpdates(assets) {
-  global.parcelHotUpdate = Object.create(null);
+  globalObject.parcelHotUpdate = Object.create(null);
 
   let scriptsToRemove;
   try {
@@ -350,9 +363,9 @@ async function hmrApplyUpdates(assets) {
           } else if (typeof importScripts === 'function') {
             return new Promise((resolve, reject) => {
               try {
-                importScripts(asset.url);
+                __parcel__importScripts__(asset.url);
               } catch (err) {
-                reject(err);
+                __parcel__import__(asset.url).then(() => resolve(), reject);
               }
             });
           }
@@ -366,7 +379,7 @@ async function hmrApplyUpdates(assets) {
       hmrApply(module.bundle.root, asset);
     });
   } finally {
-    delete global.parcelHotUpdate;
+    delete globalObject.parcelHotUpdate;
 
     if (scriptsToRemove) {
       scriptsToRemove.forEach(script => {
@@ -410,7 +423,8 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
         (0, eval)(asset.output);
       }
 
-      let fn = global.parcelHotUpdate[asset.id];
+      // $FlowFixMe
+      let fn = globalObject.parcelHotUpdate[asset.id];
       modules[asset.id] = [fn, deps];
     } else if (bundle.parent) {
       hmrApply(bundle.parent, asset);
