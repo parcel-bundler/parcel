@@ -116,6 +116,7 @@ var hmrOptions = {
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
   '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
+  '--hmr-host <host>': ['hot module replacement host', process.env.HMR_HOST],
 };
 
 function applyOptions(cmd, options) {
@@ -446,8 +447,9 @@ async function normalizeOptions(
   let hmrOptions = null;
   if (command.name() !== 'build' && command.hmr !== false) {
     let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
+    let hmrhost = command.hmrHost ? command.hmrHost : host;
 
-    hmrOptions = {port: hmrport, host};
+    hmrOptions = {port: hmrport, host: hmrhost};
   }
 
   if (command.detailedReport === true) {

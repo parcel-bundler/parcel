@@ -230,6 +230,9 @@ impl ESMFold {
       self.get_require_name(source, DUMMY_SP)
     };
 
+    // import { foo } from "..."; foo();
+    // ->
+    // import { foo } from "..."; (0, foo)();
     Expr::Seq(SeqExpr {
       exprs: vec![
         0.into(),
