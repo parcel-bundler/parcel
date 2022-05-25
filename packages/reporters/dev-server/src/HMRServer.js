@@ -9,6 +9,7 @@ import type {
   Asset,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
+import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {
   ServerError,
   HMRServerOptions,
@@ -17,15 +18,17 @@ import type {
 } from './types.js.flow';
 import {setHeaders, SOURCES_ENDPOINT} from './Server';
 
+import nullthrows from 'nullthrows';
+import url from 'url';
+import mime from 'mime-types';
 import WebSocket from 'ws';
 import invariant from 'assert';
 import connect from 'connect';
 import {
   ansiHtml,
+  createHTTPServer,
   prettyDiagnostic,
   PromiseQueue,
-  AnsiDiagnosticResult,
-  createHTTPServer,
 } from '@parcel/utils';
 
 export type HMRAsset = {|
@@ -64,11 +67,11 @@ export default class HMRServer {
     this.options = options;
   }
 
-  async start(): void {
+  async start() {
     let server = this.options.devServer;
     if (!server) {
       let result = await createHTTPServer({
-        listener: async (req, res) => {
+        listener: (req, res) => {
           setHeaders(res);
           if (!this.handle(req, res)) {
             res.statusCode = 404;
@@ -80,7 +83,7 @@ export default class HMRServer {
       server.listen(this.options.port, this.options.host);
       this.stopServer = result.stop;
     } else {
-      this.options.addMiddleware(this.handle.bind(this));
+      this.options.addMiddleware?.((req, res) => this.handle(req, res));
     }
     this.wss = new WebSocket.Server({server});
 
@@ -214,10 +217,11 @@ export default class HMRServer {
     });
   }
 
-  async getHotAssetContents(asset: Asset) {
+  async getHotAssetContents(asset: Asset): Promise<string> {
     let output = await asset.getCode();
+    let bundleGraph = nullthrows(this.bundleGraph);
     if (asset.type === 'js') {
-      let publicId = this.bundleGraph.getAssetPublicId(asset);
+      let publicId = bundleGraph.getAssetPublicId(asset);
       output = `parcelHotUpdate['${publicId}'] = function (require, module, exports) {${output}}`;
     }
 
@@ -238,7 +242,7 @@ export default class HMRServer {
     return output;
   }
 
-  getSourceURL(asset: Asset) {
+  getSourceURL(asset: Asset): string {
     let origin = '';
     if (!this.options.devServer) {
       origin = `http://${this.options.host || 'localhost'}:${

@@ -38,7 +38,7 @@ async function collectDependencies(
   asset: MutableAsset,
   program: any,
   ptrs: {[key: string]: any, ...},
-  hmrOptions: HMROptions,
+  hmrOptions: ?HMROptions,
 ) {
   const hot = Boolean(hmrOptions);
   const fs = asset.fs;
@@ -315,7 +315,7 @@ async function collectDependencies(
       const csp = program.content_security_policy || {};
       csp.extension_pages = cspPatchHMR(
         csp.extension_pages,
-        hmrOptions.host || 'localhost',
+        hmrOptions?.host || 'localhost',
       );
       // Sandbox allows eval by default
       if (csp.sandbox) {
