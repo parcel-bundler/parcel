@@ -4,32 +4,37 @@ import {type DiagnosticCodeFrame, escapeMarkdown} from '@parcel/diagnostic';
 import eslint from 'eslint';
 import invariant from 'assert';
 
-let cliEngine = null;
+let eslintInstance = null;
 
 export default (new Validator({
   async validate({asset}) {
-    if (!cliEngine) {
-      cliEngine = new eslint.CLIEngine({});
+    const isPostV8 = typeof eslint.ESLint !== 'undefined';
+
+    if (!eslintInstance) {
+      eslintInstance = isPostV8 ? new eslint.ESLint() : new eslint.CLIEngine();
     }
-    let code = await asset.getCode();
 
-    invariant(cliEngine != null);
-    let report = cliEngine.executeOnText(code, asset.filePath);
+    invariant(eslint != null);
 
-    let validatorResult = {
+    const code = await asset.getCode();
+    const report = isPostV8
+      ? eslintInstance.lintText(code, {filePath: asset.filePath})
+      : eslintInstance.executeOnText(code, asset.filePath);
+
+    const validatorResult = {
       warnings: [],
       errors: [],
     };
 
     if (report.results.length > 0) {
-      for (let result of report.results) {
+      for (const result of report.results) {
         if (!result.errorCount && !result.warningCount) continue;
 
-        let codeframe: DiagnosticCodeFrame = {
+        const codeframe: DiagnosticCodeFrame = {
           filePath: asset.filePath,
           code: result.source,
           codeHighlights: result.messages.map(message => {
-            let start = {
+            const start = {
               line: message.line,
               column: message.column,
             };
@@ -48,7 +53,7 @@ export default (new Validator({
           }),
         };
 
-        let diagnostic = {
+        const diagnostic = {
           origin: '@parcel/validator-eslint',
           message: `ESLint found **${result.errorCount}** __errors__ and **${result.warningCount}** __warnings__.`,
           codeFrames: [codeframe],
