@@ -1139,6 +1139,7 @@ impl<'a> DependencyCollector<'a> {
     None
   }
 
+  #[allow(clippy::wrong_self_convention)]
   fn is_import_meta_url(&mut self, expr: &ast::Expr) -> bool {
     use ast::*;
 
@@ -1175,6 +1176,7 @@ impl<'a> DependencyCollector<'a> {
     }
   }
 
+  #[allow(clippy::wrong_self_convention)]
   fn is_import_meta(&mut self, expr: &ast::Expr) -> bool {
     use ast::*;
 
