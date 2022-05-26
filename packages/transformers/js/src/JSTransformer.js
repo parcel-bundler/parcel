@@ -138,6 +138,8 @@ type TSConfig = {
     jsxImportSource?: string,
     // https://www.typescriptlang.org/tsconfig#experimentalDecorators
     experimentalDecorators?: boolean,
+    // https://www.typescriptlang.org/tsconfig#useDefineForClassFields
+    useDefineForClassFields?: boolean,
     ...
   },
   ...
@@ -152,7 +154,8 @@ export default (new Transformer({
       jsxImportSource,
       automaticJSXRuntime,
       reactRefresh,
-      decorators;
+      decorators,
+      useDefineForClassFields;
     if (config.isSource) {
       let reactLib;
       if (pkg?.alias && pkg.alias['react']) {
@@ -231,6 +234,7 @@ export default (new Transformer({
 
       isJSX = Boolean(compilerOptions?.jsx || pragma);
       decorators = compilerOptions?.experimentalDecorators;
+      useDefineForClassFields = compilerOptions?.useDefineForClassFields;
     }
 
     // Check if we should ignore fs calls
@@ -280,6 +284,7 @@ export default (new Transformer({
       inlineFS,
       reactRefresh,
       decorators,
+      useDefineForClassFields,
     };
   },
   async transform({asset, config, options, logger}) {
@@ -407,6 +412,7 @@ export default (new Transformer({
         !asset.env.isWorklet() &&
         Boolean(config?.reactRefresh),
       decorators: Boolean(config?.decorators),
+      use_define_for_class_fields: Boolean(config?.useDefineForClassFields),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist:

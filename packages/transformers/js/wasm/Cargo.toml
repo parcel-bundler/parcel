@@ -13,7 +13,3 @@ parcel-js-swc-core = { path = "../core" }
 serde = "1"
 serde-wasm-bindgen = "0.3.0"
 wasm-bindgen = "0.2"
-
-# https://github.com/Amanieu/parking_lot/issues/269
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-parking_lot_core = "=0.8.0"

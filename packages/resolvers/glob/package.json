@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@parcel/diagnostic": "2.0.26",
+    "@parcel/node-resolver-core": "2.0.26",
     "@parcel/plugin": "2.0.26",
     "@parcel/utils": "2.0.26",
     "nullthrows": "^1.1.1"
