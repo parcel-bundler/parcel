@@ -1,5 +1,5 @@
 use crate::id;
-use crate::utils::{match_export_name, match_export_name_ident, IdentId};
+use crate::utils::{match_export_name, match_export_name_ident};
 use inflector::Inflector;
 use std::collections::{HashMap, HashSet};
 use swc_atoms::JsWord;
@@ -30,7 +30,7 @@ pub fn esm2cjs(node: Module, versions: Option<Versions>) -> (Module, bool) {
 
 struct ESMFold {
   // Map of imported identifier to (source, specifier)
-  imports: HashMap<IdentId, (JsWord, JsWord)>,
+  imports: HashMap<Id, (JsWord, JsWord)>,
   // Map of source to (require identifier, mark)
   require_names: HashMap<JsWord, (JsWord, Mark)>,
   // Set of declared default interops, by source.

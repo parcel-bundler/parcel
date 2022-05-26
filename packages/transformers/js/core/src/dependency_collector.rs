@@ -5,8 +5,8 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
-use swc_common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::{self, Callee, MemberProp};
+use swc_common::{Mark, SourceMap, Span, DUMMY_SP};
+use swc_ecmascript::ast::{self, Callee, Id, MemberProp};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::fold_member_expr_skip_prop;
@@ -59,7 +59,7 @@ pub struct DependencyDescriptor {
 pub fn dependency_collector<'a>(
   source_map: &'a SourceMap,
   items: &'a mut Vec<DependencyDescriptor>,
-  decls: &'a HashSet<(JsWord, SyntaxContext)>,
+  decls: &'a HashSet<Id>,
   ignore_mark: swc_common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
@@ -84,7 +84,7 @@ struct DependencyCollector<'a> {
   in_try: bool,
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
-  decls: &'a HashSet<(JsWord, SyntaxContext)>,
+  decls: &'a HashSet<Id>,
   ignore_mark: swc_common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
@@ -1096,7 +1096,7 @@ impl<'a> DependencyCollector<'a> {
   fn match_new_url(
     &mut self,
     expr: &ast::Expr,
-    decls: &HashSet<(JsWord, SyntaxContext)>,
+    decls: &HashSet<Id>,
   ) -> Option<(JsWord, swc_common::Span)> {
     use ast::*;
 

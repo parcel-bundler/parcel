@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::vec;
 
 use swc_atoms::JsWord;
-use swc_common::{SyntaxContext, DUMMY_SP};
+use swc_common::DUMMY_SP;
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
@@ -13,7 +13,7 @@ pub struct EnvReplacer<'a> {
   pub replace_env: bool,
   pub is_browser: bool,
   pub env: &'a HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
-  pub decls: &'a HashSet<(JsWord, SyntaxContext)>,
+  pub decls: &'a HashSet<Id>,
   pub used_env: &'a mut HashSet<JsWord>,
   pub source_map: &'a swc_common::SourceMap,
   pub diagnostics: &'a mut Vec<Diagnostic>,

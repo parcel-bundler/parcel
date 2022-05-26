@@ -11,7 +11,7 @@ use swc_ecmascript::visit::{Fold, FoldWith, Visit, VisitWith};
 use crate::id;
 use crate::utils::{
   match_import, match_member_expr, match_require, Bailout, BailoutReason, CodeHighlight,
-  Diagnostic, DiagnosticSeverity, IdentId, SourceLocation,
+  Diagnostic, DiagnosticSeverity, SourceLocation,
 };
 
 macro_rules! hash {
@@ -1097,7 +1097,7 @@ pub struct Export {
 
 pub struct Collect {
   pub source_map: Lrc<swc_common::SourceMap>,
-  pub decls: HashSet<IdentId>,
+  pub decls: HashSet<Id>,
   pub ignore_mark: Mark,
   pub global_mark: Mark,
   pub static_cjs_exports: bool,
@@ -1105,14 +1105,14 @@ pub struct Collect {
   pub is_esm: bool,
   pub should_wrap: bool,
   // local name -> descriptor
-  pub imports: HashMap<IdentId, Import>,
+  pub imports: HashMap<Id, Import>,
   // exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
   // local name -> exported name
-  pub exports_locals: HashMap<IdentId, JsWord>,
+  pub exports_locals: HashMap<Id, JsWord>,
   pub exports_all: HashMap<JsWord, SourceLocation>,
-  pub non_static_access: HashMap<IdentId, Vec<Span>>,
-  pub non_const_bindings: HashMap<IdentId, Vec<Span>>,
+  pub non_static_access: HashMap<Id, Vec<Span>>,
+  pub non_const_bindings: HashMap<Id, Vec<Span>>,
   pub non_static_requires: HashSet<JsWord>,
   pub wrapped_requires: HashSet<JsWord>,
   pub bailouts: Option<Vec<Bailout>>,
@@ -1156,7 +1156,7 @@ pub struct CollectResult {
 impl Collect {
   pub fn new(
     source_map: Lrc<swc_common::SourceMap>,
-    decls: HashSet<IdentId>,
+    decls: HashSet<Id>,
     ignore_mark: Mark,
     global_mark: Mark,
     trace_bailouts: bool,
@@ -2067,7 +2067,7 @@ impl Collect {
   }
 }
 
-fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<IdentId>) -> bool {
+fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<Id>) -> bool {
   match node {
     Pat::Ident(ident) => {
       if ident.id.sym == *sym && !decls.contains(&id!(ident.id)) {

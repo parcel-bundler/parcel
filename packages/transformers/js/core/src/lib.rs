@@ -388,7 +388,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 module.fold_with(&mut passes)
               };
 
-              // Flush (JsWord, SyntaxContexts) into unique names and reresolve to
+              // Flush Id=(JsWord, SyntaxContexts) into unique names and reresolve to
               // set global_mark for all nodes, even generated ones.
               // - This changes the syntax context ids and therefore invalidates decls
               // - This will also remove any other other marks (like ignore_mark)
