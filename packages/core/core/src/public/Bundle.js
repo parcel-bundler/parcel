@@ -61,6 +61,8 @@ export function bundleToInternalBundleGraph(bundle: IBundle): BundleGraph {
 // preventing others from using them. They should use the static `get` method.
 let _private = {};
 
+const inspect = Symbol.for('nodejs.util.inspect.custom');
+
 export class Bundle implements IBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
@@ -237,6 +239,11 @@ export class NamedBundle extends Bundle implements INamedBundle {
     existingMap.set(internalBundle, namedBundle);
 
     return namedBundle;
+  }
+
+  // $FlowFixMe[unsupported-syntax]
+  [inspect](): string {
+    return `NamedBundle(${this.name})`;
   }
 
   get name(): string {

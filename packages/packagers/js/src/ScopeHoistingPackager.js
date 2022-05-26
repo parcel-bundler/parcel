@@ -84,6 +84,7 @@ export class ScopeHoistingPackager {
       exportAs: Array<string>,
     |},
   > = new Map();
+  /** Map of DependencySpecifier -> Map<ExportedSymbol, Identifier>> */
   externals: Map<string, Map<string, string>> = new Map();
   topLevelNames: Map<string, number> = new Map();
   seenAssets: Set<string> = new Set();
@@ -728,7 +729,6 @@ ${code}
       });
     }
 
-    // Map of DependencySpecifier -> Map<ExportedSymbol, Identifier>>
     let external = this.externals.get(dep.specifier);
     if (!external) {
       external = new Map();
@@ -749,7 +749,23 @@ ${code}
       exportSymbol,
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
-    if (resolvedAsset.type !== 'js') {
+    if (resolvedAsset.type === 'node') {
+      // Native Node addon
+      let name = this.getTopLevelName(`$${this.bundle.publicId}$node`);
+      let nodeBundle = nullthrows(
+        this.bundleGraph.getReferencedBundle(nullthrows(dep), this.bundle),
+      );
+      this.externals.set(
+        relativeBundlePath(this.bundle, nodeBundle),
+        new Map([['*', name]]),
+      );
+
+      if (exportSymbol !== '*') {
+        return this.getPropertyAccess(name, exportSymbol);
+      } else {
+        return name;
+      }
+    } else if (resolvedAsset.type !== 'js') {
       // Graceful fallback for non-js imports
       return '{}';
     }
