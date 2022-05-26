@@ -53,7 +53,9 @@ export default (new Transformer({
 
     let mainModuleName = path
       .relative(program.getCommonSourceDirectory(), asset.filePath)
-      .slice(0, -path.extname(asset.filePath).length);
+      .slice(0, -path.extname(asset.filePath).length)
+      .split(path.sep)
+      .join(path.posix.sep);
     let moduleGraph = new TSModuleGraph(mainModuleName);
 
     let emitResult = program.emit(undefined, undefined, undefined, true, {
