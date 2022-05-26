@@ -11,6 +11,4 @@ yarn lint-staged
 # the `post-merge` hook will not be run. Here we detect that a merge
 # is being manually committed and replicate the work our `post-merge` hook
 # would have done if the merge commit had proceeded automatically.
-if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
-  yarn update-self-published -a
-fi
+node "$(dirname "$0")/../scripts/update-self-published.js" -a -o || [ $? -eq 2 ] && exit 0 || exit $?

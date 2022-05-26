@@ -8,8 +8,9 @@
 # So, we hack it in this `post-merge` hook by immediately ammending the commit.
 # Note that in cases where the merge commit did not automatically succeed,
 # this hook will not be run. See comments in `pre-commit` hook for more.
-yarn update-self-published -a
-if [[ -f .git/MERGE_HEAD ]]; then
-  rm .git/MERGE_HEAD
+if node "$(dirname "$0")/../scripts/update-self-published.js" -a -o; then
+  if [[ -f .git/MERGE_HEAD ]]; then
+    rm .git/MERGE_HEAD
+  fi
+  git log -n 1 --pretty=tformat:%s%n%n%b | git commit -F - --amend
 fi
-git log -n 1 --pretty=tformat:%s%n%n%b | git commit -F - --amend
