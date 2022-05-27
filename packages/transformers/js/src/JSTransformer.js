@@ -706,19 +706,18 @@ export default (new Transformer({
         asset.symbols.set(exported, local, convertLoc(loc));
       }
 
-      // deps is a Map of specifiers/placeholders to an array of dependencies
-      // since multiple dependencies can be attributed to a single specifier
-      let deps = new Map();
-      for (let dep of asset.getDependencies()) {
-        if (!deps.has(dep.meta.placeholder ?? dep.specifier)) {
-          deps.set(dep.meta.placeholder ?? dep.specifier, []);
-        }
-        deps.get(dep.meta.placeholder ?? dep.specifier)?.push(dep);
-      }
-      for (let depArr of deps.values()) {
-        for (let dep of depArr) {
-          dep.symbols.ensure();
-        }
+      let deps = new Map(
+        asset.getDependencies().map(dep => {
+          return [
+            (dep.meta.placeholder
+              ? String(dep.meta.placeholder)
+              : dep.specifier) + dep.specifierType,
+            dep,
+          ];
+        }),
+      );
+      for (let dep of deps.values()) {
+        dep.symbols.ensure();
       }
 
       for (let {
@@ -728,51 +727,40 @@ export default (new Transformer({
         loc,
         kind,
       } of hoist_result.imported_symbols) {
-        for (let dep of nullthrows(deps.get(source))) {
-          // dep.meta.kind is a DependencyKind while kind is an ImportKind.
-          // We only set the symbols for the dep if both dep.meta.kind is an
-          // ImportKind and if dep.meta.kind and kind are the same, or if
-          // dep.meta.kind is not an ImportKind
-          if (
-            (dep.meta.kind === 'Require' ||
-              dep.meta.kind === 'Import' ||
-              dep.meta.kind === 'DynamicImport') &&
-            dep.meta.kind !== kind
-          ) {
-            continue;
-          }
-          dep.symbols.set(imported, local, convertLoc(loc));
-        }
+        let dep = deps.get(
+          source +
+            (kind === 'Import' || kind === 'Export' || kind === 'DynamicImport'
+              ? 'esm'
+              : 'commonjs'),
+        );
+        if (!dep) continue;
+        dep.symbols.set(imported, local, convertLoc(loc));
       }
+
       for (let {source, local, imported, loc} of hoist_result.re_exports) {
-        for (let dep of nullthrows(deps.get(source))) {
-          if (dep.specifierType !== 'esm') {
-            continue;
-          }
-          if (local === '*' && imported === '*') {
-            dep.symbols.set('*', '*', convertLoc(loc), true);
-          } else {
-            let reExportName =
-              dep.symbols.get(imported)?.local ??
-              `$${asset.id}$re_export$${local}`;
-            asset.symbols.set(local, reExportName);
-            dep.symbols.set(imported, reExportName, convertLoc(loc), true);
-          }
+        let dep = deps.get(source + 'esm');
+        if (!dep) continue;
+        if (local === '*' && imported === '*') {
+          dep.symbols.set('*', '*', convertLoc(loc), true);
+        } else {
+          let reExportName =
+            dep.symbols.get(imported)?.local ??
+            `$${asset.id}$re_export$${local}`;
+          asset.symbols.set(local, reExportName);
+          dep.symbols.set(imported, reExportName, convertLoc(loc), true);
         }
       }
 
       for (let specifier of hoist_result.wrapped_requires) {
-        for (let dep of nullthrows(deps.get(specifier))) {
-          dep.meta.shouldWrap = true;
-        }
+        let dep = deps.get(specifier + 'commonjs');
+        if (!dep) continue;
+        dep.meta.shouldWrap = true;
       }
 
       for (let name in hoist_result.dynamic_imports) {
-        for (let dep of nullthrows(
-          deps.get(hoist_result.dynamic_imports[name]),
-        )) {
-          dep.meta.promiseSymbol = name;
-        }
+        let dep = deps.get(hoist_result.dynamic_imports[name] + 'esm');
+        if (!dep) continue;
+        dep.meta.promiseSymbol = name;
       }
 
       if (hoist_result.self_references.length > 0) {
@@ -818,50 +806,48 @@ export default (new Transformer({
       asset.meta.shouldWrap = hoist_result.should_wrap;
     } else {
       if (symbol_result) {
-        let deps = new Map();
-        for (let dep of asset.getDependencies()) {
-          if (!deps.has(dep.meta.placeholder ?? dep.specifier)) {
-            deps.set(dep.meta.placeholder ?? dep.specifier, []);
-          }
-          deps.get(dep.meta.placeholder ?? dep.specifier)?.push(dep);
-        }
+        let deps = new Map(
+          asset
+            .getDependencies()
+            .map(dep => [
+              (dep.meta.placeholder
+                ? String(dep.meta.placeholder)
+                : dep.specifier) + dep.specifierType,
+              dep,
+            ]),
+        );
         asset.symbols.ensure();
 
         for (let {exported, local, loc, source} of symbol_result.exports) {
-          if (!deps.get(source)) {
-            asset.symbols.set(exported, `${local}`, convertLoc(loc));
-          } else {
-            for (let dep of nullthrows(deps.get(source))) {
-              asset.symbols.set(
-                exported,
-                `${dep?.id ?? ''}$${local}`,
-                convertLoc(loc),
-              );
-              if (dep != null) {
-                dep.symbols.ensure();
-                dep.symbols.set(
-                  local,
-                  `${dep?.id ?? ''}$${local}`,
-                  convertLoc(loc),
-                  true,
-                );
-              }
-            }
+          let dep = source ? deps.get(source + 'esm') : undefined;
+          asset.symbols.set(
+            exported,
+            `${dep?.id ?? ''}$${local}`,
+            convertLoc(loc),
+          );
+          if (dep != null) {
+            dep.symbols.ensure();
+            dep.symbols.set(
+              local,
+              `${dep?.id ?? ''}$${local}`,
+              convertLoc(loc),
+              true,
+            );
           }
         }
 
         for (let {source, local, imported, loc} of symbol_result.imports) {
-          for (let dep of nullthrows(deps.get(source))) {
-            dep.symbols.ensure();
-            dep.symbols.set(imported, local, convertLoc(loc));
-          }
+          let dep = deps.get(source + 'esm');
+          if (!dep) continue;
+          dep.symbols.ensure();
+          dep.symbols.set(imported, local, convertLoc(loc));
         }
 
         for (let {source, loc} of symbol_result.exports_all) {
-          for (let dep of nullthrows(deps.get(source))) {
-            dep.symbols.ensure();
-            dep.symbols.set('*', '*', convertLoc(loc), true);
-          }
+          let dep = deps.get(source + 'esm');
+          if (!dep) continue;
+          dep.symbols.ensure();
+          dep.symbols.set('*', '*', convertLoc(loc), true);
         }
       }
 
