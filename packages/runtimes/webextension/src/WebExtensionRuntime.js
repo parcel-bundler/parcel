@@ -34,7 +34,7 @@ export default (new Runtime({
         .getBundles()
         .find(b => b.getMainEntry()?.meta.webextEntry === true);
       const entry = manifest?.getMainEntry();
-      const insertDep = entry?.meta.webextBG;
+      const insertDep = entry?.meta.webextBGInsert;
       if (insertDep == null) return;
       const insertBundle = bundleGraph.getReferencedBundle(
         nullthrows(entry?.getDependencies().find(dep => dep.id === insertDep)),
@@ -52,7 +52,12 @@ export default (new Runtime({
       if (bundle === firstInsertableBundle) {
         return {
           filePath: __filename,
-          code: AUTORELOAD_BG,
+          code:
+            `var HMR_HOST = ${JSON.stringify(
+              options.hmrOptions?.host ?? 'localhost',
+            )};` +
+            `var HMR_PORT = '${options.hmrOptions?.port ?? ''}';` +
+            AUTORELOAD_BG,
           isEntry: true,
         };
       }

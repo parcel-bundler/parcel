@@ -1,5 +1,5 @@
 // @flow
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser, globalThis, __parcel__import__, __parcel__importScripts__ */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser, globalThis, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */
 
 /*::
 import type {
@@ -31,6 +31,8 @@ interface ParcelModule {
 interface ExtensionContext {
   runtime: {|
     reload(): void,
+    getURL(url: string): string;
+    getManifest(): {manifest_version: number, ...};
   |};
 }
 declare var module: {bundle: ParcelRequire, ...};
@@ -43,22 +45,13 @@ declare var browser: ExtensionContext;
 declare var __parcel__import__: (string) => Promise<void>;
 declare var __parcel__importScripts__: (string) => Promise<void>;
 declare var globalThis: typeof self;
+declare var ServiceWorkerGlobalScope: Object;
 */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
 
 var OldModule = module.bundle.Module;
 
-var globalObject =
-  typeof globalThis !== 'undefined'
-    ? globalThis
-    : typeof self !== 'undefined'
-    ? self
-    : typeof window !== 'undefined'
-    ? window
-    : typeof global !== 'undefined'
-    ? global
-    : {};
 function Module(moduleName) {
   OldModule.call(this, moduleName);
   this.hot = {
@@ -105,6 +98,25 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var ws = new WebSocket(
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );
+
+  var globalObject =
+    typeof globalThis !== 'undefined'
+      ? globalThis
+      : typeof self !== 'undefined'
+      ? self
+      : typeof window !== 'undefined'
+      ? window
+      : typeof global !== 'undefined'
+      ? global
+      : {};
+
+  // Web extension context
+  var extCtx =
+    typeof chrome === 'undefined'
+      ? typeof browser === 'undefined'
+        ? null
+        : browser
+      : chrome;
 
   // Safari doesn't support sourceURL in error stacks.
   // eval may also be disabled via CSP, so do a quick check.
@@ -159,20 +171,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
             hmrAcceptRun(assetsToAccept[i][0], id);
           }
         }
-      } else if ('reload' in location) {
-        location.reload();
-      } else {
-        // Web extension context
-        var ext =
-          typeof chrome === 'undefined'
-            ? typeof browser === 'undefined'
-              ? null
-              : browser
-            : chrome;
-        if (ext && ext.runtime && ext.runtime.reload) {
-          ext.runtime.reload();
-        }
-      }
+      } else fullReload();
     }
 
     if (data.type === 'error') {
@@ -264,6 +263,14 @@ ${frame.code}`;
   return overlay;
 }
 
+function fullReload() {
+  if ('reload' in location) {
+    location.reload();
+  } else if (extCtx && extCtx.runtime && extCtx.runtime.reload) {
+    extCtx.runtime.reload();
+  }
+}
+
 function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
   var modules = bundle.modules;
   if (!modules) {
@@ -338,6 +345,35 @@ function reloadCSS() {
   }, 50);
 }
 
+function hmrDownload(asset) {
+  if (asset.type === 'js') {
+    if (typeof document !== 'undefined') {
+      let script = document.createElement('script');
+      script.src = asset.url;
+      return new Promise((resolve, reject) => {
+        script.onload = () => resolve(script);
+        script.onerror = reject;
+        document.head?.appendChild(script);
+      });
+    } else if (typeof importScripts === 'function') {
+      // Worker scripts
+      return new Promise((resolve, reject) => {
+        try {
+          __parcel__importScripts__(asset.url);
+          resolve();
+        } catch (err) {
+          if (err instanceof TypeError) {
+            // In module workers, importScripts banned
+            __parcel__import__(asset.url).then(() => resolve());
+          } else {
+            reject(err);
+          }
+        }
+      });
+    }
+  }
+}
+
 async function hmrApplyUpdates(assets) {
   globalObject.parcelHotUpdate = Object.create(null);
 
@@ -350,27 +386,31 @@ async function hmrApplyUpdates(assets) {
     // https://bugs.webkit.org/show_bug.cgi?id=137297
     // This path is also taken if a CSP disallows eval.
     if (!supportsSourceURL) {
-      let promises = assets.map(asset => {
-        if (asset.type === 'js') {
-          if (typeof document !== 'undefined') {
-            let script = document.createElement('script');
-            script.src = asset.url;
-            return new Promise((resolve, reject) => {
-              script.onload = () => resolve(script);
-              script.onerror = reject;
-              document.head?.appendChild(script);
-            });
-          } else if (typeof importScripts === 'function') {
-            return new Promise((resolve, reject) => {
-              try {
-                __parcel__importScripts__(asset.url);
-              } catch (err) {
-                __parcel__import__(asset.url).then(() => resolve(), reject);
-              }
-            });
+      let promises = assets.map(asset =>
+        hmrDownload(asset)?.catch(err => {
+          // Web extension bugfix for Chromium
+          // https://bugs.chromium.org/p/chromium/issues/detail?id=1255412#c12
+          if (
+            extCtx &&
+            extCtx.runtime &&
+            extCtx.runtime.getManifest().manifest_version == 3
+          ) {
+            if (
+              typeof ServiceWorkerGlobalScope != 'undefined' &&
+              globalObject instanceof ServiceWorkerGlobalScope
+            ) {
+              extCtx.runtime.reload();
+              return;
+            }
+            asset.url = extCtx.runtime.getURL(
+              '/__parcel_hmr_proxy__?url=' +
+                encodeURIComponent(asset.url + '?t=' + Date.now()),
+            );
+            return hmrDownload(asset);
           }
-        }
-      });
+          throw err;
+        }),
+      );
 
       scriptsToRemove = await Promise.all(promises);
     }
