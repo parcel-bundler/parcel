@@ -72,13 +72,16 @@ export default (new Packager({
         });
       }
     }
-    manifest.web_accessible_resources = (
-      manifest.web_accessible_resources || []
-    ).concat(
+
+    const warResult = (manifest.web_accessible_resources || []).concat(
       manifest.manifest_version == 2
         ? [...new Set(war.flatMap(entry => entry.resources))]
         : war,
     );
+    if (warResult.length > 0) {
+      manifest.web_accessible_resources = warResult;
+    }
+
     let {contents} = replaceURLReferences({
       bundle,
       bundleGraph,

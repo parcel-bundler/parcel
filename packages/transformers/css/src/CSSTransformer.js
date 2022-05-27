@@ -49,14 +49,30 @@ export default (new Transformer({
           targets,
         });
       } else {
+        let cssModules = false;
+        if (
+          asset.meta.type !== 'tag' &&
+          asset.meta.cssModulesCompiled == null
+        ) {
+          let cssModulesConfig = config?.cssModules;
+          if (
+            (asset.isSource &&
+              (typeof cssModulesConfig === 'boolean' ||
+                cssModulesConfig?.global)) ||
+            /\.module\./.test(asset.filePath)
+          ) {
+            if (cssModulesConfig?.dashedIdents && !asset.isSource) {
+              cssModulesConfig.dashedIdents = false;
+            }
+
+            cssModules = cssModulesConfig ?? true;
+          }
+        }
+
         res = transform({
           filename: path.relative(options.projectRoot, asset.filePath),
           code,
-          cssModules:
-            asset.meta.type !== 'tag' &&
-            (config?.cssModules ??
-              (asset.meta.cssModulesCompiled == null &&
-                /\.module\./.test(asset.filePath))),
+          cssModules,
           analyzeDependencies: asset.meta.hasDependencies !== false,
           sourceMap: !!asset.env.sourceMap,
           drafts: config?.drafts,
@@ -209,6 +225,22 @@ export default (new Transformer({
             js += `for (let key in ${d}) { if (key in module.exports) module.exports[key] += ' ' + ${d}[key]; else module.exports[key] = ${d}[key]; }\n`;
             asset.symbols.set('*', '*');
           }
+        }
+      }
+
+      if (res.references != null) {
+        let references = res.references;
+        for (let symbol in references) {
+          let reference = references[symbol];
+          asset.addDependency({
+            specifier: reference.specifier,
+            specifierType: 'esm',
+            symbols: new Map([
+              [reference.name, {local: symbol, isWeak: false, loc: null}],
+            ]),
+          });
+
+          asset.meta.hasReferences = true;
         }
       }
 

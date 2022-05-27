@@ -1,7 +1,7 @@
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::hoist::{Collect, Import};
 use crate::id;
-use crate::utils::{IdentId, SourceLocation};
+use crate::utils::SourceLocation;
 use data_encoding::{BASE64, HEXLOWER};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -13,7 +13,7 @@ use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
 pub fn inline_fs<'a>(
   filename: &str,
   source_map: swc_common::sync::Lrc<swc_common::SourceMap>,
-  decls: HashSet<IdentId>,
+  decls: HashSet<Id>,
   global_mark: Mark,
   project_root: &'a str,
   deps: &'a mut Vec<DependencyDescriptor>,

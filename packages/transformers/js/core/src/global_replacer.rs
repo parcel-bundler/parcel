@@ -4,7 +4,7 @@ use std::path::Path;
 
 use swc_atoms::JsWord;
 use swc_common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::{self, ComputedPropName};
+use swc_ecmascript::ast::{self, ComputedPropName, Id};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
@@ -17,7 +17,7 @@ pub struct GlobalReplacer<'a> {
   pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub project_root: &'a Path,
   pub filename: &'a Path,
-  pub decls: &'a mut HashSet<(JsWord, SyntaxContext)>,
+  pub decls: &'a mut HashSet<Id>,
   pub scope_hoist: bool,
 }
 

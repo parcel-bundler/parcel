@@ -10,9 +10,31 @@ import {
 import path from 'path';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
+import NodeResolver from '@parcel/node-resolver-core';
+import invariant from 'assert';
+
+function errorToThrowableDiagnostic(error, dependency): ThrowableDiagnostic {
+  return new ThrowableDiagnostic({
+    diagnostic: {
+      message: error,
+      codeFrames: dependency.loc
+        ? [
+            {
+              codeHighlights: [
+                {
+                  start: dependency.loc.start,
+                  end: dependency.loc.end,
+                },
+              ],
+            },
+          ]
+        : undefined,
+    },
+  });
+}
 
 export default (new Resolver({
-  async resolve({dependency, options, specifier, pipeline}) {
+  async resolve({dependency, options, specifier, pipeline, logger}) {
     if (!isGlob(specifier)) {
       return;
     }
@@ -33,26 +55,65 @@ export default (new Resolver({
     }
 
     if (error) {
-      throw new ThrowableDiagnostic({
-        diagnostic: {
-          message: error,
-          codeFrames: dependency.loc
-            ? [
-                {
-                  codeHighlights: [
-                    {
-                      start: dependency.loc.start,
-                      end: dependency.loc.end,
-                    },
-                  ],
-                },
-              ]
-            : undefined,
-        },
-      });
+      throw errorToThrowableDiagnostic(error, dependency);
     }
 
-    specifier = path.resolve(path.dirname(sourceFile), specifier);
+    // if the specifier does not start with /, ~, or . then it's not a path but package-ish - we resolve
+    // the package first, and then append the rest of the path
+    if (!/^[/~.]/.test(specifier)) {
+      // Globs are not paths - so they always use / (see https://github.com/micromatch/micromatch#backslashes)
+      let splitOn = specifier.indexOf('/');
+      if (specifier.charAt(0) === '@') {
+        splitOn = specifier.indexOf('/', splitOn + 1);
+      }
+
+      // Since we've already asserted earlier that there is a glob present, it shouldn't be
+      // possible for there to be only a package here without any other path parts (e.g. `import('pkg')`)
+      invariant(splitOn !== -1);
+
+      let pkg = specifier.substring(0, splitOn);
+      let rest = specifier.substring(splitOn + 1);
+
+      // This initialisation code is copied from the DefaultResolver
+      const resolver = new NodeResolver({
+        fs: options.inputFS,
+        projectRoot: options.projectRoot,
+        // Extensions are always required in URL dependencies.
+        extensions:
+          dependency.specifierType === 'commonjs' ||
+          dependency.specifierType === 'esm'
+            ? ['ts', 'tsx', 'js', 'jsx', 'json']
+            : [],
+        mainFields: ['source', 'browser', 'module', 'main'],
+        packageManager: options.shouldAutoInstall
+          ? options.packageManager
+          : undefined,
+        logger,
+      });
+
+      const result = await resolver.resolve({
+        filename: pkg,
+        specifierType: dependency.specifierType,
+        parent: dependency.resolveFrom,
+        env: dependency.env,
+        sourcePath: dependency.sourcePath,
+        loc: dependency.loc,
+      });
+
+      if (!result || !result.filePath) {
+        throw errorToThrowableDiagnostic(
+          `Unable to resolve ${pkg} from ${sourceFile} when evaluating specifier ${specifier}`,
+          dependency,
+        );
+      } else if (result.diagnostics) {
+        throw new ThrowableDiagnostic({diagnostic: result.diagnostics});
+      }
+
+      specifier = path.resolve(path.dirname(result.filePath), rest);
+    } else {
+      specifier = path.resolve(path.dirname(sourceFile), specifier);
+    }
+
     let normalized = normalizeSeparators(specifier);
     let files = await glob(normalized, options.inputFS, {
       onlyFiles: true,
