@@ -61,6 +61,7 @@ pub fn dependency_collector<'a>(
   items: &'a mut Vec<DependencyDescriptor>,
   decls: &'a HashSet<Id>,
   ignore_mark: swc_common::Mark,
+  unresolved_mark: swc_common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
 ) -> impl Fold + 'a {
@@ -72,6 +73,7 @@ pub fn dependency_collector<'a>(
     require_node: None,
     decls,
     ignore_mark,
+    unresolved_mark,
     config,
     diagnostics,
     import_meta: None,
@@ -86,6 +88,7 @@ struct DependencyCollector<'a> {
   require_node: Option<ast::CallExpr>,
   decls: &'a HashSet<Id>,
   ignore_mark: swc_common::Mark,
+  unresolved_mark: swc_common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
@@ -828,7 +831,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     };
 
     if is_require {
-      return ast::Expr::Ident(ast::Ident::new("undefined".into(), DUMMY_SP));
+      return ast::Expr::Ident(get_undefined_ident(self.unresolved_mark));
     }
 
     node.fold_children_with(self)

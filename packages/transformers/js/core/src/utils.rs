@@ -192,6 +192,10 @@ pub fn create_global_decl_stmt(
   )
 }
 
+pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
+  ast::Ident::new(js_word!("undefined"), DUMMY_SP.apply_mark(unresolved_mark))
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct SourceLocation {
   pub start_line: usize,

@@ -1,4 +1,6 @@
-use crate::utils::{match_export_name, match_export_name_ident, match_property_name};
+use crate::utils::{
+  get_undefined_ident, match_export_name, match_export_name_ident, match_property_name,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
@@ -25,9 +27,10 @@ macro_rules! hash {
 pub fn hoist(
   module: Module,
   module_id: &str,
+  unresolved_mark: Mark,
   collect: &Collect,
 ) -> Result<(Module, HoistResult, Vec<Diagnostic>), Vec<Diagnostic>> {
-  let mut hoist = Hoist::new(module_id, collect);
+  let mut hoist = Hoist::new(module_id, unresolved_mark, collect);
   let module = module.fold_with(&mut hoist);
 
   if !hoist.diagnostics.is_empty() {
@@ -66,6 +69,7 @@ struct Hoist<'a> {
   dynamic_imports: HashMap<JsWord, JsWord>,
   in_function_scope: bool,
   diagnostics: Vec<Diagnostic>,
+  unresolved_mark: Mark,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -83,7 +87,7 @@ pub struct HoistResult {
 }
 
 impl<'a> Hoist<'a> {
-  fn new(module_id: &'a str, collect: &'a Collect) -> Self {
+  fn new(module_id: &'a str, unresolved_mark: Mark, collect: &'a Collect) -> Self {
     Hoist {
       module_id,
       collect,
@@ -97,6 +101,7 @@ impl<'a> Hoist<'a> {
       dynamic_imports: HashMap::new(),
       in_function_scope: false,
       diagnostics: vec![],
+      unresolved_mark,
     }
   }
 
@@ -672,7 +677,7 @@ impl<'a> Fold for Hoist<'a> {
         if !self.in_function_scope {
           // If ESM, replace `this` with `undefined`, otherwise with the CJS exports object.
           if self.collect.is_esm {
-            return Expr::Ident(Ident::new("undefined".into(), DUMMY_SP));
+            return Expr::Ident(get_undefined_ident(self.unresolved_mark));
           } else if !self.collect.should_wrap {
             self.self_references.insert("*".into());
             return Expr::Ident(self.get_export_ident(this.span, &"*".into()));
@@ -2155,7 +2160,7 @@ mod tests {
             module.visit_with(&mut collect);
 
             let (module, res) = {
-              let mut hoist = Hoist::new("abc", &collect);
+              let mut hoist = Hoist::new("abc", unresolved_mark, &collect);
               let module = module.fold_with(&mut hoist);
               (module, hoist.get_result())
             };
