@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs-write-stream-atomic",
-  "version": "2.0.29",
+  "version": "2.0.30",
   "description": "Like `fs.createWriteStream(...)`, but atomic.",
   "main": "index.js",
   "repository": {
