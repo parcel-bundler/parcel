@@ -86,14 +86,7 @@ export function createDependency(
 }
 
 export function mergeDependencies(a: Dependency, b: Dependency): void {
-  let {
-    meta,
-    symbols,
-    needsStableName,
-    isEntry,
-    isOptional,
-    ...other
-  } = b;
+  let {meta, symbols, needsStableName, isEntry, isOptional, ...other} = b;
   Object.assign(a, other);
   Object.assign(a.meta, meta);
   if (a.symbols && symbols) {

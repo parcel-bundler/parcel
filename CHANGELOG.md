@@ -5,6 +5,43 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2022-05-25
+
+### Added
+
+- Add React error overlay to display pretty runtime errors like Create React App - [Details](https://github.com/parcel-bundler/parcel/pull/8034)
+- Support for source maps in HMR updates - [Details](https://github.com/parcel-bundler/parcel/pull/8034)
+- Support for scoping variables in CSS modules - [Details](https://github.com/parcel-bundler/parcel/pull/8122)
+- Support for custom CSS modules naming patterns - [Details](https://github.com/parcel-bundler/parcel-css/pull/180)
+- Support for node_modules packages in `@parcel/resolver-glob` - [Details](https://github.com/parcel-bundler/parcel/pull/8097)
+- Add support for defining `compilerOptions` in Vue config - [Details](https://github.com/parcel-bundler/parcel/pull/8031)
+- Add support for Vue 3 `<script setup>` - [Details](https://github.com/parcel-bundler/parcel/pull/8045)
+- Add support for gif, tiff, avif, heic, and heif images in `@parcel/transformer-image` - [Details](https://github.com/parcel-bundler/parcel/pull/8028)
+- Add support for animated images (i.e. gifs, webp, etc.) in `@parcel/transformer-image` - [Details](https://github.com/parcel-bundler/parcel/pull/8018)
+- Support for missing fields in web extensions manifest v3 - [Details](https://github.com/parcel-bundler/parcel/pull/8037), [Details](https://github.com/parcel-bundler/parcel/pull/8043)
+- Improve elm compiler error output - [Details](https://github.com/parcel-bundler/parcel/pull/7994)
+- Support for `useDefineForClassFields` option in `tsconfig.json` - [Details](https://github.com/parcel-bundler/parcel/pull/8107)
+- Add `--hmr-host` CLI option to set HMR host independently from dev server - [Details](https://github.com/parcel-bundler/parcel/pull/8101)
+
+### Fixed
+
+- Update lmdb-js. Fixes Node 18 support - [Details](https://github.com/parcel-bundler/parcel/pull/7979), [Details](https://github.com/parcel-bundler/parcel/pull/8098)
+- Update napi-rs to v2 - [Details](https://github.com/parcel-bundler/parcel/pull/7995)
+- Fix SWC targets for older browsers - [Details](https://github.com/parcel-bundler/parcel/pull/8020)
+- Add SWC error handler to fix panic during transpilation - [Details](https://github.com/parcel-bundler/parcel/pull/8032)
+- Update SWC. Fixes issue with `Symbol.toStringTag` - [Details](https://github.com/parcel-bundler/parcel/pull/8029)
+- Bump SWC to fix spreads of imported symbols - [Details](https://github.com/parcel-bundler/parcel/pull/8135)
+- Correctly emit warnings for unnecessary PostCSS plugins in package.json - [Details](https://github.com/parcel-bundler/parcel/pull/8024)
+- Fix typo in error message - [Details](https://github.com/parcel-bundler/parcel/pull/8002)
+- Remove duplicate values in graph APIs when getting connected node ids - [Details](https://github.com/parcel-bundler/parcel/pull/8054)
+- Fix Pug support in Vue files - [Details](https://github.com/parcel-bundler/parcel/pull/8051)
+- Fix `export declare` syntax in generated TypeScript definitions - [Details](https://github.com/parcel-bundler/parcel/pull/8085)
+- Preserve correct `this` for named/default imports - [Details](https://github.com/parcel-bundler/parcel/pull/7956)
+- Fix hoisting for optional chaining member expressions - [Details](https://github.com/parcel-bundler/parcel/pull/8121)
+- Fix issues with web extensions - [Details](https://github.com/parcel-bundler/parcel/pull/8000)
+- Reload the closest package.json to an asset if it's a package entry to fix `sideEffects` - [Details](https://github.com/parcel-bundler/parcel/pull/7909)
+- Only emit non static import bailout warnings for variables which correspond to a * import - [Details](https://github.com/parcel-bundler/parcel/pull/8136)
+
 ## [2.5.0] - 2022-04-21
 
 ### Added
