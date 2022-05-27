@@ -5,8 +5,8 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
-use swc_common::{Mark, SourceMap, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::{self, Callee, MemberProp};
+use swc_common::{Mark, SourceMap, Span, DUMMY_SP};
+use swc_ecmascript::ast::{self, Callee, Id, MemberProp};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::fold_member_expr_skip_prop;
@@ -59,8 +59,9 @@ pub struct DependencyDescriptor {
 pub fn dependency_collector<'a>(
   source_map: &'a SourceMap,
   items: &'a mut Vec<DependencyDescriptor>,
-  decls: &'a HashSet<(JsWord, SyntaxContext)>,
+  decls: &'a HashSet<Id>,
   ignore_mark: swc_common::Mark,
+  unresolved_mark: swc_common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
 ) -> impl Fold + 'a {
@@ -72,6 +73,7 @@ pub fn dependency_collector<'a>(
     require_node: None,
     decls,
     ignore_mark,
+    unresolved_mark,
     config,
     diagnostics,
     import_meta: None,
@@ -84,8 +86,9 @@ struct DependencyCollector<'a> {
   in_try: bool,
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
-  decls: &'a HashSet<(JsWord, SyntaxContext)>,
+  decls: &'a HashSet<Id>,
   ignore_mark: swc_common::Mark,
+  unresolved_mark: swc_common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
@@ -828,7 +831,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     };
 
     if is_require {
-      return ast::Expr::Ident(ast::Ident::new("undefined".into(), DUMMY_SP));
+      return ast::Expr::Ident(get_undefined_ident(self.unresolved_mark));
     }
 
     node.fold_children_with(self)
@@ -1096,7 +1099,7 @@ impl<'a> DependencyCollector<'a> {
   fn match_new_url(
     &mut self,
     expr: &ast::Expr,
-    decls: &HashSet<(JsWord, SyntaxContext)>,
+    decls: &HashSet<Id>,
   ) -> Option<(JsWord, swc_common::Span)> {
     use ast::*;
 
@@ -1139,6 +1142,7 @@ impl<'a> DependencyCollector<'a> {
     None
   }
 
+  #[allow(clippy::wrong_self_convention)]
   fn is_import_meta_url(&mut self, expr: &ast::Expr) -> bool {
     use ast::*;
 
@@ -1175,6 +1179,7 @@ impl<'a> DependencyCollector<'a> {
     }
   }
 
+  #[allow(clippy::wrong_self_convention)]
   fn is_import_meta(&mut self, expr: &ast::Expr) -> bool {
     use ast::*;
 
