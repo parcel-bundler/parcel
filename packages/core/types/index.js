@@ -1499,6 +1499,8 @@ export type ResolveResult = {|
   +invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   /** A list of files that should invalidate the resolution if modified or deleted. */
   +invalidateOnFileChange?: Array<FilePath>,
+  /** Invalidates the resolution when the given environment variable changes.*/
+  +invalidateOnEnvChange?: Array<string>,
 |};
 
 /**
