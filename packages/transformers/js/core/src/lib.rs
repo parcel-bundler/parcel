@@ -28,10 +28,11 @@ use std::str::FromStr;
 
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
+use swc_atoms::JsWord;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::{Ident, Module};
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
@@ -43,7 +44,7 @@ use swc_ecmascript::transforms::{
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
   pass::Optional, proposals::decorators, react, typescript,
 };
-use swc_ecmascript::visit::{FoldWith, VisitWith};
+use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
 
 use decl_collector::*;
 use dependency_collector::*;
@@ -310,7 +311,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       decls: &decls,
                       used_env: &mut result.used_env,
                       source_map: &source_map,
-                      diagnostics: &mut diagnostics
+                      diagnostics: &mut diagnostics,
+                      unresolved_mark
                     },
                     config.source_type != SourceType::Script
                   ),
@@ -388,7 +390,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 module.fold_with(&mut passes)
               };
 
-              // Flush (JsWord, SyntaxContexts) into unique names and reresolve to
+              // Flush Id=(JsWord, SyntaxContexts) into unique names and reresolve to
               // set global_mark for all nodes, even generated ones.
               // - This changes the syntax context ids and therefore invalidates decls
               // - This will also remove any other other marks (like ignore_mark)
@@ -412,6 +414,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   &mut result.dependencies,
                   &decls,
                   ignore_mark,
+                  unresolved_mark,
                   &config,
                   &mut diagnostics,
                 ),
@@ -440,7 +443,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               }
 
               let module = if config.scope_hoist {
-                let res = hoist(module, config.module_id.as_str(), &collect);
+                let res = hoist(module, config.module_id.as_str(), unresolved_mark, &collect);
                 match res {
                   Ok((module, hoist_result, hoist_diagnostics)) => {
                     result.hoist_result = Some(hoist_result);
@@ -458,7 +461,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   result.symbol_result = Some(collect.into());
                 }
 
-                let (module, needs_helpers) = esm2cjs(module, versions);
+                let (module, needs_helpers) = esm2cjs(module, unresolved_mark, versions);
                 result.needs_esm_helpers = needs_helpers;
                 module
               };

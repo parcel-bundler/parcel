@@ -1,16 +1,13 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
+use crate::id;
 use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
 use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast;
+use swc_ecmascript::ast::{self, Id};
 
-pub fn match_member_expr(
-  expr: &ast::MemberExpr,
-  idents: Vec<&str>,
-  decls: &HashSet<(JsWord, SyntaxContext)>,
-) -> bool {
+pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &HashSet<Id>) -> bool {
   use ast::{Expr, Ident, Lit, MemberProp, Str};
 
   let mut member = expr;
@@ -35,10 +32,8 @@ pub fn match_member_expr(
 
     match &*member.obj {
       Expr::Member(m) => member = m,
-      Expr::Ident(Ident { ref sym, span, .. }) => {
-        return idents.len() == 1
-          && sym == idents.pop().unwrap()
-          && !decls.contains(&(sym.clone(), span.ctxt()));
+      Expr::Ident(id) => {
+        return idents.len() == 1 && &id.sym == idents.pop().unwrap() && !decls.contains(&id!(id));
       }
       _ => return false,
     }
@@ -119,11 +114,7 @@ pub fn match_export_name_ident(name: &ast::ModuleExportName) -> &ast::Ident {
   }
 }
 
-pub fn match_require(
-  node: &ast::Expr,
-  decls: &HashSet<(JsWord, SyntaxContext)>,
-  ignore_mark: Mark,
-) -> Option<JsWord> {
+pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -> Option<JsWord> {
   use ast::*;
 
   match node {
@@ -199,6 +190,10 @@ pub fn create_global_decl_stmt(
     })),
     span.ctxt,
   )
+}
+
+pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
+  ast::Ident::new(js_word!("undefined"), DUMMY_SP.apply_mark(unresolved_mark))
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -385,8 +380,6 @@ macro_rules! fold_member_expr_skip_prop {
 #[macro_export]
 macro_rules! id {
   ($ident: expr) => {
-    ($ident.sym.clone(), $ident.span.ctxt)
+    $ident.to_id()
   };
 }
-
-pub type IdentId = (JsWord, SyntaxContext);
