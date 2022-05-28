@@ -8,6 +8,7 @@ import type {CompilerOptions} from 'typescript';
 
 import ts from 'typescript';
 import {CompilerHost, loadTSConfig} from '@parcel/ts-utils';
+import {normalizeSeparators} from '@parcel/utils';
 import {escapeMarkdown} from '@parcel/diagnostic';
 import {TSModuleGraph} from './TSModuleGraph';
 import nullthrows from 'nullthrows';
@@ -51,11 +52,11 @@ export default (new Transformer({
       }
     }
 
-    let mainModuleName = path
-      .relative(program.getCommonSourceDirectory(), asset.filePath)
-      .slice(0, -path.extname(asset.filePath).length)
-      .split(path.sep)
-      .join(path.posix.sep);
+    let mainModuleName = normalizeSeparators(
+      path
+        .relative(program.getCommonSourceDirectory(), asset.filePath)
+        .slice(0, -path.extname(asset.filePath).length),
+    );
     let moduleGraph = new TSModuleGraph(mainModuleName);
 
     let emitResult = program.emit(undefined, undefined, undefined, true, {
