@@ -28,11 +28,10 @@ use std::str::FromStr;
 
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
-use swc_atoms::JsWord;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_ecmascript::ast::{Ident, Module};
+use swc_ecmascript::ast::Module;
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
@@ -44,7 +43,7 @@ use swc_ecmascript::transforms::{
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
   pass::Optional, proposals::decorators, react, typescript,
 };
-use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
+use swc_ecmascript::visit::{FoldWith, VisitWith};
 
 use decl_collector::*;
 use dependency_collector::*;
