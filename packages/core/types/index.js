@@ -1483,6 +1483,8 @@ export type ResolveResult = {|
   +query?: URLSearchParams,
   /** Whether the resolved file should be excluded from the build. */
   +isExcluded?: boolean,
+  /** The name to be used instead of the module if it is excluded (e.g. fs instead of node:fs in commonjs) */
+  +alias?: ?string,
   /** Overrides the priority set on the dependency. */
   +priority?: DependencyPriority,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */

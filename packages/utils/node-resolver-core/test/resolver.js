@@ -362,7 +362,7 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.deepEqual(resolved, {isExcluded: true});
+      assert.deepEqual(resolved, {alias: 'fs', isExcluded: true});
     });
 
     it('should resolve unimplemented node builtin modules to an empty file', async function () {

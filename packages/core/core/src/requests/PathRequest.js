@@ -103,6 +103,7 @@ type ResolverRunnerOpts = {|
 
 type ResolverResult = {|
   assetGroup: ?AssetGroup,
+  alias: ?string,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   invalidateOnFileChange?: Array<FilePath>,
   diagnostics?: Array<Diagnostic>,
@@ -219,6 +220,7 @@ export class ResolverRunner {
           if (result.isExcluded) {
             return {
               assetGroup: null,
+              alias: result?.alias,
               invalidateOnFileCreate,
               invalidateOnFileChange,
             };
