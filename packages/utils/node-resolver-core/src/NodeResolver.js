@@ -270,7 +270,10 @@ export default class NodeResolver {
     } else if (builtin === empty) {
       return {filePath: empty};
     } else if (builtin !== undefined) {
-      filename = env.outputFormat === 'commonjs' ? builtin.replace(/^node:/, '') : builtin;
+      filename =
+        env.outputFormat === 'commonjs'
+          ? builtin.replace(/^node:/, '')
+          : builtin;
     }
 
     if (this.shouldIncludeNodeModule(env, filename) === false) {
