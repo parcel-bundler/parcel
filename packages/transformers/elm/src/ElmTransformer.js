@@ -1,16 +1,16 @@
 // @flow strict-local
 
 import {Transformer} from '@parcel/plugin';
-import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
 import path from 'path';
 import {minify} from 'terser';
-import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 // $FlowFixMe
 import elm from 'node-elm-compiler';
 // $FlowFixMe
 import elmHMR from 'elm-hot';
+
+import {load, elmBinaryPath} from './loadConfig';
 
 let isWorker;
 try {
@@ -21,49 +21,8 @@ try {
 }
 
 export default (new Transformer({
-  async loadConfig({config}) {
-    const elmConfig = await config.getConfig(['elm.json']);
-    if (!elmConfig) {
-      elmBinaryPath(); // Check if elm is even installed
-      throw new ThrowableDiagnostic({
-        diagnostic: {
-          origin: '@parcel/elm-transformer',
-          message: "The 'elm.json' file is missing.",
-          hints: [
-            "Initialize your elm project by running 'elm init'",
-            "If you installed elm as project dependency then run 'yarn elm init' or 'npx elm init'",
-          ],
-        },
-      });
-    }
-
-    const packageJsonConfig = await config.getConfig(['package.json'], {
-      packageKey: '@parcel/transformer-elm',
-    });
-
-    const transformerConfig = packageJsonConfig?.contents ?? {extraSources: {}};
-    if (transformerConfig) {
-      const isValidConfig = Object.values(transformerConfig.extraSources).every(
-        val =>
-          Array.isArray(val) && val.every(item => typeof item === 'string'),
-      );
-      if (!isValidConfig) {
-        throw new ThrowableDiagnostic({
-          diagnostic: {
-            origin: '@parcel/elm-transformer',
-            message: 'The config in the package.json file is invalid',
-            hints: [
-              '"extraSources" needs to be an object whose values are string-arrays."',
-            ],
-          },
-        });
-      }
-    }
-
-    return {
-      elmJson: elmConfig.contents,
-      transformerConfig,
-    };
+  loadConfig({config}) {
+    return load({config});
   },
 
   async transform({asset, options, config, logger}) {
@@ -136,11 +95,11 @@ function resolveExtraSources({
   extraSourcesConfig,
   logger,
 }) {
-  const keyValuePair = Object.entries(extraSourcesConfig).find(
-    ([mainSrc]) => filePath === path.join(projectRoot, mainSrc),
+  const key = Object.keys(extraSourcesConfig).find(
+    mainSrc => filePath === path.join(projectRoot, mainSrc),
   );
 
-  if (Object.keys(extraSourcesConfig).length > 0 && !keyValuePair) {
+  if (Object.keys(extraSourcesConfig).length > 0 && key === undefined) {
     logger.warn({
       message: 'Specified extraSources for Elm but none were found.',
       hints: [
@@ -149,7 +108,8 @@ function resolveExtraSources({
     });
   }
 
-  const relativePaths = keyValuePair ? keyValuePair[1] : [];
+  const relativePaths: string[] =
+    key !== undefined ? extraSourcesConfig[key] : [];
 
   if (relativePaths.length > 0) {
     logger.info({
@@ -160,40 +120,6 @@ function resolveExtraSources({
   }
 
   return relativePaths.map(relPath => path.join(projectRoot, relPath));
-}
-
-function elmBinaryPath() {
-  let elmBinary = resolveLocalElmBinary();
-
-  if (elmBinary == null && !commandExists.sync('elm')) {
-    throw new ThrowableDiagnostic({
-      diagnostic: {
-        message: "Can't find 'elm' binary.",
-        hints: [
-          "You can add it as an dependency for your project by running 'yarn add -D elm' or 'npm add -D elm'",
-          'If you want to install it globally then follow instructions on https://elm-lang.org/',
-        ],
-        origin: '@parcel/elm-transformer',
-      },
-    });
-  }
-
-  return elmBinary;
-}
-
-function resolveLocalElmBinary() {
-  try {
-    let result = require.resolve('elm/package.json');
-    // $FlowFixMe
-    let pkg = require('elm/package.json');
-    let bin = nullthrows(pkg.bin);
-    return path.join(
-      path.dirname(result),
-      typeof bin === 'string' ? bin : bin.elm,
-    );
-  } catch (_) {
-    return null;
-  }
 }
 
 function compileToString(elm, elmBinary, sources, config) {
