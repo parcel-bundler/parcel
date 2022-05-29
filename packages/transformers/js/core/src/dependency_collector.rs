@@ -458,10 +458,17 @@ impl<'a> Fold for DependencyCollector<'a> {
               // Promise.resolve().then(() => require('foo'))
               // Promise.resolve().then(() => { return require('foo') })
               // Promise.resolve().then(function () { return require('foo') })
+              //   but not
+              // Promise.resolve(require('foo'))
               if let Call(call) = &*member.obj {
                 if let Callee::Expr(e) = &call.callee {
                   if let Member(m) = &**e {
-                    if match_member_expr(m, vec!["Promise", "resolve"], self.decls) {
+                    if match_member_expr(m, vec!["Promise", "resolve"], self.decls) &&
+                      // Make sure the arglist is empty.
+                      // I.e. do not proceed with the below unless Promise.resolve has an empty arglist
+                      // because build_promise_chain() will not work in this case.                   
+                      !call.args.get(0).is_some()
+                    {
                       if let MemberProp::Ident(id) = &member.prop {
                         if id.sym.to_string().as_str() == "then" {
                           if let Some(arg) = node.args.get(0) {
