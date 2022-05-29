@@ -21,12 +21,13 @@ try {
 }
 
 export default (new Transformer({
-  async loadConfig({config}) {
+  async loadConfig({config, options, logger}) {
     const elmConfig = await config.getConfig(['elm.json']);
     if (!elmConfig) {
       elmBinaryPath(); // Check if elm is even installed
       throw new ThrowableDiagnostic({
         diagnostic: {
+          origin: '@parcel/elm-transformer',
           message: "The 'elm.json' file is missing.",
           hints: [
             "Initialize your elm project by running 'elm init'",
@@ -35,10 +36,36 @@ export default (new Transformer({
         },
       });
     }
-    return elmConfig.contents;
+
+    const packageJsonConfig = await config.getConfig(['package.json'], {
+      packageKey: '@parcel/transformer-elm',
+    });
+
+    const transformerConfig = packageJsonConfig?.contents ?? {extraSources: {}};
+    if (transformerConfig) {
+      const isValidConfig = Object.values(transformerConfig.extraSources).every(
+        val => Array.isArray(val),
+      );
+      if (!isValidConfig) {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            origin: '@parcel/elm-transformer',
+            message: 'The config is the package.json file is invalid',
+            hints: [
+              '"extraSources" needs to be an object whose values are string-arrays."',
+            ],
+          },
+        });
+      }
+    }
+
+    return {
+      elmJson: elmConfig.contents,
+      transformerConfig,
+    };
   },
 
-  async transform({asset, options}) {
+  async transform({asset, options, config, logger}) {
     const elmBinary = elmBinaryPath();
     const compilerConfig = {
       spawn,
@@ -50,7 +77,15 @@ export default (new Transformer({
     };
     asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
 
-    const extraSources = resolveExtraSources(asset);
+    const extraSourcesConfig: {[string]: string[]} =
+      config.transformerConfig.extraSources;
+
+    const extraSources = resolveExtraSources({
+      filePath: asset.filePath,
+      projectRoot: options.projectRoot,
+      extraSourcesConfig,
+      logger,
+    });
 
     extraSources.forEach(filePath => {
       asset.invalidateOnFileChange(filePath);
@@ -94,9 +129,36 @@ export default (new Transformer({
 }): Transformer);
 
 // gather extra modules that should be added to the compilation process
-function resolveExtraSources(asset) {
-  const dirname = path.dirname(asset.filePath);
-  return asset.query.getAll('with').map(relPath => path.join(dirname, relPath));
+function resolveExtraSources({
+  filePath,
+  projectRoot,
+  extraSourcesConfig,
+  logger,
+}) {
+  const keyValuePair = Object.entries(extraSourcesConfig).find(
+    ([mainSrc]) => filePath === path.join(projectRoot, mainSrc),
+  );
+
+  if (Object.keys(extraSourcesConfig).length > 0 && !keyValuePair) {
+    logger.warn({
+      message: 'Specified extraSources for Elm but none were found.',
+      hints: [
+        'Maybe check your extraSources configuration in your package json',
+      ],
+    });
+  }
+
+  const relativePaths = keyValuePair ? keyValuePair[1] : [];
+
+  if (relativePaths.length > 0) {
+    logger.info({
+      message: md`Compiling elm with additional sources: ${md.bold(
+        JSON.stringify(relativePaths),
+      )}`,
+    });
+  }
+
+  return relativePaths.map(relPath => path.join(projectRoot, relPath));
 }
 
 function elmBinaryPath() {
