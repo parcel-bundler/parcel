@@ -21,7 +21,7 @@ try {
 }
 
 export default (new Transformer({
-  async loadConfig({config, options, logger}) {
+  async loadConfig({config}) {
     const elmConfig = await config.getConfig(['elm.json']);
     if (!elmConfig) {
       elmBinaryPath(); // Check if elm is even installed
