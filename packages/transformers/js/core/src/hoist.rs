@@ -914,10 +914,6 @@ impl<'a> Fold for Hoist<'a> {
   }
 
   fn fold_prop(&mut self, node: Prop) -> Prop {
-    if self.collect.should_wrap {
-      return node.fold_children_with(self);
-    }
-
     match node {
       Prop::Shorthand(ident) => Prop::KeyValue(KeyValueProp {
         key: PropName::Ident(Ident::new(ident.sym.clone(), DUMMY_SP)),
