@@ -31,7 +31,12 @@ async function load({config}: {|config: Config|}): Promise<ConfigResult> {
     packageKey: '@parcel/transformer-elm',
   });
 
-  const transformerConfig = packageJsonConfig?.contents ?? {extraSources: {}};
+  const defaults = {extraSources: {}};
+  const transformerConfig = {
+    ...defaults,
+    ...(packageJsonConfig?.contents ?? defaults),
+  };
+
   if (transformerConfig) {
     const isValidConfig =
       'extraSources' in transformerConfig &&
