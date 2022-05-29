@@ -23,7 +23,6 @@ import url from 'url';
 import mime from 'mime-types';
 import WebSocket from 'ws';
 import invariant from 'assert';
-import connect from 'connect';
 import {
   ansiHtml,
   createHTTPServer,

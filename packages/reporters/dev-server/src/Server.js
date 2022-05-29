@@ -29,8 +29,6 @@ import connect from 'connect';
 import serveHandler from 'serve-handler';
 import {createProxyMiddleware} from 'http-proxy-middleware';
 import {URL, URLSearchParams} from 'url';
-import nullthrows from 'nullthrows';
-import mime from 'mime-types';
 import launchEditor from 'launch-editor';
 
 export function setHeaders(res: Response) {
