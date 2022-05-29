@@ -9,11 +9,3 @@ addEventListener('beforeunload', function () {
     // ignore throwing if extension context invalidated
   }
 });
-
-env.runtime.onMessage.addListener(function (msg) {
-  if (msg.__parcel_hmr_reload__) {
-    setTimeout(function () {
-      location.reload();
-    }, 50);
-  }
-});
