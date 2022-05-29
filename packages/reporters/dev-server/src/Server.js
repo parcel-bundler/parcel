@@ -131,8 +131,8 @@ export default class Server {
   }
 
   respond(req: Request, res: Response): mixed {
+    if (this.middleware.some(handler => handler(req, res))) return;
     let {pathname, search} = url.parse(req.originalUrl || req.url);
-
     if (pathname == null) {
       pathname = '/';
     }
@@ -163,10 +163,7 @@ export default class Server {
         res,
         () => this.send404(req, res),
       );
-    } else if (
-      this.middleware.every(handler => !handler(req, res)) &&
-      pathname.startsWith(this.rootPath)
-    ) {
+    } else if (pathname.startsWith(this.rootPath)) {
       // Otherwise, serve the file from the dist folder
       req.url =
         this.rootPath === '/' ? pathname : pathname.slice(this.rootPath.length);
