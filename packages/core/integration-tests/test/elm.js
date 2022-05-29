@@ -134,22 +134,48 @@ describe('elm', function () {
     );
   });
 
-  it('should produce extra Modules given in "with" query param', async function () {
+  it('should produce extra Modules given extraSources in the package.json', async function () {
     const b = await bundle(
-      path.join(__dirname, '/integration/elm-multiple-apps/index.js'),
+      path.join(__dirname, '/integration/elm-multiple-apps/src/index.js'),
     );
 
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['Main.elm', 'index.js', 'esmodule-helpers.js'],
+        assets: ['Main.elm', 'index.js'],
       },
     ]);
 
     const output = await run(b);
     const {Elm} = output();
     assert.equal(typeof Elm.Main.init, 'function');
-    assert.equal(typeof Elm.AnotherModule.init, 'function');
-    assert.equal(typeof Elm.YetAnotherModule.init, 'function');
+    assert.equal(typeof Elm.MainB.init, 'function');
+    assert.equal(typeof Elm.MainC.init, 'function');
+  });
+
+  it('should error for a broken extraSources config in the package.json', async function () {
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(
+            __dirname,
+            '/integration/elm-multiple-apps-broken-config/src/index.js',
+          ),
+          {mode: 'production'},
+        ),
+
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            origin: '@parcel/elm-transformer',
+            message: 'The config in the package.json file is invalid',
+            hints: [
+              '"extraSources" needs to be an object whose values are string-arrays."',
+            ],
+          },
+        ],
+      },
+    );
   });
 });

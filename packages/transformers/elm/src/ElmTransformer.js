@@ -44,13 +44,14 @@ export default (new Transformer({
     const transformerConfig = packageJsonConfig?.contents ?? {extraSources: {}};
     if (transformerConfig) {
       const isValidConfig = Object.values(transformerConfig.extraSources).every(
-        val => Array.isArray(val),
+        val =>
+          Array.isArray(val) && val.every(item => typeof item === 'string'),
       );
       if (!isValidConfig) {
         throw new ThrowableDiagnostic({
           diagnostic: {
             origin: '@parcel/elm-transformer',
-            message: 'The config is the package.json file is invalid',
+            message: 'The config in the package.json file is invalid',
             hints: [
               '"extraSources" needs to be an object whose values are string-arrays."',
             ],

@@ -1,4 +1,4 @@
-module Main exposing (main)
+module MainC exposing (main)
 
 import Html
 
