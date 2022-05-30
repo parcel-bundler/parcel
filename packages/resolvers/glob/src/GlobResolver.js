@@ -102,14 +102,30 @@ export default (new Resolver({
 
       if (!result || !result.filePath) {
         throw errorToThrowableDiagnostic(
-          `Unable to resolve ${pkg} from ${sourceFile} when evaluating specifier ${specifier}`,
+          `Unable to resolve ${pkg} from ${sourceFile} when resolving specifier ${specifier}`,
           dependency,
         );
       } else if (result.diagnostics) {
         throw new ThrowableDiagnostic({diagnostic: result.diagnostics});
       }
+      // We keep Flow happy by copying the filePath at a point we know it's defined
+      const filePath = result.filePath;
 
-      specifier = path.resolve(path.dirname(result.filePath), rest);
+      const ctx = {
+        invalidateOnFileCreate: result.invalidateOnFileCreate || [],
+        invalidateOnFileChange: new Set(result.invalidateOnFileChange),
+        specifierType: dependency.specifierType,
+        loc: dependency.loc,
+      };
+
+      const resolvedPackage = await resolver.findPackage(filePath, ctx);
+      if (!resolvedPackage) {
+        throw errorToThrowableDiagnostic(
+          `Unable to find package from ${filePath} when resolving specifier ${specifier}`,
+          dependency,
+        );
+      }
+      specifier = path.resolve(resolvedPackage.pkgdir, rest);
     } else {
       specifier = path.resolve(path.dirname(sourceFile), specifier);
     }
