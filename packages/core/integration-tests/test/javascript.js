@@ -1994,39 +1994,6 @@ describe('javascript', function () {
     );
   });
 
-  it('should contain duplicate assets in workers when in development', async () => {
-    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) return;
-    let b = await bundle(
-      path.join(__dirname, '/integration/worker-shared/index.js'),
-      {mode: 'development'},
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'get-worker-url.js',
-          'lodash.js',
-          'esmodule-helpers.js',
-        ],
-      },
-      {
-        assets: [
-          'worker-a.js',
-          'bundle-url.js',
-          'esmodule-helpers.js',
-          'get-worker-url.js',
-          'lodash.js',
-        ],
-      },
-      {
-        assets: ['worker-b.js', 'lodash.js', 'esmodule-helpers.js'],
-      },
-    ]);
-  });
-
   it('should deduplicate and remove an unnecessary async bundle when it contains a cyclic reference to its entry', async () => {
     let b = await bundle(
       path.join(

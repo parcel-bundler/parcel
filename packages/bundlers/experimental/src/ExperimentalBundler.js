@@ -103,7 +103,14 @@ export default (new Bundler({
   },
 
   bundle({bundleGraph, config}) {
-    decorateLegacyGraph(createIdealGraph(bundleGraph, config), bundleGraph);
+    let targetMap = getEntryByTarget(bundleGraph);
+    let graphs = [];
+    for (let entries of targetMap.values()) {
+      graphs.push(createIdealGraph(bundleGraph, config, entries));
+    }
+    for (let g of graphs) {
+      decorateLegacyGraph(g, bundleGraph);
+    }
   },
   optimize() {},
 }): Bundler);
@@ -276,6 +283,7 @@ function decorateLegacyGraph(
 function createIdealGraph(
   assetGraph: MutableBundleGraph,
   config: ResolvedBundlerConfig,
+  selectedEntries: Set<Asset>,
 ): IdealGraph {
   // Asset to the bundle and group it's an entry of
   let bundleRoots: Map<BundleRoot, [NodeId, NodeId]> = new Map();
@@ -310,6 +318,10 @@ function createIdealGraph(
 
   assetGraph.traverse((node, context, actions) => {
     if (node.type !== 'asset') {
+      return node;
+    }
+    if (!selectedEntries.has(node.value)) {
+      actions.skipChildren(); //this can be replaced with selected entries if we store dependency in target map and pass in with selected entries
       return node;
     }
 
@@ -362,6 +374,14 @@ function createIdealGraph(
   assetGraph.traverse({
     enter(node, context, actions) {
       if (node.type === 'asset') {
+        if (
+          context?.type === 'dependency' &&
+          context?.value.isEntry &&
+          !selectedEntries.has(node.value)
+        ) {
+          actions.skipChildren();
+          return node;
+        }
         assets.push(node.value);
 
         let bundleIdTuple = bundleRoots.get(node.value);
@@ -1127,4 +1147,27 @@ function getReachableBundleRoots(asset, graph): Array<BundleRoot> {
   return graph
     .getNodeIdsConnectedTo(graph.getNodeIdByContentKey(asset.id))
     .map(nodeId => nullthrows(graph.getNode(nodeId)));
+}
+
+function getEntryByTarget(
+  bundleGraph: MutableBundleGraph,
+): DefaultMap<string, Set<Asset>> {
+  let targets: DefaultMap<string, Set<Asset>> = new DefaultMap(() => new Set());
+  bundleGraph.traverse({
+    enter(node, context, actions) {
+      if (node.type !== 'asset') {
+        return node;
+      }
+      invariant(
+        context != null &&
+          context.type === 'dependency' &&
+          context.value.isEntry &&
+          context.value.target != null,
+      );
+      targets.get(context.value.target.distDir).add(node.value);
+      actions.skipChildren();
+      return node;
+    },
+  });
+  return targets;
 }
