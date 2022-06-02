@@ -17,6 +17,8 @@ import {
   TextDocumentSyncKind,
   InitializeResult,
   WorkDoneProgressServerReporter,
+  CodeActionKind,
+  CodeAction,
 } from 'vscode-languageserver/node';
 
 import {
@@ -34,6 +36,7 @@ import {IPC} from 'node-ipc';
 
 import {TextDocument} from 'vscode-languageserver-textdocument';
 import * as watcher from '@parcel/watcher';
+import {connect} from 'tls';
 
 type IPCType = InstanceType<typeof IPC>;
 
@@ -66,9 +69,8 @@ connection.onInitialize((params: InitializeParams) => {
   const result: InitializeResult = {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Incremental,
-      // Tell the client that this server supports code completion.
-      completionProvider: {
-        resolveProvider: true,
+      codeActionProvider: {
+        codeActionKinds: [CodeActionKind.QuickFix],
       },
     },
   };
@@ -95,6 +97,33 @@ connection.onInitialized(() => {
     connection.workspace.onDidChangeWorkspaceFolders(_event => {
       connection.console.log('Workspace folder change event received.');
     });
+  }
+});
+
+connection.onCodeAction(params => {
+  let diagnostic = params.context.diagnostics[0];
+  if (diagnostic) {
+    let action: CodeAction = {
+      title: 'xyz',
+      kind: CodeActionKind.QuickFix,
+      diagnostics: params.context.diagnostics,
+      edit: {
+        changes: {
+          [params.textDocument.uri]: [
+            {
+              range: diagnostic.range,
+              // range: {
+              //   start: {line: 3, character: 11},
+              //   end: {line: 3, character: 20},
+              // },
+              newText: `new URL('foo.js', import.meta.url)`,
+            },
+          ],
+        },
+      },
+    };
+
+    return [action];
   }
 });
 

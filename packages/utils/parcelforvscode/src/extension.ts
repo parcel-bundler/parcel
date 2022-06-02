@@ -29,7 +29,9 @@ export function activate(context: ExtensionContext) {
   };
 
   // Options to control the language client
-  let clientOptions: LanguageClientOptions = {};
+  let clientOptions: LanguageClientOptions = {
+    documentSelector: [{scheme: 'file', pattern: '**/*'}],
+  };
 
   // Create the language client and start the client.
   client = new LanguageClient('parcel', 'Parcel', serverOptions, clientOptions);
