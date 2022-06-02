@@ -103,7 +103,14 @@ export default (new Bundler({
   },
 
   bundle({bundleGraph, config}) {
-    decorateLegacyGraph(createIdealGraph(bundleGraph, config), bundleGraph);
+    let targetMap = getEntryByTarget(bundleGraph);
+    let graphs = [];
+    for (let entries of targetMap.values()) {
+      graphs.push(createIdealGraph(bundleGraph, config, entries));
+    }
+    for (let g of graphs) {
+      decorateLegacyGraph(g, bundleGraph);
+    }
   },
   optimize() {},
 }): Bundler);
@@ -276,6 +283,7 @@ function decorateLegacyGraph(
 function createIdealGraph(
   assetGraph: MutableBundleGraph,
   config: ResolvedBundlerConfig,
+  entries: Map<Asset, Dependency>,
 ): IdealGraph {
   // Asset to the bundle and group it's an entry of
   let bundleRoots: Map<BundleRoot, [NodeId, NodeId]> = new Map();
@@ -304,27 +312,13 @@ function createIdealGraph(
   // Models bundleRoots and the assets that require it synchronously
   let reachableRoots: ContentGraph<Asset> = new ContentGraph();
 
-  // Step Create Entry Bundles: Find and create bundles for entries from assetGraph
-  let entries: Map<Asset, Dependency> = new Map();
   let sharedToSourceBundleIds: Map<NodeId, Array<NodeId>> = new Map();
-
-  assetGraph.traverse((node, context, actions) => {
-    if (node.type !== 'asset') {
-      return node;
-    }
-
-    invariant(
-      context != null && context.type === 'dependency' && context.value.isEntry,
-    );
-    entries.set(node.value, context.value);
-    actions.skipChildren();
-  });
 
   let rootNodeId = nullthrows(asyncBundleRootGraph.addNode('root'));
   let bundleGraphRootNodeId = nullthrows(bundleGraph.addNode('root'));
   asyncBundleRootGraph.setRootNodeId(rootNodeId);
   bundleGraph.setRootNodeId(bundleGraphRootNodeId);
-
+  // Step Create Entry Bundles
   for (let [asset, dependency] of entries) {
     let bundle = createBundle({
       asset,
@@ -362,6 +356,14 @@ function createIdealGraph(
   assetGraph.traverse({
     enter(node, context, actions) {
       if (node.type === 'asset') {
+        if (
+          context?.type === 'dependency' &&
+          context?.value.isEntry &&
+          !entries.has(node.value)
+        ) {
+          actions.skipChildren();
+          return node;
+        }
         assets.push(node.value);
 
         let bundleIdTuple = bundleRoots.get(node.value);
@@ -1200,4 +1202,30 @@ function getReachableBundleRoots(asset, graph): Array<BundleRoot> {
   return graph
     .getNodeIdsConnectedTo(graph.getNodeIdByContentKey(asset.id))
     .map(nodeId => nullthrows(graph.getNode(nodeId)));
+}
+
+function getEntryByTarget(
+  bundleGraph: MutableBundleGraph,
+): DefaultMap<string, Map<Asset, Dependency>> {
+  // Find entries from assetGraph per target
+  let targets: DefaultMap<string, Map<Asset, Dependency>> = new DefaultMap(
+    () => new Map(),
+  );
+  bundleGraph.traverse({
+    enter(node, context, actions) {
+      if (node.type !== 'asset') {
+        return node;
+      }
+      invariant(
+        context != null &&
+          context.type === 'dependency' &&
+          context.value.isEntry &&
+          context.value.target != null,
+      );
+      targets.get(context.value.target.distDir).set(node.value, context.value);
+      actions.skipChildren();
+      return node;
+    },
+  });
+  return targets;
 }

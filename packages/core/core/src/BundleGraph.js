@@ -1312,7 +1312,6 @@ export default class BundleGraph {
           nodeId,
           bundleGraphEdgeTypes.references,
         ),
-      //.reverse(),
     });
 
     return [...referencedBundles];
