@@ -4422,7 +4422,7 @@ describe('cache', function () {
               );
             },
             async update(b) {
-              assert(b.bundleGraph.getBundles().length, 7);
+              assert.deepEqual(b.bundleGraph.getBundles().length, 7);
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
               await overlayFS.writeFile(
@@ -4441,7 +4441,7 @@ describe('cache', function () {
           },
           'large-bundlegroup',
         );
-        assert(b.bundleGraph.getBundles().length, 5);
+        assert.deepEqual(b.bundleGraph.getBundles().length, 5);
       });
 
       it('should support updating bundler config', async function () {
