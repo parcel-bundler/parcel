@@ -778,15 +778,24 @@ function createIdealGraph(
     }
   }
 
-  // Step 8: Remove shared bundles from bundle groups that hit the parallel request limit.
+  // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
   for (let [bundleId, bundleGroupId] of bundleRoots.values()) {
     // Only handle bundle group entries.
-    if (bundleId != bundleGroupId) {
+    if (bundleId !== bundleGroupId) {
       continue;
     }
 
-    // Find the bundles in this bundle group.
-    let bundleIdsInGroup = bundleGraph.getNodeIdsConnectedFrom(bundleGroupId);
+    // Find shared bundles in this bundle group.
+    let bundleIdsInGroup = [];
+    for (let [
+      sharedBundleId,
+      sourceBundleIds,
+    ] of sharedToSourceBundleIds.entries()) {
+      if (sourceBundleIds.includes(bundleId)) {
+        bundleIdsInGroup.push(sharedBundleId);
+      }
+    }
+
     if (bundleIdsInGroup.length > config.maxParallelRequests) {
       // Sort the bundles so the smallest ones are removed first.
       let bundlesInGroup = bundleIdsInGroup
@@ -807,6 +816,7 @@ function createIdealGraph(
         let bundleId = bundleIdsInGroup[i];
         let bundle = nullthrows(bundleGraph.getNode(bundleId));
         invariant(bundle !== 'root');
+
         // Add all assets in the shared bundle into the source bundles that are within this bundle group.
         let sourceBundles = bundle.sourceBundles
           .filter(b => bundlesInGroup.includes(b))
@@ -822,12 +832,18 @@ function createIdealGraph(
 
         // Remove the edge from this bundle group to the shared bundle.
         bundleGraph.removeEdge(bundleGroupId, bundleId);
+
         // If there is now only a single bundle group that contains this bundle,
         // merge it into the remaining source bundles. If it is orphaned entirely, remove it.
         let incomingNodeCount =
           bundleGraph.getNodeIdsConnectedTo(bundleId).length;
         if (incomingNodeCount === 1) {
           removeBundle(bundleGraph, bundleId, assetReference);
+          for (let sharedBundleId of sharedToSourceBundleIds.keys()) {
+            if (sharedBundleId === bundleId) {
+              sharedToSourceBundleIds.delete(sharedBundleId);
+            }
+          }
         } else if (incomingNodeCount === 0) {
           bundleGraph.removeNode(bundleId);
         }
