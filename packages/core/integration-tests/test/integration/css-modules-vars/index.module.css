@@ -1,0 +1,5 @@
+.foo {
+  color: var(--color from "./vars.module.css");
+  width: var(--theme-sizes-1\/12 from "./vars.module.css");
+  height: var(--height from global);
+}

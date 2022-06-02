@@ -997,7 +997,15 @@ export default class NodeResolver {
     }
 
     if (found) {
-      return {path: found, pkg};
+      return {
+        path: found,
+        // If this package.json isn't a sibling of found, it's possible pkg is not the
+        // closest package.json to the resolved file. Reload it instead.
+        pkg:
+          pkg == null || pkg?.pkgdir !== path.dirname(found)
+            ? await this.findPackage(found, ctx)
+            : pkg,
+      };
     }
 
     return null;

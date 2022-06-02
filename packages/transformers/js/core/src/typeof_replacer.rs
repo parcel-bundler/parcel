@@ -1,14 +1,13 @@
 use std::collections::HashSet;
 
-use swc_atoms::{js_word, JsWord};
-use swc_ecmascript::ast::{Expr, Lit, Str, UnaryOp};
+use swc_atoms::js_word;
+use swc_ecmascript::ast::{Expr, Id, Lit, Str, UnaryOp};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::id;
-use crate::utils::IdentId;
 
 pub struct TypeofReplacer<'a> {
-  pub decls: &'a HashSet<IdentId>,
+  pub decls: &'a HashSet<Id>,
 }
 
 impl<'a> Fold for TypeofReplacer<'a> {
@@ -25,8 +24,7 @@ impl<'a> Fold for TypeofReplacer<'a> {
               raw: None,
             }));
           }
-          let exports: JsWord = "exports".into();
-          if ident.sym == exports && !self.decls.contains(&id!(ident)) {
+          if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
             return Expr::Lit(Lit::Str(Str {
               span: unary.span,
               value: js_word!("object"),
