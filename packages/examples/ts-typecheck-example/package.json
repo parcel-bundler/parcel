@@ -1,6 +1,6 @@
 {
   "name": "@parcel/ts-typecheck-example",
-  "version": "2.0.30",
+  "version": "2.0.31",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -19,7 +19,7 @@
   "devDependencies": {
     "@babel/core": "^7.0.0",
     "@parcel/babel-register": "2.0.30",
-    "@parcel/core": "2.0.30",
-    "@parcel/validator-typescript": "2.0.30"
+    "@parcel/core": "2.0.31",
+    "@parcel/validator-typescript": "2.0.31"
   }
 }

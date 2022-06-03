@@ -1,6 +1,6 @@
 {
   "name": "@parcel/utils",
-  "version": "2.0.30",
+  "version": "2.0.31",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -35,7 +35,7 @@
   "dependencies": {
     "@parcel/codeframe": "2.0.30",
     "@parcel/diagnostic": "2.0.30",
-    "@parcel/hash": "2.0.30",
+    "@parcel/hash": "2.0.31",
     "@parcel/logger": "2.0.30",
     "@parcel/markdown-ansi": "2.0.30",
     "@parcel/source-map": "^2.0.0",

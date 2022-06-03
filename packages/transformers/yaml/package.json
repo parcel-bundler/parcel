@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-yaml",
-  "version": "2.0.30",
+  "version": "2.0.31",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.30",
+    "@parcel/plugin": "2.0.31",
     "js-yaml": "^3.10.0"
   }
 }
