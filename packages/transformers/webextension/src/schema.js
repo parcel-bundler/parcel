@@ -196,6 +196,7 @@ const commonProps = {
         },
       },
       additionalProperties: false,
+      required: ['rule_resources'],
     },
   },
   devtools_page: string,
