@@ -251,7 +251,7 @@ async function collectDependencies(
 
       asset.addURLDependency(rulesPath, {
         needsStableName: true,
-        pipeline: 'raw',
+        pipeline: 'isolated',
       });
     }
   }
