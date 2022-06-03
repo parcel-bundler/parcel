@@ -179,6 +179,25 @@ const commonProps = {
       required: ['matches'],
     },
   },
+  declarative_net_request: {
+    type: 'object',
+    properties: {
+      rule_resources: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: string,
+            enabled: boolean,
+            path: string,
+          },
+          additionalProperties: false,
+          required: ['id', 'enabled', 'path'],
+        },
+      },
+      additionalProperties: false,
+    },
+  },
   devtools_page: string,
   // looks to be FF only
   dictionaries: ({
