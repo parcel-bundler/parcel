@@ -217,11 +217,16 @@ async function collectDependencies(
     program.web_accessible_resources = war;
   }
   if (program.declarative_net_request?.rule_resources) {
-    const rrs: {path: string}[] =
+    const rrs: {path: string, id: string, enabled: boolean}[] =
       program.declarative_net_request?.rule_resources ?? [];
-    for (const resources of rrs) {
-      const rulesPath = path.join(assetDir, resources.path);
+    for (let i = 0; i < rrs.length; ++i) {
+      const resources = rrs[i];
+      const rulesPath = path.relative(assetDir, resources.path);
       if (!(await fs.exists(rulesPath))) {
+        const pathSourceLoc = getJSONSourceLocation(
+          ptrs[`/declarative_net_request/rule_resources/${i}/path`],
+          'value',
+        );
         throw new ThrowableDiagnostic({
           diagnostic: [
             {
@@ -230,11 +235,11 @@ async function collectDependencies(
               codeFrames: [
                 {
                   filePath,
+                  language: 'json',
                   codeHighlights: [
                     {
-                      message: `Path for rule_resource ${
-                        resources.id
-                      } does not exist: ${path.relative(assetDir, rulesPath)}`,
+                      ...pathSourceLoc,
+                      message: `Path does not exist`,
                     },
                   ],
                 },
