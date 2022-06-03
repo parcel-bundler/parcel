@@ -50,6 +50,7 @@ export function createDependency(
         (opts.target ? JSON.stringify(opts.target) : '') +
         (opts.pipeline ?? '') +
         opts.specifierType +
+        (opts.bundleBehavior ?? '') +
         (opts.priority ?? 'sync'),
     );
 
@@ -85,7 +86,7 @@ export function createDependency(
 }
 
 export function mergeDependencies(a: Dependency, b: Dependency): void {
-  let {meta, symbols, ...other} = b;
+  let {meta, symbols, needsStableName, isEntry, isOptional, ...other} = b;
   Object.assign(a, other);
   Object.assign(a.meta, meta);
   if (a.symbols && symbols) {
@@ -93,4 +94,7 @@ export function mergeDependencies(a: Dependency, b: Dependency): void {
       a.symbols.set(k, v);
     }
   }
+  if (needsStableName) a.needsStableName = true;
+  if (isEntry) a.isEntry = true;
+  if (!isOptional) a.isOptional = false;
 }
