@@ -216,6 +216,41 @@ async function collectDependencies(
     }
     program.web_accessible_resources = war;
   }
+  if (program.declarative_net_request?.rule_resources) {
+    const rrs: {path: string}[] =
+      program.declarative_net_request?.rule_resources ?? [];
+    for (const resources of rrs) {
+      const rulesPath = path.join(assetDir, resources.path);
+      if (!(await fs.exists(rulesPath))) {
+        throw new ThrowableDiagnostic({
+          diagnostic: [
+            {
+              message: 'Invalid Web Extension manifest',
+              origin: '@parcel/transformer-webextension',
+              codeFrames: [
+                {
+                  filePath,
+                  codeHighlights: [
+                    {
+                      message: `Path for rule_resource ${
+                        resources.id
+                      } does not exist: ${path.relative(assetDir, rulesPath)}`,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        });
+      }
+
+      asset.addURLDependency(rulesPath, {
+        needsStableName: true,
+        pipeline: 'raw',
+      });
+    }
+  }
+
   for (const loc of DEP_LOCS) {
     const location = '/' + loc.join('/');
     if (!ptrs[location]) continue;
