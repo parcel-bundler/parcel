@@ -3709,8 +3709,6 @@ describe('scope hoisting', function () {
         ),
       );
 
-      // console.log(await outputFS.readFile(b.getBundles()[0].filePath, 'utf8'));
-
       let output = await run(b);
       assert.equal(output, 1);
     });
@@ -3773,6 +3771,18 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.deepEqual(output, {foo: 2});
+    });
+
+    it('should support referencing a require in object literal shorthands when wrapped', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-module-obj-literal-require/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 1234);
     });
 
     it('should support typeof require when wrapped', async function () {
