@@ -223,10 +223,6 @@ async function collectDependencies(
       const resources = rrs[i];
       const rulesPath = path.relative(assetDir, resources.path);
       if (!(await fs.exists(rulesPath))) {
-        const pathSourceLoc = getJSONSourceLocation(
-          ptrs[`/declarative_net_request/rule_resources/${i}/path`],
-          'value',
-        );
         throw new ThrowableDiagnostic({
           diagnostic: [
             {
@@ -238,8 +234,13 @@ async function collectDependencies(
                   language: 'json',
                   codeHighlights: [
                     {
-                      ...pathSourceLoc,
-                      message: `Path does not exist`,
+                      ...getJSONSourceLocation(
+                        ptrs[
+                          `/declarative_net_request/rule_resources/${i}/path`
+                        ],
+                        'value',
+                      ),
+                      message: `Ruleset file for static ruleset ${resources.id} could not be found at path ${rulesPath}`,
                     },
                   ],
                 },
