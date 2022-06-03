@@ -217,7 +217,7 @@ async function collectDependencies(
     program.web_accessible_resources = war;
   }
   if (program.declarative_net_request) {
-    const rrs: {path: string, id: string, enabled: boolean}[] =
+    const rrs: {|path: string, id: string, enabled: boolean|}[] =
       program.declarative_net_request?.rule_resources ?? [];
     for (let i = 0; i < rrs.length; ++i) {
       const resources = rrs[i];

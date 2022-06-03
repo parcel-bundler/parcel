@@ -179,7 +179,7 @@ const commonProps = {
       required: ['matches'],
     },
   },
-  declarative_net_request: {
+  declarative_net_request: ({
     type: 'object',
     properties: {
       rule_resources: {
@@ -195,10 +195,10 @@ const commonProps = {
           required: ['id', 'enabled', 'path'],
         },
       },
-      additionalProperties: false,
-      required: ['rule_resources'],
     },
-  },
+    additionalProperties: false,
+    required: ['rule_resources'],
+  }: SchemaEntity),
   devtools_page: string,
   // looks to be FF only
   dictionaries: ({
