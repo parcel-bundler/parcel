@@ -25,7 +25,7 @@ export default (new Transformer({
     return load({config});
   },
 
-  async transform({asset, options, config, logger}) {
+  async transform({asset, options, logger}) {
     const elmBinary = elmBinaryPath();
     const compilerConfig = {
       spawn,
@@ -37,13 +37,9 @@ export default (new Transformer({
     };
     asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
 
-    const extraSourcesConfig: {[string]: string[]} =
-      config.transformerConfig.extraSources;
-
     const extraSources = resolveExtraSources({
-      filePath: asset.filePath,
+      asset,
       projectRoot: options.projectRoot,
-      extraSourcesConfig,
       logger,
     });
 
@@ -89,27 +85,9 @@ export default (new Transformer({
 }): Transformer);
 
 // gather extra modules that should be added to the compilation process
-function resolveExtraSources({
-  filePath,
-  projectRoot,
-  extraSourcesConfig,
-  logger,
-}) {
-  const key = Object.keys(extraSourcesConfig).find(
-    mainSrc => filePath === path.join(projectRoot, mainSrc),
-  );
-
-  if (Object.keys(extraSourcesConfig).length > 0 && key === undefined) {
-    logger.warn({
-      message: 'Specified extraSources for Elm but none were found.',
-      hints: [
-        'Maybe check your extraSources configuration in your package json',
-      ],
-    });
-  }
-
-  const relativePaths: string[] =
-    key !== undefined ? extraSourcesConfig[key] : [];
+function resolveExtraSources({asset, projectRoot, logger}) {
+  const dirname = path.dirname(asset.filePath);
+  const relativePaths = asset.query.getAll('with');
 
   if (relativePaths.length > 0) {
     logger.info({
@@ -119,7 +97,7 @@ function resolveExtraSources({
     });
   }
 
-  return relativePaths.map(relPath => path.join(projectRoot, relPath));
+  return relativePaths.map(relPath => path.join(dirname, relPath));
 }
 
 function compileToString(elm, elmBinary, sources, config) {
