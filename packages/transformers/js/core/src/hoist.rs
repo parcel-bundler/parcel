@@ -129,6 +129,14 @@ macro_rules! hoist_visit_fn {
   };
 }
 
+fn get_specifier_type(import_kind: ImportKind) -> String {
+  match import_kind {
+    ImportKind::Import => "esm".to_string(),
+    ImportKind::DynamicImport => "esm".to_string(),
+    ImportKind::Require => "commonjs".to_string(),
+  }
+}
+
 impl<'a> Fold for Hoist<'a> {
   fn fold_module(&mut self, node: Module) -> Module {
     let mut node = node;
@@ -143,10 +151,15 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: format!("{}:{}", self.module_id, import.src.value).into(),
+                  src: format!(
+                    "{}:{}:{}",
+                    self.module_id,
+                    import.src.value,
+                    get_specifier_type(ImportKind::Import)
+                  )
+                  .into(),
                   type_only: false,
                 })));
-
               // Ensure that all import specifiers are constant.
               for specifier in &import.specifiers {
                 let local = match specifier {
@@ -190,7 +203,13 @@ impl<'a> Fold for Hoist<'a> {
                     asserts: None,
                     span: DUMMY_SP,
                     src: Str {
-                      value: format!("{}:{}", self.module_id, src.value).into(),
+                      value: format!(
+                        "{}:{}:{}",
+                        self.module_id,
+                        src.value,
+                        get_specifier_type(ImportKind::Import)
+                      )
+                      .into(),
                       span: DUMMY_SP,
                       raw: None,
                     },
@@ -285,7 +304,13 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: format!("{}:{}", self.module_id, export.src.value).into(),
+                  src: format!(
+                    "{}:{}:{}",
+                    self.module_id,
+                    export.src.value,
+                    get_specifier_type(ImportKind::Import)
+                  )
+                  .into(),
                   type_only: false,
                 })));
               self.re_exports.push(ImportedSymbol {
@@ -389,7 +414,13 @@ impl<'a> Fold for Hoist<'a> {
                               asserts: None,
                               span: DUMMY_SP,
                               src: Str {
-                                value: format!("{}:{}", self.module_id, source).into(),
+                                value: format!(
+                                  "{}:{}:{}",
+                                  self.module_id,
+                                  source,
+                                  get_specifier_type(ImportKind::Require)
+                                )
+                                .into(),
                                 span: DUMMY_SP,
                                 raw: None,
                               },
@@ -423,7 +454,6 @@ impl<'a> Fold for Hoist<'a> {
                                 .module_items
                                 .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
                             }
-
                             self
                               .module_items
                               .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -431,7 +461,13 @@ impl<'a> Fold for Hoist<'a> {
                                 asserts: None,
                                 span: DUMMY_SP,
                                 src: Str {
-                                  value: format!("{}:{}", self.module_id, source).into(),
+                                  value: format!(
+                                    "{}:{}:{}",
+                                    self.module_id,
+                                    source,
+                                    get_specifier_type(ImportKind::Require)
+                                  )
+                                  .into(),
                                   span: DUMMY_SP,
                                   raw: None,
                                 },
@@ -492,7 +528,7 @@ impl<'a> Fold for Hoist<'a> {
               {
                 // Require in statement position (`require('other');`) should behave just
                 // like `import 'other';` in that it doesn't add any symbols (not even '*').
-                self.add_require(&source);
+                self.add_require(&source, ImportKind::Require);
               } else {
                 let d = expr.fold_with(self);
                 self
@@ -601,7 +637,7 @@ impl<'a> Fold for Hoist<'a> {
             if let Some(source) =
               match_require(&member.obj, &self.collect.decls, self.collect.ignore_mark)
             {
-              self.add_require(&source);
+              self.add_require(&source, ImportKind::Require);
               return Expr::Ident(self.get_import_ident(
                 member.span,
                 &source,
@@ -645,7 +681,7 @@ impl<'a> Fold for Hoist<'a> {
       Expr::Call(ref call) => {
         // require('foo') -> $id$import$foo
         if let Some(source) = match_require(&node, &self.collect.decls, self.collect.ignore_mark) {
-          self.add_require(&source);
+          self.add_require(&source, ImportKind::Require);
           return Expr::Ident(self.get_import_ident(
             call.span,
             &source,
@@ -656,7 +692,7 @@ impl<'a> Fold for Hoist<'a> {
         }
 
         if let Some(source) = match_import(&node, self.collect.ignore_mark) {
-          self.add_require(&source);
+          self.add_require(&source, ImportKind::DynamicImport);
           let name: JsWord = format!("${}$importAsync${:x}", self.module_id, hash!(source)).into();
           self.dynamic_imports.insert(name.clone(), source.clone());
           if self.collect.non_static_requires.contains(&source) || self.collect.should_wrap {
@@ -944,14 +980,20 @@ impl<'a> Fold for Hoist<'a> {
 }
 
 impl<'a> Hoist<'a> {
-  fn add_require(&mut self, source: &JsWord) {
+  fn add_require(&mut self, source: &JsWord, import_kind: ImportKind) {
     self
       .module_items
       .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         specifiers: vec![],
         asserts: None,
         span: DUMMY_SP,
-        src: format!("{}:{}", self.module_id, source).into(),
+        src: format!(
+          "{}:{}:{}",
+          self.module_id,
+          source,
+          get_specifier_type(import_kind)
+        )
+        .into(),
         type_only: false,
       })));
   }

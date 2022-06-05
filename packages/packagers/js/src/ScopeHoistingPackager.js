@@ -581,7 +581,7 @@ ${code}
     let depMap = new Map();
     let replacements = new Map();
     for (let dep of deps) {
-      depMap.set(`${assetId}:${getSpecifier(dep)}`, dep);
+      depMap.set(`${assetId}:${getSpecifier(dep)}:${dep.specifierType}`, dep);
 
       let asyncResolution = this.bundleGraph.resolveAsyncDependency(
         dep,
