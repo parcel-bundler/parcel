@@ -6,12 +6,7 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import commandExists from 'command-exists';
 import nullthrows from 'nullthrows';
 
-type ConfigResult = {|
-  elmJson: boolean,
-  transformerConfig: {|extraSources: {[string]: string[]}|},
-|};
-
-async function load({config}: {|config: Config|}): Promise<ConfigResult> {
+async function load({config}) {
   const elmConfig = await config.getConfig(['elm.json']);
   if (!elmConfig) {
     elmBinaryPath(); // Check if elm is even installed
@@ -27,39 +22,8 @@ async function load({config}: {|config: Config|}): Promise<ConfigResult> {
     });
   }
 
-  const packageJsonConfig = await config.getConfig(['package.json'], {
-    packageKey: '@parcel/transformer-elm',
-  });
-
-  const defaults = {extraSources: {}};
-  const transformerConfig = {
-    ...defaults,
-    ...(packageJsonConfig?.contents ?? defaults),
-  };
-
-  if (transformerConfig) {
-    const isValidConfig =
-      'extraSources' in transformerConfig &&
-      Object.values(transformerConfig.extraSources).every(
-        val =>
-          Array.isArray(val) && val.every(item => typeof item === 'string'),
-      );
-    if (!isValidConfig) {
-      throw new ThrowableDiagnostic({
-        diagnostic: {
-          origin: '@parcel/elm-transformer',
-          message: 'The config in the package.json file is invalid',
-          hints: [
-            '"extraSources" needs to be an object whose values are string-arrays."',
-          ],
-        },
-      });
-    }
-  }
-
   return {
     elmJson: elmConfig.contents,
-    transformerConfig,
   };
 }
 
@@ -98,4 +62,3 @@ function resolveLocalElmBinary() {
 }
 
 export {load, elmBinaryPath};
-export type {ConfigResult};
