@@ -36,7 +36,7 @@
     "@parcel/plugin": "2.6.0",
     "@parcel/utils": "2.6.0",
     "@parcel/workers": "2.6.0",
-    "detect-libc": "^1.0.3"
+    "detect-libc": "^2.0.1"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.6.2",

@@ -48,8 +48,8 @@ async function loadOnMainThreadIfNeeded() {
     process.platform === 'linux' &&
     WorkerFarm.isWorker()
   ) {
-    let {family, version} = require('detect-libc');
-    if (family === 'glibc' && parseFloat(version) <= 2.17) {
+    let {GLIBC, family, version} = require('detect-libc');
+    if ((await family()) === GLIBC && parseFloat(await version()) <= 2.17) {
       let api = WorkerFarm.getWorkerApi();
       await api.callMaster({
         location: __dirname + '/loadNative.js',

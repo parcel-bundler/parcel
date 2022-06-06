@@ -37,7 +37,7 @@
     "@parcel/workers": "2.6.0",
     "@swc/helpers": "^0.3.15",
     "browserslist": "^4.6.6",
-    "detect-libc": "^1.0.3",
+    "detect-libc": "^2.0.1",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",
     "semver": "^5.7.1"
