@@ -152,4 +152,24 @@ describe('elm', function () {
     assert.equal(typeof Elm.MainB.init, 'function');
     assert.equal(typeof Elm.MainC.init, 'function');
   });
+
+  it('should not duplicate assets for equivalent but different query strings', async function () {
+    const b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/elm-multiple-apps/src/deduplication.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['Main.elm', 'deduplication.js', 'esmodule-helpers.js'],
+      },
+    ]);
+
+    const output = await run(b);
+    const {Elm, Elm2} = output.default();
+    assert.equal(Elm, Elm2);
+  });
 });
