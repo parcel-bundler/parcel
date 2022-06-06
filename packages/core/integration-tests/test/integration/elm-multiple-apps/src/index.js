@@ -1,5 +1,5 @@
-var local = require('./Main.elm');
+import { Elm } from './Main.elm?with=MainB.elm&with=MainC.elm';
 
-module.exports = function () {
-    return local;
-};
+export default function() {
+  return Elm;
+}
