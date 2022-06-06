@@ -152,30 +152,4 @@ describe('elm', function () {
     assert.equal(typeof Elm.MainB.init, 'function');
     assert.equal(typeof Elm.MainC.init, 'function');
   });
-
-  it('should error for a broken extraSources config in the package.json', async function () {
-    await assert.rejects(
-      () =>
-        bundle(
-          path.join(
-            __dirname,
-            '/integration/elm-multiple-apps-broken-config/src/index.js',
-          ),
-          {mode: 'production'},
-        ),
-
-      {
-        name: 'BuildError',
-        diagnostics: [
-          {
-            origin: '@parcel/elm-transformer',
-            message: 'The config in the package.json file is invalid',
-            hints: [
-              '"extraSources" needs to be an object whose values are string-arrays."',
-            ],
-          },
-        ],
-      },
-    );
-  });
 });
