@@ -223,7 +223,8 @@ export async function bundle(
     }
   });
   let bundles = bg.getBundles();
-  console.log(bundles.map(b => [b.name, b.publicId]));
+  //console.log(bg._graph.getAllEdges()
+  //console.log(bundles.map(b => [b.name, b.publicId]));
   return bg;
 }
 

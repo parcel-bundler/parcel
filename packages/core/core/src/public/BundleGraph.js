@@ -59,6 +59,7 @@ export default class BundleGraph<TBundle: IBundle>
     options: ParcelOptions,
   ) {
     this.#graph = graph;
+    this._graph = graph._graph;
     this.#options = options;
     this.#createBundle = createBundle;
     // $FlowFixMe

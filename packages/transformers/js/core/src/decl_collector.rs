@@ -1,14 +1,12 @@
 use std::collections::HashSet;
 
-use swc_atoms::JsWord;
-use swc_common::SyntaxContext;
-use swc_ecmascript::ast;
+use swc_ecmascript::ast::{self, Id};
 use swc_ecmascript::visit::{Visit, VisitWith};
 
 /// This pass collects all declarations in a module into a single HashSet of tuples
 /// containing identifier names and their associated syntax context (scope).
 /// This is used later to determine whether an identifier references a declared variable.
-pub fn collect_decls(module: &ast::Module) -> HashSet<(JsWord, SyntaxContext)> {
+pub fn collect_decls(module: &ast::Module) -> HashSet<Id> {
   let mut c = DeclCollector {
     decls: HashSet::new(),
     in_var: false,
@@ -18,7 +16,7 @@ pub fn collect_decls(module: &ast::Module) -> HashSet<(JsWord, SyntaxContext)> {
 }
 
 struct DeclCollector {
-  decls: HashSet<(JsWord, SyntaxContext)>,
+  decls: HashSet<Id>,
   in_var: bool,
 }
 

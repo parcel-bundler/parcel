@@ -88,7 +88,6 @@ async function run({input, api, options}: RunInput) {
     optionsRef,
   });
   let bundleInfo = await api.runRequest(writeBundlesRequest);
-  console.log('bundleInfo in parcelBuildRequest:', bundleInfo);
   assertSignalNotAborted(signal);
 
   return {bundleGraph, bundleInfo, changedAssets, assetRequests};

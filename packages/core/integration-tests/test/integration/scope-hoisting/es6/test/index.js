@@ -1,2 +1,4 @@
-import('./a.txt');
-import('./b.txt');
+import {foo} from './a';
+import {bar} from './b';
+
+console.log(foo+bar);

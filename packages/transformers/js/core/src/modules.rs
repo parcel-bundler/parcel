@@ -1,5 +1,5 @@
 use crate::id;
-use crate::utils::{match_export_name, match_export_name_ident, IdentId};
+use crate::utils::{get_undefined_ident, match_export_name, match_export_name_ident};
 use inflector::Inflector;
 use std::collections::{HashMap, HashSet};
 use swc_atoms::JsWord;
@@ -10,7 +10,7 @@ use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::fold_member_expr_skip_prop;
 
-pub fn esm2cjs(node: Module, versions: Option<Versions>) -> (Module, bool) {
+pub fn esm2cjs(node: Module, unresolved_mark: Mark, versions: Option<Versions>) -> (Module, bool) {
   let mut fold = ESMFold {
     imports: HashMap::new(),
     require_names: HashMap::new(),
@@ -21,6 +21,7 @@ pub fn esm2cjs(node: Module, versions: Option<Versions>) -> (Module, bool) {
     in_export_decl: false,
     in_function_scope: false,
     mark: Mark::fresh(Mark::root()),
+    unresolved_mark,
     versions,
   };
 
@@ -30,7 +31,7 @@ pub fn esm2cjs(node: Module, versions: Option<Versions>) -> (Module, bool) {
 
 struct ESMFold {
   // Map of imported identifier to (source, specifier)
-  imports: HashMap<IdentId, (JsWord, JsWord)>,
+  imports: HashMap<Id, (JsWord, JsWord)>,
   // Map of source to (require identifier, mark)
   require_names: HashMap<JsWord, (JsWord, Mark)>,
   // Set of declared default interops, by source.
@@ -43,6 +44,7 @@ struct ESMFold {
   in_export_decl: bool,
   in_function_scope: bool,
   mark: Mark,
+  unresolved_mark: Mark,
   versions: Option<Versions>,
 }
 
@@ -230,9 +232,18 @@ impl ESMFold {
       self.get_require_name(source, DUMMY_SP)
     };
 
-    Expr::Member(MemberExpr {
-      obj: Box::new(Expr::Ident(obj)),
-      prop: MemberProp::Ident(Ident::new(imported.clone(), DUMMY_SP)),
+    // import { foo } from "..."; foo();
+    // ->
+    // import { foo } from "..."; (0, foo)();
+    Expr::Seq(SeqExpr {
+      exprs: vec![
+        0.into(),
+        Box::new(Expr::Member(MemberExpr {
+          obj: Box::new(Expr::Ident(obj)),
+          prop: MemberProp::Ident(Ident::new(imported.clone(), DUMMY_SP)),
+          span,
+        })),
+      ],
       span,
     })
   }
@@ -581,7 +592,7 @@ impl Fold for ESMFold {
       }
       Expr::This(_this) => {
         if !self.in_function_scope {
-          Expr::Ident(Ident::new(js_word!("undefined"), DUMMY_SP))
+          Expr::Ident(get_undefined_ident(self.unresolved_mark))
         } else {
           node
         }
