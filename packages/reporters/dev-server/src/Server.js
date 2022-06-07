@@ -30,6 +30,7 @@ import serveHandler from 'serve-handler';
 import {createProxyMiddleware} from 'http-proxy-middleware';
 import {URL, URLSearchParams} from 'url';
 import launchEditor from 'launch-editor';
+import fresh from 'fresh';
 
 export function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -41,6 +42,7 @@ export function setHeaders(res: Response) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
+  res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
 }
 
 export const SOURCES_ENDPOINT = '/__parcel_source_root';
@@ -323,6 +325,12 @@ export default class Server {
     }
 
     if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+
+    if (fresh(req.headers, {'last-modified': stat.mtime.toUTCString()})) {
+      res.statusCode = 304;
       res.end();
       return;
     }
