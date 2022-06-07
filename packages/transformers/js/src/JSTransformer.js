@@ -707,14 +707,14 @@ export default (new Transformer({
       }
 
       let deps = new Map(
-        asset.getDependencies().map(dep => {
-          return [
+        asset
+          .getDependencies()
+          .map(dep => [
             (dep.meta.placeholder
               ? String(dep.meta.placeholder)
               : dep.specifier) + dep.specifierType,
             dep,
-          ];
-        }),
+          ]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();
@@ -752,7 +752,7 @@ export default (new Transformer({
       }
 
       for (let specifier of hoist_result.wrapped_requires) {
-        let dep = deps.get(specifier + 'commonjs');
+        let dep = deps.get(specifier);
         if (!dep) continue;
         dep.meta.shouldWrap = true;
       }

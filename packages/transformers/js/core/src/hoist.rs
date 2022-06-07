@@ -75,7 +75,7 @@ pub struct HoistResult {
   exported_symbols: Vec<ExportedSymbol>,
   re_exports: Vec<ImportedSymbol>,
   self_references: HashSet<JsWord>,
-  wrapped_requires: HashSet<JsWord>,
+  wrapped_requires: HashSet<String>,
   dynamic_imports: HashMap<JsWord, JsWord>,
   static_cjs_exports: bool,
   has_cjs_exports: bool,
@@ -1152,7 +1152,7 @@ pub struct Collect {
   pub non_static_access: HashMap<IdentId, Vec<Span>>,
   pub non_const_bindings: HashMap<IdentId, Vec<Span>>,
   pub non_static_requires: HashSet<JsWord>,
-  pub wrapped_requires: HashSet<JsWord>,
+  pub wrapped_requires: HashSet<String>,
   pub bailouts: Option<Vec<Bailout>>,
   in_module_this: bool,
   in_top_level: bool,
@@ -1745,7 +1745,11 @@ impl Visit for Collect {
     // If we reached this visitor, this is a non-top-level require that isn't in a variable
     // declaration. We need to wrap the referenced module to preserve side effect ordering.
     if let Some(source) = self.match_require(node) {
-      self.wrapped_requires.insert(source);
+      self.wrapped_requires.insert(format!(
+        "{}{}",
+        source.to_string(),
+        get_specifier_type(ImportKind::Require)
+      ));
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -1755,7 +1759,11 @@ impl Visit for Collect {
 
     if let Some(source) = match_import(node, self.ignore_mark) {
       self.non_static_requires.insert(source.clone());
-      self.wrapped_requires.insert(source);
+      self.wrapped_requires.insert(format!(
+        "{}{}",
+        source.to_string(),
+        get_specifier_type(ImportKind::Import)
+      ));
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -1923,7 +1931,11 @@ impl Visit for Collect {
                   self.add_pat_imports(param, &source, ImportKind::DynamicImport);
                 } else {
                   self.non_static_requires.insert(source.clone());
-                  self.wrapped_requires.insert(source);
+                  self.wrapped_requires.insert(format!(
+                    "{}{}",
+                    source.to_string(),
+                    get_specifier_type(ImportKind::Import)
+                  ));
                   self.add_bailout(node.span, BailoutReason::NonStaticDynamicImport);
                 }
 
@@ -1948,7 +1960,9 @@ impl Collect {
 
   fn add_pat_imports(&mut self, node: &Pat, src: &JsWord, kind: ImportKind) {
     if !self.in_top_level {
-      self.wrapped_requires.insert(src.clone());
+      self
+        .wrapped_requires
+        .insert(format!("{}{}", src.clone(), get_specifier_type(kind)));
       if kind != ImportKind::DynamicImport {
         self.non_static_requires.insert(src.clone());
         let span = match node {
