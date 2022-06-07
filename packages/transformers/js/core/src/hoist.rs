@@ -522,12 +522,18 @@ impl<'a> Fold for Hoist<'a> {
           question_dot_token: opt.question_dot_token,
           base: match opt.base {
             OptChainBase::Call(call) => OptChainBase::Call(call.fold_with(self)),
-            OptChainBase::Member(member) => OptChainBase::Member(MemberExpr {
-              span: member.span,
-              obj: member.obj.fold_with(self),
-              // Don't visit member.prop so we avoid the ident visitor.
-              prop: member.prop,
-            }),
+            OptChainBase::Member(member) => {
+              if match_property_name(&member).is_some() {
+                OptChainBase::Member(MemberExpr {
+                  span: member.span,
+                  obj: member.obj.fold_with(self),
+                  // Don't visit member.prop so we avoid the ident visitor.
+                  prop: member.prop,
+                })
+              } else {
+                OptChainBase::Member(member.fold_children_with(self))
+              }
+            }
           },
         });
       }
