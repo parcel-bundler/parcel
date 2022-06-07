@@ -86,7 +86,10 @@ export interface FileSystem {
   rimraf(path: FilePath): Promise<void>;
   ncp(source: FilePath, destination: FilePath): Promise<void>;
   createReadStream(path: FilePath, options?: ?FileOptions): Readable;
-  createWriteStream(path: FilePath, options?: ?FileOptions): Writable;
+  createWriteStream(
+    path: FilePath,
+    options?: ?FileOptions,
+  ): {|+writeStream: Writable, move: () => Promise<void>|};
   cwd(): FilePath;
   chdir(dir: FilePath): void;
   watch(

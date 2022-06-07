@@ -251,19 +251,17 @@ async function runCompressor(
     });
 
     if (res != null) {
-      await new Promise((resolve, reject) =>
-        pipeline(
-          res.stream,
-          outputFS.createWriteStream(
-            filePath + (res.type != null ? '.' + res.type : ''),
-            writeOptions,
-          ),
-          err => {
-            if (err) reject(err);
-            else resolve();
-          },
-        ),
+      let {writeStream, move} = outputFS.createWriteStream(
+        filePath + (res.type != null ? '.' + res.type : ''),
+        writeOptions,
       );
+      await new Promise((resolve, reject) =>
+        pipeline(res.stream, writeStream, err => {
+          if (err) reject(err);
+          else resolve();
+        }),
+      );
+      await move();
     }
   } catch (err) {
     throw new ThrowableDiagnostic({

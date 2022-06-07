@@ -23,11 +23,14 @@ export async function ncp(
     let stats = await sourceFS.stat(sourcePath);
     if (stats.isFile()) {
       await new Promise((resolve, reject) => {
+        let {writeStream, move} = destinationFS.createWriteStream(destPath);
         sourceFS
           .createReadStream(sourcePath)
-          .pipe(destinationFS.createWriteStream(destPath))
-          .on('finish', () => resolve())
-          .on('error', reject);
+          .pipe(writeStream)
+          .on('error', reject)
+          .on('finish', () => {
+            move().then(resolve);
+          });
       });
     } else if (stats.isDirectory()) {
       await ncp(sourceFS, sourcePath, destinationFS, destPath);

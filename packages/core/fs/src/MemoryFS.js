@@ -483,7 +483,16 @@ export class MemoryFS implements FileSystem {
     return new ReadStream(this, filePath);
   }
 
-  createWriteStream(filePath: FilePath, options: ?FileOptions): WriteStream {
+  createWriteStream(
+    filePath: FilePath,
+    options: ?FileOptions,
+  ): {|writeStream: WriteStream, move: () => Promise<void>|} {
+    return {
+      writeStream: new WriteStream(this, filePath, options),
+      move: () => Promise.resolve(),
+    };
+  }
+  createWriteStr(filePath: FilePath, options: ?FileOptions): WriteStream {
     return new WriteStream(this, filePath, options);
   }
 
