@@ -20,7 +20,6 @@ const IGNORED_PACKAGES = [
   '!packages/core/utils/**',
   '!packages/reporters/cli/**',
   '!packages/reporters/dev-server/**',
-  '!packages/utils/fs-write-stream-atomic/**',
 ];
 
 const paths = {
