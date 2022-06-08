@@ -35,11 +35,18 @@ describe('webextension', function () {
       {assets: ['devtools.html']},
       {assets: ['content.js']},
       {assets: ['content.css']},
+      {
+        name: 'ruleset_1.json',
+        assets: ['ruleset_1.json'],
+      },
     ]);
     assert(
       await outputFS.exists(
         path.join(distDir, '_locales', 'en_US', 'messages.json'),
       ),
+    );
+    assert(
+      await outputFS.exists(path.join(distDir, 'rulesets', 'ruleset_1.json')),
     );
     const manifest = JSON.parse(
       await outputFS.readFile(
