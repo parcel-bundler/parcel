@@ -37,6 +37,7 @@
     "@parcel/types": "2.6.0",
     "connect": "^3.7.0",
     "ejs": "^3.1.6",
+    "fresh": "^0.5.2",
     "http-proxy-middleware": "^2.0.1",
     "launch-editor": "^2.3.0",
     "mime-types": "2.1.18",
