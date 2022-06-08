@@ -36,7 +36,6 @@ describe('webextension', function () {
       {assets: ['content.js']},
       {assets: ['content.css']},
       {
-        name: 'ruleset_1.json',
         assets: ['ruleset_1.json'],
       },
     ]);
@@ -44,9 +43,6 @@ describe('webextension', function () {
       await outputFS.exists(
         path.join(distDir, '_locales', 'en_US', 'messages.json'),
       ),
-    );
-    assert(
-      await outputFS.exists(path.join(distDir, 'rulesets', 'ruleset_1.json')),
     );
     const manifest = JSON.parse(
       await outputFS.readFile(
@@ -56,6 +52,10 @@ describe('webextension', function () {
     );
     const scripts = manifest.background.scripts;
     assert.equal(scripts.length, 1);
+    for (const {path: resourcePath} of manifest.declarative_net_request
+      ?.rule_resources ?? []) {
+      assert(await outputFS.exists(path.join(distDir, resourcePath)));
+    }
     assert(
       (
         await outputFS.readFile(path.join(distDir, scripts[0]), 'utf-8')

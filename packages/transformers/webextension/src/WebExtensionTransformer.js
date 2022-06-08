@@ -220,18 +220,15 @@ async function collectDependencies(
     const rrs: {|path: string, id: string, enabled: boolean|}[] =
       program.declarative_net_request?.rule_resources ?? [];
     rrs.forEach((resources, i) => {
-      const loc = {
-        filePath,
-        ...getJSONSourceLocation(
-          ptrs[`/declarative_net_request/rule_resources/${i}/path`],
-          'value',
-        ),
-      };
-
-      asset.addURLDependency(resources.path, {
-        needsStableName: true,
+      resources.path = asset.addURLDependency(resources.path, {
         pipeline: 'raw',
-        loc,
+        loc: {
+          filePath,
+          ...getJSONSourceLocation(
+            ptrs[`/declarative_net_request/rule_resources/${i}/path`],
+            'value',
+          ),
+        },
       });
     });
   }
