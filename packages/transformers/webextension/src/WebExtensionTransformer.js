@@ -219,41 +219,21 @@ async function collectDependencies(
   if (program.declarative_net_request) {
     const rrs: {|path: string, id: string, enabled: boolean|}[] =
       program.declarative_net_request?.rule_resources ?? [];
-    for (let i = 0; i < rrs.length; ++i) {
-      const resources = rrs[i];
-      const rulesPath = path.relative(assetDir, resources.path);
-      if (!(await fs.exists(rulesPath))) {
-        throw new ThrowableDiagnostic({
-          diagnostic: [
-            {
-              message: 'Invalid Web Extension manifest',
-              origin: '@parcel/transformer-webextension',
-              codeFrames: [
-                {
-                  filePath,
-                  codeHighlights: [
-                    {
-                      ...getJSONSourceLocation(
-                        ptrs[
-                          `/declarative_net_request/rule_resources/${i}/path`
-                        ],
-                        'value',
-                      ),
-                      message: `Ruleset file for static ruleset ${resources.id} could not be found at path ${rulesPath}`,
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        });
-      }
+    rrs.forEach((resources, i) => {
+      const loc = {
+        filePath,
+        ...getJSONSourceLocation(
+          ptrs[`/declarative_net_request/rule_resources/${i}/path`],
+          'value',
+        ),
+      };
 
-      asset.addURLDependency(rulesPath, {
+      asset.addURLDependency(resources.path, {
         needsStableName: true,
         pipeline: 'isolated',
+        loc,
       });
-    }
+    });
   }
 
   for (const loc of DEP_LOCS) {
