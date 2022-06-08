@@ -230,7 +230,7 @@ async function collectDependencies(
 
       asset.addURLDependency(resources.path, {
         needsStableName: true,
-        pipeline: 'isolated',
+        pipeline: 'raw',
         loc,
       });
     });
