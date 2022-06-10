@@ -47,7 +47,7 @@ export class FSCache implements Cache {
   setStream(key: string, stream: Readable): Promise<void> {
     return new Promise((resolve, reject) => {
       stream
-        .pipe(this.fs.createWriteStream(path.join(this.dir, key)))
+        .pipe(this.fs.createWriteStream(this._getCachePath(`${key}-large`)))
         .on('error', reject)
         .on('finish', resolve);
     });
