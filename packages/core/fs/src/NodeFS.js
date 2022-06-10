@@ -60,18 +60,15 @@ export class NodeFS implements FileSystem {
   createWriteStream(filePath: string, options: any): Writable {
     // Make createWriteStream atomic
     let tmpFilePath = getTempFilePath(filePath);
-    let writeStream = fs.createWriteStream(tmpFilePath, options);
-
     let failed = false;
-    writeStream.once('error', () => {
-      failed = true;
-      fs.unlinkSync(tmpFilePath);
-    });
-    writeStream.once('close', async () => {
+
+    const move = async () => {
       if (!failed) {
         try {
           await fs.promises.rename(tmpFilePath, filePath);
         } catch (e) {
+          // This is adapted from fs-write-stream-atomic. Apparently
+          // Windows doesn't like renaming when the target already exists.
           if (
             process.platform === 'win32' &&
             e.syscall &&
@@ -92,6 +89,30 @@ export class NodeFS implements FileSystem {
           }
         }
       }
+    };
+
+    let writeStream = fs.createWriteStream(tmpFilePath, {
+      ...options,
+      fs: {
+        ...fs,
+        close: (fd, cb) => {
+          fs.close(fd, err => {
+            if (err) {
+              cb(err);
+            } else {
+              move().then(
+                () => cb(),
+                err => cb(err),
+              );
+            }
+          });
+        },
+      },
+    });
+
+    writeStream.once('error', () => {
+      failed = true;
+      fs.unlinkSync(tmpFilePath);
     });
 
     return writeStream;
