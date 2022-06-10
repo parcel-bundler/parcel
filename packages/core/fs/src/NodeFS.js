@@ -57,48 +57,44 @@ export class NodeFS implements FileSystem {
     ? (...args) => searchJS.findFirstFile(this, ...args)
     : searchNative.findFirstFile;
 
-  createWriteStream(
-    filePath: string,
-    options: any,
-  ): {|writeStream: Writable, move: () => Promise<void>|} {
+  createWriteStream(filePath: string, options: any): Writable {
+    // Make createWriteStream atomic
     let tmpFilePath = getTempFilePath(filePath);
-
     let writeStream = fs.createWriteStream(tmpFilePath, options);
+
     let failed = false;
     writeStream.once('error', () => {
       failed = true;
       fs.unlinkSync(tmpFilePath);
     });
+    writeStream.once('close', async () => {
+      if (!failed) {
+        try {
+          await fs.promises.rename(tmpFilePath, filePath);
+        } catch (e) {
+          if (
+            process.platform === 'win32' &&
+            e.syscall &&
+            e.syscall === 'rename' &&
+            e.code &&
+            e.code === 'EPERM'
+          ) {
+            let [hashTmp, hashTarget] = await Promise.all([
+              hashStream(writeStream.__atomicTmp),
+              hashStream(writeStream.__atomicTarget),
+            ]);
 
-    return {
-      writeStream,
-      move: async () => {
-        if (!failed) {
-          try {
-            await fs.promises.rename(tmpFilePath, filePath);
-          } catch (e) {
-            if (
-              process.platform === 'win32' &&
-              e.syscall &&
-              e.syscall === 'rename' &&
-              e.code &&
-              e.code === 'EPERM'
-            ) {
-              let [hashTmp, hashTarget] = await Promise.all([
-                hashStream(writeStream.__atomicTmp),
-                hashStream(writeStream.__atomicTarget),
-              ]);
+            await this.unlink(writeStream.__atomicTmp);
 
-              await this.unlink(writeStream.__atomicTmp);
-
-              if (hashTmp != hashTarget) {
-                throw e;
-              }
+            if (hashTmp != hashTarget) {
+              throw e;
             }
           }
         }
-      },
-    };
+      }
+    });
+
+    return writeStream;
   }
 
   async writeFile(
