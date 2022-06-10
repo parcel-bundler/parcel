@@ -20,18 +20,20 @@ type EnvironmentOpts = {|
   loc?: ?InternalSourceLocation,
 |};
 
-export function createEnvironment({
-  context,
-  engines,
-  includeNodeModules,
-  outputFormat,
-  sourceType = 'module',
-  shouldOptimize = false,
-  isLibrary = false,
-  shouldScopeHoist = false,
-  sourceMap,
-  loc,
-}: EnvironmentOpts = {}): Environment {
+export function createEnvironment(
+  {
+    context,
+    engines,
+    includeNodeModules,
+    outputFormat,
+    sourceType = 'module',
+    shouldOptimize = false,
+    isLibrary = false,
+    shouldScopeHoist = false,
+    sourceMap,
+    loc,
+  }: EnvironmentOpts = {...null},
+): Environment {
   if (context == null) {
     if (engines?.node) {
       context = 'node';

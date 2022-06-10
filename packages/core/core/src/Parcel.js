@@ -242,13 +242,15 @@ export default class Parcel {
     };
   }
 
-  async _build({
-    signal,
-    startTime = Date.now(),
-  }: {|
-    signal?: AbortSignal,
-    startTime?: number,
-  |} = {}): Promise<BuildEvent> {
+  async _build(
+    {
+      signal,
+      startTime = Date.now(),
+    }: {|
+      signal?: AbortSignal,
+      startTime?: number,
+    |} = {...null},
+  ): Promise<BuildEvent> {
     this.#requestTracker.setSignal(signal);
     let options = nullthrows(this.#resolvedOptions);
     try {
