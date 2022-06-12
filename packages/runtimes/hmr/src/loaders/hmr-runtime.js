@@ -99,17 +99,6 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );
 
-  var globalObject =
-    typeof globalThis !== 'undefined'
-      ? globalThis
-      : typeof self !== 'undefined'
-      ? self
-      : typeof window !== 'undefined'
-      ? window
-      : typeof global !== 'undefined'
-      ? global
-      : {};
-
   // Web extension context
   var extCtx =
     typeof chrome === 'undefined'
@@ -375,7 +364,7 @@ function hmrDownload(asset) {
 }
 
 async function hmrApplyUpdates(assets) {
-  globalObject.parcelHotUpdate = Object.create(null);
+  global.parcelHotUpdate = Object.create(null);
 
   let scriptsToRemove;
   try {
@@ -397,7 +386,7 @@ async function hmrApplyUpdates(assets) {
           ) {
             if (
               typeof ServiceWorkerGlobalScope != 'undefined' &&
-              globalObject instanceof ServiceWorkerGlobalScope
+              global instanceof ServiceWorkerGlobalScope
             ) {
               extCtx.runtime.reload();
               return;
@@ -419,7 +408,7 @@ async function hmrApplyUpdates(assets) {
       hmrApply(module.bundle.root, asset);
     });
   } finally {
-    delete globalObject.parcelHotUpdate;
+    delete global.parcelHotUpdate;
 
     if (scriptsToRemove) {
       scriptsToRemove.forEach(script => {
@@ -464,7 +453,7 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
       }
 
       // $FlowFixMe
-      let fn = globalObject.parcelHotUpdate[asset.id];
+      let fn = global.parcelHotUpdate[asset.id];
       modules[asset.id] = [fn, deps];
     } else if (bundle.parent) {
       hmrApply(bundle.parent, asset);
