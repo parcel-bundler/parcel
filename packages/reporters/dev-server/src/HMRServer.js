@@ -36,6 +36,7 @@ export type HMRAsset = {|
   type: string,
   output: string,
   envHash: string,
+  outputFormat: string,
   depsByBundle: {[string]: {[string]: string, ...}, ...},
 |};
 
@@ -204,6 +205,7 @@ export default class HMRServer {
           output:
             asset.type === 'js' ? await this.getHotAssetContents(asset) : '',
           envHash: asset.env.id,
+          outputFormat: asset.env.outputFormat,
           depsByBundle,
         };
       });
