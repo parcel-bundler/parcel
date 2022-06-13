@@ -467,7 +467,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                       // Make sure the arglist is empty.
                       // I.e. do not proceed with the below unless Promise.resolve has an empty arglist
                       // because build_promise_chain() will not work in this case.                   
-                      !call.args.get(0).is_some()
+                      call.args.is_empty()
                     {
                       if let MemberProp::Ident(id) = &member.prop {
                         if id.sym.to_string().as_str() == "then" {
