@@ -310,7 +310,6 @@ const commonProps = {
       },
     },
   },
-  // sandbox is deprecated
   short_name: string,
   // FF only, but has some use
   sidebar_action: {
@@ -469,6 +468,13 @@ export const MV3Schema = ({
       additionalProperties: false,
     },
     host_permissions: arrStr,
+    sandbox: {
+      type: 'object',
+      properties: {
+        pages: arrStr,
+      },
+      additionalProperties: false,
+    },
     web_accessible_resources: {
       type: 'array',
       items: {
@@ -506,6 +512,7 @@ export const MV2Schema = ({
       additionalProperties: false,
     },
     browser_action: browserAction,
+    content_security_policy: string,
     page_action: {
       type: 'object',
       properties: {
@@ -517,7 +524,14 @@ export const MV2Schema = ({
       },
       additionalProperties: false,
     },
-    content_security_policy: string,
+    sandbox: {
+      type: 'object',
+      properties: {
+        pages: arrStr,
+        content_security_policy: string,
+      },
+      additionalProperties: false,
+    },
     web_accessible_resources: arrStr,
   },
   required: ['manifest_version', 'name', 'version'],

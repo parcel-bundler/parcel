@@ -44,22 +44,26 @@ export default (new Reporter({
           if (hmrOptions && hmrOptions.port === serveOptions.port) {
             let hmrServerOptions = {
               port: serveOptions.port,
+              host: hmrOptions.host,
               devServer,
+              addMiddleware: handler => {
+                server?.middleware.push(handler);
+              },
               logger,
             };
             hmrServer = new HMRServer(hmrServerOptions);
             hmrServers.set(serveOptions.port, hmrServer);
-            hmrServer.start();
+            await hmrServer.start();
             return;
           }
         }
 
         let port = hmrOptions?.port;
         if (typeof port === 'number') {
-          let hmrServerOptions = {port, logger};
+          let hmrServerOptions = {port, host: hmrOptions?.host, logger};
           hmrServer = new HMRServer(hmrServerOptions);
           hmrServers.set(port, hmrServer);
-          hmrServer.start();
+          await hmrServer.start();
         }
         break;
       }
@@ -75,7 +79,7 @@ export default (new Reporter({
           servers.delete(server.options.port);
         }
         if (hmrOptions && hmrServer) {
-          hmrServer.stop();
+          await hmrServer.stop();
           // $FlowFixMe[prop-missing]
           hmrServers.delete(hmrServer.wss.options.port);
         }
