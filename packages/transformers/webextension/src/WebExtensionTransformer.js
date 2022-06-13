@@ -218,6 +218,23 @@ async function collectDependencies(
     }
     program.web_accessible_resources = war;
   }
+  if (program.declarative_net_request) {
+    const rrs: {|path: string, id: string, enabled: boolean|}[] =
+      program.declarative_net_request?.rule_resources ?? [];
+    rrs.forEach((resources, i) => {
+      resources.path = asset.addURLDependency(resources.path, {
+        pipeline: 'raw',
+        loc: {
+          filePath,
+          ...getJSONSourceLocation(
+            ptrs[`/declarative_net_request/rule_resources/${i}/path`],
+            'value',
+          ),
+        },
+      });
+    });
+  }
+
   for (const loc of DEP_LOCS) {
     const location = '/' + loc.join('/');
     if (!ptrs[location]) continue;
