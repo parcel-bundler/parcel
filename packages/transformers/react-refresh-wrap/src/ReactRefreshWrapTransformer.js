@@ -19,7 +19,9 @@ function shouldExclude(asset, options) {
           v.specifier === 'react' ||
           v.specifier === 'react/jsx-runtime' ||
           v.specifier === 'react/jsx-dev-runtime'||
-          v.specifier === '@emotion/react',
+          v.specifier === '@emotion/react' ||
+          v.specifier === '@emotion/react/jsx-runtime' ||
+          v.specifier === '@emotion/react/jsx-dev-runtime'
       )
   );
 }
