@@ -58,6 +58,9 @@ export default (new Resolver({
       throw errorToThrowableDiagnostic(error, dependency);
     }
 
+    let invalidateOnFileCreate = [];
+    let invalidateOnFileChange = new Set();
+
     // if the specifier does not start with /, ~, or . then it's not a path but package-ish - we resolve
     // the package first, and then append the rest of the path
     if (!/^[/~.]/.test(specifier)) {
@@ -91,41 +94,43 @@ export default (new Resolver({
         logger,
       });
 
-      const result = await resolver.resolve({
-        filename: pkg,
-        specifierType: dependency.specifierType,
-        parent: dependency.resolveFrom,
-        env: dependency.env,
-        sourcePath: dependency.sourcePath,
-        loc: dependency.loc,
-      });
-
-      if (!result || !result.filePath) {
-        throw errorToThrowableDiagnostic(
-          `Unable to resolve ${pkg} from ${sourceFile} when resolving specifier ${specifier}`,
-          dependency,
-        );
-      } else if (result.diagnostics) {
-        throw new ThrowableDiagnostic({diagnostic: result.diagnostics});
-      }
-      // We keep Flow happy by copying the filePath at a point we know it's defined
-      const filePath = result.filePath;
-
-      const ctx = {
-        invalidateOnFileCreate: result.invalidateOnFileCreate || [],
-        invalidateOnFileChange: new Set(result.invalidateOnFileChange),
+      let ctx = {
+        invalidateOnFileCreate,
+        invalidateOnFileChange,
         specifierType: dependency.specifierType,
         loc: dependency.loc,
       };
 
-      const resolvedPackage = await resolver.findPackage(filePath, ctx);
-      if (!resolvedPackage) {
+      let result;
+      try {
+        result = await resolver.resolveModule({
+          filename: pkg,
+          parent: dependency.resolveFrom,
+          env: dependency.env,
+          sourcePath: dependency.sourcePath,
+          ctx,
+        });
+      } catch (err) {
+        if (err instanceof ThrowableDiagnostic) {
+          // Return instead of throwing so we can provide invalidations.
+          return {
+            diagnostics: err.diagnostics,
+            invalidateOnFileCreate,
+            invalidateOnFileChange: [...invalidateOnFileChange],
+          };
+        } else {
+          throw err;
+        }
+      }
+
+      if (!result || !result.moduleDir) {
         throw errorToThrowableDiagnostic(
-          `Unable to find package from ${filePath} when resolving specifier ${specifier}`,
+          `Unable to resolve ${pkg} from ${sourceFile} when resolving specifier ${specifier}`,
           dependency,
         );
       }
-      specifier = path.resolve(resolvedPackage.pkgdir, rest);
+
+      specifier = path.resolve(result.moduleDir, rest);
     } else {
       specifier = path.resolve(path.dirname(sourceFile), specifier);
     }
@@ -167,6 +172,8 @@ export default (new Resolver({
       }
     }
 
+    invalidateOnFileCreate.push({glob: normalized});
+
     return {
       filePath: path.join(
         dir,
@@ -175,7 +182,8 @@ export default (new Resolver({
           sourceAssetType,
       ),
       code,
-      invalidateOnFileCreate: [{glob: normalized}],
+      invalidateOnFileCreate,
+      invalidateOnFileChange: [...invalidateOnFileChange],
       pipeline: null,
       priority: 'sync',
     };
