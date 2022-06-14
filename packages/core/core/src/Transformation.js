@@ -74,8 +74,13 @@ import {
   toProjectPath,
 } from './projectPath';
 import {invalidateOnFileCreateToInternal} from './utils';
+import invariant from 'assert';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
+
+type PostProcessFunc = (
+  Array<UncommittedAsset>,
+) => Promise<Array<UncommittedAsset> | null>;
 
 export type TransformationOpts = {|
   options: ParcelOptions,
@@ -92,8 +97,6 @@ export type TransformationResult = {|
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
   devDepRequests: Array<DevDepRequest>,
 |};
-
-let wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export default class Transformation {
   request: TransformationRequest;
@@ -138,10 +141,6 @@ export default class Transformation {
 
   async run(): Promise<TransformationResult> {
     let asset = await this.loadAsset();
-    if (asset.value.filePath.includes('b.js')) {
-      await wait(3000);
-    }
-    //console.log(asset.value.filePath);
     let existing;
 
     if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
@@ -311,8 +310,8 @@ export default class Transformation {
       await this.writeToCache(
         resultCacheKey,
         assets,
-        invalidationCacheKey, //these
-        pipelineHash, //2 are determine pipelineKey -- seems like pipelineHash is the one that differs
+        invalidationCacheKey,
+        pipelineHash,
       );
     } else {
       // See above TODO, this should be per-pipeline
@@ -342,7 +341,34 @@ export default class Transformation {
       }
     }
 
-    return finalAssets;
+    if (!pipeline.postProcess) {
+      return finalAssets;
+    }
+
+    let pipelineHash = await this.getPipelineHash(pipeline);
+    let invalidationHash = await getInvalidationHash(
+      finalAssets.flatMap(asset => asset.getInvalidations()),
+      this.options,
+    );
+    let processedCacheEntry = await this.readFromCache(
+      this.getCacheKey(finalAssets, invalidationHash, pipelineHash),
+    );
+
+    invariant(pipeline.postProcess != null);
+    let processedFinalAssets: Array<UncommittedAsset> =
+      processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
+
+    if (!processedCacheEntry) {
+      await this.writeToCache(
+        this.getCacheKey(processedFinalAssets, invalidationHash, pipelineHash),
+        processedFinalAssets,
+
+        invalidationHash,
+        pipelineHash,
+      );
+    }
+
+    return processedFinalAssets;
   }
 
   async getPipelineHash(pipeline: Pipeline): Promise<string> {
@@ -432,6 +458,8 @@ export default class Transformation {
             transformer.plugin,
             transformer.name,
             transformer.config,
+            transformer.configKeyPath,
+            this.parcelConfig,
           );
 
           for (let result of transformerResults) {
@@ -701,6 +729,8 @@ export default class Transformation {
     transformer: Transformer<mixed>,
     transformerName: string,
     preloadedConfig: ?Config,
+    configKeyPath?: string,
+    parcelConfig: ParcelConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
 
@@ -792,7 +822,7 @@ export default class Transformation {
       });
     let results = await normalizeAssets(this.options, transfomerResult);
 
-    // Create generate function that can be called later
+    // Create generate and postProcess function that can be called later
     asset.generate = (): Promise<GenerateOutput> => {
       let publicAsset = new Asset(asset);
       if (transformer.generate && asset.ast) {
@@ -811,6 +841,32 @@ export default class Transformation {
       );
     };
 
+    let postProcess = transformer.postProcess;
+    if (postProcess) {
+      pipeline.postProcess = async (
+        assets: Array<UncommittedAsset>,
+      ): Promise<Array<UncommittedAsset> | null> => {
+        let results = await postProcess.call(transformer, {
+          assets: assets.map(asset => new MutableAsset(asset)),
+          config,
+          options: pipeline.pluginOptions,
+          resolve,
+          logger,
+        });
+
+        return Promise.all(
+          results.map(result =>
+            asset.createChildAsset(
+              result,
+              transformerName,
+              parcelConfig.filePath,
+              // configKeyPath,
+            ),
+          ),
+        );
+      };
+    }
+
     return results;
   }
 }
@@ -822,6 +878,7 @@ type Pipeline = {|
   pluginOptions: PluginOptions,
   resolverRunner: ResolverRunner,
   workerApi: WorkerApi,
+  postProcess?: PostProcessFunc,
   generate?: GenerateFunc,
 |};
 

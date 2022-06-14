@@ -83,7 +83,6 @@ export default class UncommittedAsset {
     this.value = value;
     this.options = options;
     this.content = content;
-    this.contentHash;
     this.mapBuffer = mapBuffer;
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
@@ -103,7 +102,7 @@ export default class UncommittedAsset {
       this.content = null;
       this.mapBuffer = null;
     }
-    //use content instead of pipelinekey
+
     let size = 0;
     let contentKey =
       this.content == null ? null : this.getCacheKey('content' + pipelineKey);
@@ -116,7 +115,7 @@ export default class UncommittedAsset {
     // and hash while it's being written to the cache.
     await Promise.all([
       contentKey != null &&
-        this.commitContent(contentKey).then(s => (size = s)), // in then callback, get a hash from commitContent and use the hash at the outputHash step
+        this.commitContent(contentKey).then(s => (size = s)),
       this.mapBuffer != null &&
         mapKey != null &&
         this.options.cache.setBlob(mapKey, this.mapBuffer),
@@ -130,9 +129,7 @@ export default class UncommittedAsset {
       (this.value.hash ?? '') +
         pipelineKey +
         (await getInvalidationHash(this.getInvalidations(), this.options)),
-      //await this.getBuffer().toString()
     );
-    console.log(this.value.filePath, this.value.outputHash);
 
     if (this.content != null) {
       this.value.stats.size = size;
@@ -168,7 +165,7 @@ export default class UncommittedAsset {
       size = content.length;
     }
 
-    await this.options.cache.setBlob(contentKey, content); //store a hash of the content
+    await this.options.cache.setBlob(contentKey, content);
     return size;
   }
 

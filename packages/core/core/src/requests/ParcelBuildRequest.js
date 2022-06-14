@@ -87,6 +87,7 @@ async function run({input, api, options}: RunInput) {
     bundleGraph,
     optionsRef,
   });
+
   let bundleInfo = await api.runRequest(writeBundlesRequest);
   assertSignalNotAborted(signal);
 

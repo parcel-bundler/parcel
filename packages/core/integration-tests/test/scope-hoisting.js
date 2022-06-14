@@ -5404,7 +5404,7 @@ describe('scope hoisting', function () {
     await bundle(path.join(testDir, 'index.js'), {
       inputFS: overlayFS,
       outputFS: overlayFS,
-      shouldDisableCache: true, //bundles with b1 as b
+      shouldDisableCache: true,
     });
 
     await overlayFS.copyFile(
@@ -5415,7 +5415,7 @@ describe('scope hoisting', function () {
     await bundle(path.join(testDir, 'index.js'), {
       inputFS: overlayFS,
       outputFS: overlayFS,
-      shouldDisableCache: false, //bundles with b2 as b
+      shouldDisableCache: false,
     });
   });
 
@@ -5558,57 +5558,5 @@ describe('scope hoisting', function () {
       .filePath.split('.')[1];
 
     assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
-  });
-
-  it('test2', async function () {
-    let testDir = path.join(
-      __dirname,
-      'integration/scope-hoisting/es6/non-deterministic-bundle-hashes',
-    );
-
-    let packageDir = path.join(testDir, '/library');
-    await overlayFS.mkdirp(packageDir);
-
-    // Delay foo
-    await overlayFS.copyFile(
-      path.join(packageDir, 'delay-foo.js'),
-      path.join(packageDir, 'foo.js'),
-    );
-
-    let b = await bundle(path.join(testDir, 'index.js'), {
-      inputFS: overlayFS,
-      outputFS: overlayFS,
-      shouldDisableCache: true,
-    });
-
-    const bundleHash1 = b
-      .getBundles()
-      .find(b => b.filePath.includes('index2'))
-      .filePath.split('.')[1];
-
-    // Revert foo back to original (non-delayed) state
-    await overlayFS.copyFile(
-      path.join(packageDir, 'foo.js'),
-      path.join(packageDir, 'foo.js'),
-    );
-
-    // Delay bar
-    await overlayFS.copyFile(
-      path.join(packageDir, 'delay-bar.js'),
-      path.join(packageDir, 'bar.js'),
-    );
-
-    let b2 = await bundle(path.join(testDir, 'index.js'), {
-      inputFS: overlayFS,
-      outputFS: overlayFS,
-      shouldDisableCache: false,
-    });
-
-    let bundleHash2 = b2
-      .getBundles()
-      .find(b => b.filePath.includes('index2'))
-      .filePath.split('.')[1];
-
-    assert.strictEqual(bundleHash1, bundleHash2);
   });
 });
