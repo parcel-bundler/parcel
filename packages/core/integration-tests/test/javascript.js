@@ -347,6 +347,28 @@ describe('javascript', function () {
     assert(!contents.includes('import'));
   });
 
+  it('should ignore unused requires after process.env inlining', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-unused-require/index.js'),
+      {
+        env: {ABC: 'XYZ'},
+      },
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('unused'));
+
+    let output = await run(b);
+    assert.strictEqual(output(), 'ok');
+  });
+
   it('should produce a basic JS bundle with object rest spread support', async function () {
     let b = await bundle(
       path.join(
@@ -5545,7 +5567,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: md`Failed to resolve '@swc/helpers' from '${normalizePath(
+            message: md`Failed to resolve '${'@swc/helpers/lib/_class_call_check.js'}' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',

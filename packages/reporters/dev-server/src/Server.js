@@ -33,6 +33,7 @@ import {getHotAssetContents} from './HMRServer';
 import nullthrows from 'nullthrows';
 import mime from 'mime-types';
 import launchEditor from 'launch-editor';
+import fresh from 'fresh';
 
 function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -44,6 +45,7 @@ function setHeaders(res: Response) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
+  res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
 }
 
 const SOURCES_ENDPOINT = '/__parcel_source_root';
@@ -339,6 +341,12 @@ export default class Server {
     }
 
     if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+
+    if (fresh(req.headers, {'last-modified': stat.mtime.toUTCString()})) {
+      res.statusCode = 304;
       res.end();
       return;
     }
