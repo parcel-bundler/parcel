@@ -2303,15 +2303,15 @@
     "@parcel/utils" "2.5.0"
     nullthrows "^1.1.1"
 
-"@parcel/cache@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/cache/-/cache-2.0.0-nightly.1113.tgz#229afee58263e2728d880cc51aecd79dabb0a943"
-  integrity sha512-OVpeQwRGB9zcNMSTd6PrfC3jmOo1CBMQs5Osy6XQxQqJcP8aZ+VPr57veutLEbEjtAVVgz23bX8JE9TU2pR5WA==
+"@parcel/cache@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/cache/-/cache-2.0.0-nightly.1124.tgz#b073b55091b5109319b424fb706006652b913872"
+  integrity sha512-R3qQuIL+q3VhW1BwI06SGf0dDpfeUFtUc5tH0RUJ0W6H8FrCYl8dlcInTnVS5KpqCyr8VUtbfQtFFP2Fkhj7uw==
   dependencies:
-    "@parcel/fs" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/logger" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/utils" "2.0.0-nightly.1113+3b3b13557"
-    lmdb "2.3.10"
+    "@parcel/fs" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/logger" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/utils" "2.0.0-nightly.1124+597716ae7"
+    lmdb "2.5.2"
 
 "@parcel/cache@2.5.0":
   version "2.5.0"
@@ -2323,10 +2323,10 @@
     "@parcel/utils" "2.5.0"
     lmdb "2.2.4"
 
-"@parcel/codeframe@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/codeframe/-/codeframe-2.0.0-nightly.1113.tgz#0d1b6d515355566820a081ee6ae8672aa20637cf"
-  integrity sha512-twIQM6wM1Pu6eOnb356eK7V4DnpHFa3b0JBAOCtwnG5/N/VDwaMg++Q0x2HsVt883PAJePLrvbIEqYNDAVfEaA==
+"@parcel/codeframe@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/codeframe/-/codeframe-2.0.0-nightly.1124.tgz#80a90a71fb1980d8ebad7ab4368b3cb60957b573"
+  integrity sha512-9f00A2Z3ARFhRdJM0ofOkeHccGHfXcCvafTFrDY1kN4V+xtGFzSR9MUtCfRE+rQ0OiGRqvTN6ncIVm5YBFWZ4A==
   dependencies:
     chalk "^4.1.0"
 
@@ -2522,10 +2522,10 @@
     "@parcel/css-linux-x64-musl" "1.9.0"
     "@parcel/css-win32-x64-msvc" "1.9.0"
 
-"@parcel/diagnostic@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/diagnostic/-/diagnostic-2.0.0-nightly.1113.tgz#69057d2a6e59bf6226301271ede9976e98efda4f"
-  integrity sha512-FpiQMovfTs7X5WXj2cZ5rjEMjf0uhXJ9BOJ25AbMdHVUlN3i46WZjW+glLhRC8yWetftDLvdbuJRiUyu1C2UHQ==
+"@parcel/diagnostic@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/diagnostic/-/diagnostic-2.0.0-nightly.1124.tgz#c6a0549a768152cb30e6f7f450a4ab73ccfa7574"
+  integrity sha512-KZqarYJJV9ph+ATaJxhZGcSRUtTNc4nNI7wXegfAtDCRZCOe0sYEnU5QGPxMwtAH4BQLDRag93M+GodJ0DZUSA==
   dependencies:
     "@mischnic/json-sourcemap" "^0.1.0"
     nullthrows "^1.1.1"
@@ -2538,10 +2538,10 @@
     "@mischnic/json-sourcemap" "^0.1.0"
     nullthrows "^1.1.1"
 
-"@parcel/events@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/events/-/events-2.0.0-nightly.1113.tgz#b38f912178d671e1ddd45c045e1d35f2128193a2"
-  integrity sha512-1PhQOnTiqW6/g8HQtRFfy1CaSreGcFYdecARYOlIDWJpPbaQdyfX8tTIRJ/j6FMqwJvtAX939Uk3lhibTSl2sA==
+"@parcel/events@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/events/-/events-2.0.0-nightly.1124.tgz#69592906e6fd86397e6ad86f60b9b21984b890aa"
+  integrity sha512-xZky/n63NhxUHS9DCB0TjX23xZdY+Yg2lO1d7rKQlohVG3PtDc8Ti/rFRQd6zXKHJeMbCqbfI1P7e31kmEZFEw==
 
 "@parcel/events@2.5.0":
   version "2.5.0"
@@ -2555,24 +2555,23 @@
   dependencies:
     detect-libc "^1.0.3"
 
-"@parcel/fs-search@2.6.1-nightly.2736+3b3b13557", "self-published@npm:@parcel/fs-search@2.6.1-nightly.2736":
-  name self-published
-  version "2.6.1-nightly.2736"
-  resolved "https://registry.yarnpkg.com/@parcel/fs-search/-/fs-search-2.6.1-nightly.2736.tgz#cf29158e22db53ccf97f397e0890aa460cbc2a35"
-  integrity sha512-VQM/mvO53ohaKLZgz6eX0MubN8tAHI145yImVnQo1a57kgFoW9NS7oJbLjJyHaUdk3MvhI2Eb+a6ih9bWFaVHA==
+"@parcel/fs-search@2.6.1-nightly.2747+597716ae7", "self-published@npm:@parcel/fs-search@2.6.1-nightly.2747":
+  version "2.6.1-nightly.2747"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/fs-search/-/fs-search-2.6.1-nightly.2747.tgz#473604a134ba8dba696829b087d876e24113bf70"
+  integrity sha512-pLhyi//q82TGUf8pWYPNSzjJge6gJXSEfpBtU/DHoZdV8QSUWCwkrVUbiLboUuO5RRYjNZnDX5p9DTv7eW+dLg==
   dependencies:
     detect-libc "^1.0.3"
 
-"@parcel/fs@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/fs/-/fs-2.0.0-nightly.1113.tgz#bfbced462fd9ccb15d16eceea1b992c5384b9138"
-  integrity sha512-uuQspO+zxJ46HuOaV2mREz4LRIlTlkr9Ie+AKJt22Cxt3KwZVEq7FtOcXUeG898/ZBBdlQTc+hS6jI8wD8S3VQ==
+"@parcel/fs@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/fs/-/fs-2.0.0-nightly.1124.tgz#95457bc550a629b9ce2cc94e7eb691eb1572a2ad"
+  integrity sha512-yUw1E6/5LR7DAhaZQRu7gA+vhKljVR+DnFe5bE+o28JDU/zzYmiyzXTi4BGXtP9faMNJBN6F2GZ+t52QaJ4+IQ==
   dependencies:
-    "@parcel/fs-search" "2.6.1-nightly.2736+3b3b13557"
-    "@parcel/types" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/utils" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/fs-search" "2.6.1-nightly.2747+597716ae7"
+    "@parcel/types" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/utils" "2.0.0-nightly.1124+597716ae7"
     "@parcel/watcher" "^2.0.0"
-    "@parcel/workers" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/workers" "2.0.0-nightly.1124+597716ae7"
 
 "@parcel/fs@2.5.0":
   version "2.5.0"
@@ -2601,22 +2600,21 @@
     detect-libc "^1.0.3"
     xxhash-wasm "^0.4.2"
 
-"@parcel/hash@2.6.1-nightly.2736+3b3b13557", "self-published@npm:@parcel/hash@2.6.1-nightly.2736":
-  name self-published
-  version "2.6.1-nightly.2736"
-  resolved "https://registry.yarnpkg.com/@parcel/hash/-/hash-2.6.1-nightly.2736.tgz#b3425cffdcd9f5d5b5e5712208b0bf0bb1a9343f"
-  integrity sha512-YhzMwi3+tkq7bU4P5IB40OeU59MN290wRMjH5vg2mJsrsNvYg44kfg3+CRP/YuFKccjkxGmiurv0riew0ZNqTg==
+"@parcel/hash@2.6.1-nightly.2747+597716ae7", "self-published@npm:@parcel/hash@2.6.1-nightly.2747":
+  version "2.6.1-nightly.2747"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/hash/-/hash-2.6.1-nightly.2747.tgz#c9a59a8769d1d9345929a2fa7f5a0a14262c7f33"
+  integrity sha512-xr1gvXciQlnK4QbS+0eHPbgHiDT+pXO7VN6NO/grRABKToSYV/CXP4yFjA1V/ojBzPHMNAOFWuUDRbJLFFRq5w==
   dependencies:
     detect-libc "^1.0.3"
     xxhash-wasm "^0.4.2"
 
-"@parcel/logger@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/logger/-/logger-2.0.0-nightly.1113.tgz#4f43646524faee48cffc38b571a0c36f4f505b2a"
-  integrity sha512-NT4Uu7JXOxwJwM5yGBmMF8PZ1pn3vYs/LQyXHbIAVUJdnNmtzhUfxrHYBItRFFeCGhugOYybXOLdreYBxrIgQg==
+"@parcel/logger@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/logger/-/logger-2.0.0-nightly.1124.tgz#62b8b1cee9fccfdaf7a74a21d38cfe95eb256bda"
+  integrity sha512-3asusm/SNzmkHTR0pVGQRW+993olSTB684iehmSrqj3ZVBqG5+wqKZFWcLMH+FLEE5ZJs7Ou59jmr/dA28nQ3Q==
   dependencies:
-    "@parcel/diagnostic" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/events" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/diagnostic" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/events" "2.0.0-nightly.1124+597716ae7"
 
 "@parcel/logger@2.5.0":
   version "2.5.0"
@@ -2626,10 +2624,10 @@
     "@parcel/diagnostic" "2.5.0"
     "@parcel/events" "2.5.0"
 
-"@parcel/markdown-ansi@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/markdown-ansi/-/markdown-ansi-2.0.0-nightly.1113.tgz#e1b3493ca3aa2df913ac75e360fa3d7939770738"
-  integrity sha512-QEoH4wnYEtvzbxn8B/Q7EMVFygWV6UZ37/lrKSQD4vYkdEvzYyNRCeTqpyvadsZeRv4qZvUBYIhz2XUBMdD1jg==
+"@parcel/markdown-ansi@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/markdown-ansi/-/markdown-ansi-2.0.0-nightly.1124.tgz#c96ee08d5851c84ca41b5cb2b1589f74abbadd4b"
+  integrity sha512-XBXuYMHCNsbPkFPFAzApw8XO5Gt6YLo09nBStFqF0jLaSvLUODSYz69/dKmi9L5YTgaVU3t98nnvfk0pa6KL+g==
   dependencies:
     chalk "^4.1.0"
 
@@ -2727,17 +2725,17 @@
     nullthrows "^1.1.1"
     terser "^5.2.0"
 
-"@parcel/package-manager@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/package-manager/-/package-manager-2.0.0-nightly.1113.tgz#4232b99d961019788197d86a0fcc30d400e9605c"
-  integrity sha512-M0q41gW8yECyHYkwQMLeuJndNs/PQc4eO/ILtoFSXSh/99gg5L+1m/cRJsbX1RsC7Yw9L3BV/8OSKMgfU2+JkQ==
+"@parcel/package-manager@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/package-manager/-/package-manager-2.0.0-nightly.1124.tgz#a32077f828cb11c1483bc0cc2430b11b135eff0c"
+  integrity sha512-beTTqPffVlIKygs99FNOU7cKivCKhKNQ8TTWiBOiP+hoB0jOj+/5uMQcmMQgLoSgGMEXjOagkO2MFIKqCrurwQ==
   dependencies:
-    "@parcel/diagnostic" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/fs" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/logger" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/types" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/utils" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/workers" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/diagnostic" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/fs" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/logger" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/types" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/utils" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/workers" "2.0.0-nightly.1124+597716ae7"
     semver "^5.7.1"
 
 "@parcel/package-manager@2.5.0":
@@ -2804,12 +2802,12 @@
     "@parcel/utils" "2.5.0"
     posthtml "^0.16.4"
 
-"@parcel/plugin@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/plugin/-/plugin-2.0.0-nightly.1113.tgz#39a7cc0c4d77ebc1943c458faabfa8bebb2425c6"
-  integrity sha512-balESF9sgd3WzNMB9FyZdKLCEJOEgVbwZrvrjyNMp9TT4rQHPnHf4Rk1Xqkk0CAACdJgEoDHAI3JCzrjw5CYVg==
+"@parcel/plugin@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/plugin/-/plugin-2.0.0-nightly.1124.tgz#e957c3527daf053219d70139a6b0bd3f7ff1c2d6"
+  integrity sha512-6LAihvDGJWQDEH2cyyp79XApCq2I3+KstrYsPievIGV+jU4JPnkQMNrotK55ZV2j/NlENhALQ3l6TXXHyts31Q==
   dependencies:
-    "@parcel/types" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/types" "2.0.0-nightly.1124+597716ae7"
 
 "@parcel/plugin@2.5.0":
   version "2.5.0"
@@ -3020,17 +3018,17 @@
     posthtml-render "^3.0.0"
     semver "^5.7.1"
 
-"@parcel/types@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/types/-/types-2.0.0-nightly.1113.tgz#1091eab5bd6ef434467b99176628e8b2cb9dbd7e"
-  integrity sha512-7LMHxPAf558YJvp97MhjCovxSxUxQ3ncCzcruPPyH0bSWthaD0Ctum/EZ7aKZ7+y1hLaDcbhnaZtQw+xCZ4yEg==
+"@parcel/types@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/types/-/types-2.0.0-nightly.1124.tgz#92b4a63e91ae9c49e3ee1e35c8a08f4c058e00a3"
+  integrity sha512-/t0n6Q0CXnOM/H61u2wEXAh/naM7cweoTG0yffW3RMD6w26V6sIg3ebrNYjty0I8Ug7n89h7Xv19MS94jFExsw==
   dependencies:
-    "@parcel/cache" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/diagnostic" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/fs" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/package-manager" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/cache" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/diagnostic" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/fs" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/package-manager" "2.0.0-nightly.1124+597716ae7"
     "@parcel/source-map" "^2.0.0"
-    "@parcel/workers" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/workers" "2.0.0-nightly.1124+597716ae7"
     utility-types "^3.10.0"
 
 "@parcel/types@2.5.0":
@@ -3046,16 +3044,16 @@
     "@parcel/workers" "2.5.0"
     utility-types "^3.10.0"
 
-"@parcel/utils@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/utils/-/utils-2.0.0-nightly.1113.tgz#4d3cda9ba9b43a61cbe45ac9eee1bd251f88a94f"
-  integrity sha512-q8bitN84HiNlYjj4THAPOXH0uQ7mvuh2hIK7u9lPjoD2nMR0pqVOEWRRi0NdsZU7OxRz3T32EYFKLFsqc9ACcw==
+"@parcel/utils@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/utils/-/utils-2.0.0-nightly.1124.tgz#35e792b5733b41b8deae37949a4b22d6ad3e0c3a"
+  integrity sha512-Yw8olCEhjAzsa5xJxkxE7SKrFYRhD5ZNqCXogyDNvFXL1zEIsQjNn0VgUqAZ+brPfWQeWECMXmPYsQR+Jh5bDA==
   dependencies:
-    "@parcel/codeframe" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/diagnostic" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/hash" "2.6.1-nightly.2736+3b3b13557"
-    "@parcel/logger" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/markdown-ansi" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/codeframe" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/diagnostic" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/hash" "2.6.1-nightly.2747+597716ae7"
+    "@parcel/logger" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/markdown-ansi" "2.0.0-nightly.1124+597716ae7"
     "@parcel/source-map" "^2.0.0"
     chalk "^4.1.0"
 
@@ -3080,15 +3078,15 @@
     node-addon-api "^3.2.1"
     node-gyp-build "^4.3.0"
 
-"@parcel/workers@2.0.0-nightly.1113+3b3b13557":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/workers/-/workers-2.0.0-nightly.1113.tgz#0ab927ab1a7b5be43fb84bceaf35952024ded592"
-  integrity sha512-XIyVPqNWML6IN/ooG47v9o9P7s9wxhijxB6/WhvfvyeOxtAUQ/izmsCSsNhFizaJDm+OKc8iPnbiTmjHChYR3g==
+"@parcel/workers@2.0.0-nightly.1124+597716ae7":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/workers/-/workers-2.0.0-nightly.1124.tgz#8ee63ebdea87f1bcda1e71ec71e030df58a9f893"
+  integrity sha512-vJQooendIIkTYwk3c3zjmC9chfH/cGmuedbuAq371UoFN2FiwctGDs1yC8BVlWTsYUBwoEot3B0CeJmREUYEbw==
   dependencies:
-    "@parcel/diagnostic" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/logger" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/types" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/utils" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/diagnostic" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/logger" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/types" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/utils" "2.0.0-nightly.1124+597716ae7"
     chrome-trace-event "^1.0.2"
     nullthrows "^1.1.1"
 
@@ -9297,25 +9295,6 @@ lmdb@2.2.4:
     ordered-binary "^1.2.4"
     weak-lru-cache "^1.2.2"
 
-lmdb@2.3.10:
-  version "2.3.10"
-  resolved "https://registry.yarnpkg.com/lmdb/-/lmdb-2.3.10.tgz#640fc60815846babcbe088d7f8ed0a51da857f6a"
-  integrity sha512-GtH+nStn9V59CfYeQ5ddx6YTfuFCmu86UJojIjJAweG+/Fm0PDknuk3ovgYDtY/foMeMdZa8/P7oSljW/d5UPw==
-  dependencies:
-    msgpackr "^1.5.4"
-    nan "^2.14.2"
-    node-addon-api "^4.3.0"
-    node-gyp-build-optional-packages "^4.3.2"
-    ordered-binary "^1.2.4"
-    weak-lru-cache "^1.2.2"
-  optionalDependencies:
-    lmdb-darwin-arm64 "2.3.10"
-    lmdb-darwin-x64 "2.3.10"
-    lmdb-linux-arm "2.3.10"
-    lmdb-linux-arm64 "2.3.10"
-    lmdb-linux-x64 "2.3.10"
-    lmdb-win32-x64 "2.3.10"
-
 lmdb@2.5.2:
   version "2.5.2"
   resolved "https://registry.yarnpkg.com/lmdb/-/lmdb-2.5.2.tgz#37e28a9fb43405f4dc48c44cec0e13a14c4a6ff1"
@@ -12656,27 +12635,27 @@ scheduler@^0.20.2:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
 
-"self-published@npm:@parcel/optimizer-image@2.6.1-nightly.2736":
-  version "2.6.1-nightly.2736"
-  resolved "https://registry.yarnpkg.com/@parcel/optimizer-image/-/optimizer-image-2.6.1-nightly.2736.tgz#fdca3e42cfe92b99b6655937e3b9d4d7db5deb5c"
-  integrity sha512-KrngKxYKW2fJ3tNXTceio2ERlVA4GblN56wYZb69uBag4idKTiBIKZUGza5IYLKl2NLQPVEzACiHtleqdusBHQ==
+"self-published@npm:@parcel/optimizer-image@2.6.1-nightly.2747":
+  version "2.6.1-nightly.2747"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/optimizer-image/-/optimizer-image-2.6.1-nightly.2747.tgz#9d547e5bf9e26cdcf885006075c1399aeb0a9a4b"
+  integrity sha512-jliPzk5NLF+OoF2IMxlDxWt96UkmapcuO0eQj/JZfvVgwQpqZgaNN1402Zvtq/dnjErGKiPMnz1uTK9mfIBvQA==
   dependencies:
-    "@parcel/diagnostic" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/plugin" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/utils" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/workers" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/diagnostic" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/plugin" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/utils" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/workers" "2.0.0-nightly.1124+597716ae7"
     detect-libc "^1.0.3"
 
-"self-published@npm:@parcel/transformer-js@2.0.0-nightly.1113":
-  version "2.0.0-nightly.1113"
-  resolved "https://registry.yarnpkg.com/@parcel/transformer-js/-/transformer-js-2.0.0-nightly.1113.tgz#77cf2b456f834428211b18b18a842340360d9504"
-  integrity sha512-j8pT+LpwY5R8T8D4bqM8MdWWKsRTxNQlUGPTkWqEqWjKVTs6CVqYI80REJ9XAsYcn7IU6l+537HQ5V9DwawOiQ==
+"self-published@npm:@parcel/transformer-js@2.0.0-nightly.1124":
+  version "2.0.0-nightly.1124"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/transformer-js/-/transformer-js-2.0.0-nightly.1124.tgz#d78d7cc2d75fd5e10adbe2e135816ecc57c63733"
+  integrity sha512-HPyAIywC1FCw/NakC+mWa0h029NWc7B9w2CTieodQArSOw5v7pj3WRAjzZkS4LM1E/xw8U3LBXrsW9+jX78IIg==
   dependencies:
-    "@parcel/diagnostic" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/plugin" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/diagnostic" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/plugin" "2.0.0-nightly.1124+597716ae7"
     "@parcel/source-map" "^2.0.0"
-    "@parcel/utils" "2.0.0-nightly.1113+3b3b13557"
-    "@parcel/workers" "2.0.0-nightly.1113+3b3b13557"
+    "@parcel/utils" "2.0.0-nightly.1124+597716ae7"
+    "@parcel/workers" "2.0.0-nightly.1124+597716ae7"
     "@swc/helpers" "^0.3.15"
     browserslist "^4.6.6"
     detect-libc "^1.0.3"
