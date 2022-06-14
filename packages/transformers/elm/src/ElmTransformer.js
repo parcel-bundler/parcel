@@ -97,10 +97,18 @@ export default (new Transformer({
       let compilerJson = e.message.split('\n')[1];
       let compilerDiagnostics = JSON.parse(compilerJson);
 
+      if (compilerDiagnostics.type === 'compile-errors') {
+        throw new ThrowableDiagnostic({
+          diagnostic: compilerDiagnostics.errors.flatMap(
+            elmCompileErrorToParcelDiagnostics,
+          ),
+        });
+      }
+
+      // compilerDiagnostics.type === "error"
+      // happens for example when compiled in prod mode with Debug.log in code
       throw new ThrowableDiagnostic({
-        diagnostic: compilerDiagnostics.errors.flatMap(
-          elmErrorToParcelDiagnostics,
-        ),
+        diagnostic: formatElmError(compilerDiagnostics, ''),
       });
     }
 
@@ -188,22 +196,24 @@ function formatMessagePiece(piece) {
   return md`${piece}`;
 }
 
-function elmErrorToParcelDiagnostics(error) {
+function elmCompileErrorToParcelDiagnostics(error) {
   const relativePath = path.relative(process.cwd(), error.path);
-  return error.problems.map(problem => {
-    const padLength = 80 - 5 - problem.title.length - relativePath.length;
-    const dashes = '-'.repeat(padLength);
-    const message = [
-      '',
-      `-- ${problem.title} ${dashes} ${relativePath}`,
-      '',
-      problem.message.map(formatMessagePiece).join(''),
-    ].join('\n');
+  return error.problems.map(formatElmError, relativePath);
+}
 
-    return {
-      message,
-      origin: '@parcel/elm-transformer',
-      stack: '', // set stack to empty since it is not useful
-    };
-  });
+function formatElmError(problem, relativePath) {
+  const padLength = 80 - 5 - problem.title.length - relativePath.length;
+  const dashes = '-'.repeat(padLength);
+  const message = [
+    '',
+    `-- ${problem.title} ${dashes} ${relativePath}`,
+    '',
+    problem.message.map(formatMessagePiece).join(''),
+  ].join('\n');
+
+  return {
+    message,
+    origin: '@parcel/elm-transformer',
+    stack: '', // set stack to empty since it is not useful
+  };
 }
