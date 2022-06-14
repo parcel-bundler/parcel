@@ -55,7 +55,6 @@
     "@parcel/workers": "2.0.31"
   },
   "devDependencies": {
-    "@parcel/fs-write-stream-atomic": "2.0.30",
     "graceful-fs": "^4.2.4",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
