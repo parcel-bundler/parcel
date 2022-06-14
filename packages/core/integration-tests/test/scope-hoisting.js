@@ -5425,6 +5425,7 @@ describe('scope hoisting', function () {
       // TODO: unwrappedNamespace should actually be `[false, true]` but we optimize
       // the `ns.foo` expression into a named import, so that namespace isn't available anymore.
       unwrappedNamespace: [true, false],
+
       wrappedNamed: [true, false],
       wrappedDefault: [true, false],
       wrappedNamespace: [false, true],
@@ -5459,7 +5460,7 @@ describe('scope hoisting', function () {
     await bundle(path.join(testDir, 'index.js'), {
       inputFS: overlayFS,
       outputFS: overlayFS,
-      shouldDisableCache: true,
+      shouldDisableCache: true, //bundles with b1 as b
     });
 
     await overlayFS.copyFile(
@@ -5470,7 +5471,7 @@ describe('scope hoisting', function () {
     await bundle(path.join(testDir, 'index.js'), {
       inputFS: overlayFS,
       outputFS: overlayFS,
-      shouldDisableCache: false,
+      shouldDisableCache: false, //bundles with b2 as b
     });
   });
 
@@ -5544,10 +5545,53 @@ describe('scope hoisting', function () {
       'integration/scope-hoisting/es6/non-deterministic-bundle-hashes',
     );
 
+    const waitHandler = (fileToDelay, fileToWaitFor) => {
+      const waitMap = new Map();
+
+      function wait(filePath) {
+        if (waitMap.has(filePath)) {
+          return Promise.resolve();
+        }
+        return new Promise(resolve => {
+          waitMap.set(filePath, resolve);
+        });
+      }
+      // a set of filepaths that have been read
+      function seen(filePath) {
+        // check map of things we're waiting for to resolved promises
+        let promisesToResolve = waitMap.get(filePath);
+        if (promisesToResolve) {
+          // if we find any, we call it
+          promisesToResolve();
+        }
+        waitMap.set(filePath, null);
+      }
+
+      return {
+        get(target, prop) {
+          let original = Reflect.get(...arguments);
+          if (prop === 'readFile') {
+            return async function (...args) {
+              if (args[0].includes(fileToDelay)) {
+                await wait(fileToWaitFor);
+              }
+              let result = await original.apply(this, args);
+              seen(path.basename(args[0]));
+              return result;
+            };
+          }
+          return original;
+        },
+      };
+    };
+
+    let slowFooFS = new Proxy(overlayFS, waitHandler('foo.js', 'bar.js'));
+
     let b = await bundle(path.join(testDir, 'index.html'), {
+      inputFS: slowFooFS,
+      outputFS: slowFooFS,
       shouldDisableCache: true,
       workerFarm,
-      env: {fileToDelay: 'foo.js', fileToWaitFor: 'bar.js'},
     });
 
     let bundleHashDelayFoo = b
@@ -5555,10 +5599,13 @@ describe('scope hoisting', function () {
       .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
       .filePath.split('.')[1];
 
+    let slowBarFS = new Proxy(overlayFS, waitHandler('bar.js', 'foo.js'));
+
     let b2 = await bundle(path.join(testDir, 'index.html'), {
+      inputFS: slowBarFS,
+      outputFS: slowBarFS,
       shouldDisableCache: true,
       workerFarm,
-      env: {fileToDelay: 'bar.js', fileToWaitFor: 'foo.js'},
     });
 
     let bundleHashDelayBar = b2
