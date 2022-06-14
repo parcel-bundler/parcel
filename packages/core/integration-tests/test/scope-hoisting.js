@@ -187,7 +187,7 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['1', '2']);
     });
 
-    it("doesn't rename member expression properties", async function () {
+    it('correctly renames member expression properties', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -196,7 +196,7 @@ describe('scope hoisting', function () {
       );
 
       let output = await run(b);
-      assert.deepEqual(output({foo: 12}), [12, 12]);
+      assert.deepEqual(output({foo: 12, bar: 34}), [12, 12, 34, 34]);
     });
 
     it('supports renaming imports', async function () {
