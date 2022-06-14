@@ -49,10 +49,7 @@ type ResolvedFile = {|
   pkg: InternalPackageJSON | null,
 |};
 
-type Aliases =
-  | string
-  | {[string]: string, ...}
-  | {[string]: string | boolean, ...};
+type Aliases = string | {+[string]: string | boolean | {|global: string|}, ...};
 type ResolvedAlias = {|
   type: 'file' | 'global',
   sourcePath: FilePath,
@@ -1117,7 +1114,7 @@ export default class NodeResolver {
         if (typeof alias === 'string' && subPath) {
           let isRelative = alias.startsWith('./');
           // Append the filename back onto the aliased module.
-          alias = path.posix.join(alias, subPath);
+          alias = (path.posix.join(alias, subPath): string);
           // because of path.join('./nested', 'sub') === 'nested/sub'
           if (isRelative) alias = './' + alias;
         }
@@ -1133,7 +1130,7 @@ export default class NodeResolver {
       };
     }
 
-    if (alias instanceof Object) {
+    if (alias && typeof alias === 'object') {
       if (alias.global) {
         if (typeof alias.global !== 'string' || alias.global.length === 0) {
           throw new ThrowableDiagnostic({
@@ -1149,8 +1146,6 @@ export default class NodeResolver {
           sourcePath: pkg.pkgfile,
           resolved: alias.global,
         };
-      } else if (alias.fileName) {
-        alias = alias.fileName;
       }
     }
 
@@ -1171,7 +1166,10 @@ export default class NodeResolver {
     return null;
   }
 
-  lookupAlias(aliases: Aliases, filename: FilePath): null | boolean | string {
+  lookupAlias(
+    aliases: Aliases,
+    filename: FilePath,
+  ): null | boolean | string | {|global: string|} {
     if (typeof aliases !== 'object') {
       return null;
     }
