@@ -1,5 +1,3 @@
-//misc
-//getGlobalObject
 export function bag() {
   return 'bag';
 };
