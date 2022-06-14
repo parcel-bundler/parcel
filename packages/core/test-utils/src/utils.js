@@ -216,16 +216,7 @@ export async function bundle(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
 ): Promise<BundleGraph<PackagedBundle>> {
-  let bg = (await bundler(entries, opts).run()).bundleGraph;
-  bg.traverse(node => {
-    if (node.type === 'asset') {
-      node.value;
-    }
-  });
-  let bundles = bg.getBundles();
-  //console.log(bg._graph.getAllEdges()
-  //console.log(bundles.map(b => [b.name, b.publicId]));
-  return bg;
+  return (await bundler(entries, opts).run()).bundleGraph;
 }
 
 export function getNextBuild(b: Parcel): Promise<BuildEvent> {

@@ -5369,7 +5369,6 @@ describe('scope hoisting', function () {
       // TODO: unwrappedNamespace should actually be `[false, true]` but we optimize
       // the `ns.foo` expression into a named import, so that namespace isn't available anymore.
       unwrappedNamespace: [true, false],
-
       wrappedNamed: [true, false],
       wrappedDefault: [true, false],
       wrappedNamespace: [false, true],
