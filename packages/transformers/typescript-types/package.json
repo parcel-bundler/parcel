@@ -24,6 +24,7 @@
     "@parcel/plugin": "2.6.0",
     "@parcel/source-map": "^2.0.0",
     "@parcel/ts-utils": "2.6.0",
+    "@parcel/utils": "2.6.0",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {

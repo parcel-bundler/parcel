@@ -14,7 +14,7 @@ function getBundleURL() {
     throw new Error();
   } catch (err) {
     var matches = ('' + err.stack).match(
-      /(https?|file|ftp|(chrome|moz)-extension):\/\/[^)\n]+/g,
+      /(https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/[^)\n]+/g,
     );
     if (matches) {
       // The first two stack frames will be this function and getBundleURLCached.
@@ -29,7 +29,7 @@ function getBundleURL() {
 function getBaseURL(url) {
   return (
     ('' + url).replace(
-      /^((?:https?|file|ftp|(chrome|moz)-extension):\/\/.+)\/[^/]+$/,
+      /^((?:https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/.+)\/[^/]+$/,
       '$1',
     ) + '/'
   );
@@ -38,7 +38,7 @@ function getBaseURL(url) {
 // TODO: Replace uses with `new URL(url).origin` when ie11 is no longer supported.
 function getOrigin(url) {
   let matches = ('' + url).match(
-    /(https?|file|ftp|(chrome|moz)-extension):\/\/[^/]+/,
+    /(https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/[^/]+/,
   );
   if (!matches) {
     throw new Error('Origin not found');

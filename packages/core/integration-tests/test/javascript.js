@@ -4630,6 +4630,29 @@ describe('javascript', function () {
     assert.equal(await run(b), 5);
   });
 
+  it('should properly chain a dynamic import wrapped in a Promise.resolve()', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/resolve-chain.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'resolve-chain.js',
+        assets: [
+          'resolve-chain.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['async.js'],
+      },
+    ]);
+
+    assert.equal(await run(b), 1337);
+  });
+
   it('should detect parcel style async requires in commonjs', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/require-async/parcel.js'),
