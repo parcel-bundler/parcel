@@ -1,6 +1,6 @@
 {
   "name": "@parcel/runtime-js",
-  "version": "2.0.31",
+  "version": "2.0.32",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.31",
-    "@parcel/utils": "2.0.31",
+    "@parcel/plugin": "2.0.32",
+    "@parcel/utils": "2.0.32",
     "nullthrows": "^1.1.1"
   }
 }

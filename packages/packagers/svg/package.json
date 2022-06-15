@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-svg",
-  "version": "2.0.31",
+  "version": "2.0.32",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,9 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.31",
-    "@parcel/types": "2.0.31",
-    "@parcel/utils": "2.0.31",
+    "@parcel/plugin": "2.0.32",
+    "@parcel/types": "2.0.32",
+    "@parcel/utils": "2.0.32",
     "posthtml": "^0.16.4"
   }
 }
