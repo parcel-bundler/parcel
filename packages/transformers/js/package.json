@@ -35,7 +35,7 @@
     "@parcel/source-map": "^2.0.0",
     "@parcel/utils": "2.6.0",
     "@parcel/workers": "2.6.0",
-    "@swc/helpers": "^0.3.15",
+    "@swc/helpers": "^0.4.0",
     "browserslist": "^4.6.6",
     "detect-libc": "^1.0.3",
     "nullthrows": "^1.1.1",
