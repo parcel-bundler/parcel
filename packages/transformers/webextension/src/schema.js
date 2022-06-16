@@ -179,6 +179,26 @@ const commonProps = {
       required: ['matches'],
     },
   },
+  declarative_net_request: ({
+    type: 'object',
+    properties: {
+      rule_resources: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: string,
+            enabled: boolean,
+            path: string,
+          },
+          additionalProperties: false,
+          required: ['id', 'enabled', 'path'],
+        },
+      },
+    },
+    additionalProperties: false,
+    required: ['rule_resources'],
+  }: SchemaEntity),
   devtools_page: string,
   // looks to be FF only
   dictionaries: ({
@@ -229,17 +249,27 @@ const commonProps = {
     type: 'string',
     enum: ['spanning', 'split', 'not_allowed'],
   },
+  key: string,
   minimum_chrome_version: {
     type: 'string',
     __validate: validateVersion,
   },
   // No NaCl modules because deprecated
+  oauth2: {
+    type: 'object',
+    properties: {
+      client_id: string,
+      scopes: arrStr,
+    },
+    additionalProperties: false,
+  },
   offline_enabled: boolean,
   omnibox: ({
     type: 'object',
     properties: {},
     additionalProperties: string,
   }: SchemaEntity),
+  optional_host_permissions: arrStr,
   optional_permissions: arrStr,
   // options_page is deprecated
   options_ui: {
@@ -280,7 +310,6 @@ const commonProps = {
       },
     },
   },
-  // sandbox is deprecated
   short_name: string,
   // FF only, but has some use
   sidebar_action: {
@@ -398,6 +427,7 @@ const commonProps = {
     },
     additionalProperties: false,
   },
+  update_url: string,
   user_scripts: {
     type: 'object',
     properties: {
@@ -438,6 +468,13 @@ export const MV3Schema = ({
       additionalProperties: false,
     },
     host_permissions: arrStr,
+    sandbox: {
+      type: 'object',
+      properties: {
+        pages: arrStr,
+      },
+      additionalProperties: false,
+    },
     web_accessible_resources: {
       type: 'array',
       items: {
@@ -455,7 +492,6 @@ export const MV3Schema = ({
     },
   },
   required: ['manifest_version', 'name', 'version'],
-  additionalProperties: false,
 }: SchemaEntity);
 
 export const MV2Schema = ({
@@ -476,6 +512,7 @@ export const MV2Schema = ({
       additionalProperties: false,
     },
     browser_action: browserAction,
+    content_security_policy: string,
     page_action: {
       type: 'object',
       properties: {
@@ -487,11 +524,17 @@ export const MV2Schema = ({
       },
       additionalProperties: false,
     },
-    content_security_policy: string,
+    sandbox: {
+      type: 'object',
+      properties: {
+        pages: arrStr,
+        content_security_policy: string,
+      },
+      additionalProperties: false,
+    },
     web_accessible_resources: arrStr,
   },
   required: ['manifest_version', 'name', 'version'],
-  additionalProperties: false,
 }: SchemaEntity);
 
 export const VersionSchema = ({

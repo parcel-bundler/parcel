@@ -478,14 +478,14 @@ export class TargetResolver {
     // If there is a separate `browser` target, or an `engines.node` field but no browser targets, then
     // the `main` and `module` targets refer to node, otherwise browser.
     let mainContext =
-      pkg.browser ?? pkgTargets.browser ?? (node != null && !browsers)
+      pkg.browser ?? pkgTargets.browser ?? (node != null && browsers == null)
         ? 'node'
         : 'browser';
     let moduleContext =
       pkg.browser ?? pkgTargets.browser ? 'browser' : mainContext;
 
     let defaultEngines = this.options.defaultTargetOptions.engines;
-    let context = browsers ?? !node ? 'browser' : 'node';
+    let context = browsers ?? node == null ? 'browser' : 'node';
     if (context === 'browser' && pkgEngines.browsers == null) {
       pkgEngines = {
         ...pkgEngines,

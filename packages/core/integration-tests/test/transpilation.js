@@ -121,7 +121,9 @@ describe('transpilation', function () {
       path.join(distDir, 'pure-comment.js'),
       'utf8',
     );
-    assert(file.includes('/*#__PURE__*/ _reactDefault.default.createElement'));
+    assert(
+      file.includes('/*#__PURE__*/ (0, _reactDefault.default).createElement'),
+    );
 
     let res = await run(b);
     assert(res.Foo());
@@ -190,7 +192,7 @@ describe('transpilation', function () {
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(file.includes('react/jsx-dev-runtime'));
-    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+    assert(file.includes('(0, _jsxDevRuntime.jsxDEV)("div"'));
   });
 
   it('should support the automatic JSX runtime with preact >= 10.5', async function () {
@@ -200,7 +202,7 @@ describe('transpilation', function () {
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(file.includes('preact/jsx-dev-runtime'));
-    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+    assert(file.includes('(0, _jsxDevRuntime.jsxDEV)("div"'));
   });
 
   it('should support the automatic JSX runtime with React ^16.14.0', async function () {
@@ -210,7 +212,7 @@ describe('transpilation', function () {
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(file.includes('react/jsx-dev-runtime'));
-    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+    assert(file.includes('(0, _jsxDevRuntime.jsxDEV)("div"'));
   });
 
   it('should support the automatic JSX runtime with React 18 prereleases', async function () {
@@ -220,7 +222,7 @@ describe('transpilation', function () {
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(file.includes('react/jsx-dev-runtime'));
-    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+    assert(file.includes('(0, _jsxDevRuntime.jsxDEV)("div"'));
   });
 
   it('should support the automatic JSX runtime with experimental React versions', async function () {
@@ -230,7 +232,7 @@ describe('transpilation', function () {
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(file.includes('react/jsx-dev-runtime'));
-    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+    assert(file.includes('(0, _jsxDevRuntime.jsxDEV)("div"'));
   });
 
   it('should support the automatic JSX runtime with preact with alias', async function () {
@@ -243,7 +245,7 @@ describe('transpilation', function () {
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(/\Wreact\/jsx-dev-runtime\W/.test(file));
-    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+    assert(file.includes('(0, _jsxDevRuntime.jsxDEV)("div"'));
   });
 
   it('should support the automatic JSX runtime with explicit tsconfig.json', async function () {
@@ -253,7 +255,7 @@ describe('transpilation', function () {
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(file.includes('preact/jsx-dev-runtime'));
-    assert(file.includes('_jsxDevRuntime.jsxDEV("div"'));
+    assert(file.includes('(0, _jsxDevRuntime.jsxDEV)("div"'));
   });
 
   it('should support explicit JSX pragma in tsconfig.json', async function () {
@@ -295,6 +297,24 @@ describe('transpilation', function () {
     ]);
   });
 
+  it('should support enabling decorators and setting useDefineForClassFields in tsconfig.json', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/decorators-useDefineForClassFields/index.ts',
+      ),
+    );
+
+    let output = [];
+    await run(b, {
+      output(...o) {
+        output.push(...o);
+      },
+    });
+
+    assert.deepEqual(output, ['foo 15', 'foo 16']);
+  });
+
   it('should support transpiling optional chaining', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-optional-chaining/index.js'),
@@ -332,6 +352,65 @@ describe('transpilation', function () {
           browsers: '>= 0.25%',
         },
       },
+    });
+  });
+
+  it('should print errors from transpilation', async function () {
+    let source = path.join(
+      __dirname,
+      '/integration/transpilation-invalid/index.js',
+    );
+    // $FlowFixMe
+    await assert.rejects(() => bundle(source), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrames: [
+            {
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    column: 15,
+                    line: 3,
+                  },
+                  end: {
+                    column: 43,
+                    line: 3,
+                  },
+                },
+              ],
+              filePath: source,
+            },
+          ],
+          hints: null,
+          message: 'Spread children are not supported in React.',
+          origin: '@parcel/transformer-js',
+        },
+        {
+          codeFrames: [
+            {
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    column: 4,
+                    line: 7,
+                  },
+                  end: {
+                    column: 4,
+                    line: 7,
+                  },
+                },
+              ],
+              filePath: source,
+            },
+          ],
+          hints: null,
+          message: 'duplicate private name #x.',
+          origin: '@parcel/transformer-js',
+        },
+      ],
     });
   });
 

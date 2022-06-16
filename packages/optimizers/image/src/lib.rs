@@ -43,7 +43,7 @@ fn optimize(ctx: CallContext) -> Result<JsBuffer> {
           if let Some(msg) = err.downcast_ref::<String>() {
             Err(Error::from_reason(msg.to_string()))
           } else {
-            Err(Error::from_reason("Unknown libjpeg error".into()))
+            Err(Error::from_reason("Unknown libjpeg error"))
           }
         }
       }

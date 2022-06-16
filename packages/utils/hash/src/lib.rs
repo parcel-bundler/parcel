@@ -67,9 +67,9 @@ fn init(mut exports: JsObject, env: Env) -> Result<()> {
   exports.create_named_method("hashString", hash_string)?;
   exports.create_named_method("hashBuffer", hash_buffer)?;
 
-  let write_string_method = Property::new(&env, "writeString")?.with_method(write_string);
-  let write_buffer_method = Property::new(&env, "writeBuffer")?.with_method(write_buffer);
-  let finish_method = Property::new(&env, "finish")?.with_method(finish);
+  let write_string_method = Property::new("writeString")?.with_method(write_string);
+  let write_buffer_method = Property::new("writeBuffer")?.with_method(write_buffer);
+  let finish_method = Property::new("finish")?.with_method(finish);
   let hash_class = env.define_class(
     "Hash",
     constructor,
