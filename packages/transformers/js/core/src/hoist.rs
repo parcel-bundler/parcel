@@ -2596,7 +2596,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2612,7 +2612,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2626,7 +2626,7 @@ mod tests {
       map! { w!("foo") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2640,7 +2640,7 @@ mod tests {
       map! { w!("bar") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2653,7 +2653,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2666,7 +2666,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2678,7 +2678,7 @@ mod tests {
       map! { w!("foo") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2690,7 +2690,7 @@ mod tests {
       map! { w!("bar") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2703,7 +2703,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2716,7 +2716,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2728,7 +2728,7 @@ mod tests {
       map! { w!("foo") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2740,7 +2740,7 @@ mod tests {
       map! { w!("bar") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2749,7 +2749,7 @@ mod tests {
     );
     assert_eq_imports!(collect.imports, map! {});
     assert_eq!(collect.non_static_requires, set! {w!("other")});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2758,7 +2758,7 @@ mod tests {
     );
     assert_eq_imports!(collect.imports, map! {});
     assert_eq!(collect.non_static_requires, set! {w!("other")});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2769,7 +2769,7 @@ mod tests {
     );
     assert_eq_imports!(collect.imports, map! {});
     assert_eq!(collect.non_static_requires, set! {w!("other")});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
   }
 
   #[test]
@@ -2788,7 +2788,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
+    import "abc:other:esm";
     let $abc$var$test = {
         bar: 3
     };
@@ -2809,7 +2809,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
+    import "abc:other:esm";
     console.log($abc$import$70a00e0a8474f72a$d927737047eb3867);
     $abc$import$70a00e0a8474f72a$d927737047eb3867();
     "#}
@@ -2836,7 +2836,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
+    import "abc:other:esm";
     $abc$import$70a00e0a8474f72a.bar();
     let $abc$var$y = "bar";
     $abc$import$70a00e0a8474f72a[$abc$var$y]();
@@ -2856,7 +2856,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
+    import "abc:other:esm";
     console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039), (0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039).bar);
     (0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039)();
     "#}
@@ -2877,8 +2877,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
-    import "abc:bar";
+    import "abc:other:esm";
+    import "abc:bar:esm";
     console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039));
     console.log((0, $abc$import$d927737047eb3867$2e2bcd8739ae039));
     "#}
@@ -2898,8 +2898,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
-    import "abc:bar";
+    import "abc:other:esm";
+    import "abc:bar:esm";
     console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039));
     import "abc:x";
     console.log($abc$import$d141bba7fdc215a3);
@@ -3095,7 +3095,7 @@ mod tests {
     );
     assert_eq!(
       hoist.wrapped_requires,
-      HashSet::<JsWord>::from_iter(vec![JsWord::from("other")])
+      HashSet::<String>::from_iter(vec![String::from("other")])
     );
 
     let (_collect, code, hoist) = parse(
@@ -3121,7 +3121,7 @@ mod tests {
     );
     assert_eq!(
       hoist.wrapped_requires,
-      HashSet::<JsWord>::from_iter(vec![JsWord::from("other")])
+      HashSet::<String>::from_iter(vec![String::from("other")])
     );
 
     let (_collect, code, _hoist) = parse(
@@ -3449,7 +3449,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:bar";
+    import "abc:bar:esm";
     "#}
     );
 
@@ -3462,7 +3462,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:bar";
+    import "abc:bar:esm";
     "#}
     );
 
@@ -3476,7 +3476,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:./settings";
+    import "abc:./settings:esm";
     const $abc$export$a5a6e0b888b2c992 = "hi";
     "#}
     );
