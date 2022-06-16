@@ -921,6 +921,23 @@ function createIdealGraph(
     }
   }
 
+  let bundleGroupsToBundles = new Map<NodeId, Set<NodeId>>();
+  for (let bundleNodeId of bundles.values()) {
+    if (bundleGraph.hasNode(bundleNodeId)) {
+      let bundleGroups = getBundleGroupsForBundle(bundleNodeId);
+      for (let bundleGroupId of bundleGroups) {
+        let bundleIdsInGroup = bundleGroupsToBundles.get(bundleGroupId);
+        if (bundleIdsInGroup != null) {
+          bundleIdsInGroup.add(bundleNodeId);
+          bundleGroupsToBundles.set(bundleGroupId, bundleIdsInGroup);
+        } else {
+          bundleGroupsToBundles.set(bundleGroupId, new Set([bundleNodeId]));
+        }
+      }
+    }
+  }
+  console.log('bundleGroupsToBundles', bundleGroupsToBundles);
+
   // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
   for (let [bundleId, bundleGroupId] of bundleRoots.values()) {
     // Only handle bundle group entries.
@@ -929,18 +946,23 @@ function createIdealGraph(
     }
 
     // Find shared bundles in this bundle group.
-    let bundleIdsInGroup = [];
-    for (let [
-      sharedBundleId,
-      sourceBundleIds,
-    ] of sharedToSourceBundleIds.entries()) {
-      if (sourceBundleIds.includes(bundleId)) {
-        bundleIdsInGroup.push(sharedBundleId);
-      }
-    }
+    // let bundleIdsInGroup = [];
+    // for (let [
+    //   sharedBundleId,
+    //   sourceBundleIds,
+    // ] of sharedToSourceBundleIds.entries()) {
+    //   if (sourceBundleIds.includes(bundleId)) {
+    //     bundleIdsInGroup.push(sharedBundleId);
+    //   }
+    // }
+    let bundleIdsInGroup = [
+      ...nullthrows(bundleGroupsToBundles.get(bundleGroupId)),
+    ].filter(id => id !== bundleGroupId);
 
     if (bundleIdsInGroup.length > config.maxParallelRequests) {
       // Sort the bundles so the smallest ones are removed first.
+      console.log('bundleIdsInGroup', bundleIdsInGroup);
+      console.log('sharedTosource', sharedToSourceBundleIds);
       let bundlesInGroup = bundleIdsInGroup
         .map(id => nullthrows(bundleGraph.getNode(id)))
         .map(bundle => {
