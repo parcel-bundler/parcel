@@ -706,13 +706,18 @@ export default (new Transformer({
         asset.symbols.set(exported, local, convertLoc(loc));
       }
 
+      // deps is a map of dependencies that are keyed by placeholder or specifier
+      // If a placeholder is present, that is used first since placeholders are
+      // hashed with DependencyKind's.
+      // If not, the specifier is used along with its specifierType appended to
+      // it to separate dependencies with the same specifier.
       let deps = new Map(
         asset
           .getDependencies()
           .map(dep => [
-            (dep.meta.placeholder
-              ? String(dep.meta.placeholder)
-              : dep.specifier) + dep.specifierType,
+            dep.meta.placeholder ??
+              dep.specifier +
+                (dep.specifierType === 'esm' ? dep.specifierType : ''),
             dep,
           ]),
       );
@@ -727,12 +732,11 @@ export default (new Transformer({
         loc,
         kind,
       } of hoist_result.imported_symbols) {
-        let dep = deps.get(
-          source +
-            (kind === 'Import' || kind === 'Export' || kind === 'DynamicImport'
-              ? 'esm'
-              : 'commonjs'),
-        );
+        let specifierType = '';
+        if (kind === 'Import' || kind === 'Export') {
+          specifierType = 'esm';
+        }
+        let dep = deps.get(source + specifierType);
         if (!dep) continue;
         dep.symbols.set(imported, local, convertLoc(loc));
       }
@@ -758,7 +762,7 @@ export default (new Transformer({
       }
 
       for (let name in hoist_result.dynamic_imports) {
-        let dep = deps.get(hoist_result.dynamic_imports[name] + 'esm');
+        let dep = deps.get(hoist_result.dynamic_imports[name]);
         if (!dep) continue;
         dep.meta.promiseSymbol = name;
       }
@@ -810,9 +814,9 @@ export default (new Transformer({
           asset
             .getDependencies()
             .map(dep => [
-              (dep.meta.placeholder
-                ? String(dep.meta.placeholder)
-                : dep.specifier) + dep.specifierType,
+              dep.meta.placeholder ??
+                dep.specifier +
+                  (dep.specifierType === 'esm' ? dep.specifierType : ''),
               dep,
             ]),
         );

@@ -129,14 +129,6 @@ macro_rules! hoist_visit_fn {
   };
 }
 
-fn get_specifier_type(import_kind: ImportKind) -> String {
-  match import_kind {
-    ImportKind::Import => "esm".to_string(),
-    ImportKind::DynamicImport => "esm".to_string(),
-    ImportKind::Require => "commonjs".to_string(),
-  }
-}
-
 impl<'a> Fold for Hoist<'a> {
   fn fold_module(&mut self, node: Module) -> Module {
     let mut node = node;
@@ -151,13 +143,7 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: format!(
-                    "{}:{}:{}",
-                    self.module_id,
-                    import.src.value,
-                    get_specifier_type(ImportKind::Import)
-                  )
-                  .into(),
+                  src: format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
                   type_only: false,
                 })));
               // Ensure that all import specifiers are constant.
@@ -203,13 +189,7 @@ impl<'a> Fold for Hoist<'a> {
                     asserts: None,
                     span: DUMMY_SP,
                     src: Str {
-                      value: format!(
-                        "{}:{}:{}",
-                        self.module_id,
-                        src.value,
-                        get_specifier_type(ImportKind::Import)
-                      )
-                      .into(),
+                      value: format!("{}:{}:{}", self.module_id, src.value, "esm").into(),
                       span: DUMMY_SP,
                       raw: None,
                     },
@@ -304,13 +284,7 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: format!(
-                    "{}:{}:{}",
-                    self.module_id,
-                    export.src.value,
-                    get_specifier_type(ImportKind::Import)
-                  )
-                  .into(),
+                  src: format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
                   type_only: false,
                 })));
               self.re_exports.push(ImportedSymbol {
@@ -414,13 +388,7 @@ impl<'a> Fold for Hoist<'a> {
                               asserts: None,
                               span: DUMMY_SP,
                               src: Str {
-                                value: format!(
-                                  "{}:{}:{}",
-                                  self.module_id,
-                                  source,
-                                  get_specifier_type(ImportKind::Require)
-                                )
-                                .into(),
+                                value: format!("{}:{}", self.module_id, source).into(),
                                 span: DUMMY_SP,
                                 raw: None,
                               },
@@ -461,13 +429,7 @@ impl<'a> Fold for Hoist<'a> {
                                 asserts: None,
                                 span: DUMMY_SP,
                                 src: Str {
-                                  value: format!(
-                                    "{}:{}:{}",
-                                    self.module_id,
-                                    source,
-                                    get_specifier_type(ImportKind::Require)
-                                  )
-                                  .into(),
+                                  value: format!("{}:{}", self.module_id, source,).into(),
                                   span: DUMMY_SP,
                                   raw: None,
                                 },
@@ -981,19 +943,17 @@ impl<'a> Fold for Hoist<'a> {
 
 impl<'a> Hoist<'a> {
   fn add_require(&mut self, source: &JsWord, import_kind: ImportKind) {
+    let src = match import_kind {
+      ImportKind::Import => format!("{}:{}:{}", self.module_id, source, "esm"),
+      ImportKind::DynamicImport | ImportKind::Require => format!("{}:{}", self.module_id, source),
+    };
     self
       .module_items
       .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         specifiers: vec![],
         asserts: None,
         span: DUMMY_SP,
-        src: format!(
-          "{}:{}:{}",
-          self.module_id,
-          source,
-          get_specifier_type(import_kind)
-        )
-        .into(),
+        src: src.into(),
         type_only: false,
       })));
   }
@@ -1745,11 +1705,7 @@ impl Visit for Collect {
     // If we reached this visitor, this is a non-top-level require that isn't in a variable
     // declaration. We need to wrap the referenced module to preserve side effect ordering.
     if let Some(source) = self.match_require(node) {
-      self.wrapped_requires.insert(format!(
-        "{}{}",
-        source.to_string(),
-        get_specifier_type(ImportKind::Require)
-      ));
+      self.wrapped_requires.insert(source.to_string());
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -1759,11 +1715,7 @@ impl Visit for Collect {
 
     if let Some(source) = match_import(node, self.ignore_mark) {
       self.non_static_requires.insert(source.clone());
-      self.wrapped_requires.insert(format!(
-        "{}{}",
-        source.to_string(),
-        get_specifier_type(ImportKind::Import)
-      ));
+      self.wrapped_requires.insert(source.to_string());
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -1931,11 +1883,7 @@ impl Visit for Collect {
                   self.add_pat_imports(param, &source, ImportKind::DynamicImport);
                 } else {
                   self.non_static_requires.insert(source.clone());
-                  self.wrapped_requires.insert(format!(
-                    "{}{}",
-                    source.to_string(),
-                    get_specifier_type(ImportKind::Import)
-                  ));
+                  self.wrapped_requires.insert(source.to_string());
                   self.add_bailout(node.span, BailoutReason::NonStaticDynamicImport);
                 }
 
@@ -1960,9 +1908,14 @@ impl Collect {
 
   fn add_pat_imports(&mut self, node: &Pat, src: &JsWord, kind: ImportKind) {
     if !self.in_top_level {
-      self
-        .wrapped_requires
-        .insert(format!("{}{}", src.clone(), get_specifier_type(kind)));
+      match kind {
+        ImportKind::Import => self
+          .wrapped_requires
+          .insert(format!("{}{}", src.clone(), "esm")),
+        ImportKind::DynamicImport | ImportKind::Require => {
+          self.wrapped_requires.insert(src.to_string())
+        }
+      };
       if kind != ImportKind::DynamicImport {
         self.non_static_requires.insert(src.clone());
         let span = match node {
