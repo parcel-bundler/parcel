@@ -5478,84 +5478,104 @@ describe('scope hoisting', function () {
     assert.strictEqual(output, 'foo');
   });
 
-  it('produce the same bundle hash regardless of transformation order', async function () {
-    let workerFarm = createWorkerFarm({
-      maxConcurrentWorkers: 0,
-    });
+  it.only('produce the same bundle hash regardless of transformation order', async function () {
+    let builtIndexFilePath;
+    async function test() {
+      let workerFarm = createWorkerFarm({
+        maxConcurrentWorkers: 0,
+      });
 
-    let testDir = path.join(
-      __dirname,
-      'integration/scope-hoisting/es6/non-deterministic-bundle-hashes',
-    );
+      let testDir = path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/non-deterministic-bundle-hashes',
+      );
 
-    const waitHandler = (fileToDelay, fileToWaitFor) => {
-      const waitMap = new Map();
+      const waitHandler = (fileToDelay, fileToWaitFor) => {
+        const waitMap = new Map();
 
-      function wait(filePath) {
-        if (waitMap.has(filePath)) {
-          return Promise.resolve();
-        }
-        return new Promise(resolve => {
-          waitMap.set(filePath, resolve);
-        });
-      }
-      // a set of filepaths that have been read
-      function seen(filePath) {
-        // check map of things we're waiting for to resolved promises
-        let promisesToResolve = waitMap.get(filePath);
-        if (promisesToResolve) {
-          // if we find any, we call it
-          promisesToResolve();
-        }
-        waitMap.set(filePath, null);
-      }
-
-      return {
-        get(target, prop) {
-          let original = Reflect.get(...arguments);
-          if (prop === 'readFile') {
-            return async function (...args) {
-              if (args[0].includes(fileToDelay)) {
-                await wait(fileToWaitFor);
-              }
-              let result = await original.apply(this, args);
-              seen(path.basename(args[0]));
-              return result;
-            };
+        function wait(filePath) {
+          if (waitMap.has(filePath)) {
+            return Promise.resolve();
           }
-          return original;
-        },
+          return new Promise(resolve => {
+            waitMap.set(filePath, resolve);
+          });
+        }
+        // a set of filepaths that have been read
+        function seen(filePath) {
+          // check map of things we're waiting for to resolved promises
+          let promisesToResolve = waitMap.get(filePath);
+          if (promisesToResolve) {
+            // if we find any, we call it
+            promisesToResolve();
+          }
+          waitMap.set(filePath, null);
+        }
+
+        return {
+          get(target, prop) {
+            let original = Reflect.get(...arguments);
+            if (prop === 'readFile') {
+              return async function (...args) {
+                if (args[0].includes(fileToDelay)) {
+                  await wait(fileToWaitFor);
+                }
+                let result = await original.apply(this, args);
+                seen(path.basename(args[0]));
+                return result;
+              };
+            }
+            return original;
+          },
+        };
       };
-    };
 
-    let slowFooFS = new Proxy(overlayFS, waitHandler('foo.js', 'bar.js'));
+      let slowFooFS = new Proxy(overlayFS, waitHandler('foo.js', 'bar.js'));
 
-    let b = await bundle(path.join(testDir, 'index.html'), {
-      inputFS: slowFooFS,
-      outputFS: slowFooFS,
-      shouldDisableCache: true,
-      workerFarm,
-    });
+      let b = await bundle(path.join(testDir, 'index.html'), {
+        inputFS: slowFooFS,
+        outputFS: slowFooFS,
+        shouldDisableCache: true,
+        workerFarm,
+      });
 
-    let bundleHashDelayFoo = b
-      .getBundles()
-      .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
-      .filePath.split('.')[1];
+      let bundleHashDelayFoo = b
+        .getBundles()
+        .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
+        .filePath.split('.')[1];
 
-    let slowBarFS = new Proxy(overlayFS, waitHandler('bar.js', 'foo.js'));
+      let slowBarFS = new Proxy(overlayFS, waitHandler('bar.js', 'foo.js'));
 
-    let b2 = await bundle(path.join(testDir, 'index.html'), {
-      inputFS: slowBarFS,
-      outputFS: slowBarFS,
-      shouldDisableCache: true,
-      workerFarm,
-    });
+      let b2 = await bundle(path.join(testDir, 'index.html'), {
+        inputFS: slowBarFS,
+        outputFS: slowBarFS,
+        shouldDisableCache: true,
+        workerFarm,
+      });
 
-    let bundleHashDelayBar = b2
-      .getBundles()
-      .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
-      .filePath.split('.')[1];
+      let bundleHashDelayBar = b2
+        .getBundles()
+        .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
+        .filePath.split('.')[1];
 
-    assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
+      builtIndexFilePath = b2
+        .getBundles()
+        .find(
+          b => b.filePath.endsWith('.js') && b.filePath.includes('index'),
+        ).filePath;
+      //console.log(builtIndexFilePath)
+
+      assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
+    }
+    for (let i = 0; i < 1000; i++) {
+      try {
+        await assert.rejects(test);
+      } catch {
+        let content = (
+          await outputFS.readFile(path.join(builtIndexFilePath))
+        ).toString();
+        console.log(content);
+      }
+    }
   });
 });

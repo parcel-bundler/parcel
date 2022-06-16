@@ -5,3 +5,4 @@ function other() {
 }
 
 export {other};
+//INDEX
