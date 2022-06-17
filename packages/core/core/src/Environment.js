@@ -31,7 +31,9 @@ export function createEnvironment({
   shouldScopeHoist = false,
   sourceMap,
   loc,
-}: EnvironmentOpts = {}): Environment {
+}: EnvironmentOpts = {
+  /*::...null*/
+}): Environment {
   if (context == null) {
     if (engines?.node) {
       context = 'node';

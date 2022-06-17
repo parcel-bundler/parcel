@@ -388,4 +388,26 @@ describe('typescript types', function () {
     );
     assert.equal(dist, expected);
   });
+
+  it('should handle a tsconfig file with paths on windows', async function () {
+    await bundle(
+      path.join(__dirname, '/integration/ts-types/windows-paths/index.ts'),
+    );
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/windows-paths/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+
+    let expected = await inputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/windows-paths/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
 });
