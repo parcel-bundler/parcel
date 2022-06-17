@@ -163,7 +163,7 @@ function formatMessagePiece(piece) {
 
 function elmCompileErrorToParcelDiagnostics(error) {
   const relativePath = path.relative(process.cwd(), error.path);
-  return error.problems.map(formatElmError, relativePath);
+  return error.problems.map(problem => formatElmError(problem, relativePath));
 }
 
 function formatElmError(problem, relativePath) {
