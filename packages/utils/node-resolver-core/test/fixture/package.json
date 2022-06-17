@@ -11,7 +11,7 @@
     "glob/*/*": "./nested/$2"
   },
   "dependencies": {
-    "foo": "*"
+    "foo": "^0.3.4"
   },
   "peerDependencies": {
     "bar": "*"
