@@ -20,43 +20,12 @@ try {
   isWorker = false;
 }
 
-function normalizeQuery(query) {
-  // Sort, normalize leading "./", etc.
-  const normalizedAndSortedEntries = Array.from(query.entries())
-    .map(([key, value]) =>
-      key === 'with' ? [key, path.normalize(value)] : [key, value],
-    )
-    .sort(([key1, val1], [key2, val2]) => {
-      if (key1 < key2) return -1;
-      if (key1 > key2) return 1;
-      if (val1 < val2) return -1;
-      if (val1 > val2) return 1;
-      return 0;
-    });
-  return new URLSearchParams(normalizedAndSortedEntries);
-}
-
 export default (new Transformer({
   loadConfig({config}) {
     return load({config});
   },
 
   async transform({asset, options, logger}) {
-    const normalizedQuery = normalizeQuery(asset.query);
-    // if query is not normalized, create new virtual asset with normalized query
-    // to prevent unintended asset duplication
-    if (asset.query.toString() !== normalizedQuery.toString()) {
-      console.log('need to normalize!');
-      console.log({
-        old: asset.query.toString(),
-        new: normalizedQuery.toString(),
-      });
-      const specifier = `./${path.basename(asset.filePath)}?${normalizedQuery}`;
-      asset.setCode(`export * from "${specifier}";`);
-      asset.type = 'js';
-      return [asset];
-    }
-
     const elmBinary = elmBinaryPath();
     const compilerConfig = {
       spawn,
