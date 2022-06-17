@@ -8,6 +8,7 @@ import type {
   SpecifierType,
   PluginLogger,
   SourceLocation,
+  SemverRange,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
@@ -27,11 +28,13 @@ import {
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   md,
+  encodeJSONKeyComponent,
 } from '@parcel/diagnostic';
 import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
 import _Module from 'module';
 import {fileURLToPath} from 'url';
+import semver from 'semver';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -68,6 +71,7 @@ type ResolverContext = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
   specifierType: SpecifierType,
+  range: ?SemverRange,
   loc: ?SourceLocation,
 |};
 
@@ -111,6 +115,7 @@ export default class NodeResolver {
     filename,
     parent,
     specifierType,
+    range,
     env,
     sourcePath,
     loc,
@@ -118,6 +123,7 @@ export default class NodeResolver {
     filename: FilePath,
     parent: ?FilePath,
     specifierType: SpecifierType,
+    range?: ?SemverRange,
     env: Environment,
     sourcePath?: ?FilePath,
     loc?: ?SourceLocation,
@@ -126,6 +132,7 @@ export default class NodeResolver {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
       specifierType,
+      range,
       loc,
     };
 
@@ -484,6 +491,40 @@ export default class NodeResolver {
           hints: [`Add "${moduleName}" as a dependency.`],
         },
       });
+    }
+
+    if (ctx.range) {
+      let range = ctx.range;
+      let depRange =
+        pkg.dependencies?.[moduleName] || pkg.peerDependencies?.[moduleName];
+      if (depRange && !semver.intersects(depRange, range)) {
+        let pkgContent = await this.fs.readFile(pkg.pkgfile, 'utf8');
+        let field = pkg.dependencies?.[moduleName]
+          ? 'dependencies'
+          : 'peerDependencies';
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: md`External dependency "${moduleName}" does not satisfy required semver range "${range}".`,
+            codeFrames: [
+              {
+                filePath: pkg.pkgfile,
+                language: 'json',
+                code: pkgContent,
+                codeHighlights: generateJSONCodeHighlights(pkgContent, [
+                  {
+                    key: `/${field}/${encodeJSONKeyComponent(moduleName)}`,
+                    type: 'value',
+                    message: 'Found this conflicting requirement.',
+                  },
+                ]),
+              },
+            ],
+            hints: [
+              `Update the dependency on "${moduleName}" to satisfy "${range}".`,
+            ],
+          },
+        });
+      }
     }
   }
 
