@@ -37,11 +37,7 @@ export default (new Transformer({
     };
     asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
 
-    const extraSources = resolveExtraSources({
-      asset,
-      projectRoot: options.projectRoot,
-      logger,
-    });
+    const extraSources = resolveExtraSources({asset, logger});
 
     extraSources.forEach(filePath => {
       asset.invalidateOnFileChange(filePath);
@@ -93,7 +89,7 @@ export default (new Transformer({
 }): Transformer);
 
 // gather extra modules that should be added to the compilation process
-function resolveExtraSources({asset, projectRoot, logger}) {
+function resolveExtraSources({asset, logger}) {
   const dirname = path.dirname(asset.filePath);
   const relativePaths = asset.query.getAll('with');
 
