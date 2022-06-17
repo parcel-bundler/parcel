@@ -21,7 +21,8 @@
   "dependencies": {
     "@parcel/diagnostic": "2.6.0",
     "@parcel/utils": "2.6.0",
-    "nullthrows": "^1.1.1"
+    "nullthrows": "^1.1.1",
+    "semver": "^5.7.1"
   },
   "devDependencies": {
     "assert": "^2.0.0",
