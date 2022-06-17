@@ -6,7 +6,7 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import commandExists from 'command-exists';
 import nullthrows from 'nullthrows';
 
-async function load({config}) {
+async function load({config}: {|config: Config|}) {
   const elmConfig = await config.getConfig(['elm.json']);
   if (!elmConfig) {
     elmBinaryPath(); // Check if elm is even installed
