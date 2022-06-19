@@ -186,7 +186,7 @@ export type EnvironmentOptions = {|
  */
 export type VersionMap = {
   [string]: string,
-  ...,
+  ...
 };
 
 export type EnvironmentFeature =
@@ -258,7 +258,13 @@ export type PackageJSON = {
   types?: FilePath,
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
   source?: FilePath | Array<FilePath>,
-  alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
+  alias?: {
+    [PackageName | FilePath | Glob]:
+      | PackageName
+      | FilePath
+      | {|global: string|},
+    ...
+  },
   browserslist?: Array<string> | {[string]: Array<string>},
   engines?: Engines,
   targets?: {[string]: PackageTargetDescriptor, ...},
@@ -398,9 +404,7 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|
+  get(exportSymbol: Symbol): ?{|
     local: Symbol,
     loc: ?SourceLocation,
     meta?: ?Meta,
@@ -443,9 +447,7 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|
+  get(exportSymbol: Symbol): ?{|
     local: Symbol,
     loc: ?SourceLocation,
     isWeak: boolean,
@@ -523,6 +525,8 @@ export type DependencyOptions = {|
    * By default, this is the path of the source file where the dependency was specified.
    */
   +resolveFrom?: FilePath,
+  /** The semver version range expected for the dependency. */
+  +range?: SemverRange,
   /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,
@@ -599,6 +603,8 @@ export interface Dependency {
    * By default, this is the path of the source file where the dependency was specified.
    */
   +resolveFrom: ?FilePath;
+  /** The semver version range expected for the dependency. */
+  +range: ?SemverRange;
   /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   +pipeline: ?string;
 
@@ -1045,6 +1051,17 @@ export type Transformer<ConfigType> = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<Array<TransformerResult | MutableAsset>>,
+  /**
+   * Do some processing after the transformation
+   * @experimental
+   */
+  postProcess?: ({|
+    assets: Array<MutableAsset>,
+    config: ConfigType,
+    resolve: ResolveFn,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<Array<TransformerResult>>,
   /** Stringify the AST */
   generate?: ({|
     asset: Asset,
@@ -1492,6 +1509,8 @@ export type ResolveResult = {|
   +invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   /** A list of files that should invalidate the resolution if modified or deleted. */
   +invalidateOnFileChange?: Array<FilePath>,
+  /** Invalidates the resolution when the given environment variable changes.*/
+  +invalidateOnEnvChange?: Array<string>,
 |};
 
 /**

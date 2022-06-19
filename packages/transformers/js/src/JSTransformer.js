@@ -12,6 +12,7 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import {validateSchema, remapSourceLocation, isGlobMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
+import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
   jsx: true,
@@ -138,6 +139,8 @@ type TSConfig = {
     jsxImportSource?: string,
     // https://www.typescriptlang.org/tsconfig#experimentalDecorators
     experimentalDecorators?: boolean,
+    // https://www.typescriptlang.org/tsconfig#useDefineForClassFields
+    useDefineForClassFields?: boolean,
     ...
   },
   ...
@@ -152,7 +155,8 @@ export default (new Transformer({
       jsxImportSource,
       automaticJSXRuntime,
       reactRefresh,
-      decorators;
+      decorators,
+      useDefineForClassFields;
     if (config.isSource) {
       let reactLib;
       if (pkg?.alias && pkg.alias['react']) {
@@ -231,6 +235,7 @@ export default (new Transformer({
 
       isJSX = Boolean(compilerOptions?.jsx || pragma);
       decorators = compilerOptions?.experimentalDecorators;
+      useDefineForClassFields = compilerOptions?.useDefineForClassFields;
     }
 
     // Check if we should ignore fs calls
@@ -280,6 +285,7 @@ export default (new Transformer({
       inlineFS,
       reactRefresh,
       decorators,
+      useDefineForClassFields,
     };
   },
   async transform({asset, config, options, logger}) {
@@ -387,7 +393,8 @@ export default (new Transformer({
       project_root: options.projectRoot,
       replace_env: !asset.env.isNode(),
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
-      insert_node_globals: !asset.env.isNode(),
+      insert_node_globals:
+        !asset.env.isNode() && asset.env.sourceType !== 'script',
       node_replacer: asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
@@ -406,6 +413,7 @@ export default (new Transformer({
         !asset.env.isWorklet() &&
         Boolean(config?.reactRefresh),
       decorators: Boolean(config?.decorators),
+      use_define_for_class_fields: Boolean(config?.useDefineForClassFields),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist:
@@ -682,6 +690,17 @@ export default (new Transformer({
           };
         }
 
+        // Add required version range for helpers.
+        let range;
+        if (isHelper) {
+          let idx = dep.specifier.indexOf('/');
+          if (dep.specifier[0] === '@') {
+            idx = dep.specifier.indexOf('/', idx + 1);
+          }
+          let module = idx >= 0 ? dep.specifier.slice(0, idx) : dep.specifier;
+          range = pkg.dependencies[module];
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
@@ -690,6 +709,7 @@ export default (new Transformer({
           isOptional: dep.is_optional,
           meta,
           resolveFrom: isHelper ? __filename : undefined,
+          range,
           env,
         });
       }
