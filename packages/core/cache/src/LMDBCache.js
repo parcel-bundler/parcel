@@ -1,7 +1,7 @@
 // @flow strict-local
 import type {FilePath} from '@parcel/types';
 import type {Cache} from './types';
-import type {Readable} from 'stream';
+import type {Readable, Writable} from 'stream';
 
 import stream from 'stream';
 import path from 'path';
@@ -13,7 +13,9 @@ import packageJson from '../package.json';
 // $FlowFixMe
 import lmdb from 'lmdb';
 
-const pipeline = promisify(stream.pipeline);
+const pipeline: (Readable, Writable) => Promise<void> = promisify(
+  stream.pipeline,
+);
 
 export class LMDBCache implements Cache {
   fs: NodeFS;

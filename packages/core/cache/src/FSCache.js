@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Readable} from 'stream';
+import type {Readable, Writable} from 'stream';
 import type {FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {Cache} from './types';
@@ -13,7 +13,9 @@ import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 
-const pipeline = promisify(stream.pipeline);
+const pipeline: (Readable, Writable) => Promise<void> = promisify(
+  stream.pipeline,
+);
 
 export class FSCache implements Cache {
   fs: FileSystem;
