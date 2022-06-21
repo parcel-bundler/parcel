@@ -99,6 +99,7 @@ export default (new Resolver({
         invalidateOnFileChange,
         specifierType: dependency.specifierType,
         loc: dependency.loc,
+        range: dependency.range,
       };
 
       let result;
