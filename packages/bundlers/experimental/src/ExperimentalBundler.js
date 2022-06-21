@@ -477,6 +477,16 @@ function createIdealGraph(
             invariant(referencingBundle !== 'root');
             let bundle;
             bundleId = bundles.get(childAsset.id);
+            // If this is an entry bundlegroup, add assets of the same type to entry bundle
+            // This asset will be created by other dependency if it's in another bundlegroup
+            let bundleGroupRootAsset = nullthrows(bundleGroup.mainEntryAsset);
+            if (
+              entries.has(bundleGroupRootAsset) &&
+              bundleGroupRootAsset.type === childAsset.type &&
+              childAsset.bundleBehavior !== 'inline'
+            ) {
+              bundleId = bundleGroupNodeId;
+            }
             if (bundleId == null) {
               bundle = createBundle({
                 // We either have an entry asset or a unique key.
@@ -560,19 +570,19 @@ function createIdealGraph(
   // Step Merge Type Change Bundles: Clean up type change bundles within the same bundlegroups
   for (let [nodeIdA, a] of bundleGraph.nodes) {
     //if bundle b bundlegroups ==== bundle a bundlegroups then combine type changes
+    if (!typeChangeIds.has(nodeIdA) || a === 'root') continue;
+    let bundleABundleGroups = getBundleGroupsForBundle(nodeIdA);
     for (let [nodeIdB, b] of bundleGraph.nodes) {
       if (
         a !== 'root' &&
         b !== 'root' &&
         a !== b &&
-        typeChangeIds.has(nodeIdA) &&
         typeChangeIds.has(nodeIdB) &&
         a.bundleBehavior !== 'inline' &&
         b.bundleBehavior !== 'inline' &&
         a.type === b.type
       ) {
         let bundleBbundleGroups = getBundleGroupsForBundle(nodeIdB);
-        let bundleABundleGroups = getBundleGroupsForBundle(nodeIdA);
         if (setEqual(bundleBbundleGroups, bundleABundleGroups)) {
           let shouldMerge = true;
           for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
