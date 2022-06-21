@@ -1,4 +1,4 @@
-import {baz, bag} from './bag';
+import {baz, bag} from '../utils';
 
 function bar() {
   return baz+bag;
