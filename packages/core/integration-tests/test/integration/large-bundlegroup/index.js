@@ -1,4 +1,5 @@
-import('./a.js');
-import('./b.js');
-import('./c.js');
-import('./d.js');
+import('./foo.js');
+import('./bar.js');
+import('./baz.js');
+// import('./c.js');
+// import('./d.js');
