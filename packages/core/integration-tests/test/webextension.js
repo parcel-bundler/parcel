@@ -35,6 +35,9 @@ describe('webextension', function () {
       {assets: ['devtools.html']},
       {assets: ['content.js']},
       {assets: ['content.css']},
+      {
+        assets: ['ruleset_1.json'],
+      },
     ]);
     assert(
       await outputFS.exists(
@@ -49,6 +52,10 @@ describe('webextension', function () {
     );
     const scripts = manifest.background.scripts;
     assert.equal(scripts.length, 1);
+    for (const {path: resourcePath} of manifest.declarative_net_request
+      ?.rule_resources ?? []) {
+      assert(await outputFS.exists(path.join(distDir, resourcePath)));
+    }
     assert(
       (
         await outputFS.readFile(path.join(distDir, scripts[0]), 'utf-8')
