@@ -12,6 +12,7 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import {validateSchema, remapSourceLocation, isGlobMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
+import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
   jsx: true,
@@ -689,6 +690,17 @@ export default (new Transformer({
           };
         }
 
+        // Add required version range for helpers.
+        let range;
+        if (isHelper) {
+          let idx = dep.specifier.indexOf('/');
+          if (dep.specifier[0] === '@') {
+            idx = dep.specifier.indexOf('/', idx + 1);
+          }
+          let module = idx >= 0 ? dep.specifier.slice(0, idx) : dep.specifier;
+          range = pkg.dependencies[module];
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
@@ -697,6 +709,7 @@ export default (new Transformer({
           isOptional: dep.is_optional,
           meta,
           resolveFrom: isHelper ? __filename : undefined,
+          range,
           env,
         });
       }
