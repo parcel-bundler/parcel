@@ -823,7 +823,7 @@ function createIdealGraph(
 
         // Add all assets in the shared bundle into the source bundles that are within this bundle group.
         let sourceBundles = bundleToRemove.sourceBundles
-          .filter(b => bundlesInGroup.map(b => b.bundle).includes(b)) // bundleGraph.hasNode(b) is hacky. see if we can get rid of it?
+          .filter(b => bundlesInGroup.map(b => b.bundle).includes(b))
           .map(id => nullthrows(bundleGraph.getNode(id)));
 
         for (let sourceBundle of sourceBundles) {
