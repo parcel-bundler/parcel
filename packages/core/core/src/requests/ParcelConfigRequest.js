@@ -340,7 +340,9 @@ export async function processConfig(
             configFile.resolveFrom,
           ),
         }
-      : {...null}),
+      : {
+          /*::...null*/
+        }),
     resolvers: processPipeline(
       options,
       configFile.resolvers,

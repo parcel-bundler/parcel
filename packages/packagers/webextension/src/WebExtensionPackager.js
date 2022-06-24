@@ -6,7 +6,7 @@ import {Packager} from '@parcel/plugin';
 import {replaceURLReferences, relativeBundlePath} from '@parcel/utils';
 
 export default (new Packager({
-  async package({bundle, bundleGraph}) {
+  async package({bundle, bundleGraph, options}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
@@ -73,14 +73,17 @@ export default (new Packager({
       }
     }
 
+    if (manifest.manifest_version == 3 && options.hmrOptions) {
+      war.push({matches: ['<all_urls>'], resources: ['__parcel_hmr_proxy__']});
+    }
+
     const warResult = (manifest.web_accessible_resources || []).concat(
       manifest.manifest_version == 2
         ? [...new Set(war.flatMap(entry => entry.resources))]
         : war,
     );
-    if (warResult.length > 0) {
-      manifest.web_accessible_resources = warResult;
-    }
+
+    if (warResult.length > 0) manifest.web_accessible_resources = warResult;
 
     let {contents} = replaceURLReferences({
       bundle,

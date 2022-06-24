@@ -1,4 +1,6 @@
-use crate::utils::{match_export_name, match_export_name_ident, match_property_name};
+use crate::utils::{
+  get_undefined_ident, match_export_name, match_export_name_ident, match_property_name,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
@@ -11,7 +13,7 @@ use swc_ecmascript::visit::{Fold, FoldWith, Visit, VisitWith};
 use crate::id;
 use crate::utils::{
   match_import, match_member_expr, match_require, Bailout, BailoutReason, CodeHighlight,
-  Diagnostic, DiagnosticSeverity, IdentId, SourceLocation,
+  Diagnostic, DiagnosticSeverity, SourceLocation,
 };
 
 macro_rules! hash {
@@ -25,9 +27,10 @@ macro_rules! hash {
 pub fn hoist(
   module: Module,
   module_id: &str,
+  unresolved_mark: Mark,
   collect: &Collect,
 ) -> Result<(Module, HoistResult, Vec<Diagnostic>), Vec<Diagnostic>> {
-  let mut hoist = Hoist::new(module_id, collect);
+  let mut hoist = Hoist::new(module_id, unresolved_mark, collect);
   let module = module.fold_with(&mut hoist);
 
   if !hoist.diagnostics.is_empty() {
@@ -66,6 +69,7 @@ struct Hoist<'a> {
   dynamic_imports: HashMap<JsWord, JsWord>,
   in_function_scope: bool,
   diagnostics: Vec<Diagnostic>,
+  unresolved_mark: Mark,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -83,7 +87,7 @@ pub struct HoistResult {
 }
 
 impl<'a> Hoist<'a> {
-  fn new(module_id: &'a str, collect: &'a Collect) -> Self {
+  fn new(module_id: &'a str, unresolved_mark: Mark, collect: &'a Collect) -> Self {
     Hoist {
       module_id,
       collect,
@@ -97,6 +101,7 @@ impl<'a> Hoist<'a> {
       dynamic_imports: HashMap::new(),
       in_function_scope: false,
       diagnostics: vec![],
+      unresolved_mark,
     }
   }
 
@@ -678,7 +683,7 @@ impl<'a> Fold for Hoist<'a> {
         if !self.in_function_scope {
           // If ESM, replace `this` with `undefined`, otherwise with the CJS exports object.
           if self.collect.is_esm {
-            return Expr::Ident(Ident::new("undefined".into(), DUMMY_SP));
+            return Expr::Ident(get_undefined_ident(self.unresolved_mark));
           } else if !self.collect.should_wrap {
             self.self_references.insert("*".into());
             return Expr::Ident(self.get_export_ident(this.span, &"*".into()));
@@ -915,10 +920,6 @@ impl<'a> Fold for Hoist<'a> {
   }
 
   fn fold_prop(&mut self, node: Prop) -> Prop {
-    if self.collect.should_wrap {
-      return node.fold_children_with(self);
-    }
-
     match node {
       Prop::Shorthand(ident) => Prop::KeyValue(KeyValueProp {
         key: PropName::Ident(Ident::new(ident.sym.clone(), DUMMY_SP)),
@@ -1103,7 +1104,7 @@ pub struct Export {
 
 pub struct Collect {
   pub source_map: Lrc<swc_common::SourceMap>,
-  pub decls: HashSet<IdentId>,
+  pub decls: HashSet<Id>,
   pub ignore_mark: Mark,
   pub global_mark: Mark,
   pub static_cjs_exports: bool,
@@ -1111,14 +1112,14 @@ pub struct Collect {
   pub is_esm: bool,
   pub should_wrap: bool,
   // local name -> descriptor
-  pub imports: HashMap<IdentId, Import>,
+  pub imports: HashMap<Id, Import>,
   // exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
   // local name -> exported name
-  pub exports_locals: HashMap<IdentId, JsWord>,
+  pub exports_locals: HashMap<Id, JsWord>,
   pub exports_all: HashMap<JsWord, SourceLocation>,
-  pub non_static_access: HashMap<IdentId, Vec<Span>>,
-  pub non_const_bindings: HashMap<IdentId, Vec<Span>>,
+  pub non_static_access: HashMap<Id, Vec<Span>>,
+  pub non_const_bindings: HashMap<Id, Vec<Span>>,
   pub non_static_requires: HashSet<JsWord>,
   pub wrapped_requires: HashSet<JsWord>,
   pub bailouts: Option<Vec<Bailout>>,
@@ -1162,7 +1163,7 @@ pub struct CollectResult {
 impl Collect {
   pub fn new(
     source_map: Lrc<swc_common::SourceMap>,
-    decls: HashSet<IdentId>,
+    decls: HashSet<Id>,
     ignore_mark: Mark,
     global_mark: Mark,
     trace_bailouts: bool,
@@ -1272,13 +1273,15 @@ impl Visit for Collect {
     self.in_module_this = false;
 
     if let Some(bailouts) = &mut self.bailouts {
-      for key in self.imports.keys() {
-        if let Some(spans) = self.non_static_access.get(key) {
-          for span in spans {
-            bailouts.push(Bailout {
-              loc: SourceLocation::from(&self.source_map, *span),
-              reason: BailoutReason::NonStaticAccess,
-            })
+      for (key, Import { specifier, .. }) in &self.imports {
+        if specifier == "*" {
+          if let Some(spans) = self.non_static_access.get(key) {
+            for span in spans {
+              bailouts.push(Bailout {
+                loc: SourceLocation::from(&self.source_map, *span),
+                reason: BailoutReason::NonStaticAccess,
+              })
+            }
           }
         }
       }
@@ -1671,8 +1674,7 @@ impl Visit for Collect {
           self.add_bailout(node.span, BailoutReason::FreeModule);
         }
 
-        // `import` isn't really an identifier...
-        if match_property_name(node).is_none() && ident.sym != js_word!("import") {
+        if match_property_name(node).is_none() {
           self
             .non_static_access
             .entry(id!(ident))
@@ -1746,14 +1748,11 @@ impl Visit for Collect {
           }
         }
 
-        // `import` isn't really an identifier...
-        if ident.sym != js_word!("import") {
-          self
-            .non_static_access
-            .entry(id!(ident))
-            .or_default()
-            .push(ident.span);
-        }
+        self
+          .non_static_access
+          .entry(id!(ident))
+          .or_default()
+          .push(ident.span);
       }
       _ => {
         node.visit_children_with(self);
@@ -2075,7 +2074,7 @@ impl Collect {
   }
 }
 
-fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<IdentId>) -> bool {
+fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<Id>) -> bool {
   match node {
     Pat::Ident(ident) => {
       if ident.id.sym == *sym && !decls.contains(&id!(ident.id)) {
@@ -2158,12 +2157,12 @@ mod tests {
               collect_decls(&module),
               Mark::fresh(Mark::root()),
               global_mark,
-              false,
+              true,
             );
             module.visit_with(&mut collect);
 
             let (module, res) = {
-              let mut hoist = Hoist::new("abc", &collect);
+              let mut hoist = Hoist::new("abc", unresolved_mark, &collect);
               let module = module.fold_with(&mut hoist);
               (module, hoist.get_result())
             };
@@ -2744,7 +2743,7 @@ mod tests {
 
   #[test]
   fn fold_import() {
-    let (_collect, code, _hoist) = parse(
+    let (collect, code, _hoist) = parse(
       r#"
     import {foo as bar} from 'other';
     let test = {bar: 3};
@@ -2752,6 +2751,8 @@ mod tests {
     bar();
     "#,
     );
+
+    assert!(collect.bailouts.unwrap().is_empty());
 
     assert_eq!(
       code,
@@ -2765,13 +2766,14 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    let (collect, code, _hoist) = parse(
       r#"
     import * as foo from 'other';
     console.log(foo.bar);
     foo.bar();
     "#,
     );
+    assert!(collect.bailouts.unwrap().is_empty());
 
     assert_eq!(
       code,
@@ -2782,13 +2784,43 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    let (collect, code, _hoist) = parse(
+      r#"
+    import * as foo from 'other';
+    foo.bar();
+    let y = "bar";
+    foo[y]();
+    "#,
+    );
+    assert_eq!(
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|b| &b.reason)
+        .collect::<Vec<_>>(),
+      vec![&BailoutReason::NonStaticAccess]
+    );
+
+    assert_eq!(
+      code,
+      indoc! {r#"
+    import "abc:other";
+    $abc$import$70a00e0a8474f72a.bar();
+    let $abc$var$y = "bar";
+    $abc$import$70a00e0a8474f72a[$abc$var$y]();
+    "#}
+    );
+
+    let (collect, code, _hoist) = parse(
       r#"
     import other from 'other';
     console.log(other, other.bar);
     other();
     "#,
     );
+
+    assert!(collect.bailouts.unwrap().is_empty());
 
     assert_eq!(
       code,
@@ -3830,8 +3862,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then((x)=>x.foo
-    );
+    $abc$importAsync$70a00e0a8474f72a.then((x)=>x.foo);
     "#}
     );
 
@@ -3856,8 +3887,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then((x)=>x
-    );
+    $abc$importAsync$70a00e0a8474f72a.then((x)=>x);
     "#}
     );
 
@@ -3882,8 +3912,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(({ foo: foo  })=>foo
-    );
+    $abc$importAsync$70a00e0a8474f72a.then(({ foo: foo  })=>foo);
     "#}
     );
 
@@ -3908,8 +3937,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(({ foo: bar  })=>bar
-    );
+    $abc$importAsync$70a00e0a8474f72a.then(({ foo: bar  })=>bar);
     "#}
     );
 

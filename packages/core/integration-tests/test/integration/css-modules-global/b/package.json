@@ -1,0 +1,7 @@
+{
+  "@parcel/transformer-css": {
+    "cssModules": {
+      "global": true
+    }
+  }
+}
