@@ -57,6 +57,8 @@ const HTTP_OPTIONS = {
 };
 
 type AssetId = string;
+
+/* BundleRoot - An asset that is the main entry of a Bundle. */
 type BundleRoot = Asset;
 export type Bundle = {|
   uniqueKey: ?string,
@@ -89,6 +91,9 @@ type DependencyBundleGraph = ContentGraph<
     |},
   number,
 >;
+// IdealGraph is the structure we will pass to decorate,
+// which mutates the assetGraph into the bundleGraph we would
+// expect from default bundler
 type IdealGraph = {|
   dependencyBundleGraph: DependencyBundleGraph,
   bundleGraph: Graph<Bundle | 'root'>,
@@ -97,6 +102,21 @@ type IdealGraph = {|
   sharedToSourceBundleIds: Map<NodeId, Array<NodeId>>,
 |};
 
+/**
+ *
+ * The Bundler works by creating an IdealGraph, which contains a BundleGraph that models bundles
+ * connected to othervbundles by what references them, and thus models BundleGroups.
+ *
+ * First, we enter `bundle({bundleGraph, config})`. Here, "bundleGraph" is actually just the
+ * assetGraph turned into a type `MutableBundleGraph`, which will then be mutated in decorate,
+ * and turned into what we expect the bundleGraph to be as per the old (default) bundler structure
+ *  & what the rest of Parcel expects a BundleGraph to be.
+ *
+ * `bundle({bundleGraph, config})` First gets a Mapping of target to entries, In most cases there is
+ *  only one target, and one or more entries. (Targets are pertinent in monorepos or projects where you
+ *  will have two or more distDirs, or output folders.) Then calls create IdealGraph and Decorate per target.
+ *
+ */
 export default (new Bundler({
   loadConfig({config, options}) {
     return loadBundlerConfig(config, options);
@@ -295,6 +315,8 @@ function createIdealGraph(
     Array<[Dependency, Bundle]>,
   > = new DefaultMap(() => []);
 
+  // A Graph of Bundles and a root node (dummy string), which models only Bundles, and connections to their
+  // referencing Bundle. There are no actual BundleGroup nodes, just bundles that take on that role.
   let bundleGraph: Graph<Bundle | 'root'> = new Graph();
   let stack: Array<[BundleRoot, NodeId]> = [];
 
@@ -302,7 +324,7 @@ function createIdealGraph(
     parallel: 1,
     lazy: 2,
   };
-  // bundleGraph that models bundleRoots, with parallel & async deps only
+  // ContentGraph that models bundleRoots, with parallel & async deps only to inform reachability
   let bundleRootGraph: ContentGraph<
     BundleRoot | 'root',
     $Values<typeof bundleRootEdgeTypes>,
@@ -352,8 +374,11 @@ function createIdealGraph(
   let assets = [];
 
   let typeChangeIds = new Set();
-  // Step Create Bundles: Traverse the asset graph and create bundles for asset type changes and async dependencies,
-  // only adding the entry asset of each bundle, not the subgraph.
+  /**
+   * Step Create Bundles: Traverse the assetGraph (aka MutableBundleGraph) and create bundles
+   * for asset type changes, parallel, inline, and async or lazy dependencies,
+   * adding only that asset to each bundle, not its entire subgraph.
+   */
   assetGraph.traverse({
     enter(node, context, actions) {
       if (node.type === 'asset') {
@@ -398,7 +423,7 @@ function createIdealGraph(
         for (let childAsset of assets) {
           if (
             dependency.priority === 'lazy' ||
-            childAsset.bundleBehavior === 'isolated'
+            childAsset.bundleBehavior === 'isolated' // An isolated Dependency, or Bundle must contain all assets it needs to load.
           ) {
             let bundleId = bundles.get(childAsset.id);
             let bundle;
@@ -458,6 +483,7 @@ function createIdealGraph(
             dependency.priority === 'parallel' ||
             childAsset.bundleBehavior === 'inline'
           ) {
+            // The referencing bundleRoot is the root of a Bundle that first brings in another bundle (essentially the FIRST parent of a bundle, this may or may not be a bundleGroup)
             let [referencingBundleRoot, bundleGroupNodeId] = nullthrows(
               stack[stack.length - 1],
             );
@@ -466,7 +492,6 @@ function createIdealGraph(
             );
             invariant(bundleGroup !== 'root');
 
-            // Find an existing bundle of the same type within the bundle group.
             let bundleId;
             let referencingBundleId = nullthrows(
               bundleRoots.get(referencingBundleRoot),
@@ -477,8 +502,13 @@ function createIdealGraph(
             invariant(referencingBundle !== 'root');
             let bundle;
             bundleId = bundles.get(childAsset.id);
-            // If this is an entry bundlegroup, add assets of the same type to entry bundle
-            // This asset will be created by other dependency if it's in another bundlegroup
+
+            /**
+             * If this is an entry bundlegroup, we only allow on bundle per type in those groups
+             * So attempt to add the asset to the entry bundle if it's of the same type.
+             * This asset will be created by other dependency if it's in another bundlegroup
+             * and bundles of other types should be merged in the next step
+             */
             let bundleGroupRootAsset = nullthrows(bundleGroup.mainEntryAsset);
             if (
               entries.has(bundleGroupRootAsset) &&
@@ -489,7 +519,6 @@ function createIdealGraph(
             }
             if (bundleId == null) {
               bundle = createBundle({
-                // We either have an entry asset or a unique key.
                 // Bundles created from type changes shouldn't have an entry asset.
                 asset: childAsset,
                 type: childAsset.type,
@@ -516,7 +545,7 @@ function createIdealGraph(
                 bundle.bundleBehavior = dependency.bundleBehavior;
               }
             } else {
-              // Otherwise, get existing bundle.
+              // Otherwise, merge.
               bundle = bundleGraph.getNode(bundleId);
               invariant(bundle != null && bundle !== 'root');
             }
@@ -547,10 +576,6 @@ function createIdealGraph(
                 ),
                 dependencyPriorityEdges.parallel,
               );
-
-              // Add an edge from the bundle group entry to the new bundle.
-              // This indicates that the bundle is loaded together with the entry
-              //bundleGraph.addEdge(bundleGroupNodeId, bundleId);
             }
 
             assetReference.get(childAsset).push([dependency, bundle]);
@@ -567,7 +592,7 @@ function createIdealGraph(
     },
   });
 
-  // Step Merge Type Change Bundles: Clean up type change bundles within the same bundlegroups
+  // Step Merge Type Change Bundles: Clean up type change bundles within the exact same bundlegroups
   for (let [nodeIdA, a] of bundleGraph.nodes) {
     //if bundle b bundlegroups ==== bundle a bundlegroups then combine type changes
     if (!typeChangeIds.has(nodeIdA) || a === 'root') continue;
@@ -607,15 +632,21 @@ function createIdealGraph(
     }
   }
 
-  // Step Determine Reachability: Determine reachability for every asset from each bundleRoot.
-  // This is later used to determine which bundles to place each asset in.
-
+  /**
+   *  Step Determine Reachability: Determine reachability for every asset from each bundleRoot.
+   * This is later used to determine which bundles to place each asset in. We build up two
+   * structures, one traversal each. ReachableRoots to store sync relationships,
+   * and bundleRootGraph to store the minimal availability through `parallel` and `async` relationships.
+   * The two graphs, are used to build up ancestorAssets, a strcuture which holds all availability by
+   * all means for each asset.
+   */
   for (let [root] of bundleRoots) {
     if (!entries.has(root)) {
       bundleRootGraph.addNodeByContentKey(root.id, root); // Add in all bundleRoots to BundleRootGraph
     }
   }
-
+  // ReachableRoots is a Graph of Asset Nodes which represents a BundleRoot, to all assets (non-bundleroot assets
+  // available to it synchronously (directly) built by traversing the assetgraph once.
   for (let [root] of bundleRoots) {
     // Add sync relationships to ReachableRoots
     let rootNodeId = reachableRoots.addNodeByContentKeyIfNeeded(root.id, root);
@@ -688,15 +719,26 @@ function createIdealGraph(
 
   // Step Determine Availability
   // Visit nodes in a topological order, visiting parent nodes before child nodes.
+
   // This allows us to construct an understanding of which assets will already be
   // loaded and available when a bundle runs, by pushing available assets downwards and
   // computing the intersection of assets available through all possible paths to a bundle.
+  // We call this structure ancestorAssets, a Map that tracks a bundleRoot,
+  // to all assets available to it (meaning they will exist guaranteed when the bundleRoot is loaded)
+  //  The topological sort ensures all parents are visited before the node we want to process.
   for (let nodeId of bundleRootGraph.topoSort(ALL_EDGE_TYPES)) {
     const bundleRoot = bundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
     invariant(bundleRoot != null);
     let bundleGroupId = nullthrows(bundleRoots.get(bundleRoot))[1];
 
+    // At a BundleRoot, we access it's available assets (via ancestorAssets),
+    // and add to that all assets within the bundles in that BundleGroup.
+
+    // This set is available to all bundles in a particular bundleGroup because
+    // bundleGroups are just bundles loaded at the same time. However it is
+    // not true that a bundle's available assets = all assets of all the bundleGroups
+    // it belongs to. It's the intersection of those sets.
     let available;
     if (bundleRoot.bundleBehavior === 'isolated') {
       available = new Set();
@@ -730,12 +772,14 @@ function createIdealGraph(
       }
     }
 
+    //  Now that we have bundleGroup availability, we will propagate that down to all the children
+    //  of this bundleGroup. For a child, we also must maintain parallel availability. If it has
+    //  parallel siblings that come before it, those, too, are available to it. Add those parallel
+    //  available assets to the set of available assets for this child as well.
     let children = bundleRootGraph.getNodeIdsConnectedFrom(
       nodeId,
       ALL_EDGE_TYPES,
     );
-    // Group assets available across our children by the child. This will be used
-    // to determine borrowers if needed below.
     let parallelAvailability: Set<BundleRoot> = new Set();
 
     for (let childId of children) {
@@ -751,6 +795,11 @@ function createIdealGraph(
         bundleRootEdgeTypes.parallel,
       );
 
+      // Most of the time, a child will have many parent bundleGroups,
+      // so the next time we peek at a child from another parent, we will
+      // intersect the availability built there with the previously computed
+      // availability. this ensures no matter which bundleGroup loads a particular bundle,
+      // it will only assume availability of assets it has under any circumstance
       const childAvailableAssets = ancestorAssets.get(child);
       let currentChildAvailable = isParallel
         ? setUnion(parallelAvailability, available)
@@ -773,7 +822,10 @@ function createIdealGraph(
       }
     }
   }
-  // Step Internalize async bundles
+  // Step Internalize async bundles - internalize Async bundles if and only if,
+  // the bundle is synchronously available elsewhere.
+  // We can query sync assets available via reachableRoots. If the parent has
+  // the bundleRoot by reachableRoots AND ancestorAssets, internalize it.
   for (let [id, bundleRoot] of bundleRootGraph.nodes) {
     if (bundleRoot === 'root') continue;
     let parentRoots = bundleRootGraph
@@ -820,6 +872,10 @@ function createIdealGraph(
 
     let reachableEntries = [];
     let reachableNonEntries = [];
+
+    // Filter out entries, since they can't have shared bundles.
+    // Neither can non-splittable, isolated, or needing of stable name bundles.
+    // Reserve those filtered out bundles since we add the asset back into them.
     for (let a of reachable) {
       if (
         entries.has(a) ||
@@ -838,7 +894,14 @@ function createIdealGraph(
     // bundle does not contain the asset in its ancestry
     reachable = reachable.filter(b => !ancestorAssets.get(b)?.has(asset));
 
-    //if a bundle b is a subgraph of another bundle f, reuse it, drawing an edge between the two
+    // Finally, filter out bundleRoots (bundles) from this assets
+    // reachable if they are subgraphs, and reuse that subgraph bundle
+    // by drawing an edge. Essentially, if two bundles within an assets
+    // reachable array, have an ancestor-subgraph relationship, draw that edge.
+    // This allows for us to reuse a bundle instead of making a shared bundle if
+    // a bundle represents the exact set of assets a set fo bundles would share
+
+    // if a bundle b is a subgraph of another bundle f, reuse it, drawing an edge between the two
     reachable = reachable.filter(b => {
       if (b.env.isIsolated()) {
         return true;
