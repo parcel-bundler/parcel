@@ -1130,7 +1130,6 @@ export async function assertNoFilePathInCache(
         if (contents.includes(projectRoot)) {
           let deserialized;
           try {
-            // $FlowFixMe
             deserialized = v8.deserialize(contents);
           } catch (err) {
             // rudimentary detection of binary files
