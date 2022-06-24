@@ -4417,7 +4417,6 @@ describe('cache', function () {
                 JSON.stringify({
                   ...pkg,
                   '@parcel/bundler-default': undefined,
-                  '@parcel/bundler-experimental': undefined,
                 }),
               );
             },
@@ -4430,9 +4429,6 @@ describe('cache', function () {
                 JSON.stringify({
                   ...pkg,
                   '@parcel/bundler-default': {
-                    maxParallelRequests: 0,
-                  },
-                  '@parcel/bundler-experimental': {
                     maxParallelRequests: 0,
                   },
                 }),
