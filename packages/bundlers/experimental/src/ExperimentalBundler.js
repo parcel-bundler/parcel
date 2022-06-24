@@ -180,6 +180,7 @@ function decorateLegacyGraph(
 
       bundle = nullthrows(
         bundleGraph.createBundle({
+          // $FlowFixMe[incompatible-call]
           entryAsset,
           needsStableName: idealBundle.needsStableName,
           bundleBehavior: idealBundle.bundleBehavior,
@@ -1142,6 +1143,7 @@ function createIdealGraph(
 
     bundleRoots.set(bundleRootB, [
       mainNodeId,
+      // $FlowFixMe[incompatible-use]
       bundleRoots.get(mainBundleRoot)[1],
     ]);
     bundles.set(bundleRootB.id, mainNodeId);
