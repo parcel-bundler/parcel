@@ -11,6 +11,7 @@ import {
   ncp,
 } from '@parcel/test-utils';
 import {symlinkSync} from 'fs';
+import nullthrows from 'nullthrows';
 
 const inputDir = path.join(__dirname, '/input');
 
@@ -353,6 +354,45 @@ describe('transpilation', function () {
         },
       },
     });
+  });
+
+  it('should support commonjs and esm versions of @swc/helpers', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/swc-helpers-library/index.js'),
+    );
+
+    let file = await outputFS.readFile(
+      nullthrows(b.getBundles().find(b => b.env.outputFormat === 'commonjs'))
+        .filePath,
+      'utf8',
+    );
+    assert(file.includes('@swc/helpers/lib/_class_call_check.js'));
+
+    file = await outputFS.readFile(
+      nullthrows(b.getBundles().find(b => b.env.outputFormat === 'esmodule'))
+        .filePath,
+      'utf8',
+    );
+    assert(file.includes('@swc/helpers/src/_class_call_check.mjs'));
+  });
+
+  it('should support commonjs versions of @swc/helpers without scope hoisting', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/swc-helpers-library/index.js'),
+      {
+        targets: {
+          test: {
+            distDir,
+            isLibrary: true,
+            scopeHoist: false,
+          },
+        },
+      },
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('@swc/helpers/lib/_class_call_check.js'));
+    await run(b);
   });
 
   it('should print errors from transpilation', async function () {
