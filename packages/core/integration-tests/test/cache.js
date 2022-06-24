@@ -4433,7 +4433,7 @@ describe('cache', function () {
         ]);
       });
 
-      it.only('should support adding bundler config for parallel request limits', async function () {
+      it('should support adding bundler config for parallel request limits', async function () {
         let b = await testCache(
           {
             entries: ['index.js'],
@@ -4446,16 +4446,11 @@ describe('cache', function () {
                 JSON.stringify({
                   ...pkg,
                   '@parcel/bundler-default': undefined,
-                  '@parcel/bundler-experimental': undefined,
                 }),
               );
             },
             async update(b) {
-              console.log(
-                '************before update:',
-                b.bundleGraph.getBundles().length,
-              );
-              //assert.deepEqual(b.bundleGraph.getBundles().length, 7);
+              assert.deepEqual(b.bundleGraph.getBundles().length, 7);
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
               await overlayFS.writeFile(
@@ -4465,20 +4460,13 @@ describe('cache', function () {
                   '@parcel/bundler-default': {
                     maxParallelRequests: 0,
                   },
-                  '@parcel/bundler-experimental': {
-                    maxParallelRequests: 0,
-                  },
                 }),
               );
             },
           },
           'large-bundlegroup',
         );
-        //assert.deepEqual(b.bundleGraph.getBundles().length, 5);
-        console.log(
-          '**************after update:',
-          b.bundleGraph.getBundles().length,
-        );
+        assert.deepEqual(b.bundleGraph.getBundles().length, 5);
       });
 
       it('should support updating bundler config', async function () {

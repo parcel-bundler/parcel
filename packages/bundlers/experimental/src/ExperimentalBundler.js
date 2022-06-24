@@ -1003,23 +1003,6 @@ function createIdealGraph(
     }
   }
 
-  let bundleGroupsToBundles = new Map<NodeId, Set<NodeId>>();
-  for (let bundleNodeId of bundles.values()) {
-    if (bundleGraph.hasNode(bundleNodeId)) {
-      let bundleGroups = getBundleGroupsForBundle(bundleNodeId);
-      for (let bundleGroupId of bundleGroups) {
-        let bundleIdsInGroup = bundleGroupsToBundles.get(bundleGroupId);
-        if (bundleIdsInGroup != null) {
-          bundleIdsInGroup.add(bundleNodeId);
-          bundleGroupsToBundles.set(bundleGroupId, bundleIdsInGroup);
-        } else {
-          bundleGroupsToBundles.set(bundleGroupId, new Set([bundleNodeId]));
-        }
-      }
-    }
-  }
-  console.log('bundleGroupsToBundles', bundleGroupsToBundles);
-
   // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
   for (let [bundleId, bundleGroupId] of bundleRoots.values()) {
     // Only handle bundle group entries.
@@ -1027,23 +1010,32 @@ function createIdealGraph(
       continue;
     }
 
-    // Find the bundles in this bundle group.
-    let bundleIdsInGroup = [
-      ...nullthrows(bundleGroupsToBundles.get(bundleGroupId)),
-    ];
+    // Find shared bundles in this bundle group.
+    let bundleIdsInGroup = [];
+    for (let [
+      sharedBundleId,
+      sourceBundleIds,
+    ] of sharedToSourceBundleIds.entries()) {
+      // If the bundle group's entry is a source bundle of this shared bundle,
+      // the shared bundle is part of the bundle group.
+      if (sourceBundleIds.includes(bundleId)) {
+        bundleIdsInGroup.push(sharedBundleId);
+      }
+    }
 
     if (bundleIdsInGroup.length > config.maxParallelRequests) {
       // Sort the bundles so the smallest ones are removed first.
       let bundlesInGroup = bundleIdsInGroup
-        .map(id => {
-          return nullthrows(bundleGraph.getNode(id));
-        })
-        .map(bundle => {
+        .map(id => ({
+          id,
+          bundle: nullthrows(bundleGraph.getNode(id)),
+        }))
+        .map(({id, bundle}) => {
           // For Flow
           invariant(bundle !== 'root');
-          return bundle;
+          return {id, bundle};
         })
-        .sort((a, b) => a.size - b.size);
+        .sort((a, b) => a.bundle.size - b.bundle.size);
 
       // Remove bundles until the bundle group is within the parallel request limit.
       for (
@@ -1051,90 +1043,40 @@ function createIdealGraph(
         i < bundlesInGroup.length - config.maxParallelRequests;
         i++
       ) {
-        let bundleIdToRemove = bundleIdsInGroup[i];
-        // Skip bundle group entries since they should not be removed
-        if (bundleIdToRemove === bundleGroupId) {
-          continue;
-        }
-        let bundle = nullthrows(bundleGraph.getNode(bundleIdToRemove));
-        invariant(bundle !== 'root');
+        let bundleToRemove = bundlesInGroup[i].bundle;
+        let bundleIdToRemove = bundlesInGroup[i].id;
 
         // Add all assets in the shared bundle into the source bundles that are within this bundle group.
-        let sourceBundleIdsInGroup = bundle.sourceBundles.filter(b =>
-          bundleIdsInGroup.includes(b),
-        );
+        let sourceBundles = bundleToRemove.sourceBundles
+          .filter(b => bundlesInGroup.map(b => b.bundle).includes(b))
+          .map(id => nullthrows(bundleGraph.getNode(id)));
 
-        let sourceBundlesInGroup = sourceBundleIdsInGroup.map(id => {
-          if (bundleGraph.getNode(id) == null) {
-            console.log('is null:', id);
-          } else {
-            return nullthrows(bundleGraph.getNode(id));
-          }
-        });
-
-        for (let sourceBundle of sourceBundlesInGroup) {
+        for (let sourceBundle of sourceBundles) {
           invariant(sourceBundle !== 'root');
-          for (let asset of bundle.assets) {
+          for (let asset of bundleToRemove.assets) {
             sourceBundle.assets.add(asset);
             sourceBundle.size += asset.stats.size;
           }
         }
 
-        // Update bundle.sourceBundles
-        bundle.sourceBundles = bundle.sourceBundles.filter(
-          id => !sourceBundleIdsInGroup.includes(id),
-        );
-
-        // Update sharedToSourceBundleIds
-        let sourceBundleIds = sharedToSourceBundleIds.get(bundleIdToRemove);
-        if (sourceBundleIds != null) {
-          sharedToSourceBundleIds.set(
-            bundleIdToRemove,
-            sourceBundleIds.filter(id => !sourceBundleIdsInGroup.includes(id)),
-          );
-          // remove empty sourcebundle arrays
-        }
         // Remove the edge from this bundle group to the shared bundle.
-        bundleGraph.removeEdge(bundleGroupId, bundleIdToRemove); //do we really want to do this unconditionally?
-        bundleGroupsToBundles.set(
-          bundleGroupId,
-          new Set(bundleIdsInGroup.filter(id => id !== bundleIdToRemove)),
-        );
+        bundleGraph.removeEdge(bundleGroupId, bundleIdToRemove);
 
         // If there is now only a single bundle group that contains this bundle,
         // merge it into the remaining source bundles. If it is orphaned entirely, remove it.
         let incomingNodeCount =
           bundleGraph.getNodeIdsConnectedTo(bundleIdToRemove).length;
         if (incomingNodeCount === 1) {
-          console.log(
-            'removing bundle cuz incomingnodecount = 1',
-            bundleIdToRemove,
-          );
           removeBundle(bundleGraph, bundleIdToRemove, assetReference);
-          //bundleGraph.removeEdge(bundleGroupId, bundleIdToRemove);
-          for (let [bundleGroup, bundles] of bundleGroupsToBundles.entries()) {
-            if (bundles.has(bundleIdToRemove)) {
-              bundleGroupsToBundles.set(
-                bundleGroup,
-                new Set([...bundles].filter(b => b !== bundleIdToRemove)),
-              );
-            }
-          }
-
           for (let sharedBundleId of sharedToSourceBundleIds.keys()) {
             if (sharedBundleId === bundleIdToRemove) {
               sharedToSourceBundleIds.delete(sharedBundleId);
             }
           }
         } else if (incomingNodeCount === 0) {
-          console.log(
-            'removing node cuz incomingnodecount = 0',
-            bundleIdToRemove,
-          );
           bundleGraph.removeNode(bundleIdToRemove);
         }
       }
-      console.log('bundleGroupsToBundles [after]', bundleGroupsToBundles);
     }
   }
 
@@ -1310,7 +1252,7 @@ async function loadBundlerConfig(
   options: PluginOptions,
 ): Promise<ResolvedBundlerConfig> {
   let conf = await config.getConfig<BundlerConfig>([], {
-    packageKey: '@parcel/bundler-experimental',
+    packageKey: '@parcel/bundler-default',
   });
 
   if (!conf) {
