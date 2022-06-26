@@ -291,7 +291,7 @@ export default function codeFrame(
 
   let result = resultLines.join('\n');
 
-  if (tail?.length > 0) {
+  if (tail && tail.length > 0) {
     result += '\n\n' + codeFrame(code, tail, inputOpts);
   }
 
