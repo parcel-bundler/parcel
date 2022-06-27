@@ -505,7 +505,7 @@ function createIdealGraph(
             bundleId = bundles.get(childAsset.id);
 
             /**
-             * If this is an entry bundlegroup, we only allow on bundle per type in those groups
+             * If this is an entry bundlegroup, we only allow one bundle per type in those groups
              * So attempt to add the asset to the entry bundle if it's of the same type.
              * This asset will be created by other dependency if it's in another bundlegroup
              * and bundles of other types should be merged in the next step
@@ -638,7 +638,7 @@ function createIdealGraph(
    * This is later used to determine which bundles to place each asset in. We build up two
    * structures, one traversal each. ReachableRoots to store sync relationships,
    * and bundleRootGraph to store the minimal availability through `parallel` and `async` relationships.
-   * The two graphs, are used to build up ancestorAssets, a strcuture which holds all availability by
+   * The two graphs, are used to build up ancestorAssets, a structure which holds all availability by
    * all means for each asset.
    */
   for (let [root] of bundleRoots) {
@@ -900,7 +900,7 @@ function createIdealGraph(
     // by drawing an edge. Essentially, if two bundles within an assets
     // reachable array, have an ancestor-subgraph relationship, draw that edge.
     // This allows for us to reuse a bundle instead of making a shared bundle if
-    // a bundle represents the exact set of assets a set fo bundles would share
+    // a bundle represents the exact set of assets a set of bundles would share
 
     // if a bundle b is a subgraph of another bundle f, reuse it, drawing an edge between the two
     reachable = reachable.filter(b => {
