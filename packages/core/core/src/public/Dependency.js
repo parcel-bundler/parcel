@@ -135,6 +135,10 @@ export default class Dependency implements IDependency {
     );
   }
 
+  get range(): ?string {
+    return this.#dep.range;
+  }
+
   get pipeline(): ?string {
     return this.#dep.pipeline;
   }

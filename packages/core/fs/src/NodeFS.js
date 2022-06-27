@@ -14,7 +14,7 @@ import nativeFS from 'fs';
 import ncp from 'ncp';
 import {promisify} from 'util';
 import {registerSerializableClass} from '@parcel/core';
-import fsWriteStreamAtomic from '@parcel/fs-write-stream-atomic';
+import {hashStream} from '@parcel/utils';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
@@ -58,7 +58,64 @@ export class NodeFS implements FileSystem {
     : searchNative.findFirstFile;
 
   createWriteStream(filePath: string, options: any): Writable {
-    return fsWriteStreamAtomic(filePath, options);
+    // Make createWriteStream atomic
+    let tmpFilePath = getTempFilePath(filePath);
+    let failed = false;
+
+    const move = async () => {
+      if (!failed) {
+        try {
+          await fs.promises.rename(tmpFilePath, filePath);
+        } catch (e) {
+          // This is adapted from fs-write-stream-atomic. Apparently
+          // Windows doesn't like renaming when the target already exists.
+          if (
+            process.platform === 'win32' &&
+            e.syscall &&
+            e.syscall === 'rename' &&
+            e.code &&
+            e.code === 'EPERM'
+          ) {
+            let [hashTmp, hashTarget] = await Promise.all([
+              hashStream(writeStream.__atomicTmp),
+              hashStream(writeStream.__atomicTarget),
+            ]);
+
+            await this.unlink(writeStream.__atomicTmp);
+
+            if (hashTmp != hashTarget) {
+              throw e;
+            }
+          }
+        }
+      }
+    };
+
+    let writeStream = fs.createWriteStream(tmpFilePath, {
+      ...options,
+      fs: {
+        ...fs,
+        close: (fd, cb) => {
+          fs.close(fd, err => {
+            if (err) {
+              cb(err);
+            } else {
+              move().then(
+                () => cb(),
+                err => cb(err),
+              );
+            }
+          });
+        },
+      },
+    });
+
+    writeStream.once('error', () => {
+      failed = true;
+      fs.unlinkSync(tmpFilePath);
+    });
+
+    return writeStream;
   }
 
   async writeFile(
@@ -67,12 +124,7 @@ export class NodeFS implements FileSystem {
     options: ?FileOptions,
   ): Promise<void> {
     let tmpFilePath = getTempFilePath(filePath);
-    await fs.promises.writeFile(
-      tmpFilePath,
-      contents,
-      // $FlowFixMe
-      options,
-    );
+    await fs.promises.writeFile(tmpFilePath, contents, options);
     await fs.promises.rename(tmpFilePath, filePath);
   }
 

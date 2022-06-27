@@ -34,7 +34,7 @@ import createParcelConfigRequest, {
 } from './ParcelConfigRequest';
 // $FlowFixMe
 import browserslist from 'browserslist';
-import jsonMap from 'json-source-map';
+import {parse} from '@mischnic/json-sourcemap';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {
@@ -395,7 +395,7 @@ export class TargetResolver {
       let _pkgFilePath = (pkgFilePath = pkgFile.filePath); // For Flow
       pkgDir = path.dirname(_pkgFilePath);
       pkgContents = await this.fs.readFile(_pkgFilePath, 'utf8');
-      pkgMap = jsonMap.parse(pkgContents.replace(/\t/g, ' '));
+      pkgMap = parse(pkgContents, undefined, {tabWidth: 1});
 
       let pp = toProjectPath(this.options.projectRoot, _pkgFilePath);
       this.api.invalidateOnFileUpdate(pp);
@@ -478,14 +478,14 @@ export class TargetResolver {
     // If there is a separate `browser` target, or an `engines.node` field but no browser targets, then
     // the `main` and `module` targets refer to node, otherwise browser.
     let mainContext =
-      pkg.browser ?? pkgTargets.browser ?? (node != null && !browsers)
+      pkg.browser ?? pkgTargets.browser ?? (node != null && browsers == null)
         ? 'node'
         : 'browser';
     let moduleContext =
       pkg.browser ?? pkgTargets.browser ? 'browser' : mainContext;
 
     let defaultEngines = this.options.defaultTargetOptions.engines;
-    let context = browsers ?? !node ? 'browser' : 'node';
+    let context = browsers ?? node == null ? 'browser' : 'node';
     if (context === 'browser' && pkgEngines.browsers == null) {
       pkgEngines = {
         ...pkgEngines,

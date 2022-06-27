@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::vec;
 
 use swc_atoms::JsWord;
-use swc_common::{SyntaxContext, DUMMY_SP};
+use swc_common::{Mark, DUMMY_SP};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
@@ -13,10 +13,11 @@ pub struct EnvReplacer<'a> {
   pub replace_env: bool,
   pub is_browser: bool,
   pub env: &'a HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
-  pub decls: &'a HashSet<(JsWord, SyntaxContext)>,
+  pub decls: &'a HashSet<Id>,
   pub used_env: &'a mut HashSet<JsWord>,
   pub source_map: &'a swc_common::SourceMap,
   pub diagnostics: &'a mut Vec<Diagnostic>,
+  pub unresolved_mark: Mark,
 }
 
 impl<'a> Fold for EnvReplacer<'a> {
@@ -39,6 +40,21 @@ impl<'a> Fold for EnvReplacer<'a> {
           }
         }
       }
+    }
+
+    // Replace `'foo' in process.env` with a boolean.
+    match &node {
+      Expr::Bin(binary) if binary.op == BinaryOp::In => {
+        if let (Expr::Lit(Lit::Str(left)), Expr::Member(member)) = (&*binary.left, &*binary.right) {
+          if match_member_expr(member, vec!["process", "env"], self.decls) {
+            return Expr::Lit(Lit::Bool(Bool {
+              value: self.env.contains_key(&left.value),
+              span: DUMMY_SP,
+            }));
+          }
+        }
+      }
+      _ => {}
     }
 
     if let Expr::Member(ref member) = node {
@@ -90,7 +106,7 @@ impl<'a> Fold for EnvReplacer<'a> {
                     right: Box::new(if let Some(init) = &decl.init {
                       *init.clone()
                     } else {
-                      Expr::Ident(Ident::new(js_word!("undefined"), DUMMY_SP))
+                      Expr::Ident(get_undefined_ident(self.unresolved_mark))
                     }),
                   }))
                 })
@@ -199,7 +215,7 @@ impl<'a> EnvReplacer<'a> {
         | "valueOf" => {}
         _ => {
           self.used_env.insert(sym.clone());
-          return Some(Expr::Ident(Ident::new(js_word!("undefined"), DUMMY_SP)));
+          return Some(Expr::Ident(get_undefined_ident(self.unresolved_mark)));
         }
       };
     }

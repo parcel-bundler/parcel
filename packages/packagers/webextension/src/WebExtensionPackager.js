@@ -6,19 +6,18 @@ import {Packager} from '@parcel/plugin';
 import {replaceURLReferences, relativeBundlePath} from '@parcel/utils';
 
 export default (new Packager({
-  async package({bundle, bundleGraph}) {
+  async package({bundle, bundleGraph, options}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
     });
+    const manifestAssets = assets.filter(a => a.meta.webextEntry === true);
 
-    assert.equal(
-      assets.length,
-      1,
-      'Web extension manifest bundles must only contain one asset',
+    assert(
+      assets.length == 2 && manifestAssets.length == 1,
+      'Web extension bundles must contain exactly one manifest asset and one runtime asset',
     );
-    const asset = assets[0];
-    assert(asset.meta.webextEntry === true);
+    const asset = manifestAssets[0];
 
     const relPath = b =>
       relativeBundlePath(bundle, b, {leadingDotSlash: false});
@@ -27,45 +26,65 @@ export default (new Packager({
     const deps = asset.getDependencies();
     const war = [];
     for (const contentScript of manifest.content_scripts || []) {
-      const jsBundles = deps
-        .filter(d => contentScript.js?.includes(d.id))
+      const srcBundles = deps
+        .filter(
+          d =>
+            contentScript.js?.includes(d.id) ||
+            contentScript.css?.includes(d.id),
+        )
         .map(d => nullthrows(bundleGraph.getReferencedBundle(d, bundle)));
 
       contentScript.css = [
         ...new Set(
           (contentScript.css || []).concat(
-            jsBundles
+            srcBundles
               .flatMap(b => bundleGraph.getReferencedBundles(b))
               .filter(b => b.type == 'css')
               .map(relPath),
           ),
         ),
       ];
+      const resources = srcBundles
+        .flatMap(b => {
+          const children = [];
+          const siblings = bundleGraph.getReferencedBundles(b);
+          bundleGraph.traverseBundles(child => {
+            if (b !== child && !siblings.includes(child)) {
+              children.push(child);
+            }
+          }, b);
+          return children;
+        })
+        .map(relPath);
 
-      war.push({
-        matches: contentScript.matches,
-        extension_ids: [],
-        resources: jsBundles
-          .flatMap(b => {
-            const children = [];
-            const siblings = bundleGraph.getReferencedBundles(b);
-            bundleGraph.traverseBundles(child => {
-              if (b !== child && !siblings.includes(child)) {
-                children.push(child);
-              }
-            }, b);
-            return children;
-          })
-          .map(relPath),
-      });
+      if (resources.length > 0) {
+        war.push({
+          matches: contentScript.matches.map(match => {
+            if (/^(((http|ws)s?)|ftp|\*):\/\//.test(match)) {
+              let pathIndex = match.indexOf('/', match.indexOf('://') + 3);
+              // Avoids creating additional errors in invalid match URLs
+              if (pathIndex == -1) pathIndex = match.length;
+              return match.slice(0, pathIndex) + '/*';
+            }
+            return match;
+          }),
+          resources,
+        });
+      }
     }
-    manifest.web_accessible_resources = (
-      manifest.web_accessible_resources || []
-    ).concat(
+
+    if (manifest.manifest_version == 3 && options.hmrOptions) {
+      war.push({matches: ['<all_urls>'], resources: ['__parcel_hmr_proxy__']});
+    }
+
+    const warResult = (manifest.web_accessible_resources || []).concat(
       manifest.manifest_version == 2
         ? [...new Set(war.flatMap(entry => entry.resources))]
         : war,
     );
+
+    if (warResult.length > 0) manifest.web_accessible_resources = warResult;
+
     let {contents} = replaceURLReferences({
       bundle,
       bundleGraph,

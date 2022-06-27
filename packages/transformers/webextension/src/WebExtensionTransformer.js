@@ -1,9 +1,9 @@
 // @flow
-import type {MutableAsset} from '@parcel/types';
+import type {MutableAsset, HMROptions} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
-import jsm from 'json-source-map';
+import {parse} from '@mischnic/json-sourcemap';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {
@@ -25,6 +25,7 @@ const DEP_LOCS = [
   ['chrome_url_overrides'],
   ['devtools_page'],
   ['options_ui', 'page'],
+  ['sandbox', 'pages'],
   ['sidebar_action', 'default_icon'],
   ['sidebar_action', 'default_panel'],
   ['storage', 'managed_schema'],
@@ -37,12 +38,14 @@ async function collectDependencies(
   asset: MutableAsset,
   program: any,
   ptrs: {[key: string]: any, ...},
-  hot: boolean,
+  hmrOptions: ?HMROptions,
 ) {
+  const hot = Boolean(hmrOptions);
   const fs = asset.fs;
   const filePath = asset.filePath;
   const assetDir = path.dirname(filePath);
   const isMV2 = program.manifest_version == 2;
+  delete program.$schema;
   if (program.default_locale) {
     const locales = path.join(assetDir, '_locales');
     let err = !(await fs.exists(locales))
@@ -97,8 +100,7 @@ async function collectDependencies(
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
           assets[j] = asset.addURLDependency(assets[j], {
-            // This causes the packager to re-run when these assets update
-            priority: 'parallel',
+            bundleBehavior: 'isolated',
             loc: {
               filePath,
               ...getJSONSourceLocation(
@@ -185,11 +187,13 @@ async function collectDependencies(
       // TODO: this doesn't support Parcel resolution
       const currentEntry = program.web_accessible_resources[i];
       const files = isMV2 ? [currentEntry] : currentEntry.resources;
+      let currentFiles = [];
       for (let j = 0; j < files.length; ++j) {
         const globFiles = (
           await glob(path.join(assetDir, files[j]), fs, {})
         ).map(fp =>
           asset.addURLDependency(path.relative(assetDir, fp), {
+            bundleBehavior: 'isolated',
             needsStableName: true,
             loc: {
               filePath,
@@ -203,16 +207,34 @@ async function collectDependencies(
             },
           }),
         );
-        if (isMV2) {
-          war = war.concat(globFiles);
-        } else {
-          currentEntry.resources = globFiles;
-          war.push(currentEntry);
-        }
+        currentFiles = currentFiles.concat(globFiles);
+      }
+      if (isMV2) {
+        war = war.concat(currentFiles);
+      } else {
+        currentEntry.resources = currentFiles;
+        war.push(currentEntry);
       }
     }
     program.web_accessible_resources = war;
   }
+  if (program.declarative_net_request) {
+    const rrs: {|path: string, id: string, enabled: boolean|}[] =
+      program.declarative_net_request?.rule_resources ?? [];
+    rrs.forEach((resources, i) => {
+      resources.path = asset.addURLDependency(resources.path, {
+        pipeline: 'raw',
+        loc: {
+          filePath,
+          ...getJSONSourceLocation(
+            ptrs[`/declarative_net_request/rule_resources/${i}/path`],
+            'value',
+          ),
+        },
+      });
+    });
+  }
+
   for (const loc of DEP_LOCS) {
     const location = '/' + loc.join('/');
     if (!ptrs[location]) continue;
@@ -224,6 +246,7 @@ async function collectDependencies(
     const obj = parent[lastLoc];
     if (typeof obj == 'string')
       parent[lastLoc] = asset.addURLDependency(obj, {
+        bundleBehavior: 'isolated',
         loc: {
           filePath,
           ...getJSONSourceLocation(ptrs[location], 'value'),
@@ -233,6 +256,7 @@ async function collectDependencies(
     else {
       for (const k of Object.keys(obj)) {
         obj[k] = asset.addURLDependency(obj[k], {
+          bundleBehavior: 'isolated',
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
@@ -247,6 +271,7 @@ async function collectDependencies(
       program.background.page = asset.addURLDependency(
         program.background.page,
         {
+          bundleBehavior: 'isolated',
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs['/background/page'], 'value'),
@@ -285,6 +310,7 @@ async function collectDependencies(
       program.background.service_worker = asset.addURLDependency(
         program.background.service_worker,
         {
+          bundleBehavior: 'isolated',
           loc: {
             filePath,
             ...getJSONSourceLocation(
@@ -300,43 +326,59 @@ async function collectDependencies(
         },
       );
     }
-    if (needRuntimeBG) {
-      if (!program.background) {
-        program.background = {};
+    if (hot) {
+      // Enable eval HMR for sandbox,
+      const csp = program.content_security_policy || {};
+      csp.extension_pages = cspPatchHMR(
+        csp.extension_pages,
+        `http://${hmrOptions?.host || 'localhost'}`,
+      );
+      // Sandbox allows eval by default
+      if (csp.sandbox) csp.sandbox = cspPatchHMR(csp.sandbox);
+      program.content_security_policy = csp;
+      if (needRuntimeBG) {
+        if (!program.background) {
+          program.background = {};
+        }
+        if (!program.background.service_worker) {
+          program.background.service_worker = asset.addURLDependency(
+            './runtime/default-bg.js',
+            {
+              resolveFrom: __filename,
+              env: {context: 'service-worker'},
+            },
+          );
+        }
+        asset.meta.webextBGInsert = program.background.service_worker;
       }
-      if (!program.background.service_worker) {
-        program.background.service_worker = asset.addURLDependency(
-          './runtime/default-bg.js',
-          {
-            resolveFrom: __filename,
-            env: {context: 'service-worker'},
-          },
-        );
-      }
-      asset.meta.webextBGInsert = program.background.service_worker;
     }
   }
 }
 
-function cspPatchHMR(policy: ?string) {
+function cspPatchHMR(policy: ?string, insert?: string) {
+  let defaultSrc = "'self'";
+  if (insert == null) {
+    insert = "'unsafe-eval'";
+    defaultSrc = "'self' blob: filesystem:";
+  }
   if (policy) {
     const csp = parseCSP(policy);
     policy = '';
     if (!csp['script-src']) {
-      csp['script-src'] = ["'self' 'unsafe-eval' blob: filesystem:"];
+      csp['script-src'] = [defaultSrc];
     }
-    if (!csp['script-src'].includes("'unsafe-eval'")) {
-      csp['script-src'].push("'unsafe-eval'");
+    if (!csp['script-src'].includes(insert)) {
+      csp['script-src'].push(insert);
+    }
+    if (csp.sandbox && !csp.sandbox.includes('allow-scripts')) {
+      csp.sandbox.push('allow-scripts');
     }
     for (const k in csp) {
       policy += `${k} ${csp[k].join(' ')};`;
     }
     return policy;
   } else {
-    return (
-      "script-src 'self' 'unsafe-eval' blob: filesystem:;" +
-      "object-src 'self' blob: filesystem:;"
-    );
+    return `script-src ${defaultSrc} ${insert};` + `object-src ${defaultSrc};`;
   }
 }
 
@@ -346,16 +388,26 @@ export default (new Transformer({
     // browsers, and because it avoids delegating extra config to the user
     asset.setEnvironment({
       context: 'browser',
-      engines: asset.env.engines,
-      shouldOptimize: asset.env.shouldOptimize,
-      sourceMap: {
+      outputFormat:
+        asset.env.outputFormat == 'commonjs'
+          ? 'global'
+          : asset.env.outputFormat,
+      engines: {
+        browsers: asset.env.engines.browsers,
+      },
+      sourceMap: asset.env.sourceMap && {
         ...asset.env.sourceMap,
         inline: true,
         inlineSources: true,
       },
+      includeNodeModules: asset.env.includeNodeModules,
+      sourceType: asset.env.sourceType,
+      isLibrary: asset.env.isLibrary,
+      shouldOptimize: asset.env.shouldOptimize,
+      shouldScopeHoist: asset.env.shouldScopeHoist,
     });
     const code = await asset.getCode();
-    const parsed = jsm.parse(code);
+    const parsed = parse(code);
     const data: any = parsed.data;
 
     // Not using a unified schema dramatically improves error messages
@@ -376,12 +428,7 @@ export default (new Transformer({
       '@parcel/transformer-webextension',
       'Invalid Web Extension manifest',
     );
-    await collectDependencies(
-      asset,
-      data,
-      parsed.pointers,
-      Boolean(options.hmrOptions),
-    );
+    await collectDependencies(asset, data, parsed.pointers, options.hmrOptions);
     asset.setCode(JSON.stringify(data, null, 2));
     asset.meta.webextEntry = true;
     return [asset];

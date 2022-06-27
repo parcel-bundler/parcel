@@ -4,7 +4,7 @@ import ThrowableDiagnostic, {
   escapeMarkdown,
   encodeJSONKeyComponent,
 } from '@parcel/diagnostic';
-import type {Mapping} from 'json-source-map';
+import type {Mapping} from '@mischnic/json-sourcemap';
 import nullthrows from 'nullthrows';
 // flowlint-next-line untyped-import:off
 import levenshtein from 'fastest-levenshtein';

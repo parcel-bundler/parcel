@@ -5,6 +5,7 @@ import {loadConfig} from '@parcel/utils';
 
 const CODE = `
 var Refresh = require('react-refresh/runtime');
+var ErrorOverlay = require('react-error-overlay');
 
 Refresh.injectIntoGlobalHook(window);
 window.$RefreshReg$ = function() {};
@@ -12,7 +13,21 @@ window.$RefreshSig$ = function() {
   return function(type) {
     return type;
   };
-};`;
+};
+
+ErrorOverlay.setEditorHandler(function editorHandler(errorLocation) {
+  let file = \`\${errorLocation.fileName}:\${errorLocation.lineNumber || 1}:\${errorLocation.colNumber || 1}\`;
+  fetch(\`/__parcel_launch_editor?file=\${encodeURIComponent(file)}\`);
+});
+
+ErrorOverlay.startReportingRuntimeErrors({
+  onError: function () {},
+});
+
+window.addEventListener('parcelhmraccept', () => {
+  ErrorOverlay.dismissRuntimeErrors();
+});
+`;
 
 export default (new Runtime({
   async apply({bundle, options}) {

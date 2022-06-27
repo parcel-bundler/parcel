@@ -37,6 +37,7 @@ export default class ProcessChild implements ChildImpl {
     let processSend = nullthrows(process.send).bind(process);
     processSend(serialize(data).toString('base64'), err => {
       if (err && err instanceof Error) {
+        // $FlowFixMe[prop-missing]
         if (err.code === 'ERR_IPC_CHANNEL_CLOSED') {
           // IPC connection closed
           // no need to keep the worker running if it can't send or receive data

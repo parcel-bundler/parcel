@@ -1,5 +1,5 @@
 // @flow
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser, globalThis, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */
 
 /*::
 import type {
@@ -31,6 +31,8 @@ interface ParcelModule {
 interface ExtensionContext {
   runtime: {|
     reload(): void,
+    getURL(url: string): string;
+    getManifest(): {manifest_version: number, ...};
   |};
 }
 declare var module: {bundle: ParcelRequire, ...};
@@ -40,6 +42,10 @@ declare var HMR_ENV_HASH: string;
 declare var HMR_SECURE: boolean;
 declare var chrome: ExtensionContext;
 declare var browser: ExtensionContext;
+declare var __parcel__import__: (string) => Promise<void>;
+declare var __parcel__importScripts__: (string) => Promise<void>;
+declare var globalThis: typeof self;
+declare var ServiceWorkerGlobalScope: Object;
 */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -92,8 +98,26 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var ws = new WebSocket(
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );
+
+  // Web extension context
+  var extCtx =
+    typeof chrome === 'undefined'
+      ? typeof browser === 'undefined'
+        ? null
+        : browser
+      : chrome;
+
+  // Safari doesn't support sourceURL in error stacks.
+  // eval may also be disabled via CSP, so do a quick check.
+  var supportsSourceURL = false;
+  try {
+    (0, eval)('throw new Error("test"); //# sourceURL=test.js');
+  } catch (err) {
+    supportsSourceURL = err.stack.includes('test.js');
+  }
+
   // $FlowFixMe
-  ws.onmessage = function (event /*: {data: string, ...} */) {
+  ws.onmessage = async function (event /*: {data: string, ...} */) {
     checkedAssets = ({} /*: {|[string]: boolean|} */);
     acceptedAssets = ({} /*: {|[string]: boolean|} */);
     assetsToAccept = [];
@@ -120,9 +144,15 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       if (handled) {
         console.clear();
 
-        assets.forEach(function (asset) {
-          hmrApply(module.bundle.root, asset);
-        });
+        // Dispatch custom event so other runtimes (e.g React Refresh) are aware.
+        if (
+          typeof window !== 'undefined' &&
+          typeof CustomEvent !== 'undefined'
+        ) {
+          window.dispatchEvent(new CustomEvent('parcelhmraccept'));
+        }
+
+        await hmrApplyUpdates(assets);
 
         for (var i = 0; i < assetsToAccept.length; i++) {
           var id = assetsToAccept[i][1];
@@ -130,20 +160,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
             hmrAcceptRun(assetsToAccept[i][0], id);
           }
         }
-      } else if ('reload' in location) {
-        location.reload();
-      } else {
-        // Web extension context
-        var ext =
-          typeof chrome === 'undefined'
-            ? typeof browser === 'undefined'
-              ? null
-              : browser
-            : chrome;
-        if (ext && ext.runtime && ext.runtime.reload) {
-          ext.runtime.reload();
-        }
-      }
+      } else fullReload();
     }
 
     if (data.type === 'error') {
@@ -198,7 +215,17 @@ function createErrorOverlay(diagnostics) {
     '<div style="background: black; opacity: 0.85; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; font-family: Menlo, Consolas, monospace; z-index: 9999;">';
 
   for (let diagnostic of diagnostics) {
-    let stack = diagnostic.codeframe ? diagnostic.codeframe : diagnostic.stack;
+    let stack = diagnostic.frames.length
+      ? diagnostic.frames.reduce((p, frame) => {
+          return `${p}
+<a href="/__parcel_launch_editor?file=${encodeURIComponent(
+            frame.location,
+          )}" style="text-decoration: underline; color: #888" onclick="fetch(this.href); return false">${
+            frame.location
+          }</a>
+${frame.code}`;
+        }, '')
+      : diagnostic.stack;
 
     errorHTML += `
       <div>
@@ -223,6 +250,14 @@ function createErrorOverlay(diagnostics) {
   overlay.innerHTML = errorHTML;
 
   return overlay;
+}
+
+function fullReload() {
+  if ('reload' in location) {
+    location.reload();
+  } else if (extCtx && extCtx.runtime && extCtx.runtime.reload) {
+    extCtx.runtime.reload();
+  }
 }
 
 function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
@@ -299,6 +334,94 @@ function reloadCSS() {
   }, 50);
 }
 
+function hmrDownload(asset) {
+  if (asset.type === 'js') {
+    if (typeof document !== 'undefined') {
+      let script = document.createElement('script');
+      script.src = asset.url + '?t=' + Date.now();
+      if (asset.outputFormat === 'esmodule') {
+        script.type = 'module';
+      }
+      return new Promise((resolve, reject) => {
+        script.onload = () => resolve(script);
+        script.onerror = reject;
+        document.head?.appendChild(script);
+      });
+    } else if (typeof importScripts === 'function') {
+      // Worker scripts
+      if (asset.outputFormat === 'esmodule') {
+        return __parcel__import__(asset.url + '?t=' + Date.now());
+      } else {
+        return new Promise((resolve, reject) => {
+          try {
+            __parcel__importScripts__(asset.url + '?t=' + Date.now());
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }
+    }
+  }
+}
+
+async function hmrApplyUpdates(assets) {
+  global.parcelHotUpdate = Object.create(null);
+
+  let scriptsToRemove;
+  try {
+    // If sourceURL comments aren't supported in eval, we need to load
+    // the update from the dev server over HTTP so that stack traces
+    // are correct in errors/logs. This is much slower than eval, so
+    // we only do it if needed (currently just Safari).
+    // https://bugs.webkit.org/show_bug.cgi?id=137297
+    // This path is also taken if a CSP disallows eval.
+    if (!supportsSourceURL) {
+      let promises = assets.map(asset =>
+        hmrDownload(asset)?.catch(err => {
+          // Web extension bugfix for Chromium
+          // https://bugs.chromium.org/p/chromium/issues/detail?id=1255412#c12
+          if (
+            extCtx &&
+            extCtx.runtime &&
+            extCtx.runtime.getManifest().manifest_version == 3
+          ) {
+            if (
+              typeof ServiceWorkerGlobalScope != 'undefined' &&
+              global instanceof ServiceWorkerGlobalScope
+            ) {
+              extCtx.runtime.reload();
+              return;
+            }
+            asset.url = extCtx.runtime.getURL(
+              '/__parcel_hmr_proxy__?url=' +
+                encodeURIComponent(asset.url + '?t=' + Date.now()),
+            );
+            return hmrDownload(asset);
+          }
+          throw err;
+        }),
+      );
+
+      scriptsToRemove = await Promise.all(promises);
+    }
+
+    assets.forEach(function (asset) {
+      hmrApply(module.bundle.root, asset);
+    });
+  } finally {
+    delete global.parcelHotUpdate;
+
+    if (scriptsToRemove) {
+      scriptsToRemove.forEach(script => {
+        if (script) {
+          document.head?.removeChild(script);
+        }
+      });
+    }
+  }
+}
+
 function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
   var modules = bundle.modules;
   if (!modules) {
@@ -325,7 +448,14 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
         }
       }
 
-      var fn = new Function('require', 'module', 'exports', asset.output);
+      if (supportsSourceURL) {
+        // Global eval. We would use `new Function` here but browser
+        // support for source maps is better with eval.
+        (0, eval)(asset.output);
+      }
+
+      // $FlowFixMe
+      let fn = global.parcelHotUpdate[asset.id];
       modules[asset.id] = [fn, deps];
     } else if (bundle.parent) {
       hmrApply(bundle.parent, asset);

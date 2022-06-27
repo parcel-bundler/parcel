@@ -147,7 +147,6 @@ function assignComplexNameHashes(
     if (hashRefToNameHash.get(bundle.hashReference) != null) {
       continue;
     }
-
     hashRefToNameHash.set(
       bundle.hashReference,
       options.shouldContentHash

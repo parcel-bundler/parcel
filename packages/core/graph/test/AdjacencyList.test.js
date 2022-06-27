@@ -57,6 +57,18 @@ describe('AdjacencyList', () => {
     assert.deepEqual(graph.getNodeIdsConnectedTo(node1), [0, 2, 4, 5, 6]);
   });
 
+  it('getNodeIdsConnectedTo and getNodeIdsConnectedFrom should remove duplicate values', () => {
+    let graph = new AdjacencyList();
+    let a = graph.addNode();
+    let b = graph.addNode();
+    let c = graph.addNode();
+    graph.addEdge(a, b);
+    graph.addEdge(a, c);
+    graph.addEdge(a, b, 2);
+    assert.deepEqual(graph.getNodeIdsConnectedFrom(a, -1), [b, c]);
+    assert.deepEqual(graph.getNodeIdsConnectedTo(b, -1), [a]);
+  });
+
   it('removeEdge should remove an edge of a specific type from the graph', () => {
     let graph = new AdjacencyList();
     let a = graph.addNode();
