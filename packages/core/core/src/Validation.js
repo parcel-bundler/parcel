@@ -1,26 +1,21 @@
 // @flow strict-local
 
 import type {WorkerApi} from '@parcel/workers';
-import type {
-  AssetGroup,
-  ConfigRequestDesc,
-  ParcelOptions,
-  ReportFn,
-} from './types';
+import type {AssetGroup, ParcelOptions, ReportFn} from './types';
 import type {Validator, ValidateResult} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import path from 'path';
-import {resolveConfig, normalizeSeparators} from '@parcel/utils';
+import {resolveConfig} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
-import ConfigLoader from './ConfigLoader';
 import UncommittedAsset from './UncommittedAsset';
 import {createAsset} from './assetUtils';
 import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
+import {fromProjectPath, fromProjectPathRelative} from './projectPath';
 
 export type ValidationOpts = {|
   config: ParcelConfig,
@@ -39,8 +34,6 @@ export default class Validation {
   allAssets: {[validatorName: string]: UncommittedAsset[], ...} = {};
   allValidators: {[validatorName: string]: Validator, ...} = {};
   dedicatedThread: boolean;
-  configRequests: Array<ConfigRequestDesc>;
-  configLoader: ConfigLoader;
   impactfulOptions: $Shape<ParcelOptions>;
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
@@ -56,7 +49,6 @@ export default class Validation {
     report,
     workerApi,
   }: ValidationOpts) {
-    this.configLoader = new ConfigLoader({options, config});
     this.dedicatedThread = dedicatedThread ?? false;
     this.options = options;
     this.parcelConfig = config;
@@ -90,6 +82,7 @@ export default class Validation {
                     this.options.inputFS,
                     assetFilePath,
                     configNames,
+                    this.options.projectRoot,
                   ),
               });
             }
@@ -97,24 +90,26 @@ export default class Validation {
             // Otherwise, pass the assets one-at-a-time
             else if (plugin.validate && !this.dedicatedThread) {
               await Promise.all(
-                assets.map(async asset => {
+                assets.map(async input => {
                   let config = null;
+                  let publicAsset = new Asset(input);
                   if (plugin.getConfig) {
                     config = await plugin.getConfig({
-                      asset: new Asset(asset),
+                      asset: publicAsset,
                       options: pluginOptions,
                       logger: validatorLogger,
                       resolveConfig: (configNames: Array<string>) =>
                         resolveConfig(
                           this.options.inputFS,
-                          asset.value.filePath,
+                          publicAsset.filePath,
                           configNames,
+                          this.options.projectRoot,
                         ),
                     });
                   }
 
                   let validatorResult = await plugin.validate({
-                    asset: new Asset(asset),
+                    asset: publicAsset,
                     options: pluginOptions,
                     config,
                     logger: validatorLogger,
@@ -126,7 +121,9 @@ export default class Validation {
             this.handleResults(validatorResults);
           } catch (e) {
             throw new ThrowableDiagnostic({
-              diagnostic: errorToDiagnostic(e, validatorName),
+              diagnostic: errorToDiagnostic(e, {
+                origin: validatorName,
+              }),
             });
           }
         }
@@ -140,7 +137,7 @@ export default class Validation {
       this.requests.map(async request => {
         this.report({
           type: 'validation',
-          filePath: request.filePath,
+          filePath: fromProjectPath(this.options.projectRoot, request.filePath),
         });
 
         let asset = await this.loadAsset(request);
@@ -186,24 +183,21 @@ export default class Validation {
     let {filePath, env, code, sideEffects, query} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
-      {filePath: request.filePath},
+      {
+        filePath: fromProjectPath(this.options.projectRoot, request.filePath),
+      },
     );
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the base for the id to ensure it is unique.
-    let idBase =
-      code != null
-        ? hash
-        : normalizeSeparators(
-            path.relative(this.options.projectRoot, filePath),
-          );
+    let idBase = code != null ? hash : fromProjectPathRelative(filePath);
     return new UncommittedAsset({
       idBase,
-      value: createAsset({
+      value: createAsset(this.options.projectRoot, {
         idBase,
         filePath: filePath,
         isSource,
-        type: path.extname(filePath).slice(1),
+        type: path.extname(fromProjectPathRelative(filePath)).slice(1),
         hash,
         query,
         env: env,

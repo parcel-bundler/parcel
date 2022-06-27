@@ -7,15 +7,14 @@ import type {
   PluginOptions as IPluginOptions,
   ServerOptions,
   HMROptions,
+  DetailedReportOptions,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ParcelOptions} from '../types';
 
-let parcelOptionsToPluginOptions: WeakMap<
-  ParcelOptions,
-  PluginOptions,
-> = new WeakMap();
+let parcelOptionsToPluginOptions: WeakMap<ParcelOptions, PluginOptions> =
+  new WeakMap();
 
 export default class PluginOptions implements IPluginOptions {
   #options /*: ParcelOptions */;
@@ -39,36 +38,28 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.mode;
   }
 
-  get sourceMaps(): boolean {
-    return this.#options.sourceMaps;
-  }
-
   get env(): EnvMap {
     return this.#options.env;
   }
 
-  get hot(): ?HMROptions {
-    return this.#options.hot;
+  get hmrOptions(): ?HMROptions {
+    return this.#options.hmrOptions;
   }
 
-  get serve(): ServerOptions | false {
-    return this.#options.serve;
+  get serveOptions(): ServerOptions | false {
+    return this.#options.serveOptions;
   }
 
-  get autoinstall(): boolean {
-    return this.#options.autoinstall;
+  get shouldBuildLazily(): boolean {
+    return this.#options.shouldBuildLazily;
+  }
+
+  get shouldAutoInstall(): boolean {
+    return this.#options.shouldAutoInstall;
   }
 
   get logLevel(): LogLevel {
     return this.#options.logLevel;
-  }
-
-  get entryRoot(): FilePath {
-    return this.#options.entryRoot;
-  }
-
-  get distDir(): ?FilePath {
-    return this.#options.distDir;
   }
 
   get cacheDir(): FilePath {
@@ -93,7 +84,7 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.packageManager;
   }
 
-  get detailedReport(): number {
-    return this.#options.detailedReport || 0;
+  get detailedReport(): ?DetailedReportOptions {
+    return this.#options.detailedReport;
   }
 }

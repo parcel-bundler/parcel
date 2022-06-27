@@ -1,0 +1,28 @@
+{
+  "name": "@parcel/target-source-package-b",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "private": true,
+  "source": "src/index.js",
+  "devDependencies": {
+    "@parcel/babel-register": "2.0.0-beta.1",
+    "@parcel/core": "2.0.0-beta.1"
+  },
+  "targets": {
+    "alternate": {
+      "source": "src/indexAlternate.js"
+    },
+    "browser": {
+      "engines": {
+        "browsers": [
+          "last 1 Chrome version"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "lodash": "^4.17.11",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3"
+  }
+}

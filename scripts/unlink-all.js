@@ -24,5 +24,5 @@ let names = new Set(Object.values(projects).map(pack => pack.name));
 let count = 0;
 for (let path in projects) {
   console.log(`${++count}/${names.size} unlinking ${path}`);
-  exec('yarn unlink ; rm -rf node_modules', path);
+  exec('yarn unlink ; rimraf node_modules', path);
 }

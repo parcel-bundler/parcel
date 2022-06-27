@@ -1,7 +1,7 @@
 // @flow
 import type {ReadStream, Stats} from 'fs';
 import type {Writable} from 'stream';
-import type {FileOptions, FileSystem} from './types';
+import type {FileOptions, FileSystem, Encoding} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
   Event,
@@ -10,19 +10,24 @@ import type {
 } from '@parcel/watcher';
 
 import fs from 'graceful-fs';
+import nativeFS from 'fs';
 import ncp from 'ncp';
-import mkdirp from 'mkdirp';
-import rimraf from 'rimraf';
-import {promisify} from '@parcel/utils';
+import {promisify} from 'util';
 import {registerSerializableClass} from '@parcel/core';
-import fsWriteStreamAtomic from '@parcel/fs-write-stream-atomic';
+import {hashStream} from '@parcel/utils';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
+
+import * as searchNative from '@parcel/fs-search';
+import * as searchJS from './find';
 
 // Most of this can go away once we only support Node 10+, which includes
 // require('fs').promises
 
-const realpath = promisify(fs.realpath);
+const realpath = promisify(
+  process.platform === 'win32' ? fs.realpath : fs.realpath.native,
+);
+const isPnP = process.versions.pnp != null;
 
 export class NodeFS implements FileSystem {
   readFile: any = promisify(fs.readFile);
@@ -31,21 +36,86 @@ export class NodeFS implements FileSystem {
   readdir: any = promisify(fs.readdir);
   unlink: any = promisify(fs.unlink);
   utimes: any = promisify(fs.utimes);
-  mkdirp: any = promisify(mkdirp);
-  rimraf: any = promisify(rimraf);
   ncp: any = promisify(ncp);
   createReadStream: (path: string, options?: any) => ReadStream =
     fs.createReadStream;
-  cwd: () => string = process.cwd;
-  chdir: (directory: string) => void = process.chdir;
+  cwd: () => string = () => process.cwd();
+  chdir: (directory: string) => void = directory => process.chdir(directory);
 
-  statSync: (path: string) => Stats = fs.statSync;
-  realpathSync: (path: string, cache?: any) => string = fs.realpathSync;
+  statSync: (path: string) => Stats = path => fs.statSync(path);
+  realpathSync: (path: string, cache?: any) => string =
+    process.platform === 'win32' ? fs.realpathSync : fs.realpathSync.native;
   existsSync: (path: string) => boolean = fs.existsSync;
   readdirSync: any = (fs.readdirSync: any);
+  findAncestorFile: any = isPnP
+    ? (...args) => searchJS.findAncestorFile(this, ...args)
+    : searchNative.findAncestorFile;
+  findNodeModule: any = isPnP
+    ? (...args) => searchJS.findNodeModule(this, ...args)
+    : searchNative.findNodeModule;
+  findFirstFile: any = isPnP
+    ? (...args) => searchJS.findFirstFile(this, ...args)
+    : searchNative.findFirstFile;
 
   createWriteStream(filePath: string, options: any): Writable {
-    return fsWriteStreamAtomic(filePath, options);
+    // Make createWriteStream atomic
+    let tmpFilePath = getTempFilePath(filePath);
+    let failed = false;
+
+    const move = async () => {
+      if (!failed) {
+        try {
+          await fs.promises.rename(tmpFilePath, filePath);
+        } catch (e) {
+          // This is adapted from fs-write-stream-atomic. Apparently
+          // Windows doesn't like renaming when the target already exists.
+          if (
+            process.platform === 'win32' &&
+            e.syscall &&
+            e.syscall === 'rename' &&
+            e.code &&
+            e.code === 'EPERM'
+          ) {
+            let [hashTmp, hashTarget] = await Promise.all([
+              hashStream(writeStream.__atomicTmp),
+              hashStream(writeStream.__atomicTarget),
+            ]);
+
+            await this.unlink(writeStream.__atomicTmp);
+
+            if (hashTmp != hashTarget) {
+              throw e;
+            }
+          }
+        }
+      }
+    };
+
+    let writeStream = fs.createWriteStream(tmpFilePath, {
+      ...options,
+      fs: {
+        ...fs,
+        close: (fd, cb) => {
+          fs.close(fd, err => {
+            if (err) {
+              cb(err);
+            } else {
+              move().then(
+                () => cb(),
+                err => cb(err),
+              );
+            }
+          });
+        },
+      },
+    });
+
+    writeStream.once('error', () => {
+      failed = true;
+      fs.unlinkSync(tmpFilePath);
+    });
+
+    return writeStream;
   }
 
   async writeFile(
@@ -54,16 +124,11 @@ export class NodeFS implements FileSystem {
     options: ?FileOptions,
   ): Promise<void> {
     let tmpFilePath = getTempFilePath(filePath);
-    await fs.promises.writeFile(
-      tmpFilePath,
-      contents,
-      // $FlowFixMe
-      options,
-    );
+    await fs.promises.writeFile(tmpFilePath, contents, options);
     await fs.promises.rename(tmpFilePath, filePath);
   }
 
-  readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
+  readFileSync(filePath: FilePath, encoding?: Encoding): any {
     if (encoding != null) {
       return fs.readFileSync(filePath, encoding);
     }
@@ -116,6 +181,32 @@ export class NodeFS implements FileSystem {
 
   serialize(): null {
     return null;
+  }
+
+  async mkdirp(filePath: FilePath): Promise<void> {
+    await nativeFS.promises.mkdir(filePath, {recursive: true});
+  }
+
+  async rimraf(filePath: FilePath): Promise<void> {
+    if (fs.promises.rm) {
+      await fs.promises.rm(filePath, {recursive: true, force: true});
+      return;
+    }
+
+    // fs.promises.rm is not supported in node 12...
+    let stat;
+    try {
+      stat = await this.stat(filePath);
+    } catch (err) {
+      return;
+    }
+
+    if (stat.isDirectory()) {
+      // $FlowFixMe
+      await nativeFS.promises.rmdir(filePath, {recursive: true});
+    } else {
+      await nativeFS.promises.unlink(filePath);
+    }
   }
 }
 

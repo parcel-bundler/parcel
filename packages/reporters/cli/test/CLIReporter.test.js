@@ -12,25 +12,27 @@ const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
   entries: [],
   logLevel: 'info',
-  entryRoot: __dirname,
   targets: [],
   projectRoot: '',
   distDir: 'dist',
   lockFile: undefined,
-  autoinstall: false,
-  hot: undefined,
-  serve: false,
+  shouldAutoInstall: false,
+  shouldBuildLazily: false,
+  hmrOptions: undefined,
+  serveOptions: false,
   mode: 'development',
-  scopeHoist: false,
-  minify: false,
+  shouldScopeHoist: false,
+  shouldOptimize: false,
   env: {},
-  disableCache: false,
+  shouldDisableCache: false,
   sourceMaps: false,
   inputFS,
   outputFS,
   instanceId: 'test',
-  packageManager: new NodePackageManager(inputFS),
-  detailedReport: 10,
+  packageManager: new NodePackageManager(inputFS, '/'),
+  detailedReport: {
+    assetsPerBundle: 10,
+  },
 };
 
 describe('CLIReporter', () => {
@@ -39,7 +41,7 @@ describe('CLIReporter', () => {
   let stdoutOutput;
   let stderrOutput;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Stub these out to avoid writing noise to real stdio and to read from these
     // otherwise only writable streams
     originalStdout = process.stdout;
@@ -53,6 +55,13 @@ describe('CLIReporter', () => {
     let mockStderr = new PassThrough();
     mockStderr.on('data', d => (stderrOutput += stripAnsi(d.toString())));
     _setStdio(mockStdout, mockStderr);
+
+    await _report(
+      {
+        type: 'buildStart',
+      },
+      EMPTY_OPTIONS,
+    );
   });
 
   afterEach(() => {
@@ -124,7 +133,7 @@ describe('CLIReporter', () => {
       EMPTY_OPTIONS,
     );
 
-    assert.equal(stdoutOutput, '');
+    assert.equal(stdoutOutput, '\n\n\n\n');
     assert.equal(stderrOutput, 'test: error\ntest: warn\n');
   });
 
@@ -156,7 +165,7 @@ describe('CLIReporter', () => {
       EMPTY_OPTIONS,
     );
 
-    assert.equal(stdoutOutput, '');
+    assert.equal(stdoutOutput, '\n\n\n\n');
     assert(stderrOutput.includes('test: error\n'));
     assert(stderrOutput.includes('test: warn\n'));
   });

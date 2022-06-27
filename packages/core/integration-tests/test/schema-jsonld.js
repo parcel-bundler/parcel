@@ -2,12 +2,11 @@ import {bundle, assertBundles, distDir, outputFS} from '@parcel/test-utils';
 import path from 'path';
 import assert from 'assert';
 
-describe('jsonld', function() {
-  it('Should parse a LD+JSON schema and collect dependencies', async function() {
+describe('jsonld', function () {
+  it('Should parse a LD+JSON schema and collect dependencies', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/schema-jsonld/index.html'),
       {
-        production: true,
         publicURL: 'https://place.holder/',
       },
     );

@@ -1,0 +1,43 @@
+{
+  "manifest_version": 2,
+  "name": "Parcel WebExt",
+  "version": "0.1.2.65535",
+  "default_locale": "en_US",
+  "icons": {
+    "100": "src/assets/foo.png"
+  },
+  "background": {
+    "scripts": ["./src/background.ts"],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_icon": {
+      "100": "src/assets/foo.png"
+    },
+    "theme_icons": [{
+      "dark": "src/assets/foo-dark.png",
+      "light": "src/assets/foo.png",
+      "size": 16
+    }],
+    "default_popup": "src/popup.html"
+  },
+  "content_scripts": [{
+    "matches": ["https://parceljs.org/*"],
+    "js": ["src/content.js"],
+    "css": ["src/content.css"]
+  }],
+  "declarative_net_request": {
+    "rule_resources": [{
+      "id": "ruleset_1",
+      "enabled": true,
+      "path": "./rulesets/ruleset_1.json"
+    }]
+  },
+  "dictionaries": {
+    "en-US": "./dicts/tmp.dic"
+  },
+  "devtools_page": "src/devtools.html",
+  "web_accessible_resources": [
+    "src/assets/**/*.txt"
+  ]
+}

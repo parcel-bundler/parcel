@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import assert from 'assert';
 import sinon from 'sinon';

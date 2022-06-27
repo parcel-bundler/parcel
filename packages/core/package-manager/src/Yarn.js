@@ -4,6 +4,8 @@ import type {PackageInstaller, InstallerOptions} from './types';
 
 import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
+import {exec as _exec} from 'child_process';
+import {promisify} from 'util';
 import logger from '@parcel/logger';
 import split from 'split2';
 import JSONParseStream from './JSONParseStream';
@@ -15,6 +17,7 @@ import {npmSpecifierFromModuleRequest} from './utils';
 import pkg from '../package.json';
 
 const YARN_CMD = 'yarn';
+const exec = promisify(_exec);
 
 type YarnStdOutMessage =
   | {|
@@ -35,6 +38,8 @@ type YarnStdErrMessage = {|
 |};
 
 let hasYarn: ?boolean;
+let yarnVersion: ?number;
+
 export class Yarn implements PackageInstaller {
   static async exists(): Promise<boolean> {
     if (hasYarn != null) {
@@ -55,15 +60,38 @@ export class Yarn implements PackageInstaller {
     cwd,
     saveDev = true,
   }: InstallerOptions): Promise<void> {
+    if (yarnVersion == null) {
+      let version = await exec('yarn --version');
+      yarnVersion = parseInt(version.stdout, 10);
+    }
+
     let args = ['add', '--json'].concat(
       modules.map(npmSpecifierFromModuleRequest),
     );
 
     if (saveDev) {
       args.push('-D');
+      if (yarnVersion < 2) {
+        args.push('-W');
+      }
     }
 
-    let installProcess = spawn(YARN_CMD, args, {cwd});
+    // When Parcel is run by Yarn (e.g. via package.json scripts), several environment variables are
+    // added. When parcel in turn calls Yarn again, these can cause Yarn to behave stragely, so we
+    // filter them out when installing packages.
+    let env = {};
+    for (let key in process.env) {
+      if (
+        !key.startsWith('npm_') &&
+        key !== 'YARN_WRAP_OUTPUT' &&
+        key !== 'INIT_CWD' &&
+        key !== 'NODE_ENV'
+      ) {
+        env[key] = process.env[key];
+      }
+    }
+
+    let installProcess = spawn(YARN_CMD, args, {cwd, env});
     installProcess.stdout
       // Invoking yarn with --json provides streaming, newline-delimited JSON output.
       .pipe(split())
@@ -120,7 +148,7 @@ export class Yarn implements PackageInstaller {
     try {
       return await promiseFromProcess(installProcess);
     } catch (e) {
-      throw new Error('Yarn failed to install modules');
+      throw new Error('Yarn failed to install modules:' + e.message);
     }
   }
 }

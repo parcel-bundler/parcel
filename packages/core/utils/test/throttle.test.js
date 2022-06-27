@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import assert from 'assert';
-// $FlowFixMe
 import sinon from 'sinon';
 import throttle from '../src/throttle';
 
@@ -35,7 +34,7 @@ describe('throttle', () => {
 
   it('preserves the `this` when throttled functions are invoked', () => {
     let result;
-    let throttled = throttle(function() {
+    let throttled = throttle(function () {
       result = this.bar;
     }, 100);
 

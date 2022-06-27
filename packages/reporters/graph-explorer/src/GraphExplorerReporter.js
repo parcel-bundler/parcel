@@ -8,7 +8,7 @@ import type {
 import type {Socket} from 'net';
 // This is a private type and will be removed when compiled.
 // eslint-disable-next-line monorepo/no-internal-import
-import type Graph from '@parcel/core/src/Graph';
+import type Graph from '@parcel/graph';
 
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
@@ -36,6 +36,7 @@ export default (new Reporter({
   async report({event, logger, options}) {
     switch (event.type) {
       case 'watchStart': {
+        console.log('STARTING TO WATCH...');
         invariant(!servers.has(options.instanceId));
         let app = createApp(options.instanceId);
         let port: number = await getPort();

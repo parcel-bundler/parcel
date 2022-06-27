@@ -1,7 +1,0 @@
-{
-  "name": "throwing-plugin-parser-project",
-  "private": true,
-  "dependencies": {
-    "parcel-plugin-test": "*"
-  }
-}

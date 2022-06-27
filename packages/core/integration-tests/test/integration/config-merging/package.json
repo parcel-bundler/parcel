@@ -4,5 +4,8 @@
   "main": "dist/index.js",
   "engines": {
     "node": "8"
+  },
+  "dependencies": {
+    "parcel-transformer-string": "*"
   }
 }

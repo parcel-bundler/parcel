@@ -1,19 +1,19 @@
 // @flow strict-local
-// flowlint unsafe-getters-setters:off
 import type {
   Config as IConfig,
   ConfigResult,
+  FileCreateInvalidation,
   FilePath,
-  Glob,
   PackageJSON,
-  PackageName,
   ConfigResultWithFilePath,
+  DevDepOptions,
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
+import invariant from 'assert';
 import {DefaultWeakMap, loadConfig} from '@parcel/utils';
-
 import Environment from './Environment';
+import {fromProjectPath, toProjectPath} from '../projectPath';
 
 const internalConfigToConfig: DefaultWeakMap<
   ParcelOptions,
@@ -22,6 +22,8 @@ const internalConfigToConfig: DefaultWeakMap<
 
 export default class PublicConfig implements IConfig {
   #config /*: Config */;
+  #pkg /*: ?PackageJSON */;
+  #pkgFilePath /*: ?FilePath */;
   #options /*: ParcelOptions */;
 
   constructor(config: Config, options: ParcelOptions): PublicConfig {
@@ -37,11 +39,11 @@ export default class PublicConfig implements IConfig {
   }
 
   get env(): Environment {
-    return new Environment(this.#config.env);
+    return new Environment(this.#config.env, this.#options);
   }
 
   get searchPath(): FilePath {
-    return this.#config.searchPath;
+    return fromProjectPath(this.#options.projectRoot, this.#config.searchPath);
   }
 
   get result(): ConfigResult {
@@ -52,69 +54,102 @@ export default class PublicConfig implements IConfig {
     return this.#config.isSource;
   }
 
-  get includedFiles(): Set<FilePath> {
-    return this.#config.includedFiles;
-  }
-
   // $FlowFixMe
   setResult(result: any): void {
     this.#config.result = result;
   }
 
-  setResultHash(resultHash: string) {
-    this.#config.resultHash = resultHash;
+  setCacheKey(cacheKey: string) {
+    this.#config.cacheKey = cacheKey;
   }
 
-  addIncludedFile(filePath: FilePath) {
-    this.#config.includedFiles.add(filePath);
+  invalidateOnFileChange(filePath: FilePath) {
+    this.#config.invalidateOnFileChange.add(
+      toProjectPath(this.#options.projectRoot, filePath),
+    );
   }
 
-  addDevDependency(name: PackageName, version?: string) {
-    this.#config.devDeps.set(name, version);
+  addDevDependency(devDep: DevDepOptions) {
+    this.#config.devDeps.push({
+      ...devDep,
+      resolveFrom: toProjectPath(this.#options.projectRoot, devDep.resolveFrom),
+      additionalInvalidations: devDep.additionalInvalidations?.map(i => ({
+        ...i,
+        resolveFrom: toProjectPath(this.#options.projectRoot, i.resolveFrom),
+      })),
+    });
   }
 
-  setWatchGlob(glob: Glob) {
-    this.#config.watchGlob = glob;
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
+    if (invalidation.glob != null) {
+      // $FlowFixMe
+      this.#config.invalidateOnFileCreate.push(invalidation);
+    } else if (invalidation.filePath != null) {
+      this.#config.invalidateOnFileCreate.push({
+        filePath: toProjectPath(
+          this.#options.projectRoot,
+          invalidation.filePath,
+        ),
+      });
+    } else {
+      invariant(invalidation.aboveFilePath != null);
+      this.#config.invalidateOnFileCreate.push({
+        // $FlowFixMe
+        fileName: invalidation.fileName,
+        aboveFilePath: toProjectPath(
+          this.#options.projectRoot,
+          invalidation.aboveFilePath,
+        ),
+      });
+    }
   }
 
-  shouldRehydrate() {
-    this.#config.shouldRehydrate = true;
+  invalidateOnEnvChange(env: string) {
+    this.#config.invalidateOnEnvChange.add(env);
   }
 
-  shouldReload() {
-    this.#config.shouldReload = true;
+  invalidateOnStartup() {
+    this.#config.invalidateOnStartup = true;
   }
 
-  shouldInvalidateOnStartup() {
-    this.#config.shouldInvalidateOnStartup = true;
-  }
-
-  async getConfigFrom(
+  async getConfigFrom<T>(
     searchPath: FilePath,
-    filePaths: Array<FilePath>,
+    fileNames: Array<string>,
     options: ?{|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null> {
-    let packageKey = options && options.packageKey;
+  ): Promise<?ConfigResultWithFilePath<T>> {
+    let packageKey = options?.packageKey;
     if (packageKey != null) {
-      let pkg = await this.getPackage();
-      if (pkg && pkg[packageKey]) {
+      let pkg = await this.getConfigFrom(searchPath, ['package.json']);
+      if (pkg && pkg.contents[packageKey]) {
         return {
-          contents: pkg[packageKey],
-          // This should be fine as pkgFilePath should be defined by getPackage()
-          filePath: this.#config.pkgFilePath || '',
+          contents: pkg.contents[packageKey],
+          filePath: pkg.filePath,
         };
       }
+    }
+
+    if (fileNames.length === 0) {
+      return null;
+    }
+
+    // Invalidate when any of the file names are created above the search path.
+    for (let fileName of fileNames) {
+      this.invalidateOnFileCreate({
+        fileName,
+        aboveFilePath: searchPath,
+      });
     }
 
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
       searchPath,
-      filePaths,
+      fileNames,
+      this.#options.projectRoot,
       parse == null ? null : {parse},
     );
     if (conf == null) {
@@ -123,7 +158,7 @@ export default class PublicConfig implements IConfig {
 
     let configFilePath = conf.files[0].filePath;
     if (!options || !options.exclude) {
-      this.addIncludedFile(configFilePath);
+      this.invalidateOnFileChange(configFilePath);
     }
 
     return {
@@ -132,30 +167,30 @@ export default class PublicConfig implements IConfig {
     };
   }
 
-  getConfig(
+  getConfig<T>(
     filePaths: Array<FilePath>,
     options: ?{|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null> {
+  ): Promise<?ConfigResultWithFilePath<T>> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }
 
-  async getPackage(): Promise<PackageJSON | null> {
-    if (this.#config.pkg) {
-      return this.#config.pkg;
+  async getPackage(): Promise<?PackageJSON> {
+    if (this.#pkg) {
+      return this.#pkg;
     }
 
-    let pkgConfig = await this.getConfig(['package.json']);
+    let pkgConfig = await this.getConfig<PackageJSON>(['package.json']);
     if (!pkgConfig) {
       return null;
     }
 
-    this.#config.pkg = pkgConfig.contents;
-    this.#config.pkgFilePath = pkgConfig.filePath;
+    this.#pkg = pkgConfig.contents;
+    this.#pkgFilePath = pkgConfig.filePath;
 
-    return this.#config.pkg;
+    return this.#pkg;
   }
 }

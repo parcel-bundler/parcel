@@ -1,6 +1,6 @@
 module.exports = {
   extends: '@parcel/eslint-config',
-  parser: 'babel-eslint',
+  parser: '@babel/eslint-parser',
   parserOptions: {
     ecmaVersion: 5,
   },

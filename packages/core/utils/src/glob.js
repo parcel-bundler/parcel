@@ -5,21 +5,52 @@ import type {FileSystem} from '@parcel/fs';
 
 import _isGlob from 'is-glob';
 import fastGlob, {type FastGlobOptions} from 'fast-glob';
-import {isMatch} from 'micromatch';
+import {isMatch, makeRe, type Options} from 'micromatch';
 import {normalizeSeparators} from './path';
 
 export function isGlob(p: FilePath): any {
   return _isGlob(normalizeSeparators(p));
 }
 
-export function isGlobMatch(filePath: FilePath, glob: Glob): any {
-  return isMatch(filePath, normalizeSeparators(glob));
+export function isGlobMatch(
+  filePath: FilePath,
+  glob: Glob | Array<Glob>,
+  opts?: Options,
+): any {
+  glob = Array.isArray(glob)
+    ? glob.map(normalizeSeparators)
+    : normalizeSeparators(glob);
+  return isMatch(filePath, glob, opts);
+}
+
+export function globToRegex(glob: Glob, opts?: Options): RegExp {
+  return makeRe(glob, opts);
 }
 
 export function globSync(
   p: FilePath,
-  options: FastGlobOptions<FilePath>,
+  fs: FileSystem,
+  options?: FastGlobOptions<FilePath>,
 ): Array<FilePath> {
+  // $FlowFixMe
+  options = {
+    ...options,
+    fs: {
+      statSync: p => {
+        return fs.statSync(p);
+      },
+      lstatSync: p => {
+        // Our FileSystem interface doesn't have lstat support at the moment,
+        // but this is fine for our purposes since we follow symlinks by default.
+        return fs.statSync(p);
+      },
+      readdirSync: (p, opts) => {
+        return fs.readdirSync(p, opts);
+      },
+    },
+  };
+
+  // $FlowFixMe
   return fastGlob.sync(normalizeSeparators(p), options);
 }
 

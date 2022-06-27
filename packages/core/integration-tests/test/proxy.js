@@ -1,3 +1,4 @@
+// @flow strict-local
 import assert from 'assert';
 import path from 'path';
 import {bundler, getNextBuild, inputFS} from '@parcel/test-utils';
@@ -46,11 +47,11 @@ function get(file, port, client = http) {
   });
 }
 
-describe('proxy', function() {
+describe('proxy', function () {
   let subscription;
   let cwd;
   let server;
-  beforeEach(function() {
+  beforeEach(function () {
     cwd = inputFS.cwd();
   });
 
@@ -66,14 +67,14 @@ describe('proxy', function() {
     server = null;
   });
 
-  it('should handle proxy table written in .proxyrc', async function() {
+  it('should handle proxy table written in .proxyrc', async function () {
     let dir = path.join(__dirname, 'integration/proxyrc');
     inputFS.chdir(dir);
 
     let port = await getPort();
     let b = bundler(path.join(dir, 'index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -92,14 +93,14 @@ describe('proxy', function() {
     assert.equal(data, 'Request URL: /api/get');
   });
 
-  it('should handle proxy table written in .proxyrc.json', async function() {
+  it('should handle proxy table written in .proxyrc.json', async function () {
     let dir = path.join(__dirname, 'integration/proxyrc-json');
     inputFS.chdir(dir);
 
     let port = await getPort();
     let b = bundler(path.join(dir, 'index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -118,14 +119,14 @@ describe('proxy', function() {
     assert.equal(data, 'Request URL: /api/get');
   });
 
-  it('should handle proxy table written in .proxyrc.js', async function() {
+  it('should handle proxy table written in .proxyrc.js', async function () {
     let dir = path.join(__dirname, 'integration/proxyrc-js');
     inputFS.chdir(dir);
 
     let port = await getPort();
     let b = bundler(path.join(dir, 'index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',

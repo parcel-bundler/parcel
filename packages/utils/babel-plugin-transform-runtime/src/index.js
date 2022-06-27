@@ -1,6 +1,6 @@
 const semver = require('semver');
-const pluginTransformRuntime = require('@babel/plugin-transform-runtime')
-  .default;
+const pluginTransformRuntime =
+  require('@babel/plugin-transform-runtime').default;
 
 const COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER = '^2.0.0-alpha.1.1';
 

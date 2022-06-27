@@ -1,12 +1,19 @@
+// @flow strict-local
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
+  bundle,
   bundler,
   getNextBuild,
   overlayFS as fs,
   sleep,
+  run,
+  getNextBuildSuccess,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
+import type {BuildEvent, Asset} from '@parcel/types';
+// flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 import nullthrows from 'nullthrows';
 
@@ -21,7 +28,42 @@ try {
 }
 
 if (MessageChannel) {
-  describe('react-refresh', function() {
+  describe('react-refresh', function () {
+    describe('synchronous (automatic runtime)', () => {
+      const testDir = path.join(
+        __dirname,
+        '/integration/react-refresh-automatic',
+      );
+
+      let b,
+        root,
+        randoms = {};
+
+      beforeEach(async () => {
+        ({b, root, randoms} = await setup(path.join(testDir, 'index.html')));
+      });
+
+      it('retains state in functional components', async function () {
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Foo.1.js'),
+          path.join(testDir, 'Foo.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await sleep(100);
+
+        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+        );
+        assert.equal(randoms.indexNum, indexNum);
+        assert.equal(randoms.appNum, appNum);
+        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(fooText, 'OtherFunctional');
+      });
+    });
+
     describe('synchronous', () => {
       const testDir = path.join(__dirname, '/integration/react-refresh');
 
@@ -37,7 +79,7 @@ if (MessageChannel) {
         ));
       });
 
-      it('retains state in functional components', async function() {
+      it('retains state in functional components', async function () {
         await fs.mkdirp(testDir);
         await fs.copyFile(
           path.join(testDir, 'Foo.1.js'),
@@ -57,7 +99,7 @@ if (MessageChannel) {
         assert.equal(fooText, 'OtherFunctional');
       });
 
-      it('supports changing hooks in functional components', async function() {
+      it('supports changing hooks in functional components', async function () {
         await fs.mkdirp(testDir);
         await fs.copyFile(
           path.join(testDir, 'Foo.2-hooks.js'),
@@ -68,16 +110,10 @@ if (MessageChannel) {
         // Wait for the hmr-runtime to process the event
         await sleep(100);
 
-        let [
-          ,
-          indexNum,
-          appNum,
-          fooText,
-          fooNum,
-          fooNum2,
-        ] = root.textContent.match(
-          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
-        );
+        let [, indexNum, appNum, fooText, fooNum, fooNum2] =
+          root.textContent.match(
+            /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
+          );
         assert.equal(randoms.indexNum, indexNum);
         assert.equal(randoms.appNum, appNum);
         assert.notEqual(randoms.fooNum, fooNum);
@@ -85,7 +121,7 @@ if (MessageChannel) {
         assert.equal(fooText, 'Hooks');
       });
 
-      it('retains state in parent components when swapping function and class component', async function() {
+      it('retains state in parent components when swapping function and class component', async function () {
         await fs.mkdirp(testDir);
         await fs.copyFile(
           path.join(testDir, 'Foo.3-class.js'),
@@ -128,7 +164,7 @@ if (MessageChannel) {
         ));
       });
 
-      it('retains state in async components on change', async function() {
+      it('retains state in async components on change', async function () {
         assert.equal(randoms.fooText, 'Async');
 
         await fs.mkdirp(testDir);
@@ -154,6 +190,62 @@ if (MessageChannel) {
         await cleanup({subscription, window});
       });
     });
+
+    it('does not error on inline scripts', async () => {
+      let port = await getPort();
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/react-refresh-inline-script/index.html',
+        ),
+        {
+          hmrOptions: {
+            port,
+          },
+        },
+      );
+      await run(b, {}, {require: false});
+    });
+
+    it('does not apply to library targets', async () => {
+      let port = await getPort();
+      let parcel = await bundler(
+        path.join(
+          __dirname,
+          '/integration/react-refresh-library-target/index.js',
+        ),
+        {
+          hmrOptions: {
+            port,
+          },
+        },
+      );
+      let result = await getNextBuildSuccess(parcel);
+      let bundle = nullthrows(
+        result.bundleGraph.getBundles().find(b => b.type === 'js'),
+      );
+
+      // Make sure react-refresh transforms were not applied.
+      let assets: Asset[] = [];
+      bundle.traverse(node => {
+        if (node.type === 'asset') {
+          assets.push(node.value);
+        } else if (node.type === 'dependency') {
+          assert(
+            !node.value.specifier.startsWith('react-refresh/runtime') &&
+              !node.value.specifier.startsWith(
+                '@parcel/transformer-react-refresh-wrap',
+              ),
+          );
+        }
+      });
+      for (let asset of assets) {
+        let code = await asset.getCode();
+        assert(
+          !code.includes('$RefreshReg$') && !code.includes('$RefreshSig$'),
+        );
+      }
+    });
   });
 }
 
@@ -168,12 +260,12 @@ async function setup(entry) {
   b = bundler(entry, {
     inputFS: fs,
     outputFS: fs,
-    serve: {
+    serveOptions: {
       https: false,
       port,
       host: '127.0.0.1',
     },
-    hot: {
+    hmrOptions: {
       port,
     },
     defaultConfig: path.join(
@@ -183,9 +275,9 @@ async function setup(entry) {
   });
 
   subscription = await b.watch();
-  let bundleEvent = await getNextBuild(b);
-  assert.equal(bundleEvent.type, 'buildSuccess');
-
+  let bundleEvent: BuildEvent = await getNextBuild(b);
+  invariant(bundleEvent.type === 'buildSuccess');
+  let bundleGraph = bundleEvent.bundleGraph;
   let dom = await JSDOM.JSDOM.fromURL(
     'http://127.0.0.1:' + port + '/index.html',
     {
@@ -204,15 +296,13 @@ async function setup(entry) {
   window.MessageChannel = MessageChannel;
   root = window.document.getElementById('root');
 
-  let bundle = nullthrows(
-    bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js'),
-  );
+  let bundle = nullthrows(bundleGraph.getBundles().find(b => b.type === 'js'));
   let parcelRequire = Object.keys(window).find(k =>
     k.startsWith('parcelRequire'),
   );
   // ReactDOM.render
   await window[parcelRequire](
-    bundleEvent.bundleGraph.getAssetPublicId(bundle.getEntryAssets().pop()),
+    bundleGraph.getAssetPublicId(bundle.getEntryAssets().pop()),
   ).default();
   await sleep(100);
 

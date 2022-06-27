@@ -1,28 +1,22 @@
 // @flow
-
 import path from 'path';
-import {promisify} from '@parcel/utils';
+import {promisify} from 'util';
 import {Transformer} from '@parcel/plugin';
+import glslifyDeps from 'glslify-deps';
+import glslifyBundle from 'glslify-bundle';
 
 export default (new Transformer({
-  async transform({asset, options, resolve}) {
-    asset.type = 'js';
-
-    let glslifyDeps = await options.packageManager.require(
-      'glslify-deps',
-      asset.filePath,
-      {
-        autoinstall: options.autoinstall,
-      },
-    );
-
+  async transform({asset, resolve}) {
     // Parse and collect dependencies with glslify-deps
     let cwd = path.dirname(asset.filePath);
     let depper = glslifyDeps({
       cwd,
       resolve: async (target, opts, next) => {
         try {
-          let filePath = await resolve(asset.filePath, target);
+          let filePath = await resolve(
+            path.join(opts.basedir, 'index.glsl'),
+            target,
+          );
 
           next(null, filePath);
         } catch (err) {
@@ -36,20 +30,13 @@ export default (new Transformer({
       cwd,
     );
 
-    let glslifyBundle = await options.packageManager.require(
-      'glslify-bundle',
-      asset.filePath,
-      {
-        autoinstall: options.autoinstall,
-      },
-    );
-
     collectDependencies(asset, ast);
 
     // Generate the bundled glsl file
     let glsl = await glslifyBundle(ast);
 
     asset.setCode(`module.exports=${JSON.stringify(glsl)};`);
+    asset.type = 'js';
 
     return [asset];
   },
@@ -58,7 +45,7 @@ export default (new Transformer({
 function collectDependencies(asset, ast) {
   for (let dep of ast) {
     if (!dep.entry) {
-      asset.addIncludedFile(dep.file);
+      asset.invalidateOnFileChange(dep.file);
     }
   }
 }

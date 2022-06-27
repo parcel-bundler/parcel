@@ -8,8 +8,8 @@ import assert from 'assert';
 import path from 'path';
 import Parcel, {createWorkerFarm} from '../src/Parcel';
 
-describe('Parcel', function() {
-  this.timeout(40000);
+describe('Parcel', function () {
+  this.timeout(75000);
 
   let workerFarm;
   before(() => {
@@ -83,6 +83,7 @@ function createParcel(opts?: InitialParcelOptions) {
       path.dirname(require.resolve('@parcel/test-utils')),
       '.parcelrc-no-reporters',
     ),
+    shouldDisableCache: true,
     ...opts,
   });
 }

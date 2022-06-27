@@ -1,6 +1,6 @@
 // @flow
 
-import type {FileSystem, FileOptions, ReaddirOptions} from './types';
+import type {FileSystem, FileOptions, ReaddirOptions, Encoding} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
   Event,
@@ -11,10 +11,12 @@ import type {
 import path from 'path';
 import {Readable, Writable} from 'stream';
 import {registerSerializableClass} from '@parcel/core';
+import {SharedBuffer} from '@parcel/utils';
 import packageJSON from '../package.json';
 import WorkerFarm, {Handle} from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
+import {findAncestorFile, findNodeModule, findFirstFile} from './find';
 
 const instances: Map<number, MemoryFS> = new Map();
 let id = 0;
@@ -137,10 +139,7 @@ export class MemoryFS implements FileSystem {
     // get realpath by following symlinks
     if (realpath) {
       let {root, dir, base} = path.parse(filePath);
-      let parts = dir
-        .slice(root.length)
-        .split(path.sep)
-        .concat(base);
+      let parts = dir.slice(root.length).split(path.sep).concat(base);
       let res = root;
       for (let part of parts) {
         res = path.join(res, part);
@@ -159,7 +158,7 @@ export class MemoryFS implements FileSystem {
   async writeFile(
     filePath: FilePath,
     contents: Buffer | string,
-    options: ?FileOptions,
+    options?: ?FileOptions,
   ) {
     filePath = this._normalizePath(filePath);
     if (this.dirs.has(filePath)) {
@@ -194,11 +193,11 @@ export class MemoryFS implements FileSystem {
   }
 
   // eslint-disable-next-line require-await
-  async readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<any> {
+  async readFile(filePath: FilePath, encoding?: Encoding): Promise<any> {
     return this.readFileSync(filePath, encoding);
   }
 
-  readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
+  readFileSync(filePath: FilePath, encoding?: Encoding): any {
     filePath = this._normalizePath(filePath);
     let file = this.files.get(filePath);
     if (file == null) {
@@ -616,6 +615,22 @@ export class MemoryFS implements FileSystem {
   async writeSnapshot(dir: FilePath, snapshot: FilePath): Promise<void> {
     await this.writeFile(snapshot, '' + this.events.length);
   }
+
+  findAncestorFile(
+    fileNames: Array<string>,
+    fromDir: FilePath,
+    root: FilePath,
+  ): ?FilePath {
+    return findAncestorFile(this, fileNames, fromDir, root);
+  }
+
+  findNodeModule(moduleName: string, fromDir: FilePath): ?FilePath {
+    return findNodeModule(this, moduleName, fromDir);
+  }
+
+  findFirstFile(filePaths: Array<FilePath>): ?FilePath {
+    return findFirstFile(this, filePaths);
+  }
 }
 
 class Watcher {
@@ -638,7 +653,9 @@ class Watcher {
       );
     }
 
-    this.fn(null, events);
+    if (events.length > 0) {
+      this.fn(null, events);
+    }
   }
 }
 
@@ -650,7 +667,7 @@ class FSError extends Error {
     this.name = 'FSError';
     this.code = code;
     this.path = path;
-    Error.captureStackTrace(this, this.constructor);
+    Error.captureStackTrace?.(this, this.constructor);
   }
 }
 
@@ -825,7 +842,7 @@ class Dirent {
   name: string;
   #mode: number;
 
-  constructor(name: string, entry: {mode: number, ...}) {
+  constructor(name: string, entry: interface {mode: number}) {
     this.name = name;
     this.#mode = entry.mode;
   }
@@ -888,20 +905,17 @@ class Directory extends Entry {
 }
 
 function makeShared(contents: Buffer | string): Buffer {
-  if (
-    typeof contents !== 'string' &&
-    contents.buffer instanceof SharedArrayBuffer
-  ) {
+  if (typeof contents !== 'string' && contents.buffer instanceof SharedBuffer) {
     return contents;
   }
 
   let length = Buffer.byteLength(contents);
-  let shared = new SharedArrayBuffer(length);
+  let shared = new SharedBuffer(length);
   let buffer = Buffer.from(shared);
   if (typeof contents === 'string') {
     buffer.write(contents);
   } else {
-    contents.copy(buffer);
+    buffer.set(contents);
   }
 
   return buffer;

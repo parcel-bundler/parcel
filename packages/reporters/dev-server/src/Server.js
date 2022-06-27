@@ -2,18 +2,17 @@
 
 import type {DevServerOptions, Request, Response} from './types.js.flow';
 import type {
+  BuildSuccessEvent,
   BundleGraph,
   FilePath,
   PluginOptions,
-  NamedBundle,
+  PackagedBundle,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
-import type {HTTPServer} from '@parcel/utils';
+import type {HTTPServer, FormattedCodeFrame} from '@parcel/utils';
 
 import invariant from 'assert';
-import EventEmitter from 'events';
-import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {
@@ -21,6 +20,7 @@ import {
   createHTTPServer,
   loadConfig,
   prettyDiagnostic,
+  relativePath,
 } from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
@@ -28,9 +28,11 @@ import ejs from 'ejs';
 import connect from 'connect';
 import serveHandler from 'serve-handler';
 import {createProxyMiddleware} from 'http-proxy-middleware';
-import {URL} from 'url';
+import {URL, URLSearchParams} from 'url';
+import launchEditor from 'launch-editor';
+import fresh from 'fresh';
 
-function setHeaders(res: Response) {
+export function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader(
     'Access-Control-Allow-Methods',
@@ -40,9 +42,11 @@ function setHeaders(res: Response) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
+  res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
 }
 
-const SOURCES_ENDPOINT = '/__parcel_source_root';
+export const SOURCES_ENDPOINT = '/__parcel_source_root';
+const EDITOR_ENDPOINT = '/__parcel_launch_editor';
 const TEMPLATE_404 = fs.readFileSync(
   path.join(__dirname, 'templates/404.html'),
   'utf8',
@@ -54,21 +58,24 @@ const TEMPLATE_500 = fs.readFileSync(
 );
 type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 
-export default class Server extends EventEmitter {
+export default class Server {
   pending: boolean;
+  pendingRequests: Array<[Request, Response]>;
+  middleware: Array<(req: Request, res: Response) => boolean>;
   options: DevServerOptions;
   rootPath: string;
-  bundleGraph: BundleGraph<NamedBundle> | null;
+  bundleGraph: BundleGraph<PackagedBundle> | null;
+  requestBundle: ?(bundle: PackagedBundle) => Promise<BuildSuccessEvent>;
   errors: Array<{|
     message: string,
-    stack: string,
+    stack: ?string,
+    frames: Array<FormattedCodeFrame>,
     hints: Array<string>,
+    documentation: string,
   |}> | null;
   stopServer: ?() => Promise<void>;
 
   constructor(options: DevServerOptions) {
-    super();
-
     this.options = options;
     try {
       this.rootPath = new URL(options.publicUrl).pathname;
@@ -76,7 +83,10 @@ export default class Server extends EventEmitter {
       this.rootPath = options.publicUrl;
     }
     this.pending = true;
+    this.pendingRequests = [];
+    this.middleware = [];
     this.bundleGraph = null;
+    this.requestBundle = null;
     this.errors = null;
   }
 
@@ -84,12 +94,22 @@ export default class Server extends EventEmitter {
     this.pending = true;
   }
 
-  buildSuccess(bundleGraph: BundleGraph<NamedBundle>) {
+  buildSuccess(
+    bundleGraph: BundleGraph<PackagedBundle>,
+    requestBundle: (bundle: PackagedBundle) => Promise<BuildSuccessEvent>,
+  ) {
     this.bundleGraph = bundleGraph;
+    this.requestBundle = requestBundle;
     this.errors = null;
     this.pending = false;
 
-    this.emit('bundled');
+    if (this.pendingRequests.length > 0) {
+      let pendingRequests = this.pendingRequests;
+      this.pendingRequests = [];
+      for (let [req, res] of pendingRequests) {
+        this.respond(req, res);
+      }
+    }
   }
 
   async buildError(options: PluginOptions, diagnostics: Array<Diagnostic>) {
@@ -100,23 +120,37 @@ export default class Server extends EventEmitter {
 
         return {
           message: ansiHtml(ansiDiagnostic.message),
-          stack: ansiDiagnostic.codeframe
-            ? ansiHtml(ansiDiagnostic.codeframe)
-            : ansiHtml(ansiDiagnostic.stack),
+          stack: ansiDiagnostic.stack ? ansiHtml(ansiDiagnostic.stack) : null,
+          frames: ansiDiagnostic.frames.map(f => ({
+            location: f.location,
+            code: ansiHtml(f.code),
+          })),
           hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
+          documentation: d.documentationURL ?? '',
         };
       }),
     );
   }
 
   respond(req: Request, res: Response): mixed {
-    let {pathname} = url.parse(req.originalUrl || req.url);
-
+    if (this.middleware.some(handler => handler(req, res))) return;
+    let {pathname, search} = url.parse(req.originalUrl || req.url);
     if (pathname == null) {
       pathname = '/';
     }
 
-    if (this.errors) {
+    if (pathname.startsWith(EDITOR_ENDPOINT) && search) {
+      let query = new URLSearchParams(search);
+      let file = query.get('file');
+      if (file) {
+        // File location might start with /__parcel_source_root if it came from a source map.
+        if (file.startsWith(SOURCES_ENDPOINT)) {
+          file = file.slice(SOURCES_ENDPOINT.length + 1);
+        }
+        launchEditor(file);
+      }
+      res.end();
+    } else if (this.errors) {
       return this.send500(req, res);
     } else if (path.extname(pathname) === '') {
       // If the URL doesn't start with the public path, or the URL doesn't
@@ -135,7 +169,10 @@ export default class Server extends EventEmitter {
       // Otherwise, serve the file from the dist folder
       req.url =
         this.rootPath === '/' ? pathname : pathname.slice(this.rootPath.length);
-      return this.serveDist(req, res, () => this.sendIndex(req, res));
+      if (req.url[0] !== '/') {
+        req.url = '/' + req.url;
+      }
+      return this.serveBundle(req, res, () => this.sendIndex(req, res));
     } else {
       return this.send404(req, res);
     }
@@ -144,35 +181,80 @@ export default class Server extends EventEmitter {
   sendIndex(req: Request, res: Response) {
     if (this.bundleGraph) {
       // If the main asset is an HTML file, serve it
-      let htmlBundle = this.bundleGraph.traverseBundles(
-        (bundle, context, {stop}) => {
-          if (bundle.type !== 'html' || !bundle.isEntry) return;
+      let htmlBundleFilePaths = this.bundleGraph
+        .getBundles()
+        .filter(bundle => bundle.type === 'html')
+        .map(bundle => {
+          return `/${relativePath(
+            this.options.distDir,
+            bundle.filePath,
+            false,
+          )}`;
+        });
 
-          if (!context) {
-            context = bundle;
-          }
+      let indexFilePath = null;
+      if (htmlBundleFilePaths.length === 1) {
+        indexFilePath = htmlBundleFilePaths[0];
+      } else {
+        indexFilePath = htmlBundleFilePaths
+          .filter(v => {
+            let dir = path.posix.dirname(v);
+            let withoutExtension = path.posix.basename(
+              v,
+              path.posix.extname(v),
+            );
+            return withoutExtension === 'index' && req.url.startsWith(dir);
+          })
+          .sort((a, b) => {
+            return b.length - a.length;
+          })[0];
+      }
 
-          if (
-            context &&
-            bundle.filePath &&
-            bundle.filePath.endsWith('index.html')
-          ) {
-            stop();
-            return bundle;
-          }
-        },
-      );
-
-      if (htmlBundle) {
-        req.url = `/${path.relative(
-          this.options.distDir,
-          nullthrows(htmlBundle.filePath),
-        )}`;
-
-        this.serveDist(req, res, () => this.send404(req, res));
+      if (indexFilePath) {
+        req.url = indexFilePath;
+        this.serveBundle(req, res, () => this.send404(req, res));
       } else {
         this.send404(req, res);
       }
+    } else {
+      this.send404(req, res);
+    }
+  }
+
+  async serveBundle(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let bundleGraph = this.bundleGraph;
+    if (bundleGraph) {
+      let {pathname} = url.parse(req.url);
+      if (!pathname) {
+        this.send500(req, res);
+        return;
+      }
+
+      let requestedPath = path.normalize(pathname.slice(1));
+      let bundle = bundleGraph
+        .getBundles()
+        .find(
+          b =>
+            path.relative(this.options.distDir, b.filePath) === requestedPath,
+        );
+      if (!bundle) {
+        this.serveDist(req, res, next);
+        return;
+      }
+
+      invariant(this.requestBundle != null);
+      try {
+        await this.requestBundle(bundle);
+      } catch (err) {
+        this.send500(req, res);
+        return;
+      }
+
+      this.serveDist(req, res, next);
     } else {
       this.send404(req, res);
     }
@@ -247,7 +329,11 @@ export default class Server extends EventEmitter {
       return;
     }
 
-    setHeaders(res);
+    if (fresh(req.headers, {'last-modified': stat.mtime.toUTCString()})) {
+      res.statusCode = 304;
+      res.end();
+      return;
+    }
 
     return serveHandler(
       req,
@@ -267,19 +353,15 @@ export default class Server extends EventEmitter {
 
   sendError(res: Response, statusCode: number) {
     res.statusCode = statusCode;
-    setHeaders(res);
     res.end();
   }
 
   send404(req: Request, res: Response) {
     res.statusCode = 404;
-    setHeaders(res);
     res.end(TEMPLATE_404);
   }
 
   send500(req: Request, res: Response): void | Response {
-    setHeaders(res);
-
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.writeHead(500);
 
@@ -287,6 +369,7 @@ export default class Server extends EventEmitter {
       return res.end(
         ejs.render(TEMPLATE_500, {
           errors: this.errors,
+          hmrOptions: this.options.hmrOptions,
         }),
       );
     }
@@ -305,11 +388,12 @@ export default class Server extends EventEmitter {
     // avoid skipping project root
     const fileInRoot: string = path.join(this.options.projectRoot, '_');
 
-    const pkg = await loadConfig(this.options.inputFS, fileInRoot, [
-      '.proxyrc.js',
-      '.proxyrc',
-      '.proxyrc.json',
-    ]);
+    const pkg = await loadConfig(
+      this.options.inputFS,
+      fileInRoot,
+      ['.proxyrc.js', '.proxyrc', '.proxyrc.json'],
+      this.options.projectRoot,
+    );
 
     if (!pkg || !pkg.config || !pkg.files) {
       return this;
@@ -348,17 +432,19 @@ export default class Server extends EventEmitter {
     const finalHandler = (req: Request, res: Response) => {
       this.logAccessIfVerbose(req);
 
-      const response = () => this.respond(req, res);
-
       // Wait for the parcelInstance to finish bundling if needed
       if (this.pending) {
-        this.once('bundled', response);
+        this.pendingRequests.push([req, res]);
       } else {
-        response();
+        this.respond(req, res);
       }
     };
 
     const app = connect();
+    app.use((req, res, next) => {
+      setHeaders(res);
+      next();
+    });
     await this.applyProxyTable(app);
     app.use(finalHandler);
 

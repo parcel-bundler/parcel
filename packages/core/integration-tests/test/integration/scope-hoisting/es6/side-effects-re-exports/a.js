@@ -1,3 +1,3 @@
-import {foo} from 'bar';
+import { message1 } from "./library/index.js";
 
-output = foo();
+output = message1;

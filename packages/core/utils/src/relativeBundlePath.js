@@ -10,9 +10,7 @@ export function relativeBundlePath(
   to: NamedBundle,
   opts: {|leadingDotSlash: boolean|} = {leadingDotSlash: true},
 ): FilePath {
-  return relativePath(
-    path.dirname(from.filePath),
-    to.filePath,
-    opts.leadingDotSlash,
-  );
+  let fromPath = path.join(from.target.distDir, from.name);
+  let toPath = path.join(to.target.distDir, to.name);
+  return relativePath(path.dirname(fromPath), toPath, opts.leadingDotSlash);
 }

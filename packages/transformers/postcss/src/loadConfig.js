@@ -1,34 +1,44 @@
 // @flow
-import type {Config, PluginOptions} from '@parcel/types';
-import type {PluginLogger} from '@parcel/logger';
+import type {
+  Config,
+  FilePath,
+  PluginOptions,
+  PluginLogger,
+} from '@parcel/types';
 import path from 'path';
+import {relativePath} from '@parcel/utils';
+import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
+import nullthrows from 'nullthrows';
+import clone from 'clone';
+import {POSTCSS_RANGE} from './constants';
 
 import loadExternalPlugins from './loadPlugins';
 
-const MODULE_BY_NAME_RE = /\.module\./;
+type ConfigResult = {|
+  raw: any,
+  filePath: string,
+  hydrated: {|
+    plugins: Array<any>,
+    from: FilePath,
+    to: FilePath,
+    modules: any,
+  |},
+|};
 
 async function configHydrator(
   configFile: any,
   config: Config,
+  resolveFrom: FilePath,
   options: PluginOptions,
-) {
-  // Use a basic, modules-only PostCSS config if the file opts in by a name
-  // like foo.module.css
-  if (configFile == null && config.searchPath.match(MODULE_BY_NAME_RE)) {
-    configFile = {
-      plugins: {
-        'postcss-modules': {},
-      },
-    };
-  }
-
+  logger: PluginLogger,
+): Promise<?ConfigResult> {
   if (configFile == null) {
     return;
   }
 
   // Load the custom config...
   let modulesConfig;
-  let configFilePlugins = configFile.plugins;
+  let configFilePlugins = clone(configFile.plugins);
   if (
     configFilePlugins != null &&
     typeof configFilePlugins === 'object' &&
@@ -44,19 +54,96 @@ async function configHydrator(
 
   let plugins = await loadExternalPlugins(
     configFilePlugins,
-    config.searchPath,
+    nullthrows(resolveFrom),
     options,
   );
 
-  config.setResult({
+  // contents is either:
+  // from JSON:    { plugins: { 'postcss-foo': { ...opts } } }
+  // from JS (v8): { plugins: [ { postcssPlugin: 'postcss-foo', ...visitor callback functions } ]
+  // from JS (v7): { plugins: [ [Function: ...] ]
+  let pluginArray = Array.isArray(configFilePlugins)
+    ? configFilePlugins
+    : Object.keys(configFilePlugins);
+  for (let p of pluginArray) {
+    if (typeof p === 'string') {
+      config.addDevDependency({
+        specifier: p,
+        resolveFrom: nullthrows(resolveFrom),
+      });
+    }
+  }
+
+  let redundantPlugins = pluginArray.filter(
+    p => p === 'autoprefixer' || p === 'postcss-preset-env',
+  );
+  if (redundantPlugins.length > 0) {
+    let filename = path.basename(resolveFrom);
+    let isPackageJson = filename === 'package.json';
+    let message;
+    let hints = [];
+    if (!isPackageJson && redundantPlugins.length === pluginArray.length) {
+      message = md`Parcel includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains only redundant plugins. Deleting it may significantly improve build performance.`;
+      hints.push(md`Delete __${filename}__`);
+    } else {
+      message = md`Parcel includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains the following redundant plugins: ${[
+        ...redundantPlugins,
+      ].map(p =>
+        md.underline(p),
+      )}. Removing these may improve build performance.`;
+      hints.push(md`Remove the above plugins from __${filename}__`);
+    }
+
+    let codeFrames;
+    if (path.extname(filename) !== '.js') {
+      let contents = await options.inputFS.readFile(resolveFrom, 'utf8');
+      let prefix = isPackageJson ? '/postcss' : '';
+      codeFrames = [
+        {
+          language: 'json',
+          filePath: resolveFrom,
+          code: contents,
+          codeHighlights: generateJSONCodeHighlights(
+            contents,
+            redundantPlugins.map(plugin => ({
+              key: `${prefix}/plugins/${plugin}`,
+              type: 'key',
+            })),
+          ),
+        },
+      ];
+    } else {
+      codeFrames = [
+        {
+          filePath: resolveFrom,
+          codeHighlights: [
+            {
+              start: {line: 1, column: 1},
+              end: {line: 1, column: 1},
+            },
+          ],
+        },
+      ];
+    }
+
+    logger.warn({
+      message,
+      hints,
+      documentationURL: 'https://parceljs.org/languages/css/#default-plugins',
+      codeFrames,
+    });
+  }
+
+  return {
     raw: configFile,
+    filePath: resolveFrom,
     hydrated: {
       plugins,
       from: config.searchPath,
       to: config.searchPath,
       modules: modulesConfig,
     },
-  });
+  };
 }
 
 export async function load({
@@ -67,7 +154,11 @@ export async function load({
   config: Config,
   options: PluginOptions,
   logger: PluginLogger,
-|}): Promise<void> {
+|}): Promise<?ConfigResult> {
+  if (!config.isSource) {
+    return;
+  }
+
   let configFile: any = await config.getConfig(
     ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
     {packageKey: 'postcss'},
@@ -75,15 +166,32 @@ export async function load({
 
   let contents = null;
   if (configFile) {
+    config.addDevDependency({
+      specifier: 'postcss',
+      resolveFrom: config.searchPath,
+      range: POSTCSS_RANGE,
+    });
+
     contents = configFile.contents;
     let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
     if (isDynamic) {
+      // We have to invalidate on startup in case the config is non-deterministic,
+      // e.g. using unknown environment variables, reading from the filesystem, etc.
       logger.warn({
         message:
           'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',
       });
 
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
+
+      // Also add the config as a dev dependency so we attempt to reload in watch mode.
+      config.addDevDependency({
+        specifier: relativePath(
+          path.dirname(config.searchPath),
+          configFile.filePath,
+        ),
+        resolveFrom: config.searchPath,
+      });
     }
 
     if (typeof contents !== 'object') {
@@ -97,54 +205,13 @@ export async function load({
     ) {
       throw new Error('PostCSS config must have plugins');
     }
-
-    let configFilePlugins = Array.isArray(contents.plugins)
-      ? contents.plugins
-      : Object.keys(contents.plugins);
-    for (let p of configFilePlugins) {
-      // JavaScript configs can use an array of functions... opt out of all caching...
-      if (typeof p === 'function') {
-        contents.__contains_functions = true;
-
-        // This should enforce the config to be revalidated as it can contain functions and is JS
-        config.shouldInvalidateOnStartup();
-        config.shouldReload();
-      }
-
-      if (typeof p === 'string') {
-        if (p.startsWith('.')) {
-          logger.warn({
-            message:
-              'WARNING: Using relative PostCSS plugins means losing out on caching features of Parcel. Bundle this plugin up in a package or use a monorepo to resolve this issue.',
-          });
-
-          config.shouldInvalidateOnStartup();
-        }
-
-        config.addDevDependency(p);
-      }
-    }
   }
 
-  return configHydrator(contents, config, options);
-}
-
-export function preSerialize(config: Config) {
-  if (!config.result) return;
-
-  // Ensure we dont pass functions to the serialiser
-  if (config.result.raw.__contains_functions) {
-    config.result.raw = {};
-  }
-
-  // This gets re-hydrated in Deserialize, so never store this.
-  // It also usually contains a bunch of functions so bad idea anyway...
-  config.result.hydrated = {};
-}
-
-export function postDeserialize(
-  config: Config,
-  options: PluginOptions,
-): Promise<void> {
-  return configHydrator(config.result.raw, config, options);
+  return configHydrator(
+    contents,
+    config,
+    configFile?.filePath,
+    options,
+    logger,
+  );
 }

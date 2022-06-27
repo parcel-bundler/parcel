@@ -1,5 +1,5 @@
 // @flow
-import type {BundleGraph, FilePath, NamedBundle} from '@parcel/types';
+import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
 import {generateBuildMetrics, prettifyTime} from '@parcel/utils';
@@ -19,12 +19,12 @@ const COLUMNS = [
 ];
 
 export default async function bundleReport(
-  bundleGraph: BundleGraph<NamedBundle>,
+  bundleGraph: BundleGraph<PackagedBundle>,
   fs: FileSystem,
   projectRoot: FilePath,
-  assetCount: number,
+  assetCount: number = 0,
 ) {
-  let bundleList = bundleGraph.getBundles().filter(b => !b.isInline);
+  let bundleList = bundleGraph.getBundles();
 
   // Get a list of bundles sorted by size
   let {bundles} =

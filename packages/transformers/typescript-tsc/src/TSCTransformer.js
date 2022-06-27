@@ -1,25 +1,21 @@
 // @flow strict-local
 
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {TranspileOptions} from 'typescript';
 
 import {Transformer} from '@parcel/plugin';
 import {loadTSConfig} from '@parcel/ts-utils';
+import typescript from 'typescript';
+import SourceMap from '@parcel/source-map';
 
 export default (new Transformer({
-  async loadConfig({config, options}) {
-    await loadTSConfig(config, options);
+  loadConfig({config, options}) {
+    return loadTSConfig(config, options);
   },
 
   async transform({asset, config, options}) {
     asset.type = 'js';
 
-    let [typescript, code]: [TypeScriptModule, string] = await Promise.all([
-      options.packageManager.require('typescript', asset.filePath, {
-        autoinstall: options.autoinstall,
-      }),
-      asset.getCode(),
-    ]);
+    let code = await asset.getCode();
 
     let transpiled = typescript.transpileModule(
       code,
@@ -34,15 +30,29 @@ export default (new Transformer({
           // Don't compile ES `import`s -- scope hoisting prefers them and they will
           // otherwise compiled to CJS via babel in the js transformer
           module: typescript.ModuleKind.ESNext,
+          sourceMap: !!asset.env.sourceMap,
         },
         fileName: asset.filePath, // Should be relativePath?
       }: TranspileOptions),
     );
 
+    let map;
+    let {outputText, sourceMapText} = transpiled;
+    if (sourceMapText != null) {
+      map = new SourceMap(options.projectRoot);
+      map.addVLQMap(JSON.parse(sourceMapText));
+
+      outputText = outputText.substring(
+        0,
+        outputText.lastIndexOf('//# sourceMappingURL'),
+      );
+    }
+
     return [
       {
         type: 'js',
-        content: transpiled.outputText,
+        content: outputText,
+        map,
       },
     ];
   },

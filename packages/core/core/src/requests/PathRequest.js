@@ -1,80 +1,118 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {Async, QueryParameters} from '@parcel/types';
+import type {Async, FileCreateInvalidation, FilePath} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {errorToDiagnostic, md} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
-import {escapeMarkdown, relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import URL from 'url';
-import querystring from 'querystring';
+import {normalizePath} from '@parcel/utils';
 import {report} from '../ReporterRunner';
 import PublicDependency from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
 import ParcelConfig from '../ParcelConfig';
-import createParcelConfigRequest from './ParcelConfigRequest';
-
-export type PathRequestResult = AssetGroup | null | void;
+import createParcelConfigRequest, {
+  getCachedParcelConfig,
+} from './ParcelConfigRequest';
+import {invalidateOnFileCreateToInternal} from '../utils';
+import {
+  fromProjectPath,
+  fromProjectPathRelative,
+  toProjectPath,
+} from '../projectPath';
+import {Priority} from '../types';
 
 export type PathRequest = {|
   id: string,
   +type: 'path_request',
-  run: RunOpts => Promise<PathRequestResult>,
-  input: Dependency,
+  run: RunOpts => Async<?AssetGroup>,
+  input: PathRequestInput,
+|};
+
+export type PathRequestInput = {|
+  dependency: Dependency,
+  name: string,
 |};
 
 type RunOpts = {|
-  input: Dependency,
+  input: PathRequestInput,
   ...StaticRunOpts,
 |};
 
 const type = 'path_request';
-const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
+const PIPELINE_REGEX = /^([a-z0-9-]+?):(.*)$/i;
 
 export default function createPathRequest(
-  input: Dependency,
-): {|
-  id: string,
-  input: Dependency,
-  run: ({|input: Dependency, ...StaticRunOpts|}) => Async<?AssetGroup>,
-  +type: string,
-|} {
+  input: PathRequestInput,
+): PathRequest {
   return {
-    id: input.id,
+    id: input.dependency.id + ':' + input.name,
     type,
     run,
     input,
   };
 }
+
 async function run({input, api, options}: RunOpts) {
-  let {config} = nullthrows(
+  let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
+  let config = getCachedParcelConfig(configResult, options);
   let resolverRunner = new ResolverRunner({
     options,
-    config: new ParcelConfig(
-      config,
-      options.packageManager,
-      options.inputFS,
-      options.autoinstall,
-    ),
+    config,
   });
-  let assetGroup = await resolverRunner.resolve(input);
+  let result: ResolverResult = await resolverRunner.resolve(input.dependency);
 
-  if (assetGroup != null) {
-    api.invalidateOnFileDelete(assetGroup.filePath);
+  if (result.invalidateOnEnvChange) {
+    for (let env of result.invalidateOnEnvChange) {
+      api.invalidateOnEnvChange(env);
+    }
   }
 
-  return assetGroup;
+  if (result.invalidateOnFileCreate) {
+    for (let file of result.invalidateOnFileCreate) {
+      api.invalidateOnFileCreate(
+        invalidateOnFileCreateToInternal(options.projectRoot, file),
+      );
+    }
+  }
+
+  if (result.invalidateOnFileChange) {
+    for (let filePath of result.invalidateOnFileChange) {
+      let pp = toProjectPath(options.projectRoot, filePath);
+      api.invalidateOnFileUpdate(pp);
+      api.invalidateOnFileDelete(pp);
+    }
+  }
+
+  if (result.assetGroup) {
+    api.invalidateOnFileDelete(result.assetGroup.filePath);
+    return result.assetGroup;
+  }
+
+  if (result.diagnostics && result.diagnostics.length > 0) {
+    let err = new ThrowableDiagnostic({diagnostic: result.diagnostics});
+    // $FlowFixMe[prop-missing]
+    err.code = 'MODULE_NOT_FOUND';
+    throw err;
+  }
 }
 
 type ResolverRunnerOpts = {|
   config: ParcelConfig,
   options: ParcelOptions,
+|};
+
+type ResolverResult = {|
+  assetGroup: ?AssetGroup,
+  invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  invalidateOnFileChange?: Array<FilePath>,
+  invalidateOnEnvChange?: Array<string>,
+  diagnostics?: Array<Diagnostic>,
 |};
 
 export class ResolverRunner {
@@ -88,33 +126,36 @@ export class ResolverRunner {
     this.pluginOptions = new PluginOptions(this.options);
   }
 
-  async getThrowableDiagnostic(
+  async getDiagnostic(
     dependency: Dependency,
     message: string,
-  ): Async<ThrowableDiagnostic> {
+  ): Async<Diagnostic> {
     let diagnostic: Diagnostic = {
       message,
       origin: '@parcel/core',
     };
 
     if (dependency.loc && dependency.sourcePath != null) {
-      diagnostic.filePath = dependency.sourcePath;
-      diagnostic.codeFrame = {
-        code: await this.options.inputFS.readFile(
-          dependency.sourcePath,
-          'utf8',
-        ),
-        codeHighlights: dependency.loc
-          ? [{start: dependency.loc.start, end: dependency.loc.end}]
-          : [],
-      };
+      let filePath = fromProjectPath(
+        this.options.projectRoot,
+        dependency.sourcePath,
+      );
+      diagnostic.codeFrames = [
+        {
+          filePath,
+          code: await this.options.inputFS.readFile(filePath, 'utf8'),
+          codeHighlights: dependency.loc
+            ? [{start: dependency.loc.start, end: dependency.loc.end}]
+            : [],
+        },
+      ];
     }
 
-    return new ThrowableDiagnostic({diagnostic});
+    return diagnostic;
   }
 
-  async resolve(dependency: Dependency): Promise<?AssetGroup> {
-    let dep = new PublicDependency(dependency);
+  async resolve(dependency: Dependency): Promise<ResolverResult> {
+    let dep = new PublicDependency(dependency, this.options);
     report({
       type: 'buildProgress',
       phase: 'resolving',
@@ -124,54 +165,39 @@ export class ResolverRunner {
     let resolvers = await this.config.getResolvers();
 
     let pipeline;
-    let filePath;
-    let query: QueryParameters = {};
+    let specifier;
     let validPipelines = new Set(this.config.getNamedPipelines());
+    let match = dependency.specifier.match(PIPELINE_REGEX);
     if (
+      match &&
       // Don't consider absolute paths. Absolute paths are only supported for entries,
       // and include e.g. `C:\` on Windows, conflicting with pipelines.
-      !path.isAbsolute(dependency.moduleSpecifier) &&
-      dependency.moduleSpecifier.includes(':')
+      !path.isAbsolute(dependency.specifier)
     ) {
-      [pipeline, filePath] = dependency.moduleSpecifier.split(':');
+      [, pipeline, specifier] = match;
       if (!validPipelines.has(pipeline)) {
-        if (dep.isURL) {
-          // This may be a url protocol or scheme rather than a pipeline, such as
-          // `url('http://example.com/foo.png')`
-          return null;
-        } else {
-          throw new Error(`Unknown pipeline ${pipeline}.`);
-        }
+        // This may be a url protocol or scheme rather than a pipeline, such as
+        // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
+        specifier = dependency.specifier;
+        pipeline = null;
       }
     } else {
-      if (dependency.isURL && dependency.moduleSpecifier.startsWith('//')) {
-        // A protocol-relative URL, e.g `url('//example.com/foo.png')`
-        return null;
-      }
-      filePath = dependency.moduleSpecifier;
+      specifier = dependency.specifier;
     }
 
-    if (dependency.isURL) {
-      let parsed = URL.parse(filePath);
-      if (typeof parsed.pathname !== 'string') {
-        throw new Error(`Received URL without a pathname ${filePath}.`);
-      }
-      filePath = decodeURIComponent(parsed.pathname);
+    // Entrypoints, convert ProjectPath in module specifier to absolute path
+    if (dep.resolveFrom == null) {
+      specifier = path.join(this.options.projectRoot, specifier);
     }
-
-    let matchesQuerystring = filePath.match(QUERY_PARAMS_REGEX);
-    if (matchesQuerystring && matchesQuerystring.length > 2) {
-      filePath = matchesQuerystring[1];
-      query = matchesQuerystring[2]
-        ? querystring.parse(matchesQuerystring[2].substr(1))
-        : {};
-    }
-
     let diagnostics: Array<Diagnostic> = [];
+    let invalidateOnFileCreate = [];
+    let invalidateOnFileChange = [];
+    let invalidateOnEnvChange = [];
     for (let resolver of resolvers) {
       try {
         let result = await resolver.plugin.resolve({
-          filePath,
+          specifier,
+          pipeline,
           dependency: dep,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: resolver.name}),
@@ -179,40 +205,86 @@ export class ResolverRunner {
 
         if (result) {
           if (result.meta) {
+            dependency.resolverMeta = result.meta;
             dependency.meta = {
               ...dependency.meta,
               ...result.meta,
             };
           }
 
+          if (result.priority != null) {
+            dependency.priority = Priority[result.priority];
+          }
+
+          if (result.invalidateOnEnvChange) {
+            invalidateOnEnvChange.push(...result.invalidateOnEnvChange);
+          }
+
+          if (result.invalidateOnFileCreate) {
+            invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
+          }
+
+          if (result.invalidateOnFileChange) {
+            invalidateOnFileChange.push(...result.invalidateOnFileChange);
+          }
+
           if (result.isExcluded) {
-            return null;
+            return {
+              assetGroup: null,
+              invalidateOnFileCreate,
+              invalidateOnFileChange,
+              invalidateOnEnvChange,
+            };
           }
 
           if (result.filePath != null) {
+            let resultFilePath = result.filePath;
+            if (!path.isAbsolute(resultFilePath)) {
+              throw new Error(
+                md`Resolvers must return an absolute path, ${resolver.name} returned: ${resultFilePath}`,
+              );
+            }
+
             return {
-              canDefer: result.canDefer,
-              filePath: result.filePath,
-              query,
-              sideEffects: result.sideEffects,
-              code: result.code,
-              env: dependency.env,
-              pipeline: pipeline ?? dependency.pipeline,
-              isURL: dependency.isURL,
+              assetGroup: {
+                canDefer: result.canDefer,
+                filePath: toProjectPath(
+                  this.options.projectRoot,
+                  resultFilePath,
+                ),
+                query: result.query?.toString(),
+                sideEffects: result.sideEffects,
+                code: result.code,
+                env: dependency.env,
+                pipeline:
+                  result.pipeline === undefined
+                    ? pipeline ?? dependency.pipeline
+                    : result.pipeline,
+                isURL: dep.specifierType === 'url',
+              },
+              invalidateOnFileCreate,
+              invalidateOnFileChange,
+              invalidateOnEnvChange,
             };
           }
 
           if (result.diagnostics) {
-            if (Array.isArray(result.diagnostics)) {
-              diagnostics.push(...result.diagnostics);
-            } else {
-              diagnostics.push(result.diagnostics);
-            }
+            let errorDiagnostic = errorToDiagnostic(
+              new ThrowableDiagnostic({diagnostic: result.diagnostics}),
+              {
+                origin: resolver.name,
+                filePath: specifier,
+              },
+            );
+            diagnostics.push(...errorDiagnostic);
           }
         }
       } catch (e) {
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset
-        let errorDiagnostic = errorToDiagnostic(e, resolver.name);
+        let errorDiagnostic = errorToDiagnostic(e, {
+          origin: resolver.name,
+          filePath: specifier,
+        });
         if (Array.isArray(errorDiagnostic)) {
           diagnostics.push(...errorDiagnostic);
         } else {
@@ -224,28 +296,35 @@ export class ResolverRunner {
     }
 
     if (dep.isOptional) {
-      return null;
+      return {
+        assetGroup: null,
+        invalidateOnFileCreate,
+        invalidateOnFileChange,
+        invalidateOnEnvChange,
+      };
     }
 
+    let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
     let dir =
-      dependency.sourcePath != null
-        ? escapeMarkdown(
-            relativePath(this.options.projectRoot, dependency.sourcePath),
-          )
+      resolveFrom != null
+        ? normalizePath(fromProjectPathRelative(resolveFrom))
         : '';
 
-    let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
-
-    // $FlowFixMe because of the err.code assignment
-    let err = await this.getThrowableDiagnostic(
+    let diagnostic = await this.getDiagnostic(
       dependency,
-      `Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
+      md`Failed to resolve '${dependency.specifier}' ${
+        dir ? `from '${dir}'` : ''
+      }`,
     );
 
-    // Merge diagnostics
-    err.diagnostics.push(...diagnostics);
-    err.code = 'MODULE_NOT_FOUND';
+    diagnostics.unshift(diagnostic);
 
-    throw err;
+    return {
+      assetGroup: null,
+      invalidateOnFileCreate,
+      invalidateOnFileChange,
+      invalidateOnEnvChange,
+      diagnostics,
+    };
   }
 }

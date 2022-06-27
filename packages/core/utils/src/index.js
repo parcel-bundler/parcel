@@ -1,10 +1,11 @@
 // @flow strict-local
 export type * from './config';
+export type * from './Deferred';
 export type * from './generateBuildMetrics';
+export type * from './http-server';
+export type * from './path';
 export type * from './prettyDiagnostic';
 export type * from './schema';
-export type * from './http-server';
-export type * from './resolve';
 
 export {default as countLines} from './countLines';
 export {default as generateBuildMetrics} from './generateBuildMetrics';
@@ -17,8 +18,6 @@ export {default as objectHash} from './objectHash';
 export {default as prettifyTime} from './prettifyTime';
 export {default as prettyDiagnostic} from './prettyDiagnostic';
 export {default as PromiseQueue} from './PromiseQueue';
-// flowlint-next-line untyped-import:off
-export {default as promisify} from './promisify';
 export {default as validateSchema} from './schema';
 export {default as TapStream} from './TapStream';
 export {default as urlJoin} from './urlJoin';
@@ -33,25 +32,21 @@ export {findAlternativeNodeModules, findAlternativeFiles} from './alternatives';
 export {blobToBuffer, blobToString} from './blob';
 export {
   unique,
-  flat,
-  flatMap,
   objectSortedEntries,
   objectSortedEntriesDeep,
   setDifference,
+  setIntersect,
+  setUnion,
 } from './collection';
 export {resolveConfig, resolveConfigSync, loadConfig} from './config';
 export {DefaultMap, DefaultWeakMap} from './DefaultMap';
 export {makeDeferredWithPromise} from './Deferred';
-export {isGlob, isGlobMatch, globSync, glob} from './glob';
-export {
-  md5FromString,
-  md5FromReadableStream,
-  md5FromObject,
-  md5FromFilePath,
-} from './md5';
+export {isGlob, isGlobMatch, globSync, glob, globToRegex} from './glob';
+export {hashStream, hashObject, hashFile} from './hash';
+export {SharedBuffer} from './shared-buffer';
 export {fuzzySearch} from './schema';
 export {createHTTPServer} from './http-server';
-export {normalizeSeparators, normalizePath, relativePath} from './path';
+export {normalizePath, normalizeSeparators, relativePath} from './path';
 export {
   replaceURLReferences,
   replaceInlineReferences,
@@ -64,15 +59,14 @@ export {
   streamFromPromise,
   fallbackStream,
 } from './stream';
-export {resolve, resolveSync} from './resolve';
 export {relativeBundlePath} from './relativeBundlePath';
 export {ansiHtml} from './ansi-html';
 export {escapeHTML} from './escape-html';
-export {escapeMarkdown} from './escape-markdown';
 export {
   SOURCEMAP_RE,
   SOURCEMAP_EXTENSIONS,
   matchSourceMappingURL,
   loadSourceMapUrl,
   loadSourceMap,
+  remapSourceLocation,
 } from './sourcemap';

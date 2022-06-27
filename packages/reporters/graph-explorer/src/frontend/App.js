@@ -17,6 +17,7 @@ export default function App() {
         response = await fetch('/api/graph', {signal: abortController.signal});
       } catch (e) {
         if (e.name === 'AbortError') {
+          console.log('HELLO');
           return;
         }
       }

@@ -1,0 +1,1 @@
+sideEffect(2);

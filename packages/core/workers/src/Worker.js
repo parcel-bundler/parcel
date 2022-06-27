@@ -4,6 +4,7 @@ import type {FilePath} from '@parcel/types';
 import type {BackendType, WorkerImpl, WorkerMessage} from './types';
 import type {SharedReference} from './WorkerFarm';
 
+import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {getWorkerBackend} from './backend';
@@ -13,6 +14,7 @@ export type WorkerCall = {|
   handle?: number,
   args: $ReadOnlyArray<any>,
   retries: number,
+  skipReadyCheck?: boolean,
   resolve: (result: Promise<any> | any) => void,
   reject: (error: any) => void,
 |};
@@ -20,7 +22,7 @@ export type WorkerCall = {|
 type WorkerOpts = {|
   forcedKillTime: number,
   backend: BackendType,
-  patchConsole?: boolean,
+  shouldPatchConsole?: boolean,
   sharedReferences: $ReadOnlyMap<SharedReference, mixed>,
 |};
 
@@ -62,7 +64,19 @@ export default class Worker extends EventEmitter {
 
     // Workaround for https://github.com/nodejs/node/issues/29117
     if (process.env.NODE_OPTIONS) {
-      let opts = process.env.NODE_OPTIONS.split(' ');
+      // arg parsing logic adapted from https://stackoverflow.com/a/46946420/2352201
+      let opts = [''];
+      let quote = false;
+      for (let c of nullthrows(process.env.NODE_OPTIONS.match(/.|^$/g))) {
+        if (c === '"') {
+          quote = !quote;
+        } else if (!quote && c === ' ') {
+          opts.push('');
+        } else {
+          opts[opts.length - 1] += c.replace(/\\(.)/, '$1');
+        }
+      }
+
       for (let i = 0; i < opts.length; i++) {
         let opt = opts[i];
         if (opt === '-r' || opt === '--require') {
@@ -92,10 +106,11 @@ export default class Worker extends EventEmitter {
         args: [
           forkModule,
           {
-            patchConsole: !!this.options.patchConsole,
+            shouldPatchConsole: !!this.options.shouldPatchConsole,
           },
         ],
         retries: 0,
+        skipReadyCheck: true,
         resolve,
         reject,
       });
@@ -119,14 +134,15 @@ export default class Worker extends EventEmitter {
     this.emit('ready');
   }
 
-  sendSharedReference(ref: SharedReference, value: mixed) {
-    new Promise((resolve, reject) => {
+  sendSharedReference(ref: SharedReference, value: mixed): Promise<any> {
+    return new Promise((resolve, reject) => {
       this.call({
         method: 'createSharedReference',
         args: [ref, value],
         resolve,
         reject,
         retries: 0,
+        skipReadyCheck: true,
       });
     });
   }
@@ -143,14 +159,20 @@ export default class Worker extends EventEmitter {
     let idx = this.callId++;
     this.calls.set(idx, call);
 
-    this.send({
+    let msg = {
       type: 'request',
       idx: idx,
       child: this.id,
       handle: call.handle,
       method: call.method,
       args: call.args,
-    });
+    };
+
+    if (this.ready || call.skipReadyCheck === true) {
+      this.send(msg);
+    } else {
+      this.once('ready', () => this.send(msg));
+    }
   }
 
   receive(message: WorkerMessage): void {

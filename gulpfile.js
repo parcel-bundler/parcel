@@ -12,24 +12,27 @@ const IGNORED_PACKAGES = [
   '!packages/core/is-v2-ready-yet/**',
   '!packages/core/test-utils/**',
   '!packages/core/types/**',
-  '!packages/utils/node-libs-browser/**',
+
+  // These packages are bundled.
+  '!packages/core/codeframe/**',
+  '!packages/core/fs/**',
+  '!packages/core/package-manager/**',
+  '!packages/core/utils/**',
+  '!packages/reporters/cli/**',
+  '!packages/reporters/dev-server/**',
 ];
 
 const paths = {
   packageSrc: [
     'packages/*/*/src/**/*.js',
-    '!packages/*/scope-hoisting/src/helpers.js',
-    '!**/loaders/**',
-    '!**/prelude.js',
+    '!**/dev-prelude.js',
     ...IGNORED_PACKAGES,
   ],
-  packageOther: [
-    'packages/*/scope-hoisting/src/helpers.js',
-    'packages/*/*/src/**/loaders/**',
-    'packages/*/*/src/**/prelude.js',
-    'packages/*/dev-server/src/templates/**',
+  packageOther: ['packages/*/*/src/**/dev-prelude.js'],
+  packageJson: [
+    'packages/core/parcel/package.json',
+    'packages/utils/create-react-app/package.json',
   ],
-  packageJson: 'packages/core/parcel/package.json',
   packages: 'packages/',
 };
 
@@ -60,13 +63,18 @@ exports.clean = function clean(cb) {
 exports.default = exports.build = gulp.series(
   gulp.parallel(buildBabel, copyOthers),
   // Babel reads from package.json so update these after babel has run
-  () => updatePackageJson(paths.packageJson),
+  paths.packageJson.map(
+    packageJsonPath =>
+      function updatePackageJson() {
+        return _updatePackageJson(packageJsonPath);
+      },
+  ),
 );
 
 function buildBabel() {
   return gulp
     .src(paths.packageSrc)
-    .pipe(babel(babelConfig))
+    .pipe(babel({...babelConfig, babelrcRoots: [__dirname + '/packages/*/*']}))
     .pipe(renameStream(relative => relative.replace('src', 'lib')))
     .pipe(gulp.dest(paths.packages));
 }
@@ -78,7 +86,7 @@ function copyOthers() {
     .pipe(gulp.dest(paths.packages));
 }
 
-function updatePackageJson(file) {
+function _updatePackageJson(file) {
   return gulp
     .src(file)
     .pipe(

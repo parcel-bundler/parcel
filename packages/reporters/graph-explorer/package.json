@@ -19,14 +19,14 @@
     "prepare": "cd src/frontend && yarn && yarn build"
   },
   "engines": {
-    "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "node": ">= 12.0.0",
+    "parcel": "^2.6.1"
   },
   "dependencies": {
     "@msgpack/msgpack": "^2.3.0",
-    "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/types": "2.0.0-beta.1",
-    "@parcel/utils": "2.0.0-beta.1",
+    "@parcel/plugin": "2.6.1",
+    "@parcel/types": "2.6.1",
+    "@parcel/utils": "2.6.1",
     "express": "^4.17.1",
     "get-port": "^4.2.0",
     "nullthrows": "^1.1.1",

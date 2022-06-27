@@ -3,8 +3,8 @@ import Module from 'module';
 import path from 'path';
 import {bundle, run, assertBundles} from '@parcel/test-utils';
 
-describe('pnp', function() {
-  it('should defer to the pnp resolution when needed', async function() {
+describe('pnp', function () {
+  it('should defer to the pnp resolution when needed', async function () {
     let dir = path.join(__dirname, 'integration/pnp-require');
 
     let origPnpVersion = process.versions.pnp;
@@ -20,7 +20,7 @@ describe('pnp', function() {
     try {
       let b = await bundle(path.join(dir, 'index.js'));
 
-      await assertBundles(b, [
+      assertBundles(b, [
         {
           name: 'index.js',
           assets: ['index.js', 'local.js', 'index.js'],
@@ -35,7 +35,7 @@ describe('pnp', function() {
     }
   });
 
-  it('should support importing Node builtin modules from npm when requested', async function() {
+  it('should support importing Node builtin modules from npm when requested', async function () {
     let dir = path.join(__dirname, 'integration/pnp-builtin');
 
     let origPnpVersion = process.versions.pnp;
@@ -51,7 +51,7 @@ describe('pnp', function() {
     try {
       let b = await bundle(path.join(dir, 'index.js'));
 
-      await assertBundles(b, [
+      assertBundles(b, [
         {
           name: 'index.js',
           assets: ['index.js', 'local.js', 'index.js'],

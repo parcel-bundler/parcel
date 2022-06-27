@@ -9,7 +9,6 @@ import defaultConfigContents from '@parcel/config-default';
 // $FlowFixMe Flow can't resolve this
 import Module from 'module';
 import path from 'path';
-// flowlint-next-line untyped-import:off
 import {addHook} from 'pirates';
 import Parcel, {INTERNAL_RESOLVE, INTERNAL_TRANSFORM} from '@parcel/core';
 
@@ -17,7 +16,7 @@ import syncPromise from './syncPromise';
 
 let hooks = {};
 let lastDisposable;
-let packageManager = new NodePackageManager(new NodeFS());
+let packageManager = new NodePackageManager(new NodeFS(), '/');
 let defaultConfig = {
   ...defaultConfigContents,
   filePath: packageManager.resolveSync('@parcel/config-default', __filename)
@@ -94,7 +93,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
       let resolved = syncPromise(
         // $FlowFixMe
         parcel[INTERNAL_RESOLVE]({
-          moduleSpecifier: targetFile,
+          specifier: targetFile,
           sourcePath: currFile,
           env,
         }),
@@ -124,7 +123,9 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
   // Patching Module._resolveFilename takes care of patching the underlying
   // resolver in both `require` and `require.resolve`:
   // https://github.com/nodejs/node-v0.x-archive/issues/1125#issuecomment-10748203
+  // $FlowFixMe[prop-missing]
   const originalResolveFilename = Module._resolveFilename;
+  // $FlowFixMe[prop-missing]
   Module._resolveFilename = function parcelResolveFilename(to, from, ...rest) {
     return isProcessing || disposed
       ? originalResolveFilename(to, from, ...rest)
@@ -149,7 +150,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
 }
 
 let disposable: IDisposable = register();
-register.dispose = disposable.dispose;
+register.dispose = (): mixed => disposable.dispose();
 
 // Support both commonjs and ES6 modules
 module.exports = register;

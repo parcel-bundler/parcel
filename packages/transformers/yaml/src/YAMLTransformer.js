@@ -1,18 +1,14 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
+import yaml from 'js-yaml';
 
 export default (new Transformer({
-  async transform({asset, options}) {
-    const yaml = await options.packageManager.require(
-      'js-yaml',
-      asset.filePath,
-      {autoinstall: options.autoinstall},
-    );
+  async transform({asset}) {
     asset.type = 'js';
     asset.setCode(
       `module.exports = ${JSON.stringify(
-        yaml.safeLoad(await asset.getCode()),
+        yaml.load(await asset.getCode()),
         null,
         2,
       )};`,
