@@ -43,7 +43,7 @@
     "@types/node": "^15.12.4",
     "cross-env": "^7.0.0",
     "eslint": "^7.20.0",
-    "flow-bin": "0.180.0",
+    "flow-bin": "0.181.0",
     "glob": "^7.1.6",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
