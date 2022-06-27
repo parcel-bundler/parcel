@@ -49,9 +49,11 @@ export default (new Reporter({
         );
 
         await listenPromise;
-        logger.info({
-          message: `Graph explorer started on http://localhost:${port}`,
-        });
+        // Writing this to stdout for now so it doesn't get swallowed by other
+        // reporters
+        process.stdout.write(
+          `Graph explorer started on http://localhost:${port}\n`,
+        );
 
         break;
       }
