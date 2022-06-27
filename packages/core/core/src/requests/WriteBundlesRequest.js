@@ -1,9 +1,10 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {StaticRunOpts} from '../RequestTracker';
-import type {ContentKey, PackagedBundleInfo} from '../types';
+import type {PackagedBundleInfo} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
 
@@ -14,7 +15,6 @@ import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/hash';
 import {createPackageRequest} from './PackageRequest';
 import createWriteBundleRequest from './WriteBundleRequest';
-import {BundleBehavior} from '../types';
 
 type WriteBundlesRequestInput = {|
   bundleGraph: BundleGraph,
@@ -71,6 +71,7 @@ async function run({input, api, farm, options}: RunInput) {
       let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
       res.set(bundle.id, {
         filePath: joinProjectPath(bundle.target.distDir, name),
+        type: bundle.type, // FIXME: this is wrong if the packager changes the type...
         stats: {
           time: 0,
           size: 0,
@@ -79,8 +80,7 @@ async function run({input, api, farm, options}: RunInput) {
       return false;
     }
 
-    // skip inline bundles, they will be processed via the parent bundle
-    return bundle.bundleBehavior !== BundleBehavior.inline;
+    return true;
   });
 
   try {
@@ -147,7 +147,6 @@ function assignComplexNameHashes(
     if (hashRefToNameHash.get(bundle.hashReference) != null) {
       continue;
     }
-
     hashRefToNameHash.set(
       bundle.hashReference,
       options.shouldContentHash

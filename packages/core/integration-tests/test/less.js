@@ -9,8 +9,8 @@ import {
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 
-describe('less', function() {
-  it('should support requiring less files', async function() {
+describe('less', function () {
+  it('should support requiring less files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/less/index.js'));
 
     assertBundles(b, [
@@ -32,7 +32,7 @@ describe('less', function() {
     assert(css.includes('.index'));
   });
 
-  it('should support less imports', async function() {
+  it('should support less imports', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/less-import/index.js'),
     );
@@ -59,7 +59,7 @@ describe('less', function() {
     assert(css.includes('.d'));
   });
 
-  it('should support advanced less imports', async function() {
+  it('should support advanced less imports', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/less-advanced-import/index.js'),
     );
@@ -88,7 +88,7 @@ describe('less', function() {
     assert(css.includes('.explicit-external-a'));
   });
 
-  it('should support requiring empty less files', async function() {
+  it('should support requiring empty less files', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/less-empty/index.js'),
     );
@@ -112,7 +112,7 @@ describe('less', function() {
     assert.equal(css.trim(), '/*# sourceMappingURL=index.css.map */');
   });
 
-  it('should support linking to assets with url() from less', async function() {
+  it('should support linking to assets with url() from less', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/less-url/index.js'),
     );
@@ -137,18 +137,18 @@ describe('less', function() {
     assert.equal(output(), 2);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
-    assert(css.includes('url("http://google.com")'));
+    assert(/url\("?test\.[0-9a-f]+\.woff2"?\)/.test(css));
+    assert(/url\("?http:\/\/google.com"?\)/.test(css));
     assert(css.includes('.index'));
 
     assert(
       await outputFS.exists(
-        path.join(distDir, css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]),
+        path.join(distDir, css.match(/url\("?(test\.[0-9a-f]+\.woff2)"?\)/)[1]),
       ),
     );
   });
 
-  it('should support less url rewrites', async function() {
+  it('should support less url rewrites', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/less-url-rewrite/index.js'),
     );
@@ -181,7 +181,7 @@ describe('less', function() {
     assert(css.includes('.b'));
   });
 
-  it('should support transforming less with postcss', async function() {
+  it('should support css modules in less', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/less-postcss/index.js'),
     );
@@ -202,13 +202,13 @@ describe('less', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert(output().startsWith('_index_'));
+    assert(output().endsWith('_index'));
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(css.includes('._index_'));
+    assert(/\.[_0-9a-zA-Z]+_index/.test(css));
   });
 
-  it('should throw an exception when using webpack syntax', async function() {
+  it('should throw an exception when using webpack syntax', async function () {
     await assert.rejects(
       () =>
         bundle(
@@ -223,7 +223,7 @@ describe('less', function() {
     );
   });
 
-  it('should support configuring less include paths', async function() {
+  it('should support configuring less include paths', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/less-include-paths/index.js'),
     );
@@ -248,7 +248,7 @@ describe('less', function() {
     assert(css.includes('.b'));
   });
 
-  it('should ignore url() with IE behavior specifiers', async function() {
+  it('should ignore url() with IE behavior specifiers', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/less-url-behavior/index.less'),
     );
@@ -262,6 +262,27 @@ describe('less', function() {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
 
-    assert(css.includes('url(#default#VML)'));
+    assert(css.includes('url("#default#VML")'));
+  });
+
+  it('preserves quotes around data urls that require them', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/less-url-quotes/index.less'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.less'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(
+      css.includes(
+        // Note the literal space after "xml"
+        'background: url("data:image/svg+xml,%3C%3Fxml version%3D%221.0%22%3F%3E%3Csvg%3E%3C%2Fsvg%3E")',
+      ),
+    );
   });
 });

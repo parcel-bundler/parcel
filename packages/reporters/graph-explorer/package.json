@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-graph-explorer",
-  "version": "2.0.0-beta.3.1",
+  "version": "2.6.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,13 +20,14 @@
   },
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.0.0-beta.1"
+    "parcel": "^2.6.2"
   },
   "dependencies": {
     "@msgpack/msgpack": "^2.3.0",
-    "@parcel/plugin": "2.0.0-beta.3.1",
-    "@parcel/types": "2.0.0-beta.3.1",
-    "@parcel/utils": "2.0.0-beta.3.1",
+    "@parcel/plugin": "2.6.2",
+    "@parcel/types": "2.6.2",
+    "@parcel/utils": "2.6.2",
+    "@parcel/events": "2.6.2",
     "express": "^4.17.1",
     "get-port": "^4.2.0",
     "nullthrows": "^1.1.1",

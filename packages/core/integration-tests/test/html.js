@@ -14,7 +14,7 @@ import {
 } from '@parcel/test-utils';
 import path from 'path';
 
-describe('html', function() {
+describe('html', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -113,7 +113,7 @@ describe('html', function() {
     assert(await outputFS.exists(path.join(distDir, 'b.html'), 'utf8'));
   });
 
-  it('should find href attr when not first', async function() {
+  it('should find href attr when not first', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-attr-order/index.html'),
     );
@@ -130,8 +130,8 @@ describe('html', function() {
     ]);
   });
 
-  it('should insert empty script tag for HMR', async function() {
-    let b = await bundle(
+  it('should insert empty script tag for HMR at the end of the body', async function () {
+    const b = await bundle(
       path.join(__dirname, '/integration/html-no-js/index.html'),
       {
         hmrOptions: {},
@@ -148,9 +148,70 @@ describe('html', function() {
         assets: ['index.html'],
       },
     ]);
+
+    const html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    assert(/<script src=".+?\.js"><\/script><\/body>/.test(html));
   });
 
-  it('should support canonical links', async function() {
+  it('should insert empty script tag for HMR at the implied </body>', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/html-no-js/no-body.html'),
+      {
+        hmrOptions: {},
+      },
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['no-body.html'],
+      },
+      {
+        name: 'no-body.html',
+        assets: ['no-body.html'],
+      },
+    ]);
+
+    const html = await outputFS.readFile(
+      path.join(distDir, 'no-body.html'),
+      'utf8',
+    );
+
+    assert(/<script src=".+?\.js"><\/script><\/html>/.test(html));
+  });
+
+  it('should insert empty script tag for HMR at the end of the file if both </body> and </html> are implied', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/html-no-js/no-body-or-html.html'),
+      {
+        hmrOptions: {},
+      },
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['no-body-or-html.html'],
+      },
+      {
+        name: 'no-body-or-html.html',
+        assets: ['no-body-or-html.html'],
+      },
+    ]);
+
+    const html = await outputFS.readFile(
+      path.join(distDir, 'no-body-or-html.html'),
+      'utf8',
+    );
+
+    assert(/<script src=".+?\.js"><\/script>$/.test(html));
+  });
+
+  it('should support canonical links', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-canonical/index.html'),
     );
@@ -170,7 +231,41 @@ describe('html', function() {
     assert(/<link rel="canonical" href="\.?\/index.html">/.test(html));
   });
 
-  it('should support meta tag with none content', async function() {
+  it('should support RSS feed links', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-feed/rss.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'rss.html',
+        assets: ['rss.html'],
+      },
+      {
+        name: 'feed.xml',
+        assets: ['feed.xml'],
+      },
+    ]);
+  });
+
+  it('should support atom feed links', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-feed/atom.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'atom.html',
+        assets: ['atom.html'],
+      },
+      {
+        name: 'feed.xml',
+        assets: ['feed.xml'],
+      },
+    ]);
+  });
+
+  it('should support meta tags', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-meta/index.html'),
     );
@@ -180,16 +275,26 @@ describe('html', function() {
         name: 'index.html',
         assets: ['index.html'],
       },
+      {
+        name: 'logo.svg',
+        assets: ['logo.svg'],
+      },
     ]);
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(/<meta name="msapplication-config" content="none">/.test(html));
+    assert(html.includes(`<meta name="msapplication-config" content="none">`));
+    assert(html.includes(`<meta property="og:image" content="/logo.svg">`));
+    assert(
+      html.includes(
+        `<meta name="twitter:image" content="https://parceljs.org/assets/logo.svg">`,
+      ),
+    );
   });
 
-  it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
+  it('should insert sibling CSS bundles for JS files in the HEAD', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css/index.html'),
     );
@@ -218,7 +323,7 @@ describe('html', function() {
     );
   });
 
-  it('should insert sibling bundles before body element if no HEAD', async function() {
+  it('should insert sibling bundles before body element if no HEAD', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-head/index.html'),
     );
@@ -249,7 +354,7 @@ describe('html', function() {
     );
   });
 
-  it('should insert sibling bundles after doctype if no html', async function() {
+  it('should insert sibling bundles after doctype if no html', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-doctype/index.html'),
     );
@@ -280,7 +385,7 @@ describe('html', function() {
     );
   });
 
-  it.skip('should insert sibling JS bundles for CSS files in the HEAD', async function() {
+  it.skip('should insert sibling JS bundles for CSS files in the HEAD', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-js/index.html'),
       {
@@ -315,7 +420,7 @@ describe('html', function() {
     assert(/<script src="[/\\]{1}index\.[a-f0-9]+\.js">/.test(html));
   });
 
-  it('should insert sibling bundles at correct location in tree when optional elements are absent', async function() {
+  it('should insert sibling bundles at correct location in tree when optional elements are absent', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -354,7 +459,7 @@ describe('html', function() {
     );
   });
 
-  it('should combine sibling CSS from multiple script tags into one bundle', async function() {
+  it('should combine sibling CSS from multiple script tags into one bundle', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-multi/index.html'),
     );
@@ -397,7 +502,7 @@ describe('html', function() {
     );
   });
 
-  it('should deduplicate shared code between script tags', async function() {
+  it('should deduplicate shared code between script tags', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-dedup/index.html'),
     );
@@ -425,7 +530,7 @@ describe('html', function() {
     assert.deepEqual(o, ['component-1', 'component-2']);
   });
 
-  it('should minify HTML in production mode', async function() {
+  it('should minify HTML in production mode', async function () {
     let inputFile = path.join(__dirname, '/integration/htmlnano/index.html');
     await bundle(inputFile, {
       defaultTargetOptions: {
@@ -444,7 +549,7 @@ describe('html', function() {
     assert(html.includes('Other page'));
   });
 
-  it('should work with an empty html file', async function() {
+  it('should work with an empty html file', async function () {
     let inputFile = path.join(__dirname, '/integration/html-empty/index.html');
     await bundle(inputFile, {
       defaultTargetOptions: {
@@ -457,7 +562,39 @@ describe('html', function() {
     assert.equal(html.length, 0);
   });
 
-  it('should read .htmlnanorc.json and minify HTML in production mode', async function() {
+  it('should work with an invalid html file', async function () {
+    let inputFile = path.join(
+      __dirname,
+      '/integration/html-invalid/index.html',
+    );
+    await bundle(inputFile, {
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
+    });
+
+    let outputFile = path.join(distDir, 'index.html');
+    let html = await outputFS.readFile(outputFile, 'utf8');
+    assert(html.includes('This is a paragraph'));
+  });
+
+  it("should work with html that doesn't include optional closing tags", async function () {
+    let inputFile = path.join(
+      __dirname,
+      '/integration/html-optional-closing-tags/index.html',
+    );
+    await bundle(inputFile, {
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
+    });
+
+    let outputFile = path.join(distDir, 'index.html');
+    let html = await outputFS.readFile(outputFile, 'utf8');
+    assert(html.includes('Paragraph 1'));
+  });
+
+  it('should read .htmlnanorc.json and minify HTML in production mode', async function () {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
@@ -478,7 +615,7 @@ describe('html', function() {
     );
 
     // mergeStyles
-    assert(html.includes('<style>h1{color:red}</style>'));
+    assert(html.includes('<style>h1{color:red}div{font-size:20px}</style>'));
 
     assert(!html.includes('sourceMappingURL'));
 
@@ -490,7 +627,7 @@ describe('html', function() {
     );
   });
 
-  it('should not minify default values inside HTML in production mode', async function() {
+  it('should not minify default values inside HTML in production mode', async function () {
     let inputFile = path.join(
       __dirname,
       '/integration/htmlnano-defaults-form/index.html',
@@ -512,7 +649,7 @@ describe('html', function() {
     assert(html.includes('<input type="text">'));
   });
 
-  it('should not prepend the public path to assets with remote URLs', async function() {
+  it('should not prepend the public path to assets with remote URLs', async function () {
     await bundle(path.join(__dirname, '/integration/html/index.html'));
 
     let html = await outputFS.readFile(
@@ -524,7 +661,7 @@ describe('html', function() {
     );
   });
 
-  it('should not prepend the public path to hash links', async function() {
+  it('should not prepend the public path to hash links', async function () {
     await bundle(path.join(__dirname, '/integration/html/index.html'));
 
     let html = await outputFS.readFile(
@@ -534,7 +671,7 @@ describe('html', function() {
     assert(html.includes('<a href="#hash_link">'));
   });
 
-  it('should detect virtual paths', async function() {
+  it('should detect virtual paths', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-virtualpath/index.html'),
     );
@@ -551,7 +688,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should not update root/main file in the bundles', async function() {
+  it('should not update root/main file in the bundles', async function () {
     await bundle(path.join(__dirname, '/integration/html-root/index.html'));
 
     let files = await outputFS.readdir(distDir);
@@ -564,7 +701,7 @@ describe('html', function() {
     }
   });
 
-  it('should preserve the spacing in the HTML tags', async function() {
+  it('should preserve the spacing in the HTML tags', async function () {
     await bundle(path.join(__dirname, '/integration/html/index.html'));
 
     let html = await outputFS.readFile(
@@ -574,7 +711,7 @@ describe('html', function() {
     assert(/<i>hello<\/i> <i>world<\/i>/.test(html));
   });
 
-  it('should support child bundles of different types', async function() {
+  it('should support child bundles of different types', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -602,7 +739,7 @@ describe('html', function() {
     ]);
   });
 
-  it.skip('should support circular dependencies', async function() {
+  it.skip('should support circular dependencies', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/circular/index.html'),
     );
@@ -631,7 +768,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should support bundling HTM', async function() {
+  it('should support bundling HTM', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/htm-extension/index.htm'),
     );
@@ -649,7 +786,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should detect srcset attribute', async function() {
+  it('should detect srcset attribute', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-srcset/index.html'),
     );
@@ -674,7 +811,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should detect srcset attribute of source element', async function() {
+  it('should detect srcset attribute of source element', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-source-srcset/index.html'),
     );
@@ -697,9 +834,15 @@ describe('html', function() {
         assets: ['300x300.png'],
       },
     ]);
+
+    const html = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+
+    const source = html.match(/<source srcset=".*>/)[0];
+
+    assert(source.split(', ').length === 3);
   });
 
-  it('should detect imagesrcset attribute', async function() {
+  it('should detect imagesrcset attribute', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-imagesrcset/index.html'),
     );
@@ -724,7 +867,7 @@ describe('html', function() {
     ]);
   });
 
-  it.skip('should support webmanifest', async function() {
+  it.skip('should support webmanifest', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/webmanifest/index.html'),
     );
@@ -748,7 +891,7 @@ describe('html', function() {
     });
   });
 
-  it.skip("should treat webmanifest as an entry module so it doesn't get content hashed", async function() {
+  it.skip("should treat webmanifest as an entry module so it doesn't get content hashed", async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/html-manifest/index.html'),
     );
@@ -771,7 +914,7 @@ describe('html', function() {
     assert(html.includes('<link rel="manifest" href="/manifest.webmanifest">'));
   });
 
-  it('should bundle svg files correctly', async function() {
+  it('should bundle svg files correctly', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-svg/index.html'),
     );
@@ -788,7 +931,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should ignore svgs referencing local symbols via <use xlink:href="#">', async function() {
+  it('should ignore svgs referencing local symbols via <use xlink:href="#">', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-svg-local-symbol/index.html'),
       {
@@ -806,12 +949,12 @@ describe('html', function() {
     let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
       contents.includes(
-        '<svg><symbol id="all"><rect width="100" height="100"/></symbol></svg><svg xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#all" href="#all"/></svg>',
+        '<svg><symbol id="all"><rect width="100" height="100"/></symbol></svg><svg><use xlink:href="#all" href="#all"/></svg>',
       ),
     );
   });
 
-  it('should bundle svg files using <image xlink:href=""> correctly', async function() {
+  it('should bundle svg files using <image xlink:href=""> correctly', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-svg-image/index.html'),
     );
@@ -828,8 +971,25 @@ describe('html', function() {
     ]);
   });
 
+  it("should support href attribute in <image /> in HTMLTransformer's collectDependencies", async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-image-href-attr/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'png',
+        assets: ['100x100.png'],
+      },
+    ]);
+  });
+
   // Based on https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
-  it('should bundle scripts inside svg', async function() {
+  it('should bundle scripts inside svg', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-svg-script/index.html'),
     );
@@ -850,7 +1010,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should support data attribute of object element', async function() {
+  it('should support data attribute of object element', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-object/index.html'),
     );
@@ -867,7 +1027,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should resolve assets containing spaces', async function() {
+  it('should resolve assets containing spaces', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-spaces/index.html'),
     );
@@ -884,7 +1044,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should process inline JS', async function() {
+  it('should process inline JS', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
       {
@@ -915,7 +1075,7 @@ describe('html', function() {
     assert(!html.includes('someArgument'));
   });
 
-  it('should process inline styles', async function() {
+  it('should process inline styles', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-styles/index.html'),
       {
@@ -976,7 +1136,7 @@ describe('html', function() {
     }
   });
 
-  it('should process inline element styles', async function() {
+  it('should process inline element styles', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -1005,7 +1165,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should process inline styles using lang', async function() {
+  it('should process inline styles using lang', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-sass/index.html'),
       {
@@ -1034,7 +1194,7 @@ describe('html', function() {
     assert(!html.includes('sourceMappingURL'));
   });
 
-  it('should process inline non-js scripts', async function() {
+  it('should process inline non-js scripts', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-coffeescript/index.html'),
       {
@@ -1062,7 +1222,7 @@ describe('html', function() {
     assert(html.includes('alert("Hello, World!")'));
   });
 
-  it('should handle inline css with @imports', async function() {
+  it('should handle inline css with @imports', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-css-import/index.html'),
     );
@@ -1085,7 +1245,7 @@ describe('html', function() {
     assert(!html.includes('@import'));
   });
 
-  it('should not modify inline importmaps', async function() {
+  it('should not modify inline importmaps', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-importmap/index.html'),
       {},
@@ -1102,7 +1262,7 @@ describe('html', function() {
     assert(html.includes('/node_modules/lit1.3.0/'));
   });
 
-  it('should expose top level declarations globally in inline <script> tags', async function() {
+  it('should expose top level declarations globally in inline <script> tags', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-script/globals.html'),
     );
@@ -1146,7 +1306,7 @@ describe('html', function() {
     it(
       'should expose top level declarations globally in inline <script> tags with dependencies with scopeHoist = ' +
         scopeHoist,
-      async function() {
+      async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -1206,7 +1366,7 @@ describe('html', function() {
     );
   }
 
-  it('should error on imports in inline scripts without type="module"', async function() {
+  it('should error on imports in inline scripts without type="module"', async function () {
     let errored = false;
     try {
       await bundle(
@@ -1242,9 +1402,9 @@ describe('html', function() {
               ],
             },
           ],
-          hints: [
-            'Add type="module" as a second argument to the <script> tag.',
-          ],
+          hints: ['Add the type="module" attribute to the <script> tag.'],
+          documentationURL:
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
 
@@ -1254,7 +1414,31 @@ describe('html', function() {
     assert(errored);
   });
 
-  it('should allow imports and requires in inline <script> tags', async function() {
+  it('should not import swc/helpers without type="module"', async function () {
+    await bundle(
+      path.join(
+        __dirname,
+        '/integration/html-js-not-import-swc-helpers-without-module/index.html',
+      ),
+      {
+        defaultTargetOptions: {
+          engines: {
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment#browser_compatibility
+            browsers: ['Chrome 48'],
+          },
+        },
+      },
+    );
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(!html.includes('swc/helpers'));
+    assert(html.includes('slicedToArray'));
+  });
+
+  it('should allow imports and requires in inline <script> tags', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-require/index.html'),
       {
@@ -1282,7 +1466,7 @@ describe('html', function() {
     assert(html.includes('console.log("test")'));
   });
 
-  it('should support protocol-relative urls', async function() {
+  it('should support protocol-relative urls', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-protocol-relative/index.html'),
     );
@@ -1304,7 +1488,7 @@ describe('html', function() {
     }
   });
 
-  it('should support inline <script type="module">', async function() {
+  it('should support inline <script type="module">', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-module/index.html'),
       {
@@ -1333,7 +1517,7 @@ describe('html', function() {
     assert(html.includes('document.write("Hello world")'));
   });
 
-  it('should compile inline <script type="module"> to non-module if not all engines support esmodules', async function() {
+  it('should compile inline <script type="module"> to non-module if not all engines support esmodules', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-module/index.html'),
       {
@@ -1367,7 +1551,7 @@ describe('html', function() {
     assert(html.includes('document.write("Hello world")'));
   });
 
-  it('should compile a module and nomodule script when not all engines support esmodules natively', async function() {
+  it('should compile a module and nomodule script when not all engines support esmodules natively', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js/index.html'),
       {
@@ -1419,7 +1603,7 @@ describe('html', function() {
     assert(!/class \$[a-f0-9]+\$var\$Useless \{/.test(js));
   });
 
-  it('should remove type="module" when not scope hoisting', async function() {
+  it('should remove type="module" when not scope hoisting', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js/index.html'),
     );
@@ -1443,7 +1627,7 @@ describe('html', function() {
     assert(html.includes('<script src='));
   });
 
-  it('should not add a nomodule version when all browsers support esmodules', async function() {
+  it('should not add a nomodule version when all browsers support esmodules', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js/index.html'),
       {
@@ -1476,7 +1660,7 @@ describe('html', function() {
     assert(!/<script src=".*?" nomodule/.test(html));
   });
 
-  it('should error on imports in scripts without type="module"', async function() {
+  it('should error on imports in scripts without type="module"', async function () {
     let errored = false;
     try {
       await bundle(path.join(__dirname, '/integration/html-js/error.html'));
@@ -1523,9 +1707,9 @@ describe('html', function() {
               ],
             },
           ],
-          hints: [
-            'Add type="module" as a second argument to the <script> tag.',
-          ],
+          hints: ['Add the type="module" attribute to the <script> tag.'],
+          documentationURL:
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
 
@@ -1535,7 +1719,7 @@ describe('html', function() {
     assert(errored);
   });
 
-  it('should correctly bundle loaders for nested dynamic imports', async function() {
+  it('should correctly bundle loaders for nested dynamic imports', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -1587,7 +1771,7 @@ describe('html', function() {
     assert.deepEqual(await res.output, ['hasher', ['hasher', 'hasher']]);
   });
 
-  it('should support shared bundles between multiple inline scripts', async function() {
+  it('should support shared bundles between multiple inline scripts', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
       {
@@ -1628,7 +1812,7 @@ describe('html', function() {
     assert(html.includes('.add(2, 3)'));
   });
 
-  it('inserts sibling bundles into html in the correct order (no head)', async function() {
+  it('inserts sibling bundles into html in the correct order (no head)', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared/index.html'),
       {
@@ -1689,7 +1873,7 @@ describe('html', function() {
     // assert.equal(insertedBundles[0], lodashSibling);
   });
 
-  it('inserts sibling bundles into html in the correct order (head)', async function() {
+  it('inserts sibling bundles into html in the correct order (head)', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared-head/index.html'),
       {
@@ -1750,7 +1934,7 @@ describe('html', function() {
     // assert.equal(insertedBundles[0], lodashSibling);
   });
 
-  it('inserts sibling bundles into html with nomodule or type=module', async function() {
+  it('inserts sibling bundles into html with nomodule or type=module', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared-nomodule/*.html'),
       {
@@ -1841,7 +2025,7 @@ describe('html', function() {
     }
   });
 
-  it('should isolate async scripts', async function() {
+  it('should isolate async scripts', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-async-script/index.html'),
       {
@@ -1877,7 +2061,7 @@ describe('html', function() {
     assert(output.sort(), ['a', 'b', 'c']);
   });
 
-  it('should isolate classic scripts from nomodule scripts', async function() {
+  it('should isolate classic scripts from nomodule scripts', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-isolate-script/index.html'),
       {
@@ -1934,7 +2118,7 @@ describe('html', function() {
     assert(output.sort(), ['a', 'b', 'c']);
   });
 
-  it('should support multiple entries with shared sibling bundles', async function() {
+  it('should support multiple entries with shared sibling bundles', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
       {
@@ -1989,7 +2173,7 @@ describe('html', function() {
     assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
   });
 
-  it('should insert JS sibling bundle script tags in the correct order', async function() {
+  it('should insert JS sibling bundle script tags in the correct order', async function () {
     let b = await bundle(
       path.join(
         __dirname,
@@ -2027,7 +2211,7 @@ describe('html', function() {
     assert.deepEqual(await res.output, ['client', 'client', 'viewer']);
   });
 
-  it('should not point to unrelated sibling bundles', async function() {
+  it('should not point to unrelated sibling bundles', async function () {
     await bundle(
       path.join(
         __dirname,
@@ -2089,7 +2273,7 @@ describe('html', function() {
     assert(css.includes('.b {'));
   });
 
-  it('should support split bundles with many pages', async function() {
+  it('should support split bundles with many pages', async function () {
     await bundle(path.join(__dirname, '/integration/shared-many/*.html'), {
       mode: 'production',
     });
@@ -2117,7 +2301,7 @@ describe('html', function() {
     assert.equal(html.match(/<script/g).length, 5);
   });
 
-  it('should not add CSS to a worker bundle group', async function() {
+  it('should not add CSS to a worker bundle group', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-worker-css/index.html'),
     );
@@ -2159,7 +2343,7 @@ describe('html', function() {
     assert.equal(workerSiblings.length, 0);
   });
 
-  it('should correctly add sibling bundles to all using bundles', async function() {
+  it('should correctly add sibling bundles to all using bundles', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling/*.html'),
     );
@@ -2216,7 +2400,7 @@ describe('html', function() {
     }
   });
 
-  it('should remove duplicate assets from sibling bundles', async function() {
+  it('should remove duplicate assets from sibling bundles', async function () {
     let bundleGraph = await bundle(
       path.join(__dirname, '/integration/shared-sibling-duplicate/*.html'),
       {mode: 'production'},
@@ -2224,7 +2408,7 @@ describe('html', function() {
 
     bundleGraph.traverseBundles(bundle => {
       bundle.traverseAssets(asset => {
-        let bundles = bundleGraph.findBundlesWithAsset(asset);
+        let bundles = bundleGraph.getBundlesWithAsset(asset);
         assert.equal(
           bundles.length,
           1,
@@ -2234,7 +2418,7 @@ describe('html', function() {
     });
   });
 
-  it('should support split bundles with many pages with esmodule output', async function() {
+  it('should support split bundles with many pages with esmodule output', async function () {
     await bundle(path.join(__dirname, '/integration/shared-many-esm/*.html'), {
       defaultTargetOptions: {
         shouldScopeHoist: true,
@@ -2273,7 +2457,7 @@ describe('html', function() {
     }
   });
 
-  it('should include the correct paths when using multiple entries and referencing style from html and js', async function() {
+  it('should include the correct paths when using multiple entries and referencing style from html and js', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-multi-entry/*.html'),
       {
@@ -2341,7 +2525,7 @@ describe('html', function() {
     );
   });
 
-  it('should invalidate parent bundle when inline bundles change', async function() {
+  it('should invalidate parent bundle when inline bundles change', async function () {
     // copy into memory fs
     await ncp(
       path.join(__dirname, '/integration/html-inline-js-require'),
@@ -2365,7 +2549,7 @@ describe('html', function() {
     await getNextBuild(b);
 
     let html = await outputFS.readFile('/dist/index.html', 'utf8');
-    assert(html.includes("console.log('test')"));
+    assert(html.includes(`console.log("test")`));
 
     await overlayFS.writeFile(
       path.join(__dirname, '/html-inline-js-require/test.js'),
@@ -2374,10 +2558,10 @@ describe('html', function() {
     await getNextBuild(b);
 
     html = await outputFS.readFile(path.join(distDir, '/index.html'), 'utf8');
-    assert(html.includes("console.log('foo')"));
+    assert(html.includes(`console.log("foo")`));
   });
 
-  it('should invalidate parent bundle when nested inline bundles change', async function() {
+  it('should invalidate parent bundle when nested inline bundles change', async function () {
     // copy into memory fs
     await ncp(
       path.join(__dirname, '/integration/html-inline-js-nested'),
@@ -2432,7 +2616,7 @@ describe('html', function() {
     );
     assert.equal(
       contents.trim(),
-      `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A">`,
+      `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A">`,
     );
   });
 
@@ -2471,7 +2655,7 @@ describe('html', function() {
     });
   });
 
-  it('should escape inline script tags', async function() {
+  it('should escape inline script tags', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/html-inline-escape/script.html'),
     );
@@ -2489,20 +2673,16 @@ describe('html', function() {
     });
   });
 
-  it('should escape quotes in inline style attributes and style tags', async function() {
+  it('should escape quotes in inline style attributes and style tags', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/html-inline-escape/style.html'),
     );
     let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    let name = path.basename(
-      b.getBundles().find(b => b.type === 'png').filePath,
-      'utf8',
-    );
-    assert(output.includes(`url(&quot;${name}&quot;)`));
+    assert(output.includes(`content: &quot;hi&quot;`));
     assert(output.includes('<\\/style>'));
   });
 
-  it('should work with bundle names that have colons in them', async function() {
+  it('should work with bundle names that have colons in them', async function () {
     if (process.platform === 'win32') {
       return;
     }
@@ -2553,7 +2733,7 @@ describe('html', function() {
     assert(output.includes('/a:b:c.html'));
   });
 
-  it('should normalize case of SVG elements and attributes when minified', async function() {
+  it('should normalize case of SVG elements and attributes when minified', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/html-svg-case/index.html'),
       {
@@ -2566,5 +2746,129 @@ describe('html', function() {
     assert(output.includes('<svg role="img" viewBox='));
     assert(output.includes('<filter'));
     assert(output.includes('<feGaussianBlur in="SourceGraphic" stdDeviation='));
+  });
+
+  it('should throw error with empty string reference to other resource', async function () {
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(__dirname, 'integration/html-empty-reference/index.html'),
+          {
+            mode: 'production',
+          },
+        ),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: "'src' should not be empty string",
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/html-empty-reference/index.html',
+                ),
+                language: 'html',
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 1,
+                      line: 1,
+                    },
+                    end: {
+                      column: 14,
+                      line: 1,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+
+          {
+            message: "'src' should not be empty string",
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/html-empty-reference/index.html',
+                ),
+                language: 'html',
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 1,
+                      line: 2,
+                    },
+                    end: {
+                      column: 24,
+                      line: 2,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+
+          {
+            message: "'href' should not be empty string",
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  'integration/html-empty-reference/index.html',
+                ),
+                language: 'html',
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 1,
+                      line: 3,
+                    },
+                    end: {
+                      column: 16,
+                      line: 3,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    );
+  });
+
+  it('extracts shared bundles that load referenced bundle roots across entries', async () => {
+    let b = await bundle(
+      ['index1.html', 'index2.html'].map(entry =>
+        path.join(__dirname, 'integration/html-shared-referenced', entry),
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    await run(b);
+  });
+
+  it('should not skip bundleRoots if an asset is both async required and static required', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-sync-async-asset/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    await run(b, {output: null}, {require: false});
   });
 });

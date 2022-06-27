@@ -2,7 +2,7 @@ import type {InitialParcelOptions, BuildEvent, BuildSuccessEvent, AsyncSubscript
 import type {FarmOptions} from '@parcel/workers';
 import type WorkerFarm from '@parcel/workers';
 
-declare class Parcel {
+export class Parcel {
   constructor(options: InitialParcelOptions);
   run(): Promise<BuildSuccessEvent>;
   watch(
@@ -11,3 +11,5 @@ declare class Parcel {
 }
 
 export declare function createWorkerFarm(options?: Partial<FarmOptions>): WorkerFarm;
+
+export default Parcel;

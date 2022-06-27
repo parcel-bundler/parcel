@@ -6,7 +6,7 @@ import spawn from 'cross-spawn';
 import path from 'path';
 import {minify} from 'terser';
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 // $FlowFixMe
 import elm from 'node-elm-compiler';
 // $FlowFixMe
@@ -46,6 +46,7 @@ export default (new Transformer({
       // $FlowFixMe[sketchy-null-string]
       debug: !options.env.PARCEL_ELM_NO_DEBUG && options.mode !== 'production',
       optimize: asset.env.shouldOptimize,
+      report: 'json',
     };
     asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
     for (const filePath of await elm.findAllDependencies(asset.filePath)) {
@@ -56,8 +57,20 @@ export default (new Transformer({
     // this can be removed after https://github.com/isaacs/node-graceful-fs/pull/200 was mergend and used in parcel
     // $FlowFixMe[method-unbinding]
     process.chdir.disabled = isWorker;
+    let code;
+    try {
+      code = await compileToString(elm, elmBinary, asset, compilerConfig);
+    } catch (e) {
+      let compilerJson = e.message.split('\n')[1];
+      let compilerDiagnostics = JSON.parse(compilerJson);
 
-    let code = await compileToString(elm, elmBinary, asset, compilerConfig);
+      throw new ThrowableDiagnostic({
+        diagnostic: compilerDiagnostics.errors.flatMap(
+          elmErrorToParcelDiagnostics,
+        ),
+      });
+    }
+
     if (options.hmrOptions) {
       code = elmHMR.inject(code);
     }
@@ -110,6 +123,25 @@ function compileToString(elm, elmBinary, asset, config) {
   });
 }
 
+let elmPureFuncs = [
+  'F2',
+  'F3',
+  'F4',
+  'F5',
+  'F6',
+  'F7',
+  'F8',
+  'F9',
+  'A2',
+  'A3',
+  'A4',
+  'A5',
+  'A6',
+  'A7',
+  'A8',
+  'A9',
+];
+
 async function minifyElmOutput(source) {
   // Recommended minification
   // Based on: http://elm-lang.org/0.19.0/optimize
@@ -117,31 +149,46 @@ async function minifyElmOutput(source) {
     compress: {
       keep_fargs: false,
       passes: 2,
-      pure_funcs: [
-        'F2',
-        'F3',
-        'F4',
-        'F5',
-        'F6',
-        'F7',
-        'F8',
-        'F9',
-        'A2',
-        'A3',
-        'A4',
-        'A5',
-        'A6',
-        'A7',
-        'A8',
-        'A9',
-      ],
+      pure_funcs: elmPureFuncs,
       pure_getters: true,
       unsafe: true,
       unsafe_comps: true,
     },
-    mangle: true,
+    mangle: {
+      reserved: elmPureFuncs,
+    },
   });
 
   if (result.code != null) return result.code;
   throw result.error;
+}
+
+function formatMessagePiece(piece) {
+  if (piece.string) {
+    if (piece.underline) {
+      return md`${md.underline(piece.string)}`;
+    }
+    return md`${md.bold(piece.string)}`;
+  }
+  return md`${piece}`;
+}
+
+function elmErrorToParcelDiagnostics(error) {
+  const relativePath = path.relative(process.cwd(), error.path);
+  return error.problems.map(problem => {
+    const padLength = 80 - 5 - problem.title.length - relativePath.length;
+    const dashes = '-'.repeat(padLength);
+    const message = [
+      '',
+      `-- ${problem.title} ${dashes} ${relativePath}`,
+      '',
+      problem.message.map(formatMessagePiece).join(''),
+    ].join('\n');
+
+    return {
+      message,
+      origin: '@parcel/elm-transformer',
+      stack: '', // set stack to empty since it is not useful
+    };
+  });
 }

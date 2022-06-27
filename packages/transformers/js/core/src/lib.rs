@@ -1,5 +1,4 @@
 extern crate swc_common;
-extern crate swc_ecma_preset_env;
 extern crate swc_ecmascript;
 #[macro_use]
 extern crate swc_atoms;
@@ -19,6 +18,8 @@ mod fs;
 mod global_replacer;
 mod hoist;
 mod modules;
+mod node_replacer;
+mod typeof_replacer;
 mod utils;
 
 use std::collections::{HashMap, HashSet};
@@ -30,27 +31,34 @@ use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_ecma_preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
-use swc_ecmascript::transforms::resolver::resolver_with_mark;
+use swc_ecmascript::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
+use swc_ecmascript::transforms::fixer::paren_remover;
+use swc_ecmascript::transforms::resolver;
 use swc_ecmascript::transforms::{
   compat::reserved_words::reserved_words, fixer, helpers, hygiene,
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
   pass::Optional, proposals::decorators, react, typescript,
 };
-use swc_ecmascript::visit::FoldWith;
+use swc_ecmascript::visit::{FoldWith, VisitWith};
 
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::hoist;
+use hoist::{hoist, CollectResult, HoistResult};
 use modules::esm2cjs;
-use utils::{CodeHighlight, Diagnostic, SourceLocation, SourceType};
+use node_replacer::NodeReplacer;
+use typeof_replacer::*;
+use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+
+use crate::hoist::Collect;
+
+type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -63,6 +71,7 @@ pub struct Config {
   env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
   inline_fs: bool,
   insert_node_globals: bool,
+  node_replacer: bool,
   is_browser: bool,
   is_worker: bool,
   is_type_script: bool,
@@ -72,6 +81,7 @@ pub struct Config {
   automatic_jsx_runtime: bool,
   jsx_import_source: Option<String>,
   decorators: bool,
+  use_define_for_class_fields: bool,
   is_development: bool,
   react_refresh: bool,
   targets: Option<HashMap<String, String>>,
@@ -81,19 +91,23 @@ pub struct Config {
   supports_module_workers: bool,
   is_library: bool,
   is_esm_output: bool,
+  trace_bailouts: bool,
+  is_swc_helpers: bool,
 }
 
-#[derive(Serialize, Debug, Deserialize, Default)]
+#[derive(Serialize, Debug, Default)]
 pub struct TransformResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   map: Option<String>,
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
-  hoist_result: Option<hoist::HoistResult>,
+  hoist_result: Option<HoistResult>,
+  symbol_result: Option<CollectResult>,
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
+  has_node_replacements: bool,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -155,50 +169,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
       let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
       err.into_diagnostic(&handler).emit();
 
-      let s = error_buffer.0.lock().unwrap().clone();
-      let diagnostics: Vec<Diagnostic> = s
-        .iter()
-        .map(|diagnostic| {
-          let message = diagnostic.message();
-          let span = diagnostic.span.clone();
-          let suggestions = diagnostic.suggestions.clone();
-
-          let span_labels = span.span_labels();
-          let code_highlights = if !span_labels.is_empty() {
-            let mut highlights = vec![];
-            for span_label in span_labels {
-              highlights.push(CodeHighlight {
-                message: span_label.label,
-                loc: SourceLocation::from(&source_map, span_label.span),
-              });
-            }
-
-            Some(highlights)
-          } else {
-            None
-          };
-
-          let hints = if !suggestions.is_empty() {
-            Some(
-              suggestions
-                .into_iter()
-                .map(|suggestion| suggestion.msg)
-                .collect(),
-            )
-          } else {
-            None
-          };
-
-          Diagnostic {
-            message,
-            code_highlights,
-            hints,
-            show_environment: false,
-          }
-        })
-        .collect();
-
-      result.diagnostics = Some(diagnostics);
+      result.diagnostics = Some(error_buffer_to_diagnostics(&error_buffer, &source_map));
       Ok(result)
     }
     Ok((module, comments)) => {
@@ -216,199 +187,312 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
       let should_inline_fs = config.inline_fs
         && config.source_type != SourceType::Script
         && code.contains("readFileSync");
+      let should_import_swc_helpers = match config.source_type {
+        SourceType::Module => true,
+        SourceType::Script => false,
+      };
+
       swc_common::GLOBALS.set(&Globals::new(), || {
-        helpers::HELPERS.set(
-          &helpers::Helpers::new(/* external helpers from @swc/helpers */ true),
-          || {
-            let mut react_options = react::Options::default();
-            if config.is_jsx {
-              react_options.use_spread = true;
-              if let Some(jsx_pragma) = &config.jsx_pragma {
-                react_options.pragma = jsx_pragma.clone();
-              }
-              if let Some(jsx_pragma_frag) = &config.jsx_pragma_frag {
-                react_options.pragma_frag = jsx_pragma_frag.clone();
-              }
-              react_options.development = config.is_development;
-              react_options.refresh = if config.react_refresh {
-                Some(react::RefreshOptions::default())
-              } else {
-                None
-              };
-
-              react_options.runtime = if config.automatic_jsx_runtime {
-                if let Some(import_source) = &config.jsx_import_source {
-                  react_options.import_source = import_source.clone();
+        let error_buffer = ErrorBuffer::default();
+        let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
+        swc_common::errors::HANDLER.set(&handler, || {
+          helpers::HELPERS.set(
+            &helpers::Helpers::new(
+              /* external helpers from @swc/helpers */ should_import_swc_helpers,
+            ),
+            || {
+              let mut react_options = react::Options::default();
+              if config.is_jsx {
+                react_options.use_spread = Some(true);
+                if let Some(jsx_pragma) = &config.jsx_pragma {
+                  react_options.pragma = Some(jsx_pragma.clone());
                 }
-                Some(react::Runtime::Automatic)
-              } else {
-                Some(react::Runtime::Classic)
-              };
-            }
+                if let Some(jsx_pragma_frag) = &config.jsx_pragma_frag {
+                  react_options.pragma_frag = Some(jsx_pragma_frag.clone());
+                }
+                react_options.development = Some(config.is_development);
+                react_options.refresh = if config.react_refresh {
+                  Some(react::RefreshOptions::default())
+                } else {
+                  None
+                };
 
-            module = {
-              let mut passes = chain!(
-                Optional::new(
-                  react::react(source_map.clone(), Some(&comments), react_options),
-                  config.is_jsx
-                ),
-                // Decorators can use type information, so must run before the TypeScript pass.
-                Optional::new(
-                  decorators::decorators(decorators::Config {
-                    legacy: true,
-                    // Always disabled for now, SWC's implementation doesn't match TSC.
-                    emit_metadata: false
-                  }),
-                  config.decorators
-                ),
-                Optional::new(typescript::strip(), config.is_type_script)
-              );
+                react_options.runtime = if config.automatic_jsx_runtime {
+                  if let Some(import_source) = &config.jsx_import_source {
+                    react_options.import_source = Some(import_source.clone());
+                  }
+                  Some(react::Runtime::Automatic)
+                } else {
+                  Some(react::Runtime::Classic)
+                };
+              }
 
-              module.fold_with(&mut passes)
-            };
-
-            let global_mark = Mark::fresh(Mark::root());
-            let ignore_mark = Mark::fresh(Mark::root());
-            let module = module.fold_with(&mut resolver_with_mark(global_mark));
-            let mut decls = collect_decls(&module);
-
-            let mut preset_env_config = swc_ecma_preset_env::Config::default();
-            preset_env_config.dynamic_import = true;
-            let versions = targets_to_versions(&config.targets);
-            if let Some(versions) = versions {
-              preset_env_config.targets = Some(Targets::Versions(versions));
-              preset_env_config.shipped_proposals = true;
-              preset_env_config.mode = Some(Entry);
-              preset_env_config.bugfixes = true;
-            }
-
-            let mut diagnostics = vec![];
-            let module = {
-              let mut passes = chain!(
-                // Inline process.env and process.browser
-                Optional::new(
-                  EnvReplacer {
-                    replace_env: config.replace_env,
-                    env: &config.env,
-                    is_browser: config.is_browser,
-                    decls: &decls,
-                    used_env: &mut result.used_env
-                  },
-                  config.source_type != SourceType::Script
-                ),
-                // Simplify expressions and remove dead branches so that we
-                // don't include dependencies inside conditionals that are always false.
-                expr_simplifier(),
-                dead_branch_remover(),
-                // Inline Node fs.readFileSync calls
-                Optional::new(
-                  inline_fs(
-                    config.filename.as_str(),
-                    source_map.clone(),
-                    decls.clone(),
-                    global_mark,
-                    &config.project_root,
-                    &mut fs_deps,
+              let global_mark = Mark::fresh(Mark::root());
+              let unresolved_mark = Mark::fresh(Mark::root());
+              module = {
+                let mut passes = chain!(
+                  // Decorators can use type information, so must run before the TypeScript pass.
+                  Optional::new(
+                    decorators::decorators(decorators::Config {
+                      legacy: true,
+                      use_define_for_class_fields: config.use_define_for_class_fields,
+                      // Always disabled for now, SWC's implementation doesn't match TSC.
+                      emit_metadata: false,
+                    }),
+                    config.decorators
                   ),
-                  should_inline_fs
-                ),
-              );
+                  Optional::new(
+                    typescript::strip_with_jsx(
+                      source_map.clone(),
+                      typescript::Config {
+                        pragma: react_options.pragma.clone(),
+                        pragma_frag: react_options.pragma_frag.clone(),
+                        ..Default::default()
+                      },
+                      Some(&comments),
+                      global_mark,
+                    ),
+                    config.is_type_script && config.is_jsx
+                  ),
+                  Optional::new(
+                    typescript::strip(global_mark),
+                    config.is_type_script && !config.is_jsx
+                  ),
+                  resolver(unresolved_mark, global_mark, config.is_type_script),
+                  Optional::new(
+                    react::react(
+                      source_map.clone(),
+                      Some(&comments),
+                      react_options,
+                      global_mark
+                    ),
+                    config.is_jsx
+                  ),
+                );
 
-              module.fold_with(&mut passes)
-            };
+                module.fold_with(&mut passes)
+              };
 
-            let module = {
-              let mut passes = chain!(
-                // Insert dependencies for node globals
-                Optional::new(
-                  GlobalReplacer {
+              let mut decls = collect_decls(&module);
+
+              let mut preset_env_config = swc_ecmascript::preset_env::Config {
+                dynamic_import: true,
+                ..Default::default()
+              };
+              let versions = targets_to_versions(&config.targets);
+              let mut should_run_preset_env = false;
+              if !config.is_swc_helpers {
+                // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
+                // Filter the versions for preset_env only so that syntax support checks
+                // (e.g. in esm2cjs) still work correctly.
+                if let Some(versions) = versions {
+                  should_run_preset_env = true;
+                  preset_env_config.targets = Some(Targets::Versions(versions));
+                  preset_env_config.shipped_proposals = true;
+                  preset_env_config.mode = Some(Entry);
+                  preset_env_config.bugfixes = true;
+                }
+              }
+
+              let mut diagnostics = vec![];
+              let module = {
+                let mut passes = chain!(
+                  Optional::new(
+                    TypeofReplacer { decls: &decls },
+                    config.source_type != SourceType::Script
+                  ),
+                  // Inline process.env and process.browser
+                  Optional::new(
+                    EnvReplacer {
+                      replace_env: config.replace_env,
+                      env: &config.env,
+                      is_browser: config.is_browser,
+                      decls: &decls,
+                      used_env: &mut result.used_env,
+                      source_map: &source_map,
+                      diagnostics: &mut diagnostics,
+                      unresolved_mark
+                    },
+                    config.source_type != SourceType::Script
+                  ),
+                  paren_remover(Some(&comments)),
+                  // Simplify expressions and remove dead branches so that we
+                  // don't include dependencies inside conditionals that are always false.
+                  expr_simplifier(unresolved_mark, Default::default()),
+                  dead_branch_remover(unresolved_mark),
+                  // Inline Node fs.readFileSync calls
+                  Optional::new(
+                    inline_fs(
+                      config.filename.as_str(),
+                      source_map.clone(),
+                      // TODO this clone is unnecessary if we get the lifetimes right
+                      decls.clone(),
+                      global_mark,
+                      &config.project_root,
+                      &mut fs_deps,
+                    ),
+                    should_inline_fs
+                  ),
+                );
+
+                module.fold_with(&mut passes)
+              };
+
+              let module = module.fold_with(
+                // Replace __dirname and __filename with placeholders in Node env
+                &mut Optional::new(
+                  NodeReplacer {
                     source_map: &source_map,
                     items: &mut global_deps,
+                    global_mark,
                     globals: HashMap::new(),
                     project_root: Path::new(&config.project_root),
                     filename: Path::new(&config.filename),
                     decls: &mut decls,
-                    global_mark,
-                    scope_hoist: config.scope_hoist
+                    scope_hoist: config.scope_hoist,
+                    has_node_replacements: &mut result.has_node_replacements,
                   },
-                  config.insert_node_globals && config.source_type != SourceType::Script
+                  config.node_replacer,
                 ),
-                // Transpile new syntax to older syntax if needed
-                Optional::new(
-                  preset_env(global_mark, Some(&comments), preset_env_config),
-                  config.targets.is_some()
-                ),
-                // Inject SWC helpers if needed.
-                helpers::inject_helpers(),
               );
 
-              module.fold_with(&mut passes)
-            };
+              let module = {
+                let mut passes = chain!(
+                  // Insert dependencies for node globals
+                  Optional::new(
+                    GlobalReplacer {
+                      source_map: &source_map,
+                      items: &mut global_deps,
+                      global_mark,
+                      globals: HashMap::new(),
+                      project_root: Path::new(&config.project_root),
+                      filename: Path::new(&config.filename),
+                      decls: &mut decls,
+                      scope_hoist: config.scope_hoist
+                    },
+                    config.insert_node_globals
+                  ),
+                  // Transpile new syntax to older syntax if needed
+                  Optional::new(
+                    preset_env(
+                      global_mark,
+                      Some(&comments),
+                      preset_env_config,
+                      Default::default(),
+                    ),
+                    should_run_preset_env,
+                  ),
+                  // Inject SWC helpers if needed.
+                  helpers::inject_helpers(),
+                );
 
-            let module = module.fold_with(
-              // Collect dependencies
-              &mut dependency_collector(
-                &source_map,
-                &mut result.dependencies,
-                &decls,
-                ignore_mark,
-                &config,
-                &mut diagnostics,
-              ),
-            );
+                module.fold_with(&mut passes)
+              };
 
-            if !diagnostics.is_empty() {
-              result.diagnostics = Some(diagnostics);
-              return Ok(result);
-            }
+              // Flush Id=(JsWord, SyntaxContexts) into unique names and reresolve to
+              // set global_mark for all nodes, even generated ones.
+              // - This changes the syntax context ids and therefore invalidates decls
+              // - This will also remove any other other marks (like ignore_mark)
+              // This only needs to be done if preset_env ran because all other transforms
+              // insert declarations with global_mark (even though they are generated).
+              let (decls, module) = if config.scope_hoist && should_run_preset_env {
+                let module = module.fold_with(&mut chain!(
+                  hygiene(),
+                  resolver(unresolved_mark, global_mark, false)
+                ));
+                (collect_decls(&module), module)
+              } else {
+                (decls, module)
+              };
 
-            let module = if config.scope_hoist {
-              let res = hoist(
-                module,
+              let ignore_mark = Mark::fresh(Mark::root());
+              let module = module.fold_with(
+                // Collect dependencies
+                &mut dependency_collector(
+                  &source_map,
+                  &mut result.dependencies,
+                  &decls,
+                  ignore_mark,
+                  unresolved_mark,
+                  &config,
+                  &mut diagnostics,
+                ),
+              );
+
+              diagnostics.extend(error_buffer_to_diagnostics(&error_buffer, &source_map));
+
+              if diagnostics
+                .iter()
+                .any(|d| d.severity == DiagnosticSeverity::Error)
+              {
+                result.diagnostics = Some(diagnostics);
+                return Ok(result);
+              }
+
+              let mut collect = Collect::new(
                 source_map.clone(),
-                config.module_id.as_str(),
                 decls,
                 ignore_mark,
                 global_mark,
+                config.trace_bailouts,
               );
-              match res {
-                Ok((module, hoist_result)) => {
-                  result.hoist_result = Some(hoist_result);
-                  module
-                }
-                Err(diagnostics) => {
-                  result.diagnostics = Some(diagnostics);
-                  return Ok(result);
-                }
+              module.visit_with(&mut collect);
+              if let Some(bailouts) = &collect.bailouts {
+                diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
               }
-            } else {
-              let (module, needs_helpers) = esm2cjs(module, versions);
-              result.needs_esm_helpers = needs_helpers;
-              module
-            };
 
-            let program = {
-              let mut passes = chain!(reserved_words(), hygiene(), fixer(Some(&comments)),);
-              module.fold_with(&mut passes)
-            };
+              let module = if config.scope_hoist {
+                let res = hoist(module, config.module_id.as_str(), unresolved_mark, &collect);
+                match res {
+                  Ok((module, hoist_result, hoist_diagnostics)) => {
+                    result.hoist_result = Some(hoist_result);
+                    diagnostics.extend(hoist_diagnostics);
+                    module
+                  }
+                  Err(diagnostics) => {
+                    result.diagnostics = Some(diagnostics);
+                    return Ok(result);
+                  }
+                }
+              } else {
+                // Bail if we could not statically analyze.
+                if collect.static_cjs_exports && !collect.should_wrap {
+                  result.symbol_result = Some(collect.into());
+                }
 
-            result.dependencies.extend(global_deps);
-            result.dependencies.extend(fs_deps);
+                let (module, needs_helpers) = esm2cjs(module, unresolved_mark, versions);
+                result.needs_esm_helpers = needs_helpers;
+                module
+              };
 
-            let (buf, mut src_map_buf) =
-              emit(source_map.clone(), comments, &program, config.source_maps)?;
-            if config.source_maps {
-              if let Ok(_) = source_map
-                .build_source_map(&mut src_map_buf)
-                .to_writer(&mut map_buf)
+              let module = module.fold_with(&mut chain!(
+                reserved_words(),
+                hygiene(),
+                fixer(Some(&comments)),
+              ));
+
+              result.dependencies.extend(global_deps);
+              result.dependencies.extend(fs_deps);
+
+              if !diagnostics.is_empty() {
+                result.diagnostics = Some(diagnostics);
+              }
+
+              let (buf, mut src_map_buf) =
+                emit(source_map.clone(), comments, &module, config.source_maps)?;
+              if config.source_maps
+                && source_map
+                  .build_source_map(&mut src_map_buf)
+                  .to_writer(&mut map_buf)
+                  .is_ok()
               {
                 result.map = Some(String::from_utf8(map_buf).unwrap());
               }
-            }
-            result.code = buf;
-            Ok(result)
-          },
-        )
+              result.code = buf;
+              Ok(result)
+            },
+          )
+        })
       })
     }
   }
@@ -432,20 +516,18 @@ fn parse(
 
   let comments = SingleThreadedComments::default();
   let syntax = if config.is_type_script {
-    let mut tsconfig = TsConfig::default();
-    tsconfig.tsx = config.is_jsx;
-    tsconfig.dynamic_import = true;
-    tsconfig.decorators = config.decorators;
-    Syntax::Typescript(tsconfig)
+    Syntax::Typescript(TsConfig {
+      tsx: config.is_jsx,
+      decorators: config.decorators,
+      ..Default::default()
+    })
   } else {
-    let mut esconfig = EsConfig::default();
-    esconfig.jsx = config.is_jsx;
-    esconfig.dynamic_import = true;
-    esconfig.export_default_from = true;
-    esconfig.export_namespace_from = true;
-    esconfig.import_meta = true;
-    esconfig.decorators = config.decorators;
-    Syntax::Es(esconfig)
+    Syntax::Es(EsConfig {
+      jsx: config.is_jsx,
+      export_default_from: true,
+      decorators: config.decorators,
+      ..Default::default()
+    })
   };
 
   let lexer = Lexer::new(
@@ -467,7 +549,7 @@ fn emit(
   comments: SingleThreadedComments,
   program: &Module,
   source_maps: bool,
-) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>), std::io::Error> {
+) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
   let mut src_map_buf = vec![];
   let mut buf = vec![];
   {
@@ -481,16 +563,69 @@ fn emit(
         None
       },
     ));
-    let config = swc_ecmascript::codegen::Config { minify: false };
+    let config = swc_ecmascript::codegen::Config {
+      minify: false,
+      ascii_only: false,
+      target: swc_ecmascript::ast::EsVersion::Es5,
+    };
     let mut emitter = swc_ecmascript::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
-      cm: source_map.clone(),
+      cm: source_map,
       wr: writer,
     };
 
-    emitter.emit_module(&program)?;
+    emitter.emit_module(program)?;
   }
 
-  return Ok((buf, src_map_buf));
+  Ok((buf, src_map_buf))
+}
+
+fn error_buffer_to_diagnostics(
+  error_buffer: &ErrorBuffer,
+  source_map: &Lrc<SourceMap>,
+) -> Vec<Diagnostic> {
+  let s = error_buffer.0.lock().unwrap().clone();
+  s.iter()
+    .map(|diagnostic| {
+      let message = diagnostic.message();
+      let span = diagnostic.span.clone();
+      let suggestions = diagnostic.suggestions.clone();
+
+      let span_labels = span.span_labels();
+      let code_highlights = if !span_labels.is_empty() {
+        let mut highlights = vec![];
+        for span_label in span_labels {
+          highlights.push(CodeHighlight {
+            message: span_label.label,
+            loc: SourceLocation::from(source_map, span_label.span),
+          });
+        }
+
+        Some(highlights)
+      } else {
+        None
+      };
+
+      let hints = if !suggestions.is_empty() {
+        Some(
+          suggestions
+            .into_iter()
+            .map(|suggestion| suggestion.msg)
+            .collect(),
+        )
+      } else {
+        None
+      };
+
+      Diagnostic {
+        message,
+        code_highlights,
+        hints,
+        show_environment: false,
+        severity: DiagnosticSeverity::Error,
+        documentation_url: None,
+      }
+    })
+    .collect()
 }

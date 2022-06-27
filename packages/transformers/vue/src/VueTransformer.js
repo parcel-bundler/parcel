@@ -43,12 +43,13 @@ export default (new Transformer({
     return {
       customBlocks: contents.customBlocks || {},
       filePath: conf && conf.filePath,
+      compilerOptions: contents.compilerOptions || {},
     };
   },
   canReuseAST({ast}) {
     return ast.type === 'vue' && semver.satisfies(ast.version, '^3.0.0');
   },
-  async parse({asset}) {
+  async parse({asset, options}) {
     // TODO: This parses the vue component multiple times. Fix?
     let code = await asset.getCode();
     let parsed = compiler.parse(code, {
@@ -63,22 +64,35 @@ export default (new Transformer({
       });
     }
 
+    const descriptor = parsed.descriptor;
+    let id = hashObject({
+      filePath: asset.filePath,
+      source: options.mode === 'production' ? code : null,
+    }).slice(-6);
+
     return {
       type: 'vue',
       version: '3.0.0',
-      program: parsed.descriptor,
+      program: {
+        ...descriptor,
+        script:
+          descriptor.script != null || descriptor.scriptSetup != null
+            ? compiler.compileScript(descriptor, {
+                id,
+                isProd: options.mode === 'production',
+              })
+            : null,
+        id,
+      },
     };
   },
   async transform({asset, options, resolve, config}) {
-    let id = hashObject({
-      filePath: asset.filePath,
-    }).slice(-6);
+    let {template, script, styles, customBlocks, id} = nullthrows(
+      await asset.getAST(),
+    ).program;
     let scopeId = 'data-v-' + id;
     let hmrId = id + '-hmr';
     let basePath = basename(asset.filePath);
-    let {template, script, styles, customBlocks} = nullthrows(
-      await asset.getAST(),
-    ).program;
     if (asset.pipeline != null) {
       return processPipeline({
         asset,
@@ -207,11 +221,18 @@ async function processPipeline({
             await resolve(asset.filePath, template.src),
           )
         ).toString();
-        template.lang = extname(template.src);
+        template.lang = extname(template.src).slice(1);
       }
       let content = template.content;
       if (template.lang && !['htm', 'html'].includes(template.lang)) {
+        let options = {};
         let preprocessor = consolidate[template.lang];
+        // Pug doctype fix (fixes #7756)
+        switch (template.lang) {
+          case 'pug':
+            options.doctype = 'html';
+            break;
+        }
         if (!preprocessor) {
           // TODO: codeframe
           throw new ThrowableDiagnostic({
@@ -221,7 +242,7 @@ async function processPipeline({
             },
           });
         }
-        content = await preprocessor.render(content, {});
+        content = await preprocessor.render(content, options);
       }
       let templateComp = compiler.compileTemplate({
         filename: asset.filePath,
@@ -229,6 +250,11 @@ async function processPipeline({
         inMap: template.src ? undefined : template.map,
         scoped: styles.some(style => style.scoped),
         isFunctional,
+        compilerOptions: {
+          ...config.compilerOptions,
+          bindingMetadata: script ? script.bindings : undefined,
+        },
+        isProd: options.mode === 'production',
         id,
       });
       if (templateComp.errors.length) {
@@ -267,7 +293,7 @@ ${
             await resolve(asset.filePath, script.src),
           )
         ).toString();
-        script.lang = extname(script.src);
+        script.lang = extname(script.src).slice(1);
       }
       let type;
       switch (script.lang || 'js') {
@@ -275,9 +301,15 @@ ${
         case 'js':
           type = 'js';
           break;
+        case 'jsx':
+          type = 'jsx';
+          break;
         case 'typescript':
         case 'ts':
           type = 'ts';
+          break;
+        case 'tsx':
+          type = 'tsx';
           break;
         case 'coffeescript':
         case 'coffee':
@@ -317,7 +349,7 @@ ${
             if (!style.module) {
               style.module = MODULE_BY_NAME_RE.test(style.src);
             }
-            style.lang = extname(style.src);
+            style.lang = extname(style.src).slice(1);
           }
           switch (style.lang) {
             case 'less':
@@ -343,7 +375,8 @@ ${
             modules: style.module,
             preprocessLang: style.lang || 'css',
             scoped: style.scoped,
-            map: style.src ? undefined : style.map,
+            inMap: style.src ? undefined : style.map,
+            isProd: options.mode === 'production',
             id,
           });
           if (styleComp.errors.length) {

@@ -1,29 +1,27 @@
 use std::collections::HashSet;
 
-use swc_atoms::JsWord;
-use swc_common::{SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast;
-use swc_ecmascript::visit::{Node, Visit, VisitWith};
+use swc_ecmascript::ast::{self, Id};
+use swc_ecmascript::visit::{Visit, VisitWith};
 
 /// This pass collects all declarations in a module into a single HashSet of tuples
 /// containing identifier names and their associated syntax context (scope).
 /// This is used later to determine whether an identifier references a declared variable.
-pub fn collect_decls(module: &ast::Module) -> HashSet<(JsWord, SyntaxContext)> {
+pub fn collect_decls(module: &ast::Module) -> HashSet<Id> {
   let mut c = DeclCollector {
     decls: HashSet::new(),
     in_var: false,
   };
-  module.visit_with(&ast::Invalid { span: DUMMY_SP } as _, &mut c);
-  return c.decls;
+  module.visit_with(&mut c);
+  c.decls
 }
 
 struct DeclCollector {
-  decls: HashSet<(JsWord, SyntaxContext)>,
+  decls: HashSet<Id>,
   in_var: bool,
 }
 
 impl Visit for DeclCollector {
-  fn visit_decl(&mut self, node: &ast::Decl, _parent: &dyn Node) {
+  fn visit_decl(&mut self, node: &ast::Decl) {
     use ast::Decl::*;
 
     match node {
@@ -43,22 +41,22 @@ impl Visit for DeclCollector {
     node.visit_children_with(self);
   }
 
-  fn visit_var_declarator(&mut self, node: &ast::VarDeclarator, _parent: &dyn Node) {
+  fn visit_var_declarator(&mut self, node: &ast::VarDeclarator) {
     self.in_var = true;
-    node.name.visit_with(node, self);
+    node.name.visit_with(self);
     self.in_var = false;
     if let Some(init) = &node.init {
-      init.visit_with(node, self);
+      init.visit_with(self);
     }
   }
 
-  fn visit_binding_ident(&mut self, node: &ast::BindingIdent, _parent: &dyn Node) {
+  fn visit_binding_ident(&mut self, node: &ast::BindingIdent) {
     if self.in_var {
       self.decls.insert((node.id.sym.clone(), node.id.span.ctxt));
     }
   }
 
-  fn visit_assign_pat_prop(&mut self, node: &ast::AssignPatProp, _parent: &dyn Node) {
+  fn visit_assign_pat_prop(&mut self, node: &ast::AssignPatProp) {
     if self.in_var {
       self
         .decls
@@ -66,29 +64,29 @@ impl Visit for DeclCollector {
     }
   }
 
-  fn visit_function(&mut self, node: &ast::Function, _parent: &dyn Node) {
+  fn visit_function(&mut self, node: &ast::Function) {
     self.in_var = true;
     for param in &node.params {
-      param.visit_with(node, self);
+      param.visit_with(self);
     }
     self.in_var = false;
 
-    node.body.visit_with(node, self);
+    node.body.visit_with(self);
   }
 
-  fn visit_arrow_expr(&mut self, node: &ast::ArrowExpr, _parent: &dyn Node) {
+  fn visit_arrow_expr(&mut self, node: &ast::ArrowExpr) {
     self.in_var = true;
     for param in &node.params {
-      param.visit_with(node, self);
+      param.visit_with(self);
     }
     self.in_var = false;
 
-    node.body.visit_with(node, self);
+    node.body.visit_with(self);
   }
 
-  fn visit_import_specifier(&mut self, node: &ast::ImportSpecifier, _parent: &dyn Node) {
+  fn visit_import_specifier(&mut self, node: &ast::ImportSpecifier) {
     use ast::ImportSpecifier::*;
-    swc_ecmascript::visit::visit_import_specifier(self, node, _parent);
+    swc_ecmascript::visit::visit_import_specifier(self, node);
 
     match node {
       Default(default) => {

@@ -1,0 +1,26 @@
+{
+  "name": "@parcel/transformer-xml",
+  "version": "2.6.2",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/XMLTransformer.js",
+  "source": "src/XMLTransformer.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.6.2"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.6.2",
+    "@xmldom/xmldom": "^0.7.5"
+  }
+}

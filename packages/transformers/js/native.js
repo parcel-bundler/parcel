@@ -18,7 +18,7 @@ if (process.env.PARCEL_BUILD_ENV === 'production') {
 } else if (process.env.PARCEL_SWC_WASM) {
   const {transform} = require('./wasm/dist-node/parcel_js_swc_wasm.js');
 
-  module.exports.transform = function(config) {
+  module.exports.transform = function (config) {
     let result = transform(config);
     return {
       ...result,
@@ -28,6 +28,4 @@ if (process.env.PARCEL_BUILD_ENV === 'production') {
   };
 } else if (require('fs').existsSync(require('path').join(__dirname, name))) {
   module.exports = require(`./${name}`);
-} else {
-  module.exports = require(`self-published/${name}`);
 }

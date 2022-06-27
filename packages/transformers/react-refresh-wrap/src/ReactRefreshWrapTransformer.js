@@ -8,12 +8,18 @@ function shouldExclude(asset, options) {
     !asset.isSource ||
     !options.hmrOptions ||
     !asset.env.isBrowser() ||
+    asset.env.isLibrary ||
     asset.env.isWorker() ||
     asset.env.isWorklet() ||
     options.mode !== 'development' ||
     !asset
       .getDependencies()
-      .find(v => v.specifier === 'react' || v.specifier === 'react/jsx-runtime')
+      .find(
+        v =>
+          v.specifier === 'react' ||
+          v.specifier === 'react/jsx-runtime' ||
+          v.specifier === 'react/jsx-dev-runtime',
+      )
   );
 }
 

@@ -2,18 +2,20 @@
 
 import type {Config, PluginOptions, PluginLogger} from '@parcel/types';
 import typeof * as BabelCore from '@babel/core';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type {BabelConfig} from './types';
 
+import json5 from 'json5';
 import path from 'path';
-import * as internalBabelCore from '@babel/core';
 import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
+import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
+import {BABEL_CORE_RANGE} from './constants';
 
 import isJSX from './jsx';
 import getFlowOptions from './flow';
 import {enginesToBabelTargets} from './utils';
 
 const TYPESCRIPT_EXTNAME_RE = /\.tsx?$/;
-const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 const JS_EXTNAME_RE = /^\.(js|cjs|mjs)$/;
 const BABEL_CONFIG_FILENAMES = [
   '.babelrc',
@@ -27,8 +29,6 @@ const BABEL_CONFIG_FILENAMES = [
   'babel.config.mjs',
   'babel.config.cjs',
 ];
-
-const BABEL_CORE_RANGE = '^7.12.0';
 
 type BabelConfigResult = {|
   internal: boolean,
@@ -107,10 +107,9 @@ export async function load(
       // We need to invalidate on startup in case the config is non-static,
       // e.g. uses unknown environment variables, reads from the filesystem, etc.
       logger.warn({
-        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${path.basename(
-          file,
-          path.extname(file),
-        ) + '.json'} file instead.`,
+        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${
+          path.basename(file, path.extname(file)) + '.json'
+        } file instead.`,
       });
       config.invalidateOnStartup();
 
@@ -195,6 +194,7 @@ export async function load(
       config.setCacheKey(JSON.stringify(Date.now()));
       config.invalidateOnStartup();
     } else {
+      await warnOnRedundantPlugins(options.inputFS, partialConfig, logger);
       definePluginDependencies(config, partialConfig.options, options);
       config.setCacheKey(hashObject(partialConfig.options));
     }
@@ -230,19 +230,6 @@ async function buildDefaultBabelConfig(
   if (await isJSX(options, config)) {
     syntaxPlugins.push('jsx');
   }
-
-  babelOptions.presets = (babelOptions.presets || []).map(preset =>
-    internalBabelCore.createConfigItem(preset, {
-      type: 'preset',
-      dirname: BABEL_TRANSFORMER_DIR,
-    }),
-  );
-  babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
-    internalBabelCore.createConfigItem(plugin, {
-      type: 'plugin',
-      dirname: BABEL_TRANSFORMER_DIR,
-    }),
-  );
 
   definePluginDependencies(config, babelOptions, options);
   return {
@@ -284,4 +271,143 @@ function definePluginDependencies(config, babelConfig: ?BabelConfig, options) {
       ],
     });
   }
+}
+
+const redundantPresets = new Set([
+  '@babel/preset-env',
+  '@babel/preset-react',
+  '@babel/preset-typescript',
+  '@parcel/babel-preset-env',
+]);
+
+async function warnOnRedundantPlugins(fs, babelConfig, logger) {
+  if (babelConfig == null) {
+    return;
+  }
+
+  let configPath = babelConfig.config ?? babelConfig.babelrc;
+  if (!configPath) {
+    return;
+  }
+
+  let presets = babelConfig.options.presets || [];
+  let plugins = babelConfig.options.plugins || [];
+  let foundRedundantPresets = new Set();
+
+  let filteredPresets = presets.filter(preset => {
+    if (redundantPresets.has(preset.file.request)) {
+      foundRedundantPresets.add(preset.file.request);
+      return false;
+    }
+
+    return true;
+  });
+
+  let filePath = path.relative(process.cwd(), configPath);
+  let diagnostics: Array<Diagnostic> = [];
+
+  if (
+    filteredPresets.length === 0 &&
+    foundRedundantPresets.size > 0 &&
+    plugins.length === 0
+  ) {
+    diagnostics.push({
+      message: md`Parcel includes transpilation by default. Babel config __${filePath}__ contains only redundant presets. Deleting it may significantly improve build performance.`,
+      codeFrames: [
+        {
+          filePath: configPath,
+          codeHighlights: await getCodeHighlights(
+            fs,
+            configPath,
+            foundRedundantPresets,
+          ),
+        },
+      ],
+      hints: [md`Delete __${filePath}__`],
+      documentationURL:
+        'https://parceljs.org/languages/javascript/#default-presets',
+    });
+  } else if (foundRedundantPresets.size > 0) {
+    diagnostics.push({
+      message: md`Parcel includes transpilation by default. Babel config __${filePath}__ includes the following redundant presets: ${[
+        ...foundRedundantPresets,
+      ].map(p =>
+        md.underline(p),
+      )}. Removing these may improve build performance.`,
+      codeFrames: [
+        {
+          filePath: configPath,
+          codeHighlights: await getCodeHighlights(
+            fs,
+            configPath,
+            foundRedundantPresets,
+          ),
+        },
+      ],
+      hints: [md`Remove the above presets from __${filePath}__`],
+      documentationURL:
+        'https://parceljs.org/languages/javascript/#default-presets',
+    });
+  }
+
+  if (foundRedundantPresets.has('@babel/preset-env')) {
+    diagnostics.push({
+      message:
+        "@babel/preset-env does not support Parcel's targets, which will likely result in unnecessary transpilation and larger bundle sizes.",
+      codeFrames: [
+        {
+          filePath: babelConfig.config ?? babelConfig.babelrc,
+          codeHighlights: await getCodeHighlights(
+            fs,
+            babelConfig.config ?? babelConfig.babelrc,
+            new Set(['@babel/preset-env']),
+          ),
+        },
+      ],
+      hints: [
+        `Either remove __@babel/preset-env__ to use Parcel's builtin transpilation, or replace with __@parcel/babel-preset-env__`,
+      ],
+      documentationURL:
+        'https://parceljs.org/languages/javascript/#custom-plugins',
+    });
+  }
+
+  if (diagnostics.length > 0) {
+    logger.warn(diagnostics);
+  }
+}
+
+async function getCodeHighlights(fs, filePath, redundantPresets) {
+  let ext = path.extname(filePath);
+  if (ext !== '.js' && ext !== '.cjs' && ext !== '.mjs') {
+    let contents = await fs.readFile(filePath, 'utf8');
+    let json = json5.parse(contents);
+
+    let presets = json.presets || [];
+    let pointers = [];
+    for (let i = 0; i < presets.length; i++) {
+      if (Array.isArray(presets[i]) && redundantPresets.has(presets[i][0])) {
+        pointers.push({type: 'value', key: `/presets/${i}/0`});
+      } else if (redundantPresets.has(presets[i])) {
+        pointers.push({type: 'value', key: `/presets/${i}`});
+      }
+    }
+
+    if (pointers.length > 0) {
+      return generateJSONCodeHighlights(contents, pointers);
+    }
+  }
+
+  return [
+    {
+      start: {
+        line: 1,
+        column: 1,
+      },
+      end: {
+        line: 1,
+        column: 1,
+      },
+    },
+  ];
 }

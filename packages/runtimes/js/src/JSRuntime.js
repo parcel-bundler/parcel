@@ -195,9 +195,7 @@ export default (new Runtime({
     // know about all of the sibling bundles of a child when it is written for the first time.
     // Therefore, we need to also ensure that the siblings are loaded when the child loads.
     if (options.shouldBuildLazily && bundle.env.outputFormat === 'global') {
-      let referenced = bundleGraph
-        .getReferencedBundles(bundle)
-        .filter(b => b.bundleBehavior !== 'inline');
+      let referenced = bundleGraph.getReferencedBundles(bundle);
       for (let referencedBundle of referenced) {
         let loaders = getLoaders(bundle.env);
         if (!loaders) {
@@ -228,7 +226,9 @@ export default (new Runtime({
 
     if (
       shouldUseRuntimeManifest(bundle, options) &&
-      bundleGraph.getChildBundles(bundle).length > 0 &&
+      bundleGraph
+        .getChildBundles(bundle)
+        .some(b => b.bundleBehavior !== 'inline') &&
       isNewContext(bundle, bundleGraph)
     ) {
       assets.push({
@@ -243,9 +243,7 @@ export default (new Runtime({
   },
 }): Runtime);
 
-function getDependencies(
-  bundle: NamedBundle,
-): {|
+function getDependencies(bundle: NamedBundle): {|
   asyncDependencies: Array<Dependency>,
   otherDependencies: Array<Dependency>,
 |} {
@@ -294,10 +292,7 @@ function getLoaderRuntime({
     return;
   }
 
-  let externalBundles = bundleGraph
-    .getBundlesInBundleGroup(bundleGroup)
-    .filter(bundle => bundle.bundleBehavior !== 'inline');
-
+  let externalBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
   let mainBundle = nullthrows(
     externalBundles.find(
       bundle => bundle.getMainEntry()?.id === bundleGroup.entryAssetId,
@@ -464,9 +459,8 @@ function getHintLoaders(
 ): Array<string> {
   let hintLoaders = [];
   for (let bundleGroupToPreload of bundleGroups) {
-    let bundlesToPreload = bundleGraph.getBundlesInBundleGroup(
-      bundleGroupToPreload,
-    );
+    let bundlesToPreload =
+      bundleGraph.getBundlesInBundleGroup(bundleGroupToPreload);
 
     for (let bundleToPreload of bundlesToPreload) {
       let relativePathExpr = getRelativePathExpr(
@@ -558,6 +552,11 @@ function getRegisterCode(
     idToName[bundle.publicId] = path.basename(nullthrows(bundle.name));
 
     if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
+      for (let referenced of bundleGraph.getReferencedBundles(bundle)) {
+        idToName[referenced.publicId] = path.basename(
+          nullthrows(referenced.name),
+        );
+      }
       // New contexts have their own manifests, so there's no need to continue.
       actions.skipChildren();
     }
@@ -592,7 +591,12 @@ function getRelativePathExpr(
     );
   }
 
-  return JSON.stringify(relativePath);
+  let res = JSON.stringify(relativePath);
+  if (options.hmrOptions) {
+    res += ' + "?" + Date.now()';
+  }
+
+  return res;
 }
 
 function getAbsoluteUrlExpr(relativePathExpr: string, bundle: NamedBundle) {

@@ -33,6 +33,7 @@ export function replaceURLReferences({
   bundleGraph,
   contents,
   map,
+  getReplacement = s => s,
   relative = true,
 }: {|
   bundle: NamedBundle,
@@ -40,6 +41,7 @@ export function replaceURLReferences({
   contents: string,
   relative?: boolean,
   map?: ?SourceMap,
+  getReplacement?: string => string,
 |}): {|+contents: string, +map: ?SourceMap|} {
   let replacements = new Map();
   let urlDependencies = [];
@@ -61,12 +63,12 @@ export function replaceURLReferences({
     if (resolved == null) {
       replacements.set(placeholder, {
         from: placeholder,
-        to: dependency.specifier,
+        to: getReplacement(dependency.specifier),
       });
       continue;
     }
 
-    if (!resolved || resolved.bundleBehavior === 'inline') {
+    if (resolved.bundleBehavior === 'inline') {
       // If a bundle is inline, it should be replaced with inline contents,
       // not a URL.
       continue;
@@ -79,6 +81,7 @@ export function replaceURLReferences({
         fromBundle: bundle,
         toBundle: resolved,
         relative,
+        getReplacement,
       }),
     );
   }
@@ -131,15 +134,18 @@ export async function replaceInlineReferences({
       entryBundle,
       bundleGraph,
     );
-    let packagedContents = (packagedBundle.contents instanceof Readable
-      ? await bufferStream(packagedBundle.contents)
-      : packagedBundle.contents
+    let packagedContents = (
+      packagedBundle.contents instanceof Readable
+        ? await bufferStream(packagedBundle.contents)
+        : packagedBundle.contents
     ).toString();
 
     let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
     if (inlineType == null || inlineType === 'string') {
+      let placeholder = dependency.meta?.placeholder ?? dependency.id;
+      invariant(typeof placeholder === 'string');
       replacements.set(
-        dependency.id,
+        placeholder,
         getInlineReplacement(dependency, inlineType, packagedContents),
       );
     }
@@ -153,11 +159,13 @@ export function getURLReplacement({
   fromBundle,
   toBundle,
   relative,
+  getReplacement,
 }: {|
   dependency: Dependency,
   fromBundle: NamedBundle,
   toBundle: NamedBundle,
   relative: boolean,
+  getReplacement?: string => string,
 |}): {|from: string, to: string|} {
   let to;
 
@@ -188,9 +196,10 @@ export function getURLReplacement({
 
   let placeholder = dependency.meta?.placeholder ?? dependency.id;
   invariant(typeof placeholder === 'string');
+
   return {
     from: placeholder,
-    to,
+    to: getReplacement ? getReplacement(to) : to,
   };
 }
 

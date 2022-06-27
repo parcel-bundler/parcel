@@ -24,9 +24,11 @@ import path from 'path';
 import url from 'url';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
-import postHtmlParse from 'posthtml-parser';
+import {parser as postHtmlParse} from 'posthtml-parser';
 import postHtml from 'posthtml';
 import EventEmitter from 'events';
+import http from 'http';
+import https from 'https';
 
 import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
@@ -111,7 +113,12 @@ export function getParcelOptions(
       entries,
       shouldDisableCache: true,
       logLevel: 'none',
-      defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
+      defaultConfig: path.join(
+        __dirname,
+        process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER == null
+          ? '.parcelrc-no-reporters'
+          : '.parcelrc-experimental-bundler',
+      ),
       inputFS,
       outputFS,
       workerFarm,
@@ -193,7 +200,7 @@ export function mergeParcelOptions(
   };
 }
 
-export function assertDependencyWasDeferred(
+export function assertDependencyWasExcluded(
   bundleGraph: BundleGraph<PackagedBundle>,
   assetFileName: string,
   specifier: string,
@@ -310,7 +317,8 @@ export async function runBundles(
       promises = prepared.promises;
       break;
     }
-    case 'web-worker': {
+    case 'web-worker':
+    case 'service-worker': {
       let prepared = prepareWorkerContext(parent.filePath, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
@@ -416,7 +424,7 @@ export async function runBundle(
       lowerCaseAttributeNames: true,
     });
 
-    let bundles = bundleGraph.getBundles();
+    let bundles = bundleGraph.getBundles({includeInline: true});
     let scripts = [];
     postHtml().walk.call(ast, node => {
       if (node.attrs?.nomodule != null) {
@@ -599,7 +607,7 @@ function prepareBrowserContext(
       if (el.tag === 'script') {
         let {deferred, promise} = makeDeferredWithPromise();
         promises.push(promise);
-        setTimeout(function() {
+        setTimeout(function () {
           let pathname = url.parse(el.src).pathname;
           let file = path.join(bundle.target.distDir, pathname);
 
@@ -698,6 +706,9 @@ function prepareBrowserContext(
         origin: 'http://localhost',
         protocol: 'http',
       },
+      navigator: {
+        userAgent: '',
+      },
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {
@@ -725,6 +736,8 @@ function prepareBrowserContext(
       },
       URL,
       Worker: createWorkerClass(bundle.filePath),
+      addEventListener() {},
+      removeEventListener() {},
     },
     globals,
   );
@@ -979,7 +992,8 @@ export async function runESM(
         identifier: `${normalizeSeparators(
           path.relative(baseDir, filename),
         )}?id=${id}`,
-        importModuleDynamically: entry,
+        importModuleDynamically: (specifier, referrer) =>
+          entry(specifier, referrer),
         context,
         initializeImportMeta(meta) {
           meta.url = `http://localhost/${path.basename(filename)}`;
@@ -1004,7 +1018,7 @@ export async function runESM(
       // $FlowFixMe Experimental
       m = new vm.SyntheticModule(
         Object.keys(ns),
-        function() {
+        function () {
           for (let [k, v] of Object.entries(ns)) {
             this.setExport(k, v);
           }
@@ -1116,7 +1130,6 @@ export async function assertNoFilePathInCache(
         if (contents.includes(projectRoot)) {
           let deserialized;
           try {
-            // $FlowFixMe
             deserialized = v8.deserialize(contents);
           } catch (err) {
             // rudimentary detection of binary files
@@ -1146,4 +1159,34 @@ export async function assertNoFilePathInCache(
       }
     }
   }
+}
+
+export function request(
+  file: string,
+  port: number,
+  client: typeof http | typeof https = http,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // $FlowFixMe
+    client.get(
+      {
+        hostname: 'localhost',
+        port: port,
+        path: file,
+        rejectUnauthorized: false,
+      },
+      res => {
+        res.setEncoding('utf8');
+        let data = '';
+        res.on('data', c => (data += c));
+        res.on('end', () => {
+          if (res.statusCode !== 200) {
+            return reject({statusCode: res.statusCode, data});
+          }
+
+          resolve(data);
+        });
+      },
+    );
+  });
 }

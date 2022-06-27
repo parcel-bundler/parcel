@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {
   ASTGenerator,
   BuildMode,
@@ -23,7 +24,6 @@ import type {
   OutputFormat,
   TargetDescriptor,
   HMROptions,
-  QueryParameters,
   DetailedReportOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
@@ -51,6 +51,7 @@ export type ProcessedParcelConfig = {|
   runtimes?: PureParcelConfigPipeline,
   packagers?: {[Glob]: ParcelPluginNode, ...},
   optimizers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
+  compressors?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   reporters?: PureParcelConfigPipeline,
   validators?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   filePath: ProjectPath,
@@ -130,6 +131,7 @@ export type Dependency = {|
   sourcePath: ?ProjectPath,
   sourceAssetType?: ?string,
   resolveFrom: ?ProjectPath,
+  range: ?SemverRange,
   symbols: ?Map<
     Symbol,
     {|
@@ -147,16 +149,15 @@ export const BundleBehavior = {
   isolated: 1,
 };
 
-export const BundleBehaviorNames: Array<
-  $Keys<typeof BundleBehavior>,
-> = Object.keys(BundleBehavior);
+export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
+  Object.keys(BundleBehavior);
 
 export type Asset = {|
   id: ContentKey,
   committed: boolean,
   hash: ?string,
   filePath: ProjectPath,
-  query: ?QueryParameters,
+  query: ?string,
   type: string,
   dependencies: Map<string, Dependency>,
   bundleBehavior: ?$Values<typeof BundleBehavior>,
@@ -180,6 +181,7 @@ export type Asset = {|
   configPath?: ProjectPath,
   plugin: ?PackageName,
   configKeyPath?: string,
+  isLargeBlob?: boolean,
 |};
 
 export type InternalGlob = ProjectPath;
@@ -284,23 +286,6 @@ export type ParcelOptions = {|
   |},
 |};
 
-// forcing NodeId to be opaque as it should only be created once
-export opaque type NodeId = number;
-export function toNodeId(x: number): NodeId {
-  return x;
-}
-export function fromNodeId(x: NodeId): number {
-  return x;
-}
-
-export type ContentKey = string;
-
-export type Edge<TEdgeType: string | null> = {|
-  from: NodeId,
-  to: NodeId,
-  type: TEdgeType,
-|};
-
 export type AssetNode = {|
   id: ContentKey,
   +type: 'asset',
@@ -323,6 +308,7 @@ export type DependencyNode = {|
   hasDeferred?: boolean,
   usedSymbolsDown: Set<Symbol>,
   usedSymbolsUp: Set<Symbol>,
+  /** for the "down" pass, the dependency resolution asset needs to be updated */
   usedSymbolsDownDirty: boolean,
   /** for the "up" pass, the parent asset needs to be updated */
   usedSymbolsUpDirtyUp: boolean,
@@ -345,7 +331,7 @@ export type AssetRequestInput = {|
   pipeline?: ?string,
   optionsRef: SharedReference,
   isURL?: boolean,
-  query?: ?QueryParameters,
+  query?: ?string,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -515,6 +501,7 @@ export type BundleGroupNode = {|
 
 export type PackagedBundleInfo = {|
   filePath: ProjectPath,
+  type: string,
   stats: Stats,
 |};
 

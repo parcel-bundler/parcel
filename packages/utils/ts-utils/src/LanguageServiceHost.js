@@ -10,8 +10,14 @@ import type {
 } from 'typescript';
 import {FSHost} from './FSHost';
 
-export class LanguageServiceHost extends FSHost
-  implements ILanguageServiceHost {
+// the typings from flow-typed define the ILanguageServiceHost interface as
+// having its methods as properties with arrow functions. These should probably
+// be methods instead.
+// $FlowFixMe[method-unbinding]
+export class LanguageServiceHost
+  extends FSHost
+  implements ILanguageServiceHost
+{
   config: ParsedCommandLine;
   files: {|[key: FilePath]: {|version: number|}|};
 

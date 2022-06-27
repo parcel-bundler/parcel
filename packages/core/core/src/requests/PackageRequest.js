@@ -1,9 +1,11 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
+
 import type {StaticRunOpts} from '../RequestTracker';
-import type {Bundle, ContentKey} from '../types';
+import type {Bundle} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -52,20 +54,16 @@ async function run({input, api, farm}: RunInput) {
   let {cachePath} = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
-  let {
-    devDepRequests,
-    configRequests,
-    bundleInfo,
-    invalidations,
-  } = await runPackage({
-    bundle,
-    bundleGraphReference,
-    optionsRef,
-    configCachePath: cachePath,
-    previousDevDeps: devDeps,
-    invalidDevDeps,
-    previousInvalidations: api.getInvalidations(),
-  });
+  let {devDepRequests, configRequests, bundleInfo, invalidations} =
+    await runPackage({
+      bundle,
+      bundleGraphReference,
+      optionsRef,
+      configCachePath: cachePath,
+      previousDevDeps: devDeps,
+      invalidDevDeps,
+      previousInvalidations: api.getInvalidations(),
+    });
 
   for (let devDepRequest of devDepRequests) {
     await runDevDepRequest(api, devDepRequest);

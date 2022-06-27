@@ -56,23 +56,25 @@ export default (new Packager({
         new Set(bundleGraph.getReferencedBundles(bundle)),
         new Set(bundleGraph.getReferencedBundles(bundle, {recursive: false})),
       ),
-    ].filter(b => b.bundleBehavior !== 'inline');
+    ];
     let renderConfig = config?.render;
 
     let {html} = await posthtml([
-      insertBundleReferences.bind(this, referencedBundles),
-      replaceInlineAssetContent.bind(
-        this,
-        bundleGraph,
-        getInlineBundleContents,
-      ),
-    ]).process(code, renderConfig);
+      tree => insertBundleReferences(referencedBundles, tree),
+      tree =>
+        replaceInlineAssetContent(bundleGraph, getInlineBundleContents, tree),
+    ]).process(code, {
+      ...renderConfig,
+      xmlMode: bundle.type === 'xhtml',
+      closingSingleTag: bundle.type === 'xhtml' ? 'slash' : undefined,
+    });
 
     let {contents, map} = replaceURLReferences({
       bundle,
       bundleGraph,
       contents: html,
       relative: false,
+      getReplacement: contents => contents.replace(/"/g, '&quot;'),
     });
 
     return replaceInlineReferences({
@@ -137,9 +139,8 @@ async function replaceInlineAssetContent(
 
     if (newContent != null) {
       let {contents, bundle} = newContent;
-      node.content = (contents instanceof Readable
-        ? await bufferStream(contents)
-        : contents
+      node.content = (
+        contents instanceof Readable ? await bufferStream(contents) : contents
       ).toString();
 
       if (

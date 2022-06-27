@@ -2,27 +2,31 @@
 
 import type {GraphVisitor} from '@parcel/types';
 import type {
+  ContentGraphOpts,
+  ContentKey,
+  NodeId,
+  SerializedContentGraph,
+} from '@parcel/graph';
+import type {
   Asset,
   AssetGraphNode,
   AssetGroup,
   AssetGroupNode,
   AssetNode,
-  ContentKey,
   Dependency,
   DependencyNode,
   Entry,
   EntryFileNode,
   EntrySpecifierNode,
   Environment,
-  NodeId,
   Target,
 } from './types';
 
 import invariant from 'assert';
 import {hashString, Hash} from '@parcel/hash';
-import {hashObject, objectSortedEntries} from '@parcel/utils';
+import {hashObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
-import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
+import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 
@@ -32,9 +36,16 @@ type InitOpts = {|
   assetGroups?: Array<AssetGroup>,
 |};
 
+type AssetGraphOpts = {|
+  ...ContentGraphOpts<AssetGraphNode>,
+  symbolPropagationRan: boolean,
+  hash?: ?string,
+|};
+
 type SerializedAssetGraph = {|
   ...SerializedContentGraph<AssetGraphNode>,
   hash?: ?string,
+  symbolPropagationRan: boolean,
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
@@ -63,9 +74,7 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
         ':' +
         (assetGroup.pipeline ?? '') +
         ':' +
-        (assetGroup.query
-          ? JSON.stringify(objectSortedEntries(assetGroup.query))
-          : ''),
+        (assetGroup.query ?? ''),
     ),
     type: 'asset_group',
     value: assetGroup,
@@ -104,12 +113,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   onNodeRemoved: ?(nodeId: NodeId) => mixed;
   hash: ?string;
   envCache: Map<string, Environment>;
+  symbolPropagationRan: boolean;
 
-  constructor(opts: ?SerializedAssetGraph) {
+  constructor(opts: ?AssetGraphOpts) {
     if (opts) {
-      let {hash, ...rest} = opts;
+      let {hash, symbolPropagationRan, ...rest} = opts;
       super(rest);
       this.hash = hash;
+      this.symbolPropagationRan = symbolPropagationRan;
     } else {
       super();
       this.setRootNodeId(
@@ -121,10 +132,11 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       );
     }
     this.envCache = new Map();
+    this.symbolPropagationRan = false;
   }
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: SerializedAssetGraph): AssetGraph {
+  static deserialize(opts: AssetGraphOpts): AssetGraph {
     return new AssetGraph(opts);
   }
 
@@ -133,6 +145,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     return {
       ...super.serialize(),
       hash: this.hash,
+      symbolPropagationRan: this.symbolPropagationRan,
     };
   }
 
@@ -299,17 +312,21 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     ) {
       return true;
     }
+    // Node types are proved above
+    let dependencyNode = node;
+    let assetGroupNode = childNode;
 
-    let {sideEffects, canDefer = true} = childNode.value;
-    let dependency = node.value;
-    let previouslyDeferred = childNode.deferred;
+    let {sideEffects, canDefer = true} = assetGroupNode.value;
+    let dependency = dependencyNode.value;
+    let dependencyPreviouslyDeferred = dependencyNode.hasDeferred;
+    let assetGroupPreviouslyDeferred = assetGroupNode.deferred;
     let defer = this.shouldDeferDependency(dependency, sideEffects, canDefer);
-    node.hasDeferred = defer;
-    childNode.deferred = defer;
+    dependencyNode.hasDeferred = defer;
+    assetGroupNode.deferred = defer;
 
-    if (!previouslyDeferred && defer) {
+    if (!dependencyPreviouslyDeferred && defer) {
       this.markParentsWithHasDeferred(nodeId);
-    } else if (previouslyDeferred && !defer) {
+    } else if (assetGroupPreviouslyDeferred && !defer) {
       this.unmarkParentsWithHasDeferred(childNodeId);
     }
 
@@ -524,11 +541,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {
-    let nodeId = this._contentKeyToNodeId.get(asset.id);
-    if (!nodeId) {
-      return [];
-    }
-
+    let nodeId = this.getNodeIdByContentKey(asset.id);
     let assetGroupIds = this.getNodeIdsConnectedTo(nodeId);
     let dependencies = [];
     for (let i = 0; i < assetGroupIds.length; i++) {

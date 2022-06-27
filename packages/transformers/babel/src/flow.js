@@ -2,6 +2,10 @@
 
 import type {Config, PluginOptions, PackageJSON} from '@parcel/types';
 import type {BabelConfig} from './types';
+import typeof * as BabelCore from '@babel/core';
+
+import {BABEL_CORE_RANGE} from './constants';
+import path from 'path';
 
 /**
  * Generates a babel config for stripping away Flow types.
@@ -28,9 +32,35 @@ export default async function getFlowOptions(
     return null;
   }
 
+  const babelCore: BabelCore = await options.packageManager.require(
+    '@babel/core',
+    config.searchPath,
+    {
+      range: BABEL_CORE_RANGE,
+      saveDev: true,
+      shouldAutoInstall: options.shouldAutoInstall,
+    },
+  );
+
+  await options.packageManager.require(
+    '@babel/plugin-transform-flow-strip-types',
+    config.searchPath,
+    {
+      range: '^7.0.0',
+      saveDev: true,
+      shouldAutoInstall: options.shouldAutoInstall,
+    },
+  );
+
   return {
     plugins: [
-      ['@babel/plugin-transform-flow-strip-types', {requireDirective: true}],
+      babelCore.createConfigItem(
+        ['@babel/plugin-transform-flow-strip-types', {requireDirective: true}],
+        {
+          type: 'plugin',
+          dirname: path.dirname(config.searchPath),
+        },
+      ),
     ],
   };
 }

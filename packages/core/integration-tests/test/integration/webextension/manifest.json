@@ -22,10 +22,17 @@
     "default_popup": "src/popup.html"
   },
   "content_scripts": [{
-    "matches": ["https://v2.parceljs.org/*"],
+    "matches": ["https://parceljs.org/*"],
     "js": ["src/content.js"],
     "css": ["src/content.css"]
   }],
+  "declarative_net_request": {
+    "rule_resources": [{
+      "id": "ruleset_1",
+      "enabled": true,
+      "path": "./rulesets/ruleset_1.json"
+    }]
+  },
   "dictionaries": {
     "en-US": "./dicts/tmp.dic"
   },

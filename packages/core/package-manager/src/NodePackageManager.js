@@ -18,7 +18,6 @@ import ThrowableDiagnostic, {
   md,
 } from '@parcel/diagnostic';
 import nativeFS from 'fs';
-// $FlowFixMe this is untyped
 import Module from 'module';
 import path from 'path';
 import semver from 'semver';
@@ -102,12 +101,15 @@ export class NodePackageManager implements PackageManager {
       return require(filePath);
     }
 
+    // $FlowFixMe[prop-missing]
     const cachedModule = Module._cache[filePath];
     if (cachedModule !== undefined) {
       return cachedModule.exports;
     }
 
+    // $FlowFixMe
     let m = new Module(filePath, Module._cache[from] || module.parent);
+    // $FlowFixMe[prop-missing]
     Module._cache[filePath] = m;
 
     // Patch require within this module so it goes through our require
@@ -127,6 +129,7 @@ export class NodePackageManager implements PackageManager {
     try {
       m.load(filePath);
     } catch (err) {
+      // $FlowFixMe[prop-missing]
       delete Module._cache[filePath];
       throw err;
     }
@@ -388,9 +391,11 @@ export class NodePackageManager implements PackageManager {
         return;
       }
 
-      let module = require.cache[resolved.resolved];
+      // $FlowFixMe
+      let module = Module._cache[resolved.resolved];
       if (module) {
-        delete require.cache[resolved.resolved];
+        // $FlowFixMe
+        delete Module._cache[resolved.resolved];
       }
 
       let moduleChildren = children.get(resolved.resolved);

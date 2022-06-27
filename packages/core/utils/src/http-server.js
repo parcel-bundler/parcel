@@ -1,7 +1,15 @@
 // @flow strict-local
 
-import type {Server as HTTPOnlyServer} from 'http';
-import type {Server as HTTPSServer} from 'https';
+import type {
+  Server as HTTPOnlyServer,
+  IncomingMessage as HTTPRequest,
+  ServerResponse as HTTPResponse,
+} from 'http';
+import type {
+  Server as HTTPSServer,
+  IncomingMessage as HTTPSRequest,
+  ServerResponse as HTTPSResponse,
+} from 'https';
 import type {Socket} from 'net';
 import type {FilePath, HTTPSOptions} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
@@ -12,12 +20,16 @@ import nullthrows from 'nullthrows';
 import {getCertificate, generateCertificate} from './';
 
 type CreateHTTPServerOpts = {|
-  https: ?(HTTPSOptions | boolean),
-  inputFS: FileSystem,
-  outputFS: FileSystem,
-  cacheDir: FilePath,
-  listener?: (mixed, mixed) => void,
+  listener?: (HTTPRequest | HTTPSRequest, HTTPResponse | HTTPSResponse) => void,
   host?: string,
+  ...
+    | {|
+        https: ?(HTTPSOptions | boolean),
+        inputFS: FileSystem,
+        outputFS: FileSystem,
+        cacheDir: FilePath,
+      |}
+    | {||},
 |};
 
 export type HTTPServer = HTTPOnlyServer | HTTPSServer;

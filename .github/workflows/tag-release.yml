@@ -2,6 +2,7 @@ name: tag-release
 on:
   release:
     types: [published]
+  workflow_dispatch:
 jobs:
   build:
     strategy:
@@ -70,9 +71,11 @@ jobs:
           - target: arm-unknown-linux-gnueabihf
             arch: armhf
             strip: arm-linux-gnueabihf-strip
+            cflags: -mfpu=neon
           - target: aarch64-unknown-linux-gnu
             arch: arm64
             strip: aarch64-linux-gnu-strip
+            cflags: ''
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     steps:
@@ -93,6 +96,7 @@ jobs:
         run: yarn build-native-release
         env:
           RUST_TARGET: ${{ matrix.target }}
+          CFLAGS: ${{ matrix.cflags }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts
@@ -118,8 +122,10 @@ jobs:
         include:
           - target: x86_64-unknown-linux-musl
             strip: strip
+            cflags: -msse4.2
           - target: aarch64-unknown-linux-musl
             strip: aarch64-linux-musl-strip
+            cflags: ''
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     container:
@@ -149,6 +155,7 @@ jobs:
         run: yarn build-native-release
         env:
           RUST_TARGET: ${{ matrix.target }}
+          CFLAGS: ${{ matrix.cflags }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts
@@ -170,13 +177,15 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           override: true
           target: aarch64-apple-darwin
       - uses: bahmutov/npm-install@v1.1.0
       - name: Build native packages
-        run: yarn build-native-release
+        run: |
+          sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
+          yarn build-native-release
         env:
           RUST_TARGET: aarch64-apple-darwin
           JEMALLOC_SYS_WITH_LG_PAGE: 14
@@ -201,8 +210,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - uses: bahmutov/npm-install@v1.1.0
-      - name: Build native packages
-        run: yarn build-native-release
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:

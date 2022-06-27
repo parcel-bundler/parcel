@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-babel",
-  "version": "2.0.0-beta.3.1",
+  "version": "2.6.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,26 +17,22 @@
   "source": "src/BabelTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.0.0-beta.1"
+    "parcel": "^2.6.2"
   },
   "dependencies": {
-    "@babel/core": "^7.12.0",
-    "@babel/generator": "^7.9.0",
-    "@babel/helper-compilation-targets": "^7.8.4",
-    "@babel/plugin-transform-flow-strip-types": "^7.0.0",
-    "@babel/traverse": "^7.0.0",
-    "@parcel/babel-ast-utils": "2.0.0-beta.3.1",
-    "@parcel/plugin": "2.0.0-beta.3.1",
-    "@parcel/source-map": "2.0.0-rc.5",
-    "@parcel/utils": "2.0.0-beta.3.1",
+    "@parcel/diagnostic": "2.6.2",
+    "@parcel/plugin": "2.6.2",
+    "@parcel/source-map": "^2.0.0",
+    "@parcel/utils": "2.6.2",
     "browserslist": "^4.6.6",
-    "core-js": "^3.2.1",
+    "json5": "^2.2.0",
     "nullthrows": "^1.1.1",
     "semver": "^5.7.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",
     "@babel/preset-env": "^7.0.0",
-    "@parcel/types": "2.0.0-beta.3.1"
+    "@babel/types": "^7.12.0",
+    "@parcel/types": "2.6.2"
   }
 }

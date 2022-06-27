@@ -1,19 +1,19 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
   AssetRequestInput,
   AssetRequestResult,
-  ContentKey,
   DevDepRequest,
   TransformationRequest,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
-import {objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import {hashString} from '@parcel/hash';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
@@ -59,7 +59,7 @@ function getId(input: AssetRequestInput) {
       ':' +
       (input.pipeline ?? '') +
       ':' +
-      (input.query ? JSON.stringify(objectSortedEntries(input.query)) : ''),
+      (input.query ?? ''),
   );
 }
 
@@ -129,6 +129,7 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
   let {
     assets,
     configRequests,
+    error,
     invalidations,
     invalidateOnFileCreate,
     devDepRequests,
@@ -139,8 +140,10 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
   }): TransformationResult);
 
   let time = Date.now() - start;
-  for (let asset of assets) {
-    asset.stats.time = time;
+  if (assets) {
+    for (let asset of assets) {
+      asset.stats.time = time;
+    }
   }
 
   for (let invalidation of invalidateOnFileCreate) {
@@ -172,5 +175,9 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
     await runConfigRequest(api, configRequest);
   }
 
-  return assets;
+  if (error != null) {
+    throw new ThrowableDiagnostic({diagnostic: error});
+  } else {
+    return nullthrows(assets);
+  }
 }

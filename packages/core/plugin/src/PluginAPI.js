@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import type {
   Transformer as TransformerOpts,
@@ -8,6 +8,7 @@ import type {
   Runtime as RuntimeOpts,
   Packager as PackagerOpts,
   Optimizer as OptimizerOpts,
+  Compressor as CompressorOpts,
   Reporter as ReporterOpts,
   Validator as ValidatorOpts,
 } from '@parcel/types';
@@ -65,6 +66,13 @@ export class Packager {
 
 export class Optimizer {
   constructor<T>(opts: OptimizerOpts<T>) {
+    // $FlowFixMe
+    this[CONFIG] = opts;
+  }
+}
+
+export class Compressor {
+  constructor(opts: CompressorOpts) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }

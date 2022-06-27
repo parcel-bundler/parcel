@@ -18,6 +18,7 @@ import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   getJSONSourceLocation,
+  encodeJSONKeyComponent,
   md,
 } from '@parcel/diagnostic';
 import path from 'path';
@@ -33,7 +34,7 @@ import createParcelConfigRequest, {
 } from './ParcelConfigRequest';
 // $FlowFixMe
 import browserslist from 'browserslist';
-import jsonMap from 'json-source-map';
+import {parse} from '@mischnic/json-sourcemap';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {
@@ -72,6 +73,16 @@ const COMMON_TARGETS = {
     match: /\.d\.ts$/,
     extensions: ['.d.ts'],
   },
+};
+
+const DEFAULT_ENGINES = {
+  node: 'current',
+  browsers: [
+    'last 1 Chrome version',
+    'last 1 Safari version',
+    'last 1 Firefox version',
+    'last 1 Edge version',
+  ],
 };
 
 export type TargetRequest = {|
@@ -154,10 +165,8 @@ export class TargetResolver {
       optionTargets = [exclusiveTarget];
     }
 
-    let packageTargets: Map<
-      string,
-      Target | null,
-    > = await this.resolvePackageTargets(rootDir, exclusiveTarget);
+    let packageTargets: Map<string, Target | null> =
+      await this.resolvePackageTargets(rootDir, exclusiveTarget);
     let targets: Array<Target>;
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
@@ -279,7 +288,7 @@ export class TargetResolver {
       }
 
       let serve = this.options.serveOptions;
-      if (serve) {
+      if (serve && targets.length > 0) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
@@ -319,11 +328,13 @@ export class TargetResolver {
             publicUrl: this.options.defaultTargetOptions.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
-              engines: {},
+              engines: {
+                browsers: DEFAULT_ENGINES.browsers,
+              },
               shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
               outputFormat: this.options.defaultTargetOptions.outputFormat,
-              shouldScopeHoist: this.options.defaultTargetOptions
-                .shouldScopeHoist,
+              shouldScopeHoist:
+                this.options.defaultTargetOptions.shouldScopeHoist,
               sourceMap: this.options.defaultTargetOptions.sourceMaps
                 ? {}
                 : undefined,
@@ -384,7 +395,7 @@ export class TargetResolver {
       let _pkgFilePath = (pkgFilePath = pkgFile.filePath); // For Flow
       pkgDir = path.dirname(_pkgFilePath);
       pkgContents = await this.fs.readFile(_pkgFilePath, 'utf8');
-      pkgMap = jsonMap.parse(pkgContents.replace(/\t/g, ' '));
+      pkgMap = parse(pkgContents, undefined, {tabWidth: 1});
 
       let pp = toProjectPath(this.options.projectRoot, _pkgFilePath);
       this.api.invalidateOnFileUpdate(pp);
@@ -467,31 +478,23 @@ export class TargetResolver {
     // If there is a separate `browser` target, or an `engines.node` field but no browser targets, then
     // the `main` and `module` targets refer to node, otherwise browser.
     let mainContext =
-      pkg.browser ?? pkgTargets.browser ?? (node != null && !browsers)
+      pkg.browser ?? pkgTargets.browser ?? (node != null && browsers == null)
         ? 'node'
         : 'browser';
     let moduleContext =
       pkg.browser ?? pkgTargets.browser ? 'browser' : mainContext;
 
     let defaultEngines = this.options.defaultTargetOptions.engines;
-    let context = browsers ?? !node ? 'browser' : 'node';
-    if (
-      context === 'browser' &&
-      pkgEngines.browsers == null &&
-      defaultEngines?.browsers != null
-    ) {
+    let context = browsers ?? node == null ? 'browser' : 'node';
+    if (context === 'browser' && pkgEngines.browsers == null) {
       pkgEngines = {
         ...pkgEngines,
-        browsers: defaultEngines.browsers,
+        browsers: defaultEngines?.browsers ?? DEFAULT_ENGINES.browsers,
       };
-    } else if (
-      context === 'node' &&
-      pkgEngines.node == null &&
-      defaultEngines?.node != null
-    ) {
+    } else if (context === 'node' && pkgEngines.node == null) {
       pkgEngines = {
         ...pkgEngines,
-        node: defaultEngines.node,
+        node: defaultEngines?.node ?? DEFAULT_ENGINES.node,
       };
     }
 
@@ -501,11 +504,12 @@ export class TargetResolver {
       if (
         targetName === 'browser' &&
         pkg[targetName] != null &&
-        typeof pkg[targetName] === 'object'
+        typeof pkg[targetName] === 'object' &&
+        pkg.name
       ) {
         // The `browser` field can be a file path or an alias map.
         _targetDist = pkg[targetName][pkg.name];
-        pointer = `/${targetName}/${pkg.name}`;
+        pointer = `/${targetName}/${encodeJSONKeyComponent(pkg.name)}`;
       } else {
         _targetDist = pkg[targetName];
         pointer = `/${targetName}`;
@@ -592,6 +596,8 @@ export class TargetResolver {
               hints: [
                 `The "${targetName}" field is meant for libraries. If you meant to output a ${ext} file, either remove the "${targetName}" field or choose a different target name.`,
               ],
+              documentationURL:
+                'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -622,6 +628,8 @@ export class TargetResolver {
               hints: [
                 `The "${targetName}" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.`,
               ],
+              documentationURL:
+                'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -679,6 +687,8 @@ export class TargetResolver {
               hints: [
                 `Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.`,
               ],
+              documentationURL:
+                'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -709,6 +719,8 @@ export class TargetResolver {
               hints: [
                 `The "${targetName}" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.`,
               ],
+              documentationURL:
+                'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -850,6 +862,8 @@ export class TargetResolver {
                 },
               ],
               hints: [`Either remove the "scopeHoist" or "isLibrary" option.`],
+              documentationURL:
+                'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -1016,6 +1030,8 @@ export class TargetResolver {
                   expectedExtensions,
                 )}.`,
           ],
+          documentationURL:
+            'https://parceljs.org/features/targets/#library-targets',
         },
       });
     }
@@ -1239,8 +1255,9 @@ function assertTargetsAreNotEntries(
             (COMMON_TARGETS[target.name]
               ? `The "${target.name}" field is an _output_ file path so that your build can be consumed by other tools. `
               : '') +
-              `Change the "${target.name}" field to point to an output file rather than your source code. See https://v2.parceljs.org/configuration/package-json for more information.`,
+              `Change the "${target.name}" field to point to an output file rather than your source code.`,
           ],
+          documentationURL: 'https://parceljs.org/features/targets/',
         },
       });
     }

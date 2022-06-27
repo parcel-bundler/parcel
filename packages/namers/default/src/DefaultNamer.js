@@ -16,7 +16,9 @@ const ALLOWED_EXTENSIONS = {
 export default (new Namer({
   name({bundle, bundleGraph}) {
     let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
-    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup, {
+      includeInline: true,
+    });
     let isEntry = bundleGraph.isEntryBundleGroup(bundleGroup);
 
     if (bundle.needsStableName) {
@@ -61,12 +63,11 @@ export default (new Namer({
                   {
                     start: loc.start,
                     end: loc.end,
-                    message: md`Did you mean "${fullName.slice(
-                      0,
-                      -path.extname(fullName).length,
-                    ) +
+                    message: md`Did you mean "${
+                      fullName.slice(0, -path.extname(fullName).length) +
                       '.' +
-                      bundle.type}"?`,
+                      bundle.type
+                    }"?`,
                   },
                 ],
               },

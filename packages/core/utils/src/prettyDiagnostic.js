@@ -7,12 +7,23 @@ import mdAnsi from '@parcel/markdown-ansi';
 import chalk from 'chalk';
 import path from 'path';
 import nullthrows from 'nullthrows';
+// $FlowFixMe
+import terminalLink from 'terminal-link';
+
+export type FormattedCodeFrame = {|
+  location: string,
+  code: string,
+|};
 
 export type AnsiDiagnosticResult = {|
   message: string,
   stack: string,
+  /** A formatted string containing all code frames, including their file locations. */
   codeframe: string,
+  /** A list of code frames with highlighted code and file locations separately. */
+  frames: Array<FormattedCodeFrame>,
   hints: Array<string>,
+  documentation: string,
 |};
 
 export default async function prettyDiagnostic(
@@ -20,7 +31,15 @@ export default async function prettyDiagnostic(
   options?: PluginOptions,
   terminalWidth?: number,
 ): Promise<AnsiDiagnosticResult> {
-  let {origin, message, stack, codeFrames, hints, skipFormatting} = diagnostic;
+  let {
+    origin,
+    message,
+    stack,
+    codeFrames,
+    hints,
+    skipFormatting,
+    documentationURL,
+  } = diagnostic;
 
   let result = {
     message:
@@ -28,7 +47,9 @@ export default async function prettyDiagnostic(
       (skipFormatting ? message : mdAnsi(message)),
     stack: '',
     codeframe: '',
+    frames: [],
     hints: [],
+    documentation: '',
   };
 
   if (codeFrames != null) {
@@ -57,16 +78,20 @@ export default async function prettyDiagnostic(
         });
       }
 
-      result.codeframe +=
+      let location =
         typeof filePath !== 'string'
           ? ''
-          : chalk.gray.underline(
-              `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
-            );
+          : `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}`;
+      result.codeframe += location ? chalk.gray.underline(location) + '\n' : '';
       result.codeframe += formattedCodeFrame;
       if (codeFrame !== codeFrames[codeFrames.length - 1]) {
         result.codeframe += '\n\n';
       }
+
+      result.frames.push({
+        location,
+        code: formattedCodeFrame,
+      });
     }
   }
 
@@ -77,6 +102,12 @@ export default async function prettyDiagnostic(
   if (Array.isArray(hints) && hints.length) {
     result.hints = hints.map(h => {
       return mdAnsi(h);
+    });
+  }
+
+  if (documentationURL != null) {
+    result.documentation = terminalLink('Learn more', documentationURL, {
+      fallback: (text, url) => `${text}: ${url}`,
     });
   }
 

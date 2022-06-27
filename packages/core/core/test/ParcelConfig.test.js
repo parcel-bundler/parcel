@@ -289,8 +289,7 @@ describe('ParcelConfig', () => {
           name: 'Error',
           diagnostics: [
             {
-              message:
-                'Named pipeline `node:` is reserved for builtin Node.js libraries',
+              message: "Named pipeline 'node:' is reserved.",
               origin: '@parcel/core',
               codeFrames: [
                 {
@@ -312,6 +311,8 @@ describe('ParcelConfig', () => {
                   ],
                 },
               ],
+              documentationURL:
+                'https://parceljs.org/features/dependency-resolution/#url-schemes',
             },
           ],
         },

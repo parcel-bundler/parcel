@@ -11,15 +11,18 @@ import type {
   ParcelOptions,
   InternalFileCreateInvalidation,
   InternalSourceLocation,
+  InternalDevDepOptions,
 } from './types';
+import type {PackageManager} from '@parcel/package-manager';
 
 import invariant from 'assert';
 import baseX from 'base-x';
+import {Graph} from '@parcel/graph';
 import {hashObject} from '@parcel/utils';
+
 import {registerSerializableClass} from './serializer';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './BundleGraph';
-import Graph from './Graph';
 import ParcelConfig from './ParcelConfig';
 import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
@@ -64,7 +67,8 @@ export function registerCoreWithSerializer() {
     Graph,
     ParcelConfig,
     RequestGraph,
-  }): Array<[string, Class<*>]>)) {
+    // $FlowFixMe[unclear-type]
+  }): Array<[string, Class<any>]>)) {
     registerSerializableClass(packageVersion + ':' + name, ctor);
   }
 
@@ -107,13 +111,51 @@ const ignoreOptions = new Set([
 export function optionsProxy(
   options: ParcelOptions,
   invalidateOnOptionChange: string => void,
+  addDevDependency?: (devDep: InternalDevDepOptions) => void,
 ): ParcelOptions {
+  let packageManager = addDevDependency
+    ? proxyPackageManager(
+        options.projectRoot,
+        options.packageManager,
+        addDevDependency,
+      )
+    : options.packageManager;
   return new Proxy(options, {
     get(target, prop) {
+      if (prop === 'packageManager') {
+        return packageManager;
+      }
+
       if (!ignoreOptions.has(prop)) {
         invalidateOnOptionChange(prop);
       }
 
+      return target[prop];
+    },
+  });
+}
+
+function proxyPackageManager(
+  projectRoot: FilePath,
+  packageManager: PackageManager,
+  addDevDependency: (devDep: InternalDevDepOptions) => void,
+): PackageManager {
+  let require = (id: string, from: string, opts) => {
+    addDevDependency({
+      specifier: id,
+      resolveFrom: toProjectPath(projectRoot, from),
+      range: opts?.range,
+    });
+    return packageManager.require(id, from, opts);
+  };
+
+  return new Proxy(packageManager, {
+    get(target, prop) {
+      if (prop === 'require') {
+        return require;
+      }
+
+      // $FlowFixMe
       return target[prop];
     },
   });

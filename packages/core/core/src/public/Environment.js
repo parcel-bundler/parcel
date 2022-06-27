@@ -17,6 +17,8 @@ import browserslist from 'browserslist';
 import semver from 'semver';
 import {fromInternalSourceLocation} from '../utils';
 
+const inspect = Symbol.for('nodejs.util.inspect.custom');
+
 export const BROWSER_ENVS: Set<string> = new Set<string>([
   'browser',
   'web-worker',
@@ -55,13 +57,15 @@ const supportData = {
     edge: '16',
     firefox: '60',
     chrome: '61',
-    safari: '11',
+    safari: '10.1',
     opera: '48',
-    ios: '11',
+    ios: '10.3',
     android: '76',
     and_chr: '76',
     and_ff: '68',
     samsung: '8.2',
+    and_qq: '10.4',
+    op_mob: '64',
   },
   'dynamic-import': {
     edge: '76',
@@ -74,6 +78,8 @@ const supportData = {
     and_chr: '63',
     and_ff: '67',
     samsung: '8',
+    and_qq: '10.4',
+    op_mob: '64',
   },
   'worker-module': {
     edge: '80',
@@ -96,6 +102,8 @@ const supportData = {
     and_chr: '64',
     and_ff: '62',
     samsung: '9.2',
+    and_qq: '10.4',
+    op_mob: '64',
   },
   'arrow-functions': {
     chrome: '47',
@@ -107,6 +115,12 @@ const supportData = {
     ios: '10',
     samsung: '5',
     electron: '0.36',
+    android: '50',
+    qq: '10.4',
+    baidu: '7.12',
+    kaios: '2.5',
+    and_qq: '12.12',
+    op_mob: '64',
   },
 };
 
@@ -189,6 +203,11 @@ export default class Environment implements IEnvironment {
       this.#options.projectRoot,
       this.#environment.loc,
     );
+  }
+
+  // $FlowFixMe[unsupported-syntax]
+  [inspect](): string {
+    return `Env(${this.#environment.context})`;
   }
 
   isBrowser(): boolean {

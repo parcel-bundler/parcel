@@ -264,6 +264,16 @@ function processPipeline(
   }
 }
 
+const RESERVED_PIPELINES = new Set([
+  'node:',
+  'npm:',
+  'http:',
+  'https:',
+  'data:',
+  'tel:',
+  'mailto:',
+]);
+
 async function processMap(
   // $FlowFixMe
   map: ?ConfigMap<any, any>,
@@ -277,12 +287,12 @@ async function processMap(
   // $FlowFixMe
   let res: ConfigMap<any, any> = {};
   for (let k in map) {
-    if (k.startsWith('node:')) {
+    let i = k.indexOf(':');
+    if (i > 0 && RESERVED_PIPELINES.has(k.slice(0, i + 1))) {
       let code = await options.inputFS.readFile(filePath, 'utf8');
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message:
-            'Named pipeline `node:` is reserved for builtin Node.js libraries',
+          message: `Named pipeline '${k.slice(0, i + 1)}' is reserved.`,
           origin: '@parcel/core',
           codeFrames: [
             {
@@ -297,6 +307,8 @@ async function processMap(
               ]),
             },
           ],
+          documentationURL:
+            'https://parceljs.org/features/dependency-resolution/#url-schemes',
         },
       });
     }
@@ -328,7 +340,9 @@ export async function processConfig(
             configFile.resolveFrom,
           ),
         }
-      : {...null}),
+      : {
+          /*::...null*/
+        }),
     resolvers: processPipeline(
       options,
       configFile.resolvers,
@@ -373,6 +387,12 @@ export async function processConfig(
     optimizers: await processMap(
       configFile.optimizers,
       '/optimizers',
+      configFile.filePath,
+      options,
+    ),
+    compressors: await processMap(
+      configFile.compressors,
+      '/compressors',
       configFile.filePath,
       options,
     ),
@@ -425,16 +445,8 @@ export async function processConfigChain(
             : '/extends';
           let resolved = await resolveExtends(ext, filePath, key, options);
           extendedFiles.push(resolved);
-          let {
-            extendedFiles: moreExtendedFiles,
-            config: nextConfig,
-          } = await processExtendedConfig(
-            filePath,
-            key,
-            ext,
-            resolved,
-            options,
-          );
+          let {extendedFiles: moreExtendedFiles, config: nextConfig} =
+            await processExtendedConfig(filePath, key, ext, resolved, options);
           extendedFiles = extendedFiles.concat(moreExtendedFiles);
           extStartConfig = extStartConfig
             ? mergeConfigs(extStartConfig, nextConfig)
@@ -598,6 +610,7 @@ export function mergeConfigs(
     runtimes: assertPurePipeline(mergePipelines(base.runtimes, ext.runtimes)),
     packagers: mergeMaps(base.packagers, ext.packagers),
     optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
+    compressors: mergeMaps(base.compressors, ext.compressors, mergePipelines),
     reporters: assertPurePipeline(
       mergePipelines(base.reporters, ext.reporters),
     ),

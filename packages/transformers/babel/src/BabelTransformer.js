@@ -1,11 +1,10 @@
 // @flow strict-local
 
-import {babelErrorEnhancer} from '@parcel/babel-ast-utils';
+import {babelErrorEnhancer} from './babelErrorUtils';
 import {Transformer} from '@parcel/plugin';
 import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import semver from 'semver';
-import generate from '@babel/generator';
 import babel7 from './babel7';
 import {load} from './config';
 
@@ -48,6 +47,22 @@ export default (new Transformer({
       options.projectRoot,
       asset.filePath,
     );
+
+    const babelCorePath = await options.packageManager.resolve(
+      '@babel/core',
+      asset.filePath,
+      {
+        range: '^7.12.0',
+        saveDev: true,
+        shouldAutoInstall: options.shouldAutoInstall,
+      },
+    );
+
+    const {default: generate} = await options.packageManager.require(
+      '@babel/generator',
+      babelCorePath.resolved,
+    );
+
     let {code, rawMappings} = generate(ast.program, {
       sourceFileName,
       sourceMaps: !!asset.env.sourceMap,

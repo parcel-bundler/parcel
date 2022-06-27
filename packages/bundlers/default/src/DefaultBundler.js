@@ -7,12 +7,13 @@ import type {
   Config,
   MutableBundleGraph,
   PluginOptions,
+  Dependency,
 } from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
-import {validateSchema} from '@parcel/utils';
+import {validateSchema, DefaultMap} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
@@ -54,6 +55,10 @@ export default (new Bundler({
   bundle({bundleGraph, config}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
+    let assetsToAddOnExit: DefaultMap<
+      Dependency,
+      Array<[Bundle, Asset]>,
+    > = new DefaultMap(() => []);
 
     // Step 1: create bundles for each of the explicit code split points.
     bundleGraph.traverse({
@@ -76,7 +81,7 @@ export default (new Bundler({
         }
 
         let assets = bundleGraph.getDependencyAssets(dependency);
-        let resolution = bundleGraph.getDependencyResolution(dependency);
+        let resolution = bundleGraph.getResolvedAsset(dependency);
         let bundleGroup = context?.bundleGroup;
         // Create a new bundle for entries, lazy/parallel dependencies, isolated/inline assets.
         if (
@@ -157,7 +162,7 @@ export default (new Bundler({
           if (existingBundle) {
             // If a bundle of this type has already been created in this group,
             // merge this subgraph into it.
-            nullthrows(bundleRoots.get(existingBundle)).push(asset);
+            assetsToAddOnExit.get(node.value).push([existingBundle, asset]);
             bundlesByEntryAsset.set(asset, existingBundle);
             bundleGraph.createAssetReference(dependency, asset, existingBundle);
           } else {
@@ -181,10 +186,8 @@ export default (new Bundler({
             bundlesByEntryAsset.set(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset, bundle);
 
-            // The bundle may have already been created, and the graph gave us back the original one...
-            if (!bundleRoots.has(bundle)) {
-              bundleRoots.set(bundle, [asset]);
-            }
+            // Queue the asset to be added on exit of this node, so we add dependencies first.
+            assetsToAddOnExit.get(node.value).push([bundle, asset]);
           }
         }
 
@@ -192,6 +195,21 @@ export default (new Bundler({
           ...context,
           parentNode: node,
         };
+      },
+      exit: node => {
+        if (node.type === 'dependency' && assetsToAddOnExit.has(node.value)) {
+          let assetsToAdd = assetsToAddOnExit.get(node.value);
+          for (let [bundle, asset] of assetsToAdd) {
+            let root = bundleRoots.get(bundle);
+            if (root) {
+              root.push(asset);
+            } else {
+              bundleRoots.set(bundle, [asset]);
+            }
+          }
+
+          assetsToAddOnExit.delete(node.value);
+        }
       },
     });
 
@@ -232,7 +250,7 @@ export default (new Bundler({
         return;
       }
 
-      let candidates = bundleGraph.findBundlesWithAsset(mainEntry).filter(
+      let candidates = bundleGraph.getBundlesWithAsset(mainEntry).filter(
         containingBundle =>
           containingBundle.id !== bundle.id &&
           // Don't add to BundleGroups for entry bundles, as that would require
@@ -246,15 +264,12 @@ export default (new Bundler({
       );
 
       for (let candidate of candidates) {
-        let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(
-          candidate,
-        );
+        let bundleGroups =
+          bundleGraph.getBundleGroupsContainingBundle(candidate);
         if (
           Array.from(bundleGroups).every(
             group =>
-              bundleGraph
-                .getBundlesInBundleGroup(group)
-                .filter(b => b.bundleBehavior !== 'inline').length <
+              bundleGraph.getBundlesInBundleGroup(group).length <
               config.maxParallelRequests,
           )
         ) {
@@ -295,7 +310,7 @@ export default (new Bundler({
 
       let asset = node.value;
       let containingBundles = bundleGraph
-        .findBundlesWithAsset(asset)
+        .getBundlesWithAsset(asset)
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
@@ -356,9 +371,7 @@ export default (new Bundler({
         if (
           bundleGroups.every(
             group =>
-              bundleGraph
-                .getBundlesInBundleGroup(group)
-                .filter(b => b.bundleBehavior !== 'inline').length <
+              bundleGraph.getBundlesInBundleGroup(group).length <
               config.maxParallelRequests,
           )
         ) {
@@ -410,7 +423,7 @@ function deduplicate(bundleGraph: MutableBundleGraph) {
       let asset = node.value;
       // Search in reverse order, so bundles that are loaded keep the duplicated asset, not later ones.
       // This ensures that the earlier bundle is able to execute before the later one.
-      let bundles = bundleGraph.findBundlesWithAsset(asset).reverse();
+      let bundles = bundleGraph.getBundlesWithAsset(asset).reverse();
       for (let bundle of bundles) {
         if (
           bundle.hasAsset(asset) &&
@@ -504,7 +517,7 @@ function internalizeReachableAsyncDependencies(
       return;
     }
 
-    let resolution = bundleGraph.getDependencyResolution(dependency);
+    let resolution = bundleGraph.getResolvedAsset(dependency);
     if (resolution == null) {
       return;
     }
@@ -514,7 +527,7 @@ function internalizeReachableAsyncDependencies(
       asyncBundleGroups.add(externalResolution.value);
     }
 
-    for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
+    for (let bundle of bundleGraph.getBundlesWithDependency(dependency)) {
       if (
         bundle.hasAsset(resolution) ||
         bundleGraph.isAssetReachableFromBundle(resolution, bundle)

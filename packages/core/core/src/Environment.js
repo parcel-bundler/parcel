@@ -1,8 +1,14 @@
 // @flow
-import type {EnvironmentOptions, FilePath} from '@parcel/types';
+import type {
+  EnvironmentOptions,
+  Environment as IEnvironment,
+  FilePath,
+} from '@parcel/types';
 import type {Environment, InternalSourceLocation} from './types';
 import {hashString} from '@parcel/hash';
 import {toInternalSourceLocation} from './utils';
+import PublicEnvironment from './public/Environment';
+import {environmentToInternalEnvironment} from './public/Environment';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
@@ -25,7 +31,9 @@ export function createEnvironment({
   shouldScopeHoist = false,
   sourceMap,
   loc,
-}: EnvironmentOpts = {}): Environment {
+}: EnvironmentOpts = {
+  /*::...null*/
+}): Environment {
   if (context == null) {
     if (engines?.node) {
       context = 'node';
@@ -107,11 +115,15 @@ export function createEnvironment({
 export function mergeEnvironments(
   projectRoot: FilePath,
   a: Environment,
-  b: ?EnvironmentOptions,
+  b: ?(EnvironmentOptions | IEnvironment),
 ): Environment {
   // If merging the same object, avoid copying.
   if (a === b || !b) {
     return a;
+  }
+
+  if (b instanceof PublicEnvironment) {
+    return environmentToInternalEnvironment(b);
   }
 
   // $FlowFixMe - ignore the `id` that is already on a
@@ -131,6 +143,7 @@ function getEnvironmentHash(env: Environment): string {
       env.outputFormat,
       env.sourceType,
       env.isLibrary,
+      env.shouldOptimize,
       env.shouldScopeHoist,
       env.sourceMap,
     ]),

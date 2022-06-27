@@ -1,19 +1,43 @@
 // @flow strict-local
 
-import type {Async, FilePath} from '@parcel/types';
-import type {StaticRunOpts} from '../RequestTracker';
-import type {Bundle, ContentKey, PackagedBundleInfo} from '../types';
 import type {FileSystem, FileOptions} from '@parcel/fs';
+import type {ContentKey} from '@parcel/graph';
+import type {Async, FilePath, Compressor} from '@parcel/types';
+
+import type {RunAPI, StaticRunOpts} from '../RequestTracker';
+import type {Bundle, PackagedBundleInfo, ParcelOptions} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
+import type {ConfigAndCachePath} from './ParcelConfigRequest';
+import type {LoadedPlugin} from '../ParcelConfig';
+import type {ProjectPath} from '../projectPath';
 
 import {HASH_REF_PREFIX, HASH_REF_REGEX} from '../constants';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {NamedBundle} from '../public/Bundle';
-import {TapStream} from '@parcel/utils';
-import {Readable, Transform} from 'stream';
-import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
+import {blobToStream, TapStream} from '@parcel/utils';
+import {Readable, Transform, pipeline} from 'stream';
+import {
+  fromProjectPath,
+  fromProjectPathRelative,
+  toProjectPath,
+  joinProjectPath,
+  toProjectPathUnsafe,
+} from '../projectPath';
+import createParcelConfigRequest, {
+  getCachedParcelConfig,
+} from './ParcelConfigRequest';
+import PluginOptions from '../public/PluginOptions';
+import {PluginLogger} from '@parcel/logger';
+import {
+  getDevDepRequests,
+  invalidateDevDeps,
+  createDevDependency,
+  runDevDepRequest,
+} from './DevDepRequest';
+import ParcelConfig from '../ParcelConfig';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
@@ -42,11 +66,12 @@ export type WriteBundleRequest = {|
 export default function createWriteBundleRequest(
   input: WriteBundleRequestInput,
 ): WriteBundleRequest {
+  let name = nullthrows(input.bundle.name);
   let nameHash = nullthrows(
     input.hashRefToNameHash.get(input.bundle.hashReference),
   );
   return {
-    id: `${input.bundle.id}:${input.info.hash}:${nameHash}`,
+    id: `${input.bundle.id}:${input.info.hash}:${nameHash}:${name}`,
     type: 'write_bundle_request',
     run,
     input,
@@ -99,14 +124,40 @@ async function run({input, options, api}: RunInput) {
       : {
           mode: (await inputFS.stat(mainEntry.filePath)).mode,
         };
-  let contentStream = options.cache.getStream(cacheKeys.content);
-  let size = await writeFileStream(
-    outputFS,
-    fullPath,
+  let contentStream: Readable;
+  if (info.isLargeBlob) {
+    contentStream = options.cache.getStream(cacheKeys.content);
+  } else {
+    contentStream = blobToStream(
+      await options.cache.getBlob(cacheKeys.content),
+    );
+  }
+  let size = 0;
+  contentStream = contentStream.pipe(
+    new TapStream(buf => {
+      size += buf.length;
+    }),
+  );
+
+  let configResult = nullthrows(
+    await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+  );
+  let config = getCachedParcelConfig(configResult, options);
+
+  let {devDeps, invalidDevDeps} = await getDevDepRequests(api);
+  invalidateDevDeps(invalidDevDeps, options, config);
+
+  await writeFiles(
     contentStream,
-    info.hashReferences,
+    info,
     hashRefToNameHash,
+    options,
+    config,
+    outputFS,
+    filePath,
     writeOptions,
+    devDeps,
+    api,
   );
 
   if (
@@ -115,18 +166,23 @@ async function run({input, options, api}: RunInput) {
     !bundle.env.sourceMap.inline &&
     (await options.cache.has(mapKey))
   ) {
-    let mapStream = options.cache.getStream(mapKey);
-    await writeFileStream(
-      outputFS,
-      fullPath + '.map',
-      mapStream,
-      info.hashReferences,
+    await writeFiles(
+      blobToStream(await options.cache.getBlob(mapKey)),
+      info,
       hashRefToNameHash,
+      options,
+      config,
+      outputFS,
+      toProjectPathUnsafe(fromProjectPathRelative(filePath) + '.map'),
+      writeOptions,
+      devDeps,
+      api,
     );
   }
 
   let res = {
     filePath,
+    type: info.type,
     stats: {
       size,
       time: info.time ?? 0,
@@ -137,33 +193,96 @@ async function run({input, options, api}: RunInput) {
   return res;
 }
 
-function writeFileStream(
-  fs: FileSystem,
-  filePath: FilePath,
-  stream: Readable,
-  hashReferences: Array<string>,
+async function writeFiles(
+  inputStream: stream$Readable,
+  info: BundleInfo,
   hashRefToNameHash: Map<string, string>,
-  options: ?FileOptions,
-): Promise<number> {
-  return new Promise((resolve, reject) => {
-    let initialStream = hashReferences.length
-      ? stream.pipe(replaceStream(hashRefToNameHash))
-      : stream;
-    let fsStream = fs.createWriteStream(filePath, options);
-    let fsStreamClosed = new Promise(resolve => {
-      fsStream.on('close', () => resolve());
+  options: ParcelOptions,
+  config: ParcelConfig,
+  outputFS: FileSystem,
+  filePath: ProjectPath,
+  writeOptions: ?FileOptions,
+  devDeps: Map<string, string>,
+  api: RunAPI,
+) {
+  let compressors = await config.getCompressors(
+    fromProjectPathRelative(filePath),
+  );
+  let fullPath = fromProjectPath(options.projectRoot, filePath);
+
+  let stream = info.hashReferences.length
+    ? inputStream.pipe(replaceStream(hashRefToNameHash))
+    : inputStream;
+
+  let promises = [];
+  for (let compressor of compressors) {
+    promises.push(
+      runCompressor(
+        compressor,
+        cloneStream(stream),
+        options,
+        outputFS,
+        fullPath,
+        writeOptions,
+        devDeps,
+        api,
+      ),
+    );
+  }
+
+  await Promise.all(promises);
+}
+
+async function runCompressor(
+  compressor: LoadedPlugin<Compressor>,
+  stream: stream$Readable,
+  options: ParcelOptions,
+  outputFS: FileSystem,
+  filePath: FilePath,
+  writeOptions: ?FileOptions,
+  devDeps: Map<string, string>,
+  api: RunAPI,
+) {
+  try {
+    let res = await compressor.plugin.compress({
+      stream,
+      options: new PluginOptions(options),
+      logger: new PluginLogger({origin: compressor.name}),
     });
-    let bytesWritten = 0;
-    initialStream
-      .pipe(
-        new TapStream(buf => {
-          bytesWritten += buf.length;
-        }),
-      )
-      .pipe(fsStream)
-      .on('finish', () => resolve(fsStreamClosed.then(() => bytesWritten)))
-      .on('error', reject);
-  });
+
+    if (res != null) {
+      await new Promise((resolve, reject) =>
+        pipeline(
+          res.stream,
+          outputFS.createWriteStream(
+            filePath + (res.type != null ? '.' + res.type : ''),
+            writeOptions,
+          ),
+          err => {
+            if (err) reject(err);
+            else resolve();
+          },
+        ),
+      );
+    }
+  } catch (err) {
+    throw new ThrowableDiagnostic({
+      diagnostic: errorToDiagnostic(err, {
+        origin: compressor.name,
+      }),
+    });
+  } finally {
+    // Add dev deps for compressor plugins AFTER running them, to account for lazy require().
+    let devDepRequest = await createDevDependency(
+      {
+        specifier: compressor.name,
+        resolveFrom: compressor.resolveFrom,
+      },
+      devDeps,
+      options,
+    );
+    await runDevDepRequest(api, devDepRequest);
+  }
 }
 
 function replaceStream(hashRefToNameHash) {
@@ -186,4 +305,14 @@ function replaceStream(hashRefToNameHash) {
       cb(null, boundaryStr);
     },
   });
+}
+
+function cloneStream(readable) {
+  let res = new Readable();
+  // $FlowFixMe
+  res._read = () => {};
+  readable.on('data', chunk => res.push(chunk));
+  readable.on('end', () => res.push(null));
+  readable.on('error', err => res.emit('error', err));
+  return res;
 }
