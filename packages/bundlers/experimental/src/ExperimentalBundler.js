@@ -161,7 +161,6 @@ function decorateLegacyGraph(
       let dependencies = dependencyBundleGraph
         .getNodeIdsConnectedTo(
           dependencyBundleGraph.getNodeIdByContentKey(String(bundleNodeId)),
-          // $FlowFixMe[incompatible-call]
           ALL_EDGE_TYPES,
         )
         .map(nodeId => {
@@ -180,8 +179,7 @@ function decorateLegacyGraph(
 
       bundle = nullthrows(
         bundleGraph.createBundle({
-          // $FlowFixMe[incompatible-call]
-          entryAsset,
+          entryAsset: nullthrows(entryAsset),
           needsStableName: idealBundle.needsStableName,
           bundleBehavior: idealBundle.bundleBehavior,
           target: idealBundle.target,
@@ -1140,12 +1138,8 @@ function createIdealGraph(
       bundleGraph.addEdge(nodeId, mainNodeId);
     }
     deleteBundle(bundleRootB);
-
-    bundleRoots.set(bundleRootB, [
-      mainNodeId,
-      // $FlowFixMe[incompatible-use]
-      bundleRoots.get(mainBundleRoot)[1],
-    ]);
+    let bundleGroupOfMain = nullthrows(bundleRoots.get(mainBundleRoot))[1];
+    bundleRoots.set(bundleRootB, [mainNodeId, bundleGroupOfMain]);
     bundles.set(bundleRootB.id, mainNodeId);
   }
   function getBundleFromBundleRoot(bundleRoot: BundleRoot): Bundle {
