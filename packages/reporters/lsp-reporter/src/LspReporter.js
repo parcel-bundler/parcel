@@ -12,8 +12,10 @@ import invariant from 'assert';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
+// flowlint-next-line untyped-import:off
 import ps from 'ps-node';
 import {promisify} from 'util';
+// flowlint-next-line untyped-import:off
 import ipc from 'node-ipc';
 import {getProgressMessage} from '../../cli/src/utils';
 
