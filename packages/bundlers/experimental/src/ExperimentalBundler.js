@@ -1269,7 +1269,7 @@ async function loadBundlerConfig(
       data: conf?.contents,
       source: await options.inputFS.readFile(conf.filePath, 'utf8'),
       filePath: conf.filePath,
-      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-experimental')}`,
+      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
     },
     '@parcel/bundler-experimental',
     'Invalid config for @parcel/bundler-experimental',

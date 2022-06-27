@@ -2703,35 +2703,67 @@ describe('html', function () {
     let dir = path.join(__dirname, 'integration/invalid-bundler-config');
     let pkg = path.join(dir, 'package.json');
     let code = await inputFS.readFileSync(pkg, 'utf8');
-    await assert.rejects(() => bundle(path.join(dir, 'index.html')), {
-      name: 'BuildError',
-      diagnostics: [
-        {
-          message: 'Invalid config for @parcel/bundler-default',
-          origin: '@parcel/bundler-default',
-          codeFrames: [
-            {
-              filePath: pkg,
-              language: 'json',
-              code,
-              codeHighlights: [
-                {
-                  message: 'Did you mean "minBundleSize", "minBundles"?',
-                  start: {
-                    column: 30,
-                    line: 3,
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      await assert.rejects(() => bundle(path.join(dir, 'index.html')), {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: 'Invalid config for @parcel/bundler-experimental',
+            origin: '@parcel/bundler-experimental',
+            codeFrames: [
+              {
+                filePath: pkg,
+                language: 'json',
+                code,
+                codeHighlights: [
+                  {
+                    message: 'Did you mean "minBundleSize", "minBundles"?',
+                    start: {
+                      column: 30,
+                      line: 3,
+                    },
+                    end: {
+                      column: 45,
+                      line: 3,
+                    },
                   },
-                  end: {
-                    column: 45,
-                    line: 3,
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    } else {
+      await assert.rejects(() => bundle(path.join(dir, 'index.html')), {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: 'Invalid config for @parcel/bundler-default',
+            origin: '@parcel/bundler-default',
+            codeFrames: [
+              {
+                filePath: pkg,
+                language: 'json',
+                code,
+                codeHighlights: [
+                  {
+                    message: 'Did you mean "minBundleSize", "minBundles"?',
+                    start: {
+                      column: 30,
+                      line: 3,
+                    },
+                    end: {
+                      column: 45,
+                      line: 3,
+                    },
                   },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    }
   });
 
   it('should escape inline script tags', async function () {
