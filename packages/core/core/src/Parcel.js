@@ -248,7 +248,9 @@ export default class Parcel {
   }: {|
     signal?: AbortSignal,
     startTime?: number,
-  |} = {}): Promise<BuildEvent> {
+  |} = {
+    /*::...null*/
+  }): Promise<BuildEvent> {
     this.#requestTracker.setSignal(signal);
     let options = nullthrows(this.#resolvedOptions);
     try {
