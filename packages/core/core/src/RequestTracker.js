@@ -9,6 +9,7 @@ import type {
   ContentKey,
   NodeId,
   SerializedContentGraph,
+  EdgeTypeName,
 } from '@parcel/graph';
 import type {
   ParcelOptions,
@@ -59,6 +60,10 @@ export const requestGraphEdgeTypes = {
   invalidated_by_create_above: 6,
   dirname: 7,
 };
+
+let edgeNames = Object.fromEntries(
+  Object.entries(requestGraphEdgeTypes).map(([k, v]) => [v, k]),
+);
 
 export type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;
 
@@ -241,6 +246,10 @@ export class RequestGraph extends ContentGraph<
       optionNodeIds: this.optionNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds,
     };
+  }
+
+  getEdgeTypeName(edgeType: RequestGraphEdgeType): EdgeTypeName {
+    return edgeNames[edgeType] || super.getEdgeTypeName(edgeType);
   }
 
   // addNode for RequestGraph should not override the value if added multiple times

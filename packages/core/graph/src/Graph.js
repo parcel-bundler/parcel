@@ -23,6 +23,7 @@ export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
 
 export type AllEdgeTypes = -1;
 export const ALL_EDGE_TYPES: AllEdgeTypes = -1;
+export type EdgeTypeName = string;
 
 export default class Graph<TNode, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
@@ -59,6 +60,10 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       adjacencyList: this.adjacencyList.serialize(),
       rootNodeId: this.rootNodeId,
     };
+  }
+
+  getEdgeTypeName(edgeType: TEdgeType | NullEdgeType): EdgeTypeName {
+    return `Unknown edge type ${edgeType}`;
   }
 
   // Returns an iterator of all edges in the graph. This can be large, so iterating

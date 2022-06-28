@@ -8,7 +8,7 @@ import type {
 import type {Socket} from 'net';
 // This is a private type and will be removed when compiled.
 // eslint-disable-next-line monorepo/no-internal-import
-import type {Graph} from '@parcel/graph';
+import type {Graph, NodeId, EdgeTypeName, NullEdgeType} from '@parcel/graph';
 
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
@@ -119,6 +119,30 @@ function close({
   });
 }
 
+function serialize<TNode, TEdgeType: number = 1>(
+  graph: Graph<TNode, TEdgeType>,
+): {|
+  nodes: Map<NodeId, TNode>,
+  edges: Map<NodeId, Map<EdgeTypeName, Set<NodeId>>>,
+|} {
+  let edges = new Map<NodeId, Map<EdgeTypeName, Set<NodeId>>>();
+  for (let {from, to, type} of graph.getAllEdges()) {
+    let types = edges.get(from);
+    let typeName = graph.getEdgeTypeName(type);
+    if (!types) {
+      types = new Map();
+      edges.set(from, types);
+      types.set(typeName, new Set());
+    }
+    types.get(typeName)?.add(to);
+  }
+
+  return {
+    nodes: graph.nodes,
+    edges,
+  };
+}
+
 function createApp(instanceId: InstanceId): ExpressApplication {
   let app = express();
   app.use('/', express.static(path.join(__dirname, '../frontend')));
@@ -127,7 +151,7 @@ function createApp(instanceId: InstanceId): ExpressApplication {
     res.set('Content-Type', 'application/x-msgpack');
     res.status(200).send(
       Buffer.from(
-        msgpack.encode(nullthrows(graphs.get(instanceId)).serialize(), {
+        msgpack.encode(serialize(nullthrows(graphs.get(instanceId))), {
           extensionCodec,
         }),
       ),

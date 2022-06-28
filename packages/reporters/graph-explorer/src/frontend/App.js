@@ -3,7 +3,6 @@ import {decode} from './utils';
 import {GraphView} from 'react-digraph';
 import path from 'path';
 import JSONTree from 'react-json-tree';
-import {Graph} from '@parcel/graph';
 
 const NODE_TEXT_LINE_HEIGHT = 18;
 
@@ -27,7 +26,7 @@ export default function App() {
         return;
       }
 
-      setGraph(Graph.deserialize(await decode(buffer)));
+      setGraph(await decode(buffer));
     })();
 
     return () => {
@@ -53,14 +52,11 @@ function LoadedApp({graph}) {
       return [...types];
     }
 
-    for (let {from, to, type} of graph.getAllEdges()) {
-      types.add(type);
+    for (let [sourceId, edgeMap] of graph.edges) {
+      for (let [type] of edgeMap) {
+        types.add(type);
+      }
     }
-    // for (let [sourceId, edgeMap] of graph.edges) {
-    //   for (let [type] of edgeMap) {
-    //     types.add(type);
-    //   }
-    // }
     return types;
   }, [graph]);
 
@@ -379,50 +375,31 @@ function convertGraph({
 
   const edges = [];
 
-  for (let {from, to, type} of graph.getAllEdges()) {
-    if (!focusedEdgeTypes.has(type)) {
-      continue;
+  for (let [sourceId, edgeMap] of graph.edges) {
+    for (let [type, targetIds] of edgeMap) {
+      for (let targetId of targetIds) {
+        if (!focusedEdgeTypes.has(type)) {
+          continue;
+        }
+
+        if (
+          isFocusingNodes &&
+          !(focusedNodeIds.has(sourceId) || focusedNodeIds.has(targetId))
+        ) {
+          continue;
+        }
+
+        shownNodes.add(graph.nodes.get(sourceId));
+        shownNodes.add(graph.nodes.get(targetId));
+
+        edges.push({
+          source: sourceId,
+          target: targetId,
+          type: type ?? undefined,
+        });
+      }
     }
-    if (
-      isFocusingNodes &&
-      !(focusedNodeIds.has(from) || focusedNodeIds.has(to))
-    ) {
-      continue;
-    }
-    shownNodes.add(graph.nodes.get(from));
-    shownNodes.add(graph.nodes.get(to));
-    edges.push({
-      source: from,
-      target: to,
-      type,
-    });
   }
-
-  // for (let [sourceId, edgeMap] of graph.edges) {
-  //   for (let [type, targetIds] of edgeMap) {
-  //     for (let targetId of targetIds) {
-  //       if (!focusedEdgeTypes.has(type)) {
-  //         continue;
-  //       }
-
-  //       if (
-  //         isFocusingNodes &&
-  //         !(focusedNodeIds.has(sourceId) || focusedNodeIds.has(targetId))
-  //       ) {
-  //         continue;
-  //       }
-
-  //       shownNodes.add(graph.nodes.get(sourceId));
-  //       shownNodes.add(graph.nodes.get(targetId));
-
-  //       edges.push({
-  //         source: sourceId,
-  //         target: targetId,
-  //         type: type ?? undefined,
-  //       });
-  //     }
-  //   }
-  // }
 
   return {
     nodes: [...shownNodes].map(({id, type, value}) => ({

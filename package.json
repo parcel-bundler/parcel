@@ -8,7 +8,8 @@
   },
   "private": true,
   "workspaces": [
-    "packages/*/*"
+    "packages/*/*",
+    "packages/reporters/graph-explorer/src/frontend"
   ],
   "scripts": {
     "build": "yarn build-bundles && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",

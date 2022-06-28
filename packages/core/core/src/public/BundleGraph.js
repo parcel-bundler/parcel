@@ -16,11 +16,12 @@ import type {
 } from '@parcel/types';
 import type {Bundle as InternalBundle, ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
+import type {BundleGraphEdgeType} from '../BundleGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
-import {mapVisitor} from '@parcel/graph';
+import {mapVisitor, type EdgeTypeName} from '@parcel/graph';
 import {assetFromValue, assetToAssetValue, Asset} from './Asset';
 import {bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
@@ -63,6 +64,10 @@ export default class BundleGraph<TBundle: IBundle>
     this.#createBundle = createBundle;
     // $FlowFixMe
     _bundleGraphToInternalBundleGraph.set(this, graph);
+  }
+
+  getEdgeTypeName(edgeType: BundleGraphEdgeType): EdgeTypeName {
+    return this.#graph.getEdgeTypeName(edgeType);
   }
 
   getAssetById(id: string): Asset {

@@ -29,7 +29,14 @@ import type {ProjectPath} from './projectPath';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {ContentGraph, ALL_EDGE_TYPES, mapVisitor} from '@parcel/graph';
+import {
+  ContentGraph,
+  ALL_EDGE_TYPES,
+  mapVisitor,
+  type NullEdgeType,
+  type EdgeTypeName,
+  type Edge,
+} from '@parcel/graph';
 import {Hash, hashString} from '@parcel/hash';
 import {objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 
@@ -62,6 +69,10 @@ export const bundleGraphEdgeTypes = {
   // and that the bundle connected to the dependency is not necessary for the source bundle.
   internal_async: 5,
 };
+
+let edgeNames = Object.fromEntries(
+  Object.entries(bundleGraphEdgeTypes).map(([k, v]) => [v, k]),
+);
 
 export type BundleGraphEdgeType = $Values<typeof bundleGraphEdgeTypes>;
 
@@ -138,6 +149,18 @@ export default class BundleGraph {
     this._publicIdByAssetId = publicIdByAssetId;
     this._bundleContentHashes = bundleContentHashes;
     this._symbolPropagationRan = symbolPropagationRan;
+  }
+
+  get nodes(): Map<NodeId, BundleGraphNode> {
+    return this._graph.nodes;
+  }
+
+  getAllEdges(): Iterator<Edge<BundleGraphEdgeType>> {
+    return this._graph.getAllEdges();
+  }
+
+  getEdgeTypeName(edgeType: BundleGraphEdgeType): EdgeTypeName {
+    return edgeNames[edgeType] || this._graph.getEdgeTypeName(edgeType);
   }
 
   static fromAssetGraph(

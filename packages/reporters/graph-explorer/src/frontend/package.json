@@ -1,13 +1,19 @@
 {
+  "name": "@parcel/graph-explorer-frontend",
+  "version": "2.6.2",
+  "license": "MIT",
   "source": "index.html",
   "scripts": {
-    "build": "parcel build --no-optimize --no-scope-hoist index.html",
+    "build": "parcel build --no-optimize index.html",
     "dev": "parcel watch index.html"
   },
   "targets": {
     "default": {
       "distDir": "../../frontend"
     }
+  },
+  "devDependencies": {
+    "parcel": "2.6.2"
   },
   "dependencies": {
     "@parcel/graph": "2.6.2",

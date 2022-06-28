@@ -16,7 +16,7 @@
   "main": "lib/GraphExplorerReporter.js",
   "source": "src/GraphExplorerReporter.js",
   "scripts": {
-    "prepare": "cd src/frontend && yarn && yarn build"
+    "prepare": "cd src/frontend && yarn build"
   },
   "engines": {
     "node": ">= 12.0.0",
