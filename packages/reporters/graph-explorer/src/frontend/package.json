@@ -18,7 +18,7 @@
   "dependencies": {
     "@parcel/graph": "2.6.2",
     "react": "^17.0.1",
-    "react-digraph": "8.0.0-beta.7",
+    "react-digraph": "8.0.0-beta.8",
     "react-dom": "^17.0.1",
     "react-json-tree": "^0.13.0"
   }

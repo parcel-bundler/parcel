@@ -11177,10 +11177,10 @@ react-base16-styling@^0.8.0:
     csstype "^3.0.10"
     lodash.curry "^4.1.1"
 
-react-digraph@8.0.0-beta.7:
-  version "8.0.0-beta.7"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/react-digraph/-/react-digraph-8.0.0-beta.7.tgz#b63a72d6f3af63cbf6b16e8f0b31ed94fb007fa7"
-  integrity sha512-HKwnAv4Azq3D2hgVTuiRyYext5uTPcmPuUDSxY9ZG8rmOl1NHOB/+WkxqMkwv/CCyQBa8yeQevqOrEcfkE86yg==
+react-digraph@8.0.0-beta.8:
+  version "8.0.0-beta.8"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/react-digraph/-/react-digraph-8.0.0-beta.8.tgz#a7d94d36a4d79d6ac548ff1716eea36e9f4b3ef3"
+  integrity sha512-6aAw8QznEFkBDdsS1sDaAwAEDKl2GvdYv9ZxL+JwA3znsFuzwE9QPRzQX/vftNL/4ld9ridTzW/QMdOrvkYr5w==
   dependencies:
     dagre "^0.8.2"
     fast-deep-equal "^2.0.1"
