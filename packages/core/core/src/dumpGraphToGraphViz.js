@@ -33,7 +33,6 @@ const TYPE_COLORS = {
 };
 
 export default async function dumpGraphToGraphViz(
-  // $FlowFixMe
   graph:
     | Graph<AssetGraphNode>
     | Graph<{|
@@ -137,15 +136,12 @@ export default async function dumpGraphToGraphViz(
         }
       } else if (node.type === 'asset_group') {
         if (node.deferred) label += '(deferred)';
-        // $FlowFixMe
       } else if (node.type === 'file') {
         label += path.basename(node.value.filePath);
-        // $FlowFixMe
       } else if (node.type === 'transformer_request') {
         label +=
           path.basename(node.value.filePath) +
           ` (${getEnvDescription(node.value.env)})`;
-        // $FlowFixMe
       } else if (node.type === 'bundle') {
         let parts = [];
         if (node.value.needsStableName) parts.push('stable name');
@@ -153,7 +149,6 @@ export default async function dumpGraphToGraphViz(
         parts.push('bb:' + (node.value.bundleBehavior ?? 'null'));
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-        // $FlowFixMe
       } else if (node.type === 'request') {
         label = node.value.type + ':' + node.id;
       }

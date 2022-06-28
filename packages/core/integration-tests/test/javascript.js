@@ -5641,6 +5641,96 @@ describe('javascript', function () {
     );
   });
 
+  it('should error on mismatched helpers version for libraries', async function () {
+    let fixture = path.join(
+      __dirname,
+      'integration/undeclared-external/helpers.js',
+    );
+    let pkg = path.join(
+      __dirname,
+      'integration/undeclared-external/package.json',
+    );
+    let pkgContents = JSON.stringify(
+      {
+        ...JSON.parse(await overlayFS.readFile(pkg, 'utf8')),
+        dependencies: {
+          '@swc/helpers': '^0.3.0',
+        },
+      },
+      false,
+      2,
+    );
+    await overlayFS.mkdirp(path.dirname(pkg));
+    await overlayFS.writeFile(pkg, pkgContents);
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          mode: 'production',
+          inputFS: overlayFS,
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: md`Failed to resolve '${'@swc/helpers/lib/_class_call_check.js'}' from '${normalizePath(
+              require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+            )}'`,
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(fixture, 'utf8'),
+                filePath: fixture,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 1,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            message:
+              'External dependency "@swc/helpers" does not satisfy required semver range "^0.4.2".',
+            origin: '@parcel/resolver-default',
+            codeFrames: [
+              {
+                code: pkgContents,
+                filePath: pkg,
+                language: 'json',
+                codeHighlights: [
+                  {
+                    message: 'Found this conflicting requirement.',
+                    start: {
+                      line: 6,
+                      column: 21,
+                    },
+                    end: {
+                      line: 6,
+                      column: 28,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              'Update the dependency on "@swc/helpers" to satisfy "^0.4.2".',
+            ],
+          },
+        ],
+      },
+    );
+  });
+
   describe('multiple import types', function () {
     it('supports both static and dynamic imports to the same specifier in the same file', async function () {
       let b = await bundle(

@@ -132,6 +132,7 @@ export type Dependency = {|
   sourcePath: ?ProjectPath,
   sourceAssetType?: ?string,
   resolveFrom: ?ProjectPath,
+  range: ?SemverRange,
   symbols: ?Map<
     Symbol,
     {|
