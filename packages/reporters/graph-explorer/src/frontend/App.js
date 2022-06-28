@@ -144,7 +144,14 @@ function LoadedApp({graph}) {
           bundle_group: bundleGroupNode,
           bundle: bundleNode,
         }}
-        edgeTypes={{}}
+        edgeTypes={{
+          null: makeEdge({type: 'null', size: 125, color: '#d2d3d2'}),
+          references: makeEdge({
+            type: 'references',
+            size: 125,
+            color: '#00ff00',
+          }),
+        }}
         nodeSubtypes={{}}
         onSelectNode={node => {
           setSelectedNode(node != null ? graph.nodes.get(node.title) : null);
@@ -343,6 +350,30 @@ function makeNode({type, size, color}) {
   };
 }
 
+function makeEdge({type, size, color}) {
+  return {
+    typeText: type,
+    shapeId: '#' + type,
+    shape: (
+      // Adapted from https://github.com/uber/react-digraph#usage
+      <symbol
+        viewBox={`0 0 ${size} ${size}`}
+        id={type}
+        key="0"
+        width={size}
+        height={size}
+      >
+        <circle
+          fill={color}
+          cx={`${size / 2}`}
+          cy={`${size / 2}`}
+          r={`${0.45 * size}`}
+        />
+      </symbol>
+    ),
+  };
+}
+
 const anyNode = makeNode({type: 'any', size: 125, color: '#d2d3d2'});
 const rootNode = makeNode({type: 'root', size: 125, color: '#d2d3d2'});
 const entrySpecifierNode = makeNode({
@@ -402,7 +433,8 @@ function convertGraph({
   }
 
   return {
-    nodes: [...shownNodes].map(({id, type, value}) => ({
+    nodes: [...shownNodes].map(({id, type, value}, index) => ({
+      id: index,
       title: id,
       type,
       value,
