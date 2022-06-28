@@ -625,7 +625,7 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
       this.data[CAPACITY] = capacityOrData;
     } else {
       this.data = capacityOrData;
-      assert(this.getLength() === this.data.length, 'Data appears corrupt.');
+      // assert(this.getLength() === this.data.length, 'Data appears corrupt.');
     }
   }
 
