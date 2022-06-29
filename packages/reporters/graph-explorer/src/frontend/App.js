@@ -41,6 +41,81 @@ export default function App() {
   return <LoadedApp graph={graph} />;
 }
 
+const COLORS = {
+  root: 'gray',
+  asset: 'green',
+  dependency: 'orange',
+  transformer_request: 'cyan',
+  file: 'gray',
+  default: 'gray',
+};
+
+const TYPE_COLORS = {
+  null: 'black',
+  bundle: 'blue',
+  contains: 'grey',
+  internal_async: 'orange',
+  references: 'red',
+  sibling: 'green',
+  invalidated_by_create: 'green',
+  invalidated_by_create_above: 'orange',
+  invalidate_by_update: 'cyan',
+  invalidated_by_delete: 'red',
+};
+
+const GraphConfig = {
+  NodeTypes: {
+    any: makeNode({type: 'any', size: 125, color: COLORS.default}),
+    root: makeNode({type: 'root', size: 125, color: COLORS.root}),
+    entry_specifier: makeNode({
+      type: 'entry_specifier',
+      size: 125,
+      color: COLORS.default,
+    }),
+    entry_file: makeNode({
+      type: 'entry_file',
+      size: 125,
+      color: COLORS.file,
+    }),
+    dependency: makeNode({
+      type: 'dependency',
+      size: 100,
+      color: COLORS.dependency,
+    }),
+    asset: makeNode({type: 'asset', size: 175, color: COLORS.asset}),
+    bundle_group: makeNode({
+      type: 'bundle_group',
+      size: 125,
+      color: COLORS.default,
+    }),
+    bundle: makeNode({type: 'bundle', size: 125, color: COLORS.default}),
+  },
+  NodeSubtypes: {},
+  EdgeTypes: {
+    null: makeEdge({type: 'null', size: 125, color: TYPE_COLORS.null}),
+    references: makeEdge({
+      type: 'references',
+      size: 125,
+      color: TYPE_COLORS.references,
+    }),
+    contains: makeEdge({
+      type: 'contains',
+      size: 125,
+      color: TYPE_COLORS.contains,
+    }),
+    bundle: makeEdge({
+      type: 'bundle',
+      size: 125,
+      color: TYPE_COLORS.bundle,
+    }),
+    internal_async: makeEdge({
+      type: 'internal_async',
+      size: 125,
+      color: TYPE_COLORS.internal_async,
+    }),
+  },
+};
+
 function LoadedApp({graph}) {
   const [selectedNode, setSelectedNode] = useState(null);
   const [focusedNodeIds, setFocusedNodeIds] = useState(new Set());
@@ -129,32 +204,17 @@ function LoadedApp({graph}) {
         </div>
       ) : null}
       <GraphView
-        nodeKey="title"
+        nodeKey="id"
         layoutEngineType="VerticalTree"
         readOnly={true}
         renderNodeText={(node, id, isSelected) => (
           <NodeText node={node} id={id} isSelected={isSelected} />
         )}
-        nodeTypes={{
-          root: anyNode,
-          entry_specifier: entrySpecifierNode,
-          entry_file: entrySpecifierNode,
-          dependency: dependencyNode,
-          asset: assetNode,
-          bundle_group: bundleGroupNode,
-          bundle: bundleNode,
-        }}
-        edgeTypes={{
-          null: makeEdge({type: 'null', size: 125, color: '#d2d3d2'}),
-          references: makeEdge({
-            type: 'references',
-            size: 125,
-            color: '#00ff00',
-          }),
-        }}
-        nodeSubtypes={{}}
+        nodeTypes={GraphConfig.NodeTypes}
+        edgeTypes={GraphConfig.EdgeTypes}
+        nodeSubtypes={GraphConfig.NodeSubtypes}
         onSelectNode={node => {
-          setSelectedNode(node != null ? graph.nodes.get(node.title) : null);
+          setSelectedNode(node != null ? graph.nodes.get(node.id) : null);
         }}
         selected={selectedGraphViewNode}
         nodes={convertedGraph.nodes}
@@ -400,9 +460,7 @@ function convertGraph({
   graph,
   isFocusingNodes,
 }) {
-  const shownNodes = new Set(
-    [...focusedNodeIds].map(id => graph.nodes.get(id)),
-  );
+  const shownNodeIds = new Set([...focusedNodeIds]);
 
   const edges = [];
 
@@ -420,8 +478,8 @@ function convertGraph({
           continue;
         }
 
-        shownNodes.add(graph.nodes.get(sourceId));
-        shownNodes.add(graph.nodes.get(targetId));
+        shownNodeIds.add(sourceId);
+        shownNodeIds.add(targetId);
 
         edges.push({
           source: sourceId,
@@ -433,12 +491,15 @@ function convertGraph({
   }
 
   return {
-    nodes: [...shownNodes].map(({id, type, value}, index) => ({
-      id: index,
-      title: id,
-      type,
-      value,
-    })),
+    nodes: [...shownNodeIds].map(id => {
+      let {id: title, type, value} = graph.nodes.get(id);
+      return {
+        id,
+        title,
+        type,
+        value,
+      };
+    }),
     edges,
   };
 }
