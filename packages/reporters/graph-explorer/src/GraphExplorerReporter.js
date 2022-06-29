@@ -132,9 +132,13 @@ function serialize<TNode, TEdgeType: number = 1>(
     if (!types) {
       types = new Map();
       edges.set(from, types);
-      types.set(typeName, new Set());
     }
-    types.get(typeName)?.add(to);
+    let tos = types.get(typeName);
+    if (!tos) {
+      tos = new Set();
+      types.set(typeName, tos);
+    }
+    tos.add(to);
   }
 
   return {
