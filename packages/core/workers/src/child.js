@@ -163,7 +163,6 @@ export class Child {
       try {
         let v8 = require('v8');
         result = responseFromContent(
-          // $FlowFixMe
           v8.writeHeapSnapshot(
             'heap-' +
               args[0] +
