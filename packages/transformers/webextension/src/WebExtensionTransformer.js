@@ -193,8 +193,9 @@ async function collectDependencies(
           await glob(path.join(assetDir, files[j]), fs, {})
         ).map(fp =>
           asset.addURLDependency(path.relative(assetDir, fp), {
-            bundleBehavior: 'isolated',
+            pipeline: path.extname(fp) == '.json' ? 'raw' : undefined,
             needsStableName: true,
+            bundleBehavior: 'isolated',
             loc: {
               filePath,
               ...getJSONSourceLocation(
