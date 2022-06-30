@@ -204,12 +204,17 @@ function LoadedApp({graph}) {
     <div style={{height: '100%', width: '100%'}}>
       <div className="tools tools--left">
         <SearchView
-          onSubmit={nodeId => {
+          onSubmit={publicId => {
             setSelectedNode(
               convertedGraph.nodes.find(
-                nodeObj => nodeObj.id === Number(nodeId),
+                nodeObj => nodeObj.value?.publicId === publicId,
               ),
             );
+            // setSelectedNode(
+            //   convertedGraph.nodes.find(
+            //     nodeObj => nodeObj.id === Number(nodeId),
+            //   ),
+            // );
           }}
         />
         <FocusView
