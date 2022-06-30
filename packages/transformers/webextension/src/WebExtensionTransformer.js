@@ -182,7 +182,7 @@ async function collectDependencies(
     }
   }
   if (program.web_accessible_resources) {
-    const rawExtSet = new Set(['.json', '.js'])
+    const rawExtSet = new Set(['.json', '.js']);
     let war = [];
     for (let i = 0; i < program.web_accessible_resources.length; ++i) {
       // TODO: this doesn't support Parcel resolution
@@ -193,9 +193,9 @@ async function collectDependencies(
         file => glob(path.join(assetDir, file), fs, {})
       )).then((filePaths) => {
         filePaths.forEach(filePath => {
-          const extension = path.extname(filePath)
+          const extension = path.extname(filePath);
           asset.addURLDependency(path.relative(assetDir, filePath), {
-            pipeline: rawExtSet.has(extension) ? 'raw': undefined,
+            pipeline: rawExtSet.has(extension) ? 'raw' : undefined,
             bundleBehavior: 'isolated',
             needsStableName: true,
             loc: {
@@ -208,11 +208,12 @@ async function collectDependencies(
                 ],
               ),
             },
-          })
-        })
+          });
+        });
 
         return filePaths;
-      })
+      });
+      
       const currentFiles = globFiles.flat();
       
       if (isMV2) {
