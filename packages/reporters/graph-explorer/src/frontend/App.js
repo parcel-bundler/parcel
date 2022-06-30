@@ -116,6 +116,13 @@ const GraphConfig = {
   },
 };
 
+// const Priority = {
+//   sync: 0,
+//   parallel: 1,
+//   lazy: 2,
+// };
+const Priority = ['sync', 'parallel', 'lazy'];
+
 function LoadedApp({graph}) {
   const [selectedNode, setSelectedNode] = useState(null);
   const [focusedNodeIds, setFocusedNodeIds] = useState(new Set());
@@ -168,7 +175,11 @@ function LoadedApp({graph}) {
       <div className="tools tools--left">
         <SearchView
           onSubmit={nodeId => {
-            setSelectedNode(graph.nodes.get(nodeId));
+            setSelectedNode(
+              convertedGraph.nodes.find(
+                nodeObj => nodeObj.id === Number(nodeId),
+              ),
+            );
           }}
         />
         <FocusView
@@ -186,8 +197,12 @@ function LoadedApp({graph}) {
           }}
           focusedNodeIds={focusedNodeIds}
           isFocusingNodes={isFocusingNodes}
-          onNodeIdClick={id => {
-            setSelectedNode(graph.nodes.get(id));
+          onNodeIdClick={nodeId => {
+            setSelectedNode(
+              convertedGraph.nodes.find(
+                nodeObj => nodeObj.id === Number(nodeId),
+              ),
+            );
           }}
           onFocusNodes={isFocusing => {
             setIsFocusingNodes(isFocusing);
@@ -206,6 +221,7 @@ function LoadedApp({graph}) {
       <GraphView
         nodeKey="id"
         layoutEngineType="VerticalTree"
+        allowMultiselect={false}
         readOnly={true}
         renderNodeText={(node, id, isSelected) => (
           <NodeText node={node} id={id} isSelected={isSelected} />
@@ -213,8 +229,10 @@ function LoadedApp({graph}) {
         nodeTypes={GraphConfig.NodeTypes}
         edgeTypes={GraphConfig.EdgeTypes}
         nodeSubtypes={GraphConfig.NodeSubtypes}
-        onSelectNode={node => {
-          setSelectedNode(node != null ? graph.nodes.get(node.id) : null);
+        onSelect={select => {
+          if (select.nodes !== null) {
+            setSelectedNode([...select.nodes.values()][0]);
+          }
         }}
         selected={selectedGraphViewNode}
         nodes={convertedGraph.nodes}
@@ -384,6 +402,7 @@ function NodeText({node, id, isSelected}) {
 
 const extraFields = {
   asset: node => [path.basename(node.value.filePath)],
+  dependency: node => [Priority[node.value.priority] || 'unknown'],
 };
 
 function makeNode({type, size, color}) {
@@ -410,7 +429,7 @@ function makeNode({type, size, color}) {
   };
 }
 
-function makeEdge({type, size, color}) {
+function makeEdge({type, size}) {
   return {
     typeText: type,
     shapeId: '#' + type,
@@ -422,14 +441,7 @@ function makeEdge({type, size, color}) {
         key="0"
         width={size}
         height={size}
-      >
-        <circle
-          fill={color}
-          cx={`${size / 2}`}
-          cy={`${size / 2}`}
-          r={`${0.45 * size}`}
-        />
-      </symbol>
+      ></symbol>
     ),
   };
 }

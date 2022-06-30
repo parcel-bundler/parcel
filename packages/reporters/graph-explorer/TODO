@@ -1,13 +1,17 @@
-- Show focused state visually in graph
 - Node content inside visualization is truncated. Make it clear that it is.
 - Show more information on hover
 - Explore other colors for nodes
 - Arrowheads don't match arrow path color
+- Derive node and edge types from data (instead of hardcoding). Account for the RequestGraph as well
+- Search for a module and show e.g. dependencies that have react for instance
+- Be able to focus nodes based on filepath or name
+- Info about the bundles an asset belongs to
+- Show dependency types and bundle behavior (filter for certain priorities etc.)
 
 Aspirational
 
-- Focus nodeId: should show only that node and it's immediate connections (can we focus multiple nodes)
-- Focus node types: only show bundles, assets, or deps (or other)
+- Use shortIds in SearchView
 - ^ related: Collapsed view, show the node type until you click to reveal other connections
-- Be able to focus nodes based on filepath or name
 - what do we do for a huge graph? -> should we A. just display the root and add "expand level" functionality" , B. only display one node type C. Figure out how many nodes we can reasonably render and have a cap there (i.e. tell the user they'll need to alter their filters to show different nodes)
+- Diff view for comparing graphs
+- Simplified view with flattened dependency nodes (represented by edges)
