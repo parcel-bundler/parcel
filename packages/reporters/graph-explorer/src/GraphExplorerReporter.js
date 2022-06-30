@@ -35,7 +35,7 @@ const servers: Map<InstanceId, Disposable> = new Map();
 export default (new Reporter({
   async report({event, logger, options}) {
     switch (event.type) {
-      case 'watchStart': {
+      case 'buildSuccess': {
         invariant(!servers.has(options.instanceId));
         let app = createApp(options.instanceId);
         let port: number = await getPort();

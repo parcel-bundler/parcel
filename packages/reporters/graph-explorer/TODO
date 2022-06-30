@@ -1,3 +1,4 @@
+- !!! change text in searchbox from search by nodeId to publicID
 - Node content inside visualization is truncated. Make it clear that it is.
 - Show more information on hover
 - Explore other colors for nodes
