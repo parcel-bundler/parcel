@@ -2,11 +2,9 @@
 - Show more information on hover
 - Explore other colors for nodes
 - Arrowheads don't match arrow path color
-- Derive node and edge types from data (instead of hardcoding). Account for the RequestGraph as well
 - Search for a module and show e.g. dependencies that have react for instance
 - Be able to focus nodes based on filepath or name
 - Info about the bundles an asset belongs to
-- Show dependency types and bundle behavior (filter for certain priorities etc.)
 
 Aspirational
 

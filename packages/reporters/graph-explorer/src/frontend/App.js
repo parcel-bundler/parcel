@@ -122,6 +122,8 @@ const GraphConfig = {
 //   lazy: 2,
 // };
 const Priority = ['sync', 'parallel', 'lazy'];
+//type BundleBehavior = 'inline' | 'isolated';
+const BundleBehavior = ['inline', 'isolated'];
 
 function LoadedApp({graph}) {
   const [selectedNode, setSelectedNode] = useState(null);
@@ -430,6 +432,10 @@ function NodeText({node, id, isSelected}) {
 
 const extraFields = {
   asset: node => [path.basename(node.value.filePath)],
+  bundle: node =>
+    node.value.bundleBehavior === null
+      ? ['']
+      : [BundleBehavior[node.value.bundleBehavior] || 'unknown'],
   dependency: node => [Priority[node.value.priority] || 'unknown'],
 };
 
