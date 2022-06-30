@@ -186,7 +186,7 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['1', '2']);
     });
 
-    it("doesn't rename member expression properties", async function () {
+    it('correctly renames member expression properties', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -195,7 +195,7 @@ describe('scope hoisting', function () {
       );
 
       let output = await run(b);
-      assert.deepEqual(output({foo: 12}), [12, 12]);
+      assert.deepEqual(output({foo: 12, bar: 34}), [12, 12, 34, 34]);
     });
 
     it('supports renaming imports', async function () {
@@ -3705,8 +3705,6 @@ describe('scope hoisting', function () {
         ),
       );
 
-      // console.log(await outputFS.readFile(b.getBundles()[0].filePath, 'utf8'));
-
       let output = await run(b);
       assert.equal(output, 1);
     });
@@ -3769,6 +3767,18 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.deepEqual(output, {foo: 2});
+    });
+
+    it('should support referencing a require in object literal shorthands when wrapped', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-module-obj-literal-require/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 1234);
     });
 
     it('should support typeof require when wrapped', async function () {

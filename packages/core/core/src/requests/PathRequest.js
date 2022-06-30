@@ -67,6 +67,12 @@ async function run({input, api, options}: RunOpts) {
   });
   let result: ResolverResult = await resolverRunner.resolve(input.dependency);
 
+  if (result.invalidateOnEnvChange) {
+    for (let env of result.invalidateOnEnvChange) {
+      api.invalidateOnEnvChange(env);
+    }
+  }
+
   if (result.invalidateOnFileCreate) {
     for (let file of result.invalidateOnFileCreate) {
       api.invalidateOnFileCreate(
@@ -106,6 +112,7 @@ type ResolverResult = {|
   alias: ?string,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   invalidateOnFileChange?: Array<FilePath>,
+  invalidateOnEnvChange?: Array<string>,
   diagnostics?: Array<Diagnostic>,
 |};
 
@@ -186,6 +193,7 @@ export class ResolverRunner {
     let diagnostics: Array<Diagnostic> = [];
     let invalidateOnFileCreate = [];
     let invalidateOnFileChange = [];
+    let invalidateOnEnvChange = [];
     for (let resolver of resolvers) {
       try {
         let result = await resolver.plugin.resolve({
@@ -209,6 +217,10 @@ export class ResolverRunner {
             dependency.priority = Priority[result.priority];
           }
 
+          if (result.invalidateOnEnvChange) {
+            invalidateOnEnvChange.push(...result.invalidateOnEnvChange);
+          }
+
           if (result.invalidateOnFileCreate) {
             invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
           }
@@ -223,6 +235,7 @@ export class ResolverRunner {
               alias: result?.alias,
               invalidateOnFileCreate,
               invalidateOnFileChange,
+              invalidateOnEnvChange,
             };
           }
 
@@ -253,6 +266,7 @@ export class ResolverRunner {
               },
               invalidateOnFileCreate,
               invalidateOnFileChange,
+              invalidateOnEnvChange,
             };
           }
 
@@ -288,6 +302,7 @@ export class ResolverRunner {
         assetGroup: null,
         invalidateOnFileCreate,
         invalidateOnFileChange,
+        invalidateOnEnvChange,
       };
     }
 
@@ -310,6 +325,7 @@ export class ResolverRunner {
       assetGroup: null,
       invalidateOnFileCreate,
       invalidateOnFileChange,
+      invalidateOnEnvChange,
       diagnostics,
     };
   }

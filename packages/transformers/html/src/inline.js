@@ -57,14 +57,15 @@ export default function extractInlineAssets(
 
           let outputFormat = 'global';
           let sourceType = 'script';
-          if (node.attrs.type === 'module') {
+          let attrs = node.attrs;
+          if (attrs && attrs.type === 'module') {
             if (
               asset.env.shouldScopeHoist &&
               asset.env.supports('esmodules', true)
             ) {
               outputFormat = 'esmodule';
             } else {
-              delete node.attrs.type;
+              delete attrs.type;
             }
 
             sourceType = 'module';
