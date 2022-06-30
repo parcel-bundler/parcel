@@ -2016,39 +2016,6 @@ describe('javascript', function () {
     );
   });
 
-  it('should contain duplicate assets in workers when in development', async () => {
-    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) return;
-    let b = await bundle(
-      path.join(__dirname, '/integration/worker-shared/index.js'),
-      {mode: 'development'},
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'get-worker-url.js',
-          'lodash.js',
-          'esmodule-helpers.js',
-        ],
-      },
-      {
-        assets: [
-          'worker-a.js',
-          'bundle-url.js',
-          'esmodule-helpers.js',
-          'get-worker-url.js',
-          'lodash.js',
-        ],
-      },
-      {
-        assets: ['worker-b.js', 'lodash.js', 'esmodule-helpers.js'],
-      },
-    ]);
-  });
-
   it('should deduplicate and remove an unnecessary async bundle when it contains a cyclic reference to its entry', async () => {
     let b = await bundle(
       path.join(
@@ -4790,6 +4757,45 @@ describe('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [42, 42, 42]);
   });
 
+  it('async dependency can be resolved internally and externally from two different bundles', async () => {
+    let b = await bundle(
+      ['entry1.js', 'entry2.js'].map(entry =>
+        path.join(
+          __dirname,
+          '/integration/async-dep-internal-external/',
+          entry,
+        ),
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['async.js'],
+      },
+      {
+        name: 'entry1.js',
+        assets: ['child.js', 'entry1.js', 'async.js'],
+      },
+      {
+        name: 'entry2.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'child.js',
+          'entry2.js',
+          'js-loader.js',
+        ],
+      },
+    ]);
+  });
+
   it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async/same-ancestry.js'),
@@ -5451,8 +5457,7 @@ describe('javascript', function () {
       },
     );
   });
-
-  it('should create a shared bundle from a minimum of 2 source bundles', async function () {
+  it('should reuse a bundle when its main asset (aka bundleroot) is imported sychronously', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/shared-bundle-single-source/index.js'),
       {
@@ -5857,27 +5862,47 @@ describe('javascript', function () {
         ),
       );
 
-      assertBundles(b, [
-        {
-          type: 'js',
-          assets: [
-            'dynamic-url.js',
-            'esmodule-helpers.js',
-            'bundle-url.js',
-            'cacheLoader.js',
-            'js-loader.js',
-          ],
-        },
-        {
-          type: 'js',
-          assets: ['other.js'],
-        },
-        {
-          type: 'js',
-          assets: ['other.js', 'esmodule-helpers.js'],
-        },
-      ]);
-
+      // Change in behavior: ExperimentalBundler now produces a single bundle
+      // of the lowest common denominator of bundleBehavior
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+        assertBundles(b, [
+          {
+            type: 'js',
+            assets: [
+              'dynamic-url.js',
+              'esmodule-helpers.js',
+              'bundle-url.js',
+              'cacheLoader.js',
+              'js-loader.js',
+            ],
+          },
+          {
+            type: 'js',
+            assets: ['other.js', 'esmodule-helpers.js'],
+          },
+        ]);
+      } else {
+        assertBundles(b, [
+          {
+            type: 'js',
+            assets: [
+              'dynamic-url.js',
+              'esmodule-helpers.js',
+              'bundle-url.js',
+              'cacheLoader.js',
+              'js-loader.js',
+            ],
+          },
+          {
+            type: 'js',
+            assets: ['other.js'],
+          },
+          {
+            type: 'js',
+            assets: ['other.js', 'esmodule-helpers.js'],
+          },
+        ]);
+      }
       let res = await run(b);
       assert.equal(typeof res.lazy, 'object');
       assert.equal(typeof (await res.lazy), 'function');
@@ -5902,20 +5927,35 @@ describe('javascript', function () {
         },
       );
 
-      assertBundles(b, [
-        {
-          type: 'js',
-          assets: ['dynamic-url.js'],
-        },
-        {
-          type: 'js',
-          assets: ['other.js'],
-        },
-        {
-          type: 'js',
-          assets: ['other.js'],
-        },
-      ]);
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+        // Change in behavior: ExperimentalBundler now produces a single bundle
+        // of the lowest common denominator of bundleBehavior
+        assertBundles(b, [
+          {
+            type: 'js',
+            assets: ['dynamic-url.js'],
+          },
+          {
+            type: 'js',
+            assets: ['other.js'],
+          },
+        ]);
+      } else {
+        assertBundles(b, [
+          {
+            type: 'js',
+            assets: ['dynamic-url.js'],
+          },
+          {
+            type: 'js',
+            assets: ['other.js'],
+          },
+          {
+            type: 'js',
+            assets: ['other.js'],
+          },
+        ]);
+      }
 
       let res = await run(b);
       assert.equal(typeof res.lazy, 'object');

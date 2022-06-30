@@ -4360,7 +4360,7 @@ describe('cache', function () {
       it('should support adding bundler config', async function () {
         let b = await testCache(
           {
-            entries: ['*.html'],
+            entries: ['index.js'],
             mode: 'production',
             async setup() {
               let pkgFile = path.join(inputDir, 'package.json');
@@ -4374,13 +4374,28 @@ describe('cache', function () {
               );
             },
             async update(b) {
-              let html = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.name === 'b.html')
-                  ?.filePath,
-                'utf8',
-              );
-              assert.equal(html.match(/<script/g)?.length, 7);
-
+              assertBundles(b.bundleGraph, [
+                {
+                  assets: ['a.js'],
+                },
+                {
+                  assets: ['b.js'],
+                },
+                {
+                  name: 'index.js',
+                  assets: [
+                    'index.js',
+                    'c.js',
+                    'bundle-url.js',
+                    'cacheLoader.js',
+                    'js-loader.js',
+                    'bundle-manifest.js',
+                  ],
+                },
+                {
+                  assets: ['common.js', 'lodash.js'],
+                },
+              ]);
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
               await overlayFS.writeFile(
@@ -4388,35 +4403,78 @@ describe('cache', function () {
                 JSON.stringify({
                   ...pkg,
                   '@parcel/bundler-default': {
-                    http: 1,
+                    minBundleSize: 9000000,
                   },
                 }),
               );
             },
           },
-          'shared-many',
+          'dynamic-common-large',
         );
 
-        let html = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
-          'utf8',
+        assertBundles(b.bundleGraph, [
+          {
+            assets: ['a.js', 'common.js', 'lodash.js'],
+          },
+          {
+            assets: ['b.js', 'common.js', 'lodash.js'],
+          },
+          {
+            name: 'index.js',
+            assets: [
+              'index.js',
+              'c.js',
+              'bundle-url.js',
+              'cacheLoader.js',
+              'js-loader.js',
+              'bundle-manifest.js',
+            ],
+          },
+        ]);
+      });
+
+      it('should support adding bundler config for parallel request limits', async function () {
+        let b = await testCache(
+          {
+            entries: ['index.js'],
+            mode: 'production',
+            async setup() {
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': undefined,
+                }),
+              );
+            },
+            async update(b) {
+              assert.deepEqual(b.bundleGraph.getBundles().length, 7);
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': {
+                    maxParallelRequests: 0,
+                  },
+                }),
+              );
+            },
+          },
+          'large-bundlegroup',
         );
-        assert.equal(html.match(/<script/g)?.length, 5);
+        assert.deepEqual(b.bundleGraph.getBundles().length, 5);
       });
 
       it('should support updating bundler config', async function () {
         let b = await testCache(
           {
-            entries: ['*.html'],
+            entries: ['index.js'],
             mode: 'production',
-            async update(b) {
-              let html = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.name === 'b.html')
-                  ?.filePath,
-                'utf8',
-              );
-              assert.equal(html.match(/<script/g)?.length, 5);
-
+            async setup() {
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
               await overlayFS.writeFile(
@@ -4424,35 +4482,109 @@ describe('cache', function () {
                 JSON.stringify({
                   ...pkg,
                   '@parcel/bundler-default': {
-                    http: 2,
+                    minBundleSize: 8000,
+                  },
+                }),
+              );
+            },
+            async update(b) {
+              assertBundles(b.bundleGraph, [
+                {
+                  assets: ['a.js'],
+                },
+                {
+                  assets: ['b.js'],
+                },
+                {
+                  name: 'index.js',
+                  assets: [
+                    'index.js',
+                    'c.js',
+                    'bundle-url.js',
+                    'cacheLoader.js',
+                    'js-loader.js',
+                    'bundle-manifest.js',
+                  ],
+                },
+                {
+                  assets: ['common.js', 'lodash.js'],
+                },
+              ]);
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': {
+                    minBundleSize: 9000000,
                   },
                 }),
               );
             },
           },
-          'shared-many',
+          'dynamic-common-large',
         );
 
-        let html = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
-          'utf8',
-        );
-        assert.equal(html.match(/<script/g)?.length, 7);
+        assertBundles(b.bundleGraph, [
+          {
+            assets: ['a.js', 'common.js', 'lodash.js'],
+          },
+          {
+            assets: ['b.js', 'common.js', 'lodash.js'],
+          },
+          {
+            name: 'index.js',
+            assets: [
+              'index.js',
+              'c.js',
+              'bundle-url.js',
+              'cacheLoader.js',
+              'js-loader.js',
+              'bundle-manifest.js',
+            ],
+          },
+        ]);
       });
 
       it('should support removing bundler config', async function () {
         let b = await testCache(
           {
-            entries: ['*.html'],
+            entries: ['index.js'],
             mode: 'production',
-            async update(b) {
-              let html = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.name === 'b.html')
-                  ?.filePath,
-                'utf8',
+            async setup() {
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': {
+                    minBundleSize: 9000000,
+                  },
+                }),
               );
-              assert.equal(html.match(/<script/g)?.length, 5);
-
+            },
+            async update(b) {
+              assertBundles(b.bundleGraph, [
+                {
+                  assets: ['a.js', 'common.js', 'lodash.js'],
+                },
+                {
+                  assets: ['b.js', 'common.js', 'lodash.js'],
+                },
+                {
+                  name: 'index.js',
+                  assets: [
+                    'index.js',
+                    'c.js',
+                    'bundle-url.js',
+                    'cacheLoader.js',
+                    'js-loader.js',
+                    'bundle-manifest.js',
+                  ],
+                },
+              ]);
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
               await overlayFS.writeFile(
@@ -4464,14 +4596,30 @@ describe('cache', function () {
               );
             },
           },
-          'shared-many',
+          'dynamic-common-large',
         );
-
-        let html = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
-          'utf8',
-        );
-        assert.equal(html.match(/<script/g)?.length, 7);
+        assertBundles(b.bundleGraph, [
+          {
+            assets: ['a.js'],
+          },
+          {
+            assets: ['b.js'],
+          },
+          {
+            name: 'index.js',
+            assets: [
+              'index.js',
+              'c.js',
+              'bundle-url.js',
+              'cacheLoader.js',
+              'js-loader.js',
+              'bundle-manifest.js',
+            ],
+          },
+          {
+            assets: ['common.js', 'lodash.js'],
+          },
+        ]);
       });
     });
   });
