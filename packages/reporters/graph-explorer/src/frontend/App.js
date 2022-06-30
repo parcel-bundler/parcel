@@ -155,6 +155,34 @@ function LoadedApp({graph}) {
         : null,
     [graph, isFocusingNodes, focusedNodeIds, focusedEdgeTypes],
   );
+  const config = useMemo(() => {
+    const allNodeTypes = new Set(convertedGraph.nodes.map(node => node.type));
+    const allEdgeTypes = new Set(convertedGraph.edges.map(edge => edge.type));
+    const extendedGraphConfig = {
+      NodeTypes: {...GraphConfig.NodeTypes},
+      NodeSubtypes: {...GraphConfig.NodeSubtypes},
+      EdgeTypes: {...GraphConfig.EdgeTypes},
+    };
+    allNodeTypes.forEach(nodeType => {
+      if (!(nodeType in GraphConfig.NodeTypes)) {
+        extendedGraphConfig.NodeTypes[nodeType] = makeNode({
+          type: nodeType,
+          size: 125,
+          color: COLORS.default,
+        });
+      }
+    });
+    allEdgeTypes.forEach(edgeType => {
+      if (!(edgeType in GraphConfig.EdgeTypes)) {
+        extendedGraphConfig.NodeTypes[edgeType] = makeEdge({
+          type: edgeType,
+          size: 125,
+          color: TYPE_COLORS.null,
+        });
+      }
+    });
+    return extendedGraphConfig;
+  }, [convertedGraph, GraphConfig]);
 
   const selectedGraphViewNode =
     selectedNode != null ? {title: selectedNode.id} : null;
@@ -226,9 +254,9 @@ function LoadedApp({graph}) {
         renderNodeText={(node, id, isSelected) => (
           <NodeText node={node} id={id} isSelected={isSelected} />
         )}
-        nodeTypes={GraphConfig.NodeTypes}
-        edgeTypes={GraphConfig.EdgeTypes}
-        nodeSubtypes={GraphConfig.NodeSubtypes}
+        nodeTypes={config.NodeTypes}
+        edgeTypes={config.EdgeTypes}
+        nodeSubtypes={config.NodeSubtypes}
         onSelect={select => {
           if (select.nodes !== null) {
             setSelectedNode([...select.nodes.values()][0]);
@@ -408,12 +436,12 @@ const extraFields = {
 function makeNode({type, size, color}) {
   return {
     typeText: type,
-    shapeId: '#' + type,
+    shapeId: '#node_' + type,
     shape: (
       // Adapted from https://github.com/uber/react-digraph#usage
       <symbol
         viewBox={`0 0 ${size} ${size}`}
-        id={type}
+        id={'node_' + type}
         key="0"
         width={size}
         height={size}
@@ -432,12 +460,12 @@ function makeNode({type, size, color}) {
 function makeEdge({type, size}) {
   return {
     typeText: type,
-    shapeId: '#' + type,
+    shapeId: '#edge_' + type,
     shape: (
       // Adapted from https://github.com/uber/react-digraph#usage
       <symbol
         viewBox={`0 0 ${size} ${size}`}
-        id={type}
+        id={'edge_' + type}
         key="0"
         width={size}
         height={size}
@@ -445,26 +473,6 @@ function makeEdge({type, size}) {
     ),
   };
 }
-
-const anyNode = makeNode({type: 'any', size: 125, color: '#d2d3d2'});
-const rootNode = makeNode({type: 'root', size: 125, color: '#d2d3d2'});
-const entrySpecifierNode = makeNode({
-  type: 'entry_specifier',
-  size: 125,
-  color: '#d2d3d2',
-});
-const dependencyNode = makeNode({
-  type: 'dependency',
-  size: 100,
-  color: '#fea500',
-});
-const assetNode = makeNode({type: 'asset', size: 175, color: '#00ff00'});
-const bundleGroupNode = makeNode({
-  type: 'bundle_group',
-  size: 125,
-  color: '#d2d3d2',
-});
-const bundleNode = makeNode({type: 'bundle', size: 125, color: '#d2d3d2'});
 
 function convertGraph({
   focusedEdgeTypes,

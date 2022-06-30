@@ -4,7 +4,9 @@ import type {GraphVisitor} from '@parcel/types';
 import type {
   ContentGraphOpts,
   ContentKey,
+  EdgeTypeName,
   NodeId,
+  NullEdgeType,
   SerializedContentGraph,
 } from '@parcel/graph';
 import type {
@@ -147,6 +149,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       hash: this.hash,
       symbolPropagationRan: this.symbolPropagationRan,
     };
+  }
+
+  getEdgeTypeName(edgeType: NullEdgeType): EdgeTypeName {
+    return edgeType === 1 ? 'null' : super.getEdgeTypeName(edgeType);
   }
 
   // Deduplicates Environments by making them referentially equal
