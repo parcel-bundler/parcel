@@ -5,6 +5,8 @@
 - Search for a module and show e.g. dependencies that have react for instance
 - Be able to focus nodes based on filepath or name
 - Info about the bundles an asset belongs to
+- Collapsing subgraphs -- would be useful for large graphs like frontbucket. size of node 'bubbles' depend on the subgraph size
+- ^ could implement some default limit for collapsing
 
 Aspirational
 
