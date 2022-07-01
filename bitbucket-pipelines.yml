@@ -1,4 +1,4 @@
-image: node:14.15.4
+image: node:16.14.2
 
 clone:
   depth: full
