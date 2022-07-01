@@ -64,23 +64,25 @@ export default function extractInlineAssets(
         return node;
       }
 
-      if (!node.attrs) {
-        node.attrs = {};
+      let attrs = node.attrs;
+      if (!attrs) {
+        attrs = {};
+        node.attrs = attrs;
       }
 
       // Inform packager to remove type, since CSS and JS are the defaults.
-      delete node.attrs.type;
+      delete attrs.type;
 
       let parcelKey;
       // allow a script/style tag to declare its key
-      if (node.attrs['data-parcel-key']) {
-        parcelKey = node.attrs['data-parcel-key'];
+      if (attrs['data-parcel-key']) {
+        parcelKey = attrs['data-parcel-key'];
       } else {
         parcelKey = hashString(`${asset.id}:${key++}`);
       }
 
       // insert parcelId to allow us to retrieve node during packaging
-      node.attrs['data-parcel-key'] = parcelKey;
+      attrs['data-parcel-key'] = parcelKey;
       asset.setAST(ast); // mark dirty
 
       asset.addDependency({

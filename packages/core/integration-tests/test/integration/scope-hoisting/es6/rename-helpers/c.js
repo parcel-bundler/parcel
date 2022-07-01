@@ -1,5 +1,3 @@
 export class C {
-  get [Symbol.toStringTag]() {
-    return '2';
-  }
+  static [Symbol.toStringTag] = 2;
 }

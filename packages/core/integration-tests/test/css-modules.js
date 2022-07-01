@@ -545,7 +545,7 @@ describe('css modules', () => {
       },
     ]);
   });
-
+  // Forked because experimental bundler will not merge bundles of same types if they do not share all their bundlegroups
   it('should handle @import in css modules', async function () {
     let b = await bundle(
       [
@@ -577,38 +577,77 @@ describe('css modules', () => {
 
     assert.deepEqual(res, [['page2', '_4fY2uG_foo _1ZEqVW_foo j1UkRG_foo']]);
 
-    assertBundles(b, [
-      {
-        name: 'page1.html',
-        assets: ['page1.html'],
-      },
-      {
-        name: 'page2.html',
-        assets: ['page2.html'],
-      },
-      {
-        type: 'js',
-        assets: [
-          'page1.js',
-          'index.module.css',
-          'a.module.css',
-          'b.module.css',
-        ],
-      },
-      {
-        type: 'js',
-        assets: [
-          'page2.js',
-          'index.module.css',
-          'a.module.css',
-          'b.module.css',
-        ],
-      },
-      {
-        type: 'css',
-        assets: ['index.module.css', 'a.module.css', 'b.module.css'],
-      },
-    ]);
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      assertBundles(b, [
+        {
+          name: 'page1.html',
+          assets: ['page1.html'],
+        },
+        {
+          name: 'page2.html',
+          assets: ['page2.html'],
+        },
+        {
+          type: 'js',
+          assets: [
+            'page1.js',
+            'index.module.css',
+            'a.module.css',
+            'b.module.css',
+          ],
+        },
+        {
+          type: 'js',
+          assets: [
+            'page2.js',
+            'index.module.css',
+            'a.module.css',
+            'b.module.css',
+          ],
+        },
+        {
+          type: 'css',
+          assets: ['a.module.css', 'b.module.css'],
+        },
+        {
+          type: 'css',
+          assets: ['index.module.css'],
+        },
+      ]);
+    } else {
+      assertBundles(b, [
+        {
+          name: 'page1.html',
+          assets: ['page1.html'],
+        },
+        {
+          name: 'page2.html',
+          assets: ['page2.html'],
+        },
+        {
+          type: 'js',
+          assets: [
+            'page1.js',
+            'index.module.css',
+            'a.module.css',
+            'b.module.css',
+          ],
+        },
+        {
+          type: 'js',
+          assets: [
+            'page2.js',
+            'index.module.css',
+            'a.module.css',
+            'b.module.css',
+          ],
+        },
+        {
+          type: 'css',
+          assets: ['index.module.css', 'a.module.css', 'b.module.css'],
+        },
+      ]);
+    }
   });
 
   it('should not process inline <style> elements as a CSS module', async function () {
@@ -620,5 +659,53 @@ describe('css modules', () => {
       'utf8',
     );
     assert(contents.includes('.index {'));
+  });
+
+  it('should support global css modules via boolean config', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-global/a/index.js'),
+      {mode: 'production'},
+    );
+    let res = await run(b);
+    assert.deepEqual(res, 'C-gzXq_foo');
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    assert(contents.includes('.C-gzXq_foo'));
+    assert(contents.includes('.x'));
+  });
+
+  it('should support global css modules via object config', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-global/b/index.js'),
+      {mode: 'production'},
+    );
+    let res = await run(b);
+    assert.deepEqual(res, 'C-gzXq_foo');
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    assert(contents.includes('.C-gzXq_foo'));
+    assert(contents.includes('.x'));
+  });
+
+  it('should optimize away unused variables when dashedIdents option is used', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-vars/index.js'),
+      {mode: 'production'},
+    );
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    assert.equal(
+      contents.split('\n')[0],
+      ':root{--wGsoEa_color:red;--wGsoEa_font:Helvetica;--wGsoEa_theme-sizes-1\\/12:2;--wGsoEa_from-js:purple}body{font:var(--wGsoEa_font)}._4fY2uG_foo{color:var(--wGsoEa_color);width:var(--wGsoEa_theme-sizes-1\\/12);height:var(--height)}',
+    );
+    let res = await run(b);
+    assert.deepEqual(res, ['_4fY2uG_foo', '--wGsoEa_from-js']);
   });
 });

@@ -173,7 +173,9 @@ export default async function resolveOptions(
       publicUrl,
       ...(distDir != null
         ? {distDir: toProjectPath(projectRoot, distDir)}
-        : {...null}),
+        : {
+            /*::...null*/
+          }),
       engines: initialOptions?.defaultTargetOptions?.engines,
       outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
       isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
