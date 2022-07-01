@@ -189,32 +189,27 @@ async function collectDependencies(
       const currentEntry = program.web_accessible_resources[i];
       const files = isMV2 ? [currentEntry] : currentEntry.resources;
       
-      const globFiles = await Promise.all(files.map(
+      const globFiles = await Promise.all(files.flatMap(
         file => glob(path.join(assetDir, file), fs, {})
-      )).then((filePaths) => {
-        filePaths.forEach(filePath => {
-          const extension = path.extname(filePath);
-          asset.addURLDependency(path.relative(assetDir, filePath), {
-            pipeline: rawExtSet.has(extension) ? 'raw' : undefined,
-            bundleBehavior: 'isolated',
-            needsStableName: true,
-            loc: {
-              filePath,
-              ...getJSONSourceLocation(
-                ptrs[
-                  `/web_accessible_resources/${i}${
-                    isMV2 ? '' : `/resources/${j}`
-                  }`
-                ],
-              ),
-            },
-          });
-        });
+      ));
 
-        return filePaths;
-      });
-      
-      const currentFiles = globFiles.flat();
+      const currentFiles = globFiles.map((fp, j) =>
+        asset.addURLDependency(path.relative(assetDir, fp), {
+          pipeline: rawExtSet.has(path.extname(fp)) ? 'raw' : undefined,
+          bundleBehavior: 'isolated',
+          needsStableName: true,
+          loc: {
+            filePath,
+            ...getJSONSourceLocation(
+              ptrs[
+                `/web_accessible_resources/${i}${
+                  isMV2 ? '' : `/resources/${j}`
+                }`
+              ],
+            ),  
+          }
+        })
+      );
       
       if (isMV2) {
         war = war.concat(currentFiles);
