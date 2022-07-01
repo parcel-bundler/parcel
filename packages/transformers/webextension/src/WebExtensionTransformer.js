@@ -182,34 +182,35 @@ async function collectDependencies(
     }
   }
   if (program.web_accessible_resources) {
-    const rawExtSet = new Set(['.json', '.js']);
     let war = [];
     for (let i = 0; i < program.web_accessible_resources.length; ++i) {
       // TODO: this doesn't support Parcel resolution
       const currentEntry = program.web_accessible_resources[i];
       const files = isMV2 ? [currentEntry] : currentEntry.resources;
       
-      const globFiles = await Promise.all(files.flatMap(
-        file => glob(path.join(assetDir, file), fs, {})
-      ));
-
-      const currentFiles = globFiles.map((fp, j) =>
-        asset.addURLDependency(path.relative(assetDir, fp), {
-          pipeline: rawExtSet.has(path.extname(fp)) ? 'raw' : undefined,
-          bundleBehavior: 'isolated',
-          needsStableName: true,
-          loc: {
-            filePath,
-            ...getJSONSourceLocation(
-              ptrs[
-                `/web_accessible_resources/${i}${
-                  isMV2 ? '' : `/resources/${j}`
-                }`
-              ],
-            ),  
-          }
-        })
-      );
+      let currentFiles = [];
+      for (let j = 0; j < files.length; ++j) {
+        const globFiles = (
+          await glob(path.join(assetDir, files[j]), fs, {})
+        ).map(fp =>
+          asset.addURLDependency(path.relative(assetDir, fp), {
+            pipeline: 'raw',
+            bundleBehavior: 'isolated',
+            needsStableName: true,
+            loc: {
+              filePath,
+              ...getJSONSourceLocation(
+                ptrs[
+                  `/web_accessible_resources/${i}${
+                    isMV2 ? '' : `/resources/${j}`
+                  }`
+                ],
+              ),
+            },
+          }),
+        );
+        currentFiles = currentFiles.concat(globFiles);
+      }
       
       if (isMV2) {
         war = war.concat(currentFiles);
