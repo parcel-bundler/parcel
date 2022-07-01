@@ -291,7 +291,7 @@ function SearchView({onSubmit}) {
         className="search-view"
         name="search"
         onChange={e => setSearchValue(e.target.value)}
-        placeholder="Search by node id"
+        placeholder="Search by publicId"
         type="search"
       />
     </form>
