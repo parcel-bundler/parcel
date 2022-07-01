@@ -187,7 +187,6 @@ async function collectDependencies(
       // TODO: this doesn't support Parcel resolution
       const currentEntry = program.web_accessible_resources[i];
       const files = isMV2 ? [currentEntry] : currentEntry.resources;
-      
       let currentFiles = [];
       for (let j = 0; j < files.length; ++j) {
         const globFiles = (
@@ -211,7 +210,6 @@ async function collectDependencies(
         );
         currentFiles = currentFiles.concat(globFiles);
       }
-      
       if (isMV2) {
         war = war.concat(currentFiles);
       } else {
