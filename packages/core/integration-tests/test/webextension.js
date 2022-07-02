@@ -86,7 +86,7 @@ describe('webextension', function () {
       },
       {
         assets: ['single.js'],
-      }
+      },
     ]);
     const manifest = JSON.parse(
       await outputFS.readFile(
