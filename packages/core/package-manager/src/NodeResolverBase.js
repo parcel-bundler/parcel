@@ -139,6 +139,19 @@ export class NodeResolverBase<T> {
     let dir = path.dirname(sourceFile);
     let moduleDir = this.fs.findNodeModule(moduleName, dir);
 
+    if (!moduleDir && process.env.NODE_PATH != null) {
+       for (const dir of process.env.NODE_PATH.split(path.delimiter)) {
+          try {
+            let nodePathDir = path.join(dir, moduleName);
+            let stats = this.fs.statSync(nodePathDir);
+            if (stats.isDirectory()) {
+              moduleDir = nodePathDir;
+              break;
+            };
+          } catch (err) {}
+       }
+    }
+
     ctx.invalidateOnFileCreate.push({
       fileName: `node_modules/${moduleName}`,
       aboveFilePath: sourceFile,
