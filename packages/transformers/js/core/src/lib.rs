@@ -379,6 +379,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       Some(&comments),
                       preset_env_config,
                       Default::default(),
+                      &mut Default::default(),
                     ),
                     should_run_preset_env,
                   ),
