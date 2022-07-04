@@ -5,9 +5,10 @@ import readline from 'readline';
 import ora from 'ora';
 import stringWidth from 'string-width';
 import termSize from 'term-size';
+import sliceAnsi from 'slice-ansi';
 
 import type {PadAlign} from './utils';
-import {pad, countLines, getTerminalWidth} from './utils';
+import {pad, countLines} from './utils';
 import * as emoji from './emoji';
 
 type ColumnType = {|
@@ -21,10 +22,13 @@ export const isTTY: any | boolean | true =
 let stdout = process.stdout;
 let stderr = process.stderr;
 
+stdout.setMaxListeners(100);
+stderr.setMaxListeners(100);
+
 // Some state so we clear the output properly
 let statusPersisted = false;
-let terminalHeight = termSize().rows;
-let pageHeight = terminalHeight;
+export let terminalSize: $Call<typeof termSize> = termSize();
+let pageHeight = terminalSize.rows;
 
 export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
   stdout = stdoutLike;
@@ -41,6 +45,56 @@ let header = [];
 let footer = [];
 let scrollingLines = [];
 let scrollOffset = 0;
+let isInteractive = false;
+
+export function init() {
+  isInteractive = isTTY;
+  if (!isInteractive) {
+    return;
+  }
+
+  stdout.write('\x1b[?1049h'); // use alternate buffer
+  stdout.write('\x1b[?1h'); // enable application cursor keys
+  stdout.write('\x1b='); // enable application keypad
+  stdout.write('\x1b[?25l'); // hide cursor
+
+  stdout.on('resize', () => {
+    terminalSize = termSize();
+    pageHeight = getPageHeight();
+
+    readline.cursorTo(stdout, 0, 0);
+    readline.clearScreenDown(stdout);
+
+    let y = 0;
+    for (let line of header) {
+      readline.cursorTo(stdout, 0, y++);
+      stdout.write(line);
+    }
+
+    for (
+      let i = 0, h = Math.min(pageHeight, scrollingLines.length);
+      i < h;
+      i++
+    ) {
+      readline.cursorTo(stdout, 0, y++);
+      stdout.write(scrollingLines[scrollOffset + i]);
+    }
+
+    for (let line of footer) {
+      readline.cursorTo(stdout, 0, y++);
+      stdout.write(sliceAnsi(line, 0, terminalSize.columns - 2));
+    }
+  });
+}
+
+export function exit() {
+  if (isInteractive) {
+    stdout.write('\x1b>'); // disable application keypad
+    stdout.write('\x1b[?1l'); // disable application cursor keys
+    stdout.write('\x1b[?1049l'); // disable alternate buffer
+    stdout.write('\x1b[?25h'); // show cursor
+  }
+}
 
 export function writeOut(message: string, isError: boolean = false) {
   let hasSpinner = spinner.isSpinning;
@@ -50,14 +104,14 @@ export function writeOut(message: string, isError: boolean = false) {
     spinner.stop();
   }
 
-  if (isTTY) {
+  if (isInteractive) {
     let writtenLines = scrollingLines.length;
     let processedLines = message.split('\n');
     scrollingLines.push(...processedLines);
 
     let linesToWrite = Math.min(
       processedLines.length,
-      terminalHeight - writtenLines - 1,
+      terminalSize.rows - writtenLines - 1,
     );
     let w = header.length + writtenLines;
     for (let i = 0; i < linesToWrite; i++) {
@@ -80,13 +134,18 @@ export function writeOut(message: string, isError: boolean = false) {
 }
 
 export function updateLine(x: number, y: number, string: string) {
-  while (scrollingLines.length <= y) {
-    scrollingLines.push('');
+  if (isInteractive) {
+    while (scrollingLines.length <= y) {
+      scrollingLines.push('');
+    }
+
+    scrollingLines[y] = scrollingLines[y].slice(0, x).padEnd(x, ' ') + string;
   }
 
-  scrollingLines[y] = scrollingLines[y].slice(0, x).padEnd(x, ' ') + string;
-
-  if (y >= scrollOffset && y <= scrollOffset + getPageHeight()) {
+  if (
+    !isInteractive ||
+    (y >= scrollOffset && y <= scrollOffset + getPageHeight())
+  ) {
     cursorTo(x, y);
     stdout.write(string);
     readline.clearLine(stdout, 1);
@@ -98,7 +157,7 @@ export function moveBy(lines: number) {
 }
 
 export function getPageHeight(): number {
-  return terminalHeight - header.length - footer.length;
+  return terminalSize.rows - header.length - footer.length;
 }
 
 export function scrollTo(line: number) {
@@ -142,7 +201,7 @@ export function persistMessage(message: string) {
 
   header.push(message);
 
-  if (isTTY) {
+  if (isInteractive) {
     if (scrollingLines.length || footer.length) {
       updatePageHeight();
     } else {
@@ -211,35 +270,9 @@ function updatePageHeight() {
   pageHeight = newHeight;
 }
 
-if (isTTY) {
-  process.stdout.on('resize', () => {
-    terminalHeight = termSize().rows;
-    pageHeight = getPageHeight();
-
-    readline.cursorTo(stdout, 0, 0);
-    readline.clearScreenDown(stdout);
-
-    let y = 0;
-    for (let line of header) {
-      readline.cursorTo(stdout, 0, y++);
-      stdout.write(line);
-    }
-
-    for (let i = 0; i < pageHeight; i++) {
-      readline.cursorTo(stdout, 0, y++);
-      stdout.write(scrollingLines[scrollOffset + i]);
-    }
-
-    for (let line of footer) {
-      readline.cursorTo(stdout, 0, y++);
-      stdout.write(line);
-    }
-  });
-}
-
 export function updateSpinner(message: string) {
   // This helps the spinner play well with the tests
-  if (!isTTY) {
+  if (!isInteractive) {
     writeOut(message);
     return;
   }
@@ -258,10 +291,15 @@ export function persistSpinner(
   spinner.stop();
   persistMessage(`${emoji[status]} ${message}`);
   statusPersisted = true;
+
+  if (isInteractive) {
+    // ora shows cursor on stop, so hide it again if interactive.
+    stdout.write('\x1b[?25l');
+  }
 }
 
 function clearStream(stream: Writable, lines: number) {
-  if (!isTTY) return;
+  if (!isInteractive) return;
 
   readline.moveCursor(stream, 0, -lines);
   readline.clearScreenDown(stream);
@@ -269,7 +307,7 @@ function clearStream(stream: Writable, lines: number) {
 
 // Reset the window's state
 export function resetWindow() {
-  if (!isTTY) return;
+  if (!isInteractive) return;
 
   // If status has been persisted, remove it from the header.
   if (statusPersisted) {

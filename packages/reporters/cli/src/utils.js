@@ -6,12 +6,10 @@ import chalk from 'chalk';
 import stringWidth from 'string-width';
 import termSize from 'term-size';
 import stripAnsi from 'strip-ansi';
+import wrapAnsi from 'wrap-ansi';
+import {terminalSize} from './render';
 
 export type PadAlign = 'left' | 'right';
-let terminalSize = termSize();
-process.stdout.on('resize', function () {
-  terminalSize = termSize();
-});
 
 export function getProgressMessage(event: BuildProgressEvent): ?string {
   switch (event.phase) {
@@ -29,10 +27,6 @@ export function getProgressMessage(event: BuildProgressEvent): ?string {
   }
 
   return null;
-}
-
-export function getTerminalWidth(): any {
-  return terminalSize;
 }
 
 // Pad a string with spaces on either side
@@ -65,4 +59,27 @@ export function countLines(message: string): number {
   return stripAnsi(message)
     .split('\n')
     .reduce((p, line) => p + Math.ceil((stringWidth(line) || 1) / columns), 0);
+}
+
+export function wrapWithIndent(
+  string: string,
+  indent: number = 0,
+  initialIndent: number = indent,
+): string {
+  let width = terminalSize.columns;
+  return indentString(
+    wrapAnsi(string.trimEnd(), width - indent, {trim: false}),
+    indent,
+    initialIndent,
+  );
+}
+
+export function indentString(
+  string: string,
+  indent: number = 0,
+  initialIndent: number = indent,
+): string {
+  return (
+    ' '.repeat(initialIndent) + string.replace(/\n/g, '\n' + ' '.repeat(indent))
+  );
 }
