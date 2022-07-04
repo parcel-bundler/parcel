@@ -248,10 +248,10 @@ async function writeDiagnostic(
       for (let fix of diagnostic.fixes) {
         await renderFix(fix, options);
       }
-    }
 
-    if (fixes.length > 0 && documentation) {
-      writeOut('', isError);
+      if (documentation) {
+        writeOut('', isError);
+      }
     }
 
     if (documentation) {

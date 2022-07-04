@@ -199,43 +199,61 @@ export default function codeFrame(
     let hasReplacement = lineHighlights.some(
       highlight => highlight.replacement != null,
     );
-    let prefix = hasReplacement ? '-' : '>';
+    let prefix = '>';
 
     if (hasReplacement) {
       let line = lines[currentLineIndex];
-      syntaxHighlightedLine = '';
+      let deletedLine = '';
+      let hasHighlighted = false;
       let start = 0;
       for (let highlight of lineHighlights) {
-        syntaxHighlightedLine += highlighter(
-          line.slice(start, highlight.start.column),
+        let highlightStart =
+          highlight.start.line === currentLineIndex
+            ? highlight.start.column
+            : 0;
+        let highlightEnd =
+          highlight.end.line === currentLineIndex
+            ? highlight.end.column + 1
+            : line.length;
+        let highlighted = line.slice(highlightStart, highlightEnd);
+        hasHighlighted = hasHighlighted || highlighted.length > 0;
+        deletedLine += highlighter(
+          line.slice(start, highlightStart),
           false,
           'negative',
         );
-        syntaxHighlightedLine += highlighter(
-          chalk.redBright(
-            line.slice(highlight.start.column, highlight.end.column + 1),
-          ),
+        deletedLine += highlighter(
+          chalk.redBright(highlighted),
           true,
           'negative',
         );
-        start = highlight.end.column + 1;
+        start = highlightEnd;
       }
 
-      syntaxHighlightedLine += highlighter(
-        line.slice(start),
-        false,
-        'negative',
-      );
+      deletedLine += highlighter(line.slice(start), false, 'negative');
+
+      if (hasHighlighted) {
+        prefix = '-';
+        syntaxHighlightedLine = deletedLine;
+      } else {
+        prefix = '';
+      }
     }
 
     // Write the syntax highlighted line part
-    resultLines.push(
-      lineNumberPrefixer({
-        lineNumber: (currentLineIndex + 1).toString(10),
-        lineNumberLength,
-        prefix: lineHighlights.length > 0 ? highlighter(prefix) : '',
-      }) + syntaxHighlightedLine,
-    );
+    if (prefix) {
+      resultLines.push(
+        lineNumberPrefixer({
+          lineNumber: (currentLineIndex + 1).toString(10),
+          lineNumberLength,
+          prefix: lineHighlights.length > 0 ? highlighter(prefix) : '',
+        }) + syntaxHighlightedLine,
+      );
+    }
+
+    prefix = hasReplacement
+      ? highlighter('+', false, 'positive')
+      : highlighter('>');
 
     let lineWidth = stringWidth(syntaxHighlightedLine);
     let highlightLine = '';
@@ -285,24 +303,57 @@ export default function codeFrame(
 
         // If endcol is smaller than lastCol it overlaps with another highlight and is no longer visible, we can skip those
         if (endCol >= lastCol) {
-          if (highlight.replacement != null) {
-            let fullLine =
-              highlighter(
-                lines[currentLineIndex].slice(0, startCol),
-                false,
-                'positive',
-              ) +
-              highlighter(
-                chalk.greenBright(highlight.replacement),
+          let replacement = highlight.replacement;
+          if (replacement != null) {
+            highlightLine += highlighter(
+              lines[currentLineIndex].slice(0, startCol),
+              false,
+              'positive',
+            );
+
+            let replacementLines = replacement.split('\n');
+            if (replacementLines.length === 1) {
+              highlightLine += highlighter(
+                chalk.greenBright(replacementLines[0]),
                 true,
                 'positive',
-              ) +
-              highlighter(
+              );
+
+              highlightLine += highlighter(
                 lines[currentLineIndex].slice(endCol + 1),
                 false,
                 'positive',
               );
-            highlightLine += fullLine;
+            } else {
+              for (let i = 0; i < replacementLines.length; i++) {
+                highlightLine += highlighter(
+                  chalk.greenBright(replacementLines[i]),
+                  false,
+                  'positive',
+                );
+                if (i < replacementLines.length - 1) {
+                  resultLines.push(
+                    lineNumberPrefixer({
+                      lineNumberLength,
+                      prefix: highlighter('+', false, 'positive'),
+                    }) + highlightLine,
+                  );
+                  highlightLine = '';
+                }
+              }
+
+              highlightLine += sliceAnsi(
+                syntaxHighlightedLines[currentLineIndex],
+                endCol + 1,
+              );
+              resultLines.push(
+                lineNumberPrefixer({
+                  lineNumber: (currentLineIndex + 1).toString(10),
+                  lineNumberLength,
+                }) + highlightLine,
+              );
+              highlightLine = '';
+            }
           } else {
             let characters = endCol - startCol + 1;
             if (startCol > lastCol) {
@@ -342,9 +393,7 @@ export default function codeFrame(
       resultLines.push(
         lineNumberPrefixer({
           lineNumberLength,
-          prefix: hasReplacement
-            ? highlighter('+', false, 'positive')
-            : highlighter('>'),
+          prefix,
         }) + highlightLine,
       );
     }
