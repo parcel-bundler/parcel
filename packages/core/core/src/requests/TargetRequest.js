@@ -1000,6 +1000,20 @@ export class TargetResolver {
       }
       // $FlowFixMe
       let listFormat = new Intl.ListFormat('en-US', {type: 'disjunction'});
+      let map = parse(contents, undefined, {dialect: 'JSON5', tabWidth: 1});
+      let codeHighlights = generateJSONCodeHighlights(map, [
+        {
+          key: `/targets/${targetName}/outputFormat`,
+          type: 'value',
+          message: 'Declared output format defined here',
+        },
+        {
+          key: nullthrows(inferredOutputFormatField),
+          type: 'value',
+          message: 'Inferred output format defined here',
+        },
+      ]);
+
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: md`Declared output format "${descriptor.outputFormat}" does not match expected output format "${inferredOutputFormat}".`,
@@ -1009,26 +1023,55 @@ export class TargetResolver {
               language: 'json',
               filePath: pkgFilePath ?? undefined,
               code: contents,
-              codeHighlights: generateJSONCodeHighlights(contents, [
-                {
-                  key: `/targets/${targetName}/outputFormat`,
-                  type: 'value',
-                  message: 'Declared output format defined here',
-                },
-                {
-                  key: nullthrows(inferredOutputFormatField),
-                  type: 'value',
-                  message: 'Inferred output format defined here',
-                },
-              ]),
+              codeHighlights,
             },
           ],
-          hints: [
-            inferredOutputFormatField === '/type'
-              ? 'Either remove the target\'s declared "outputFormat" or remove the "type" field.'
-              : `Either remove the target's declared "outputFormat" or change the extension to ${listFormat.format(
-                  expectedExtensions,
-                )}.`,
+          // hints: [
+          //   inferredOutputFormatField === '/type'
+          //     ? 'Either remove the target\'s declared "outputFormat" or remove the "type" field.'
+          //     : `Either remove the target's declared "outputFormat" or change the extension to ${listFormat.format(
+          //         expectedExtensions,
+          //       )}.`,
+          // ],
+          fixes: [
+            {
+              type: 'group',
+              options: [
+                {
+                  type: 'patch',
+                  filePath: pkgFilePath,
+                  hash: '',
+                  message: 'Remove the target\'s declared "outputFormat"',
+                  edits: [
+                    {
+                      range: getJSONSourceLocation(
+                        map.pointers[`/targets/${targetName}/outputFormat`],
+                      ),
+                      replacement: '',
+                    },
+                  ],
+                },
+                ...expectedExtensions.map(suggestedExtension => ({
+                  type: 'patch',
+                  filePath: pkgFilePath,
+                  hash: '',
+                  message: `Change the extension to ${suggestedExtension}`,
+                  edits: [
+                    {
+                      range: getJSONSourceLocation(
+                        map.pointers[inferredOutputFormatField],
+                        'value',
+                      ),
+                      replacement:
+                        '"' +
+                        pkg[targetName].slice(0, -ext.length) +
+                        suggestedExtension +
+                        '"',
+                    },
+                  ],
+                })),
+              ],
+            },
           ],
           documentationURL:
             'https://parceljs.org/features/targets/#library-targets',

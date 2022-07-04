@@ -111,9 +111,25 @@ Parcel\'s default CSS minifer changed from cssnano to @parcel/css, but a "cssnan
                   },
                 ],
               }),
-              hints: [
-                `Instead do: import * as style from "${defaultImport.specifier}";`,
-              ],
+              fixes: loc
+                ? [
+                    {
+                      type: 'patch',
+                      filePath: loc?.filePath ?? defaultImport.sourcePath,
+                      hash: '', //TODO
+                      message: 'Use a namespace import instead.',
+                      edits: [
+                        {
+                          range: {
+                            start: loc.start,
+                            end: loc.end,
+                          },
+                          replacement: `* as style`,
+                        },
+                      ],
+                    },
+                  ]
+                : [],
               documentationURL:
                 'https://parceljs.org/languages/css/#tree-shaking',
             });

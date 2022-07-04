@@ -503,8 +503,26 @@ export default (new Transformer({
 
           let err = SCRIPT_ERRORS[(asset.env.context: string)];
           if (err) {
-            if (!res.hints) {
-              res.hints = [err.hint];
+            let loc = asset.env.loc;
+            if (!res.hints && loc) {
+              // res.hints = [err.hint];
+              res.fixes = [
+                {
+                  type: 'patch',
+                  message: err.hint,
+                  filePath: loc.filePath,
+                  hash: '',
+                  edits: [
+                    {
+                      range: {
+                        start: loc.end,
+                        end: loc.end,
+                      },
+                      replacement: ", {type: 'module'})",
+                    },
+                  ],
+                },
+              ];
             } else {
               res.hints.push(err.hint);
             }
@@ -552,14 +570,13 @@ export default (new Transformer({
             asset.env.outputFormat === 'commonjs' ? 'commonjs' : 'global';
         }
 
-        let loc = convertLoc(dep.loc);
         asset.addURLDependency(dep.specifier, {
-          loc,
+          loc: convertLoc(dep.specifier_loc),
           env: {
             context: 'web-worker',
             sourceType: dep.source_type === 'Module' ? 'module' : 'script',
             outputFormat,
-            loc,
+            loc: convertLoc(dep.loc),
           },
           meta: {
             webworker: true,
@@ -567,29 +584,27 @@ export default (new Transformer({
           },
         });
       } else if (dep.kind === 'ServiceWorker') {
-        let loc = convertLoc(dep.loc);
         asset.addURLDependency(dep.specifier, {
-          loc,
+          loc: convertLoc(dep.specifier_loc),
           needsStableName: true,
           env: {
             context: 'service-worker',
             sourceType: dep.source_type === 'Module' ? 'module' : 'script',
             outputFormat: 'global', // TODO: module service worker support
-            loc,
+            loc: convertLoc(dep.loc),
           },
           meta: {
             placeholder: dep.placeholder,
           },
         });
       } else if (dep.kind === 'Worklet') {
-        let loc = convertLoc(dep.loc);
         asset.addURLDependency(dep.specifier, {
-          loc,
+          loc: convertLoc(dep.specifier_loc),
           env: {
             context: 'worklet',
             sourceType: 'module',
             outputFormat: 'esmodule', // Worklets require ESM
-            loc,
+            loc: convertLoc(dep.loc),
           },
           meta: {
             placeholder: dep.placeholder,
@@ -598,7 +613,7 @@ export default (new Transformer({
       } else if (dep.kind === 'Url') {
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',
-          loc: convertLoc(dep.loc),
+          loc: convertLoc(dep.specifier_loc),
           meta: {
             placeholder: dep.placeholder,
           },
@@ -704,7 +719,7 @@ export default (new Transformer({
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
-          loc: convertLoc(dep.loc),
+          loc: convertLoc(dep.specifier_loc),
           priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
           isOptional: dep.is_optional,
           meta,

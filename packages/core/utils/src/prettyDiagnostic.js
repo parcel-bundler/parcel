@@ -2,7 +2,7 @@
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginOptions} from '@parcel/types';
 
-import formatCodeFrame from '@parcel/codeframe';
+import formatCodeFrame, {formatDiff} from '@parcel/codeframe';
 import mdAnsi from '@parcel/markdown-ansi';
 import chalk from 'chalk';
 import path from 'path';
@@ -23,6 +23,7 @@ export type AnsiDiagnosticResult = {|
   /** A list of code frames with highlighted code and file locations separately. */
   frames: Array<FormattedCodeFrame>,
   hints: Array<string>,
+  fixes: Array<string>,
   documentation: string,
 |};
 
@@ -37,6 +38,7 @@ export default async function prettyDiagnostic(
     stack,
     codeFrames,
     hints,
+    fixes,
     skipFormatting,
     documentationURL,
   } = diagnostic;
@@ -49,6 +51,7 @@ export default async function prettyDiagnostic(
     codeframe: '',
     frames: [],
     hints: [],
+    fixes: [],
     documentation: '',
   };
 

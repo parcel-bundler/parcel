@@ -104,6 +104,7 @@ impl<'a> Fold for NodeReplacer<'a> {
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
               loc: SourceLocation::from(self.source_map, id.span),
+              specifier_loc: SourceLocation::from(self.source_map, id.span),
               specifier,
               attributes: None,
               is_optional: false,
@@ -151,6 +152,7 @@ impl<'a> Fold for NodeReplacer<'a> {
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
               loc: SourceLocation::from(self.source_map, id.span),
+              specifier_loc: SourceLocation::from(self.source_map, id.span),
               specifier,
               attributes: None,
               is_optional: false,

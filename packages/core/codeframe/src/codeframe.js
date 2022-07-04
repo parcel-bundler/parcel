@@ -1,10 +1,11 @@
 // @flow
-import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
+import type {DiagnosticCodeHighlight, TextEdit} from '@parcel/diagnostic';
 
 import chalk from 'chalk';
 import emphasize from 'emphasize';
 import stringWidth from 'string-width';
 import sliceAnsi from 'slice-ansi';
+import type {Diagnostic} from 'typescript';
 
 type CodeFramePadding = {|
   before: number,
@@ -39,9 +40,14 @@ const highlightSyntax = (txt: string, lang?: string): string => {
   return emphasize.highlightAuto(txt).value;
 };
 
+type Highlight = {|
+  ...DiagnosticCodeHighlight,
+  replacement?: string,
+|};
+
 export default function codeFrame(
   code: string,
-  highlights: Array<DiagnosticCodeHighlight>,
+  highlights: Array<Highlight>,
   inputOpts: CodeFrameOptionsInput = {},
 ): string {
   if (highlights.length < 1) return '';
@@ -59,10 +65,14 @@ export default function codeFrame(
   };
 
   // Highlights messages and prefixes when colors are enabled
-  const highlighter = (s: string, bold?: boolean) => {
+  const highlighter = (
+    s: string,
+    bold?: boolean,
+    kind?: 'negative' | 'positive' = 'negative',
+  ) => {
     if (opts.useColor) {
-      let redString = chalk.red(s);
-      return bold ? chalk.bold(redString) : redString;
+      let colorString = kind === 'positive' ? chalk.green(s) : chalk.red(s);
+      return bold ? chalk.bold(colorString) : colorString;
     }
 
     return s;
@@ -72,11 +82,11 @@ export default function codeFrame(
   const lineNumberPrefixer = (params: {|
     lineNumber?: string,
     lineNumberLength: number,
-    isHighlighted: boolean,
+    prefix?: string,
   |}) => {
-    let {lineNumber, lineNumberLength, isHighlighted} = params;
+    let {lineNumber, lineNumberLength, prefix} = params;
 
-    return `${isHighlighted ? highlighter('>') : ' '} ${
+    return `${prefix || ' '} ${
       lineNumber
         ? lineNumber.padStart(lineNumberLength, ' ')
         : ' '.repeat(lineNumberLength)
@@ -95,6 +105,7 @@ export default function codeFrame(
         line: h.end.line - 1,
       },
       message: h.message,
+      replacement: h.replacement,
     };
   });
 
@@ -185,12 +196,44 @@ export default function codeFrame(
       );
     }
 
+    let hasReplacement = lineHighlights.some(
+      highlight => highlight.replacement != null,
+    );
+    let prefix = hasReplacement ? '-' : '>';
+
+    if (hasReplacement) {
+      let line = lines[currentLineIndex];
+      syntaxHighlightedLine = '';
+      let start = 0;
+      for (let highlight of lineHighlights) {
+        syntaxHighlightedLine += highlighter(
+          line.slice(start, highlight.start.column),
+          false,
+          'negative',
+        );
+        syntaxHighlightedLine += highlighter(
+          chalk.redBright(
+            line.slice(highlight.start.column, highlight.end.column + 1),
+          ),
+          true,
+          'negative',
+        );
+        start = highlight.end.column + 1;
+      }
+
+      syntaxHighlightedLine += highlighter(
+        line.slice(start),
+        false,
+        'negative',
+      );
+    }
+
     // Write the syntax highlighted line part
     resultLines.push(
       lineNumberPrefixer({
         lineNumber: (currentLineIndex + 1).toString(10),
         lineNumberLength,
-        isHighlighted: lineHighlights.length > 0,
+        prefix: lineHighlights.length > 0 ? highlighter(prefix) : '',
       }) + syntaxHighlightedLine,
     );
 
@@ -242,18 +285,42 @@ export default function codeFrame(
 
         // If endcol is smaller than lastCol it overlaps with another highlight and is no longer visible, we can skip those
         if (endCol >= lastCol) {
-          let characters = endCol - startCol + 1;
-          if (startCol > lastCol) {
-            // startCol is before lastCol, so add spaces as padding before the highlight indicators
-            highlightLine += ' '.repeat(startCol - lastCol);
-          } else if (lastCol > startCol) {
-            // If last column is larger than the start, there's overlap in highlights
-            // This line adjusts the characters count to ensure we don't add too many characters
-            characters += startCol - lastCol;
-          }
+          if (highlight.replacement != null) {
+            let fullLine =
+              highlighter(
+                lines[currentLineIndex].slice(0, startCol),
+                false,
+                'positive',
+              ) +
+              highlighter(
+                chalk.greenBright(highlight.replacement),
+                true,
+                'positive',
+              ) +
+              highlighter(
+                lines[currentLineIndex].slice(endCol + 1),
+                false,
+                'positive',
+              );
+            highlightLine += fullLine;
+          } else {
+            let characters = endCol - startCol + 1;
+            if (startCol > lastCol) {
+              // startCol is before lastCol, so add spaces as padding before the highlight indicators
+              highlightLine += ' '.repeat(startCol - lastCol);
+            } else if (lastCol > startCol) {
+              // If last column is larger than the start, there's overlap in highlights
+              // This line adjusts the characters count to ensure we don't add too many characters
+              characters += startCol - lastCol;
+            }
 
-          // Append the highlight indicators
-          highlightLine += highlighter('^'.repeat(characters));
+            // Append the highlight indicators
+            if (highlight.replacement != null) {
+              highlightLine += highlight.replacement;
+            } else {
+              highlightLine += highlighter('^'.repeat(characters));
+            }
+          }
 
           // Set the lastCol equal to character count between start of line part and highlight end-column
           lastCol = endCol + 1;
@@ -275,11 +342,27 @@ export default function codeFrame(
       resultLines.push(
         lineNumberPrefixer({
           lineNumberLength,
-          isHighlighted: true,
+          prefix: hasReplacement
+            ? highlighter('+', false, 'positive')
+            : highlighter('>'),
         }) + highlightLine,
       );
     }
   }
 
   return resultLines.join('\n');
+}
+
+export function formatDiff(
+  code: string,
+  edits: Array<TextEdit>,
+  inputOpts: CodeFrameOptionsInput = {},
+): string {
+  let highlights = edits.map(edit => ({
+    start: edit.range.start,
+    end: edit.range.end,
+    replacement: edit.replacement,
+  }));
+
+  return codeFrame(code, highlights, inputOpts);
 }

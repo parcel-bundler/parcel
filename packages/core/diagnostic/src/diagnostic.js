@@ -3,6 +3,7 @@
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {parse, type Mapping} from '@mischnic/json-sourcemap';
+import type {FileSystem} from '@parcel/fs';
 
 /** These positions are 1-based (so <code>1</code> is the first line/column) */
 export type DiagnosticHighlightLocation = {|
@@ -46,6 +47,44 @@ export type DiagnosticCodeFrame = {|
   codeHighlights: Array<DiagnosticCodeHighlight>,
 |};
 
+export type DiagnosticFixGroup = {|
+  type: 'group',
+  options: Array<DiagnosticFix>,
+|};
+
+export type DiagnosticFixPatch = {|
+  type: 'patch',
+  filePath: string,
+  hash: string,
+  message: string,
+  edits: Array<TextEdit>,
+|};
+
+export type TextEdit = {|
+  range: {|
+    start: DiagnosticHighlightLocation,
+    end: DiagnosticHighlightLocation,
+  |},
+  replacement: string,
+|};
+
+export type DiagnosticFixCreate = {|
+  type: 'create',
+  filePath: string,
+  contents: string,
+|};
+
+export type DiagnosticFixDelete = {|
+  type: 'delete',
+  filePath: string,
+|};
+
+export type DiagnosticFix =
+  | DiagnosticFixPatch
+  | DiagnosticFixCreate
+  | DiagnosticFixDelete
+  | DiagnosticFixGroup;
+
 /**
  * A style agnostic way of emitting errors, warnings and info.
  * Reporters are responsible for rendering the message, codeframes, hints, ...
@@ -66,6 +105,8 @@ export type Diagnostic = {|
 
   /** An optional list of strings that suggest ways to resolve this issue */
   hints?: Array<string>,
+
+  fixes?: Array<DiagnosticFix>,
 
   /** @private */
   skipFormatting?: boolean,
@@ -338,3 +379,33 @@ md.strikethrough = function (s: TemplateInput): TemplateInput {
   // $FlowFixMe[invalid-computed-prop]
   return {[mdVerbatim]: '~~' + escapeMarkdown(`${s}`) + '~~'};
 };
+
+export async function applyDiagnosticFix(fix: DiagnosticFix, fs: FileSystem) {
+  switch (fix.type) {
+    case 'patch': {
+      await applyPatch(fix, fs);
+      break;
+    }
+  }
+}
+
+async function applyPatch(fix: DiagnosticFixPatch, fs: FileSystem) {
+  let contents = await fs.readFile(fix.filePath, 'utf8');
+  // TODO: check hash
+
+  let lines = contents.split('\n');
+
+  for (let edit of fix.edits) {
+    let startLine = lines[edit.range.start.line - 1];
+    if (edit.range.start.line === edit.range.end.line) {
+      lines[edit.range.start.line - 1] =
+        startLine.slice(0, edit.range.start.column - 1) +
+        edit.replacement +
+        startLine.slice(edit.range.end.column);
+    } else {
+      // TODO
+    }
+  }
+
+  await fs.writeFile(fix.filePath, lines.join('\n'));
+}

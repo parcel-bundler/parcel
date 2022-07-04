@@ -172,6 +172,7 @@ impl<'a> InlineFS<'a> {
         self.deps.push(DependencyDescriptor {
           kind: DependencyKind::File,
           loc: SourceLocation::from(&self.collect.source_map, span),
+          specifier_loc: SourceLocation::from(&self.collect.source_map, span),
           specifier: path.to_str().unwrap().into(),
           attributes: None,
           is_optional: false,
