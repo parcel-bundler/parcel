@@ -380,6 +380,94 @@ md.strikethrough = function (s: TemplateInput): TemplateInput {
   return {[mdVerbatim]: '~~' + escapeMarkdown(`${s}`) + '~~'};
 };
 
+export function deleteJSONKeyPatch(json: string, pos: Mapping): TextEdit {
+  invariant(pos.key != null);
+  let p = pos.key.pos - 1;
+  let start = {line: pos.key.line + 1, column: pos.key.column + 1};
+  let end = {line: pos.valueEnd.line + 1, column: pos.valueEnd.column};
+
+  // Skip leading and trailing trivia.
+  for (; p >= 0; p--) {
+    if (/[\r\s]/.test(json[p]) && start.column > 1) {
+      start.column--;
+    } else {
+      break;
+    }
+  }
+
+  let hadTrailingComma = false;
+  for (let p = pos.valueEnd.pos; p < json.length; p++) {
+    if (/[,\r\s]/.test(json[p])) {
+      end.column++;
+      hadTrailingComma = hadTrailingComma || json[p] === ',';
+    } else if (json[p] === '\n') {
+      break;
+    } else {
+      break;
+    }
+  }
+
+  if (!hadTrailingComma && pos.key) {
+    let s = {...start};
+    for (; p >= 0; p--) {
+      if (json[p] === '\n') {
+        s.line--;
+        s.column = Math.max(1, p - json.lastIndexOf('\n', p - 1));
+      } else if (/[\r\s]/.test(json[p])) {
+        s.column--;
+      } else if (json[p] === ',') {
+        s.column--;
+        start = s;
+        break;
+      } else {
+        break;
+      }
+    }
+  }
+
+  return {
+    range: {
+      start,
+      end,
+    },
+    replacement: '',
+  };
+}
+
+export function updateJSONValuePatch(
+  pos: Mapping,
+  replacement: mixed,
+): TextEdit {
+  let range = getJSONSourceLocation(pos, 'value');
+  return {
+    range,
+    replacement: nullthrows(JSON.stringify(replacement)),
+  };
+}
+
+export function addJSONKeyPatch(
+  before: Mapping,
+  key: string,
+  value: mixed,
+): TextEdit {
+  let range = getJSONSourceLocation(before, 'key');
+  let indent = ' '.repeat(nullthrows(before.key).column);
+  return {
+    range: {
+      start: {
+        line: range.start.line,
+        column: range.start.column,
+      },
+      end: {
+        line: range.start.line,
+        column: range.start.column - 1,
+      },
+    },
+    replacement:
+      `"${key}": ` + nullthrows(JSON.stringify(value)) + ',\n' + indent,
+  };
+}
+
 export async function applyDiagnosticFix(fix: DiagnosticFix, fs: FileSystem) {
   switch (fix.type) {
     case 'patch': {
