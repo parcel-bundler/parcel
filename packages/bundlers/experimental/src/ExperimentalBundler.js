@@ -1064,6 +1064,13 @@ function createIdealGraph(
             sourceBundle.assets.add(asset);
             sourceBundle.size += asset.stats.size;
           }
+          sharedToSourceBundleIds.set(
+            bundleIdToRemove,
+            bundleToRemove.sourceBundles.filter(id => id !== sourceBundleId),
+          );
+          bundleToRemove.sourceBundles = bundleToRemove.sourceBundles.filter(
+            id => id !== sourceBundleId,
+          );
           bundleGraph.removeEdge(sourceBundleId, bundleIdToRemove);
         }
 
