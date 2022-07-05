@@ -1029,7 +1029,7 @@ function createIdealGraph(
       [...sharedToSourceBundleIds.keys()].includes(id),
     );
 
-    if (bundleIdsInGroup.length > config.maxParallelRequests) {
+    if (sharedBundleIdsInGroup.length > config.maxParallelRequests) {
       // Sort the bundles so the smallest ones are removed first.
       let sharedBundlesInGroup = sharedBundleIdsInGroup
         .map(id => ({
@@ -1046,7 +1046,7 @@ function createIdealGraph(
       // Remove bundles until the bundle group is within the parallel request limit.
       for (
         let i = 0;
-        i < bundleIdsInGroup.length - config.maxParallelRequests;
+        i < sharedBundlesInGroup.length - config.maxParallelRequests;
         i++
       ) {
         let bundleToRemove = sharedBundlesInGroup[i].bundle;
