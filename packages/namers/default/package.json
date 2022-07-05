@@ -1,6 +1,6 @@
 {
   "name": "@parcel/namer-default",
-  "version": "2.0.32",
+  "version": "2.0.33",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@parcel/diagnostic": "2.0.30",
-    "@parcel/plugin": "2.0.32",
+    "@parcel/plugin": "2.0.33",
     "nullthrows": "^1.1.1"
   }
 }

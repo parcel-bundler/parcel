@@ -1,6 +1,6 @@
 {
   "name": "parcel",
-  "version": "2.0.32",
+  "version": "2.0.33",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -21,17 +21,17 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@atlassian/internal-parcel-utils": "2.0.32",
-    "@parcel/config-default": "2.0.32",
-    "@parcel/core": "2.0.32",
+    "@atlassian/internal-parcel-utils": "2.0.33",
+    "@parcel/config-default": "2.0.33",
+    "@parcel/core": "2.0.33",
     "@parcel/diagnostic": "2.0.30",
     "@parcel/events": "2.0.30",
-    "@parcel/fs": "2.0.32",
+    "@parcel/fs": "2.0.33",
     "@parcel/logger": "2.0.30",
-    "@parcel/package-manager": "2.0.32",
-    "@parcel/reporter-cli": "2.0.32",
-    "@parcel/reporter-dev-server": "2.0.32",
-    "@parcel/utils": "2.0.32",
+    "@parcel/package-manager": "2.0.33",
+    "@parcel/reporter-cli": "2.0.33",
+    "@parcel/reporter-dev-server": "2.0.33",
+    "@parcel/utils": "2.0.33",
     "chalk": "^4.1.0",
     "commander": "^7.0.0",
     "get-port": "^4.2.0",

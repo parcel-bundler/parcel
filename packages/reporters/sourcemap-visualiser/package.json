@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-sourcemap-visualiser",
-  "version": "2.0.32",
+  "version": "2.0.33",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,11 +20,11 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.32",
-    "@parcel/utils": "2.0.32",
+    "@parcel/plugin": "2.0.33",
+    "@parcel/utils": "2.0.33",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {
-    "@parcel/types": "2.0.32"
+    "@parcel/types": "2.0.33"
   }
 }
