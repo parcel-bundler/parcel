@@ -1002,6 +1002,17 @@ function createIdealGraph(
     }
   }
 
+  // Build a map of bundleGroups to bundles in the group -- this includes all referenced bundles.
+  let bundleGroups = bundleGraph.getNodeIdsConnectedFrom(rootNodeId);
+  let bundleGroupToBundles = new Map<NodeId, Set<NodeId>>();
+  for (let bundleGroupId of bundleGroups) {
+    let bundleIds = new Set();
+    bundleGraph.traverse(nodeId => {
+      bundleIds.add(nodeId);
+    }, bundleGroupId);
+    bundleGroupToBundles.set(bundleGroupId, bundleIds);
+  }
+
   // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
   for (let [bundleId, bundleGroupId] of bundleRoots.values()) {
     // Only handle bundle group entries.
@@ -1009,22 +1020,18 @@ function createIdealGraph(
       continue;
     }
 
+    let bundleIdsInGroup = [
+      ...nullthrows(bundleGroupToBundles.get(bundleGroupId)),
+    ];
+
     // Find shared bundles in this bundle group.
-    let bundleIdsInGroup = [];
-    for (let [
-      sharedBundleId,
-      sourceBundleIds,
-    ] of sharedToSourceBundleIds.entries()) {
-      // If the bundle group's entry is a source bundle of this shared bundle,
-      // the shared bundle is part of the bundle group.
-      if (sourceBundleIds.includes(bundleId)) {
-        bundleIdsInGroup.push(sharedBundleId);
-      }
-    }
+    let sharedBundleIdsInGroup = bundleIdsInGroup.filter(id =>
+      [...sharedToSourceBundleIds.keys()].includes(id),
+    );
 
     if (bundleIdsInGroup.length > config.maxParallelRequests) {
       // Sort the bundles so the smallest ones are removed first.
-      let bundlesInGroup = bundleIdsInGroup
+      let sharedBundlesInGroup = sharedBundleIdsInGroup
         .map(id => ({
           id,
           bundle: nullthrows(bundleGraph.getNode(id)),
@@ -1039,27 +1046,31 @@ function createIdealGraph(
       // Remove bundles until the bundle group is within the parallel request limit.
       for (
         let i = 0;
-        i < bundlesInGroup.length - config.maxParallelRequests;
+        i < bundleIdsInGroup.length - config.maxParallelRequests;
         i++
       ) {
-        let bundleToRemove = bundlesInGroup[i].bundle;
-        let bundleIdToRemove = bundlesInGroup[i].id;
+        let bundleToRemove = sharedBundlesInGroup[i].bundle;
+        let bundleIdToRemove = sharedBundlesInGroup[i].id;
 
         // Add all assets in the shared bundle into the source bundles that are within this bundle group.
-        let sourceBundles = bundleToRemove.sourceBundles
-          .filter(b => bundlesInGroup.map(b => b.bundle).includes(b))
-          .map(id => nullthrows(bundleGraph.getNode(id)));
+        let sourceBundleIds = bundleToRemove.sourceBundles.filter(id =>
+          bundleIdsInGroup.includes(id),
+        );
 
-        for (let sourceBundle of sourceBundles) {
+        for (let sourceBundleId of sourceBundleIds) {
+          let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
           invariant(sourceBundle !== 'root');
           for (let asset of bundleToRemove.assets) {
             sourceBundle.assets.add(asset);
             sourceBundle.size += asset.stats.size;
           }
+          bundleGraph.removeEdge(sourceBundleId, bundleIdToRemove);
         }
 
-        // Remove the edge from this bundle group to the shared bundle.
-        bundleGraph.removeEdge(bundleGroupId, bundleIdToRemove);
+        // Remove the direct edge from this bundle group to the shared bundle if it exists.
+        if (bundleGraph.hasEdge(bundleGroupId, bundleIdToRemove)) {
+          bundleGraph.removeEdge(bundleGroupId, bundleIdToRemove);
+        }
 
         // If there is now only a single bundle group that contains this bundle,
         // merge it into the remaining source bundles. If it is orphaned entirely, remove it.
