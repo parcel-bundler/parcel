@@ -5,6 +5,13 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2022-06-21
+
+### Fixed
+
+- Core
+  - Fix race condition between writing and reading from cache - [Details](https://github.com/parcel-bundler/parcel/pull/8235)
+
 ## [2.6.1] - 2022-06-17
 
 ### Fixed
