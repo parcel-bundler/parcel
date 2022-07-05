@@ -100,7 +100,7 @@ impl<'a> Fold for NodeReplacer<'a> {
               }))),
             })
           };
-          if self.update_binding(id, "__parcel_filename".into(), expr) {
+          if self.update_binding(id, "$parcel$__filename".into(), expr) {
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
               loc: SourceLocation::from(self.source_map, id.span),
@@ -119,7 +119,7 @@ impl<'a> Fold for NodeReplacer<'a> {
           let specifier = swc_atoms::JsWord::from("path");
           let replace_me_value = swc_atoms::JsWord::from("$parcel$dirnameReplace");
 
-          if self.update_binding(id, "__parcel_dirname".into(), |_| {
+          if self.update_binding(id, "$parcel$__dirname".into(), |_| {
             ast::Expr::Call(ast::CallExpr {
               span: DUMMY_SP,
               type_args: None,
