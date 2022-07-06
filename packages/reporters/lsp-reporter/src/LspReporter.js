@@ -6,7 +6,7 @@ import type {FilePath} from '@parcel/types';
 
 import {DiagnosticSeverity} from 'vscode-languageserver/node';
 
-import {DefaultMap} from '@parcel/utils';
+import {DefaultMap, getProgressMessage} from '@parcel/utils';
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
 import path from 'path';
@@ -17,7 +17,6 @@ import ps from 'ps-node';
 import {promisify} from 'util';
 // flowlint-next-line untyped-import:off
 import ipc from 'node-ipc';
-import {getProgressMessage} from '../../cli/src/utils';
 
 const lookupPid = promisify(ps.lookup);
 
