@@ -54,6 +54,7 @@ struct ImportedSymbol {
   local: JsWord,
   imported: JsWord,
   loc: SourceLocation,
+  kind: ImportKind,
 }
 
 struct Hoist<'a> {
@@ -78,7 +79,7 @@ pub struct HoistResult {
   exported_symbols: Vec<ExportedSymbol>,
   re_exports: Vec<ImportedSymbol>,
   self_references: HashSet<JsWord>,
-  wrapped_requires: HashSet<JsWord>,
+  wrapped_requires: HashSet<String>,
   dynamic_imports: HashMap<JsWord, JsWord>,
   static_cjs_exports: bool,
   has_cjs_exports: bool,
@@ -147,10 +148,9 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: format!("{}:{}", self.module_id, import.src.value).into(),
+                  src: format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
                   type_only: false,
                 })));
-
               // Ensure that all import specifiers are constant.
               for specifier in &import.specifiers {
                 let local = match specifier {
@@ -194,7 +194,7 @@ impl<'a> Fold for Hoist<'a> {
                     asserts: None,
                     span: DUMMY_SP,
                     src: Str {
-                      value: format!("{}:{}", self.module_id, src.value).into(),
+                      value: format!("{}:{}:{}", self.module_id, src.value, "esm").into(),
                       span: DUMMY_SP,
                       raw: None,
                     },
@@ -213,6 +213,7 @@ impl<'a> Fold for Hoist<'a> {
                         local: exported,
                         imported: match_export_name(&named.orig).0,
                         loc: SourceLocation::from(&self.collect.source_map, named.span),
+                        kind: ImportKind::Import,
                       });
                     }
                     ExportSpecifier::Default(default) => {
@@ -221,6 +222,7 @@ impl<'a> Fold for Hoist<'a> {
                         local: default.exported.sym,
                         imported: js_word!("default"),
                         loc: SourceLocation::from(&self.collect.source_map, default.exported.span),
+                        kind: ImportKind::Import,
                       });
                     }
                     ExportSpecifier::Namespace(namespace) => {
@@ -229,6 +231,7 @@ impl<'a> Fold for Hoist<'a> {
                         local: match_export_name(&namespace.name).0,
                         imported: "*".into(),
                         loc: SourceLocation::from(&self.collect.source_map, namespace.span),
+                        kind: ImportKind::Import,
                       });
                     }
                   }
@@ -242,7 +245,10 @@ impl<'a> Fold for Hoist<'a> {
                       None => match_export_name(&named.orig).0,
                     };
                     if let Some(Import {
-                      source, specifier, ..
+                      source,
+                      specifier,
+                      kind,
+                      ..
                     }) = self.collect.imports.get(&id)
                     {
                       self.re_exports.push(ImportedSymbol {
@@ -250,6 +256,7 @@ impl<'a> Fold for Hoist<'a> {
                         local: exported,
                         imported: specifier.clone(),
                         loc: SourceLocation::from(&self.collect.source_map, named.span),
+                        kind: *kind,
                       });
                     } else {
                       // A variable will appear only once in the `exports` mapping but
@@ -279,7 +286,7 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: format!("{}:{}", self.module_id, export.src.value).into(),
+                  src: format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
                   type_only: false,
                 })));
               self.re_exports.push(ImportedSymbol {
@@ -287,6 +294,7 @@ impl<'a> Fold for Hoist<'a> {
                 local: "*".into(),
                 imported: "*".into(),
                 loc: SourceLocation::from(&self.collect.source_map, export.span),
+                kind: ImportKind::Import,
               });
             }
             ModuleDecl::ExportDefaultExpr(export) => {
@@ -416,7 +424,6 @@ impl<'a> Fold for Hoist<'a> {
                                 .module_items
                                 .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
                             }
-
                             self
                               .module_items
                               .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -424,7 +431,7 @@ impl<'a> Fold for Hoist<'a> {
                                 asserts: None,
                                 span: DUMMY_SP,
                                 src: Str {
-                                  value: format!("{}:{}", self.module_id, source).into(),
+                                  value: format!("{}:{}", self.module_id, source,).into(),
                                   span: DUMMY_SP,
                                   raw: None,
                                 },
@@ -485,7 +492,7 @@ impl<'a> Fold for Hoist<'a> {
               {
                 // Require in statement position (`require('other');`) should behave just
                 // like `import 'other';` in that it doesn't add any symbols (not even '*').
-                self.add_require(&source);
+                self.add_require(&source, ImportKind::Require);
               } else {
                 let d = expr.fold_with(self);
                 self
@@ -585,6 +592,7 @@ impl<'a> Fold for Hoist<'a> {
                     local: name,
                     imported: key.clone(),
                     loc: SourceLocation::from(&self.collect.source_map, member.span),
+                    kind: *kind,
                   });
                 } else {
                   return Expr::Ident(self.get_import_ident(
@@ -592,6 +600,7 @@ impl<'a> Fold for Hoist<'a> {
                     source,
                     &key,
                     SourceLocation::from(&self.collect.source_map, member.span),
+                    *kind,
                   ));
                 }
               }
@@ -612,12 +621,13 @@ impl<'a> Fold for Hoist<'a> {
             if let Some(source) =
               match_require(&member.obj, &self.collect.decls, self.collect.ignore_mark)
             {
-              self.add_require(&source);
+              self.add_require(&source, ImportKind::Require);
               return Expr::Ident(self.get_import_ident(
                 member.span,
                 &source,
                 &key,
                 SourceLocation::from(&self.collect.source_map, member.span),
+                ImportKind::Require,
               ));
             }
           }
@@ -655,17 +665,18 @@ impl<'a> Fold for Hoist<'a> {
       Expr::Call(ref call) => {
         // require('foo') -> $id$import$foo
         if let Some(source) = match_require(&node, &self.collect.decls, self.collect.ignore_mark) {
-          self.add_require(&source);
+          self.add_require(&source, ImportKind::Require);
           return Expr::Ident(self.get_import_ident(
             call.span,
             &source,
             &("*".into()),
             SourceLocation::from(&self.collect.source_map, call.span),
+            ImportKind::Require,
           ));
         }
 
         if let Some(source) = match_import(&node, self.collect.ignore_mark) {
-          self.add_require(&source);
+          self.add_require(&source, ImportKind::DynamicImport);
           let name: JsWord = format!("${}$importAsync${:x}", self.module_id, hash!(source)).into();
           self.dynamic_imports.insert(name.clone(), source.clone());
           if self.collect.non_static_requires.contains(&source) || self.collect.should_wrap {
@@ -674,6 +685,7 @@ impl<'a> Fold for Hoist<'a> {
               local: name.clone(),
               imported: "*".into(),
               loc: SourceLocation::from(&self.collect.source_map, call.span),
+              kind: ImportKind::DynamicImport,
             });
           }
           return Expr::Ident(Ident::new(name, call.span));
@@ -772,6 +784,7 @@ impl<'a> Fold for Hoist<'a> {
               local: name,
               imported: specifier.clone(),
               loc: loc.clone(),
+              kind: *kind,
             });
           } else if self.collect.non_static_access.contains_key(&id!(node)) {
             let name: JsWord =
@@ -781,6 +794,7 @@ impl<'a> Fold for Hoist<'a> {
               local: name,
               imported: "*".into(),
               loc: loc.clone(),
+              kind: *kind,
             });
           }
         } else {
@@ -793,7 +807,7 @@ impl<'a> Fold for Hoist<'a> {
             return self.get_require_ident(&node.sym);
           }
 
-          return self.get_import_ident(node.span, source, specifier, loc.clone());
+          return self.get_import_ident(node.span, source, specifier, loc.clone(), *kind);
         }
       }
     }
@@ -961,14 +975,18 @@ impl<'a> Fold for Hoist<'a> {
 }
 
 impl<'a> Hoist<'a> {
-  fn add_require(&mut self, source: &JsWord) {
+  fn add_require(&mut self, source: &JsWord, import_kind: ImportKind) {
+    let src = match import_kind {
+      ImportKind::Import => format!("{}:{}:{}", self.module_id, source, "esm"),
+      ImportKind::DynamicImport | ImportKind::Require => format!("{}:{}", self.module_id, source),
+    };
     self
       .module_items
       .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         specifiers: vec![],
         asserts: None,
         span: DUMMY_SP,
-        src: format!("{}:{}", self.module_id, source).into(),
+        src: src.into(),
         type_only: false,
       })));
   }
@@ -993,6 +1011,7 @@ impl<'a> Hoist<'a> {
     source: &JsWord,
     imported: &JsWord,
     loc: SourceLocation,
+    kind: ImportKind,
   ) -> Ident {
     let new_name = self.get_import_name(source, imported);
     self.imported_symbols.push(ImportedSymbol {
@@ -1000,6 +1019,7 @@ impl<'a> Hoist<'a> {
       local: new_name.clone(),
       imported: imported.clone(),
       loc,
+      kind,
     });
     Ident::new(new_name, span)
   }
@@ -1040,13 +1060,17 @@ impl<'a> Hoist<'a> {
       .get_non_const_binding_idents(&v.name, &mut non_const_bindings);
 
     for ident in non_const_bindings {
-      if let Some(Import { specifier, .. }) = self.collect.imports.get(&id!(ident)) {
+      if let Some(Import {
+        specifier, kind, ..
+      }) = self.collect.imports.get(&id!(ident))
+      {
         let require_id = self.get_require_ident(&ident.sym);
         let import_id = self.get_import_ident(
           v.span,
           source,
           specifier,
           SourceLocation::from(&self.collect.source_map, v.span),
+          *kind,
         );
         self
           .module_items
@@ -1080,7 +1104,7 @@ macro_rules! collect_visit_fn {
   };
 }
 
-#[derive(Debug, PartialEq, Clone, Copy, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Clone, Copy, Serialize)]
 pub enum ImportKind {
   Require,
   Import,
@@ -1121,7 +1145,7 @@ pub struct Collect {
   pub non_static_access: HashMap<Id, Vec<Span>>,
   pub non_const_bindings: HashMap<Id, Vec<Span>>,
   pub non_static_requires: HashSet<JsWord>,
-  pub wrapped_requires: HashSet<JsWord>,
+  pub wrapped_requires: HashSet<String>,
   pub bailouts: Option<Vec<Bailout>>,
   in_module_this: bool,
   in_top_level: bool,
@@ -1714,7 +1738,7 @@ impl Visit for Collect {
     // If we reached this visitor, this is a non-top-level require that isn't in a variable
     // declaration. We need to wrap the referenced module to preserve side effect ordering.
     if let Some(source) = self.match_require(node) {
-      self.wrapped_requires.insert(source);
+      self.wrapped_requires.insert(source.to_string());
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -1724,7 +1748,7 @@ impl Visit for Collect {
 
     if let Some(source) = match_import(node, self.ignore_mark) {
       self.non_static_requires.insert(source.clone());
-      self.wrapped_requires.insert(source);
+      self.wrapped_requires.insert(source.to_string());
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -1887,7 +1911,7 @@ impl Visit for Collect {
                   self.add_pat_imports(param, &source, ImportKind::DynamicImport);
                 } else {
                   self.non_static_requires.insert(source.clone());
-                  self.wrapped_requires.insert(source);
+                  self.wrapped_requires.insert(source.to_string());
                   self.add_bailout(node.span, BailoutReason::NonStaticDynamicImport);
                 }
 
@@ -1912,7 +1936,14 @@ impl Collect {
 
   fn add_pat_imports(&mut self, node: &Pat, src: &JsWord, kind: ImportKind) {
     if !self.in_top_level {
-      self.wrapped_requires.insert(src.clone());
+      match kind {
+        ImportKind::Import => self
+          .wrapped_requires
+          .insert(format!("{}{}", src.clone(), "esm")),
+        ImportKind::DynamicImport | ImportKind::Require => {
+          self.wrapped_requires.insert(src.to_string())
+        }
+      };
       if kind != ImportKind::DynamicImport {
         self.non_static_requires.insert(src.clone());
         let span = match node {
@@ -2565,7 +2596,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2581,7 +2612,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2595,7 +2626,7 @@ mod tests {
       map! { w!("foo") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2609,7 +2640,7 @@ mod tests {
       map! { w!("bar") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2622,7 +2653,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2635,7 +2666,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2647,7 +2678,7 @@ mod tests {
       map! { w!("foo") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2659,7 +2690,7 @@ mod tests {
       map! { w!("bar") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2672,7 +2703,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2685,7 +2716,7 @@ mod tests {
     );
     assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2697,7 +2728,7 @@ mod tests {
       map! { w!("foo") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2709,7 +2740,7 @@ mod tests {
       map! { w!("bar") => (w!("other"), w!("foo"), true) }
     );
     assert_eq!(collect.non_static_requires, set! {});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2718,7 +2749,7 @@ mod tests {
     );
     assert_eq_imports!(collect.imports, map! {});
     assert_eq!(collect.non_static_requires, set! {w!("other")});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2727,7 +2758,7 @@ mod tests {
     );
     assert_eq_imports!(collect.imports, map! {});
     assert_eq!(collect.non_static_requires, set! {w!("other")});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2738,7 +2769,7 @@ mod tests {
     );
     assert_eq_imports!(collect.imports, map! {});
     assert_eq!(collect.non_static_requires, set! {w!("other")});
-    assert_eq!(collect.wrapped_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
   }
 
   #[test]
@@ -2757,7 +2788,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
+    import "abc:other:esm";
     let $abc$var$test = {
         bar: 3
     };
@@ -2778,7 +2809,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
+    import "abc:other:esm";
     console.log($abc$import$70a00e0a8474f72a$d927737047eb3867);
     $abc$import$70a00e0a8474f72a$d927737047eb3867();
     "#}
@@ -2805,7 +2836,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
+    import "abc:other:esm";
     $abc$import$70a00e0a8474f72a.bar();
     let $abc$var$y = "bar";
     $abc$import$70a00e0a8474f72a[$abc$var$y]();
@@ -2825,7 +2856,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
+    import "abc:other:esm";
     console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039), (0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039).bar);
     (0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039)();
     "#}
@@ -2846,8 +2877,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
-    import "abc:bar";
+    import "abc:other:esm";
+    import "abc:bar:esm";
     console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039));
     console.log((0, $abc$import$d927737047eb3867$2e2bcd8739ae039));
     "#}
@@ -2867,8 +2898,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:other";
-    import "abc:bar";
+    import "abc:other:esm";
+    import "abc:bar:esm";
     console.log((0, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039));
     import "abc:x";
     console.log($abc$import$d141bba7fdc215a3);
@@ -3064,7 +3095,7 @@ mod tests {
     );
     assert_eq!(
       hoist.wrapped_requires,
-      HashSet::<JsWord>::from_iter(vec![JsWord::from("other")])
+      HashSet::<String>::from_iter(vec![String::from("other")])
     );
 
     let (_collect, code, hoist) = parse(
@@ -3090,7 +3121,7 @@ mod tests {
     );
     assert_eq!(
       hoist.wrapped_requires,
-      HashSet::<JsWord>::from_iter(vec![JsWord::from("other")])
+      HashSet::<String>::from_iter(vec![String::from("other")])
     );
 
     let (_collect, code, _hoist) = parse(
@@ -3418,7 +3449,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:bar";
+    import "abc:bar:esm";
     "#}
     );
 
@@ -3431,7 +3462,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:bar";
+    import "abc:bar:esm";
     "#}
     );
 
@@ -3445,7 +3476,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import "abc:./settings";
+    import "abc:./settings:esm";
     const $abc$export$a5a6e0b888b2c992 = "hi";
     "#}
     );

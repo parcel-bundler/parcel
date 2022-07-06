@@ -35,6 +35,7 @@ export {
   objectSortedEntries,
   objectSortedEntriesDeep,
   setDifference,
+  setEqual,
   setIntersect,
   setUnion,
 } from './collection';

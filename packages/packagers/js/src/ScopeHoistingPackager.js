@@ -581,7 +581,14 @@ ${code}
     let depMap = new Map();
     let replacements = new Map();
     for (let dep of deps) {
-      depMap.set(`${assetId}:${getSpecifier(dep)}`, dep);
+      let specifierType =
+        dep.specifierType === 'esm' ? `:${dep.specifierType}` : '';
+      depMap.set(
+        `${assetId}:${getSpecifier(dep)}${
+          !dep.meta.placeholder ? specifierType : ''
+        }`,
+        dep,
+      );
 
       let asyncResolution = this.bundleGraph.resolveAsyncDependency(
         dep,
