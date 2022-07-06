@@ -18,6 +18,7 @@ import type {
 } from './types';
 
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {
@@ -45,6 +46,7 @@ import {type ProjectPath, fromProjectPath} from './projectPath';
 
 type UncommittedAssetOptions = {|
   value: Asset,
+  dependencyValues: Array<Dependency>,
   options: ParcelOptions,
   content?: ?Blob,
   mapBuffer?: ?Buffer,
@@ -57,6 +59,7 @@ type UncommittedAssetOptions = {|
 
 export default class UncommittedAsset {
   value: Asset;
+  dependencyValues: Array<Dependency>;
   options: ParcelOptions;
   content: ?(Blob | Promise<Buffer>);
   mapBuffer: ?Buffer;
@@ -71,6 +74,7 @@ export default class UncommittedAsset {
 
   constructor({
     value,
+    dependencyValues,
     options,
     content,
     mapBuffer,
@@ -81,6 +85,7 @@ export default class UncommittedAsset {
     fileCreateInvalidations,
   }: UncommittedAssetOptions) {
     this.value = value;
+    this.dependencyValues = dependencyValues;
     this.options = options;
     this.content = content;
     this.mapBuffer = mapBuffer;
@@ -327,11 +332,14 @@ export default class UncommittedAsset {
         this.value.filePath,
       ),
     });
-    let existing = this.value.dependencies.get(dep.id);
-    if (existing) {
-      mergeDependencies(existing, dep);
+    if (this.value.dependencies.includes(dep.id)) {
+      mergeDependencies(
+        nullthrows(this.dependencyValues.find(d => d.id === dep.id)),
+        dep,
+      );
     } else {
-      this.value.dependencies.set(dep.id, dep);
+      this.value.dependencies.push(dep.id);
+      this.dependencyValues.push(dep);
     }
     return dep.id;
   }
@@ -365,7 +373,7 @@ export default class UncommittedAsset {
   }
 
   getDependencies(): Array<Dependency> {
-    return Array.from(this.value.dependencies.values());
+    return this.dependencyValues;
   }
 
   createChildAsset(
@@ -396,9 +404,7 @@ export default class UncommittedAsset {
           result.env,
         ),
         dependencies:
-          this.value.type === result.type
-            ? new Map(this.value.dependencies)
-            : new Map(),
+          this.value.type === result.type ? this.value.dependencies : [],
         meta: {
           ...this.value.meta,
           ...result.meta,
@@ -421,6 +427,8 @@ export default class UncommittedAsset {
         configPath,
         configKeyPath,
       }),
+      dependencyValues:
+        this.value.type === result.type ? this.dependencyValues : [],
       options: this.options,
       content,
       ast: result.ast,

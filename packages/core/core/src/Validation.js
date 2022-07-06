@@ -207,6 +207,7 @@ export default class Validation {
         },
         sideEffects: sideEffects,
       }),
+      dependencyValues: [],
       options: this.options,
       content,
     });

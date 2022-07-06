@@ -15,7 +15,6 @@ import type {
 import type {
   Asset,
   RequestInvalidation,
-  Dependency,
   Environment,
   ParcelOptions,
 } from './types';
@@ -39,7 +38,7 @@ import {
 import {hashString} from '@parcel/hash';
 import {BundleBehavior as BundleBehaviorMap} from './types';
 
-type AssetOptions = {|
+export type AssetOptions = {|
   id?: string,
   committed?: boolean,
   hash?: ?string,
@@ -51,7 +50,7 @@ type AssetOptions = {|
   mapKey?: ?string,
   astKey?: ?string,
   astGenerator?: ?ASTGenerator,
-  dependencies?: Map<string, Dependency>,
+  dependencies?: Array<string>,
   bundleBehavior?: ?BundleBehavior,
   isBundleSplittable?: ?boolean,
   isSource: boolean,
@@ -106,7 +105,7 @@ export function createAsset(
     mapKey: options.mapKey,
     astKey: options.astKey,
     astGenerator: options.astGenerator,
-    dependencies: options.dependencies || new Map(),
+    dependencies: options.dependencies || [],
     isSource: options.isSource,
     outputHash: options.outputHash,
     pipeline: options.pipeline,

@@ -141,7 +141,7 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
 
   let time = Date.now() - start;
   if (assets) {
-    for (let asset of assets) {
+    for (let {asset} of assets) {
       asset.stats.time = time;
     }
   }

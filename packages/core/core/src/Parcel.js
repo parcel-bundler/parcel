@@ -284,7 +284,7 @@ export default class Parcel {
         changedAssets: new Map(
           Array.from(changedAssets).map(([id, asset]) => [
             id,
-            assetFromValue(asset, options),
+            assetFromValue(asset, bundleGraph, options),
           ]),
         ),
         bundleGraph: new BundleGraph<IPackagedBundle>(

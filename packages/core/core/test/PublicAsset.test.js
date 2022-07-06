@@ -17,6 +17,7 @@ describe('Public Asset', () => {
   beforeEach(() => {
     internalAsset = new UncommittedAsset({
       options: DEFAULT_OPTIONS,
+      dependencyValues: [],
       value: createAsset({
         filePath: toProjectPath('/', '/does/not/exist'),
         type: 'js',

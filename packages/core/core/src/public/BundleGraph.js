@@ -66,7 +66,11 @@ export default class BundleGraph<TBundle: IBundle>
   }
 
   getAssetById(id: string): Asset {
-    return assetFromValue(this.#graph.getAssetById(id), this.#options);
+    return assetFromValue(
+      this.#graph.getAssetById(id),
+      this.#graph,
+      this.#options,
+    );
   }
 
   getAssetPublicId(asset: IAsset): string {
@@ -83,7 +87,7 @@ export default class BundleGraph<TBundle: IBundle>
       bundle && bundleToInternalBundle(bundle),
     );
     if (resolution) {
-      return assetFromValue(resolution, this.#options);
+      return assetFromValue(resolution, this.#graph, this.#options);
     }
   }
 
@@ -98,7 +102,7 @@ export default class BundleGraph<TBundle: IBundle>
       dependencyToInternalDependency(dep),
     );
     if (asset) {
-      return assetFromValue(asset, this.#options);
+      return assetFromValue(asset, this.#graph, this.#options);
     }
   }
 
@@ -140,7 +144,7 @@ export default class BundleGraph<TBundle: IBundle>
 
     return {
       type: 'asset',
-      value: assetFromValue(resolved.value, this.#options),
+      value: assetFromValue(resolved.value, this.#graph, this.#options),
     };
   }
 
@@ -229,7 +233,7 @@ export default class BundleGraph<TBundle: IBundle>
       boundary ? bundleToInternalBundle(boundary) : null,
     );
     return {
-      asset: assetFromValue(res.asset, this.#options),
+      asset: assetFromValue(res.asset, this.#graph, this.#options),
       exportSymbol: res.exportSymbol,
       symbol: res.symbol,
       loc: fromInternalSourceLocation(this.#options.projectRoot, res.loc),
@@ -245,7 +249,7 @@ export default class BundleGraph<TBundle: IBundle>
       boundary ? bundleToInternalBundle(boundary) : null,
     );
     return res.map(e => ({
-      asset: assetFromValue(e.asset, this.#options),
+      asset: assetFromValue(e.asset, this.#graph, this.#options),
       exportSymbol: e.exportSymbol,
       symbol: e.symbol,
       loc: fromInternalSourceLocation(this.#options.projectRoot, e.loc),
@@ -261,7 +265,10 @@ export default class BundleGraph<TBundle: IBundle>
       mapVisitor(
         node =>
           node.type === 'asset'
-            ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
+            ? {
+                type: 'asset',
+                value: assetFromValue(node.value, this.#graph, this.#options),
+              }
             : {
                 type: 'dependency',
                 value: new Dependency(node.value, this.#options),

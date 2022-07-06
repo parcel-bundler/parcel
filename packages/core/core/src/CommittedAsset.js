@@ -2,15 +2,19 @@
 
 import type {AST, Blob} from '@parcel/types';
 import type {Asset, Dependency, ParcelOptions} from './types';
+import type InternalBundleGraph from './BundleGraph';
 
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
 import {generateFromAST} from './assetUtils';
 import {deserializeRaw} from './serializer';
+import invariant from 'assert';
+import nullthrows from 'nullthrows';
 
 export default class CommittedAsset {
   value: Asset;
+  bundleGraph: InternalBundleGraph;
   options: ParcelOptions;
   content: ?Promise<Buffer | string>;
   mapBuffer: ?Promise<?Buffer>;
@@ -19,8 +23,13 @@ export default class CommittedAsset {
   idBase: ?string;
   generatingPromise: ?Promise<void>;
 
-  constructor(value: Asset, options: ParcelOptions) {
+  constructor(
+    value: Asset,
+    bundleGraph: InternalBundleGraph,
+    options: ParcelOptions,
+  ) {
     this.value = value;
+    this.bundleGraph = bundleGraph;
     this.options = options;
   }
 
@@ -136,6 +145,10 @@ export default class CommittedAsset {
   }
 
   getDependencies(): Array<Dependency> {
-    return Array.from(this.value.dependencies.values());
+    return this.value.dependencies.map(id => {
+      let dep = nullthrows(this.bundleGraph._graph.getNodeByContentKey(id));
+      invariant(dep.type === 'dependency');
+      return dep.value;
+    });
   }
 }

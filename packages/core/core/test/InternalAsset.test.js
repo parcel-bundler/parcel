@@ -23,6 +23,7 @@ describe('InternalAsset', () => {
         type: 'js',
         isSource: true,
       }),
+      dependencyValues: [],
       options: DEFAULT_OPTIONS,
     });
     asset.invalidateOnFileChange(toProjectPath('/', '/foo/file'));
@@ -44,6 +45,7 @@ describe('InternalAsset', () => {
         type: 'js',
         isSource: true,
       }),
+      dependencyValues: [],
       options: DEFAULT_OPTIONS,
     });
 
@@ -63,6 +65,7 @@ describe('InternalAsset', () => {
         type: 'js',
         isSource: true,
       }),
+      dependencyValues: [],
       options: DEFAULT_OPTIONS,
     });
 

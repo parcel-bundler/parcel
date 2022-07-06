@@ -156,15 +156,18 @@ function createMockAssetGraph() {
   graph.resolveAssetGroup(
     req1,
     [
-      createAsset({
-        id: id1,
-        filePath,
-        type: 'js',
-        isSource: true,
-        hash: '#1',
-        stats,
-        env: DEFAULT_ENV,
-      }),
+      {
+        asset: createAsset({
+          id: id1,
+          filePath,
+          type: 'js',
+          isSource: true,
+          hash: '#1',
+          stats,
+          env: DEFAULT_ENV,
+        }),
+        deps: [],
+      },
     ],
     '6',
   );
@@ -175,15 +178,18 @@ function createMockAssetGraph() {
   graph.resolveAssetGroup(
     req2,
     [
-      createAsset({
-        id: id2,
-        filePath,
-        type: 'js',
-        isSource: true,
-        hash: '#2',
-        stats,
-        env: DEFAULT_ENV,
-      }),
+      {
+        asset: createAsset({
+          id: id2,
+          filePath,
+          type: 'js',
+          isSource: true,
+          hash: '#2',
+          stats,
+          env: DEFAULT_ENV,
+        }),
+        deps: [],
+      },
     ],
     '8',
   );

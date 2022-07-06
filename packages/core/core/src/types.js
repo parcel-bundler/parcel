@@ -159,7 +159,7 @@ export type Asset = {|
   filePath: ProjectPath,
   query: ?string,
   type: string,
-  dependencies: Map<string, Dependency>,
+  dependencies: Array<ContentKey>,
   bundleBehavior: ?$Values<typeof BundleBehavior>,
   isBundleSplittable: boolean,
   isSource: boolean,
@@ -334,7 +334,10 @@ export type AssetRequestInput = {|
   query?: ?string,
 |};
 
-export type AssetRequestResult = Array<Asset>;
+export type AssetRequestResult = Array<{|
+  asset: Asset,
+  deps: Array<Dependency>,
+|}>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = $Rest<
   AssetRequestInput,
