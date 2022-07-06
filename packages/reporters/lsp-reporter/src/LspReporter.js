@@ -3,6 +3,7 @@
 
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {FilePath} from '@parcel/types';
+import type {Program, Query} from 'ps-node';
 
 import {DiagnosticSeverity} from 'vscode-languageserver/node';
 
@@ -12,13 +13,11 @@ import invariant from 'assert';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-// flowlint-next-line untyped-import:off
-import ps from 'ps-node';
+import * as ps from 'ps-node';
 import {promisify} from 'util';
-// flowlint-next-line untyped-import:off
 import ipc from 'node-ipc';
 
-const lookupPid = promisify(ps.lookup);
+const lookupPid: Query => Program[] = promisify(ps.lookup);
 
 // flowlint-next-line unclear-type:off
 type LspDiagnostic = any;
@@ -45,12 +44,12 @@ export default (new Reporter({
               type: 'parcelFileDiagnostics',
               fileDiagnostics: [...fileDiagnostics],
             });
-            ipc.server.on('connect', () =>
+            ipc.server.on('connect', () => {
               ipc.server.emit(socket, 'message', {
                 type: 'parcelFileDiagnostics',
                 fileDiagnostics: [...fileDiagnostics],
-              }),
-            );
+              });
+            });
           });
         });
         ipc.server.start();
