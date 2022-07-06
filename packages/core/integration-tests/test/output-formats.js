@@ -917,44 +917,46 @@ describe('output formats', function () {
       assert.deepStrictEqual(await ns.default, 2);
     });
 
-    // ATLASSIAN: Don't share across workers for now as worker-specific code is added
-    it.skip('should support async split bundles for workers', async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/formats/esm-split-worker/index.html',
-        ),
-        {
-          mode: 'production',
-          defaultTargetOptions: {
-            shouldOptimize: false,
+    // ATLASSIAN DEFAULT BUNDLER: Don't share across workers for now as worker-specific code is added
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      it('should support async split bundles for workers', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/formats/esm-split-worker/index.html',
+          ),
+          {
+            mode: 'production',
+            defaultTargetOptions: {
+              shouldOptimize: false,
+            },
           },
-        },
-      );
+        );
 
-      let workerBundle = nullthrows(
-        b.getBundles().find(b => b.env.context === 'web-worker'),
-      );
-      let workerBundleContents = await outputFS.readFile(
-        workerBundle.filePath,
-        'utf8',
-      );
+        let workerBundle = nullthrows(
+          b.getBundles().find(b => b.env.context === 'web-worker'),
+        );
+        let workerBundleContents = await outputFS.readFile(
+          workerBundle.filePath,
+          'utf8',
+        );
 
-      let asyncBundle = b
-        .getChildBundles(workerBundle)
-        .find(b => b.filePath.includes('async'));
-      let syncBundle = b
-        .getReferencedBundles(workerBundle)
-        .find(b => !b.filePath.includes('async'));
-      assert(
-        workerBundleContents.includes(
-          `import "./${path.basename(syncBundle.filePath)}"`,
-        ),
-      );
-      assert(
-        workerBundleContents.includes(path.basename(asyncBundle.filePath)),
-      );
-    });
+        let asyncBundle = b
+          .getChildBundles(workerBundle)
+          .find(b => b.filePath.includes('async'));
+        let syncBundle = b
+          .getReferencedBundles(workerBundle)
+          .find(b => !b.filePath.includes('async'));
+        assert(
+          workerBundleContents.includes(
+            `import "./${path.basename(syncBundle.filePath)}"`,
+          ),
+        );
+        assert(
+          workerBundleContents.includes(path.basename(asyncBundle.filePath)),
+        );
+      });
+    }
 
     it('should support building esmodules for browser targets', async function () {
       let b = await bundle(
