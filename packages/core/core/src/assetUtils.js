@@ -39,14 +39,16 @@ import {
 import {hashString} from '@parcel/hash';
 import {BundleBehavior as BundleBehaviorMap} from './types';
 
-type AssetOptions = {|
+export type AssetOptions = {|
   id?: string,
   committed?: boolean,
-  hash?: ?string,
-  idBase?: ?string,
+  virtual?: boolean,
+  hash: string,
+  idBase: string,
   filePath: ProjectPath,
   query?: ?string,
   type: string,
+  key?: ?string,
   contentKey?: ?string,
   mapKey?: ?string,
   astKey?: ?string,
@@ -68,18 +70,39 @@ type AssetOptions = {|
   configKeyPath?: string,
 |};
 
-export function createAssetIdFromOptions(options: AssetOptions): string {
-  let uniqueKey = options.uniqueKey ?? '';
-  let idBase =
-    options.idBase != null
-      ? options.idBase
-      : fromProjectPathRelative(options.filePath);
+export function generateIdBase({
+  virtual,
+  key,
+  filePath,
+  hash,
+  isSource,
+}: {|
+  virtual: boolean,
+  key: ?string,
+  filePath: ProjectPath,
+  hash: string,
+  isSource: boolean,
+|}): string {
+  if (virtual) {
+    // If the transformer request passed code rather than a filename,
+    // also use a hash as the base for the id to ensure it is unique.
+    return hash + fromProjectPathRelative(filePath);
+  }
 
+  if (key != null) {
+    // include hash against patch-package
+    return key + ':' + (!isSource ? hash : '');
+  } else {
+    return fromProjectPathRelative(filePath);
+  }
+}
+
+export function createAssetIdFromOptions(options: AssetOptions): string {
   return hashString(
-    idBase +
+    options.idBase +
       options.type +
       options.env.id +
-      uniqueKey +
+      (options.uniqueKey ?? '') +
       ':' +
       (options.pipeline ?? '') +
       ':' +
@@ -94,6 +117,8 @@ export function createAsset(
   return {
     id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
+    virtual: options.virtual ?? false,
+    key: options.key,
     hash: options.hash,
     filePath: options.filePath,
     query: options.query,

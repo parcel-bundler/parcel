@@ -261,6 +261,7 @@ export class ResolverRunner {
                     ? pipeline ?? dependency.pipeline
                     : result.pipeline,
                 isURL: dep.specifierType === 'url',
+                key: result.key,
               },
               invalidateOnFileCreate,
               invalidateOnFileChange,

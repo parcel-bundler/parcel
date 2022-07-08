@@ -1,4 +1,5 @@
 // @flow strict-local
+import type {AssetOptions} from '../src/assetUtils';
 
 import type {Dependency} from '@parcel/types';
 
@@ -13,7 +14,7 @@ import {createDependency as _createDependency} from '../src/Dependency';
 import nullthrows from 'nullthrows';
 import {toProjectPath} from '../src/projectPath';
 
-function createAsset(opts) {
+function createAsset(opts: AssetOptions) {
   return _createAsset('/', opts);
 }
 
@@ -157,6 +158,7 @@ function createMockAssetGraph() {
     req1,
     [
       createAsset({
+        idBase: '',
         id: id1,
         filePath,
         type: 'js',
@@ -176,6 +178,7 @@ function createMockAssetGraph() {
     req2,
     [
       createAsset({
+        idBase: '',
         id: id2,
         filePath,
         type: 'js',

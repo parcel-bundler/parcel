@@ -1,4 +1,5 @@
 // @flow strict-local
+import type {AssetOptions} from '../src/assetUtils';
 
 import assert from 'assert';
 import UncommittedAsset from '../src/UncommittedAsset';
@@ -7,7 +8,7 @@ import {createEnvironment} from '../src/Environment';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {toProjectPath} from '../src/projectPath';
 
-function createAsset(opts) {
+function createAsset(opts: AssetOptions) {
   return _createAsset('/', opts);
 }
 
@@ -16,8 +17,11 @@ const stats = {time: 0, size: 0};
 describe('InternalAsset', () => {
   it('only includes connected files once per filePath', () => {
     let asset = new UncommittedAsset({
+      idBase: '',
       value: createAsset({
+        idBase: '',
         filePath: toProjectPath('/', '/foo/asset.js'),
+        hash: '',
         env: createEnvironment(),
         stats,
         type: 'js',
@@ -37,8 +41,11 @@ describe('InternalAsset', () => {
 
   it('only includes dependencies once per id', () => {
     let asset = new UncommittedAsset({
+      idBase: '',
       value: createAsset({
+        idBase: '',
         filePath: toProjectPath('/', '/foo/asset.js'),
+        hash: '',
         env: createEnvironment(),
         stats,
         type: 'js',
@@ -56,8 +63,11 @@ describe('InternalAsset', () => {
 
   it('includes different dependencies if their id differs', () => {
     let asset = new UncommittedAsset({
+      idBase: '',
       value: createAsset({
+        idBase: '',
         filePath: toProjectPath('/', '/foo/asset.js'),
+        hash: '',
         env: createEnvironment(),
         stats,
         type: 'js',

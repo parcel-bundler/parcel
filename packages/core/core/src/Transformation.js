@@ -49,6 +49,7 @@ import {
   createAsset,
   getInvalidationId,
   getInvalidationHash,
+  generateIdBase,
 } from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
@@ -221,6 +222,7 @@ export default class Transformation {
       isSource: isSourceOverride,
       sideEffects,
       query,
+      key,
     } = this.request;
     let {
       content,
@@ -235,18 +237,22 @@ export default class Transformation {
     // Prefer `isSource` originating from the AssetRequest.
     let isSource = isSourceOverride ?? summarizedIsSource;
 
-    // If the transformer request passed code, use a hash in addition
-    // to the filename as the base for the id to ensure it is unique.
-    let idBase = fromProjectPathRelative(filePath);
-    if (code != null) {
-      idBase += hash;
-    }
+    let idBase = generateIdBase({
+      virtual: code != null,
+      filePath,
+      hash,
+      isSource,
+      key,
+    });
+
     return new UncommittedAsset({
       idBase,
       value: createAsset(this.options.projectRoot, {
         idBase,
+        virtual: code != null,
         filePath,
         isSource,
+        key,
         type: path.extname(fromProjectPathRelative(filePath)).slice(1),
         hash,
         pipeline,
@@ -578,6 +584,13 @@ export default class Transformation {
             : null;
 
         return new UncommittedAsset({
+          idBase: generateIdBase({
+            virtual: this.request.code != null,
+            filePath: this.request.filePath,
+            hash: value.hash,
+            isSource: this.request.isSource ?? false,
+            key: this.request.key,
+          }),
           value,
           options: this.options,
           content,

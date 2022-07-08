@@ -1,4 +1,5 @@
 // @flow strict-local
+import type {AssetOptions} from '../src/assetUtils';
 
 import assert from 'assert';
 import BundleGraph from '../src/BundleGraph';
@@ -8,7 +9,7 @@ import {createAsset as _createAsset} from '../src/assetUtils';
 import {createDependency as _createDependency} from '../src/Dependency';
 import {toProjectPath} from '../src/projectPath';
 
-function createAsset(opts) {
+function createAsset(opts: AssetOptions) {
   return _createAsset('/', opts);
 }
 
@@ -95,6 +96,7 @@ function createMockAssetGraph(ids: [string, string]) {
 
   let assets = [
     createAsset({
+      idBase: ids[0],
       id: ids[0],
       filePath,
       type: 'js',
@@ -105,6 +107,7 @@ function createMockAssetGraph(ids: [string, string]) {
       env: DEFAULT_ENV,
     }),
     createAsset({
+      idBase: ids[1],
       id: ids[1],
       filePath,
       type: 'js',

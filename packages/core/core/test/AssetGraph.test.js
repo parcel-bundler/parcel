@@ -1,4 +1,6 @@
 // @flow strict-local
+import type {AssetOptions} from '../src/assetUtils';
+
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -15,7 +17,7 @@ import {toProjectPath as _toProjectPath} from '../src/projectPath';
 
 const stats = {size: 0, time: 0};
 
-function createAsset(opts) {
+function createAsset(opts: AssetOptions) {
   return _createAsset('/', opts);
 }
 
@@ -321,6 +323,7 @@ describe('AssetGraph', () => {
     graph.resolveDependency(dep, req, '3');
     let assets = [
       createAsset({
+        idBase: '',
         id: '1',
         filePath,
         type: 'js',
@@ -341,6 +344,7 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
       }),
       createAsset({
+        idBase: '',
         id: '2',
         filePath,
         type: 'js',
@@ -361,6 +365,7 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
       }),
       createAsset({
+        idBase: '',
         id: '3',
         filePath,
         type: 'js',
@@ -402,6 +407,7 @@ describe('AssetGraph', () => {
 
     let assets2 = [
       createAsset({
+        idBase: '',
         id: '1',
         filePath,
         type: 'js',
@@ -422,6 +428,7 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
       }),
       createAsset({
+        idBase: '',
         id: '2',
         filePath,
         type: 'js',
@@ -500,6 +507,7 @@ describe('AssetGraph', () => {
     });
     let assets = [
       createAsset({
+        idBase: '',
         id: '1',
         filePath,
         type: 'js',
@@ -510,6 +518,7 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
       }),
       createAsset({
+        idBase: '',
         id: '2',
         uniqueKey: 'dependent-asset-1',
         filePath,
@@ -521,6 +530,7 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
       }),
       createAsset({
+        idBase: '',
         id: '3',
         uniqueKey: 'dependent-asset-2',
         filePath,
@@ -579,6 +589,7 @@ describe('AssetGraph', () => {
       sourcePath: '/index.js',
     });
     let indexAsset = createAsset({
+      idBase: '',
       id: 'assetIndex',
       filePath: toProjectPath('/index.js'),
       type: 'js',
@@ -608,6 +619,7 @@ describe('AssetGraph', () => {
     });
     let fooUtilsDepNode = nodeFromDep(fooUtilsDep);
     let fooAsset = createAsset({
+      idBase: '',
       id: 'assetFoo',
       filePath: toProjectPath('/foo.js'),
       type: 'js',
@@ -651,6 +663,7 @@ describe('AssetGraph', () => {
       sourcePath: '/bar.js',
     });
     let barAsset = createAsset({
+      idBase: '',
       id: 'assetBar',
       filePath: toProjectPath('/bar.js'),
       type: 'js',

@@ -194,6 +194,16 @@ export default class NodeResolver {
             _resolved.pkg && !this.hasSideEffects(_resolved.path, _resolved.pkg)
               ? false
               : undefined,
+          key:
+            _resolved.pkg?.name && _resolved.pkg?.version
+              ? _resolved.pkg.name +
+                '@' +
+                _resolved.pkg.version +
+                '/' +
+                normalizeSeparators(
+                  path.relative(_resolved.pkg.pkgdir, resolved.path),
+                )
+              : undefined,
           invalidateOnFileCreate: ctx.invalidateOnFileCreate,
           invalidateOnFileChange: [...ctx.invalidateOnFileChange],
           query: module.query,
