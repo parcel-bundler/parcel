@@ -5534,51 +5534,38 @@ describe('scope hoisting', function () {
     assert.strictEqual(output, 'foo');
   });
 
-  it.only('produce the same bundle hash regardless of transformation order', async function () {
-    let builtIndexFilePath;
-    async function test() {
-      let workerFarm = createWorkerFarm({
-        maxConcurrentWorkers: 0,
-      });
+  it('produce the same bundle hash regardless of transformation order', async function () {
+    let workerFarm = createWorkerFarm({
+      maxConcurrentWorkers: 0,
+    });
 
-      let testDir = path.join(
-        __dirname,
-        'integration/scope-hoisting/es6/non-deterministic-bundle-hashes',
-      );
+    let testDir = path.join(
+      __dirname,
+      'integration/scope-hoisting/es6/non-deterministic-bundle-hashes',
+    );
 
-      let b = await bundle(path.join(testDir, 'index.html'), {
-        shouldDisableCache: true,
-        workerFarm,
-        env: {fileToDelay: 'foo.js', fileToWaitFor: 'bar.js'},
-      });
+    let b = await bundle(path.join(testDir, 'index.html'), {
+      shouldDisableCache: true,
+      workerFarm,
+      env: {fileToDelay: 'foo.js', fileToWaitFor: 'bar.js'},
+    });
 
-      let bundleHashDelayFoo = b
-        .getBundles()
-        .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
-        .filePath.split('.')[1];
+    let bundleHashDelayFoo = b
+      .getBundles()
+      .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
+      .filePath.split('.')[1];
 
-      let b2 = await bundle(path.join(testDir, 'index.html'), {
-        shouldDisableCache: true,
-        workerFarm,
-        env: {fileToDelay: 'bar.js', fileToWaitFor: 'foo.js'},
-      });
+    let b2 = await bundle(path.join(testDir, 'index.html'), {
+      shouldDisableCache: true,
+      workerFarm,
+      env: {fileToDelay: 'bar.js', fileToWaitFor: 'foo.js'},
+    });
 
-      let bundleHashDelayBar = b2
-        .getBundles()
-        .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
-        .filePath.split('.')[1];
+    let bundleHashDelayBar = b2
+      .getBundles()
+      .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
+      .filePath.split('.')[1];
 
-      builtIndexFilePath = b2
-        .getBundles()
-        .find(
-          b => b.filePath.endsWith('.js') && b.filePath.includes('index'),
-        ).filePath;
-
-      assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
-    }
-    // for (let i = 0; i < 1000; i++) {
-    //   await assert.rejects(test);
-    // }
-    return test();
+    assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
   });
 });
