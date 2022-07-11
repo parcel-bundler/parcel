@@ -599,14 +599,14 @@ export class AssetGraphBuilder {
           }
         }
       }
-      // Sort usedSymbolsUp so they are a consistent order across builds.
-      // This ensures a consistent ordering of these symbols when packaging.
-      // See https://github.com/parcel-bundler/parcel/pull/8212
-      for (let dep of changedDeps) {
-        dep.usedSymbolsUp = new Set([...dep.usedSymbolsUp].sort());
-      }
       return errors;
     });
+    // Sort usedSymbolsUp so they are a consistent order across builds.
+    // This ensures a consistent ordering of these symbols when packaging.
+    // See https://github.com/parcel-bundler/parcel/pull/8212
+    for (let dep of changedDeps) {
+      dep.usedSymbolsUp = new Set([...dep.usedSymbolsUp].sort());
+    }
   }
 
   propagateSymbolsDown(
