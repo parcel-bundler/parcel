@@ -52,7 +52,12 @@ export default (new Runtime({
       if (bundle === firstInsertableBundle) {
         return {
           filePath: __filename,
-          code: AUTORELOAD_BG,
+          code:
+            `var HMR_HOST = ${JSON.stringify(
+              options.hmrOptions?.host ?? 'localhost',
+            )};` +
+            `var HMR_PORT = '${options.hmrOptions?.port ?? ''}';` +
+            AUTORELOAD_BG,
           isEntry: true,
         };
       }

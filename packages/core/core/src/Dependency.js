@@ -6,6 +6,7 @@ import type {
   SourceLocation,
   Symbol,
   BundleBehavior as IBundleBehavior,
+  SemverRange,
 } from '@parcel/types';
 import type {Dependency, Environment, Target} from './types';
 import {hashString} from '@parcel/hash';
@@ -29,6 +30,7 @@ type DependencyOpts = {|
   env: Environment,
   meta?: Meta,
   resolveFrom?: FilePath,
+  range?: SemverRange,
   target?: Target,
   symbols?: Map<
     Symbol,
@@ -69,6 +71,7 @@ export function createDependency(
     isEntry: opts.isEntry ?? false,
     isOptional: opts.isOptional ?? false,
     meta: opts.meta || {},
+    range: opts.range,
     symbols:
       opts.symbols &&
       new Map(
@@ -86,14 +89,7 @@ export function createDependency(
 }
 
 export function mergeDependencies(a: Dependency, b: Dependency): void {
-  let {
-    meta,
-    symbols,
-    needsStableName,
-    isEntry,
-    isOptional,
-    ...other
-  } = b;
+  let {meta, symbols, needsStableName, isEntry, isOptional, ...other} = b;
   Object.assign(a, other);
   Object.assign(a.meta, meta);
   if (a.symbols && symbols) {

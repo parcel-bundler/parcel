@@ -186,7 +186,7 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['1', '2']);
     });
 
-    it("doesn't rename member expression properties", async function () {
+    it('correctly renames member expression properties', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -195,7 +195,7 @@ describe('scope hoisting', function () {
       );
 
       let output = await run(b);
-      assert.deepEqual(output({foo: 12}), [12, 12]);
+      assert.deepEqual(output({foo: 12, bar: 34}), [12, 12, 34, 34]);
     });
 
     it('supports renaming imports', async function () {
@@ -1126,42 +1126,74 @@ describe('scope hoisting', function () {
         ),
         {mode: 'production'},
       );
-
-      assertBundles(b, [
-        {
-          type: 'html',
-          assets: ['index1.html'],
-        },
-        {
-          type: 'js',
-          assets: ['index1.js'],
-        },
-        {
-          type: 'html',
-          assets: ['index2.html'],
-        },
-        {
-          type: 'js',
-          assets: ['index2.js'],
-        },
-        {
-          type: 'html',
-          assets: ['index3.html'],
-        },
-        {
-          type: 'js',
-          assets: ['index3.js'],
-        },
-        {
-          type: 'js',
-          assets: ['a.js'],
-        },
-        {
-          type: 'js',
-          assets: ['b.js'],
-        },
-      ]);
-
+      // Fork due to size calculation differences between bundlers
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+        assertBundles(b, [
+          {
+            type: 'html',
+            assets: ['index1.html'],
+          },
+          {
+            type: 'js',
+            assets: ['index1.js'],
+          },
+          {
+            type: 'html',
+            assets: ['index2.html'],
+          },
+          {
+            type: 'js',
+            assets: ['index2.js', 'b.js'],
+          },
+          {
+            type: 'html',
+            assets: ['index3.html'],
+          },
+          {
+            type: 'js',
+            assets: ['index3.js', 'b.js'],
+          },
+          {
+            type: 'js',
+            assets: ['a.js'],
+          },
+        ]);
+      } else {
+        assertBundles(b, [
+          {
+            type: 'html',
+            assets: ['index1.html'],
+          },
+          {
+            type: 'js',
+            assets: ['index1.js'],
+          },
+          {
+            type: 'html',
+            assets: ['index2.html'],
+          },
+          {
+            type: 'js',
+            assets: ['index2.js'],
+          },
+          {
+            type: 'html',
+            assets: ['index3.html'],
+          },
+          {
+            type: 'js',
+            assets: ['index3.js'],
+          },
+          {
+            type: 'js',
+            assets: ['a.js'],
+          },
+          {
+            type: 'js',
+            assets: ['b.js'],
+          },
+        ]);
+      }
       for (let bundle of b.getBundles().filter(b => b.type === 'html')) {
         let calls = [];
         await runBundle(b, bundle, {
@@ -3705,8 +3737,6 @@ describe('scope hoisting', function () {
         ),
       );
 
-      // console.log(await outputFS.readFile(b.getBundles()[0].filePath, 'utf8'));
-
       let output = await run(b);
       assert.equal(output, 1);
     });
@@ -3769,6 +3799,18 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.deepEqual(output, {foo: 2});
+    });
+
+    it('should support referencing a require in object literal shorthands when wrapped', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-module-obj-literal-require/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 1234);
     });
 
     it('should support typeof require when wrapped', async function () {
@@ -4442,6 +4484,30 @@ describe('scope hoisting', function () {
       };
       obj.default = obj;
       assert.deepEqual(output.default, obj);
+    });
+
+    it('should add a default interop for a CJS module used in a hybrid module', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-commonjs-hybrid/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+
+    it('should add a default interop for a CJS module used non-statically in a hybrid module', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-commonjs-hybrid-dynamic/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
     });
 
     it('should not insert default interop for wrapped CJS modules', async function () {
