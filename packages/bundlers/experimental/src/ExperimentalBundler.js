@@ -895,45 +895,58 @@ function createIdealGraph(
 
     // Finally, filter out bundleRoots (bundles) from this assets
     // reachable if they are subgraphs, and reuse that subgraph bundle
-    // by drawing an edge. Essentially, if two bundles within an assets
+    // by drawing an edge. Essentially, if two bundles within an asset's
     // reachable array, have an ancestor-subgraph relationship, draw that edge.
     // This allows for us to reuse a bundle instead of making a shared bundle if
     // a bundle represents the exact set of assets a set of bundles would share
 
     // if a bundle b is a subgraph of another bundle f, reuse it, drawing an edge between the two
-    reachable = reachable.filter(b => {
-      let bundleBid = nullthrows(bundles.get(b.id));
-      if (b.env.isIsolated()) {
-        return true;
+
+    let canReuse: Set<BundleRoot> = new Set();
+    for (let candidateSourceBundleRoot of reachable) {
+      let candidateSourceBundleId = nullthrows(
+        bundles.get(candidateSourceBundleRoot.id),
+      );
+      if (candidateSourceBundleRoot.env.isIsolated()) {
+        continue;
       }
-      let toKeep = true;
-      if (bundles.has(asset.id)) {
-        let bundleRootBundleId = nullthrows(bundles.get(asset.id));
-        toKeep = false;
-        bundleGraph.addEdge(
-          nullthrows(bundles.get(b.id)),
-          nullthrows(bundles.get(asset.id)),
-        );
-        let bundleOfAsset = bundleGraph.getNode(bundleRootBundleId);
-        invariant(bundleOfAsset !== 'root' && bundleOfAsset != null);
-        bundleOfAsset.sourceBundles.add(bundleBid);
-      }
-      for (let f of reachable) {
-        if (b === f) continue;
-        let fReachable = getReachableBundleRoots(f, reachableRoots).filter(
-          b => !ancestorAssets.get(b)?.has(f),
-        );
-        if (fReachable.indexOf(b) > -1) {
-          let bundleFid = nullthrows(bundles.get(f.id));
-          toKeep = false;
-          bundleGraph.addEdge(nullthrows(bundles.get(b.id)), bundleFid);
-          let bundleF = bundleGraph.getNode(bundleFid);
-          invariant(bundleF !== 'root' && bundleF != null);
-          bundleF.sourceBundles.add(bundleBid);
+      let reuseableBundleId = bundles.get(asset.id);
+      if (reuseableBundleId != null) {
+        canReuse.add(candidateSourceBundleRoot);
+        bundleGraph.addEdge(candidateSourceBundleId, reuseableBundleId);
+
+        let reusableBundle = bundleGraph.getNode(reuseableBundleId);
+        invariant(reusableBundle !== 'root' && reusableBundle != null);
+        reusableBundle.sourceBundles.add(candidateSourceBundleId);
+      } else {
+        // Asset is not a bundleRoot, but if its parent bundle can be
+        // reused as a subgraph of another bundle in its reachable, reuse it
+        for (let otherReuseCandidate of reachable) {
+          if (candidateSourceBundleRoot === otherReuseCandidate) continue;
+          let reusableCandidateReachable = getReachableBundleRoots(
+            otherReuseCandidate,
+            reachableRoots,
+          ).filter(b => !ancestorAssets.get(b)?.has(otherReuseCandidate));
+          if (
+            reusableCandidateReachable.indexOf(candidateSourceBundleRoot) > -1
+          ) {
+            let reusableBundleId = nullthrows(
+              bundles.get(otherReuseCandidate.id),
+            );
+            canReuse.add(candidateSourceBundleRoot);
+            bundleGraph.addEdge(
+              nullthrows(bundles.get(candidateSourceBundleRoot.id)),
+              reusableBundleId,
+            );
+            let reusableBundle = bundleGraph.getNode(reusableBundleId);
+            invariant(reusableBundle !== 'root' && reusableBundle != null);
+            reusableBundle.sourceBundles.add(candidateSourceBundleId);
+          }
         }
       }
-      return toKeep;
-    });
+    }
+    //Bundles that are reused should not be considered for shared bundles, so filter them out
+    reachable = reachable.filter(b => !canReuse.has(b));
 
     // Add assets to non-splittable bundles.
     for (let entry of reachableEntries) {
