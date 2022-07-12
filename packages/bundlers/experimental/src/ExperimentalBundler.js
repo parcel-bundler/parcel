@@ -1078,6 +1078,9 @@ function createIdealGraph(
           for (let childId of bundleGraph.getNodeIdsConnectedFrom(
             bundleIdToRemove,
           )) {
+            let child = bundleGraph.getNode(childId);
+            invariant(child !== 'root' && child != null);
+            child.sourceBundles.add(sourceBundleId);
             bundleGraph.addEdge(sourceBundleId, childId);
           }
           // needs to add test case where shared bundle is removed from ONE bundlegroup but not from the whole graph!
