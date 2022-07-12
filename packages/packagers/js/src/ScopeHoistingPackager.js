@@ -91,6 +91,10 @@ export class ScopeHoistingPackager {
   hoistedRequires: Map<string, Map<string, string>> = new Map();
   needsPrelude: boolean = false;
   usedHelpers: Set<string> = new Set();
+  /** wrapped root asset -> other assets in the island of the root */
+  islands: Map<Asset, Set<Asset>> = new Map();
+  /** asset -> corresponding island root, if any */
+  assetIsland: Map<Asset, Asset> = new Map();
 
   constructor(
     options: PluginOptions,
@@ -115,7 +119,7 @@ export class ScopeHoistingPackager {
   }
 
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
-    let wrappedAssets = await this.loadAssets();
+    let wrapped = await this.loadAssets();
     this.buildExportedSymbols();
 
     // If building a library, the target is actually another bundler rather
@@ -150,7 +154,7 @@ export class ScopeHoistingPackager {
 
     // Hoist wrapped asset to the top of the bundle to ensure that they are registered
     // before they are used.
-    for (let asset of wrappedAssets) {
+    for (let asset of wrapped) {
       if (!this.seenAssets.has(asset.id)) {
         processAsset(asset);
       }
@@ -247,7 +251,7 @@ export class ScopeHoistingPackager {
   async loadAssets(): Promise<Array<Asset>> {
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrapped = [];
-    this.bundle.traverseAssets(asset => {
+    this.bundle.traverseAssets((asset, isEntry) => {
       queue.add(async () => {
         let [code, map] = await Promise.all([
           asset.getCode(),
@@ -258,7 +262,8 @@ export class ScopeHoistingPackager {
 
       if (
         asset.meta.shouldWrap ||
-        this.isAsyncBundle ||
+        // TODO shared?
+        (this.isAsyncBundle && (isEntry ?? true)) ||
         this.bundle.env.sourceType === 'script' ||
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
@@ -268,25 +273,60 @@ export class ScopeHoistingPackager {
         this.wrappedAssets.add(asset.id);
         wrapped.push(asset);
       }
+
+      return false;
     });
+
+    let excludedFromIslands = new Set();
+    for (let wrappedAssetRoot of [...wrapped]) {
+      let island = new Set();
+      this.islands.set(wrappedAssetRoot, island);
+      this.bundle.traverseAssets((asset, partOfRootIsland, actions) => {
+        if (asset === wrappedAssetRoot) {
+          return;
+        }
+        if (this.wrappedAssets.has(asset.id)) {
+          actions.skipChildren();
+          return;
+        }
+        partOfRootIsland ??= true;
+
+        if (this.assetIsland.has(asset)) {
+          // already part of another island
+          excludedFromIslands.add(asset);
+          let root = nullthrows(this.assetIsland.get(asset));
+          nullthrows(this.islands.get(root)).delete(asset);
+          this.assetIsland.delete(asset);
+          return false;
+        }
+
+        if (partOfRootIsland) {
+          island.add(asset);
+          this.assetIsland.set(asset, wrappedAssetRoot);
+        }
+        return partOfRootIsland;
+      }, wrappedAssetRoot);
+    }
 
     for (let wrappedAssetRoot of [...wrapped]) {
       this.bundle.traverseAssets((asset, _, actions) => {
         if (asset === wrappedAssetRoot) {
           return;
         }
-
         if (this.wrappedAssets.has(asset.id)) {
           actions.skipChildren();
           return;
         }
 
-        this.wrappedAssets.add(asset.id);
-        wrapped.push(asset);
+        if (!this.assetIsland.has(asset)) {
+          this.wrappedAssets.add(asset.id);
+          wrapped.push(asset);
+        }
       }, wrappedAssetRoot);
     }
 
     this.assetOutputs = new Map(await queue.run());
+    console.log(this.bundle.name, wrapped, this.islands);
     return wrapped;
   }
 
@@ -498,7 +538,7 @@ export class ScopeHoistingPackager {
               // outside our parcelRequire.register wrapper. This is safe because all
               // assets referenced by this asset will also be wrapped. Otherwise, inline the
               // asset content where the import statement was.
-              if (shouldWrap) {
+              if (shouldWrap && !this.assetIsland.has(resolved)) {
                 depContent.push(this.visitAsset(resolved));
               } else {
                 let [depCode, depMap, depLines] = this.visitAsset(resolved);
