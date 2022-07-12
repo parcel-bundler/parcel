@@ -400,7 +400,6 @@ export class AssetGraphBuilder {
           depUsedSymbolsDown.clear();
         }
         if (!equalSet(depUsedSymbolsDownOld, depUsedSymbolsDown)) {
-          changedDeps.add(dep);
           dep.usedSymbolsDownDirty = true;
           dep.usedSymbolsUpDirtyDown = true;
         }
