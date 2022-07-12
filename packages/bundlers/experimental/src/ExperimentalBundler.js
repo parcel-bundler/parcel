@@ -662,7 +662,6 @@ function createIdealGraph(
             if (assets.length === 0) {
               return;
             }
-
             invariant(assets.length === 1);
             let bundleRoot = assets[0];
             let bundle = nullthrows(
@@ -706,7 +705,6 @@ function createIdealGraph(
       reachableRoots.addEdge(rootNodeId, nodeId);
     }, root);
   }
-
   // Maps a given bundleRoot to the assets reachable from it,
   // and the bundleRoots reachable from each of these assets
   let ancestorAssets: Map<BundleRoot, Set<Asset>> = new Map();
@@ -858,7 +856,6 @@ function createIdealGraph(
       deleteBundle(bundleRoot);
     }
   }
-
   // Step Insert Or Share: Place all assets into bundles or create shared bundles. Each asset
   // is placed into a single bundle based on the bundle entries it is reachable from.
   // This creates a maximally code split bundle graph with no duplication.
@@ -901,7 +898,6 @@ function createIdealGraph(
     // a bundle represents the exact set of assets a set of bundles would share
 
     // if a bundle b is a subgraph of another bundle f, reuse it, drawing an edge between the two
-
     let canReuse: Set<BundleRoot> = new Set();
     for (let candidateSourceBundleRoot of reachable) {
       let candidateSourceBundleId = nullthrows(
@@ -1078,6 +1074,12 @@ function createIdealGraph(
             sourceBundle.assets.add(asset);
             sourceBundle.size += asset.stats.size;
           }
+          //This case is specific to reused bundles, which can have shared bundles attached to it
+          for (let childId of bundleGraph.getNodeIdsConnectedFrom(
+            bundleIdToRemove,
+          )) {
+            bundleGraph.addEdge(sourceBundleId, childId);
+          }
           // needs to add test case where shared bundle is removed from ONE bundlegroup but not from the whole graph!
           // Remove the edge from this bundle group to the shared bundle.
           // If there is now only a single bundle group that contains this bundle,
@@ -1100,7 +1102,6 @@ function createIdealGraph(
       }
     }
   }
-
   function deleteBundle(bundleRoot: BundleRoot) {
     bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
     bundleRoots.delete(bundleRoot);
