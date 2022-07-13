@@ -291,7 +291,15 @@ export class ScopeHoistingPackager {
         }
         partOfRootIsland ??= true;
 
-        if (this.assetIsland.has(asset)) {
+        // TODO invalidation
+        let hasToBeExposed = this.bundleGraph
+          .getBundlesWithAsset(asset)
+          // TODO why are there multiple instances with the same id???
+          .some(
+            b => b.target === this.bundle.target && b.id !== this.bundle.id,
+          );
+
+        if (this.assetIsland.has(asset) || hasToBeExposed) {
           // already part of another island
           excludedFromIslands.add(asset);
           let root = nullthrows(this.assetIsland.get(asset));
@@ -326,7 +334,7 @@ export class ScopeHoistingPackager {
     }
 
     this.assetOutputs = new Map(await queue.run());
-    console.log(this.bundle.name, wrapped, this.islands);
+    // console.log(this.bundle.name, wrapped, this.islands);
     return wrapped;
   }
 
