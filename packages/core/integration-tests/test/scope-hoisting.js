@@ -5612,6 +5612,7 @@ describe('scope hoisting', function () {
       .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
       .filePath.split('.')[1];
 
+    await workerFarm.end();
     assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
   });
 });
