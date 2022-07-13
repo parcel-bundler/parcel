@@ -359,7 +359,7 @@ export class ScopeHoistingPackager {
       }, wrappedAssetRoot);
     }
 
-    // console.log(wrapped, this.islands, usedByUnwrappedEntries);
+    // console.log({wrapped, islands: this.islands, usedByUnwrappedEntries});
     this.assetOutputs = new Map(await queue.run());
     return wrapped;
   }
@@ -504,6 +504,7 @@ export class ScopeHoistingPackager {
           this.bundle.hasAsset(resolved) &&
           !this.seenAssets.has(resolved.id)
         ) {
+          // console.log('pure', asset, resolved);
           let [code, map, lines] = this.visitAsset(resolved);
           depCode += code + '\n';
           if (sourceMap && map) {
@@ -513,7 +514,10 @@ export class ScopeHoistingPackager {
         }
       }
 
-      // console.log('buildAsset 2', asset);
+      if (parentDepContentAddSelf) {
+        nullthrows(parentDepContent).push([depCode, sourceMap, lineCount]);
+      }
+
       return [depCode, sourceMap, lineCount];
     }
 
