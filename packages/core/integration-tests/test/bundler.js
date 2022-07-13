@@ -152,7 +152,7 @@ describe('bundler', function () {
     ]);
   });
 
-  it.only('should not remove shared bundle from graph if its parent (a reused bundle) is removed by parallel request limit', async function () {
+  it('should not remove shared bundle from graph if its parent (a reused bundle) is removed by parallel request limit', async function () {
     //The shared bundle should only be 'put back' for the bundlegroups which hit the parallel request limit
     // But if there are at least two other bundlegroups using this shared bundle that do not hit the max limit
     // the shared bundle should not be removed from the graph
