@@ -251,7 +251,8 @@ export class ScopeHoistingPackager {
   async loadAssets(): Promise<Array<Asset>> {
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrapped = [];
-    this.bundle.traverseAssets((asset, isEntry) => {
+    let usedByUnwrappedEntries = new Set();
+    this.bundle.traverseAssets((asset, type) => {
       queue.add(async () => {
         let [code, map] = await Promise.all([
           asset.getCode(),
@@ -263,7 +264,7 @@ export class ScopeHoistingPackager {
       if (
         asset.meta.shouldWrap ||
         // TODO shared?
-        (this.isAsyncBundle && (isEntry ?? true)) ||
+        (this.isAsyncBundle && (type ?? true)) ||
         this.bundle.env.sourceType === 'script' ||
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
@@ -274,6 +275,19 @@ export class ScopeHoistingPackager {
         wrapped.push(asset);
       }
 
+      return false;
+    });
+    // console.log('-----', this.bundle.name);
+    this.bundle.traverseAssets((asset, isEntry, actions) => {
+      isEntry ??= true;
+      if (isEntry && this.wrappedAssets.has(asset.id)) {
+        actions.skipChildren();
+        return false;
+      }
+
+      if (!isEntry) {
+        usedByUnwrappedEntries.add(asset);
+      }
       return false;
     });
 
@@ -291,20 +305,32 @@ export class ScopeHoistingPackager {
         }
         partOfRootIsland ??= true;
 
-        // TODO invalidation
-        let hasToBeExposed = this.bundleGraph
-          .getBundlesWithAsset(asset)
-          // TODO why are there multiple instances with the same id???
-          .some(
-            b => b.target === this.bundle.target && b.id !== this.bundle.id,
-          );
-
-        if (this.assetIsland.has(asset) || hasToBeExposed) {
-          // already part of another island
+        if (this.assetIsland.has(asset)) {
+          // already part of another island, roll back the assignment and add to exclusion list
           excludedFromIslands.add(asset);
           let root = nullthrows(this.assetIsland.get(asset));
           nullthrows(this.islands.get(root)).delete(asset);
           this.assetIsland.delete(asset);
+          return false;
+        }
+
+        if (
+          // used in another island
+          excludedFromIslands.has(asset) ||
+          // has to be dedupliated at runtime
+          // TODO invalidation
+          this.bundleGraph.getBundlesWithAsset(asset).some(
+            // TODO object equality checks fail for both of these
+            // TODO how to handle targets?
+            b =>
+              b.target.name === this.bundle.target.name &&
+              b.id !== this.bundle.id,
+          ) ||
+          // Can't put in island if an unwrapped asset uses it
+          // (this really is the subgraph and not just immedate dependencies because
+          // of resolving symbols through reexports)
+          usedByUnwrappedEntries.has(asset)
+        ) {
           return false;
         }
 
@@ -333,8 +359,8 @@ export class ScopeHoistingPackager {
       }, wrappedAssetRoot);
     }
 
+    // console.log(wrapped, this.islands, usedByUnwrappedEntries);
     this.assetOutputs = new Map(await queue.run());
-    // console.log(this.bundle.name, wrapped, this.islands);
     return wrapped;
   }
 
@@ -420,20 +446,34 @@ export class ScopeHoistingPackager {
     return `${obj}[${JSON.stringify(property)}]`;
   }
 
-  visitAsset(asset: Asset): [string, ?SourceMap, number] {
+  visitAsset(
+    asset: Asset,
+    parentDepContent?: Array<[string, ?SourceMap, number]>,
+    parentDepContentAddSelf?: boolean,
+  ): [string, ?SourceMap, number] {
     invariant(!this.seenAssets.has(asset.id), 'Already visited asset');
     this.seenAssets.add(asset.id);
 
     let {code, map} = nullthrows(this.assetOutputs.get(asset.id));
-    return this.buildAsset(asset, code, map);
+    return this.buildAsset(
+      asset,
+      code,
+      map,
+      parentDepContent,
+      parentDepContentAddSelf,
+    );
   }
 
   buildAsset(
     asset: Asset,
     code: string,
     map: ?Buffer,
+    parentDepContent: ?Array<[string, ?SourceMap, number]>,
+    parentDepContentAddSelf?: boolean = false,
   ): [string, ?SourceMap, number] {
+    // console.log('buildAsset 1', asset, asset.id);
     let shouldWrap = this.wrappedAssets.has(asset.id);
+    let inIsland = this.assetIsland.has(asset);
     let deps = this.bundleGraph.getDependencies(asset);
 
     let sourceMap =
@@ -473,6 +513,7 @@ export class ScopeHoistingPackager {
         }
       }
 
+      // console.log('buildAsset 2', asset);
       return [depCode, sourceMap, lineCount];
     }
 
@@ -546,10 +587,19 @@ export class ScopeHoistingPackager {
               // outside our parcelRequire.register wrapper. This is safe because all
               // assets referenced by this asset will also be wrapped. Otherwise, inline the
               // asset content where the import statement was.
-              if (shouldWrap && !this.assetIsland.has(resolved)) {
-                depContent.push(this.visitAsset(resolved));
+              // console.log(
+              //   asset,
+              //   resolved,
+              //   (shouldWrap || inIsland) && !this.assetIsland.has(resolved),
+              // );
+              if ((shouldWrap || inIsland) && !this.assetIsland.has(resolved)) {
+                this.visitAsset(resolved, depContent, true);
               } else {
-                let [depCode, depMap, depLines] = this.visitAsset(resolved);
+                let [depCode, depMap, depLines] = this.visitAsset(
+                  resolved,
+                  depContent,
+                  false,
+                );
                 res = depCode + '\n' + res;
                 lines += 1 + depLines;
                 map = depMap;
@@ -594,8 +644,6 @@ export class ScopeHoistingPackager {
       });
     }
 
-    // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register
-    // wrapper. Dependencies must be inserted AFTER the asset is registered so that circular dependencies work.
     if (shouldWrap) {
       // Offset by one line for the parcelRequire.register wrapper.
       sourceMap?.offsetLines(1, 1);
@@ -609,19 +657,39 @@ ${code}
 `;
 
       lineCount += 2;
-
-      for (let [depCode, map, lines] of depContent) {
-        if (!depCode) continue;
-        code += depCode + '\n';
-        if (sourceMap && map) {
-          sourceMap.addSourceMap(map, lineCount);
-        }
-        lineCount += lines + 1;
-      }
-
       this.needsPrelude = true;
     }
 
+    // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register
+    // wrapper. Dependencies must be inserted AFTER the asset is registered so that circular dependencies work.
+    if (depContent.length > 0) {
+      if (shouldWrap) {
+        this.needsPrelude = true;
+        for (let [depCode, map, lines] of depContent) {
+          if (!depCode) continue;
+          code += depCode + '\n';
+          if (sourceMap && map) {
+            sourceMap.addSourceMap(map, lineCount);
+          }
+          lineCount += lines + 1;
+        }
+        if (parentDepContentAddSelf) {
+          nullthrows(parentDepContent).push([code, sourceMap, lineCount]);
+        }
+      } else {
+        if (parentDepContentAddSelf) {
+          nullthrows(parentDepContent).push([code, sourceMap, lineCount]);
+        }
+
+        invariant(inIsland);
+        // make the root of the island append it after the island
+        nullthrows(parentDepContent).push(...depContent);
+      }
+    } else if (parentDepContentAddSelf) {
+      nullthrows(parentDepContent).push([code, sourceMap, lineCount]);
+    }
+
+    // console.log('buildAsset 3', asset);
     return [code, sourceMap, lineCount];
   }
 
