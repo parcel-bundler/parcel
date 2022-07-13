@@ -667,7 +667,7 @@ ${code}
     // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register
     // wrapper. Dependencies must be inserted AFTER the asset is registered so that circular dependencies work.
     if (depContent.length > 0) {
-      if (shouldWrap) {
+      if (shouldWrap || parentDepContent == null) {
         this.needsPrelude = true;
         for (let [depCode, map, lines] of depContent) {
           if (!depCode) continue;
@@ -682,12 +682,12 @@ ${code}
         }
       } else {
         if (parentDepContentAddSelf) {
-          nullthrows(parentDepContent).push([code, sourceMap, lineCount]);
+          parentDepContent.push([code, sourceMap, lineCount]);
         }
 
         invariant(inIsland);
         // make the root of the island append it after the island
-        nullthrows(parentDepContent).push(...depContent);
+        parentDepContent.push(...depContent);
       }
     } else if (parentDepContentAddSelf) {
       nullthrows(parentDepContent).push([code, sourceMap, lineCount]);
