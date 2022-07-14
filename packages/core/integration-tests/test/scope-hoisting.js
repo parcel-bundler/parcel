@@ -2,7 +2,6 @@ import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {normalizePath} from '@parcel/utils';
-import {createWorkerFarm} from '@parcel/core';
 import {md} from '@parcel/diagnostic';
 import {
   assertBundles,
@@ -18,6 +17,7 @@ import {
   overlayFS,
   run,
   runBundle,
+  workerFarmZeroConcurrent,
 } from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) => {
@@ -5535,10 +5535,6 @@ describe('scope hoisting', function () {
   });
 
   it('produce the same bundle hash regardless of transformation order', async function () {
-    let workerFarm = createWorkerFarm({
-      maxConcurrentWorkers: 0,
-    });
-
     let testDir = path.join(
       __dirname,
       'integration/scope-hoisting/es6/non-deterministic-bundle-hashes',
@@ -5590,7 +5586,7 @@ describe('scope hoisting', function () {
       inputFS: slowFooFS,
       outputFS: slowFooFS,
       shouldDisableCache: true,
-      workerFarm,
+      workerFarm: workerFarmZeroConcurrent,
     });
 
     let bundleHashDelayFoo = b
@@ -5604,7 +5600,7 @@ describe('scope hoisting', function () {
       inputFS: slowBarFS,
       outputFS: slowBarFS,
       shouldDisableCache: true,
-      workerFarm,
+      workerFarm: workerFarmZeroConcurrent,
     });
 
     let bundleHashDelayBar = b2
@@ -5612,7 +5608,7 @@ describe('scope hoisting', function () {
       .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
       .filePath.split('.')[1];
 
-    await workerFarm.end();
     assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
+    await workerFarmZeroConcurrent.end();
   });
 });
