@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs-search",
-  "version": "2.0.33",
+  "version": "2.0.34",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "detect-libc": "^1.0.3",
-    "self-published": "npm:@parcel/fs-search@2.6.3-nightly.2757"
+    "self-published": "npm:@parcel/fs-search@2.6.3-nightly.2759"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.6.2"

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/simple-example",
-  "version": "2.0.33",
+  "version": "2.0.34",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
   "devDependencies": {
     "@babel/core": "^7.0.0",
     "@parcel/babel-register": "2.0.30",
-    "@parcel/core": "2.0.33"
+    "@parcel/core": "2.0.34"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",
