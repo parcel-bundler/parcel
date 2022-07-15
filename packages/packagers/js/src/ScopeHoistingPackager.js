@@ -87,14 +87,13 @@ export class ScopeHoistingPackager {
   externals: Map<string, Map<string, string>> = new Map();
   topLevelNames: Map<string, number> = new Map();
   seenAssets: Set<string> = new Set();
-  wrappedAssets: Set<string> = new Set();
   hoistedRequires: Map<string, Map<string, string>> = new Map();
   needsPrelude: boolean = false;
   usedHelpers: Set<string> = new Set();
-  /** wrapped root asset -> other assets in the island of the root */
+  /** wrapped root asset -> assets in the island of the root */
   islands: Map<Asset, Set<Asset>> = new Map();
-  /** asset -> corresponding island root, if any */
-  assetIsland: Map<Asset, Asset> = new Map();
+  /** non-island-root asset -> corresponding island root, if any */
+  islandRoot: Map<Asset, Asset> = new Map();
 
   constructor(
     options: PluginOptions,
@@ -119,7 +118,7 @@ export class ScopeHoistingPackager {
   }
 
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
-    let wrapped = await this.loadAssets();
+    await this.loadAssets();
     this.buildExportedSymbols();
 
     // If building a library, the target is actually another bundler rather
@@ -154,7 +153,7 @@ export class ScopeHoistingPackager {
 
     // Hoist wrapped asset to the top of the bundle to ensure that they are registered
     // before they are used.
-    for (let asset of wrapped) {
+    for (let asset of this.islands.keys()) {
       if (!this.seenAssets.has(asset.id)) {
         processAsset(asset);
       }
@@ -188,7 +187,7 @@ export class ScopeHoistingPackager {
 
     // If any of the entry assets are wrapped, call parcelRequire so they are executed.
     for (let entry of entries) {
-      if (this.wrappedAssets.has(entry.id) && !this.isScriptEntry(entry)) {
+      if (this.islands.has(entry) && !this.isScriptEntry(entry)) {
         let parcelRequire = `parcelRequire(${JSON.stringify(
           this.bundleGraph.getAssetPublicId(entry),
         )});\n`;
@@ -248,11 +247,11 @@ export class ScopeHoistingPackager {
     };
   }
 
-  async loadAssets(): Promise<Array<Asset>> {
+  async loadAssets(): Promise<void> {
     let queue = new PromiseQueue({maxConcurrent: 32});
-    let wrapped = [];
+    let wrapped = new Set();
     let usedByUnwrappedEntries = new Set();
-    this.bundle.traverseAssets((asset, type) => {
+    this.bundle.traverseAssets((asset, isEntry) => {
       queue.add(async () => {
         let [code, map] = await Promise.all([
           asset.getCode(),
@@ -261,18 +260,20 @@ export class ScopeHoistingPackager {
         return [asset.id, {code, map}];
       });
 
+      isEntry ??= true;
+
       if (
         asset.meta.shouldWrap ||
         // TODO shared?
-        (this.isAsyncBundle && (type ?? true)) ||
+        (this.isAsyncBundle && isEntry) ||
         this.bundle.env.sourceType === 'script' ||
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
           .getIncomingDependencies(asset)
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
-        this.wrappedAssets.add(asset.id);
-        wrapped.push(asset);
+        this.islands.set(asset, new Set([asset]));
+        wrapped.add(asset);
       }
 
       return false;
@@ -280,7 +281,7 @@ export class ScopeHoistingPackager {
     // console.log('-----', this.bundle.name);
     this.bundle.traverseAssets((asset, isEntry, actions) => {
       isEntry ??= true;
-      if (isEntry && this.wrappedAssets.has(asset.id)) {
+      if (isEntry && wrapped.has(asset)) {
         actions.skipChildren();
         return false;
       }
@@ -293,24 +294,27 @@ export class ScopeHoistingPackager {
 
     let excludedFromIslands = new Set();
     for (let wrappedAssetRoot of [...wrapped]) {
-      let island = new Set();
+      let island = new Set([wrappedAssetRoot]);
       this.islands.set(wrappedAssetRoot, island);
       this.bundle.traverseAssets((asset, partOfRootIsland, actions) => {
         if (asset === wrappedAssetRoot) {
           return;
         }
-        if (this.wrappedAssets.has(asset.id)) {
-          actions.skipChildren();
-          return;
-        }
+        // if (wrapped.has(asset)) {
+        //   actions.skipChildren();
+        //   return;
+        // }
+        // wrapped.add(asset);
+
         partOfRootIsland ??= true;
 
-        if (this.assetIsland.has(asset)) {
+        if (this.islandRoot.has(asset)) {
           // already part of another island, roll back the assignment and add to exclusion list
           excludedFromIslands.add(asset);
-          let root = nullthrows(this.assetIsland.get(asset));
+          let root = nullthrows(this.islandRoot.get(asset));
           nullthrows(this.islands.get(root)).delete(asset);
-          this.assetIsland.delete(asset);
+          this.islandRoot.delete(asset);
+          this.islands.set(asset, new Set([asset]));
           return false;
         }
 
@@ -325,43 +329,36 @@ export class ScopeHoistingPackager {
             b =>
               b.target.name === this.bundle.target.name &&
               b.id !== this.bundle.id,
-          ) ||
+          )
+        ) {
+          excludedFromIslands.add(asset);
+          this.islands.set(asset, new Set([asset]));
+          return false;
+        }
+
+        if (
           // Can't put in island if an unwrapped asset uses it
-          // (this really is the subgraph and not just immedate dependencies because
+          // (this really is the subgraph and not just immediate dependencies because
           // of resolving symbols through reexports)
           usedByUnwrappedEntries.has(asset)
         ) {
           return false;
         }
 
-        if (partOfRootIsland) {
+        if (partOfRootIsland && !this.islands.has(asset)) {
           island.add(asset);
-          this.assetIsland.set(asset, wrappedAssetRoot);
+          this.islandRoot.set(asset, wrappedAssetRoot);
         }
         return partOfRootIsland;
       }, wrappedAssetRoot);
     }
 
-    for (let wrappedAssetRoot of [...wrapped]) {
-      this.bundle.traverseAssets((asset, _, actions) => {
-        if (asset === wrappedAssetRoot) {
-          return;
-        }
-        if (this.wrappedAssets.has(asset.id)) {
-          actions.skipChildren();
-          return;
-        }
-
-        if (!this.assetIsland.has(asset)) {
-          this.wrappedAssets.add(asset.id);
-          wrapped.push(asset);
-        }
-      }, wrappedAssetRoot);
-    }
-
-    // console.log({wrapped, islands: this.islands, usedByUnwrappedEntries});
+    console.log({
+      islands: this.islands,
+      islandRoot: this.islandRoot,
+      usedByUnwrappedEntries,
+    });
     this.assetOutputs = new Map(await queue.run());
-    return wrapped;
   }
 
   buildExportedSymbols() {
@@ -375,7 +372,7 @@ export class ScopeHoistingPackager {
 
     // TODO: handle ESM exports of wrapped entry assets...
     let entry = this.bundle.getMainEntry();
-    if (entry && !this.wrappedAssets.has(entry.id)) {
+    if (entry && !this.islands.has(entry)) {
       for (let {
         asset,
         exportAs,
@@ -471,9 +468,7 @@ export class ScopeHoistingPackager {
     parentDepContent: ?Array<[string, ?SourceMap, number]>,
     parentDepContentAddSelf: boolean,
   ): [string, ?SourceMap, number] {
-    // console.log('buildAsset 1', asset, asset.id);
-    let shouldWrap = this.wrappedAssets.has(asset.id);
-    let inIsland = this.assetIsland.has(asset);
+    let isIslandRoot = this.islands.has(asset);
     let deps = this.bundleGraph.getDependencies(asset);
 
     let sourceMap =
@@ -590,16 +585,11 @@ export class ScopeHoistingPackager {
               this.bundle.hasAsset(resolved) &&
               !this.seenAssets.has(resolved.id)
             ) {
-              // If this asset is wrapped, we need to hoist the code for the dependency
+              // If the referenced asset is wrapped, we need to hoist the code for the dependency
               // outside our parcelRequire.register wrapper. This is safe because all
               // assets referenced by this asset will also be wrapped. Otherwise, inline the
               // asset content where the import statement was.
-              // console.log(
-              //   asset,
-              //   resolved,
-              //   (shouldWrap || inIsland) && !this.assetIsland.has(resolved),
-              // );
-              if ((shouldWrap || inIsland) && !this.assetIsland.has(resolved)) {
+              if (this.islands.has(resolved)) {
                 this.visitAsset(resolved, depContent, true);
               } else {
                 let [depCode, depMap, depLines] = this.visitAsset(
@@ -651,7 +641,7 @@ export class ScopeHoistingPackager {
       });
     }
 
-    if (shouldWrap) {
+    if (isIslandRoot) {
       // Offset by one line for the parcelRequire.register wrapper.
       sourceMap?.offsetLines(1, 1);
       lineCount++;
@@ -670,7 +660,9 @@ ${code}
     // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register
     // wrapper. Dependencies must be inserted AFTER the asset is registered so that circular dependencies work.
     if (depContent.length > 0) {
+      // Either this is an island root with no parent, or append the deps to the parent's array
       if (parentDepContent == null) {
+        invariant(isIslandRoot);
         // is a toplevel asset
         this.needsPrelude = true;
         for (let [depCode, map, lines] of depContent) {
@@ -681,21 +673,20 @@ ${code}
           }
           lineCount += lines + 1;
         }
-      } else if (shouldWrap || inIsland) {
+      } else {
         if (parentDepContentAddSelf) {
           parentDepContent.push([code, sourceMap, lineCount]);
         }
 
         // make the root of the island append it after the island
         parentDepContent.push(...depContent);
-      } else {
-        invariant(false, asset.filePath + ' ' + asset.id);
       }
     } else if (parentDepContentAddSelf) {
+      invariant(isIslandRoot);
       nullthrows(parentDepContent).push([code, sourceMap, lineCount]);
     }
 
-    // console.log('buildAsset 3', asset);
+    // console.log('buildAsset 3.2', asset, code);
     return [code, sourceMap, lineCount];
   }
 
@@ -776,7 +767,7 @@ ${code}
     // If this asset is wrapped, we need to replace the exports namespace with `module.exports`,
     // which will be provided to us by the wrapper.
     if (
-      this.wrappedAssets.has(asset.id) ||
+      this.islands.has(asset) ||
       (this.bundle.env.outputFormat === 'commonjs' &&
         asset === this.bundle.getMainEntry())
     ) {
@@ -891,8 +882,16 @@ ${code}
     }
     let isWrapped =
       !this.bundle.hasAsset(resolvedAsset) ||
-      (this.wrappedAssets.has(resolvedAsset.id) &&
-        resolvedAsset !== parentAsset);
+      (this.islands.has(resolvedAsset) && resolvedAsset !== parentAsset);
+    console.log(
+      parentAsset,
+      resolvedAsset,
+      exportSymbol,
+      symbol,
+      isWrapped,
+      this.islandRoot.get(resolvedAsset),
+      this.islandRoot.get(parentAsset),
+    );
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
 
@@ -951,10 +950,7 @@ ${code}
 
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
       // Resolve to the namespace object if requested or this is a CJS default interop reqiure.
-      if (
-        parentAsset === resolvedAsset &&
-        this.wrappedAssets.has(resolvedAsset.id)
-      ) {
+      if (parentAsset === resolvedAsset && this.islands.has(resolvedAsset)) {
         // Directly use module.exports for wrapped assets importing themselves.
         return 'module.exports';
       } else {
@@ -1001,7 +997,7 @@ ${code}
     let lineCount = 0;
     let isWrapped =
       !this.bundle.hasAsset(resolved) ||
-      (this.wrappedAssets.has(resolved.id) && resolved !== parentAsset);
+      (this.islands.has(resolved) && resolved !== parentAsset);
 
     // If the resolved asset is wrapped and is imported in the top-level by this asset,
     // we need to run side effects when this asset runs. If the resolved asset is not
@@ -1037,7 +1033,7 @@ ${code}
     let prependLineCount = 0;
     let append = '';
 
-    let shouldWrap = this.wrappedAssets.has(asset.id);
+    let isIslandRoot = this.islands.has(asset);
     let usedSymbols = nullthrows(this.bundleGraph.getUsedSymbols(asset));
     let assetId = asset.meta.id;
     invariant(typeof assetId === 'string');
@@ -1079,7 +1075,7 @@ ${code}
     // this asset.
     if (
       asset.meta.staticExports === false ||
-      shouldWrap ||
+      isIslandRoot ||
       usedNamespace ||
       defaultInterop
     ) {
@@ -1088,7 +1084,7 @@ ${code}
       // by the wrapper instead. This is also true of CommonJS entry assets, which will use
       // the `module.exports` object provided by CJS.
       if (
-        !shouldWrap &&
+        !isIslandRoot &&
         (this.bundle.env.outputFormat !== 'commonjs' ||
           asset !== this.bundle.getMainEntry())
       ) {
