@@ -141,7 +141,7 @@ export class ScopeHoistingPackager {
     let lineCount = 0;
     let sourceMap = null;
     let processAsset = asset => {
-      let [content, map, lines] = this.visitAsset(asset);
+      let [content, map, lines] = this.visitAsset(asset, null, false);
       if (sourceMap && map) {
         sourceMap.addSourceMap(map, lineCount);
       } else if (this.bundle.env.sourceMap) {
@@ -448,8 +448,8 @@ export class ScopeHoistingPackager {
 
   visitAsset(
     asset: Asset,
-    parentDepContent?: Array<[string, ?SourceMap, number]>,
-    parentDepContentAddSelf?: boolean,
+    parentDepContent: ?Array<[string, ?SourceMap, number]>,
+    parentDepContentAddSelf: boolean,
   ): [string, ?SourceMap, number] {
     invariant(!this.seenAssets.has(asset.id), 'Already visited asset');
     this.seenAssets.add(asset.id);
@@ -469,7 +469,7 @@ export class ScopeHoistingPackager {
     code: string,
     map: ?Buffer,
     parentDepContent: ?Array<[string, ?SourceMap, number]>,
-    parentDepContentAddSelf?: boolean = false,
+    parentDepContentAddSelf: boolean,
   ): [string, ?SourceMap, number] {
     // console.log('buildAsset 1', asset, asset.id);
     let shouldWrap = this.wrappedAssets.has(asset.id);
@@ -504,8 +504,11 @@ export class ScopeHoistingPackager {
           this.bundle.hasAsset(resolved) &&
           !this.seenAssets.has(resolved.id)
         ) {
-          // console.log('pure', asset, resolved);
-          let [code, map, lines] = this.visitAsset(resolved);
+          let [code, map, lines] = this.visitAsset(
+            resolved,
+            parentDepContent,
+            false,
+          );
           depCode += code + '\n';
           if (sourceMap && map) {
             sourceMap.addSourceMap(map, lineCount);
@@ -667,7 +670,8 @@ ${code}
     // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register
     // wrapper. Dependencies must be inserted AFTER the asset is registered so that circular dependencies work.
     if (depContent.length > 0) {
-      if (shouldWrap || parentDepContent == null) {
+      if (parentDepContent == null) {
+        // is a toplevel asset
         this.needsPrelude = true;
         for (let [depCode, map, lines] of depContent) {
           if (!depCode) continue;
@@ -677,17 +681,15 @@ ${code}
           }
           lineCount += lines + 1;
         }
-        if (parentDepContentAddSelf) {
-          nullthrows(parentDepContent).push([code, sourceMap, lineCount]);
-        }
-      } else {
+      } else if (shouldWrap || inIsland) {
         if (parentDepContentAddSelf) {
           parentDepContent.push([code, sourceMap, lineCount]);
         }
 
-        invariant(inIsland);
         // make the root of the island append it after the island
         parentDepContent.push(...depContent);
+      } else {
+        invariant(false, asset.filePath + ' ' + asset.id);
       }
     } else if (parentDepContentAddSelf) {
       nullthrows(parentDepContent).push([code, sourceMap, lineCount]);
