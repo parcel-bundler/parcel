@@ -286,6 +286,7 @@ export class ScopeHoistingPackager {
         return false;
       }
 
+      // todo not sure if this is really working to be unwrapped only (e.g. async/shared)
       if (!isEntry) {
         usedByUnwrappedEntries.add(asset);
       }
@@ -337,11 +338,13 @@ export class ScopeHoistingPackager {
         }
 
         if (
-          // Can't put in island if an unwrapped asset uses it
-          // (this really is the subgraph and not just immediate dependencies because
-          // of resolving symbols through reexports)
+          // If an unwrapped asset uses it, it has to stay accessile so can't be put inside island
+          // (= has to either stay unwrapped or be island root) because of resolving symbols
+          // through reexports)
           usedByUnwrappedEntries.has(asset)
         ) {
+          excludedFromIslands.add(asset);
+          this.islands.set(asset, new Set([asset]));
           return false;
         }
 
@@ -353,11 +356,12 @@ export class ScopeHoistingPackager {
       }, wrappedAssetRoot);
     }
 
-    console.log({
-      islands: this.islands,
-      islandRoot: this.islandRoot,
-      usedByUnwrappedEntries,
-    });
+    // console.log(wrapped)
+    // console.log({
+    //   islands: this.islands,
+    //   islandRoot: this.islandRoot,
+    //   usedByUnwrappedEntries,
+    // });
     this.assetOutputs = new Map(await queue.run());
   }
 
@@ -883,15 +887,15 @@ ${code}
     let isWrapped =
       !this.bundle.hasAsset(resolvedAsset) ||
       (this.islands.has(resolvedAsset) && resolvedAsset !== parentAsset);
-    console.log(
-      parentAsset,
-      resolvedAsset,
-      exportSymbol,
-      symbol,
-      isWrapped,
-      this.islandRoot.get(resolvedAsset),
-      this.islandRoot.get(parentAsset),
-    );
+    // console.log(
+    //   parentAsset,
+    //   resolvedAsset,
+    //   exportSymbol,
+    //   symbol,
+    //   isWrapped,
+    //   this.islandRoot.get(resolvedAsset),
+    //   this.islandRoot.get(parentAsset),
+    // );
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
 
