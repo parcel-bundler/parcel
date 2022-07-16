@@ -24,6 +24,7 @@ import type {
   Target,
 } from './types';
 import type AssetGraph from './AssetGraph';
+import {nodeFromAsset} from './AssetGraph';
 import type {ProjectPath} from './projectPath';
 
 import assert from 'assert';
@@ -1757,7 +1758,7 @@ export default class BundleGraph {
         otherGraphIdToThisNodeId.set(otherNodeId, existingNodeId);
 
         let existingNode = nullthrows(this._graph.getNode(existingNodeId));
-        // Merge symbols, recompute dep.exluded based on that
+        // Merge symbols, recompute dep.excluded based on that
         if (existingNode.type === 'asset') {
           invariant(otherNode.type === 'asset');
           existingNode.usedSymbols = new Set([
@@ -1807,6 +1808,21 @@ export default class BundleGraph {
       )
       .map(id => nullthrows(this._graph.getNode(id)))
       .some(n => n.type === 'root');
+  }
+
+  /**
+   * Update the asset in a Bundle Graph and clear the associated Bundle hash.
+   */
+  updateAsset(asset: Asset) {
+    this._graph.updateNode(
+      this._graph.getNodeIdByContentKey(asset.id),
+      nodeFromAsset(asset),
+    );
+    let bundles = this.getBundlesWithAsset(asset);
+    for (let bundle of bundles) {
+      // the bundle content will change with a modified asset
+      this._bundleContentHashes.delete(bundle.id);
+    }
   }
 
   getEntryRoot(projectRoot: FilePath, target: Target): FilePath {

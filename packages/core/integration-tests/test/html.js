@@ -2274,7 +2274,7 @@ describe('html', function () {
     assert.deepEqual(await res.output, ['client', 'client', 'viewer']);
   });
 
-  it.only('should not point to unrelated sibling bundles', async function () {
+  it('should not point to unrelated sibling bundles', async function () {
     await bundle(
       path.join(
         __dirname,
@@ -2481,7 +2481,7 @@ describe('html', function () {
     }
   });
 
-  it.only('should remove duplicate assets from sibling bundles', async function () {
+  it('should remove duplicate assets from sibling bundles', async function () {
     let bundleGraph = await bundle(
       path.join(__dirname, '/integration/shared-sibling-duplicate/*.html'),
       {mode: 'production'},

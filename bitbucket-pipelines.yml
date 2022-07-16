@@ -35,6 +35,14 @@ definitions:
           - . .artifactory/activate.sh
           - yarn install --frozen-lockfile
           - yarn run test:integration-ci
+    - step: &test-integration-experimental-bundler
+        name: Run integration tests (Experimental Bundler)
+        size: 2x
+        script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - . .artifactory/activate.sh
+          - yarn install --frozen-lockfile
+          - PARCEL_TEST_EXPERIMENTAL_BUNDLER=1 yarn run test:integration-ci
     - step: &build-release-parcel
         name: Build and Release Parcel
         script:
@@ -77,6 +85,7 @@ pipelines:
         - step: *lint
         - step: *test-unit
         - step: *test-integration
+        - step: *test-integration-experimental-bundler
         - step: *validate-docs
   tags:
     '*':
