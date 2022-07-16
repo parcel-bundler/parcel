@@ -47,6 +47,7 @@ describe('incremental bundling', function () {
   describe('non-dependency based changes', () => {
     describe('javascript', () => {
       it('add a console log should not bundle', async () => {
+        if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
         let subscription;
         let fixture = path.join(__dirname, '/integration/incremental-bundling');
         try {
@@ -89,6 +90,7 @@ console.log('adding a new console');`,
       });
 
       it('updating a string value should not bundle', async () => {
+        if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
         let subscription;
         let fixture = path.join(__dirname, '/integration/incremental-bundling');
         try {
@@ -133,6 +135,7 @@ console.log(a);
       });
 
       it('adding a comment', async () => {
+        if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
         let subscription;
         let fixture = path.join(__dirname, '/integration/incremental-bundling');
         try {
@@ -176,6 +179,7 @@ console.log(a);`,
 
       // this case is similar to applying a patch or restarting parcel with changes
       it('adds multiple non-dependency related changes', async () => {
+        if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
         let subscription;
         let fixture = path.join(__dirname, '/integration/incremental-bundling');
         try {
@@ -227,6 +231,7 @@ module.exports = a;`,
     });
 
     it('update an imported css file', async () => {
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -269,6 +274,7 @@ module.exports = a;`,
     });
 
     it('update both the js and imported css file', async () => {
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -327,6 +333,7 @@ console.log(a, 'updated');`,
     });
 
     it('update the bundles if entry is html and js asset is modified', async () => {
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -378,6 +385,7 @@ console.log(a);`,
 
   describe('dependency based changes should run the bundler', () => {
     it('adding a new dependency', async () => {
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -424,6 +432,7 @@ console.log(a);
     });
 
     it('adding a new dependency of a different type', async () => {
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -477,6 +486,7 @@ console.log(a);
     });
 
     it('adding a new dynamic import', async () => {
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -534,6 +544,7 @@ console.log(a);
     });
 
     it('removing a dependency', async () => {
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -575,6 +586,7 @@ console.log('index.js');`,
 
   describe('other changes that would for a re-bundle', () => {
     it('changing the bundler in parcel configs', async () => {
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -622,6 +634,7 @@ console.log('index.js');`,
     });
 
     it('changing bundler options', async () => {
+      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -664,6 +677,7 @@ console.log('index.js');`,
   });
 
   it('changing the namer', async () => {
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
     let subscription;
     let fixture = path.join(__dirname, '/integration/incremental-bundling');
     try {
@@ -709,6 +723,7 @@ console.log('index.js');`,
   });
 
   it('changing the runtimes', async () => {
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
     let subscription;
     let fixture = path.join(__dirname, '/integration/incremental-bundling');
     try {
@@ -751,6 +766,7 @@ console.log('index.js');`,
   });
 
   it('changing target options', async () => {
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
     let subscription;
     let fixture = path.join(__dirname, '/integration/incremental-bundling');
     try {
@@ -799,6 +815,7 @@ console.log('index.js');`,
   });
 
   it('adding a new the entry', async () => {
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null) return;
     let subscription;
     let fixture = path.join(__dirname, '/integration/incremental-bundling');
     try {

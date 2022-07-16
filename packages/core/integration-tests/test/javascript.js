@@ -2086,6 +2086,7 @@ describe('javascript', function () {
         ),
       );
     });
+
     it('should create a shared bundle between browser and worker contexts', async () => {
       let b = await bundle(
         path.join(__dirname, '/integration/html-shared-worker/index.html'),
