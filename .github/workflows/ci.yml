@@ -91,12 +91,48 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: Integration tests (${{matrix.os}}, node ${{matrix.node}})
-          path: '**/junit-*.xml'
+          path: "**/junit-*.xml"
+
+  experimental_bundler_integration_tests:
+    name: Experimental Bundler Integration tests (${{matrix.os}}, Node ${{matrix.node}})
+    strategy:
+      matrix:
+        node: [14, 16]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+      # These tend to be quite flakey, so one failed instance shouldn't stop
+      # others from potentially succeeding
+      fail-fast: false
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          cache: yarn
+          node-version: ${{matrix.node}}
+      - uses: actions-rs/toolchain@v1
+      - uses: Swatinem/rust-cache@v1
+      - name: Bump max inotify watches (Linux only)
+        run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
+        if: ${{matrix.os == 'ubuntu-latest'}}
+      - run: yarn --frozen-lockfile
+      - run: yarn build-native-release
+      - run: yarn test:integration-ci
+        env:
+          PARCEL_TEST_EXPERIMENTAL_BUNDLER: 1
+      # Similar to
+      # https://github.com/marketplace/actions/publish-unit-test-results#use-with-matrix-strategy
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: Exprimental Bundler Integration tests (${{matrix.os}}, node ${{matrix.node}})
+          path: "**/junit-*.xml"
 
   test_report:
     name: Test report
     runs-on: ubuntu-latest
-    needs: [unit_tests, integration_tests]
+    needs:
+      [unit_tests, integration_tests, experimental_bundler_integration_tests]
     if: always()
     steps:
       - name: Create test report
