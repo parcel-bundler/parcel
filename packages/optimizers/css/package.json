@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-css",
-  "version": "2.0.34",
+  "version": "2.0.35",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -22,9 +22,9 @@
   "dependencies": {
     "@parcel/css": "^1.10.1",
     "@parcel/diagnostic": "2.0.30",
-    "@parcel/plugin": "2.0.34",
+    "@parcel/plugin": "2.0.35",
     "@parcel/source-map": "^2.0.0",
-    "@parcel/utils": "2.0.34",
+    "@parcel/utils": "2.0.35",
     "browserslist": "^4.6.6",
     "nullthrows": "^1.1.1"
   }
