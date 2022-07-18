@@ -133,4 +133,47 @@ describe('elm', function () {
       },
     );
   });
+
+  it('should produce correct formatting and indentation when elm fails without errors property', async function () {
+    await assert.rejects(
+      () =>
+        bundle(path.join(__dirname, 'integration/elm-error/index.js'), {
+          mode: 'production',
+        }),
+
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message:
+              '\n' +
+              '-- DEBUG REMNANTS ------------------------------------------------------------- \n' +
+              '\n' +
+              'There are uses of the `Debug` module in the following modules:\n' +
+              '\n' +
+              '    **Main**\n' +
+              '\n' +
+              'But the --optimize flag only works if all `Debug` functions are removed!\n' +
+              '\n' +
+              '__Note__: The issue is that --optimize strips out info needed by `Debug` functions.\n' +
+              'Here are two examples:\n' +
+              '\n' +
+              '    (1) It shortens record field names. This makes the generated JavaScript is\n' +
+              '    smaller, but `Debug.toString` cannot know the real field names anymore.\n' +
+              '\n' +
+              '    (2) Values like `type Height = Height Float` are unboxed. This reduces\n' +
+              '    allocation, but it also means that `Debug.toString` cannot tell if it is\n' +
+              '    looking at a `Height` or `Float` value.\n' +
+              '\n' +
+              'There are a few other cases like that, and it will be much worse once we start\n' +
+              'inlining code. That optimization could move `Debug.log` and `Debug.todo` calls,\n' +
+              'resulting in unpredictable behavior. I hope that clarifies why this restriction\n' +
+              'exists!',
+            origin: '@parcel/elm-transformer',
+            stack: '',
+          },
+        ],
+      },
+    );
+  });
 });

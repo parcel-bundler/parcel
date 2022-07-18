@@ -64,6 +64,20 @@ export default (new Transformer({
       let compilerJson = e.message.split('\n')[1];
       let compilerDiagnostics = JSON.parse(compilerJson);
 
+      // sometimes, `errors` property does not exist on the error object thrown by `compileToString` module.
+      // In such case, a content equal to `error.errors[num].problems[num]` is expanded.
+      // so this line handle such a case.
+      if (!compilerDiagnostics.errors) {
+        throw new ThrowableDiagnostic({
+          diagnostic: elmProblemToParcelDiagnostic(
+            compilerDiagnostics,
+            compilerDiagnostics.path
+              ? path.relative(process.cwd(), compilerDiagnostics.path)
+              : '',
+          ),
+        });
+      }
+
       throw new ThrowableDiagnostic({
         diagnostic: compilerDiagnostics.errors.flatMap(
           elmErrorToParcelDiagnostics,
@@ -173,22 +187,26 @@ function formatMessagePiece(piece) {
   return md`${piece}`;
 }
 
+function elmProblemToParcelDiagnostic(problem, relativePath) {
+  const padLength = 80 - 5 - problem.title.length - relativePath.length;
+  const dashes = '-'.repeat(padLength);
+  const message = [
+    '',
+    `-- ${problem.title} ${dashes} ${relativePath}`,
+    '',
+    problem.message.map(formatMessagePiece).join(''),
+  ].join('\n');
+
+  return {
+    message,
+    origin: '@parcel/elm-transformer',
+    stack: '', // set stack to empty since it is not useful
+  };
+}
+
 function elmErrorToParcelDiagnostics(error) {
   const relativePath = path.relative(process.cwd(), error.path);
   return error.problems.map(problem => {
-    const padLength = 80 - 5 - problem.title.length - relativePath.length;
-    const dashes = '-'.repeat(padLength);
-    const message = [
-      '',
-      `-- ${problem.title} ${dashes} ${relativePath}`,
-      '',
-      problem.message.map(formatMessagePiece).join(''),
-    ].join('\n');
-
-    return {
-      message,
-      origin: '@parcel/elm-transformer',
-      stack: '', // set stack to empty since it is not useful
-    };
+    return elmProblemToParcelDiagnostic(problem, relativePath);
   });
 }
