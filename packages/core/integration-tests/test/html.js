@@ -2128,40 +2128,80 @@ describe('html', function () {
       },
     );
 
-    assertBundles(b, [
-      {
-        name: 'a.html',
-        type: 'html',
-        assets: ['a.html'],
-      },
-      {
-        name: 'b.html',
-        type: 'html',
-        assets: ['b.html'],
-      },
-      {
-        name: 'c.html',
-        type: 'html',
-        assets: ['c.html'],
-      },
-      {
-        type: 'js',
-        assets: ['a.html', 'shared.js'],
-      },
-      {
-        type: 'js',
-        assets: ['b.html', 'shared.js'],
-      },
-      {
-        type: 'js',
-        assets: ['c.html', 'shared.js'],
-      },
-      {
-        type: 'css',
-        assets: ['shared.css', 'other.css'],
-      },
-    ]);
-
+    // Different assertion for experimental bundler due to shared bundle size calculation differences
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      assertBundles(b, [
+        {
+          name: 'a.html',
+          type: 'html',
+          assets: ['a.html'],
+        },
+        {
+          name: 'b.html',
+          type: 'html',
+          assets: ['b.html'],
+        },
+        {
+          name: 'c.html',
+          type: 'html',
+          assets: ['c.html'],
+        },
+        {
+          type: 'js',
+          assets: ['a.html', 'shared.js'],
+        },
+        {
+          type: 'js',
+          assets: ['b.html', 'shared.js'],
+        },
+        {
+          type: 'js',
+          assets: ['c.html', 'shared.js'],
+        },
+        {
+          type: 'css',
+          assets: ['other.css'],
+        },
+        {
+          type: 'css',
+          assets: ['shared.css'],
+        },
+      ]);
+    } else {
+      assertBundles(b, [
+        {
+          name: 'a.html',
+          type: 'html',
+          assets: ['a.html'],
+        },
+        {
+          name: 'b.html',
+          type: 'html',
+          assets: ['b.html'],
+        },
+        {
+          name: 'c.html',
+          type: 'html',
+          assets: ['c.html'],
+        },
+        {
+          type: 'js',
+          assets: ['a.html', 'shared.js'],
+        },
+        {
+          type: 'js',
+          assets: ['b.html', 'shared.js'],
+        },
+        {
+          type: 'js',
+          assets: ['c.html', 'shared.js'],
+        },
+        {
+          type: 'css',
+          assets: ['shared.css', 'other.css'],
+        },
+      ]);
+    }
     // Both HTML files should point to the sibling CSS file
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
     assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
@@ -2188,7 +2228,28 @@ describe('html', function () {
       },
     );
     let bundles = b.getBundles();
-
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'index.js',
+          'index.js',
+          'index.js',
+          'index.js',
+          'client.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        type: 'js',
+        assets: ['viewer.js'],
+      },
+    ]);
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
@@ -2228,12 +2289,9 @@ describe('html', function () {
     // reuse the b.css bundle from b.html.
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
     assert.equal(
-      html.match(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/g).length,
-      1,
-    );
-    assert.equal(
-      html.match(/<link rel="stylesheet" href="\/b\.[a-z0-9]+\.css">/g).length,
-      1,
+      html.match(/<link rel="stylesheet" href="\/\w+\.[a-z0-9]+\.css">/g)
+        .length,
+      2,
     );
 
     // a.html should reference a.js only
@@ -2242,7 +2300,7 @@ describe('html', function () {
     assert.equal(html.match(/b\.[a-z0-9]+\.js/g), null);
 
     let css = await outputFS.readFile(
-      path.join(distDir, html.match(/\/a\.[a-z0-9]+\.css/)[0]),
+      path.join(distDir, html.match(/\/\w+\.[a-z0-9]+\.css/g)[0]),
       'utf8',
     );
     assert(css.includes('.a {'));
@@ -2252,11 +2310,8 @@ describe('html', function () {
     // It should not point to the bundle containing a.css from a.html
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
     assert.equal(
-      html.match(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/g),
-      null,
-    );
-    assert.equal(
-      html.match(/<link rel="stylesheet" href="\/b\.[a-z0-9]+\.css">/g).length,
+      html.match(/<link rel="stylesheet" href="\/\w+\.[a-z0-9]+\.css">/g)
+        .length,
       1,
     );
 
@@ -2266,7 +2321,7 @@ describe('html', function () {
     assert.equal(html.match(/b\.[a-z0-9]+\.js/g).length, 1);
 
     css = await outputFS.readFile(
-      path.join(distDir, html.match(/\/b\.[a-z0-9]+\.css/)[0]),
+      path.join(distDir, html.match(/\/\w+\.[a-z0-9]+\.css/)[0]),
       'utf8',
     );
     assert(!css.includes('.a {'));
@@ -2277,28 +2332,52 @@ describe('html', function () {
     await bundle(path.join(__dirname, '/integration/shared-many/*.html'), {
       mode: 'production',
     });
+    // Forked this because size of shared bundles in default bundler is estimated including itself and children (may appear larger and don't get created)
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 2);
 
-    let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 3);
+      html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 2);
 
-    html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 5);
+      html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 2);
 
-    html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 5);
+      html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 2);
 
-    html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 4);
+      html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 1);
 
-    html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 4);
+      html = await outputFS.readFile(path.join(distDir, 'f.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 1);
 
-    html = await outputFS.readFile(path.join(distDir, 'f.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 3);
+      // b.html hitting the parallel request limit should not prevent g.html from being optimized
+      html = await outputFS.readFile(path.join(distDir, 'g.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 1);
+    } else {
+      let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 3);
 
-    // b.html hitting the parallel request limit should not prevent g.html from being optimized
-    html = await outputFS.readFile(path.join(distDir, 'g.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 5);
+      html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 5);
+
+      html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 5);
+
+      html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 4);
+
+      html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 4);
+
+      html = await outputFS.readFile(path.join(distDir, 'f.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 3);
+
+      // b.html hitting the parallel request limit should not prevent g.html from being optimized
+      html = await outputFS.readFile(path.join(distDir, 'g.html'), 'utf8');
+      assert.equal(html.match(/<script/g).length, 5);
+    }
   });
 
   it('should not add CSS to a worker bundle group', async function () {
@@ -2624,35 +2703,67 @@ describe('html', function () {
     let dir = path.join(__dirname, 'integration/invalid-bundler-config');
     let pkg = path.join(dir, 'package.json');
     let code = await inputFS.readFileSync(pkg, 'utf8');
-    await assert.rejects(() => bundle(path.join(dir, 'index.html')), {
-      name: 'BuildError',
-      diagnostics: [
-        {
-          message: 'Invalid config for @parcel/bundler-default',
-          origin: '@parcel/bundler-default',
-          codeFrames: [
-            {
-              filePath: pkg,
-              language: 'json',
-              code,
-              codeHighlights: [
-                {
-                  message: 'Did you mean "minBundleSize", "minBundles"?',
-                  start: {
-                    column: 30,
-                    line: 3,
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      await assert.rejects(() => bundle(path.join(dir, 'index.html')), {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: 'Invalid config for @parcel/bundler-experimental',
+            origin: '@parcel/bundler-experimental',
+            codeFrames: [
+              {
+                filePath: pkg,
+                language: 'json',
+                code,
+                codeHighlights: [
+                  {
+                    message: 'Did you mean "minBundleSize", "minBundles"?',
+                    start: {
+                      column: 30,
+                      line: 3,
+                    },
+                    end: {
+                      column: 45,
+                      line: 3,
+                    },
                   },
-                  end: {
-                    column: 45,
-                    line: 3,
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    } else {
+      await assert.rejects(() => bundle(path.join(dir, 'index.html')), {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: 'Invalid config for @parcel/bundler-default',
+            origin: '@parcel/bundler-default',
+            codeFrames: [
+              {
+                filePath: pkg,
+                language: 'json',
+                code,
+                codeHighlights: [
+                  {
+                    message: 'Did you mean "minBundleSize", "minBundles"?',
+                    start: {
+                      column: 30,
+                      line: 3,
+                    },
+                    end: {
+                      column: 45,
+                      line: 3,
+                    },
                   },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    }
   });
 
   it('should escape inline script tags', async function () {
