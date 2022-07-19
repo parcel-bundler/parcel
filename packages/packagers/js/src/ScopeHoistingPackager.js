@@ -90,10 +90,11 @@ export class ScopeHoistingPackager {
   hoistedRequires: Map<string, Map<string, string>> = new Map();
   needsPrelude: boolean = false;
   usedHelpers: Set<string> = new Set();
-  /** wrapped root asset -> assets in the island of the root */
+  /** wrapped root asset -> assets in the island of the root (excluding root) */
   islands: Map<Asset, Set<Asset>> = new Map();
   /** non-island-root asset -> corresponding island root, if any */
   islandRoot: Map<Asset, Asset> = new Map();
+  usedByUnwrappedEntries: Set<Asset> = new Set();
 
   constructor(
     options: PluginOptions,
@@ -250,7 +251,6 @@ export class ScopeHoistingPackager {
   async loadAssets(): Promise<void> {
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrapped = new Set();
-    let usedByUnwrappedEntries = new Set();
     this.bundle.traverseAssets((asset, isEntry) => {
       queue.add(async () => {
         let [code, map] = await Promise.all([
@@ -259,6 +259,12 @@ export class ScopeHoistingPackager {
         ]);
         return [asset.id, {code, map}];
       });
+
+      // console.log(
+      //   asset.filePath,
+      //   asset.id,
+      //   this.bundleGraph.getAssetPublicId(asset),
+      // );
 
       isEntry ??= true;
 
@@ -281,14 +287,14 @@ export class ScopeHoistingPackager {
     // console.log('-----', this.bundle.name);
     this.bundle.traverseAssets((asset, isEntry, actions) => {
       isEntry ??= true;
-      if (isEntry && wrapped.has(asset)) {
+      if (wrapped.has(asset)) {
         actions.skipChildren();
-        return false;
+        return;
       }
 
       // todo not sure if this is really working to be unwrapped only (e.g. async/shared)
       if (!isEntry) {
-        usedByUnwrappedEntries.add(asset);
+        this.usedByUnwrappedEntries.add(asset);
       }
       return false;
     });
@@ -341,7 +347,7 @@ export class ScopeHoistingPackager {
           // If an unwrapped asset uses it, it has to stay accessile so can't be put inside island
           // (= has to either stay unwrapped or be island root) because of resolving symbols
           // through reexports)
-          usedByUnwrappedEntries.has(asset)
+          this.usedByUnwrappedEntries.has(asset)
         ) {
           excludedFromIslands.add(asset);
           this.islands.set(asset, new Set([asset]));
@@ -356,12 +362,15 @@ export class ScopeHoistingPackager {
       }, wrappedAssetRoot);
     }
 
-    // console.log(wrapped)
+    // if (this.bundle.name === 'index.08e6a922.js') {
+    // console.log(this.bundle.name);
+    // console.log(wrapped);
     // console.log({
     //   islands: this.islands,
     //   islandRoot: this.islandRoot,
-    //   usedByUnwrappedEntries,
+    //   usedByUnwrappedEntries: this.usedByUnwrappedEntries,
     // });
+    // }
     this.assetOutputs = new Map(await queue.run());
   }
 
@@ -481,7 +490,7 @@ export class ScopeHoistingPackager {
         : null;
 
     // If this asset is skipped, just add dependencies and not the asset's content.
-    if (this.shouldSkipAsset(asset)) {
+    if (this.shouldSkipAsset(asset) && !this.islands.has(asset)) {
       let depCode = '';
       let lineCount = 0;
       for (let dep of deps) {
@@ -875,11 +884,21 @@ ${code}
     imported: string,
     dep?: Dependency,
   ): string {
+    let island = new Set([
+      ...(this.islands.get(this.islandRoot.get(parentAsset) ?? parentAsset) ??
+        this.usedByUnwrappedEntries),
+      parentAsset,
+    ]);
     let {
       asset: resolvedAsset,
       exportSymbol,
       symbol,
-    } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
+    } = this.bundleGraph.getSymbolResolution(
+      resolved,
+      imported,
+      this.bundle,
+      island,
+    );
     if (resolvedAsset.type !== 'js') {
       // Graceful fallback for non-js imports
       return '{}';
@@ -887,15 +906,7 @@ ${code}
     let isWrapped =
       !this.bundle.hasAsset(resolvedAsset) ||
       (this.islands.has(resolvedAsset) && resolvedAsset !== parentAsset);
-    // console.log(
-    //   parentAsset,
-    //   resolvedAsset,
-    //   exportSymbol,
-    //   symbol,
-    //   isWrapped,
-    //   this.islandRoot.get(resolvedAsset),
-    //   this.islandRoot.get(parentAsset),
-    // );
+
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
 
@@ -909,6 +920,7 @@ ${code}
       // Only do this if the asset is part of a different bundle (so it was definitely
       // parcelRequire.register'ed there), or if it is indeed registered in this bundle.
       (!this.bundle.hasAsset(resolvedAsset) ||
+        this.islands.has(resolvedAsset) ||
         !this.shouldSkipAsset(resolvedAsset))
     ) {
       let hoisted = this.hoistedRequires.get(dep.id);

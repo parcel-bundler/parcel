@@ -221,12 +221,14 @@ export default class BundleGraph<TBundle: IBundle>
   getSymbolResolution(
     asset: IAsset,
     symbol: Symbol,
-    boundary: ?IBundle,
+    boundaryBundle: ?IBundle,
+    boundaryAssets: ?Set<IAsset>,
   ): SymbolResolution {
     let res = this.#graph.getSymbolResolution(
       assetToAssetValue(asset),
       symbol,
-      boundary ? bundleToInternalBundle(boundary) : null,
+      boundaryBundle ? bundleToInternalBundle(boundaryBundle) : null,
+      boundaryAssets ? new Set([...boundaryAssets].map(a => a.id)) : null,
     );
     return {
       asset: assetFromValue(res.asset, this.#options),

@@ -1436,7 +1436,8 @@ export interface BundleGraph<TBundle: Bundle> {
   getSymbolResolution(
     asset: Asset,
     symbol: Symbol,
-    boundary: ?Bundle,
+    boundaryBundle: ?Bundle,
+    boundaryAssets: ?Set<Asset>,
   ): SymbolResolution;
   /** Returns a list of symbols that are exported by the asset, including re-exports. */
   getExportedSymbols(

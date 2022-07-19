@@ -8,6 +8,7 @@ import type {
 } from '@parcel/types';
 import type {
   ContentGraphOpts,
+  ContentKey,
   NodeId,
   SerializedContentGraph,
 } from '@parcel/graph';
@@ -1385,9 +1386,13 @@ export default class BundleGraph {
   getSymbolResolution(
     asset: Asset,
     symbol: Symbol,
-    boundary: ?Bundle,
+    boundaryBundle: ?Bundle,
+    boundaryAssets: ?Set<ContentKey>,
   ): InternalSymbolResolution {
-    let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
+    let isAssetOutside = a =>
+      (boundaryBundle && !this.bundleHasAsset(boundaryBundle, a)) ||
+      (boundaryAssets && !boundaryAssets.has(a.id));
+    let assetOutside = isAssetOutside(asset);
 
     let identifier = asset.symbols?.get(symbol)?.local;
     if (symbol === '*') {
@@ -1402,7 +1407,7 @@ export default class BundleGraph {
     let found = false;
     let nonStaticDependency = false;
     let skipped = false;
-    let deps = this.getDependencies(asset).reverse();
+    let deps = this.getDependencies(asset);
     let potentialResults = [];
     for (let dep of deps) {
       let depSymbols = dep.symbols;
@@ -1444,7 +1449,12 @@ export default class BundleGraph {
           symbol: resolvedSymbol,
           exportSymbol,
           loc,
-        } = this.getSymbolResolution(resolved, depSymbol, boundary);
+        } = this.getSymbolResolution(
+          resolved,
+          depSymbol,
+          boundaryBundle,
+          boundaryAssets,
+        );
 
         if (!loc) {
           // Remember how we got there
@@ -1470,7 +1480,12 @@ export default class BundleGraph {
         if (!resolved) {
           continue;
         }
-        let result = this.getSymbolResolution(resolved, symbol, boundary);
+        let result = this.getSymbolResolution(
+          resolved,
+          symbol,
+          boundaryBundle,
+          boundaryAssets,
+        );
 
         // We found the symbol
         if (result.symbol != undefined) {
@@ -1494,15 +1509,15 @@ export default class BundleGraph {
         }
         if (result.symbol === null) {
           found = true;
-          if (boundary && !this.bundleHasAsset(boundary, result.asset)) {
+          if (isAssetOutside(result.asset)) {
             // If the returned asset is outside (and it's the first asset that is outside), return it.
             if (!assetOutside) {
-              return {
+              potentialResults.push({
                 asset: result.asset,
                 symbol: result.symbol,
                 exportSymbol: result.exportSymbol,
                 loc: resolved.symbols?.get(symbol)?.loc,
-              };
+              });
             } else {
               // Otherwise the original asset will be returned at the end.
               break;
