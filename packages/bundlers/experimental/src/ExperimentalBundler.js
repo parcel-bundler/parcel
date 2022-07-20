@@ -1097,6 +1097,8 @@ function createIdealGraph(
           ) {
             // If one bundle group removes a shared bundle, but the other *can* keep it, still remove because that shared bundle is pointless (only one source bundle)
             removeBundle(bundleGraph, bundleIdToRemove, assetReference);
+            // Stop iterating through bundleToRemove's sourceBundles as the bundle has been removed.
+            break;
           } else {
             bundleGraph.removeEdge(sourceBundleId, bundleIdToRemove);
           }
