@@ -2211,11 +2211,7 @@ mod tests {
     }
   }
 
-  fn emit(
-    source_map: Lrc<SourceMap>,
-    comments: SingleThreadedComments,
-    program: &Module,
-  ) -> String {
+  fn emit(source_map: Lrc<SourceMap>, comments: SingleThreadedComments, module: &Module) -> String {
     let mut src_map_buf = vec![];
     let mut buf = vec![];
     {
@@ -2237,7 +2233,7 @@ mod tests {
         wr: writer,
       };
 
-      emitter.emit_module(program).unwrap();
+      emitter.emit_module(module).unwrap();
     }
 
     String::from_utf8(buf).unwrap()
