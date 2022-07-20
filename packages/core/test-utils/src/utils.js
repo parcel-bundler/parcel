@@ -35,9 +35,6 @@ import _chalk from 'chalk';
 import resolve from 'resolve';
 
 export const workerFarm = (createWorkerFarm(): WorkerFarm);
-export const workerFarmZeroConcurrent = (createWorkerFarm({
-  maxConcurrentWorkers: 0,
-}): WorkerFarm);
 export const inputFS: NodeFS = new NodeFS();
 export let outputFS: MemoryFS = new MemoryFS(workerFarm);
 export let overlayFS: OverlayFS = new OverlayFS(outputFS, inputFS);

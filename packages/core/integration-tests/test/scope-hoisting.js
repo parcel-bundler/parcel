@@ -2,7 +2,9 @@ import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {normalizePath} from '@parcel/utils';
+import {createWorkerFarm} from '@parcel/core';
 import {md} from '@parcel/diagnostic';
+import {MemoryFS, OverlayFS} from '@parcel/fs';
 import {
   assertBundles,
   assertDependencyWasExcluded,
@@ -12,12 +14,12 @@ import {
   findAsset,
   findDependency,
   getNextBuild,
+  inputFS,
   mergeParcelOptions,
   outputFS,
   overlayFS,
   run,
   runBundle,
-  workerFarmZeroConcurrent,
 } from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) => {
@@ -5580,35 +5582,43 @@ describe('scope hoisting', function () {
       };
     };
 
+    let workerFarm = createWorkerFarm({
+      maxConcurrentWorkers: 0,
+    });
+    let outputFS = new MemoryFS(workerFarm);
+    let overlayFS = new OverlayFS(outputFS, inputFS);
     let slowFooFS = new Proxy(overlayFS, waitHandler('foo.js', 'bar.js'));
 
-    let b = await bundle(path.join(testDir, 'index.html'), {
-      inputFS: slowFooFS,
-      outputFS: slowFooFS,
-      shouldDisableCache: true,
-      workerFarm: workerFarmZeroConcurrent,
-    });
+    try {
+      let b = await bundle(path.join(testDir, 'index.html'), {
+        inputFS: slowFooFS,
+        outputFS: slowFooFS,
+        shouldDisableCache: true,
+        workerFarm,
+      });
 
-    let bundleHashDelayFoo = b
-      .getBundles()
-      .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
-      .filePath.split('.')[1];
+      let bundleHashDelayFoo = b
+        .getBundles()
+        .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
+        .filePath.split('.')[1];
 
-    let slowBarFS = new Proxy(overlayFS, waitHandler('bar.js', 'foo.js'));
+      let slowBarFS = new Proxy(overlayFS, waitHandler('bar.js', 'foo.js'));
 
-    let b2 = await bundle(path.join(testDir, 'index.html'), {
-      inputFS: slowBarFS,
-      outputFS: slowBarFS,
-      shouldDisableCache: true,
-      workerFarm: workerFarmZeroConcurrent,
-    });
+      let b2 = await bundle(path.join(testDir, 'index.html'), {
+        inputFS: slowBarFS,
+        outputFS: slowBarFS,
+        shouldDisableCache: true,
+        workerFarm,
+      });
 
-    let bundleHashDelayBar = b2
-      .getBundles()
-      .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
-      .filePath.split('.')[1];
+      let bundleHashDelayBar = b2
+        .getBundles()
+        .find(b => b.filePath.endsWith('.js') && b.filePath.includes('index'))
+        .filePath.split('.')[1];
 
-    assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
-    await workerFarmZeroConcurrent.end();
+      assert.strictEqual(bundleHashDelayFoo, bundleHashDelayBar);
+    } finally {
+      await workerFarm.end();
+    }
   });
 });
