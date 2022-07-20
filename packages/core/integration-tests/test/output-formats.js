@@ -725,6 +725,24 @@ describe('output formats', function () {
       );
     });
 
+    it('should support esmodule output with external modules (re-export child)', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-external/re-export-child.js',
+        ),
+      );
+
+      await assertESMExports(
+        b,
+        3,
+        {
+          lodash: () => lodash,
+        },
+        ns => ns.add(1, 2),
+      );
+    });
+
     it('should support importing sibling bundles in library mode', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-siblings/a.js'),
