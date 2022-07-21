@@ -12,7 +12,7 @@ import {getSentry} from '@atlassian/internal-parcel-utils';
 
 import analytics from './analytics';
 
-const PROGRESS_SAMPLE_RATE = 3000;
+const PROGRESS_SAMPLE_RATE = 4500;
 
 let buildStartTime;
 let buildStartCpuUsage;
