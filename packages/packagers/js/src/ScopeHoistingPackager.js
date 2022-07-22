@@ -300,6 +300,7 @@ export class ScopeHoistingPackager {
     });
 
     let excludedFromIslands = new Set();
+    let usedInMultipleIslands = new Set();
     for (let wrappedAssetRoot of [...wrapped]) {
       let island = new Set([wrappedAssetRoot]);
       this.islands.set(wrappedAssetRoot, island);
@@ -317,17 +318,26 @@ export class ScopeHoistingPackager {
 
         if (this.islandRoot.has(asset)) {
           // already part of another island, roll back the assignment and add to exclusion list
-          excludedFromIslands.add(asset);
-          let root = nullthrows(this.islandRoot.get(asset));
-          nullthrows(this.islands.get(root)).delete(asset);
+          usedInMultipleIslands.add(asset);
+          nullthrows(
+            this.islands.get(nullthrows(this.islandRoot.get(asset))),
+          ).delete(asset);
           this.islandRoot.delete(asset);
-          this.islands.set(asset, new Set([asset]));
+          return false;
+        }
+
+        if (usedInMultipleIslands.has(asset)) {
           return false;
         }
 
         if (
           // used in another island
-          excludedFromIslands.has(asset) ||
+          excludedFromIslands.has(asset)
+        ) {
+          return false;
+        }
+
+        if (
           // has to be dedupliated at runtime
           // TODO invalidation
           this.bundleGraph.getBundlesWithAsset(asset).some(
@@ -343,8 +353,9 @@ export class ScopeHoistingPackager {
           return false;
         }
 
+        // TODO needed?
         if (
-          // If an unwrapped asset uses it, it has to stay accessile so can't be put inside island
+          // If an unwrapped asset uses it, it has to stay accessible so can't be put inside island
           // (= has to either stay unwrapped or be island root) because of resolving symbols
           // through reexports)
           this.usedByUnwrappedEntries.has(asset)
@@ -362,15 +373,46 @@ export class ScopeHoistingPackager {
       }, wrappedAssetRoot);
     }
 
-    // if (this.bundle.name === 'index.08e6a922.js') {
-    // console.log(this.bundle.name);
-    // console.log(wrapped);
-    // console.log({
-    //   islands: this.islands,
-    //   islandRoot: this.islandRoot,
-    //   usedByUnwrappedEntries: this.usedByUnwrappedEntries,
+    console.log({usedInMultipleIslands});
+
+    for (let rootAsset of usedInMultipleIslands) {
+      if (!excludedFromIslands.has(rootAsset)) {
+        this.bundle.traverseAssets((asset, ctx) => {
+          let island, islandRoot;
+          if (ctx == null || usedInMultipleIslands.has(asset)) {
+            island = new Set([asset]);
+            islandRoot = asset;
+            this.islands.set(asset, island);
+          } else {
+            ({island, islandRoot} = ctx);
+
+            island.add(asset);
+            this.islandRoot.set(asset, islandRoot);
+          }
+          usedInMultipleIslands.delete(asset);
+
+          return {island, islandRoot};
+        }, rootAsset);
+      }
+    }
+
+    if (this.bundle.name === 'index.js') {
+      console.log(this.bundle.name);
+      console.log(wrapped);
+      console.log({
+        islands: this.islands,
+        islandRoot: this.islandRoot,
+        usedByUnwrappedEntries: this.usedByUnwrappedEntries,
+      });
+    }
+
+    // this.bundle.traverseAssets(asset => {
+    //   invariant(
+    //     this.usedByUnwrappedEntries.has(asset) ||
+    //       this.islands.has(asset) != this.islandRoot.has(asset),
+    //     asset.filePath,
+    //   );
     // });
-    // }
     this.assetOutputs = new Map(await queue.run());
   }
 
