@@ -37,10 +37,14 @@ if (MessageChannel) {
 
       let b,
         root,
-        randoms = {};
+        randoms,
+        subscription,
+        window = {};
 
       beforeEach(async () => {
-        ({b, root, randoms} = await setup(path.join(testDir, 'index.html')));
+        ({b, root, randoms, subscription, window} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
       });
 
       it('retains state in functional components', async function () {
@@ -61,6 +65,10 @@ if (MessageChannel) {
         assert.equal(randoms.appNum, appNum);
         assert.equal(randoms.fooNum, fooNum);
         assert.equal(fooText, 'OtherFunctional');
+      });
+
+      afterEach(async () => {
+        await cleanup({subscription, window});
       });
     });
 
@@ -278,14 +286,11 @@ async function setup(entry) {
   let bundleEvent: BuildEvent = await getNextBuild(b);
   invariant(bundleEvent.type === 'buildSuccess');
   let bundleGraph = bundleEvent.bundleGraph;
-  let dom = await JSDOM.JSDOM.fromURL(
-    'http://127.0.0.1:' + port + '/index.html',
-    {
-      runScripts: 'dangerously',
-      resources: 'usable',
-      pretendToBeVisual: true,
-    },
-  );
+  let dom = await JSDOM.JSDOM.fromURL('http:27.0.0.1:' + port + '/index.html', {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+  });
   window = dom.window;
   await new Promise(res =>
     window.document.addEventListener('load', () => {
