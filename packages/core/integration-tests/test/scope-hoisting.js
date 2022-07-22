@@ -4,7 +4,6 @@ import nullthrows from 'nullthrows';
 import {normalizePath} from '@parcel/utils';
 import {createWorkerFarm} from '@parcel/core';
 import {md} from '@parcel/diagnostic';
-import {MemoryFS, OverlayFS} from '@parcel/fs';
 import {
   assertBundles,
   assertDependencyWasExcluded,
@@ -14,7 +13,6 @@ import {
   findAsset,
   findDependency,
   getNextBuild,
-  inputFS,
   mergeParcelOptions,
   outputFS,
   overlayFS,
@@ -5585,8 +5583,7 @@ describe('scope hoisting', function () {
     let workerFarm = createWorkerFarm({
       maxConcurrentWorkers: 0,
     });
-    let outputFS = new MemoryFS(workerFarm);
-    let overlayFS = new OverlayFS(outputFS, inputFS);
+
     let slowFooFS = new Proxy(overlayFS, waitHandler('foo.js', 'bar.js'));
 
     try {
