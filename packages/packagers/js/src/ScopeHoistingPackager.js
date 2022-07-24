@@ -94,7 +94,7 @@ export class ScopeHoistingPackager {
   islands: Map<Asset, Set<Asset>> = new Map();
   /** non-island-root asset -> corresponding island root, if any */
   islandRoot: Map<Asset, Asset> = new Map();
-  usedByUnwrappedEntries: Set<Asset> = new Set();
+  unwrappedAssets: Set<Asset> = new Set();
 
   constructor(
     options: PluginOptions,
@@ -253,20 +253,6 @@ export class ScopeHoistingPackager {
     let wrapped = new Set();
     let start = process.hrtime();
 
-    this.bundle.traverseAssets((asset, isEntry, actions) => {
-      isEntry ??= true;
-      if (wrapped.has(asset)) {
-        actions.skipChildren();
-        return;
-      }
-
-      // todo not sure if this is really working to be unwrapped only (e.g. async/shared)
-      if (!isEntry) {
-        this.usedByUnwrappedEntries.add(asset);
-      }
-      return false;
-    });
-
     this.bundle.traverseAssets((asset, isEntry) => {
       queue.add(async () => {
         let [code, map] = await Promise.all([
@@ -275,6 +261,8 @@ export class ScopeHoistingPackager {
         ]);
         return [asset.id, {code, map}];
       });
+
+      this.unwrappedAssets.add(asset);
 
       // console.log(
       //   asset.filePath,
@@ -317,6 +305,7 @@ export class ScopeHoistingPackager {
         usedInMultipleIslands.delete(root);
         let island = new Set([root]);
         this.islands.set(root, island);
+        this.unwrappedAssets.delete(root);
 
         this.bundle.traverseAssets((a, ctx, actions) => {
           if (a === root) {
@@ -331,6 +320,7 @@ export class ScopeHoistingPackager {
             // was incorrectly added by another preceding iteration into an island
             // rollback to make it a separate island root in a subsequent iteration
             this.bundle.traverseAssets(b => {
+              this.unwrappedAssets.add(b);
               nullthrows(
                 this.islands.get(nullthrows(this.islandRoot.get(b))),
               ).delete(b);
@@ -340,6 +330,7 @@ export class ScopeHoistingPackager {
             return;
           }
 
+          this.unwrappedAssets.delete(a);
           island.add(a);
           this.islandRoot.set(a, root);
         }, root);
@@ -352,7 +343,7 @@ export class ScopeHoistingPackager {
     // console.log({
     //   islands: this.islands,
     //   islandRoot: this.islandRoot,
-    //   usedByUnwrappedEntries: this.usedByUnwrappedEntries,
+    //   unwrappedAssets: this.unwrappedAssets,
     // });
     // }
     // let end = process.hrtime(start);
@@ -360,7 +351,7 @@ export class ScopeHoistingPackager {
 
     // this.bundle.traverseAssets(asset => {
     //   invariant(
-    //     this.usedByUnwrappedEntries.has(asset) ||
+    //     this.unwrappedAssets.has(asset) ||
     //       this.islands.has(asset) != this.islandRoot.has(asset),
     //     asset.filePath,
     //   );
@@ -880,7 +871,7 @@ ${code}
   ): string {
     let island = new Set([
       ...(this.islands.get(this.islandRoot.get(parentAsset) ?? parentAsset) ??
-        this.usedByUnwrappedEntries),
+        this.unwrappedAssets),
       parentAsset,
     ]);
     let {
@@ -901,11 +892,11 @@ ${code}
       !this.bundle.hasAsset(resolvedAsset) ||
       (this.islands.has(resolvedAsset) && resolvedAsset !== parentAsset);
 
-    console.log(
-      {resolved, imported},
-      {resolvedAsset, exportSymbol, symbol},
-      isWrapped,
-    );
+    // console.log(
+    //   {resolved, imported},
+    //   {resolvedAsset, exportSymbol, symbol},
+    //   isWrapped,
+    // );
 
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
