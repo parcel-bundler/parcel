@@ -251,6 +251,22 @@ export class ScopeHoistingPackager {
   async loadAssets(): Promise<void> {
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrapped = new Set();
+    let start = process.hrtime();
+
+    this.bundle.traverseAssets((asset, isEntry, actions) => {
+      isEntry ??= true;
+      if (wrapped.has(asset)) {
+        actions.skipChildren();
+        return;
+      }
+
+      // todo not sure if this is really working to be unwrapped only (e.g. async/shared)
+      if (!isEntry) {
+        this.usedByUnwrappedEntries.add(asset);
+      }
+      return false;
+    });
+
     this.bundle.traverseAssets((asset, isEntry) => {
       queue.add(async () => {
         let [code, map] = await Promise.all([
@@ -276,7 +292,16 @@ export class ScopeHoistingPackager {
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
           .getIncomingDependencies(asset)
-          .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
+          .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url') ||
+        // has to be dedupliated at runtime
+        // TODO invalidation
+        this.bundleGraph.getBundlesWithAsset(asset).some(
+          // TODO object equality checks fail for both of these
+          // TODO how to handle targets?
+          b =>
+            b.target.name === this.bundle.target.name &&
+            b.id !== this.bundle.id,
+        )
       ) {
         this.islands.set(asset, new Set([asset]));
         wrapped.add(asset);
@@ -284,127 +309,54 @@ export class ScopeHoistingPackager {
 
       return false;
     });
-    // console.log('-----', this.bundle.name);
-    this.bundle.traverseAssets((asset, isEntry, actions) => {
-      isEntry ??= true;
-      if (wrapped.has(asset)) {
-        actions.skipChildren();
-        return;
-      }
 
-      // todo not sure if this is really working to be unwrapped only (e.g. async/shared)
-      if (!isEntry) {
-        this.usedByUnwrappedEntries.add(asset);
-      }
-      return false;
-    });
+    let usedInMultipleIslands = new Set(wrapped);
+    while (usedInMultipleIslands.size > 0) {
+      // walk through the current frontier
+      for (let root of [...usedInMultipleIslands]) {
+        usedInMultipleIslands.delete(root);
+        let island = new Set([root]);
+        this.islands.set(root, island);
 
-    let excludedFromIslands = new Set();
-    let usedInMultipleIslands = new Set();
-    for (let wrappedAssetRoot of [...wrapped]) {
-      let island = new Set([wrappedAssetRoot]);
-      this.islands.set(wrappedAssetRoot, island);
-      this.bundle.traverseAssets((asset, partOfRootIsland, actions) => {
-        if (asset === wrappedAssetRoot) {
-          return;
-        }
-        // if (wrapped.has(asset)) {
-        //   actions.skipChildren();
-        //   return;
-        // }
-        // wrapped.add(asset);
-
-        partOfRootIsland ??= true;
-
-        if (this.islandRoot.has(asset)) {
-          // already part of another island, roll back the assignment and add to exclusion list
-          usedInMultipleIslands.add(asset);
-          nullthrows(
-            this.islands.get(nullthrows(this.islandRoot.get(asset))),
-          ).delete(asset);
-          this.islandRoot.delete(asset);
-          return false;
-        }
-
-        if (usedInMultipleIslands.has(asset)) {
-          return false;
-        }
-
-        if (
-          // used in another island
-          excludedFromIslands.has(asset)
-        ) {
-          return false;
-        }
-
-        if (
-          // has to be dedupliated at runtime
-          // TODO invalidation
-          this.bundleGraph.getBundlesWithAsset(asset).some(
-            // TODO object equality checks fail for both of these
-            // TODO how to handle targets?
-            b =>
-              b.target.name === this.bundle.target.name &&
-              b.id !== this.bundle.id,
-          )
-        ) {
-          excludedFromIslands.add(asset);
-          this.islands.set(asset, new Set([asset]));
-          return false;
-        }
-
-        // TODO needed?
-        if (
-          // If an unwrapped asset uses it, it has to stay accessible so can't be put inside island
-          // (= has to either stay unwrapped or be island root) because of resolving symbols
-          // through reexports)
-          this.usedByUnwrappedEntries.has(asset)
-        ) {
-          excludedFromIslands.add(asset);
-          this.islands.set(asset, new Set([asset]));
-          return false;
-        }
-
-        if (partOfRootIsland && !this.islands.has(asset)) {
-          island.add(asset);
-          this.islandRoot.set(asset, wrappedAssetRoot);
-        }
-        return partOfRootIsland;
-      }, wrappedAssetRoot);
-    }
-
-    console.log({usedInMultipleIslands});
-
-    for (let rootAsset of usedInMultipleIslands) {
-      if (!excludedFromIslands.has(rootAsset)) {
-        this.bundle.traverseAssets((asset, ctx) => {
-          let island, islandRoot;
-          if (ctx == null || usedInMultipleIslands.has(asset)) {
-            island = new Set([asset]);
-            islandRoot = asset;
-            this.islands.set(asset, island);
-          } else {
-            ({island, islandRoot} = ctx);
-
-            island.add(asset);
-            this.islandRoot.set(asset, islandRoot);
+        this.bundle.traverseAssets((a, ctx, actions) => {
+          if (a === root) {
+            return;
           }
-          usedInMultipleIslands.delete(asset);
+          if (usedInMultipleIslands.has(a)) {
+            actions.skipChildren();
+            return;
+          }
+          if (this.islandRoot.has(a)) {
+            usedInMultipleIslands.add(a);
+            // was incorrectly added by another preceding iteration into an island
+            // rollback to make it a separate island root in a subsequent iteration
+            this.bundle.traverseAssets(b => {
+              nullthrows(
+                this.islands.get(nullthrows(this.islandRoot.get(b))),
+              ).delete(b);
+              this.islandRoot.delete(b);
+            }, a);
+            actions.skipChildren();
+            return;
+          }
 
-          return {island, islandRoot};
-        }, rootAsset);
+          island.add(a);
+          this.islandRoot.set(a, root);
+        }, root);
       }
     }
 
-    if (this.bundle.name === 'index.js') {
-      console.log(this.bundle.name);
-      console.log(wrapped);
-      console.log({
-        islands: this.islands,
-        islandRoot: this.islandRoot,
-        usedByUnwrappedEntries: this.usedByUnwrappedEntries,
-      });
-    }
+    // if (this.bundle.name === 'index.js') {
+    // console.log(this.bundle.name);
+    // console.log(wrapped);
+    // console.log({
+    //   islands: this.islands,
+    //   islandRoot: this.islandRoot,
+    //   usedByUnwrappedEntries: this.usedByUnwrappedEntries,
+    // });
+    // }
+    // let end = process.hrtime(start);
+    // console.log(this.bundle.name, end[0] * 1000 + end[1] / 1000000);
 
     // this.bundle.traverseAssets(asset => {
     //   invariant(
@@ -948,6 +900,12 @@ ${code}
     let isWrapped =
       !this.bundle.hasAsset(resolvedAsset) ||
       (this.islands.has(resolvedAsset) && resolvedAsset !== parentAsset);
+
+    console.log(
+      {resolved, imported},
+      {resolvedAsset, exportSymbol, symbol},
+      isWrapped,
+    );
 
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
