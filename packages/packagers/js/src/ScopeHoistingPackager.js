@@ -252,7 +252,7 @@ export class ScopeHoistingPackager {
   async loadAssets(): Promise<void> {
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrapped = new Set();
-    let start = process.hrtime();
+    // let start = process.hrtime();
 
     this.bundle.traverseAssets((asset, isEntry) => {
       queue.add(async () => {
@@ -264,12 +264,6 @@ export class ScopeHoistingPackager {
       });
 
       this.unwrappedAssets.add(asset);
-
-      // console.log(
-      //   asset.filePath,
-      //   asset.id,
-      //   this.bundleGraph.getAssetPublicId(asset),
-      // );
 
       isEntry ??= true;
 
@@ -303,19 +297,12 @@ export class ScopeHoistingPackager {
         actions.skipChildren();
         return;
       }
-
       // todo not sure if this is really working to be unwrapped only (e.g. async/shared)
       this.usedByUnwrappedEntries.add(asset);
     });
 
-    // TODO suboptimal
-    for (let asset of this.usedByUnwrappedEntries) {
-      wrapped.add(asset);
-    }
-
     while (wrapped.size > 0) {
-      // walk through the current frontier
-      // console.log({wrapped, unwrappedAssets: this.unwrappedAssets});
+      // Walk through the current frontier and create islands as deep as possible.
       for (let root of [...wrapped]) {
         let island = new Set([root]);
         this.islands.set(root, island);
@@ -326,13 +313,19 @@ export class ScopeHoistingPackager {
             return;
           }
           if (this.islands.has(a)) {
-            // another island starts here
+            // Another island starts here.
             actions.skipChildren();
             return;
           }
-          if (this.islandRoot.has(a)) {
-            // was incorrectly added by another preceding iteration into an island
-            // rollback to make it a separate island root in a subsequent iteration
+          if (this.usedByUnwrappedEntries.has(a)) {
+            // Has to be wrapped so that unwrapped entries can access it.
+            wrapped.add(a);
+            actions.skipChildren();
+            return;
+          }
+          if (this.islandRoot.has(a) || this.usedByUnwrappedEntries.has(a)) {
+            // Was incorrectly added into an island by another preceding iteration.
+            // Rollback to make it its own separate island in a subsequent iteration.
             wrapped.add(a);
             nullthrows(
               this.islands.get(nullthrows(this.islandRoot.get(a))),
@@ -361,14 +354,13 @@ export class ScopeHoistingPackager {
     // if (this.bundle.name === 'index.js') {
     // console.log(this.bundle.name);
     // console.log({
-    //   wrapped,
     //   islands: this.islands,
     //   islandRoot: this.islandRoot,
     //   unwrappedAssets: this.unwrappedAssets,
     //   usedByUnwrappedEntries: this.usedByUnwrappedEntries,
     // });
     // }
-    let end = process.hrtime(start);
+    // let end = process.hrtime(start);
     // console.log(this.bundle.name, end[0] * 1000 + end[1] / 1000000);
 
     // this.bundle.traverseAssets(asset => {
