@@ -1,3 +1,3 @@
-var root = global || Function("return this")();
+var root = globalThis;
 
 module.exports = root;

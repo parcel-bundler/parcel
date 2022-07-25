@@ -3731,7 +3731,7 @@ describe('scope hoisting', function () {
       assert.equal(output, 2);
     });
 
-    it('should correctly handle a wrapped asset used by multiple assets', async function () {
+    it('should correctly handle an asset being used by multiple wrapped assets', async function () {
       let b = await bundle(
         path.join(
           __dirname,
