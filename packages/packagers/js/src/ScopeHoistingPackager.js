@@ -303,7 +303,9 @@ export class ScopeHoistingPackager {
 
     while (wrapped.size > 0) {
       // Walk through the current frontier and create islands as deep as possible.
+      // console.log({wrapped});
       for (let root of [...wrapped]) {
+        // console.log('root', root);
         let island = new Set([root]);
         this.islands.set(root, island);
         this.unwrappedAssets.delete(root);
@@ -323,24 +325,33 @@ export class ScopeHoistingPackager {
             actions.skipChildren();
             return;
           }
-          if (this.islandRoot.has(a) || this.usedByUnwrappedEntries.has(a)) {
-            // Was incorrectly added into an island by another preceding iteration.
-            // Rollback to make it its own separate island in a subsequent iteration.
-            wrapped.add(a);
-            nullthrows(
-              this.islands.get(nullthrows(this.islandRoot.get(a))),
-            ).delete(a);
-            this.bundle.traverseAssets((b, _, actions) => {
-              let i = this.islandRoot.get(b);
-              if (!i) {
-                actions.skipChildren();
-                return;
-              }
-              this.unwrappedAssets.add(b);
-              this.islandRoot.delete(b);
-            }, a);
-            actions.skipChildren();
-            return;
+          let aRoot = this.islandRoot.get(a);
+          if (aRoot != null) {
+            if (aRoot !== root) {
+              // console.log('has', a, aRoot, root);
+              // Was incorrectly added into an island by another preceding iteration.
+              // Rollback to make it its own separate island in a subsequent iteration.
+              wrapped.add(a);
+              // make sure that it has everything it needs
+              // TODO quadratic/unbounded complexity?
+              wrapped.add(nullthrows(aRoot));
+              this.bundle.traverseAssets((b, _, actions) => {
+                let i = this.islandRoot.get(b);
+                // console.log('has delete', b, i, root);
+                if (!i) {
+                  actions.skipChildren();
+                  return;
+                }
+                nullthrows(this.islands.get(i)).delete(b);
+                this.unwrappedAssets.add(b);
+                this.islandRoot.delete(b);
+              }, a);
+              actions.skipChildren();
+              return;
+            } else {
+              // already part of island
+              return;
+            }
           }
 
           this.unwrappedAssets.delete(a);
@@ -348,10 +359,16 @@ export class ScopeHoistingPackager {
           this.islandRoot.set(a, root);
         }, root);
         wrapped.delete(root);
+        // console.log({
+        //   islands: this.islands,
+        //   islandRoot: this.islandRoot,
+        //   unwrappedAssets: this.unwrappedAssets,
+        //   usedByUnwrappedEntries: this.usedByUnwrappedEntries,
+        // });
       }
     }
 
-    // if (this.bundle.name === 'index.js') {
+    // if (this.bundle.name === 'index.3fda3a67.js') {
     // console.log(this.bundle.name);
     // console.log({
     //   islands: this.islands,
