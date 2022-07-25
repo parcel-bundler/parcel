@@ -1,5 +1,5 @@
 {
-  "name": "ts-types-exporting-namespaces",
+  "name": "ts-types-exporting-collision",
   "private": true,
   "main": "dist/main.js",
   "types": "dist/types.d.ts"
