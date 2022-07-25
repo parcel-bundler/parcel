@@ -22,7 +22,7 @@ import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import {BuildAbortError} from './utils';
 import {loadParcelConfig} from './requests/ParcelConfigRequest';
-import ReporterRunner from './ReporterRunner';
+import ReporterRunner, {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
@@ -142,7 +142,6 @@ export default class Parcel {
     this.#disposable.add(this.#reporterRunner);
 
     this.#initialized = true;
-    init.end();
   }
 
   async run(): Promise<BuildSuccessEvent> {
@@ -207,12 +206,8 @@ export default class Parcel {
     }
 
     if (this.#watcherCount === 0) {
-      let watchMeasurement = this.#tracer.createMeasurement(
-        'getWatchSubscription',
-      );
       this.#watcherSubscription = await this._getWatcherSubscription();
       await this.#reporterRunner.report({type: 'watchStart'});
-      watchMeasurement.end();
 
       // Kick off a first build, but don't await its results. Its results will
       // be provided to the callback.
@@ -274,10 +269,13 @@ export default class Parcel {
         requestedAssetIds: this.#requestedAssetIds,
         signal,
       });
-      dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       let {bundleGraph, bundleInfo, changedAssets, assetRequests} =
-        await this.#requestTracker.runRequest(request, {force: true});
+        await this.#requestTracker.runRequest(
+          request,
+          {force: true},
+          this.#tracer,
+        );
 
       this.#requestedAssetIds.clear();
 
@@ -346,15 +344,10 @@ export default class Parcel {
       };
 
       await this.#reporterRunner.report(event);
-      await this.#tracer.wrap('validate', async () => {
-        await this.#requestTracker.runRequest(
-          createValidationRequest({
-            optionsRef: this.#optionsRef,
-            assetRequests,
-          }),
-          {force: assetRequests.length > 0},
-        );
-      });
+      await this.#requestTracker.runRequest(
+        createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),
+        {force: assetRequests.length > 0},
+      );
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {

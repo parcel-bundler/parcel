@@ -21,8 +21,11 @@ export default (new Reporter({
         break;
       }
       case 'buildSuccess':
+        tracer.push(']');
+        break;
       case 'buildFailure':
         tracer.flush();
+        break;
     }
   },
 }): Reporter);

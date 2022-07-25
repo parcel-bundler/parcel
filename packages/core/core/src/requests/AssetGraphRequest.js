@@ -40,8 +40,6 @@ import {
 } from '../projectPath';
 
 import dumpToGraphViz from '../dumpGraphToGraphViz';
-import Tracer from '../Tracer';
-import {report} from '../ReporterRunner';
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
@@ -124,7 +122,6 @@ export class AssetGraphBuilder {
   api: RunAPI;
   name: string;
   cacheKey: string;
-  tracer: Tracer;
   shouldBuildLazily: boolean;
   requestedAssetIds: Set<string>;
 
@@ -156,7 +153,6 @@ export class AssetGraphBuilder {
     this.cacheKey = hashString(
       `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
     );
-    this.tracer = new Tracer(report);
 
     this.queue = new PromiseQueue();
   }
@@ -232,9 +228,7 @@ export class AssetGraphBuilder {
     );
     if (this.assetGraph.symbolPropagationRan) {
       try {
-        await this.tracer.wrap('propagateSymbols', () => {
-          this.propagateSymbols();
-        });
+        this.propagateSymbols();
       } catch (e) {
         await dumpToGraphViz(
           this.assetGraph,
