@@ -93,6 +93,9 @@ const mapStringSchema = (pluginType: string, key: string): SchemaEntity => {
 export default {
   type: 'object',
   properties: {
+    $schema: {
+      type: 'string',
+    },
     extends: {
       oneOf: [
         {
@@ -121,8 +124,9 @@ export default {
     namers: (pipelineSchema('namer', 'namers'): SchemaEntity),
     packagers: (mapStringSchema('packager', 'packagers'): SchemaEntity),
     optimizers: (mapPipelineSchema('optimizer', 'optimizers'): SchemaEntity),
+    compressors: (mapPipelineSchema('compressor', 'compressors'): SchemaEntity),
     reporters: (pipelineSchema('reporter', 'reporters'): SchemaEntity),
-    runtimes: (mapPipelineSchema('runtime', 'runtimes'): SchemaEntity),
+    runtimes: (pipelineSchema('runtime', 'runtimes'): SchemaEntity),
     filePath: {
       type: 'string',
     },

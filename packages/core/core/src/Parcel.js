@@ -5,6 +5,7 @@ import type {
   BuildEvent,
   BuildSuccessEvent,
   InitialParcelOptions,
+  PackagedBundle as IPackagedBundle,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
@@ -15,29 +16,32 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {assetFromValue} from './public/Asset';
-import {NamedBundle} from './public/Bundle';
+import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
-import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
-import {assertSignalNotAborted, BuildAbortError} from './utils';
-import PackagerRunner from './PackagerRunner';
+import {BuildAbortError} from './utils';
 import {loadParcelConfig} from './requests/ParcelConfigRequest';
-import ReporterRunner, {report} from './ReporterRunner';
+import ReporterRunner from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 import {registerCoreWithSerializer} from './utils';
-import {createCacheDir} from '@parcel/cache';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
 import Tracer from './Tracer';
-import RequestTracker, {getWatcherOptions} from './RequestTracker';
-import createAssetGraphRequest from './requests/AssetGraphRequest';
+import RequestTracker, {
+  getWatcherOptions,
+  requestGraphEdgeTypes,
+} from './RequestTracker';
 import createValidationRequest from './requests/ValidationRequest';
+import createParcelBuildRequest from './requests/ParcelBuildRequest';
 import {Disposable} from '@parcel/events';
+import {init as initSourcemaps} from '@parcel/source-map';
+import {init as initHash} from '@parcel/hash';
+import {toProjectPath} from './projectPath';
 
 registerCoreWithSerializer();
 
@@ -46,8 +50,6 @@ export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
   #requestTracker /*: RequestTracker*/;
-  #bundlerRunner /*: BundlerRunner*/;
-  #packagerRunner /*: PackagerRunner*/;
   #config /*: ParcelConfig*/;
   #farm /*: WorkerFarm*/;
   #initialized /*: boolean*/ = false;
@@ -86,11 +88,13 @@ export default class Parcel {
       return;
     }
 
+    await initSourcemaps;
+    await initHash;
+
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
     );
     this.#resolvedOptions = resolvedOptions;
-    await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
 
@@ -105,28 +109,18 @@ export default class Parcel {
       });
     }
 
-    this.#reporterRunner = new ReporterRunner({
-      config: this.#config,
-      options: resolvedOptions,
-      workerFarm: this.#farm,
-    });
+    await resolvedOptions.cache.ensure();
     this.#tracer = new Tracer(report);
-    let init = this.#tracer.createMeasurement('init');
-    let {
-      dispose: disposeOptions,
-      ref: optionsRef,
-    } = await this.#farm.createSharedReference(resolvedOptions);
-    let {
-      dispose: disposeConfig,
-      ref: configRef,
-    } = await this.#farm.createSharedReference(config);
+
+    let {dispose: disposeOptions, ref: optionsRef} =
+      await this.#farm.createSharedReference(resolvedOptions);
     this.#optionsRef = optionsRef;
 
     this.#disposable = new Disposable();
     if (this.#initialOptions.workerFarm) {
       // If we don't own the farm, dispose of only these references when
       // Parcel ends.
-      this.#disposable.add(disposeOptions, disposeConfig);
+      this.#disposable.add(disposeOptions);
     } else {
       // Otherwise, when shutting down, end the entire farm we created.
       this.#disposable.add(() => this.#farm.end());
@@ -140,24 +134,12 @@ export default class Parcel {
       options: resolvedOptions,
     });
 
-    this.#bundlerRunner = new BundlerRunner({
-      options: resolvedOptions,
-      optionsRef: optionsRef,
-      requestTracker: this.#requestTracker,
+    this.#reporterRunner = new ReporterRunner({
       config: this.#config,
+      options: resolvedOptions,
       workerFarm: this.#farm,
-      tracer: this.#tracer,
     });
     this.#disposable.add(this.#reporterRunner);
-
-    this.#packagerRunner = new PackagerRunner({
-      config: this.#config,
-      farm: this.#farm,
-      options: resolvedOptions,
-      optionsRef,
-      configRef,
-      report,
-    });
 
     this.#initialized = true;
     init.end();
@@ -186,7 +168,6 @@ export default class Parcel {
       this.#disposable.dispose(),
       await this.#requestTracker.writeToCache(),
     ]);
-    await this.#farm.callAllWorkers('clearConfigCache', []);
   }
 
   async _startNextBuild(): Promise<?BuildEvent> {
@@ -226,10 +207,6 @@ export default class Parcel {
     }
 
     if (this.#watcherCount === 0) {
-      if (!this.#initialized) {
-        await this._init();
-      }
-
       let watchMeasurement = this.#tracer.createMeasurement(
         'getWatchSubscription',
       );
@@ -279,7 +256,9 @@ export default class Parcel {
   }: {|
     signal?: AbortSignal,
     startTime?: number,
-  |} = {}): Promise<BuildEvent> {
+  |} = {
+    /*::...null*/
+  }): Promise<BuildEvent> {
     this.#requestTracker.setSignal(signal);
     let options = nullthrows(this.#resolvedOptions);
     try {
@@ -289,51 +268,25 @@ export default class Parcel {
       this.#reporterRunner.report({
         type: 'buildStart',
       });
-      let requestMeasurement = this.#tracer.createMeasurement(
-        'requestTracker.runRequest (AssetGraphRequest)',
-      );
-      let request = createAssetGraphRequest({
-        name: 'Main',
-        entries: options.entries,
+
+      let request = createParcelBuildRequest({
         optionsRef: this.#optionsRef,
-        shouldBuildLazily: options.shouldBuildLazily,
         requestedAssetIds: this.#requestedAssetIds,
-      }); // ? should we create this on every build?
-      let {
-        assetGraph,
-        changedAssets,
-        assetRequests,
-      } = await this.#requestTracker.runRequest(request, {
-        force: options.shouldBuildLazily && this.#requestedAssetIds.size > 0,
+        signal,
       });
-      requestMeasurement.end();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
+
+      let {bundleGraph, bundleInfo, changedAssets, assetRequests} =
+        await this.#requestTracker.runRequest(request, {force: true});
 
       this.#requestedAssetIds.clear();
 
-      let bundleMeasurement = this.#tracer.createMeasurement(
-        'bundlerRunner.bundle',
+      dumpGraphToGraphViz(
+        // $FlowFixMe
+        this.#requestTracker.graph,
+        'RequestGraph',
+        requestGraphEdgeTypes,
       );
-      let [
-        bundleGraph,
-        serializedBundleGraph,
-        // $FlowFixMe[incompatible-call] Due to dumpGraphToGraphViz usage below
-      ] = await this.#bundlerRunner.bundle(assetGraph, {
-        signal,
-      });
-      bundleMeasurement.end();
-      dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
-
-      await this.#tracer.wrap('packagerRunner.writeBundles', async () => {
-        await this.#packagerRunner.writeBundles(
-          bundleGraph,
-          serializedBundleGraph,
-        );
-      });
-      assertSignalNotAborted(signal);
-
-      // $FlowFixMe
-      dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
 
       let event = {
         type: 'buildSuccess',
@@ -343,10 +296,20 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
+        bundleGraph: new BundleGraph<IPackagedBundle>(
+          bundleGraph,
+          (bundle, bundleGraph, options) =>
+            PackagedBundle.getWithInfo(
+              bundle,
+              bundleGraph,
+              options,
+              bundleInfo.get(bundle.id),
+            ),
+          options,
+        ),
         buildTime: Date.now() - startTime,
         requestBundle: async bundle => {
-          let bundleNode = bundleGraph._graph.getNode(bundle.id);
+          let bundleNode = bundleGraph._graph.getNodeByContentKey(bundle.id);
           invariant(bundleNode?.type === 'bundle', 'Bundle does not exist');
 
           if (!bundleNode.value.isPlaceholder) {
@@ -411,15 +374,17 @@ export default class Parcel {
       if (this.isProfiling) {
         await this.stopProfiling();
       }
+
+      await this.#farm.callAllWorkers('clearConfigCache', []);
     }
   }
 
-  _getWatcherSubscription(): Promise<AsyncSubscription> {
+  async _getWatcherSubscription(): Promise<AsyncSubscription> {
     invariant(this.#watcherSubscription == null);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = getWatcherOptions(resolvedOptions);
-    return resolvedOptions.inputFS.watch(
+    let sub = await resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
       (err, events) => {
         if (err) {
@@ -427,7 +392,12 @@ export default class Parcel {
           return;
         }
 
-        let isInvalid = this.#requestTracker.respondToFSEvents(events);
+        let isInvalid = this.#requestTracker.respondToFSEvents(
+          events.map(e => ({
+            type: e.type,
+            path: toProjectPath(resolvedOptions.projectRoot, e.path),
+          })),
+        );
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {
             this.#watchAbortController.abort();
@@ -439,13 +409,14 @@ export default class Parcel {
       },
       opts,
     );
+    return {unsubscribe: () => sub.unsubscribe()};
   }
 
   // This is mainly for integration tests and it not public api!
   _getResolvedParcelOptions(): ParcelOptions {
     return nullthrows(
       this.#resolvedOptions,
-      'Resolved options is null, please let parcel initialise before accessing this.',
+      'Resolved options is null, please let parcel initialize before accessing this.',
     );
   }
 

@@ -3,13 +3,16 @@ import assert from 'assert';
 import invariant from 'assert';
 import path from 'path';
 import {
+  bundle,
   bundler,
   getNextBuild,
   overlayFS as fs,
   sleep,
+  run,
+  getNextBuildSuccess,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
-import type {BuildEvent} from '@parcel/types';
+import type {BuildEvent, Asset} from '@parcel/types';
 // flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 import nullthrows from 'nullthrows';
@@ -27,138 +30,242 @@ try {
 if (MessageChannel) {
   // ATLASSIAN: Fall back to node_modules lookup if relative URL path
   // doesn't exist.
-  describe.skip('react-refresh', function() {
-    describe('synchronous', () => {
-      const testDir = path.join(__dirname, '/integration/react-refresh');
+  describe.skip('react-refresh', function () {
+    describe('react-refresh', function () {
+      describe('synchronous (automatic runtime)', () => {
+        const testDir = path.join(
+          __dirname,
+          '/integration/react-refresh-automatic',
+        );
 
-      let b,
-        root,
-        window,
-        subscription,
-        randoms = {};
+        let b,
+          root,
+          randoms = {};
 
-      beforeEach(async () => {
-        ({b, root, window, subscription, randoms} = await setup(
-          path.join(testDir, 'index.html'),
-        ));
+        beforeEach(async () => {
+          ({b, root, randoms} = await setup(path.join(testDir, 'index.html')));
+        });
+
+        it('retains state in functional components', async function () {
+          await fs.mkdirp(testDir);
+          await fs.copyFile(
+            path.join(testDir, 'Foo.1.js'),
+            path.join(testDir, 'Foo.js'),
+          );
+          assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+          // Wait for the hmr-runtime to process the event
+          await sleep(100);
+
+          let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+            /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+          );
+          assert.equal(randoms.indexNum, indexNum);
+          assert.equal(randoms.appNum, appNum);
+          assert.equal(randoms.fooNum, fooNum);
+          assert.equal(fooText, 'OtherFunctional');
+        });
       });
 
-      it('retains state in functional components', async function() {
-        await fs.mkdirp(testDir);
-        await fs.copyFile(
-          path.join(testDir, 'Foo.1.js'),
-          path.join(testDir, 'Foo.js'),
-        );
-        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+      describe('synchronous', () => {
+        const testDir = path.join(__dirname, '/integration/react-refresh');
 
-        // Wait for the hmr-runtime to process the event
-        await sleep(100);
+        let b,
+          root,
+          window,
+          subscription,
+          randoms = {};
 
-        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-        );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.equal(randoms.fooNum, fooNum);
-        assert.equal(fooText, 'OtherFunctional');
+        beforeEach(async () => {
+          ({b, root, window, subscription, randoms} = await setup(
+            path.join(testDir, 'index.html'),
+          ));
+        });
+
+        it('retains state in functional components', async function () {
+          await fs.mkdirp(testDir);
+          await fs.copyFile(
+            path.join(testDir, 'Foo.1.js'),
+            path.join(testDir, 'Foo.js'),
+          );
+          assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+          // Wait for the hmr-runtime to process the event
+          await sleep(100);
+
+          let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+            /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+          );
+          assert.equal(randoms.indexNum, indexNum);
+          assert.equal(randoms.appNum, appNum);
+          assert.equal(randoms.fooNum, fooNum);
+          assert.equal(fooText, 'OtherFunctional');
+        });
+
+        it('supports changing hooks in functional components', async function () {
+          await fs.mkdirp(testDir);
+          await fs.copyFile(
+            path.join(testDir, 'Foo.2-hooks.js'),
+            path.join(testDir, 'Foo.js'),
+          );
+          assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+          // Wait for the hmr-runtime to process the event
+          await sleep(100);
+
+          let [, indexNum, appNum, fooText, fooNum, fooNum2] =
+            root.textContent.match(
+              /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
+            );
+          assert.equal(randoms.indexNum, indexNum);
+          assert.equal(randoms.appNum, appNum);
+          assert.notEqual(randoms.fooNum, fooNum);
+          assert(fooNum2);
+          assert.equal(fooText, 'Hooks');
+        });
+
+        it('retains state in parent components when swapping function and class component', async function () {
+          await fs.mkdirp(testDir);
+          await fs.copyFile(
+            path.join(testDir, 'Foo.3-class.js'),
+            path.join(testDir, 'Foo.js'),
+          );
+          assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+          // Wait for the hmr-runtime to process the event
+          await sleep(100);
+
+          let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+            /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+          );
+          assert.equal(randoms.indexNum, indexNum);
+          assert.equal(randoms.appNum, appNum);
+          assert.notEqual(randoms.fooNum, fooNum);
+          assert.equal(fooText, 'Class');
+        });
+
+        afterEach(async () => {
+          await cleanup({subscription, window});
+        });
       });
 
-      it('supports changing hooks in functional components', async function() {
-        await fs.mkdirp(testDir);
-        await fs.copyFile(
-          path.join(testDir, 'Foo.2-hooks.js'),
-          path.join(testDir, 'Foo.js'),
+      describe('lazy child component', () => {
+        const testDir = path.join(
+          __dirname,
+          '/integration/react-refresh-lazy-child',
         );
-        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
-        // Wait for the hmr-runtime to process the event
-        await sleep(100);
+        let b,
+          root,
+          window,
+          subscription,
+          randoms = {};
 
-        let [
-          ,
-          indexNum,
-          appNum,
-          fooText,
-          fooNum,
-          fooNum2,
-        ] = root.textContent.match(
-          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
-        );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.notEqual(randoms.fooNum, fooNum);
-        assert(fooNum2);
-        assert.equal(fooText, 'Hooks');
+        beforeEach(async () => {
+          ({b, root, window, subscription, randoms} = await setup(
+            path.join(testDir, 'index.html'),
+          ));
+        });
+
+        it('retains state in async components on change', async function () {
+          assert.equal(randoms.fooText, 'Async');
+
+          await fs.mkdirp(testDir);
+          await fs.copyFile(
+            path.join(testDir, 'Async.1.js'),
+            path.join(testDir, 'Async.js'),
+          );
+          assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+          // Wait for the hmr-runtime to process the event
+          await sleep(100);
+
+          let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+            /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+          );
+          assert.equal(randoms.indexNum, indexNum);
+          assert.equal(randoms.appNum, appNum);
+          assert.equal(randoms.fooNum, fooNum);
+          assert.equal(fooText, 'OtherAsync');
+        });
+
+        afterEach(async () => {
+          await cleanup({subscription, window});
+        });
       });
 
-      it('retains state in parent components when swapping function and class component', async function() {
-        await fs.mkdirp(testDir);
-        await fs.copyFile(
-          path.join(testDir, 'Foo.3-class.js'),
-          path.join(testDir, 'Foo.js'),
+      it('does not error on inline scripts', async () => {
+        let port = await getPort();
+        let b = await bundle(
+          path.join(
+            __dirname,
+            'integration/react-refresh-inline-script/index.html',
+          ),
+          {
+            hmrOptions: {
+              port,
+            },
+          },
         );
-        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
-        // Wait for the hmr-runtime to process the event
-        await sleep(100);
-
-        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-        );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.notEqual(randoms.fooNum, fooNum);
-        assert.equal(fooText, 'Class');
-      });
-
-      afterEach(async () => {
-        await cleanup({subscription, window});
+        await run(b, {}, {require: false});
       });
     });
 
-    describe('lazy child component', () => {
-      const testDir = path.join(
-        __dirname,
-        '/integration/react-refresh-lazy-child',
+    it('does not error on inline scripts', async () => {
+      let port = await getPort();
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/react-refresh-inline-script/index.html',
+        ),
+        {
+          hmrOptions: {
+            port,
+          },
+        },
+      );
+      await run(b, {}, {require: false});
+    });
+
+    it('does not apply to library targets', async () => {
+      let port = await getPort();
+      let parcel = await bundler(
+        path.join(
+          __dirname,
+          '/integration/react-refresh-library-target/index.js',
+        ),
+        {
+          hmrOptions: {
+            port,
+          },
+        },
+      );
+      let result = await getNextBuildSuccess(parcel);
+      let bundle = nullthrows(
+        result.bundleGraph.getBundles().find(b => b.type === 'js'),
       );
 
-      let b,
-        root,
-        window,
-        subscription,
-        randoms = {};
-
-      beforeEach(async () => {
-        ({b, root, window, subscription, randoms} = await setup(
-          path.join(testDir, 'index.html'),
-        ));
+      // Make sure react-refresh transforms were not applied.
+      let assets: Asset[] = [];
+      bundle.traverse(node => {
+        if (node.type === 'asset') {
+          assets.push(node.value);
+        } else if (node.type === 'dependency') {
+          assert(
+            !node.value.specifier.startsWith('react-refresh/runtime') &&
+              !node.value.specifier.startsWith(
+                '@parcel/transformer-react-refresh-wrap',
+              ),
+          );
+        }
       });
-
-      it('retains state in async components on change', async function() {
-        assert.equal(randoms.fooText, 'Async');
-
-        await fs.mkdirp(testDir);
-        await fs.copyFile(
-          path.join(testDir, 'Async.1.js'),
-          path.join(testDir, 'Async.js'),
+      for (let asset of assets) {
+        let code = await asset.getCode();
+        assert(
+          !code.includes('$RefreshReg$') && !code.includes('$RefreshSig$'),
         );
-        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
-
-        // Wait for the hmr-runtime to process the event
-        await sleep(100);
-
-        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-        );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.equal(randoms.fooNum, fooNum);
-        assert.equal(fooText, 'OtherAsync');
-      });
-
-      afterEach(async () => {
-        await cleanup({subscription, window});
-      });
+      }
     });
   });
 }

@@ -2,10 +2,13 @@
 
 'use strict';
 
-if (process.env.PARCEL_BUILD_ENV !== 'production') {
+if (
+  process.env.PARCEL_BUILD_ENV !== 'production' ||
+  process.env.PARCEL_SELF_BUILD
+) {
   require('@parcel/babel-register');
 }
-console.log('hello from parcel dev');
+
 // Not merged with babel-register conditional above
 // to prevent merge conflicts
 const {getSentry} = require('@atlassian/internal-parcel-utils');

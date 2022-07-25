@@ -1,0 +1,9 @@
+{
+  "name": "cjs-type-module",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.cjs",
+  "dependencies": {
+    "lodash": "*"
+  }
+}

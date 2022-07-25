@@ -68,6 +68,7 @@ export default class WorkerFarm extends EventEmitter {
   callQueue: Array<WorkerCall> = [];
   ending: boolean = false;
   localWorker: WorkerModule;
+  localWorkerInit: ?Promise<void>;
   options: FarmOptions;
   run: HandleFunction;
   warmWorkers: number = 0;
@@ -95,6 +96,8 @@ export default class WorkerFarm extends EventEmitter {
 
     // $FlowFixMe this must be dynamic
     this.localWorker = require(this.options.workerPath);
+    this.localWorkerInit =
+      this.localWorker.childInit != null ? this.localWorker.childInit() : null;
     this.run = this.createHandle('run');
 
     this.startMaxWorkers();
@@ -173,7 +176,7 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   createHandle(method: string): HandleFunction {
-    return (...args) => {
+    return async (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
       // This significantly speeds up startup time.
@@ -187,6 +190,11 @@ export default class WorkerFarm extends EventEmitter {
         let processedArgs = restoreDeserializedObject(
           prepareForSerialization([...args, false]),
         );
+
+        if (this.localWorkerInit != null) {
+          await this.localWorkerInit;
+          this.localWorkerInit = null;
+        }
         return this.localWorker[method](this.workerApi, ...processedArgs);
       }
     };
@@ -251,7 +259,11 @@ export default class WorkerFarm extends EventEmitter {
       this.startChild();
     }
 
-    for (let worker of this.workers.values()) {
+    let workers = [...this.workers.values()].sort(
+      (a, b) => a.calls.size - b.calls.size,
+    );
+
+    for (let worker of workers) {
       if (!this.callQueue.length) {
         break;
       }
@@ -557,7 +569,7 @@ export default class WorkerFarm extends EventEmitter {
   static getNumWorkers(): number {
     return process.env.PARCEL_WORKERS
       ? parseInt(process.env.PARCEL_WORKERS, 10)
-      : cpuCount();
+      : Math.ceil(cpuCount() / 2);
   }
 
   static isWorker(): boolean {
@@ -582,7 +594,7 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   static getConcurrentCallsPerWorker(): number {
-    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
+    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 30;
   }
 }
 

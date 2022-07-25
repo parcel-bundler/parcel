@@ -1,16 +1,19 @@
 // @flow
-import nullthrows from 'nullthrows';
-import {TSModule} from './TSModule';
 import type {TSModuleGraph} from './TSModuleGraph';
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
+
+import nullthrows from 'nullthrows';
+import ts from 'typescript';
+import {TSModule} from './TSModule';
 import {getExportedName, isDeclaration} from './utils';
 
 export function collect(
-  ts: TypeScriptModule,
   moduleGraph: TSModuleGraph,
   context: any,
   sourceFile: any,
 ): any {
+  // When module definitions are nested inside each other (e.g with module augmentation),
+  // we want to keep track of the hierarchy so we can associated nodes with the right module.
+  const moduleStack: Array<?TSModule> = [];
   let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
@@ -18,6 +21,7 @@ export function collect(
     }
 
     if (ts.isModuleDeclaration(node)) {
+      moduleStack.push(_currentModule);
       _currentModule = new TSModule();
       moduleGraph.addModule(node.name.text, _currentModule);
     }
@@ -105,7 +109,13 @@ export function collect(
       }
     }
 
-    return ts.visitEachChild(node, visit, context);
+    const results = ts.visitEachChild(node, visit, context);
+    // After we finish traversing the children of a module definition,
+    // we need to make sure that subsequent nodes get associated with the next-highest level module.
+    if (ts.isModuleDeclaration(node)) {
+      _currentModule = moduleStack.pop();
+    }
+    return results;
   };
 
   return ts.visitNode(sourceFile, visit);

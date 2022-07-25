@@ -1,0 +1,20 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.worker.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+      "@parcel/transformer-workerize",
+      "..."
+    ],
+    "*.{gif,jpg,jpeg,png}": ["@parcel/transformer-image"],
+    "*.{eot,ico,mp4,svg,ttf,woff}": ["@parcel/transformer-raw"]
+  },
+  "optimizers": {
+    "*.svg": []
+  },
+  "reporters": [
+    "...",
+    "@atlassian/parcel-reporter-analytics",
+    "@parcel/reporter-manifest",
+    "@parcel/reporter-react-loadable"
+  ]
+}

@@ -1,2 +1,2 @@
-let worker = new Worker('blob-url:./worker');
+let worker = new Worker(new URL('blob-url:./worker', import.meta.url), {type: 'module'});
 worker.postMessage('test');

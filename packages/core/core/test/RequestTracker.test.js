@@ -6,6 +6,7 @@ import RequestTracker from '../src/RequestTracker';
 import WorkerFarm from '@parcel/workers';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {INITIAL_BUILD} from '../src/constants';
+import {makeDeferredWithPromise} from '@parcel/utils';
 
 const options = DEFAULT_OPTIONS;
 const farm = new WorkerFarm({workerPath: require.resolve('../src/worker.js')});
@@ -39,8 +40,10 @@ describe('RequestTracker', () => {
       run: () => {},
       input: null,
     });
-    let node = nullthrows(tracker.graph.getNode('abc'));
-    tracker.graph.invalidateNode(node, INITIAL_BUILD);
+    tracker.graph.invalidateNode(
+      tracker.graph.getNodeIdByContentKey('abc'),
+      INITIAL_BUILD,
+    );
     let called = false;
     await tracker.runRequest({
       id: 'abc',
@@ -68,8 +71,10 @@ describe('RequestTracker', () => {
       },
       input: null,
     });
-    let node = nullthrows(tracker.graph.getNode('xyz'));
-    tracker.graph.invalidateNode(node, INITIAL_BUILD);
+    tracker.graph.invalidateNode(
+      tracker.graph.getNodeIdByContentKey('xyz'),
+      INITIAL_BUILD,
+    );
     assert(
       tracker
         .getInvalidRequests()
@@ -116,8 +121,8 @@ describe('RequestTracker', () => {
       },
       input: null,
     });
-    let node = nullthrows(tracker.graph.getNode('abc'));
-    tracker.graph.invalidateNode(node, INITIAL_BUILD);
+    let nodeId = nullthrows(tracker.graph.getNodeIdByContentKey('abc'));
+    tracker.graph.invalidateNode(nodeId, INITIAL_BUILD);
     await tracker.runRequest({
       id: 'abc',
       type: 'mock_request',
@@ -131,7 +136,7 @@ describe('RequestTracker', () => {
       },
       input: null,
     });
-    assert(!tracker.graph.hasNode('xyz'));
+    assert(!tracker.graph.hasContentKey('xyz'));
   });
 
   it('should return a cached result if it was stored', async () => {
@@ -145,7 +150,7 @@ describe('RequestTracker', () => {
       },
       input: null,
     });
-    let result = await await tracker.runRequest({
+    let result = await tracker.runRequest({
       id: 'abc',
       type: 'mock_request',
       run: async () => {},
@@ -177,5 +182,100 @@ describe('RequestTracker', () => {
         .map(req => req.id)
         .includes('abc'),
     );
+  });
+
+  it('should not requeue requests if the previous request is still running', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    let lockA = makeDeferredWithPromise();
+    let lockB = makeDeferredWithPromise();
+
+    let requestA = tracker.runRequest({
+      id: 'abc',
+      type: 'mock_request',
+      run: async ({api}) => {
+        await lockA.promise;
+        api.storeResult('a');
+        return 'a';
+      },
+      input: null,
+    });
+
+    let calledB = false;
+    let requestB = tracker.runRequest({
+      id: 'abc',
+      type: 'mock_request',
+      run: async ({api}) => {
+        calledB = true;
+        await lockB.promise;
+        api.storeResult('b');
+        return 'b';
+      },
+      input: null,
+    });
+
+    lockA.deferred.resolve();
+    lockB.deferred.resolve();
+    let resultA = await requestA;
+    let resultB = await requestB;
+    assert.strictEqual(resultA, 'a');
+    assert.strictEqual(resultB, 'a');
+    assert.strictEqual(calledB, false);
+
+    let cachedResult = await tracker.runRequest({
+      id: 'abc',
+      type: 'mock_request',
+      run: () => {},
+      input: null,
+    });
+    assert.strictEqual(cachedResult, 'a');
+  });
+
+  it('should requeue requests if the previous request is still running but failed', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    let lockA = makeDeferredWithPromise();
+    let lockB = makeDeferredWithPromise();
+
+    let requestA = tracker
+      .runRequest({
+        id: 'abc',
+        type: 'mock_request',
+        run: async () => {
+          await lockA.promise;
+          throw new Error('whoops');
+        },
+        input: null,
+      })
+      .catch(() => {
+        // ignore
+      });
+
+    let requestB = tracker.runRequest({
+      id: 'abc',
+      type: 'mock_request',
+      run: async ({api}) => {
+        await lockB.promise;
+        api.storeResult('b');
+      },
+      input: null,
+    });
+
+    lockA.deferred.resolve();
+    lockB.deferred.resolve();
+    await requestA;
+    await requestB;
+
+    let called = false;
+    let cachedResult = await tracker.runRequest({
+      id: 'abc',
+      type: 'mock_request',
+      run: () => {
+        called = true;
+      },
+      input: null,
+    });
+    assert.strictEqual(cachedResult, 'b');
+    assert.strictEqual(called, false);
   });
 });

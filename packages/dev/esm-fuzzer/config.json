@@ -4,9 +4,7 @@
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": ["@parcel/transformer-js"]
   },
   "namers": ["@parcel/namer-default"],
-  "runtimes": {
-    "browser": ["@parcel/runtime-js"]
-  },
+  "runtimes": ["@parcel/runtime-js"],
   "optimizers": {},
   "packagers": {
     "*.js": "@parcel/packager-js"

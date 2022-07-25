@@ -8,7 +8,30 @@
         "title": "Guides",
         "name": "devguide",
         "url": "/platform/parcel/",
+        "indexLinkTitle": "Parcel @ Atlassian",
         "subcategories": [
+          {
+            "title": "Important links",
+            "name": "important-links",
+            "expandAlways": true,
+            "items": [
+              {
+                "title": "V2 Documentation",
+                "url": "https://v2.parceljs.org"
+              }
+            ]
+          },
+          {
+            "title": "Getting started",
+            "name": "getting-started",
+            "expandAlways": true,
+            "items": [
+              {
+                "title": "In the Monorepo",
+                "url": "/platform/parcel/getting-started/monorepo/"
+              }
+            ]
+          },
           {
             "title": "Atlassian plugins",
             "name": "plugins",
@@ -19,8 +42,8 @@
                 "url": "/platform/parcel/plugins/about/"
               },
               {
-                "title": "Server Side Rendering",
-                "url": "/platform/parcel/plugins/ssr/"
+                "title": "Reporters",
+                "url": "/platform/parcel/plugins/reporters/"
               }
             ]
           },
@@ -32,10 +55,19 @@
               {
                 "title": "Getting Support",
                 "url": "/platform/parcel/support/getting-support/"
+              },
+              {
+                "title": "Troubleshooting",
+                "url": "/platform/parcel/support/troubleshooting/"
               }
             ]
           }
         ]
+      },
+      {
+        "title": "Resources",
+        "name": "help",
+        "url": "https://v2.parceljs.org"
       }
     ]
   }

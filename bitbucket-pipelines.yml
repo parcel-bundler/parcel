@@ -1,4 +1,4 @@
-image: node:14.15.4
+image: node:16.14.2
 
 clone:
   depth: full
@@ -8,29 +8,45 @@ definitions:
     - step: &flow
         name: Run flow
         script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - . .artifactory/activate.sh
           - yarn install --frozen-lockfile
           - yarn run flow check
     - step: &lint
         name: Run lint
         script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - . .artifactory/activate.sh
           - yarn install --frozen-lockfile
           - yarn run lint
     - step: &test-unit
         name: Run unit tests
         size: 2x
         script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - . .artifactory/activate.sh
           - yarn install --frozen-lockfile
           - yarn run test:unit
     - step: &test-integration
         name: Run integration tests
         size: 2x
         script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - . .artifactory/activate.sh
           - yarn install --frozen-lockfile
           - yarn run test:integration-ci
+    - step: &test-integration-experimental-bundler
+        name: Run integration tests (Experimental Bundler)
+        size: 2x
+        script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - . .artifactory/activate.sh
+          - yarn install --frozen-lockfile
+          - PARCEL_TEST_EXPERIMENTAL_BUNDLER=1 yarn run test:integration-ci
     - step: &build-release-parcel
         name: Build and Release Parcel
         script:
-          - pipe: docker://atlassian/artifactory-sidekick:staging
+          - pipe: docker://atlassian/artifactory-sidekick:latest
           - . .artifactory/activate.sh
           - npm set unsafe-perm true
           - yarn install --frozen-lockfile
@@ -69,6 +85,7 @@ pipelines:
         - step: *lint
         - step: *test-unit
         - step: *test-integration
+        - step: *test-integration-experimental-bundler
         - step: *validate-docs
   tags:
     '*':

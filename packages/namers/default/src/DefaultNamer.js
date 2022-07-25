@@ -9,23 +9,21 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 
 const COMMON_NAMES = new Set(['index', 'src', 'lib']);
+const ALLOWED_EXTENSIONS = {
+  js: ['js', 'mjs', 'cjs'],
+};
 
 export default (new Namer({
   name({bundle, bundleGraph, options}) {
-    // If the bundle has an explicit file path given (e.g. by a target), use that.
-    if (bundle.filePath != null) {
-      // TODO: what about multiple assets in the same dep?
-      // e.g. input is a Vue file, output is JS + CSS
-      // which is defined as a target in package.json?
-      return bundle.filePath;
-    }
-
     let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
-    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup, {
+      includeInline: true,
+    });
+    let isEntry = bundleGraph.isEntryBundleGroup(bundleGroup);
 
-    if (bundle.isEntry) {
+    if (bundle.needsStableName) {
       let entryBundlesOfType = bundleGroupBundles.filter(
-        b => b.isEntry && b.type === bundle.type,
+        b => b.needsStableName && b.type === bundle.type,
       );
       assert(
         entryBundlesOfType.length === 1,
@@ -42,16 +40,15 @@ export default (new Namer({
 
     if (
       bundle.id === mainBundle.id &&
-      bundle.isEntry &&
+      isEntry &&
       bundle.target &&
       bundle.target.distEntry != null
     ) {
       let loc = bundle.target.loc;
       let distEntry = bundle.target.distEntry;
-      if (
-        path.extname(bundle.target.distEntry).slice(1) !== bundle.type &&
-        loc
-      ) {
+      let distExtension = path.extname(bundle.target.distEntry).slice(1);
+      let allowedExtensions = ALLOWED_EXTENSIONS[bundle.type] || [bundle.type];
+      if (!allowedExtensions.includes(distExtension) && loc) {
         let fullName = path.relative(
           path.dirname(loc.filePath),
           path.join(bundle.target.distDir, distEntry),
@@ -59,21 +56,22 @@ export default (new Namer({
         let err = new ThrowableDiagnostic({
           diagnostic: {
             message: md`Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
-            filePath: loc.filePath,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: loc.start,
-                  end: loc.end,
-                  message: md`Did you mean "${fullName.slice(
-                    0,
-                    -path.extname(fullName).length,
-                  ) +
-                    '.' +
-                    bundle.type}"?`,
-                },
-              ],
-            },
+            codeFrames: [
+              {
+                filePath: loc.filePath,
+                codeHighlights: [
+                  {
+                    start: loc.start,
+                    end: loc.end,
+                    message: md`Did you mean "${
+                      fullName.slice(0, -path.extname(fullName).length) +
+                      '.' +
+                      bundle.type
+                    }"?`,
+                  },
+                ],
+              },
+            ],
             hints: [
               `Try changing the file extension of "${
                 bundle.target.name
@@ -92,16 +90,17 @@ export default (new Namer({
     //      `index.css`.
     let name = nameFromContent(
       mainBundle,
+      isEntry,
       bundleGroup.entryAssetId,
-      options.entryRoot,
+      bundleGraph.getEntryRoot(bundle.target),
     );
-    // ATLASSIAN: Apply hash digests to entry bundles in production browser builds
-    // when stableEntries is enabled.
     if (
+      // ATLASSIAN: Apply hash digests to entry bundles in production browser builds
+      // when stableEntries is enabled.
       (!bundle.target.stableEntries &&
         options.mode === 'production' &&
         bundle.env.context === 'browser') ||
-      !bundle.isEntry
+      !bundle.needsStableName
     ) {
       name += '.' + bundle.hashReference;
     }
@@ -112,6 +111,7 @@ export default (new Namer({
 
 function nameFromContent(
   bundle: Bundle,
+  isEntry: boolean,
   entryAssetId: string,
   entryRoot: FilePath,
 ): string {
@@ -121,15 +121,15 @@ function nameFromContent(
   let name = basenameWithoutExtension(entryFilePath);
 
   // If this is an entry bundle, use the original relative path.
-  if (bundle.isEntry) {
+  if (bundle.needsStableName) {
     // Match name of target entry if possible, but with a different extension.
-    if (bundle.target.distEntry != null) {
+    if (isEntry && bundle.target.distEntry != null) {
       return basenameWithoutExtension(bundle.target.distEntry);
     }
 
     return path
       .join(path.relative(entryRoot, path.dirname(entryFilePath)), name)
-      .replace(/\.\.(\/|\\)/g, '__$1');
+      .replace(/\.\.(\/|\\)/g, 'up_$1');
   } else {
     // If this is an index file or common directory name, use the parent
     // directory name instead, which is probably more descriptive.

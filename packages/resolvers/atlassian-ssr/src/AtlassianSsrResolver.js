@@ -8,29 +8,33 @@ import NodeResolver from '@parcel/node-resolver-core';
 const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
 
 export default (new Resolver({
-  resolve({dependency, options, filePath}) {
-    if (WEBPACK_IMPORT_REGEX.test(dependency.moduleSpecifier)) {
+  resolve({dependency, options, specifier}) {
+    if (WEBPACK_IMPORT_REGEX.test(dependency.specifier)) {
       throw new Error(
-        `The import path: ${dependency.moduleSpecifier} is using webpack specific loader import syntax, which isn't supported by Parcel.`,
+        `The import path: ${dependency.specifier} is using webpack specific loader import syntax, which isn't supported by Parcel.`,
       );
     }
 
-    // ATLASSIAN: always prefer `module` over `main` so we can resolve esm versions of atlaskit modules
-    let mainFields = ['source', 'browser', 'module', 'main'];
     const resolver = new NodeResolver({
-      extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl'],
       fs: options.inputFS,
-      mainFields,
       projectRoot: options.projectRoot,
+      // Extensions are always required in URL dependencies.
+      extensions:
+        dependency.specifierType === 'commonjs' ||
+        dependency.specifierType === 'esm'
+          ? ['ts', 'tsx', 'js', 'jsx', 'json']
+          : [],
+      mainFields: ['source', 'browser', 'module', 'main'],
       // ATLASSIAN: use custom field in package.json for aliases so we can have different aliases for SSR and client builds
       aliasField: 'aliasSsr',
     });
 
     return resolver.resolve({
-      filename: filePath,
-      isURL: dependency.isURL,
-      parent: dependency.sourcePath,
+      filename: specifier,
+      specifierType: dependency.specifierType,
+      parent: dependency.resolveFrom,
       env: dependency.env,
+      sourcePath: dependency.sourcePath,
     });
   },
 }): Resolver);

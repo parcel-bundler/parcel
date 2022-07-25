@@ -15,10 +15,10 @@ export default (new Transformer({
     if (configFile) {
       let isJavascript = path.extname(configFile.filePath) === '.js';
       if (isJavascript) {
-        config.shouldInvalidateOnStartup();
+        config.invalidateOnStartup();
       }
 
-      config.setResult(configFile.contents);
+      return configFile.contents;
     }
   },
 
@@ -34,7 +34,7 @@ export default (new Transformer({
     });
 
     for (let filePath of render.dependencies) {
-      await asset.addIncludedFile(filePath);
+      await asset.invalidateOnFileChange(filePath);
     }
 
     asset.type = 'html';

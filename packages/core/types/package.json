@@ -1,13 +1,27 @@
 {
   "name": "@parcel/types",
-  "version": "2.0.0-frontbucket.42",
+  "version": "2.0.35",
   "license": "MIT",
   "main": "src/index.js",
+  "types": "lib/index.d.ts",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "scripts": {
+    "build-ts": "mkdir -p lib && flow-to-ts index.js > lib/index.d.ts && flow-to-ts unsafe.js > lib/unsafe.d.ts && node build-ts.js",
+    "check-ts": "tsc --noEmit lib/index.d.ts"
+  },
+  "dependencies": {
+    "@parcel/cache": "2.0.35",
+    "@parcel/diagnostic": "2.0.30",
+    "@parcel/fs": "2.0.35",
+    "@parcel/package-manager": "2.0.35",
+    "@parcel/source-map": "^2.0.0",
+    "@parcel/workers": "2.0.35",
+    "utility-types": "^3.10.0"
   }
 }

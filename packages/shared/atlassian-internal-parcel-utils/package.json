@@ -1,6 +1,6 @@
 {
   "name": "@atlassian/internal-parcel-utils",
-  "version": "2.0.0-frontbucket.47",
+  "version": "2.0.35",
   "publishConfig": {
     "access": "public"
   },
@@ -8,9 +8,9 @@
   "source": "src/index.js",
   "engines": {
     "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@sentry/node": "^5.11.0"
+    "@sentry/node": "^6.18.2"
   }
 }

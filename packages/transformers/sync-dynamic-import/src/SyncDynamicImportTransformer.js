@@ -3,9 +3,9 @@
 import semver from 'semver';
 import {Transformer} from '@parcel/plugin';
 import * as babelCore from '@babel/core';
-import {generate, parse} from '@parcel/babel-ast-utils';
 import {relativeUrl} from '@parcel/utils';
 import packageJson from '../package.json';
+import {generate, parse} from './babel-ast-utils';
 import syncDynamicImportPlugin from './babel/babel-plugin-sync-dynamic-import';
 
 const transformerVersion: mixed = packageJson.version;

@@ -20,7 +20,7 @@ type ValidationRequest = {|
 
 type RunOpts = {|
   input: ValidationRequestInput,
-  ...StaticRunOpts<void>,
+  ...StaticRunOpts,
 |};
 
 type ValidationRequestInput = {|

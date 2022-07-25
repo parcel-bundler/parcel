@@ -1,6 +1,6 @@
 {
   "name": "@parcel/package-manager",
-  "version": "2.0.0-frontbucket.42",
+  "version": "2.0.35",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -16,22 +16,50 @@
   },
   "main": "lib/index.js",
   "source": "src/index.js",
+  "types": "index.d.ts",
   "engines": {
     "node": ">= 12.0.0"
   },
+  "scripts": {
+    "build-ts": "mkdir -p lib && flow-to-ts src/types.js > lib/types.d.ts",
+    "check-ts": "tsc --noEmit index.d.ts"
+  },
+  "targets": {
+    "types": false,
+    "main": {
+      "includeNodeModules": {
+        "@parcel/core": false,
+        "@parcel/diagnostic": false,
+        "@parcel/fs": false,
+        "@parcel/logger": false,
+        "@parcel/types": false,
+        "@parcel/utils": false,
+        "@parcel/workers": false,
+        "semver": false
+      }
+    }
+  },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-frontbucket.26",
-    "@parcel/fs": "2.0.0-frontbucket.41",
-    "@parcel/logger": "2.0.0-frontbucket.28",
-    "@parcel/utils": "2.0.0-frontbucket.38",
-    "@parcel/workers": "2.0.0-frontbucket.39",
+    "@parcel/diagnostic": "2.0.30",
+    "@parcel/fs": "2.0.35",
+    "@parcel/logger": "2.0.30",
+    "@parcel/types": "2.0.35",
+    "@parcel/utils": "2.0.35",
+    "@parcel/workers": "2.0.35",
+    "semver": "^5.7.1"
+  },
+  "devDependencies": {
     "command-exists": "^1.2.6",
     "cross-spawn": "^6.0.4",
     "nullthrows": "^1.1.1",
-    "semver": "^5.4.1",
     "split2": "^3.1.1"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.0.0-alpha.3.1"
+    "@parcel/core": "^2.0.24"
+  },
+  "browser": {
+    "./src/Npm.js": false,
+    "./src/Pnpm.js": false,
+    "./src/Yarn.js": false
   }
 }

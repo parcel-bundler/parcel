@@ -3,11 +3,11 @@
   "endOfLine": "lf",
   "singleQuote": true,
   "trailingComma": "all",
+  "arrowParens": "avoid",
   "overrides": [
     {
       "files": [
-        "packages/packagers/js/src/prelude.js",
-        "packages/shared/scope-hoisting/src/helpers.js"
+        "packages/packagers/js/src/dev-prelude.js"
       ],
       "options": {
         "trailingComma": "es5"

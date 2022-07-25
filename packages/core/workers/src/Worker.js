@@ -4,6 +4,7 @@ import type {FilePath} from '@parcel/types';
 import type {BackendType, WorkerImpl, WorkerMessage} from './types';
 import type {SharedReference} from './WorkerFarm';
 
+import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {getWorkerBackend} from './backend';
@@ -63,7 +64,19 @@ export default class Worker extends EventEmitter {
 
     // Workaround for https://github.com/nodejs/node/issues/29117
     if (process.env.NODE_OPTIONS) {
-      let opts = process.env.NODE_OPTIONS.split(' ');
+      // arg parsing logic adapted from https://stackoverflow.com/a/46946420/2352201
+      let opts = [''];
+      let quote = false;
+      for (let c of nullthrows(process.env.NODE_OPTIONS.match(/.|^$/g))) {
+        if (c === '"') {
+          quote = !quote;
+        } else if (!quote && c === ' ') {
+          opts.push('');
+        } else {
+          opts[opts.length - 1] += c.replace(/\\(.)/, '$1');
+        }
+      }
+
       for (let i = 0; i < opts.length; i++) {
         let opt = opts[i];
         if (opt === '-r' || opt === '--require') {
@@ -121,8 +134,8 @@ export default class Worker extends EventEmitter {
     this.emit('ready');
   }
 
-  sendSharedReference(ref: SharedReference, value: mixed) {
-    new Promise((resolve, reject) => {
+  sendSharedReference(ref: SharedReference, value: mixed): Promise<any> {
+    return new Promise((resolve, reject) => {
       this.call({
         method: 'createSharedReference',
         args: [ref, value],

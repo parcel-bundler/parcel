@@ -1,6 +1,6 @@
 {
   "name": "@atlassian/parcel-reporter-analytics",
-  "version": "2.0.0-frontbucket.62",
+  "version": "2.0.35",
   "publishConfig": {
     "access": "public"
   },
@@ -8,12 +8,15 @@
   "source": "src/AnalyticsReporter.js",
   "engines": {
     "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@atlassian/internal-parcel-utils": "2.0.0-frontbucket.47",
-    "@parcel/plugin": "2.0.0-frontbucket.42",
-    "amplitude": "^4.0.0",
+    "@atlassian/internal-parcel-utils": "2.0.35",
+    "@atlassiansox/analytics-node-client": "^2.2.2",
+    "@parcel/hash": "2.0.35",
+    "@parcel/plugin": "2.0.35",
+    "analytics-node": "^5.2.0",
+    "execa": "^5.1.1",
     "uuid": "^3.3.3"
   }
 }

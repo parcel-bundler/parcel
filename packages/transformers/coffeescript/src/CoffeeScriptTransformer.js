@@ -22,7 +22,7 @@ export default (new Transformer({
       let map = null;
       if (output.v3SourceMap) {
         map = new SourceMap(options.projectRoot);
-        map.addRawMappings(JSON.parse(output.v3SourceMap));
+        map.addVLQMap(JSON.parse(output.v3SourceMap));
       }
 
       asset.setCode(output.js);

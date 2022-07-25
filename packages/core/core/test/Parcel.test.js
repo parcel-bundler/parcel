@@ -8,8 +8,7 @@ import assert from 'assert';
 import path from 'path';
 import Parcel, {createWorkerFarm} from '../src/Parcel';
 
-describe('Parcel', function() {
-  // ATLASSIAN: Pipelines seems to take a while with these
+describe('Parcel', function () {
   this.timeout(75000);
 
   let workerFarm;
@@ -84,6 +83,7 @@ function createParcel(opts?: InitialParcelOptions) {
       path.dirname(require.resolve('@parcel/test-utils')),
       '.parcelrc-no-reporters',
     ),
+    shouldDisableCache: true,
     ...opts,
   });
 }

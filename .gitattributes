@@ -5,3 +5,5 @@
 *.png binary
 *.wasm binary
 *.woff2 binary
+package.json merge=atlassian-package-json
+test/**/package.json !merge

@@ -1,4 +1,6 @@
 {
   "name": "@parcel/internalize-example",
-  "version": "0.0.1-frontbucket.6"
+  "version": "2.0.30",
+  "license": "MIT",
+  "private": true
 }

@@ -1,0 +1,32 @@
+{
+  "name": "@parcel/config-atlassian",
+  "version": "2.0.35",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "index.json",
+  "scripts": {
+    "test-ci": "mocha"
+  },
+  "dependencies": {
+    "@atlassian/parcel-reporter-analytics": "2.0.35",
+    "@parcel/config-default": "2.0.35",
+    "@parcel/reporter-manifest": "2.0.35",
+    "@parcel/reporter-react-loadable": "2.0.35",
+    "@parcel/transformer-image": "2.0.35",
+    "@parcel/transformer-raw": "2.0.35",
+    "@parcel/transformer-workerize": "2.0.35"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.24"
+  }
+}

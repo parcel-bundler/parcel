@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-image",
-  "version": "2.0.0-frontbucket.11",
+  "version": "2.0.35",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -13,10 +13,17 @@
   "source": "src/ImageTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.0.0-beta.1"
+    "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.42",
-    "sharp": "^0.27.1"
+    "@parcel/plugin": "2.0.35",
+    "@parcel/workers": "2.0.35",
+    "nullthrows": "^1.1.1"
+  },
+  "devDependencies": {
+    "sharp": "^0.29.1"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.24"
   }
 }

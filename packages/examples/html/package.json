@@ -1,6 +1,6 @@
 {
   "name": "@parcel/html-example",
-  "version": "2.0.0-frontbucket.66",
+  "version": "2.0.35",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -12,12 +12,13 @@
     "not firefox < 67"
   ],
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0-frontbucket.25",
-    "parcel": "2.0.0-frontbucket.66"
+    "@babel/core": "^7.0.0",
+    "@parcel/babel-register": "2.0.30",
+    "parcel": "2.0.35"
   },
   "dependencies": {
     "lodash": "^4.17.11",
-    "react": "^16.6.3",
-    "react-dom": "^16.6.3"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   }
 }

@@ -6,7 +6,7 @@ import mime from 'mime';
 import {isBinaryFile} from 'isbinaryfile';
 
 const fixedEncodeURIComponent = (str: string): string => {
-  return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
+  return encodeURIComponent(str).replace(/[!'()*]/g, function (c) {
     return '%' + c.charCodeAt(0).toString(16);
   });
 };
@@ -18,7 +18,7 @@ export default (new Optimizer({
 
     // Follows the data url format referenced here:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
-    let mimeType = mime.getType(bundle.filePath) ?? '';
+    let mimeType = mime.getType(bundle.name) ?? '';
     let encoding = hasBinaryContent ? ';base64' : '';
     let content = fixedEncodeURIComponent(
       hasBinaryContent

@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
@@ -11,17 +12,22 @@ import type {
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
-import {md5FromOrderedObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+import {hashString} from '@parcel/hash';
 import createParcelConfigRequest from './ParcelConfigRequest';
+import {runDevDepRequest} from './DevDepRequest';
+import {runConfigRequest} from './ConfigRequest';
+import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
+import {report} from '../ReporterRunner';
 
 type RunInput = {|
   input: AssetRequestInput,
-  ...StaticRunOpts<AssetRequestResult>,
+  ...StaticRunOpts,
 |};
 
 export type AssetRequest = {|
-  id: string,
+  id: ContentKey,
   +type: 'asset_request',
   run: RunInput => Async<AssetRequestResult>,
   input: AssetRequestInput,
@@ -43,19 +49,27 @@ const type = 'asset_request';
 function getId(input: AssetRequestInput) {
   // eslint-disable-next-line no-unused-vars
   let {optionsRef, ...hashInput} = input;
-  return md5FromOrderedObject({
-    type,
-    filePath: input.filePath,
-    env: input.env.id,
-    isSource: input.isSource,
-    sideEffects: input.sideEffects,
-    code: input.code,
-    pipeline: input.pipeline,
-    query: input.query ? objectSortedEntries(input.query) : null,
-  });
+  return hashString(
+    type +
+      fromProjectPathRelative(input.filePath) +
+      input.env.id +
+      String(input.isSource) +
+      String(input.sideEffects) +
+      (input.code ?? '') +
+      ':' +
+      (input.pipeline ?? '') +
+      ':' +
+      (input.query ?? ''),
+  );
 }
 
-async function run({input, api, farm, invalidateReason}: RunInput) {
+async function run({input, api, farm, invalidateReason, options}: RunInput) {
+  report({
+    type: 'buildProgress',
+    phase: 'transforming',
+    filePath: fromProjectPath(options.projectRoot, input.filePath),
+  });
+
   api.invalidateOnFileUpdate(input.filePath);
   let start = Date.now();
   let {optionsRef, ...rest} = input;
@@ -90,7 +104,7 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))
         .map(([, req]) => [
-          `${req.moduleSpecifier}:${req.resolveFrom}`,
+          `${req.specifier}:${fromProjectPathRelative(req.resolveFrom)}`,
           req.hash,
         ]),
     ),
@@ -100,10 +114,13 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
         .flatMap(([, req]) => {
           return [
             {
-              moduleSpecifier: req.moduleSpecifier,
+              specifier: req.specifier,
               resolveFrom: req.resolveFrom,
             },
-            ...(req.additionalInvalidations ?? []),
+            ...(req.additionalInvalidations ?? []).map(i => ({
+              specifier: i.specifier,
+              resolveFrom: i.resolveFrom,
+            })),
           ];
         }),
     ),
@@ -112,6 +129,7 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
   let {
     assets,
     configRequests,
+    error,
     invalidations,
     invalidateOnFileCreate,
     devDepRequests,
@@ -122,8 +140,10 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
   }): TransformationResult);
 
   let time = Date.now() - start;
-  for (let asset of assets) {
-    asset.stats.time = time;
+  if (assets) {
+    for (let asset of assets) {
+      asset.stats.time = time;
+    }
   }
 
   for (let invalidation of invalidateOnFileCreate) {
@@ -148,63 +168,16 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
   }
 
   for (let devDepRequest of devDepRequests) {
-    await api.runRequest<null, void>({
-      id:
-        'dev_dep_request:' +
-        devDepRequest.moduleSpecifier +
-        ':' +
-        devDepRequest.hash,
-      type: 'dev_dep_request',
-      run: ({api}) => {
-        for (let filePath of nullthrows(devDepRequest.invalidateOnFileChange)) {
-          api.invalidateOnFileUpdate(filePath);
-          api.invalidateOnFileDelete(filePath);
-        }
-
-        for (let invalidation of nullthrows(
-          devDepRequest.invalidateOnFileCreate,
-        )) {
-          api.invalidateOnFileCreate(invalidation);
-        }
-
-        api.storeResult({
-          moduleSpecifier: devDepRequest.moduleSpecifier,
-          resolveFrom: devDepRequest.resolveFrom,
-          hash: devDepRequest.hash,
-          additionalInvalidations: devDepRequest.additionalInvalidations,
-        });
-      },
-      input: null,
-    });
+    await runDevDepRequest(api, devDepRequest);
   }
 
-  // Add config requests
   for (let configRequest of configRequests) {
-    await api.runRequest<null, void>({
-      id: 'config_request:' + configRequest.id,
-      type: 'config_request',
-      run: ({api}) => {
-        let {
-          includedFiles,
-          invalidateOnFileCreate,
-          shouldInvalidateOnStartup,
-        } = configRequest;
-        for (let filePath of includedFiles) {
-          api.invalidateOnFileUpdate(filePath);
-          api.invalidateOnFileDelete(filePath);
-        }
-
-        for (let invalidation of invalidateOnFileCreate) {
-          api.invalidateOnFileCreate(invalidation);
-        }
-
-        if (shouldInvalidateOnStartup) {
-          api.invalidateOnStartup();
-        }
-      },
-      input: null,
-    });
+    await runConfigRequest(api, configRequest);
   }
 
-  return assets;
+  if (error != null) {
+    throw new ThrowableDiagnostic({diagnostic: error});
+  } else {
+    return nullthrows(assets);
+  }
 }

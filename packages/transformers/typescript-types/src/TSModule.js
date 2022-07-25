@@ -8,7 +8,7 @@ export type Export =
 export class TSModule {
   imports: Map<string, Import>;
   exports: Array<Export>;
-  bindings: Map<string, any>;
+  bindings: Map<string, Set<any>>;
   names: Map<string, string>;
   used: Set<string>;
 
@@ -23,10 +23,11 @@ export class TSModule {
   addImport(local: string, specifier: string, imported: string) {
     this.imports.set(local, {specifier, imported});
     if (imported !== '*' && imported !== 'default') {
-      this.names.set(local, imported);
+      this.names.set(local, local);
     }
   }
 
+  // if not a reexport: imported = local, name = exported
   addExport(name: string, imported: string, specifier: ?string) {
     this.exports.push({name, specifier, imported});
   }
@@ -36,7 +37,9 @@ export class TSModule {
   }
 
   addLocal(name: string, node: any) {
-    this.bindings.set(name, node);
+    const bindings = this.bindings.get(name) ?? new Set();
+    bindings.add(node);
+    this.bindings.set(name, bindings);
     if (name !== 'default') {
       this.names.set(name, name);
     }

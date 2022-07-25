@@ -1,11 +1,11 @@
 // @flow
+
 export default function createDependencyLocation(
-  start: {
+  start: interface {
     line: number,
     column: number,
-    ...
   },
-  moduleSpecifier: string,
+  specifier: string,
   lineOffset: number = 0,
   columnOffset: number = 0,
   // Imports are usually wrapped in quotes
@@ -16,7 +16,7 @@ export default function createDependencyLocation(
   start: {|column: number, line: number|},
 |} {
   return {
-    filePath: moduleSpecifier,
+    filePath: specifier,
     start: {
       line: start.line + lineOffset,
       column: start.column + columnOffset,
@@ -25,7 +25,7 @@ export default function createDependencyLocation(
       line: start.line + lineOffset,
       column:
         start.column +
-        moduleSpecifier.length -
+        specifier.length -
         1 +
         importWrapperLength +
         columnOffset,

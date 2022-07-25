@@ -1,1 +1,2 @@
 !/test/fixture/node_modules
+!/test/fixture/node_modules/.pnpm/*/node_modules

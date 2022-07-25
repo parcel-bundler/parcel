@@ -12,7 +12,7 @@ import {MockPackageInstaller, NodePackageManager} from '../src';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
-describe('NodePackageManager', function() {
+describe('NodePackageManager', function () {
   let fs;
   let packageManager;
   let packageInstaller;
@@ -27,7 +27,7 @@ describe('NodePackageManager', function() {
     });
     fs = new OverlayFS(new MemoryFS(workerFarm), new NodeFS());
     packageInstaller = new MockPackageInstaller();
-    packageManager = new NodePackageManager(fs, packageInstaller);
+    packageManager = new NodePackageManager(fs, '/', packageInstaller);
   });
 
   afterEach(async () => {

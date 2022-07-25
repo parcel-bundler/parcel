@@ -11,8 +11,6 @@ date: '2021-03-10'
 
 Internally, Parcel is supported by the [AFP Dev Infra team](https://hello.atlassian.net/wiki/spaces/AFP).
 
-If you need any help:
+If you need any help, see: [#help-parcel](https://atlassian.slack.com/archives/C0288U06PGC)
 
-- for Parcel & Frontbucket - [#parcel-frontbucket](https://atlassian.slack.com/archives/CTNJGKRRD)
-- for Parcel & Jira - [#parcel-jira](https://atlassian.slack.com/archives/CTXPG0VUY)
-- all other needs - [#parcel](https://atlassian.slack.com/archives/CQUK5AJDN)
+For anything else parcel-related: [#parcel](https://atlassian.slack.com/archives/CQUK5AJDN)

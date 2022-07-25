@@ -1,5 +1,5 @@
 const EXCLUDED_PACKAGES = new Set([
-  '@parcel/fs-search',
+  '@parcel/css',
   '@parcel/source-map',
   '@parcel/watcher',
 ]);

@@ -1,12 +1,12 @@
 // @flow
 import {TSModule} from './TSModule';
 import type {TSModuleGraph} from './TSModuleGraph';
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
-import {getExportedName, isDeclaration} from './utils';
+
+import ts from 'typescript';
 import nullthrows from 'nullthrows';
+import {getExportedName, isDeclaration, createImportSpecifier} from './utils';
 
 export function shake(
-  ts: TypeScriptModule,
   moduleGraph: TSModuleGraph,
   context: any,
   sourceFile: any,
@@ -19,6 +19,12 @@ export function shake(
   // Propagate exports from the main module to determine what types should be included
   let exportedNames = moduleGraph.propagate(context);
 
+  // When module definitions are nested inside each other (e.g with module augmentation),
+  // we want to keep track of the hierarchy so we can associated nodes with the right module.
+  const moduleStack: Array<?TSModule> = [];
+
+  let addedGeneratedImports = false;
+
   let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
@@ -27,12 +33,30 @@ export function shake(
 
     // Flatten all module declarations into the top-level scope
     if (ts.isModuleDeclaration(node)) {
+      // Deeply nested module declarations are assumed to be module augmentations and left alone.
+      if (moduleStack.length >= 1) {
+        // Since we are hoisting them to the top-level scope, we need to add a "declare" keyword to make them ambient.
+        // we also want the declare keyword to come after the export keyword to guarantee a valid typings file.
+        node.modifiers ??= [];
+        const index =
+          node.modifiers[0]?.kind === ts.SyntaxKind.ExportKeyword ? 1 : 0;
+        node.modifiers.splice(
+          index,
+          0,
+          ts.createModifier(ts.SyntaxKind.DeclareKeyword),
+        );
+        return node;
+      }
+
+      moduleStack.push(_currentModule);
       let isFirstModule = !_currentModule;
       _currentModule = moduleGraph.getModule(node.name.text);
       let statements = ts.visitEachChild(node, visit, context).body.statements;
+      _currentModule = moduleStack.pop();
 
-      if (isFirstModule) {
-        statements.unshift(...generateImports(ts, moduleGraph));
+      if (isFirstModule && !addedGeneratedImports) {
+        statements.unshift(...generateImports(moduleGraph));
+        addedGeneratedImports = true;
       }
 
       return statements;
@@ -207,7 +231,7 @@ export function shake(
   return ts.visitNode(sourceFile, visit);
 }
 
-function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
+function generateImports(moduleGraph: TSModuleGraph) {
   let importStatements = [];
   for (let [specifier, names] of moduleGraph.getAllImports()) {
     let defaultSpecifier;
@@ -222,9 +246,10 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
         );
       } else {
         namedSpecifiers.push(
-          ts.createImportSpecifier(
-            name === imported ? undefined : ts.createIdentifier(name),
-            ts.createIdentifier(imported),
+          createImportSpecifier(
+            ts,
+            name === imported ? undefined : ts.createIdentifier(imported),
+            ts.createIdentifier(name),
           ),
         );
       }

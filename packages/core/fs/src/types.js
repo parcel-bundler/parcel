@@ -1,6 +1,5 @@
 // @flow
 import type {FilePath} from '@parcel/types';
-import type {Stats} from 'fs';
 import type {Readable, Writable} from 'stream';
 import type {
   Event,
@@ -13,11 +12,52 @@ export type ReaddirOptions =
   | {withFileTypes?: false, ...}
   | {withFileTypes: true, ...};
 
+export interface Stats {
+  dev: number;
+  ino: number;
+  mode: number;
+  nlink: number;
+  uid: number;
+  gid: number;
+  rdev: number;
+  size: number;
+  blksize: number;
+  blocks: number;
+  atimeMs: number;
+  mtimeMs: number;
+  ctimeMs: number;
+  birthtimeMs: number;
+  atime: Date;
+  mtime: Date;
+  ctime: Date;
+  birthtime: Date;
+
+  isFile(): boolean;
+  isDirectory(): boolean;
+  isBlockDevice(): boolean;
+  isCharacterDevice(): boolean;
+  isSymbolicLink(): boolean;
+  isFIFO(): boolean;
+  isSocket(): boolean;
+}
+
+export type Encoding =
+  | 'hex'
+  | 'utf8'
+  | 'utf-8'
+  | 'ascii'
+  | 'binary'
+  | 'base64'
+  | 'ucs2'
+  | 'ucs-2'
+  | 'utf16le'
+  | 'latin1';
+
 export interface FileSystem {
   readFile(filePath: FilePath): Promise<Buffer>;
-  readFile(filePath: FilePath, encoding: buffer$Encoding): Promise<string>;
+  readFile(filePath: FilePath, encoding: Encoding): Promise<string>;
   readFileSync(filePath: FilePath): Buffer;
-  readFileSync(filePath: FilePath, encoding: buffer$Encoding): string;
+  readFileSync(filePath: FilePath, encoding: Encoding): string;
   writeFile(
     filePath: FilePath,
     contents: Buffer | string,
@@ -28,8 +68,8 @@ export interface FileSystem {
     destination: FilePath,
     flags?: number,
   ): Promise<void>;
-  stat(filePath: FilePath): Promise<$Shape<Stats>>;
-  statSync(filePath: FilePath): $Shape<Stats>;
+  stat(filePath: FilePath): Promise<Stats>;
+  statSync(filePath: FilePath): Stats;
   readdir(
     path: FilePath,
     opts?: {withFileTypes?: false, ...},
@@ -45,8 +85,8 @@ export interface FileSystem {
   mkdirp(path: FilePath): Promise<void>;
   rimraf(path: FilePath): Promise<void>;
   ncp(source: FilePath, destination: FilePath): Promise<void>;
-  createReadStream(path: FilePath, options: ?FileOptions): Readable;
-  createWriteStream(path: FilePath, options: ?FileOptions): Writable;
+  createReadStream(path: FilePath, options?: ?FileOptions): Readable;
+  createWriteStream(path: FilePath, options?: ?FileOptions): Writable;
   cwd(): FilePath;
   chdir(dir: FilePath): void;
   watch(
@@ -64,7 +104,11 @@ export interface FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions,
   ): Promise<void>;
-  findAncestorFile(fileNames: Array<string>, fromDir: FilePath): ?FilePath;
+  findAncestorFile(
+    fileNames: Array<string>,
+    fromDir: FilePath,
+    root: FilePath,
+  ): ?FilePath;
   findNodeModule(moduleName: string, fromDir: FilePath): ?FilePath;
   findFirstFile(filePaths: Array<FilePath>): ?FilePath;
 }

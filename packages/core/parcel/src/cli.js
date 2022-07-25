@@ -2,7 +2,6 @@
 
 import type {InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
-import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
@@ -27,11 +26,22 @@ const SIGINT_EXIT_CODE = 130;
 async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let out = await prettyDiagnostic(diagnostic);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.message);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe || out.stack);
-      for (let h of out.hints) {
-        INTERNAL_ORIGINAL_CONSOLE.error(h);
+      let {message, codeframe, stack, hints, documentation} =
+        await prettyDiagnostic(diagnostic);
+      INTERNAL_ORIGINAL_CONSOLE.error(chalk.red(message));
+      if (codeframe || stack) {
+        INTERNAL_ORIGINAL_CONSOLE.error('');
+      }
+      INTERNAL_ORIGINAL_CONSOLE.error(codeframe);
+      INTERNAL_ORIGINAL_CONSOLE.error(stack);
+      if ((stack || codeframe) && hints.length > 0) {
+        INTERNAL_ORIGINAL_CONSOLE.error('');
+      }
+      for (let h of hints) {
+        INTERNAL_ORIGINAL_CONSOLE.error(chalk.blue(h));
+      }
+      if (documentation) {
+        INTERNAL_ORIGINAL_CONSOLE.error(chalk.magenta.bold(documentation));
       }
     }
   } else {
@@ -84,7 +94,6 @@ const commonOptions = {
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
     parseOptionInt,
-    '10',
   ],
   '--reporter <name>': [
     'additional reporters to run',
@@ -108,6 +117,7 @@ var hmrOptions = {
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
   '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
+  '--hmr-host <host>': ['hot module replacement host', process.env.HMR_HOST],
 };
 
 function applyOptions(cmd, options) {
@@ -133,6 +143,10 @@ let serve = program
   .option(
     '--lazy',
     'Build async bundles on demand, when requested in the browser',
+  )
+  .option(
+    '--incremental',
+    '[experimental] builds faster when modifying a file without adding or removing dependencies',
   )
   .action(runCommand);
 
@@ -164,12 +178,12 @@ applyOptions(build, commonOptions);
 program
   .command('help [command]')
   .description('display help information for a command')
-  .action(function(command) {
+  .action(function (command) {
     let cmd = program.commands.find(c => c.name() === command) || program;
     cmd.help();
   });
 
-program.on('--help', function() {
+program.on('--help', function () {
   INTERNAL_ORIGINAL_CONSOLE.log('');
   INTERNAL_ORIGINAL_CONSOLE.log(
     '  Run `' +
@@ -180,7 +194,8 @@ program.on('--help', function() {
 });
 
 // Override to output option description if argument was missing
-commander.Command.prototype.optionMissingArgument = function(option) {
+// $FlowFixMe[prop-missing]
+commander.Command.prototype.optionMissingArgument = function (option) {
   INTERNAL_ORIGINAL_CONSOLE.error(
     "error: option `%s' argument missing",
     option.flags,
@@ -192,6 +207,7 @@ commander.Command.prototype.optionMissingArgument = function(option) {
 // Make serve the default command except for --help
 var args = process.argv;
 if (args[2] === '--help' || args[2] === '-h') args[2] = 'help';
+
 if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
   args.splice(2, 0, 'serve');
 }
@@ -207,20 +223,17 @@ async function run(
   _opts: any, // using pre v7 Commander options as properties
   command: any,
 ) {
+  if (entries.length === 0) {
+    entries = ['.'];
+  }
+
   entries = entries.map(entry => path.resolve(entry));
 
-  if (entries.length === 0) {
-    // TODO move this into core, a glob could still lead to no entries
-    INTERNAL_ORIGINAL_CONSOLE.log('No entries found');
-    return;
-  }
   let Parcel = require('@parcel/core').default;
   let fs = new NodeFS();
   let options = await normalizeOptions(command, fs);
-  let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
     entries,
-    packageManager,
     // $FlowFixMe[extra-arg] - flow doesn't know about the `paths` option (added in Node v8.9.0)
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
@@ -314,8 +327,9 @@ async function run(
 
     if (command.open && options.serveOptions) {
       await openInBrowser(
-        `${options.serveOptions.https ? 'https' : 'http'}://${options
-          .serveOptions.host || 'localhost'}:${options.serveOptions.port}`,
+        `${options.serveOptions.https ? 'https' : 'http'}://${
+          options.serveOptions.host || 'localhost'
+        }:${options.serveOptions.port}`,
         command.open,
       );
     }
@@ -400,7 +414,17 @@ async function normalizeOptions(
   let port = parsePort(command.port || '1234');
   let originalPort = port;
   if (command.name() === 'serve' || command.hmr) {
-    port = await getPort({port, host});
+    try {
+      port = await getPort({port, host});
+    } catch (err) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Could not get available port: ${err.message}`,
+          origin: 'parcel',
+          stack: err.stack,
+        },
+      });
+    }
 
     if (port !== originalPort) {
       let errorMessage = `Port "${originalPort}" could not be used`;
@@ -428,8 +452,9 @@ async function normalizeOptions(
   let hmrOptions = null;
   if (command.name() !== 'build' && command.hmr !== false) {
     let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
+    let hmrhost = command.hmrHost ? command.hmrHost : host;
 
-    hmrOptions = {port: hmrport, host};
+    hmrOptions = {port: hmrport, host: hmrhost};
   }
 
   if (command.detailedReport === true) {
@@ -438,7 +463,6 @@ async function normalizeOptions(
 
   let additionalReporters = [
     {packageName: '@parcel/reporter-cli', resolveFrom: __filename},
-    {packageName: '@parcel/reporter-dev-server', resolveFrom: __filename},
     ...(command.reporter: Array<string>).map(packageName => ({
       packageName,
       resolveFrom: path.join(inputFS.cwd(), 'index'),
@@ -459,6 +483,7 @@ async function normalizeOptions(
     logLevel: command.logLevel,
     shouldProfile: command.profile,
     shouldBuildLazily: command.lazy,
+    shouldBundleIncrementally: command.incremental ?? false,
     detailedReport:
       command.detailedReport != null
         ? {
@@ -483,9 +508,7 @@ async function normalizeOptions(
 async function exitWithFailure() {
   // Allow Sentry to flush sending any pending errors before exiting the process
   // https://docs.sentry.io/error-reporting/configuration/draining/?platform=node
-  const sentryClient = getSentry()
-    .getCurrentHub()
-    .getClient();
+  const sentryClient = getSentry().getCurrentHub().getClient();
 
   if (sentryClient != null) {
     await sentryClient.close();
