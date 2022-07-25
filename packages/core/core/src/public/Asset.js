@@ -30,7 +30,11 @@ import {AssetSymbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
-import {fromProjectPath, toProjectPath} from '../projectPath';
+import {
+  fromProjectPath,
+  fromProjectPathRelative,
+  toProjectPath,
+} from '../projectPath';
 import {
   BundleBehavior as BundleBehaviorMap,
   BundleBehaviorNames,
@@ -89,7 +93,7 @@ class BaseAsset {
 
   // $FlowFixMe[unsupported-syntax]
   [inspect](): string {
-    return `Asset(${this.filePath})`;
+    return `Asset(${fromProjectPathRelative(this.#asset.value.filePath)})`;
   }
 
   get id(): string {

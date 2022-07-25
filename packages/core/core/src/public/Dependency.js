@@ -18,7 +18,7 @@ import Environment from './Environment';
 import Target from './Target';
 import {MutableDependencySymbols} from './Symbols';
 import {SpecifierType as SpecifierTypeMap, Priority} from '../types';
-import {fromProjectPath} from '../projectPath';
+import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {fromInternalSourceLocation} from '../utils';
 
 const SpecifierTypeNames = Object.keys(SpecifierTypeMap);
@@ -57,7 +57,9 @@ export default class Dependency implements IDependency {
 
   // $FlowFixMe
   [inspect](): string {
-    return `Dependency(${String(this.sourcePath)} -> ${this.specifier})`;
+    return `Dependency(${
+      this.#dep.sourcePath ? fromProjectPathRelative(this.#dep.sourcePath) : ''
+    } -> ${this.specifier})`;
   }
 
   get id(): string {
