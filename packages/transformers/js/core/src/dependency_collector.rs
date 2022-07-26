@@ -288,7 +288,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     );
 
     if let Some(rewritten) = rewritten {
-      node.src.value = rewritten.into();
+      node.src.value = rewritten;
     }
 
     node
@@ -310,7 +310,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       );
 
       if let Some(rewritten) = rewritten {
-        src.value = rewritten.into();
+        src.value = rewritten;
       }
     }
 
@@ -328,7 +328,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     );
 
     if let Some(rewritten) = rewritten {
-      node.src.value = rewritten.into();
+      node.src.value = rewritten;
     }
 
     node
@@ -495,7 +495,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                     if match_member_expr(m, vec!["Promise", "resolve"], self.decls) &&
                       // Make sure the arglist is empty.
                       // I.e. do not proceed with the below unless Promise.resolve has an empty arglist
-                      // because build_promise_chain() will not work in this case.                   
+                      // because build_promise_chain() will not work in this case.
                       call.args.is_empty()
                     {
                       if let MemberProp::Ident(id) = &member.prop {
