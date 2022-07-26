@@ -39,7 +39,6 @@ import BundleGraph, {
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
-import Tracer from './Tracer';
 import {
   fromProjectPath,
   toProjectPathUnsafe,
@@ -106,7 +105,6 @@ export default class PackagerRunner {
   distDir: FilePath;
   distExists: Set<FilePath>;
   report: ReportFn;
-  tracer: Tracer;
   previousDevDeps: Map<string, string>;
   devDepRequests: Map<string, DevDepRequest>;
   invalidations: Map<string, RequestInvalidation>;
@@ -122,7 +120,6 @@ export default class PackagerRunner {
     this.config = config;
     this.options = options;
     this.report = report;
-    this.tracer = new Tracer(report);
     this.previousDevDeps = previousDevDeps;
     this.devDepRequests = new Map();
     this.previousInvalidations = previousInvalidations;
