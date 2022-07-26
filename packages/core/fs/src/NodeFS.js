@@ -77,8 +77,8 @@ export class NodeFS implements FileSystem {
             e.code === 'EPERM'
           ) {
             let [hashTmp, hashTarget] = await Promise.all([
-              hashFile(tmpFilePath),
-              hashFile(filePath),
+              hashFile(this, tmpFilePath),
+              hashFile(this, filePath),
             ]);
 
             await this.unlink(tmpFilePath);
