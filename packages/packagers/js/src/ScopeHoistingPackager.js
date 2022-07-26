@@ -263,9 +263,30 @@ export class ScopeHoistingPackager {
         return [asset.id, {code, map}];
       });
 
-      this.unwrappedAssets.add(asset);
-
       isEntry ??= true;
+
+      // if (this.bundle.name === 'index.08e6a922.js') {
+      //   console.log(
+      //     asset.filePath,
+      //     asset.meta.shouldWrap,
+      //     // TODO shared?
+      //     this.isAsyncBundle && isEntry,
+      //     this.bundle.env.sourceType === 'script',
+      //     this.bundleGraph.isAssetReferenced(this.bundle, asset),
+      //     this.bundleGraph
+      //       .getIncomingDependencies(asset)
+      //       .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url'),
+      //     // has to be dedupliated at runtime
+      //     // TODO invalidation
+      //     this.bundleGraph.getBundlesWithAsset(asset).some(
+      //       // TODO object equality checks fail for bundle and target objects
+      //       // TODO how to handle targets?
+      //       b =>
+      //         b.id !== this.bundle.id &&
+      //         b.target.name === this.bundle.target.name,
+      //     ),
+      //   );
+      // }
 
       if (
         asset.meta.shouldWrap ||
@@ -287,6 +308,9 @@ export class ScopeHoistingPackager {
         )
       ) {
         wrapped.add(asset);
+        this.unwrappedAssets.delete(asset);
+      } else {
+        this.unwrappedAssets.add(asset);
       }
 
       return false;
@@ -299,7 +323,10 @@ export class ScopeHoistingPackager {
       }
       // todo not sure if this is really working to be unwrapped only (e.g. async/shared)
       this.usedByUnwrappedEntries.add(asset);
+      // console.log(asset.filePath, 'usedByUnwrappedEntries');
     });
+
+    let usedByMultiple = new Set();
 
     while (wrapped.size > 0) {
       // Walk through the current frontier and create islands as deep as possible.
@@ -311,6 +338,46 @@ export class ScopeHoistingPackager {
         this.unwrappedAssets.delete(root);
 
         this.bundle.traverseAssets((a, ctx, actions) => {
+          let aRoot = this.islandRoot.get(a);
+          // console.log('aRoot', root, a, aRoot, usedByMultiple.has(a));
+          if (aRoot != null) {
+            if (aRoot !== root) {
+              // Was incorrectly added into an island by another preceding iteration.
+              // Rollback to make it its own separate island in a subsequent iteration.
+              wrapped.add(a);
+              // make sure that it has everything it needs
+              // TODO quadratic/unbounded complexity?
+              wrapped.add(nullthrows(aRoot));
+
+              // console.log('has', a, aRoot, root);
+
+              this.bundle.traverseAssets((b, _, actions) => {
+                let r = this.islandRoot.get(b);
+                if (r == null || r != aRoot) {
+                  actions.skipChildren();
+                  return;
+                }
+                // console.log('delete', {
+                //   outer: a,
+                //   inner: b,
+                //   root,
+                //   outerRoot: aRoot,
+                //   innerRoot: r,
+                // });
+                nullthrows(this.islands.get(aRoot)).delete(b);
+                this.unwrappedAssets.add(b);
+                this.islandRoot.delete(b);
+                usedByMultiple.add(b);
+              }, a);
+              actions.skipChildren();
+              return;
+            } else {
+              // already part of this island
+              return;
+            }
+          }
+
+          // Don't add root to its own island
           if (a === root) {
             return;
           }
@@ -319,46 +386,21 @@ export class ScopeHoistingPackager {
             actions.skipChildren();
             return;
           }
-          if (this.usedByUnwrappedEntries.has(a)) {
+          if (this.usedByUnwrappedEntries.has(a) || usedByMultiple.has(a)) {
             // Has to be wrapped so that unwrapped entries can access it.
             wrapped.add(a);
             actions.skipChildren();
             return;
           }
-          let aRoot = this.islandRoot.get(a);
-          if (aRoot != null) {
-            if (aRoot !== root) {
-              // console.log('has', a, aRoot, root);
-              // Was incorrectly added into an island by another preceding iteration.
-              // Rollback to make it its own separate island in a subsequent iteration.
-              wrapped.add(a);
-              // make sure that it has everything it needs
-              // TODO quadratic/unbounded complexity?
-              wrapped.add(nullthrows(aRoot));
-              this.bundle.traverseAssets((b, _, actions) => {
-                let i = this.islandRoot.get(b);
-                // console.log('has delete', b, i, root);
-                if (!i) {
-                  actions.skipChildren();
-                  return;
-                }
-                nullthrows(this.islands.get(i)).delete(b);
-                this.unwrappedAssets.add(b);
-                this.islandRoot.delete(b);
-              }, a);
-              actions.skipChildren();
-              return;
-            } else {
-              // already part of island
-              return;
-            }
-          }
 
+          usedByMultiple.delete(a);
           this.unwrappedAssets.delete(a);
+          // console.log('add', root, a);
           island.add(a);
           this.islandRoot.set(a, root);
         }, root);
         wrapped.delete(root);
+        usedByMultiple.delete(root);
         // console.log({
         //   islands: this.islands,
         //   islandRoot: this.islandRoot,
@@ -369,13 +411,13 @@ export class ScopeHoistingPackager {
     }
 
     // if (this.bundle.name === 'index.3fda3a67.js') {
-    // console.log(this.bundle.name);
-    // console.log({
-    //   islands: this.islands,
-    //   islandRoot: this.islandRoot,
-    //   unwrappedAssets: this.unwrappedAssets,
-    //   usedByUnwrappedEntries: this.usedByUnwrappedEntries,
-    // });
+    //   // console.log(this.bundle.name);
+    //   console.log({
+    //     islands: this.islands,
+    //     islandRoot: this.islandRoot,
+    //     unwrappedAssets: this.unwrappedAssets,
+    //     usedByUnwrappedEntries: this.usedByUnwrappedEntries,
+    //   });
     // }
     // let end = process.hrtime(start);
     // console.log(this.bundle.name, end[0] * 1000 + end[1] / 1000000);
@@ -923,11 +965,17 @@ ${code}
       !this.bundle.hasAsset(resolvedAsset) ||
       (this.islands.has(resolvedAsset) && resolvedAsset !== parentAsset);
 
-    // console.log(
-    //   {resolved, imported},
-    //   {resolvedAsset, exportSymbol, symbol},
-    //   isWrapped,
-    // );
+    // if (
+    //   parentAsset.filePath.endsWith(
+    //     'node_modules/@atlaskit/theme/dist/esm/components.js',
+    //   )
+    // ) {
+    //   console.log(
+    //     {resolved, imported},
+    //     {resolvedAsset, exportSymbol, symbol},
+    //     isWrapped,
+    //   );
+    // }
 
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
