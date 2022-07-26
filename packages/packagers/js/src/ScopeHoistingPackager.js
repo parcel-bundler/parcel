@@ -333,9 +333,10 @@ export class ScopeHoistingPackager {
       // console.log({wrapped});
       for (let root of [...wrapped]) {
         // console.log('root', root);
-        let island = new Set([root]);
+        let island = this.islands.get(root) ?? new Set([root]);
         this.islands.set(root, island);
         this.unwrappedAssets.delete(root);
+        wrapped.delete(root);
 
         this.bundle.traverseAssets((a, ctx, actions) => {
           let aRoot = this.islandRoot.get(a);
@@ -358,11 +359,11 @@ export class ScopeHoistingPackager {
                   return;
                 }
                 // console.log('delete', {
-                //   outer: a,
-                //   inner: b,
                 //   root,
+                //   outer: a,
                 //   outerRoot: aRoot,
                 //   innerRoot: r,
+                //   b,
                 // });
                 nullthrows(this.islands.get(aRoot)).delete(b);
                 this.unwrappedAssets.add(b);
@@ -399,7 +400,6 @@ export class ScopeHoistingPackager {
           island.add(a);
           this.islandRoot.set(a, root);
         }, root);
-        wrapped.delete(root);
         usedByMultiple.delete(root);
         // console.log({
         //   islands: this.islands,
@@ -410,7 +410,7 @@ export class ScopeHoistingPackager {
       }
     }
 
-    // if (this.bundle.name === 'index.3fda3a67.js') {
+    // if (this.bundle.name === 'EmojiPickerComponent.19f337e2') {
     //   // console.log(this.bundle.name);
     //   console.log({
     //     islands: this.islands,
