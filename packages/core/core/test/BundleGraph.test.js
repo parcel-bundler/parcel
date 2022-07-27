@@ -39,6 +39,117 @@ describe('BundleGraph', () => {
       ['296TI', '296TII'],
     );
   });
+
+  it('respects skipChildren on traverseBundle', async () => {
+    let graph = new AssetGraph();
+    graph.setRootConnections({entries: [toProjectPath('/', '/index')]});
+    graph.resolveEntry(
+      toProjectPath('/', '/index'),
+      [
+        {
+          filePath: toProjectPath('/', '/path/to/index/src/main.js'),
+          packagePath: toProjectPath('/', '/path/to/index'),
+        },
+      ],
+      '1',
+    );
+    graph.resolveTargets(
+      {
+        filePath: toProjectPath('/', '/path/to/index/src/main.js'),
+        packagePath: toProjectPath('/', '/path/to/index'),
+      },
+      DEFAULT_TARGETS,
+      '2',
+    );
+
+    let entryDep = createDependency({
+      specifier: 'path/to/index/src/main.js',
+      specifierType: 'esm',
+      env: DEFAULT_ENV,
+      target: DEFAULT_TARGETS[0],
+    });
+    let entrySourcePath = '/index.js';
+    let entryFilePath = toProjectPath('/', entrySourcePath);
+    let entryReq = {filePath: entryFilePath, env: DEFAULT_ENV};
+    graph.resolveDependency(entryDep, nodeFromAssetGroup(entryReq).value, '3');
+
+    let dep1 = createDependency({
+      specifier: 'dependent-asset-1',
+      specifierType: 'esm',
+      env: DEFAULT_ENV,
+      sourcePath: entrySourcePath,
+    });
+
+    let entryAsset = createAsset({
+      id: 'a1',
+      filePath: entryFilePath,
+      type: 'js',
+      isSource: true,
+      hash: '#1',
+      stats,
+      dependencies: new Map([['dep1', dep1]]),
+      env: DEFAULT_ENV,
+    });
+
+    graph.resolveAssetGroup(entryReq, [entryAsset], '4');
+
+    let dep1SourcePath = '/other.js';
+    let dep1FilePath = toProjectPath('/', dep1SourcePath);
+    let dep1Req = {filePath: dep1FilePath, env: DEFAULT_ENV};
+    graph.resolveDependency(dep1, nodeFromAssetGroup(dep1Req).value, '5');
+    let childAsset = createAsset({
+      id: 'a2',
+      filePath: dep1FilePath,
+      type: 'js',
+      isSource: true,
+      hash: '#2',
+      stats,
+      env: DEFAULT_ENV,
+    });
+    graph.resolveAssetGroup(dep1Req, [childAsset], '6');
+
+    let bundleGraph = BundleGraph.fromAssetGraph(
+      graph,
+      new Map([
+        ['a1', 'a1'],
+        ['a2', 'a2'],
+      ]),
+    );
+
+    let bundleNode = {
+      type: 'bundle',
+      id: 'b1',
+      value: {
+        id: 'b1',
+        hashReference: 'b1',
+        type: 'js',
+        env: DEFAULT_ENV,
+        entryAssetIds: [],
+        mainEntryId: null,
+        pipeline: null,
+        needsStableName: false,
+        bundleBehavior: null,
+        isSplittable: false,
+        isPlaceholder: false,
+        target: DEFAULT_TARGETS[0],
+        name: null,
+        displayName: null,
+        publicId: 'b1',
+      },
+    };
+    bundleGraph._graph.addNodeByContentKey(bundleNode.id, bundleNode);
+    bundleGraph.addAssetGraphToBundle(entryAsset, bundleNode.value);
+    bundleGraph.addAssetGraphToBundle(childAsset, bundleNode.value);
+
+    console.log(bundleGraph._graph);
+
+    let v = [];
+    bundleGraph.traverseAssets(bundleNode.value, (a, _, actions) => {
+      actions.skipChildren();
+      v.push(a);
+    });
+    // assert.deepEqual(v, [entryAsset]);
+  });
 });
 
 function getAssets(bundleGraph) {
@@ -87,7 +198,7 @@ function createMockAssetGraph(ids: [string, string]) {
   graph.resolveDependency(dep, nodeFromAssetGroup(req).value, '3');
 
   let dep1 = createDependency({
-    specifier: 'dependent-asset-1',
+    specifier: 'other',
     specifierType: 'esm',
     env: DEFAULT_ENV,
     sourcePath,
