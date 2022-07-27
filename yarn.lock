@@ -2556,6 +2556,7 @@
     detect-libc "^1.0.3"
 
 "@parcel/fs-search@2.6.3-nightly.2759+a9193ce0b", "self-published@npm:@parcel/fs-search@2.6.3-nightly.2759":
+  name self-published
   version "2.6.3-nightly.2759"
   resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/fs-search/-/fs-search-2.6.3-nightly.2759.tgz#aeeedcd5809c054bf793e3f8585d1068ac6bd650"
   integrity sha512-g+imNZhWyzIjnd8079+6QFwgWRvqdJlJyensIFM2vn509+gm3uWFuM330EQVucLcy8O8VkB/Kd3tOD+GntsUtQ==
@@ -2601,6 +2602,7 @@
     xxhash-wasm "^0.4.2"
 
 "@parcel/hash@2.6.3-nightly.2759+a9193ce0b", "self-published@npm:@parcel/hash@2.6.3-nightly.2759":
+  name self-published
   version "2.6.3-nightly.2759"
   resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/hash/-/hash-2.6.3-nightly.2759.tgz#79706adcae6dd7e0fa34c7724c8e1486e35c961c"
   integrity sha512-//7MN5KujrEyKQtY53hC90mrCrd3CfA8PUPiBWMmgdSUM4pOlugDDNmspxghbhp8nftK12fGv0F6yfGnDy/k3A==
@@ -14187,8 +14189,8 @@ universal-user-agent@^4.0.0:
 
 universal-user-agent@^6.0.0:
   version "6.0.0"
-  resolved "https://registry.yarnpkg.com/universal-user-agent/-/universal-user-agent-6.0.0.tgz#3381f8503b251c0d9cd21bc1de939ec9df5480ee"
-  integrity sha512-isyNax3wXoKaulPDZWHQqbmIx1k2tb9fb3GGDBRxCscfYV2Ch7WxPArBsFEG8s/safwXTT7H4QGhaIkTp9447w==
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/universal-user-agent/-/universal-user-agent-6.0.0.tgz#3381f8503b251c0d9cd21bc1de939ec9df5480ee"
+  integrity sha1-M4H4UDslHA2c0hvB3pOeyd9UgO4=
 
 universalify@^0.1.0, universalify@^0.1.2:
   version "0.1.2"

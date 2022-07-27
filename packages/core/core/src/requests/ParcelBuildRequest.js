@@ -52,8 +52,15 @@ export default function createParcelBuildRequest(
   };
 }
 
-async function run({input, api, options}: RunInput) {
+async function run({input, api, options, tracer}: RunInput) {
   let {optionsRef, requestedAssetIds, signal} = input;
+  let transformationMeasurement;
+  let bundlingMeasurement;
+  let packagingRequest;
+
+  if (tracer) {
+    transformationMeasurement = tracer.createMeasurement('transformation');
+  }
   let request = createAssetGraphRequest({
     name: 'Main',
     entries: options.entries,
@@ -66,6 +73,11 @@ async function run({input, api, options}: RunInput) {
       force: options.shouldBuildLazily && requestedAssetIds.size > 0,
     });
 
+  transformationMeasurement && transformationMeasurement.end();
+
+  if (tracer) {
+    bundlingMeasurement = tracer.createMeasurement('bundling');
+  }
   let bundleGraphRequest = createBundleGraphRequest({
     assetGraph,
     previousAssetGraphHash,
@@ -76,6 +88,9 @@ async function run({input, api, options}: RunInput) {
   let {bundleGraph, changedAssets: changedRuntimeAssets} = await api.runRequest(
     bundleGraphRequest,
   );
+
+  bundlingMeasurement && bundlingMeasurement.end();
+
   for (let [id, asset] of changedRuntimeAssets) {
     changedAssets.set(id, asset);
   }
@@ -83,12 +98,16 @@ async function run({input, api, options}: RunInput) {
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
   dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph', bundleGraphEdgeTypes);
 
+  if (tracer) {
+    packagingRequest = tracer.createMeasurement('packaging');
+  }
   let writeBundlesRequest = createWriteBundlesRequest({
     bundleGraph,
     optionsRef,
   });
 
   let bundleInfo = await api.runRequest(writeBundlesRequest);
+  packagingRequest && packagingRequest.end();
   assertSignalNotAborted(signal);
 
   return {bundleGraph, bundleInfo, changedAssets, assetRequests};

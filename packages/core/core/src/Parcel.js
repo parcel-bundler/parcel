@@ -22,7 +22,7 @@ import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import {BuildAbortError} from './utils';
 import {loadParcelConfig} from './requests/ParcelConfigRequest';
-import ReporterRunner from './ReporterRunner';
+import ReporterRunner, {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
@@ -31,6 +31,7 @@ import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
+import Tracer from './Tracer';
 import RequestTracker, {
   getWatcherOptions,
   requestGraphEdgeTypes,
@@ -56,6 +57,7 @@ export default class Parcel {
   #initialOptions /*: InitialParcelOptions*/;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
+  #tracer /*: Tracer */;
   #optionsRef /*: SharedReference */;
   #watchAbortController /*: AbortController*/;
   #watchQueue /*: PromiseQueue<?BuildEvent>*/ = new PromiseQueue<?BuildEvent>({
@@ -108,6 +110,7 @@ export default class Parcel {
     }
 
     await resolvedOptions.cache.ensure();
+    this.#tracer = new Tracer(report);
 
     let {dispose: disposeOptions, ref: optionsRef} =
       await this.#farm.createSharedReference(resolvedOptions);
@@ -268,7 +271,11 @@ export default class Parcel {
       });
 
       let {bundleGraph, bundleInfo, changedAssets, assetRequests} =
-        await this.#requestTracker.runRequest(request, {force: true});
+        await this.#requestTracker.runRequest(
+          request,
+          {force: true},
+          this.#tracer,
+        );
 
       this.#requestedAssetIds.clear();
 

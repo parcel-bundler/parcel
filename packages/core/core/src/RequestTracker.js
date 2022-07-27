@@ -50,6 +50,7 @@ import {
   STARTUP,
   ERROR,
 } from './constants';
+import Tracer from './Tracer';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -158,6 +159,7 @@ export type StaticRunOpts = {|
   options: ParcelOptions,
   api: RunAPI,
   invalidateReason: InvalidateReason,
+  tracer?: Tracer,
 |};
 
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
@@ -905,6 +907,7 @@ export default class RequestTracker {
   async runRequest<TInput, TResult>(
     request: Request<TInput, TResult>,
     opts?: ?RunRequestOpts,
+    tracer?: Tracer,
   ): Async<TResult> {
     let requestId = this.graph.hasContentKey(request.id)
       ? this.graph.getNodeIdByContentKey(request.id)
@@ -952,6 +955,7 @@ export default class RequestTracker {
         farm: this.farm,
         options: this.options,
         invalidateReason: node.invalidateReason,
+        tracer,
       });
 
       assertSignalNotAborted(this.signal);
