@@ -915,17 +915,15 @@ function createIdealGraph(
         invariant(reusableBundle !== 'root' && reusableBundle != null);
         reusableBundle.sourceBundles.add(candidateSourceBundleId);
       } else {
-        // Asset is not a bundleRoot, but if its parent bundle can be
-        // reused as a subgraph of another bundle in its reachable, reuse it
+        // Asset is not a bundleRoot, but if its ancestor bundle (in the asset's reachable) can be
+        // reused as a subgraph of another bundleRoot in its reachable, reuse it
         for (let otherReuseCandidate of reachable) {
           if (candidateSourceBundleRoot === otherReuseCandidate) continue;
           let reusableCandidateReachable = getReachableBundleRoots(
             otherReuseCandidate,
             reachableRoots,
           ).filter(b => !ancestorAssets.get(b)?.has(otherReuseCandidate));
-          if (
-            reusableCandidateReachable.indexOf(candidateSourceBundleRoot) > -1
-          ) {
+          if (reusableCandidateReachable.includes(candidateSourceBundleRoot)) {
             let reusableBundleId = nullthrows(
               bundles.get(otherReuseCandidate.id),
             );
