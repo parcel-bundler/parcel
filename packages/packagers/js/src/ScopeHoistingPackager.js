@@ -265,6 +265,10 @@ export class ScopeHoistingPackager {
 
       isEntry ??= true;
 
+      // if (this.bundle.name === 'EmojiPickerComponent.19f337e2.js') {
+      //   console.log(asset, {isEntry});
+      // }
+
       // if (this.bundle.name === 'index.08e6a922.js') {
       //   console.log(
       //     asset.filePath,
@@ -316,7 +320,17 @@ export class ScopeHoistingPackager {
       return false;
     });
 
+    // if (this.bundle.name === 'EmojiPickerComponent.19f337e2.js') {
+    //   console.log({wrapped}, this.bundle.getEntryAssets());
+    // }
+
+    // if (this.bundle.name === 'EmojiPickerComponent.19f337e2.js') {
+    //   global.FOO = true;
+    // }
     this.bundle.traverseAssets((asset, _, actions) => {
+      // if (this.bundle.name === 'EmojiPickerComponent.19f337e2.js') {
+      //   console.log('unwrapped', asset, wrapped.has(asset));
+      // }
       if (wrapped.has(asset)) {
         actions.skipChildren();
         return;
@@ -325,6 +339,9 @@ export class ScopeHoistingPackager {
       this.usedByUnwrappedEntries.add(asset);
       // console.log(asset.filePath, 'usedByUnwrappedEntries');
     });
+    // if (this.bundle.name === 'EmojiPickerComponent.19f337e2.js') {
+    //   global.FOO = false;
+    // }
 
     let usedByMultiple = new Set();
 
@@ -410,7 +427,7 @@ export class ScopeHoistingPackager {
       }
     }
 
-    // if (this.bundle.name === 'EmojiPickerComponent.19f337e2') {
+    // if (this.bundle.name === 'EmojiPickerComponent.19f337e2.js') {
     //   // console.log(this.bundle.name);
     //   console.log({
     //     islands: this.islands,
