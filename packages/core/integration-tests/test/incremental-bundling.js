@@ -13,11 +13,12 @@ import CustomBundler from './integration/incremental-bundling/node_modules/parce
 const CONFIG = Symbol.for('parcel-plugin-config');
 
 describe('incremental bundling', function () {
-  // $FlowFixMe[prop-missing]
   let defaultBundlerSpy =
     process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
-      ? sinon.spy(ExperimentalBundler[CONFIG], 'bundle')
-      : sinon.spy(Bundler[CONFIG], 'bundle');
+      ? // $FlowFixMe[prop-missing]
+        sinon.spy(ExperimentalBundler[CONFIG], 'bundle')
+      : // $FlowFixMe[prop-missing]
+        sinon.spy(Bundler[CONFIG], 'bundle');
   let customBundlerSpy = sinon.spy(CustomBundler[CONFIG], 'bundle');
 
   let assertChangedAssets = (actual: number, expected: number) => {
