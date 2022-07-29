@@ -507,7 +507,6 @@ export default class BundleGraph {
     };
   }
 
-  // eslint-disable-next-line no-unused-vars
   getReferencedBundle(dependency: Dependency, fromBundle: Bundle): ?Bundle {
     let dependencyNodeId = this._graph.getNodeIdByContentKey(dependency.id);
 
@@ -527,18 +526,24 @@ export default class BundleGraph {
       });
     }
 
-    // Otherwise, find an attached bundle via a reference edge (e.g. from createAssetReference).
-    let bundleNode = this._graph
+    // Otherwise, it may be a reference to another asset in the same bundle group.
+    // Resolve the dependency to an asset, and look for it in one of the referenced bundles.
+    let referencedBundles = this.getReferencedBundles(fromBundle, {
+      includeInline: true,
+    });
+    let referenced = this._graph
       .getNodeIdsConnectedFrom(
         dependencyNodeId,
         bundleGraphEdgeTypes.references,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
-      .find(node => node.type === 'bundle');
+      .find(node => node.type === 'asset');
 
-    if (bundleNode) {
-      invariant(bundleNode.type === 'bundle');
-      return bundleNode.value;
+    if (referenced != null) {
+      invariant(referenced.type === 'asset');
+      return referencedBundles.find(b =>
+        this.bundleHasAsset(b, referenced.value),
+      );
     }
   }
 
