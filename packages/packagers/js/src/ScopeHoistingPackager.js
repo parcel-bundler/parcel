@@ -608,6 +608,14 @@ ${code}
             // be wrapped in Promise.resolve() later.
             asyncResolution.value
           : this.bundleGraph.getResolvedAsset(dep, this.bundle);
+
+      // External async imports will have their own root dependency from their new BundleGroup.
+      // If we encounter an async import and don't yet have it's resolved asset, try discovering
+      // the dependency in our bundle graph.
+      if (!resolved && dep?.meta?.kind === 'DynamicImport') {
+        resolved = this.bundleGraph.getAssetWithDependency(dep);
+      }
+
       if (
         !resolved &&
         !dep.isOptional &&
@@ -621,7 +629,8 @@ ${code}
       }
 
       for (let [imported, {local}] of dep.symbols) {
-        if (local === '*') {
+        // Dynamic imports won't be internalized async assets. Skip to avoid a `getSymbolResolution` error.
+        if (local === '*' || dep?.meta?.kind === 'DynamicImport') {
           continue;
         }
 
@@ -767,6 +776,12 @@ ${code}
       // Graceful fallback for non-js imports
       return '{}';
     }
+
+    const asyncResolution = dep
+      ? this.bundleGraph.resolveAsyncDependency(dep, this.bundle)
+      : null;
+    const isDynamicImport = dep?.meta?.kind === 'DynamicImport';
+    const kind = dep?.meta?.kind || null;
     let isWrapped =
       !this.bundle.hasAsset(resolvedAsset) ||
       (this.wrappedAssets.has(resolvedAsset.id) &&
@@ -798,7 +813,7 @@ ${code}
       );
     }
 
-    if (isWrapped) {
+    if (isWrapped && !isDynamicImport) {
       this.needsPrelude = true;
     }
 
@@ -808,7 +823,7 @@ ${code}
       exportSymbol === 'default' &&
       staticExports &&
       !isWrapped &&
-      (dep?.meta.kind === 'Import' || dep?.meta.kind === 'Export') &&
+      (kind === 'Import' || kind === 'Export') &&
       resolvedAsset.symbols.hasExportSymbol('*') &&
       resolvedAsset.symbols.hasExportSymbol('default') &&
       !resolvedAsset.symbols.hasExportSymbol('__esModule');
@@ -819,13 +834,50 @@ ${code}
     // namespace export symbol.
     let assetId = resolvedAsset.meta.id;
     invariant(typeof assetId === 'string');
-    let obj =
-      isWrapped && (!dep || dep?.meta.shouldWrap)
-        ? // Wrap in extra parenthesis to not change semantics, e.g.`new (parcelRequire("..."))()`.
-          `(parcelRequire(${JSON.stringify(publicId)}))`
-        : isWrapped && dep
-        ? `$${publicId}`
-        : resolvedAsset.symbols.get('*')?.local || `$${assetId}$exports`;
+
+    const _resolvedAsset$symbol = resolvedAsset.symbols.get('*');
+    let obj = `$${publicId}`;
+    // If this is a non-external dynamic import, emit a `parcelRequire` using the generated ID.
+    if (
+      (asyncResolution?.type === 'asset' && isDynamicImport) ||
+      (isWrapped &&
+        (!dep || (dep !== null && dep !== void 0 && dep.meta.shouldWrap)))
+    ) {
+      obj = `(parcelRequire(${JSON.stringify(publicId)}))`;
+    }
+    // If this is a non-external, non-dynamic import, emit the variable name that will reference the inlined module.
+    else if (isWrapped && dep) {
+      obj = `$${publicId}`;
+    }
+    // If the asset has a local name – e.g. it has been imported under an alias elsewhere in the module – use the local name.
+    else if (_resolvedAsset$symbol?.local) {
+      obj = _resolvedAsset$symbol?.local;
+    }
+    // If the asset is an external async dynamic import – e.g. `await import('node-module')` – and we know the source dependency's
+    // specifier, emit the appropriate async import for the target output format. If output format is `global` the build will fail
+    // earlier because externals are now allowed in browser bundles.
+    else if (dep?.specifier && isDynamicImport) {
+      if (this.bundle.env.outputFormat === 'esmodule') {
+        obj = `await import("${dep?.specifier}")`;
+      } else {
+        let defaultInterop =
+          dep.symbols.hasExportSymbol('default') &&
+          !resolvedAsset.symbols.hasExportSymbol('__esModule');
+        if (defaultInterop) {
+          this.usedHelpers.add('$parcel$exportWildcard');
+          this.usedHelpers.add('$parcel$interopDefault');
+          obj = `(/*@__PURE__*/$parcel$exportWildcard({
+            default: /*@__PURE__*/$parcel$interopDefault(require("${dep?.specifier}")),
+          }, require("${dep?.specifier}")))`;
+        } else {
+          obj = `(require("${dep?.specifier}"))`;
+        }
+      }
+    }
+    // Otherwise, fall back to referencing the module's expected exports. This will likely be replaced later in the bundle process.
+    else {
+      obj = `$${assetId}$exports`;
+    }
 
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
       // Resolve to the namespace object if requested or this is a CJS default interop reqiure.
@@ -846,7 +898,6 @@ ${code}
       // we need to use a member access off the namespace object rather
       // than a direct reference. If importing default from a CJS module,
       // use a helper to check the __esModule flag at runtime.
-      let kind = dep?.meta.kind;
       if (
         (!dep || kind === 'Import' || kind === 'Export') &&
         exportSymbol === 'default' &&
