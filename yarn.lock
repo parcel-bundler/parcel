@@ -2171,61 +2171,61 @@
   dependencies:
     chalk "^4.1.0"
 
-"@parcel/css-darwin-arm64@1.12.1":
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/@parcel/css-darwin-arm64/-/css-darwin-arm64-1.12.1.tgz#afd976343a4eedd0dd03cfe8b62d66aa84c8fe7a"
-  integrity sha512-HyTTsb1h8OWlMFqOEs4BG6rnBi9IXP4AK+4e34z4Pnk7RWkXy/80LNwY/Wh/N8bIDR+4a1HRHKCmQED3mm2JeQ==
+"@parcel/css-darwin-arm64@1.12.2":
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/@parcel/css-darwin-arm64/-/css-darwin-arm64-1.12.2.tgz#4215585dac699f0f75015f5b47254867ac1221d3"
+  integrity sha512-6VvsoYSltBiUh/uyfPzQ+I3DiTFN7tmRv6zm1LH98J7GGCDDhbYEtbQjjCs15ex6fVn1ORZK0JO+mMlsg1JwTA==
 
-"@parcel/css-darwin-x64@1.12.1":
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/@parcel/css-darwin-x64/-/css-darwin-x64-1.12.1.tgz#d1de0776d07d79621f683b6a51d5e03b0cb933c7"
-  integrity sha512-z1qbKLZ4R/3KtWXnLL8JC55NHXp39kxgP9LeG8HfQbfWapE0kGv1nilnSUTBi9nBVHIggXycrQWmlLKg3S7qng==
+"@parcel/css-darwin-x64@1.12.2":
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/@parcel/css-darwin-x64/-/css-darwin-x64-1.12.2.tgz#eeb4e04c512580bd531b5ffa9c34456e9799fdb9"
+  integrity sha512-3J0/LrDvt5vevOisnrE0q5mEcuiAY+K7OZwIv84SAnrbjlL5sshmIaaNzL869kb4thza+RClEj0mS5XTm1IUEw==
 
-"@parcel/css-linux-arm-gnueabihf@1.12.1":
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm-gnueabihf/-/css-linux-arm-gnueabihf-1.12.1.tgz#0d8d45328887476782cbe64572f66728074ec07c"
-  integrity sha512-yT4JsKO/fKTcLZDj3F91XQ1Ppn76/Fmr5eu7o1u8a4fxtXTeZSnCvM2lfX96FQZn+tmA2gJSBv3KcrZ6ljHw6Q==
+"@parcel/css-linux-arm-gnueabihf@1.12.2":
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm-gnueabihf/-/css-linux-arm-gnueabihf-1.12.2.tgz#ccd813bbc9b9d845fb8f6ed9c7c22c745cda007b"
+  integrity sha512-OsX7I3dhBvnxEbAH++08RFe7yhjRp33ulzrCvJTMOP9YkxEEJ8qId3sNzJBHIVQzHyTlPTnBRHbSDhU3TFe/eQ==
 
-"@parcel/css-linux-arm64-gnu@1.12.1":
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm64-gnu/-/css-linux-arm64-gnu-1.12.1.tgz#389e4983816fa21a88fc24213bbf7a9c40817f6b"
-  integrity sha512-UNZMruwCzeLb6JtuFptG/KChtjKLudjcg5cvBPjzxoWfGbyKTz24dbF6P2qzULQrrP2wd/XCmobALKQlraombA==
+"@parcel/css-linux-arm64-gnu@1.12.2":
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm64-gnu/-/css-linux-arm64-gnu-1.12.2.tgz#7959fbcbd38c9b9c2c24c6c2def4ec2df370b705"
+  integrity sha512-R1Kqw+1Rsru9Q4+qvUEC6B8P21bpqhuF9rv8GmBmmnF1i2hMZ1JiY+uh/ej8IaRV0O3fAHeQGIyGBWx6qWDpcw==
 
-"@parcel/css-linux-arm64-musl@1.12.1":
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm64-musl/-/css-linux-arm64-musl-1.12.1.tgz#530ec89dab11d2297bf0a7d49f53e893f4b601ee"
-  integrity sha512-QqOX9X/FT6wBQsO0nfB4PXb48Hf1PDOj5qL+ff8iNDZv4NtBobYsnkx/dr5vPZFBUaE/IHwODZJCyiMCNOyLyw==
+"@parcel/css-linux-arm64-musl@1.12.2":
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/@parcel/css-linux-arm64-musl/-/css-linux-arm64-musl-1.12.2.tgz#ffc3fc62db9b8a19f8be61028abbcb7c44d90fa6"
+  integrity sha512-nwixgM4SEgPUQata9aAiJW0A5Q9ms+xim1tXT1i+91kOei4Fu2Wr2OuofMk+mlhbgmGKCTcu4gzMPReGxUhuRA==
 
-"@parcel/css-linux-x64-gnu@1.12.1":
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/@parcel/css-linux-x64-gnu/-/css-linux-x64-gnu-1.12.1.tgz#ed716be6f6019689118c36d6972a4c85dec77af0"
-  integrity sha512-Ggpc+EZz+q1XW5Yto+nd+FYPYIBjFxyWGedlJ7v02AWysT8j4Zr4IoPjogr5GIfENMNTkGzMX3KHqSMMWSbEJg==
+"@parcel/css-linux-x64-gnu@1.12.2":
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/@parcel/css-linux-x64-gnu/-/css-linux-x64-gnu-1.12.2.tgz#15619756ba62558243ae996e257b1cca90f534eb"
+  integrity sha512-cJYVMHnQSGhDwQByyvjFZppjMBNlgxXl/R4cX5DwrQE0QZmK/42BYnMp92rvoprEG6LRyRoiGtCjyfYTPWajog==
 
-"@parcel/css-linux-x64-musl@1.12.1":
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/@parcel/css-linux-x64-musl/-/css-linux-x64-musl-1.12.1.tgz#a5fc33b10c627761fce192437e6f32d406d4cf90"
-  integrity sha512-MjJ2oQEkmUodk1noo0u2y+Zx6dbfkZnxCccyNQfBSs07kbnWy/6Wqh84bE8wrt5QeZzJkP6mFCS2+Or1pI2NEA==
+"@parcel/css-linux-x64-musl@1.12.2":
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/@parcel/css-linux-x64-musl/-/css-linux-x64-musl-1.12.2.tgz#de61e2bdec54609f7b681acfbd04e9fb57a5ef02"
+  integrity sha512-u9zdO/d831/74Tf+TdPUfaIuB9v6FD4Xz8UdWUDOXgQqaOlnJ9fAsAM39EkoWlMxPPljY3f4ay6irSe1a4XgSA==
 
-"@parcel/css-win32-x64-msvc@1.12.1":
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/@parcel/css-win32-x64-msvc/-/css-win32-x64-msvc-1.12.1.tgz#fd226ff5dca51790e4309fd1474824e2ee9aff66"
-  integrity sha512-N4JTqebIz8kpynF8GOAoLVHnRhN0+CWR9Up18rowRPJwCDXNhfNVTfhJyWAEYG1ykcHm4hm0xomYRRwPG+Bf9Q==
+"@parcel/css-win32-x64-msvc@1.12.2":
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/@parcel/css-win32-x64-msvc/-/css-win32-x64-msvc-1.12.2.tgz#086586fce31d1e05340c2e31efc32d40aa9ee05a"
+  integrity sha512-kCAKr3vKqvPUv9oXBG3pGZQz5il3sEk35dpmTXFa/7eDNKR5XyLpiJs8JwWJTFfuUqroymDSXA1bCcjvNEYcAg==
 
-"@parcel/css@^1.12.1":
-  version "1.12.1"
-  resolved "https://registry.yarnpkg.com/@parcel/css/-/css-1.12.1.tgz#cf64f17c35f82ed139ceaa3bb8053ce112bc1fbc"
-  integrity sha512-RZoyAo1UHi6AN0pnEFAs0uztXmV+bYMCBoiwfN6Coab8eotG0UO3WAgpRZCZ64JTbbYPPjfrcU/x7TCyv+64tQ==
+"@parcel/css@^1.12.2":
+  version "1.12.2"
+  resolved "https://registry.yarnpkg.com/@parcel/css/-/css-1.12.2.tgz#63eacc9fcdf58e4d9639db34271834394705b7b2"
+  integrity sha512-Sa0PvZu5u877CupQA8IjEATqjJFynBfA7LxbcyutFe2LDCRSqB5Bm08jKFScyaz56qjZNIxZxXk2SApNkOvoAA==
   dependencies:
     detect-libc "^1.0.3"
   optionalDependencies:
-    "@parcel/css-darwin-arm64" "1.12.1"
-    "@parcel/css-darwin-x64" "1.12.1"
-    "@parcel/css-linux-arm-gnueabihf" "1.12.1"
-    "@parcel/css-linux-arm64-gnu" "1.12.1"
-    "@parcel/css-linux-arm64-musl" "1.12.1"
-    "@parcel/css-linux-x64-gnu" "1.12.1"
-    "@parcel/css-linux-x64-musl" "1.12.1"
-    "@parcel/css-win32-x64-msvc" "1.12.1"
+    "@parcel/css-darwin-arm64" "1.12.2"
+    "@parcel/css-darwin-x64" "1.12.2"
+    "@parcel/css-linux-arm-gnueabihf" "1.12.2"
+    "@parcel/css-linux-arm64-gnu" "1.12.2"
+    "@parcel/css-linux-arm64-musl" "1.12.2"
+    "@parcel/css-linux-x64-gnu" "1.12.2"
+    "@parcel/css-linux-x64-musl" "1.12.2"
+    "@parcel/css-win32-x64-msvc" "1.12.2"
 
 "@parcel/diagnostic@2.5.0":
   version "2.5.0"

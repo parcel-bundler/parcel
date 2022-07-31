@@ -46,7 +46,7 @@ export default (new Transformer({
         res = transformStyleAttribute({
           code,
           analyzeDependencies: true,
-          errorRecovery: config?.errorRecovery,
+          errorRecovery: config?.errorRecovery || false,
           targets,
         });
       } else {
@@ -78,7 +78,7 @@ export default (new Transformer({
           sourceMap: !!asset.env.sourceMap,
           drafts: config?.drafts,
           pseudoClasses: config?.pseudoClasses,
-          errorRecovery: config?.errorRecovery,
+          errorRecovery: config?.errorRecovery || false,
           targets,
         });
       }
