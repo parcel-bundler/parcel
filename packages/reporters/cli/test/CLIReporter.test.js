@@ -133,7 +133,7 @@ describe('CLIReporter', () => {
       EMPTY_OPTIONS,
     );
 
-    assert.equal(stdoutOutput, '\n\n\n\n');
+    assert.equal(stdoutOutput, '\n\n');
     assert.equal(stderrOutput, 'test: error\ntest: warn\n');
   });
 
@@ -165,7 +165,7 @@ describe('CLIReporter', () => {
       EMPTY_OPTIONS,
     );
 
-    assert.equal(stdoutOutput, '\n\n\n\n');
+    assert.equal(stdoutOutput, '\n\n');
     assert(stderrOutput.includes('test: error\n'));
     assert(stderrOutput.includes('test: warn\n'));
   });

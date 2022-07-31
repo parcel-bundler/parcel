@@ -15,7 +15,9 @@ export default (new Optimizer({
         '.htmlnanorc',
         '.htmlnanorc.json',
         '.htmlnanorc.js',
+        '.htmlnanorc.cjs',
         'htmlnano.config.js',
+        'htmlnano.config.cjs',
       ],
       {
         packageKey: 'htmlnano',

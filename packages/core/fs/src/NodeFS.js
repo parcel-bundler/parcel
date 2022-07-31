@@ -14,7 +14,7 @@ import nativeFS from 'fs';
 import ncp from 'ncp';
 import {promisify} from 'util';
 import {registerSerializableClass} from '@parcel/core';
-import {hashStream} from '@parcel/utils';
+import {hashFile} from '@parcel/utils';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
@@ -77,11 +77,11 @@ export class NodeFS implements FileSystem {
             e.code === 'EPERM'
           ) {
             let [hashTmp, hashTarget] = await Promise.all([
-              hashStream(writeStream.__atomicTmp),
-              hashStream(writeStream.__atomicTarget),
+              hashFile(this, tmpFilePath),
+              hashFile(this, filePath),
             ]);
 
-            await this.unlink(writeStream.__atomicTmp);
+            await this.unlink(tmpFilePath);
 
             if (hashTmp != hashTarget) {
               throw e;
