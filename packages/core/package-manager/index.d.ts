@@ -1,3 +1,4 @@
+import type {FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageInstaller, PackageManager} from './lib/types';
 
@@ -17,5 +18,5 @@ export const MockPackageInstaller: {
   new (): PackageInstaller;
 };
 export const NodePackageManager: {
-  new (fs: FileSystem, installer?: PackageInstaller): PackageManager;
+  new (fs: FileSystem, projectRoot: FilePath, installer?: PackageInstaller): PackageManager;
 };
