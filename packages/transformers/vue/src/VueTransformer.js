@@ -23,7 +23,14 @@ const MODULE_BY_NAME_RE = /\.module\./;
 export default (new Transformer({
   async loadConfig({config}) {
     let conf = await config.getConfig(
-      ['.vuerc', '.vuerc.json', '.vuerc.js', 'vue.config.js'],
+      [
+        '.vuerc',
+        '.vuerc.json',
+        '.vuerc.js',
+        '.vuerc.cjs',
+        'vue.config.js',
+        'vue.config.cjs',
+      ],
       {packageKey: 'vue'},
     );
     let contents = {};

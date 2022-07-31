@@ -160,7 +160,14 @@ export async function load({
   }
 
   let configFile: any = await config.getConfig(
-    ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
+    [
+      '.postcssrc',
+      '.postcssrc.json',
+      '.postcssrc.js',
+      '.postcssrc.cjs',
+      'postcss.config.js',
+      'postcss.config.cjs',
+    ],
     {packageKey: 'postcss'},
   );
 

@@ -16,7 +16,12 @@ import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
 export default (new Optimizer({
   async loadConfig({config, logger, options}) {
     const configFile = await config.getConfig(
-      ['.cssnanorc', 'cssnano.config.json', 'cssnano.config.js'],
+      [
+        '.cssnanorc',
+        'cssnano.config.json',
+        'cssnano.config.js',
+        'cssnano.config.cjs',
+      ],
       {
         packageKey: 'cssnano',
       },

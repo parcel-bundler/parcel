@@ -9,7 +9,9 @@ export default (new Transformer({
     let configFile = await config.getConfig([
       '.pugrc',
       '.pugrc.js',
+      '.pugrc.cjs',
       'pug.config.js',
+      'pug.config.cjs',
     ]);
 
     if (configFile) {
