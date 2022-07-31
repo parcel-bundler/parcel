@@ -42,6 +42,7 @@ export {
 export {resolveConfig, resolveConfigSync, loadConfig} from './config';
 export {DefaultMap, DefaultWeakMap} from './DefaultMap';
 export {makeDeferredWithPromise} from './Deferred';
+export {getProgressMessage} from './progress-message.js';
 export {isGlob, isGlobMatch, globSync, glob, globToRegex} from './glob';
 export {hashStream, hashObject, hashFile} from './hash';
 export {SharedBuffer} from './shared-buffer';
