@@ -260,6 +260,10 @@ export class AssetGraphBuilder {
   }
 
   propagateSymbols() {
+    // Keep track of dependencies that have changes to their used symbols,
+    // so we can sort them after propagation.
+    let changedDeps = new Set<DependencyNode>();
+
     // Propagate the requested symbols down from the root to the leaves
     this.propagateSymbolsDown((assetNode, incomingDeps, outgoingDeps) => {
       if (!assetNode.value.symbols) return;
@@ -568,6 +572,7 @@ export class AssetGraphBuilder {
         }
 
         if (!equalSet(incomingDepUsedSymbolsUpOld, incomingDep.usedSymbolsUp)) {
+          changedDeps.add(incomingDep);
           incomingDep.usedSymbolsUpDirtyUp = true;
         }
 
@@ -595,6 +600,12 @@ export class AssetGraphBuilder {
       }
       return errors;
     });
+    // Sort usedSymbolsUp so they are a consistent order across builds.
+    // This ensures a consistent ordering of these symbols when packaging.
+    // See https://github.com/parcel-bundler/parcel/pull/8212
+    for (let dep of changedDeps) {
+      dep.usedSymbolsUp = new Set([...dep.usedSymbolsUp].sort());
+    }
   }
 
   propagateSymbolsDown(

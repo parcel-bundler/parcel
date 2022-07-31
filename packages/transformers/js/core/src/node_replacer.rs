@@ -100,7 +100,7 @@ impl<'a> Fold for NodeReplacer<'a> {
               }))),
             })
           };
-          if self.update_binding(id, expr) {
+          if self.update_binding(id, "$parcel$__filename".into(), expr) {
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
               loc: SourceLocation::from(self.source_map, id.span),
@@ -119,7 +119,7 @@ impl<'a> Fold for NodeReplacer<'a> {
           let specifier = swc_atoms::JsWord::from("path");
           let replace_me_value = swc_atoms::JsWord::from("$parcel$dirnameReplace");
 
-          if self.update_binding(id, |_| {
+          if self.update_binding(id, "$parcel$__dirname".into(), |_| {
             ast::Expr::Call(ast::CallExpr {
               span: DUMMY_SP,
               type_args: None,
@@ -184,20 +184,22 @@ impl<'a> Fold for NodeReplacer<'a> {
 }
 
 impl NodeReplacer<'_> {
-  fn update_binding<F>(&mut self, id: &mut ast::Ident, expr: F) -> bool
+  fn update_binding<F>(&mut self, id_ref: &mut ast::Ident, new_name: JsWord, expr: F) -> bool
   where
     F: FnOnce(&Self) -> ast::Expr,
   {
-    if let Some((ctxt, _)) = self.globals.get(&id.sym) {
-      id.span.ctxt = *ctxt;
+    if let Some((ctxt, _)) = self.globals.get(&new_name) {
+      id_ref.sym = new_name;
+      id_ref.span.ctxt = *ctxt;
       false
     } else {
-      let (decl, ctxt) = create_global_decl_stmt(id.sym.clone(), expr(self), self.global_mark);
+      id_ref.sym = new_name;
 
-      id.span.ctxt = ctxt;
+      let (decl, ctxt) = create_global_decl_stmt(id_ref.sym.clone(), expr(self), self.global_mark);
+      id_ref.span.ctxt = ctxt;
 
-      self.globals.insert(id.sym.clone(), (ctxt, decl));
-      self.decls.insert(id.to_id());
+      self.globals.insert(id_ref.sym.clone(), (ctxt, decl));
+      self.decls.insert(id_ref.to_id());
 
       true
     }

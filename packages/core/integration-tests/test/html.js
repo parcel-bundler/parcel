@@ -211,6 +211,31 @@ describe('html', function () {
     assert(/<script src=".+?\.js"><\/script>$/.test(html));
   });
 
+  it('should insert empty script tag for HMR at the end of the body when having normal inline script', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js/index.html'),
+      {
+        hmrOptions: {},
+      },
+    );
+
+    assertBundles(b, [
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {name: 'index.html', assets: ['index.html']},
+    ]);
+
+    const html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    assert(/<script src=".+?\.js"><\/script><\/body>/.test(html));
+  });
+
   it('should support canonical links', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-canonical/index.html'),

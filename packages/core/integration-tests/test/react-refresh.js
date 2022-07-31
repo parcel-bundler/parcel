@@ -37,10 +37,14 @@ if (MessageChannel) {
 
       let b,
         root,
-        randoms = {};
+        randoms,
+        subscription,
+        window = {};
 
       beforeEach(async () => {
-        ({b, root, randoms} = await setup(path.join(testDir, 'index.html')));
+        ({b, root, randoms, subscription, window} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
       });
 
       it('retains state in functional components', async function () {
@@ -61,6 +65,10 @@ if (MessageChannel) {
         assert.equal(randoms.appNum, appNum);
         assert.equal(randoms.fooNum, fooNum);
         assert.equal(fooText, 'OtherFunctional');
+      });
+
+      afterEach(async () => {
+        await cleanup({subscription, window});
       });
     });
 

@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::{Module, ModuleItem, Program};
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
@@ -174,12 +174,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
     }
     Ok((module, comments)) => {
       let mut module = module;
-      result.shebang = match module.shebang {
-        Some(shebang) => {
-          module.shebang = None;
-          Some(shebang.to_string())
-        }
-        None => None,
+      result.shebang = match &mut module {
+        Program::Module(module) => module.shebang.take().map(|s| s.to_string()),
+        Program::Script(script) => script.shebang.take().map(|s| s.to_string()),
       };
 
       let mut global_deps = vec![];
@@ -229,49 +226,57 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
               let global_mark = Mark::fresh(Mark::root());
               let unresolved_mark = Mark::fresh(Mark::root());
-              module = {
-                let mut passes = chain!(
-                  // Decorators can use type information, so must run before the TypeScript pass.
-                  Optional::new(
-                    decorators::decorators(decorators::Config {
-                      legacy: true,
-                      use_define_for_class_fields: config.use_define_for_class_fields,
-                      // Always disabled for now, SWC's implementation doesn't match TSC.
-                      emit_metadata: false,
-                    }),
-                    config.decorators
+              let module = module.fold_with(&mut chain!(
+                // Decorators can use type information, so must run before the TypeScript pass.
+                Optional::new(
+                  decorators::decorators(decorators::Config {
+                    legacy: true,
+                    use_define_for_class_fields: config.use_define_for_class_fields,
+                    // Always disabled for now, SWC's implementation doesn't match TSC.
+                    emit_metadata: false,
+                  }),
+                  config.decorators
+                ),
+                Optional::new(
+                  typescript::strip_with_jsx(
+                    source_map.clone(),
+                    typescript::Config {
+                      pragma: react_options.pragma.clone(),
+                      pragma_frag: react_options.pragma_frag.clone(),
+                      ..Default::default()
+                    },
+                    Some(&comments),
+                    global_mark,
                   ),
-                  Optional::new(
-                    typescript::strip_with_jsx(
-                      source_map.clone(),
-                      typescript::Config {
-                        pragma: react_options.pragma.clone(),
-                        pragma_frag: react_options.pragma_frag.clone(),
-                        ..Default::default()
-                      },
-                      Some(&comments),
-                      global_mark,
-                    ),
-                    config.is_type_script && config.is_jsx
-                  ),
-                  Optional::new(
-                    typescript::strip(global_mark),
-                    config.is_type_script && !config.is_jsx
-                  ),
-                  resolver(unresolved_mark, global_mark, config.is_type_script),
-                  Optional::new(
-                    react::react(
-                      source_map.clone(),
-                      Some(&comments),
-                      react_options,
-                      global_mark
-                    ),
-                    config.is_jsx
-                  ),
-                );
+                  config.is_type_script && config.is_jsx
+                ),
+                Optional::new(
+                  typescript::strip(global_mark),
+                  config.is_type_script && !config.is_jsx
+                ),
+                resolver(unresolved_mark, global_mark, config.is_type_script),
+              ));
 
-                module.fold_with(&mut passes)
+              // If it's a script, convert into module. This needs to happen after
+              // the resolver (which behaves differently for non-/strict mode).
+              let module = match module {
+                Program::Module(module) => module,
+                Program::Script(script) => Module {
+                  span: script.span,
+                  shebang: None,
+                  body: script.body.into_iter().map(ModuleItem::Stmt).collect(),
+                },
               };
+
+              let module = module.fold_with(&mut Optional::new(
+                react::react(
+                  source_map.clone(),
+                  Some(&comments),
+                  react_options,
+                  global_mark,
+                ),
+                config.is_jsx,
+              ));
 
               let mut decls = collect_decls(&module);
 
@@ -379,6 +384,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       Some(&comments),
                       preset_env_config,
                       Default::default(),
+                      &mut Default::default(),
                     ),
                     should_run_preset_env,
                   ),
@@ -504,7 +510,7 @@ fn parse(
   filename: &str,
   source_map: &Lrc<SourceMap>,
   config: &Config,
-) -> PResult<(Module, SingleThreadedComments)> {
+) -> PResult<(Program, SingleThreadedComments)> {
   // Attempt to convert the path to be relative to the project root.
   // If outside the project root, use an absolute path so that if the project root moves the path still works.
   let filename: PathBuf = if let Ok(relative) = Path::new(filename).strip_prefix(project_root) {
@@ -538,7 +544,7 @@ fn parse(
   );
 
   let mut parser = Parser::new_from(lexer);
-  match parser.parse_module() {
+  match parser.parse_program() {
     Err(err) => Err(err),
     Ok(module) => Ok((module, comments)),
   }
@@ -547,7 +553,7 @@ fn parse(
 fn emit(
   source_map: Lrc<SourceMap>,
   comments: SingleThreadedComments,
-  program: &Module,
+  module: &Module,
   source_maps: bool,
 ) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
   let mut src_map_buf = vec![];
@@ -575,7 +581,7 @@ fn emit(
       wr: writer,
     };
 
-    emitter.emit_module(program)?;
+    emitter.emit_module(module)?;
   }
 
   Ok((buf, src_map_buf))
