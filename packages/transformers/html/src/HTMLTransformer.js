@@ -37,9 +37,9 @@ export default (new Transformer({
 
     asset.bundleBehavior = 'isolated';
     let ast = nullthrows(await asset.getAST());
-    let hasScripts;
+    let hasModuleScripts;
     try {
-      hasScripts = collectDependencies(asset, ast);
+      hasModuleScripts = collectDependencies(asset, ast);
     } catch (errors) {
       if (Array.isArray(errors)) {
         throw new ThrowableDiagnostic({
@@ -59,14 +59,14 @@ export default (new Transformer({
       throw errors;
     }
 
-    const {assets: inlineAssets, hasScripts: hasInlineScripts} =
+    const {assets: inlineAssets, hasModuleScripts: hasInlineModuleScripts} =
       extractInlineAssets(asset, ast);
 
     const result = [asset, ...inlineAssets];
 
     // empty <script></script> is added to make sure HMR is working even if user
     // didn't add any.
-    if (options.hmrOptions && !(hasScripts || hasInlineScripts)) {
+    if (options.hmrOptions && !(hasModuleScripts || hasInlineModuleScripts)) {
       const script = {
         tag: 'script',
         attrs: {
