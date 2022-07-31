@@ -9,8 +9,6 @@
   "devDependencies": {
     "parcel": "2.6.2"
   },
-  "browser": "dist/legacy/index.html",
-  "browserModern": "dist/modern/index.html",
   "targets": {
     "browserModern": {
       "engines": {
