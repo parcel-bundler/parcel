@@ -314,6 +314,18 @@ describe('scope hoisting', function () {
       assert.equal(output, 6);
     });
 
+    it('supports re-exporting all exports from another module with empty assets', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-empty/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+
     it('supports re-exporting all when falling back to namespace at runtime 1', async function () {
       let b = await bundle(
         path.join(
