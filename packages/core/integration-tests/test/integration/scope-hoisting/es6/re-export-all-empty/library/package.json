@@ -1,4 +1,0 @@
-{
-    "main": "src/common/types/index.js",
-    "sideEffects": false
-}
