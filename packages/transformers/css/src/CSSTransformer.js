@@ -20,7 +20,7 @@ export default (new Transformer({
     });
     return conf?.contents;
   },
-  async transform({asset, config, options}) {
+  async transform({asset, config, options, logger}) {
     // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
     // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
     let env = asset.env;
@@ -46,6 +46,7 @@ export default (new Transformer({
         res = transformStyleAttribute({
           code,
           analyzeDependencies: true,
+          errorRecovery: config?.errorRecovery || false,
           targets,
         });
       } else {
@@ -77,6 +78,7 @@ export default (new Transformer({
           sourceMap: !!asset.env.sourceMap,
           drafts: config?.drafts,
           pseudoClasses: config?.pseudoClasses,
+          errorRecovery: config?.errorRecovery || false,
           targets,
         });
       }
@@ -101,6 +103,31 @@ export default (new Transformer({
       throw new ThrowableDiagnostic({
         diagnostic,
       });
+    }
+
+    if (res.warnings) {
+      for (let warning of res.warnings) {
+        logger.warn({
+          message: warning.message,
+          codeFrames: [
+            {
+              filePath: asset.filePath,
+              codeHighlights: [
+                {
+                  start: {
+                    line: warning.loc.line,
+                    column: warning.loc.column,
+                  },
+                  end: {
+                    line: warning.loc.line,
+                    column: warning.loc.column,
+                  },
+                },
+              ],
+            },
+          ],
+        });
+      }
     }
 
     asset.setBuffer(res.code);
