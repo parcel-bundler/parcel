@@ -22,12 +22,12 @@
   "dependencies": {
     "@parcel/diagnostic": "2.6.2",
     "@parcel/plugin": "2.6.2",
+    "@swc/core": "^1.2.218",
     "command-exists": "^1.2.8",
     "cross-spawn": "^7.0.3",
     "elm-hot": "^1.1.5",
     "node-elm-compiler": "^5.0.5",
-    "nullthrows": "^1.1.1",
-    "terser": "^5.14.2"
+    "nullthrows": "^1.1.1"
   },
   "peerDependencies": {
     "elm": "^0.19.1-5"

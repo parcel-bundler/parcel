@@ -3,7 +3,8 @@
 import {Transformer} from '@parcel/plugin';
 import spawn from 'cross-spawn';
 import path from 'path';
-import {minify} from 'terser';
+// $FlowFixMe
+import {minify} from '@swc/core';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 // $FlowFixMe
 import elm from 'node-elm-compiler';
