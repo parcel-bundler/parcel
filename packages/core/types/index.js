@@ -1594,6 +1594,8 @@ export type Runtime<ConfigType> = {|
  */
 export type Packager<ConfigType> = {|
   loadConfig?: ({|
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
@@ -1617,6 +1619,8 @@ export type Packager<ConfigType> = {|
  */
 export type Optimizer<ConfigType> = {|
   loadConfig?: ({|
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,

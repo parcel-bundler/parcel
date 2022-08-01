@@ -2,6 +2,8 @@
 import type {
   Async,
   Config as IConfig,
+  NamedBundle as INamedBundle,
+  BundleGraph as IBundleGraph,
   PluginOptions as IPluginOptions,
   PluginLogger as IPluginLogger,
 } from '@parcel/types';
@@ -32,6 +34,17 @@ export type PluginWithLoadConfig = {
   ...
 };
 
+export type PluginWithLoadConfigBundle = {
+  loadConfig?: ({|
+    bundle: INamedBundle,
+    bundleGraph: IBundleGraph<INamedBundle>,
+    config: IConfig,
+    options: IPluginOptions,
+    logger: IPluginLogger,
+  |}) => Async<mixed>,
+  ...
+};
+
 export type ConfigRequest = {
   id: string,
   invalidateOnFileChange: Set<ProjectPath>,
@@ -54,6 +67,39 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
 
   try {
     config.result = await loadConfig({
+      config: new PublicConfig(config, options),
+      options: new PluginOptions(
+        optionsProxy(options, option => {
+          config.invalidateOnOptionChange.add(option);
+        }),
+      ),
+      logger: new PluginLogger({origin: loadedPlugin.name}),
+    });
+  } catch (e) {
+    throw new ThrowableDiagnostic({
+      diagnostic: errorToDiagnostic(e, {
+        origin: loadedPlugin.name,
+      }),
+    });
+  }
+}
+
+export async function loadPluginConfigBundle<T: PluginWithLoadConfigBundle>(
+  loadedPlugin: LoadedPlugin<T>,
+  config: Config,
+  options: ParcelOptions,
+  bundle: INamedBundle,
+  bundleGraph: IBundleGraph<INamedBundle>,
+): Promise<void> {
+  let loadConfig = loadedPlugin.plugin.loadConfig;
+  if (!loadConfig) {
+    return;
+  }
+
+  try {
+    config.result = await loadConfig({
+      bundle,
+      bundleGraph,
       config: new PublicConfig(config, options),
       options: new PluginOptions(
         optionsProxy(options, option => {

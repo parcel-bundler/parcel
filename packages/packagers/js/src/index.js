@@ -5,12 +5,11 @@ import {Packager} from '@parcel/plugin';
 import {replaceInlineReferences, replaceURLReferences} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import path from 'path';
-import nullthrows from 'nullthrows';
 import {DevPackager} from './DevPackager';
 import {ScopeHoistingPackager} from './ScopeHoistingPackager';
 
 export default (new Packager({
-  async loadConfig({config, options}) {
+  async loadConfig({bundle, bundleGraph, config, options}) {
     // Generate a name for the global parcelRequire function that is unique to this project.
     // This allows multiple parcel builds to coexist on the same page.
     let pkg = await config.getConfigFrom(
@@ -18,8 +17,27 @@ export default (new Packager({
       ['package.json'],
     );
     let name = pkg?.contents?.name ?? '';
+
+    let duplicatedAssets = [];
+    if (bundle.env.shouldScopeHoist) {
+      bundle.traverseAssets(asset => {
+        if (
+          bundleGraph.getBundlesWithAsset(asset).some(
+            // TODO object equality checks fail for bundle and target objects
+            // TODO how to handle targets?
+            b => b.id !== bundle.id && b.target.name === bundle.target.name,
+          )
+        ) {
+          duplicatedAssets.push(asset.id);
+        }
+      });
+    }
+
+    config.setCacheKey(hashString(JSON.stringify(duplicatedAssets)));
+
     return {
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
+      duplicatedAssets,
     };
   },
   async package({
@@ -50,13 +68,14 @@ export default (new Packager({
             options,
             bundleGraph,
             bundle,
-            nullthrows(config).parcelRequireName,
+            config.parcelRequireName,
+            config.duplicatedAssets,
           )
         : new DevPackager(
             options,
             bundleGraph,
             bundle,
-            nullthrows(config).parcelRequireName,
+            config.parcelRequireName,
           );
 
       ({contents, map} = await packager.package());
