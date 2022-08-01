@@ -1318,13 +1318,24 @@ export default class BundleGraph {
         }
       },
       startNodeId: this._graph.getNodeIdByContentKey(bundle.id),
-      getChildren: nodeId =>
+      getChildren: nodeId => {
         // Shared bundles seem to depend on being used in the opposite order
         // they were added.
         // TODO: Should this be the case?
-        this._graph
-          .getNodeIdsConnectedFrom(nodeId, bundleGraphEdgeTypes.references)
-          .reverse(),
+
+        // ATLASSIAN: The default bundler depends on these nodes being in the
+        // reverse order, while the experimental bundler does not. These nodes
+        // are conditionally reversed until the default bundler is phased out.
+        let nodeIds = this._graph.getNodeIdsConnectedFrom(
+          nodeId,
+          bundleGraphEdgeTypes.references,
+        );
+        if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER === '1') {
+          return nodeIds;
+        }
+
+        return nodeIds.reverse();
+      },
     });
 
     return [...referencedBundles];
