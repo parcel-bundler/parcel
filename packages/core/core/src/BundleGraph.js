@@ -1818,7 +1818,7 @@ export default class BundleGraph {
       this._graph.getNodeIdByContentKey(asset.id),
       nodeFromAsset(asset),
     );
-    let bundles = this.findBundlesWithAsset(asset);
+    let bundles = this.getBundlesWithAsset(asset);
     for (let bundle of bundles) {
       // the bundle content will change with a modified asset
       this._bundleContentHashes.delete(bundle.id);

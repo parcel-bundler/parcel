@@ -4,14 +4,21 @@ import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 import Bundler from '@parcel/bundler-default';
+import ExperimentalBundler from '@parcel/bundler-experimental';
+
+import {type Asset} from '@parcel/types';
 // $FlowFixMe[untyped-import]
 import CustomBundler from './integration/incremental-bundling/node_modules/parcel-bundler-test';
 
 const CONFIG = Symbol.for('parcel-plugin-config');
 
 describe('incremental bundling', function () {
-  // $FlowFixMe[prop-missing]
-  let defaultBundlerSpy = sinon.spy(Bundler[CONFIG], 'bundle');
+  let defaultBundlerSpy =
+    process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
+      ? // $FlowFixMe[prop-missing]
+        sinon.spy(ExperimentalBundler[CONFIG], 'bundle')
+      : // $FlowFixMe[prop-missing]
+        sinon.spy(Bundler[CONFIG], 'bundle');
   let customBundlerSpy = sinon.spy(CustomBundler[CONFIG], 'bundle');
 
   let assertChangedAssets = (actual: number, expected: number) => {
@@ -30,6 +37,9 @@ describe('incremental bundling', function () {
     );
   };
 
+  let getChangedAssetsBeforeRuntimes = (changedAssets: Array<Asset>) => {
+    return changedAssets.filter(a => !a.filePath.includes('runtime'));
+  };
   beforeEach(() => {
     defaultBundlerSpy.resetHistory();
     customBundlerSpy.resetHistory();
@@ -75,7 +85,7 @@ console.log('adding a new console');`,
             result.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(contents.includes(`console.log('adding a new console')`));
+          assert(contents.includes(`console.log("adding a new console")`));
         } finally {
           if (subscription) {
             await subscription.unsubscribe();
@@ -118,7 +128,7 @@ console.log(a);
             'utf8',
           );
           assert(
-            contents.includes(`console.log('index.js - updated string');`),
+            contents.includes(`console.log("index.js - updated string");`),
           );
         } finally {
           if (subscription) {
@@ -209,7 +219,7 @@ module.exports = a;`,
             'utf8',
           );
 
-          assert(contents.includes(`console.log('adding a new console')`));
+          assert(contents.includes(`console.log("adding a new console")`));
 
           let bundleOutput = await run(result.bundleGraph);
           assert.equal(bundleOutput, 'a updated');
@@ -284,7 +294,6 @@ module.exports = a;`,
           path.join(fixture, 'index-with-css.js'),
           `import a from './a';
 import './a.css';
-
 console.log('index.js');
 console.log(a, 'updated');`,
         );
@@ -306,7 +315,9 @@ console.log(a, 'updated');`,
           'utf8',
         );
 
-        assert(contents.includes(`console.log(_aDefault.default, 'updated');`));
+        assert(
+          contents.includes(`console.log((0, _aDefault.default), "updated");`),
+        );
 
         let bundleCSS = result.bundleGraph.getBundles()[1];
         assert.equal(bundleCSS.type, 'css');
@@ -408,7 +419,7 @@ console.log(a);
         );
 
         assert(
-          contents.includes(`console.log('index.js', _bDefault.default);`),
+          contents.includes(`console.log("index.js", (0, _bDefault.default));`),
         );
       } finally {
         if (subscription) {
@@ -438,7 +449,6 @@ console.log(a);
           path.join(fixture, 'index.js'),
           `import a from './a';
 import './a.css';
-
 console.log(a);
 `,
         );
@@ -457,13 +467,13 @@ console.log(a);
           'utf8',
         );
 
-        assert(contents.includes(`console.log(_aDefault.default);`));
+        assert(contents.includes(`console.log((0, _aDefault.default));`));
 
         let bundleCSS = result.bundleGraph.getBundles()[1];
         assert.equal(bundleCSS.type, 'css');
 
         let cssContent = await overlayFS.readFile(bundleCSS.filePath, 'utf8');
-        assert(cssContent.includes(`color: blue;`));
+        assert(cssContent.includes(`color: #00f;`));
       } finally {
         if (subscription) {
           await subscription.unsubscribe();
@@ -492,13 +502,13 @@ console.log(a);
           path.join(fixture, 'index.js'),
           `import a from './a';
 const b = import('./b');
-
 console.log(a);
 `,
         );
 
         event = await getNextBuildSuccess(b);
-        assertChangedAssets(event.changedAssets.size, 2);
+        let assets = Array.from(event.changedAssets.values());
+        assertChangedAssets(getChangedAssetsBeforeRuntimes(assets).length, 2);
         assertTimesBundled(defaultBundlerSpy.callCount, 2);
 
         let result = await b.run();
@@ -511,7 +521,7 @@ console.log(a);
           'utf8',
         );
 
-        assert(contents.includes(`console.log(_aDefault.default);`));
+        assert(contents.includes(`console.log((0, _aDefault.default));`));
 
         let dynamicBundle = result.bundleGraph.getBundles()[1];
         assert.equal(dynamicBundle.type, 'js');
@@ -520,7 +530,7 @@ console.log(a);
           dynamicBundle.filePath,
           'utf8',
         );
-        assert(dynamicContent.includes(`exports.default = 'b'`));
+        assert(dynamicContent.includes(`exports.default = "b"`));
       } finally {
         if (subscription) {
           await subscription.unsubscribe();
@@ -596,9 +606,9 @@ console.log('index.js');`,
         );
 
         event = await getNextBuildSuccess(b);
-
+        let assets = Array.from(event.changedAssets.values());
         // should contain all the assets
-        assertChangedAssets(event.changedAssets.size, 3);
+        assertChangedAssets(getChangedAssetsBeforeRuntimes(assets).length, 3);
         // the default bundler was only called once
         assertTimesBundled(defaultBundlerSpy.callCount, 1);
         // calls the new bundler to rebundle
@@ -731,7 +741,8 @@ console.log('index.js');`,
       event = await getNextBuildSuccess(b);
 
       // should contain all the assets
-      assertChangedAssets(event.changedAssets.size, 3);
+      let assets = Array.from(event.changedAssets.values());
+      assertChangedAssets(getChangedAssetsBeforeRuntimes(assets).length, 3);
       assertTimesBundled(defaultBundlerSpy.callCount, 1);
 
       let result = await b.run();
