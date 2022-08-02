@@ -42,6 +42,7 @@ const LOADERS = {
     html: './helpers/node/html-loader',
     js: './helpers/node/js-loader',
     wasm: './helpers/node/wasm-loader',
+    node: './helpers/node/require-loader',
     IMPORT_POLYFILL: null,
   },
 };
@@ -184,6 +185,24 @@ export default (new Runtime({
       // Skip URL runtimes for library builds. This is handled in packaging so that
       // the url is inlined and statically analyzable.
       if (bundle.env.isLibrary && dependency.meta?.placeholder != null) {
+        continue;
+      }
+
+      // Native node addons
+      if (bundle.env.isNode() && mainBundle.type === 'node') {
+        if (!bundle.env.shouldScopeHoist) {
+          assets.push(
+            nullthrows(
+              getLoaderRuntime({
+                bundle,
+                dependency,
+                bundleGraph,
+                bundleGroup: resolved.value,
+                options,
+              }),
+            ),
+          );
+        }
         continue;
       }
 
