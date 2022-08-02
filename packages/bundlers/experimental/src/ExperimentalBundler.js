@@ -119,6 +119,9 @@ type IdealGraph = {|
  */
 export default (new Bundler({
   loadConfig({config, options}) {
+    // ATLASSIAN: Set env variable to determine when we use the experimental
+    // bundler
+    process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER = '1';
     return loadBundlerConfig(config, options);
   },
 
