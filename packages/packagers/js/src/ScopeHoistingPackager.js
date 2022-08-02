@@ -764,7 +764,10 @@ ${code}
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
 
-    if (resolvedAsset.type !== 'js' || this.shouldSkipAsset(resolvedAsset)) {
+    if (
+      resolvedAsset.type !== 'js' ||
+      (dep && this.bundleGraph.isDependencySkipped(dep))
+    ) {
       // Graceful fallback for non-js imports or when trying to resolve a symbol
       // that is actually unused but we still need a placeholder value.
       return '{}';
