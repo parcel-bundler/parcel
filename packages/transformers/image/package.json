@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.6.2",
+    "@parcel/utils": "2.6.2",
     "@parcel/workers": "2.6.2",
     "nullthrows": "^1.1.1"
   },
