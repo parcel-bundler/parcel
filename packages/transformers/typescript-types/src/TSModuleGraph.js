@@ -139,19 +139,19 @@ export class TSModuleGraph {
     module: TSModule,
     name: string,
   ): ?{|imported: string, module: TSModule, name: string|} {
+    let wildcardExports = [];
     for (let e of module.exports) {
       if (e.name === name) {
         return this.getExport(module, e);
+      } else if (e.specifier && !e.name) {
+        // Only look inside wildcard export names if we don't find a named export.
+        wildcardExports.push(e.specifier);
       }
-      // TODO: is there a bug here where we look at the contents of a wildcard export, and find the name we were looking for, even though it is over-ridden by a named export?
-      else if (e.specifier && !e.name) {
-        const m = this.resolveExport(
-          nullthrows(this.getModule(e.specifier)),
-          name,
-        );
-        if (m) {
-          return m;
-        }
+    }
+    for (const specifier of wildcardExports) {
+      const m = this.resolveExport(nullthrows(this.getModule(specifier)), name);
+      if (m) {
+        return m;
       }
     }
   }
