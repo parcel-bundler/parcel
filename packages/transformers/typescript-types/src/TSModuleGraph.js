@@ -112,7 +112,7 @@ export class TSModuleGraph {
     return {
       module: m,
       name: exportName,
-      imported: e.imported != null ? m.getName(e.imported) : exportName,
+      imported: e.imported || exportName,
     };
   }
 
@@ -142,7 +142,9 @@ export class TSModuleGraph {
     for (let e of module.exports) {
       if (e.name === name) {
         return this.getExport(module, e);
-      } else if (e.specifier) {
+      }
+      // TODO: is there a bug here where we look at the contents of a wildcard export, and find the name we were looking for, even though it is over-ridden by a named export?
+      else if (e.specifier && !e.name) {
         const m = this.resolveExport(
           nullthrows(this.getModule(e.specifier)),
           name,
@@ -202,7 +204,7 @@ export class TSModuleGraph {
     let exportedNames = new Map<string, TSModule>();
     for (let e of this.getAllExports()) {
       this.markUsed(e.module, e.imported, context);
-      e.module.names.set(e.imported, e.name);
+      e.module.names.set(e.imported, e.name); // TODO: would the old system (where e.name was "raw" and e.imported was "renamed") cause bugs?. No because no re-naming has happened yet.
       names[e.name] = 1;
       exportedNames.set(e.name, e.module);
     }
@@ -240,10 +242,13 @@ export class TSModuleGraph {
     for (let [m, orig] of importedSymbolsToUpdate) {
       let imp = nullthrows(m.imports.get(orig));
       let imported = nullthrows(this.resolveImport(m, orig));
+      // TODO: is this even necessary? We should test.
+      const importedName =
+        imported.module.getName(imported.imported) ?? imported.imported;
 
       // If the module is bundled, map the local name to the original exported name.
       if (this.modules.has(imp.specifier)) {
-        m.names.set(orig, imported.imported);
+        m.names.set(orig, importedName); // <-- TODO: it's definitely necessary here, but below?
         continue;
       }
 
@@ -255,16 +260,16 @@ export class TSModuleGraph {
         imports.set(imp.specifier, importedNames);
       }
 
-      let name = importedNames.get(imported.imported);
+      let name = importedNames.get(importedName);
       if (!name) {
-        if (names[imported.imported]) {
-          name = `_${imported.imported}${names[imported.imported]++}`;
+        if (names[importedName]) {
+          name = `_${importedName}${names[importedName]++}`;
         } else {
-          name = imported.imported;
-          names[imported.imported] = 1;
+          name = importedName;
+          names[importedName] = 1;
         }
 
-        importedNames.set(imported.imported, name);
+        importedNames.set(importedName, name);
       }
 
       m.names.set(orig, name);
