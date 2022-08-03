@@ -838,4 +838,94 @@ console.log('index.js');`,
       }
     }
   });
+  it('changing symbols (adding a new dependency via one symbol)', async () => {
+    let subscription;
+    let fixture = path.join(__dirname, '/integration/incremental-bundling');
+    try {
+      let b = bundler(path.join(fixture, 'index-multi-symbol.js'), {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+        shouldBundleIncrementally: true,
+      });
+
+      await overlayFS.mkdirp(fixture);
+      subscription = await b.watch();
+
+      let event = await getNextBuildSuccess(b);
+      assertTimesBundled(defaultBundlerSpy.callCount, 1);
+
+      await overlayFS.writeFile(
+        path.join(fixture, 'index-multi-symbol.js'),
+        `import {a,b,c} from './multi-symbol-util.js';
+
+console.log('index.js');
+console.log(a,b,c);
+module.exports = {a, b, c};
+`,
+      );
+
+      event = await getNextBuildSuccess(b);
+      assertChangedAssets(event.changedAssets.size, 1);
+      assertTimesBundled(defaultBundlerSpy.callCount, 1);
+
+      let result = await b.run();
+      let contents = await overlayFS.readFile(
+        result.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes(
+          `console.log((0, _multiSymbolUtilJs.a), (0, _multiSymbolUtilJs.b), (0, _multiSymbolUtilJs.c));`,
+        ),
+      );
+    } finally {
+      if (subscription) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
+  });
+  it('changing symbols (removing a dependency via one symbol)', async () => {
+    let subscription;
+    let fixture = path.join(__dirname, '/integration/incremental-bundling');
+    try {
+      let b = bundler(path.join(fixture, 'index-multi-symbol.js'), {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+        shouldBundleIncrementally: true,
+      });
+
+      await overlayFS.mkdirp(fixture);
+      subscription = await b.watch();
+
+      let event = await getNextBuildSuccess(b);
+      assertTimesBundled(defaultBundlerSpy.callCount, 1);
+
+      await overlayFS.writeFile(
+        path.join(fixture, 'index-multi-symbol.js'),
+        `import {a } from './multi-symbol-util.js';
+
+console.log('index.js');
+console.log(a);
+module.exports = {a};
+`,
+      );
+
+      event = await getNextBuildSuccess(b);
+      assertChangedAssets(event.changedAssets.size, 1);
+      assertTimesBundled(defaultBundlerSpy.callCount, 1);
+
+      let result = await b.run();
+      let contents = await overlayFS.readFile(
+        result.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(contents.includes(`console.log((0, _multiSymbolUtilJs.a));`));
+    } finally {
+      if (subscription) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
+  });
 });
