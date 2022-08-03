@@ -2,5 +2,8 @@
   "name": "ts-types-importing-collision-namespaces",
   "private": true,
   "main": "dist/main.js",
-  "types": "dist/types.d.ts"
+  "types": "dist/types.d.ts",
+  "dependencies": {
+    "external": "*"
+  }
 }

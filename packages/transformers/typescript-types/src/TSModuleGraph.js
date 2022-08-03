@@ -204,7 +204,7 @@ export class TSModuleGraph {
     let exportedNames = new Map<string, TSModule>();
     for (let e of this.getAllExports()) {
       this.markUsed(e.module, e.imported, context);
-      e.module.names.set(e.imported, e.name); // TODO: would the old system (where e.name was "raw" and e.imported was "renamed") cause bugs?. No because no re-naming has happened yet.
+      e.module.names.set(e.imported, e.name);
       names[e.name] = 1;
       exportedNames.set(e.name, e.module);
     }
@@ -242,13 +242,10 @@ export class TSModuleGraph {
     for (let [m, orig] of importedSymbolsToUpdate) {
       let imp = nullthrows(m.imports.get(orig));
       let imported = nullthrows(this.resolveImport(m, orig));
-      // TODO: is this even necessary? We should test.
-      const importedName =
-        imported.module.getName(imported.imported) ?? imported.imported;
 
       // If the module is bundled, map the local name to the original exported name.
       if (this.modules.has(imp.specifier)) {
-        m.names.set(orig, importedName); // <-- TODO: it's definitely necessary here, but below?
+        m.names.set(orig, imported.module.getName(imported.imported));
         continue;
       }
 
@@ -260,16 +257,16 @@ export class TSModuleGraph {
         imports.set(imp.specifier, importedNames);
       }
 
-      let name = importedNames.get(importedName);
+      let name = importedNames.get(imported.imported);
       if (!name) {
-        if (names[importedName]) {
-          name = `_${importedName}${names[importedName]++}`;
+        if (names[imported.imported]) {
+          name = `_${imported.imported}${names[imported.imported]++}`;
         } else {
-          name = importedName;
-          names[importedName] = 1;
+          name = imported.imported;
+          names[imported.imported] = 1;
         }
 
-        importedNames.set(importedName, name);
+        importedNames.set(imported.imported, name);
       }
 
       m.names.set(orig, name);
