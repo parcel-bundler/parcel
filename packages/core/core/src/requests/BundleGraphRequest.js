@@ -57,7 +57,7 @@ import {
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
-  changedAssets: Map<string, InternalAsset>,
+  changedAssets: Map<string, Asset>,
   previousAssetGraphHash: ?string,
   optionsRef: SharedReference,
 |};
@@ -295,7 +295,7 @@ class BundlerRunner {
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, {
-                origin: this.config.getBundlerName(),
+                origin: plugin.name,
               }),
             });
           } finally {
