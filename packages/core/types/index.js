@@ -831,7 +831,7 @@ export interface Config {
    */
   getConfig<T>(
     filePaths: Array<FilePath>,
-    options: ?{|
+    options?: {|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
@@ -844,7 +844,7 @@ export interface Config {
   getConfigFrom<T>(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{|
+    options?: {|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
