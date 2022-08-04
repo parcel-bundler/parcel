@@ -253,6 +253,10 @@ export default class PackagerRunner {
       return;
     }
 
+    if (bundle.name === process.env.PARCEL_FORCE_PACKAGE) {
+      return;
+    }
+
     let cacheKey = await this.getCacheKey(
       bundle,
       bundleGraph,

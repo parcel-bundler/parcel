@@ -88,7 +88,9 @@ async function run({input, api, options}: RunInput) {
     optionsRef,
   });
 
-  let bundleInfo = await api.runRequest(writeBundlesRequest);
+  let bundleInfo = await api.runRequest(writeBundlesRequest, {
+    force: process.env.PARCEL_FORCE_PACKAGE != null,
+  });
   assertSignalNotAborted(signal);
 
   return {bundleGraph, bundleInfo, changedAssets, assetRequests};
