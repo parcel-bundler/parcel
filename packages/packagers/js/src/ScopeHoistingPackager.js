@@ -258,6 +258,7 @@ export class ScopeHoistingPackager {
     // let start = process.hrtime();
 
     this.bundle.traverseAssets((asset, isEntry) => {
+      // console.log(this.bundleGraph.getAssetPublicId(asset), asset.filePath);
       queue.add(async () => {
         let [code, map] = await Promise.all([
           asset.getCode(),
@@ -322,24 +323,29 @@ export class ScopeHoistingPackager {
     //   console.log({wrapped}, this.bundle.getEntryAssets());
     // }
 
-    // if (this.bundle.name === 'EmojiPickerComponent.19f337e2.js') {
-    //   global.FOO = true;
-    // }
-    this.bundle.traverseAssets((asset, _, actions) => {
-      // if (this.bundle.name === 'EmojiPickerComponent.19f337e2.js') {
-      //   console.log('unwrapped', asset, wrapped.has(asset));
-      // }
-      if (wrapped.has(asset)) {
-        actions.skipChildren();
-        return;
-      }
-      // todo not sure if this is really working to be unwrapped only (e.g. async/shared)
-      this.usedByUnwrappedEntries.add(asset);
-      // console.log(asset.filePath, 'usedByUnwrappedEntries');
-    });
-    // if (this.bundle.name === 'EmojiPickerComponent.19f337e2.js') {
-    //   global.FOO = false;
-    // }
+    let entries = this.bundle.getEntryAssets();
+    for (let entry of entries) {
+      this.bundle.traverseAssets((asset, _, actions) => {
+        if (wrapped.has(asset)) {
+          actions.skipChildren();
+          return;
+        }
+        this.usedByUnwrappedEntries.add(asset);
+      }, entry);
+    }
+
+    // this.bundle.traverseAssets((asset, _, actions) => {
+    //   if (wrapped.has(asset) || this.bundle.getEntryAssets().includes(asset)) {
+    //     console.log('skip', asset);
+    //     actions.skipChildren();
+    //     return;
+    //   }
+    //   // todo not sure if this is really working to be unwrapped only (e.g. async/shared)
+    //   console.log('add', asset);
+    //   this.usedByUnwrappedEntries.add(asset);
+    // });
+
+    // console.log({wrapped, getEntryAssets: this.bundle.getEntryAssets()});
 
     let usedByMultiple = new Set();
 
@@ -416,23 +422,17 @@ export class ScopeHoistingPackager {
           this.islandRoot.set(a, root);
         }, root);
         usedByMultiple.delete(root);
-        // console.log({
-        //   islands: this.islands,
-        //   islandRoot: this.islandRoot,
-        //   unwrappedAssets: this.unwrappedAssets,
-        //   usedByUnwrappedEntries: this.usedByUnwrappedEntries,
-        // });
       }
     }
 
     // if (this.bundle.name === 'EmojiPickerComponent.19f337e2.js') {
-    //   // console.log(this.bundle.name);
-    //   console.log({
-    //     islands: this.islands,
-    //     islandRoot: this.islandRoot,
-    //     unwrappedAssets: this.unwrappedAssets,
-    //     usedByUnwrappedEntries: this.usedByUnwrappedEntries,
-    //   });
+    // console.log(this.bundle.name, this.isAsyncBundle);
+    // console.log({
+    //   islands: this.islands,
+    //   islandRoot: this.islandRoot,
+    //   unwrappedAssets: this.unwrappedAssets,
+    //   usedByUnwrappedEntries: this.usedByUnwrappedEntries,
+    // });
     // }
     // let end = process.hrtime(start);
     // console.log(this.bundle.name, end[0] * 1000 + end[1] / 1000000);
