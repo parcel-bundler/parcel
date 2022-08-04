@@ -37,7 +37,7 @@ jobs:
     name: linux-gnu-x64
     runs-on: ubuntu-latest
     container:
-      image: docker.io/centos/nodejs-12-centos7
+      image: docker.io/adrienv1520/nodejs-16-centos7
     steps:
       - uses: actions/checkout@v1
       - name: Install yarn
@@ -144,12 +144,6 @@ jobs:
           profile: minimal
           override: true
           target: ${{ matrix.target }}
-      - name: Install cross compile toolchains
-        if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
-        run: |
-          curl -O http://musl.cc/aarch64-linux-musl-cross.tgz
-          tar xzf aarch64-linux-musl-cross.tgz
-          cp -R aarch64-linux-musl-cross/* /usr
       - uses: bahmutov/npm-install@v1.1.0
       - name: Build native packages
         run: yarn build-native-release
