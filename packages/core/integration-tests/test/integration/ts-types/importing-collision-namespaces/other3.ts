@@ -1,1 +1,1 @@
-export const nameConflict = { messageFromOther2: "foo" };
+export const nameConflict = { messageFromOther3: "foo" };
