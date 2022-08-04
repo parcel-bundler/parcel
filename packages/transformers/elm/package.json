@@ -27,7 +27,7 @@
     "elm-hot": "^1.1.5",
     "node-elm-compiler": "^5.0.5",
     "nullthrows": "^1.1.1",
-    "terser": "^5.2.1"
+    "terser": "^5.14.2"
   },
   "peerDependencies": {
     "elm": "^0.19.1-5"

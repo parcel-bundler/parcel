@@ -28,8 +28,8 @@
   },
   "devDependencies": {
     "@parcel/config-default": "2.0.37",
-    "@parcel/core": "2.5.0",
-    "@parcel/optimizer-esbuild": "2.5.0",
+    "@parcel/core": "2.0.37",
+    "@parcel/optimizer-esbuild": "2.0.37",
     "parcel": "2.0.37"
   }
 }

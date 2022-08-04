@@ -37,7 +37,7 @@
     "@parcel/utils": "2.0.37",
     "@parcel/workers": "2.0.37",
     "detect-libc": "^1.0.3",
-    "self-published": "npm:@parcel/optimizer-image@2.6.3-nightly.2759"
+    "self-published": "npm:@parcel/optimizer-image@2.7.1-nightly.2781"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.6.2",
