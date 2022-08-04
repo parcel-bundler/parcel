@@ -96,14 +96,12 @@ export class ScopeHoistingPackager {
   islandRoot: Map<Asset, Asset> = new Map();
   unwrappedAssets: Set<Asset> = new Set();
   usedByUnwrappedEntries: Set<Asset> = new Set();
-  duplicatedAssets: Set<string>;
 
   constructor(
     options: PluginOptions,
     bundleGraph: BundleGraph<NamedBundle>,
     bundle: NamedBundle,
     parcelRequireName: string,
-    duplicatedAssets: Array<string>,
   ) {
     this.options = options;
     this.bundleGraph = bundleGraph;
@@ -119,7 +117,6 @@ export class ScopeHoistingPackager {
       this.bundle.bundleBehavior !== 'isolated';
 
     this.globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
-    this.duplicatedAssets = new Set(duplicatedAssets);
   }
 
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
@@ -297,18 +294,23 @@ export class ScopeHoistingPackager {
       // }
 
       if (
-        // eval, module access, ...
         asset.meta.shouldWrap ||
-        // expose top-level assets of a shared/child bundle
+        // TODO shared?
         (this.isAsyncBundle && isEntry) ||
         this.bundle.env.sourceType === 'script' ||
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
-        // conditional requires
         this.bundleGraph
           .getIncomingDependencies(asset)
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url') ||
-        // has to be deduplicated at runtime
-        this.duplicatedAssets.has(asset.id)
+        // has to be dedupliated at runtime
+        // TODO invalidation
+        this.bundleGraph.getBundlesWithAsset(asset).some(
+          // TODO object equality checks fail for bundle and target objects
+          // TODO how to handle targets?
+          b =>
+            b.id !== this.bundle.id &&
+            b.target.name === this.bundle.target.name,
+        )
       ) {
         wrapped.add(asset);
         this.unwrappedAssets.delete(asset);

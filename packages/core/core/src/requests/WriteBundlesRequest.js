@@ -92,8 +92,7 @@ async function run({input, api, farm, options}: RunInput) {
           bundleGraphReference: ref,
           optionsRef,
         });
-        // force to ensure that loadConfig runs for all packagers/optimizers
-        let info = await api.runRequest(request, {force: true});
+        let info = await api.runRequest(request);
 
         bundleInfoMap[bundle.id] = info;
         if (!info.hashReferences.length) {

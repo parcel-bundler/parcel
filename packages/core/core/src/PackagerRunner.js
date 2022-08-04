@@ -47,10 +47,10 @@ import {
 } from './projectPath';
 import {createConfig} from './InternalConfig';
 import {
-  loadPluginConfigBundle,
+  loadPluginConfig,
   getConfigHash,
   getConfigRequests,
-  type PluginWithLoadConfigBundle,
+  type PluginWithLoadConfig,
 } from './requests/ConfigRequest';
 import {
   createDevDependency,
@@ -167,9 +167,9 @@ export default class PackagerRunner {
   ): Promise<Map<string, Config>> {
     let configs = new Map();
 
-    await this.loadConfig(bundle, configs, bundleGraph);
+    await this.loadConfig(bundle, configs);
     for (let inlineBundle of bundleGraph.getInlineBundles(bundle)) {
-      await this.loadConfig(inlineBundle, configs, bundleGraph);
+      await this.loadConfig(inlineBundle, configs);
     }
 
     return configs;
@@ -178,24 +178,21 @@ export default class PackagerRunner {
   async loadConfig(
     bundle: InternalBundle,
     configs: Map<string, Config>,
-    bundleGraph: InternalBundleGraph,
   ): Promise<void> {
     let name = nullthrows(bundle.name);
     let plugin = await this.config.getPackager(name);
-    await this.loadPluginConfig(plugin, configs, bundle, bundleGraph);
+    await this.loadPluginConfig(plugin, configs);
 
     let optimizers = await this.config.getOptimizers(name, bundle.pipeline);
 
     for (let optimizer of optimizers) {
-      await this.loadPluginConfig(optimizer, configs, bundle, bundleGraph);
+      await this.loadPluginConfig(optimizer, configs);
     }
   }
 
-  async loadPluginConfig<T: PluginWithLoadConfigBundle>(
+  async loadPluginConfig<T: PluginWithLoadConfig>(
     plugin: LoadedPlugin<T>,
     configs: Map<string, Config>,
-    bundle: InternalBundle,
-    bundleGraph: InternalBundleGraph,
   ): Promise<void> {
     if (configs.has(plugin.name)) {
       return;
@@ -214,17 +211,7 @@ export default class PackagerRunner {
         searchPath: toProjectPathUnsafe('index'),
       });
 
-      await loadPluginConfigBundle(
-        plugin,
-        config,
-        this.options,
-        NamedBundle.get(bundle, bundleGraph, this.options),
-        new BundleGraph<NamedBundleType>(
-          bundleGraph,
-          NamedBundle.get.bind(NamedBundle),
-          this.options,
-        ),
-      );
+      await loadPluginConfig(plugin, config, this.options);
 
       for (let devDep of config.devDeps) {
         let devDepRequest = await createDevDependency(
