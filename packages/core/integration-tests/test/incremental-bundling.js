@@ -70,7 +70,7 @@ describe('incremental bundling', function () {
 
           await overlayFS.writeFile(
             path.join(fixture, 'index.js'),
-            `import a from './a';
+            `import {a} from './a';
 console.log('index.js');
 console.log(a);
 console.log('adding a new console');`,
@@ -112,7 +112,7 @@ console.log('adding a new console');`,
 
           await overlayFS.writeFile(
             path.join(fixture, 'index.js'),
-            `import a from './a';
+            `import {a} from './a';
 console.log('index.js - updated string');
 console.log(a);
 `,
@@ -156,7 +156,7 @@ console.log(a);
 
           await overlayFS.writeFile(
             path.join(fixture, 'index.js'),
-            `import a from './a';
+            `import {a} from './a';
 // test comment
 console.log('index.js');
 console.log(a);`,
@@ -199,14 +199,14 @@ console.log(a);`,
 
           await overlayFS.writeFile(
             path.join(fixture, 'index-export.js'),
-            `import a from './a';
+            `import {a} from './a';
 console.log('adding a new console');
 module.exports = a;`,
           );
 
           await overlayFS.writeFile(
             path.join(fixture, 'a.js'),
-            `export default 'a updated';`,
+            `export const a = 'a updated';`,
           );
 
           event = await getNextBuildSuccess(b);
@@ -292,7 +292,7 @@ module.exports = a;`,
 
         await overlayFS.writeFile(
           path.join(fixture, 'index-with-css.js'),
-          `import a from './a';
+          `import {a} from './a';
 import './a.css';
 console.log('index.js');
 console.log(a, 'updated');`,
@@ -315,9 +315,7 @@ console.log(a, 'updated');`,
           'utf8',
         );
 
-        assert(
-          contents.includes(`console.log((0, _aDefault.default), "updated");`),
-        );
+        assert(contents.includes(`console.log((0, _a.a), "updated");`));
 
         let bundleCSS = result.bundleGraph.getBundles()[1];
         assert.equal(bundleCSS.type, 'css');
@@ -350,7 +348,7 @@ console.log(a, 'updated');`,
 
         await overlayFS.writeFile(
           path.join(fixture, 'index.js'),
-          `import a from './a';
+          `import {a} from './a';
 // test comment
 console.log('index.js');
 console.log(a);`,
@@ -530,7 +528,10 @@ console.log(a);
           dynamicBundle.filePath,
           'utf8',
         );
-        assert(dynamicContent.includes(`exports.default = "b"`));
+        assert(
+          dynamicContent.includes(`parcelHelpers.export(exports, "b", ()=>b);
+const b = "b";`),
+        );
       } finally {
         if (subscription) {
           await subscription.unsubscribe();
@@ -557,7 +558,7 @@ console.log(a);
 
         await overlayFS.writeFile(
           path.join(fixture, 'index.js'),
-          `// import a from './a';
+          `// import {a} from './a';
 console.log('index.js');`,
         );
 
@@ -569,7 +570,7 @@ console.log('index.js');`,
           path.join(fixture, 'index.js'),
           'utf8',
         );
-        assert(output.includes(`// import a from './a'`));
+        assert(output.includes(`// import {a} from './a'`));
       } finally {
         if (subscription) {
           await subscription.unsubscribe();
@@ -618,7 +619,7 @@ console.log('index.js');`,
           path.join(fixture, 'index.js'),
           'utf8',
         );
-        assert(output.includes(`import a from './a'`));
+        assert(output.includes(`import {a} from './a'`));
       } finally {
         if (subscription) {
           await subscription.unsubscribe();
@@ -795,7 +796,7 @@ console.log('index.js');`,
         path.join(fixture, 'index.js'),
         'utf8',
       );
-      assert(output.includes(`import a from './a'`));
+      assert(output.includes(`import {a} from './a'`));
     } finally {
       if (subscription) {
         await subscription.unsubscribe();
@@ -846,6 +847,9 @@ console.log('index.js');`,
         inputFS: overlayFS,
         shouldDisableCache: false,
         shouldBundleIncrementally: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
       });
 
       await overlayFS.mkdirp(fixture);
@@ -858,15 +862,15 @@ console.log('index.js');`,
         path.join(fixture, 'index-multi-symbol.js'),
         `import {a,b,c} from './multi-symbol-util.js';
 
-console.log('index.js');
-console.log(a,b,c);
-module.exports = {a, b, c};
-`,
+      console.log('index.js');
+      console.log(a,b,c);
+      module.exports = {a, b, c};
+      `,
       );
 
       event = await getNextBuildSuccess(b);
       assertChangedAssets(event.changedAssets.size, 1);
-      assertTimesBundled(defaultBundlerSpy.callCount, 1);
+      assertTimesBundled(defaultBundlerSpy.callCount, 2);
 
       let result = await b.run();
       let contents = await overlayFS.readFile(
@@ -874,8 +878,8 @@ module.exports = {a, b, c};
         'utf8',
       );
       assert(
-        contents.includes(
-          `console.log((0, _multiSymbolUtilJs.a), (0, _multiSymbolUtilJs.b), (0, _multiSymbolUtilJs.c));`,
+        /console\.log\(\(0, [^)]+\), \(0, [^)]+\), \(0, [^)]+\)\);/.test(
+          contents,
         ),
       );
     } finally {
@@ -893,6 +897,9 @@ module.exports = {a, b, c};
         inputFS: overlayFS,
         shouldDisableCache: false,
         shouldBundleIncrementally: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
       });
 
       await overlayFS.mkdirp(fixture);
@@ -913,14 +920,18 @@ module.exports = {a};
 
       event = await getNextBuildSuccess(b);
       assertChangedAssets(event.changedAssets.size, 1);
-      assertTimesBundled(defaultBundlerSpy.callCount, 1);
+      assertTimesBundled(defaultBundlerSpy.callCount, 2);
 
       let result = await b.run();
       let contents = await overlayFS.readFile(
         result.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
-      assert(contents.includes(`console.log((0, _multiSymbolUtilJs.a));`));
+      assert(/console\.log\(\(0, [^)]+\)\);/.test(contents));
+
+      result.bundleGraph.getBundles()[0].traverseAssets(a => {
+        assert(!a.filePath.endsWith('b.js'));
+      });
     } finally {
       if (subscription) {
         await subscription.unsubscribe();
