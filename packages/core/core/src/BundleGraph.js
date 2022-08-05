@@ -1407,7 +1407,7 @@ export default class BundleGraph {
     let found = false;
     let nonStaticDependency = false;
     let skipped = false;
-    let deps = this.getDependencies(asset);
+    let deps = this.getDependencies(asset).reverse();
     let potentialResults = [];
     for (let dep of deps) {
       let depSymbols = dep.symbols;
