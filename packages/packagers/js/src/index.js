@@ -22,12 +22,37 @@ export default (new Packager({
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
     };
   },
+
+  loadGlobalInfo({bundle, bundleGraph}) {
+    let duplicatedAssets = [];
+    if (bundle.env.shouldScopeHoist) {
+      bundle.traverseAssets(asset => {
+        if (
+          bundleGraph.getBundlesWithAsset(asset).some(
+            // TODO object equality checks fail for bundle and target objects
+            // TODO how to handle targets?
+            b => b.id !== bundle.id && b.target.name === bundle.target.name,
+          )
+        ) {
+          duplicatedAssets.push(asset.id);
+        }
+      });
+    }
+
+    // config.setCacheKey(hashString(JSON.stringify(duplicatedAssets)));
+
+    return {
+      duplicatedAssets,
+    };
+  },
+
   async package({
     bundle,
     bundleGraph,
     getInlineBundleContents,
     getSourceMapReference,
     config,
+    globalInfo,
     options,
   }) {
     // If this is a non-module script, and there is only one asset with no dependencies,
@@ -50,7 +75,8 @@ export default (new Packager({
             options,
             bundleGraph,
             bundle,
-            nullthrows(config).parcelRequireName,
+            config.parcelRequireName,
+            globalInfo.duplicatedAssets,
           )
         : new DevPackager(
             options,

@@ -4,6 +4,8 @@ import type {
   Config as IConfig,
   PluginOptions as IPluginOptions,
   PluginLogger as IPluginLogger,
+  NamedBundle as INamedBundle,
+  BundleGraph as IBundleGraph,
 } from '@parcel/types';
 import type {
   Config,
@@ -26,6 +28,21 @@ import {Hash} from '@parcel/hash';
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
     config: IConfig,
+    options: IPluginOptions,
+    logger: IPluginLogger,
+  |}) => Async<mixed>,
+  ...
+};
+
+export type PluginWithLoadConfigGlobalInfo = {
+  loadConfig?: ({|
+    config: IConfig,
+    options: IPluginOptions,
+    logger: IPluginLogger,
+  |}) => Async<mixed>,
+  loadGlobalInfo?: ({|
+    bundle: INamedBundle,
+    bundleGraph: IBundleGraph<INamedBundle>,
     options: IPluginOptions,
     logger: IPluginLogger,
   |}) => Async<mixed>,
