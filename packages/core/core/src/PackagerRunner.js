@@ -50,7 +50,7 @@ import {
   loadPluginConfig,
   getConfigHash,
   getConfigRequests,
-  type PluginWithLoadConfig,
+  type PluginWithLoadConfigGlobalInfo,
 } from './requests/ConfigRequest';
 import {
   createDevDependency,
@@ -143,12 +143,20 @@ export default class PackagerRunner {
   ): Promise<PackageRequestResult> {
     invalidateDevDeps(invalidDevDeps, this.options, this.config);
 
-    let configs = await this.loadConfigs(bundleGraph, bundle);
+    let {configs, globalInfos} = await this.loadConfigs(bundleGraph, bundle);
     let bundleInfo =
-      (await this.getBundleInfoFromCache(bundleGraph, bundle, configs)) ??
-      (await this.getBundleInfo(bundle, bundleGraph, configs));
+      (await this.getBundleInfoFromCache(
+        bundleGraph,
+        bundle,
+        configs,
+        globalInfos,
+      )) ??
+      (await this.getBundleInfo(bundle, bundleGraph, configs, globalInfos));
 
-    let configRequests = getConfigRequests([...configs.values()]);
+    let configRequests = getConfigRequests([
+      ...configs.values(),
+      ...globalInfos.values(),
+    ]);
     let devDepRequests = getWorkerDevDepRequests([
       ...this.devDepRequests.values(),
     ]);
@@ -164,70 +172,108 @@ export default class PackagerRunner {
   async loadConfigs(
     bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
-  ): Promise<Map<string, Config>> {
+  ): Promise<{|
+    configs: Map<string, Config>,
+    globalInfos: Map<string, Config>,
+  |}> {
     let configs = new Map();
+    let globalInfos = new Map();
 
-    await this.loadConfig(bundle, configs);
+    await this.loadConfig(bundleGraph, bundle, configs, globalInfos);
     for (let inlineBundle of bundleGraph.getInlineBundles(bundle)) {
-      await this.loadConfig(inlineBundle, configs);
+      await this.loadConfig(bundleGraph, inlineBundle, configs, globalInfos);
     }
 
-    return configs;
+    return {configs, globalInfos};
   }
 
   async loadConfig(
+    bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
     configs: Map<string, Config>,
+    globalInfos: Map<string, Config>,
   ): Promise<void> {
     let name = nullthrows(bundle.name);
     let plugin = await this.config.getPackager(name);
-    await this.loadPluginConfig(plugin, configs);
+    await this.loadPluginConfig(
+      bundleGraph,
+      bundle,
+      plugin,
+      configs,
+      globalInfos,
+    );
 
     let optimizers = await this.config.getOptimizers(name, bundle.pipeline);
-
     for (let optimizer of optimizers) {
-      await this.loadPluginConfig(optimizer, configs);
+      await this.loadPluginConfig(
+        bundleGraph,
+        bundle,
+        optimizer,
+        configs,
+        globalInfos,
+      );
     }
   }
 
-  async loadPluginConfig<T: PluginWithLoadConfig>(
+  async loadPluginConfig<T: PluginWithLoadConfigGlobalInfo>(
+    bundleGraph: InternalBundleGraph,
+    bundle: InternalBundle,
     plugin: LoadedPlugin<T>,
     configs: Map<string, Config>,
+    globalInfos: Map<string, Config>,
   ): Promise<void> {
-    if (configs.has(plugin.name)) {
-      return;
+    if (!configs.has(plugin.name)) {
+      // Only load config for a plugin once per build.
+      let existing = pluginConfigs.get(plugin.name);
+      if (existing != null) {
+        configs.set(plugin.name, existing);
+      } else {
+        if (plugin.plugin.loadConfig != null) {
+          let config = createConfig({
+            plugin: plugin.name,
+            searchPath: toProjectPathUnsafe('index'),
+          });
+
+          await loadPluginConfig(plugin, config, this.options);
+
+          for (let devDep of config.devDeps) {
+            let devDepRequest = await createDevDependency(
+              devDep,
+              this.previousDevDeps,
+              this.options,
+            );
+            let key = `${devDep.specifier}:${fromProjectPath(
+              this.options.projectRoot,
+              devDep.resolveFrom,
+            )}`;
+            this.devDepRequests.set(key, devDepRequest);
+          }
+
+          pluginConfigs.set(plugin.name, config);
+          configs.set(plugin.name, config);
+        }
+      }
     }
 
-    // Only load config for a plugin once per build.
-    let existing = pluginConfigs.get(plugin.name);
-    if (existing != null) {
-      configs.set(plugin.name, existing);
-      return;
-    }
-
-    if (plugin.plugin.loadConfig != null) {
+    let loadGlobalInfo = plugin.plugin.loadGlobalInfo;
+    if (!globalInfos.has(plugin.name) && loadGlobalInfo != null) {
       let config = createConfig({
         plugin: plugin.name,
         searchPath: toProjectPathUnsafe('index'),
       });
-
-      await loadPluginConfig(plugin, config, this.options);
-
-      for (let devDep of config.devDeps) {
-        let devDepRequest = await createDevDependency(
-          devDep,
-          this.previousDevDeps,
+      config.result = await loadGlobalInfo({
+        bundle: NamedBundle.get(bundle, bundleGraph, this.options),
+        bundleGraph: new BundleGraph<NamedBundleType>(
+          bundleGraph,
+          NamedBundle.get.bind(NamedBundle),
           this.options,
-        );
-        let key = `${devDep.specifier}:${fromProjectPath(
-          this.options.projectRoot,
-          devDep.resolveFrom,
-        )}`;
-        this.devDepRequests.set(key, devDepRequest);
-      }
-
-      pluginConfigs.set(plugin.name, config);
-      configs.set(plugin.name, config);
+        ),
+        options: new PluginOptions(this.options),
+        logger: new PluginLogger({origin: plugin.name}),
+      });
+      // TODO expose config and let plugin set key?
+      config.cacheKey = hashString(JSON.stringify(config.result) ?? '');
+      globalInfos.set(plugin.name, config);
     }
   }
 
@@ -235,6 +281,7 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
     configs: Map<string, Config>,
+    globalInfos: Map<string, Config>,
   ): Async<?BundleInfo> {
     if (this.options.shouldDisableCache) {
       return;
@@ -244,6 +291,7 @@ export default class PackagerRunner {
       bundle,
       bundleGraph,
       configs,
+      globalInfos,
       this.previousInvalidations,
     );
     let infoKey = PackagerRunner.getInfoKey(cacheKey);
@@ -254,17 +302,23 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
+    globalInfos: Map<string, Config>,
   ): Promise<BundleInfo> {
     let {type, contents, map} = await this.getBundleResult(
       bundle,
       bundleGraph,
       configs,
+      globalInfos,
     );
 
     // Recompute cache keys as they may have changed due to dev dependencies.
-    let cacheKey = await this.getCacheKey(bundle, bundleGraph, configs, [
-      ...this.invalidations.values(),
-    ]);
+    let cacheKey = await this.getCacheKey(
+      bundle,
+      bundleGraph,
+      configs,
+      globalInfos,
+      [...this.invalidations.values()],
+    );
     let cacheKeys = {
       content: PackagerRunner.getContentKey(cacheKey),
       map: PackagerRunner.getMapKey(cacheKey),
@@ -278,12 +332,18 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
+    globalInfos: Map<string, Config>,
   ): Promise<{|
     type: string,
     contents: Blob,
     map: ?string,
   |}> {
-    let packaged = await this.package(bundle, bundleGraph, configs);
+    let packaged = await this.package(
+      bundle,
+      bundleGraph,
+      configs,
+      globalInfos,
+    );
     let type = packaged.type ?? bundle.type;
     let res = await this.optimize(
       bundle,
@@ -292,6 +352,7 @@ export default class PackagerRunner {
       packaged.contents,
       packaged.map,
       configs,
+      globalInfos,
     );
 
     let map =
@@ -319,6 +380,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
+    globalInfos: Map<string, Config>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
@@ -332,6 +394,7 @@ export default class PackagerRunner {
     try {
       return await plugin.package({
         config: configs.get(name)?.result,
+        globalInfo: globalInfos.get(name)?.result,
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
@@ -358,6 +421,7 @@ export default class PackagerRunner {
             // $FlowFixMe
             bundleGraphToInternalBundleGraph(bundleGraph),
             configs,
+            globalInfos,
           );
 
           return {contents: res.contents};
@@ -395,6 +459,7 @@ export default class PackagerRunner {
     contents: Blob,
     map?: ?SourceMap,
     configs: Map<string, Config>,
+    globalInfos: Map<string, Config>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(
       internalBundle,
@@ -430,6 +495,7 @@ export default class PackagerRunner {
       try {
         let next = await optimizer.plugin.optimize({
           config: configs.get(optimizer.name)?.result,
+          globalInfo: globalInfos.get(optimizer.name)?.result,
           bundle,
           bundleGraph,
           contents: optimized.contents,
@@ -535,12 +601,23 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
+    globalInfos: Map<string, Config>,
     invalidations: Array<RequestInvalidation>,
   ): Promise<string> {
     let configResults = {};
     for (let [pluginName, config] of configs) {
       if (config) {
         configResults[pluginName] = await getConfigHash(
+          config,
+          pluginName,
+          this.options,
+        );
+      }
+    }
+    let globalInfoResults = {};
+    for (let [pluginName, config] of globalInfos) {
+      if (config) {
+        globalInfoResults[pluginName] = await getConfigHash(
           config,
           pluginName,
           this.options,
@@ -565,6 +642,7 @@ export default class PackagerRunner {
         bundle.target.publicUrl +
         bundleGraph.getHash(bundle) +
         JSON.stringify(configResults) +
+        JSON.stringify(globalInfoResults) +
         this.options.mode,
     );
   }
