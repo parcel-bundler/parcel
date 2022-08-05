@@ -1,6 +1,6 @@
 {
   "name": "@parcel/types",
-  "version": "2.0.37",
+  "version": "2.0.38",
   "license": "MIT",
   "main": "src/index.js",
   "types": "lib/index.d.ts",
@@ -16,12 +16,12 @@
     "check-ts": "tsc --noEmit lib/index.d.ts"
   },
   "dependencies": {
-    "@parcel/cache": "2.0.37",
+    "@parcel/cache": "2.0.38",
     "@parcel/diagnostic": "2.0.37",
-    "@parcel/fs": "2.0.37",
-    "@parcel/package-manager": "2.0.37",
+    "@parcel/fs": "2.0.38",
+    "@parcel/package-manager": "2.0.38",
     "@parcel/source-map": "^2.0.0",
-    "@parcel/workers": "2.0.37",
+    "@parcel/workers": "2.0.38",
     "utility-types": "^3.10.0"
   }
 }

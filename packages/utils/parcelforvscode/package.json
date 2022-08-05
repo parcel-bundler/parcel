@@ -3,7 +3,7 @@
   "displayName": "Parcel for VS Code",
   "parcel-lsp.trace.server": "verbose",
   "description": "",
-  "version": "2.0.37",
+  "version": "2.0.38",
   "engines": {
     "vscode": "^1.46.0"
   },
@@ -36,7 +36,7 @@
     "vscode-test": "^1.5.0"
   },
   "dependencies": {
-    "@parcel/lsp": "2.0.37",
+    "@parcel/lsp": "2.0.38",
     "vscode-languageclient": "^8.0.1"
   }
 }
