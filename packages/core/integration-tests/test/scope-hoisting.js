@@ -5631,4 +5631,112 @@ describe('scope hoisting', function () {
       await workerFarm.end();
     }
   });
+
+  it('should expose assets when contained in multiple bundles (add)', async function () {
+    let testDir = path.join(
+      __dirname,
+      'integration/scope-hoisting/es6/expose-island',
+    );
+
+    await overlayFS.mkdirp(testDir);
+    await overlayFS.copyFile(
+      path.join(testDir, 'index.a.js'),
+      path.join(testDir, 'index.js'),
+    );
+    let b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: true,
+    });
+
+    let aContents = await outputFS.readFile(
+      b
+        .getBundles()
+        .find(b => b.getMainEntry()?.filePath.endsWith(path.sep + 'a.js'))
+        .filePath,
+      'utf8',
+    );
+    assert.equal(aContents.match(/parcelRequire\.register/g).length, 1);
+
+    await overlayFS.copyFile(
+      path.join(testDir, 'index.ab.js'),
+      path.join(testDir, 'index.js'),
+    );
+    b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: false,
+    });
+
+    aContents = await outputFS.readFile(
+      b
+        .getBundles()
+        .find(b => b.getMainEntry()?.filePath.endsWith(path.sep + 'a.js'))
+        .filePath,
+      'utf8',
+    );
+    assert.equal(aContents.match(/parcelRequire\.register/g).length, 3);
+    let bContents = await outputFS.readFile(
+      b
+        .getBundles()
+        .find(b => b.getMainEntry()?.filePath.endsWith(path.sep + 'b.js'))
+        .filePath,
+      'utf8',
+    );
+    assert.equal(bContents.match(/parcelRequire\.register/g).length, 3);
+  });
+
+  it('should expose assets when contained in multiple bundles (remove)', async function () {
+    let testDir = path.join(
+      __dirname,
+      'integration/scope-hoisting/es6/expose-island',
+    );
+
+    await overlayFS.mkdirp(testDir);
+    await overlayFS.copyFile(
+      path.join(testDir, 'index.ab.js'),
+      path.join(testDir, 'index.js'),
+    );
+    let b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: true,
+    });
+
+    let aContents = await outputFS.readFile(
+      b
+        .getBundles()
+        .find(b => b.getMainEntry()?.filePath.endsWith(path.sep + 'a.js'))
+        .filePath,
+      'utf8',
+    );
+    assert.equal(aContents.match(/parcelRequire\.register/g).length, 3);
+    let bContents = await outputFS.readFile(
+      b
+        .getBundles()
+        .find(b => b.getMainEntry()?.filePath.endsWith(path.sep + 'b.js'))
+        .filePath,
+      'utf8',
+    );
+    assert.equal(bContents.match(/parcelRequire\.register/g).length, 3);
+
+    await overlayFS.copyFile(
+      path.join(testDir, 'index.a.js'),
+      path.join(testDir, 'index.js'),
+    );
+    b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: false,
+    });
+
+    aContents = await outputFS.readFile(
+      b
+        .getBundles()
+        .find(b => b.getMainEntry()?.filePath.endsWith(path.sep + 'a.js'))
+        .filePath,
+      'utf8',
+    );
+    assert.equal(aContents.match(/parcelRequire\.register/g).length, 1);
+  });
 });
