@@ -1003,24 +1003,7 @@ function createIdealGraph(
       });
     }
   }
-  dumpGraphToGraphViz(
-    // $FlowFixMe
-    reachableRoots,
-    'Bundle_root_graph_parallel_n_async',
-    bundleGraphEdgeTypes,
-  );
-  dumpGraphToGraphViz(
-    // $FlowFixMe
-    bundleRootGraph,
-    'Bundle_root_graph_parallel_n_async',
-    bundleGraphEdgeTypes,
-  );
 
-  dumpGraphToGraphViz(
-    // $FlowFixMe
-    bundleGraph,
-    'Bundle_graph_pre_size_limit',
-  );
   // Step Merge Share Bundles: Merge any shared bundles under the minimum bundle size back into
   // their source bundles, and remove the bundle.
   // We should include "bundle reuse" as shared bundles that may be removed but the bundle itself would have to be retained
