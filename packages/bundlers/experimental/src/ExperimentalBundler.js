@@ -1003,17 +1003,52 @@ function createIdealGraph(
       });
     }
   }
+  dumpGraphToGraphViz(
+    // $FlowFixMe
+    reachableRoots,
+    'Bundle_root_graph_parallel_n_async',
+    bundleGraphEdgeTypes,
+  );
+  dumpGraphToGraphViz(
+    // $FlowFixMe
+    bundleRootGraph,
+    'Bundle_root_graph_parallel_n_async',
+    bundleGraphEdgeTypes,
+  );
+
+  dumpGraphToGraphViz(
+    // $FlowFixMe
+    bundleGraph,
+    'Bundle_graph_pre_size_limit',
+  );
   // Step Merge Share Bundles: Merge any shared bundles under the minimum bundle size back into
   // their source bundles, and remove the bundle.
   // We should include "bundle reuse" as shared bundles that may be removed but the bundle itself would have to be retained
   for (let [bundleNodeId, bundle] of bundleGraph.nodes) {
     if (bundle === 'root') continue;
-    if (
-      bundle.sourceBundles.size > 0 &&
-      bundle.mainEntryAsset == null &&
-      bundle.size < config.minBundleSize
-    ) {
-      removeBundle(bundleGraph, bundleNodeId, assetReference);
+    if (bundle.sourceBundles.size > 0 && bundle.size < config.minBundleSize) {
+      if (bundle.mainEntryAsset == null) {
+        removeBundle(bundleGraph, bundleNodeId, assetReference);
+      } else {
+        for (let sourceBundleId of bundle.sourceBundles) {
+          let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
+          invariant(sourceBundle !== 'root');
+          bundle.sourceBundles.delete(sourceBundleId);
+          for (let asset of bundle.assets) {
+            sourceBundle.assets.add(asset);
+            sourceBundle.size += asset.stats.size;
+          }
+          for (let childId of bundleGraph.getNodeIdsConnectedFrom(
+            bundleNodeId,
+          )) {
+            let child = bundleGraph.getNode(childId);
+            invariant(child !== 'root' && child != null);
+            child.sourceBundles.add(sourceBundleId);
+            bundleGraph.addEdge(sourceBundleId, childId);
+          }
+          bundleGraph.removeEdge(sourceBundleId, bundleNodeId);
+        }
+      }
     }
   }
 

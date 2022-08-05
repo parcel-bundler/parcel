@@ -53,7 +53,7 @@ describe('bundler', function () {
     }
   });
 
-  //This test case is the sdame as previous except we remove the shared bundle since it is smaller
+  //This test case is the same as previous except we remove the shared bundle since it is smaller
   it('should remove shared bundle (over reused bundles based on size) if the bundlegroup hit the parallel request limit', async function () {
     let b = await bundle(
       path.join(
@@ -212,6 +212,115 @@ describe('bundler', function () {
           )
           .includes(b.getBundlesWithAsset(findAsset(b, 'c.js'))[0]),
       );
+    }
+  });
+  it('should not remove shared bundle from graph if its parent (a reused bundle) is removed by min bundle size', async function () {
+    // If minBundleSize dictates a reused bundle should be removed, it should be placed back into the bundlegroups where
+    // it acted as a shared bundle (maintiaining any children it had from that)
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/shared-bundle-between-reused-bundle-removal-minBundleSize/index.js',
+        ),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldScopeHoist: false,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          name: 'index.js',
+          assets: [
+            'index.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'css-loader.js',
+            'esmodule-helpers.js',
+            'js-loader.js',
+            'bundle-manifest.js',
+          ],
+        },
+        {
+          assets: ['foo.js', 'a.js', 'b.js'],
+        },
+        {
+          assets: ['bar.js', 'foo.js', 'a.js', 'b.js'], // reused (shared bundle) merged back
+        },
+        {
+          assets: ['buzz.js'],
+        },
+        {
+          assets: ['c.js'], // regular shared bundle
+        },
+
+        {
+          assets: ['styles.css'],
+        },
+        {
+          assets: ['local.html'],
+        },
+      ]);
+
+      assert(
+        b
+          .getReferencedBundles(
+            b.getBundlesWithAsset(findAsset(b, 'bar.js'))[0],
+          )
+          .includes(b.getBundlesWithAsset(findAsset(b, 'c.js'))[0]),
+      );
+    }
+  });
+  it('should remove a reused bundle (from the bundlegroup that contains it as a shared bundle) if its smaller than the minBundleSize', async function () {
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/reused-bundle-remove-min-bundle-size/index.js',
+        ),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldScopeHoist: false,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          name: 'index.js',
+          assets: [
+            'index.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'css-loader.js',
+            'esmodule-helpers.js',
+            'js-loader.js',
+            'bundle-manifest.js',
+          ],
+        },
+        {
+          assets: ['bar.js', 'foo.js', 'a.js', 'b.js'],
+        },
+        {
+          assets: ['foo.js', 'a.js', 'b.js'],
+        },
+        {
+          assets: ['buzz.js'],
+        },
+        {
+          assets: ['c.js'],
+        },
+        {
+          assets: ['styles.css'],
+        },
+        {
+          assets: ['local.html'],
+        },
+      ]);
     }
   });
 });
