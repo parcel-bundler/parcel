@@ -16,7 +16,7 @@ const SCRIPT_TYPES = {
 };
 
 interface ExtractInlineAssetsResult {
-  hasScripts: boolean;
+  hasModuleScripts: boolean;
   assets: Array<TransformerResult>;
 }
 
@@ -29,7 +29,7 @@ export default function extractInlineAssets(
 
   // Extract inline <script> and <style> tags for processing.
   let parts: Array<TransformerResult> = [];
-  let hasScripts = false;
+  let hasModuleScripts = false;
   PostHTML().walk.call(program, (node: PostHTMLNode) => {
     let parcelKey = hashString(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
@@ -140,8 +140,8 @@ export default function extractInlineAssets(
           },
         });
 
-        if (type === 'js') {
-          hasScripts = true;
+        if (env && env.sourceType === 'module') {
+          hasModuleScripts = true;
         }
       }
     }
@@ -174,6 +174,6 @@ export default function extractInlineAssets(
 
   return {
     assets: parts,
-    hasScripts,
+    hasModuleScripts,
   };
 }

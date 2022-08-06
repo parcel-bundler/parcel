@@ -118,7 +118,7 @@ export default function collectDependencies(
   ast: AST,
 ): boolean {
   let isDirty = false;
-  let hasScripts = false;
+  let hasModuleScripts = false;
   let seen = new Set();
   const errors = [];
   PostHTML().walk.call(ast.program, node => {
@@ -245,7 +245,7 @@ export default function collectDependencies(
       });
 
       asset.setAST(ast);
-      hasScripts = true;
+      if (sourceType === 'module') hasModuleScripts = true;
       return copy ? [node, copy] : node;
     }
 
@@ -293,5 +293,5 @@ export default function collectDependencies(
     throw errors;
   }
 
-  return hasScripts;
+  return hasModuleScripts;
 }
