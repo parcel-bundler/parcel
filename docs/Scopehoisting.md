@@ -161,9 +161,7 @@ There are three possible resolution results:
 - the binding has been found (the returned `symbol` string) and is `resolvedAsset.symbols.get(exportName).local`.
 - the binding has not been found (`symbol === undefined`), this should have been caught already by symbol propagation
 - the binding has been found and is unused (`symbol === false`)
-- it had to bailout because there are multiple possibilites (`symbol === null`), and the caller should fallback to `$resolvedAsset$exports[exportsSymbol]`.
-
-  Some examples for bailouts are:
+- it had to bailout because there are multiple possibilites (`symbol === null`), and the caller should fallback to `$resolvedAsset$exports[exportsSymbol]`. Some examples for bailouts are:
 
   - `export * from "./nonstatic-cjs1.js"; export * from "./nonstatic-cjs1.js";`, so the decision between which reexport to follow should happen at runtime.
   - if the `resolvedAsset` is a non-static cjs asset itself, then `module.exports[exportsSymbol]` should be used anyway.
