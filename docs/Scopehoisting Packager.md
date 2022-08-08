@@ -20,7 +20,7 @@
 4. Perform the replacements with `REPLACEMENT_RE` matching one of
    - `import "id";`
      - will be replaced with the source code of the asset (call `buildAsset()` recursively ). If the referenced asset is wrapped, don't inline but place it after the current asset (into `depContent`).
-     - calls `getHoistedParcelRequires` to read the `hoistedRequires` list from `getSymbolResolution` and prepend needed requires (see [Scopehoisting.md])
+     - calls `getHoistedParcelRequires` to read the `hoistedRequires` list from `getSymbolResolution` and prepend needed requires.
    - `$id$exports`
      - `module.exports` inside the asset gets replaced with `$id$exports` in the transformer, but for wrapped assets, this has to be replaced back to `module.exports`
    - `$id$import|importAsync|require$foo`
@@ -29,8 +29,13 @@
 
 ## `getSymbolResolution()`:
 
-- is a wrapper around `bundleGraph.getSymbolResolution()`
-- returns the resolved expression for the specified symbol
+This is a wrapper around `bundleGraph.getSymbolResolution()`.
+
+The additional dependency argument is used to determine whether CJS interop has to be applied (if it's a ESM import), or whether it's a non-conditional import (and a hoisted `parcelRequire` call has to be generated).
+
+Compared to the bundle graph's method, the `parentAsset` is used to make wrapped assets using their own namespace object refer to `module.exports` instead of `$id$exports`.
+
+- It returns the resolved expression for the specified symbol:
   - `$id$export$bar` (e.g. same-bundle ESM import),
   - `$id$exports` (e.g. same-bundle ESM import),
   - `id$exports.bar` (e.g. non statically analyzable exports) or
