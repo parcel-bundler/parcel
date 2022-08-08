@@ -49,8 +49,7 @@ import {add} from './math';
 console.log(add(2, 3));
 ```
 
-</td>
-<td>
+</td><td>
 
 ```js
 function $fa6943ce8a6b29$export$add(a, b) {

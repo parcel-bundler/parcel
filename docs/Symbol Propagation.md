@@ -26,6 +26,13 @@ Instead, there are two passes:
 
 - in the first ("down") pass, the incoming used symbols are matched to the correct reexport (if there is one), or to _all_ `export *`. So after this pass, the symbol will be marked as used in too many dependencies.
 
+- in the second ("up") pass, the set of requested symbols (from the down pass) is intersected with the set of actual exports and copied back from the outgoing dependencies to the incoming dependencies. The detection of invalid imports ("x does not export y") also happens in this step: TODO
+
+<table>
+<tr><th>After down traversal</th><th>After up traversal</th></tr>
+<tr>
+<td>
+
 ```js
 // index.js
 import {a} from './other.js'; // used down: a
@@ -40,7 +47,7 @@ export const a = 1;
 export const b = 2;
 ```
 
-- in the second ("up") pass, the set of requested symbols (from the down pass) is intersected with the set of actual exports and copied back from the outgoing dependencies to the incoming dependencies. The detection of invalid imports ("x does not export y") also happens in this step: TODO
+</td><td>
 
 ```js
 // index.js
@@ -55,6 +62,9 @@ export const a = 1;
 // y.js, used:
 export const b = 2;
 ```
+
+</td>
+</tr></table>
 
 ## Circular Imports/Reexports
 
