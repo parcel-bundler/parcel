@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-trace",
-  "version": "2.0.38",
+  "version": "2.0.39",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "2.0.35"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.38",
-    "@parcel/utils": "2.0.38",
+    "@parcel/plugin": "2.0.39",
+    "@parcel/utils": "2.0.39",
     "chrome-trace-event": "^1.0.2"
   }
 }

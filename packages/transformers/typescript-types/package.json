@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-typescript-types",
-  "version": "2.0.38",
+  "version": "2.0.39",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,11 +20,11 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.38",
-    "@parcel/plugin": "2.0.38",
+    "@parcel/diagnostic": "2.0.39",
+    "@parcel/plugin": "2.0.39",
     "@parcel/source-map": "^2.0.0",
-    "@parcel/ts-utils": "2.0.38",
-    "@parcel/utils": "2.0.38",
+    "@parcel/ts-utils": "2.0.39",
+    "@parcel/utils": "2.0.39",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {

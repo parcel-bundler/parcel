@@ -1,6 +1,6 @@
 {
   "name": "@parcel/codeframe",
-  "version": "2.0.38",
+  "version": "2.0.39",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
