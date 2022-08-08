@@ -51,6 +51,8 @@ for (const filePath of packageJsons) {
   if (typeof contents.name === 'string') {
     if (contents.name === 'parcel') {
       contents.name = '@atlassian/parcel';
+    } else if (contents.name === 'parcelforvscode') {
+      contents.name = '@atlassian/parcelforvscode';
     } else if (shouldReplace(contents.name)) {
       contents.name = getReplacementName(contents.name);
     }
@@ -80,9 +82,8 @@ for (const filePath of packageJsons) {
   ) {
     // Lerna doesn't update peerDependencies automatically. Update core's ourselves, and rename it.
     delete contents.peerDependencies[CORE_PACKAGENAME];
-    contents.peerDependencies[
-      getReplacementName(CORE_PACKAGENAME)
-    ] = coreVersion;
+    contents.peerDependencies[getReplacementName(CORE_PACKAGENAME)] =
+      coreVersion;
   }
 
   fs.writeFileSync(filePath, JSON.stringify(contents, null, 2));
