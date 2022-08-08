@@ -52,6 +52,89 @@ describe('incremental bundling', function () {
 
   describe('non-dependency based changes', () => {
     describe('javascript', () => {
+      it('add a console log should not bundle by default', async () => {
+        let subscription;
+        let fixture = path.join(__dirname, '/integration/incremental-bundling');
+        try {
+          let b = bundler(path.join(fixture, 'index.js'), {
+            inputFS: overlayFS,
+            shouldDisableCache: false,
+          });
+
+          await overlayFS.mkdirp(fixture);
+          subscription = await b.watch();
+
+          let event = await getNextBuildSuccess(b);
+          assertTimesBundled(defaultBundlerSpy.callCount, 1);
+
+          await overlayFS.writeFile(
+            path.join(fixture, 'index.js'),
+            `import {a} from './a';
+console.log('index.js');
+console.log(a);
+console.log('adding a new console');`,
+          );
+
+          event = await getNextBuildSuccess(b);
+          assertChangedAssets(event.changedAssets.size, 1);
+          assertTimesBundled(defaultBundlerSpy.callCount, 1);
+
+          let result = await b.run();
+          let contents = await overlayFS.readFile(
+            result.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes(`console.log("adding a new console")`));
+        } finally {
+          if (subscription) {
+            await subscription.unsubscribe();
+            subscription = null;
+          }
+        }
+      });
+
+      it('disable by setting option to false', async () => {
+        let subscription;
+        let fixture = path.join(__dirname, '/integration/incremental-bundling');
+        try {
+          let b = bundler(path.join(fixture, 'index.js'), {
+            inputFS: overlayFS,
+            shouldDisableCache: false,
+            shouldBundleIncrementally: false,
+          });
+
+          await overlayFS.mkdirp(fixture);
+          subscription = await b.watch();
+
+          let event = await getNextBuildSuccess(b);
+          assertTimesBundled(defaultBundlerSpy.callCount, 1);
+
+          await overlayFS.writeFile(
+            path.join(fixture, 'index.js'),
+            `import {a} from './a';
+console.log('index.js');
+console.log(a);
+console.log('adding a new console');`,
+          );
+
+          event = await getNextBuildSuccess(b);
+          assertChangedAssets(event.changedAssets.size, 1);
+          assertTimesBundled(defaultBundlerSpy.callCount, 2);
+
+          let result = await b.run();
+          let contents = await overlayFS.readFile(
+            result.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes(`console.log("adding a new console")`));
+        } finally {
+          if (subscription) {
+            await subscription.unsubscribe();
+            subscription = null;
+          }
+        }
+      });
+
       it('add a console log should not bundle', async () => {
         let subscription;
         let fixture = path.join(__dirname, '/integration/incremental-bundling');
