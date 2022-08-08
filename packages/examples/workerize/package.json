@@ -9,7 +9,7 @@
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.37",
+    "@parcel/babel-register": "2.0.38",
     "@parcel/core": "2.0.38"
   },
   "main": "dist/index.js",

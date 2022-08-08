@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@parcel/css": "^1.12.2",
-    "@parcel/diagnostic": "2.0.37",
+    "@parcel/diagnostic": "2.0.38",
     "@parcel/plugin": "2.0.38",
     "@parcel/source-map": "^2.0.0",
     "@parcel/utils": "2.0.38",

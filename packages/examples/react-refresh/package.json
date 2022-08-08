@@ -8,7 +8,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.0.0",
-    "@parcel/babel-register": "2.0.37",
+    "@parcel/babel-register": "2.0.38",
     "@parcel/core": "2.0.38"
   },
   "dependencies": {

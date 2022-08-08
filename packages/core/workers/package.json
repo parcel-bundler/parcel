@@ -21,8 +21,8 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.37",
-    "@parcel/logger": "2.0.37",
+    "@parcel/diagnostic": "2.0.38",
+    "@parcel/logger": "2.0.38",
     "@parcel/types": "2.0.38",
     "@parcel/utils": "2.0.38",
     "chrome-trace-event": "^1.0.2",

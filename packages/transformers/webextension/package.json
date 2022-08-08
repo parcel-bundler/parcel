@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
-    "@parcel/diagnostic": "2.0.37",
+    "@parcel/diagnostic": "2.0.38",
     "@parcel/plugin": "2.0.38",
     "@parcel/utils": "2.0.38",
     "content-security-policy-parser": "^0.3.0"

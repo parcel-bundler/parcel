@@ -22,7 +22,7 @@
   "dependencies": {
     "@parcel/plugin": "2.0.38",
     "@parcel/source-map": "^2.0.0",
-    "@parcel/ts-utils": "2.0.37"
+    "@parcel/ts-utils": "2.0.38"
   },
   "devDependencies": {
     "typescript": ">=3.0.0"

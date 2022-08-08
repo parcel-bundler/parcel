@@ -20,7 +20,7 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.37",
+    "@parcel/diagnostic": "2.0.38",
     "@parcel/plugin": "2.0.38",
     "command-exists": "^1.2.8",
     "cross-spawn": "^7.0.3",

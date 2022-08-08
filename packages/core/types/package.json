@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@parcel/cache": "2.0.38",
-    "@parcel/diagnostic": "2.0.37",
+    "@parcel/diagnostic": "2.0.38",
     "@parcel/fs": "2.0.38",
     "@parcel/package-manager": "2.0.38",
     "@parcel/source-map": "^2.0.0",

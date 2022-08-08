@@ -33,7 +33,7 @@
     "@parcel/utils": "2.0.38"
   },
   "devDependencies": {
-    "@parcel/babel-preset": "2.0.37",
+    "@parcel/babel-preset": "2.0.38",
     "@parcel/types": "2.0.38",
     "connect": "^3.7.0",
     "ejs": "^3.1.6",

@@ -34,10 +34,10 @@
   },
   "dependencies": {
     "@parcel/codeframe": "2.0.38",
-    "@parcel/diagnostic": "2.0.37",
+    "@parcel/diagnostic": "2.0.38",
     "@parcel/hash": "2.0.38",
-    "@parcel/logger": "2.0.37",
-    "@parcel/markdown-ansi": "2.0.37",
+    "@parcel/logger": "2.0.38",
+    "@parcel/markdown-ansi": "2.0.38",
     "@parcel/source-map": "^2.0.0",
     "chalk": "^4.1.0"
   },
