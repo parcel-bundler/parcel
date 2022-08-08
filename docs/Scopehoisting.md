@@ -154,13 +154,15 @@ But since the whole subgraph is conditionally executed, all assets have to be wr
 
 This method transitively/recursively traverses the reexports of the asset to find the specified export. This enables resolving some import to the actual value and not just some reexporting binding.
 
+The result is an `asset`, the `exportSymbol` string, and `symbol`. The value can be accessed from `$asset.id$exports[exportSymbol]`, which is potentially also already (or only) available via the top-level variable `symbol`. So for the add/square example above, `getSymbolResolution(math.js, "add")` would return `{asset: "math.js", exportSymbol: "add", symbol: "$fa6943ce8a6b29$export$add"}`.
+
 While this improves codesize, an imperfection with this system is that it actually means that an asset A can use a value from asset B (which is usually modelled with a dependency from A to B) without there actually being a dependency between the two. Dependencies are also used to determine if an asset is required from another bundle and has to therefore be registered with `parcelRequiree`. This descreptancy can be handled inside of a single bundle, but not across multiple bundles, so the `boundary` parameter makes the resolution stop once the bundle is left.
 
 There are three possible resolution results:
 
-- the binding has been found (the returned `symbol` string) and is `resolvedAsset.symbols.get(exportName).local`.
-- the binding has not been found (`symbol === undefined`), this should have been caught already by symbol propagation
-- the binding has been found and is unused (`symbol === false`)
+- the export has been found (with top level variable `symbol`).
+- the export has not been found (`symbol === undefined`), this should have been caught already by symbol propagation
+- the export has been found and is unused (`symbol === false`)
 - it had to bailout because there are multiple possibilites (`symbol === null`), and the caller should fallback to `$resolvedAsset$exports[exportsSymbol]`. Some examples for bailouts are:
 
   - `export * from "./nonstatic-cjs1.js"; export * from "./nonstatic-cjs1.js";`, so the decision between which reexport to follow should happen at runtime.
