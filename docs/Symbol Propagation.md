@@ -6,7 +6,7 @@ The goal of symbol propagation is generating the sets of used symbol based on th
 
 In the most basic case, the used symbols can be determined in one pass by repeatedly forwarding the imports down through reexports (always matching them to the correct reexport and potentially also renaming the symbol).
 
-But with `export *`, there is no unique reexport to match an imcoming symbol request to:
+But with `export *`, there is no unique reexport to match an incoming symbol request to:
 
 ```js
 // index.js
@@ -82,19 +82,23 @@ export {c as d} from './index.js';
 export {a as b} from './index.js';
 ```
 
-The down pass performs a queue-based BFS which will continue retraversing parts of the graph if they are marked dirty:
+The down pass performs a queue-based BFS which will continue re-traversing parts of the graph if they are marked dirty:
 
-- `dep.usedSymbolsDownDirty`: ensure that the down traversal revisits the dependency resolution (e.g. a symbol was added/removed and this should be propgated further down)
+- `dep.usedSymbolsDownDirty`: ensure that the down traversal revisits the dependency resolution (e.g. a symbol was added/removed and this should be propagated further down)
 
 The up pass is a post-order recursive DFS. Any dependencies that are still dirty after the main traversal are then traversed again until nothing is marked dirty anymore:ODO
 
 - `dep.usedSymbolsUpDirtyUp`: TODO
 - `dep.usedSymbolsUpDirtyDown`: TODO
 
+This traversal logic is abstracted away into the `propagateSymbolsDown` and `propagateSymbolsUp` methods in [AssetGraphRequest.js](../packages/core/core/src/requests/AssetGraphRequest.js), while the visitor function that handles the actual symbol data is passed as a visitor callback.
+
 ## Down Traversal
 
-1. Categorize incoming usedSymbols into `asset.usedSymbols` or the `namespaceReexportedSymbols` (so `asset.usedSymbols` now also contains reexports, they will be removed again in the next step)
-2. If the asset no sideffects and also nothing is requested by the incoming dependencies, then the entire subgraph is unused. Otherwise the `namespaceReexportedSymbols` are redistributed to the `export *` dependencies, and the contents of `asset.usedSymbols` are forwarded to individual dependencies where possible.
+1. Categorize incoming usedSymbols into `asset.usedSymbols` or the `namespaceReexportedSymbols` based on whether they're listed in `asset.symbols`. So `asset.usedSymbols` now also contains reexports, which will be removed again in the next step.
+2. If the asset has no side effects and also nothing is requested by the incoming dependencies, then the entire subgraph is unused (ignored).
+
+   Otherwise the `namespaceReexportedSymbols` are redistributed to the `export *` dependencies, and the contents of `asset.usedSymbols` are forwarded to individual dependencies where possible (= where there's a symbol in the dependency matching the one in the asset symbols).
 
 If some outgoing dependency was changed by these steps, it's marked as dirty:
 

@@ -73,15 +73,15 @@ console.log($fa6943ce8a6b29$export$add(2, 3));
 
 There are two ways in which assets can be skipped (not included in the output):
 
-**Subgraph**: if a reexport is ununsed, then the whole subgraph of that dependency can be ignored. This system is built into core because this should be safe in any case.
+**Subgraph**: if a reexport is unused, then the whole subgraph of that dependency can be ignored. This system is built into core because this should be safe in any case.
 
-- _Deferring_: This can happen during the graph visit when building the asset graph. There is effectively a one-reexrpots-level lookahead, so if an reexports some symbol `x` and no incoming dependency requests `x`, then the reexport (and the corresponding dependency) is skipped. This doesn't work for `export *`.
+- _Deferring_: This can happen during the graph visit when building the asset graph. There is effectively a one-reexports-level lookahead, so if an reexports some symbol `x` and no incoming dependency requests `x`, then the reexport (and the corresponding dependency) is skipped. This doesn't work for `export *`.
 
   Another benefit of deferring is that deferred assets don't get transformed in the first place. So something like `import {Button} from "design-system";` would only process that single `export {Button} from "./button";` and completely ignore all other exports in `design-system/index.js`.
 
   Deferring can also happen without scopehoisting (as the non-scopehoisting JS transformer also sets symbols).
 
-- _Unused dependency_: This is the same principle as deferring, but for an unliminited reexport depth and also for `export *`. Instead of checking the incoming dependencies and matching with non-star reexports, `bundleGraph.getUsedSymbols(dep).size === 0` is used (this information comes from symbol propagation).
+- _Unused dependency_: This is the same principle as deferring, but for an unlimited reexport depth and also for `export *`. Instead of checking the incoming dependencies and matching with non-star reexports, `bundleGraph.getUsedSymbols(dep).size === 0` is used (this information comes from symbol propagation).
 
   Symbol propagation currently only runs when scope hoisting is enabled.
 
@@ -155,14 +155,14 @@ This method transitively/recursively traverses the reexports of the asset to fin
 
 The result is an `asset`, the `exportSymbol` string, and `symbol`. The value can be accessed from `$asset.id$exports[exportSymbol]`, which is potentially also already (or only) available via the top-level variable `symbol`. So for the add/square example above, `getSymbolResolution(math.js, "add")` would return `{asset: "math.js", exportSymbol: "add", symbol: "$fa6943ce8a6b29$export$add"}`.
 
-While this improves codesize, an imperfection with this system is that it actually means that an asset A can use a value from asset B (which is usually modelled with a dependency from A to B) without there actually being a dependency between the two. Dependencies are also used to determine if an asset is required from another bundle and has to therefore be registered with `parcelRequiree`. This descreptancy can be handled inside of a single bundle, but not across multiple bundles, so the `boundary` parameter makes the resolution stop once the bundle is left.
+While this improves code size, an imperfection with this system is that it actually means that an asset A can use a value from asset B (which is usually modelled with a dependency from A to B) without there actually being a dependency between the two. Dependencies are also used to determine if an asset is required from another bundle and has to therefore be registered with `parcelRequiree`. This discrepancy can be handled inside of a single bundle, but not across multiple bundles, so the `boundary` parameter makes the resolution stop once the bundle is left.
 
 There are three possible resolution results:
 
 - the export has been found (with top level variable `symbol`).
 - the export has not been found (`symbol === undefined`), this should have been caught already by symbol propagation
 - the export has been found and is unused (`symbol === false`)
-- it had to bailout because there are multiple possibilites (`symbol === null`), and the caller should fallback to `$resolvedAsset$exports[exportsSymbol]`. Some examples for bailouts are:
+- it had to bailout because there are multiple possibilities (`symbol === null`), and the caller should fallback to `$resolvedAsset$exports[exportsSymbol]`. Some examples for bailouts are:
 
   - `export * from "./nonstatic-cjs1.js"; export * from "./nonstatic-cjs1.js";`, so the decision between which reexport to follow should happen at runtime.
   - if the `resolvedAsset` is a non-static cjs asset itself, then `module.exports[exportsSymbol]` should be used anyway.

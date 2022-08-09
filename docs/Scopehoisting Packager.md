@@ -5,7 +5,7 @@
 ## Starting point `package()`:
 
 1. `loadAssets()`: Load the assets contents from cache and determine which assets are wrapped.
-2. `processAsset()`/`visitAsset()` which call `buildAsset()`: These will recursively resolve dependency specifiers and inline dependencies, and append the result to the toplevel `res` string.
+2. `processAsset()`/`visitAsset()` which call `buildAsset()`: These will recursively resolve dependency specifiers and inline dependencies, and append the result to the top level `res` string.
 3. Kick off the process by calling `processAsset()` for all assets (and skip some to only process assets once if it was already inlined somewhere else).
 
 ## `buildAsset()`:
@@ -16,7 +16,7 @@
    - Import replacements: the local part of a dependency symbol (`$id$import$foo`) -> result of `getSymbolResolution` (e.g. `$id$export$bar` or `parcelRequire("id").bar`)
 3. Call `buildAssetPrelude()`:
    - generates `$parcel$defineInteropFlag($id$exports)` call for this asset if needed.
-   - synthesises the exports object if needed (including generation of the `$parcel$export` and `$parcel$exportWildcard` calls only for used re/exports)
+   - synthesizes the exports object if needed (including generation of the `$parcel$export` and `$parcel$exportWildcard` calls only for used re/exports)
 4. Perform the replacements with `REPLACEMENT_RE` matching one of
    - `import "id";`
      - will be replaced with the source code of the asset (call `buildAsset()` recursively ). If the referenced asset is wrapped, don't inline but place it after the current asset (into `depContent`).
@@ -40,7 +40,7 @@ Compared to the bundle graph's method, the `parentAsset` is used to make wrapped
   - `$id$exports` (e.g. same-bundle ESM import),
   - `id$exports.bar` (e.g. non statically analyzable exports) or
   - `parcelRequire("id").bar` (wrapped/in another bundle)
-  - `$parcel$interopDefault` (if an ESM default import resolved to a non-statically analzable CJS asset)
+  - `$parcel$interopDefault` (if an ESM default import resolved to a non-statically analyzable CJS asset)
 - also handles interop (if the default symbol is imported and the resolved asset is CJS, use the namespace instead)
 - tracks imports of wrapped assets (which will need `parcelRequire` call) by mutating the `hoistedRequires` list
 
