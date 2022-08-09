@@ -113,6 +113,8 @@ export function getParcelOptions(
       entries,
       shouldDisableCache: true,
       logLevel: 'none',
+      shouldBundleIncrementally:
+        process.env.NO_INCREMENTAL == null ? true : false,
       defaultConfig: path.join(
         __dirname,
         process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER == null
