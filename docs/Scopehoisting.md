@@ -141,11 +141,30 @@ If `value` were instead a function, calling it would work correctly (functions a
 
 #### Limitations
 
-The only reason for the `parcelRequire` registry is assets being accessed from other bundles, and conditional requires (which are impossible with pure ESM declarations).
+The reasons why the `parcelRequire` registry is needed are assets being accessed from other bundles (and potentially being duplicated), and conditional requires (which are impossible with pure ESM declarations).
 
 So assets that have at least one conditional incoming dependency or are used by some other bundle, are wrapped in a `parcelRequire.register`. `require("foo")` calls inside ifs or functions are replaced with the appropriate `parcelRequire("id")` call.
 
-But since the whole subgraph is conditionally executed, all assets have to be wrapped and inside of that subgraph, imports cannot be replaced with the top level variables anymore, but instead get replaced with the CommonJS equivalent (so `var $id = parcelRequire("id");`) which also run the side effects.
+But since the whole subgraph is conditionally executed, all assets have to be wrapped and inside of that subgraph, imports cannot be replaced with the top level variables anymore, but instead get replaced with the CommonJS equivalent (so `var $id = parcelRequire("id");` and then `$id.foo`) which also runs the side effects.
+
+### Runtime Deduplication
+
+One part of scope hoisting is getting rid of the registry that is used in development/browserify, but the registry is unfortunately still needed whenever an asset is included in multiple bundles. This ensures that an asset is only ever evaluated at most once, so that side-effects don't run twice, and that the identity of the exports is retained:
+
+```js
+// index.js
+const a = await import("./async1.js");
+const b = await import("./async2.js");
+console.log(a.constructor === b.constructor) // or using `instanceof`, ...
+
+// async1.js (becomes an async bundle together with a copy of "lib")
+import {SomeClass} from 'lib';
+export default new SomeClass();
+
+// async2.js (becomes an async bundle together with a copy of "lib")
+import {SomeClass} from 'lib';
+export default new SomeClass();
+```
 
 ## Implementations
 
