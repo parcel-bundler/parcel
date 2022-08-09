@@ -4,6 +4,7 @@
   "parcel-lsp.trace.server": "verbose",
   "description": "",
   "version": "2.7.0",
+  "private": true,
   "engines": {
     "vscode": "^1.46.0"
   },
