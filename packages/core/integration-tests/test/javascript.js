@@ -7025,6 +7025,19 @@ describe('javascript', function () {
         assert.deepEqual(res.output, 'bar');
       });
 
+      it('supports reexports via variable declaration (unused)', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-var-unused/index.js',
+          ),
+          options,
+        );
+
+        let res = await run(b, {}, {require: false});
+        assert.deepEqual((await res.output).foo, 'foo');
+      });
+
       it('supports named and renamed reexports of the same asset (named used)', async function () {
         let b = await bundle(
           path.join(
