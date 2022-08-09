@@ -1,6 +1,6 @@
 # Scopehoisting Packager - Overview
 
-(The skipping of single assets is described in [Scopehoisting.md]).
+(The skipping of single assets is described in [Scopehoisting](Scopehoisting.md)).
 
 ## Starting point `package()`:
 
@@ -43,5 +43,3 @@ Compared to the bundle graph's method, the `parentAsset` is used to make wrapped
   - `$parcel$interopDefault` (if an ESM default import resolved to a non-statically analyzable CJS asset)
 - also handles interop (if the default symbol is imported and the resolved asset is CJS, use the namespace instead)
 - tracks imports of wrapped assets (which will need `parcelRequire` call) by mutating the `hoistedRequires` list
-
-[scopehoisting.md]: Scopehoisting.md

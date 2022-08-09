@@ -1,6 +1,6 @@
 # Deferring Assets
 
-(The core idea and benefits are described in [scopehoisting.md]).
+(The core idea and benefits are described in [Scopehoisting](Scopehoisting.md)).
 
 Even if the usual way to describe deferring is via dependencies (and this is also how the API exposes it), the entity that's actually getting deferred is the asset group node. This is because the dependency is just the dependency "request" (though not as in "request" graph) and doesn't know yet whether the resolved asset is side-effect free. That is only known after the resolver ran (and the resolver result is stored in the asset group node).
 
@@ -75,5 +75,3 @@ graph TD;
 `shouldVisitChild` and `shouldDeferDependency` then determine that `AssetLibSwitch` is now used and call `unmarkParentsWithHasDeferred(AssetGroupLibSwitch)` which clears `DependencyLibSwitch.hasDeferred`, clears `AssetLib.hasDeferred` (but only if there is no other sibling dependency that is still deferred), and sets `AssetGroupLib.hasDeferered = AssetLib.hasDeferred`.
 
 `shouldVisitChild` returns true and `AssetGroupLibSwitch` gets visited for the first time, also transforming the asset and creating the asset node.
-
-[scopehoisting.md]: Scopehoisting.md
