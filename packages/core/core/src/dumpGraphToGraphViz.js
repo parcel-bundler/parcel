@@ -36,7 +36,7 @@ export default async function dumpGraphToGraphViz(
   graph:
     | Graph<AssetGraphNode>
     | Graph<{|
-        assets: Array<Asset>,
+        assets: Set<Asset>,
         sourceBundles: Set<number>,
         bundleBehavior?: ?BundleBehavior,
       |}>
