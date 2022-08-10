@@ -2196,6 +2196,18 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, 'bar');
     });
 
+    it('supports non-identifier symbol names', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/non-identifier-symbol-name/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 1);
+    });
+
     it('should shake pure property assignments', async function () {
       let b = await bundle(
         path.join(
@@ -3692,6 +3704,18 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.equal(output, 'bar');
+    });
+
+    it('supports non-identifier symbol names', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/non-identifier-symbol-name/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 1);
     });
 
     it('supports live bindings of named exports', async function () {
