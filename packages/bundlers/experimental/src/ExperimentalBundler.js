@@ -1021,12 +1021,17 @@ function createIdealGraph(
         // If all shared then that shared bundle child need to add to its source bundles : the source bundles of the reused bundle AND it's bundle root parents
         // For now, lets remove the reused bundle, add it back into it's source bundles
         let shouldSkip = false;
+        let bundleRootNodeId = bundleRootGraph.getNodeIdByContentKey(
+          bundle.mainEntryAsset.id,
+        );
         // NOTE: the node Ids of bundleROOTGraph are not the same as in bundleGraph
-        for (let bundleRootNodeId of bundleRootGraph.getNodeIdsConnectedTo(
-          bundleRootGraph.getNodeIdByContentKey(bundle.mainEntryAsset.id),
+        for (let parentBundleRootNodeId of bundleRootGraph.getNodeIdsConnectedTo(
+          bundleRootNodeId,
           ALL_EDGE_TYPES,
         )) {
-          let referencingBundleRoot = bundleRootGraph.getNode(bundleRootNodeId);
+          let referencingBundleRoot = bundleRootGraph.getNode(
+            parentBundleRootNodeId,
+          );
           // if the referencing bundle is a different type, we cannot merge back
           // For now, skip any type change bundles since they can't be merged back
           if (referencingBundleRoot === 'root') {
@@ -1062,6 +1067,9 @@ function createIdealGraph(
         if (shouldSkip) continue;
         //do not delete fully if has different type parent
         bundleRoots.delete(bundle.mainEntryAsset);
+        bundleGroupBundleIds.delete(bundleNodeId); //now, bundles has stale tuples
+        bundleRootGraph.removeNode(bundleRootNodeId);
+        removeBundle(bundleGraph, bundleNodeId, assetReference);
         //The code below removes the reused bundle ONLY from the source bundles. So it still wil exist
         // for (let sourceBundleId of bundle.sourceBundles) {
         //   let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
@@ -1083,7 +1091,6 @@ function createIdealGraph(
         // }
 
         //Then remove it from the graph
-        removeBundle(bundleGraph, bundleNodeId, assetReference);
       }
     }
   }
@@ -1344,19 +1351,20 @@ function removeBundle(
       invariant(sourceBundle !== 'root');
       sourceBundle.assets.add(asset);
       sourceBundle.size += asset.stats.size;
-      // The following is only applicable for reused bundles (bundles acting as shared bundles) (shared bundles don't have children)
-      for (let childId of bundleGraph.getNodeIdsConnectedFrom(bundleId)) {
-        let childBundle = bundleGraph.getNode(childId);
-        if (childBundle.sourceBundles.size > 0) {
-          //This means the child is a shared or reused bundle itself
-          childBundle.sourceBundles.add(sourceBundleId);
-        }
-        bundleGraph.addEdge(sourceBundleId, childId);
-      }
     }
     //for children of a removed bundle, we should be adding an edge from source bundle to children, and that child should had
   }
-
+  for (let sourceBundleId of bundle.sourceBundles) {
+    // The following is only applicable for reused bundles (bundles acting as shared bundles) (shared bundles don't have children)
+    for (let childId of bundleGraph.getNodeIdsConnectedFrom(bundleId)) {
+      let childBundle = bundleGraph.getNode(childId);
+      if (childBundle.sourceBundles.size > 0) {
+        //This means the child is a shared or reused bundle itself
+        childBundle.sourceBundles.add(sourceBundleId);
+      }
+      bundleGraph.addEdge(sourceBundleId, childId);
+    }
+  }
   bundleGraph.removeNode(bundleId);
 }
 
