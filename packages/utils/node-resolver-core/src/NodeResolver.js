@@ -46,6 +46,7 @@ type Options = {|
   mainFields: Array<string>,
   packageManager?: PackageManager,
   logger?: PluginLogger,
+  shouldAutoInstall?: boolean,
 |};
 type ResolvedFile = {|
   path: string,
@@ -96,6 +97,7 @@ export default class NodeResolver {
   packageCache: Map<string, InternalPackageJSON>;
   rootPackage: InternalPackageJSON | null;
   packageManager: ?PackageManager;
+  shouldAutoInstall: boolean;
   logger: ?PluginLogger;
 
   constructor(opts: Options) {
@@ -108,6 +110,7 @@ export default class NodeResolver {
     this.packageCache = new Map();
     this.rootPackage = null;
     this.packageManager = opts.packageManager;
+    this.shouldAutoInstall = opts.shouldAutoInstall ?? false;
     this.logger = opts.logger;
   }
 
@@ -274,7 +277,7 @@ export default class NodeResolver {
     } else if (builtin === empty) {
       return {filePath: empty};
     } else if (builtin !== undefined) {
-      filename = builtin;
+      filename = builtin.name;
     }
 
     if (this.shouldIncludeNodeModule(env, filename) === false) {
@@ -292,46 +295,16 @@ export default class NodeResolver {
       // ignore
     }
 
-    // Auto install node builtin polyfills if not already available
-    if (resolved === undefined && builtin != null) {
-      let packageName = builtin.split('/')[0];
+    // Auto install node builtin polyfills if not already available or check that the correct
+    // version is installed
+    if (builtin != null) {
+      // This assumes that there are no polyfill packages that are scoped
+      let packageName = builtin.name.split('/')[0];
       let packageManager = this.packageManager;
-      if (packageManager) {
-        this.logger?.warn({
-          message: md`Auto installing polyfill for Node builtin module "${specifier}"...`,
-          codeFrames: [
-            {
-              filePath: ctx.loc?.filePath ?? sourceFile,
-              codeHighlights: ctx.loc
-                ? [
-                    {
-                      message: 'used here',
-                      start: ctx.loc.start,
-                      end: ctx.loc.end,
-                    },
-                  ]
-                : [],
-            },
-          ],
-          documentationURL:
-            'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
-        });
-
-        await packageManager.resolve(builtin, this.projectRoot + '/index', {
-          saveDev: true,
-          shouldAutoInstall: true,
-        });
-
-        // Re-resolve
-        try {
-          resolved = this.findNodeModulePath(filename, sourceFile, ctx);
-        } catch (err) {
-          // ignore
-        }
-      } else {
-        throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: md`Node builtin polyfill "${packageName}" is not installed, but auto install is disabled.`,
+      if (resolved == null) {
+        if (this.shouldAutoInstall && packageManager) {
+          this.logger?.warn({
+            message: md`Auto installing polyfill for Node builtin module "${specifier}"...`,
             codeFrames: [
               {
                 filePath: ctx.loc?.filePath ?? sourceFile,
@@ -348,10 +321,53 @@ export default class NodeResolver {
             ],
             documentationURL:
               'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
-            hints: [
-              md`Install the "${packageName}" package with your package manager, and run Parcel again.`,
-            ],
-          },
+          });
+
+          await packageManager.resolve(packageName, sourceFile, {
+            saveDev: true,
+            shouldAutoInstall: true,
+            range: builtin.range,
+          });
+
+          // Re-resolve
+          try {
+            resolved = this.findNodeModulePath(filename, sourceFile, ctx);
+          } catch (err) {
+            // ignore
+          }
+        } else {
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: md`Node builtin polyfill "${packageName}" is not installed, but auto install is disabled.`,
+              codeFrames: [
+                {
+                  filePath: ctx.loc?.filePath ?? sourceFile,
+                  codeHighlights: ctx.loc
+                    ? [
+                        {
+                          message: 'used here',
+                          start: ctx.loc.start,
+                          end: ctx.loc.end,
+                        },
+                      ]
+                    : [],
+                },
+              ],
+              documentationURL:
+                'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
+              hints: [
+                md`Install the "${packageName}" package with your package manager, and run Parcel again.`,
+              ],
+            },
+          });
+        }
+      } else if (builtin.range != null) {
+        // TODO packageManager can be null for backwards compatibility, but that could cause invalid
+        // resolutions in monorepos
+        await packageManager?.resolve(packageName, sourceFile, {
+          saveDev: true,
+          shouldAutoInstall: true,
+          range: builtin.range,
         });
       }
     }
@@ -707,7 +723,10 @@ export default class NodeResolver {
     return resolvedFile;
   }
 
-  findBuiltin(filename: string, env: Environment): ?string {
+  findBuiltin(
+    filename: string,
+    env: Environment,
+  ): ?{|name: string, range: ?string|} {
     const isExplicitNode = filename.startsWith('node:');
     if (isExplicitNode || builtins[filename]) {
       if (env.isNode()) {
