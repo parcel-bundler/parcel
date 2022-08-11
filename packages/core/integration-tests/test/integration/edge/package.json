@@ -1,0 +1,7 @@
+{
+  "targets": {
+    "default": {
+      "context": "edge"
+    }
+  }
+}
