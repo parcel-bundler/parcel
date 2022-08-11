@@ -965,13 +965,17 @@ export class AssetGraphBuilder {
   }
 }
 
-function equalMap<K, V>(a: $ReadOnlyMap<K, V>, b: $ReadOnlyMap<K, V>) {
-  return (
-    a.size === b.size &&
-    [...a].every(([k, v]) => {
-      return b.has(k) && b.get(k) === v;
-    })
-  );
+function equalMap<K>(
+  a: $ReadOnlyMap<K, {|asset: ContentKey, symbol: ?Symbol|}>,
+  b: $ReadOnlyMap<K, {|asset: ContentKey, symbol: ?Symbol|}>,
+) {
+  if (a.size !== b.size) return false;
+  for (let [k, v] of a) {
+    let vB = b.get(k);
+    if (vB == null) return false;
+    if (vB?.asset !== v.asset || vB?.symbol !== v.symbol) return false;
+  }
+  return true;
 }
 
 function equalSet<T>(a: $ReadOnlySet<T>, b: $ReadOnlySet<T>) {
