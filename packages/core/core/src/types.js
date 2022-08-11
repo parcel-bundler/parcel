@@ -308,7 +308,8 @@ export type DependencyNode = {|
   hasDeferred?: boolean,
   // symbol -> the dependency that originally requested it
   usedSymbolsDown: Map<Symbol, Set<ContentKey>>,
-  usedSymbolsUp: Map<Symbol, Set<ContentKey>>,
+  // a requested symbol -> the asset it resolved to, and the potentially renamed export name
+  usedSymbolsUp: Map<Symbol, {|asset: ContentKey, symbol: ?Symbol|}>,
   /** for the "down" pass, the dependency resolution asset needs to be updated */
   usedSymbolsDownDirty: boolean,
   /** for the "up" pass, the parent asset needs to be updated */
@@ -317,6 +318,9 @@ export type DependencyNode = {|
   usedSymbolsUpDirtyDown: boolean,
   /** dependency was excluded (= no used symbols (globally) & side-effect free) */
   excluded: boolean,
+  /** a dependency importing a single symbol is rewritten to point to the reexported target asset
+   * instead, this is the name of the export (might have been renamed by reexports) */
+  symbolTarget: ?Symbol,
 |};
 
 export type RootNode = {|id: ContentKey, +type: 'root', value: string | null|};

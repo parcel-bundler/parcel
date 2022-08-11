@@ -106,8 +106,9 @@ export default async function dumpGraphToGraphViz(
               label +=
                 '\\nusedSymbolsUp: ' +
                 [...node.usedSymbolsUp]
-                  .map(([s, sDeps]) =>
-                    sDeps.size > 0 ? `${s}(${[...sDeps].join(',')})` : s,
+                  .map(
+                    ([s, sAsset]) =>
+                      `${s}(${sAsset.asset}.${sAsset.symbol ?? ''})`,
                   )
                   .join(',');
             }

@@ -758,6 +758,10 @@ ${code}
     imported: string,
     dep?: Dependency,
   ): string {
+    if (dep != null) {
+      imported = this.bundleGraph.getDependencySymbolTarget(dep) ?? imported;
+    }
+
     let {
       asset: resolvedAsset,
       exportSymbol,

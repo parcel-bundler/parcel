@@ -858,6 +858,15 @@ export default class BundleGraph {
     });
   }
 
+  getDependenciesWithSymbolTarget(asset: Asset): Array<[Dependency, ?Symbol]> {
+    let nodeId = this._graph.getNodeIdByContentKey(asset.id);
+    return this._graph.getNodeIdsConnectedFrom(nodeId).map(id => {
+      let node = nullthrows(this._graph.getNode(id));
+      invariant(node.type === 'dependency');
+      return [node.value, node.symbolTarget];
+    });
+  }
+
   traverseAssets<TContext>(
     bundle: Bundle,
     visit: GraphVisitor<Asset, TContext>,
@@ -1402,9 +1411,9 @@ export default class BundleGraph {
     let found = false;
     let nonStaticDependency = false;
     let skipped = false;
-    let deps = this.getDependencies(asset).reverse();
+    let deps = this.getDependenciesWithSymbolTarget(asset).reverse();
     let potentialResults = [];
-    for (let dep of deps) {
+    for (let [dep, symbolTarget] of deps) {
       let depSymbols = dep.symbols;
       if (!depSymbols) {
         nonStaticDependency = true;
@@ -1414,7 +1423,7 @@ export default class BundleGraph {
       let symbolLookup = new Map(
         [...depSymbols].map(([key, val]) => [val.local, key]),
       );
-      let depSymbol = symbolLookup.get(identifier);
+      let depSymbol = symbolLookup.get(symbolTarget ?? identifier);
       if (depSymbol != null) {
         let resolved = this.getResolvedAsset(dep);
         if (!resolved || resolved.id === asset.id) {
