@@ -55,8 +55,8 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     value: dep,
     deferred: false,
     excluded: false,
-    usedSymbolsDown: new Set(),
-    usedSymbolsUp: new Set(),
+    usedSymbolsDown: new Map(),
+    usedSymbolsUp: new Map(),
     usedSymbolsDownDirty: true,
     usedSymbolsUpDirtyDown: true,
     usedSymbolsUpDirtyUp: true,
@@ -87,7 +87,7 @@ export function nodeFromAsset(asset: Asset): AssetNode {
     id: asset.id,
     type: 'asset',
     value: asset,
-    usedSymbols: new Set(),
+    usedSymbols: new Map(),
     usedSymbolsDownDirty: true,
     usedSymbolsUpDirty: true,
   };
@@ -256,7 +256,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
       if (node.value.env.isLibrary) {
         // in library mode, all of the entry's symbols are "used"
-        node.usedSymbolsDown.add('*');
+        node.usedSymbolsDown.set('*', new Set());
       }
       return node;
     });

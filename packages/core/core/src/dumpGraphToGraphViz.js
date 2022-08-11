@@ -103,11 +103,22 @@ export default async function dumpGraphToGraphViz(
               label += '\\nweakSymbols: ' + weakSymbols.join(',');
             }
             if (node.usedSymbolsUp.size > 0) {
-              label += '\\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
+              label +=
+                '\\nusedSymbolsUp: ' +
+                [...node.usedSymbolsUp]
+                  .map(([s, sDeps]) =>
+                    sDeps.size > 0 ? `${s}(${[...sDeps].join(',')})` : s,
+                  )
+                  .join(',');
             }
             if (node.usedSymbolsDown.size > 0) {
               label +=
-                '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
+                '\\nusedSymbolsDown: ' +
+                [...node.usedSymbolsDown]
+                  .map(([s, sDeps]) =>
+                    sDeps.size > 0 ? `${s}(${[...sDeps].join(',')})` : s,
+                  )
+                  .join(',');
             }
           } else {
             label += '\\nsymbols: cleared';
@@ -129,7 +140,14 @@ export default async function dumpGraphToGraphViz(
                 .join(';');
           }
           if (node.usedSymbols.size) {
-            label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
+            label +=
+              '\\nusedSymbols: ' +
+              [...node.usedSymbols]
+
+                .map(([s, sDeps]) =>
+                  sDeps.size > 0 ? `${s}(${[...sDeps].join(',')})` : s,
+                )
+                .join(',');
           }
         } else {
           label += '\\nsymbols: cleared';

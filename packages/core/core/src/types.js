@@ -290,7 +290,7 @@ export type AssetNode = {|
   id: ContentKey,
   +type: 'asset',
   value: Asset,
-  usedSymbols: Set<Symbol>,
+  usedSymbols: Map<Symbol, Set<ContentKey>>,
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,
   usedSymbolsUpDirty: boolean,
@@ -306,8 +306,9 @@ export type DependencyNode = {|
   deferred: boolean,
   /** dependency was deferred (= no used symbols (in immediate parents) & side-effect free) */
   hasDeferred?: boolean,
-  usedSymbolsDown: Set<Symbol>,
-  usedSymbolsUp: Set<Symbol>,
+  // symbol -> the dependency that originally requested it
+  usedSymbolsDown: Map<Symbol, Set<ContentKey>>,
+  usedSymbolsUp: Map<Symbol, Set<ContentKey>>,
   /** for the "down" pass, the dependency resolution asset needs to be updated */
   usedSymbolsDownDirty: boolean,
   /** for the "up" pass, the parent asset needs to be updated */
