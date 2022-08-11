@@ -111,9 +111,10 @@ export default async function dumpGraphToGraphViz(
               label +=
                 '\\nusedSymbolsUp: ' +
                 [...node.usedSymbolsUp]
-                  .map(
-                    ([s, sAsset]) =>
-                      `${s}(${sAsset.asset}.${sAsset.symbol ?? ''})`,
+                  .map(([s, sAsset]) =>
+                    sAsset
+                      ? `${s}(${sAsset.asset}.${sAsset.symbol ?? ''})`
+                      : `${s}(external)`,
                   )
                   .join(',');
             }

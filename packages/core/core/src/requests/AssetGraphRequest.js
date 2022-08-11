@@ -458,7 +458,7 @@ export class AssetGraphBuilder {
       // the symbols that are reexported (not used in `asset`) -> asset they resolved to
       let reexportedSymbols = new Map<
         Symbol,
-        {|asset: ContentKey, symbol: ?Symbol|},
+        ?{|asset: ContentKey, symbol: ?Symbol|},
       >();
       // the symbols that are reexported (not used in `asset`) -> the corresponding outgoingDep(s)
       // To generate the diagnostic when there are multiple dependencies with non-statically
@@ -468,14 +468,14 @@ export class AssetGraphBuilder {
         let outgoingDepSymbols = outgoingDep.value.symbols;
         if (!outgoingDepSymbols) continue;
 
-        // excluded, assume everything that is requested exists
-        if (
+        let isExcluded =
           this.assetGraph.getNodeIdsConnectedFrom(
             this.assetGraph.getNodeIdByContentKey(outgoingDep.id),
-          ).length === 0
-        ) {
+          ).length === 0;
+        // excluded, assume everything that is requested exists
+        if (isExcluded) {
           outgoingDep.usedSymbolsDown.forEach((_, s) =>
-            outgoingDep.usedSymbolsUp.set(s, {asset: assetNode.id, symbol: s}),
+            outgoingDep.usedSymbolsUp.set(s, null),
           );
         }
 
@@ -547,7 +547,7 @@ export class AssetGraphBuilder {
                 reexportedSymbolsSource.set(s, outgoingDep);
               }
             });
-          } else {
+          } else if (sResolved) {
             if (outgoingDepResolved === undefined) {
               outgoingDepResolved = sResolved.asset;
             } else {
@@ -990,14 +990,14 @@ export class AssetGraphBuilder {
 }
 
 function equalMap<K>(
-  a: $ReadOnlyMap<K, {|asset: ContentKey, symbol: ?Symbol|}>,
-  b: $ReadOnlyMap<K, {|asset: ContentKey, symbol: ?Symbol|}>,
+  a: $ReadOnlyMap<K, ?{|asset: ContentKey, symbol: ?Symbol|}>,
+  b: $ReadOnlyMap<K, ?{|asset: ContentKey, symbol: ?Symbol|}>,
 ) {
   if (a.size !== b.size) return false;
   for (let [k, v] of a) {
+    if (!b.has(k)) return false;
     let vB = b.get(k);
-    if (vB == null) return false;
-    if (vB?.asset !== v.asset || vB?.symbol !== v.symbol) return false;
+    if (vB?.asset !== v?.asset || vB?.symbol !== v?.symbol) return false;
   }
   return true;
 }
