@@ -30,6 +30,14 @@ import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 
+export const assetGraphEdgeTypes = {
+  null: 1,
+  //TODO
+  original: 2,
+};
+
+export type AssetGraphEdgeType = $Values<typeof assetGraphEdgeTypes>;
+
 type InitOpts = {|
   entries?: Array<ProjectPath>,
   targets?: Array<Target>,
@@ -43,7 +51,7 @@ type AssetGraphOpts = {|
 |};
 
 type SerializedAssetGraph = {|
-  ...SerializedContentGraph<AssetGraphNode>,
+  ...SerializedContentGraph<AssetGraphNode, AssetGraphEdgeType>,
   hash?: ?string,
   symbolPropagationRan: boolean,
 |};
@@ -110,7 +118,10 @@ export function nodeFromEntryFile(entry: Entry): EntryFileNode {
   };
 }
 
-export default class AssetGraph extends ContentGraph<AssetGraphNode> {
+export default class AssetGraph extends ContentGraph<
+  AssetGraphNode,
+  AssetGraphEdgeType,
+> {
   onNodeRemoved: ?(nodeId: NodeId) => mixed;
   hash: ?string;
   envCache: Map<string, Environment>;

@@ -3,6 +3,8 @@
 import type {Asset, BundleBehavior} from '@parcel/types';
 import type {Graph} from '@parcel/graph';
 import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
+import type {AssetGraphEdgeType} from './AssetGraph';
+import {assetGraphEdgeTypes} from './AssetGraph';
 import {bundleGraphEdgeTypes} from './BundleGraph';
 import {requestGraphEdgeTypes} from './RequestTracker';
 
@@ -26,6 +28,7 @@ const TYPE_COLORS = {
   internal_async: 'orange',
   references: 'red',
   sibling: 'green',
+  original: 'grey',
   invalidated_by_create: 'green',
   invalidated_by_create_above: 'orange',
   invalidate_by_update: 'cyan',
@@ -34,7 +37,7 @@ const TYPE_COLORS = {
 
 export default async function dumpGraphToGraphViz(
   graph:
-    | Graph<AssetGraphNode>
+    | Graph<AssetGraphNode, AssetGraphEdgeType>
     | Graph<{|
         assets: Set<Asset>,
         sourceBundles: Set<number>,
@@ -42,7 +45,10 @@ export default async function dumpGraphToGraphViz(
       |}>
     | Graph<BundleGraphNode>,
   name: string,
-  edgeTypes?: typeof bundleGraphEdgeTypes | typeof requestGraphEdgeTypes,
+  edgeTypes?:
+    | typeof assetGraphEdgeTypes
+    | typeof bundleGraphEdgeTypes
+    | typeof requestGraphEdgeTypes,
 ): Promise<void> {
   if (
     process.env.PARCEL_BUILD_ENV === 'production' ||
