@@ -114,12 +114,7 @@ export default async function dumpGraphToGraphViz(
             }
             if (node.usedSymbolsDown.size > 0) {
               label +=
-                '\\nusedSymbolsDown: ' +
-                [...node.usedSymbolsDown]
-                  .map(([s, sDeps]) =>
-                    sDeps.size > 0 ? `${s}(${[...sDeps].join(',')})` : s,
-                  )
-                  .join(',');
+                '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
             }
           } else {
             label += '\\nsymbols: cleared';
@@ -141,14 +136,7 @@ export default async function dumpGraphToGraphViz(
                 .join(';');
           }
           if (node.usedSymbols.size) {
-            label +=
-              '\\nusedSymbols: ' +
-              [...node.usedSymbols]
-
-                .map(([s, sDeps]) =>
-                  sDeps.size > 0 ? `${s}(${[...sDeps].join(',')})` : s,
-                )
-                .join(',');
+            label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
           }
         } else {
           label += '\\nsymbols: cleared';
