@@ -858,7 +858,9 @@ export default class BundleGraph {
     });
   }
 
-  getDependenciesWithSymbolTarget(asset: Asset): Array<[Dependency, ?Symbol]> {
+  getDependenciesWithSymbolTarget(
+    asset: Asset,
+  ): Array<[Dependency, Map<Symbol, Symbol>]> {
     let nodeId = this._graph.getNodeIdByContentKey(asset.id);
     return this._graph.getNodeIdsConnectedFrom(nodeId).map(id => {
       let node = nullthrows(this._graph.getNode(id));
@@ -1423,7 +1425,10 @@ export default class BundleGraph {
       let symbolLookup = new Map(
         [...depSymbols].map(([key, val]) => [val.local, key]),
       );
-      let depSymbol = symbolLookup.get(symbolTarget ?? identifier);
+      let depSymbol =
+        identifier != null
+          ? symbolLookup.get(symbolTarget.get(identifier) ?? identifier)
+          : undefined;
       if (depSymbol != null) {
         let resolved = this.getResolvedAsset(dep);
         if (!resolved || resolved.id === asset.id) {
@@ -1753,9 +1758,14 @@ export default class BundleGraph {
   getUsedSymbolsDependency(dep: Dependency): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(dep.id);
     invariant(node && node.type === 'dependency');
-    return this._symbolPropagationRan
-      ? makeReadOnlySet(new Set(node.usedSymbolsUp.keys()))
-      : null;
+    let result = new Set(node.usedSymbolsUp.keys());
+    for (let [k, v] of node.symbolTarget) {
+      if (result.has(k)) {
+        result.delete(k);
+        result.add(v);
+      }
+    }
+    return this._symbolPropagationRan ? makeReadOnlySet(result) : null;
   }
 
   merge(other: BundleGraph) {

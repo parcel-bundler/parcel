@@ -465,6 +465,29 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   delete(exportSymbol: Symbol): void;
 }
 
+export interface DependencySymbols // eslint-disable-next-line no-undef
+  extends Iterable<
+    [
+      Symbol,
+      {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
+    ],
+  > {
+  /**
+   * The symbols taht are imports are unknown, rather than just empty.
+   * This is the default state.
+   */
+  +isCleared: boolean;
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    isWeak: boolean,
+    meta?: ?Meta,
+  |};
+  hasExportSymbol(exportSymbol: Symbol): boolean;
+  hasLocalSymbol(local: Symbol): boolean;
+  exportSymbols(): Iterable<Symbol>;
+}
+
 export type DependencyPriority = 'sync' | 'parallel' | 'lazy';
 export type SpecifierType = 'commonjs' | 'esm' | 'url' | 'custom';
 
@@ -1438,7 +1461,7 @@ export interface BundleGraph<TBundle: Bundle> {
     symbol: Symbol,
     boundary: ?Bundle,
   ): SymbolResolution;
-  getDependencySymbolTarget(dependency: Dependency): ?Symbol;
+  getDependencySymbolTarget(dependency: Dependency): Map<Symbol, Symbol>;
   /** Returns a list of symbols that are exported by the asset, including re-exports. */
   getExportedSymbols(
     asset: Asset,
@@ -1450,6 +1473,7 @@ export interface BundleGraph<TBundle: Bundle> {
    * Returns null if symbol propagation didn't run (so the result is unknown).
    */
   getUsedSymbols(Asset | Dependency): ?$ReadOnlySet<Symbol>;
+  getSymbols(Dependency): DependencySymbols;
   /** Returns the common root directory for the entry assets of a target. */
   getEntryRoot(target: Target): FilePath;
 }

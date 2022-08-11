@@ -319,7 +319,7 @@ export type DependencyNode = {|
   excluded: boolean,
   /** a dependency importing a single symbol is rewritten to point to the reexported target asset
    * instead, this is the name of the export (might have been renamed by reexports) */
-  symbolTarget: ?Symbol,
+  symbolTarget: Map<Symbol, Symbol>,
 |};
 
 export type RootNode = {|id: ContentKey, +type: 'root', value: string | null|};

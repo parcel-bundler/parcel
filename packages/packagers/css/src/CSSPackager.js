@@ -79,7 +79,9 @@ export default (new Packager({
                 if (asset.meta.hasReferences) {
                   let replacements = new Map();
                   for (let dep of asset.getDependencies()) {
-                    for (let [exported, {local}] of dep.symbols) {
+                    for (let [exported, {local}] of bundleGraph.getSymbols(
+                      dep,
+                    )) {
                       let resolved = bundleGraph.getResolvedAsset(dep, bundle);
                       if (resolved) {
                         let resolution = bundleGraph.getSymbolResolution(
@@ -216,9 +218,11 @@ async function processCSSModule(
     let defaultImport = null;
     if (usedSymbols.has('default')) {
       let incoming = bundleGraph.getIncomingDependencies(asset);
-      defaultImport = incoming.find(d => d.symbols.hasExportSymbol('default'));
+      defaultImport = incoming.find(d =>
+        bundleGraph.getSymbols(d).hasExportSymbol('default'),
+      );
       if (defaultImport) {
-        let loc = defaultImport.symbols.get('default')?.loc;
+        let loc = bundleGraph.getSymbols(defaultImport).get('default')?.loc;
         logger.warn({
           message:
             'CSS modules cannot be tree shaken when imported with a default specifier',

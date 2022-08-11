@@ -620,7 +620,7 @@ ${code}
         continue;
       }
 
-      for (let [imported, {local}] of dep.symbols) {
+      for (let [imported, {local}] of this.bundleGraph.getSymbols(dep)) {
         if (local === '*') {
           continue;
         }
@@ -695,7 +695,7 @@ ${code}
       this.externals.set(dep.specifier, external);
     }
 
-    for (let [imported, {local}] of dep.symbols) {
+    for (let [imported, {local}] of this.bundleGraph.getSymbols(dep)) {
       // If already imported, just add the already renamed variable to the mapping.
       let renamed = external.get(imported);
       if (renamed && local !== '*' && replacements) {
@@ -758,10 +758,6 @@ ${code}
     imported: string,
     dep?: Dependency,
   ): string {
-    if (dep != null) {
-      imported = this.bundleGraph.getDependencySymbolTarget(dep) ?? imported;
-    }
-
     let {
       asset: resolvedAsset,
       exportSymbol,
@@ -1045,7 +1041,7 @@ ${code}
 
         let isWrapped = resolved && resolved.meta.shouldWrap;
 
-        for (let [imported, {local}] of dep.symbols) {
+        for (let [imported, {local}] of this.bundleGraph.getSymbols(dep)) {
           if (imported === '*' && local === '*') {
             if (!resolved) {
               // Re-exporting an external module. This should have already been handled in buildReplacements.
@@ -1206,7 +1202,7 @@ ${code}
         dep =>
           this.bundle.hasDependency(dep) &&
           // dep.meta.isES6Module &&
-          dep.symbols.hasExportSymbol('default'),
+          this.bundleGraph.getSymbols(dep).hasExportSymbol('default'),
       );
     }
 

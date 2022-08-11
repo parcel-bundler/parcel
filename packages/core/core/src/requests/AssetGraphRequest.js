@@ -497,6 +497,8 @@ export class AssetGraphBuilder {
           });
         }
 
+        let outgoingDepReplacements = new Map();
+        let outgoingDepResolved = undefined;
         for (let [s, sResolved] of outgoingDep.usedSymbolsUp) {
           if (!outgoingDep.usedSymbolsDown.has(s)) {
             // usedSymbolsDown is a superset of usedSymbolsUp
@@ -530,14 +532,24 @@ export class AssetGraphBuilder {
               }
             });
           } else {
-            let targetAsset = outgoingDep.usedSymbolsUp.values().next()?.value;
-            for (let a of outgoingDep.usedSymbolsUp.values()) {
-              if (targetAsset != a) targetAsset = null;
+            if (outgoingDepResolved === undefined) {
+              outgoingDepResolved = sResolved.asset;
+            } else {
+              if (
+                outgoingDepResolved != null &&
+                outgoingDepResolved != sResolved.asset
+              ) {
+                outgoingDepResolved = null;
+              }
             }
-            if (targetAsset != null) {
-              replacements.set(outgoingDep.id, targetAsset);
-            }
+            outgoingDepReplacements.set(s, sResolved.symbol ?? s);
           }
+        }
+        if (outgoingDepResolved != null) {
+          replacements.set(outgoingDep.id, {
+            asset: outgoingDepResolved,
+            targets: outgoingDepReplacements,
+          });
         }
       }
 
@@ -646,7 +658,7 @@ export class AssetGraphBuilder {
     }
 
     // Do after the fact to not disrupt traversal
-    for (let [dep, {asset, symbol}] of replacements) {
+    for (let [dep, {asset, targets}] of replacements) {
       let parents = this.assetGraph.getNodeIdsConnectedTo(
         this.assetGraph.getNodeIdByContentKey(asset),
       );
@@ -664,7 +676,7 @@ export class AssetGraphBuilder {
 
       let depNode = nullthrows(this.assetGraph.getNode(depNodeId));
       invariant(depNode.type === 'dependency');
-      depNode.symbolTarget = symbol;
+      depNode.symbolTarget = targets;
     }
   }
 

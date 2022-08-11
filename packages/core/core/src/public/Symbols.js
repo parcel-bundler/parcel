@@ -4,6 +4,7 @@ import type {
   MutableAssetSymbols as IMutableAssetSymbols,
   AssetSymbols as IAssetSymbols,
   MutableDependencySymbols as IMutableDependencySymbols,
+  DependencySymbols as IDependencySymbols,
   SourceLocation,
   Meta,
 } from '@parcel/types';
@@ -27,7 +28,6 @@ const EMPTY_ITERATOR = {
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 let valueToSymbols: WeakMap<Asset, AssetSymbols> = new WeakMap();
-
 export class AssetSymbols implements IAssetSymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
@@ -189,6 +189,108 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
 
   delete(exportSymbol: ISymbol) {
     nullthrows(this.#value.symbols).delete(exportSymbol);
+  }
+}
+
+let valueToDependencySymbols: WeakMap<Dependency, DependencySymbols> =
+  new WeakMap();
+export class DependencySymbols implements IDependencySymbols {
+  /*::
+  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|}]> { return ({}: any); }
+  */
+  #value: Dependency;
+  #options: ParcelOptions;
+  #symbolTarget: Map<ISymbol, ISymbol>;
+
+  constructor(
+    options: ParcelOptions,
+    dep: Dependency,
+    symbolTarget: Map<ISymbol, ISymbol>,
+  ): DependencySymbols {
+    let existing = valueToDependencySymbols.get(dep);
+    if (existing != null) {
+      return existing;
+    }
+    this.#value = dep;
+    this.#options = options;
+    this.#symbolTarget = symbolTarget;
+    return this;
+  }
+
+  #translateExportSymbol(exportSymbol: ISymbol): ISymbol {
+    return this.#symbolTarget.get(exportSymbol) ?? exportSymbol;
+  }
+
+  // immutable:
+
+  hasExportSymbol(exportSymbol: ISymbol): boolean {
+    return Boolean(
+      this.#value.symbols?.has(this.#translateExportSymbol(exportSymbol)),
+    );
+  }
+
+  hasLocalSymbol(local: ISymbol): boolean {
+    if (this.#value.symbols) {
+      for (let s of this.#value.symbols.values()) {
+        if (local === s.local) return true;
+      }
+    }
+    return false;
+  }
+
+  get(
+    exportSymbol: ISymbol,
+  ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|} {
+    return fromInternalDependencySymbol(
+      this.#options.projectRoot,
+      nullthrows(this.#value.symbols).get(
+        this.#translateExportSymbol(exportSymbol),
+      ),
+    );
+  }
+
+  get isCleared(): boolean {
+    return this.#value.symbols == null;
+  }
+
+  exportSymbols(): Iterable<ISymbol> {
+    let symbols = this.#value.symbols;
+    if (symbols) {
+      let result = new Set();
+      for (let s of symbols.keys()) {
+        result.add(this.#translateExportSymbol(s));
+      }
+      return result;
+    } else {
+      // $FlowFixMe
+      return EMPTY_ITERABLE;
+    }
+  }
+
+  // $FlowFixMe
+  [Symbol.iterator]() {
+    let symbols = this.#value.symbols;
+    if (symbols) {
+      let result = [];
+      for (let [s, v] of symbols) {
+        result.push([this.#translateExportSymbol(s), v]);
+      }
+      return result[Symbol.iterator]();
+    } else {
+      // $FlowFixMe
+      return EMPTY_ITERABLE;
+    }
+  }
+
+  // $FlowFixMe
+  [inspect]() {
+    return `DependencySymbols(${
+      this.#value.symbols
+        ? [...this.#value.symbols]
+            .map(([s, {local, isWeak}]) => `${s}:${local}${isWeak ? '?' : ''}`)
+            .join(', ')
+        : null
+    })`;
   }
 }
 
