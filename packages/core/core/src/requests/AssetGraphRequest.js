@@ -583,12 +583,16 @@ export class AssetGraphBuilder {
             assetSymbols == null || // Assume everything could be provided if symbols are cleared
             assetNode.value.bundleBehavior === BundleBehavior.isolated ||
             assetNode.value.bundleBehavior === BundleBehavior.inline ||
-            assetNode.usedSymbols.has(s) ||
-            reexportedSymbols.has(s) ||
-            s === '*'
+            s === '*' ||
+            assetNode.usedSymbols.has(s)
           ) {
+            incomingDep.usedSymbolsUp.set(s, {
+              asset: assetNode.id,
+              symbol: s,
+            });
+          } else if (reexportedSymbols.has(s)) {
             // Forward a reexport only if the current asset is side-effect free.
-            if (reexportedSymbols.has(s) && !assetNode.value.sideEffects) {
+            if (!assetNode.value.sideEffects) {
               incomingDep.usedSymbolsUp.set(
                 s,
                 nullthrows(reexportedSymbols.get(s)),
