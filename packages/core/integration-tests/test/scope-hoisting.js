@@ -6,7 +6,6 @@ import {createWorkerFarm} from '@parcel/core';
 import {md} from '@parcel/diagnostic';
 import {
   assertBundles,
-  assertDependencyWasExcluded,
   bundle as _bundle,
   bundler as _bundler,
   distDir,
@@ -2441,12 +2440,6 @@ describe('scope hoisting', function () {
           let output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123]);
 
-          assertDependencyWasExcluded(
-            bundleEvent.bundleGraph,
-            'a.js',
-            './c.js',
-          );
-
           await overlayFS.copyFile(
             path.join(testDir, 'index.2.js'),
             path.join(testDir, 'index.js'),
@@ -2674,18 +2667,6 @@ describe('scope hoisting', function () {
             ),
             new Set(['gridSize']),
           );
-          assert.deepStrictEqual(
-            new Set(
-              bundleEvent.bundleGraph.getUsedSymbols(
-                findDependency(
-                  bundleEvent.bundleGraph,
-                  'theme.js',
-                  './themeColors',
-                ),
-              ),
-            ),
-            new Set(),
-          );
           assert(!findAsset(bundleEvent.bundleGraph, 'themeColors.js'));
 
           await overlayFS.copyFile(
@@ -2725,6 +2706,7 @@ describe('scope hoisting', function () {
             ),
             new Set('*'),
           );
+          assert(findAsset(bundleEvent.bundleGraph, 'themeColors.js'));
 
           await overlayFS.copyFile(
             path.join(testDir, 'index.1.js'),
@@ -2748,18 +2730,7 @@ describe('scope hoisting', function () {
             ),
             new Set(['gridSize']),
           );
-          assert.deepStrictEqual(
-            new Set(
-              bundleEvent.bundleGraph.getUsedSymbols(
-                findDependency(
-                  bundleEvent.bundleGraph,
-                  'theme.js',
-                  './themeColors',
-                ),
-              ),
-            ),
-            new Set(),
-          );
+          assert(!findAsset(bundleEvent.bundleGraph, 'themeColors.js'));
         } finally {
           await subscription.unsubscribe();
         }
