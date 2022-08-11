@@ -80,8 +80,13 @@ export default async function dumpGraphToGraphViz(
       if (node.type === 'dependency') {
         label += node.value.specifier;
         let parts = [];
-        if (node.value.priority !== Priority.sync)
-          parts.push(node.value.priority);
+        if (node.value.priority !== Priority.sync) {
+          parts.push(
+            Object.entries(Priority).find(
+              ([, v]) => v === node.value.priority,
+            )?.[0],
+          );
+        }
         if (node.value.isOptional) parts.push('optional');
         if (node.value.specifierType === SpecifierType.url) parts.push('url');
         if (node.hasDeferred) parts.push('deferred');
