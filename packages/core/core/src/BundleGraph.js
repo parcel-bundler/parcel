@@ -1778,35 +1778,22 @@ export default class BundleGraph {
         let existingNode = nullthrows(this._graph.getNode(existingNodeId));
         // Merge symbols, recompute dep.exluded based on that
 
-        // eslint-disable-next-line no-inner-declarations
-        function merge<K, V>(
-          a: Map<K, Set<V>>,
-          b: Map<K, Set<V>>,
-        ): Map<K, Set<V>> {
-          let result = new Map(a);
-          for (let [k, v] of b) {
-            let existing = result.get(k);
-            result.set(k, existing ? new Set([...existing, ...v]) : v);
-          }
-          return result;
-        }
-
         if (existingNode.type === 'asset') {
           invariant(otherNode.type === 'asset');
-          existingNode.usedSymbols = merge(
-            existingNode.usedSymbols,
-            otherNode.usedSymbols,
-          );
+          existingNode.usedSymbols = new Set([
+            ...existingNode.usedSymbols,
+            ...otherNode.usedSymbols,
+          ]);
         } else if (existingNode.type === 'dependency') {
           invariant(otherNode.type === 'dependency');
-          existingNode.usedSymbolsDown = merge(
-            existingNode.usedSymbolsDown,
-            otherNode.usedSymbolsDown,
-          );
-          existingNode.usedSymbolsUp = merge(
-            existingNode.usedSymbolsUp,
-            otherNode.usedSymbolsUp,
-          );
+          existingNode.usedSymbolsDown = new Set([
+            ...existingNode.usedSymbolsDown,
+            ...otherNode.usedSymbolsDown,
+          ]);
+          existingNode.usedSymbolsUp = new Map([
+            ...existingNode.usedSymbolsUp,
+            ...otherNode.usedSymbolsUp,
+          ]);
 
           existingNode.excluded =
             (existingNode.excluded || Boolean(existingNode.hasDeferred)) &&
