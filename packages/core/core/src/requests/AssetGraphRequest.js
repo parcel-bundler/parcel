@@ -495,7 +495,13 @@ export class AssetGraphBuilder {
               assetNode.usedSymbols.add('*');
               reexportedSymbols.set(s, {asset: assetNode.id, symbol: s});
             } else {
-              reexportedSymbols.set(s, sResolved);
+              reexportedSymbols.set(
+                s,
+                // Forward a reexport only if the current asset is side-effect free.
+                !assetNode.value.sideEffects
+                  ? sResolved
+                  : {asset: assetNode.id, symbol: s},
+              );
               reexportedSymbolsSource.set(s, outgoingDep);
             }
           });
@@ -531,7 +537,13 @@ export class AssetGraphBuilder {
                 assetNode.usedSymbols.add('*');
                 reexportedSymbols.set(s, {asset: assetNode.id, symbol: s});
               } else {
-                reexportedSymbols.set(s, sResolved);
+                reexportedSymbols.set(
+                  s,
+                  // Forward a reexport only if the current asset is side-effect free.
+                  !assetNode.value.sideEffects
+                    ? sResolved
+                    : {asset: assetNode.id, symbol: s},
+                );
                 reexportedSymbolsSource.set(s, outgoingDep);
               }
             });
@@ -575,7 +587,8 @@ export class AssetGraphBuilder {
             reexportedSymbols.has(s) ||
             s === '*'
           ) {
-            if (reexportedSymbols.has(s)) {
+            // Forward a reexport only if the current asset is side-effect free.
+            if (reexportedSymbols.has(s) && !assetNode.value.sideEffects) {
               incomingDep.usedSymbolsUp.set(
                 s,
                 nullthrows(reexportedSymbols.get(s)),
