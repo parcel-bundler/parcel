@@ -209,6 +209,10 @@ export class AssetGraphBuilder {
       d => d.value.env.shouldScopeHoist,
     );
     if (this.assetGraph.symbolPropagationRan) {
+      dumpToGraphViz(
+        this.assetGraph,
+        'AssetGraph_' + this.name + '_before_prop',
+      );
       try {
         this.propagateSymbols();
       } catch (e) {
@@ -659,6 +663,13 @@ export class AssetGraphBuilder {
 
     // Do after the fact to not disrupt traversal
     for (let [dep, {asset, targets}] of replacements) {
+      if (
+        process.env.PARCEL_BUILD_ENV !== 'production' &&
+        // $FlowFixMe
+        process.env.PARCEL_SYMBOLS_CODESPLIT == false
+      ) {
+        break;
+      }
       let parents = this.assetGraph.getNodeIdsConnectedTo(
         this.assetGraph.getNodeIdByContentKey(asset),
       );
