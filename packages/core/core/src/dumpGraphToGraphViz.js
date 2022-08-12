@@ -23,12 +23,15 @@ const COLORS = {
 };
 
 const TYPE_COLORS = {
+  // bundle graph
   bundle: 'blue',
   contains: 'grey',
   internal_async: 'orange',
   references: 'red',
   sibling: 'green',
-  original: 'grey',
+  // asset graph
+  redirected: 'grey',
+  // request graph
   invalidated_by_create: 'green',
   invalidated_by_create_above: 'orange',
   invalidate_by_update: 'cyan',

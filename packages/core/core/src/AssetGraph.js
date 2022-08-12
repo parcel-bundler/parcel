@@ -32,8 +32,9 @@ import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 
 export const assetGraphEdgeTypes = {
   null: 1,
-  //TODO
-  original: 2,
+  // In addition to the null edge, a dependency can be connected to the asset containing the symbols
+  // that the dependency requested (after reexports were skipped).
+  redirected: 2,
 };
 
 export type AssetGraphEdgeType = $Values<typeof assetGraphEdgeTypes>;

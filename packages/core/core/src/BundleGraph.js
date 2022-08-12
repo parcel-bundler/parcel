@@ -37,6 +37,7 @@ import {Priority, BundleBehavior, SpecifierType} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath} from './projectPath';
+import {assetGraphEdgeTypes} from './AssetGraph';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -146,7 +147,8 @@ export default class BundleGraph {
     assetPublicIds: Set<string> = new Set(),
   ): BundleGraph {
     let graph = new ContentGraph<BundleGraphNode, BundleGraphEdgeType>();
-    let assetGroupIds = new Set();
+    let assetGroupIds = new Map();
+    let dependencyIds = new Set();
     let assetGraphNodeIdToBundleGraphNodeId = new Map<NodeId, NodeId>();
 
     let assetGraphRootNode =
@@ -155,63 +157,80 @@ export default class BundleGraph {
         : null;
     invariant(assetGraphRootNode != null && assetGraphRootNode.type === 'root');
 
-    for (let [nodeId, node] of assetGraph.nodes) {
-      if (node.type === 'asset') {
-        let {id: assetId} = node.value;
-        // Generate a new, short public id for this asset to use.
-        // If one already exists, use it.
-        let publicId = publicIdByAssetId.get(assetId);
-        if (publicId == null) {
-          publicId = getPublicId(assetId, existing =>
-            assetPublicIds.has(existing),
-          );
-          publicIdByAssetId.set(assetId, publicId);
-          assetPublicIds.add(publicId);
+    assetGraph.dfs({
+      visit: nodeId => {
+        let node = nullthrows(assetGraph.getNode(nodeId));
+        if (node.type === 'asset') {
+          let {id: assetId} = node.value;
+          // Generate a new, short public id for this asset to use.
+          // If one already exists, use it.
+          let publicId = publicIdByAssetId.get(assetId);
+          if (publicId == null) {
+            publicId = getPublicId(assetId, existing =>
+              assetPublicIds.has(existing),
+            );
+            publicIdByAssetId.set(assetId, publicId);
+            assetPublicIds.add(publicId);
+          }
         }
-      }
 
-      // Don't copy over asset groups into the bundle graph.
-      if (node.type === 'asset_group') {
-        assetGroupIds.add(nodeId);
-      } else {
-        let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
-        if (node.id === assetGraphRootNode?.id) {
-          graph.setRootNodeId(bundleGraphNodeId);
+        // Don't copy over asset groups into the bundle graph.
+        if (node.type === 'asset_group') {
+          assetGroupIds.set(
+            nodeId,
+            assetGraph.getNodeIdsConnectedFrom(
+              nodeId,
+              assetGraphEdgeTypes.null,
+            ),
+          );
+        } else {
+          if (node.type === 'dependency') {
+            dependencyIds.add(nodeId);
+          }
+          let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
+          if (node.id === assetGraphRootNode?.id) {
+            graph.setRootNodeId(bundleGraphNodeId);
+          }
+          assetGraphNodeIdToBundleGraphNodeId.set(nodeId, bundleGraphNodeId);
         }
-        assetGraphNodeIdToBundleGraphNodeId.set(nodeId, bundleGraphNodeId);
-      }
-    }
+      },
+      startNodeId: null,
+      getChildren: nodeId => {
+        let children = assetGraph.getNodeIdsConnectedFrom(
+          nodeId,
+          assetGraphEdgeTypes.redirected,
+        );
+        if (children.length > 0) {
+          return children;
+        } else {
+          return assetGraph.getNodeIdsConnectedFrom(
+            nodeId,
+            assetGraphEdgeTypes.null,
+          );
+        }
+      },
+    });
 
     for (let edge of assetGraph.getAllEdges()) {
-      let fromIds;
-      if (assetGroupIds.has(edge.from)) {
-        fromIds = [
-          ...assetGraph.getNodeIdsConnectedTo(
-            edge.from,
-            bundleGraphEdgeTypes.null,
-          ),
-        ];
-      } else {
-        fromIds = [edge.from];
+      if (
+        dependencyIds.has(edge.from) &&
+        edge.type === assetGraphEdgeTypes.null &&
+        assetGraph.adjacencyList
+          .getOutboundEdgesByType(edge.from)
+          .some(n => n.type === assetGraphEdgeTypes.redirected)
+      ) {
+        // If there's a redirect edge for a dependency, ignore the normal edge and convert the
+        // redirect edge into a regular bundlegraph edge.
+        continue;
       }
 
-      for (let from of fromIds) {
-        if (assetGroupIds.has(edge.to)) {
-          for (let to of assetGraph.getNodeIdsConnectedFrom(
-            edge.to,
-            bundleGraphEdgeTypes.null,
-          )) {
-            graph.addEdge(
-              nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(from)),
-              nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(to)),
-            );
-          }
-        } else {
-          graph.addEdge(
-            nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(from)),
-            nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(edge.to)),
-          );
-        }
+      let fromBundleGraph = assetGraphNodeIdToBundleGraphNodeId.get(edge.from);
+      if (fromBundleGraph == null) continue; // an asset group
+      for (let to of assetGroupIds.get(edge.to) ?? [edge.to]) {
+        graph.addEdge(
+          fromBundleGraph,
+          nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(to)),
+        );
       }
     }
 
