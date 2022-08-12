@@ -798,9 +798,15 @@ describe('javascript', function () {
   it('should support edge context', async function () {
     let b = await bundle(path.join(__dirname, '/integration/edge/index.js'));
 
-    let res = await run(b);
+    let result;
+    await run(b, {
+      output(v) {
+        result = v;
+      },
+    });
+
     assert(process.cwd() !== '/');
-    assert.deepEqual(res, {
+    assert.deepEqual(result, {
       browserResolution: 'main',
       builtin: '/',
       global: '616263',
