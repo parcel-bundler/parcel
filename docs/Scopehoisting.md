@@ -103,7 +103,7 @@ Both assets and dependencies have attached symbol information. Both symbol propa
 
 `asset.symbols` is a map of export names (= what the export was called in the source) to the local names (whatever Parcel renamed the variable to, e.g. `$id$export$foo`). `*` represents the namespace object and is only set for CJS assets (which makes `getSymbolResolution` fall back to a property access).
 
-`dependency.symbols` is a map of import names (= which binding was imported) to the local name (= the identifier that the imported binding got replaced by, e.g. `$id$import$bar`). The whole namespace can be imported by using `*` as the import name. A dependency with a `* -> *` mapping corresponds to `export * from`. The whole
+`dependency.symbols` is a map of import names (= which binding was imported) to the local name (= the identifier that the imported binding got replaced by, e.g. `$id$import$bar`). The whole namespace can be imported by using `*` as the import name. A dependency with a `* -> *` mapping corresponds to `export * from`.
 
 These two types of mapping can be used together to model reexports:
 
