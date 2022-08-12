@@ -27,7 +27,7 @@ import {hashString} from '@parcel/hash';
 import logger from '@parcel/logger';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import {BundleBehavior, Priority} from '../types';
-import AssetGraph from '../AssetGraph';
+import AssetGraph, {assetGraphEdgeTypes} from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
 import createTargetRequest from './TargetRequest';
@@ -38,8 +38,7 @@ import {
   fromProjectPathRelative,
   fromProjectPath,
 } from '../projectPath';
-
-import dumpToGraphViz from '../dumpGraphToGraphViz';
+import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
@@ -209,18 +208,27 @@ export class AssetGraphBuilder {
       d => d.value.env.shouldScopeHoist,
     );
     if (this.assetGraph.symbolPropagationRan) {
-      dumpToGraphViz(
+      await dumpGraphToGraphViz(
         this.assetGraph,
         'AssetGraph_' + this.name + '_before_prop',
+        assetGraphEdgeTypes,
       );
       try {
         this.propagateSymbols();
       } catch (e) {
-        dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name + '_failed');
+        await dumpGraphToGraphViz(
+          this.assetGraph,
+          'AssetGraph_' + this.name + '_failed',
+          assetGraphEdgeTypes,
+        );
         throw e;
       }
     }
-    dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
+    await dumpGraphToGraphViz(
+      this.assetGraph,
+      'AssetGraph_' + this.name,
+      assetGraphEdgeTypes,
+    );
 
     return {
       assetGraph: this.assetGraph,
@@ -566,6 +574,9 @@ export class AssetGraphBuilder {
             asset: outgoingDepResolved,
             targets: outgoingDepReplacements,
           });
+        } else {
+          // Edge needs to be removed again
+          replacements.set(outgoingDep.id, null);
         }
       }
 
@@ -679,7 +690,7 @@ export class AssetGraphBuilder {
     }
 
     // Do after the fact to not disrupt traversal
-    for (let [dep, {asset, targets}] of replacements) {
+    for (let [dep, replacement] of replacements) {
       if (
         process.env.PARCEL_BUILD_ENV !== 'production' &&
         // $FlowFixMe
@@ -687,24 +698,42 @@ export class AssetGraphBuilder {
       ) {
         break;
       }
-      let parents = this.assetGraph.getNodeIdsConnectedTo(
-        this.assetGraph.getNodeIdByContentKey(asset),
-      );
-      let assetGroupId;
-      if (parents.length === 1) {
-        [assetGroupId] = parents;
-        invariant(
-          this.assetGraph.getNode(assetGroupId)?.type === 'asset_group',
-        );
-      }
-      let depNodeId = this.assetGraph.getNodeIdByContentKey(dep);
-      this.assetGraph.replaceNodeIdsConnectedTo(depNodeId, [
-        assetGroupId ?? this.assetGraph.getNodeIdByContentKey(asset),
-      ]);
 
+      let depNodeId = this.assetGraph.getNodeIdByContentKey(dep);
       let depNode = nullthrows(this.assetGraph.getNode(depNodeId));
       invariant(depNode.type === 'dependency');
-      depNode.symbolTarget = targets;
+      if (replacement) {
+        let {asset, targets} = replacement;
+        let assetParents = this.assetGraph.getNodeIdsConnectedTo(
+          this.assetGraph.getNodeIdByContentKey(asset),
+        );
+        let assetGroupId;
+        if (assetParents.length === 1) {
+          [assetGroupId] = assetParents;
+          invariant(
+            this.assetGraph.getNode(assetGroupId)?.type === 'asset_group',
+          );
+        }
+
+        this.assetGraph.addEdge(
+          depNodeId,
+          assetGroupId ?? this.assetGraph.getNodeIdByContentKey(asset),
+          assetGraphEdgeTypes.redirected,
+        );
+        depNode.symbolTarget = targets;
+      } else {
+        for (let n of this.assetGraph.getNodeIdsConnectedFrom(
+          depNodeId,
+          assetGraphEdgeTypes.redirected,
+        )) {
+          this.assetGraph.removeEdge(
+            depNodeId,
+            n,
+            assetGraphEdgeTypes.redirected,
+          );
+        }
+        depNode.symbolTarget = null;
+      }
     }
   }
 
