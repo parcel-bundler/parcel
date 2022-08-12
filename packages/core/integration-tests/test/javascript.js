@@ -7186,6 +7186,43 @@ describe('javascript', function () {
         assert.deepEqual(res.output, ['foo', 'bar']);
       });
 
+      it('supports partially used reexporting index file', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-partially-used/index.js',
+          ),
+          options,
+        );
+
+        let calls = [];
+        let res = (
+          await run(
+            b,
+            {
+              sideEffect: caller => {
+                calls.push(caller);
+              },
+            },
+            {require: false},
+          )
+        ).output;
+
+        let [v, async] = res;
+
+        assert.deepEqual(calls, shouldScopeHoist ? ['b'] : ['a', 'b', 'index']);
+        assert.deepEqual(v, 2);
+
+        v = await async();
+        assert.deepEqual(
+          calls,
+          shouldScopeHoist
+            ? ['b', 'a', 'index', 'dynamic']
+            : ['a', 'b', 'index', 'dynamic'],
+        );
+        assert.deepEqual(v.default, [1, 3]);
+      });
+
       it('supports deferring non-weak dependencies that are not used', async function () {
         let b = await bundle(
           path.join(
