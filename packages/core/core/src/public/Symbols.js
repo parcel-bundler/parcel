@@ -200,12 +200,12 @@ export class DependencySymbols implements IDependencySymbols {
   */
   #value: Dependency;
   #options: ParcelOptions;
-  #symbolTarget: Map<ISymbol, ISymbol>;
+  #symbolTarget: ?Map<ISymbol, ISymbol>;
 
   constructor(
     options: ParcelOptions,
     dep: Dependency,
-    symbolTarget: Map<ISymbol, ISymbol>,
+    symbolTarget: ?Map<ISymbol, ISymbol>,
   ): DependencySymbols {
     let existing = valueToDependencySymbols.get(dep);
     if (existing != null) {
@@ -218,7 +218,7 @@ export class DependencySymbols implements IDependencySymbols {
   }
 
   #translateExportSymbol(exportSymbol: ISymbol): ISymbol {
-    return this.#symbolTarget.get(exportSymbol) ?? exportSymbol;
+    return this.#symbolTarget?.get(exportSymbol) ?? exportSymbol;
   }
 
   // immutable:
