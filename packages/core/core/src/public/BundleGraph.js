@@ -238,14 +238,6 @@ export default class BundleGraph<TBundle: IBundle>
     };
   }
 
-  getDependencySymbolTarget(dependency: IDependency): Map<Symbol, Symbol> {
-    let node = nullthrows(
-      this.#graph._graph.getNodeByContentKey(dependency.id),
-    );
-    invariant(node.type === 'dependency');
-    return node.symbolTarget;
-  }
-
   getExportedSymbols(
     asset: IAsset,
     boundary: ?IBundle,
