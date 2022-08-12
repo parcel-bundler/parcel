@@ -131,6 +131,11 @@ export default async function dumpGraphToGraphViz(
               label +=
                 '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
             }
+            if (node.symbolTarget && node.symbolTarget?.size > 0) {
+              label +=
+                '\\nsymbolTarget: ' +
+                [...node.symbolTarget].map(([a, b]) => `${a}:${b}`).join(',');
+            }
           } else {
             label += '\\nsymbols: cleared';
           }
