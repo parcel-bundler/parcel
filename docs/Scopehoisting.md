@@ -99,7 +99,7 @@ export {c} from './exports-c.js'; // dep skipped with deferring
 
 ### Symbols
 
-Both assets and dependencies have attached symbol information. These are maps that describe what an asset (re)exports, and what a dependency (re)exports.
+Both assets and dependencies have attached symbol information. These are maps that describe what an asset (re)exports, and what a dependency imports/reexports.
 
 Core (so symbol propagation and `getSymbolResolution`) rely on the following convention (plugins can store custom information in the per-symbol meta properties):
 
