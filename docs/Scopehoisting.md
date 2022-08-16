@@ -99,17 +99,88 @@ export {c} from './exports-c.js'; // dep skipped with deferring
 
 ### Symbols
 
-Both assets and dependencies have attached symbol information. Both symbol propagation and `getSymbolResolution` rely on this convention (plugins can store custom information in the per-symbol meta properties).
+Both assets and dependencies have attached symbol information. These are maps that describe what an asset (re)exports, and what a dependency (re)exports.
 
-`asset.symbols` is a map of export names (= what the export was called in the source) to the local names (whatever Parcel renamed the variable to, e.g. `$id$export$foo`). `*` represents the namespace object and is only set for CJS assets (which makes `getSymbolResolution` fall back to a property access).
+Core (so symbol propagation and `getSymbolResolution`) rely on the following convention (plugins can store custom information in the per-symbol meta properties):
 
-`dependency.symbols` is a map of import names (= which binding was imported) to the local name (= the identifier that the imported binding got replaced by, e.g. `$id$import$bar`). The whole namespace can be imported by using `*` as the import name. A dependency with a `* -> *` mapping corresponds to `export * from`.
+- `asset.symbols` is a map of export names (= what the export was called in the source) to the local names (whatever Parcel renamed the variable to, e.g. `$id$export$foo`). `*` represents the namespace object and is only set for CJS assets (which makes `getSymbolResolution` fall back to a property access).
+
+- `dependency.symbols` is a map of import names (= which binding was imported) to the local name (= the identifier that the imported binding got replaced by, e.g. `$id$import$bar`). The whole namespace can be imported by using `*` as the import name. A dependency with a `* -> *` mapping corresponds to `export * from`.
 
 These two types of mapping can be used together to model reexports:
 
 - `export {a as b} from "x";` is turned into a `a -> $id$import$x$a` mapping on the dependency and a `b -> $id$import$x$a` mapping on the asset.
 - `export * as a from "x";` is turned into a `* -> $id$import$x` mapping on the dependency and a `a -> $id$import$x` mapping on the asset.
 - (`export *` just have that `* -> *` on the dependency)
+
+Examples:
+
+<table>
+<tr><td>
+
+```js
+export const foo = 2;
+```
+
+</td><td>
+
+```
+asset.symbols = {
+  foo -> $assetId$export$a829fe
+}
+```
+
+</td></tr>
+<tr><td>
+
+```js
+import {foo} from './other.js';
+```
+
+</td><td>
+
+```
+dependencies["./other.js"].symbols = {
+  foo -> $assetId$import$8128f$281fa (isWeak: false)
+}
+```
+
+</td></tr>
+<tr><td>
+
+```js
+export {foo as bar} from './other.js';
+```
+
+</td><td>
+
+```
+asset.symbols = {
+  bar -> $assetId$import$8128f$281fa
+}
+dependencies["./other.js"].symbols = {
+  foo -> $assetId$import$8128f$281fa (isWeak: true)
+}
+```
+
+</td></tr>
+<tr><td>
+
+```js
+export * from './other.js';
+```
+
+</td><td>
+
+```
+asset.symbols = {}
+dependencies["./other.js"].symbols = {
+  * -> * (isWeak: true)
+}
+```
+
+</td></tr>
+</table>
 
 #### Used Symbols
 
@@ -166,22 +237,30 @@ import {SomeClass} from 'lib';
 export default new SomeClass();
 ```
 
-## Implementations
+### Interop
 
-### bundleGraph.getSymbolResolution
+The usual way for importing CommonJS using synchronous ESM imports is via an default export, which then contains the exports namespace object of the CommonJS asset.
 
-This method transitively/recursively traverses the reexports of the asset to find the specified export. This enables resolving some import to the actual value and not just some reexporting binding.
+```js
+import v from './other';
+// v == { x: 2, y: 3 }
 
-The result is an `asset`, the `exportSymbol` string, and `symbol`. The value can be accessed from `$asset.id$exports[exportSymbol]`, which is potentially also already (or only) available via the top-level variable `symbol`. So for the add/square example above, `getSymbolResolution(math.js, "add")` would return `{asset: "math.js", exportSymbol: "add", symbol: "$fa6943ce8a6b29$export$add"}`.
+// other.js
+module.exports.x = 2;
+module.exports.y = 3;
+```
 
-While this improves code size, an imperfection with this system is that it actually means that an asset A can use a value from asset B (which is usually modelled with a dependency from A to B) without there actually being a dependency between the two. Dependencies are also used to determine if an asset is required from another bundle and has to therefore be registered with `parcelRequiree`. This discrepancy can be handled inside of a single bundle, but not across multiple bundles, so the `boundary` parameter makes the resolution stop once the bundle is left.
+But by convention (with Babel, tsc, ...), this should not happen if the imported asset is actually an ESM file that was transpiled to CommonJS beforehand (and e.g. published to npm). In that case, the default import should refer to original default export (which was transpiled to `exports.default = ...;`). Without interop, the default export would be `{ default: ... }`.
 
-There are three possible resolution results:
+So instead, transpilers add an additional "export" with `exports.__esModule = true;` which declares a file to be ESM-transpiled-to-CommonJS.
 
-- the export has been found (with top level variable `symbol`).
-- the export has not been found (`symbol === undefined`), this should have been caught already by symbol propagation
-- the export has been found and is unused (`symbol === false`)
-- it had to bailout because there are multiple possibilities (`symbol === null`), and the caller should fallback to `$resolvedAsset$exports[exportsSymbol]`. Some examples for bailouts are:
+An asset with a default import of a (maybe)-CommonJS file now needs to do a lookup:
 
-  - `export * from "./nonstatic-cjs1.js"; export * from "./nonstatic-cjs1.js";`, so the decision between which reexport to follow should happen at runtime.
-  - if the `resolvedAsset` is a non-static cjs asset itself, then `module.exports[exportsSymbol]` should be used anyway.
+```js
+function interopRequireDefault(obj) {
+  return obj && obj.__esModule ? obj : {default: obj};
+}
+var _x = interopRequireDefault(require('./x'));
+```
+
+With scope hoisting, Parcel can omit this call in many cases when the importee was determined to be ESM or ESM-transpiled-to-CommonJS via static analysis.
