@@ -188,4 +188,10 @@ for (let {location, name} of packages) {
     }
   }
 }
-process.exit(updated ? SUCCESS : SKIPPED);
+
+if (updated) {
+  process.exit(SUCCESS);
+} else {
+  console.log('No versions were updated; everything is up-to-date!');
+  process.exit(SKIPPED);
+}
