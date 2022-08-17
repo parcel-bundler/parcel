@@ -718,9 +718,13 @@ export class AssetGraphBuilder {
         let assetGroupId;
         if (assetParents.length === 1) {
           [assetGroupId] = assetParents;
-          invariant(
-            this.assetGraph.getNode(assetGroupId)?.type === 'asset_group',
-          );
+          let type = this.assetGraph.getNode(assetGroupId)?.type;
+          // Parent is either an asset group, or a dependency when transformer returned multiple
+          // connected assets.
+          if (type !== 'asset_group') {
+            invariant(type === 'dependency');
+            assetGroupId = undefined;
+          }
         }
 
         this.assetGraph.addEdge(
