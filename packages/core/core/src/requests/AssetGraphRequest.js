@@ -569,7 +569,15 @@ export class AssetGraphBuilder {
             outgoingDepReplacements.set(s, sResolved.symbol ?? s);
           }
         }
-        if (outgoingDepResolved != null) {
+        if (
+          // TODO we currently can't replace async imports from
+          //      (parcelRequire("4pwI8")).then(({ a: a  })=>a);
+          // to
+          //      (parcelRequire("4pwI8")).then((a)=>a);
+          // if symbolTarget == { a -> * }
+          outgoingDep.value.priority == Priority.sync &&
+          outgoingDepResolved != null
+        ) {
           replacements.set(outgoingDep.id, {
             asset: outgoingDepResolved,
             targets: outgoingDepReplacements,
