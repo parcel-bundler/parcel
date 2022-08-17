@@ -278,7 +278,7 @@ export class DependencySymbols implements IDependencySymbols {
       return result[Symbol.iterator]();
     } else {
       // $FlowFixMe
-      return EMPTY_ITERABLE;
+      return EMPTY_ITERATOR;
     }
   }
 
