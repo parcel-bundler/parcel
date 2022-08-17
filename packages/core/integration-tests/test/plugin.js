@@ -123,10 +123,7 @@ parcel-transformer-b`,
       },
     );
 
-    assert.deepStrictEqual(
-      new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'index.js')))),
-      new Set([]),
-    );
+    assert.deepStrictEqual(!findAsset(b, 'index.js'));
     assert.deepStrictEqual(
       new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'a.js')))),
       new Set(['a']),
