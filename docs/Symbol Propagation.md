@@ -171,6 +171,6 @@ If some incoming dependency was changed by these steps, it's marked as dirty:
 
 - `dep.usedSymbolsUpDirtyUp = true` so that the asset which has `dep` as an outgoing dependency will be revisited.
 
-## Aside: Data Flow Analysis
+## (Optional side note: Data Flow Analysis)
 
-In the big picture, there are some parallels here with [Data-flow analysis](https://en.wikipedia.org/wiki/Data-flow_analysis) (which powers unused variable detection or hoisting of common sub-expressions in compilers): a graph is traversed (and parts are revisited) and some local operation is performed for the current node until the values stabilize (a fix point is reached).
+In the big picture, there are some parallels here with [Data-flow analysis](https://en.wikipedia.org/wiki/Data-flow_analysis) (which powers unused variable detection or hoisting of common sub-expressions in compilers): a graph is traversed (and parts are revisited) and some local operation is performed for the current node until the node values stabilize (a fix point is reached).

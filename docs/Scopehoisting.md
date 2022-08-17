@@ -107,6 +107,10 @@ Core (so symbol propagation and `getSymbolResolution`) rely on the following con
 
 - `dependency.symbols` is a map of import names (= which binding was imported) to the local name (= the identifier that the imported binding got replaced by, e.g. `$id$import$bar`). The whole namespace can be imported by using `*` as the import name. A dependency with a `* -> *` mapping corresponds to `export * from`.
 
+All CommonJS assets have a `* -> $id$exports` symbol, which serves as a fallback when importing a symbol that is not explicitly listed. This is also what prevents symbol propagation from throwing a `some-commonjs.js does not export foo` error, as this can't be done reliably for CommonJS assets (e.g. assets can be added from outside the asset).
+
+`module.exports = ...;` or some other non-statically analyzable syntax like accessing `module` freely causes the asset to have a `*`.
+
 These two types of mapping can be used together to model reexports:
 
 - `export {a as b} from "x";` is turned into a `a -> $id$import$x$a` mapping on the dependency and a `b -> $id$import$x$a` mapping on the asset.
