@@ -612,10 +612,7 @@ export class AssetGraphBuilder {
           } else if (reexportedSymbols.has(s)) {
             // Forward a reexport only if the current asset is side-effect free.
             if (!assetNode.value.sideEffects) {
-              incomingDep.usedSymbolsUp.set(
-                s,
-                nullthrows(reexportedSymbols.get(s)),
-              );
+              incomingDep.usedSymbolsUp.set(s, reexportedSymbols.get(s));
             } else {
               incomingDep.usedSymbolsUp.set(s, {
                 asset: assetNode.id,
