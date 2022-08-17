@@ -75,13 +75,15 @@ function getUpstreamRemoteName() {
 }
 
 function getDefaultBranchName(remote) {
+  let branch;
   try {
-    return run(`git symbolic-ref refs/remotes/${remote}/HEAD`)
-      .split(`${remote}/`)
-      .pop();
+    branch = run(`git remote show ${remote}`).match(/HEAD branch: (.+)$/m)[1];
   } catch (e) {
-    throw new Error(`Could not determine default branch for ${remote}!`);
+    // fall through to error
   }
+  if (!branch)
+    throw new Error(`Could not determine default branch for ${remote}!`);
+  return branch;
 }
 
 function getMergeHead() {
