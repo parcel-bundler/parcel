@@ -6246,7 +6246,7 @@ describe('javascript', function () {
             },
             {
               type: 'js',
-              assets: ['index.js', 'a.js', 'b1.js'],
+              assets: ['index.js', 'b1.js'],
             },
             {
               type: 'css',
@@ -6291,7 +6291,7 @@ describe('javascript', function () {
             },
             {
               type: 'js',
-              assets: ['index.js', 'a.js', 'b1.js'],
+              assets: ['index.js', 'b1.js'],
             },
           ]);
 
@@ -6320,7 +6320,21 @@ describe('javascript', function () {
           options,
         );
 
-        assertDependencyWasExcluded(b, 'index.js', './message2.js');
+        assertBundles(b, [
+          {
+            type: 'js',
+            assets: usesSymbolPropagation
+              ? ['a.js', 'message1.js']
+              : [
+                  'a.js',
+                  'esmodule-helpers.js',
+                  'index.js',
+                  'message1.js',
+                  'message3.js',
+                ],
+          },
+        ]);
+
         if (usesSymbolPropagation) {
           // TODO this only excluded, but should be deferred.
           assert(!findAsset(b, 'message3.js'));
@@ -6403,10 +6417,24 @@ describe('javascript', function () {
           options,
         );
 
+        assertBundles(b, [
+          {
+            type: 'js',
+            assets: usesSymbolPropagation
+              ? ['c.js', 'message3.js']
+              : [
+                  'c.js',
+                  'esmodule-helpers.js',
+                  'index.js',
+                  'message1.js',
+                  'message3.js',
+                ],
+          },
+        ]);
+
         if (usesSymbolPropagation) {
           assert(!findAsset(b, 'message1.js'));
         }
-        assertDependencyWasExcluded(b, 'index.js', './message2.js');
 
         let calls = [];
         let res = await run(
@@ -6707,11 +6735,9 @@ describe('javascript', function () {
           );
           assert(!called, 'side effect called');
           assert.deepEqual(res.output, 4);
-          assertDependencyWasExcluded(
-            bundleEvent.bundleGraph,
-            'index.js',
-            './bar',
-          );
+          if (usesSymbolPropagation) {
+            assert(!findAsset(bundleEvent.bundleGraph, 'index.js'));
+          }
 
           await overlayFS.mkdirp(path.join(testDir, 'node_modules/bar'));
           await overlayFS.copyFile(
@@ -7082,10 +7108,7 @@ describe('javascript', function () {
         );
 
         if (usesSymbolPropagation) {
-          assert.deepStrictEqual(
-            new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'index.js')))),
-            new Set([]),
-          );
+          assert(!findAsset(b, 'index.js'));
           assert.deepStrictEqual(
             new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'other.js')))),
             new Set(['default']),
@@ -7120,10 +7143,7 @@ describe('javascript', function () {
         );
 
         if (usesSymbolPropagation) {
-          assert.deepStrictEqual(
-            new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'index.js')))),
-            new Set([]),
-          );
+          assert(!findAsset(b, 'index.js'));
           assert.deepStrictEqual(
             new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'other.js')))),
             new Set(['bar']),
@@ -7158,10 +7178,7 @@ describe('javascript', function () {
         );
 
         if (usesSymbolPropagation) {
-          assert.deepStrictEqual(
-            new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'index.js')))),
-            new Set([]),
-          );
+          assert(!findAsset(b, 'index.js'));
           assert.deepStrictEqual(
             new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'other.js')))),
             new Set(['default', 'bar']),
@@ -7306,16 +7323,11 @@ describe('javascript', function () {
 
         if (usesSymbolPropagation) {
           assert(!findAsset(b, 'esm.js'));
+          assert(!findAsset(b, 'index.js'));
           assert.deepStrictEqual(
             new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'commonjs.js')))),
             // the exports object is used freely
             new Set(['*', 'message2']),
-          );
-          assert.deepEqual(
-            new Set(
-              b.getUsedSymbols(findDependency(b, 'index.js', './commonjs.js')),
-            ),
-            new Set(['message2']),
           );
         }
 
