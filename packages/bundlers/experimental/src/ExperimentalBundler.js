@@ -1108,7 +1108,6 @@ function createIdealGraph(
             bundleGraph.getNodeIdsConnectedTo(bundleNodeId);
 
           deleteBundle(bundle.mainEntryAsset); // should we delete this ?
-          reused++;
           // removeBundle(bundleGraph, bundleNodeId, assetReference);
           //The code below removes the reused bundle ONLY from the source bundles. So it still wil exist
           //Then remove it from the graph
