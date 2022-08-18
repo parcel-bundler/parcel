@@ -32,6 +32,18 @@ if (process.argv.includes('-h') || process.argv.includes('--help')) {
       '  It will use the oldest nightly version that is newer than',
       '  the latest common commit between HEAD and the upstream default branch.',
       '',
+      '                 merge upstream                 ',
+      '          HEAD ●──────▶●                        ',
+      '                       ▲                        ',
+      '                       │                        ',
+      '                       │                        ',
+      '      upstream ●─┬────▶●────┬──▶●──────┬──────▶ ',
+      '                 │          │          │        ',
+      '                 │          ▼          │        ',
+      '                 ▼     ┌─────────┐     ▼        ',
+      '             nightly.1 │nightly.2│ nightly.3    ',
+      '                       └─────────┘              ',
+      '',
       '  If the update succeeds, the exit code will be `0`.',
       '  If the upstream branch cannot be determined, or some other',
       '  error occurs, the exit code will be `1`.',
@@ -75,13 +87,15 @@ function getUpstreamRemoteName() {
 }
 
 function getDefaultBranchName(remote) {
+  let branch;
   try {
-    return run(`git symbolic-ref refs/remotes/${remote}/HEAD`)
-      .split(`${remote}/`)
-      .pop();
+    branch = run(`git remote show ${remote}`).match(/HEAD branch: (.+)$/m)[1];
   } catch (e) {
-    throw new Error(`Could not determine default branch for ${remote}!`);
+    // fall through to error
   }
+  if (!branch)
+    throw new Error(`Could not determine default branch for ${remote}!`);
+  return branch;
 }
 
 function getMergeHead() {
@@ -186,4 +200,10 @@ for (let {location, name} of packages) {
     }
   }
 }
-process.exit(updated ? SUCCESS : SKIPPED);
+
+if (updated) {
+  process.exit(SUCCESS);
+} else {
+  console.log('No versions were updated; everything is up-to-date!');
+  process.exit(SKIPPED);
+}
