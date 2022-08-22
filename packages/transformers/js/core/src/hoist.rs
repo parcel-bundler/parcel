@@ -58,6 +58,7 @@ struct ImportedSymbol {
   kind: ImportKind,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)]
 struct HoistModuleItemImport {
   source: JsWord,
   kind: ImportKind,
@@ -517,6 +518,17 @@ impl<'a> Fold for Hoist<'a> {
 
     node.body = Vec::with_capacity(self.module_items.len());
 
+    let mut symbols: HashMap<HoistModuleItemImport, Vec<JsWord>> = HashMap::new();
+    for symbol in self.imported_symbols.iter().chain(self.re_exports.iter()) {
+      symbols
+        .entry(HoistModuleItemImport {
+          source: symbol.source.clone(),
+          kind: symbol.kind,
+        })
+        .or_default()
+        .push(symbol.imported.clone());
+    }
+
     let module_id = self.module_id;
     for item in self
       .hoisted_module_items
@@ -525,40 +537,30 @@ impl<'a> Fold for Hoist<'a> {
     {
       match item {
         HoistModuleItem::Import(i) => {
-          // TODO quadratic?
-          let mut imports = self
-            .imported_symbols
-            .iter()
-            .filter(|sym| sym.source == i.source && sym.kind == i.kind)
-            .chain(
-              self
-                .re_exports
-                .iter()
-                .filter(|sym| sym.source == i.source && sym.kind == i.kind),
-            )
-            .peekable();
+          let imports = symbols.get(&i);
 
-          if imports.peek().is_none() {
-            node
-              .body
-              .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                src: get_import_source(module_id, &i.source, i.kind, "*"),
-                specifiers: vec![],
-                asserts: None,
-                span: DUMMY_SP,
-                type_only: false,
-              })))
-          } else {
-            node.body.extend(imports.map(|sym| {
+          if let Some(imports) = imports {
+            node.body.extend(imports.iter().map(|imported| {
               ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                src: get_import_source(module_id, &i.source, i.kind, &sym.imported),
+                src: get_import_source(module_id, &i.source, i.kind, imported),
                 specifiers: vec![],
                 asserts: None,
                 span: DUMMY_SP,
                 type_only: false,
               }))
             }));
+            continue;
           }
+
+          node
+            .body
+            .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+              src: get_import_source(module_id, &i.source, i.kind, "*"),
+              specifiers: vec![],
+              asserts: None,
+              span: DUMMY_SP,
+              type_only: false,
+            })))
         }
         HoistModuleItem::ModuleItem(i) => {
           node.body.push(i);
@@ -1174,7 +1176,7 @@ macro_rules! collect_visit_fn {
   };
 }
 
-#[derive(Debug, Deserialize, PartialEq, Clone, Copy, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone, Copy, Serialize, Hash)]
 pub enum ImportKind {
   Require,
   Import,
