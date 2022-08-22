@@ -216,7 +216,7 @@ export class AssetGraphBuilder {
         throw e;
       }
     }
-    dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
+    // dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
 
     return {
       assetGraph: this.assetGraph,

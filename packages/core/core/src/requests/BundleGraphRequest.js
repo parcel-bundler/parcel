@@ -212,12 +212,12 @@ class BundlerRunner {
     }
 
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
-    await dumpGraphToGraphViz(
-      // $FlowFixMe
-      internalBundleGraph._graph,
-      'before_bundle',
-      bundleGraphEdgeTypes,
-    );
+    // await dumpGraphToGraphViz(
+    //   // $FlowFixMe
+    //   internalBundleGraph._graph,
+    //   'before_bundle',
+    //   bundleGraphEdgeTypes,
+    // );
     let mutableBundleGraph = new MutableBundleGraph(
       internalBundleGraph,
       this.options,
@@ -242,6 +242,7 @@ class BundlerRunner {
       await dumpGraphToGraphViz(
         // $FlowFixMe[incompatible-call]
         internalBundleGraph._graph,
+        internalBundleGraph,
         'after_bundle',
         bundleGraphEdgeTypes,
       );
@@ -262,12 +263,12 @@ class BundlerRunner {
           }),
         });
       } finally {
-        await dumpGraphToGraphViz(
-          // $FlowFixMe[incompatible-call]
-          internalBundleGraph._graph,
-          'after_optimize',
-          bundleGraphEdgeTypes,
-        );
+        // await dumpGraphToGraphViz(
+        //   // $FlowFixMe[incompatible-call]
+        //   internalBundleGraph._graph,
+        //   'after_optimize',
+        //   bundleGraphEdgeTypes,
+        // );
       }
     }
 
@@ -297,12 +298,12 @@ class BundlerRunner {
       configs: this.configs,
     });
 
-    await dumpGraphToGraphViz(
-      // $FlowFixMe
-      internalBundleGraph._graph,
-      'after_runtimes',
-      bundleGraphEdgeTypes,
-    );
+    // await dumpGraphToGraphViz(
+    //   // $FlowFixMe
+    //   internalBundleGraph._graph,
+    //   'after_runtimes',
+    //   bundleGraphEdgeTypes,
+    // );
 
     // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
     // many times to send to each worker, and in build mode, when writing to cache on shutdown.

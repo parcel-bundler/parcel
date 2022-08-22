@@ -272,12 +272,12 @@ export default class Parcel {
 
       this.#requestedAssetIds.clear();
 
-      dumpGraphToGraphViz(
-        // $FlowFixMe
-        this.#requestTracker.graph,
-        'RequestGraph',
-        requestGraphEdgeTypes,
-      );
+      // dumpGraphToGraphViz(
+      //   // $FlowFixMe
+      //   this.#requestTracker.graph,
+      //   'RequestGraph',
+      //   requestGraphEdgeTypes,
+      // );
 
       let event = {
         type: 'buildSuccess',

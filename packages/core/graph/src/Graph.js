@@ -3,7 +3,12 @@
 import {fromNodeId} from './types';
 import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
 import type {Edge, NodeId} from './types';
-import type {TraversalActions, GraphVisitor} from '@parcel/types';
+import type {
+  TraversalActions,
+  GraphVisitor,
+  EnvironmentContext,
+  Engines,
+} from '@parcel/types';
 
 import assert from 'assert';
 import nullthrows from 'nullthrows';
@@ -20,6 +25,13 @@ export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
   adjacencyList: SerializedAdjacencyList<TEdgeType>,
   rootNodeId: ?NodeId,
 |};
+
+type EnvironmentLike = {
+  id: string,
+  context: EnvironmentContext,
+  engines: Engines,
+  ...
+};
 
 export type AllEdgeTypes = -1;
 export const ALL_EDGE_TYPES: AllEdgeTypes = -1;
@@ -475,6 +487,24 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     if (!this.hasNode(nodeId)) {
       throw new Error('Does not have node ' + fromNodeId(nodeId));
     }
+  }
+  nodeToString(nodeId: NodeId): string {
+    let label = 'Id:' + fromNodeId(nodeId);
+    return label;
+  }
+  getEnvDescription(env: EnvironmentLike): string {
+    let description;
+    if (typeof env.engines.browsers === 'string') {
+      description = `${env.context}: ${env.engines.browsers}`;
+    } else if (Array.isArray(env.engines.browsers)) {
+      description = `${env.context}: ${env.engines.browsers.join(', ')}`;
+    } else if (env.engines.node != null) {
+      description = `node: ${env.engines.node}`;
+    } else if (env.engines.electron != null) {
+      description = `electron: ${env.engines.electron}`;
+    }
+
+    return description ?? '';
   }
 }
 
