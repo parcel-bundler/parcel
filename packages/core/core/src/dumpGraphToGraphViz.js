@@ -77,16 +77,7 @@ export default async function dumpGraphToGraphViz(
         ', ',
       )}) (bb ${node.bundleBehavior ?? 'none'})`;
     } else if (node.type) {
-      label = `[${fromNodeId(id)}] ${node.type || 'No Type'}: [${node.id}]: `;
-      if (node.type === 'file') {
-        label += path.basename(node.value.filePath);
-      } else if (node.type === 'transformer_request') {
-        label +=
-          path.basename(node.value.filePath) +
-          ` (${getEnvDescription(node.value.env)})`;
-      } else if (node.type === 'request') {
-        label = node.value.type + ':' + node.id;
-      } else if (bundleGraph) {
+      if (bundleGraph) {
         label = bundleGraph.nodeToString(id);
       } else {
         label = graph.nodeToString(id);

@@ -28,7 +28,7 @@ import {
   makeDeferredWithPromise,
 } from '@parcel/utils';
 import {hashString} from '@parcel/hash';
-import {ContentGraph} from '@parcel/graph';
+import {ContentGraph, fromNodeId} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
 import {assertSignalNotAborted, hashFromOption} from './utils';
 import {
@@ -301,6 +301,17 @@ export class RequestGraph extends ContentGraph<
       null,
       requestGraphEdgeTypes.subrequest,
     );
+  }
+
+  nodeToString(nodeId: NodeId): string {
+    let node = nullthrows(this.getNode(nodeId));
+    let label = `[${fromNodeId(nodeId)}] ${node.type}: [${node.id}]: `;
+    if (node.type === 'file') {
+      label += path.basename(String(node.value.filePath));
+    } else if (node.type === 'request') {
+      label = node.value.type + ':' + node.id;
+    }
+    return label;
   }
 
   invalidateNode(nodeId: NodeId, reason: InvalidateReason) {
