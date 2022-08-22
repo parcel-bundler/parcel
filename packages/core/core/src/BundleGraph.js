@@ -26,8 +26,6 @@ import type {
 import type AssetGraph from './AssetGraph';
 import type {ProjectPath} from './projectPath';
 
-import path from 'path';
-
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -40,10 +38,11 @@ import {
 import {Hash, hashString} from '@parcel/hash';
 import {objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 
+import {formatNode, getEnvDescription} from './AssetGraph';
 import {Priority, BundleBehavior, SpecifierType} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
-import {fromProjectPath, fromProjectPathRelative} from './projectPath';
+import {fromProjectPath} from './projectPath';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -1850,75 +1849,19 @@ export default class BundleGraph {
 
   nodeToString(nodeId: NodeId): string {
     let node = nullthrows(this._graph.getNode(nodeId));
-    let label = '(' + String(nodeId) + ') ';
-    let detailedSymbols = process.env.PARCEL_DUMP_GRAPHVIZ === 'symbols';
-    label = `[${fromNodeId(nodeId)}] ${node.type || 'No Type'}: [${node.id}]: `;
-    if (node?.type === 'bundle') {
+    let label = `[${fromNodeId(nodeId)}] ${node.type}: [${node.id}]: `;
+    if (node.type === 'bundle') {
       let parts = [];
       if (node.value.needsStableName) parts.push('stable name');
       parts.push(node.value.name);
       parts.push('bb:' + (node.value.bundleBehavior ?? 'null'));
       if (parts.length) label += ' (' + parts.join(', ') + ')';
-      if (node.value.env)
-        label += ` (${this._graph.getEnvDescription(node.value.env)})`;
-    } else if (node?.type === 'dependency') {
-      label += node.value.specifier;
-      let parts = [];
-      if (node.value.priority !== Priority.sync)
-        parts.push(node.value.priority);
-      if (node.value.isOptional) parts.push('optional');
-      if (node.value.specifierType === SpecifierType.url) parts.push('url');
-      if (node.hasDeferred) parts.push('deferred');
-      if (node.excluded) parts.push('excluded');
-      if (parts.length) label += ' (' + parts.join(', ') + ')';
-      if (node.value.env)
-        label += ` (${this._graph.getEnvDescription(node.value.env)})`;
-      let depSymbols = node.value.symbols;
-
-      if (detailedSymbols) {
-        if (depSymbols) {
-          if (depSymbols.size) {
-            label +=
-              '\\nsymbols: ' +
-              [...depSymbols].map(([e, {local}]) => [e, local]).join(';');
-          }
-          let weakSymbols = [...depSymbols]
-            .filter(([, {isWeak}]) => isWeak)
-            .map(([s]) => s);
-          if (weakSymbols.length) {
-            label += '\\nweakSymbols: ' + weakSymbols.join(',');
-          }
-          if (node.usedSymbolsUp.size > 0) {
-            label += '\\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
-          }
-          if (node.usedSymbolsDown.size > 0) {
-            label +=
-              '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
-          }
-        } else {
-          label += '\\nsymbols: cleared';
-        }
-      }
-    } else if (node?.type === 'asset') {
-      label +=
-        path.basename(fromProjectPathRelative(node.value.filePath)) +
-        '#' +
-        node.value.type;
-      if (detailedSymbols) {
-        if (!node.value.symbols) {
-          label += '\\nsymbols: cleared';
-        } else if (node.value.symbols.size) {
-          label +=
-            '\\nsymbols: ' +
-            [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
-        }
-        if (node.usedSymbols.size) {
-          label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
-        }
-      } else {
-        label += '\\nsymbols: cleared';
-      }
+      if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
+      return label;
+    } else if (node.type === 'bundle_group') {
+      return label;
+    } else {
+      return formatNode(nodeId, node);
     }
-    return label;
   }
 }

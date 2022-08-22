@@ -212,12 +212,13 @@ class BundlerRunner {
     }
 
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
-    // await dumpGraphToGraphViz(
-    //   // $FlowFixMe
-    //   internalBundleGraph._graph,
-    //   'before_bundle',
-    //   bundleGraphEdgeTypes,
-    // );
+    await dumpGraphToGraphViz(
+      // $FlowFixMe
+      internalBundleGraph._graph,
+      'before_bundle',
+      internalBundleGraph,
+      bundleGraphEdgeTypes,
+    );
     let mutableBundleGraph = new MutableBundleGraph(
       internalBundleGraph,
       this.options,
@@ -242,8 +243,8 @@ class BundlerRunner {
       await dumpGraphToGraphViz(
         // $FlowFixMe[incompatible-call]
         internalBundleGraph._graph,
-        internalBundleGraph,
         'after_bundle',
+        internalBundleGraph,
         bundleGraphEdgeTypes,
       );
     }

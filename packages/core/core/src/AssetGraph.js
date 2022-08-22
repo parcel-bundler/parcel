@@ -19,6 +19,7 @@ import type {
   EntryFileNode,
   EntrySpecifierNode,
   Environment,
+  RootNode,
   Target,
 } from './types';
 
@@ -26,9 +27,11 @@ import invariant from 'assert';
 import {hashString, Hash} from '@parcel/hash';
 import {hashObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
-import {ContentGraph} from '@parcel/graph';
+import {ContentGraph, fromNodeId} from '@parcel/graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
+import path from 'path';
+import {Priority, SpecifierType} from './types';
 
 type InitOpts = {|
   entries?: Array<ProjectPath>,
@@ -107,6 +110,91 @@ export function nodeFromEntryFile(entry: Entry): EntryFileNode {
     type: 'entry_file',
     value: entry,
   };
+}
+
+export function getEnvDescription(env: Environment): string {
+  let description;
+  if (typeof env.engines.browsers === 'string') {
+    description = `${env.context}: ${env.engines.browsers}`;
+  } else if (Array.isArray(env.engines.browsers)) {
+    description = `${env.context}: ${env.engines.browsers.join(', ')}`;
+  } else if (env.engines.node != null) {
+    description = `node: ${env.engines.node}`;
+  } else if (env.engines.electron != null) {
+    description = `electron: ${env.engines.electron}`;
+  }
+
+  return description ?? '';
+}
+
+export function formatNode<
+  TNode:
+    | AssetNode
+    | DependencyNode
+    | EntrySpecifierNode
+    | EntryFileNode
+    | RootNode,
+>(nodeId: NodeId, node: TNode): string {
+  let label = '(' + String(nodeId) + ') ';
+  let detailedSymbols = process.env.PARCEL_DUMP_GRAPHVIZ === 'symbols';
+  label = `[${fromNodeId(nodeId)}] ${node.type || 'No Type'}: [${node.id}]: `;
+  if (node.type === 'dependency') {
+    label += node.value.specifier;
+    let parts = [];
+    if (node.value.priority !== Priority.sync) parts.push(node.value.priority);
+    if (node.value.isOptional) parts.push('optional');
+    if (node.value.specifierType === SpecifierType.url) parts.push('url');
+    if (node.hasDeferred) parts.push('deferred');
+    if (node.excluded) parts.push('excluded');
+    if (parts.length) label += ' (' + parts.join(', ') + ')';
+    if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
+    let depSymbols = node.value.symbols;
+
+    if (detailedSymbols) {
+      if (depSymbols) {
+        if (depSymbols.size) {
+          label +=
+            '\\nsymbols: ' +
+            [...depSymbols].map(([e, {local}]) => [e, local]).join(';');
+        }
+        let weakSymbols = [...depSymbols]
+          .filter(([, {isWeak}]) => isWeak)
+          .map(([s]) => s);
+        if (weakSymbols.length) {
+          label += '\\nweakSymbols: ' + weakSymbols.join(',');
+        }
+        if (node.usedSymbolsUp.size > 0) {
+          label += '\\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
+        }
+        if (node.usedSymbolsDown.size > 0) {
+          label += '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
+        }
+      } else {
+        label += '\\nsymbols: cleared';
+      }
+    }
+  } else if (node.type === 'asset') {
+    label +=
+      path.basename(fromProjectPathRelative(node.value.filePath)) +
+      '#' +
+      node.value.type;
+    if (detailedSymbols) {
+      if (!node.value.symbols) {
+        label += '\\nsymbols: cleared';
+      } else if (node.value.symbols.size) {
+        label +=
+          '\\nsymbols: ' +
+          [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
+      }
+      if (node.usedSymbols.size) {
+        label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
+      }
+    } else {
+      label += '\\nsymbols: cleared';
+    }
+  }
+
+  return label;
 }
 
 export default class AssetGraph extends ContentGraph<AssetGraphNode> {
@@ -624,5 +712,16 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
     this.hash = hash.finish();
     return this.hash;
+  }
+
+  nodeToString(nodeId: NodeId): string {
+    let node = nullthrows(this.getNode(nodeId));
+    if (node.type === 'asset_group') {
+      let label = `[${fromNodeId(nodeId)}] ${node.type}: [${node.id}]: `;
+      if (node.deferred) label += '(deferred)';
+      return label;
+    } else {
+      return formatNode(nodeId, node);
+    }
   }
 }

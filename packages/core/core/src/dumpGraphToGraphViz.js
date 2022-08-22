@@ -42,8 +42,8 @@ export default async function dumpGraphToGraphViz(
         bundleBehavior?: ?BundleBehavior,
       |}>
     | Graph<BundleGraphNode>,
-  bundleGraph?: BundleGraph,
   name: string,
+  bundleGraph?: BundleGraph,
   edgeTypes?: typeof bundleGraphEdgeTypes | typeof requestGraphEdgeTypes,
 ): Promise<void> {
   if (
@@ -54,8 +54,6 @@ export default async function dumpGraphToGraphViz(
   ) {
     return;
   }
-  let detailedSymbols = process.env.PARCEL_DUMP_GRAPHVIZ === 'symbols';
-
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
@@ -80,9 +78,7 @@ export default async function dumpGraphToGraphViz(
       )}) (bb ${node.bundleBehavior ?? 'none'})`;
     } else if (node.type) {
       label = `[${fromNodeId(id)}] ${node.type || 'No Type'}: [${node.id}]: `;
-      if (node.type === 'asset_group') {
-        if (node.deferred) label += '(deferred)';
-      } else if (node.type === 'file') {
+      if (node.type === 'file') {
         label += path.basename(node.value.filePath);
       } else if (node.type === 'transformer_request') {
         label +=
@@ -90,9 +86,10 @@ export default async function dumpGraphToGraphViz(
           ` (${getEnvDescription(node.value.env)})`;
       } else if (node.type === 'request') {
         label = node.value.type + ':' + node.id;
-      }
-      if (bundleGraph) {
+      } else if (bundleGraph) {
         label = bundleGraph.nodeToString(id);
+      } else {
+        label = graph.nodeToString(id);
       }
     }
     n.set('label', label);

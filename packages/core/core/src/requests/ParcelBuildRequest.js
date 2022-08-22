@@ -80,8 +80,13 @@ async function run({input, api, options}: RunInput) {
     changedAssets.set(id, asset);
   }
 
-  // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
-  // dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph', bundleGraphEdgeTypes);
+  dumpGraphToGraphViz(
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
+    bundleGraph._graph,
+    'BundleGraph',
+    bundleGraph,
+    bundleGraphEdgeTypes,
+  );
 
   let writeBundlesRequest = createWriteBundlesRequest({
     bundleGraph,
