@@ -2809,6 +2809,30 @@ describe('html', function () {
     });
   });
 
+  it('should insert the prelude for sibling bundles referenced in HTML', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/sibling-dependencies/index.html',
+      ),
+    );
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        assets: ['a.js', 'esmodule-helpers.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+    ]);
+
+    let res = await run(b, {output: null}, {require: false});
+    assert.equal(res.output, 'a');
+  });
+
   it('should escape quotes in inline style attributes and style tags', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/html-inline-escape/style.html'),
