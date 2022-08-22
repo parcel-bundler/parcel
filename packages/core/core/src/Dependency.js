@@ -53,6 +53,7 @@ export function createDependency(
         (opts.pipeline ?? '') +
         opts.specifierType +
         (opts.bundleBehavior ?? '') +
+        (opts.symbols ? [...opts.symbols.keys()].join(',') : '') +
         (opts.priority ?? 'sync'),
     );
 

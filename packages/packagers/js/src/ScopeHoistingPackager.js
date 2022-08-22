@@ -589,12 +589,15 @@ ${code}
     let depMap = new Map();
     let replacements = new Map();
     for (let dep of deps) {
-      let specifierType =
-        dep.specifierType === 'esm' ? `:${dep.specifierType}` : '';
+      // Either no symbols, or the just one symbol to facilitate per-symbol codesplitting
+      // (dependencies get split by the transformer)
+      let depSymbolsLength = [...dep.symbols].length;
+      invariant(depSymbolsLength === 0 || depSymbolsLength === 1);
+
       depMap.set(
-        `${assetId}:${getSpecifier(dep)}${
-          !dep.meta.placeholder ? specifierType : ''
-        }`,
+        `${assetId}:${getSpecifier(dep)}:${
+          !dep.meta.placeholder && dep.specifierType === 'esm' ? 'esm' : ''
+        }:${[...dep.symbols][0]?.[0] ?? '*'}`,
         dep,
       );
 

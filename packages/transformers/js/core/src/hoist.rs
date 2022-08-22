@@ -4,6 +4,7 @@ use crate::utils::{
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
 use std::hash::Hasher;
 use swc_atoms::JsWord;
 use swc_common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP};
@@ -57,12 +58,23 @@ struct ImportedSymbol {
   kind: ImportKind,
 }
 
+struct HoistModuleItemImport {
+  source: JsWord,
+  kind: ImportKind,
+}
+
+#[allow(clippy::large_enum_variant)]
+enum HoistModuleItem {
+  Import(HoistModuleItemImport),
+  ModuleItem(ModuleItem),
+}
+
 struct Hoist<'a> {
   module_id: &'a str,
   collect: &'a Collect,
-  module_items: Vec<ModuleItem>,
+  module_items: Vec<HoistModuleItem>,
+  hoisted_module_items: Vec<HoistModuleItem>,
   export_decls: HashSet<JsWord>,
-  hoisted_imports: Vec<ModuleItem>,
   imported_symbols: Vec<ImportedSymbol>,
   exported_symbols: Vec<ExportedSymbol>,
   re_exports: Vec<ImportedSymbol>,
@@ -93,8 +105,8 @@ impl<'a> Hoist<'a> {
       module_id,
       collect,
       module_items: vec![],
+      hoisted_module_items: vec![],
       export_decls: HashSet::new(),
-      hoisted_imports: vec![],
       imported_symbols: vec![],
       exported_symbols: vec![],
       re_exports: vec![],
@@ -143,14 +155,11 @@ impl<'a> Fold for Hoist<'a> {
           match decl {
             ModuleDecl::Import(import) => {
               self
-                .hoisted_imports
-                .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                  specifiers: vec![],
-                  asserts: None,
-                  span: DUMMY_SP,
-                  src: self.get_import_source(&import.src.value, ImportKind::Import, None),
-                  type_only: false,
-                })));
+                .hoisted_module_items
+                .push(HoistModuleItem::Import(HoistModuleItemImport {
+                  source: import.src.value.clone(),
+                  kind: ImportKind::Import,
+                }));
               // Ensure that all import specifiers are constant.
               for specifier in &import.specifiers {
                 let local = match specifier {
@@ -188,14 +197,11 @@ impl<'a> Fold for Hoist<'a> {
               if let Some(src) = export.src {
                 // TODO: skip if already imported.
                 self
-                  .hoisted_imports
-                  .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    specifiers: vec![],
-                    asserts: None,
-                    span: DUMMY_SP,
-                    src: self.get_import_source(&src.value, ImportKind::Import, None),
-                    type_only: false,
-                  })));
+                  .hoisted_module_items
+                  .push(HoistModuleItem::Import(HoistModuleItemImport {
+                    source: src.value.clone(),
+                    kind: ImportKind::Import,
+                  }));
 
                 for specifier in export.specifiers {
                   match specifier {
@@ -277,14 +283,11 @@ impl<'a> Fold for Hoist<'a> {
             }
             ModuleDecl::ExportAll(export) => {
               self
-                .hoisted_imports
-                .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                  specifiers: vec![],
-                  asserts: None,
-                  span: DUMMY_SP,
-                  src: self.get_import_source(&export.src.value, ImportKind::Import, None),
-                  type_only: false,
-                })));
+                .hoisted_module_items
+                .push(HoistModuleItem::Import(HoistModuleItemImport {
+                  source: export.src.value.clone(),
+                  kind: ImportKind::Import,
+                }));
               self.re_exports.push(ImportedSymbol {
                 source: export.src.value,
                 local: "*".into(),
@@ -298,17 +301,19 @@ impl<'a> Fold for Hoist<'a> {
               let init = export.expr.fold_with(self);
               self
                 .module_items
-                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
-                  declare: false,
-                  kind: VarDeclKind::Var,
-                  span: DUMMY_SP,
-                  decls: vec![VarDeclarator {
-                    definite: false,
+                .push(HoistModuleItem::ModuleItem(ModuleItem::Stmt(Stmt::Decl(
+                  Decl::Var(VarDecl {
+                    declare: false,
+                    kind: VarDeclKind::Var,
                     span: DUMMY_SP,
-                    name: Pat::Ident(BindingIdent::from(ident)),
-                    init: Some(init),
-                  }],
-                }))));
+                    decls: vec![VarDeclarator {
+                      definite: false,
+                      span: DUMMY_SP,
+                      name: Pat::Ident(BindingIdent::from(ident)),
+                      init: Some(init),
+                    }],
+                  }),
+                ))));
             }
             ModuleDecl::ExportDefaultDecl(export) => {
               let decl = match export.decl {
@@ -335,15 +340,23 @@ impl<'a> Fold for Hoist<'a> {
                 }
               };
 
-              self.module_items.push(ModuleItem::Stmt(Stmt::Decl(decl)));
+              self
+                .module_items
+                .push(HoistModuleItem::ModuleItem(ModuleItem::Stmt(Stmt::Decl(
+                  decl,
+                ))));
             }
             ModuleDecl::ExportDecl(export) => {
               let d = export.decl.fold_with(self);
-              self.module_items.push(ModuleItem::Stmt(Stmt::Decl(d)));
+              self
+                .module_items
+                .push(HoistModuleItem::ModuleItem(ModuleItem::Stmt(Stmt::Decl(d))));
             }
             item => {
               let d = item.fold_with(self);
-              self.module_items.push(ModuleItem::ModuleDecl(d))
+              self
+                .module_items
+                .push(HoistModuleItem::ModuleItem(ModuleItem::ModuleDecl(d)))
             }
           }
         }
@@ -376,18 +389,17 @@ impl<'a> Fold for Hoist<'a> {
                             };
                             self
                               .module_items
-                              .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
+                              .push(HoistModuleItem::ModuleItem(ModuleItem::Stmt(Stmt::Decl(
+                                Decl::Var(var),
+                              ))));
                           }
 
                           self
                             .module_items
-                            .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                              specifiers: vec![],
-                              asserts: None,
-                              span: DUMMY_SP,
-                              src: self.get_import_source(&source, ImportKind::Require, None),
-                              type_only: false,
-                            })));
+                            .push(HoistModuleItem::Import(HoistModuleItemImport {
+                              source: source.clone(),
+                              kind: ImportKind::Require,
+                            }));
 
                           // Create variable assignments for any declarations that are not constant.
                           self.handle_non_const_require(v, &source);
@@ -412,19 +424,16 @@ impl<'a> Fold for Hoist<'a> {
                                 declare: var.declare,
                                 decls: std::mem::take(&mut decls),
                               };
-                              self
-                                .module_items
-                                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
+                              self.module_items.push(HoistModuleItem::ModuleItem(
+                                ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))),
+                              ));
                             }
-                            self
-                              .module_items
-                              .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                                specifiers: vec![],
-                                asserts: None,
-                                span: DUMMY_SP,
-                                src: self.get_import_source(&source, ImportKind::Require, None),
-                                type_only: false,
-                              })));
+                            self.module_items.push(HoistModuleItem::Import(
+                              HoistModuleItemImport {
+                                source: source.clone(),
+                                kind: ImportKind::Require,
+                              },
+                            ));
 
                             self.handle_non_const_require(v, &source);
                             continue;
@@ -448,9 +457,10 @@ impl<'a> Fold for Hoist<'a> {
                         declare: var.declare,
                         decls: std::mem::take(&mut decls),
                       };
-                      self
-                        .module_items
-                        .insert(items_len, ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
+                      self.module_items.insert(
+                        items_len,
+                        HoistModuleItem::ModuleItem(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var)))),
+                      );
                     }
                     decls.push(d);
                   }
@@ -465,12 +475,16 @@ impl<'a> Fold for Hoist<'a> {
                     };
                     self
                       .module_items
-                      .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))))
+                      .push(HoistModuleItem::ModuleItem(ModuleItem::Stmt(Stmt::Decl(
+                        Decl::Var(var),
+                      ))))
                   }
                 }
                 item => {
                   let d = item.fold_with(self);
-                  self.module_items.push(ModuleItem::Stmt(Stmt::Decl(d)))
+                  self
+                    .module_items
+                    .push(HoistModuleItem::ModuleItem(ModuleItem::Stmt(Stmt::Decl(d))))
                 }
               }
             }
@@ -485,22 +499,73 @@ impl<'a> Fold for Hoist<'a> {
                 let d = expr.fold_with(self);
                 self
                   .module_items
-                  .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr: d, span })))
+                  .push(HoistModuleItem::ModuleItem(ModuleItem::Stmt(Stmt::Expr(
+                    ExprStmt { expr: d, span },
+                  ))))
               }
             }
             item => {
               let d = item.fold_with(self);
-              self.module_items.push(ModuleItem::Stmt(d))
+              self
+                .module_items
+                .push(HoistModuleItem::ModuleItem(ModuleItem::Stmt(d)))
             }
           }
         }
       }
     }
 
-    self
-      .module_items
-      .splice(0..0, self.hoisted_imports.drain(0..));
-    node.body = std::mem::take(&mut self.module_items);
+    node.body = Vec::with_capacity(self.module_items.len());
+
+    let module_id = self.module_id;
+    for item in self
+      .hoisted_module_items
+      .drain(0..)
+      .chain(self.module_items.drain(0..))
+    {
+      match item {
+        HoistModuleItem::Import(i) => {
+          // TODO quadratic?
+          let mut imports = self
+            .imported_symbols
+            .iter()
+            .filter(|sym| sym.source == i.source && sym.kind == i.kind)
+            .chain(
+              self
+                .re_exports
+                .iter()
+                .filter(|sym| sym.source == i.source && sym.kind == i.kind),
+            )
+            .peekable();
+
+          if imports.peek().is_none() {
+            node
+              .body
+              .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                src: get_import_source(module_id, &i.source, i.kind, "*"),
+                specifiers: vec![],
+                asserts: None,
+                span: DUMMY_SP,
+                type_only: false,
+              })))
+          } else {
+            node.body.extend(imports.map(|sym| {
+              ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                src: get_import_source(module_id, &i.source, i.kind, &sym.imported),
+                specifiers: vec![],
+                asserts: None,
+                span: DUMMY_SP,
+                type_only: false,
+              }))
+            }));
+          }
+        }
+        HoistModuleItem::ModuleItem(i) => {
+          node.body.push(i);
+        }
+      }
+    }
+
     node
   }
 
@@ -884,21 +949,23 @@ impl<'a> Fold for Hoist<'a> {
         let ident = BindingIdent::from(self.get_export_ident(member.span, &key));
         if self.collect.static_cjs_exports && self.export_decls.insert(ident.id.sym.clone()) {
           self
-            .hoisted_imports
-            .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
-              declare: false,
-              kind: VarDeclKind::Var,
-              span: node.span,
-              decls: vec![VarDeclarator {
-                definite: false,
+            .hoisted_module_items
+            .push(HoistModuleItem::ModuleItem(ModuleItem::Stmt(Stmt::Decl(
+              Decl::Var(VarDecl {
+                declare: false,
+                kind: VarDeclKind::Var,
                 span: node.span,
-                name: Pat::Ident(BindingIdent::from(Ident::new(
-                  ident.id.sym.clone(),
-                  DUMMY_SP,
-                ))),
-                init: None,
-              }],
-            }))));
+                decls: vec![VarDeclarator {
+                  definite: false,
+                  span: node.span,
+                  name: Pat::Ident(BindingIdent::from(Ident::new(
+                    ident.id.sym.clone(),
+                    DUMMY_SP,
+                  ))),
+                  init: None,
+                }],
+              }),
+            ))));
         }
 
         return AssignExpr {
@@ -966,13 +1033,10 @@ impl<'a> Hoist<'a> {
   fn add_require(&mut self, source: &JsWord, import_kind: ImportKind) {
     self
       .module_items
-      .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-        specifiers: vec![],
-        asserts: None,
-        span: DUMMY_SP,
-        src: self.get_import_source(source, import_kind, None),
-        type_only: false,
-      })));
+      .push(HoistModuleItem::Import(HoistModuleItemImport {
+        source: source.clone(),
+        kind: import_kind,
+      }));
   }
 
   fn get_import_name(&self, source: &JsWord, local: &JsWord) -> JsWord {
@@ -1013,21 +1077,6 @@ impl<'a> Hoist<'a> {
       format!("${}$require${}", self.module_id, local).into(),
       DUMMY_SP,
     );
-  }
-
-  fn get_import_source(&self, source: &JsWord, kind: ImportKind, symbol: Option<&JsWord>) -> Str {
-    return format!(
-      "{}:{}:{}:{}",
-      self.module_id,
-      source,
-      if kind == ImportKind::Import {
-        "esm"
-      } else {
-        ""
-      },
-      symbol.unwrap_or(&"*".into())
-    )
-    .into();
   }
 
   fn get_export_ident(&mut self, span: Span, exported: &JsWord) -> Ident {
@@ -1073,20 +1122,42 @@ impl<'a> Hoist<'a> {
         );
         self
           .module_items
-          .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
-            declare: false,
-            kind: VarDeclKind::Var,
-            span: DUMMY_SP,
-            decls: vec![VarDeclarator {
-              definite: false,
+          .push(HoistModuleItem::ModuleItem(ModuleItem::Stmt(Stmt::Decl(
+            Decl::Var(VarDecl {
+              declare: false,
+              kind: VarDeclKind::Var,
               span: DUMMY_SP,
-              name: Pat::Ident(BindingIdent::from(require_id)),
-              init: Some(Box::new(Expr::Ident(import_id))),
-            }],
-          }))));
+              decls: vec![VarDeclarator {
+                definite: false,
+                span: DUMMY_SP,
+                name: Pat::Ident(BindingIdent::from(require_id)),
+                init: Some(Box::new(Expr::Ident(import_id))),
+              }],
+            }),
+          ))));
       }
     }
   }
+}
+
+fn get_import_source(
+  module_id: &str,
+  source: &JsWord,
+  kind: ImportKind,
+  symbol: impl Display,
+) -> Str {
+  return format!(
+    "{}:{}:{}:{}",
+    module_id,
+    source,
+    if kind == ImportKind::Import {
+      "esm"
+    } else {
+      ""
+    },
+    symbol
+  )
+  .into();
 }
 
 macro_rules! collect_visit_fn {

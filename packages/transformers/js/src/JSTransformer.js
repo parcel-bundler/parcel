@@ -535,6 +535,11 @@ export default (new Transformer({
       asset.invalidateOnEnvChange(env);
     }
 
+    asset.meta.id = asset.id;
+    if (hoist_result) {
+      asset.symbols.ensure();
+    }
+
     for (let dep of dependencies) {
       if (dep.kind === 'WebWorker') {
         // Use native ES module output if the worker was created with `type: 'module'` and all targets
@@ -701,7 +706,7 @@ export default (new Transformer({
           range = pkg.dependencies[module];
         }
 
-        asset.addDependency({
+        let opts = {
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
           loc: convertLoc(dep.loc),
@@ -711,13 +716,78 @@ export default (new Transformer({
           resolveFrom: isHelper ? __filename : undefined,
           range,
           env,
-        });
+        };
+
+        if (!hoist_result) {
+          asset.addDependency(opts);
+        } else {
+          // TODO quadratic
+          let importedSymbols = hoist_result.imported_symbols.filter(
+            ({source, kind}) =>
+              source === (dep.placeholder ?? dep.specifier) &&
+              kind === dep.kind,
+          );
+          let reexportedSymbols =
+            dep.kind === 'Import' || dep.kind === 'Export'
+              ? hoist_result.re_exports.filter(
+                  ({source}) => source === (dep.placeholder ?? dep.specifier),
+                )
+              : [];
+
+          if (importedSymbols?.length > 0 || reexportedSymbols.length > 0) {
+            for (let {local, imported, loc} of importedSymbols) {
+              asset.addDependency({
+                ...opts,
+                symbols: new Map([
+                  [
+                    imported,
+                    {
+                      local,
+                      loc: convertLoc(loc),
+                      isWeak: false,
+                    },
+                  ],
+                ]),
+              });
+            }
+            for (let {local, imported, loc} of reexportedSymbols) {
+              if (local === '*' && imported === '*') {
+                asset.addDependency({
+                  ...opts,
+                  symbols: new Map([
+                    ['*', {local: '*', loc: convertLoc(loc), isWeak: true}],
+                  ]),
+                });
+              } else {
+                let reExportName =
+                  // TODO quadratic
+                  importedSymbols.find(s => s.imported === imported)?.local ??
+                  reexportedSymbols.find(s => s.imported === imported)?.local ??
+                  `$${asset.id}$re_export$${local}`;
+                asset.symbols.set(local, reExportName);
+                asset.addDependency({
+                  ...opts,
+                  symbols: new Map([
+                    [
+                      imported,
+                      {
+                        local: reExportName,
+                        loc: convertLoc(loc),
+                        isWeak: true,
+                      },
+                    ],
+                  ]),
+                });
+              }
+            }
+          } else {
+            asset.addDependency(opts);
+          }
+        }
       }
     }
 
-    asset.meta.id = asset.id;
     if (hoist_result) {
-      asset.symbols.ensure();
       for (let {exported, local, loc} of hoist_result.exported_symbols) {
         asset.symbols.set(exported, local, convertLoc(loc));
       }
@@ -739,36 +809,6 @@ export default (new Transformer({
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();
-      }
-
-      for (let {
-        source,
-        local,
-        imported,
-        loc,
-        kind,
-      } of hoist_result.imported_symbols) {
-        let specifierType = '';
-        if (kind === 'Import' || kind === 'Export') {
-          specifierType = 'esm';
-        }
-        let dep = deps.get(source + specifierType);
-        if (!dep) continue;
-        dep.symbols.set(imported, local, convertLoc(loc));
-      }
-
-      for (let {source, local, imported, loc} of hoist_result.re_exports) {
-        let dep = deps.get(source + 'esm');
-        if (!dep) continue;
-        if (local === '*' && imported === '*') {
-          dep.symbols.set('*', '*', convertLoc(loc), true);
-        } else {
-          let reExportName =
-            dep.symbols.get(imported)?.local ??
-            `$${asset.id}$re_export$${local}`;
-          asset.symbols.set(local, reExportName);
-          dep.symbols.set(imported, reExportName, convertLoc(loc), true);
-        }
       }
 
       for (let specifier of hoist_result.wrapped_requires) {
