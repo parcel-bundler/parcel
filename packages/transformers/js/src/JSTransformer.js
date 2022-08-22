@@ -781,7 +781,10 @@ export default (new Transformer({
               }
             }
           } else {
-            asset.addDependency(opts);
+            asset.addDependency({
+              ...opts,
+              symbols: new Map(),
+            });
           }
         }
       }
@@ -807,9 +810,6 @@ export default (new Transformer({
             dep,
           ]),
       );
-      for (let dep of deps.values()) {
-        dep.symbols.ensure();
-      }
 
       for (let specifier of hoist_result.wrapped_requires) {
         let dep = deps.get(specifier);
