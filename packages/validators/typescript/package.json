@@ -1,6 +1,6 @@
 {
   "name": "@parcel/validator-typescript",
-  "version": "2.0.39",
+  "version": "2.0.40",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,11 +20,11 @@
     "parcel": "^2.0.24"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.39",
-    "@parcel/plugin": "2.0.39",
-    "@parcel/ts-utils": "2.0.39",
-    "@parcel/types": "2.0.39",
-    "@parcel/utils": "2.0.39"
+    "@parcel/diagnostic": "2.0.40",
+    "@parcel/plugin": "2.0.40",
+    "@parcel/ts-utils": "2.0.40",
+    "@parcel/types": "2.0.40",
+    "@parcel/utils": "2.0.40"
   },
   "devDependencies": {
     "typescript": ">=3.0.0"

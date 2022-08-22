@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-lsp",
-  "version": "2.0.39",
+  "version": "2.0.40",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.7.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.39",
-    "@parcel/utils": "2.0.39",
+    "@parcel/plugin": "2.0.40",
+    "@parcel/utils": "2.0.40",
     "node-ipc": "^9.1.4",
     "nullthrows": "^1.1.1",
     "ps-node": "^0.1.6",

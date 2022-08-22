@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-webextension",
-  "version": "2.0.39",
+  "version": "2.0.40",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,9 @@
   },
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
-    "@parcel/diagnostic": "2.0.39",
-    "@parcel/plugin": "2.0.39",
-    "@parcel/utils": "2.0.39",
+    "@parcel/diagnostic": "2.0.40",
+    "@parcel/plugin": "2.0.40",
+    "@parcel/utils": "2.0.40",
     "content-security-policy-parser": "^0.3.0"
   }
 }
