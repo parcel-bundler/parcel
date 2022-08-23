@@ -2,21 +2,15 @@
 
 import type {Asset, BundleBehavior} from '@parcel/types';
 import type {Graph} from '@parcel/graph';
-import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
+import type {AssetGraphNode, BundleGraphNode} from './types';
 import BundleGraph from './BundleGraph';
 import {bundleGraphEdgeTypes} from './BundleGraph';
 import {requestGraphEdgeTypes} from './RequestTracker';
-
-import path from 'path';
-import {fromNodeId} from '@parcel/graph';
-import {fromProjectPathRelative} from './projectPath';
-import {SpecifierType, Priority} from './types';
 
 const COLORS = {
   root: 'gray',
   asset: 'green',
   dependency: 'orange',
-  transformer_request: 'cyan',
   file: 'gray',
   default: 'white',
 };
@@ -43,7 +37,7 @@ export default async function dumpGraphToGraphViz(
       |}>
     | Graph<BundleGraphNode>,
   name: string,
-  bundleGraph?: BundleGraph,
+  bundleGraph: ?BundleGraph,
   edgeTypes?: typeof bundleGraphEdgeTypes | typeof requestGraphEdgeTypes,
 ): Promise<void> {
   if (
@@ -76,12 +70,10 @@ export default async function dumpGraphToGraphViz(
         .join(', ')}) (sourceBundles: ${[...node.sourceBundles].join(
         ', ',
       )}) (bb ${node.bundleBehavior ?? 'none'})`;
-    } else if (node.type) {
-      if (bundleGraph) {
-        label = bundleGraph.nodeToString(id);
-      } else {
-        label = graph.nodeToString(id);
-      }
+    } else {
+      label = bundleGraph
+        ? bundleGraph.nodeToString(id)
+        : graph.nodeToString(id);
     }
     n.set('label', label);
   }
@@ -112,19 +104,4 @@ export default async function dumpGraphToGraphViz(
 function nodeId(id) {
   // $FlowFixMe
   return `node${id}`;
-}
-
-function getEnvDescription(env: Environment) {
-  let description;
-  if (typeof env.engines.browsers === 'string') {
-    description = `${env.context}: ${env.engines.browsers}`;
-  } else if (Array.isArray(env.engines.browsers)) {
-    description = `${env.context}: ${env.engines.browsers.join(', ')}`;
-  } else if (env.engines.node) {
-    description = `node: ${env.engines.node}`;
-  } else if (env.engines.electron) {
-    description = `electron: ${env.engines.electron}`;
-  }
-
-  return description ?? '';
 }

@@ -276,7 +276,7 @@ export default class Parcel {
         // $FlowFixMe
         this.#requestTracker.graph,
         'RequestGraph',
-        undefined,
+        null,
         requestGraphEdgeTypes,
       );
 

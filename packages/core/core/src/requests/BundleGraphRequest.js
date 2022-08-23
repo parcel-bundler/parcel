@@ -264,12 +264,13 @@ class BundlerRunner {
           }),
         });
       } finally {
-        // await dumpGraphToGraphViz(
-        //   // $FlowFixMe[incompatible-call]
-        //   internalBundleGraph._graph,
-        //   'after_optimize',
-        //   bundleGraphEdgeTypes,
-        // );
+        await dumpGraphToGraphViz(
+          // $FlowFixMe[incompatible-call]
+          internalBundleGraph._graph,
+          'after_optimize',
+          internalBundleGraph,
+          bundleGraphEdgeTypes,
+        );
       }
     }
 
@@ -299,12 +300,13 @@ class BundlerRunner {
       configs: this.configs,
     });
 
-    // await dumpGraphToGraphViz(
-    //   // $FlowFixMe
-    //   internalBundleGraph._graph,
-    //   'after_runtimes',
-    //   bundleGraphEdgeTypes,
-    // );
+    await dumpGraphToGraphViz(
+      // $FlowFixMe
+      internalBundleGraph._graph,
+      'after_runtimes',
+      internalBundleGraph,
+      bundleGraphEdgeTypes,
+    );
 
     // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
     // many times to send to each worker, and in build mode, when writing to cache on shutdown.
