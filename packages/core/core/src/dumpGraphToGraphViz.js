@@ -36,8 +36,8 @@ export default async function dumpGraphToGraphViz(
   graph:
     | Graph<AssetGraphNode>
     | Graph<{|
-        assets: Array<Asset>,
-        sourceBundles: Array<number>,
+        assets: Set<Asset>,
+        sourceBundles: Set<number>,
         bundleBehavior?: ?BundleBehavior,
       |}>
     | Graph<BundleGraphNode>,
@@ -72,9 +72,9 @@ export default async function dumpGraphToGraphViz(
           let arr = a.filePath.split('/');
           return arr[arr.length - 1];
         })
-        .join(', ')}) (sourceBundles: ${node.sourceBundles.join(', ')}) (bb ${
-        node.bundleBehavior ?? 'none'
-      })`;
+        .join(', ')}) (sourceBundles: ${[...node.sourceBundles].join(
+        ', ',
+      )}) (bb ${node.bundleBehavior ?? 'none'})`;
     } else if (node.type) {
       label = `[${fromNodeId(id)}] ${node.type || 'No Type'}: [${node.id}]: `;
       if (node.type === 'dependency') {
