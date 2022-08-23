@@ -19,9 +19,6 @@ describe('svg-react', function () {
     assert(file.includes('const SvgIcon ='));
     assert(file.includes('_react.createElement("svg"'));
   });
-});
-
-describe('svg-react-typescript', function () {
   it('should support transforming SVGs to typescript react components', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/svg-react-typescript/react.ts'),
