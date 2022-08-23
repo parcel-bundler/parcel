@@ -18,10 +18,8 @@ function getComponentName(filePath) {
 
 export default (new Transformer({
   async loadConfig({config}) {
-    let {contents} =
-      (await config.getConfig(['.svgrrc.json', '.svgrrc'])) || {};
-
-    return contents;
+    let conf = await config.getConfig(['.svgrrc.json', '.svgrrc'])
+    return conf?.contents;
   },
   async transform({asset, config}) {
     let code = await asset.getCode();
