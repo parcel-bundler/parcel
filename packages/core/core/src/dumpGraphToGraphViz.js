@@ -95,6 +95,26 @@ export default async function dumpGraphToGraphViz(
       gEdge.set('color', color);
     }
   }
+
+  //Make legend
+  let legend_cluster = g.addCluster('cluster_0'); //Must be "cluster_number"
+  legend_cluster.set('rankdir', 'LR');
+  // legend_cluster.set('style', 'filled');
+  legend_cluster.set('color', 'black');
+  legend_cluster.set('label', 'Legend');
+  legend_cluster.set('shape', 'plaintext');
+
+  legend_cluster.setNodeAttribut('style', 'filled');
+  legend_cluster.setNodeAttribut('color', 'white');
+  legend_cluster.setNodeAttribut('shape', 'plaintext');
+
+  for (let prop in edgeTypes) {
+    let l = legend_cluster.addNode(prop);
+    let r = legend_cluster.addNode(prop + 'down');
+    r.set('style', 'invis');
+    let e = legend_cluster.addEdge(l, r);
+    e.set('color', TYPE_COLORS[prop]);
+  }
   let tmp = tempy.file({name: `${name}.png`});
   await g.output('png', tmp);
   // eslint-disable-next-line no-console
