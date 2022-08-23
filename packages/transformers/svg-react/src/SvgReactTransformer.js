@@ -18,7 +18,8 @@ function getComponentName(filePath) {
 
 export default (new Transformer({
   async loadConfig({config}) {
-    let {contents} = await config.getConfig(['.svgrrc.json', '.svgrrc']);
+    let {contents} =
+      (await config.getConfig(['.svgrrc.json', '.svgrrc'])) || {};
 
     return contents;
   },
@@ -38,7 +39,7 @@ export default (new Transformer({
       },
     );
 
-    asset.type = config.typescript ? 'tsx' : 'jsx';
+    asset.type = config?.typescript ? 'tsx' : 'jsx';
     asset.bundleBehavior = null;
     asset.setCode(jsx);
 
