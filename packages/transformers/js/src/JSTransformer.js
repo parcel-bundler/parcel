@@ -10,7 +10,12 @@ import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, isGlobMatch} from '@parcel/utils';
+import {
+  DefaultMap,
+  validateSchema,
+  remapSourceLocation,
+  isGlobMatch,
+} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 import pkg from '../package.json';
 
@@ -535,9 +540,31 @@ export default (new Transformer({
       asset.invalidateOnEnvChange(env);
     }
 
+    let hoistImportedSymbols;
+    let hoistReexportedSymols;
     asset.meta.id = asset.id;
     if (hoist_result) {
       asset.symbols.ensure();
+      hoistImportedSymbols = new DefaultMap(() => []);
+      hoistReexportedSymols = new DefaultMap(() => []);
+      for (let {
+        source,
+        kind,
+        imported,
+        local,
+        loc,
+      } of hoist_result.imported_symbols) {
+        hoistImportedSymbols.get(source + kind).push({imported, local, loc});
+      }
+      for (let {
+        source,
+        kind,
+        imported,
+        local,
+        loc,
+      } of hoist_result.re_exports) {
+        hoistReexportedSymols.get(source + kind).push({imported, local, loc});
+      }
     }
 
     for (let dep of dependencies) {
@@ -721,18 +748,23 @@ export default (new Transformer({
         if (!hoist_result) {
           asset.addDependency(opts);
         } else {
-          // TODO quadratic
-          let importedSymbols = hoist_result.imported_symbols.filter(
+          // TODO depkind vs symbolkind
+          let importedSymbols =
+            hoistImportedSymbols?.get(
+              (dep.placeholder ?? dep.specifier) + dep.kind,
+            ) ?? [];
+          let reexportedSymbols =
+            dep.kind === 'Import' || dep.kind === 'Export'
+              ? hoistReexportedSymols?.get(
+                  (dep.placeholder ?? dep.specifier) + dep.kind,
+                ) ?? []
+              : [];
+
+          hoist_result.imported_symbols.filter(
             ({source, kind}) =>
               source === (dep.placeholder ?? dep.specifier) &&
               kind === dep.kind,
           );
-          let reexportedSymbols =
-            dep.kind === 'Import' || dep.kind === 'Export'
-              ? hoist_result.re_exports.filter(
-                  ({source}) => source === (dep.placeholder ?? dep.specifier),
-                )
-              : [];
 
           if (importedSymbols?.length > 0 || reexportedSymbols.length > 0) {
             for (let {local, imported, loc} of importedSymbols) {
