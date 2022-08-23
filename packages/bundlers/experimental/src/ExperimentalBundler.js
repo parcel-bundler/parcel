@@ -1014,6 +1014,7 @@ function createIdealGraph(
       if (bundle.mainEntryAsset == null) {
         removeBundle(bundleGraph, bundleNodeId, assetReference);
       } else {
+        if (bundle.needsStableName) continue; // Skip if this is an entry
         //Remove Async bundle
         //Step 1: Remove this bundle from it's sourceBundles. Reused Bundles can have children (i.e. shared bundles between reused bundles and other bundles)
         //So, connect the children to the sourceBundles instead
@@ -1212,6 +1213,7 @@ function createIdealGraph(
       }
     }
   }
+
   function deleteBundle(bundleRoot: BundleRoot) {
     bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
     bundleRoots.delete(bundleRoot);
