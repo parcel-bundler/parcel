@@ -2809,7 +2809,10 @@ describe('html', function () {
     });
   });
 
-  it('should insert the prelude for sibling bundles referenced in HTML', async function () {
+  it('should share older JS sibling (script) assets to younger siblings', async function () {
+    // JS script tags are siblings to a common parent, and are marked as such by parallel dependency priority
+    // Becuase of load order any older sibling (and it's assets) are loaded before any subsequent sibling
+    // Which means no younger sibling should have to reference sibling bundles for assets in them
     let b = await bundle(
       path.join(
         __dirname,
@@ -2828,6 +2831,23 @@ describe('html', function () {
         assets: ['b.js'],
       },
     ]);
+
+    let youngerSibling; // bundle containing younger sibling, b.js
+    let olderSibling; // bundle containing old sibling, a.js
+    b.traverseBundles(bundle => {
+      bundle.traverseAssets(asset => {
+        if (asset.filePath.includes('b.js')) {
+          youngerSibling = bundle;
+        } else if (asset.filePath.includes('a.js')) {
+          olderSibling = bundle;
+        }
+      });
+    });
+
+    assert(
+      b.getReferencedBundles(youngerSibling).filter(b => b == olderSibling)
+        .length == 0,
+    );
 
     let res = await run(b, {output: null}, {require: false});
     assert.equal(res.output, 'a');
