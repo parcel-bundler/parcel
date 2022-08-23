@@ -221,7 +221,8 @@ describe('bundler', function () {
       );
     }
   });
-  it('should not remove shared bundle from graph if its parent (a reused bundle) is removed by min bundle size', async function () {
+  // This test tests partial removal of a rused bundle
+  it.skip('should not remove shared bundle from graph if its parent (a reused bundle) is removed by min bundle size', async function () {
     // If minBundleSize dictates a reused bundle should be removed, it should be placed back into the bundlegroups where
     // it acted as a shared bundle (maintiaining any children it had from that)
     if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
@@ -281,7 +282,8 @@ describe('bundler', function () {
       );
     }
   });
-  it('should remove a reused bundle (from the bundlegroup that contains it as a shared bundle) if its smaller than the minBundleSize', async function () {
+  //This test case test partial removal
+  it.skip('should remove a reused bundle (from the bundlegroup that contains it as a shared bundle) if its smaller than the minBundleSize', async function () {
     if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
       let b = await bundle(
         path.join(

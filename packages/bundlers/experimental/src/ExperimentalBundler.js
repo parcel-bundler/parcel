@@ -816,6 +816,7 @@ function createIdealGraph(
           parallelAvailability,
           assetsFromBundleRoot,
         );
+        parallelAvailability.add(child);
       }
     }
   }
