@@ -1591,25 +1591,25 @@ export type Runtime<ConfigType> = {|
 /**
  * @section packager
  */
-export type Packager<ConfigType, GlobalInfoType> = {|
+export type Packager<ConfigType, BundleConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<ConfigType>,
-  loadGlobalInfo?: ({|
+  loadBundleConfig?: ({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<GlobalInfoType>,
+  |}) => Async<BundleConfigType>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
     config: ConfigType,
-    globalInfo: GlobalInfoType,
+    bundleConfig: BundleConfigType,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,
@@ -1621,18 +1621,18 @@ export type Packager<ConfigType, GlobalInfoType> = {|
 /**
  * @section optimizer
  */
-export type Optimizer<ConfigType, GlobalInfoType> = {|
+export type Optimizer<ConfigType, BundleConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<ConfigType>,
-  loadGlobalInfo?: ({|
+  loadBundleConfig?: ({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<GlobalInfoType>,
+  |}) => Async<BundleConfigType>,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1641,7 +1641,7 @@ export type Optimizer<ConfigType, GlobalInfoType> = {|
     options: PluginOptions,
     logger: PluginLogger,
     config: ConfigType,
-    globalInfo: GlobalInfoType,
+    bundleConfig: BundleConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};

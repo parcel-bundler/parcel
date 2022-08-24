@@ -143,19 +143,19 @@ export default class PackagerRunner {
   ): Promise<PackageRequestResult> {
     invalidateDevDeps(invalidDevDeps, this.options, this.config);
 
-    let {configs, globalInfos} = await this.loadConfigs(bundleGraph, bundle);
+    let {configs, bundleConfigs} = await this.loadConfigs(bundleGraph, bundle);
     let bundleInfo =
       (await this.getBundleInfoFromCache(
         bundleGraph,
         bundle,
         configs,
-        globalInfos,
+        bundleConfigs,
       )) ??
-      (await this.getBundleInfo(bundle, bundleGraph, configs, globalInfos));
+      (await this.getBundleInfo(bundle, bundleGraph, configs, bundleConfigs));
 
     let configRequests = getConfigRequests([
       ...configs.values(),
-      ...globalInfos.values(),
+      ...bundleConfigs.values(),
     ]);
     let devDepRequests = getWorkerDevDepRequests([
       ...this.devDepRequests.values(),
@@ -174,24 +174,24 @@ export default class PackagerRunner {
     bundle: InternalBundle,
   ): Promise<{|
     configs: Map<string, Config>,
-    globalInfos: Map<string, Config>,
+    bundleConfigs: Map<string, Config>,
   |}> {
     let configs = new Map();
-    let globalInfos = new Map();
+    let bundleConfigs = new Map();
 
-    await this.loadConfig(bundleGraph, bundle, configs, globalInfos);
+    await this.loadConfig(bundleGraph, bundle, configs, bundleConfigs);
     for (let inlineBundle of bundleGraph.getInlineBundles(bundle)) {
-      await this.loadConfig(bundleGraph, inlineBundle, configs, globalInfos);
+      await this.loadConfig(bundleGraph, inlineBundle, configs, bundleConfigs);
     }
 
-    return {configs, globalInfos};
+    return {configs, bundleConfigs};
   }
 
   async loadConfig(
     bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
     configs: Map<string, Config>,
-    globalInfos: Map<string, Config>,
+    bundleConfigs: Map<string, Config>,
   ): Promise<void> {
     let name = nullthrows(bundle.name);
     let plugin = await this.config.getPackager(name);
@@ -200,7 +200,7 @@ export default class PackagerRunner {
       bundle,
       plugin,
       configs,
-      globalInfos,
+      bundleConfigs,
     );
 
     let optimizers = await this.config.getOptimizers(name, bundle.pipeline);
@@ -210,7 +210,7 @@ export default class PackagerRunner {
         bundle,
         optimizer,
         configs,
-        globalInfos,
+        bundleConfigs,
       );
     }
   }
@@ -220,7 +220,7 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     plugin: LoadedPlugin<T>,
     configs: Map<string, Config>,
-    globalInfos: Map<string, Config>,
+    bundleConfigs: Map<string, Config>,
   ): Promise<void> {
     if (!configs.has(plugin.name)) {
       // Only load config for a plugin once per build.
@@ -255,13 +255,13 @@ export default class PackagerRunner {
       }
     }
 
-    let loadGlobalInfo = plugin.plugin.loadGlobalInfo;
-    if (!globalInfos.has(plugin.name) && loadGlobalInfo != null) {
+    let loadBundleConfig = plugin.plugin.loadBundleConfig;
+    if (!bundleConfigs.has(plugin.name) && loadBundleConfig != null) {
       let config = createConfig({
         plugin: plugin.name,
         searchPath: toProjectPathUnsafe('index'),
       });
-      config.result = await loadGlobalInfo({
+      config.result = await loadBundleConfig({
         bundle: NamedBundle.get(bundle, bundleGraph, this.options),
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
@@ -273,7 +273,7 @@ export default class PackagerRunner {
       });
       // TODO expose config and let plugin set key?
       config.cacheKey = hashString(JSON.stringify(config.result) ?? '');
-      globalInfos.set(plugin.name, config);
+      bundleConfigs.set(plugin.name, config);
     }
   }
 
@@ -281,7 +281,7 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
     configs: Map<string, Config>,
-    globalInfos: Map<string, Config>,
+    bundleConfigs: Map<string, Config>,
   ): Async<?BundleInfo> {
     if (this.options.shouldDisableCache) {
       return;
@@ -291,7 +291,7 @@ export default class PackagerRunner {
       bundle,
       bundleGraph,
       configs,
-      globalInfos,
+      bundleConfigs,
       this.previousInvalidations,
     );
     let infoKey = PackagerRunner.getInfoKey(cacheKey);
@@ -302,13 +302,13 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
-    globalInfos: Map<string, Config>,
+    bundleConfigs: Map<string, Config>,
   ): Promise<BundleInfo> {
     let {type, contents, map} = await this.getBundleResult(
       bundle,
       bundleGraph,
       configs,
-      globalInfos,
+      bundleConfigs,
     );
 
     // Recompute cache keys as they may have changed due to dev dependencies.
@@ -316,7 +316,7 @@ export default class PackagerRunner {
       bundle,
       bundleGraph,
       configs,
-      globalInfos,
+      bundleConfigs,
       [...this.invalidations.values()],
     );
     let cacheKeys = {
@@ -332,7 +332,7 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
-    globalInfos: Map<string, Config>,
+    bundleConfigs: Map<string, Config>,
   ): Promise<{|
     type: string,
     contents: Blob,
@@ -342,7 +342,7 @@ export default class PackagerRunner {
       bundle,
       bundleGraph,
       configs,
-      globalInfos,
+      bundleConfigs,
     );
     let type = packaged.type ?? bundle.type;
     let res = await this.optimize(
@@ -352,7 +352,7 @@ export default class PackagerRunner {
       packaged.contents,
       packaged.map,
       configs,
-      globalInfos,
+      bundleConfigs,
     );
 
     let map =
@@ -380,7 +380,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
-    globalInfos: Map<string, Config>,
+    bundleConfigs: Map<string, Config>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
@@ -394,7 +394,7 @@ export default class PackagerRunner {
     try {
       return await plugin.package({
         config: configs.get(name)?.result,
-        globalInfo: globalInfos.get(name)?.result,
+        bundleConfig: bundleConfigs.get(name)?.result,
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
@@ -421,7 +421,7 @@ export default class PackagerRunner {
             // $FlowFixMe
             bundleGraphToInternalBundleGraph(bundleGraph),
             configs,
-            globalInfos,
+            bundleConfigs,
           );
 
           return {contents: res.contents};
@@ -459,7 +459,7 @@ export default class PackagerRunner {
     contents: Blob,
     map?: ?SourceMap,
     configs: Map<string, Config>,
-    globalInfos: Map<string, Config>,
+    bundleConfigs: Map<string, Config>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(
       internalBundle,
@@ -495,7 +495,7 @@ export default class PackagerRunner {
       try {
         let next = await optimizer.plugin.optimize({
           config: configs.get(optimizer.name)?.result,
-          globalInfo: globalInfos.get(optimizer.name)?.result,
+          bundleConfig: bundleConfigs.get(optimizer.name)?.result,
           bundle,
           bundleGraph,
           contents: optimized.contents,
@@ -601,7 +601,7 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     configs: Map<string, Config>,
-    globalInfos: Map<string, Config>,
+    bundleConfigs: Map<string, Config>,
     invalidations: Array<RequestInvalidation>,
   ): Promise<string> {
     let configResults = {};
@@ -615,7 +615,7 @@ export default class PackagerRunner {
       }
     }
     let globalInfoResults = {};
-    for (let [pluginName, config] of globalInfos) {
+    for (let [pluginName, config] of bundleConfigs) {
       if (config) {
         globalInfoResults[pluginName] = await getConfigHash(
           config,

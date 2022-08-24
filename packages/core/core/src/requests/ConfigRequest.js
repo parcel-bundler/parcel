@@ -40,7 +40,7 @@ export type PluginWithLoadConfigGlobalInfo = {
     options: IPluginOptions,
     logger: IPluginLogger,
   |}) => Async<mixed>,
-  loadGlobalInfo?: ({|
+  loadBundleConfig?: ({|
     bundle: INamedBundle,
     bundleGraph: IBundleGraph<INamedBundle>,
     options: IPluginOptions,
