@@ -22,6 +22,7 @@ import {
   findAlternativeNodeModules,
   findAlternativeFiles,
   loadConfig,
+  getModuleParts,
   globToRegex,
   isGlobMatch,
 } from '@parcel/utils';
@@ -387,7 +388,7 @@ export default class NodeResolver {
 
     if (resolved === undefined && process.versions.pnp != null && parent) {
       try {
-        let [moduleName, subPath] = this.getModuleParts(filename);
+        let [moduleName, subPath] = getModuleParts(filename);
         // $FlowFixMe[prop-missing]
         let pnp = _Module.findPnpApi(path.dirname(parent));
 
@@ -418,7 +419,7 @@ export default class NodeResolver {
 
     // If we couldn't resolve the node_modules path, just return the module name info
     if (resolved === undefined) {
-      let [moduleName, subPath] = this.getModuleParts(filename);
+      let [moduleName, subPath] = getModuleParts(filename);
       resolved = ({
         moduleName,
         subPath,
@@ -458,12 +459,12 @@ export default class NodeResolver {
     }
 
     if (Array.isArray(includeNodeModules)) {
-      let [moduleName] = this.getModuleParts(name);
+      let [moduleName] = getModuleParts(name);
       return includeNodeModules.includes(moduleName);
     }
 
     if (includeNodeModules && typeof includeNodeModules === 'object') {
-      let [moduleName] = this.getModuleParts(name);
+      let [moduleName] = getModuleParts(name);
       let include = includeNodeModules[moduleName];
       if (include != null) {
         return !!include;
@@ -476,7 +477,7 @@ export default class NodeResolver {
     name: string,
     ctx: ResolverContext,
   ) {
-    let [moduleName] = this.getModuleParts(name);
+    let [moduleName] = getModuleParts(name);
     let pkg = await this.findPackage(sourceFile, ctx);
     if (!pkg) {
       return;
@@ -771,7 +772,7 @@ export default class NodeResolver {
     sourceFile: FilePath,
     ctx: ResolverContext,
   ): ?Module {
-    let [moduleName, subPath] = this.getModuleParts(filename);
+    let [moduleName, subPath] = getModuleParts(filename);
 
     ctx.invalidateOnFileCreate.push({
       fileName: `node_modules/${moduleName}`,
@@ -1182,7 +1183,7 @@ export default class NodeResolver {
       alias = this.lookupAlias(aliases, normalizeSeparators(filename));
       if (alias == null) {
         // If it didn't match, try only the module name.
-        let [moduleName, subPath] = this.getModuleParts(filename);
+        let [moduleName, subPath] = getModuleParts(filename);
         alias = this.lookupAlias(aliases, moduleName);
         if (typeof alias === 'string' && subPath) {
           let isRelative = alias.startsWith('./');
@@ -1318,22 +1319,6 @@ export default class NodeResolver {
     // Load the local package, and resolve aliases
     let pkg = await this.findPackage(sourceFile, ctx);
     return this.resolveAliases(filename, env, pkg);
-  }
-
-  getModuleParts(name: string): [FilePath, ?string] {
-    name = path.normalize(name);
-    let splitOn = name.indexOf(path.sep);
-    if (name.charAt(0) === '@') {
-      splitOn = name.indexOf(path.sep, splitOn + 1);
-    }
-    if (splitOn < 0) {
-      return [normalizeSeparators(name), undefined];
-    } else {
-      return [
-        normalizeSeparators(name.substring(0, splitOn)),
-        name.substring(splitOn + 1) || undefined,
-      ];
-    }
   }
 
   hasSideEffects(filePath: FilePath, pkg: InternalPackageJSON): boolean {
