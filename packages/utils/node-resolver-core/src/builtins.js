@@ -7,11 +7,14 @@ export const empty: string = require.resolve('./_empty.js');
 let builtins: {[string]: {|name: string, range: ?string|}, ...} =
   // $FlowFixMe
   Object.create(null);
+
 // use definite (current) list of Node builtins
 for (let key of builtinModules) {
   builtins[key] = {name: empty, range: null};
 }
 
+// These are mostly the versions considered "new enough" by
+// https://www.npmjs.com/package/node-libs-browser (with a few version bumps)
 builtins.assert = {name: 'assert/', range: '^2.0.0'};
 builtins.buffer = {name: 'buffer/', range: '^5.5.0'};
 builtins.console = {name: 'console-browserify', range: '^1.2.0'};

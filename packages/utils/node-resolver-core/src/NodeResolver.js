@@ -295,13 +295,12 @@ export default class NodeResolver {
       // ignore
     }
 
-    // Auto install node builtin polyfills if not already available or check that the correct
-    // version is installed
     if (builtin != null) {
       // This assumes that there are no polyfill packages that are scoped
       let packageName = builtin.name.split('/')[0];
       let packageManager = this.packageManager;
       if (resolved == null) {
+        // Auto install the Node builtin polyfills
         if (this.shouldAutoInstall && packageManager) {
           this.logger?.warn({
             message: md`Auto installing polyfill for Node builtin module "${specifier}"...`,
@@ -323,15 +322,23 @@ export default class NodeResolver {
               'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
           });
 
-          await packageManager.resolve(packageName, sourceFile, {
-            saveDev: true,
-            shouldAutoInstall: true,
-            range: builtin.range,
-          });
+          await packageManager.resolve(
+            packageName,
+            this.projectRoot + '/index',
+            {
+              saveDev: true,
+              shouldAutoInstall: true,
+              range: builtin.range,
+            },
+          );
 
           // Re-resolve
           try {
-            resolved = this.findNodeModulePath(filename, sourceFile, ctx);
+            resolved = this.findNodeModulePath(
+              filename,
+              this.projectRoot + '/index',
+              ctx,
+            );
           } catch (err) {
             // ignore
           }
@@ -362,13 +369,19 @@ export default class NodeResolver {
           });
         }
       } else if (builtin.range != null) {
+        // Assert correct version
+
         // TODO packageManager can be null for backwards compatibility, but that could cause invalid
         // resolutions in monorepos
-        await packageManager?.resolve(packageName, sourceFile, {
-          saveDev: true,
-          shouldAutoInstall: true,
-          range: builtin.range,
-        });
+        await packageManager?.resolve(
+          packageName,
+          this.projectRoot + '/index',
+          {
+            saveDev: true,
+            shouldAutoInstall: true,
+            range: builtin.range,
+          },
+        );
       }
     }
 
