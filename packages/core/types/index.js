@@ -808,8 +808,10 @@ export interface Config {
   invalidateOnFileCreate(FileCreateInvalidation): void;
   /** Invalidates the config when the given environment variable changes. */
   invalidateOnEnvChange(string): void;
-  /** Invalidates the config when Parcel restarts. */
+  /** Invalidates the config only when Parcel restarts. */
   invalidateOnStartup(): void;
+  /** Invalidates the config on every build. */
+  invalidateOnBuild(): void;
   /**
    * Adds a dev dependency to the config. If the dev dependency or any of its
    * dependencies change, the config will be invalidated.
