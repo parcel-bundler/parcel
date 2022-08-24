@@ -300,9 +300,11 @@ export default class NodeResolver {
       // ignore
     }
 
-    if (builtin != null) {
+    // Autoinstall/verify version of builtin polyfills
+    if (builtin?.range != null) {
       // This assumes that there are no polyfill packages that are scoped
-      let packageName = builtin.name.split('/')[0];
+      // Append '/' to force this.packageManager to look up the package in node_modules
+      let packageName = builtin.name.split('/')[0] + '/';
       let packageManager = this.packageManager;
       if (resolved == null) {
         // Auto install the Node builtin polyfills
@@ -383,7 +385,7 @@ export default class NodeResolver {
           this.projectRoot + '/index',
           {
             saveDev: true,
-            shouldAutoInstall: true,
+            shouldAutoInstall: this.shouldAutoInstall,
             range: builtin.range,
           },
         );
