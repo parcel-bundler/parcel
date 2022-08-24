@@ -6,6 +6,7 @@ import type {AssetGraphNode, BundleGraphNode} from './types';
 import BundleGraph from './BundleGraph';
 import {bundleGraphEdgeTypes} from './BundleGraph';
 import {requestGraphEdgeTypes} from './RequestTracker';
+import fs from 'fs';
 
 const COLORS = {
   root: 'gray',
@@ -115,8 +116,18 @@ export default async function dumpGraphToGraphViz(
     let e = legend_cluster.addEdge(l, r);
     e.set('color', TYPE_COLORS[prop]);
   }
-  let tmp = tempy.file({name: `${name}.png`});
-  await g.output('png', tmp);
+  let tmp;
+  if (
+    process.env.PARCEL_DUMP_GRAPHVIZ &&
+    process.env.PARCEL_DUMP_GRAPHVIZ.endsWith('dot')
+  ) {
+    tmp = tempy.file({name: `${name}.dot`});
+    await g.output('dot', tmp);
+  } else {
+    tmp = tempy.file({name: `${name}.png`});
+    await g.output('png', tmp);
+  }
+
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);
 }
