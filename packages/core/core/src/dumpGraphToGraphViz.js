@@ -52,31 +52,22 @@ export default async function dumpGraphToGraphViz(
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
-
+  let pGraph = bundleGraph ? bundleGraph : graph;
   for (let [id, node] of graph.nodes) {
-    let n = g.addNode(nodeId(id));
-    // $FlowFixMe default is fine. Not every type needs to be in the map.
-    n.set('color', COLORS[node.type || 'default']);
-    n.set('shape', 'box');
-    n.set('style', 'filled');
     let label;
-    if (typeof node === 'string') {
-      label = node;
-    } else if (node.assets) {
-      label = `(${nodeId(id)}), (assetIds: ${[...node.assets]
-        .map(a => {
-          let arr = a.filePath.split('/');
-          return arr[arr.length - 1];
-        })
-        .join(', ')}) (sourceBundles: ${[...node.sourceBundles].join(
-        ', ',
-      )}) (bb ${node.bundleBehavior ?? 'none'})`;
+
+    label = getLabel(id, node, pGraph);
+    let n;
+    if (process.env.PARCEL_DUMP_GRAPHVIZ?.endsWith('dot')) {
+      n = g.addNode(label);
     } else {
-      label = bundleGraph
-        ? bundleGraph.nodeToString(id)
-        : graph.nodeToString(id);
+      n = g.addNode(nodeId(id));
+      // $FlowFixMe default is fine. Not every type needs to be in the map.
+      n.set('color', COLORS[node.type || 'default']);
+      n.set('shape', 'box');
+      n.set('style', 'filled');
+      n.set('label', label);
     }
-    n.set('label', label);
   }
 
   let edgeNames;
@@ -87,43 +78,60 @@ export default async function dumpGraphToGraphViz(
   }
 
   for (let edge of graph.getAllEdges()) {
-    let gEdge = g.addEdge(nodeId(edge.from), nodeId(edge.to));
-    let color = null;
-    if (edge.type != 1 && edgeNames) {
-      color = TYPE_COLORS[edgeNames[edge.type]];
-    }
-    if (color != null) {
-      gEdge.set('color', color);
+    let gEdge;
+    if (process.env.PARCEL_DUMP_GRAPHVIZ?.endsWith('dot')) {
+      gEdge = g.addEdge(
+        getLabel(edge.from, graph.nodes.get(edge.from), pGraph),
+        getLabel(edge.to, graph.nodes.get(edge.to), pGraph),
+      );
+      if (edge.type != 1 && edgeNames) {
+        gEdge.set('label', edgeNames[edge.type]);
+      }
+    } else {
+      gEdge = g.addEdge(nodeId(edge.from), nodeId(edge.to));
+      let color = null;
+      if (edge.type != 1 && edgeNames) {
+        color = TYPE_COLORS[edgeNames[edge.type]];
+      }
+      if (color != null) {
+        gEdge.set('color', color);
+      }
     }
   }
 
-  //Make legend
-  let legend_cluster = g.addCluster('cluster_0'); //Must be "cluster_number"
-  legend_cluster.set('rankdir', 'LR');
-  // legend_cluster.set('style', 'filled');
-  legend_cluster.set('color', 'black');
-  legend_cluster.set('label', 'Legend');
-  legend_cluster.set('shape', 'plaintext');
-
-  legend_cluster.setNodeAttribut('style', 'filled');
-  legend_cluster.setNodeAttribut('color', 'white');
-  legend_cluster.setNodeAttribut('shape', 'plaintext');
-
-  for (let prop in edgeTypes) {
-    let l = legend_cluster.addNode(prop);
-    let r = legend_cluster.addNode(prop + 'down');
-    r.set('style', 'invis');
-    let e = legend_cluster.addEdge(l, r);
-    e.set('color', TYPE_COLORS[prop]);
-  }
   let tmp;
   if (
     process.env.PARCEL_DUMP_GRAPHVIZ &&
     process.env.PARCEL_DUMP_GRAPHVIZ.endsWith('dot')
   ) {
+    // // If user passed in a filePath, diff it with current graph
+    // let prevGraph = fs
+    //   .readFileSync(process.env.PARCEL_DUMP_GRAPHVIZ, 'utf8')
+    //   .toString();
+
     tmp = tempy.file({name: `${name}.dot`});
-    await g.output('dot', tmp);
+    await g.output('canon', tmp);
   } else {
+    //Make legend
+    let legend_cluster = g.addCluster('cluster_0'); //Must be "cluster_number"
+    legend_cluster.set('rankdir', 'LR');
+    // legend_cluster.set('style', 'filled');
+    legend_cluster.set('color', 'black');
+    legend_cluster.set('label', 'Legend');
+    legend_cluster.set('shape', 'plaintext');
+
+    legend_cluster.setNodeAttribut('style', 'filled');
+    legend_cluster.setNodeAttribut('color', 'white');
+    legend_cluster.setNodeAttribut('shape', 'plaintext');
+
+    for (let prop in edgeTypes) {
+      let l = legend_cluster.addNode(prop);
+      let r = legend_cluster.addNode(prop + 'down');
+      r.set('style', 'invis');
+      let e = legend_cluster.addEdge(l, r);
+      e.set('color', TYPE_COLORS[prop]);
+    }
+
     tmp = tempy.file({name: `${name}.png`});
     await g.output('png', tmp);
   }
@@ -135,4 +143,22 @@ export default async function dumpGraphToGraphViz(
 function nodeId(id) {
   // $FlowFixMe
   return `node${id}`;
+}
+function getLabel(id, node, graph) {
+  let label;
+  if (typeof node === 'string') {
+    label = node;
+  } else if (node.assets) {
+    label = `(${nodeId(id)}), (assetIds: ${[...node.assets]
+      .map(a => {
+        let arr = a.filePath.split('/');
+        return arr[arr.length - 1];
+      })
+      .join(', ')}) (sourceBundles: ${[...node.sourceBundles].join(
+      ', ',
+    )}) (bb ${node.bundleBehavior ?? 'none'})`;
+  } else {
+    label = graph.nodeToString(id);
+  }
+  return label;
 }
