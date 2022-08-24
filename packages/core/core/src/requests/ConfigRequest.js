@@ -43,6 +43,7 @@ export type PluginWithLoadConfigGlobalInfo = {
   loadBundleConfig?: ({|
     bundle: INamedBundle,
     bundleGraph: IBundleGraph<INamedBundle>,
+    config: IConfig,
     options: IPluginOptions,
     logger: IPluginLogger,
   |}) => Async<mixed>,

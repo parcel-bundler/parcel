@@ -38,6 +38,7 @@ import BundleGraph, {
   bundleGraphToInternalBundleGraph,
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
+import PublicConfig from './public/Config';
 import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
 import {
   fromProjectPath,
@@ -268,6 +269,7 @@ export default class PackagerRunner {
           NamedBundle.get.bind(NamedBundle),
           this.options,
         ),
+        config: new PublicConfig(config, this.options),
         options: new PluginOptions(this.options),
         logger: new PluginLogger({origin: plugin.name}),
       });

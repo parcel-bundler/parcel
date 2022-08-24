@@ -1600,6 +1600,7 @@ export type Packager<ConfigType, BundleConfigType> = {|
   loadBundleConfig?: ({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
+    config: Config,
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<BundleConfigType>,
@@ -1630,6 +1631,7 @@ export type Optimizer<ConfigType, BundleConfigType> = {|
   loadBundleConfig?: ({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
+    config: Config,
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<BundleConfigType>,
