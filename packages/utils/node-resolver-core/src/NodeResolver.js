@@ -291,7 +291,11 @@ export default class NodeResolver {
     // Resolve the module in node_modules
     let resolved: ?Module;
     try {
-      resolved = this.findNodeModulePath(filename, sourceFile, ctx);
+      resolved = this.findNodeModulePath(
+        filename,
+        builtin == null ? sourceFile : this.projectRoot + '/index',
+        ctx,
+      );
     } catch (err) {
       // ignore
     }
