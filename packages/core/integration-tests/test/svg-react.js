@@ -27,9 +27,6 @@ describe('svg-react', function () {
           __dirname,
           'integration/custom-configs/.parcelrc-svg-react',
         ),
-        defaultTargetOptions: {
-          typescript: true,
-        },
       },
     );
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
