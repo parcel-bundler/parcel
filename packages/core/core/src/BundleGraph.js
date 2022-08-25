@@ -213,7 +213,6 @@ export default class BundleGraph {
 
     for (let edge of assetGraph.getAllEdges()) {
       if (
-        dependencyIds.has(edge.from) &&
         edge.type === assetGraphEdgeTypes.null &&
         assetGraph.adjacencyList
           .getOutboundEdgesByType(edge.from)

@@ -22,7 +22,7 @@ import type {PathRequestInput} from './PathRequest';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {PromiseQueue} from '@parcel/utils';
+import {DefaultMap, PromiseQueue} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import logger from '@parcel/logger';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
@@ -515,8 +515,10 @@ export class AssetGraphBuilder {
           });
         }
 
-        let outgoingDepReplacements = new Map();
-        let outgoingDepResolved = undefined;
+        let outgoingDepReplacements = new DefaultMap<
+          ContentKey,
+          Map<Symbol, Symbol>,
+        >(() => new Map());
         for (let [s, sResolved] of outgoingDep.usedSymbolsUp) {
           if (!outgoingDep.usedSymbolsDown.has(s)) {
             // usedSymbolsDown is a superset of usedSymbolsUp
@@ -556,17 +558,9 @@ export class AssetGraphBuilder {
               }
             });
           } else if (sResolved) {
-            if (outgoingDepResolved === undefined) {
-              outgoingDepResolved = sResolved.asset;
-            } else {
-              if (
-                outgoingDepResolved != null &&
-                outgoingDepResolved != sResolved.asset
-              ) {
-                outgoingDepResolved = null;
-              }
-            }
-            outgoingDepReplacements.set(s, sResolved.symbol ?? s);
+            outgoingDepReplacements
+              .get(sResolved.asset)
+              .set(s, sResolved.symbol ?? s);
           }
         }
         if (
@@ -576,12 +570,9 @@ export class AssetGraphBuilder {
           //      (parcelRequire("4pwI8")).then((a)=>a);
           // if symbolTarget == { a -> * }
           outgoingDep.value.priority == Priority.sync &&
-          outgoingDepResolved != null
+          outgoingDepReplacements.size > 0
         ) {
-          replacements.set(outgoingDep.id, {
-            asset: outgoingDepResolved,
-            targets: outgoingDepReplacements,
-          });
+          replacements.set(outgoingDep.id, outgoingDepReplacements);
         } else {
           // Edge needs to be removed again
           replacements.set(outgoingDep.id, null);
@@ -708,29 +699,58 @@ export class AssetGraphBuilder {
       let depNode = nullthrows(this.assetGraph.getNode(depNodeId));
       invariant(depNode.type === 'dependency');
       if (replacement) {
-        let {asset, targets} = replacement;
-        let assetParents = this.assetGraph.getNodeIdsConnectedTo(
-          this.assetGraph.getNodeIdByContentKey(asset),
+        let sourceAssetId = this.assetGraph.getNodeIdByContentKey(
+          nullthrows(depNode.value.sourceAssetId),
         );
-        let assetGroupId;
-        if (assetParents.length === 1) {
-          [assetGroupId] = assetParents;
-          let type = this.assetGraph.getNode(assetGroupId)?.type;
-          // Parent is either an asset group, or a dependency when transformer returned multiple
-          // connected assets.
-          if (type !== 'asset_group') {
-            invariant(type === 'dependency');
-            assetGroupId = undefined;
+        for (let [asset, targets] of replacement) {
+          let assetParents = this.assetGraph.getNodeIdsConnectedTo(
+            this.assetGraph.getNodeIdByContentKey(asset),
+          );
+          let assetGroupId;
+          if (assetParents.length === 1) {
+            [assetGroupId] = assetParents;
+            let type = this.assetGraph.getNode(assetGroupId)?.type;
+            // Parent is either an asset group, or a dependency when transformer returned multiple
+            // connected assets.
+            if (type !== 'asset_group') {
+              invariant(type === 'dependency');
+              assetGroupId = undefined;
+            }
           }
-        }
 
-        this.assetGraph.addEdge(
-          depNodeId,
-          assetGroupId ?? this.assetGraph.getNodeIdByContentKey(asset),
-          assetGraphEdgeTypes.redirected,
-        );
-        depNode.symbolTarget = targets;
+          let depNodeTarget =
+            assetGroupId ?? this.assetGraph.getNodeIdByContentKey(asset);
+
+          let newDepId = hashString(depNode.id + [...targets.keys()].join(','));
+          let newDep = this.assetGraph.addNode({
+            ...depNode,
+            id: newDepId,
+            value: {
+              ...depNode.value,
+              id: newDepId,
+              symbols: depNode.value.symbols
+                ? new Map(
+                    [...depNode.value.symbols].filter(([k]) => targets.has(k)),
+                  )
+                : undefined,
+            },
+            usedSymbolsUp: new Map(
+              [...depNode.usedSymbolsUp].filter(([k]) => targets.has(k)),
+            ),
+            usedSymbolsDown: new Set(),
+            symbolTarget: targets,
+          });
+
+          // TODO adjust sourceAssetIdNode.value.dependencies ?
+          this.assetGraph.addEdge(
+            sourceAssetId,
+            newDep,
+            assetGraphEdgeTypes.redirected,
+          );
+          this.assetGraph.addEdge(newDep, depNodeTarget);
+        }
       } else {
+        // Remove
         for (let n of this.assetGraph.getNodeIdsConnectedFrom(
           depNodeId,
           assetGraphEdgeTypes.redirected,
