@@ -7,6 +7,7 @@ import BundleGraph from './BundleGraph';
 import {bundleGraphEdgeTypes} from './BundleGraph';
 import {requestGraphEdgeTypes} from './RequestTracker';
 import fs from 'fs';
+import nullthrows from 'nullthrows';
 
 const COLORS = {
   root: 'gray',
@@ -81,8 +82,8 @@ export default async function dumpGraphToGraphViz(
     let gEdge;
     if (process.env.PARCEL_DUMP_GRAPHVIZ?.endsWith('dot')) {
       gEdge = g.addEdge(
-        getLabel(edge.from, graph.nodes.get(edge.from), pGraph),
-        getLabel(edge.to, graph.nodes.get(edge.to), pGraph),
+        getLabel(edge.from, nullthrows(graph.nodes.get(edge.from)), pGraph),
+        getLabel(edge.to, nullthrows(graph.nodes.get(edge.to)), pGraph),
       );
       if (edge.type != 1 && edgeNames) {
         gEdge.set('label', edgeNames[edge.type]);
@@ -100,15 +101,7 @@ export default async function dumpGraphToGraphViz(
   }
 
   let tmp;
-  if (
-    process.env.PARCEL_DUMP_GRAPHVIZ &&
-    process.env.PARCEL_DUMP_GRAPHVIZ.endsWith('dot')
-  ) {
-    // // If user passed in a filePath, diff it with current graph
-    // let prevGraph = fs
-    //   .readFileSync(process.env.PARCEL_DUMP_GRAPHVIZ, 'utf8')
-    //   .toString();
-
+  if (process.env.PARCEL_DUMP_GRAPHVIZ?.endsWith('dot')) {
     tmp = tempy.file({name: `${name}.dot`});
     await g.output('canon', tmp);
   } else {
@@ -158,7 +151,39 @@ function getLabel(id, node, graph) {
       ', ',
     )}) (bb ${node.bundleBehavior ?? 'none'})`;
   } else {
-    label = graph.nodeToString(id);
+    if (process.env.PARCEL_DUMP_GRAPHVIZ === 'dot') {
+      switch (node.type) {
+        case 'bundle':
+          label = `Bundle[${String(node.value.name || node.id)}]`;
+          break;
+        case 'asset':
+          label = `Asset[${String(node.value.filePath)}]`;
+          break;
+        case 'dependency':
+          label = `Dependency[${node.value.specifier}]`;
+          break;
+        case 'root':
+          label = `Root`;
+          break;
+        case 'entry_specifier':
+          label = `EntrySpecifier[${String(node.value)}]`;
+          break;
+        case 'entry_file':
+          label = `EntryFile[${String(node.value.filePath)}]`;
+          break;
+        case 'asset_group':
+          label = `AssetGroup[${String(node.value.filePath)}]`;
+          break;
+        case 'bundle_group':
+          label = `BundleGroup[${String(node.value.target.env.context)}]`;
+          break;
+        default:
+          label = graph.nodeToString(id);
+          break;
+      }
+    } else {
+      label = graph.nodeToString(id);
+    }
   }
   return label;
 }
