@@ -685,85 +685,85 @@ export class AssetGraphBuilder {
       );
     }
 
-    // Do after the fact to not disrupt traversal
-    for (let [dep, replacement] of replacements) {
-      if (
-        process.env.PARCEL_BUILD_ENV !== 'production' &&
-        // $FlowFixMe
-        process.env.PARCEL_SYMBOLS_CODESPLIT == false
-      ) {
-        break;
-      }
+    // // Do after the fact to not disrupt traversal
+    // for (let [dep, replacement] of replacements) {
+    //   if (
+    //     process.env.PARCEL_BUILD_ENV !== 'production' &&
+    //     // $FlowFixMe
+    //     process.env.PARCEL_SYMBOLS_CODESPLIT == false
+    //   ) {
+    //     break;
+    //   }
 
-      let depNodeId = this.assetGraph.getNodeIdByContentKey(dep);
-      let depNode = nullthrows(this.assetGraph.getNode(depNodeId));
-      invariant(depNode.type === 'dependency');
-      if (replacement) {
-        let sourceAssetId = this.assetGraph.getNodeIdByContentKey(
-          nullthrows(depNode.value.sourceAssetId),
-        );
-        for (let [asset, targets] of replacement) {
-          let assetParents = this.assetGraph.getNodeIdsConnectedTo(
-            this.assetGraph.getNodeIdByContentKey(asset),
-          );
-          let assetGroupId;
-          if (assetParents.length === 1) {
-            [assetGroupId] = assetParents;
-            let type = this.assetGraph.getNode(assetGroupId)?.type;
-            // Parent is either an asset group, or a dependency when transformer returned multiple
-            // connected assets.
-            if (type !== 'asset_group') {
-              invariant(type === 'dependency');
-              assetGroupId = undefined;
-            }
-          }
+    //   let depNodeId = this.assetGraph.getNodeIdByContentKey(dep);
+    //   let depNode = nullthrows(this.assetGraph.getNode(depNodeId));
+    //   invariant(depNode.type === 'dependency');
+    //   if (replacement) {
+    //     let sourceAssetId = this.assetGraph.getNodeIdByContentKey(
+    //       nullthrows(depNode.value.sourceAssetId),
+    //     );
+    //     for (let [asset, targets] of replacement) {
+    //       let assetParents = this.assetGraph.getNodeIdsConnectedTo(
+    //         this.assetGraph.getNodeIdByContentKey(asset),
+    //       );
+    //       let assetGroupId;
+    //       if (assetParents.length === 1) {
+    //         [assetGroupId] = assetParents;
+    //         let type = this.assetGraph.getNode(assetGroupId)?.type;
+    //         // Parent is either an asset group, or a dependency when transformer returned multiple
+    //         // connected assets.
+    //         if (type !== 'asset_group') {
+    //           invariant(type === 'dependency');
+    //           assetGroupId = undefined;
+    //         }
+    //       }
 
-          let depNodeTarget =
-            assetGroupId ?? this.assetGraph.getNodeIdByContentKey(asset);
+    //       let depNodeTarget =
+    //         assetGroupId ?? this.assetGraph.getNodeIdByContentKey(asset);
 
-          let newDepId = hashString(depNode.id + [...targets.keys()].join(','));
-          let newDep = this.assetGraph.addNode({
-            ...depNode,
-            id: newDepId,
-            value: {
-              ...depNode.value,
-              id: newDepId,
-              symbols: depNode.value.symbols
-                ? new Map(
-                    [...depNode.value.symbols].filter(([k]) => targets.has(k)),
-                  )
-                : undefined,
-            },
-            usedSymbolsUp: new Map(
-              [...depNode.usedSymbolsUp].filter(([k]) => targets.has(k)),
-            ),
-            usedSymbolsDown: new Set(),
-            symbolTarget: targets,
-          });
+    //       let newDepId = hashString(depNode.id + [...targets.keys()].join(','));
+    //       let newDep = this.assetGraph.addNode({
+    //         ...depNode,
+    //         id: newDepId,
+    //         value: {
+    //           ...depNode.value,
+    //           id: newDepId,
+    //           symbols: depNode.value.symbols
+    //             ? new Map(
+    //                 [...depNode.value.symbols].filter(([k]) => targets.has(k)),
+    //               )
+    //             : undefined,
+    //         },
+    //         usedSymbolsUp: new Map(
+    //           [...depNode.usedSymbolsUp].filter(([k]) => targets.has(k)),
+    //         ),
+    //         usedSymbolsDown: new Set(),
+    //         symbolTarget: targets,
+    //       });
 
-          // TODO adjust sourceAssetIdNode.value.dependencies ?
-          this.assetGraph.addEdge(
-            sourceAssetId,
-            newDep,
-            assetGraphEdgeTypes.redirected,
-          );
-          this.assetGraph.addEdge(newDep, depNodeTarget);
-        }
-      } else {
-        // Remove
-        for (let n of this.assetGraph.getNodeIdsConnectedFrom(
-          depNodeId,
-          assetGraphEdgeTypes.redirected,
-        )) {
-          this.assetGraph.removeEdge(
-            depNodeId,
-            n,
-            assetGraphEdgeTypes.redirected,
-          );
-        }
-        depNode.symbolTarget = null;
-      }
-    }
+    //       // TODO adjust sourceAssetIdNode.value.dependencies ?
+    //       this.assetGraph.addEdge(
+    //         sourceAssetId,
+    //         newDep,
+    //         assetGraphEdgeTypes.redirected,
+    //       );
+    //       this.assetGraph.addEdge(newDep, depNodeTarget);
+    //     }
+    //   } else {
+    //     // Remove
+    //     for (let n of this.assetGraph.getNodeIdsConnectedFrom(
+    //       depNodeId,
+    //       assetGraphEdgeTypes.redirected,
+    //     )) {
+    //       this.assetGraph.removeEdge(
+    //         depNodeId,
+    //         n,
+    //         assetGraphEdgeTypes.redirected,
+    //       );
+    //     }
+    //     depNode.symbolTarget = null;
+    //   }
+    // }
   }
 
   propagateSymbolsDown(
