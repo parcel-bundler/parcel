@@ -190,11 +190,14 @@ export default class BundleGraph {
           let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
             () => new Map(),
           );
+          let hasExternal = false;
           for (let [symbol, resolvedSymbol] of node.usedSymbolsUp) {
             if (resolvedSymbol) {
               targets
                 .get(resolvedSymbol.asset)
                 .set(symbol, resolvedSymbol.symbol ?? symbol);
+            } else {
+              hasExternal = true;
             }
           }
           // TODO adjust sourceAssetIdNode.value.dependencies ?
@@ -238,8 +241,8 @@ export default class BundleGraph {
                 asset: null,
                 dep: graph.addNodeByContentKey(node.id, {
                   ...node,
-                  symbolTarget: null,
-                  excluded: true,
+                  // TODO ??
+                  excluded: !hasExternal,
                 }),
               },
             ]);
