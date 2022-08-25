@@ -7,8 +7,8 @@ version = "0.1.0"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = "1"
-napi-derive = "1"
+napi = "2.3.3"
+napi-derive = "2"
 
 [build-dependencies]
 napi-build = "1"

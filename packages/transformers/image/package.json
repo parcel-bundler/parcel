@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-image",
-  "version": "2.2.1",
+  "version": "2.7.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -13,14 +13,18 @@
   "source": "src/ImageTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.2.1"
+    "parcel": "^2.7.0"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.2.1",
-    "@parcel/workers": "^2.2.1",
+    "@parcel/plugin": "2.7.0",
+    "@parcel/utils": "2.7.0",
+    "@parcel/workers": "2.7.0",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {
     "sharp": "^0.29.1"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.7.0"
   }
 }

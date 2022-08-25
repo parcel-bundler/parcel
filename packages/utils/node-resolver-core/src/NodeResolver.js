@@ -8,6 +8,7 @@ import type {
   SpecifierType,
   PluginLogger,
   SourceLocation,
+  SemverRange,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
@@ -27,11 +28,13 @@ import {
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   md,
+  encodeJSONKeyComponent,
 } from '@parcel/diagnostic';
 import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
 import _Module from 'module';
 import {fileURLToPath} from 'url';
+import semver from 'semver';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -49,10 +52,7 @@ type ResolvedFile = {|
   pkg: InternalPackageJSON | null,
 |};
 
-type Aliases =
-  | string
-  | {[string]: string, ...}
-  | {[string]: string | boolean, ...};
+type Aliases = string | {+[string]: string | boolean | {|global: string|}, ...};
 type ResolvedAlias = {|
   type: 'file' | 'global',
   sourcePath: FilePath,
@@ -71,6 +71,7 @@ type ResolverContext = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
   specifierType: SpecifierType,
+  range: ?SemverRange,
   loc: ?SourceLocation,
 |};
 
@@ -114,6 +115,7 @@ export default class NodeResolver {
     filename,
     parent,
     specifierType,
+    range,
     env,
     sourcePath,
     loc,
@@ -121,6 +123,7 @@ export default class NodeResolver {
     filename: FilePath,
     parent: ?FilePath,
     specifierType: SpecifierType,
+    range?: ?SemverRange,
     env: Environment,
     sourcePath?: ?FilePath,
     loc?: ?SourceLocation,
@@ -129,6 +132,7 @@ export default class NodeResolver {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
       specifierType,
+      range,
       loc,
     };
 
@@ -290,6 +294,7 @@ export default class NodeResolver {
 
     // Auto install node builtin polyfills if not already available
     if (resolved === undefined && builtin != null) {
+      let packageName = builtin.split('/')[0];
       let packageManager = this.packageManager;
       if (packageManager) {
         this.logger?.warn({
@@ -323,6 +328,31 @@ export default class NodeResolver {
         } catch (err) {
           // ignore
         }
+      } else {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: md`Node builtin polyfill "${packageName}" is not installed, but auto install is disabled.`,
+            codeFrames: [
+              {
+                filePath: ctx.loc?.filePath ?? sourceFile,
+                codeHighlights: ctx.loc
+                  ? [
+                      {
+                        message: 'used here',
+                        start: ctx.loc.start,
+                        end: ctx.loc.end,
+                      },
+                    ]
+                  : [],
+              },
+            ],
+            documentationURL:
+              'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
+            hints: [
+              md`Install the "${packageName}" package with your package manager, and run Parcel again.`,
+            ],
+          },
+        });
       }
     }
 
@@ -461,6 +491,40 @@ export default class NodeResolver {
           hints: [`Add "${moduleName}" as a dependency.`],
         },
       });
+    }
+
+    if (ctx.range) {
+      let range = ctx.range;
+      let depRange =
+        pkg.dependencies?.[moduleName] || pkg.peerDependencies?.[moduleName];
+      if (depRange && !semver.intersects(depRange, range)) {
+        let pkgContent = await this.fs.readFile(pkg.pkgfile, 'utf8');
+        let field = pkg.dependencies?.[moduleName]
+          ? 'dependencies'
+          : 'peerDependencies';
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: md`External dependency "${moduleName}" does not satisfy required semver range "${range}".`,
+            codeFrames: [
+              {
+                filePath: pkg.pkgfile,
+                language: 'json',
+                code: pkgContent,
+                codeHighlights: generateJSONCodeHighlights(pkgContent, [
+                  {
+                    key: `/${field}/${encodeJSONKeyComponent(moduleName)}`,
+                    type: 'value',
+                    message: 'Found this conflicting requirement.',
+                  },
+                ]),
+              },
+            ],
+            hints: [
+              `Update the dependency on "${moduleName}" to satisfy "${range}".`,
+            ],
+          },
+        });
+      }
     }
   }
 
@@ -880,11 +944,17 @@ export default class NodeResolver {
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
 
-    // If the package has a `source` field, check if it is behind a symlink.
-    // If so, we treat the module as source code rather than a pre-compiled module.
+    // If the package has a `source` field, make sure
+    // - the package is behind symlinks
+    // - and the realpath to the packages does not includes `node_modules`.
+    // Since such package is likely a pre-compiled module
+    // installed with package managers, rather than including a source code.
     if (pkg.source) {
       let realpath = await this.fs.realpath(file);
-      if (realpath === file) {
+      if (
+        realpath === file ||
+        realpath.includes(`${path.sep}node_modules${path.sep}`)
+      ) {
         delete pkg.source;
       }
     }
@@ -965,7 +1035,15 @@ export default class NodeResolver {
     }
 
     if (found) {
-      return {path: found, pkg};
+      return {
+        path: found,
+        // If this package.json isn't a sibling of found, it's possible pkg is not the
+        // closest package.json to the resolved file. Reload it instead.
+        pkg:
+          pkg == null || pkg?.pkgdir !== path.dirname(found)
+            ? await this.findPackage(found, ctx)
+            : pkg,
+      };
     }
 
     return null;
@@ -1077,7 +1155,7 @@ export default class NodeResolver {
         if (typeof alias === 'string' && subPath) {
           let isRelative = alias.startsWith('./');
           // Append the filename back onto the aliased module.
-          alias = path.posix.join(alias, subPath);
+          alias = (path.posix.join(alias, subPath): string);
           // because of path.join('./nested', 'sub') === 'nested/sub'
           if (isRelative) alias = './' + alias;
         }
@@ -1093,7 +1171,7 @@ export default class NodeResolver {
       };
     }
 
-    if (alias instanceof Object) {
+    if (alias && typeof alias === 'object') {
       if (alias.global) {
         if (typeof alias.global !== 'string' || alias.global.length === 0) {
           throw new ThrowableDiagnostic({
@@ -1109,8 +1187,6 @@ export default class NodeResolver {
           sourcePath: pkg.pkgfile,
           resolved: alias.global,
         };
-      } else if (alias.fileName) {
-        alias = alias.fileName;
       }
     }
 
@@ -1131,7 +1207,10 @@ export default class NodeResolver {
     return null;
   }
 
-  lookupAlias(aliases: Aliases, filename: FilePath): null | boolean | string {
+  lookupAlias(
+    aliases: Aliases,
+    filename: FilePath,
+  ): null | boolean | string | {|global: string|} {
     if (typeof aliases !== 'object') {
       return null;
     }

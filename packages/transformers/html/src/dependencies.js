@@ -96,7 +96,13 @@ function collectSrcSetDependencies(asset, srcset, opts) {
     newSources.push(pair.join(' '));
   }
 
-  return newSources.join(',');
+  /**
+   * https://html.spec.whatwg.org/multipage/images.html#srcset-attribute
+   *
+   * If an image candidate string in srcset contains a width descriptor or a pixel density descriptor or ASCII whitespace, the following image candidate string must begin with whitespace.
+   * So we need to join each image candidate string with ", ".
+   */
+  return newSources.join(', ');
 }
 
 function getAttrDepHandler(attr) {
@@ -112,7 +118,7 @@ export default function collectDependencies(
   ast: AST,
 ): boolean {
   let isDirty = false;
-  let hasScripts = false;
+  let hasModuleScripts = false;
   let seen = new Set();
   const errors = [];
   PostHTML().walk.call(ast.program, node => {
@@ -239,7 +245,7 @@ export default function collectDependencies(
       });
 
       asset.setAST(ast);
-      hasScripts = true;
+      if (sourceType === 'module') hasModuleScripts = true;
       return copy ? [node, copy] : node;
     }
 
@@ -287,5 +293,5 @@ export default function collectDependencies(
     throw errors;
   }
 
-  return hasScripts;
+  return hasModuleScripts;
 }

@@ -1,6 +1,6 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, assertBundles, outputFS} from '@parcel/test-utils';
+import {bundle, assertBundles, outputFS, distDir} from '@parcel/test-utils';
 
 describe('webextension', function () {
   it('should resolve a full webextension bundle', async function () {
@@ -25,7 +25,6 @@ describe('webextension', function () {
         assets: ['manifest.json'],
       },
       {
-        name: 'background.js',
         assets: ['background.ts'],
       },
       {assets: ['a.txt']},
@@ -36,7 +35,32 @@ describe('webextension', function () {
       {assets: ['devtools.html']},
       {assets: ['content.js']},
       {assets: ['content.css']},
+      {
+        assets: ['ruleset_1.json'],
+      },
     ]);
+    assert(
+      await outputFS.exists(
+        path.join(distDir, '_locales', 'en_US', 'messages.json'),
+      ),
+    );
+    const manifest = JSON.parse(
+      await outputFS.readFile(
+        b.getBundles().find(b => b.name == 'manifest.json').filePath,
+        'utf8',
+      ),
+    );
+    const scripts = manifest.background.scripts;
+    assert.equal(scripts.length, 1);
+    for (const {path: resourcePath} of manifest.declarative_net_request
+      ?.rule_resources ?? []) {
+      assert(await outputFS.exists(path.join(distDir, resourcePath)));
+    }
+    assert(
+      (
+        await outputFS.readFile(path.join(distDir, scripts[0]), 'utf-8')
+      ).includes('Hello Parcel!'),
+    );
   });
 
   it('should resolve the web_accessible_resources globs', async function () {
@@ -52,15 +76,12 @@ describe('webextension', function () {
         assets: ['manifest.json'],
       },
       {
-        name: 'index.js',
         assets: ['index.ts', 'esmodule-helpers.js'],
       },
       {
-        name: 'other.js',
         assets: ['other.ts', 'esmodule-helpers.js'],
       },
       {
-        name: 'index-jsx.js',
         assets: [
           'esmodule-helpers.js',
           'index-jsx.jsx',
@@ -78,12 +99,35 @@ describe('webextension', function () {
       ),
     );
     const war = manifest.web_accessible_resources;
-    assert.deepEqual(war, [
-      '/injected/index.js',
-      '/injected/nested/other.js',
-      '/injected/index-jsx.js',
-      '/injected/single.js',
+    assert.equal(war.length, 4);
+  });
+  it('should support web extension manifest v3', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/webextension-mv3/manifest.json'),
+    );
+    assertBundles(b, [
+      {
+        name: 'manifest.json',
+        assets: ['manifest.json'],
+      },
+      {assets: ['background.js']},
+      {assets: ['popup.html']},
+      {assets: ['popup.css']},
+      {assets: ['popup.js', 'esmodule-helpers.js', 'bundle-url.js']},
+      {assets: ['content-script.js']},
+      {assets: ['other-content-script.js']},
+      {assets: ['injected.css']},
     ]);
+    const manifest = JSON.parse(
+      await outputFS.readFile(path.join(distDir, 'manifest.json'), 'utf-8'),
+    );
+    const css = manifest.content_scripts[0].css;
+    assert.equal(css.length, 1);
+    assert(
+      (await outputFS.readFile(path.join(distDir, css[0]), 'utf-8')).includes(
+        'Comic Sans MS',
+      ),
+    );
   });
   // TODO: Test error-checking
 });

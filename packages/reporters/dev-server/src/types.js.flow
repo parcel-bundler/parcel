@@ -1,5 +1,5 @@
 // @flow
-import type {ServerOptions, PluginLogger} from '@parcel/types';
+import type {ServerOptions, PluginLogger, HMROptions} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {HTTPServer} from '@parcel/utils';
 import {
@@ -27,6 +27,7 @@ export type DevServerOptions = {|
   inputFS: FileSystem,
   outputFS: FileSystem,
   logger: PluginLogger,
+  hmrOptions: ?HMROptions,
 |};
 
 // TODO: Figure out if there is a node.js type that could be imported with a complete ServerError
@@ -36,6 +37,10 @@ export type ServerError = Error & {|
 
 export type HMRServerOptions = {|
   devServer?: HTTPServer,
+  addMiddleware?: (
+    handler: (req: Request, res: Response) => boolean
+  ) => void,
   port: number,
+  host: ?string,
   logger: PluginLogger,
 |};

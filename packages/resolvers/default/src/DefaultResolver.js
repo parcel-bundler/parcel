@@ -34,6 +34,7 @@ export default (new Resolver({
     return resolver.resolve({
       filename: specifier,
       specifierType: dependency.specifierType,
+      range: dependency.range,
       parent: dependency.resolveFrom,
       env: dependency.env,
       sourcePath: dependency.sourcePath,

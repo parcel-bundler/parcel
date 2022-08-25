@@ -10,7 +10,12 @@ import path from 'path';
 export default (new Optimizer({
   async loadConfig({config}) {
     const configFile = await config.getConfig(
-      ['.cssnanorc', 'cssnano.config.json', 'cssnano.config.js'],
+      [
+        '.cssnanorc',
+        'cssnano.config.json',
+        'cssnano.config.js',
+        'cssnano.config.cjs',
+      ],
       {
         packageKey: 'cssnano',
       },
