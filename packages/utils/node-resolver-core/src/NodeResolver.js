@@ -401,10 +401,10 @@ export default class NodeResolver {
     // If we couldn't resolve the node_modules path, just return the module name info
     if (resolved === undefined) {
       let [moduleName, subPath] = this.getModuleParts(filename);
-      resolved = {
+      resolved = ({
         moduleName,
         subPath,
-      };
+      }: Module);
 
       let alternativeModules = await findAlternativeNodeModules(
         this.fs,

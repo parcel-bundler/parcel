@@ -1,0 +1,10 @@
+{
+  "@parcel/transformer-elm": {
+    "extraSources": {
+      "./src/Main.elm": [
+        "./src/MainB.elm",
+        "./src/MainC.elm"
+      ]
+    }
+  }
+}

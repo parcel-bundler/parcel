@@ -27,7 +27,7 @@ yarn install
 yarn build-native
 ```
 
-If you want, you can create a temporary example for debugging in the folder `packages/examples`. You can start by copying the `simple` example and try to reproduce the bug. It has everything set up for working on local changes and you can run `yarn build` to build the project. If you're re-using another example or creating one from scratch, make sure to use the `--no-cache` flag for `parcel build` to see your local changes reflected. *Please don't commit this example.*
+If you want, you can create a temporary example for debugging in the folder `packages/examples`. You can start by copying the `simple` example and try to reproduce the bug. It has everything set up for working on local changes and you can run `yarn build` to build the project. If you're re-using another example or creating one from scratch, make sure to use the `--no-cache` flag for `parcel build` to see your local changes reflected. _Please don't commit this example._
 
 After you've figured out where the issue originated from and found a fix, try to add a test case or ask for help on how to proceed if the use case is more complex.
 
