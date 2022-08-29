@@ -202,11 +202,19 @@ export default class BundleGraph {
           }
         }
 
-        // Only perform rewriting when there is an imported symbol
-        // - If the target is side-effect-free, the symbols point to the actual target and removing
-        //   the original dependency resolution is fine
-        // - Otherwise, keep this dependency unchanged for its potential side effects
-        if (node.usedSymbolsUp.size > 0) {
+        if (
+          // Only perform rewriting when there is an imported symbol
+          // - If the target is side-effect-free, the symbols point to the actual target and removing
+          //   the original dependency resolution is fine
+          // - Otherwise, keep this dependency unchanged for its potential side effects
+          node.usedSymbolsUp.size > 0 &&
+          // We currently can't replace async imports from
+          //      (parcelRequire("...")).then(({ a }) => a);
+          // to
+          //      (parcelRequire("...")).then((a)=>a);
+          // (because of symbolTarget == { a -> * } )
+          node.value.priority === Priority.sync
+        ) {
           // TODO adjust sourceAssetIdNode.value.dependencies ?
           let deps = [
             // Keep the original dependency
