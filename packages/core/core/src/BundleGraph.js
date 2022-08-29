@@ -1549,11 +1549,12 @@ export default class BundleGraph {
       let symbolLookup = new Map(
         [...depSymbols].map(([key, val]) => [val.local, key]),
       );
-      let depSymbol =
-        identifier != null
-          ? symbolLookup.get(symbolTarget?.get(identifier) ?? identifier)
-          : undefined;
+      let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
+        if (symbolTarget != null) {
+          depSymbol = symbolTarget.get(depSymbol) ?? depSymbol;
+        }
+
         let resolved = this.getResolvedAsset(dep);
         if (!resolved || resolved.id === asset.id) {
           // External module or self-reference
