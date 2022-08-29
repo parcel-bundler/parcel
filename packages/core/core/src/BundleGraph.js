@@ -202,9 +202,16 @@ export default class BundleGraph {
           }
           // TODO adjust sourceAssetIdNode.value.dependencies ?
           if (targets.size > 0) {
-            dependencies.set(
-              nodeId,
-              [...targets].map(([asset, target]) => {
+            let deps = [
+              // Keep the original dependency
+              {
+                asset: null,
+                dep: graph.addNodeByContentKey(node.id, {
+                  ...node,
+                  excluded: true,
+                }),
+              },
+              ...[...targets].map(([asset, target]) => {
                 let newNodeId = hashString(
                   node.id + [...target.keys()].join(','),
                 );
@@ -234,7 +241,8 @@ export default class BundleGraph {
                   }),
                 };
               }),
-            );
+            ];
+            dependencies.set(nodeId, deps);
           } else {
             dependencies.set(nodeId, [
               {
