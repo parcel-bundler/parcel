@@ -190,71 +190,81 @@ export default class BundleGraph {
           let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
             () => new Map(),
           );
-          let hasExternal = false;
+          let externalSymbols = new Set();
           for (let [symbol, resolvedSymbol] of node.usedSymbolsUp) {
             if (resolvedSymbol) {
               targets
                 .get(resolvedSymbol.asset)
                 .set(symbol, resolvedSymbol.symbol ?? symbol);
             } else {
-              hasExternal = true;
+              externalSymbols.add(symbol);
             }
           }
+
+          // if (targets.size === 1 && targets.keys().next().value ==) {
+          //   // No special handling
+          //   let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
+          //   assetGraphNodeIdToBundleGraphNodeId.set(nodeId, bundleGraphNodeId);
+          // } else {
           // TODO adjust sourceAssetIdNode.value.dependencies ?
-          if (targets.size > 0) {
-            let deps = [
-              // Keep the original dependency
-              {
-                asset: null,
-                dep: graph.addNodeByContentKey(node.id, {
-                  ...node,
-                  excluded: true,
-                }),
-              },
-              ...[...targets].map(([asset, target]) => {
-                let newNodeId = hashString(
-                  node.id + [...target.keys()].join(','),
-                );
-                return {
-                  asset,
-                  dep: graph.addNodeByContentKey(newNodeId, {
-                    ...node,
-                    id: newNodeId,
-                    value: {
-                      ...node.value,
-                      id: newNodeId,
-                      symbols: node.value.symbols
-                        ? new Map(
-                            [...node.value.symbols].filter(
-                              ([k]) => target.has(k) || k === '*',
-                            ),
-                          )
-                        : undefined,
-                    },
-                    usedSymbolsUp: new Map(
-                      [...node.usedSymbolsUp].filter(
-                        ([k]) => target.has(k) || k === '*',
-                      ),
-                    ),
-                    usedSymbolsDown: new Set(),
-                    symbolTarget: target,
-                  }),
-                };
+          let deps = [
+            // Keep the original dependency
+            {
+              asset: null,
+              dep: graph.addNodeByContentKey(node.id, {
+                ...node,
+                value: {
+                  ...node.value,
+                  symbols: node.value.symbols
+                    ? new Map(
+                        [...node.value.symbols].filter(([k]) =>
+                          externalSymbols.has(k),
+                        ),
+                      )
+                    : undefined,
+                },
+                usedSymbolsUp: new Map(
+                  [...node.usedSymbolsUp].filter(([k]) =>
+                    externalSymbols.has(k),
+                  ),
+                ),
+                usedSymbolsDown: new Set(),
+                excluded: externalSymbols.size === 0,
               }),
-            ];
-            dependencies.set(nodeId, deps);
-          } else {
-            dependencies.set(nodeId, [
-              {
-                asset: null,
-                dep: graph.addNodeByContentKey(node.id, {
+            },
+            ...[...targets].map(([asset, target]) => {
+              let newNodeId = hashString(
+                node.id + [...target.keys()].join(','),
+              );
+              return {
+                asset,
+                dep: graph.addNodeByContentKey(newNodeId, {
                   ...node,
-                  // TODO ??
-                  excluded: !hasExternal,
+                  id: newNodeId,
+                  value: {
+                    ...node.value,
+                    id: newNodeId,
+                    symbols: node.value.symbols
+                      ? new Map(
+                          [...node.value.symbols].filter(
+                            ([k]) => target.has(k) || k === '*',
+                          ),
+                        )
+                      : undefined,
+                  },
+                  usedSymbolsUp: new Map(
+                    [...node.usedSymbolsUp].filter(
+                      ([k]) => target.has(k) || k === '*',
+                    ),
+                  ),
+                  usedSymbolsDown: new Set(),
+                  symbolTarget: target,
                 }),
-              },
-            ]);
-          }
+              };
+            }),
+          ];
+          dependencies.set(nodeId, deps);
+          // }
         } else {
           let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
           if (node.id === assetGraphRootNode?.id) {
