@@ -27,7 +27,7 @@ import {hashString} from '@parcel/hash';
 import logger from '@parcel/logger';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import {BundleBehavior, Priority} from '../types';
-import AssetGraph, {assetGraphEdgeTypes} from '../AssetGraph';
+import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
 import createTargetRequest from './TargetRequest';
@@ -211,7 +211,6 @@ export class AssetGraphBuilder {
       await dumpGraphToGraphViz(
         this.assetGraph,
         'AssetGraph_' + this.name + '_before_prop',
-        assetGraphEdgeTypes,
       );
       try {
         this.propagateSymbols();
@@ -219,16 +218,11 @@ export class AssetGraphBuilder {
         await dumpGraphToGraphViz(
           this.assetGraph,
           'AssetGraph_' + this.name + '_failed',
-          assetGraphEdgeTypes,
         );
         throw e;
       }
     }
-    await dumpGraphToGraphViz(
-      this.assetGraph,
-      'AssetGraph_' + this.name,
-      assetGraphEdgeTypes,
-    );
+    await dumpGraphToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
 
     return {
       assetGraph: this.assetGraph,

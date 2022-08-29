@@ -38,7 +38,6 @@ import {Priority, BundleBehavior, SpecifierType} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath} from './projectPath';
-import {assetGraphEdgeTypes} from './AssetGraph';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -172,10 +171,7 @@ export default class BundleGraph {
           assetPublicIds.add(publicId);
         }
       } else if (node.type === 'asset_group') {
-        assetGroupIds.set(
-          nodeId,
-          assetGraph.getNodeIdsConnectedFrom(nodeId, assetGraphEdgeTypes.null),
-        );
+        assetGroupIds.set(nodeId, assetGraph.getNodeIdsConnectedFrom(nodeId));
       }
     }
 
