@@ -1246,13 +1246,6 @@ describe('scope hoisting', function () {
         ),
       );
 
-      assert.deepStrictEqual(
-        new Set(
-          b.getUsedSymbols(findDependency(b, 'a.js', './library/index.js')),
-        ),
-        new Set(['foo', 'foobar']),
-      );
-
       let calls = [];
       let output = await run(b, {
         sideEffect: v => {
@@ -2694,18 +2687,7 @@ describe('scope hoisting', function () {
             ),
             new Set(['borderRadius', 'gridSize']),
           );
-          assert.deepStrictEqual(
-            new Set(
-              bundleEvent.bundleGraph.getUsedSymbols(
-                findDependency(
-                  bundleEvent.bundleGraph,
-                  'theme.js',
-                  './themeColors',
-                ),
-              ),
-            ),
-            new Set('*'),
-          );
+          assert(!findAsset(bundleEvent.bundleGraph, 'theme.js'));
           assert(findAsset(bundleEvent.bundleGraph, 'themeColors.js'));
 
           await overlayFS.copyFile(
@@ -5461,7 +5443,10 @@ describe('scope hoisting', function () {
       shouldDisableCache: true,
     });
 
-    await run(b);
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    console.log(contents);
+
+    assert.strictEqual(await run(b), 'bar');
 
     await overlayFS.copyFile(
       path.join(testDir, 'index2.js'),
@@ -5474,7 +5459,7 @@ describe('scope hoisting', function () {
       shouldDisableCache: false,
     });
 
-    await run(b);
+    assert.strictEqual(await run(b), 'bar foo');
 
     await overlayFS.copyFile(
       path.join(testDir, 'index3.js'),
@@ -5487,8 +5472,7 @@ describe('scope hoisting', function () {
       shouldDisableCache: false,
     });
 
-    let output = await run(b);
-    assert.strictEqual(output, 'bar foo bar');
+    assert.strictEqual(await run(b), 'bar foo bar');
   });
 
   it("not insert unused requires that aren't registered anywhere", async function () {
