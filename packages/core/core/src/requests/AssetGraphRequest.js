@@ -601,9 +601,10 @@ export class AssetGraphBuilder {
               symbol: s,
             });
           } else if (reexportedSymbols.has(s)) {
-            // Forward a reexport only if the current asset is side-effect free.
-            if (!assetNode.value.sideEffects) {
-              incomingDep.usedSymbolsUp.set(s, reexportedSymbols.get(s));
+            // Forward a reexport only if the current asset is side-effect free and not external
+            let reexport = reexportedSymbols.get(s);
+            if (!assetNode.value.sideEffects && reexport != null) {
+              incomingDep.usedSymbolsUp.set(s, reexport);
             } else {
               incomingDep.usedSymbolsUp.set(s, {
                 asset: assetNode.id,
