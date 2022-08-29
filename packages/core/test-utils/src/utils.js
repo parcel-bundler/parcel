@@ -33,6 +33,7 @@ import https from 'https';
 import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
+import {removePropertiesDeep} from '@babel/types';
 
 export const workerFarm = (createWorkerFarm(): WorkerFarm);
 export const inputFS: NodeFS = new NodeFS();
@@ -170,9 +171,15 @@ export function findDependency(
     `Couldn't find asset ${assetFileName}`,
   );
 
-  let dependency = bundleGraph
+  let dependencies = bundleGraph
     .getDependencies(asset)
-    .find(d => d.specifier === specifier);
+    .filter(d => d.specifier === specifier);
+
+  let dependency =
+    dependencies.length > 1
+      ? dependencies.find(d => !bundleGraph.isDependencySkipped(d))
+      : dependencies[0];
+
   invariant(
     dependency != null,
     `Couldn't find dependency ${assetFileName} -> ${specifier}`,

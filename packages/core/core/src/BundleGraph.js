@@ -179,33 +179,34 @@ export default class BundleGraph {
       }
     }
 
-    assetGraph.dfs({
-      visit: nodeId => {
-        let node = nullthrows(assetGraph.getNode(nodeId));
-        if (node.type === 'asset_group') {
-          // Don't copy over asset groups into the bundle graph.
-          return;
-        } else if (node.type === 'dependency' && node.value.symbols != null) {
-          // asset -> symbols that should be imported directly from that asset
-          let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
-            () => new Map(),
-          );
-          let externalSymbols = new Set();
-          for (let [symbol, resolvedSymbol] of node.usedSymbolsUp) {
-            if (resolvedSymbol) {
-              targets
-                .get(resolvedSymbol.asset)
-                .set(symbol, resolvedSymbol.symbol ?? symbol);
-            } else {
-              externalSymbols.add(symbol);
-            }
-          }
+    let walkVisited = new Set();
+    function walk(nodeId) {
+      if (walkVisited.has(nodeId)) return;
+      walkVisited.add(nodeId);
 
-          // if (targets.size === 1 && targets.keys().next().value ==) {
-          //   // No special handling
-          //   let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
-          //   assetGraphNodeIdToBundleGraphNodeId.set(nodeId, bundleGraphNodeId);
-          // } else {
+      let node = nullthrows(assetGraph.getNode(nodeId));
+      if (node.type === 'dependency' && node.value.symbols != null) {
+        // asset -> symbols that should be imported directly from that asset
+        let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
+          () => new Map(),
+        );
+        let externalSymbols = new Set();
+
+        for (let [symbol, resolvedSymbol] of node.usedSymbolsUp) {
+          if (resolvedSymbol) {
+            targets
+              .get(resolvedSymbol.asset)
+              .set(symbol, resolvedSymbol.symbol ?? symbol);
+          } else {
+            externalSymbols.add(symbol);
+          }
+        }
+
+        // Only perform rewriting when there is an imported symbol
+        // - If the target is side-effect-free, the symbols point to the actual target and removing
+        //   the original dependency resolution is fine
+        // - Otherwise, keep this dependency unchanged for its potential side effects
+        if (node.usedSymbolsUp.size > 0) {
           // TODO adjust sourceAssetIdNode.value.dependencies ?
           let deps = [
             // Keep the original dependency
@@ -264,31 +265,32 @@ export default class BundleGraph {
             }),
           ];
           dependencies.set(nodeId, deps);
-          // }
-        } else {
-          let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
-          if (node.id === assetGraphRootNode?.id) {
-            graph.setRootNodeId(bundleGraphNodeId);
+
+          // Jump to the dependencies that are used in this dependency
+          for (let id of targets.keys()) {
+            walk(assetGraph.getNodeIdByContentKey(id));
           }
+          return;
+        } else {
+          // No special handling
+          let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
           assetGraphNodeIdToBundleGraphNodeId.set(nodeId, bundleGraphNodeId);
         }
-      },
-      startNodeId: null,
-      getChildren: nodeId => {
-        let node = nullthrows(assetGraph.getNode(nodeId));
-        if (node.type === 'dependency' && node.value.symbols != null) {
-          // Jump to the dependencies that are used in this dependencies
-          return [...node.usedSymbolsUp.values()]
-            .filter(Boolean)
-            .map(v => assetGraph.getNodeIdByContentKey(v.asset));
-        } else {
-          return assetGraph.getNodeIdsConnectedFrom(
-            nodeId,
-            assetGraphEdgeTypes.null,
-          );
+      }
+      // Don't copy over asset groups into the bundle graph.
+      else if (node.type !== 'asset_group') {
+        let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
+        if (node.id === assetGraphRootNode?.id) {
+          graph.setRootNodeId(bundleGraphNodeId);
         }
-      },
-    });
+        assetGraphNodeIdToBundleGraphNodeId.set(nodeId, bundleGraphNodeId);
+      }
+
+      for (let id of assetGraph.getNodeIdsConnectedFrom(nodeId)) {
+        walk(id);
+      }
+    }
+    walk(nullthrows(assetGraph.rootNodeId));
 
     for (let edge of assetGraph.getAllEdges()) {
       if (assetGroupIds.has(edge.from)) {
