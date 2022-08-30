@@ -1,7 +1,15 @@
 {
-    "extends": ["@parcel/config-default"],
-    "resolvers": ["...", "@parcel/resolver-glob"],
-    "transformers": {
-        "*.svg": ["@parcel/transformer-svg-react", "..."]
-    }
+  "extends": [
+    "@parcel/config-default"
+  ],
+  "resolvers": [
+    "@parcel/resolver-glob",
+    "..."
+  ],
+  "transformers": {
+    "*.svg": [
+      "@parcel/transformer-svg-react",
+      "..."
+    ]
+  }
 }
