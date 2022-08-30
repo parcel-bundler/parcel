@@ -137,7 +137,7 @@ export function formatNode<
 >(nodeId: NodeId, node: TNode): string {
   let label = '(' + String(nodeId) + ') ';
   let detailedSymbols = process.env.PARCEL_DUMP_GRAPHVIZ === 'symbols';
-  label = `[${fromNodeId(nodeId)}] ${node.type || 'No Type'}: [${node.id}]: `;
+  label = `${node.type || 'No Type'}: [${node.id}]: `;
   if (node.type === 'dependency') {
     label += node.value.specifier;
     let parts = [];
@@ -717,7 +717,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   nodeToString(nodeId: NodeId): string {
     let node = nullthrows(this.getNode(nodeId));
     if (node.type === 'asset_group') {
-      let label = `[${fromNodeId(nodeId)}] ${node.type}: [${node.id}]: `;
+      let label = `${node.type}: [${node.id}]: `;
       if (node.deferred) label += '(deferred)';
       return label;
     } else {

@@ -305,7 +305,7 @@ export class RequestGraph extends ContentGraph<
 
   nodeToString(nodeId: NodeId): string {
     let node = nullthrows(this.getNode(nodeId));
-    let label = `[${fromNodeId(nodeId)}] ${node.type}: [${node.id}]: `;
+    let label = `${node.type}: [${node.id}]: `;
     if (node.type === 'file') {
       label += path.basename(String(node.value.filePath));
     } else if (node.type === 'request') {

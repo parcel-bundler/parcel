@@ -1849,7 +1849,7 @@ export default class BundleGraph {
 
   nodeToString(nodeId: NodeId): string {
     let node = nullthrows(this._graph.getNode(nodeId));
-    let label = `[${fromNodeId(nodeId)}] ${node.type}: [${node.id}]: `;
+    let label = `${node.type}: [${node.id}]: `;
     if (node.type === 'bundle') {
       let parts = [];
       if (node.value.needsStableName) parts.push('stable name');
