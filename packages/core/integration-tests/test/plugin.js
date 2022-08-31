@@ -1,14 +1,17 @@
 // @flow
 
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {
   assertBundles,
   bundle,
+  bundler,
   distDir,
   findAsset,
   findDependency,
+  getNextBuild,
   outputFS as fs,
   overlayFS,
   run,
@@ -85,6 +88,68 @@ parcel-transformer-b`,
       },
     });
     assert.deepEqual(calls, [1234]);
+  });
+
+  it('invalidate the cache based on loadBundleConfig in a packager', async function () {
+    let fixture = path.join(
+      __dirname,
+      '/integration/packager-loadBundleConfig',
+    );
+    let entry = path.join(fixture, 'index.html');
+
+    let b = await bundler(entry, {
+      inputFS: overlayFS,
+      shouldDisableCache: false,
+    });
+
+    let subscription = await b.watch();
+    try {
+      let bundleEvent = await getNextBuild(b);
+      invariant(bundleEvent.type === 'buildSuccess');
+
+      assert.strictEqual(
+        await overlayFS.readFile(
+          nullthrows(
+            bundleEvent.bundleGraph
+              .getBundles()
+              .find(b => b.getMainEntry()?.filePath.endsWith('a.txt')),
+          ).filePath,
+          'utf8',
+        ),
+        `Bundles: a.txt. Contents: Hello from a\n`,
+      );
+
+      console.log('copy');
+      await overlayFS.copyFile(path.join(fixture, 'index.2.html'), entry);
+
+      bundleEvent = await getNextBuild(b);
+      invariant(bundleEvent.type === 'buildSuccess');
+
+      assert.strictEqual(
+        await overlayFS.readFile(
+          nullthrows(
+            bundleEvent.bundleGraph
+              .getBundles()
+              .find(b => b.getMainEntry()?.filePath.endsWith('a.txt')),
+          ).filePath,
+          'utf8',
+        ),
+        `Bundles: a.txt,b.txt. Contents: Hello from a\n`,
+      );
+      assert.strictEqual(
+        await overlayFS.readFile(
+          nullthrows(
+            bundleEvent.bundleGraph
+              .getBundles()
+              .find(b => b.getMainEntry()?.filePath.endsWith('b.txt')),
+          ).filePath,
+          'utf8',
+        ),
+        `Bundles: a.txt,b.txt. Contents: Hello from b\n`,
+      );
+    } finally {
+      await subscription.unsubscribe();
+    }
   });
 
   it('invalidate the cache based on loadConfig in a packager', async function () {
