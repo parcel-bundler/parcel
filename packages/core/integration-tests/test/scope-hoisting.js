@@ -2229,6 +2229,39 @@ describe('scope hoisting', function () {
       assert.deepEqual(output.foo, 'bar');
     });
 
+    it('should correctly codesplit even with reexporting library index', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/codesplit-reexports/src/entry.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'entry.js',
+            'foo.js',
+            'bar.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'js-loader.js',
+          ],
+        },
+        {
+          type: 'js',
+          assets: ['async.js', 'foo2.js', 'bar2.js'],
+        },
+      ]);
+
+      let output = await run(b);
+      assert.deepEqual(output, [
+        [20, 30],
+        [2, 3],
+      ]);
+    });
+
     it('should correctly handle circular dependencies', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/scope-hoisting/es6/circular/a.mjs'),
