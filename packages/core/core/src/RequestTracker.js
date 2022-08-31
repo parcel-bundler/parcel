@@ -70,6 +70,7 @@ type RequestGraphOpts = {|
   envNodeIds: Set<NodeId>,
   optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
+  invalidateOnBuildNodeIds: Set<NodeId>,
 |};
 
 type SerializedRequestGraph = {|
@@ -80,6 +81,7 @@ type SerializedRequestGraph = {|
   envNodeIds: Set<NodeId>,
   optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
+  invalidateOnBuildNodeIds: Set<NodeId>,
 |};
 
 type FileNode = {|id: ContentKey, +type: 'file', value: InternalFile|};
@@ -229,6 +231,7 @@ export class RequestGraph extends ContentGraph<
     deserialized.envNodeIds = opts.envNodeIds;
     deserialized.optionNodeIds = opts.optionNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
+    deserialized.invalidateOnBuildNodeIds = opts.invalidateOnBuildNodeIds;
     return deserialized;
   }
 
@@ -242,6 +245,7 @@ export class RequestGraph extends ContentGraph<
       envNodeIds: this.envNodeIds,
       optionNodeIds: this.optionNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds,
+      invalidateOnBuildNodeIds: this.invalidateOnBuildNodeIds,
     };
   }
 
@@ -269,6 +273,7 @@ export class RequestGraph extends ContentGraph<
     this.incompleteNodeIds.delete(nodeId);
     this.incompleteNodePromises.delete(nodeId);
     this.unpredicatableNodeIds.delete(nodeId);
+    this.invalidateOnBuildNodeIds.delete(nodeId);
     let node = nullthrows(this.getNode(nodeId));
     if (node.type === 'glob') {
       this.globNodeIds.delete(nodeId);
@@ -329,7 +334,7 @@ export class RequestGraph extends ContentGraph<
   }
 
   invalidateOnBuildNodes() {
-    for (let nodeId of this.unpredicatableNodeIds) {
+    for (let nodeId of this.invalidateOnBuildNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type !== 'file' && node.type !== 'glob');
       this.invalidateNode(nodeId, STARTUP);
@@ -567,6 +572,7 @@ export class RequestGraph extends ContentGraph<
 
   clearInvalidations(nodeId: NodeId) {
     this.unpredicatableNodeIds.delete(nodeId);
+    this.invalidateOnBuildNodeIds.delete(nodeId);
     this.replaceNodeIdsConnectedTo(
       nodeId,
       [],

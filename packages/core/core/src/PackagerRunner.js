@@ -260,7 +260,10 @@ export default class PackagerRunner {
     if (!bundleConfigs.has(plugin.name) && loadBundleConfig != null) {
       let config = createConfig({
         plugin: plugin.name,
-        searchPath: toProjectPathUnsafe('index'),
+        searchPath: joinProjectPath(
+          bundle.target.distDir,
+          bundle.name ?? bundle.id,
+        ),
       });
       config.result = await loadBundleConfig({
         bundle: NamedBundle.get(bundle, bundleGraph, this.options),
@@ -273,8 +276,6 @@ export default class PackagerRunner {
         options: new PluginOptions(this.options),
         logger: new PluginLogger({origin: plugin.name}),
       });
-      // TODO expose config and let plugin set key?
-      config.cacheKey = hashString(JSON.stringify(config.result) ?? '');
       bundleConfigs.set(plugin.name, config);
     }
   }
