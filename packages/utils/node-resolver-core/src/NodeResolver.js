@@ -293,7 +293,7 @@ export default class NodeResolver {
     try {
       resolved = this.findNodeModulePath(
         filename,
-        !builtin ? sourceFile : this.projectRoot + '/index',
+        !builtin ? sourceFile : path.join(this.projectRoot, 'index'),
         ctx,
       );
     } catch (err) {
