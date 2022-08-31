@@ -275,7 +275,7 @@ export default class NodeResolver {
     let builtin = this.findBuiltin(filename, env);
     if (builtin === null) {
       return null;
-    } else if (builtin === empty) {
+    } else if (builtin && builtin.name === empty) {
       return {filePath: empty};
     } else if (builtin !== undefined) {
       filename = builtin.name;
@@ -293,7 +293,7 @@ export default class NodeResolver {
     try {
       resolved = this.findNodeModulePath(
         filename,
-        builtin == null ? sourceFile : this.projectRoot + '/index',
+        !builtin ? sourceFile : this.projectRoot + '/index',
         ctx,
       );
     } catch (err) {
