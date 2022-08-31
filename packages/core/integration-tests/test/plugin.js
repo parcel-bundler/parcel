@@ -119,7 +119,6 @@ parcel-transformer-b`,
         `Bundles: a.txt. Contents: Hello from a\n`,
       );
 
-      console.log('copy');
       await overlayFS.copyFile(path.join(fixture, 'index.2.html'), entry);
 
       bundleEvent = await getNextBuild(b);
