@@ -317,9 +317,6 @@ export type DependencyNode = {|
   usedSymbolsUpDirtyDown: boolean,
   /** dependency was excluded (= no used symbols (globally) & side-effect free) */
   excluded: boolean,
-  /** a dependency importing a single symbol is rewritten to point to the reexported target asset
-   * instead, this is the name of the export (might have been renamed by reexports) */
-  symbolTarget: ?Map<Symbol, Symbol>,
 |};
 
 export type RootNode = {|id: ContentKey, +type: 'root', value: string | null|};

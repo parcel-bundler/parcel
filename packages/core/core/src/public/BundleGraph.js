@@ -313,7 +313,7 @@ export default class BundleGraph<TBundle: IBundle>
   getSymbols(dep: IDependency): IDependencySymbols {
     let node = this.#graph._graph.getNodeByContentKey(dep.id);
     invariant(node && node.type === 'dependency');
-    return new DependencySymbols(this.#options, node.value, node.symbolTarget);
+    return new DependencySymbols(this.#options, node.value);
   }
 
   getEntryRoot(target: Target): FilePath {

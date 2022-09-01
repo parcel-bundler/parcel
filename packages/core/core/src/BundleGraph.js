@@ -253,19 +253,18 @@ export default class BundleGraph {
                     id: newNodeId,
                     symbols: node.value.symbols
                       ? new Map(
-                          [...node.value.symbols].filter(
-                            ([k]) => target.has(k) || k === '*',
-                          ),
+                          [...node.value.symbols]
+                            .filter(([k]) => target.has(k) || k === '*')
+                            .map(([k, v]) => [target.get(k) ?? k, v]),
                         )
                       : undefined,
                   },
                   usedSymbolsUp: new Map(
-                    [...node.usedSymbolsUp].filter(
-                      ([k]) => target.has(k) || k === '*',
-                    ),
+                    [...node.usedSymbolsUp]
+                      .filter(([k]) => target.has(k) || k === '*')
+                      .map(([k, v]) => [target.get(k) ?? k, v]),
                   ),
                   usedSymbolsDown: new Set(),
-                  symbolTarget: target,
                 }),
               };
             }),
@@ -980,17 +979,6 @@ export default class BundleGraph {
     });
   }
 
-  getDependenciesWithSymbolTarget(
-    asset: Asset,
-  ): Array<[Dependency, ?Map<Symbol, Symbol>]> {
-    let nodeId = this._graph.getNodeIdByContentKey(asset.id);
-    return this._graph.getNodeIdsConnectedFrom(nodeId).map(id => {
-      let node = nullthrows(this._graph.getNode(id));
-      invariant(node.type === 'dependency');
-      return [node.value, node.symbolTarget];
-    });
-  }
-
   traverseAssets<TContext>(
     bundle: Bundle,
     visit: GraphVisitor<Asset, TContext>,
@@ -1535,9 +1523,9 @@ export default class BundleGraph {
     let found = false;
     let nonStaticDependency = false;
     let skipped = false;
-    let deps = this.getDependenciesWithSymbolTarget(asset).reverse();
+    let deps = this.getDependencies(asset).reverse();
     let potentialResults = [];
-    for (let [dep, symbolTarget] of deps) {
+    for (let dep of deps) {
       let depSymbols = dep.symbols;
       if (!depSymbols) {
         nonStaticDependency = true;
@@ -1549,10 +1537,6 @@ export default class BundleGraph {
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
-        if (symbolTarget != null) {
-          depSymbol = symbolTarget.get(depSymbol) ?? depSymbol;
-        }
-
         let resolved = this.getResolvedAsset(dep);
         if (!resolved || resolved.id === asset.id) {
           // External module or self-reference
@@ -1882,14 +1866,6 @@ export default class BundleGraph {
     let node = this._graph.getNodeByContentKey(dep.id);
     invariant(node && node.type === 'dependency');
     let result = new Set(node.usedSymbolsUp.keys());
-    if (node.symbolTarget) {
-      for (let [k, v] of node.symbolTarget) {
-        if (result.has(k)) {
-          result.delete(k);
-          result.add(v);
-        }
-      }
-    }
     return this._symbolPropagationRan ? makeReadOnlySet(result) : null;
   }
 

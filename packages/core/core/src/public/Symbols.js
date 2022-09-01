@@ -200,33 +200,21 @@ export class DependencySymbols implements IDependencySymbols {
   */
   #value: Dependency;
   #options: ParcelOptions;
-  #symbolTarget: ?Map<ISymbol, ISymbol>;
 
-  constructor(
-    options: ParcelOptions,
-    dep: Dependency,
-    symbolTarget: ?Map<ISymbol, ISymbol>,
-  ): DependencySymbols {
+  constructor(options: ParcelOptions, dep: Dependency): DependencySymbols {
     let existing = valueToDependencySymbols.get(dep);
     if (existing != null) {
       return existing;
     }
     this.#value = dep;
     this.#options = options;
-    this.#symbolTarget = symbolTarget;
     return this;
-  }
-
-  #translateExportSymbol(exportSymbol: ISymbol): ISymbol {
-    return this.#symbolTarget?.get(exportSymbol) ?? exportSymbol;
   }
 
   // immutable:
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return Boolean(
-      this.#value.symbols?.has(this.#translateExportSymbol(exportSymbol)),
-    );
+    return Boolean(this.#value.symbols?.has(exportSymbol));
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
@@ -243,9 +231,7 @@ export class DependencySymbols implements IDependencySymbols {
   ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|} {
     return fromInternalDependencySymbol(
       this.#options.projectRoot,
-      nullthrows(this.#value.symbols).get(
-        this.#translateExportSymbol(exportSymbol),
-      ),
+      nullthrows(this.#value.symbols).get(exportSymbol),
     );
   }
 
@@ -254,32 +240,15 @@ export class DependencySymbols implements IDependencySymbols {
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    let symbols = this.#value.symbols;
-    if (symbols) {
-      let result = new Set();
-      for (let s of symbols.keys()) {
-        result.add(this.#translateExportSymbol(s));
-      }
-      return result;
-    } else {
-      // $FlowFixMe
-      return EMPTY_ITERABLE;
-    }
+    // $FlowFixMe
+    return this.#value.symbols ? this.#value.symbols.keys() : EMPTY_ITERABLE;
   }
 
   // $FlowFixMe
   [Symbol.iterator]() {
-    let symbols = this.#value.symbols;
-    if (symbols) {
-      let result = [];
-      for (let [s, v] of symbols) {
-        result.push([this.#translateExportSymbol(s), v]);
-      }
-      return result[Symbol.iterator]();
-    } else {
-      // $FlowFixMe
-      return EMPTY_ITERATOR;
-    }
+    return this.#value.symbols
+      ? this.#value.symbols[Symbol.iterator]()
+      : EMPTY_ITERATOR;
   }
 
   // $FlowFixMe

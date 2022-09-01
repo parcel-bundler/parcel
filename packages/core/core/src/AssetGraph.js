@@ -60,7 +60,6 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     usedSymbolsDownDirty: true,
     usedSymbolsUpDirtyDown: true,
     usedSymbolsUpDirtyUp: true,
-    symbolTarget: null,
   };
 }
 
