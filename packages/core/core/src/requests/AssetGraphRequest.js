@@ -551,6 +551,24 @@ export class AssetGraphBuilder {
 
       let errors: Array<Diagnostic> = [];
 
+      function usedSymbolsUpAmbiguous(old, current, s, value) {
+        if (old.has(s)) {
+          let valueOld = old.get(s);
+          if (
+            valueOld !== value &&
+            !(
+              valueOld?.asset === value.asset &&
+              valueOld?.symbol === value.symbol
+            )
+          ) {
+            // The dependency points to multiple assets (via an asset group).
+            current.set(s, undefined);
+            return;
+          }
+        }
+        current.set(s, value);
+      }
+
       for (let incomingDep of incomingDeps) {
         let incomingDepUsedSymbolsUpOld = incomingDep.usedSymbolsUp;
         incomingDep.usedSymbolsUp = new Map();
@@ -566,21 +584,31 @@ export class AssetGraphBuilder {
             s === '*' ||
             assetNode.usedSymbols.has(s)
           ) {
-            incomingDep.usedSymbolsUp.set(s, {
-              asset: assetNode.id,
-              symbol: s,
-            });
+            usedSymbolsUpAmbiguous(
+              incomingDepUsedSymbolsUpOld,
+              incomingDep.usedSymbolsUp,
+              s,
+              {
+                asset: assetNode.id,
+                symbol: s,
+              },
+            );
           } else if (reexportedSymbols.has(s)) {
             // Forward a reexport only if the current asset is side-effect free and not external
             let reexport = reexportedSymbols.get(s);
-            if (!assetNode.value.sideEffects && reexport != null) {
-              incomingDep.usedSymbolsUp.set(s, reexport);
-            } else {
-              incomingDep.usedSymbolsUp.set(s, {
-                asset: assetNode.id,
-                symbol: s,
-              });
-            }
+            let v =
+              !assetNode.value.sideEffects && reexport != null
+                ? reexport
+                : {
+                    asset: assetNode.id,
+                    symbol: s,
+                  };
+            usedSymbolsUpAmbiguous(
+              incomingDepUsedSymbolsUpOld,
+              incomingDep.usedSymbolsUp,
+              s,
+              v,
+            );
           } else if (!hasNamespaceReexport) {
             let loc = incomingDep.value.symbols?.get(s)?.loc;
             let [resolutionNodeId] = this.assetGraph.getNodeIdsConnectedFrom(

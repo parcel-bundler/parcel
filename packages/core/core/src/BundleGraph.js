@@ -187,14 +187,18 @@ export default class BundleGraph {
           () => new Map(),
         );
         let externalSymbols = new Set();
+        let hasAmbiguousSymbols = false;
 
         for (let [symbol, resolvedSymbol] of node.usedSymbolsUp) {
           if (resolvedSymbol) {
             targets
               .get(resolvedSymbol.asset)
               .set(symbol, resolvedSymbol.symbol ?? symbol);
-          } else {
+          } else if (resolvedSymbol === null) {
             externalSymbols.add(symbol);
+          } else if (resolvedSymbol === undefined) {
+            hasAmbiguousSymbols = true;
+            break;
           }
         }
 
@@ -204,6 +208,8 @@ export default class BundleGraph {
           //   the original dependency resolution is fine
           // - Otherwise, keep this dependency unchanged for its potential side effects
           node.usedSymbolsUp.size > 0 &&
+          // Only perform rewriting if the dependency only points to a single asset (e.g. CSS modules)
+          !hasAmbiguousSymbols &&
           // TODO We currently can't rename imports in async imports, e.g. from
           //      (parcelRequire("...")).then(({ a }) => a);
           // to

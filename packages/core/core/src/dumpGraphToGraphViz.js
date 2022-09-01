@@ -117,7 +117,9 @@ export default async function dumpGraphToGraphViz(
                   .map(([s, sAsset]) =>
                     sAsset
                       ? `${s}(${sAsset.asset}.${sAsset.symbol ?? ''})`
-                      : `${s}(external)`,
+                      : sAsset === null
+                      ? `${s}(external)`
+                      : `${s}(ambiguous)`,
                   )
                   .join(',');
             }
