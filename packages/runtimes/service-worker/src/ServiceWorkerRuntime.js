@@ -11,7 +11,8 @@ export default (new Runtime({
     let asset = bundle.traverse((node, _, actions) => {
       if (
         node.type === 'dependency' &&
-        node.value.specifier === '@parcel/service-worker'
+        node.value.specifier === '@parcel/service-worker' &&
+        !bundleGraph.isDependencySkipped(node.value)
       ) {
         actions.stop();
         return bundleGraph.getResolvedAsset(node.value, bundle);

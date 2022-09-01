@@ -1684,7 +1684,7 @@ describe('javascript', function () {
     let bundles = b.getBundles();
     let worker = bundles.find(b => b.env.isWorker());
     let manifest, version;
-    await await runBundle(b, worker, {
+    await runBundle(b, worker, {
       output(m, v) {
         manifest = m;
         version = v;
