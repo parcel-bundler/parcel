@@ -22,7 +22,13 @@ import {fromProjectPathRelative} from '@parcel/core/src/projectPath';
 // eslint-disable-next-line monorepo/no-internal-import
 import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
 
+let args = process.argv.slice(2);
 let cacheDir = path.join(process.cwd(), '.parcel-cache');
+if (args[0] === '--cache') {
+  cacheDir = path.resolve(process.cwd(), args[1]);
+  args = args.slice(2);
+}
+let initialCmd = args[0];
 
 try {
   fs.accessSync(cacheDir);
@@ -83,17 +89,20 @@ function parseAssetLocator(v: string) {
     for (let [assetId, publicId] of bundleGraph._publicIdByAssetId) {
       if (publicId === v) {
         id = assetId;
+        break;
       }
     }
   }
 
   if (id == null) {
+    let assetRegex = new RegExp(v);
     for (let node of assetGraph.nodes.values()) {
       if (
         node.type === 'asset' &&
-        fromProjectPathRelative(node.value.filePath)?.endsWith(v)
+        assetRegex.test(fromProjectPathRelative(node.value.filePath))
       ) {
         id = node.id;
+        break;
       }
     }
   }
@@ -114,6 +123,26 @@ function getAsset(v: string) {
       let node = nullthrows(assetGraph.getNodeByContentKey(id));
       invariant(node.type === 'asset');
       console.log(node.value);
+    }
+  }
+}
+
+function findAsset(v: string) {
+  let assetRegex = new RegExp(v);
+  for (let node of assetGraph.nodes.values()) {
+    if (
+      node.type === 'asset' &&
+      assetRegex.test(fromProjectPathRelative(node.value.filePath))
+    ) {
+      try {
+        console.log(
+          `${bundleGraph.getAssetPublicId(
+            bundleGraph.getAssetById(node.id),
+          )} ${fromProjectPathRelative(node.value.filePath)}`,
+        );
+      } catch (e) {
+        console.log(fromProjectPathRelative(node.value.filePath));
+      }
     }
   }
 }
@@ -444,7 +473,6 @@ function stats(_) {
 
 // -------------------------------------------------------
 
-let initialCmd = process.argv[2];
 if (initialCmd != null) {
   eval(initialCmd);
   process.exit(0);
@@ -529,14 +557,14 @@ if (initialCmd != null) {
     [
       'getIncomingDependenciesAssetGraph',
       {
-        help: 'args: <asset: id | public id | filepath>',
+        help: 'args: <asset: id | public id | filepath regex>',
         action: getIncomingDependenciesAssetGraph,
       },
     ],
     [
       'getIncomingDependenciesBundleGraph',
       {
-        help: 'args: <asset: id | public id | filepath>',
+        help: 'args: <asset: id | public id | filepath regex>',
         action: getIncomingDependenciesBundleGraph,
       },
     ],
@@ -608,6 +636,13 @@ if (initialCmd != null) {
       {
         help: 'Statistics',
         action: stats,
+      },
+    ],
+    [
+      'findAsset',
+      {
+        help: 'args: <regex>. Lsit assets matching the filepath regex',
+        action: findAsset,
       },
     ],
   ])) {
