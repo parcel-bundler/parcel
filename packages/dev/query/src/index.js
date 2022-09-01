@@ -159,18 +159,20 @@ function getNodeBundleGraph(v: string) {
 class Paths<T> {
   value: T;
   label: string;
+  suffix: string;
   children: Array<Paths<T>> = [];
-  constructor(value: T, label = '-') {
+  constructor(value: T, label = '-', suffix = '') {
     this.value = value;
     this.label = label;
+    this.suffix = suffix;
   }
-  add(v: T, label: string | void): Paths<T> {
-    let next = new Paths(v, label);
+  add(v: T, label: string | void, suffix: string | void): Paths<T> {
+    let next = new Paths(v, label, suffix);
     this.children.push(next);
     return next;
   }
   print(format: T => string, prefix = '') {
-    console.log(`${prefix}${this.label} ${format(this.value)}`);
+    console.log(`${prefix}${this.label} ${format(this.value)} ${this.suffix}`);
     for (let i = 0; i < this.children.length; i++) {
       this.children[i].print(format, prefix + '  ');
     }
@@ -186,25 +188,38 @@ function _findEntries(
   let asset = nullthrows(parseAssetLocator(v), 'Asset not found');
 
   let paths = new Paths<NodeId>(graph.getNodeIdByContentKey(asset), ' ');
-  for (let parent of graph.getNodeIdsConnectedTo(
-    graph.getNodeIdByContentKey(asset),
-  )) {
-    let cb = (id, _ctx) => {
-      let ctx = _ctx ?? {paths, lazyOutgoing: false};
-      let node = nullthrows(graph.getNode(id));
-      if (node.id === asset) return;
-      if (node.type === 'asset') {
-        ctx.paths = ctx.paths.add(id, ctx.lazyOutgoing ? '<' : undefined);
-        ctx.lazyOutgoing = false;
-      } else if (node.type === 'dependency') {
-        if (node.value.priority === Priority.lazy) {
-          ctx.lazyOutgoing = true;
-        }
+  let cb = (id, ctx, revisiting) => {
+    let {paths, lazyOutgoing} = ctx;
+    let node = nullthrows(graph.getNode(id));
+    if (node.id === asset) return ctx;
+    if (node.type === 'asset') {
+      paths = paths.add(
+        id,
+        lazyOutgoing ? '<' : undefined,
+        revisiting ? '(revisiting)' : undefined,
+      );
+      lazyOutgoing = false;
+    } else if (node.type === 'dependency') {
+      if (node.value.priority === Priority.lazy) {
+        lazyOutgoing = true;
       }
-      return ctx;
-    };
-    graph.traverseAncestors(parent, cb);
+    }
+    return {paths, lazyOutgoing};
+  };
+
+  // like graph.dfs, but revisiting nodes and skipping its children
+  let seen = new Set();
+  function walk(id, ctx) {
+    let revisiting = seen.has(id);
+    let newCtx = cb(id, ctx, revisiting);
+    if (revisiting) return;
+    seen.add(id);
+
+    for (let parent of graph.getNodeIdsConnectedTo(id)) {
+      walk(parent, newCtx);
+    }
   }
+  walk(graph.getNodeIdByContentKey(asset), {paths, lazyOutgoing: false});
 
   paths.print(id => {
     let node = nullthrows(graph.getNode(id));
