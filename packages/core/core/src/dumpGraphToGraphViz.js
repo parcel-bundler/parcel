@@ -28,7 +28,6 @@ const TYPE_COLORS = {
   references: 'red',
   sibling: 'green',
   // asset graph
-  redirected: 'grey',
   // request graph
   invalidated_by_create: 'green',
   invalidated_by_create_above: 'orange',
