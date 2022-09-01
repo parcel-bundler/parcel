@@ -4,7 +4,6 @@ import type {
   MutableAssetSymbols as IMutableAssetSymbols,
   AssetSymbols as IAssetSymbols,
   MutableDependencySymbols as IMutableDependencySymbols,
-  DependencySymbols as IDependencySymbols,
   SourceLocation,
   Meta,
 } from '@parcel/types';
@@ -189,77 +188,6 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
 
   delete(exportSymbol: ISymbol) {
     nullthrows(this.#value.symbols).delete(exportSymbol);
-  }
-}
-
-let valueToDependencySymbols: WeakMap<Dependency, DependencySymbols> =
-  new WeakMap();
-export class DependencySymbols implements IDependencySymbols {
-  /*::
-  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|}]> { return ({}: any); }
-  */
-  #value: Dependency;
-  #options: ParcelOptions;
-
-  constructor(options: ParcelOptions, dep: Dependency): DependencySymbols {
-    let existing = valueToDependencySymbols.get(dep);
-    if (existing != null) {
-      return existing;
-    }
-    this.#value = dep;
-    this.#options = options;
-    return this;
-  }
-
-  // immutable:
-
-  hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return Boolean(this.#value.symbols?.has(exportSymbol));
-  }
-
-  hasLocalSymbol(local: ISymbol): boolean {
-    if (this.#value.symbols) {
-      for (let s of this.#value.symbols.values()) {
-        if (local === s.local) return true;
-      }
-    }
-    return false;
-  }
-
-  get(
-    exportSymbol: ISymbol,
-  ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|} {
-    return fromInternalDependencySymbol(
-      this.#options.projectRoot,
-      nullthrows(this.#value.symbols).get(exportSymbol),
-    );
-  }
-
-  get isCleared(): boolean {
-    return this.#value.symbols == null;
-  }
-
-  exportSymbols(): Iterable<ISymbol> {
-    // $FlowFixMe
-    return this.#value.symbols ? this.#value.symbols.keys() : EMPTY_ITERABLE;
-  }
-
-  // $FlowFixMe
-  [Symbol.iterator]() {
-    return this.#value.symbols
-      ? this.#value.symbols[Symbol.iterator]()
-      : EMPTY_ITERATOR;
-  }
-
-  // $FlowFixMe
-  [inspect]() {
-    return `DependencySymbols(${
-      this.#value.symbols
-        ? [...this.#value.symbols]
-            .map(([s, {local, isWeak}]) => `${s}:${local}${isWeak ? '?' : ''}`)
-            .join(', ')
-        : null
-    })`;
   }
 }
 

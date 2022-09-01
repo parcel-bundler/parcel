@@ -465,29 +465,6 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   delete(exportSymbol: Symbol): void;
 }
 
-export interface DependencySymbols // eslint-disable-next-line no-undef
-  extends Iterable<
-    [
-      Symbol,
-      {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
-    ],
-  > {
-  /**
-   * The symbols taht are imports are unknown, rather than just empty.
-   * This is the default state.
-   */
-  +isCleared: boolean;
-  get(exportSymbol: Symbol): ?{|
-    local: Symbol,
-    loc: ?SourceLocation,
-    isWeak: boolean,
-    meta?: ?Meta,
-  |};
-  hasExportSymbol(exportSymbol: Symbol): boolean;
-  hasLocalSymbol(local: Symbol): boolean;
-  exportSymbols(): Iterable<Symbol>;
-}
-
 export type DependencyPriority = 'sync' | 'parallel' | 'lazy';
 export type SpecifierType = 'commonjs' | 'esm' | 'url' | 'custom';
 
