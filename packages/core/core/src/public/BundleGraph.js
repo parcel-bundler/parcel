@@ -10,7 +10,6 @@ import type {
   ExportSymbolResolution,
   FilePath,
   GraphVisitor,
-  DependencySymbols as IDependencySymbols,
   Symbol,
   SymbolResolution,
   Target,
@@ -28,7 +27,6 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {targetToInternalTarget} from './Target';
 import {fromInternalSourceLocation} from '../utils';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
-import {DependencySymbols} from './Symbols';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -308,12 +306,6 @@ export default class BundleGraph<TBundle: IBundle>
         dependencyToInternalDependency(v),
       );
     }
-  }
-
-  getSymbols(dep: IDependency): IDependencySymbols {
-    let node = this.#graph._graph.getNodeByContentKey(dep.id);
-    invariant(node && node.type === 'dependency');
-    return new DependencySymbols(this.#options, node.value);
   }
 
   getEntryRoot(target: Target): FilePath {

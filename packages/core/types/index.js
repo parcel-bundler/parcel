@@ -1472,7 +1472,6 @@ export interface BundleGraph<TBundle: Bundle> {
    * Returns null if symbol propagation didn't run (so the result is unknown).
    */
   getUsedSymbols(Asset | Dependency): ?$ReadOnlySet<Symbol>;
-  getSymbols(Dependency): DependencySymbols;
   /** Returns the common root directory for the entry assets of a target. */
   getEntryRoot(target: Target): FilePath;
 }
