@@ -204,11 +204,13 @@ export default class BundleGraph {
           //   the original dependency resolution is fine
           // - Otherwise, keep this dependency unchanged for its potential side effects
           node.usedSymbolsUp.size > 0 &&
-          // We currently can't replace async imports from
+          // TODO We currently can't rename imports in async imports, e.g. from
           //      (parcelRequire("...")).then(({ a }) => a);
           // to
+          //      (parcelRequire("...")).then(({ a: b }) => a);
+          // or
           //      (parcelRequire("...")).then((a)=>a);
-          // (because of symbolTarget == { a -> * } )
+          // if the reexporting asset did `export {a as b}` or `export * as a`
           node.value.priority === Priority.sync
         ) {
           // TODO adjust sourceAssetIdNode.value.dependencies ?
