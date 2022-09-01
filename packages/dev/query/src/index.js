@@ -21,6 +21,8 @@ import BundleGraph from '@parcel/core/src/BundleGraph.js';
 import {fromProjectPathRelative} from '@parcel/core/src/projectPath';
 // eslint-disable-next-line monorepo/no-internal-import
 import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
+// eslint-disable-next-line monorepo/no-internal-import
+import {Priority} from '@parcel/core//src/types';
 
 let args = process.argv.slice(2);
 let cacheDir = path.join(process.cwd(), '.parcel-cache');
@@ -94,7 +96,7 @@ function parseAssetLocator(v: string) {
     }
   }
 
-  if (id == null) {
+  if (id == null && v.length > 0) {
     let assetRegex = new RegExp(v);
     for (let node of assetGraph.nodes.values()) {
       if (
@@ -156,19 +158,19 @@ function getNodeBundleGraph(v: string) {
 
 class Paths<T> {
   value: T;
-  label: ?string;
+  label: string;
   children: Array<Paths<T>> = [];
-  constructor(value: T, label: ?string) {
+  constructor(value: T, label = '-') {
     this.value = value;
     this.label = label;
   }
-  add(v: T, label: ?string): Paths<T> {
+  add(v: T, label: string | void): Paths<T> {
     let next = new Paths(v, label);
     this.children.push(next);
     return next;
   }
   print(format: T => string, prefix = '') {
-    console.log(prefix + (this.label ?? '-') + ' ' + format(this.value));
+    console.log(`${prefix}${this.label} ${format(this.value)}`);
     for (let i = 0; i < this.children.length; i++) {
       this.children[i].print(format, prefix + '  ');
     }
@@ -183,16 +185,21 @@ function _findEntries(
 ) {
   let asset = nullthrows(parseAssetLocator(v), 'Asset not found');
 
-  let paths = new Paths<NodeId>(graph.getNodeIdByContentKey(asset));
+  let paths = new Paths<NodeId>(graph.getNodeIdByContentKey(asset), ' ');
   for (let parent of graph.getNodeIdsConnectedTo(
     graph.getNodeIdByContentKey(asset),
   )) {
     let cb = (id, _ctx) => {
-      let ctx = _ctx ?? paths;
+      let ctx = _ctx ?? {paths, lazyOutgoing: false};
       let node = nullthrows(graph.getNode(id));
       if (node.id === asset) return;
       if (node.type === 'asset') {
-        ctx = ctx.add(id);
+        ctx.paths = ctx.paths.add(id, ctx.lazyOutgoing ? '<' : undefined);
+        ctx.lazyOutgoing = false;
+      } else if (node.type === 'dependency') {
+        if (node.value.priority === Priority.lazy) {
+          ctx.lazyOutgoing = true;
+        }
       }
       return ctx;
     };
