@@ -495,13 +495,7 @@ export class AssetGraphBuilder {
               assetNode.usedSymbols.add('*');
               reexportedSymbols.set(s, {asset: assetNode.id, symbol: s});
             } else {
-              reexportedSymbols.set(
-                s,
-                // Forward a reexport only if the current asset is side-effect free.
-                !assetNode.value.sideEffects
-                  ? sResolved
-                  : {asset: assetNode.id, symbol: s},
-              );
+              reexportedSymbols.set(s, sResolved);
               reexportedSymbolsSource.set(s, outgoingDep);
             }
           });
@@ -535,13 +529,7 @@ export class AssetGraphBuilder {
                 assetNode.usedSymbols.add('*');
                 reexportedSymbols.set(s, {asset: assetNode.id, symbol: s});
               } else {
-                reexportedSymbols.set(
-                  s,
-                  // Forward a reexport only if the current asset is side-effect free.
-                  !assetNode.value.sideEffects
-                    ? sResolved
-                    : {asset: assetNode.id, symbol: s},
-                );
+                reexportedSymbols.set(s, sResolved);
                 reexportedSymbolsSource.set(s, outgoingDep);
               }
             });
@@ -594,9 +582,9 @@ export class AssetGraphBuilder {
               },
             );
           } else if (reexportedSymbols.has(s)) {
-            // Forward a reexport only if the current asset is side-effect free and not external
             let reexport = reexportedSymbols.get(s);
             let v =
+              // Forward a reexport only if the current asset is side-effect free and not external
               !assetNode.value.sideEffects && reexport != null
                 ? reexport
                 : {
