@@ -8,7 +8,6 @@ import {
   bundle,
   distDir,
   findAsset,
-  findDependency,
   outputFS as fs,
   overlayFS,
   run,
@@ -123,21 +122,13 @@ parcel-transformer-b`,
       },
     );
 
-    assert.deepStrictEqual(!findAsset(b, 'index.js'));
+    assert(!findAsset(b, 'index.js'));
     assert.deepStrictEqual(
       new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'a.js')))),
       new Set(['a']),
     );
     assert.deepStrictEqual(
       new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'b.js')))),
-      new Set(['b']),
-    );
-    assert.deepStrictEqual(
-      new Set(b.getUsedSymbols(findDependency(b, 'index.js', './a.js'))),
-      new Set(['a']),
-    );
-    assert.deepStrictEqual(
-      new Set(b.getUsedSymbols(findDependency(b, 'index.js', './b.js'))),
       new Set(['b']),
     );
 

@@ -5476,9 +5476,6 @@ describe('scope hoisting', function () {
       shouldDisableCache: true,
     });
 
-    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    console.log(contents);
-
     assert.strictEqual(await run(b), 'bar');
 
     await overlayFS.copyFile(
