@@ -47,4 +47,52 @@ describe('loadConfig', () => {
       {},
     );
   });
+
+  it('should load with js', async () => {
+    assert.deepEqual(
+      (
+        await loadConfig(
+          fs,
+          path.join(__dirname, './input/config/config.js'),
+          ['config.js'],
+          path.join(__dirname, './input/config/'),
+        )
+      )?.config,
+      {
+        hoge: 'fuga',
+      },
+    );
+  });
+
+  it('should load with cjs', async () => {
+    assert.deepEqual(
+      (
+        await loadConfig(
+          fs,
+          path.join(__dirname, './input/config/config.cjs'),
+          ['config.cjs'],
+          path.join(__dirname, './input/config/'),
+        )
+      )?.config,
+      {
+        hoge: 'fuga',
+      },
+    );
+  });
+
+  it('should load without an extension as json', async () => {
+    assert.deepEqual(
+      (
+        await loadConfig(
+          fs,
+          path.join(__dirname, './input/config/.testrc'),
+          ['.testrc'],
+          path.join(__dirname, './input/config/'),
+        )
+      )?.config,
+      {
+        hoge: 'fuga',
+      },
+    );
+  });
 });

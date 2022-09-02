@@ -525,6 +525,8 @@ export type DependencyOptions = {|
    * By default, this is the path of the source file where the dependency was specified.
    */
   +resolveFrom?: FilePath,
+  /** The semver version range expected for the dependency. */
+  +range?: SemverRange,
   /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,
@@ -601,6 +603,8 @@ export interface Dependency {
    * By default, this is the path of the source file where the dependency was specified.
    */
   +resolveFrom: ?FilePath;
+  /** The semver version range expected for the dependency. */
+  +range: ?SemverRange;
   /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   +pipeline: ?string;
 

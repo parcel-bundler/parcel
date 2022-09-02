@@ -97,19 +97,36 @@ struct DependencyCollector<'a> {
 impl<'a> DependencyCollector<'a> {
   fn add_dependency(
     &mut self,
-    specifier: JsWord,
+    mut specifier: JsWord,
     span: swc_common::Span,
     kind: DependencyKind,
     attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
     is_optional: bool,
     source_type: SourceType,
   ) -> Option<JsWord> {
+    // Rewrite SWC helpers from ESM to CJS for library output.
+    let mut is_specifier_rewritten = false;
+    if self.config.is_library && !self.config.is_esm_output {
+      if let Some(suffix) = specifier.strip_prefix("@swc/helpers/src/") {
+        if let Some(prefix) = suffix.strip_suffix(".mjs") {
+          specifier = format!("@swc/helpers/lib/{}.js", prefix).into();
+          is_specifier_rewritten = true;
+        }
+      }
+    }
+
     // For normal imports/requires, the specifier will remain unchanged.
     // For other types of dependencies, the specifier will be changed to a hash
     // that also contains the dependency kind. This way, multiple kinds of dependencies
     // to the same specifier can be used within the same file.
     let placeholder = match kind {
-      DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => None,
+      DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => {
+        if is_specifier_rewritten {
+          Some(specifier.as_ref().to_owned())
+        } else {
+          None
+        }
+      }
       _ => Some(format!(
         "{:x}",
         hash!(format!("{}:{}:{}", self.config.filename, specifier, kind))
@@ -256,12 +273,12 @@ impl<'a> Fold for DependencyCollector<'a> {
     node.fold_children_with(self)
   }
 
-  fn fold_import_decl(&mut self, node: ast::ImportDecl) -> ast::ImportDecl {
+  fn fold_import_decl(&mut self, mut node: ast::ImportDecl) -> ast::ImportDecl {
     if node.type_only {
       return node;
     }
 
-    self.add_dependency(
+    let rewritten = self.add_dependency(
       node.src.value.clone(),
       node.src.span,
       DependencyKind::Import,
@@ -270,16 +287,20 @@ impl<'a> Fold for DependencyCollector<'a> {
       self.config.source_type,
     );
 
+    if let Some(rewritten) = rewritten {
+      node.src.value = rewritten;
+    }
+
     node
   }
 
-  fn fold_named_export(&mut self, node: ast::NamedExport) -> ast::NamedExport {
-    if let Some(src) = &node.src {
+  fn fold_named_export(&mut self, mut node: ast::NamedExport) -> ast::NamedExport {
+    if let Some(src) = &mut node.src {
       if node.type_only {
         return node;
       }
 
-      self.add_dependency(
+      let rewritten = self.add_dependency(
         src.value.clone(),
         src.span,
         DependencyKind::Export,
@@ -287,13 +308,17 @@ impl<'a> Fold for DependencyCollector<'a> {
         false,
         self.config.source_type,
       );
+
+      if let Some(rewritten) = rewritten {
+        src.value = rewritten;
+      }
     }
 
     node
   }
 
-  fn fold_export_all(&mut self, node: ast::ExportAll) -> ast::ExportAll {
-    self.add_dependency(
+  fn fold_export_all(&mut self, mut node: ast::ExportAll) -> ast::ExportAll {
+    let rewritten = self.add_dependency(
       node.src.value.clone(),
       node.src.span,
       DependencyKind::Export,
@@ -301,6 +326,10 @@ impl<'a> Fold for DependencyCollector<'a> {
       false,
       self.config.source_type,
     );
+
+    if let Some(rewritten) = rewritten {
+      node.src.value = rewritten;
+    }
 
     node
   }
@@ -466,7 +495,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                     if match_member_expr(m, vec!["Promise", "resolve"], self.decls) &&
                       // Make sure the arglist is empty.
                       // I.e. do not proceed with the below unless Promise.resolve has an empty arglist
-                      // because build_promise_chain() will not work in this case.                   
+                      // because build_promise_chain() will not work in this case.
                       call.args.is_empty()
                     {
                       if let MemberProp::Ident(id) = &member.prop {

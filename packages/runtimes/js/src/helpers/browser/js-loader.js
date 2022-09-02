@@ -22,7 +22,6 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
     var script = document.createElement('script');
     script.async = true;
     script.type = 'text/javascript';
-    script.charset = 'utf-8';
     script.src = bundle;
     script.onerror = function (e) {
       var error = new TypeError(

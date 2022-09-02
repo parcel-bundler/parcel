@@ -12,6 +12,7 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import {validateSchema, remapSourceLocation, isGlobMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
+import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
   jsx: true,
@@ -689,6 +690,17 @@ export default (new Transformer({
           };
         }
 
+        // Add required version range for helpers.
+        let range;
+        if (isHelper) {
+          let idx = dep.specifier.indexOf('/');
+          if (dep.specifier[0] === '@') {
+            idx = dep.specifier.indexOf('/', idx + 1);
+          }
+          let module = idx >= 0 ? dep.specifier.slice(0, idx) : dep.specifier;
+          range = pkg.dependencies[module];
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
@@ -697,6 +709,7 @@ export default (new Transformer({
           isOptional: dep.is_optional,
           meta,
           resolveFrom: isHelper ? __filename : undefined,
+          range,
           env,
         });
       }
@@ -709,10 +722,20 @@ export default (new Transformer({
         asset.symbols.set(exported, local, convertLoc(loc));
       }
 
+      // deps is a map of dependencies that are keyed by placeholder or specifier
+      // If a placeholder is present, that is used first since placeholders are
+      // hashed with DependencyKind's.
+      // If not, the specifier is used along with its specifierType appended to
+      // it to separate dependencies with the same specifier.
       let deps = new Map(
         asset
           .getDependencies()
-          .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
+          .map(dep => [
+            dep.meta.placeholder ??
+              dep.specifier +
+                (dep.specifierType === 'esm' ? dep.specifierType : ''),
+            dep,
+          ]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();
@@ -723,16 +746,20 @@ export default (new Transformer({
         local,
         imported,
         loc,
+        kind,
       } of hoist_result.imported_symbols) {
-        let dep = deps.get(source);
+        let specifierType = '';
+        if (kind === 'Import' || kind === 'Export') {
+          specifierType = 'esm';
+        }
+        let dep = deps.get(source + specifierType);
         if (!dep) continue;
         dep.symbols.set(imported, local, convertLoc(loc));
       }
 
       for (let {source, local, imported, loc} of hoist_result.re_exports) {
-        let dep = deps.get(source);
+        let dep = deps.get(source + 'esm');
         if (!dep) continue;
-
         if (local === '*' && imported === '*') {
           dep.symbols.set('*', '*', convertLoc(loc), true);
         } else {
@@ -802,12 +829,17 @@ export default (new Transformer({
         let deps = new Map(
           asset
             .getDependencies()
-            .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
+            .map(dep => [
+              dep.meta.placeholder ??
+                dep.specifier +
+                  (dep.specifierType === 'esm' ? dep.specifierType : ''),
+              dep,
+            ]),
         );
         asset.symbols.ensure();
 
         for (let {exported, local, loc, source} of symbol_result.exports) {
-          let dep = source ? deps.get(source) : undefined;
+          let dep = source ? deps.get(source + 'esm') : undefined;
           asset.symbols.set(
             exported,
             `${dep?.id ?? ''}$${local}`,
@@ -825,14 +857,14 @@ export default (new Transformer({
         }
 
         for (let {source, local, imported, loc} of symbol_result.imports) {
-          let dep = deps.get(source);
+          let dep = deps.get(source + 'esm');
           if (!dep) continue;
           dep.symbols.ensure();
           dep.symbols.set(imported, local, convertLoc(loc));
         }
 
         for (let {source, loc} of symbol_result.exports_all) {
-          let dep = deps.get(source);
+          let dep = deps.get(source + 'esm');
           if (!dep) continue;
           dep.symbols.ensure();
           dep.symbols.set('*', '*', convertLoc(loc), true);

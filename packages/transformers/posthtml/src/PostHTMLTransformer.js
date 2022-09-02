@@ -18,7 +18,13 @@ export default (new Transformer({
     }
 
     let configFile = await config.getConfig(
-      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+      [
+        '.posthtmlrc',
+        '.posthtmlrc.js',
+        '.posthtmlrc.cjs',
+        'posthtml.config.js',
+        'posthtml.config.cjs',
+      ],
       {
         packageKey: 'posthtml',
       },

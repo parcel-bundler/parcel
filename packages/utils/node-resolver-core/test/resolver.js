@@ -2679,6 +2679,29 @@ describe('resolver', function () {
 
       assert.deepEqual(result, {isExcluded: true});
     });
+
+    it('should error when a library has an incorrect external dependency version', async function () {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'foo',
+        specifierType: 'esm',
+        range: '^0.4.0',
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.equal(
+        result?.diagnostics?.[0].message,
+        'External dependency "foo" does not satisfy required semver range "^0.4.0".',
+      );
+    });
   });
 
   describe('urls', function () {

@@ -5,6 +5,78 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2022-08-03
+
+### Added
+
+- Core
+  - Log resolved targets in verbose log level for debugging - [Details](https://github.com/parcel-bundler/parcel/pull/8254)
+  - Allow plugin configs to be written with `.cjs` extension - [Details](https://github.com/parcel-bundler/parcel/pull/8253)
+- JavaScript
+  - Support react refresh for `@emotion/react` - [Details](https://github.com/parcel-bundler/parcel/pull/8205)
+  - Inject script for hmr when there is only normal script in html - [Details](https://github.com/parcel-bundler/parcel/pull/8330)
+- Elm
+  - Add support for compiling multiple modules at once via `with` query param - [Details](https://github.com/parcel-bundler/parcel/pull/8076)
+- CSS
+  - Add support for `errorRecovery` option in `@parcel/transformer-css` - [Details](https://github.com/parcel-bundler/parcel/pull/8352)
+- Experimental bundler - [Details](https://github.com/parcel-bundler/parcel/pull/8180)
+  - Implement bundling for multiple targets
+  - Internalize async dependencies
+  - Merge bundles of the same type
+  - Fix missing module - [Details](https://github.com/parcel-bundler/parcel/pull/8303)
+
+### Fixed
+
+- JavaScript
+  - Default interop missing when importing a CommonJS module - [Details](https://github.com/parcel-bundler/parcel/pull/7991)
+  - Add missing imports for external dependencies in skipped assets - [Details](https://github.com/parcel-bundler/parcel/pull/8299)
+  - Bump SWC to fix undefined variables - [Details](https://github.com/parcel-bundler/parcel/pull/8276)
+  - Remove charset from JS loaded script to avoid double fetching in Firefox - [Details](https://github.com/parcel-bundler/parcel/pull/8346)
+  - Use placeholder expression when replacing unused symbols - [Details](https://github.com/parcel-bundler/parcel/pull/8358)
+- Core
+  - Fix atomic writestream handling on Windows - [Details](https://github.com/parcel-bundler/parcel/pull/8337)
+  - Fix non-deterministic bundle hashes between builds due to symbol propagation - [Details](https://github.com/parcel-bundler/parcel/pull/8212)
+  - Fix TypeScript types for `@parcel/package-manager` - [Details](https://github.com/parcel-bundler/parcel/pull/8293)
+- Dependencies
+  - Bump terser to 5.14.2 - [Details](https://github.com/parcel-bundler/parcel/pull/8322)
+  - Bump node-forge to 1.3.0 - [Details](https://github.com/parcel-bundler/parcel/pull/8271)
+
+## [2.6.2] - 2022-06-21
+
+### Fixed
+
+- Core
+  - Fix race condition between writing and reading from cache - [Details](https://github.com/parcel-bundler/parcel/pull/8235)
+
+## [2.6.1] - 2022-06-17
+
+### Fixed
+
+- JavaScript
+  - Fix issue with conditional dependencies based on `process.env` - [Details](https://github.com/parcel-bundler/parcel/pull/8151)
+  - Fix transformation of import/requires wrapped into `Promise.resolve()` - [Details](https://github.com/parcel-bundler/parcel/pull/8167)
+  - Fix object literal shorthand with imported variables - [Details](https://github.com/parcel-bundler/parcel/issues/7955)
+  - Fix imported values in computed optional member expressions - [Details](https://github.com/parcel-bundler/parcel/pull/8187)
+  - Bump SWC to fix issue with missing parenthesis in optional chaining call - [Details](https://github.com/parcel-bundler/parcel/pull/8200)
+  - Bump SWC to fix helper imports in Node ESM libraries - [Details](https://github.com/parcel-bundler/parcel/pull/8213)
+- Resolution
+  - Add missing `invalidateOnEnvChange` to resolver - [Details](https://github.com/parcel-bundler/parcel/pull/8103)
+  - Fix importing node_modules packages in glob resolver with sub-paths - [Details](https://github.com/parcel-bundler/parcel/pull/8169)
+  - Error when external dependencies in libraries have incompatible semver ranges - [Details](https://github.com/parcel-bundler/parcel/pull/8224)
+- Web Extensions
+  - Fix HMR for web extensions - [Details](https://github.com/parcel-bundler/parcel/pull/8145)
+  - Fix web extensions issues with Safari - [Details](https://github.com/parcel-bundler/parcel/pull/8175)
+  - Fix `declarative_net_request` property in web extension manifest - [Details](https://github.com/parcel-bundler/parcel/pull/8189)
+- Dev Server
+  - Fix browser caching issues with dev server - [Details](https://github.com/parcel-bundler/parcel/pull/8166)
+- TypeScript
+  - Fix path separators on Windows - [Details](https://github.com/parcel-bundler/parcel/pull/8149)
+- CSS
+  - Bump Parcel CSS to fix issues with `libc` field in package.json - [Details](https://github.com/parcel-bundler/parcel/pull/8220)
+- Core
+  - Fix atomic file writing race condition - [Details](https://github.com/parcel-bundler/parcel/pull/8194)
+  - Bump lmdb dependency to fix multi-threading issue - [Details](https://github.com/parcel-bundler/parcel/pull/8204)
+
 ## [2.6.0] - 2022-05-25
 
 ### Added

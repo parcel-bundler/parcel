@@ -732,12 +732,13 @@ export default class BundleGraph {
       if (
         inboundDependencies.every(
           dependency =>
-            !this.bundleHasDependency(bundle, dependency) ||
-            this._graph.hasEdge(
-              bundleNodeId,
-              this._graph.getNodeIdByContentKey(dependency.id),
-              bundleGraphEdgeTypes.internal_async,
-            ),
+            dependency.specifierType !== SpecifierType.url &&
+            (!this.bundleHasDependency(bundle, dependency) ||
+              this._graph.hasEdge(
+                bundleNodeId,
+                this._graph.getNodeIdByContentKey(dependency.id),
+                bundleGraphEdgeTypes.internal_async,
+              )),
         )
       ) {
         this._graph.removeEdge(
@@ -1307,9 +1308,10 @@ export default class BundleGraph {
         // Shared bundles seem to depend on being used in the opposite order
         // they were added.
         // TODO: Should this be the case?
-        this._graph
-          .getNodeIdsConnectedFrom(nodeId, bundleGraphEdgeTypes.references)
-          .reverse(),
+        this._graph.getNodeIdsConnectedFrom(
+          nodeId,
+          bundleGraphEdgeTypes.references,
+        ),
     });
 
     return [...referencedBundles];

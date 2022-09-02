@@ -407,13 +407,17 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return null;
   }
 
-  topoSort(): Array<NodeId> {
+  topoSort(type?: TEdgeType): Array<NodeId> {
     let sorted: Array<NodeId> = [];
-    this.traverse({
-      exit: nodeId => {
-        sorted.push(nodeId);
+    this.traverse(
+      {
+        exit: nodeId => {
+          sorted.push(nodeId);
+        },
       },
-    });
+      null,
+      type,
+    );
     return sorted.reverse();
   }
 
