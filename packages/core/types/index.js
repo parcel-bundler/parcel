@@ -5,6 +5,7 @@ import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
+import type InternalBundleGraph from '../core/src/BundleGraph';
 import type {
   Diagnostic,
   Diagnostifiable,
@@ -1754,7 +1755,7 @@ export type PackagingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'packaging',
   +bundle: NamedBundle,
-  +bundleGraph?: BundleGraph<NamedBundle>,
+  +bundleGraph?: InternalBundleGraph,
 |};
 
 /**
@@ -1765,7 +1766,7 @@ export type OptimizingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'optimizing',
   +bundle: NamedBundle,
-  +bundleGraph?: BundleGraph<NamedBundle>,
+  +bundleGraph?: InternalBundleGraph,
 |};
 
 /**
