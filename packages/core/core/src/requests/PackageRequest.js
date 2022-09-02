@@ -18,7 +18,7 @@ import createParcelConfigRequest from './ParcelConfigRequest';
 type PackageRequestInput = {|
   bundleGraph: BundleGraph,
   bundle: Bundle,
-  bundleGraphReference: SharedReference,
+  bundleGraphReference?: SharedReference,
   optionsRef: SharedReference,
 |};
 
@@ -54,10 +54,12 @@ async function run({input, api, farm}: RunInput) {
   let {cachePath} = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
+
   let {devDepRequests, configRequests, bundleInfo, invalidations} =
     await runPackage({
       bundle,
-      bundleGraphReference,
+      bundleGraphReference:
+        bundleGraphReference == null ? input.bundleGraph : bundleGraphReference,
       optionsRef,
       configCachePath: cachePath,
       previousDevDeps: devDeps,

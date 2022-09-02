@@ -64,10 +64,12 @@ export default class ReporterRunner {
       let bundle: InternalBundle = event.bundle;
       // Convert any internal bundles back to their public equivalents as reporting
       // is public api
-      let bundleGraph = this.workerFarm.workerApi.getSharedReference(
-        // $FlowFixMe
-        bundleGraphRef,
-      );
+      let bundleGraph =
+        event.bundleGraph ??
+        this.workerFarm.workerApi.getSharedReference(
+          // $FlowFixMe
+          bundleGraphRef,
+        );
       invariant(bundleGraph instanceof BundleGraph);
       // $FlowFixMe[incompatible-call]
       this.report({

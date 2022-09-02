@@ -1750,6 +1750,7 @@ export type PackagingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'packaging',
   +bundle: NamedBundle,
+  +bundleGraph?: BundleGraph<NamedBundle>,
 |};
 
 /**
@@ -1760,6 +1761,7 @@ export type OptimizingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'optimizing',
   +bundle: NamedBundle,
+  +bundleGraph?: BundleGraph<NamedBundle>,
 |};
 
 /**

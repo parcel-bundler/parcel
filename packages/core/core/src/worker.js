@@ -121,7 +121,7 @@ export async function runPackage(
     previousInvalidations,
   }: {|
     bundle: Bundle,
-    bundleGraphReference: SharedReference,
+    bundleGraphReference: SharedReference | BundleGraph,
     configCachePath: string,
     optionsRef: SharedReference,
     previousDevDeps: Map<string, string>,
@@ -129,7 +129,10 @@ export async function runPackage(
     previousInvalidations: Array<RequestInvalidation>,
   |},
 ): Promise<PackageRequestResult> {
-  let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
+  let bundleGraph =
+    typeof bundleGraphReference === 'number'
+      ? workerApi.getSharedReference(bundleGraphReference)
+      : bundleGraphReference;
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);
   let parcelConfig = await loadConfig(configCachePath, options);

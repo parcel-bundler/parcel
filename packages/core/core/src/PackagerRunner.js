@@ -325,6 +325,7 @@ export default class PackagerRunner {
       type: 'buildProgress',
       phase: 'packaging',
       bundle,
+      bundleGraph,
     });
 
     let packager = await this.config.getPackager(bundle.name);
@@ -418,6 +419,7 @@ export default class PackagerRunner {
       type: 'buildProgress',
       phase: 'optimizing',
       bundle,
+      bundleGraph: internalBundleGraph,
     });
 
     let optimized = {

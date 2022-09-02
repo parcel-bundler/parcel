@@ -49,10 +49,6 @@ export default function createWriteBundlesRequest(
 
 async function run({input, api, farm, options}: RunInput) {
   let {bundleGraph, optionsRef} = input;
-  let {ref, dispose} = await farm.createSharedReference(
-    bundleGraph,
-    serialize(bundleGraph),
-  );
 
   api.invalidateOnOptionChange('shouldContentHash');
 
@@ -80,9 +76,25 @@ async function run({input, api, farm, options}: RunInput) {
       return false;
     }
 
+    // Filter out skippable requests.
+    // if (api.canSkipSubrequest(bundleGraph.getHash(bundle))) {
+    //   // console.log('skipping', bundle.id);
+    //   return false;
+    // }
+
     return true;
   });
 
+  let ref;
+  let dispose;
+
+  // Create shared reference in WorkerFarm if we need to change multiple bundles.
+  if (bundles.length > 1) {
+    ({ref, dispose} = await farm.createSharedReference(
+      bundleGraph,
+      serialize(bundleGraph),
+    ));
+  }
   try {
     await Promise.all(
       bundles.map(async bundle => {
@@ -133,7 +145,9 @@ async function run({input, api, farm, options}: RunInput) {
     api.storeResult(res);
     return res;
   } finally {
-    await dispose();
+    if (dispose) {
+      await dispose();
+    }
   }
 }
 
