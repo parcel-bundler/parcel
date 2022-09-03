@@ -312,7 +312,7 @@ impl BailoutReason {
   fn info(&self) -> (&str, &str) {
     match self {
       BailoutReason::NonTopLevelRequire => (
-        "Conditional or non-top-level `require()` call. This causes the resolved module and all dependendencies to be wrapped.",
+        "Conditional or non-top-level `require()` call. This causes the resolved module and all dependencies to be wrapped.",
         "https://parceljs.org/features/scope-hoisting/#avoid-conditional-require()"
       ),
       BailoutReason::NonStaticDestructuring => (
