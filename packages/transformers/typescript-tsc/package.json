@@ -25,9 +25,9 @@
     "@parcel/ts-utils": "2.7.0"
   },
   "devDependencies": {
-    "typescript": ">=3.0.0"
+    "typescript": "~4.7"
   },
   "peerDependencies": {
-    "typescript": ">=3.0.0"
+    "typescript": "3.0.0 - 4.7"
   }
 }
