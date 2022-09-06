@@ -591,46 +591,6 @@ function createIdealGraph(
     },
   });
 
-  // Step Merge Type Change Bundles: Clean up type change bundles within the exact same bundlegroups
-  for (let [nodeIdA, a] of bundleGraph.nodes) {
-    //if bundle b bundlegroups ==== bundle a bundlegroups then combine type changes
-    if (!typeChangeIds.has(nodeIdA) || a === 'root') continue;
-    let bundleABundleGroups = getBundleGroupsForBundle(nodeIdA);
-    for (let [nodeIdB, b] of bundleGraph.nodes) {
-      if (
-        a !== 'root' &&
-        b !== 'root' &&
-        a !== b &&
-        typeChangeIds.has(nodeIdB) &&
-        a.bundleBehavior !== 'inline' &&
-        b.bundleBehavior !== 'inline' &&
-        a.type === b.type
-      ) {
-        let bundleBbundleGroups = getBundleGroupsForBundle(nodeIdB);
-        if (setEqual(bundleBbundleGroups, bundleABundleGroups)) {
-          let shouldMerge = true;
-          for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
-            dependencyBundleGraph.getNodeIdByContentKey(String(nodeIdB)),
-            ALL_EDGE_TYPES,
-          )) {
-            let depNode = dependencyBundleGraph.getNode(depId);
-            // Cannot merge Dependency URL specifier type
-            if (
-              depNode &&
-              depNode.type === 'dependency' &&
-              depNode.value.specifierType === 'url'
-            ) {
-              shouldMerge = false;
-              continue;
-            }
-          }
-          if (!shouldMerge) continue;
-          mergeBundle(nodeIdA, nodeIdB);
-        }
-      }
-    }
-  }
-
   /**
    *  Step Determine Reachability: Determine reachability for every asset from each bundleRoot.
    * This is later used to determine which bundles to place each asset in. We build up two
@@ -856,6 +816,47 @@ function createIdealGraph(
       deleteBundle(bundleRoot);
     }
   }
+
+  // Step Merge Type Change Bundles: Clean up type change bundles within the exact same bundlegroups
+  for (let [nodeIdA, a] of bundleGraph.nodes) {
+    //if bundle b bundlegroups ==== bundle a bundlegroups then combine type changes
+    if (!typeChangeIds.has(nodeIdA) || a === 'root') continue;
+    let bundleABundleGroups = getBundleGroupsForBundle(nodeIdA);
+    for (let [nodeIdB, b] of bundleGraph.nodes) {
+      if (
+        a !== 'root' &&
+        b !== 'root' &&
+        a !== b &&
+        typeChangeIds.has(nodeIdB) &&
+        a.bundleBehavior !== 'inline' &&
+        b.bundleBehavior !== 'inline' &&
+        a.type === b.type
+      ) {
+        let bundleBbundleGroups = getBundleGroupsForBundle(nodeIdB);
+        if (setEqual(bundleBbundleGroups, bundleABundleGroups)) {
+          let shouldMerge = true;
+          for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
+            dependencyBundleGraph.getNodeIdByContentKey(String(nodeIdB)),
+            ALL_EDGE_TYPES,
+          )) {
+            let depNode = dependencyBundleGraph.getNode(depId);
+            // Cannot merge Dependency URL specifier type
+            if (
+              depNode &&
+              depNode.type === 'dependency' &&
+              depNode.value.specifierType === 'url'
+            ) {
+              shouldMerge = false;
+              continue;
+            }
+          }
+          if (!shouldMerge) continue;
+          mergeBundle(nodeIdA, nodeIdB);
+        }
+      }
+    }
+  }
+
   // Step Insert Or Share: Place all assets into bundles or create shared bundles. Each asset
   // is placed into a single bundle based on the bundle entries it is reachable from.
   // This creates a maximally code split bundle graph with no duplication.
