@@ -103,6 +103,15 @@ function parseAssetLocator(v: string) {
   return id;
 }
 
+function parseBundleLocator(v: string) {
+  let bundleRegex = new RegExp(v);
+  for (let b of bundleGraph.getBundles()) {
+    if (bundleRegex.test(getBundleFilePath(b.id)) || b.id === v) {
+      return b.id;
+    }
+  }
+}
+
 function getAsset(v: string) {
   let id: ?string = parseAssetLocator(v);
 
@@ -268,7 +277,8 @@ function getBundles(_) {
   }
 }
 
-function getReferencingBundles(bundleId: string) {
+function getReferencingBundles(v: string) {
+  let bundleId = nullthrows(parseBundleLocator(v), 'Bundle not found');
   let bundleNodeId = bundleGraph._graph.getNodeIdByContentKey(bundleId);
   let bundleNode = nullthrows(
     bundleGraph._graph.getNode(bundleNodeId),
@@ -328,8 +338,9 @@ function getAssetWithDependency(v: string) {
 }
 
 function traverseAssets(v: string) {
+  let bundleId = nullthrows(parseBundleLocator(v), 'Bundle not found');
   let node = nullthrows(
-    bundleGraph._graph.getNodeByContentKey(v),
+    bundleGraph._graph.getNodeByContentKey(bundleId),
     'Bundle not found',
   );
   invariant(node.type === 'bundle', 'Node is not a bundle, but a ' + node.type);
@@ -339,8 +350,9 @@ function traverseAssets(v: string) {
   });
 }
 function traverseBundle(v: string) {
+  let bundleId = nullthrows(parseBundleLocator(v), 'Bundle not found');
   let node = nullthrows(
-    bundleGraph._graph.getNodeByContentKey(v),
+    bundleGraph._graph.getNodeByContentKey(bundleId),
     'Bundle not found',
   );
   invariant(node.type === 'bundle', 'Node is not a bundle, but a ' + node.type);
@@ -372,7 +384,8 @@ function getBundle(v: string) {
   }
 }
 
-function findBundleReason(bundleId: string, asset: string) {
+function findBundleReason(bundle: string, asset: string) {
+  let bundleId = nullthrows(parseBundleLocator(bundle), 'Bundle not found');
   let bundleNodeId = bundleGraph._graph.getNodeIdByContentKey(bundleId);
   let bundleNode = nullthrows(
     bundleGraph._graph.getNode(bundleNodeId),
