@@ -6472,10 +6472,10 @@ flatted@^3.1.0:
   resolved "https://registry.yarnpkg.com/flatted/-/flatted-3.1.1.tgz#c4b489e80096d9df1dfc97c79871aea7c617c469"
   integrity sha512-zAoAQiudy+r5SvnSw3KJy5os/oRJYHzrzja/tBDqrZtNhUw8bt6y8OBzMWcjWr+8liV8Eb6yOhw8WZ7VFZ5ZzA==
 
-flow-bin@0.181.0:
-  version "0.181.0"
-  resolved "https://registry.yarnpkg.com/flow-bin/-/flow-bin-0.181.0.tgz#0a0ceee391dea166232958826c09ac2973eec9ae"
-  integrity sha512-JVuD0GN9IhAj0WgS3e2BDstTOpx4KmYMTdiVSjeeLud49gs8EN5Ah/Jw59d7rdSXn1fTodoepPe1cKwleDoEag==
+flow-bin@0.184.0:
+  version "0.184.0"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/flow-bin/-/flow-bin-0.184.0.tgz#0256b3c302ce465b60d0f0296273840d38d3f9e6"
+  integrity sha512-HiHuxhO06dqhV7YabluSswm3ZgxVi2L+aArcuIJMON/CRzqkGQrRjIVNbKllMs95rFk6aeuFR3FdVCCUa0SbGw==
 
 flush-write-stream@^1.0.0, flush-write-stream@^1.0.2:
   version "1.1.1"
