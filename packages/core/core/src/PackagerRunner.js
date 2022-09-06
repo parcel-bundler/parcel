@@ -51,7 +51,7 @@ import {
   loadPluginConfig,
   getConfigHash,
   getConfigRequests,
-  type PluginWithLoadConfigGlobalInfo,
+  type PluginWithBundleConfig,
 } from './requests/ConfigRequest';
 import {
   createDevDependency,
@@ -216,7 +216,7 @@ export default class PackagerRunner {
     }
   }
 
-  async loadPluginConfig<T: PluginWithLoadConfigGlobalInfo>(
+  async loadPluginConfig<T: PluginWithBundleConfig>(
     bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
     plugin: LoadedPlugin<T>,

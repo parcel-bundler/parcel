@@ -34,7 +34,7 @@ export type PluginWithLoadConfig = {
   ...
 };
 
-export type PluginWithLoadConfigGlobalInfo = {
+export type PluginWithBundleConfig = {
   loadConfig?: ({|
     config: IConfig,
     options: IPluginOptions,
