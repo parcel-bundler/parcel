@@ -2060,6 +2060,115 @@ describe('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [3, 3]);
   });
 
+  it('does not delete a child bundle, type change or async, of a dynamic import that gets internalized', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/internalize-no-orphan-child/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bar.js',
+          'foo.js',
+          'esmodule-helpers.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ], //why are those added?
+      },
+      {
+        assets: ['bazz.js'], //Async child of internalized foo
+      },
+      {
+        assets: ['a.css'], //Type change child of internalized foo
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [3, 3]);
+  });
+
+  // what if the bundle that gets the newly orphaned type change bundles, ALSO, had a type change bundle
+  // wouldn't we need to merge that with whatever type bundle exists there as well ?
+  it('does not delete a child bundle, type change or async, of a dynamic import that gets internalized', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/internalize-no-orphan-child/indexcss.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'indexcss.js',
+        assets: [
+          'indexcss.js',
+          'bar.js',
+          'foo.js',
+          'esmodule-helpers.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ], //why are those added?
+      },
+      {
+        assets: ['bazz.js'], //Async child of internalized foo
+      },
+      {
+        assets: ['a.css', 'b.css'], //Type change child of internalized foo
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [3, 3]);
+  });
+
+  // Case where an async bundle has two parents, and only one can internalize it
+  it('does not delete a child bundle of a dynamic import that gets internalized', async () => {
+    let b = await bundle(
+      ['index2.js', 'index3.js'].map(entry =>
+        path.join(__dirname, 'integration/internalize-no-orphan-child', entry),
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index3.js',
+        assets: [
+          'index3.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        name: 'index2.js',
+        assets: [
+          'index2.js',
+          'bar.js',
+          'esmodule-helpers.js',
+          'foo.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ], //why are those added?
+      },
+      {
+        assets: ['a.css'],
+      },
+      {
+        assets: ['bazz.js'],
+      },
+      {
+        assets: ['foo.js'],
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [3, 3]);
+  });
+
   it('async dependency internalization successfully removes unneeded bundlegroups and their bundles', async () => {
     let b = await bundle(
       path.join(

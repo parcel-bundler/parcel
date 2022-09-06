@@ -1106,6 +1106,45 @@ function createIdealGraph(
     }
   }
   function deleteBundle(bundleRoot: BundleRoot) {
+    //Do not orphan anything in the bundleROOTgraph, which models parents to async and parallel deps
+    let bundleRootGraphId = bundleRootGraph.getNodeIdByContentKey(
+      bundleRoot.id,
+    );
+    let bundleId = nullthrows(bundles.get(bundleRoot.id)); // Need this for later when we delete from bundleGraph
+    let parentBundleRootIds = bundleRootGraph.getNodeIdsConnectedTo(
+      bundleRootGraphId,
+      ALL_EDGE_TYPES,
+    );
+    let parentBundleRoots = parentBundleRootIds.map(r =>
+      bundleRootGraph.getNode(r),
+    );
+    //Do not leave any orphaned children in the bundleRootGraph
+    for (let childId of bundleRootGraph.getNodeIdsConnectedFrom(
+      bundleRootGraphId,
+      ALL_EDGE_TYPES,
+    )) {
+      for (let parentId of parentBundleRootIds) {
+        if (
+          !bundleRootGraph.hasEdge(parentId, childId, 2) ||
+          !bundleRootGraph.hasEdge(parentId, childId, 1)
+        ) {
+          bundleRootGraph.addEdge(parentId, childId);
+        }
+      }
+    }
+
+    //Do not orphan any bundles in the bundleGraph.... At this point in time,
+    //A bundle may have a child of type change, that exists in the bundleGraph
+    //which must be connected to a referencing or parent bundle, which is found in the bundleROOTgraph
+    //TODO: Get rid of bundleRootGraph and just had one bigger graph with edgetypes :)
+    for (let childId of bundleGraph.getNodeIdsConnectedFrom(bundleId)) {
+      //add to the parents that internalized it / referencing parent
+      for (let parentRoot of parentBundleRoots) {
+        if (parentRoot === 'root') continue;
+        let parentBundleId = nullthrows(bundleRoots.get(parentRoot))[0];
+        bundleGraph.addEdge(parentBundleId, childId);
+      }
+    }
     bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
     bundleRoots.delete(bundleRoot);
     bundles.delete(bundleRoot.id);
