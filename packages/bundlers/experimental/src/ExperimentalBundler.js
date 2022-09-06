@@ -813,6 +813,7 @@ function createIdealGraph(
       }
     }
     if (canDelete) {
+      attachOrphans(bundleRoot);
       deleteBundle(bundleRoot);
     }
   }
@@ -1106,7 +1107,7 @@ function createIdealGraph(
       }
     }
   }
-  function deleteBundle(bundleRoot: BundleRoot) {
+  function attachOrphans(bundleRoot: BundleRoot) {
     //Do not orphan anything in the bundleROOTgraph, which models parents to async and parallel deps
     let bundleRootGraphId = bundleRootGraph.getNodeIdByContentKey(
       bundleRoot.id,
@@ -1146,6 +1147,8 @@ function createIdealGraph(
         bundleGraph.addEdge(parentBundleId, childId);
       }
     }
+  }
+  function deleteBundle(bundleRoot: BundleRoot) {
     bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
     bundleRoots.delete(bundleRoot);
     bundles.delete(bundleRoot.id);
