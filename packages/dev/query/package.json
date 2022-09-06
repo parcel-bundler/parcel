@@ -3,6 +3,7 @@
   "version": "2.7.0",
   "private": true,
   "bin": "src/bin.js",
+  "main": "src/index.js",
   "dependencies": {
     "@parcel/core": "2.7.0",
     "@parcel/graph": "2.7.0",

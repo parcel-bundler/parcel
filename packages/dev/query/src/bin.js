@@ -10,4 +10,4 @@ if (
 }
 
 require('v8-compile-cache');
-require('./index');
+require('./cli');
