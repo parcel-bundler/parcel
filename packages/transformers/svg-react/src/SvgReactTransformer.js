@@ -35,6 +35,7 @@ export default (new Transformer({
 
     asset.type = 'jsx';
     asset.bundleBehavior = null;
+    asset.pipeline = undefined;
     asset.setCode(jsx);
 
     return [asset];
