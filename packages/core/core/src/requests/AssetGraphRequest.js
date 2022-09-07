@@ -481,6 +481,10 @@ export class AssetGraphBuilder {
 
         if (outgoingDepSymbols.get('*')?.local === '*') {
           outgoingDep.usedSymbolsUp.forEach((sResolved, s) => {
+            if (s === 'default') {
+              return;
+            }
+
             // If the symbol could come from multiple assets at runtime, assetNode's
             // namespace will be needed at runtime to perform the lookup on.
             if (reexportedSymbols.has(s)) {
