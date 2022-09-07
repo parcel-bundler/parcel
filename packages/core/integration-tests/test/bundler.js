@@ -214,4 +214,110 @@ describe('bundler', function () {
       );
     }
   });
+  it('should add type change child to sourec bundles groups if its parent (a reused bundle) is removed by parallel request limit', async function () {
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/typechange-bundle-childof-reused-bundle-removal/index.js',
+        ),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldScopeHoist: false,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          name: 'index.js',
+          assets: [
+            'index.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'css-loader.js',
+            'esmodule-helpers.js',
+            'js-loader.js',
+            'bundle-manifest.js',
+          ],
+        },
+        {
+          assets: ['bar.js', 'foo.js', 'a.js', 'b.js'], // shared bundle merged back
+        },
+        {
+          assets: ['foo.js', 'a.js', 'b.js'],
+        },
+        {
+          assets: ['styles.css'],
+        },
+        {
+          assets: ['local.html'],
+        },
+      ]);
+
+      assert(
+        b
+          .getReferencedBundles(
+            b.getBundlesWithAsset(findAsset(b, 'bar.js'))[0],
+          )
+          .includes(b.getBundlesWithAsset(findAsset(b, 'styles.css'))[0]),
+      );
+    }
+  });
+  // Case: reused bundle is merged back and the source bundle has existing bundle of TYPE A
+  it('should add type chnage child to sourec bundles groups if its parent (a reused bundle) is removed by parallel request limit', async function () {
+    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/typechange-bundle-childof-reused-bundle-removal-multi/index.js',
+        ),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldScopeHoist: false,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          name: 'index.js',
+          assets: [
+            'index.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'css-loader.js',
+            'esmodule-helpers.js',
+            'js-loader.js',
+            'bundle-manifest.js',
+          ],
+        },
+        {
+          assets: ['bar.js', 'foo.js', 'a.js', 'b.js'], // shared bundle merged back
+        },
+        {
+          assets: ['foo.js', 'a.js', 'b.js'],
+        },
+        {
+          assets: ['styles.css', 'c.css'],
+        },
+        {
+          assets: ['styles.css'],
+        },
+        {
+          assets: ['local.html'],
+        },
+      ]);
+
+      assert(
+        b
+          .getReferencedBundles(
+            b.getBundlesWithAsset(findAsset(b, 'bar.js'))[0],
+          )
+          .includes(b.getBundlesWithAsset(findAsset(b, 'styles.css'))[0]),
+      );
+    }
+  });
 });

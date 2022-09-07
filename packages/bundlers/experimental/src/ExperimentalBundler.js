@@ -1080,8 +1080,29 @@ function createIdealGraph(
           )) {
             let child = bundleGraph.getNode(childId);
             invariant(child !== 'root' && child != null);
-            child.sourceBundles.add(sourceBundleId);
-            bundleGraph.addEdge(sourceBundleId, childId);
+            if (child.type === sourceBundle.type) {
+              //different type bundles should not have other type source bundles or even be a shared bundle ?
+              child.sourceBundles.add(sourceBundleId);
+              bundleGraph.addEdge(sourceBundleId, childId);
+            } else {
+              // check for other of type
+              let typeNode = bundleGraph
+                .getNodeIdsConnectedFrom(sourceBundleId)
+                .find(id => {
+                  return bundleGraph.getNode(id)?.type === child.type;
+                });
+              if (typeNode != null) {
+                let otherNodeOfType = bundleGraph.getNode(typeNode);
+                invariant(
+                  otherNodeOfType !== 'root' && otherNodeOfType != null,
+                );
+                for (let asset of child.assets) {
+                  otherNodeOfType.assets.add(asset);
+                }
+              } else {
+                bundleGraph.addEdge(sourceBundleId, childId);
+              }
+            }
           }
           // needs to add test case where shared bundle is removed from ONE bundlegroup but not from the whole graph!
           // Remove the edge from this bundle group to the shared bundle.
