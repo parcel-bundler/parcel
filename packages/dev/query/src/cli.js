@@ -121,22 +121,29 @@ function getAsset(v: string) {
   }
 }
 
-function findAsset(v: string) {
+function _findAssetNode(v: string) {
   let assetRegex = new RegExp(v);
   for (let node of assetGraph.nodes.values()) {
     if (
       node.type === 'asset' &&
       assetRegex.test(fromProjectPathRelative(node.value.filePath))
     ) {
-      try {
-        console.log(
-          `${bundleGraph.getAssetPublicId(
-            bundleGraph.getAssetById(node.id),
-          )} ${fromProjectPathRelative(node.value.filePath)}`,
-        );
-      } catch (e) {
-        console.log(fromProjectPathRelative(node.value.filePath));
-      }
+      return node;
+    }
+  }
+}
+
+function findAsset(v: string) {
+  let node = _findAssetNode(v);
+  if (node) {
+    try {
+      console.log(
+        `${bundleGraph.getAssetPublicId(
+          bundleGraph.getAssetById(node.id),
+        )} ${fromProjectPathRelative(node.value.filePath)}`,
+      );
+    } catch (e) {
+      console.log(fromProjectPathRelative(node.value.filePath));
     }
   }
 }
