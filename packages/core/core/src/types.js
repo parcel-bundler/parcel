@@ -445,6 +445,7 @@ export type Config = {|
   invalidateOnOptionChange: Set<string>,
   devDeps: Array<InternalDevDepOptions>,
   invalidateOnStartup: boolean,
+  invalidateOnBuild: boolean,
 |};
 
 export type EntryRequest = {|

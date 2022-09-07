@@ -85,7 +85,7 @@ pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
     Expr::Lit(Lit::Str(s)) => Some((s.value.clone(), s.span)),
     // `string`
     Expr::Tpl(tpl) if tpl.quasis.len() == 1 && tpl.exprs.is_empty() => {
-      Some((tpl.quasis[0].raw.clone(), tpl.span))
+      Some(((*tpl.quasis[0].raw).into(), tpl.span))
     }
     _ => None,
   }
