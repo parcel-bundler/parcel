@@ -77,6 +77,7 @@ describe('TargetResolver', () => {
     invalidateOnEnvChange() {},
     invalidateOnOptionChange() {},
     invalidateOnStartup() {},
+    invalidateOnBuild() {},
     getInvalidations() {
       return [];
     },

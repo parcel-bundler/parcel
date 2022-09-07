@@ -58,14 +58,14 @@ export class Validator {
 }
 
 export class Packager {
-  constructor<T>(opts: PackagerOpts<T>) {
+  constructor<T, U>(opts: PackagerOpts<T, U>) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }
 }
 
 export class Optimizer {
-  constructor<T>(opts: OptimizerOpts<T>) {
+  constructor<T, U>(opts: OptimizerOpts<T, U>) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }

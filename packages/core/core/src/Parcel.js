@@ -261,6 +261,8 @@ export default class Parcel {
         type: 'buildStart',
       });
 
+      this.#requestTracker.graph.invalidateOnBuildNodes();
+
       let request = createParcelBuildRequest({
         optionsRef: this.#optionsRef,
         requestedAssetIds: this.#requestedAssetIds,
