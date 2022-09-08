@@ -155,16 +155,20 @@ function findAssetWithSymbol(local: string) {
   );
 
   let asset;
-  outer: for (let node of assetGraph.nodes.values()) {
-    if (node.type === 'asset') {
-      // Search against the id used by the JSTransformer and ScopeHoistingPackager,
-      // not the final asset id, as it may have changed with further transformation.
-      if (node.value.meta.id === assetId) {
-        asset = node;
-        break;
-      } else if (node.value.symbols) {
-        // If the asset couldn't be found by searching for the id,
-        // search for the local name in asset used symbols.
+  // Search against the id used by the JSTransformer and ScopeHoistingPackager,
+  // not the final asset id, as it may have changed with further transformation.
+  for (let node of assetGraph.nodes.values()) {
+    if (node.type === 'asset' && node.value.meta.id === assetId) {
+      asset = node;
+      break;
+    }
+  }
+
+  // If the asset couldn't be found by searching for the id,
+  // search for the local name in asset used symbols.
+  if (asset == null) {
+    outer: for (let node of assetGraph.nodes.values()) {
+      if (node.type === 'asset' && node.value.symbols) {
         for (let symbol of node.value.symbols.values()) {
           if (symbol.local === local) {
             asset = node;
