@@ -17,30 +17,36 @@ export function loadGraphs(cacheDir: string): {|
   bundleGraph: ?BundleGraph,
   requestTracker: ?RequestTracker,
 |} {
-  function filesBySize() {
+  function filesBySizeAndModifiedTime() {
     let files = fs
       .readdirSync(cacheDir)
       .map(f => [
         path.join(cacheDir, f),
         fs.statSync(path.join(cacheDir, f)).size,
+        fs.statSync(path.join(cacheDir, f)).mtime,
       ]);
 
     files.sort(([, a], [, b]) => b - a);
+    files.sort(([, , a], [, , b]) => b - a);
 
     return files.map(([f]) => f);
   }
 
   let bundleGraph, assetGraph, requestTracker;
-  for (let f of filesBySize()) {
+  for (let f of filesBySizeAndModifiedTime()) {
     if (bundleGraph && assetGraph && requestTracker) break;
     if (path.extname(f) !== '') continue;
     try {
       let obj = v8.deserialize(fs.readFileSync(f));
-      if (obj.assetGraph != null && obj.assetGraph.value.hash != null) {
+      if (
+        !assetGraph &&
+        obj.assetGraph != null &&
+        obj.assetGraph.value.hash != null
+      ) {
         assetGraph = AssetGraph.deserialize(obj.assetGraph.value);
-      } else if (obj.bundleGraph != null) {
+      } else if (!bundleGraph && obj.bundleGraph != null) {
         bundleGraph = BundleGraph.deserialize(obj.bundleGraph.value);
-      } else if (obj['$$type']?.endsWith('RequestGraph')) {
+      } else if (!requestTracker && obj['$$type']?.endsWith('RequestGraph')) {
         requestTracker = new RequestTracker({
           graph: RequestGraph.deserialize(obj.value),
           // $FlowFixMe
