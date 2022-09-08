@@ -776,6 +776,7 @@ function createIdealGraph(
           parallelAvailability,
           assetsFromBundleRoot,
         );
+        parallelAvailability.add(child); //The next sibling should have older sibling available via parallel
       }
     }
   }
