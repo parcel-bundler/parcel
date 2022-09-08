@@ -1089,7 +1089,9 @@ function createIdealGraph(
               let typeNode = bundleGraph
                 .getNodeIdsConnectedFrom(sourceBundleId)
                 .find(id => {
-                  return bundleGraph.getNode(id)?.type === child.type;
+                  let otherChild = bundleGraph.getNode(id);
+                  invariant(otherChild !== 'root');
+                  return otherChild?.type === child.type;
                 });
               if (typeNode != null) {
                 let otherNodeOfType = bundleGraph.getNode(typeNode);
@@ -1164,6 +1166,7 @@ function createIdealGraph(
       //add to the parents that internalized it / referencing parent
       for (let parentRoot of parentBundleRoots) {
         if (parentRoot === 'root') continue;
+        invariant(parentRoot != null);
         let parentBundleId = nullthrows(bundleRoots.get(parentRoot))[0];
         bundleGraph.addEdge(parentBundleId, childId);
       }

@@ -2076,7 +2076,7 @@ describe('javascript', function () {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-        ], //why are those added?
+        ],
       },
       {
         assets: ['bazz.js'], //Async child of internalized foo
@@ -2110,7 +2110,7 @@ describe('javascript', function () {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-        ], //why are those added?
+        ],
       },
       {
         assets: ['bazz.js'], //Async child of internalized foo
@@ -2153,7 +2153,7 @@ describe('javascript', function () {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-        ], //why are those added?
+        ],
       },
       {
         assets: ['a.css'],
