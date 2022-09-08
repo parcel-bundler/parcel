@@ -154,13 +154,17 @@ function findAssetWithSymbol(local: string) {
     `symbol ${local} could not be resolved`,
   );
 
-  let asset = bundleGraph._graph.getNodeByContentKey(assetId);
-
-  // If the asset couldn't be found by extracting a content key from the name,
-  // search for the local name in asset used symbols.
-  if (asset == null) {
-    outer: for (let node of assetGraph.nodes.values()) {
-      if (node.type === 'asset' && node.value.symbols) {
+  let asset;
+  outer: for (let node of assetGraph.nodes.values()) {
+    if (node.type === 'asset') {
+      // Search against the id used by the JSTransformer and ScopeHoistingPackager,
+      // not the final asset id, as it may have changed with further transformation.
+      if (node.value.meta.id === assetId) {
+        asset = node;
+        break;
+      } else if (node.value.symbols) {
+        // If the asset couldn't be found by searching for the id,
+        // search for the local name in asset used symbols.
         for (let symbol of node.value.symbols.values()) {
           if (symbol.local === local) {
             asset = node;
