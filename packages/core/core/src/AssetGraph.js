@@ -56,7 +56,7 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     deferred: false,
     excluded: false,
     usedSymbolsDown: new Set(),
-    usedSymbolsUp: new Set(),
+    usedSymbolsUp: new Map(),
     usedSymbolsDownDirty: true,
     usedSymbolsUpDirtyDown: true,
     usedSymbolsUpDirtyUp: true,

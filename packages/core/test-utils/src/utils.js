@@ -170,9 +170,15 @@ export function findDependency(
     `Couldn't find asset ${assetFileName}`,
   );
 
-  let dependency = bundleGraph
+  let dependencies = bundleGraph
     .getDependencies(asset)
-    .find(d => d.specifier === specifier);
+    .filter(d => d.specifier === specifier);
+
+  let dependency =
+    dependencies.length > 1
+      ? dependencies.find(d => !bundleGraph.isDependencySkipped(d))
+      : dependencies[0];
+
   invariant(
     dependency != null,
     `Couldn't find dependency ${assetFileName} -> ${specifier}`,
