@@ -1,3 +1,3 @@
-import {a} from "./library";
+import {a, index} from "./library";
 
-output = a;
+output = [a, index];
