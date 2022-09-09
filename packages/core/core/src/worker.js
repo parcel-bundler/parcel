@@ -17,7 +17,7 @@ import Transformation, {
   type TransformationOpts,
   type TransformationResult,
 } from './Transformation';
-import {reportWorker} from './ReporterRunner';
+import {reportWorker, report} from './ReporterRunner';
 import PackagerRunner, {type PackageRequestResult} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
@@ -140,9 +140,13 @@ export async function runPackage(
   let runner = new PackagerRunner({
     config: parcelConfig,
     options,
-    report: reportWorker.bind(null, workerApi),
+    report:
+      typeof bundleGraphReference === 'number'
+        ? reportWorker.bind(null, workerApi)
+        : report,
     previousDevDeps,
     previousInvalidations,
+    useFarm: typeof bundleGraphReference === 'number' ? true : false,
   });
 
   return runner.run(bundleGraph, bundle, invalidDevDeps);

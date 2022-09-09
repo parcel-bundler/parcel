@@ -67,6 +67,7 @@ type Opts = {|
   report: ReportFn,
   previousDevDeps: Map<string, string>,
   previousInvalidations: Array<RequestInvalidation>,
+  useFarm: boolean,
 |};
 
 export type PackageRequestResult = {|
@@ -109,6 +110,7 @@ export default class PackagerRunner {
   devDepRequests: Map<string, DevDepRequest>;
   invalidations: Map<string, RequestInvalidation>;
   previousInvalidations: Array<RequestInvalidation>;
+  useFarm: boolean;
 
   constructor({
     config,
@@ -116,6 +118,7 @@ export default class PackagerRunner {
     report,
     previousDevDeps,
     previousInvalidations,
+    useFarm,
   }: Opts) {
     this.config = config;
     this.options = options;
@@ -123,6 +126,7 @@ export default class PackagerRunner {
     this.previousDevDeps = previousDevDeps;
     this.devDepRequests = new Map();
     this.previousInvalidations = previousInvalidations;
+    this.useFarm = useFarm;
     this.invalidations = new Map();
     this.pluginOptions = new PluginOptions(
       optionsProxy(this.options, option => {
@@ -325,7 +329,7 @@ export default class PackagerRunner {
       type: 'buildProgress',
       phase: 'packaging',
       bundle,
-      bundleGraph,
+      bundleGraph: this.useFarm ? undefined : bundleGraph,
     });
 
     let packager = await this.config.getPackager(bundle.name);
@@ -419,7 +423,7 @@ export default class PackagerRunner {
       type: 'buildProgress',
       phase: 'optimizing',
       bundle,
-      bundleGraph: internalBundleGraph,
+      bundleGraph: this.useFarm ? undefined : internalBundleGraph,
     });
 
     let optimized = {

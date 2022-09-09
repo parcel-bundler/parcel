@@ -133,5 +133,17 @@ export function reportWorker(workerApi: WorkerApi, event: ReporterEvent) {
 }
 
 export function report(event: ReporterEvent) {
-  bus.emit('reporterEvent', event);
+  if (
+    event.bundleGraph &&
+    event.type === 'buildProgress' &&
+    (event.phase === 'optimizing' || event.phase === 'packaging')
+  ) {
+    bus.emit('reporterEvent', {
+      ...event,
+      bundle: bundleToInternalBundle(event.bundle),
+      bundleGraphRef: event.bundleGraph,
+    });
+  } else {
+    bus.emit('reporterEvent', event);
+  }
 }
