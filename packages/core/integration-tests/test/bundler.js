@@ -214,7 +214,7 @@ describe('bundler', function () {
       );
     }
   });
-  it('should add type change child to sourec bundles groups if its parent (a reused bundle) is removed by parallel request limit', async function () {
+  it('should add type change child to source bundles groups if its parent (a reused bundle) is removed by parallel request limit', async function () {
     if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
       let b = await bundle(
         path.join(

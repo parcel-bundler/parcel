@@ -1150,7 +1150,7 @@ function createIdealGraph(
     )) {
       for (let parentId of parentBundleRootIds) {
         if (
-          !bundleRootGraph.hasEdge(parentId, childId, 2) ||
+          !bundleRootGraph.hasEdge(parentId, childId, 2) &&
           !bundleRootGraph.hasEdge(parentId, childId, 1)
         ) {
           bundleRootGraph.addEdge(parentId, childId);

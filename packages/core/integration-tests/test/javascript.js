@@ -2089,21 +2089,20 @@ describe('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [3, 3]);
   });
 
-  // what if the bundle that gets the newly orphaned type change bundles, ALSO, had a type change bundle
-  // wouldn't we need to merge that with whatever type bundle exists there as well ?
+  // case where the bundle that recieves the newly orphaned type change bundles, also, had a type change bundle, in which case we merge
   it('does not delete a child bundle, type change or async, of a dynamic import that gets internalized', async () => {
     let b = await bundle(
       path.join(
         __dirname,
-        '/integration/internalize-no-orphan-child/indexcss.js',
+        '/integration/internalize-no-orphan-child/index4.js',
       ),
     );
 
     assertBundles(b, [
       {
-        name: 'indexcss.js',
+        name: 'index4.js',
         assets: [
-          'indexcss.js',
+          'index4.js',
           'bar.js',
           'foo.js',
           'esmodule-helpers.js',
