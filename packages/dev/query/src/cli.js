@@ -1,11 +1,7 @@
 // @flow strict-local
 /* eslint-disable monorepo/no-internal-import */
 import type {ContentGraph, ContentKey, NodeId} from '@parcel/graph';
-import type {
-  AssetGraphNode,
-  BundleGraphNode,
-  PackagedBundleInfo,
-} from '@parcel/core/src/types';
+import type {AssetGraphNode, BundleGraphNode} from '@parcel/core/src/types';
 import type {BundleGraphEdgeType} from '@parcel/core/src/BundleGraph.js';
 
 import path from 'path';
@@ -19,7 +15,7 @@ import {fromProjectPathRelative} from '@parcel/core/src/projectPath';
 import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
 import {Priority} from '@parcel/core//src/types';
 
-import {loadGraphs, getBundleInfo} from './index.js';
+import {loadGraphs} from './index.js';
 
 let args = process.argv.slice(2);
 let cacheDir = path.join(process.cwd(), '.parcel-cache');
@@ -37,7 +33,8 @@ try {
 }
 
 console.log('Loading graphs...');
-let {assetGraph, bundleGraph, requestTracker} = loadGraphs(cacheDir);
+let {assetGraph, bundleGraph, bundleInfo, requestTracker} =
+  loadGraphs(cacheDir);
 
 if (bundleGraph == null) {
   console.error('Bundle Graph could not be found');
@@ -57,22 +54,16 @@ if (requestTracker == null) {
   throw new Error();
 }
 
-// -------------------------------------------------------
-
-let _bundleInfo: ?Map<string, PackagedBundleInfo>;
-function getBundleInfoCached(): Map<string, PackagedBundleInfo> {
-  if (_bundleInfo == null) {
-    let v = getBundleInfo(requestTracker);
-    _bundleInfo = v;
-    return v;
-  }
-
-  return _bundleInfo;
+if (bundleInfo == null) {
+  console.error('Bundle Info could not be found');
+  process.exit(1);
+  throw new Error();
 }
 
+// -------------------------------------------------------
+
 function getBundleFilePath(id: ContentKey) {
-  let info = getBundleInfoCached();
-  return fromProjectPathRelative(nullthrows(info.get(id)?.filePath));
+  return fromProjectPathRelative(nullthrows(bundleInfo.get(id)?.filePath));
 }
 
 function parseAssetLocator(v: string) {

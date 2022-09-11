@@ -1,5 +1,6 @@
 // @flow strict-local
 /* eslint-disable monorepo/no-internal-import */
+import type {ContentKey} from '@parcel/graph';
 import type {PackagedBundleInfo} from '@parcel/core/src/types';
 
 import fs from 'fs';
@@ -10,12 +11,16 @@ import invariant from 'assert';
 
 import AssetGraph from '@parcel/core/src/AssetGraph.js';
 import BundleGraph from '@parcel/core/src/BundleGraph.js';
-import RequestTracker, {RequestGraph} from '@parcel/core/src/RequestTracker.js';
+import RequestTracker, {
+  RequestGraph,
+  requestGraphEdgeTypes,
+} from '@parcel/core/src/RequestTracker.js';
 
 export function loadGraphs(cacheDir: string): {|
   assetGraph: ?AssetGraph,
   bundleGraph: ?BundleGraph,
   requestTracker: ?RequestTracker,
+  bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
 |} {
   function filesBySize() {
     let files = fs
@@ -30,17 +35,18 @@ export function loadGraphs(cacheDir: string): {|
     return files.map(([f]) => f);
   }
 
-  let bundleGraph, assetGraph, requestTracker;
+  let requestTracker;
   for (let f of filesBySize()) {
-    if (bundleGraph && assetGraph && requestTracker) break;
+    // if (bundleGraph && assetGraph && requestTracker) break;
     if (path.extname(f) !== '') continue;
     try {
       let obj = v8.deserialize(fs.readFileSync(f));
-      if (obj.assetGraph != null && obj.assetGraph.value.hash != null) {
+      /* if (obj.assetGraph != null && obj.assetGraph.value.hash != null) {
         assetGraph = AssetGraph.deserialize(obj.assetGraph.value);
       } else if (obj.bundleGraph != null) {
         bundleGraph = BundleGraph.deserialize(obj.bundleGraph.value);
-      } else if (obj['$$type']?.endsWith('RequestGraph')) {
+      } else */
+      if (obj['$$type']?.endsWith('RequestGraph')) {
         requestTracker = new RequestTracker({
           graph: RequestGraph.deserialize(obj.value),
           // $FlowFixMe
@@ -48,37 +54,65 @@ export function loadGraphs(cacheDir: string): {|
           // $FlowFixMe
           options: null,
         });
+        break;
       }
     } catch (e) {
       // noop
     }
   }
 
-  return {assetGraph, bundleGraph, requestTracker};
+  // Load graphs by finding the main subrequests and loading their results
+  let assetGraph, bundleGraph, bundleInfo;
+
+  invariant(requestTracker);
+  let node = nullthrows(
+    [...requestTracker.graph.nodes].find(
+      ([, n]) =>
+        n.type === 'request' && n.value.type === 'parcel_build_request',
+    ),
+  )[0];
+  let subRequests = requestTracker.graph
+    .getNodeIdsConnectedFrom(node, requestGraphEdgeTypes.subrequest)
+    .map(n => nullthrows(requestTracker.graph.getNode(n)));
+
+  let assetGraphRequest = subRequests.find(
+    n => n.type === 'request' && n.value.type === 'asset_graph_request',
+  );
+  if (assetGraphRequest != null) {
+    assetGraph = AssetGraph.deserialize(
+      loadLargeBlobRequestRequestSync(cacheDir, assetGraphRequest).assetGraph
+        .value,
+    );
+  }
+
+  let bundleGraphRequest = subRequests.find(
+    n => n.type === 'request' && n.value.type === 'bundle_graph_request',
+  );
+  if (bundleGraphRequest != null) {
+    bundleGraph = BundleGraph.deserialize(
+      loadLargeBlobRequestRequestSync(cacheDir, bundleGraphRequest).bundleGraph
+        .value,
+    );
+  }
+
+  let writeBundlesRequest = subRequests.find(
+    n => n.type === 'request' && n.value.type === 'write_bundles_request',
+  );
+  if (writeBundlesRequest != null) {
+    invariant(writeBundlesRequest.type === 'request');
+    // $FlowFixMe[incompatible-cast]
+    bundleInfo = (nullthrows(writeBundlesRequest.value.result): Map<
+      ContentKey,
+      PackagedBundleInfo,
+    >);
+  }
+
+  return {assetGraph, bundleGraph, requestTracker, bundleInfo};
 }
 
-export function getBundleInfo(
-  requestTracker: RequestTracker,
-): Map<string, PackagedBundleInfo> {
-  // let id = nullthrows(
-  //   [...requestTracker.graph._contentKeyToNodeId.keys()].find(k =>
-  //     k.startsWith('write_bundles:'),
-  //   ),
-  // );
-  // let v = nullthrows(
-  //   await requestTracker.getRequestResult<Map<string, PackagedBundleInfo>>(id),
-  // );
-
-  // Hack to make getRequestResult sync
-  let node = nullthrows(
-    [...requestTracker.graph.nodes.values()].find(
-      n => n.type === 'request' && n.value.type === 'write_bundles_request',
-    ),
+function loadLargeBlobRequestRequestSync(cacheDir, node) {
+  invariant(node.type === 'request');
+  return v8.deserialize(
+    fs.readFileSync(path.join(cacheDir, nullthrows(node.value.resultCacheKey))),
   );
-  invariant(
-    node.type === 'request' && node.value.type === 'write_bundles_request',
-  );
-  // $FlowFixMe[incompatible-type]
-  let v: Map<string, PackagedBundleInfo> = node.value.result;
-  return v;
 }
