@@ -13,7 +13,7 @@ import invariant from 'assert';
 
 import {fromProjectPathRelative} from '@parcel/core/src/projectPath';
 import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
-import {Priority} from '@parcel/core//src/types';
+import {Priority} from '@parcel/core/src/types';
 
 import {loadGraphs} from './index.js';
 

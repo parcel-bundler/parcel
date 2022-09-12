@@ -9,12 +9,15 @@ import v8 from 'v8';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 
-import AssetGraph from '@parcel/core/src/AssetGraph.js';
-import BundleGraph from '@parcel/core/src/BundleGraph.js';
-import RequestTracker, {
-  RequestGraph,
-  requestGraphEdgeTypes,
-} from '@parcel/core/src/RequestTracker.js';
+const {
+  AssetGraph,
+  BundleGraph,
+  RequestTracker: {
+    default: RequestTracker,
+    RequestGraph,
+    requestGraphEdgeTypes,
+  },
+} = require('./deep-imports.js');
 
 export function loadGraphs(cacheDir: string): {|
   assetGraph: ?AssetGraph,
