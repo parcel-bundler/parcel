@@ -19,27 +19,28 @@ const {
   },
 } = require('./deep-imports.js');
 
-export function loadGraphs(cacheDir: string): {|
+export function loadGraphs(
+  cacheDir: string,
+): {|
   assetGraph: ?AssetGraph,
   bundleGraph: ?BundleGraph,
   requestTracker: ?RequestTracker,
   bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
 |} {
-  function filesBySize() {
-    let files = fs
-      .readdirSync(cacheDir)
-      .map(f => [
-        path.join(cacheDir, f),
-        fs.statSync(path.join(cacheDir, f)).size,
-      ]);
+  function filesBySizeAndModifiedTime() {
+    let files = fs.readdirSync(cacheDir).map(f => {
+      let stat = fs.statSync(path.join(cacheDir, f));
+      return [path.join(cacheDir, f), stat.size, stat.mtime];
+    });
 
     files.sort(([, a], [, b]) => b - a);
+    files.sort(([, , a], [, , b]) => b - a);
 
     return files.map(([f]) => f);
   }
 
   let requestTracker;
-  for (let f of filesBySize()) {
+  for (let f of filesBySizeAndModifiedTime()) {
     // if (bundleGraph && assetGraph && requestTracker) break;
     if (path.extname(f) !== '') continue;
     try {
