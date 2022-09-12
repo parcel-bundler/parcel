@@ -65,14 +65,18 @@ export function loadGraphs(cacheDir: string): {|
   let assetGraph, bundleGraph, bundleInfo;
 
   invariant(requestTracker);
-  let node = nullthrows(
-    [...requestTracker.graph.nodes].find(
-      ([, n]) =>
-        n.type === 'request' && n.value.type === 'parcel_build_request',
-    ),
-  )[0];
+  let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
+    'parcel_build_request',
+  );
+  let buildRequestNode = nullthrows(
+    requestTracker.graph.getNode(buildRequestId),
+  );
+  invariant(
+    buildRequestNode.type === 'request' &&
+      buildRequestNode.value.type === 'parcel_build_request',
+  );
   let subRequests = requestTracker.graph
-    .getNodeIdsConnectedFrom(node, requestGraphEdgeTypes.subrequest)
+    .getNodeIdsConnectedFrom(buildRequestId, requestGraphEdgeTypes.subrequest)
     .map(n => nullthrows(requestTracker.graph.getNode(n)));
 
   let assetGraphRequest = subRequests.find(
