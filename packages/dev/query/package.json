@@ -5,8 +5,11 @@
   "bin": "src/bin.js",
   "main": "src/index.js",
   "dependencies": {
+    "@msgpack/msgpack": "^2.8.0",
     "@parcel/core": "2.8.3",
     "@parcel/graph": "2.8.3",
+    "express": "^4.18.1",
+    "get-port": "^4.2.0",
     "nullthrows": "^1.1.1",
     "v8-compile-cache": "^2.0.0"
   },
