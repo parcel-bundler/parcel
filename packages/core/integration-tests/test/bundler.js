@@ -265,8 +265,9 @@ describe('bundler', function () {
       );
     }
   });
-  // Case: reused bundle is merged back and the source bundle has existing bundle of TYPE A
-  it('should add type chnage child to sourec bundles groups if its parent (a reused bundle) is removed by parallel request limit', async function () {
+  it('should add type change bundles assets to source bundle groups if its parent (a reused bundle) is removed by parallel request limit and the bundlegroup has an existing bundle of that type', async function () {
+    // Case: A reused bundle (foo) with type-change child (styles.css) is merged back via PRL (parallel request limit) and the
+    // source bundle's bundleGroup already has an existing bundle of another type (c.css), so we duplicate the assets
     if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
       let b = await bundle(
         path.join(

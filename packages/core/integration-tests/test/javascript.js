@@ -2089,8 +2089,11 @@ describe('javascript', function () {
     assert.deepEqual(await (await run(b)).default, [3, 3]);
   });
 
-  // case where the bundle that recieves the newly orphaned type change bundles, also, had a type change bundle, in which case we merge
-  it('does not delete a child bundle, type change or async, of a dynamic import that gets internalized', async () => {
+  it('merges the assets of a type change child of a dynamic import parent that gets internalized into grandparent', async () => {
+    // When an async bundle gets internalized, it's assets are placed into the parent, and that edge is severed
+    // if the internalized async bundle also had a type change child, that edge must be drawn or it's assets must
+    // be merged into the parent's existing child of that type.
+    // This merging is handled in its own step.
     let b = await bundle(
       path.join(
         __dirname,
