@@ -9,9 +9,13 @@ import {typeof requestGraphEdgeTypes} from '@parcel/core/src/RequestTracker.js';
 
 module.exports = ((process.env.PARCEL_BUILD_ENV === 'production'
   ? {
-      AssetGraph: require('@parcel/core/lib/AssetGraph.js').default,
-      BundleGraph: require('@parcel/core/lib/BundleGraph.js').default,
-      RequestTracker: require('@parcel/core/lib/RequestTracker.js'),
+      // Split up require specifier to outsmart packages/dev/babel-register/babel-plugin-module-translate.js
+      // $FlowFixMe(unsupported-syntax)
+      AssetGraph: require('@parcel/core' + '/lib/AssetGraph.js').default,
+      // $FlowFixMe(unsupported-syntax)
+      BundleGraph: require('@parcel/core' + '/lib/BundleGraph.js').default,
+      // $FlowFixMe(unsupported-syntax)
+      RequestTracker: require('@parcel/core' + '/lib/RequestTracker.js'),
     }
   : {
       AssetGraph: require('@parcel/core/src/AssetGraph.js').default,
