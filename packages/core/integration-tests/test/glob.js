@@ -26,22 +26,20 @@ describe('glob', function () {
     assert.equal(await output(), 3);
   });
 
-  it('should import a glob of files', async function () {
+  it('should import a glob of esm files', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/glob-esm/index.js'),
     );
-
     await assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', '*.js', 'a.js', 'b.js'],
       },
     ]);
-    let output = await run(b);
-    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
-    console.log(output.default, file);
-    assert.equal(typeof output.default, 'function');
-    assert.equal(await output.default(), 3);
+    let output = (await run(b)).default;
+
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
   });
 
   it('should require nested directories with a glob', async function () {
