@@ -1,4 +1,10 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useState,
+} from 'react';
 import {decode} from './utils';
 import {GraphView} from 'react-digraph';
 import path from 'path';
@@ -126,9 +132,61 @@ const Priority = ['sync', 'parallel', 'lazy'];
 const BundleBehavior = ['inline', 'isolated'];
 
 function LoadedApp({graph}) {
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [focusedNodeIds, setFocusedNodeIds] = useState(new Set());
-  const [isFocusingNodes, setIsFocusingNodes] = useState(true);
+  const [selectedNode, setSelectedNode] = useState({title: '@@root'});
+
+  const [{currentPinNodeId, pinnedNodeIds}, dispatch] = useReducer(
+    (state, action) => {
+      //reducer function
+      switch (action.type) {
+        case 'pin':
+          if (!state.pinnedNodeIds.has(action.nodeId)) {
+            let updatedPinMap = new Map(state.pinnedNodeIds);
+            updatedPinMap.set(action.nodeId, [action.nodeId]);
+            return {
+              ...state,
+              pinnedNodeIds: updatedPinMap,
+            };
+          }
+          return state;
+        case 'unpin':
+          if (state.pinnedNodeIds.has(action.nodeId)) {
+            let updatedPinMap = new Map(state.pinnedNodeIds);
+            updatedPinMap.delete(action.nodeId);
+            return {
+              ...state,
+              pinnedNodeIds: updatedPinMap,
+            };
+          }
+          return state;
+        case 'selectPin':
+          if (state.currentPinNodeId != action.nodeId) {
+            return {
+              ...state,
+              currentPinNodeId: action.nodeId,
+            };
+          }
+          return state;
+        default:
+          throw new Error();
+      }
+    },
+    null,
+    () => {
+      let pinnedNodeIds = new Map();
+      let currentPinNodeId;
+      for (let [id, node] of graph.nodes) {
+        // get better way to get this
+        if (node.type === 'dependency' && node.value.isEntry) {
+          pinnedNodeIds.set(id, [id]);
+          currentPinNodeId = id;
+          break;
+        }
+      }
+      return {currentPinNodeId, pinnedNodeIds};
+    },
+  );
+  const [cursor, setCursor] = useState(20);
+  const [lastNodeSeen, setLastNodeSeen] = useState(null);
 
   const edgeTypes = useMemo(() => {
     const types = new Set();
@@ -150,12 +208,11 @@ function LoadedApp({graph}) {
       graph != null
         ? convertGraph({
             graph,
-            isFocusingNodes,
-            focusedNodeIds,
+            pinnedNodeIds,
             focusedEdgeTypes,
           })
         : null,
-    [graph, isFocusingNodes, focusedNodeIds, focusedEdgeTypes],
+    [graph, pinnedNodeIds, focusedEdgeTypes],
   );
   const config = useMemo(() => {
     const allNodeTypes = new Set(convertedGraph.nodes.map(node => node.type));
@@ -189,17 +246,13 @@ function LoadedApp({graph}) {
   const selectedGraphViewNode =
     selectedNode != null ? {title: selectedNode.id} : null;
 
-  const handleFocusChange = (node, shouldFocus) => {
-    setFocusedNodeIds(
-      () =>
-        new Set(
-          shouldFocus
-            ? [...focusedNodeIds, node.id]
-            : [...focusedNodeIds].filter(n => n !== node.id),
-        ),
-    );
+  const handlePinChange = (node, shouldPin) => {
+    dispatch({type: shouldPin ? 'pin' : 'unpin', nodeId: node.id});
   };
 
+  const handleExpandNode = (node, shouldPin) => {
+    // This should push node.id to the path youre on currently on
+  };
   return (
     <div style={{height: '100%', width: '100%'}}>
       <div className="tools tools--left">
@@ -230,8 +283,7 @@ function LoadedApp({graph}) {
                 ),
             );
           }}
-          focusedNodeIds={focusedNodeIds}
-          isFocusingNodes={isFocusingNodes}
+          pinnedNodeIds={pinnedNodeIds}
           onNodeIdClick={nodeId => {
             setSelectedNode(
               convertedGraph.nodes.find(
@@ -239,17 +291,15 @@ function LoadedApp({graph}) {
               ),
             );
           }}
-          onFocusNodes={isFocusing => {
-            setIsFocusingNodes(isFocusing);
-          }}
         />
       </div>
       {selectedNode != null ? (
         <div className="tools tools-right">
           <DetailView
-            selectedNode={selectedNode}
-            onFocusChange={handleFocusChange}
-            isFocused={focusedNodeIds.has(selectedNode.id)}
+            selectedNode={selectedNode} //selected Path
+            onPinChange={handlePinChange}
+            expandNode={handleExpandNode}
+            isPinned={pinnedNodeIds.has(selectedNode.id)}
           />
         </div>
       ) : null}
@@ -301,9 +351,8 @@ function SearchView({onSubmit}) {
 function FocusView({
   edgeTypes,
   focusedEdgeTypes,
-  focusedNodeIds,
-  isFocusingNodes,
-  onFocusNodes,
+  pinnedNodeIds,
+  onPinnedNodes,
   onEdgeFocusChange,
   onNodeIdClick,
 }) {
@@ -311,52 +360,39 @@ function FocusView({
     <div className="focus-view">
       <div style={{marginBottom: 16}}>
         <label style={{fontWeight: 'bold', position: 'relative'}}>
-          <input
-            type="checkbox"
-            checked={isFocusingNodes}
-            onChange={e => {
-              onFocusNodes(e.target.checked);
-            }}
-            style={{
-              position: 'absolute',
-              left: -20,
-              top: -3,
-            }}
-          />
-          <span className="label-text">Focus Nodes</span>
+          <span className="label-text">Pinned Nodes</span>
+          {pinnedNodeIds.size > 0 ? (
+            <ul className="pinned-nodes">
+              {[...pinnedNodeIds].map(id => (
+                <li key={id}>
+                  <a
+                    href="#"
+                    onClick={() => {
+                      onNodeIdClick(id);
+                    }}
+                  >
+                    {id}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </label>
-
-        {focusedNodeIds.size > 0 ? (
-          <ul className="focused-nodes">
-            {[...focusedNodeIds].map(id => (
-              <li key={id}>
-                <a
-                  href="#"
-                  onClick={() => {
-                    onNodeIdClick(id);
-                  }}
-                >
-                  {id}
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </div>
       <div className="focused-edges">
         <label style={{fontWeight: 'bold'}}>
           <span className="label-text">Edge types</span>
           <ul>
             {[...edgeTypes].map(type => {
-              const isFocused = focusedEdgeTypes.has(type);
+              const isPinned = focusedEdgeTypes.has(type);
               return (
                 <li key={type}>
                   <label>
                     <input
                       type="checkbox"
-                      checked={isFocused}
+                      checked={isPinned}
                       onChange={() => {
-                        onEdgeFocusChange(type, !isFocused);
+                        onEdgeFocusChange(type, !isPinned);
                       }}
                     />
                     <span className="label-text" title={type}>
@@ -373,13 +409,16 @@ function FocusView({
   );
 }
 
-function DetailView({selectedNode, onFocusChange, isFocused}) {
+function DetailView({selectedNode, onPinChange, isPinned, expandNode}) {
   return (
     <div className="detail-view">
       <div style={{display: 'flex'}}>
         <h2 style={{flex: '1', marginBottom: 0}}>Node Detail</h2>
-        <button onClick={() => onFocusChange(selectedNode, !isFocused)}>
-          {isFocused ? 'Remove from focus' : 'Add to focus'}
+        <button onClick={() => onPinChange(selectedNode, !isPinned)}>
+          {isPinned ? 'Unpin' : 'Pin'}
+        </button>
+        <button onClick={() => expandNode(selectedNode, !isPinned)}>
+          {isPinned ? 'Collapse' : 'Expand'}
         </button>
       </div>
       <dl>
@@ -485,13 +524,8 @@ function makeEdge({type, size}) {
   };
 }
 
-function convertGraph({
-  focusedEdgeTypes,
-  focusedNodeIds,
-  graph,
-  isFocusingNodes,
-}) {
-  const shownNodeIds = new Set([...focusedNodeIds]);
+function convertGraph({focusedEdgeTypes, pinnedNodeIds, graph}) {
+  const shownNodeIds = new Set(pinnedNodeIds.keys());
 
   const edges = [];
 
@@ -502,16 +536,12 @@ function convertGraph({
           continue;
         }
 
-        if (
-          isFocusingNodes &&
-          !(focusedNodeIds.has(sourceId) || focusedNodeIds.has(targetId))
-        ) {
+        if (!(pinnedNodeIds.has(sourceId) || pinnedNodeIds.has(targetId))) {
           continue;
         }
 
         shownNodeIds.add(sourceId);
         shownNodeIds.add(targetId);
-
         edges.push({
           source: sourceId,
           target: targetId,

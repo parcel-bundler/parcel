@@ -19,3 +19,11 @@ Aspirational
 - Use GraphQL queries to search for nodes (https://fusejs.io/)
 - Search within focused nodes
 - Should we include runtime nodes?
+
+Ideas
+
+- Containing a history of nodes, instead of a set of focused nodes, maintain a list of paths
+  to explore, which you can collpse or expand.
+- We could automatically show any paths between "focused nodes"
+- Could also display relationships between two nodes
+- breadcrumb view for the path youre currently on, which is clickable and centers around the clicked node
