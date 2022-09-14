@@ -243,8 +243,12 @@ function LoadedApp({graph}) {
     return extendedGraphConfig;
   }, [convertedGraph, GraphConfig]);
 
-  const selectedGraphViewNode =
-    selectedNode != null ? {title: selectedNode.id} : null;
+  const selectedGraphView = useMemo(
+    () => ({
+      nodes: new Map(selectedNode ? [[selectedNode.id, selectedNode]] : []),
+    }),
+    [selectedNode],
+  );
 
   const handlePinChange = (node, shouldPin) => {
     dispatch({type: shouldPin ? 'pin' : 'unpin', nodeId: node.id});
@@ -257,10 +261,11 @@ function LoadedApp({graph}) {
     <div style={{height: '100%', width: '100%'}}>
       <div className="tools tools--left">
         <SearchView
-          onSubmit={publicId => {
+          onSubmit={id => {
             setSelectedNode(
               convertedGraph.nodes.find(
-                nodeObj => nodeObj.value?.publicId === publicId,
+                nodeObj =>
+                  nodeObj.value?.publicId === id || nodeObj.value?.id === id,
               ),
             );
             // setSelectedNode(
@@ -319,7 +324,7 @@ function LoadedApp({graph}) {
             setSelectedNode([...select.nodes.values()][0]);
           }
         }}
-        selected={selectedGraphViewNode}
+        selected={selectedGraphView}
         nodes={convertedGraph.nodes}
         edges={convertedGraph.edges}
       />

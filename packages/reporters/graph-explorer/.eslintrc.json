@@ -1,0 +1,14 @@
+{
+  "parserOptions": {
+    "sourceType": "module",
+    "ecmaVersion": 6
+  },
+  "env": {
+    "browser": true,
+    "es6": true
+  },
+  "rules": {"react/prop-types": "off"},
+  "globals": {
+    "globalThis": "readonly"
+  }
+}
