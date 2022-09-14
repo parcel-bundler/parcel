@@ -1,0 +1,9 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.txt": ["@parcel/transformer-raw"]
+  },
+  "packagers": {
+    "*.txt": "parcel-packager-config"
+  }
+}
