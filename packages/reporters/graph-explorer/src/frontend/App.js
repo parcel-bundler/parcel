@@ -262,17 +262,18 @@ function LoadedApp({graph}) {
       <div className="tools tools--left">
         <SearchView
           onSubmit={id => {
-            setSelectedNode(
-              convertedGraph.nodes.find(
-                nodeObj =>
-                  nodeObj.value?.publicId === id || nodeObj.value?.id === id,
-              ),
-            );
-            // setSelectedNode(
-            //   convertedGraph.nodes.find(
-            //     nodeObj => nodeObj.id === Number(nodeId),
-            //   ),
-            // );
+            let node;
+            for (let [k, v] of graph.nodes) {
+              if (v.value?.publicId === id || v.value?.id === id) {
+                node = [k, v];
+              }
+            }
+
+            if (node != null) {
+              setSelectedNode(convertNode(node[0], node[1]));
+            } else {
+              setSelectedNode(undefined);
+            }
           }}
         />
         <FocusView
@@ -557,15 +558,17 @@ function convertGraph({focusedEdgeTypes, pinnedNodeIds, graph}) {
   }
 
   return {
-    nodes: [...shownNodeIds].map(id => {
-      let {id: title, type, value} = graph.nodes.get(id);
-      return {
-        id,
-        title,
-        type,
-        value,
-      };
-    }),
+    nodes: [...shownNodeIds].map(id => convertNode(id, graph.nodes.get(id))),
     edges,
+  };
+}
+
+function convertNode(id, node) {
+  let {id: title, type, value} = node;
+  return {
+    id,
+    title,
+    type,
+    value,
   };
 }
