@@ -552,6 +552,7 @@ function convertGraph({focusedEdgeTypes, pinnedNodeIds, graph}) {
           source: sourceId,
           target: targetId,
           type: type ?? undefined,
+          handleTooltipText: type ?? undefined,
         });
       }
     }
