@@ -22,6 +22,7 @@ import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
 type ExpressApplication = $Application<ExpressRequest, ExpressResponse>;
 
 let subscription: ?{|server: http$Server, sockets: Set<Socket>|} = null;
+let cachedGraph = null;
 
 export async function startGraphExplorer(
   bundleGraph: BundleGraph,
@@ -35,7 +36,14 @@ export async function startGraphExplorer(
   }
   app.get('/api/graph', (req, res) => {
     res.set('Content-Type', 'application/x-msgpack');
-    res.status(200).send(Buffer.from(pack));
+    if (cachedGraph == null) {
+      cachedGraph = Buffer.from(
+        msgpack.encode(serialize(bundleGraph._graph), {
+          extensionCodec,
+        }),
+      );
+    }
+    res.status(200).send(cachedGraph);
   });
 
   let port: number = await getPort({port: 5555});
@@ -59,6 +67,7 @@ export async function stopGraphExplorer() {
   if (subscription) {
     await close(subscription);
     subscription = null;
+    cachedGraph = null;
   }
 }
 
