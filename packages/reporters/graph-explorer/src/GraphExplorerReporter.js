@@ -24,47 +24,40 @@ import path from 'path';
 type InstanceId = string;
 type ExpressApplication = $Application<ExpressRequest, ExpressResponse>;
 
-const graphs: Map<InstanceId, Graph<*, *>> = new Map();
+let subscription: ?{|server: http$Server, sockets: Set<Socket>|} = null;
+let cachedGraph = null;
 
-export function debug(instanceId: InstanceId, graph: Graph<*, *>) {
-  graphs.set(instanceId, graph);
+export async function startGraphExplorer(
+  bundleGraph: BundleGraph,
+  frontendDir: string,
+) {
+  let app = express();
+  app.use('/', express.static(frontendDir));
+  app.get('/api/graph', (req, res) => {
+    res.set('Content-Type', 'application/x-msgpack');
+    if (cachedGraph == null) {
+      cachedGraph = Buffer.from(
+        msgpack.encode(serialize(bundleGraph._graph), {
+          extensionCodec,
+        }),
+      );
+    }
+    res.status(200).send(cachedGraph);
+  });
+
+  let port: number = await getPort({port: 5555});
+  subscription = await listen(app, port);
+
+  console.log(`Graph explorer started on http://localhost:${port}`);
 }
 
-const servers: Map<InstanceId, Disposable> = new Map();
-
-export default (new Reporter({
-  async report({event, logger, options}) {
-    switch (event.type) {
-      case 'buildSuccess': {
-        invariant(!servers.has(options.instanceId));
-        let app = createApp(options.instanceId);
-        let port: number = await getPort();
-        let listenPromise = listen(app, port);
-
-        servers.set(
-          options.instanceId,
-          new Disposable(async () => {
-            await close(await listenPromise);
-          }),
-        );
-
-        await listenPromise;
-        // Writing this to stdout for now so it doesn't get swallowed by other
-        // reporters
-        process.stdout.write(
-          `Graph explorer started on http://localhost:${port}\n`,
-        );
-
-        break;
-      }
-
-      case 'watchEnd': {
-        await nullthrows(servers.get(options.instanceId)).dispose();
-        break;
-      }
-    }
-  },
-}): Reporter);
+export async function stopGraphExplorer() {
+  if (subscription) {
+    await close(subscription);
+    subscription = null;
+    cachedGraph = null;
+  }
+}
 
 function listen(
   app: ExpressApplication,
