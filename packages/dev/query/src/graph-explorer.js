@@ -27,19 +27,15 @@ export async function startGraphExplorer(
   bundleGraph: BundleGraph,
   frontendDir?: string,
 ) {
+  // Pre-pack the serialized graph to speed up API responses.
+  let pack = msgpack.encode(serialize(bundleGraph._graph), {extensionCodec});
   let app = express();
   if (frontendDir != null) {
     app.use('/', express.static(frontendDir));
   }
   app.get('/api/graph', (req, res) => {
     res.set('Content-Type', 'application/x-msgpack');
-    res.status(200).send(
-      Buffer.from(
-        msgpack.encode(serialize(bundleGraph._graph), {
-          extensionCodec,
-        }),
-      ),
-    );
+    res.status(200).send(Buffer.from(pack));
   });
 
   let port: number = await getPort({port: 5555});
