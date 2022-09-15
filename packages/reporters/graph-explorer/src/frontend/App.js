@@ -131,92 +131,71 @@ const Priority = ['sync', 'parallel', 'lazy'];
 //type BundleBehavior = 'inline' | 'isolated';
 const BundleBehavior = ['inline', 'isolated'];
 
-function getPinnedPathId(pinnedNodeIds, id) {
-  if (pinnedNodeIds.has(id)) {
-    return id;
-  }
-  for (let [pinId, path] of pinnedNodeIds) {
-    if (path.includes(id)) {
-      return pinId;
+const initializer = graph => initialState => {
+  let pinnedNodeIds = new Set();
+  for (let [id, node] of graph.nodes) {
+    // get better way to get this
+    if (node.type === 'dependency' && node.value.isEntry) {
+      pinnedNodeIds.add(id);
+      break;
     }
   }
-  return null;
-}
+  return {...initialState, pinnedNodeIds};
+};
 
 function LoadedApp({graph}) {
-  const [{selectedNodeId, pinnedNodeIds}, dispatch] = useReducer(
-    (state, action) => {
-      //reducer function
-      switch (action.type) {
-        case 'select': {
-          if (state.selectedNodeId !== action.nodeId) {
-            return {...state, selectedNodeId: action.nodeId};
-          }
-          return state;
-        }
-        case 'pin': {
-          if (!state.pinnedNodeIds.has(action.nodeId)) {
-            let updatedPinMap = new Map(state.pinnedNodeIds);
-            updatedPinMap.set(action.nodeId, [action.nodeId]);
-            return {
-              ...state,
-              pinnedNodeIds: updatedPinMap,
-            };
-          }
-          return state;
-        }
-        case 'unpin': {
-          if (state.pinnedNodeIds.has(action.nodeId)) {
-            let updatedPinMap = new Map(state.pinnedNodeIds);
-            updatedPinMap.delete(action.nodeId);
-            return {
-              ...state,
-              pinnedNodeIds: updatedPinMap,
-            };
-          }
-          return state;
-        }
-        case 'expand': {
-          let pinId = getPinnedPathId(state.pinnedNodeIds, action.nodeId);
-          if (pinId != null) {
-            let path = state.pinnedNodeIds.get(pinId);
-            if (!path.includes(action.nodeId)) {
-              let updatedPinMap = new Map(state.pinnedNodeIds);
-              updatedPinMap.set(pinId, [...path, action.nodeId]);
-              return {...state, pinnedNodeIds: updatedPinMap};
+  const [{selectedNodeId, expandedNodeId, pinnedNodeIds}, dispatch] =
+    useReducer(
+      (state, action) => {
+        //reducer function
+        switch (action.type) {
+          case 'select': {
+            if (state.selectedNodeId !== action.nodeId) {
+              return {...state, selectedNodeId: action.nodeId};
             }
+            return state;
           }
-          return state;
-        }
-        case 'collapse': {
-          let pinId = getPinnedPathId(state.pinnedNodeIds, action.nodeId);
-          if (pinId != null) {
-            let path = state.pinnedNodeIds.get(pinId);
-            if (path.includes(action.nodeId)) {
-              let updatedPinMap = new Map(state.pinnedNodeIds);
-              updatedPinMap.set(pinId, path.slice(path.indexOf(action.nodeId)));
-              return {...state, pinnedNodeIds: updatedPinMap};
+          case 'pin': {
+            if (!state.pinnedNodeIds.has(action.nodeId)) {
+              let updatedPins = new Set(state.pinnedNodeIds);
+              updatedPins.add(action.nodeId);
+              return {
+                ...state,
+                pinnedNodeIds: updatedPins,
+              };
             }
+            return state;
           }
-          return state;
+          case 'unpin': {
+            if (state.pinnedNodeIds.has(action.nodeId)) {
+              let updatedPins = new Set(state.pinnedNodeIds);
+              updatedPins.delete(action.nodeId);
+              return {
+                ...state,
+                pinnedNodeIds: updatedPins,
+              };
+            }
+            return state;
+          }
+          case 'expand': {
+            if (state.expandedNodeId !== action.nodeId) {
+              return {...state, expandedNodeId: action.nodeId};
+            }
+            return state;
+          }
+          case 'collapse': {
+            if (state.expandedNodeId === action.nodeId) {
+              return {...state, expandedNodeId: null};
+            }
+            return state;
+          }
+          default:
+            throw new Error();
         }
-        default:
-          throw new Error();
-      }
-    },
-    {selectedNodeId: null},
-    initialState => {
-      let pinnedNodeIds = new Map();
-      for (let [id, node] of graph.nodes) {
-        // get better way to get this
-        if (node.type === 'dependency' && node.value.isEntry) {
-          pinnedNodeIds.set(id, [id]);
-          break;
-        }
-      }
-      return {...initialState, pinnedNodeIds};
-    },
-  );
+      },
+      {selectedNodeId: null, expandedNodeId: null},
+      initializer(graph),
+    );
 
   const edgeTypes = useMemo(() => {
     const types = new Set();
@@ -236,9 +215,9 @@ function LoadedApp({graph}) {
   const convertedGraph = useMemo(
     () =>
       graph != null
-        ? convertGraph({graph, pinnedNodeIds, focusedEdgeTypes})
+        ? convertGraph({expandedNodeId, graph, pinnedNodeIds, focusedEdgeTypes})
         : null,
-    [graph, pinnedNodeIds, focusedEdgeTypes],
+    [expandedNodeId, graph, pinnedNodeIds, focusedEdgeTypes],
   );
   const config = useMemo(() => {
     const allNodeTypes = new Set(convertedGraph.nodes.map(node => node.type));
@@ -273,21 +252,6 @@ function LoadedApp({graph}) {
     if (selectedNodeId == null) return null;
     return convertedGraph.nodes.find(n => n.id === selectedNodeId);
   }, [convertedGraph, selectedNodeId]);
-
-  const selectedNodeIsExpanded = useMemo(() => {
-    if (selectedNodeId != null) {
-      let pinId = getPinnedPathId(pinnedNodeIds, selectedNodeId);
-      if (pinId) {
-        let path = pinnedNodeIds.get(pinId);
-        if (pinId === selectedNodeId) {
-          return true;
-        } else if (path[path.length - 1] === selectedNodeId) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }, [pinnedNodeIds, selectedNodeId]);
 
   const handlePinChange = (node, shouldPin) => {
     dispatch({type: shouldPin ? 'pin' : 'unpin', nodeId: node.id});
@@ -343,7 +307,7 @@ function LoadedApp({graph}) {
             onPinChange={handlePinChange}
             onExpandChange={handleExpandChange}
             isPinned={pinnedNodeIds.has(selectedNodeId)}
-            isExpanded={selectedNodeIsExpanded}
+            isExpanded={selectedNodeId === expandedNodeId}
           />
         </div>
       ) : null}
@@ -577,15 +541,13 @@ function makeEdge({type, size}) {
   };
 }
 
-function convertGraph({focusedEdgeTypes, pinnedNodeIds, graph}) {
-  const shownNodeIds = new Set();
-  const expandedNodeIds = new Set();
-  for (let [id, nodeIds] of pinnedNodeIds) {
-    expandedNodeIds.add(nodeIds[nodeIds.length - 1]);
-    for (let nodeId of nodeIds) {
-      shownNodeIds.add(nodeId);
-    }
-  }
+function convertGraph({
+  expandedNodeId,
+  focusedEdgeTypes,
+  pinnedNodeIds,
+  graph,
+}) {
+  const shownNodeIds = new Set(pinnedNodeIds);
 
   const edges = [];
 
@@ -603,10 +565,7 @@ function convertGraph({focusedEdgeTypes, pinnedNodeIds, graph}) {
             type: type ?? undefined,
             handleTooltipText: type ?? undefined,
           });
-        } else if (
-          expandedNodeIds.has(sourceId) ||
-          expandedNodeIds.has(targetId)
-        ) {
+        } else if (sourceId === expandedNodeId || targetId === expandedNodeId) {
           edges.push({
             source: sourceId,
             target: targetId,

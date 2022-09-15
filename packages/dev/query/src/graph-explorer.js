@@ -7,7 +7,7 @@ import type {
 /* eslint-disable monorepo/no-internal-import */
 import type BundleGraph from '@parcel/core/src/BundleGraph.js';
 import {type BundleGraphEdgeType} from '@parcel/core/src/BundleGraph.js';
-import {type BundleGraphNode} from '@parcel/core/src/types.js';
+import type {AssetGraphNode, BundleGraphNode} from '@parcel/core/src/types.js';
 import type {Socket} from 'net';
 import type {ContentGraph, NodeId} from '@parcel/graph';
 
@@ -16,6 +16,7 @@ import express from 'express';
 import * as msgpack from '@msgpack/msgpack';
 import getPort from 'get-port';
 import nullthrows from 'nullthrows';
+import {ALL_EDGE_TYPES, toNodeId} from '@parcel/graph';
 
 import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
 
@@ -45,6 +46,14 @@ export async function startGraphExplorer(
     }
     res.status(200).send(cachedGraph);
   });
+  app.get('/api/find-paths', (req, res) => {
+    const {from, to} = req.query;
+    if (from == null || to == null) {
+      throw new Error('From and to not specified');
+    }
+    res.set('Content-Type', 'application/x-msgpack');
+    //findPaths(graph,)
+  });
 
   let port: number = await getPort({port: 5555});
   subscription = await listen(app, port);
@@ -60,6 +69,73 @@ export async function startGraphExplorer(
     console.log(`        "target": "http://localhost:${port}",`);
     console.log('      }');
     console.log('    }');
+  }
+}
+
+// if a and b share a common ancestor c:
+// {id: c, children: [{id: NextInPathToA, children: ...}, {id: NextInPathToB, children: ...}]}
+
+// if a or b is an ancestor of the other:
+// {id: a, children: [{id: NextInPathToB, children: ...}]}
+type Path = {|id: NodeId, children: ?(Path[])|};
+
+function createPath(ids: NodeId[]): Path {
+  for (let next of ids) {
+    return {id: next, children: null};
+  }
+}
+
+function findPaths(
+  graph:
+    | ContentGraph<BundleGraphNode, BundleGraphEdgeType>
+    | ContentGraph<AssetGraphNode>,
+  a: string,
+  b: string,
+): ?Path {
+  let pathsToA = new Map();
+  let path = [];
+
+  graph.traverseAncestors(
+    toNodeId(parseInt(a, 10)),
+    ancestorId => {
+      if (String(ancestorId) === '@@root') {
+        path = [];
+      } else {
+        path = [...path, ancestorId];
+        pathsToA.set(ancestorId, path);
+      }
+    },
+    ALL_EDGE_TYPES,
+  );
+
+  let common = null;
+  let pathToB = [];
+  graph.traverseAncestors(
+    toNodeId(parseInt(b, 10)),
+    (ancestorId, _, actions) => {
+      if (String(ancestorId) === '@@root') {
+        pathToB = [];
+      } else {
+        pathToB = [...pathToB, ancestorId];
+        if (pathsToA.has(ancestorId)) {
+          common = ancestorId;
+          actions.stop();
+        }
+      }
+    },
+    ALL_EDGE_TYPES,
+  );
+
+  if (common == null) {
+    return null;
+  }
+  let pathToA = nullthrows(pathsToA.get(common));
+  if (common === a) {
+    return {id: common, children: [createPath(pathToB)]};
+  } else if (common === b) {
+    return {id: common, children: [createPath(pathToA)]};
+  } else {
+    return {id: common, children: [createPath(pathToA), createPath(pathToB)]};
   }
 }
 
