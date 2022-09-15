@@ -131,14 +131,30 @@ const Priority = ['sync', 'parallel', 'lazy'];
 //type BundleBehavior = 'inline' | 'isolated';
 const BundleBehavior = ['inline', 'isolated'];
 
-function LoadedApp({graph}) {
-  const [selectedNode, setSelectedNode] = useState({title: '@@root'});
+function getPinnedPathId(pinnedNodeIds, id) {
+  if (pinnedNodeIds.has(id)) {
+    return id;
+  }
+  for (let [pinId, path] of pinnedNodeIds) {
+    if (path.includes(id)) {
+      return pinId;
+    }
+  }
+  return null;
+}
 
-  const [{currentPinNodeId, pinnedNodeIds}, dispatch] = useReducer(
+function LoadedApp({graph}) {
+  const [{selectedNodeId, pinnedNodeIds}, dispatch] = useReducer(
     (state, action) => {
       //reducer function
       switch (action.type) {
-        case 'pin':
+        case 'select': {
+          if (state.selectedNodeId !== action.nodeId) {
+            return {...state, selectedNodeId: action.nodeId};
+          }
+          return state;
+        }
+        case 'pin': {
           if (!state.pinnedNodeIds.has(action.nodeId)) {
             let updatedPinMap = new Map(state.pinnedNodeIds);
             updatedPinMap.set(action.nodeId, [action.nodeId]);
@@ -148,7 +164,8 @@ function LoadedApp({graph}) {
             };
           }
           return state;
-        case 'unpin':
+        }
+        case 'unpin': {
           if (state.pinnedNodeIds.has(action.nodeId)) {
             let updatedPinMap = new Map(state.pinnedNodeIds);
             updatedPinMap.delete(action.nodeId);
@@ -158,31 +175,46 @@ function LoadedApp({graph}) {
             };
           }
           return state;
-        case 'selectPin':
-          if (state.currentPinNodeId != action.nodeId) {
-            return {
-              ...state,
-              currentPinNodeId: action.nodeId,
-            };
+        }
+        case 'expand': {
+          let pinId = getPinnedPathId(state.pinnedNodeIds, action.nodeId);
+          if (pinId != null) {
+            let path = state.pinnedNodeIds.get(pinId);
+            if (!path.includes(action.nodeId)) {
+              let updatedPinMap = new Map(state.pinnedNodeIds);
+              updatedPinMap.set(pinId, [...path, action.nodeId]);
+              return {...state, pinnedNodeIds: updatedPinMap};
+            }
           }
           return state;
+        }
+        case 'collapse': {
+          let pinId = getPinnedPathId(state.pinnedNodeIds, action.nodeId);
+          if (pinId != null) {
+            let path = state.pinnedNodeIds.get(pinId);
+            if (path.includes(action.nodeId)) {
+              let updatedPinMap = new Map(state.pinnedNodeIds);
+              updatedPinMap.set(pinId, path.slice(path.indexOf(action.nodeId)));
+              return {...state, pinnedNodeIds: updatedPinMap};
+            }
+          }
+          return state;
+        }
         default:
           throw new Error();
       }
     },
-    null,
-    () => {
+    {selectedNodeId: null},
+    initialState => {
       let pinnedNodeIds = new Map();
-      let currentPinNodeId;
       for (let [id, node] of graph.nodes) {
         // get better way to get this
         if (node.type === 'dependency' && node.value.isEntry) {
           pinnedNodeIds.set(id, [id]);
-          currentPinNodeId = id;
           break;
         }
       }
-      return {currentPinNodeId, pinnedNodeIds};
+      return {...initialState, pinnedNodeIds};
     },
   );
 
@@ -237,19 +269,32 @@ function LoadedApp({graph}) {
     return extendedGraphConfig;
   }, [convertedGraph, GraphConfig]);
 
-  const selectedGraphView = useMemo(
-    () => ({
-      nodes: new Map(selectedNode ? [[selectedNode.id, selectedNode]] : []),
-    }),
-    [selectedNode],
-  );
+  const selectedNode = useMemo(() => {
+    if (selectedNodeId == null) return null;
+    return convertedGraph.nodes.find(n => n.id === selectedNodeId);
+  }, [convertedGraph, selectedNodeId]);
+
+  const selectedNodeIsExpanded = useMemo(() => {
+    if (selectedNodeId != null) {
+      let pinId = getPinnedPathId(pinnedNodeIds, selectedNodeId);
+      if (pinId) {
+        let path = pinnedNodeIds.get(pinId);
+        if (pinId === selectedNodeId) {
+          return true;
+        } else if (path[path.length - 1] === selectedNodeId) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }, [pinnedNodeIds, selectedNodeId]);
 
   const handlePinChange = (node, shouldPin) => {
     dispatch({type: shouldPin ? 'pin' : 'unpin', nodeId: node.id});
   };
 
-  const handleExpandNode = (node, shouldPin) => {
-    // This should push node.id to the path youre on currently on
+  const handleExpandChange = (node, shouldExpand) => {
+    dispatch({type: shouldExpand ? 'expand' : 'collapse', nodeId: node.id});
   };
   return (
     <div style={{height: '100%', width: '100%'}}>
@@ -259,14 +304,16 @@ function LoadedApp({graph}) {
             let node;
             for (let [k, v] of graph.nodes) {
               if (v.value?.publicId === id || v.value?.id === id) {
-                node = [k, v];
+                // TODO: support multiple matches.
+                node = k;
+                break;
               }
             }
 
             if (node != null) {
-              setSelectedNode(convertNode(node[0], node[1]));
+              dispatch({type: 'select', nodeId: node[0]});
             } else {
-              setSelectedNode(undefined);
+              dispatch({type: 'select', nodeId: null});
             }
           }}
         />
@@ -284,22 +331,19 @@ function LoadedApp({graph}) {
             );
           }}
           pinnedNodeIds={pinnedNodeIds}
-          onNodeIdClick={nodeId => {
-            setSelectedNode(
-              convertedGraph.nodes.find(
-                nodeObj => nodeObj.id === Number(nodeId),
-              ),
-            );
-          }}
+          onNodeIdClick={nodeId => dispatch({type: 'select', nodeId})}
         />
       </div>
-      {selectedNode != null ? (
+      {selectedNodeId != null ? (
         <div className="tools tools-right">
           <DetailView
-            selectedNode={selectedNode} //selected Path
+            selectedNode={convertedGraph.nodes.find(
+              n => n.id === selectedNodeId,
+            )} //selected Path
             onPinChange={handlePinChange}
-            expandNode={handleExpandNode}
-            isPinned={pinnedNodeIds.has(selectedNode.id)}
+            onExpandChange={handleExpandChange}
+            isPinned={pinnedNodeIds.has(selectedNodeId)}
+            isExpanded={selectedNodeIsExpanded}
           />
         </div>
       ) : null}
@@ -315,11 +359,14 @@ function LoadedApp({graph}) {
         edgeTypes={config.EdgeTypes}
         nodeSubtypes={config.NodeSubtypes}
         onSelect={select => {
-          if (select.nodes !== null) {
-            setSelectedNode([...select.nodes.values()][0]);
+          if (select.nodes?.size) {
+            dispatch({
+              type: 'select',
+              nodeId: select.nodes.keys().next().value,
+            });
           }
         }}
-        selected={selectedGraphView}
+        selected={[selectedNodeId, selectedNode]}
         nodes={convertedGraph.nodes}
         edges={convertedGraph.edges}
       />
@@ -409,7 +456,13 @@ function FocusView({
   );
 }
 
-function DetailView({selectedNode, onPinChange, isPinned, expandNode}) {
+function DetailView({
+  selectedNode,
+  onPinChange,
+  isPinned,
+  isExpanded,
+  onExpandChange,
+}) {
   return (
     <div className="detail-view">
       <div style={{display: 'flex'}}>
@@ -417,8 +470,8 @@ function DetailView({selectedNode, onPinChange, isPinned, expandNode}) {
         <button onClick={() => onPinChange(selectedNode, !isPinned)}>
           {isPinned ? 'Unpin' : 'Pin'}
         </button>
-        <button onClick={() => expandNode(selectedNode, !isPinned)}>
-          {isPinned ? 'Collapse' : 'Expand'}
+        <button onClick={() => onExpandChange(selectedNode, !isExpanded)}>
+          {isExpanded ? 'Collapse' : 'Expand'}
         </button>
       </div>
       <dl>
@@ -525,7 +578,14 @@ function makeEdge({type, size}) {
 }
 
 function convertGraph({focusedEdgeTypes, pinnedNodeIds, graph}) {
-  const shownNodeIds = new Set(pinnedNodeIds.keys());
+  const shownNodeIds = new Set();
+  const expandedNodeIds = new Set();
+  for (let [id, nodeIds] of pinnedNodeIds) {
+    expandedNodeIds.add(nodeIds[nodeIds.length - 1]);
+    for (let nodeId of nodeIds) {
+      shownNodeIds.add(nodeId);
+    }
+  }
 
   const edges = [];
 
@@ -536,18 +596,26 @@ function convertGraph({focusedEdgeTypes, pinnedNodeIds, graph}) {
           continue;
         }
 
-        if (!(pinnedNodeIds.has(sourceId) || pinnedNodeIds.has(targetId))) {
-          continue;
+        if (shownNodeIds.has(sourceId) && shownNodeIds.has(targetId)) {
+          edges.push({
+            source: sourceId,
+            target: targetId,
+            type: type ?? undefined,
+            handleTooltipText: type ?? undefined,
+          });
+        } else if (
+          expandedNodeIds.has(sourceId) ||
+          expandedNodeIds.has(targetId)
+        ) {
+          edges.push({
+            source: sourceId,
+            target: targetId,
+            type: type ?? undefined,
+            handleTooltipText: type ?? undefined,
+          });
+          shownNodeIds.add(sourceId);
+          shownNodeIds.add(targetId);
         }
-
-        shownNodeIds.add(sourceId);
-        shownNodeIds.add(targetId);
-        edges.push({
-          source: sourceId,
-          target: targetId,
-          type: type ?? undefined,
-          handleTooltipText: type ?? undefined,
-        });
       }
     }
   }
