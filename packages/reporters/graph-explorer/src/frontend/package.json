@@ -5,7 +5,8 @@
   "source": "index.html",
   "scripts": {
     "build": "parcel build --no-optimize index.html",
-    "dev": "parcel watch index.html"
+    "dev": "parcel watch index.html",
+    "serve": "parcel serve index.html"
   },
   "targets": {
     "default": {

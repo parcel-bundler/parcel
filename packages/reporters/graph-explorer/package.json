@@ -17,14 +17,15 @@
   "source": "src/GraphExplorerReporter.js",
   "scripts": {
     "prepare": "cd src/frontend && yarn build",
-    "prepare-dev": "cd src/frontend && yarn dev"
+    "prepare-dev": "cd src/frontend && yarn dev",
+    "prepare-serve": "cd src/frontend && yarn serve"
   },
   "engines": {
     "node": ">= 12.0.0",
     "parcel": "^2.8.3"
   },
   "dependencies": {
-    "@msgpack/msgpack": "^2.3.0",
+    "@msgpack/msgpack": "^2.8.0",
     "@parcel/plugin": "2.8.3",
     "@parcel/types": "2.8.3",
     "@parcel/utils": "2.8.3",
