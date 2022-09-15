@@ -185,8 +185,6 @@ function LoadedApp({graph}) {
       return {currentPinNodeId, pinnedNodeIds};
     },
   );
-  const [cursor, setCursor] = useState(20);
-  const [lastNodeSeen, setLastNodeSeen] = useState(null);
 
   const edgeTypes = useMemo(() => {
     const types = new Set();
@@ -206,11 +204,7 @@ function LoadedApp({graph}) {
   const convertedGraph = useMemo(
     () =>
       graph != null
-        ? convertGraph({
-            graph,
-            pinnedNodeIds,
-            focusedEdgeTypes,
-          })
+        ? convertGraph({graph, pinnedNodeIds, focusedEdgeTypes})
         : null,
     [graph, pinnedNodeIds, focusedEdgeTypes],
   );
