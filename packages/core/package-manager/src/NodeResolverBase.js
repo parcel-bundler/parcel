@@ -13,7 +13,7 @@ import type {ResolveResult} from './types';
 import Module from 'module';
 import path from 'path';
 import invariant from 'assert';
-import {normalizeSeparators} from '@parcel/utils';
+import {getModuleParts} from '@parcel/utils';
 
 const builtins = {pnpapi: true};
 for (let builtin of Module.builtinModules) {
@@ -102,22 +102,6 @@ export class NodeResolverBase<T> {
       });
   }
 
-  getModuleParts(name: string): [FilePath, ?string] {
-    name = path.normalize(name);
-    let splitOn = name.indexOf(path.sep);
-    if (name.charAt(0) === '@') {
-      splitOn = name.indexOf(path.sep, splitOn + 1);
-    }
-    if (splitOn < 0) {
-      return [normalizeSeparators(name), undefined];
-    } else {
-      return [
-        normalizeSeparators(name.substring(0, splitOn)),
-        name.substring(splitOn + 1) || undefined,
-      ];
-    }
-  }
-
   isBuiltin(name: DependencySpecifier): boolean {
     return !!(builtins[name] || name.startsWith('node:'));
   }
@@ -135,7 +119,7 @@ export class NodeResolverBase<T> {
       };
     }
 
-    let [moduleName, subPath] = this.getModuleParts(id);
+    let [moduleName, subPath] = getModuleParts(id);
     let dir = path.dirname(sourceFile);
     let moduleDir = this.fs.findNodeModule(moduleName, dir);
 

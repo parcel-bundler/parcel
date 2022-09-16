@@ -70,6 +70,7 @@ type RequestGraphOpts = {|
   envNodeIds: Set<NodeId>,
   optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
+  invalidateOnBuildNodeIds: Set<NodeId>,
 |};
 
 type SerializedRequestGraph = {|
@@ -80,6 +81,7 @@ type SerializedRequestGraph = {|
   envNodeIds: Set<NodeId>,
   optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
+  invalidateOnBuildNodeIds: Set<NodeId>,
 |};
 
 type FileNode = {|id: ContentKey, +type: 'file', value: InternalFile|};
@@ -135,6 +137,7 @@ export type RunAPI = {|
   invalidateOnFileDelete: ProjectPath => void,
   invalidateOnFileUpdate: ProjectPath => void,
   invalidateOnStartup: () => void,
+  invalidateOnBuild: () => void,
   invalidateOnEnvChange: string => void,
   invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
@@ -216,6 +219,7 @@ export class RequestGraph extends ContentGraph<
   // Unpredictable nodes are requests that cannot be predicted whether they should rerun based on
   // filesystem changes alone. They should rerun on each startup of Parcel.
   unpredicatableNodeIds: Set<NodeId> = new Set();
+  invalidateOnBuildNodeIds: Set<NodeId> = new Set();
 
   // $FlowFixMe[prop-missing]
   static deserialize(opts: RequestGraphOpts): RequestGraph {
@@ -227,6 +231,7 @@ export class RequestGraph extends ContentGraph<
     deserialized.envNodeIds = opts.envNodeIds;
     deserialized.optionNodeIds = opts.optionNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
+    deserialized.invalidateOnBuildNodeIds = opts.invalidateOnBuildNodeIds;
     return deserialized;
   }
 
@@ -240,6 +245,7 @@ export class RequestGraph extends ContentGraph<
       envNodeIds: this.envNodeIds,
       optionNodeIds: this.optionNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds,
+      invalidateOnBuildNodeIds: this.invalidateOnBuildNodeIds,
     };
   }
 
@@ -267,6 +273,7 @@ export class RequestGraph extends ContentGraph<
     this.incompleteNodeIds.delete(nodeId);
     this.incompleteNodePromises.delete(nodeId);
     this.unpredicatableNodeIds.delete(nodeId);
+    this.invalidateOnBuildNodeIds.delete(nodeId);
     let node = nullthrows(this.getNode(nodeId));
     if (node.type === 'glob') {
       this.globNodeIds.delete(nodeId);
@@ -320,6 +327,14 @@ export class RequestGraph extends ContentGraph<
 
   invalidateUnpredictableNodes() {
     for (let nodeId of this.unpredicatableNodeIds) {
+      let node = nullthrows(this.getNode(nodeId));
+      invariant(node.type !== 'file' && node.type !== 'glob');
+      this.invalidateNode(nodeId, STARTUP);
+    }
+  }
+
+  invalidateOnBuildNodes() {
+    for (let nodeId of this.invalidateOnBuildNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type !== 'file' && node.type !== 'glob');
       this.invalidateNode(nodeId, STARTUP);
@@ -504,6 +519,11 @@ export class RequestGraph extends ContentGraph<
     this.unpredicatableNodeIds.add(requestNodeId);
   }
 
+  invalidateOnBuild(requestNodeId: NodeId) {
+    this.getRequestNode(requestNodeId);
+    this.invalidateOnBuildNodeIds.add(requestNodeId);
+  }
+
   invalidateOnEnvChange(
     requestNodeId: NodeId,
     env: string,
@@ -552,6 +572,7 @@ export class RequestGraph extends ContentGraph<
 
   clearInvalidations(nodeId: NodeId) {
     this.unpredicatableNodeIds.delete(nodeId);
+    this.invalidateOnBuildNodeIds.delete(nodeId);
     this.replaceNodeIdsConnectedTo(
       nodeId,
       [],
@@ -993,6 +1014,7 @@ export default class RequestTracker {
       invalidateOnFileUpdate: filePath =>
         this.graph.invalidateOnFileUpdate(requestId, filePath),
       invalidateOnStartup: () => this.graph.invalidateOnStartup(requestId),
+      invalidateOnBuild: () => this.graph.invalidateOnBuild(requestId),
       invalidateOnEnvChange: env =>
         this.graph.invalidateOnEnvChange(requestId, env, this.options.env[env]),
       invalidateOnOptionChange: option =>
@@ -1120,6 +1142,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       opts,
     );
     requestGraph.invalidateUnpredictableNodes();
+    requestGraph.invalidateOnBuildNodes();
     requestGraph.invalidateEnvNodes(options.env);
     requestGraph.invalidateOptionNodes(options);
     requestGraph.respondToFSEvents(

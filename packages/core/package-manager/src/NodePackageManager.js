@@ -22,6 +22,7 @@ import Module from 'module';
 import path from 'path';
 import semver from 'semver';
 
+import {getModuleParts} from '@parcel/utils';
 import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
 import pkg from '../package.json';
@@ -138,7 +139,7 @@ export class NodePackageManager implements PackageManager {
   }
 
   async resolve(
-    name: DependencySpecifier,
+    id: DependencySpecifier,
     from: FilePath,
     options?: ?{|
       range?: ?SemverRange,
@@ -147,11 +148,12 @@ export class NodePackageManager implements PackageManager {
     |},
   ): Promise<ResolveResult> {
     let basedir = path.dirname(from);
-    let key = basedir + ':' + name;
+    let key = basedir + ':' + id;
     let resolved = cache.get(key);
     if (!resolved) {
+      let [name] = getModuleParts(id);
       try {
-        resolved = await this.resolver.resolve(name, from);
+        resolved = await this.resolver.resolve(id, from);
       } catch (e) {
         if (
           e.code !== 'MODULE_NOT_FOUND' ||
@@ -189,7 +191,7 @@ export class NodePackageManager implements PackageManager {
             saveDev: options?.saveDev ?? true,
           });
 
-          return this.resolve(name, from, {
+          return this.resolve(id, from, {
             ...options,
             shouldAutoInstall: false,
           });
@@ -230,7 +232,7 @@ export class NodePackageManager implements PackageManager {
 
           if (conflicts == null && options?.shouldAutoInstall === true) {
             await this.install([{name, range}], from);
-            return this.resolve(name, from, {
+            return this.resolve(id, from, {
               ...options,
               shouldAutoInstall: false,
             });
