@@ -172,7 +172,14 @@ export default (new Resolver({
         0,
         dependency.specifierType,
       );
-      code = imports + 'module.exports = ' + value;
+      if (
+        dependency.specifierType === 'esm' &&
+        dependency.priority !== 'lazy'
+      ) {
+        code = imports + 'export ' + value;
+      } else {
+        code = imports + 'module.exports = ' + value;
+      }
     } else if (sourceAssetType === 'css') {
       for (let [, relative] of results) {
         code += `@import "${relative}";\n`;
@@ -229,10 +236,11 @@ function generate(
 
     let key = `_temp${count++}`;
     let imports;
+
     if (specifierType === 'esm') {
       imports = `import ${key} from ${JSON.stringify(matches)};`;
     } else {
-      `const ${key} = require(${JSON.stringify(matches)});`;
+      imports = `const ${key} = require(${JSON.stringify(matches)});`;
     }
     return {
       imports,
@@ -258,10 +266,14 @@ function generate(
     imports += `${i}\n`;
     count = c;
 
-    res += `\n${indent}  ${JSON.stringify(key)}: ${value}`;
+    if (!isAsync && specifierType === 'esm') {
+      res += `\n${indent} ${value} as ${JSON.stringify(key)}`;
+    } else {
+      res += `\n${indent}  ${JSON.stringify(key)}: ${value}`;
+    }
+
     first = false;
   }
-
   res += '\n' + indent + '}';
   return {imports, value: res, count};
 }
