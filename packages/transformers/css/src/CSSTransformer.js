@@ -74,7 +74,12 @@ export default (new Transformer({
           filename: path.relative(options.projectRoot, asset.filePath),
           code,
           cssModules,
-          analyzeDependencies: asset.meta.hasDependencies !== false,
+          analyzeDependencies:
+            asset.meta.hasDependencies !== false
+              ? {
+                  preserveImports: true,
+                }
+              : false,
           sourceMap: !!asset.env.sourceMap,
           drafts: config?.drafts,
           pseudoClasses: config?.pseudoClasses,
@@ -160,6 +165,8 @@ export default (new Transformer({
               // For the glob resolver to distinguish between `@import` and other URL dependencies.
               isCSSImport: true,
               media: dep.media,
+              // $FlowFixMe - TODO fix in lightningcss.
+              placeholder: dep.placeholder,
             },
           });
         } else if (dep.type === 'url') {

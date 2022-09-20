@@ -3,18 +3,17 @@
 import type {Root} from 'postcss';
 import type {Asset, Dependency} from '@parcel/types';
 import typeof PostCSS from 'postcss';
+import {bundleAsync} from 'lightningcss';
 
-import path from 'path';
+import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
 import {
   PromiseQueue,
-  countLines,
   replaceInlineReferences,
   replaceURLReferences,
 } from '@parcel/utils';
-
-import nullthrows from 'nullthrows';
 
 export default (new Packager({
   async package({
@@ -25,37 +24,44 @@ export default (new Packager({
     logger,
     options,
   }) {
+    // Inline style attributes are parsed differently from full CSS files.
+    if (bundle.bundleBehavior === 'inline') {
+      let entry = bundle.getMainEntry();
+      if (entry?.meta.type === 'attr') {
+        return replaceReferences(
+          bundle,
+          bundleGraph,
+          await entry.getCode(),
+          await entry.getMap(),
+          getInlineBundleContents,
+        );
+      }
+    }
+
     let queue = new PromiseQueue({
       maxConcurrent: 32,
     });
     let hoistedImports = [];
+    let assetsByPlaceholder = new Map();
+
     bundle.traverse({
       exit: node => {
         if (node.type === 'dependency') {
+          let resolved = bundleGraph.getResolvedAsset(node.value, bundle);
+
           // Hoist unresolved external dependencies (i.e. http: imports)
-          if (
-            node.value.priority === 'sync' &&
-            !bundleGraph.getResolvedAsset(node.value, bundle)
-          ) {
+          if (node.value.priority === 'sync' && !resolved) {
             hoistedImports.push(node.value.specifier);
           }
+
+          if (resolved && bundle.hasAsset(resolved)) {
+            assetsByPlaceholder.set(node.value.meta.placeholder, resolved);
+          }
+
           return;
         }
 
         let asset = node.value;
-
-        // Figure out which media types this asset was imported with.
-        // We only want to import the asset once, so group them all together.
-        let media = [];
-        for (let dep of bundleGraph.getIncomingDependencies(asset)) {
-          if (!dep.meta.media) {
-            // Asset was imported without a media type. Don't wrap in @media.
-            media.length = 0;
-            break;
-          }
-          media.push(dep.meta.media);
-        }
-
         queue.add(() => {
           if (
             !asset.symbols.isCleared &&
@@ -69,7 +75,6 @@ export default (new Packager({
               bundleGraph,
               bundle,
               asset,
-              media,
             );
           } else {
             return Promise.all([
@@ -104,76 +109,131 @@ export default (new Packager({
                   }
                 }
 
-                if (media.length) {
-                  return `@media ${media.join(', ')} {\n${css}\n}\n`;
-                }
-
                 return css;
               }),
-              bundle.env.sourceMap && asset.getMapBuffer(),
+              bundle.env.sourceMap ? asset.getMap() : null,
             ]);
           }
         });
       },
     });
 
-    let outputs = await queue.run();
+    let outputs = new Map(
+      (await queue.run()).map(([asset, code, map]) => [asset, [code, map]]),
+    );
     let contents = '';
     let map = new SourceMap(options.projectRoot);
-    let lineOffset = 0;
 
-    for (let url of hoistedImports) {
-      contents += `@import "${url}";\n`;
-      lineOffset++;
-    }
-
-    for (let [asset, code, mapBuffer] of outputs) {
-      contents += code + '\n';
-      if (bundle.env.sourceMap) {
-        if (mapBuffer) {
-          map.addBuffer(mapBuffer, lineOffset);
+    // Collect entry assets.
+    let entry = null;
+    bundle.traverse((node, _, actions) => {
+      if (node.type === 'asset') {
+        // If there is only one entry, we'll use it directly.
+        // Otherwise, we'll create a fake bundle entry with @import rules for each root asset.
+        if (entry == null) {
+          entry = node.value.id;
         } else {
-          map.addEmptyMap(
-            path
-              .relative(options.projectRoot, asset.filePath)
-              .replace(/\\+/g, '/'),
-            code,
-            lineOffset,
-          );
+          entry = bundle.id;
         }
 
-        lineOffset += countLines(code);
+        assetsByPlaceholder.set(node.value.id, node.value);
+        contents += `@import "${node.value.id}";\n`;
+        actions.skipChildren();
       }
-    }
+    });
 
-    if (bundle.env.sourceMap) {
+    // $FlowFixMe - TODO: something is broken in types, fix in next release of lightningcss.
+    let res = await bundleAsync({
+      filename: nullthrows(entry),
+      sourceMap: !!bundle.env.sourceMap,
+      resolver: {
+        resolve(specifier) {
+          return specifier;
+        },
+        async read(file) {
+          if (file === bundle.id) {
+            return contents;
+          }
+
+          let asset = assetsByPlaceholder.get(file);
+          if (!asset) {
+            return '';
+          }
+          let [code, map] = nullthrows(outputs.get(asset));
+          if (map) {
+            let sm = await map.stringify({format: 'inline'});
+            invariant(typeof sm === 'string');
+            code += `\n/*# sourceMappingURL=${sm} */`;
+          }
+          return code;
+        },
+      },
+    });
+
+    contents = res.code.toString();
+
+    if (res.map) {
+      let vlqMap = JSON.parse(res.map.toString());
+      map.addVLQMap(vlqMap);
       let reference = await getSourceMapReference(map);
       if (reference != null) {
         contents += '/*# sourceMappingURL=' + reference + ' */\n';
       }
     }
 
-    ({contents, map} = replaceURLReferences({
-      bundle,
-      bundleGraph,
-      contents,
-      map,
-      getReplacement: escapeString,
-    }));
+    // Prepend hoisted external imports.
+    if (hoistedImports.length > 0) {
+      let lineOffset = 0;
+      let hoistedCode = '';
+      for (let url of hoistedImports) {
+        hoistedCode += `@import "${url}";\n`;
+        lineOffset++;
+      }
 
-    return replaceInlineReferences({
+      if (bundle.env.sourceMap) {
+        map.offsetLines(1, lineOffset);
+      }
+
+      contents = hoistedCode + contents;
+    }
+
+    return replaceReferences(
       bundle,
       bundleGraph,
       contents,
-      getInlineBundleContents,
-      getInlineReplacement: (dep, inlineType, contents) => ({
-        from: getSpecifier(dep),
-        to: escapeString(contents),
-      }),
       map,
-    });
+      getInlineBundleContents,
+    );
   },
 }): Packager);
+
+function replaceReferences(
+  bundle,
+  bundleGraph,
+  contents,
+  map,
+  getInlineBundleContents,
+) {
+  ({contents, map} = replaceURLReferences({
+    bundle,
+    bundleGraph,
+    contents,
+    map,
+    getReplacement: escapeString,
+  }));
+
+  return replaceInlineReferences({
+    bundle,
+    bundleGraph,
+    contents,
+    getInlineBundleContents,
+    getInlineReplacement: (dep, inlineType, contents) => ({
+      from: getSpecifier(dep),
+      to: escapeString(contents),
+    }),
+    map,
+  });
+}
 
 export function getSpecifier(dep: Dependency): string {
   if (typeof dep.meta.placeholder === 'string') {
@@ -193,8 +253,7 @@ async function processCSSModule(
   bundleGraph,
   bundle,
   asset,
-  media,
-): Promise<[Asset, string, ?Buffer]> {
+): Promise<[Asset, string, ?SourceMap]> {
   let postcss: PostCSS = await options.packageManager.require(
     'postcss',
     options.projectRoot + '/index',
@@ -274,11 +333,7 @@ async function processCSSModule(
     sourceMap.addVLQMap(map.toJSON());
   }
 
-  if (media.length) {
-    content = `@media ${media.join(', ')} {\n${content}\n}\n`;
-  }
-
-  return [asset, content, sourceMap?.toBuffer()];
+  return [asset, content, sourceMap];
 }
 
 function escapeDashedIdent(name) {
