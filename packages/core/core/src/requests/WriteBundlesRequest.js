@@ -76,20 +76,18 @@ async function run({input, api, farm, options}: RunInput) {
       return false;
     }
 
-    // Filter out skippable requests.
-    // if (api.canSkipSubrequest(bundleGraph.getHash(bundle))) {
-    //   // console.log('skipping', bundle.id);
-    //   return false;
-    // }
-
     return true;
   });
 
   let ref;
   let dispose;
 
-  // Create shared reference in WorkerFarm if we need to change multiple bundles.
-  if (bundles.length > 1) {
+  // Create shared reference in WorkerFarm if we need to change multiple bundles and if we
+  // can't skip the subrequests for all the bundles
+  if (
+    bundles.length > 1 &&
+    bundles.some(b => !api.canSkipSubrequest(bundleGraph.getHash(b)))
+  ) {
     ({ref, dispose} = await farm.createSharedReference(
       bundleGraph,
       serialize(bundleGraph),
