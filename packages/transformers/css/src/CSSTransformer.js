@@ -7,7 +7,7 @@ import {
   transform,
   transformStyleAttribute,
   browserslistToTargets,
-} from '@parcel/css';
+} from 'lightningcss';
 import {remapSourceLocation, relativePath} from '@parcel/utils';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
