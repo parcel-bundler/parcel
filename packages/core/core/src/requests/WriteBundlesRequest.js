@@ -92,6 +92,7 @@ async function run({input, api, farm, options}: RunInput) {
           bundleGraphReference: ref,
           optionsRef,
         });
+
         let info = await api.runRequest(request);
 
         bundleInfoMap[bundle.id] = info;

@@ -4,6 +4,8 @@ import type {
   Config as IConfig,
   PluginOptions as IPluginOptions,
   PluginLogger as IPluginLogger,
+  NamedBundle as INamedBundle,
+  BundleGraph as IBundleGraph,
 } from '@parcel/types';
 import type {
   Config,
@@ -32,6 +34,22 @@ export type PluginWithLoadConfig = {
   ...
 };
 
+export type PluginWithBundleConfig = {
+  loadConfig?: ({|
+    config: IConfig,
+    options: IPluginOptions,
+    logger: IPluginLogger,
+  |}) => Async<mixed>,
+  loadBundleConfig?: ({|
+    bundle: INamedBundle,
+    bundleGraph: IBundleGraph<INamedBundle>,
+    config: IConfig,
+    options: IPluginOptions,
+    logger: IPluginLogger,
+  |}) => Async<mixed>,
+  ...
+};
+
 export type ConfigRequest = {
   id: string,
   invalidateOnFileChange: Set<ProjectPath>,
@@ -39,6 +57,7 @@ export type ConfigRequest = {
   invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,
   invalidateOnStartup: boolean,
+  invalidateOnBuild: boolean,
   ...
 };
 
@@ -81,6 +100,7 @@ export async function runConfigRequest(
     invalidateOnEnvChange,
     invalidateOnOptionChange,
     invalidateOnStartup,
+    invalidateOnBuild,
   } = configRequest;
 
   // If there are no invalidations, then no need to create a node.
@@ -88,7 +108,8 @@ export async function runConfigRequest(
     invalidateOnFileChange.size === 0 &&
     invalidateOnFileCreate.length === 0 &&
     invalidateOnOptionChange.size === 0 &&
-    !invalidateOnStartup
+    !invalidateOnStartup &&
+    !invalidateOnBuild
   ) {
     return;
   }
@@ -116,6 +137,10 @@ export async function runConfigRequest(
 
       if (invalidateOnStartup) {
         api.invalidateOnStartup();
+      }
+
+      if (invalidateOnBuild) {
+        api.invalidateOnBuild();
       }
     },
     input: null,
@@ -178,7 +203,8 @@ export function getConfigRequests(
         config.invalidateOnFileCreate.length > 0 ||
         config.invalidateOnEnvChange.size > 0 ||
         config.invalidateOnOptionChange.size > 0 ||
-        config.invalidateOnStartup
+        config.invalidateOnStartup ||
+        config.invalidateOnBuild
       );
     })
     .map(config => ({
@@ -188,5 +214,6 @@ export function getConfigRequests(
       invalidateOnEnvChange: config.invalidateOnEnvChange,
       invalidateOnOptionChange: config.invalidateOnOptionChange,
       invalidateOnStartup: config.invalidateOnStartup,
+      invalidateOnBuild: config.invalidateOnBuild,
     }));
 }
