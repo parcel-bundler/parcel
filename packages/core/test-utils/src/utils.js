@@ -12,6 +12,7 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
+import type {IncomingMessage} from 'http';
 
 import invariant from 'assert';
 import util from 'util';
@@ -1159,6 +1160,40 @@ export async function assertNoFilePathInCache(
       }
     }
   }
+}
+
+export function requestRaw(
+  file: string,
+  port: number,
+  options: ?requestOptions,
+  client: typeof http | typeof https = http,
+): Promise<{|res: IncomingMessage, data: string|}> {
+  return new Promise((resolve, reject) => {
+    client
+      // $FlowFixMe
+      .request(
+        {
+          hostname: 'localhost',
+          port: port,
+          path: file,
+          rejectUnauthorized: false,
+          ...options,
+        },
+        (res: IncomingMessage) => {
+          res.setEncoding('utf8');
+          let data = '';
+          res.on('data', c => (data += c));
+          res.on('end', () => {
+            if (res.statusCode !== 200) {
+              return reject({res, data});
+            }
+
+            resolve({res, data});
+          });
+        },
+      )
+      .end();
+  });
 }
 
 export function request(
