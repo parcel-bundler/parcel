@@ -172,10 +172,7 @@ export default (new Resolver({
         0,
         dependency.specifierType,
       );
-      if (
-        dependency.specifierType === 'esm' &&
-        dependency.priority !== 'lazy'
-      ) {
+      if (dependency.specifierType === 'esm') {
         code = imports + 'export ' + value;
       } else {
         code = imports + 'module.exports = ' + value;
@@ -226,21 +223,16 @@ function generate(
   specifierType = 'commonjs',
 ) {
   if (typeof matches === 'string') {
-    if (isAsync) {
-      return {
-        imports: '',
-        value: `() => import(${JSON.stringify(matches)})`,
-        count,
-      };
-    }
-
     let key = `_temp${count++}`;
     let imports;
-
-    if (specifierType === 'esm') {
-      imports = `import ${key} from ${JSON.stringify(matches)};`;
+    if (isAsync) {
+      imports = `const ${key} = () => import(${JSON.stringify(matches)});`;
     } else {
-      imports = `const ${key} = require(${JSON.stringify(matches)});`;
+      if (specifierType === 'esm') {
+        imports = `import ${key} from ${JSON.stringify(matches)};`;
+      } else {
+        imports = `const ${key} = require(${JSON.stringify(matches)});`;
+      }
     }
     return {
       imports,
@@ -266,10 +258,10 @@ function generate(
     imports += `${i}\n`;
     count = c;
 
-    if (!isAsync && specifierType === 'esm') {
+    if (specifierType === 'esm') {
       res += `\n${indent} ${value} as ${JSON.stringify(key)}`;
     } else {
-      res += `\n${indent}  ${JSON.stringify(key)}: ${value}`;
+      res += `\n${indent} ${JSON.stringify(key)}: ${value}`;
     }
 
     first = false;
