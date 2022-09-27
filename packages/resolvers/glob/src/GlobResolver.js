@@ -229,7 +229,7 @@ function generate(
       imports = `const ${key} = () => import(${JSON.stringify(matches)});`;
     } else {
       if (specifierType === 'esm') {
-        imports = `import ${key} from ${JSON.stringify(matches)};`;
+        imports = `import * as ${key} from ${JSON.stringify(matches)};`;
       } else {
         imports = `const ${key} = require(${JSON.stringify(matches)});`;
       }
