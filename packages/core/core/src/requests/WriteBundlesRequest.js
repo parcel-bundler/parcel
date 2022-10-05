@@ -86,7 +86,8 @@ async function run({input, api, farm, options}: RunInput) {
   // can't skip the subrequests for all the bundles
   if (
     bundles.length > 1 &&
-    bundles.some(b => !api.canSkipSubrequest(bundleGraph.getHash(b)))
+    bundles.filter(b => !api.canSkipSubrequest(bundleGraph.getHash(b))).length >
+      1
   ) {
     ({ref, dispose} = await farm.createSharedReference(
       bundleGraph,
