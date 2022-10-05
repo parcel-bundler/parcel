@@ -1,3 +1,4 @@
+#! /usr/bin/env node
 // @flow strict-local
 
 function link() {
@@ -5,3 +6,7 @@ function link() {
 }
 
 module.exports = link;
+
+if (require.main === module) {
+  link();
+}

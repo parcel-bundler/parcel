@@ -1,3 +1,4 @@
+#! /usr/bin/env node
 // @flow strict-local
 
 function unlink() {
@@ -5,3 +6,7 @@ function unlink() {
 }
 
 module.exports = unlink;
+
+if (require.main === module) {
+  unlink();
+}
