@@ -1,3 +1,4 @@
+// @flow strict-local
 /* eslint-disable no-console */
 
 const glob = require('glob');

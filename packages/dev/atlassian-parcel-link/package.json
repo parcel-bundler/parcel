@@ -1,0 +1,14 @@
+{
+  "name": "@atlassian/parcel-link",
+  "version": "2.0.40",
+  "private": true,
+  "bin": {
+    "atlassian-parcel-link": "src/link.js",
+    "atlassian-parcel-unlink": "src/unlink.js"
+  },
+  "main": "src/index.js",
+  "dependencies": {
+    "glob": "^7.1.6",
+    "nullthrows": "^1.1.1"
+  }
+}
