@@ -3,8 +3,8 @@
   "version": "2.0.40",
   "private": true,
   "bin": {
-    "atlassian-parcel-link": "src/link.js",
-    "atlassian-parcel-unlink": "src/unlink.js"
+    "atlassian-parcel-link": "bin/link.js",
+    "atlassian-parcel-unlink": "bin/unlink.js"
   },
   "main": "src/index.js",
   "dependencies": {
