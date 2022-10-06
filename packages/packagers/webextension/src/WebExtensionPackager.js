@@ -25,7 +25,7 @@ export default (new Packager({
     const manifest = JSON.parse(await asset.getCode());
 
     if (manifest.background?.type === 'module') {
-      // service workers are build with output format 'global'
+      // service workers are built with output format 'global'
       // see: https://github.com/parcel-bundler/parcel/blob/3329469f50de9326c5b02ef0ab1c0ce41393279c/packages/transformers/js/src/JSTransformer.js#L577
       delete manifest.background.type;
     }
