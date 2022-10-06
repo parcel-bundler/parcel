@@ -1,41 +1,89 @@
 // @flow strict-local
 /* eslint-disable no-console */
 
-const glob = require('glob');
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+import fs from 'fs';
 
-const appRoot = process.cwd();
+export type CmdOptions = {|
+  appRoot: string,
+  dryRun: boolean,
+  log: (...data: mixed[]) => void,
+|};
 
-try {
-  fs.accessSync(path.join(appRoot, 'yarn.lock'));
-} catch (e) {
-  console.error('Not a root:', appRoot);
-  process.exit(1);
+export type ParsedArgs = {|
+  dryRun: boolean,
+  help: boolean,
+|};
+
+const defaultArgs: ParsedArgs = {
+  dryRun: false,
+  help: false,
+};
+
+export function printUsage(log: (...data: mixed[]) => void = console.log) {
+  log('Usage: atlassian-parcel-link [--dry]');
+  log('Options:');
+  log('  --dry      Do not write any changes');
+  log('  --help     Print this message');
 }
 
-let args = process.argv.slice(2);
-let parcelRoot = path.resolve(__dirname, '..');
-let dryRun = args.includes('--dry');
-
-if (args.some(a => a !== '--dry')) {
-  console.error('Invalid arguments');
-  console.error('Usage: node parcel-link.js [--dry]');
-  process.exit(1);
+export function parseArgs(args: Array<string>): ParsedArgs {
+  const parsedArgs = {...defaultArgs};
+  for (let arg of args) {
+    switch (arg) {
+      case '--dry':
+        parsedArgs.dryRun = true;
+        break;
+      case '--help':
+        parsedArgs.help = true;
+        break;
+      default:
+        throw new Error(`Unknown argument: '${arg}'`);
+    }
+  }
+  return parsedArgs;
 }
 
-if (dryRun) {
-  console.log('Dry run...');
+export function validateAppRoot(appRoot: string) {
+  try {
+    fs.accessSync(path.join(appRoot, 'yarn.lock'));
+  } catch (e) {
+    throw new Error(`Not a root: '${appRoot}'`);
+  }
 }
 
-function fsDelete(f) {
-  console.log('Deleting', path.join('<app>', path.relative(appRoot, f)));
+export function validatePackageRoot(packageRoot: string) {
+  try {
+    fs.accessSync(path.join(packageRoot, 'core/core'));
+  } catch (e) {
+    throw new Error(`Not a package root: '${packageRoot}'`);
+  }
+}
+
+export function fsWrite(
+  f: string,
+  content: string,
+  {appRoot, log, dryRun}: CmdOptions,
+) {
+  log('Writing', path.join('<app>', path.relative(appRoot, f)));
+  if (!dryRun) {
+    fs.writeFileSync(f, content);
+  }
+}
+
+export function fsDelete(f: string, {appRoot, log, dryRun}: CmdOptions) {
+  log('Deleting', path.join('<app>', path.relative(appRoot, f)));
   if (!dryRun) {
     fs.rmSync(f, {recursive: true});
   }
 }
-function fsSymlink(source, target) {
-  console.log(
+
+export function fsSymlink(
+  source: string,
+  target: string,
+  {appRoot, log, dryRun}: CmdOptions,
+) {
+  log(
     'Symlink',
     source,
     '->',
@@ -46,10 +94,10 @@ function fsSymlink(source, target) {
   }
 }
 
-// Step 1: Determine all Parcel packages to link
-// --------------------------------------------------------------------------------
-
-function findParcelPackages(rootDir, files = new Map()) {
+export function findParcelPackages(
+  rootDir: string,
+  files: Map<string, string> = new Map(),
+): Map<string, string> {
   for (let file of fs.readdirSync(rootDir)) {
     if (file === 'node_modules') continue;
     let projectPath = path.join(rootDir, file);
@@ -68,63 +116,11 @@ function findParcelPackages(rootDir, files = new Map()) {
   }
   return files;
 }
-
-let parcelPackages = findParcelPackages(parcelRoot + '/packages');
-let atlassianToParcelPackages = new Map();
-for (let packageName of parcelPackages.keys()) {
-  if (packageName.startsWith('@atlassian')) {
-    continue;
-  }
-  atlassianToParcelPackages.set(
-    packageName === 'parcel'
-      ? '@atlassian/parcel'
-      : packageName === 'parcelforvscode'
-      ? '@atlassian/parcelforvscode'
-      : packageName.replace(/^@parcel\//, '@atlassian/parcel-'),
-    packageName,
-  );
-}
-
-// // Step 2.1: In .parcelrc, rewrite all references to official plugins to `@parcel/*`
-// // This is optional as the packages are also linked under the `@atlassian/parcel-*` name
-// // --------------------------------------------------------------------------------
-
-// console.log(('Rewriting .parcelrc'));
-// let configPath = path.join(appRoot, '.parcelrc');
-// let config = fs.readFileSync(configPath, 'utf8');
-// fs.writeFileSync(
-// 	configPath,
-// 	config.replace(
-// 		/"(@atlassian\/parcel-[^"]*)"/g,
-// 		(_, match) => `"${atlassianToParcelPackages.get(match) ?? match}"`,
-// 	),
-// );
-
-// Step 2.2: In the root package.json, rewrite all references to official plugins to @parcel/...
-// For configs like "@atlassian/parcel-bundler-default":{"maxParallelRequests": 10}
-// --------------------------------------------------------------------------------
-
-console.log('Rewriting root package.json');
-
-let rootPkgPath = path.join(appRoot, 'package.json');
-let rootPkg = fs.readFileSync(rootPkgPath, 'utf8');
-for (let packageName of [
-  '@atlassian/parcel-bundler-default',
-  '@atlassian/parcel-bundler-experimental',
-  '@atlassian/parcel-transformer-css',
-]) {
-  rootPkg = rootPkg.replaceAll(
-    packageName,
-    atlassianToParcelPackages.get(packageName),
-  );
-}
-
-fs.writeFileSync(rootPkgPath, rootPkg);
-
-// Step 3: Delete all official packages (`@atlassian/parcel-*` or `@parcel/*`) from node_modules
-// --------------------------------------------------------------------------------
-
-function cleanupNodeModules(root) {
+export function cleanupNodeModules(
+  root: string,
+  predicate: (filepath: string) => boolean,
+  opts: CmdOptions,
+) {
   for (let dirName of fs.readdirSync(root)) {
     let dirPath = path.join(root, dirName);
     if (dirName === '.bin') {
@@ -132,14 +128,14 @@ function cleanupNodeModules(root) {
       try {
         fs.accessSync(binSymlink);
         // no access error, exists
-        fsDelete(binSymlink);
+        fsDelete(binSymlink, opts);
       } catch (e) {
         // noop
       }
       continue;
     }
     if (dirName[0].startsWith('@')) {
-      cleanupNodeModules(dirPath);
+      cleanupNodeModules(dirPath, predicate, opts);
       continue;
     }
 
@@ -153,11 +149,8 @@ function cleanupNodeModules(root) {
 
     // -------
 
-    if (
-      parcelPackages.has(packageName) ||
-      atlassianToParcelPackages.has(packageName)
-    ) {
-      fsDelete(dirPath);
+    if (predicate(packageName)) {
+      fsDelete(dirPath, opts);
     }
 
     // -------
@@ -170,36 +163,7 @@ function cleanupNodeModules(root) {
       // noop
     }
     if (stat?.isDirectory()) {
-      cleanupNodeModules(packageNodeModules);
+      cleanupNodeModules(packageNodeModules, predicate, opts);
     }
   }
 }
-
-for (let nodeModules of [
-  ...glob.sync('build-tools/*/node_modules', {cwd: appRoot}),
-  ...glob.sync('build-tools/parcel/*/node_modules', {cwd: appRoot}),
-  path.join(appRoot, 'node_modules'),
-]) {
-  cleanupNodeModules(nodeModules);
-}
-
-// Step 4: Link the Parcel packages into node_modules as both `@parcel/*` and `@atlassian/parcel-*`
-// --------------------------------------------------------------------------------
-
-for (let [packageName, p] of parcelPackages) {
-  fsSymlink(p, path.join(appRoot, 'node_modules', packageName));
-}
-for (let [atlassianName, parcelName] of atlassianToParcelPackages) {
-  let p = parcelPackages.get(parcelName);
-  fsSymlink(p, path.join(appRoot, 'node_modules', atlassianName));
-}
-
-// Step 5: Point `parcel` bin symlink to linked `packages/core/parcel/src/bin.js`
-// --------------------------------------------------------------------------------
-
-fsSymlink(
-  path.join(parcelRoot, 'packages/core/parcel/src/bin.js'),
-  path.join(appRoot, 'node_modules/.bin/parcel'),
-);
-
-console.log('🎉 Linking successful');

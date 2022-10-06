@@ -8,6 +8,8 @@
   },
   "main": "src/index.js",
   "dependencies": {
+    "@babel/core": "^7.0.0",
+    "@parcel/babel-register": "2.0.40",
     "glob": "^7.1.6",
     "nullthrows": "^1.1.1"
   }
