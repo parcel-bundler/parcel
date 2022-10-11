@@ -1,6 +1,5 @@
 #! /usr/bin/env node
 // @flow strict-local
-/* eslint-disable no-console */
 
 import type {CmdOptions} from './util';
 
@@ -64,7 +63,7 @@ export default function link({
   // For configs like "@atlassian/parcel-bundler-default":{"maxParallelRequests": 10}
   // --------------------------------------------------------------------------------
 
-  console.log('Rewriting root package.json');
+  log('Rewriting root package.json');
   let rootPkgPath = path.join(appRoot, 'package.json');
   let rootPkg: string = fs.readFileSync(rootPkgPath, 'utf8');
   for (let packageName of [

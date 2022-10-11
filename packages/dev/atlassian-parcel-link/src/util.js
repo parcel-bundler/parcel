@@ -1,5 +1,4 @@
 // @flow strict-local
-/* eslint-disable no-console */
 
 import path from 'path';
 import fs from 'fs';
@@ -20,6 +19,7 @@ const defaultArgs: ParsedArgs = {
   help: false,
 };
 
+/* eslint-disable-next-line no-console */
 export function printUsage(log: (...data: mixed[]) => void = console.log) {
   log('Usage: atlassian-parcel-link [--dry]');
   log('Options:');

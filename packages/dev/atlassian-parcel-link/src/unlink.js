@@ -1,6 +1,5 @@
 #! /usr/bin/env node
 // @flow strict-local
-/* eslint-disable no-console */
 
 import type {CmdOptions} from './util';
 
