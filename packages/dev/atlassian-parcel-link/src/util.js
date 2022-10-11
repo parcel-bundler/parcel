@@ -2,6 +2,7 @@
 
 import path from 'path';
 import fs from 'fs';
+import child_process from 'child_process';
 
 export type CmdOptions = {|
   appRoot: string,
@@ -186,5 +187,15 @@ export function cleanupNodeModules(
     if (stat?.isDirectory()) {
       cleanupNodeModules(packageNodeModules, predicate, opts);
     }
+  }
+}
+
+export function execSync(
+  cmd: string,
+  {appRoot, log, dryRun}: CmdOptions,
+): void {
+  log('Executing', cmd);
+  if (!dryRun) {
+    child_process.execSync(cmd, {cwd: appRoot, stdio: 'inherit'});
   }
 }
