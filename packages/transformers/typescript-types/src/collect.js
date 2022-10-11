@@ -60,7 +60,7 @@ export function collect(
     }
 
     if (ts.isExportDeclaration(node)) {
-      if (node.exportClause) {
+      if (node.exportClause && node.exportClause.elements) {
         for (let element of node.exportClause.elements) {
           if (node.moduleSpecifier) {
             currentModule.addExport(
