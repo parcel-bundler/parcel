@@ -14,6 +14,7 @@ import {
   validateAppRoot,
   validatePackageRoot,
   findParcelPackages,
+  mapAtlassianPackageAliases,
   cleanupNodeModules,
   fsWrite,
   fsSymlink,
@@ -41,20 +42,7 @@ export default function link({
   // --------------------------------------------------------------------------------
 
   let parcelPackages = findParcelPackages(packageRoot);
-  let atlassianToParcelPackages = new Map();
-  for (let packageName of parcelPackages.keys()) {
-    if (packageName.startsWith('@atlassian')) {
-      continue;
-    }
-    atlassianToParcelPackages.set(
-      packageName === 'parcel'
-        ? '@atlassian/parcel'
-        : packageName === 'parcelforvscode'
-        ? '@atlassian/parcelforvscode'
-        : packageName.replace(/^@parcel\//, '@atlassian/parcel-'),
-      packageName,
-    );
-  }
+  let atlassianToParcelPackages = mapAtlassianPackageAliases(parcelPackages);
 
   // Step 2.1: In .parcelrc, rewrite all references to official plugins to `@parcel/*`
   // This is optional as the packages are also linked under the `@atlassian/parcel-*` name

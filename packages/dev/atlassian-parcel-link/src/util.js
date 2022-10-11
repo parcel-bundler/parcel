@@ -116,6 +116,27 @@ export function findParcelPackages(
   }
   return files;
 }
+
+export function mapAtlassianPackageAliases(
+  parcelPackages: Map<string, string>,
+): Map<string, string> {
+  let atlassianToParcelPackages = new Map();
+  for (let packageName of parcelPackages.keys()) {
+    if (packageName.startsWith('@atlassian')) {
+      continue;
+    }
+    atlassianToParcelPackages.set(
+      packageName === 'parcel'
+        ? '@atlassian/parcel'
+        : packageName === 'parcelforvscode'
+        ? '@atlassian/parcelforvscode'
+        : packageName.replace(/^@parcel\//, '@atlassian/parcel-'),
+      packageName,
+    );
+  }
+  return atlassianToParcelPackages;
+}
+
 export function cleanupNodeModules(
   root: string,
   predicate: (filepath: string) => boolean,
