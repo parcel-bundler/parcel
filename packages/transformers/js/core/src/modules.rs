@@ -89,7 +89,7 @@ impl ESMFold {
     }
 
     let ident = self.get_require_name(&src, DUMMY_SP);
-    let require = ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+    let require = ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
       span,
       kind: VarDeclKind::Var,
       decls: vec![VarDeclarator {
@@ -99,7 +99,7 @@ impl ESMFold {
         definite: false,
       }],
       declare: false,
-    })));
+    }))));
 
     self.requires.push(require)
   }
@@ -111,7 +111,7 @@ impl ESMFold {
 
     let local = self.get_require_name(&src, DUMMY_SP);
     let ident = self.get_interop_default_name(&src);
-    let interop = ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+    let interop = ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
       span: DUMMY_SP,
       kind: VarDeclKind::Var,
       decls: vec![VarDeclarator {
@@ -125,7 +125,7 @@ impl ESMFold {
         definite: false,
       }],
       declare: false,
-    })));
+    }))));
 
     self.requires.push(interop);
     self.interops.insert(src);
@@ -168,7 +168,7 @@ impl ESMFold {
         if matches!(self.versions, Some(versions) if Feature::ArrowFunctions.should_enable(versions, true, false)) {
           Expr::Fn(FnExpr {
             ident: None,
-            function: Function {
+            function: Box::new(Function {
               body: Some(BlockStmt {
                 span: DUMMY_SP,
                 stmts: vec![Stmt::Return({
@@ -185,7 +185,7 @@ impl ESMFold {
               span: DUMMY_SP,
               return_type: None,
               type_params: None,
-            },
+            }),
           })
         } else {
           Expr::Arrow(ArrowExpr {
@@ -534,7 +534,7 @@ impl Fold for ESMFold {
     if self.needs_helpers {
       items.insert(
         0,
-        ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+        ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
           span: DUMMY_SP,
           kind: VarDeclKind::Var,
           decls: vec![VarDeclarator {
@@ -548,7 +548,7 @@ impl Fold for ESMFold {
             definite: false,
           }],
           declare: false,
-        }))),
+        })))),
       )
     }
 
