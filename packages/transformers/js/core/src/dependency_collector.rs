@@ -1203,7 +1203,7 @@ impl<'a> DependencyCollector<'a> {
         ..
       }) => {
         // Match "file:" + __filename
-        let left = match_str(&*left);
+        let left = match_str(left);
         match (left, &**right) {
           (Some((left, _)), Expr::Ident(Ident { sym: right, .. })) => {
             &left == "file:" && right == "__filename"

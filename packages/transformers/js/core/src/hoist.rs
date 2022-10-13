@@ -1030,10 +1030,10 @@ impl<'a> Hoist<'a> {
   }
 
   fn get_require_ident(&self, local: &JsWord) -> Ident {
-    return Ident::new(
+    Ident::new(
       format!("${}$require${}", self.module_id, local).into(),
       DUMMY_SP,
-    );
+    )
   }
 
   fn get_export_ident(&mut self, span: Span, exported: &JsWord) -> Ident {
@@ -1109,7 +1109,7 @@ macro_rules! collect_visit_fn {
   };
 }
 
-#[derive(Debug, Deserialize, PartialEq, Clone, Copy, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone, Copy, Serialize)]
 pub enum ImportKind {
   Require,
   Import,
@@ -1124,7 +1124,7 @@ pub struct Import {
   pub loc: SourceLocation,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Export {
   pub source: Option<JsWord>,
   pub specifier: JsWord,
