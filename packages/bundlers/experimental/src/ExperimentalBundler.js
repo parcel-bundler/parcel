@@ -512,7 +512,8 @@ function createIdealGraph(
             if (
               entries.has(bundleGroupRootAsset) &&
               bundleGroupRootAsset.type === childAsset.type &&
-              childAsset.bundleBehavior !== 'inline'
+              childAsset.bundleBehavior !== 'inline' &&
+              dependency.bundleBehavior !== 'isolated'
             ) {
               bundleId = bundleGroupNodeId;
             }
