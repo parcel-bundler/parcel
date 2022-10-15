@@ -10,6 +10,7 @@ import {render} from 'posthtml-render';
 import semver from 'semver';
 import collectDependencies from './dependencies';
 import extractInlineAssets from './inline';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default (new Transformer({
   canReuseAST({ast}) {
@@ -33,18 +34,39 @@ export default (new Transformer({
     if (asset.type === 'htm') {
       asset.type = 'html';
     }
+
     asset.bundleBehavior = 'isolated';
     let ast = nullthrows(await asset.getAST());
-    let hasScripts = collectDependencies(asset, ast);
+    let hasModuleScripts;
+    try {
+      hasModuleScripts = collectDependencies(asset, ast);
+    } catch (errors) {
+      if (Array.isArray(errors)) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errors.map(error => ({
+            message: error.message,
+            origin: '@parcel/transformer-html',
+            codeFrames: [
+              {
+                filePath: error.filePath,
+                language: 'html',
+                codeHighlights: [error.loc],
+              },
+            ],
+          })),
+        });
+      }
+      throw errors;
+    }
 
-    const {assets: inlineAssets, hasScripts: hasInlineScripts} =
+    const {assets: inlineAssets, hasModuleScripts: hasInlineModuleScripts} =
       extractInlineAssets(asset, ast);
 
     const result = [asset, ...inlineAssets];
 
     // empty <script></script> is added to make sure HMR is working even if user
     // didn't add any.
-    if (options.hmrOptions && !(hasScripts || hasInlineScripts)) {
+    if (options.hmrOptions && !(hasModuleScripts || hasInlineModuleScripts)) {
       const script = {
         tag: 'script',
         attrs: {

@@ -2,11 +2,13 @@
 import type {InitialParcelOptions, BuildSuccessEvent} from '@parcel/types';
 import assert from 'assert';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import {
   assertBundles,
   bundler,
   run,
+  runBundle as runSingleBundle,
   overlayFS,
   outputFS,
   inputFS,
@@ -18,6 +20,7 @@ import {
   distDir,
   getParcelOptions,
   assertNoFilePathInCache,
+  findAsset,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 import fs from 'fs';
@@ -149,9 +152,9 @@ describe('cache', function () {
   });
 
   it('should support adding a dependency which changes the referenced bundles of a parent bundle', async function () {
-    async function exec(bundleGraph) {
+    async function exec(bundleGraph, bundle) {
       let calls = [];
-      await run(bundleGraph, {
+      await runSingleBundle(bundleGraph, nullthrows(bundle), {
         call(v) {
           calls.push(v);
         },
@@ -161,19 +164,28 @@ describe('cache', function () {
 
     let b = await testCache(
       {
-        entries: ['index.html'],
+        entries: ['a.html', 'b.html'],
+        mode: 'production',
         update: async b => {
-          assert.deepEqual(await exec(b.bundleGraph), ['a', 'b']);
+          let html = b.bundleGraph.getBundles().filter(b => b.type === 'html');
+          assert.deepEqual(await exec(b.bundleGraph, html[0]), ['a']);
+          assert.deepEqual(await exec(b.bundleGraph, html[1]), ['b']);
           await overlayFS.writeFile(
             path.join(inputDir, 'a.js'),
-            'import "./b.js"; call("a");',
+            'import "./c.js"; call("a");',
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'b.js'),
+            'import "./c.js"; call("b");',
           );
         },
       },
       'cache-add-dep-referenced',
     );
 
-    assert.deepEqual(await exec(b.bundleGraph), ['b', 'a']);
+    let html = b.bundleGraph.getBundles().filter(b => b.type === 'html');
+    assert.deepEqual(await exec(b.bundleGraph, html[0]), ['c', 'a']);
+    assert.deepEqual(await exec(b.bundleGraph, html[1]), ['c', 'b']);
   });
 
   it('should error when deleting a file', async function () {
@@ -3960,7 +3972,7 @@ describe('cache', function () {
               let pluginContents = await overlayFS.readFile(plugin, 'utf8');
               await overlayFS.writeFile(
                 plugin,
-                pluginContents.replace('green', 'blue'),
+                pluginContents.replace('green', 'red'),
               );
             },
           },
@@ -3971,7 +3983,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background: blue'));
+        assert(output.includes('background: red'));
       });
 
       it('should invalidate when a JS postcss config changes', async function () {
@@ -3998,7 +4010,7 @@ describe('cache', function () {
               let configContents = await inputFS.readFile(config, 'utf8');
               await inputFS.writeFile(
                 config,
-                configContents.replace('red', 'blue'),
+                configContents.replace('red', 'green'),
               );
               await sleep(100);
             },
@@ -4010,7 +4022,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: blue'));
+        assert(output.includes('background-color: green'));
       });
 
       it('should invalidate when a JSON postcss config changes', async function () {
@@ -4030,7 +4042,7 @@ describe('cache', function () {
               );
               await overlayFS.writeFile(
                 path.join(inputDir, '.postcssrc'),
-                configContents.replace('green', 'blue'),
+                configContents.replace('green', 'red'),
               );
             },
           },
@@ -4041,7 +4053,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: blue'));
+        assert(output.includes('background-color: red'));
       });
 
       it('should invalidate when a closer postcss config is added', async function () {
@@ -4061,7 +4073,7 @@ describe('cache', function () {
               );
               await overlayFS.writeFile(
                 path.join(inputDir, 'nested', '.postcssrc'),
-                configContents.replace('green', 'blue'),
+                configContents.replace('green', 'red'),
               );
             },
           },
@@ -4072,7 +4084,7 @@ describe('cache', function () {
           b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
-        assert(output.includes('background-color: blue'));
+        assert(output.includes('background-color: red'));
       });
     });
 
@@ -4348,7 +4360,7 @@ describe('cache', function () {
       it('should support adding bundler config', async function () {
         let b = await testCache(
           {
-            entries: ['*.html'],
+            entries: ['index.js'],
             mode: 'production',
             async setup() {
               let pkgFile = path.join(inputDir, 'package.json');
@@ -4362,13 +4374,28 @@ describe('cache', function () {
               );
             },
             async update(b) {
-              let html = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.name === 'b.html')
-                  ?.filePath,
-                'utf8',
-              );
-              assert.equal(html.match(/<script/g)?.length, 7);
-
+              assertBundles(b.bundleGraph, [
+                {
+                  assets: ['a.js'],
+                },
+                {
+                  assets: ['b.js'],
+                },
+                {
+                  name: 'index.js',
+                  assets: [
+                    'index.js',
+                    'c.js',
+                    'bundle-url.js',
+                    'cacheLoader.js',
+                    'js-loader.js',
+                    'bundle-manifest.js',
+                  ],
+                },
+                {
+                  assets: ['common.js', 'lodash.js'],
+                },
+              ]);
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
               await overlayFS.writeFile(
@@ -4376,35 +4403,78 @@ describe('cache', function () {
                 JSON.stringify({
                   ...pkg,
                   '@parcel/bundler-default': {
-                    http: 1,
+                    minBundleSize: 9000000,
                   },
                 }),
               );
             },
           },
-          'shared-many',
+          'dynamic-common-large',
         );
 
-        let html = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
-          'utf8',
+        assertBundles(b.bundleGraph, [
+          {
+            assets: ['a.js', 'common.js', 'lodash.js'],
+          },
+          {
+            assets: ['b.js', 'common.js', 'lodash.js'],
+          },
+          {
+            name: 'index.js',
+            assets: [
+              'index.js',
+              'c.js',
+              'bundle-url.js',
+              'cacheLoader.js',
+              'js-loader.js',
+              'bundle-manifest.js',
+            ],
+          },
+        ]);
+      });
+
+      it('should support adding bundler config for parallel request limits', async function () {
+        let b = await testCache(
+          {
+            entries: ['index.js'],
+            mode: 'production',
+            async setup() {
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': undefined,
+                }),
+              );
+            },
+            async update(b) {
+              assert.deepEqual(b.bundleGraph.getBundles().length, 7);
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': {
+                    maxParallelRequests: 0,
+                  },
+                }),
+              );
+            },
+          },
+          'large-bundlegroup',
         );
-        assert.equal(html.match(/<script/g)?.length, 5);
+        assert.deepEqual(b.bundleGraph.getBundles().length, 5);
       });
 
       it('should support updating bundler config', async function () {
         let b = await testCache(
           {
-            entries: ['*.html'],
+            entries: ['index.js'],
             mode: 'production',
-            async update(b) {
-              let html = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.name === 'b.html')
-                  ?.filePath,
-                'utf8',
-              );
-              assert.equal(html.match(/<script/g)?.length, 5);
-
+            async setup() {
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
               await overlayFS.writeFile(
@@ -4412,35 +4482,109 @@ describe('cache', function () {
                 JSON.stringify({
                   ...pkg,
                   '@parcel/bundler-default': {
-                    http: 2,
+                    minBundleSize: 8000,
+                  },
+                }),
+              );
+            },
+            async update(b) {
+              assertBundles(b.bundleGraph, [
+                {
+                  assets: ['a.js'],
+                },
+                {
+                  assets: ['b.js'],
+                },
+                {
+                  name: 'index.js',
+                  assets: [
+                    'index.js',
+                    'c.js',
+                    'bundle-url.js',
+                    'cacheLoader.js',
+                    'js-loader.js',
+                    'bundle-manifest.js',
+                  ],
+                },
+                {
+                  assets: ['common.js', 'lodash.js'],
+                },
+              ]);
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': {
+                    minBundleSize: 9000000,
                   },
                 }),
               );
             },
           },
-          'shared-many',
+          'dynamic-common-large',
         );
 
-        let html = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
-          'utf8',
-        );
-        assert.equal(html.match(/<script/g)?.length, 7);
+        assertBundles(b.bundleGraph, [
+          {
+            assets: ['a.js', 'common.js', 'lodash.js'],
+          },
+          {
+            assets: ['b.js', 'common.js', 'lodash.js'],
+          },
+          {
+            name: 'index.js',
+            assets: [
+              'index.js',
+              'c.js',
+              'bundle-url.js',
+              'cacheLoader.js',
+              'js-loader.js',
+              'bundle-manifest.js',
+            ],
+          },
+        ]);
       });
 
       it('should support removing bundler config', async function () {
         let b = await testCache(
           {
-            entries: ['*.html'],
+            entries: ['index.js'],
             mode: 'production',
-            async update(b) {
-              let html = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.name === 'b.html')
-                  ?.filePath,
-                'utf8',
+            async setup() {
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': {
+                    minBundleSize: 9000000,
+                  },
+                }),
               );
-              assert.equal(html.match(/<script/g)?.length, 5);
-
+            },
+            async update(b) {
+              assertBundles(b.bundleGraph, [
+                {
+                  assets: ['a.js', 'common.js', 'lodash.js'],
+                },
+                {
+                  assets: ['b.js', 'common.js', 'lodash.js'],
+                },
+                {
+                  name: 'index.js',
+                  assets: [
+                    'index.js',
+                    'c.js',
+                    'bundle-url.js',
+                    'cacheLoader.js',
+                    'js-loader.js',
+                    'bundle-manifest.js',
+                  ],
+                },
+              ]);
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
               await overlayFS.writeFile(
@@ -4452,14 +4596,30 @@ describe('cache', function () {
               );
             },
           },
-          'shared-many',
+          'dynamic-common-large',
         );
-
-        let html = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
-          'utf8',
-        );
-        assert.equal(html.match(/<script/g)?.length, 7);
+        assertBundles(b.bundleGraph, [
+          {
+            assets: ['a.js'],
+          },
+          {
+            assets: ['b.js'],
+          },
+          {
+            name: 'index.js',
+            assets: [
+              'index.js',
+              'c.js',
+              'bundle-url.js',
+              'cacheLoader.js',
+              'js-loader.js',
+              'bundle-manifest.js',
+            ],
+          },
+          {
+            assets: ['common.js', 'lodash.js'],
+          },
+        ]);
       });
     });
   });
@@ -4889,17 +5049,17 @@ describe('cache', function () {
         },
         async update(b) {
           let res = await run(b.bundleGraph);
-          assert(res.includes("let a = 'a'"));
+          assert(res.includes(`let a = "a"`));
 
           await overlayFS.writeFile(
             path.join(inputDir, 'src/entries/a.js'),
-            "export let a = 'b';",
+            `export let a = "b";`,
           );
         },
       });
 
       let res = await run(b.bundleGraph);
-      assert(res.includes("let a = 'b'"));
+      assert(res.includes(`let a = "b"`));
     });
 
     it('should invalidate when switching to a different packager for an inline bundle', async function () {
@@ -5443,6 +5603,7 @@ describe('cache', function () {
             }),
           );
         },
+        mode: 'production',
       });
 
       let files = await outputFS.readdir(distDir);
@@ -5777,6 +5938,96 @@ describe('cache', function () {
     }
   });
 
+  it('properly handles included files even after when changing back to a cached state', async function () {
+    this.timeout(15000);
+    let subscription;
+    let fixture = path.join(__dirname, '/integration/included-file');
+    try {
+      let b = bundler(path.join(fixture, 'index.txt'), {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+      });
+      await overlayFS.mkdirp(fixture);
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'a');
+      subscription = await b.watch();
+      let event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output1 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output1, 'a');
+
+      // Change included file
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'b');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output2 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output2, 'b');
+
+      // Change included file back
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'a');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output3 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output3, 'a');
+    } finally {
+      if (subscription) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
+  });
+
+  it('properly watches included files after a transformer error', async function () {
+    this.timeout(15000);
+    let subscription;
+    let fixture = path.join(__dirname, '/integration/included-file');
+    try {
+      let b = bundler(path.join(fixture, 'index.txt'), {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+      });
+      await overlayFS.mkdirp(fixture);
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'a');
+      subscription = await b.watch();
+      let event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output1 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output1, 'a');
+
+      // Change included file
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'ERROR');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildFailure');
+      assert.strictEqual(event.diagnostics[0].message, 'Custom error');
+
+      // Clear transformer error
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'b');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output3 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output3, 'b');
+    } finally {
+      if (subscription) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
+  });
+
   it('should support moving the project root', async function () {
     // This test relies on the real filesystem because the memory fs doesn't support renames.
     // But renameSync is broken on windows in CI with EPERM errors. Just skip this test for now.
@@ -5805,5 +6056,24 @@ describe('cache', function () {
     });
 
     assert.equal(await run(b.bundleGraph), 6);
+  });
+
+  it('supports multiple empty JS assets', async function () {
+    // Try to store multiple empty assets using LMDB
+    let build = await runBundle(
+      path.join(__dirname, 'integration/multiple-empty-js-assets/index.js'),
+      {
+        inputFS,
+        outputFS: inputFS,
+      },
+    );
+
+    let a = nullthrows(findAsset(build.bundleGraph, 'a.js'));
+    let b = nullthrows(findAsset(build.bundleGraph, 'a.js'));
+    assert.strictEqual((await a.getBuffer()).length, 0);
+    assert.strictEqual((await b.getBuffer()).length, 0);
+
+    let res = await run(build.bundleGraph);
+    assert.deepEqual(res, {default: 'foo'});
   });
 });

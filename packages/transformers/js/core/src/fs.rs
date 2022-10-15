@@ -4,17 +4,14 @@ use crate::utils::{match_module_reference, SourceLocation};
 use data_encoding::{BASE64, HEXLOWER};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use swc_atoms::JsWord;
-use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_common::{Mark, Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
-
-type IdentId = (JsWord, SyntaxContext);
 
 pub fn inline_fs<'a>(
   filename: &str,
   source_map: swc_common::sync::Lrc<swc_common::SourceMap>,
-  decls: HashSet<IdentId>,
+  decls: HashSet<Id>,
   global_mark: Mark,
   project_root: &'a str,
   deps: &'a mut Vec<DependencyDescriptor>,
@@ -44,13 +41,13 @@ struct InlineFS<'a> {
 
 impl<'a> Fold for InlineFS<'a> {
   fn fold_module(&mut self, node: Module) -> Module {
-    node.visit_with(&Invalid { span: DUMMY_SP } as _, &mut self.collect);
+    node.visit_with(&mut self.collect);
     node.fold_children_with(self)
   }
 
   fn fold_expr(&mut self, node: Expr) -> Expr {
     if let Expr::Call(call) = &node {
-      if let ExprOrSuper::Expr(expr) = &call.callee {
+      if let Callee::Expr(expr) = &call.callee {
         if let Some((source, specifier)) = match_module_reference(&self.collect, expr) {
           if &source == "fs" && &specifier == "readFileSync" {
             if let Some(arg) = call.args.get(0) {
@@ -123,12 +120,7 @@ impl<'a> InlineFS<'a> {
           _ => return None,
         };
 
-        let contents = Expr::Lit(Lit::Str(Str {
-          value: contents.into(),
-          kind: StrKind::Synthesized,
-          has_escape: false,
-          span: DUMMY_SP,
-        }));
+        let contents = Expr::Lit(Lit::Str(contents.into()));
 
         // Add a file dependency so the cache is invalidated when this file changes.
         self.deps.push(DependencyDescriptor {
@@ -145,13 +137,12 @@ impl<'a> InlineFS<'a> {
         // If buffer, wrap in Buffer.from(base64String, 'base64')
         if encoding == "buffer" {
           Some(Expr::Call(CallExpr {
-            callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
-              obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident::new(
+            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+              obj: Box::new(Expr::Ident(Ident::new(
                 "Buffer".into(),
                 DUMMY_SP.apply_mark(self.global_mark),
-              )))),
-              prop: Box::new(Expr::Ident(Ident::new("from".into(), DUMMY_SP))),
-              computed: false,
+              ))),
+              prop: MemberProp::Ident(Ident::new("from".into(), DUMMY_SP)),
               span: DUMMY_SP,
             }))),
             args: vec![
@@ -160,12 +151,7 @@ impl<'a> InlineFS<'a> {
                 spread: None,
               },
               ExprOrSpread {
-                expr: Box::new(Expr::Lit(Lit::Str(Str {
-                  value: "base64".into(),
-                  kind: StrKind::Synthesized,
-                  has_escape: false,
-                  span: DUMMY_SP,
-                }))),
+                expr: Box::new(Expr::Lit(Lit::Str("base64".into()))),
                 spread: None,
               },
             ],
@@ -191,8 +177,8 @@ impl<'a> Fold for Evaluator<'a> {
 
     match &node {
       Expr::Ident(ident) => match ident.sym.to_string().as_str() {
-        "__dirname" => Expr::Lit(Lit::Str(Str {
-          value: self
+        "__dirname" => Expr::Lit(Lit::Str(
+          self
             .inline
             .filename
             .parent()
@@ -200,16 +186,8 @@ impl<'a> Fold for Evaluator<'a> {
             .to_str()
             .unwrap()
             .into(),
-          kind: StrKind::Synthesized,
-          has_escape: false,
-          span: DUMMY_SP,
-        })),
-        "__filename" => Expr::Lit(Lit::Str(Str {
-          value: self.inline.filename.to_str().unwrap().into(),
-          kind: StrKind::Synthesized,
-          has_escape: false,
-          span: DUMMY_SP,
-        })),
+        )),
+        "__filename" => Expr::Lit(Lit::Str(self.inline.filename.to_str().unwrap().into())),
         _ => node,
       },
       Expr::Bin(bin) => match bin.op {
@@ -224,18 +202,13 @@ impl<'a> Fold for Evaluator<'a> {
             _ => return node,
           };
 
-          Expr::Lit(Lit::Str(Str {
-            value: format!("{}{}", left, right).into(),
-            kind: StrKind::Synthesized,
-            has_escape: false,
-            span: DUMMY_SP,
-          }))
+          Expr::Lit(Lit::Str(format!("{}{}", left, right).into()))
         }
         _ => node,
       },
       Expr::Call(call) => {
         let callee = match &call.callee {
-          ExprOrSuper::Expr(expr) => &*expr,
+          Callee::Expr(expr) => &*expr,
           _ => return node,
         };
 
@@ -263,12 +236,7 @@ impl<'a> Fold for Evaluator<'a> {
                 }
               }
 
-              return Expr::Lit(Lit::Str(Str {
-                value: path.to_str().unwrap().into(),
-                kind: StrKind::Synthesized,
-                has_escape: false,
-                span: DUMMY_SP,
-              }));
+              return Expr::Lit(Lit::Str(path.to_str().unwrap().into()));
             }
             _ => return node,
           }

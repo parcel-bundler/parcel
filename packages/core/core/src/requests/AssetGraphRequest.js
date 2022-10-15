@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {NodeId} from '@parcel/graph';
+import type {ContentKey, NodeId} from '@parcel/graph';
 import type {Async, Symbol, Meta} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {
@@ -38,8 +38,7 @@ import {
   fromProjectPathRelative,
   fromProjectPath,
 } from '../projectPath';
-
-import dumpToGraphViz from '../dumpGraphToGraphViz';
+import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
@@ -97,14 +96,13 @@ const typesWithRequests = new Set([
 
 export class AssetGraphBuilder {
   assetGraph: AssetGraph;
-  assetRequests: Array<AssetGroup>;
+  assetRequests: Array<AssetGroup> = [];
   queue: PromiseQueue<mixed>;
   changedAssets: Map<string, Asset> = new Map();
   optionsRef: SharedReference;
   options: ParcelOptions;
   api: RunAPI;
   name: string;
-  assetRequests: Array<AssetGroup> = [];
   cacheKey: string;
   shouldBuildLazily: boolean;
   requestedAssetIds: Set<string>;
@@ -210,14 +208,21 @@ export class AssetGraphBuilder {
       d => d.value.env.shouldScopeHoist,
     );
     if (this.assetGraph.symbolPropagationRan) {
+      await dumpGraphToGraphViz(
+        this.assetGraph,
+        'AssetGraph_' + this.name + '_before_prop',
+      );
       try {
         this.propagateSymbols();
       } catch (e) {
-        dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name + '_failed');
+        await dumpGraphToGraphViz(
+          this.assetGraph,
+          'AssetGraph_' + this.name + '_failed',
+        );
         throw e;
       }
     }
-    dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
+    await dumpGraphToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
 
     return {
       assetGraph: this.assetGraph,
@@ -261,6 +266,10 @@ export class AssetGraphBuilder {
   }
 
   propagateSymbols() {
+    // Keep track of dependencies that have changes to their used symbols,
+    // so we can sort them after propagation.
+    let changedDeps = new Set<DependencyNode>();
+
     // Propagate the requested symbols down from the root to the leaves
     this.propagateSymbolsDown((assetNode, incomingDeps, outgoingDeps) => {
       if (!assetNode.value.symbols) return;
@@ -405,7 +414,7 @@ export class AssetGraphBuilder {
 
     const logFallbackNamespaceInsertion = (
       assetNode,
-      symbol,
+      symbol: Symbol,
       depNode1,
       depNode2,
     ) => {
@@ -446,42 +455,57 @@ export class AssetGraphBuilder {
         }
       }
 
-      // the symbols that are reexport (not used in `asset`) -> the corresponding outgoingDep(s)
-      // There could be multiple dependencies with non-statically analyzable exports
-      let reexportedSymbols = new Map<Symbol, DependencyNode>();
+      // the symbols that are reexported (not used in `asset`) -> asset they resolved to
+      let reexportedSymbols = new Map<
+        Symbol,
+        ?{|asset: ContentKey, symbol: ?Symbol|},
+      >();
+      // the symbols that are reexported (not used in `asset`) -> the corresponding outgoingDep(s)
+      // To generate the diagnostic when there are multiple dependencies with non-statically
+      // analyzable exports
+      let reexportedSymbolsSource = new Map<Symbol, DependencyNode>();
       for (let outgoingDep of outgoingDeps) {
         let outgoingDepSymbols = outgoingDep.value.symbols;
         if (!outgoingDepSymbols) continue;
 
-        // excluded, assume everything that is requested exists
-        if (
+        let isExcluded =
           this.assetGraph.getNodeIdsConnectedFrom(
             this.assetGraph.getNodeIdByContentKey(outgoingDep.id),
-          ).length === 0
-        ) {
-          outgoingDep.usedSymbolsDown.forEach(s =>
-            outgoingDep.usedSymbolsUp.add(s),
+          ).length === 0;
+        // excluded, assume everything that is requested exists
+        if (isExcluded) {
+          outgoingDep.usedSymbolsDown.forEach((_, s) =>
+            outgoingDep.usedSymbolsUp.set(s, null),
           );
         }
 
         if (outgoingDepSymbols.get('*')?.local === '*') {
-          outgoingDep.usedSymbolsUp.forEach(s => {
+          outgoingDep.usedSymbolsUp.forEach((sResolved, s) => {
+            if (s === 'default') {
+              return;
+            }
+
             // If the symbol could come from multiple assets at runtime, assetNode's
             // namespace will be needed at runtime to perform the lookup on.
-            if (reexportedSymbols.has(s) && !assetNode.usedSymbols.has('*')) {
-              logFallbackNamespaceInsertion(
-                assetNode,
-                s,
-                nullthrows(reexportedSymbols.get(s)),
-                outgoingDep,
-              );
+            if (reexportedSymbols.has(s)) {
+              if (!assetNode.usedSymbols.has('*')) {
+                logFallbackNamespaceInsertion(
+                  assetNode,
+                  s,
+                  nullthrows(reexportedSymbolsSource.get(s)),
+                  outgoingDep,
+                );
+              }
               assetNode.usedSymbols.add('*');
+              reexportedSymbols.set(s, {asset: assetNode.id, symbol: s});
+            } else {
+              reexportedSymbols.set(s, sResolved);
+              reexportedSymbolsSource.set(s, outgoingDep);
             }
-            reexportedSymbols.set(s, outgoingDep);
           });
         }
 
-        for (let s of outgoingDep.usedSymbolsUp) {
+        for (let [s, sResolved] of outgoingDep.usedSymbolsUp) {
           if (!outgoingDep.usedSymbolsDown.has(s)) {
             // usedSymbolsDown is a superset of usedSymbolsUp
             continue;
@@ -497,16 +521,21 @@ export class AssetGraphBuilder {
           if (reexported != null) {
             reexported.forEach(s => {
               // see same code above
-              if (reexportedSymbols.has(s) && !assetNode.usedSymbols.has('*')) {
-                logFallbackNamespaceInsertion(
-                  assetNode,
-                  s,
-                  nullthrows(reexportedSymbols.get(s)),
-                  outgoingDep,
-                );
+              if (reexportedSymbols.has(s)) {
+                if (!assetNode.usedSymbols.has('*')) {
+                  logFallbackNamespaceInsertion(
+                    assetNode,
+                    s,
+                    nullthrows(reexportedSymbolsSource.get(s)),
+                    outgoingDep,
+                  );
+                }
                 assetNode.usedSymbols.add('*');
+                reexportedSymbols.set(s, {asset: assetNode.id, symbol: s});
+              } else {
+                reexportedSymbols.set(s, sResolved);
+                reexportedSymbolsSource.set(s, outgoingDep);
               }
-              reexportedSymbols.set(s, outgoingDep);
             });
           }
         }
@@ -514,9 +543,27 @@ export class AssetGraphBuilder {
 
       let errors: Array<Diagnostic> = [];
 
+      function usedSymbolsUpAmbiguous(old, current, s, value) {
+        if (old.has(s)) {
+          let valueOld = old.get(s);
+          if (
+            valueOld !== value &&
+            !(
+              valueOld?.asset === value.asset &&
+              valueOld?.symbol === value.symbol
+            )
+          ) {
+            // The dependency points to multiple assets (via an asset group).
+            current.set(s, undefined);
+            return;
+          }
+        }
+        current.set(s, value);
+      }
+
       for (let incomingDep of incomingDeps) {
         let incomingDepUsedSymbolsUpOld = incomingDep.usedSymbolsUp;
-        incomingDep.usedSymbolsUp = new Set();
+        incomingDep.usedSymbolsUp = new Map();
         let incomingDepSymbols = incomingDep.value.symbols;
         if (!incomingDepSymbols) continue;
 
@@ -526,11 +573,34 @@ export class AssetGraphBuilder {
             assetSymbols == null || // Assume everything could be provided if symbols are cleared
             assetNode.value.bundleBehavior === BundleBehavior.isolated ||
             assetNode.value.bundleBehavior === BundleBehavior.inline ||
-            assetNode.usedSymbols.has(s) ||
-            reexportedSymbols.has(s) ||
-            s === '*'
+            s === '*' ||
+            assetNode.usedSymbols.has(s)
           ) {
-            incomingDep.usedSymbolsUp.add(s);
+            usedSymbolsUpAmbiguous(
+              incomingDepUsedSymbolsUpOld,
+              incomingDep.usedSymbolsUp,
+              s,
+              {
+                asset: assetNode.id,
+                symbol: s,
+              },
+            );
+          } else if (reexportedSymbols.has(s)) {
+            let reexport = reexportedSymbols.get(s);
+            let v =
+              // Forward a reexport only if the current asset is side-effect free and not external
+              !assetNode.value.sideEffects && reexport != null
+                ? reexport
+                : {
+                    asset: assetNode.id,
+                    symbol: s,
+                  };
+            usedSymbolsUpAmbiguous(
+              incomingDepUsedSymbolsUpOld,
+              incomingDep.usedSymbolsUp,
+              s,
+              v,
+            );
           } else if (!hasNamespaceReexport) {
             let loc = incomingDep.value.symbols?.get(s)?.loc;
             let [resolutionNodeId] = this.assetGraph.getNodeIdsConnectedFrom(
@@ -554,7 +624,7 @@ export class AssetGraphBuilder {
                           this.options.projectRoot,
                           loc?.filePath,
                         ) ?? undefined,
-                      language: assetNode.value.type,
+                      language: incomingDep.value.sourceAssetType ?? undefined,
                       codeHighlights: [
                         {
                           start: loc.start,
@@ -568,7 +638,8 @@ export class AssetGraphBuilder {
           }
         }
 
-        if (!equalSet(incomingDepUsedSymbolsUpOld, incomingDep.usedSymbolsUp)) {
+        if (!equalMap(incomingDepUsedSymbolsUpOld, incomingDep.usedSymbolsUp)) {
+          changedDeps.add(incomingDep);
           incomingDep.usedSymbolsUpDirtyUp = true;
         }
 
@@ -596,6 +667,14 @@ export class AssetGraphBuilder {
       }
       return errors;
     });
+    // Sort usedSymbolsUp so they are a consistent order across builds.
+    // This ensures a consistent ordering of these symbols when packaging.
+    // See https://github.com/parcel-bundler/parcel/pull/8212
+    for (let dep of changedDeps) {
+      dep.usedSymbolsUp = new Map(
+        [...dep.usedSymbolsUp].sort(([a], [b]) => a.localeCompare(b)),
+      );
+    }
   }
 
   propagateSymbolsDown(
@@ -710,7 +789,6 @@ export class AssetGraphBuilder {
           }
         }
         if (node.usedSymbolsUpDirty) {
-          node.usedSymbolsUpDirty = false;
           let e = visit(
             node,
             incoming,
@@ -721,8 +799,10 @@ export class AssetGraphBuilder {
             }),
           );
           if (e.length > 0) {
+            node.usedSymbolsUpDirty = true;
             errors.set(nodeId, e);
           } else {
+            node.usedSymbolsUpDirty = false;
             errors.delete(nodeId);
           }
         }
@@ -768,8 +848,10 @@ export class AssetGraphBuilder {
         if (node.usedSymbolsUpDirty) {
           let e = visit(node, incoming, outgoing);
           if (e.length > 0) {
+            node.usedSymbolsUpDirty = true;
             errors.set(queuedNodeId, e);
           } else {
+            node.usedSymbolsUpDirty = false;
             errors.delete(queuedNodeId);
           }
         }
@@ -878,6 +960,19 @@ export class AssetGraphBuilder {
       this.assetGraph.resolveAssetGroup(input, assets, request.id);
     }
   }
+}
+
+function equalMap<K>(
+  a: $ReadOnlyMap<K, ?{|asset: ContentKey, symbol: ?Symbol|}>,
+  b: $ReadOnlyMap<K, ?{|asset: ContentKey, symbol: ?Symbol|}>,
+) {
+  if (a.size !== b.size) return false;
+  for (let [k, v] of a) {
+    if (!b.has(k)) return false;
+    let vB = b.get(k);
+    if (vB?.asset !== v?.asset || vB?.symbol !== v?.symbol) return false;
+  }
+  return true;
 }
 
 function equalSet<T>(a: $ReadOnlySet<T>, b: $ReadOnlySet<T>) {

@@ -1,6 +1,6 @@
 use swc_ecmascript::ast::{
-  Bool, CallExpr, Expr, ExprOrSpread, ExprOrSuper, FnExpr, Ident, KeyValueProp, Lit, MemberExpr,
-  MethodProp, ObjectLit, Prop, PropName, PropOrSpread, Str, StrKind,
+  Bool, CallExpr, Callee, Expr, ExprOrSpread, FnExpr, Ident, KeyValueProp, Lit, MemberExpr,
+  MemberProp, MethodProp, ObjectLit, Prop, PropName, PropOrSpread, Str,
 };
 
 use swc_common::DUMMY_SP;
@@ -34,94 +34,81 @@ impl<'a> Fold for ReactNativeReplacer<'a> {
   fn fold_expr(&mut self, node: Expr) -> Expr {
     match &node {
       Expr::Member(MemberExpr {
-        obj: ExprOrSuper::Expr(obj),
-        prop,
-        computed: false,
+        obj,
+        prop: MemberProp::Ident(Ident { sym: prop_id, .. }),
         ..
       }) => {
-        if self.match_platform(&**obj) {
-          if let Expr::Ident(Ident { sym: prop_id, .. }) = &**prop {
-            if prop_id == "OS" {
-              return Expr::Lit(Lit::Str(Str {
-                has_escape: false,
-                kind: StrKind::Synthesized,
-                span: DUMMY_SP,
-                value: self.platforms[0].as_str().into(),
-              }));
-            }
-          }
+        if self.match_platform(&**obj) && prop_id == "OS" {
+          return Expr::Lit(Lit::Str(Str {
+            raw: None,
+            span: DUMMY_SP,
+            value: self.platforms[0].as_str().into(),
+          }));
         }
       }
-      Expr::Call(CallExpr {
-        callee: ExprOrSuper::Expr(callee),
-        args,
-        ..
-      }) => {
-        if let Expr::Member(MemberExpr {
-          obj: ExprOrSuper::Expr(obj),
-          prop,
-          computed: false,
-          ..
-        }) = &**callee
-        {
-          if self.match_platform(&**obj) {
-            if let Expr::Ident(prop_id) = &**prop {
-              if prop_id.as_ref() == "select" {
-                if let Some(ExprOrSpread { spread: None, expr }) = args.get(0) {
-                  if let Expr::Object(ObjectLit { props, .. }) = &**expr {
-                    let mut item: Option<(usize, Expr)> = None;
+      Expr::Call(CallExpr { callee, args, .. }) => {
+        if let Callee::Expr(expr) = callee {
+          if let Expr::Member(MemberExpr {
+            obj,
+            prop: MemberProp::Ident(Ident { sym: prop_id, .. }),
+            ..
+          }) = &**expr
+          {
+            if self.match_platform(&**obj) && prop_id.as_ref() == "select" {
+              if let Some(ExprOrSpread { spread: None, expr }) = args.get(0) {
+                if let Expr::Object(ObjectLit { props, .. }) = &**expr {
+                  let mut item: Option<(usize, Expr)> = None;
 
-                    let mut assign_if_more_specific = |id: &Ident, expr: Expr| {
-                      let index = if id.as_ref() == "default" {
-                        usize::MAX / 2
-                      } else {
-                        self
-                          .platforms
-                          .iter()
-                          .position(|f| *f == id.as_ref())
-                          .unwrap_or(usize::MAX)
-                      };
-                      match item {
-                        Some((index_existing, _)) => {
-                          if index < index_existing {
-                            item = Some((index, expr));
+                  let mut assign_if_more_specific = |id: &Ident, expr: Expr| {
+                    let index = if id.as_ref() == "default" {
+                      usize::MAX / 2
+                    } else {
+                      self
+                        .platforms
+                        .iter()
+                        .position(|f| *f == id.as_ref())
+                        .unwrap_or(usize::MAX)
+                    };
+                    match item {
+                      Some((index_existing, _)) => {
+                        if index < index_existing {
+                          item = Some((index, expr));
+                        }
+                      }
+                      _ => item = Some((index, expr)),
+                    };
+                  };
+
+                  for i in props {
+                    match i {
+                      PropOrSpread::Prop(prop) => match &**prop {
+                        Prop::KeyValue(KeyValueProp { key, value }) => {
+                          if let PropName::Ident(id) = key {
+                            assign_if_more_specific(id, *value.clone());
                           }
                         }
-                        _ => item = Some((index, expr)),
-                      };
-                    };
-
-                    for i in props {
-                      match i {
-                        PropOrSpread::Prop(prop) => match &**prop {
-                          Prop::KeyValue(KeyValueProp { key, value }) => {
-                            if let PropName::Ident(id) = key {
-                              assign_if_more_specific(id, *value.clone());
-                            }
+                        Prop::Method(MethodProp { key, function }) => {
+                          if let PropName::Ident(id) = key {
+                            assign_if_more_specific(
+                              id,
+                              Expr::Fn(FnExpr {
+                                ident: None,
+                                function: function.clone(),
+                              }),
+                            );
                           }
-                          Prop::Method(MethodProp { key, function }) => {
-                            if let PropName::Ident(id) = key {
-                              assign_if_more_specific(
-                                id,
-                                Expr::Fn(FnExpr {
-                                  ident: None,
-                                  function: function.clone(),
-                                }),
-                              );
-                            }
-                          }
-                          _ => return node.fold_children_with(self),
-                        },
+                        }
                         _ => return node.fold_children_with(self),
-                      }
+                      },
+                      _ => return node.fold_children_with(self),
                     }
-
-                    if let Some((_, expr)) = item {
-                      return expr.fold_with(self);
-                    };
                   }
-                };
-              }
+
+                  if let Some((_, expr)) = item {
+                    return expr.fold_with(self);
+                  };
+                }
+              };
             }
           }
         }
@@ -166,13 +153,14 @@ mod tests {
 
   use super::*;
   use indoc::indoc;
+  use swc_common::chain;
   use swc_common::comments::SingleThreadedComments;
-  use swc_common::{sync::Lrc, FileName, Globals, Mark, SourceMap, DUMMY_SP};
-  use swc_ecmascript::ast::{Invalid, Module};
+  use swc_common::{sync::Lrc, FileName, Globals, Mark, SourceMap};
+  use swc_ecmascript::ast::Module;
   use swc_ecmascript::codegen::text_writer::JsWriter;
   use swc_ecmascript::parser::lexer::Lexer;
-  use swc_ecmascript::parser::{EsConfig, Parser, StringInput, Syntax};
-  use swc_ecmascript::transforms::resolver_with_mark;
+  use swc_ecmascript::parser::{Parser, StringInput};
+  use swc_ecmascript::transforms::{fixer, hygiene, resolver};
   use swc_ecmascript::visit::VisitWith;
 
   fn parse(code: &str) -> String {
@@ -181,10 +169,7 @@ mod tests {
 
     let comments = SingleThreadedComments::default();
     let lexer = Lexer::new(
-      Syntax::Es(EsConfig {
-        dynamic_import: true,
-        ..Default::default()
-      }),
+      Default::default(),
       Default::default(),
       StringInput::from(&*source_file),
       Some(&comments),
@@ -196,8 +181,9 @@ mod tests {
         swc_ecmascript::transforms::helpers::HELPERS.set(
           &swc_ecmascript::transforms::helpers::Helpers::new(false),
           || {
+            let unresolved_mark = Mark::fresh(Mark::root());
             let global_mark = Mark::fresh(Mark::root());
-            let module = module.fold_with(&mut resolver_with_mark(global_mark));
+            let module = module.fold_with(&mut resolver(unresolved_mark, global_mark, false));
 
             let mut collect = Collect::new(
               source_map.clone(),
@@ -206,7 +192,7 @@ mod tests {
               global_mark,
               false,
             );
-            module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
+            module.visit_with(&mut collect);
 
             let module = {
               let mut hoist = ReactNativeReplacer {
@@ -216,6 +202,8 @@ mod tests {
               };
               module.fold_with(&mut hoist)
             };
+
+            let module = module.fold_with(&mut chain!(hygiene(), fixer(Some(&comments))));
             emit(source_map, comments, &module)
           },
         )
@@ -240,7 +228,11 @@ mod tests {
         &mut buf,
         Some(&mut src_map_buf),
       ));
-      let config = swc_ecmascript::codegen::Config { minify: false };
+      let config = swc_ecmascript::codegen::Config {
+        minify: false,
+        ascii_only: false,
+        target: swc_ecmascript::ast::EsVersion::Es5,
+      };
       let mut emitter = swc_ecmascript::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
@@ -400,10 +392,10 @@ mod tests {
       import { Platform } from "react-native";
       console.log(Platform.select({
           get ios () {
-              return 'get1';
+              return "get1";
           },
           default () {
-              return 'get2';
+              return "get2";
           }
       }));
     "#});

@@ -186,16 +186,16 @@ describe('svg', function () {
     const svg = await outputFS.readFile(path.join(distDir, 'img.svg'), 'utf8');
 
     assert(!svg.includes('@import'));
-    assert(svg.includes(':root {\n  fill: red\n}'));
+    assert(svg.includes(':root {\n  fill: red;\n}'));
     assert(
       svg.includes(
-        `"fill: url(${path.basename(
+        `"fill: url(&quot;${path.basename(
           b.getBundles().find(b => b.name.startsWith('gradient')).filePath,
-        )}#myGradient)"`,
+        )}#myGradient&quot;)`,
       ),
     );
     assert(svg.includes('<script>'));
-    assert(svg.includes("console.log('script')"));
+    assert(svg.includes(`console.log("script")`));
     assert(!svg.includes('import '));
   });
 

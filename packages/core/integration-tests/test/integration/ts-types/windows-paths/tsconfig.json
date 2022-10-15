@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "removeComments": true,
+    "baseUrl": ".",
+    "paths": {
+      "@parcel/*": ["../../*"]
+    }
+  }
+}

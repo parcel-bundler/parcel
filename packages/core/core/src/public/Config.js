@@ -112,6 +112,10 @@ export default class PublicConfig implements IConfig {
     this.#config.invalidateOnStartup = true;
   }
 
+  invalidateOnBuild() {
+    this.#config.invalidateOnBuild = true;
+  }
+
   async getConfigFrom<T>(
     searchPath: FilePath,
     fileNames: Array<string>,

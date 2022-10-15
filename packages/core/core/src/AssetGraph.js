@@ -1,7 +1,12 @@
 // @flow strict-local
 
 import type {GraphVisitor} from '@parcel/types';
-import type {ContentKey, NodeId, SerializedContentGraph} from '@parcel/graph';
+import type {
+  ContentGraphOpts,
+  ContentKey,
+  NodeId,
+  SerializedContentGraph,
+} from '@parcel/graph';
 import type {
   Asset,
   AssetGraphNode,
@@ -31,6 +36,12 @@ type InitOpts = {|
   assetGroups?: Array<AssetGroup>,
 |};
 
+type AssetGraphOpts = {|
+  ...ContentGraphOpts<AssetGraphNode>,
+  symbolPropagationRan: boolean,
+  hash?: ?string,
+|};
+
 type SerializedAssetGraph = {|
   ...SerializedContentGraph<AssetGraphNode>,
   hash?: ?string,
@@ -45,7 +56,7 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     deferred: false,
     excluded: false,
     usedSymbolsDown: new Set(),
-    usedSymbolsUp: new Set(),
+    usedSymbolsUp: new Map(),
     usedSymbolsDownDirty: true,
     usedSymbolsUpDirtyDown: true,
     usedSymbolsUpDirtyUp: true,
@@ -104,7 +115,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   envCache: Map<string, Environment>;
   symbolPropagationRan: boolean;
 
-  constructor(opts: ?SerializedAssetGraph) {
+  constructor(opts: ?AssetGraphOpts) {
     if (opts) {
       let {hash, symbolPropagationRan, ...rest} = opts;
       super(rest);
@@ -125,7 +136,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: SerializedAssetGraph): AssetGraph {
+  static deserialize(opts: AssetGraphOpts): AssetGraph {
     return new AssetGraph(opts);
   }
 
@@ -530,11 +541,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {
-    let nodeId = this._contentKeyToNodeId.get(asset.id);
-    if (!nodeId) {
-      return [];
-    }
-
+    let nodeId = this.getNodeIdByContentKey(asset.id);
     let assetGroupIds = this.getNodeIdsConnectedTo(nodeId);
     let dependencies = [];
     for (let i = 0; i < assetGroupIds.length; i++) {

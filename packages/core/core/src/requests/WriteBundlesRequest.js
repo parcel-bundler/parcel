@@ -71,6 +71,7 @@ async function run({input, api, farm, options}: RunInput) {
       let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
       res.set(bundle.id, {
         filePath: joinProjectPath(bundle.target.distDir, name),
+        type: bundle.type, // FIXME: this is wrong if the packager changes the type...
         stats: {
           time: 0,
           size: 0,
@@ -91,6 +92,7 @@ async function run({input, api, farm, options}: RunInput) {
           bundleGraphReference: ref,
           optionsRef,
         });
+
         let info = await api.runRequest(request);
 
         bundleInfoMap[bundle.id] = info;
@@ -146,7 +148,6 @@ function assignComplexNameHashes(
     if (hashRefToNameHash.get(bundle.hashReference) != null) {
       continue;
     }
-
     hashRefToNameHash.set(
       bundle.hashReference,
       options.shouldContentHash

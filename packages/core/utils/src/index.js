@@ -11,6 +11,7 @@ export {default as countLines} from './countLines';
 export {default as generateBuildMetrics} from './generateBuildMetrics';
 export {default as generateCertificate} from './generateCertificate';
 export {default as getCertificate} from './getCertificate';
+export {default as getModuleParts} from './getModuleParts';
 export {default as getRootDir} from './getRootDir';
 export {default as isDirectoryInside} from './isDirectoryInside';
 export {default as isURL} from './is-url';
@@ -35,12 +36,17 @@ export {
   objectSortedEntries,
   objectSortedEntriesDeep,
   setDifference,
+  setEqual,
+  setIntersect,
+  setUnion,
 } from './collection';
 export {resolveConfig, resolveConfigSync, loadConfig} from './config';
 export {DefaultMap, DefaultWeakMap} from './DefaultMap';
 export {makeDeferredWithPromise} from './Deferred';
-export {isGlob, isGlobMatch, globSync, glob} from './glob';
+export {getProgressMessage} from './progress-message.js';
+export {isGlob, isGlobMatch, globSync, glob, globToRegex} from './glob';
 export {hashStream, hashObject, hashFile} from './hash';
+export {SharedBuffer} from './shared-buffer';
 export {fuzzySearch} from './schema';
 export {createHTTPServer} from './http-server';
 export {normalizePath, normalizeSeparators, relativePath} from './path';

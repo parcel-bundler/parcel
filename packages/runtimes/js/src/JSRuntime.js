@@ -552,6 +552,11 @@ function getRegisterCode(
     idToName[bundle.publicId] = path.basename(nullthrows(bundle.name));
 
     if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
+      for (let referenced of bundleGraph.getReferencedBundles(bundle)) {
+        idToName[referenced.publicId] = path.basename(
+          nullthrows(referenced.name),
+        );
+      }
       // New contexts have their own manifests, so there's no need to continue.
       actions.skipChildren();
     }

@@ -12,6 +12,7 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
+import type {IncomingMessage} from 'http';
 
 import invariant from 'assert';
 import util from 'util';
@@ -27,6 +28,8 @@ import nullthrows from 'nullthrows';
 import {parser as postHtmlParse} from 'posthtml-parser';
 import postHtml from 'posthtml';
 import EventEmitter from 'events';
+import http from 'http';
+import https from 'https';
 
 import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
@@ -111,7 +114,12 @@ export function getParcelOptions(
       entries,
       shouldDisableCache: true,
       logLevel: 'none',
-      defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
+      defaultConfig: path.join(
+        __dirname,
+        process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER == null
+          ? '.parcelrc-no-reporters'
+          : '.parcelrc-experimental-bundler',
+      ),
       inputFS,
       outputFS,
       workerFarm,
@@ -163,9 +171,15 @@ export function findDependency(
     `Couldn't find asset ${assetFileName}`,
   );
 
-  let dependency = bundleGraph
+  let dependencies = bundleGraph
     .getDependencies(asset)
-    .find(d => d.specifier === specifier);
+    .filter(d => d.specifier === specifier);
+
+  let dependency =
+    dependencies.length > 1
+      ? dependencies.find(d => !bundleGraph.isDependencySkipped(d))
+      : dependencies[0];
+
   invariant(
     dependency != null,
     `Couldn't find dependency ${assetFileName} -> ${specifier}`,
@@ -193,7 +207,7 @@ export function mergeParcelOptions(
   };
 }
 
-export function assertDependencyWasDeferred(
+export function assertDependencyWasExcluded(
   bundleGraph: BundleGraph<PackagedBundle>,
   assetFileName: string,
   specifier: string,
@@ -699,6 +713,9 @@ function prepareBrowserContext(
         origin: 'http://localhost',
         protocol: 'http',
       },
+      navigator: {
+        userAgent: '',
+      },
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {
@@ -726,6 +743,8 @@ function prepareBrowserContext(
       },
       URL,
       Worker: createWorkerClass(bundle.filePath),
+      addEventListener() {},
+      removeEventListener() {},
     },
     globals,
   );
@@ -980,7 +999,8 @@ export async function runESM(
         identifier: `${normalizeSeparators(
           path.relative(baseDir, filename),
         )}?id=${id}`,
-        importModuleDynamically: entry,
+        importModuleDynamically: (specifier, referrer) =>
+          entry(specifier, referrer),
         context,
         initializeImportMeta(meta) {
           meta.url = `http://localhost/${path.basename(filename)}`;
@@ -1117,7 +1137,6 @@ export async function assertNoFilePathInCache(
         if (contents.includes(projectRoot)) {
           let deserialized;
           try {
-            // $FlowFixMe
             deserialized = v8.deserialize(contents);
           } catch (err) {
             // rudimentary detection of binary files
@@ -1147,4 +1166,68 @@ export async function assertNoFilePathInCache(
       }
     }
   }
+}
+
+export function requestRaw(
+  file: string,
+  port: number,
+  options: ?requestOptions,
+  client: typeof http | typeof https = http,
+): Promise<{|res: IncomingMessage, data: string|}> {
+  return new Promise((resolve, reject) => {
+    client
+      // $FlowFixMe
+      .request(
+        {
+          hostname: 'localhost',
+          port: port,
+          path: file,
+          rejectUnauthorized: false,
+          ...options,
+        },
+        (res: IncomingMessage) => {
+          res.setEncoding('utf8');
+          let data = '';
+          res.on('data', c => (data += c));
+          res.on('end', () => {
+            if (res.statusCode !== 200) {
+              return reject({res, data});
+            }
+
+            resolve({res, data});
+          });
+        },
+      )
+      .end();
+  });
+}
+
+export function request(
+  file: string,
+  port: number,
+  client: typeof http | typeof https = http,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // $FlowFixMe
+    client.get(
+      {
+        hostname: 'localhost',
+        port: port,
+        path: file,
+        rejectUnauthorized: false,
+      },
+      res => {
+        res.setEncoding('utf8');
+        let data = '';
+        res.on('data', c => (data += c));
+        res.on('end', () => {
+          if (res.statusCode !== 200) {
+            return reject({statusCode: res.statusCode, data});
+          }
+
+          resolve(data);
+        });
+      },
+    );
+  });
 }

@@ -1,33 +1,29 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
+use crate::hoist::{Collect, Import};
+use crate::id;
 use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
 use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast;
+use swc_ecmascript::ast::{self, Id};
 
-use crate::hoist::{Collect, Import};
-
-pub fn match_member_expr(
-  expr: &ast::MemberExpr,
-  idents: Vec<&str>,
-  decls: &HashSet<(JsWord, SyntaxContext)>,
-) -> bool {
-  use ast::{Expr::*, ExprOrSuper::*, Ident, Lit, Str};
+pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &HashSet<Id>) -> bool {
+  use ast::{Expr, Ident, Lit, MemberProp, Str};
 
   let mut member = expr;
   let mut idents = idents;
   while idents.len() > 1 {
     let expected = idents.pop().unwrap();
-    let prop = match &*member.prop {
-      Lit(Lit::Str(Str { value: ref sym, .. })) => sym,
-      Ident(Ident { ref sym, .. }) => {
-        if member.computed {
+    let prop = match &member.prop {
+      MemberProp::Computed(comp) => {
+        if let Expr::Lit(Lit::Str(Str { value: ref sym, .. })) = *comp.expr {
+          sym
+        } else {
           return false;
         }
-
-        sym
       }
+      MemberProp::Ident(Ident { ref sym, .. }) => sym,
       _ => return false,
     };
 
@@ -35,16 +31,11 @@ pub fn match_member_expr(
       return false;
     }
 
-    match &member.obj {
-      Expr(expr) => match &**expr {
-        Member(m) => member = m,
-        Ident(Ident { ref sym, span, .. }) => {
-          return idents.len() == 1
-            && sym == idents.pop().unwrap()
-            && !decls.contains(&(sym.clone(), span.ctxt()));
-        }
-        _ => return false,
-      },
+    match &*member.obj {
+      Expr::Member(m) => member = m,
+      Expr::Ident(id) => {
+        return idents.len() == 1 && &id.sym == idents.pop().unwrap() && !decls.contains(&id!(id));
+      }
       _ => return false,
     }
   }
@@ -59,17 +50,12 @@ pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
   }
 
   ast::CallExpr {
-    callee: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+    callee: ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
       "require".into(),
       DUMMY_SP,
     )))),
     args: vec![ast::ExprOrSpread {
-      expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
-        span: DUMMY_SP,
-        value: normalized_specifier,
-        has_escape: false,
-        kind: ast::StrKind::Synthesized,
-      }))),
+      expr: Box::new(ast::Expr::Lit(ast::Lit::Str(normalized_specifier.into()))),
       spread: None,
     }],
     span: DUMMY_SP,
@@ -92,25 +78,56 @@ fn is_marked(span: Span, mark: Mark) -> bool {
   }
 }
 
-pub fn match_require(
-  node: &ast::Expr,
-  decls: &HashSet<(JsWord, SyntaxContext)>,
-  ignore_mark: Mark,
-) -> Option<JsWord> {
+pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
+  use ast::*;
+
+  match node {
+    // "string" or 'string'
+    Expr::Lit(Lit::Str(s)) => Some((s.value.clone(), s.span)),
+    // `string`
+    Expr::Tpl(tpl) if tpl.quasis.len() == 1 && tpl.exprs.is_empty() => {
+      Some(((*tpl.quasis[0].raw).into(), tpl.span))
+    }
+    _ => None,
+  }
+}
+
+pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
+  match &node.prop {
+    ast::MemberProp::Computed(s) => match_str(&*s.expr),
+    ast::MemberProp::Ident(id) => Some((id.sym.clone(), id.span)),
+    ast::MemberProp::PrivateName(_) => None,
+  }
+}
+
+pub fn match_export_name(name: &ast::ModuleExportName) -> (JsWord, Span) {
+  match name {
+    ast::ModuleExportName::Ident(id) => (id.sym.clone(), id.span),
+    ast::ModuleExportName::Str(s) => (s.value.clone(), s.span),
+  }
+}
+
+/// Properties like `ExportNamedSpecifier::orig` have to be an Ident if `src` is `None`
+pub fn match_export_name_ident(name: &ast::ModuleExportName) -> &ast::Ident {
+  match name {
+    ast::ModuleExportName::Ident(id) => id,
+    ast::ModuleExportName::Str(_) => unreachable!(),
+  }
+}
+
+pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -> Option<JsWord> {
   use ast::*;
 
   match node {
     Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
+      Callee::Expr(expr) => match &**expr {
         Expr::Ident(ident) => {
           if ident.sym == js_word!("require")
             && !decls.contains(&(ident.sym.clone(), ident.span.ctxt))
             && !is_marked(ident.span, ignore_mark)
           {
             if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
-                return Some(str_.value.clone());
-              }
+              return match_str(&*arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -119,9 +136,7 @@ pub fn match_require(
         Expr::Member(member) => {
           if match_member_expr(member, vec!["module", "require"], decls) {
             if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
-                return Some(str_.value.clone());
-              }
+              return match_str(&*arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -151,31 +166,29 @@ pub fn match_module_reference(collect: &Collect, node: &ast::Expr) -> Option<(Js
       }
     }
     ast::Expr::Member(member) => {
-      let prop = match &*member.prop {
-        ast::Expr::Ident(ident) => {
-          if !member.computed {
-            ident.sym.clone()
+      let prop = match &member.prop {
+        ast::MemberProp::Ident(ident) => ident.sym.clone(),
+        ast::MemberProp::Computed(ast::ComputedPropName { expr, .. }) => {
+          if let ast::Expr::Lit(ast::Lit::Str(str_)) = &**expr {
+            str_.value.clone()
           } else {
             return None;
           }
         }
-        ast::Expr::Lit(ast::Lit::Str(str_)) => str_.value.clone(),
         _ => return None,
       };
 
-      if let ast::ExprOrSuper::Expr(expr) = &member.obj {
-        if let Some(source) = collect.match_require(expr) {
-          return Some((source, prop));
-        }
+      if let Some(source) = collect.match_require(&*member.obj) {
+        return Some((source, prop));
+      }
 
-        if let ast::Expr::Ident(ident) = &**expr {
-          if let Some(Import {
-            source, specifier, ..
-          }) = collect.imports.get(&id!(ident))
-          {
-            if specifier == "default" || specifier == "*" {
-              return Some((source.clone(), prop));
-            }
+      if let ast::Expr::Ident(ident) = &*member.obj {
+        if let Some(Import {
+          source, specifier, ..
+        }) = collect.imports.get(&id!(ident))
+        {
+          if specifier == "default" || specifier == "*" {
+            return Some((source.clone(), prop));
           }
         }
       }
@@ -191,36 +204,67 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
 
   match node {
     Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
-        Expr::Ident(ident) => {
-          if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
-            if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
-                return Some(str_.value.clone());
-              }
-            }
-          }
-
-          None
+      Callee::Import(ident) if !is_marked(ident.span, ignore_mark) => {
+        if let Some(arg) = call.args.get(0) {
+          return match_str(&*arg.expr).map(|(name, _)| name);
         }
-        _ => None,
-      },
+        None
+      }
       _ => None,
     },
     _ => None,
   }
 }
 
+// `name` must not be an existing binding.
+pub fn create_global_decl_stmt(
+  name: swc_atoms::JsWord,
+  init: ast::Expr,
+  global_mark: Mark,
+) -> (ast::Stmt, SyntaxContext) {
+  // The correct value would actually be `DUMMY_SP.apply_mark(Mark::fresh(Mark::root()))`.
+  // But this saves us from running the resolver again in some cases.
+  let span = DUMMY_SP.apply_mark(global_mark);
+
+  (
+    ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
+      kind: ast::VarDeclKind::Var,
+      declare: false,
+      span: DUMMY_SP,
+      decls: vec![ast::VarDeclarator {
+        name: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new(name, span))),
+        span: DUMMY_SP,
+        definite: false,
+        init: Some(Box::new(init)),
+      }],
+    })),
+    span.ctxt,
+  )
+}
+
+pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
+  ast::Ident::new(js_word!("undefined"), DUMMY_SP.apply_mark(unresolved_mark))
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct SourceLocation {
-  start_line: usize,
-  start_col: usize,
-  end_line: usize,
-  end_col: usize,
+  pub start_line: usize,
+  pub start_col: usize,
+  pub end_line: usize,
+  pub end_col: usize,
 }
 
 impl SourceLocation {
   pub fn from(source_map: &swc_common::SourceMap, span: swc_common::Span) -> Self {
+    if span.lo.is_dummy() || span.hi.is_dummy() {
+      return SourceLocation {
+        start_line: 1,
+        start_col: 1,
+        end_line: 1,
+        end_col: 1,
+      };
+    }
+
     let start = source_map.lookup_char_pos(span.lo);
     let end = source_map.lookup_char_pos(span.hi);
     // - SWC's columns are exclusive, ours are inclusive (column - 1)
@@ -276,6 +320,7 @@ pub enum SourceType {
   Module,
 }
 
+#[derive(Debug)]
 pub struct Bailout {
   pub loc: SourceLocation,
   pub reason: BailoutReason,
@@ -298,6 +343,7 @@ impl Bailout {
   }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum BailoutReason {
   NonTopLevelRequire,
   NonStaticDestructuring,
@@ -316,7 +362,7 @@ impl BailoutReason {
   fn info(&self) -> (&str, &str) {
     match self {
       BailoutReason::NonTopLevelRequire => (
-        "Conditional or non-top-level `require()` call. This causes the resolved module and all dependendencies to be wrapped.",
+        "Conditional or non-top-level `require()` call. This causes the resolved module and all dependencies to be wrapped.",
         "https://parceljs.org/features/scope-hoisting/#avoid-conditional-require()"
       ),
       BailoutReason::NonStaticDestructuring => (
@@ -372,11 +418,18 @@ macro_rules! fold_member_expr_skip_prop {
     ) -> swc_ecmascript::ast::MemberExpr {
       node.obj = node.obj.fold_with(self);
 
-      if node.computed {
+      if let swc_ecmascript::ast::MemberProp::Computed(_) = node.prop {
         node.prop = node.prop.fold_with(self);
       }
 
       node
     }
+  };
+}
+
+#[macro_export]
+macro_rules! id {
+  ($ident: expr) => {
+    $ident.to_id()
   };
 }

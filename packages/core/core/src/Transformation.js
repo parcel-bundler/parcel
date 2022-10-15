@@ -26,9 +26,11 @@ import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {
+  anyToDiagnostic,
   errorToDiagnostic,
   escapeMarkdown,
   md,
+  type Diagnostic,
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
@@ -72,8 +74,13 @@ import {
   toProjectPath,
 } from './projectPath';
 import {invalidateOnFileCreateToInternal} from './utils';
+import invariant from 'assert';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
+
+type PostProcessFunc = (
+  Array<UncommittedAsset>,
+) => Promise<Array<UncommittedAsset> | null>;
 
 export type TransformationOpts = {|
   options: ParcelOptions,
@@ -83,7 +90,8 @@ export type TransformationOpts = {|
 |};
 
 export type TransformationResult = {|
-  assets: Array<AssetValue>,
+  assets?: Array<AssetValue>,
+  error?: Array<Diagnostic>,
   configRequests: Array<ConfigRequest>,
   invalidations: Array<RequestInvalidation>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
@@ -178,19 +186,26 @@ export default class Transformation {
       asset.value.isSource,
       asset.value.pipeline,
     );
-    let results = await this.runPipelines(pipeline, asset);
-    let assets = results.map(a => a.value);
+    let assets, error;
+    try {
+      let results = await this.runPipelines(pipeline, asset);
+      assets = results.map(a => a.value);
+    } catch (e) {
+      error = e;
+    }
 
     let configRequests = getConfigRequests([...this.configs.values()]);
     let devDepRequests = getWorkerDevDepRequests([
       ...this.devDepRequests.values(),
     ]);
 
-    // $FlowFixMe
+    // $FlowFixMe because of $$raw
     return {
       $$raw: true,
       assets,
       configRequests,
+      // When throwing an error, this (de)serialization is done automatically by the WorkerFarm
+      error: error ? anyToDiagnostic(error) : undefined,
       invalidateOnFileCreate: this.invalidateOnFileCreate,
       invalidations: [...this.invalidations.values()],
       devDepRequests,
@@ -283,15 +298,21 @@ export default class Transformation {
 
     if (!initialCacheEntry) {
       let pipelineHash = await this.getPipelineHash(pipeline);
+      let invalidationCacheKey = await getInvalidationHash(
+        assets.flatMap(asset => asset.getInvalidations()),
+        this.options,
+      );
       let resultCacheKey = this.getCacheKey(
         [initialAsset],
-        await getInvalidationHash(
-          assets.flatMap(asset => asset.getInvalidations()),
-          this.options,
-        ),
+        invalidationCacheKey,
         pipelineHash,
       );
-      await this.writeToCache(resultCacheKey, assets, pipelineHash);
+      await this.writeToCache(
+        resultCacheKey,
+        assets,
+        invalidationCacheKey,
+        pipelineHash,
+      );
     } else {
       // See above TODO, this should be per-pipeline
       for (let i of this.request.invalidations) {
@@ -320,7 +341,34 @@ export default class Transformation {
       }
     }
 
-    return finalAssets;
+    if (!pipeline.postProcess) {
+      return finalAssets;
+    }
+
+    let pipelineHash = await this.getPipelineHash(pipeline);
+    let invalidationHash = await getInvalidationHash(
+      finalAssets.flatMap(asset => asset.getInvalidations()),
+      this.options,
+    );
+    let processedCacheEntry = await this.readFromCache(
+      this.getCacheKey(finalAssets, invalidationHash, pipelineHash),
+    );
+
+    invariant(pipeline.postProcess != null);
+    let processedFinalAssets: Array<UncommittedAsset> =
+      processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
+
+    if (!processedCacheEntry) {
+      await this.writeToCache(
+        this.getCacheKey(processedFinalAssets, invalidationHash, pipelineHash),
+        processedFinalAssets,
+
+        invalidationHash,
+        pipelineHash,
+      );
+    }
+
+    return processedFinalAssets;
   }
 
   async getPipelineHash(pipeline: Pipeline): Promise<string> {
@@ -410,6 +458,8 @@ export default class Transformation {
             transformer.plugin,
             transformer.name,
             transformer.config,
+            transformer.configKeyPath,
+            this.parcelConfig,
           );
 
           for (let result of transformerResults) {
@@ -512,7 +562,9 @@ export default class Transformation {
       cachedAssets.map(async (value: AssetValue) => {
         let content =
           value.contentKey != null
-            ? this.options.cache.getStream(value.contentKey)
+            ? value.isLargeBlob
+              ? this.options.cache.getStream(value.contentKey)
+              : await this.options.cache.getBlob(value.contentKey)
             : null;
         let mapBuffer =
           value.astKey != null
@@ -539,9 +591,12 @@ export default class Transformation {
   async writeToCache(
     cacheKey: string,
     assets: Array<UncommittedAsset>,
+    invalidationHash: string,
     pipelineHash: string,
   ): Promise<void> {
-    await Promise.all(assets.map(asset => asset.commit(pipelineHash)));
+    await Promise.all(
+      assets.map(asset => asset.commit(invalidationHash + pipelineHash)),
+    );
 
     this.options.cache.set(cacheKey, {
       $$raw: true,
@@ -585,11 +640,7 @@ export default class Transformation {
     );
 
     for (let transformer of transformers) {
-      let config = await this.loadTransformerConfig(
-        filePath,
-        transformer,
-        isSource,
-      );
+      let config = await this.loadTransformerConfig(transformer, isSource);
       if (config) {
         this.configs.set(transformer.name, config);
       }
@@ -648,7 +699,6 @@ export default class Transformation {
   }
 
   async loadTransformerConfig(
-    filePath: ProjectPath,
     transformer: LoadedPlugin<Transformer<mixed>>,
     isSource: boolean,
   ): Promise<?Config> {
@@ -660,7 +710,7 @@ export default class Transformation {
     let config = createConfig({
       plugin: transformer.name,
       isSource,
-      searchPath: filePath,
+      searchPath: this.request.filePath,
       env: this.request.env,
     });
 
@@ -679,6 +729,8 @@ export default class Transformation {
     transformer: Transformer<mixed>,
     transformerName: string,
     preloadedConfig: ?Config,
+    configKeyPath?: string,
+    parcelConfig: ParcelConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
 
@@ -770,7 +822,7 @@ export default class Transformation {
       });
     let results = await normalizeAssets(this.options, transfomerResult);
 
-    // Create generate function that can be called later
+    // Create generate and postProcess function that can be called later
     asset.generate = (): Promise<GenerateOutput> => {
       let publicAsset = new Asset(asset);
       if (transformer.generate && asset.ast) {
@@ -789,6 +841,32 @@ export default class Transformation {
       );
     };
 
+    let postProcess = transformer.postProcess;
+    if (postProcess) {
+      pipeline.postProcess = async (
+        assets: Array<UncommittedAsset>,
+      ): Promise<Array<UncommittedAsset> | null> => {
+        let results = await postProcess.call(transformer, {
+          assets: assets.map(asset => new MutableAsset(asset)),
+          config,
+          options: pipeline.pluginOptions,
+          resolve,
+          logger,
+        });
+
+        return Promise.all(
+          results.map(result =>
+            asset.createChildAsset(
+              result,
+              transformerName,
+              parcelConfig.filePath,
+              // configKeyPath,
+            ),
+          ),
+        );
+      };
+    }
+
     return results;
   }
 }
@@ -800,6 +878,7 @@ type Pipeline = {|
   pluginOptions: PluginOptions,
   resolverRunner: ResolverRunner,
   workerApi: WorkerApi,
+  postProcess?: PostProcessFunc,
   generate?: GenerateFunc,
 |};
 

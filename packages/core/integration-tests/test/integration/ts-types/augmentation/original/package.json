@@ -1,0 +1,7 @@
+{
+	"name": "original",
+	"version": "1.0.0",
+	"source": "src/index.ts",
+	"main": "built-src/index.js",
+    "types": "built-src/index.d.ts"
+}

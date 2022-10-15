@@ -1,7 +1,8 @@
 // @flow
 
 import type {Root} from 'postcss';
-import type {Asset} from '@parcel/types';
+import type {Asset, Dependency} from '@parcel/types';
+import typeof PostCSS from 'postcss';
 
 import path from 'path';
 import SourceMap from '@parcel/source-map';
@@ -13,7 +14,6 @@ import {
   replaceURLReferences,
 } from '@parcel/utils';
 
-import postcss from 'postcss';
 import nullthrows from 'nullthrows';
 
 export default (new Packager({
@@ -57,8 +57,11 @@ export default (new Packager({
         }
 
         queue.add(() => {
-          // This condition needs to align with the one in Transformation#runPipeline !
-          if (!asset.symbols.isCleared && options.mode === 'production') {
+          if (
+            !asset.symbols.isCleared &&
+            options.mode === 'production' &&
+            asset.astGenerator?.type === 'postcss'
+          ) {
             // a CSS Modules asset
             return processCSSModule(
               options,
@@ -72,6 +75,35 @@ export default (new Packager({
             return Promise.all([
               asset,
               asset.getCode().then((css: string) => {
+                // Replace CSS variable references with resolved symbols.
+                if (asset.meta.hasReferences) {
+                  let replacements = new Map();
+                  for (let dep of asset.getDependencies()) {
+                    for (let [exported, {local}] of dep.symbols) {
+                      let resolved = bundleGraph.getResolvedAsset(dep, bundle);
+                      if (resolved) {
+                        let resolution = bundleGraph.getSymbolResolution(
+                          resolved,
+                          exported,
+                          bundle,
+                        );
+                        if (resolution.symbol) {
+                          replacements.set(local, resolution.symbol);
+                        }
+                      }
+                    }
+                  }
+                  if (replacements.size > 0) {
+                    let regex = new RegExp(
+                      [...replacements.keys()].join('|'),
+                      'g',
+                    );
+                    css = css.replace(regex, m =>
+                      escapeDashedIdent(replacements.get(m) || m),
+                    );
+                  }
+                }
+
                 if (media.length) {
                   return `@media ${media.join(', ')} {\n${css}\n}\n`;
                 }
@@ -126,6 +158,7 @@ export default (new Packager({
       bundleGraph,
       contents,
       map,
+      getReplacement: escapeString,
     }));
 
     return replaceInlineReferences({
@@ -134,13 +167,25 @@ export default (new Packager({
       contents,
       getInlineBundleContents,
       getInlineReplacement: (dep, inlineType, contents) => ({
-        from: dep.id,
-        to: contents,
+        from: getSpecifier(dep),
+        to: escapeString(contents),
       }),
       map,
     });
   },
 }): Packager);
+
+export function getSpecifier(dep: Dependency): string {
+  if (typeof dep.meta.placeholder === 'string') {
+    return dep.meta.placeholder;
+  }
+
+  return dep.id;
+}
+
+function escapeString(contents: string): string {
+  return contents.replace(/(["\\])/g, '\\$1');
+}
 
 async function processCSSModule(
   options,
@@ -150,6 +195,16 @@ async function processCSSModule(
   asset,
   media,
 ): Promise<[Asset, string, ?Buffer]> {
+  let postcss: PostCSS = await options.packageManager.require(
+    'postcss',
+    options.projectRoot + '/index',
+    {
+      range: '^8.4.5',
+      saveDev: true,
+      shouldAutoInstall: options.shouldAutoInstall,
+    },
+  );
+
   let ast: Root = postcss.fromJSON(nullthrows((await asset.getAST())?.program));
 
   let usedSymbols = bundleGraph.getUsedSymbols(asset);
@@ -224,4 +279,30 @@ async function processCSSModule(
   }
 
   return [asset, content, sourceMap?.toBuffer()];
+}
+
+function escapeDashedIdent(name) {
+  // https://drafts.csswg.org/cssom/#serialize-an-identifier
+  let res = '';
+  for (let c of name) {
+    let code = c.codePointAt(0);
+    if (code === 0) {
+      res += '\ufffd';
+    } else if ((code >= 0x1 && code <= 0x1f) || code === 0x7f) {
+      res += '\\' + code.toString(16) + ' ';
+    } else if (
+      (code >= 48 /* '0' */ && code <= 57) /* '9' */ ||
+      (code >= 65 /* 'A' */ && code <= 90) /* 'Z' */ ||
+      (code >= 97 /* 'a' */ && code <= 122) /* 'z' */ ||
+      code === 95 /* '_' */ ||
+      code === 45 /* '-' */ ||
+      code & 128 // non-ascii
+    ) {
+      res += c;
+    } else {
+      res += '\\' + c;
+    }
+  }
+
+  return res;
 }

@@ -1,7 +1,12 @@
 // @flow strict-local
 import type {BundleGraph, PluginOptions, NamedBundle} from '@parcel/types';
 
-import {PromiseQueue, relativeBundlePath, countLines} from '@parcel/utils';
+import {
+  PromiseQueue,
+  relativeBundlePath,
+  countLines,
+  normalizeSeparators,
+} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import invariant from 'assert';
 import path from 'path';
@@ -98,7 +103,9 @@ export class DevPackager {
         let dependencies = this.bundleGraph.getDependencies(asset);
         for (let dep of dependencies) {
           let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
-          if (resolved) {
+          if (this.bundleGraph.isDependencySkipped(dep)) {
+            deps[getSpecifier(dep)] = false;
+          } else if (resolved) {
             deps[getSpecifier(dep)] =
               this.bundleGraph.getAssetPublicId(resolved);
           }
@@ -113,6 +120,20 @@ export class DevPackager {
           '\n},';
         wrapped += JSON.stringify(deps);
         wrapped += ']';
+
+        if (
+          this.bundle.env.isNode() &&
+          asset.meta.has_node_replacements === true
+        ) {
+          const relPath = normalizeSeparators(
+            path.relative(
+              this.bundle.target.distDir,
+              path.dirname(asset.filePath),
+            ),
+          );
+          wrapped = wrapped.replace('$parcel$dirnameReplace', relPath);
+          wrapped = wrapped.replace('$parcel$filenameReplace', relPath);
+        }
 
         if (this.bundle.env.sourceMap) {
           if (mapBuffer) {

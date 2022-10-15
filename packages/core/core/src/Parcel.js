@@ -164,7 +164,6 @@ export default class Parcel {
       this.#disposable.dispose(),
       await this.#requestTracker.writeToCache(),
     ]);
-    await this.#farm.callAllWorkers('clearConfigCache', []);
   }
 
   async _startNextBuild(): Promise<?BuildEvent> {
@@ -249,7 +248,9 @@ export default class Parcel {
   }: {|
     signal?: AbortSignal,
     startTime?: number,
-  |} = {}): Promise<BuildEvent> {
+  |} = {
+    /*::...null*/
+  }): Promise<BuildEvent> {
     this.#requestTracker.setSignal(signal);
     let options = nullthrows(this.#resolvedOptions);
     try {
@@ -259,6 +260,8 @@ export default class Parcel {
       this.#reporterRunner.report({
         type: 'buildStart',
       });
+
+      this.#requestTracker.graph.invalidateOnBuildNodes();
 
       let request = createParcelBuildRequest({
         optionsRef: this.#optionsRef,
@@ -359,6 +362,8 @@ export default class Parcel {
       if (this.isProfiling) {
         await this.stopProfiling();
       }
+
+      await this.#farm.callAllWorkers('clearConfigCache', []);
     }
   }
 
@@ -399,7 +404,7 @@ export default class Parcel {
   _getResolvedParcelOptions(): ParcelOptions {
     return nullthrows(
       this.#resolvedOptions,
-      'Resolved options is null, please let parcel initialise before accessing this.',
+      'Resolved options is null, please let parcel initialize before accessing this.',
     );
   }
 

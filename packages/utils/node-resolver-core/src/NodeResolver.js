@@ -6,8 +6,12 @@ import type {
   ResolveResult,
   Environment,
   SpecifierType,
+  PluginLogger,
+  SourceLocation,
+  SemverRange,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import type {PackageManager} from '@parcel/package-manager';
 
 import invariant from 'assert';
 import path from 'path';
@@ -18,16 +22,20 @@ import {
   findAlternativeNodeModules,
   findAlternativeFiles,
   loadConfig,
+  getModuleParts,
+  globToRegex,
+  isGlobMatch,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   md,
+  encodeJSONKeyComponent,
 } from '@parcel/diagnostic';
-import micromatch from 'micromatch';
 import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
 import _Module from 'module';
 import {fileURLToPath} from 'url';
+import semver from 'semver';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -37,16 +45,16 @@ type Options = {|
   projectRoot: FilePath,
   extensions: Array<string>,
   mainFields: Array<string>,
+  packageManager?: PackageManager,
+  logger?: PluginLogger,
+  shouldAutoInstall?: boolean,
 |};
 type ResolvedFile = {|
   path: string,
   pkg: InternalPackageJSON | null,
 |};
 
-type Aliases =
-  | string
-  | {[string]: string, ...}
-  | {[string]: string | boolean, ...};
+type Aliases = string | {+[string]: string | boolean | {|global: string|}, ...};
 type ResolvedAlias = {|
   type: 'file' | 'global',
   sourcePath: FilePath,
@@ -65,6 +73,8 @@ type ResolverContext = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
   specifierType: SpecifierType,
+  range: ?SemverRange,
+  loc: ?SourceLocation,
 |};
 
 /**
@@ -87,6 +97,9 @@ export default class NodeResolver {
   mainFields: Array<string>;
   packageCache: Map<string, InternalPackageJSON>;
   rootPackage: InternalPackageJSON | null;
+  packageManager: ?PackageManager;
+  shouldAutoInstall: boolean;
+  logger: ?PluginLogger;
 
   constructor(opts: Options) {
     this.extensions = opts.extensions.map(ext =>
@@ -97,25 +110,34 @@ export default class NodeResolver {
     this.projectRoot = opts.projectRoot;
     this.packageCache = new Map();
     this.rootPackage = null;
+    this.packageManager = opts.packageManager;
+    this.shouldAutoInstall = opts.shouldAutoInstall ?? false;
+    this.logger = opts.logger;
   }
 
   async resolve({
     filename,
     parent,
     specifierType,
+    range,
     env,
     sourcePath,
+    loc,
   }: {|
     filename: FilePath,
     parent: ?FilePath,
     specifierType: SpecifierType,
+    range?: ?SemverRange,
     env: Environment,
     sourcePath?: ?FilePath,
+    loc?: ?SourceLocation,
   |}): Promise<?ResolveResult> {
     let ctx = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
       specifierType,
+      range,
+      loc,
     };
 
     // Get file extensions to search
@@ -209,6 +231,7 @@ export default class NodeResolver {
     ctx: ResolverContext,
     sourcePath: ?FilePath,
   |}): Promise<?Module> {
+    let specifier = filename;
     let sourceFile = parent || path.join(this.projectRoot, 'index');
     let query;
 
@@ -252,30 +275,126 @@ export default class NodeResolver {
     let builtin = this.findBuiltin(filename, env);
     if (builtin === null) {
       return null;
+    } else if (builtin && builtin.name === empty) {
+      return {filePath: empty};
+    } else if (builtin !== undefined) {
+      filename = builtin.name;
     }
 
-    if (!this.shouldIncludeNodeModule(env, filename)) {
-      if (sourcePath && env.isLibrary) {
+    if (this.shouldIncludeNodeModule(env, filename) === false) {
+      if (sourcePath && env.isLibrary && !builtin) {
         await this.checkExcludedDependency(sourcePath, filename, ctx);
       }
       return null;
     }
 
-    if (builtin) {
-      return builtin;
-    }
-
     // Resolve the module in node_modules
     let resolved: ?Module;
     try {
-      resolved = this.findNodeModulePath(filename, sourceFile, ctx);
+      resolved = this.findNodeModulePath(
+        filename,
+        !builtin ? sourceFile : path.join(this.projectRoot, 'index'),
+        ctx,
+      );
     } catch (err) {
       // ignore
     }
 
+    // Autoinstall/verify version of builtin polyfills
+    if (builtin?.range != null) {
+      // This assumes that there are no polyfill packages that are scoped
+      // Append '/' to force this.packageManager to look up the package in node_modules
+      let packageName = builtin.name.split('/')[0] + '/';
+      let packageManager = this.packageManager;
+      if (resolved == null) {
+        // Auto install the Node builtin polyfills
+        if (this.shouldAutoInstall && packageManager) {
+          this.logger?.warn({
+            message: md`Auto installing polyfill for Node builtin module "${specifier}"...`,
+            codeFrames: [
+              {
+                filePath: ctx.loc?.filePath ?? sourceFile,
+                codeHighlights: ctx.loc
+                  ? [
+                      {
+                        message: 'used here',
+                        start: ctx.loc.start,
+                        end: ctx.loc.end,
+                      },
+                    ]
+                  : [],
+              },
+            ],
+            documentationURL:
+              'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
+          });
+
+          await packageManager.resolve(
+            packageName,
+            this.projectRoot + '/index',
+            {
+              saveDev: true,
+              shouldAutoInstall: true,
+              range: builtin.range,
+            },
+          );
+
+          // Re-resolve
+          try {
+            resolved = this.findNodeModulePath(
+              filename,
+              this.projectRoot + '/index',
+              ctx,
+            );
+          } catch (err) {
+            // ignore
+          }
+        } else {
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: md`Node builtin polyfill "${packageName}" is not installed, but auto install is disabled.`,
+              codeFrames: [
+                {
+                  filePath: ctx.loc?.filePath ?? sourceFile,
+                  codeHighlights: ctx.loc
+                    ? [
+                        {
+                          message: 'used here',
+                          start: ctx.loc.start,
+                          end: ctx.loc.end,
+                        },
+                      ]
+                    : [],
+                },
+              ],
+              documentationURL:
+                'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
+              hints: [
+                md`Install the "${packageName}" package with your package manager, and run Parcel again.`,
+              ],
+            },
+          });
+        }
+      } else if (builtin.range != null) {
+        // Assert correct version
+
+        // TODO packageManager can be null for backwards compatibility, but that could cause invalid
+        // resolutions in monorepos
+        await packageManager?.resolve(
+          packageName,
+          this.projectRoot + '/index',
+          {
+            saveDev: true,
+            shouldAutoInstall: this.shouldAutoInstall,
+            range: builtin.range,
+          },
+        );
+      }
+    }
+
     if (resolved === undefined && process.versions.pnp != null && parent) {
       try {
-        let [moduleName, subPath] = this.getModuleParts(filename);
+        let [moduleName, subPath] = getModuleParts(filename);
         // $FlowFixMe[prop-missing]
         let pnp = _Module.findPnpApi(path.dirname(parent));
 
@@ -306,11 +425,11 @@ export default class NodeResolver {
 
     // If we couldn't resolve the node_modules path, just return the module name info
     if (resolved === undefined) {
-      let [moduleName, subPath] = this.getModuleParts(filename);
-      resolved = {
+      let [moduleName, subPath] = getModuleParts(filename);
+      resolved = ({
         moduleName,
         subPath,
-      };
+      }: Module);
 
       let alternativeModules = await findAlternativeNodeModules(
         this.fs,
@@ -340,25 +459,23 @@ export default class NodeResolver {
   shouldIncludeNodeModule(
     {includeNodeModules}: Environment,
     name: string,
-  ): boolean {
+  ): ?boolean {
     if (includeNodeModules === false) {
       return false;
     }
 
     if (Array.isArray(includeNodeModules)) {
-      let [moduleName] = this.getModuleParts(name);
+      let [moduleName] = getModuleParts(name);
       return includeNodeModules.includes(moduleName);
     }
 
     if (includeNodeModules && typeof includeNodeModules === 'object') {
-      let [moduleName] = this.getModuleParts(name);
+      let [moduleName] = getModuleParts(name);
       let include = includeNodeModules[moduleName];
       if (include != null) {
         return !!include;
       }
     }
-
-    return true;
   }
 
   async checkExcludedDependency(
@@ -366,7 +483,7 @@ export default class NodeResolver {
     name: string,
     ctx: ResolverContext,
   ) {
-    let [moduleName] = this.getModuleParts(name);
+    let [moduleName] = getModuleParts(name);
     let pkg = await this.findPackage(sourceFile, ctx);
     if (!pkg) {
       return;
@@ -410,6 +527,40 @@ export default class NodeResolver {
           hints: [`Add "${moduleName}" as a dependency.`],
         },
       });
+    }
+
+    if (ctx.range) {
+      let range = ctx.range;
+      let depRange =
+        pkg.dependencies?.[moduleName] || pkg.peerDependencies?.[moduleName];
+      if (depRange && !semver.intersects(depRange, range)) {
+        let pkgContent = await this.fs.readFile(pkg.pkgfile, 'utf8');
+        let field = pkg.dependencies?.[moduleName]
+          ? 'dependencies'
+          : 'peerDependencies';
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: md`External dependency "${moduleName}" does not satisfy required semver range "${range}".`,
+            codeFrames: [
+              {
+                filePath: pkg.pkgfile,
+                language: 'json',
+                code: pkgContent,
+                codeHighlights: generateJSONCodeHighlights(pkgContent, [
+                  {
+                    key: `/${field}/${encodeJSONKeyComponent(moduleName)}`,
+                    type: 'value',
+                    message: 'Found this conflicting requirement.',
+                  },
+                ]),
+              },
+            ],
+            hints: [
+              `Update the dependency on "${moduleName}" to satisfy "${range}".`,
+            ],
+          },
+        });
+      }
     }
   }
 
@@ -592,7 +743,10 @@ export default class NodeResolver {
     return resolvedFile;
   }
 
-  findBuiltin(filename: string, env: Environment): ?Module {
+  findBuiltin(
+    filename: string,
+    env: Environment,
+  ): ?{|name: string, range: ?string|} {
     const isExplicitNode = filename.startsWith('node:');
     if (isExplicitNode || builtins[filename]) {
       if (env.isNode()) {
@@ -602,7 +756,16 @@ export default class NodeResolver {
       if (isExplicitNode) {
         filename = filename.substr(5);
       }
-      return {filePath: builtins[filename] || empty};
+
+      // By default, exclude node builtins from libraries unless explicitly opted in.
+      if (
+        env.isLibrary &&
+        this.shouldIncludeNodeModule(env, filename) !== true
+      ) {
+        return null;
+      }
+
+      return builtins[filename] || empty;
     }
 
     if (env.isElectron() && filename === 'electron') {
@@ -615,7 +778,7 @@ export default class NodeResolver {
     sourceFile: FilePath,
     ctx: ResolverContext,
   ): ?Module {
-    let [moduleName, subPath] = this.getModuleParts(filename);
+    let [moduleName, subPath] = getModuleParts(filename);
 
     ctx.invalidateOnFileCreate.push({
       fileName: `node_modules/${moduleName}`,
@@ -820,11 +983,17 @@ export default class NodeResolver {
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
 
-    // If the package has a `source` field, check if it is behind a symlink.
-    // If so, we treat the module as source code rather than a pre-compiled module.
+    // If the package has a `source` field, make sure
+    // - the package is behind symlinks
+    // - and the realpath to the packages does not includes `node_modules`.
+    // Since such package is likely a pre-compiled module
+    // installed with package managers, rather than including a source code.
     if (pkg.source) {
       let realpath = await this.fs.realpath(file);
-      if (realpath === file) {
+      if (
+        realpath === file ||
+        realpath.includes(`${path.sep}node_modules${path.sep}`)
+      ) {
         delete pkg.source;
       }
     }
@@ -905,7 +1074,15 @@ export default class NodeResolver {
     }
 
     if (found) {
-      return {path: found, pkg};
+      return {
+        path: found,
+        // If this package.json isn't a sibling of found, it's possible pkg is not the
+        // closest package.json to the resolved file. Reload it instead.
+        pkg:
+          pkg == null || pkg?.pkgdir !== path.dirname(found)
+            ? await this.findPackage(found, ctx)
+            : pkg,
+      };
     }
 
     return null;
@@ -1012,12 +1189,12 @@ export default class NodeResolver {
       alias = this.lookupAlias(aliases, normalizeSeparators(filename));
       if (alias == null) {
         // If it didn't match, try only the module name.
-        let [moduleName, subPath] = this.getModuleParts(filename);
+        let [moduleName, subPath] = getModuleParts(filename);
         alias = this.lookupAlias(aliases, moduleName);
         if (typeof alias === 'string' && subPath) {
           let isRelative = alias.startsWith('./');
           // Append the filename back onto the aliased module.
-          alias = path.posix.join(alias, subPath);
+          alias = (path.posix.join(alias, subPath): string);
           // because of path.join('./nested', 'sub') === 'nested/sub'
           if (isRelative) alias = './' + alias;
         }
@@ -1033,7 +1210,7 @@ export default class NodeResolver {
       };
     }
 
-    if (alias instanceof Object) {
+    if (alias && typeof alias === 'object') {
       if (alias.global) {
         if (typeof alias.global !== 'string' || alias.global.length === 0) {
           throw new ThrowableDiagnostic({
@@ -1049,8 +1226,6 @@ export default class NodeResolver {
           sourcePath: pkg.pkgfile,
           resolved: alias.global,
         };
-      } else if (alias.fileName) {
-        alias = alias.fileName;
       }
     }
 
@@ -1071,7 +1246,10 @@ export default class NodeResolver {
     return null;
   }
 
-  lookupAlias(aliases: Aliases, filename: FilePath): null | boolean | string {
+  lookupAlias(
+    aliases: Aliases,
+    filename: FilePath,
+  ): null | boolean | string | {|global: string|} {
     if (typeof aliases !== 'object') {
       return null;
     }
@@ -1087,7 +1265,7 @@ export default class NodeResolver {
           if (filename.startsWith('./')) {
             filename = filename.slice(2);
           }
-          let re = micromatch.makeRe(key, {capture: true});
+          let re = globToRegex(key, {capture: true});
           if (re.test(filename)) {
             alias = filename.replace(re, val);
             break;
@@ -1149,34 +1327,26 @@ export default class NodeResolver {
     return this.resolveAliases(filename, env, pkg);
   }
 
-  getModuleParts(name: string): [FilePath, ?string] {
-    name = path.normalize(name);
-    let splitOn = name.indexOf(path.sep);
-    if (name.charAt(0) === '@') {
-      splitOn = name.indexOf(path.sep, splitOn + 1);
-    }
-    if (splitOn < 0) {
-      return [normalizeSeparators(name), undefined];
-    } else {
-      return [
-        normalizeSeparators(name.substring(0, splitOn)),
-        name.substring(splitOn + 1) || undefined,
-      ];
-    }
-  }
-
   hasSideEffects(filePath: FilePath, pkg: InternalPackageJSON): boolean {
     switch (typeof pkg.sideEffects) {
       case 'boolean':
         return pkg.sideEffects;
       case 'string': {
-        let sideEffects = pkg.sideEffects;
-        invariant(typeof sideEffects === 'string');
-        return micromatch.isMatch(
-          path.relative(pkg.pkgdir, filePath),
-          sideEffects,
-          {matchBase: true},
-        );
+        let glob = pkg.sideEffects;
+        invariant(typeof glob === 'string');
+
+        let relative = path.relative(pkg.pkgdir, filePath);
+        if (!glob.includes('/')) {
+          glob = `**/${glob}`;
+        }
+
+        // Trim off "./" to make micromatch behave correctly,
+        // `path.relative` never returns a leading "./"
+        if (glob.startsWith('./')) {
+          glob = glob.substr(2);
+        }
+
+        return isGlobMatch(relative, glob, {dot: true});
       }
       case 'object':
         return pkg.sideEffects.some(sideEffects =>

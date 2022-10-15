@@ -13,15 +13,23 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
       return;
     }
 
+    var preloadLink = document.createElement('link');
+    preloadLink.href = bundle;
+    preloadLink.rel = 'preload';
+    preloadLink.as = 'script';
+    document.head.appendChild(preloadLink);
+
     var script = document.createElement('script');
     script.async = true;
     script.type = 'text/javascript';
-    script.charset = 'utf-8';
     script.src = bundle;
     script.onerror = function (e) {
+      var error = new TypeError(
+        `Failed to fetch dynamically imported module: ${bundle}. Error: ${e.message}`,
+      );
       script.onerror = script.onload = null;
       script.remove();
-      reject(e);
+      reject(error);
     };
 
     script.onload = function () {
