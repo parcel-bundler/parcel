@@ -227,7 +227,6 @@ function decorateLegacyGraph(
 
     for (let asset of idealBundle.assets) {
       let isEntry =
-        true ||
         (allEntryAssets != null && allEntryAssets.indexOf(asset) > 0) ||
         allEntryAssets == null;
       bundleGraph.addAssetToBundle(asset, bundle, isEntry);
