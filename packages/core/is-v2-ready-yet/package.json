@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@parcel/integration-tests": "^2.0.1",
-    "react": "^17.0.0",
-    "react-dom": "^17.0.0",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3",
     "victory": "^31.0.1"
   },
   "devDependencies": {
