@@ -41,10 +41,11 @@ export default class MutableBundleGraph
     this.#options = options;
   }
 
-  addAssetToBundle(asset: IAsset, bundle: IBundle) {
+  addAssetToBundle(asset: IAsset, bundle: IBundle, isEntry: boolean) {
     this.#graph.addAssetToBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
+      isEntry,
     );
   }
 

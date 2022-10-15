@@ -66,7 +66,7 @@ export type Bundle = {|
   internalizedAssetIds: Array<AssetId>,
   bundleBehavior?: ?BundleBehavior,
   needsStableName: boolean,
-  mainEntryAsset: ?Asset,
+  mainEntryAsset: ?Array<Asset>,
   size: number,
   sourceBundles: Set<NodeId>,
   target: Target,
@@ -150,7 +150,10 @@ function decorateLegacyGraph(
   // Step Create Bundles: Create bundle groups, bundles, and shared bundles and add assets to them
   for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes) {
     if (idealBundle === 'root') continue;
-    let entryAsset = idealBundle.mainEntryAsset;
+    let entryAsset = idealBundle.mainEntryAsset
+      ? idealBundle.mainEntryAsset[0]
+      : null;
+    let allEntryAssets = idealBundle.mainEntryAsset;
     let bundleGroup;
     let bundle;
 
@@ -223,7 +226,11 @@ function decorateLegacyGraph(
     idealBundleToLegacyBundle.set(idealBundle, bundle);
 
     for (let asset of idealBundle.assets) {
-      bundleGraph.addAssetToBundle(asset, bundle);
+      let isEntry =
+        true ||
+        (allEntryAssets != null && allEntryAssets.indexOf(asset) > 0) ||
+        allEntryAssets == null;
+      bundleGraph.addAssetToBundle(asset, bundle, isEntry);
     }
   }
   // Step Internalization: Internalize dependencies for bundles
@@ -508,11 +515,14 @@ function createIdealGraph(
              * This asset will be created by other dependency if it's in another bundlegroup
              * and bundles of other types should be merged in the next step
              */
-            let bundleGroupRootAsset = nullthrows(bundleGroup.mainEntryAsset);
+            let bundleGroupRootAsset = nullthrows(
+              bundleGroup.mainEntryAsset,
+            )[0];
             if (
               entries.has(bundleGroupRootAsset) &&
               bundleGroupRootAsset.type === childAsset.type &&
-              childAsset.bundleBehavior !== 'inline'
+              childAsset.bundleBehavior !== 'inline' &&
+              dependency.bundleBehavior !== 'isolated'
             ) {
               bundleId = bundleGroupNodeId;
             }
@@ -1144,16 +1154,17 @@ function createIdealGraph(
   }
 
   function mergeBundle(mainNodeId: NodeId, otherNodeId: NodeId) {
-    //merges assets of "otherRoot" into "mainBundleRoot"
+    //merges assets of "otherRoot" into "mainBundleRoot", "otherRoot" is then delete
     let a = nullthrows(bundleGraph.getNode(mainNodeId));
     let b = nullthrows(bundleGraph.getNode(otherNodeId));
     invariant(a !== 'root' && b !== 'root');
-    let bundleRootB = nullthrows(b.mainEntryAsset);
-    let mainBundleRoot = nullthrows(a.mainEntryAsset);
+    let bundleRootB = nullthrows(b.mainEntryAsset)[0];
+    let mainBundleRoot = nullthrows(a.mainEntryAsset)[0];
     for (let asset of a.assets) {
       b.assets.add(asset);
     }
     a.assets = b.assets;
+    a.mainEntryAsset.push(b.mainEntryAsset[0]);
     for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
       dependencyBundleGraph.getNodeIdByContentKey(String(otherNodeId)),
       ALL_EDGE_TYPES,
@@ -1242,7 +1253,7 @@ function createBundle(opts: {|
     uniqueKey: opts.uniqueKey,
     assets: new Set([asset]),
     internalizedAssetIds: [],
-    mainEntryAsset: asset,
+    mainEntryAsset: [asset],
     size: asset.stats.size,
     sourceBundles: new Set(),
     target: opts.target,

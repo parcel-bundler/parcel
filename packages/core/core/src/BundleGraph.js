@@ -372,17 +372,19 @@ export default class BundleGraph {
     });
   }
 
-  addAssetToBundle(asset: Asset, bundle: Bundle) {
+  addAssetToBundle(asset: Asset, bundle: Bundle, isEntry: boolean) {
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
     this._graph.addEdge(
       bundleNodeId,
       this._graph.getNodeIdByContentKey(asset.id),
       bundleGraphEdgeTypes.contains,
     );
-    this._graph.addEdge(
-      bundleNodeId,
-      this._graph.getNodeIdByContentKey(asset.id),
-    );
+    if (isEntry) {
+      this._graph.addEdge(
+        bundleNodeId,
+        this._graph.getNodeIdByContentKey(asset.id),
+      );
+    }
 
     let dependencies = this.getDependencies(asset);
     for (let dependency of dependencies) {
