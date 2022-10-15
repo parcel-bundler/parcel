@@ -125,6 +125,10 @@ export default (new Reporter({
                   // $FlowFixMe
                   req.originalUrl = req.url;
                 }
+                if (req.url.startsWith('//')) {
+                  req.url = req.url.slice(1);
+                  req.originalUrl = req.url;
+                }
                 devServerProxyMiddleware(req, res);
               });
             }

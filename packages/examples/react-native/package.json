@@ -2,8 +2,10 @@
   "name": "@parcel/example-react-native",
   "version": "0.0.0",
   "scripts": {
+    "start": "parcel serve --config .parcelrc app.json --target default --lazy --host 10.6.10.149 --hmr-port 4444",
     "start:android": "parcel serve --config .parcelrc index.js --target android --host 10.6.10.149 --hmr-port 4444",
     "start:ios": "parcel serve --config .parcelrc index.js --target ios --host 10.6.10.149 --hmr-port 4444",
+    "build": "parcel build --config .parcelrc app.json --target default",
     "build:android": "parcel build --config .parcelrc index.js --target ios",
     "build:ios": "parcel build --config .parcelrc index.js --target android",
     "android": "react-native run-android",

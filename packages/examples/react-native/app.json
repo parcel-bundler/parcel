@@ -1,5 +1,5 @@
 {
-  "name": "test",
-  "displayName": "test",
+  "name": "AwesomeProject",
+  "displayName": "AwesomeProject",
   "entryPoint": "index.js"
 }

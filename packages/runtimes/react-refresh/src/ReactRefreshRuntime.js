@@ -3,9 +3,9 @@
 import {Runtime} from '@parcel/plugin';
 import {loadConfig} from '@parcel/utils';
 
-const CODE = `
+const CODE = includeOverlay => `
 var Refresh = require('react-refresh/runtime');
-var ErrorOverlay = require('react-error-overlay');
+${includeOverlay ? `var ErrorOverlay = require('react-error-overlay');` : ''}
 
 Refresh.injectIntoGlobalHook(globalThis);
 globalThis.$RefreshReg$ = function() {};
@@ -15,6 +15,9 @@ globalThis.$RefreshSig$ = function() {
   };
 };
 
+${
+  includeOverlay
+    ? `
 ErrorOverlay.setEditorHandler(function editorHandler(errorLocation) {
   let file = \`\${errorLocation.fileName}:\${errorLocation.lineNumber || 1}:\${errorLocation.colNumber || 1}\`;
   fetch(\`/__parcel_launch_editor?file=\${encodeURIComponent(file)}\`);
@@ -27,6 +30,9 @@ ErrorOverlay.startReportingRuntimeErrors({
 window.addEventListener('parcelhmraccept', () => {
   ErrorOverlay.dismissRuntimeErrors();
 });
+`
+    : ''
+}
 `;
 
 export default (new Runtime({
@@ -60,7 +66,7 @@ export default (new Runtime({
       ) {
         return {
           filePath: __filename,
-          code: CODE,
+          code: CODE(!bundle.env.isReactNative()),
           isEntry: true,
         };
       }
