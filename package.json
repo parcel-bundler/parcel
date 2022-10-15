@@ -33,7 +33,8 @@
     "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines.js",
     "release": "lerna publish -y from-package --pre-dist-tag=next --no-git-tag-version --no-push",
     "prepare": "husky install",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package && yarn link-rn",
+    "link-rn": "cd packages/examples/react-native && ln -sf ../../../../node_modules/react-native node_modules/react-native && ln -sf ../../../../node_modules/react-native-codegen node_modules/react-native-codegen"
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",
@@ -71,6 +72,7 @@
   },
   "dependencies": {},
   "resolutions": {
+    "react": "18.1.0",
     "react-refresh": "^0.9.0"
   }
 }

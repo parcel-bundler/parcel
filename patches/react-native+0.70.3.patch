@@ -1,20 +1,12 @@
-diff --git a/node_modules/react-native/Libraries/Blob/URL.js b/node_modules/react-native/Libraries/Blob/URL.js
-index 3e63ff7..7bf2d86 100644
---- a/node_modules/react-native/Libraries/Blob/URL.js
-+++ b/node_modules/react-native/Libraries/Blob/URL.js
-@@ -5,6 +5,7 @@
-  * LICENSE file in the root directory of this source tree.
-  *
-  * @format
-+ * @flow
-  */
- 
- const Blob = require('./Blob');
+diff --git a/node_modules/react-native/.DS_Store b/node_modules/react-native/.DS_Store
+new file mode 100644
+index 0000000..852087d
+Binary files /dev/null and b/node_modules/react-native/.DS_Store differ
 diff --git a/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorHeader.js b/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorHeader.js
-index 8ad4aa2..e211182 100644
+index 2987298..9dea7ea 100644
 --- a/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorHeader.js
 +++ b/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorHeader.js
-@@ -51,7 +51,7 @@ function LogBoxInspectorHeader(props: Props): React.Node {
+@@ -52,7 +52,7 @@ function LogBoxInspectorHeader(props: Props): React.Node {
          <LogBoxInspectorHeaderButton
            disabled={props.total <= 1}
            level={props.level}
@@ -23,7 +15,7 @@ index 8ad4aa2..e211182 100644
            onPress={() => props.onSelectIndex(prevIndex)}
          />
          <View style={styles.title}>
-@@ -60,7 +60,7 @@ function LogBoxInspectorHeader(props: Props): React.Node {
+@@ -61,7 +61,7 @@ function LogBoxInspectorHeader(props: Props): React.Node {
          <LogBoxInspectorHeaderButton
            disabled={props.total <= 1}
            level={props.level}
@@ -33,10 +25,10 @@ index 8ad4aa2..e211182 100644
          />
        </View>
 diff --git a/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorSourceMapStatus.js b/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorSourceMapStatus.js
-index fd9ec23..5281b42 100644
+index 4036783..82f70a9 100644
 --- a/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorSourceMapStatus.js
 +++ b/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorSourceMapStatus.js
-@@ -75,11 +75,11 @@ function LogBoxInspectorSourceMapStatus(props: Props): React.Node {
+@@ -71,11 +71,11 @@ function LogBoxInspectorSourceMapStatus(props: Props): React.Node {
    let color;
    switch (props.status) {
      case 'FAILED':
@@ -51,10 +43,10 @@ index fd9ec23..5281b42 100644
        break;
    }
 diff --git a/node_modules/react-native/Libraries/LogBox/UI/LogBoxNotification.js b/node_modules/react-native/Libraries/LogBox/UI/LogBoxNotification.js
-index 81a0e2e..5a8b3ac 100644
+index 9137616..e4125f5 100644
 --- a/node_modules/react-native/Libraries/LogBox/UI/LogBoxNotification.js
 +++ b/node_modules/react-native/Libraries/LogBox/UI/LogBoxNotification.js
-@@ -102,7 +102,7 @@ function DismissButton(props) {
+@@ -105,7 +105,7 @@ function DismissButton(props: $TEMPORARY$object<{onPress: () => void}>) {
          onPress={props.onPress}
          style={dismissStyles.press}>
          <Image
@@ -63,18 +55,16 @@ index 81a0e2e..5a8b3ac 100644
            style={dismissStyles.image}
          />
        </LogBoxButton>
-diff --git a/node_modules/react-native/Libraries/WebSocket/WebSocketInterceptor.js b/node_modules/react-native/Libraries/WebSocket/WebSocketInterceptor.js
-index db8c7d2..f1d12b3 100644
---- a/node_modules/react-native/Libraries/WebSocket/WebSocketInterceptor.js
-+++ b/node_modules/react-native/Libraries/WebSocket/WebSocketInterceptor.js
-@@ -17,8 +17,8 @@ const originalRCTWebSocketSend = NativeWebSocketModule.send;
- const originalRCTWebSocketSendBinary = NativeWebSocketModule.sendBinary;
- const originalRCTWebSocketClose = NativeWebSocketModule.close;
+diff --git a/node_modules/react-native/Libraries/NativeComponent/NativeComponentRegistryUnstable.js b/node_modules/react-native/Libraries/NativeComponent/NativeComponentRegistryUnstable.js
+index cebacfc..ded6775 100644
+--- a/node_modules/react-native/Libraries/NativeComponent/NativeComponentRegistryUnstable.js
++++ b/node_modules/react-native/Libraries/NativeComponent/NativeComponentRegistryUnstable.js
+@@ -3,6 +3,8 @@
+  *
+  * This source code is licensed under the MIT license found in the
+  * LICENSE file in the root directory of this source tree.
++ *
++ * @flow
+  */
  
--let eventEmitter: NativeEventEmitter;
--let subscriptions: Array<EventSubscription>;
-+let eventEmitter;
-+let subscriptions;
- 
- let closeCallback;
- let sendCallback;
+ let componentNameToExists: Map<string, boolean> = new Map();

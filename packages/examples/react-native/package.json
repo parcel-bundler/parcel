@@ -5,14 +5,17 @@
     "start:android": "parcel serve --config .parcelrc index.js --target android --host 10.6.10.149 --hmr-port 4444",
     "start:ios": "parcel serve --config .parcelrc index.js --target ios --host 10.6.10.149 --hmr-port 4444",
     "build:android": "parcel build --config .parcelrc index.js --target ios",
-    "build:ios": "parcel build --config .parcelrc index.js --target android"
+    "build:ios": "parcel build --config .parcelrc index.js --target android",
+    "android": "react-native run-android",
+    "ios": "react-native run-ios"
   },
   "dependencies": {
-    "react": "17.0.2",
-    "react-native": "0.66.1"
+    "react": "18.1.0",
+    "react-native": "0.70.3"
   },
   "_browserslist": "Firefox 44",
-  "browserslist": "Safari 11",
+  "browserslist_jsc": "Safari 11",
+  "browserslist": "Safari 8",
   "targets": {
     "android": {
       "context": "react-native-android"
