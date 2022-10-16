@@ -11,7 +11,13 @@ export default function App() {
         source={require('./assets/x.png')}
         resizeMode="contain"
       />
-      <Button title="Click" onPress={() => console.log('Click')} />
+      <Button
+        title="Click"
+        onPress={() => {
+          // throw new Error('XYZ');
+          console.log('Click');
+        }}
+      />
       <StatusBar />
     </View>
   );

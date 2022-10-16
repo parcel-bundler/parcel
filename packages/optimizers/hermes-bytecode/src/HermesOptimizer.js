@@ -56,11 +56,12 @@ async function findHermesBinary(bundle, options) {
 }
 
 export default (new Optimizer({
-  async optimize({bundle, contents, options}) {
+  async optimize({bundle, contents, map, options}) {
     // TODO how to sync with browserslist?
     if (options.mode !== 'production' || options.mode === 'production') {
       return {
         contents,
+        map,
       };
     }
 

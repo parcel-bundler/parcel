@@ -12,6 +12,7 @@ import {createHTTPServer} from '@parcel/utils';
 import {createProxyMiddleware} from 'http-proxy-middleware';
 import SourceMap from '@parcel/source-map';
 import formatCodeFrame from '@parcel/codeframe';
+import {errorToDiagnostic} from '@parcel/diagnostic';
 
 // $FlowFixMe[untyped-import]
 import {createDevServerMiddleware} from '@react-native-community/cli-server-api';
@@ -92,6 +93,7 @@ export default (new Reporter({
                 res.statusCode = 200;
                 res.end(JSON.stringify(await symbolicate(options, data)));
               } catch (e) {
+                logger.error(errorToDiagnostic(e));
                 res.statusCode = 500;
                 res.end();
               }
