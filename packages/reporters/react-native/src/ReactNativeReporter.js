@@ -34,7 +34,7 @@ import url, {URLSearchParams} from 'url';
 //   }
 // ]
 
-let server;
+let devServer;
 let metroHotWss;
 let bundleGraph;
 
@@ -71,11 +71,11 @@ export default (new Reporter({
           logLevel: 'warn',
           pathRewrite: {'^/index.bundle': '/index.js'},
         });
-        let devServer = await createHTTPServer({
+        // $FlowFixMe
+        devServer = await createHTTPServer({
           cacheDir: options.cacheDir,
           https: serveOptions.https,
           inputFS: options.inputFS,
-          // $FlowFixMe
           listener: async (req: IncomingMessage, res: ServerResponse) => {
             logger.verbose({
               message: `Request: ${req.headers.host}${req.url}`,
@@ -126,7 +126,9 @@ export default (new Reporter({
                   req.originalUrl = req.url;
                 }
                 if (req.url.startsWith('//')) {
+                  // $FlowFixMe
                   req.url = req.url.slice(1);
+                  // $FlowFixMe
                   req.originalUrl = req.url;
                 }
                 devServerProxyMiddleware(req, res);
@@ -200,8 +202,8 @@ export default (new Reporter({
       }
 
       case 'watchEnd':
-        if (server != null) {
-          await server.stop();
+        if (devServer != null) {
+          await devServer.stop();
         }
         break;
     }
