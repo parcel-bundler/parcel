@@ -18,6 +18,7 @@ opaque type EdgeAddress = number;
 export type SerializedAdjacencyList<TEdgeType> = {|
   nodes: Uint32Array,
   edges: Uint32Array,
+  edgeTypes: Uint8Array,
 |};
 
 // eslint-disable-next-line no-unused-vars
@@ -40,6 +41,7 @@ const SHRINK_FACTOR = 0.5;
 export default class AdjacencyList<TEdgeType: number = 1> {
   #nodes /*: NodeTypeMap<TEdgeType | NullEdgeType> */;
   #edges /*: EdgeTypeMap<TEdgeType | NullEdgeType> */;
+  #edgeTypes /* Uint8Array */;
 
   constructor(
     opts?:
@@ -48,11 +50,13 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   ) {
     let nodes;
     let edges;
+    let edgeTypes;
 
     if (opts?.nodes) {
-      ({nodes, edges} = opts);
+      ({nodes, edges, edgeTypes} = opts);
       this.#nodes = new NodeTypeMap(nodes);
       this.#edges = new EdgeTypeMap(edges);
+      this.#edgeTypes = edgeTypes;
     } else {
       let {
         nodeCapacity = NodeTypeMap.MIN_CAPACITY,
@@ -68,6 +72,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       );
       this.#nodes = new NodeTypeMap(nodeCapacity);
       this.#edges = new EdgeTypeMap(edgeCapacity);
+      this.#edgeTypes = new Uint8Array(0);
     }
   }
 
@@ -87,6 +92,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     return {
       nodes: this.#nodes.data,
       edges: this.#edges.data,
+      edgeTypes: this.#edgeTypes,
     };
   }
 
@@ -254,6 +260,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // The edge is already in the graph; do nothing.
     if (edge !== null) return false;
 
+    if (!this.#edgeTypes.includes(type)) {
+      this.#edgeTypes = new Uint8Array([...this.#edgeTypes, type]);
+    }
+
     let capacity = this.#edges.capacity;
     // We add 1 to account for the edge we are adding.
     let count = this.#edges.count + 1;
@@ -329,10 +339,33 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   hasEdge(
     from: NodeId,
     to: NodeId,
-    type: TEdgeType | NullEdgeType = 1,
+    type:
+      | AllEdgeTypes
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType> = 1,
   ): boolean {
-    let hash = this.#edges.hash(from, to, type);
-    return this.#edges.addressOf(hash, from, to, type) !== null;
+    let hasEdge = (type: TEdgeType | NullEdgeType) => {
+      let hash = this.#edges.hash(from, to, type);
+      return this.#edges.addressOf(hash, from, to, type) !== null;
+    };
+
+    if (type === ALL_EDGE_TYPES || Array.isArray(type)) {
+      let types: Iterable<TEdgeType | NullEdgeType> =
+        // $FlowFixMe[incompatible-type-arg] edgeTypes will only contain valid edge types
+        Array.isArray(type) ? type : this.#edgeTypes;
+
+      for (let currType of types) {
+        if (hasEdge(currType)) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    // $FlowFixMe[incompatible-call] ALL_EDGE_TYPES has already been handled
+    return hasEdge(type);
   }
 
   /**
@@ -1076,7 +1109,7 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
     hash: EdgeHash,
     from: NodeId,
     to: NodeId,
-    type: TEdgeType,
+    type: TEdgeType | NullEdgeType,
   ): EdgeAddress | null {
     let address = this.head(hash);
     while (address !== null) {
