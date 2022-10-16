@@ -256,10 +256,15 @@ ${frame.code}`;
 }
 
 function fullReload() {
-  if ('reload' in location) {
+  if (typeof location !== 'undefined' && 'reload' in location) {
     location.reload();
   } else if (extCtx && extCtx.runtime && extCtx.runtime.reload) {
     extCtx.runtime.reload();
+    // $FlowFixMe
+  } else if (typeof PARCEL_DevSettings !== 'undefined') {
+    // $FlowFixMe
+    // eslint-disable-next-line no-undef
+    PARCEL_DevSettings.reload();
   }
 }
 
