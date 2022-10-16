@@ -352,7 +352,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     if (type === ALL_EDGE_TYPES || Array.isArray(type)) {
       let types: Iterable<TEdgeType | NullEdgeType> =
-        // $FlowFixMe[incompatible-type-arg] edgeTypes will only contain valid edge types
+        // $FlowFixMe[incompatible-type-arg] this.edgeTypes will only contain valid edge types
         Array.isArray(type) ? type : this.#edgeTypes;
 
       for (let currType of types) {
