@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-react-native",
-  "version": "2.0.1",
+  "version": "2.7.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,10 +15,10 @@
   },
   "main": "index.json",
   "dependencies": {
-    "@parcel/config-default": "^2.0.1",
-    "@parcel/namer-react-native-assets": "^2.0.1",
-    "@parcel/reporter-react-native": "^2.0.1",
-    "@parcel/resolver-react-native": "^2.0.1",
-    "@parcel/runtime-react-native": "^2.0.1"
+    "@parcel/config-default": "2.7.0",
+    "@parcel/namer-react-native-assets": "2.7.0",
+    "@parcel/reporter-react-native": "2.7.0",
+    "@parcel/resolver-react-native": "2.7.0",
+    "@parcel/runtime-react-native": "2.7.0"
   }
 }
