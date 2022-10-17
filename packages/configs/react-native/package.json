@@ -17,6 +17,7 @@
   "dependencies": {
     "@parcel/config-default": "2.7.0",
     "@parcel/namer-react-native-assets": "2.7.0",
+    "@parcel/optimizer-hermes-bytecode": "2.7.0",
     "@parcel/reporter-react-native": "2.7.0",
     "@parcel/resolver-react-native": "2.7.0",
     "@parcel/runtime-react-native": "2.7.0"
