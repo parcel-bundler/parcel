@@ -18,10 +18,39 @@ export default function App() {
           console.log('Click');
         }}
       />
+      {/* <Box /> */}
       <StatusBar />
     </View>
   );
 }
+
+// import Animated, {
+//   useSharedValue,
+//   useAnimatedStyle,
+//   withSpring,
+// } from 'react-native-reanimated';
+
+// function Box() {
+//   const offset = useSharedValue(0);
+
+//   const animatedStyles = useAnimatedStyle(() => {
+//     return {
+//       transform: [{translateX: offset.value}],
+//     };
+//   });
+
+//   return (
+//     <>
+//       <Animated.View style={[styles.box]} />
+//       <Button
+//         onPress={() => {
+//           offset.value = withSpring(10 + Math.random() * 100);
+//         }}
+//         title="Move"
+//       />
+//     </>
+//   );
+// }
 
 const styles = StyleSheet.create({
   container: {
@@ -29,5 +58,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  box: {
+    width: 50,
+    height: 50,
+    backgroundColor: 'blue',
   },
 });

@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "react": "18.1.0",
-    "react-native": "0.70.3"
+    "react-native": "0.70.3",
+    "react-native-reanimated": "^2.11.0"
   },
   "_browserslist": "Firefox 44",
   "browserslist_jsc": "Safari 11",

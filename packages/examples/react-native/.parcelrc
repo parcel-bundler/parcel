@@ -1,3 +1,6 @@
 {
-  "extends": "@parcel/config-react-native"
+  "extends": "@parcel/config-react-native",
+  "transformers": {
+    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": ["@parcel/transformer-react-native-reanimated", "..."]
+  }
 }

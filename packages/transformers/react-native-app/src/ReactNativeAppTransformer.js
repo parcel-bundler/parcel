@@ -1,5 +1,4 @@
 // @flow
-
 import {Transformer} from '@parcel/plugin';
 
 import invariant from 'assert';

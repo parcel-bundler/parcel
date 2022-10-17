@@ -19,7 +19,7 @@ export default (new Transformer({
 
   async transform({asset, config, options}) {
     try {
-      if (config?.config) {
+      if (config?.config || asset.meta.babelPlugins != null) {
         if (
           asset.meta.babelPlugins != null &&
           Array.isArray(asset.meta.babelPlugins)

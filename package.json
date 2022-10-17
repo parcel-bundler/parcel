@@ -35,7 +35,7 @@
     "release": "lerna publish -y from-package --pre-dist-tag=next --no-git-tag-version --no-push",
     "prepare": "husky install",
     "postinstall": "patch-package && yarn link-rn",
-    "link-rn": "cd packages/examples/react-native && ln -sf ../../../../node_modules/react-native node_modules/react-native && ln -sf ../../../../node_modules/react-native-codegen node_modules/react-native-codegen"
+    "link-rn": "cd packages/examples/react-native && ln -sf ../../../../node_modules/react-native node_modules/react-native && ln -sf ../../../../node_modules/react-native-codegen node_modules/react-native-codegen && mkdir -p node_modules/@react-native-community && ln -sf ../../../../../node_modules/@react-native-community/cli-platform-ios node_modules/@react-native-community/cli-platform-ios"
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",
