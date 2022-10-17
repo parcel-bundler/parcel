@@ -6,6 +6,13 @@ import path from 'path';
 
 const JSX_EXTENSIONS = new Set(['.jsx', '.tsx']);
 const JSX_LIBRARIES = ['react', 'preact', 'nervejs', 'hyperapp'];
+const JSX_RN_LIBRARIES = [
+  'react',
+  'preact',
+  'nervejs',
+  'hyperapp',
+  'react-native',
+];
 
 /**
  * Returns whether an asset is likely JSX. Attempts to detect react or react-like libraries
@@ -29,7 +36,7 @@ export default async function isJSX(
     return true;
   } else {
     // Find a dependency that implies JSX syntax.
-    return JSX_LIBRARIES.some(
+    return (config.env.isReactNative() ? JSX_RN_LIBRARIES : JSX_LIBRARIES).some(
       libName =>
         pkg &&
         ((pkg.dependencies && pkg.dependencies[libName]) ||
