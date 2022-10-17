@@ -5703,7 +5703,7 @@ describe('javascript', function () {
           },
           {
             message:
-              'External dependency "@swc/helpers" does not satisfy required semver range "^0.4.2".',
+              'External dependency "@swc/helpers" does not satisfy required semver range "^0.4.12".',
             origin: '@parcel/resolver-default',
             codeFrames: [
               {
@@ -5726,7 +5726,7 @@ describe('javascript', function () {
               },
             ],
             hints: [
-              'Update the dependency on "@swc/helpers" to satisfy "^0.4.2".',
+              'Update the dependency on "@swc/helpers" to satisfy "^0.4.12".',
             ],
           },
         ],
