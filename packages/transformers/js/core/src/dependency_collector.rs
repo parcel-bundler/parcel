@@ -247,7 +247,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     if let Some(decl) = self.import_meta.take() {
       res.body.insert(
         0,
-        ast::ModuleItem::Stmt(ast::Stmt::Decl(ast::Decl::Var(decl))),
+        ast::ModuleItem::Stmt(ast::Stmt::Decl(ast::Decl::Var(Box::new(decl)))),
       );
     }
     res
@@ -1004,7 +1004,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
             args: vec![ast::ExprOrSpread {
               expr: Box::new(ast::Expr::Fn(ast::FnExpr {
                 ident: None,
-                function: ast::Function {
+                function: Box::new(ast::Function {
                   body: Some(ast::BlockStmt {
                     span: DUMMY_SP,
                     stmts: vec![ast::Stmt::Return(ast::ReturnStmt {
@@ -1019,7 +1019,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
                   return_type: None,
                   type_params: None,
                   span: DUMMY_SP,
-                },
+                }),
               })),
               spread: None,
             }],
@@ -1203,7 +1203,7 @@ impl<'a> DependencyCollector<'a> {
         ..
       }) => {
         // Match "file:" + __filename
-        let left = match_str(&*left);
+        let left = match_str(left);
         match (left, &**right) {
           (Some((left, _)), Expr::Ident(Ident { sym: right, .. })) => {
             &left == "file:" && right == "__filename"
