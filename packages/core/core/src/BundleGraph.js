@@ -6,12 +6,7 @@ import type {
   Symbol,
   TraversalActions,
 } from '@parcel/types';
-import type {
-  ContentKey,
-  ContentGraphOpts,
-  NodeId,
-  SerializedContentGraph,
-} from '@parcel/graph';
+import type {ContentKey, NodeId, SerializedContentGraph} from '@parcel/graph';
 
 import type {
   Asset,
