@@ -369,10 +369,11 @@ export default (new Transformer({
     let supportsModuleWorkers =
       asset.env.shouldScopeHoist && asset.env.supports('worker-module', true);
     let isJSX = Boolean(config?.isJSX);
-    if (asset.isSource) {
-      if (asset.type === 'ts') {
-        isJSX = false;
-      } else if (!isJSX) {
+    if (asset.type === 'ts') {
+      isJSX = false;
+    } else {
+      isJSX = Boolean(config?.isJSX);
+      if (!isJSX) {
         isJSX = Boolean(JSX_EXTENSIONS[asset.type]);
       }
     }
@@ -522,12 +523,6 @@ export default (new Transformer({
       };
 
       if (errors.length > 0) {
-        if (
-          asset.filePath ===
-          '/Users/niklas/Desktop/parcel/node_modules/react-native/Libraries/Utilities/DevSettings.js'
-        ) {
-          console.log(code.toString());
-        }
         throw new ThrowableDiagnostic({
           diagnostic: errors.map(convertDiagnostic),
         });

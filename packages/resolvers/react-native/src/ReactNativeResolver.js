@@ -44,7 +44,7 @@ export default (new Resolver({
       extensions: [
         ...crossProduct(getReactNativeInfixes(dependency), NODE_EXTENSIONS),
       ],
-      mainFields: ['source', 'browser', 'module', 'main'],
+      mainFields: ['react-native', 'source', 'browser', 'module', 'main'],
     });
 
     let result = await resolver.resolve({

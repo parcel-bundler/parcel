@@ -34,22 +34,22 @@ export default async function babel7(
   );
 
   let config = {
-    ...babelOptions.config,
-    plugins: additionalPlugins.concat(babelOptions.config.plugins),
+    ...babelOptions?.config,
+    plugins: additionalPlugins.concat(babelOptions?.config?.plugins ?? []),
     code: false,
     ast: true,
     filename: asset.filePath,
     babelrc: false,
     configFile: false,
     parserOpts: {
-      ...babelOptions.config.parserOpts,
+      ...babelOptions?.config?.parserOpts,
       sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',
       plugins: [
-        ...(babelOptions.config.parserOpts?.plugins ?? []),
-        ...(babelOptions.syntaxPlugins ?? []),
+        ...(babelOptions?.config?.parserOpts?.plugins ?? []),
+        ...(babelOptions?.syntaxPlugins ?? []),
         // Applied by preset-env
         'classProperties',
         'classPrivateProperties',
@@ -61,7 +61,7 @@ export default async function babel7(
     caller: {
       name: 'parcel',
       version: transformerVersion,
-      targets: JSON.stringify(babelOptions.targets),
+      targets: babelOptions ? JSON.stringify(babelOptions.targets) : undefined,
       outputFormat: asset.env.outputFormat,
     },
   };

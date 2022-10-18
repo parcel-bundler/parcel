@@ -216,7 +216,15 @@ async function buildDefaultBabelConfig(
 ): Promise<?BabelConfigResult> {
   // If this is a .ts or .tsx file, we don't need to enable flow.
   if (TYPESCRIPT_EXTNAME_RE.test(config.searchPath)) {
-    return;
+    let syntaxPlugins = ['typescript', 'classProperties'];
+    if (config.searchPath.endsWith('.tsx')) {
+      syntaxPlugins.push('jsx');
+    }
+    return {
+      internal: true,
+      config: {},
+      syntaxPlugins,
+    };
   }
 
   // Detect flow. If not enabled, babel doesn't need to run at all.
