@@ -222,7 +222,7 @@ async function buildDefaultBabelConfig(
     }
     return {
       internal: true,
-      config: {},
+      config: {plugins: [], presets: []},
       syntaxPlugins,
     };
   }
