@@ -208,7 +208,7 @@ impl<'a> Fold for Evaluator<'a> {
       },
       Expr::Call(call) => {
         let callee = match &call.callee {
-          Callee::Expr(expr) => &*expr,
+          Callee::Expr(expr) => expr,
           _ => return node,
         };
 

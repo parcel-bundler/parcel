@@ -227,7 +227,7 @@ pub fn create_global_decl_stmt(
   let span = DUMMY_SP.apply_mark(global_mark);
 
   (
-    ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
+    ast::Stmt::Decl(ast::Decl::Var(Box::new(ast::VarDecl {
       kind: ast::VarDeclKind::Var,
       declare: false,
       span: DUMMY_SP,
@@ -237,7 +237,7 @@ pub fn create_global_decl_stmt(
         definite: false,
         init: Some(Box::new(init)),
       }],
-    })),
+    }))),
     span.ctxt,
   )
 }
