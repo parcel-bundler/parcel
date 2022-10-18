@@ -41,7 +41,7 @@ export default function App() {
 
 //   return (
 //     <>
-//       <Animated.View style={[styles.box]} />
+//       <Animated.View style={[styles.box, animatedStyles]} />
 //       <Button
 //         onPress={() => {
 //           offset.value = withSpring(10 + Math.random() * 100);

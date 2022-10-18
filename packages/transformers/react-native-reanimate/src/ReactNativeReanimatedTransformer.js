@@ -1,20 +1,19 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
 import invariant from 'assert';
-import path from 'path';
+
+// From 'react-native-reanimated/plugin.js'
+const REGEX =
+  /useFrameCallback|useAnimatedStyle|useAnimatedProps|createAnimatedPropAdapter|useDerivedValue|useAnimatedScrollHandler|useAnimatedReaction|useWorkletCallback|withTiming|withSpring|withDecay|withRepeat|useAnimatedGestureHandler|useAnimatedScrollHandler|"worklet"|'worklet'/;
 
 export default (new Transformer({
-  async transform({asset, options}) {
+  async transform({asset}) {
     let code = await asset.getCode();
-    if (code.includes('react-native-reanimated')) {
+    if (REGEX.test(code)) {
       asset.meta.babelPlugins ??= [];
       invariant(Array.isArray(asset.meta.babelPlugins));
-      asset.meta.babelPlugins.push(
-        path.posix.join(
-          options.projectRoot,
-          'node_modules/react-native-reanimated/plugin',
-        ),
-      );
+      // TODO relative to where?
+      asset.meta.babelPlugins.push('react-native-reanimated/plugin');
     }
     return [asset];
   },
