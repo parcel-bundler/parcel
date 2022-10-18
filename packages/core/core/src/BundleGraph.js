@@ -78,14 +78,6 @@ type InternalExportSymbolResolution = {|
   +exportAs: Symbol | string,
 |};
 
-type BundleGraphOpts = {|
-  graph: ContentGraphOpts<BundleGraphNode, BundleGraphEdgeType>,
-  bundleContentHashes: Map<string, string>,
-  assetPublicIds: Set<string>,
-  publicIdByAssetId: Map<string, string>,
-  symbolPropagationRan: boolean,
-|};
-
 type SerializedBundleGraph = {|
   $$raw: true,
   graph: SerializedContentGraph<BundleGraphNode, BundleGraphEdgeType>,
