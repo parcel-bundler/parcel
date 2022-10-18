@@ -221,18 +221,35 @@ export class RequestGraph extends ContentGraph<
   unpredicatableNodeIds: Set<NodeId> = new Set();
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
 
+  constructor(opts?: SerializedRequestGraph) {
+    if (opts) {
+      let {
+        invalidNodeIds,
+        incompleteNodeIds,
+        globNodeIds,
+        envNodeIds,
+        optionNodeIds,
+        unpredicatableNodeIds,
+        invalidateOnBuildNodeIds,
+        ...rest
+      } = opts;
+      super({edgeTypes: requestGraphEdgeTypes, ...rest});
+
+      this.invalidNodeIds = invalidNodeIds;
+      this.incompleteNodeIds = incompleteNodeIds;
+      this.globNodeIds = globNodeIds;
+      this.envNodeIds = envNodeIds;
+      this.optionNodeIds = optionNodeIds;
+      this.unpredicatableNodeIds = unpredicatableNodeIds;
+      this.invalidateOnBuildNodeIds = invalidateOnBuildNodeIds;
+    } else {
+      super({edgeTypes: requestGraphEdgeTypes});
+    }
+  }
+
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: RequestGraphOpts): RequestGraph {
-    // $FlowFixMe[prop-missing]
-    let deserialized = new RequestGraph(opts);
-    deserialized.invalidNodeIds = opts.invalidNodeIds;
-    deserialized.incompleteNodeIds = opts.incompleteNodeIds;
-    deserialized.globNodeIds = opts.globNodeIds;
-    deserialized.envNodeIds = opts.envNodeIds;
-    deserialized.optionNodeIds = opts.optionNodeIds;
-    deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
-    deserialized.invalidateOnBuildNodeIds = opts.invalidateOnBuildNodeIds;
-    return deserialized;
+  static deserialize(opts: SerializedRequestGraph): RequestGraph {
+    return new RequestGraph(opts);
   }
 
   // $FlowFixMe[prop-missing]

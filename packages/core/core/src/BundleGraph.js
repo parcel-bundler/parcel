@@ -146,7 +146,9 @@ export default class BundleGraph {
     publicIdByAssetId: Map<string, string> = new Map(),
     assetPublicIds: Set<string> = new Set(),
   ): BundleGraph {
-    let graph = new ContentGraph<BundleGraphNode, BundleGraphEdgeType>();
+    let graph = new ContentGraph<BundleGraphNode, BundleGraphEdgeType>({
+      edgeTypes: bundleGraphEdgeTypes,
+    });
     let assetGroupIds = new Map();
     let dependencies = new Map();
     let assetGraphNodeIdToBundleGraphNodeId = new Map<NodeId, NodeId>();
@@ -362,7 +364,7 @@ export default class BundleGraph {
     };
   }
 
-  static deserialize(serialized: BundleGraphOpts): BundleGraph {
+  static deserialize(serialized: SerializedBundleGraph): BundleGraph {
     return new BundleGraph({
       graph: ContentGraph.deserialize(serialized.graph),
       assetPublicIds: serialized.assetPublicIds,

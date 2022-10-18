@@ -25,6 +25,7 @@ export type SerializedAdjacencyList<TEdgeType> = {|
 export type AdjacencyListOptions<TEdgeType> = {|
   edgeCapacity?: number,
   nodeCapacity?: number,
+  edgeTypes: Uint8Array,
 |};
 
 /** The upper bound above which capacity should be increased. */
@@ -41,7 +42,7 @@ const SHRINK_FACTOR = 0.5;
 export default class AdjacencyList<TEdgeType: number = 1> {
   #nodes /*: NodeTypeMap<TEdgeType | NullEdgeType> */;
   #edges /*: EdgeTypeMap<TEdgeType | NullEdgeType> */;
-  #edgeTypes /* Uint8Array */;
+  #edgeTypes /*: Uint8Array */;
 
   constructor(
     opts?:
@@ -61,6 +62,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       let {
         nodeCapacity = NodeTypeMap.MIN_CAPACITY,
         edgeCapacity = EdgeTypeMap.MIN_CAPACITY,
+        edgeTypes,
       } = opts ?? {};
       assert(
         nodeCapacity <= NodeTypeMap.MAX_CAPACITY,
@@ -72,7 +74,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       );
       this.#nodes = new NodeTypeMap(nodeCapacity);
       this.#edges = new EdgeTypeMap(edgeCapacity);
-      this.#edgeTypes = new Uint8Array(0);
+      this.#edgeTypes = edgeTypes;
     }
   }
 
@@ -201,6 +203,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     let copy = new AdjacencyList({
       nodeCapacity: this.#nodes.capacity,
       edgeCapacity: size,
+      edgeTypes: this.#edgeTypes,
     });
 
     // Copy the existing edges into the new array.
@@ -259,10 +262,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     // The edge is already in the graph; do nothing.
     if (edge !== null) return false;
-
-    if (!this.#edgeTypes.includes(type)) {
-      this.#edgeTypes = new Uint8Array([...this.#edgeTypes, type]);
-    }
 
     let capacity = this.#edges.capacity;
     // We add 1 to account for the edge we are adding.

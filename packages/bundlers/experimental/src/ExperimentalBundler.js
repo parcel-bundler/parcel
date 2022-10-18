@@ -329,7 +329,9 @@ function createIdealGraph(
   let bundleRootGraph: ContentGraph<
     BundleRoot | 'root',
     $Values<typeof bundleRootEdgeTypes>,
-  > = new ContentGraph();
+  > = new ContentGraph({
+    edgeTypes: dependencyPriorityEdges,
+  });
 
   let bundleGroupBundleIds: Set<NodeId> = new Set();
 

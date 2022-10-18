@@ -136,8 +136,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: AssetGraphOpts): AssetGraph {
-    return new AssetGraph(opts);
+  static deserialize(opts: SerializedAssetGraph): AssetGraph {
+    return new AssetGraph({
+      ...opts,
+    });
   }
 
   // $FlowFixMe[prop-missing]

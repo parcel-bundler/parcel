@@ -245,7 +245,7 @@ describe('AdjacencyList', () => {
   });
 
   it('hasEdge should accept "ALL_EDGE_TYPES"', () => {
-    let graph = new AdjacencyList();
+    let graph = new AdjacencyList({edgeTypes: new Uint8Array([1, 2])});
     let a = graph.addNode();
     let b = graph.addNode();
     let c = graph.addNode();
