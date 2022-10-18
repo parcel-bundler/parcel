@@ -175,7 +175,7 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  createHandle(method: string): HandleFunction {
+  createHandle(method: string, shouldSerialize?: boolean): HandleFunction {
     return async (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
@@ -187,9 +187,14 @@ export default class WorkerFarm extends EventEmitter {
           this.warmupWorker(method, args);
         }
 
-        let processedArgs = restoreDeserializedObject(
-          prepareForSerialization([...args, false]),
-        );
+        let processedArgs;
+        if (shouldSerialize) {
+          processedArgs = restoreDeserializedObject(
+            prepareForSerialization([...args, false]),
+          );
+        } else {
+          processedArgs = args;
+        }
 
         if (this.localWorkerInit != null) {
           await this.localWorkerInit;

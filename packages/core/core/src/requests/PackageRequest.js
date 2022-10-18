@@ -20,6 +20,7 @@ type PackageRequestInput = {|
   bundle: Bundle,
   bundleGraphReference?: SharedReference,
   optionsRef: SharedReference,
+  shouldSerialize?: boolean,
 |};
 
 type RunInput = {|
@@ -46,8 +47,8 @@ export function createPackageRequest(
 }
 
 async function run({input, api, farm}: RunInput) {
-  let {bundleGraphReference, optionsRef, bundle} = input;
-  let runPackage = farm.createHandle('runPackage');
+  let {bundleGraphReference, optionsRef, bundle, shouldSerialize} = input;
+  let runPackage = farm.createHandle('runPackage', shouldSerialize);
 
   let start = Date.now();
   let {devDeps, invalidDevDeps} = await getDevDepRequests(api);

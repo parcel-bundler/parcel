@@ -84,11 +84,13 @@ async function run({input, api, farm, options}: RunInput) {
 
   // Create shared reference in WorkerFarm if we need to change multiple bundles and if we
   // can't skip the subrequests for all the bundles
+  let shouldSerialize = false;
   if (
     bundles.length > 1 &&
     bundles.filter(b => !api.canSkipSubrequest(bundleGraph.getHash(b))).length >
       1
   ) {
+    shouldSerialize = true;
     ({ref, dispose} = await farm.createSharedReference(
       bundleGraph,
       serialize(bundleGraph),
@@ -102,6 +104,7 @@ async function run({input, api, farm, options}: RunInput) {
           bundleGraph,
           bundleGraphReference: ref,
           optionsRef,
+          shouldSerialize,
         });
         let info = await api.runRequest(request);
 
