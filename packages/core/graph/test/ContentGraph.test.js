@@ -3,8 +3,6 @@
 import assert from 'assert';
 import ContentGraph from '../src/ContentGraph';
 
-let edgeTypes;
-
 describe('ContentGraph', () => {
   it('should addNodeByContentKey if no node exists with the content key', () => {
     let graph = new ContentGraph();
