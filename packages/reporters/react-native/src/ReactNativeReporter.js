@@ -7,7 +7,7 @@ import path from 'path';
 // $FlowFixMe
 import {Server as WebSocketServer} from 'ws';
 import {Reporter} from '@parcel/plugin';
-import {createHTTPServer} from '@parcel/utils';
+import {createHTTPServer, makeDeferredWithPromise} from '@parcel/utils';
 // $FlowFixMe[untyped-import]
 import {createProxyMiddleware} from 'http-proxy-middleware';
 import SourceMap from '@parcel/source-map';
@@ -37,15 +37,20 @@ import url, {URLSearchParams} from 'url';
 
 let devServer;
 let metroHotWss;
-let bundleGraph;
+let bundleGraphDeferred;
 
 export default (new Reporter({
   async report({event, options, logger}) {
     switch (event.type) {
+      case 'buildStart': {
+        if (bundleGraphDeferred == null) {
+          bundleGraphDeferred = makeDeferredWithPromise();
+        }
+        break;
+      }
       case 'buildSuccess': {
-        // TODO "pending" like in the server reporter
-        bundleGraph = event.bundleGraph;
-        let bundles = bundleGraph.getBundles();
+        bundleGraphDeferred.deferred.resolve(event.bundleGraph);
+        let bundles = event.bundleGraph.getBundles();
         // TODO do this immediately?
         if (bundles.length === 1) {
           event.requestBundle(bundles[0]);
@@ -98,8 +103,10 @@ export default (new Reporter({
                 res.end();
               }
             } else {
-              middleware(req, res, () => {
+              middleware(req, res, async () => {
+                // https://github.com/react-native-community/cli/blob/main/packages/cli-server-api/src/index.ts
                 if (req.url.startsWith('/index.bundle')) {
+                  let bundleGraph = await bundleGraphDeferred.promise;
                   // req.url = '/entry.js';
                   let bundleGroup = nullthrows(
                     bundleGraph
