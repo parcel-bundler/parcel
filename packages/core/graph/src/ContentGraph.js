@@ -6,13 +6,12 @@ import nullthrows from 'nullthrows';
 
 export type ContentGraphOpts<TNode, TEdgeType: number = 1> = {|
   ...GraphOpts<TNode, TEdgeType>,
-  _contentKeyToNodeId?: Map<ContentKey, NodeId>,
-  _nodeIdToContentKey?: Map<NodeId, ContentKey>,
+  _contentKeyToNodeId: Map<ContentKey, NodeId>,
+  _nodeIdToContentKey: Map<NodeId, ContentKey>,
 |};
 export type SerializedContentGraph<TNode, TEdgeType: number = 1> = {|
   ...SerializedGraph<TNode, TEdgeType>,
   _contentKeyToNodeId: Map<ContentKey, NodeId>,
-  _nodeIdToContentKey: Map<NodeId, ContentKey>,
 |};
 
 export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
@@ -24,16 +23,12 @@ export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
 
   constructor(opts: ?ContentGraphOpts<TNode, TEdgeType>) {
     if (opts) {
-      let {
-        _contentKeyToNodeId = new Map(),
-        _nodeIdToContentKey = new Map(),
-        ...rest
-      } = opts;
+      let {_contentKeyToNodeId, _nodeIdToContentKey, ...rest} = opts;
       super(rest);
       this._contentKeyToNodeId = _contentKeyToNodeId;
       this._nodeIdToContentKey = _nodeIdToContentKey;
     } else {
-      super(opts);
+      super();
       this._contentKeyToNodeId = new Map();
       this._nodeIdToContentKey = new Map();
     }
@@ -41,19 +36,14 @@ export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
 
   // $FlowFixMe[prop-missing]
   static deserialize(
-    opts: SerializedContentGraph<TNode, TEdgeType>,
+    opts: ContentGraphOpts<TNode, TEdgeType>,
   ): ContentGraph<TNode, TEdgeType> {
-    return new ContentGraph({
-      nodes: opts.nodes,
-      adjacencyList: opts.adjacencyList,
-      rootNodeId: opts.rootNodeId,
-      _contentKeyToNodeId: opts._contentKeyToNodeId,
-      _nodeIdToContentKey: opts._nodeIdToContentKey,
-    });
+    return new ContentGraph(opts);
   }
 
   // $FlowFixMe[prop-missing]
   serialize(): SerializedContentGraph<TNode, TEdgeType> {
+    // $FlowFixMe[prop-missing]
     return {
       ...super.serialize(),
       _contentKeyToNodeId: this._contentKeyToNodeId,

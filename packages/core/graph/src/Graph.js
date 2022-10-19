@@ -13,7 +13,6 @@ export type GraphOpts<TNode, TEdgeType: number = 1> = {|
   nodes?: Map<NodeId, TNode>,
   adjacencyList?: SerializedAdjacencyList<TEdgeType>,
   rootNodeId?: ?NodeId,
-  edgeTypes?: {[key: string]: TEdgeType},
 |};
 
 export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
@@ -25,10 +24,6 @@ export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
 export type AllEdgeTypes = -1;
 export const ALL_EDGE_TYPES: AllEdgeTypes = -1;
 
-function objectValues<Key, Value>(obj: {[Key]: Value}): Array<Value> {
-  return Object.keys(obj).map(key => obj[key]);
-}
-
 export default class Graph<TNode, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
   adjacencyList: AdjacencyList<TEdgeType>;
@@ -39,16 +34,9 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     this.setRootNodeId(opts?.rootNodeId);
 
     let adjacencyList = opts?.adjacencyList;
-
-    if (adjacencyList) {
-      this.adjacencyList = AdjacencyList.deserialize(adjacencyList);
-    } else {
-      // default edgeTypes to array containing just the null edge type
-      let edgeTypes = new Uint8Array(
-        opts?.edgeTypes ? objectValues(opts.edgeTypes) : [1],
-      );
-      this.adjacencyList = new AdjacencyList<TEdgeType>({edgeTypes});
-    }
+    this.adjacencyList = adjacencyList
+      ? AdjacencyList.deserialize(adjacencyList)
+      : new AdjacencyList<TEdgeType>();
   }
 
   setRootNodeId(id: ?NodeId) {
@@ -56,7 +44,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   }
 
   static deserialize(
-    opts: SerializedGraph<TNode, TEdgeType>,
+    opts: GraphOpts<TNode, TEdgeType>,
   ): Graph<TNode, TEdgeType> {
     return new this({
       nodes: opts.nodes,
@@ -116,11 +104,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   hasEdge(
     from: NodeId,
     to: NodeId,
-    type?:
-      | TEdgeType
-      | NullEdgeType
-      | Array<TEdgeType | NullEdgeType>
-      | AllEdgeTypes = 1,
+    type?: TEdgeType | NullEdgeType = 1,
   ): boolean {
     return this.adjacencyList.hasEdge(from, to, type);
   }

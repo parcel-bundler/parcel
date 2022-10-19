@@ -5,7 +5,6 @@ import path from 'path';
 import {Worker} from 'worker_threads';
 
 import AdjacencyList, {NodeTypeMap, EdgeTypeMap} from '../src/AdjacencyList';
-import {ALL_EDGE_TYPES} from '../src/Graph';
 import {toNodeId} from '../src/types';
 
 describe('AdjacencyList', () => {
@@ -242,36 +241,6 @@ describe('AdjacencyList', () => {
 
     // $FlowFixMe[prop-missing]
     AdjacencyList.prototype.hash = originalHash;
-  });
-
-  it('hasEdge should accept "ALL_EDGE_TYPES"', () => {
-    let graph = new AdjacencyList({edgeTypes: new Uint8Array([1, 2])});
-    let a = graph.addNode();
-    let b = graph.addNode();
-    let c = graph.addNode();
-
-    graph.addEdge(a, b, 1);
-    graph.addEdge(b, c, 2);
-
-    assert.ok(!graph.hasEdge(a, b, 2));
-    assert.ok(graph.hasEdge(a, b, ALL_EDGE_TYPES));
-    assert.ok(!graph.hasEdge(b, c, 1));
-    assert.ok(graph.hasEdge(b, c, ALL_EDGE_TYPES));
-  });
-
-  it('hasEdge should accept an array of edge types', () => {
-    let graph = new AdjacencyList();
-    let a = graph.addNode();
-    let b = graph.addNode();
-    let c = graph.addNode();
-
-    graph.addEdge(a, b, 1);
-    graph.addEdge(b, c, 2);
-
-    assert.ok(!graph.hasEdge(a, b, [2, 3]));
-    assert.ok(graph.hasEdge(a, b, [1, 2]));
-    assert.ok(!graph.hasEdge(b, c, [1, 3]));
-    assert.ok(graph.hasEdge(b, c, [2, 3]));
   });
 
   describe('deserialize', function () {

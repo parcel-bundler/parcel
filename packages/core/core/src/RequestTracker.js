@@ -4,7 +4,12 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {Async, EnvMap} from '@parcel/types';
 import type {EventType, Options as WatcherOptions} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
-import type {ContentKey, NodeId, SerializedContentGraph} from '@parcel/graph';
+import type {
+  ContentGraphOpts,
+  ContentKey,
+  NodeId,
+  SerializedContentGraph,
+} from '@parcel/graph';
 import type {
   ParcelOptions,
   RequestInvalidation,
@@ -56,6 +61,17 @@ export const requestGraphEdgeTypes = {
 };
 
 export type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;
+
+type RequestGraphOpts = {|
+  ...ContentGraphOpts<RequestGraphNode, RequestGraphEdgeType>,
+  invalidNodeIds: Set<NodeId>,
+  incompleteNodeIds: Set<NodeId>,
+  globNodeIds: Set<NodeId>,
+  envNodeIds: Set<NodeId>,
+  optionNodeIds: Set<NodeId>,
+  unpredicatableNodeIds: Set<NodeId>,
+  invalidateOnBuildNodeIds: Set<NodeId>,
+|};
 
 type SerializedRequestGraph = {|
   ...SerializedContentGraph<RequestGraphNode, RequestGraphEdgeType>,
@@ -205,35 +221,18 @@ export class RequestGraph extends ContentGraph<
   unpredicatableNodeIds: Set<NodeId> = new Set();
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
 
-  constructor(opts?: SerializedRequestGraph) {
-    if (opts) {
-      let {
-        invalidNodeIds,
-        incompleteNodeIds,
-        globNodeIds,
-        envNodeIds,
-        optionNodeIds,
-        unpredicatableNodeIds,
-        invalidateOnBuildNodeIds,
-        ...rest
-      } = opts;
-      super({edgeTypes: requestGraphEdgeTypes, ...rest});
-
-      this.invalidNodeIds = invalidNodeIds;
-      this.incompleteNodeIds = incompleteNodeIds;
-      this.globNodeIds = globNodeIds;
-      this.envNodeIds = envNodeIds;
-      this.optionNodeIds = optionNodeIds;
-      this.unpredicatableNodeIds = unpredicatableNodeIds;
-      this.invalidateOnBuildNodeIds = invalidateOnBuildNodeIds;
-    } else {
-      super({edgeTypes: requestGraphEdgeTypes});
-    }
-  }
-
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: SerializedRequestGraph): RequestGraph {
-    return new RequestGraph(opts);
+  static deserialize(opts: RequestGraphOpts): RequestGraph {
+    // $FlowFixMe[prop-missing]
+    let deserialized = new RequestGraph(opts);
+    deserialized.invalidNodeIds = opts.invalidNodeIds;
+    deserialized.incompleteNodeIds = opts.incompleteNodeIds;
+    deserialized.globNodeIds = opts.globNodeIds;
+    deserialized.envNodeIds = opts.envNodeIds;
+    deserialized.optionNodeIds = opts.optionNodeIds;
+    deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
+    deserialized.invalidateOnBuildNodeIds = opts.invalidateOnBuildNodeIds;
+    return deserialized;
   }
 
   // $FlowFixMe[prop-missing]
