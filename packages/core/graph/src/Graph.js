@@ -104,7 +104,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   hasEdge(
     from: NodeId,
     to: NodeId,
-    type?: TEdgeType | NullEdgeType = 1,
+    type?: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): boolean {
     return this.adjacencyList.hasEdge(from, to, type);
   }
