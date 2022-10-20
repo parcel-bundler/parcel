@@ -32,6 +32,7 @@
     "build-release": "napi build --platform --release"
   },
   "dependencies": {
+    "@parcel/core": "2.7.0",
     "@parcel/diagnostic": "2.7.0",
     "@parcel/plugin": "2.7.0",
     "@parcel/utils": "2.7.0",
