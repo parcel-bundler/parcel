@@ -11,6 +11,8 @@ import 'react-native/Libraries/Core/InitializeCore.js';
 
 import {DevSettings} from 'react-native';
 global.PARCEL_DevSettings = DevSettings;
+const getDevServer = require("react-native/Libraries/Core/Devtools/getDevServer");
+global.PARCEL_getDevServer = getDevServer;
 `;
 
 export default (new Runtime({

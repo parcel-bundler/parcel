@@ -1,6 +1,6 @@
 var Refresh = require('react-refresh/runtime');
-// eslint-disable-next-line import/no-extraneous-dependencies
-var DevSettings = require('react-native/Libraries/Utilities/DevSettings');
+
+var DevSettings = global.PARCEL_DevSettings;
 
 function debounce(func, delay) {
   if (process.env.NODE_ENV === 'test') {

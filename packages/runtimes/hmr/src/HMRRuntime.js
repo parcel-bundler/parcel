@@ -25,15 +25,19 @@ export default (new Runtime({
     return {
       filePath: __filename,
       code:
-        `var HMR_HOST = ${JSON.stringify(host != null ? host : null)};` +
-        `var HMR_PORT = ${JSON.stringify(
-          port != null &&
-            // Default to the HTTP port in the browser, only override
-            // in watch mode or if hmr port != serve port
-            (!options.serveOptions || options.serveOptions.port !== port)
-            ? port
-            : null,
-        )};` +
+        (bundle.env.isReactNative()
+          ? `var RN_ORIGIN = PARCEL_getDevServer().url.replace(/https?:\\/\\//, '').replace(/\\/$/, '');` +
+            `var HMR_HOST = RN_ORIGIN.split(":")[0];` +
+            `var HMR_PORT = RN_ORIGIN.split(":")[1];`
+          : `var HMR_HOST = ${JSON.stringify(host != null ? host : null)};` +
+            `var HMR_PORT = ${JSON.stringify(
+              port != null &&
+                // Default to the HTTP port in the browser, only override
+                // in watch mode or if hmr port != serve port
+                (!options.serveOptions || options.serveOptions.port !== port)
+                ? port
+                : null,
+            )};`) +
         `var HMR_SECURE = ${JSON.stringify(
           !!(options.serveOptions && options.serveOptions.https),
         )};` +

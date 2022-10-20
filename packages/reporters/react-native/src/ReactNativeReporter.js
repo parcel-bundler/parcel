@@ -62,6 +62,7 @@ export default (new Reporter({
         if (serveOptions === false) {
           return;
         }
+        let hmrOptions = options.hmrOptions;
 
         const {middleware, attachToServer} = createDevServerMiddleware({
           host: '127.0.0.1',
@@ -77,6 +78,17 @@ export default (new Reporter({
           logLevel: 'warn',
           pathRewrite: {'^/index.bundle': '/index.js'},
         });
+        let hmrServerProxyMiddleware = hmrOptions
+          ? createProxyMiddleware({
+              target: `http://${hmrOptions.host ?? 'localhost'}:${
+                hmrOptions.port ?? 1234
+              }`,
+              changeOrigin: true,
+              logLevel: 'warn',
+              ws: true,
+            })
+          : null;
+
         // $FlowFixMe
         devServer = await createHTTPServer({
           cacheDir: options.cacheDir,
@@ -175,6 +187,8 @@ export default (new Reporter({
             metroHotWss.handleUpgrade(req, socket, head, ws => {
               metroHotWss.emit('connection', ws);
             });
+          } else if (pathname === '/') {
+            hmrServerProxyMiddleware?.upgrade(req, socket, head);
           } else {
             socket.destroy();
           }

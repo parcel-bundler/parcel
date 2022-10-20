@@ -65,10 +65,6 @@ ${code}
       specifierType: 'esm',
       resolveFrom: __filename,
     });
-    asset.addDependency({
-      specifier: 'react-native/Libraries/Utilities/DevSettings',
-      specifierType: 'esm',
-    });
 
     return [asset];
   },
