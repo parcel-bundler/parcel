@@ -1,4 +1,5 @@
 // @flow
+import type {InternalSourceLocation} from '../types';
 import type {
   Symbol as ISymbol,
   MutableAssetSymbols as IMutableAssetSymbols,
@@ -293,7 +294,15 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 }
 
-function fromInternalAssetSymbol(projectRoot: string, value) {
+function fromInternalAssetSymbol(
+  projectRoot: string,
+  value: void | {
+    loc: ?InternalSourceLocation,
+    local: ISymbol,
+    meta?: ?Meta,
+    ...
+  },
+) {
   return (
     value && {
       local: value.local,
@@ -303,7 +312,16 @@ function fromInternalAssetSymbol(projectRoot: string, value) {
   );
 }
 
-function fromInternalDependencySymbol(projectRoot: string, value) {
+function fromInternalDependencySymbol(
+  projectRoot: string,
+  value: void | {
+    isWeak: boolean,
+    loc: ?InternalSourceLocation,
+    local: ISymbol,
+    meta?: ?Meta,
+    ...
+  },
+) {
   return (
     value && {
       local: value.local,

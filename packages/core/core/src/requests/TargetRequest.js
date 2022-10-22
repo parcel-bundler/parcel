@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import type {TargetSourceMapOptions} from '../../../types/index';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
 import type {
@@ -584,7 +585,10 @@ export class TargetResolver {
           }
         : mainContextLoc;
 
-    let getEnginesLoc = (targetName, descriptor): TargetKeyInfo => {
+    let getEnginesLoc = (
+      targetName: string,
+      descriptor: PackageTargetDescriptor,
+    ): TargetKeyInfo => {
       let enginesLoc = `/targets/${targetName}/engines`;
       switch (context) {
         case 'browser':
@@ -1324,7 +1328,12 @@ function parseCommonTargetDescriptor(
   return descriptor;
 }
 
-function assertNoDuplicateTargets(options, targets, pkgFilePath, pkgContents) {
+function assertNoDuplicateTargets(
+  options: ParcelOptions,
+  targets: Map<string, null | Target>,
+  pkgFilePath: ?FilePath,
+  pkgContents: void | string,
+) {
   // Detect duplicate targets by destination path and provide a nice error.
   // Without this, an assertion is thrown much later after naming the bundles and finding duplicates.
   let targetsByPath: Map<string, Array<string>> = new Map();
@@ -1385,7 +1394,10 @@ function assertNoDuplicateTargets(options, targets, pkgFilePath, pkgContents) {
   }
 }
 
-function normalizeSourceMap(options: ParcelOptions, sourceMap) {
+function normalizeSourceMap(
+  options: ParcelOptions,
+  sourceMap: void | boolean | TargetSourceMapOptions,
+) {
   if (options.defaultTargetOptions.sourceMaps) {
     if (typeof sourceMap === 'boolean') {
       return sourceMap ? {} : undefined;
@@ -1462,7 +1474,12 @@ function assertTargetsAreNotEntries(
   }
 }
 
-async function debugResolvedTargets(input, targets, targetInfo, options) {
+async function debugResolvedTargets(
+  input: Entry,
+  targets: Array<Target>,
+  targetInfo: Map<string, TargetInfo>,
+  options: ParcelOptions,
+) {
   for (let target of targets) {
     let info = targetInfo.get(target.name);
     let loc = target.loc;
@@ -1587,11 +1604,12 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
         );
     }
 
-    let format = v => (v.message != null ? md.italic(v.message) : '');
+    let format = (v: TargetKeyInfo) =>
+      v.message != null ? md.italic(v.message) : '';
     logger.verbose({
       origin: '@parcel/core',
       message: md`**Target** "${target.name}"
-      
+
                **Entry**: ${path.relative(
                  process.cwd(),
                  fromProjectPath(options.projectRoot, input.filePath),

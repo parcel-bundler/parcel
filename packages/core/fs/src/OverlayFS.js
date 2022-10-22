@@ -13,7 +13,8 @@ import {registerSerializableClass} from '@parcel/core';
 import packageJSON from '../package.json';
 import {findAncestorFile, findNodeModule, findFirstFile} from './find';
 
-function read(method) {
+function read(method: string) {
+  // $FlowFixMe[missing-this-annot]
   return async function (...args: Array<any>) {
     try {
       return await this.writable[method](...args);
@@ -23,7 +24,8 @@ function read(method) {
   };
 }
 
-function readSync(method) {
+function readSync(method: string) {
+  // $FlowFixMe[missing-this-annot]
   return function (...args: Array<any>) {
     try {
       return this.writable[method](...args);
@@ -33,13 +35,15 @@ function readSync(method) {
   };
 }
 
-function write(method) {
+function write(method: string) {
+  // $FlowFixMe[missing-this-annot]
   return function (...args: Array<any>) {
     return this.writable[method](...args);
   };
 }
 
-function checkExists(method) {
+function checkExists(method: string) {
+  // $FlowFixMe[missing-this-annot]
   return function (filePath: FilePath, ...args: Array<any>) {
     if (this.writable.existsSync(filePath)) {
       return this.writable[method](filePath, ...args);

@@ -1,4 +1,11 @@
 // @flow
+import type {FileSystem} from '@parcel/fs';
+import type {
+  FilePath,
+  MutableAsset,
+  PluginOptions,
+  ResolveFn,
+} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import {createDependencyLocation, isGlob, glob, globSync} from '@parcel/utils';
@@ -81,7 +88,13 @@ export default (new Transformer({
   },
 }): Transformer);
 
-function attemptResolve(importedPath, filepath, asset, resolve, deps) {
+function attemptResolve(
+  importedPath: any,
+  filepath: FilePath,
+  asset: MutableAsset,
+  resolve: ResolveFn,
+  deps: Map<any, any>,
+) {
   if (deps.has(importedPath)) {
     return;
   }
@@ -112,15 +125,15 @@ function attemptResolve(importedPath, filepath, asset, resolve, deps) {
 }
 
 async function getDependencies(
-  code,
-  filepath,
-  asset,
-  resolve,
-  options,
-  parcelOptions,
-  nativeGlob,
-  seen = new Set(),
-  includeImports = true,
+  code: string,
+  filepath: FilePath,
+  asset: MutableAsset,
+  resolve: ResolveFn,
+  options: any,
+  parcelOptions: PluginOptions,
+  nativeGlob: any,
+  seen: Set<FilePath> = new Set(),
+  includeImports: boolean = true,
 ) {
   seen.add(filepath);
 
@@ -137,7 +150,7 @@ async function getDependencies(
   }
 
   class ImportVisitor extends DepsResolver {
-    visitImport(imported) {
+    visitImport(imported: any) {
       let importedPath = imported.path.first.string;
       attemptResolve(importedPath, filepath, asset, resolve, deps);
     }
@@ -220,12 +233,12 @@ async function getDependencies(
 }
 
 async function createEvaluator(
-  code,
-  asset,
-  resolve,
-  options,
-  parcelOptions,
-  nativeGlob,
+  code: string,
+  asset: MutableAsset,
+  resolve: ResolveFn,
+  options: any,
+  parcelOptions: PluginOptions,
+  nativeGlob: any,
 ) {
   const deps = await getDependencies(
     code,
@@ -241,7 +254,7 @@ async function createEvaluator(
   // require resolution algorithm. It also adds all dependencies to the parcel asset
   // tree so the file watcher works correctly, etc.
   class CustomEvaluator extends Evaluator {
-    visitImport(imported) {
+    visitImport(imported: any): any {
       let node = this.visit(imported.path).first;
       let path = node.string;
       if (node.name !== 'url' && path && !URL_RE.test(path)) {
@@ -283,7 +296,7 @@ async function createEvaluator(
   return CustomEvaluator;
 }
 
-function patchNativeFS(fs, nativeGlob) {
+function patchNativeFS(fs: FileSystem, nativeGlob: any) {
   let invalidations = [];
   let readFileSync = nativeFS.readFileSync;
   let statSync = nativeFS.statSync;
@@ -335,7 +348,7 @@ function patchNativeFS(fs, nativeGlob) {
 /**
  * Puts the content of all given node blocks into the first one, essentially merging them.
  */
-function mergeBlocks(blocks) {
+function mergeBlocks(blocks: Array<any>) {
   let finalBlock;
   for (const block of blocks) {
     if (finalBlock) {

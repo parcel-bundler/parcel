@@ -4,15 +4,21 @@ import assert from 'assert';
 import BundleGraph from '../src/BundleGraph';
 import {DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
 import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
-import {createAsset as _createAsset} from '../src/assetUtils';
-import {createDependency as _createDependency} from '../src/Dependency';
+import {
+  createAsset as _createAsset,
+  type AssetOptions,
+} from '../src/assetUtils';
+import {
+  createDependency as _createDependency,
+  type DependencyOpts,
+} from '../src/Dependency';
 import {toProjectPath} from '../src/projectPath';
 
-function createAsset(opts) {
+function createAsset(opts: AssetOptions) {
   return _createAsset('/', opts);
 }
 
-function createDependency(opts) {
+function createDependency(opts: DependencyOpts) {
   return _createDependency('/', opts);
 }
 
@@ -41,7 +47,7 @@ describe('BundleGraph', () => {
   });
 });
 
-function getAssets(bundleGraph) {
+function getAssets(bundleGraph: BundleGraph) {
   let assets = [];
   bundleGraph.traverse(node => {
     if (node.type === 'asset') {

@@ -49,7 +49,7 @@ function shallowCopy(object: any) {
   return object;
 }
 
-function isBuffer(object) {
+function isBuffer(object: any) {
   return (
     object.buffer instanceof ArrayBuffer ||
     (typeof SharedArrayBuffer !== 'undefined' &&
@@ -57,11 +57,15 @@ function isBuffer(object) {
   );
 }
 
-function shouldContinueMapping(value) {
+function shouldContinueMapping(value: any) {
   return value && typeof value === 'object' && value.$$raw !== true;
 }
 
-function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
+function mapObject(
+  object: any,
+  fn: (val: any) => any,
+  preOrder: boolean = false,
+): any {
   let cache = new Map();
   let memo = new Map();
 
@@ -78,7 +82,7 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
     return res;
   };
 
-  let walk = (object: any, shouldCopy = false) => {
+  let walk = (object: any, shouldCopy: boolean = false) => {
     // Check the cache first, both for performance and cycle detection.
     if (cache.has(object)) {
       return cache.get(object);

@@ -137,7 +137,7 @@ export class ScopeHoistingPackager {
     let res = '';
     let lineCount = 0;
     let sourceMap = null;
-    let processAsset = asset => {
+    let processAsset = (asset: Asset) => {
       let [content, map, lines] = this.visitAsset(asset);
       if (sourceMap && map) {
         sourceMap.addSourceMap(map, lineCount);
@@ -672,7 +672,7 @@ ${code}
     return [depMap, replacements];
   }
 
-  addExternal(dep: Dependency, replacements?: Map<string, string>) {
+  addExternal(dep: Dependency, replacements?: Map<string, string>): void {
     if (this.bundle.env.outputFormat === 'global') {
       throw new ThrowableDiagnostic({
         diagnostic: {

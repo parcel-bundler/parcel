@@ -12,7 +12,7 @@ import {
   getNextBuildSuccess,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
-import type {BuildEvent, Asset} from '@parcel/types';
+import type {BuildEvent, Asset, AsyncSubscription} from '@parcel/types';
 // flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 import nullthrows from 'nullthrows';
@@ -257,7 +257,7 @@ if (MessageChannel) {
   });
 }
 
-async function setup(entry) {
+async function setup(entry: string) {
   let port = await getPort(),
     b,
     window,
@@ -326,7 +326,14 @@ async function setup(entry) {
   return {port, b, window, randoms, subscription, root};
 }
 
-async function cleanup({window, subscription}) {
+async function cleanup({
+  window,
+  subscription,
+}: {|
+  //$FlowFixMe[unclear-type]
+  window: any,
+  subscription: AsyncSubscription,
+|}) {
   if (window) {
     window.close();
   }

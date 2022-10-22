@@ -159,7 +159,7 @@ export class MemoryFS implements FileSystem {
     filePath: FilePath,
     contents: Buffer | string,
     options?: ?FileOptions,
-  ) {
+  ): Promise<void> {
     filePath = this._normalizePath(filePath);
     if (this.dirs.has(filePath)) {
       throw new FSError('EISDIR', filePath, 'is a directory');

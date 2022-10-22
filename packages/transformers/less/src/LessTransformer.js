@@ -1,4 +1,6 @@
 // @flow
+import type {FilePath, MutableAsset, ResolveFn} from '@parcel/types';
+
 import {typeof default as Less} from 'less';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
@@ -69,9 +71,9 @@ export default (new Transformer({
   },
 }): Transformer);
 
-function urlPlugin({asset}) {
+function urlPlugin({asset}: {|asset: MutableAsset|}) {
   return {
-    install(less: Less, pluginManager) {
+    install(less: Less, pluginManager: any) {
       // This is a hack; no such interface exists, even conceptually, in Less.
       type LessNodeWithValue = less.tree.Node & {value: any, ...};
 
@@ -95,19 +97,30 @@ function urlPlugin({asset}) {
   };
 }
 
-function resolvePathPlugin({asset, resolve}) {
+function resolvePathPlugin({
+  asset,
+  resolve,
+}: {|
+  asset: MutableAsset,
+  resolve: ResolveFn,
+|}) {
   return {
-    install(less, pluginManager) {
+    install(less: Less, pluginManager: any) {
+      // $FlowFixMe[prop-missing]
       class LessFileManager extends less.FileManager {
-        supports() {
+        supports(): boolean {
           return true;
         }
 
-        supportsSync() {
+        supportsSync(): boolean {
           return false;
         }
 
-        async loadFile(rawFilename, currentDirectory, options) {
+        async loadFile(
+          rawFilename: string,
+          currentDirectory: string,
+          options: any,
+        ): Promise<{|contents: string, filename: ?FilePath|}> {
           let filename = rawFilename;
 
           if (WEBPACK_ALIAS_RE.test(filename)) {

@@ -146,6 +146,25 @@ type TSConfig = {
   ...
 };
 
+type RustLoc = {|
+  start_line: number,
+  start_col: number,
+  end_line: number,
+  end_col: number,
+|};
+
+type RustDiagnostic = {|
+  message: string,
+  code_highlights: Array<{|
+    message: string | void,
+    loc: RustLoc,
+  |}> | void,
+  hints: Array<string> | void,
+  show_environment: boolean,
+  severity: string,
+  documentation_url: string | void,
+|};
+
 export default (new Transformer({
   async loadConfig({config, options}) {
     let pkg = await config.getPackage();
@@ -426,7 +445,7 @@ export default (new Transformer({
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
     });
 
-    let convertLoc = loc => {
+    let convertLoc = (loc: RustLoc) => {
       let location = {
         filePath: asset.filePath,
         start: {
@@ -458,7 +477,7 @@ export default (new Transformer({
           d.severity === 'Warning' ||
           (d.severity === 'SourceError' && !asset.isSource),
       );
-      let convertDiagnostic = diagnostic => {
+      let convertDiagnostic = (diagnostic: RustDiagnostic) => {
         let message = diagnostic.message;
         if (message === 'SCRIPT_ERROR') {
           let err = SCRIPT_ERRORS[(asset.env.context: string)];
@@ -470,14 +489,16 @@ export default (new Transformer({
           codeFrames: [
             {
               filePath: asset.filePath,
-              codeHighlights: diagnostic.code_highlights?.map(highlight => {
-                let {start, end} = convertLoc(highlight.loc);
-                return {
-                  message: highlight.message,
-                  start,
-                  end,
-                };
-              }),
+              codeHighlights: nullthrows(diagnostic.code_highlights).map(
+                highlight => {
+                  let {start, end} = convertLoc(highlight.loc);
+                  return {
+                    message: highlight.message,
+                    start,
+                    end,
+                  };
+                },
+              ),
             },
           ],
           hints: diagnostic.hints,

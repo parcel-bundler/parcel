@@ -964,13 +964,15 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
  * @section validator
  * @experimental
  */
-type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
+export type ResolveConfigFn = (
+  configNames: Array<FilePath>,
+) => Promise<?FilePath>;
 
 /**
  * @section validator
  * @experimental
  */
-type ResolveConfigWithPathFn = (
+export type ResolveConfigWithPathFn = (
   configNames: Array<FilePath>,
   assetFilePath: string,
 ) => Promise<?FilePath>;

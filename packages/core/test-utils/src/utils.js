@@ -496,7 +496,8 @@ export function assertBundles(
   |}>,
 ) {
   let actualBundles = [];
-  const byAlphabet = (a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1);
+  const byAlphabet = (a: string, b: string) =>
+    a.toLowerCase() < b.toLowerCase() ? -1 : 1;
 
   bundleGraph.traverseBundles(bundle => {
     let assets = [];
@@ -539,7 +540,14 @@ export function assertBundles(
     bundle.assets.sort(byAlphabet);
   }
 
-  const byName = (a, b) => {
+  const byName = (
+    a:
+      | {assets: Array<string>, name?: string | RegExp, type?: string, ...}
+      | {assets: Array<string>, name: string, type: string, ...},
+    b:
+      | {assets: Array<string>, name?: string | RegExp, type?: string, ...}
+      | {assets: Array<string>, name: string, type: string, ...},
+  ) => {
     if (typeof a.name === 'string' && typeof b.name === 'string') {
       return a.name.localeCompare(b.name);
     }
@@ -547,8 +555,14 @@ export function assertBundles(
     return 0;
   };
 
-  const byAssets = (a, b) =>
-    a.assets.join(',').localeCompare(b.assets.join(','));
+  const byAssets = (
+    a:
+      | {assets: Array<string>, name?: string | RegExp, type?: string, ...}
+      | {assets: Array<string>, name: string, type: string, ...},
+    b:
+      | {assets: Array<string>, name?: string | RegExp, type?: string, ...}
+      | {assets: Array<string>, name: string, type: string, ...},
+  ) => a.assets.join(',').localeCompare(b.assets.join(','));
   expectedBundles.sort(byName).sort(byAssets);
   actualBundles.sort(byName).sort(byAssets);
   assert.equal(
@@ -608,14 +622,15 @@ function prepareBrowserContext(
 
   const head = {
     children: [],
-    appendChild(el) {
+    // $FlowFixMe[unclear-type]
+    appendChild(el: any) {
       head.children.push(el);
 
       if (el.tag === 'script') {
         let {deferred, promise} = makeDeferredWithPromise();
         promises.push(promise);
         setTimeout(function () {
-          let pathname = url.parse(el.src).pathname;
+          let pathname = nullthrows(url.parse(el.src).pathname);
           let file = path.join(bundle.target.distDir, pathname);
 
           new vm.Script(
@@ -639,7 +654,7 @@ function prepareBrowserContext(
 
   const fakeDocument = {
     head,
-    createElement(tag) {
+    createElement(tag: string) {
       return {tag};
     },
 
@@ -652,7 +667,7 @@ function prepareBrowserContext(
       return {timeStamp: Date.now()};
     },
 
-    getElementById(id) {
+    getElementById(id: string) {
       if (id !== '__parcel__error__overlay__') return fakeElement;
     },
 
@@ -667,7 +682,7 @@ function prepareBrowserContext(
 
   var exports = {};
 
-  function PatchedError(message) {
+  function PatchedError(message: string) {
     const patchedError = new Error(message);
     const stackStart = patchedError.stack.indexOf('at new Error');
     const stackEnd = patchedError.stack.includes('at Script.runInContext')
@@ -716,7 +731,7 @@ function prepareBrowserContext(
       navigator: {
         userAgent: '',
       },
-      fetch(url) {
+      fetch(url: string) {
         return Promise.resolve({
           async arrayBuffer() {
             let readFilePromise = overlayFS.readFile(
@@ -735,10 +750,10 @@ function prepareBrowserContext(
           },
         });
       },
-      atob(str) {
+      atob(str: string) {
         return Buffer.from(str, 'base64').toString('binary');
       },
-      btoa(str) {
+      btoa(str: string) {
         return Buffer.from(str, 'binary').toString('base64');
       },
       URL,
@@ -755,12 +770,12 @@ function prepareBrowserContext(
 
 function createWorkerClass(filePath: FilePath) {
   return class Worker extends EventEmitter {
-    constructor(url) {
+    constructor(url: string) {
       super();
       this._run(url);
     }
 
-    async _run(url) {
+    async _run(url: string) {
       let u = new URL(url);
       let filename = path.join(path.dirname(filePath), u.pathname);
       let {ctx, promises} = prepareWorkerContext(filename, {
@@ -780,11 +795,11 @@ function createWorkerClass(filePath: FilePath) {
       }
     }
 
-    addEventListener(evt, callback) {
+    addEventListener(evt: string, callback: mixed => void) {
       super.on(evt, callback);
     }
 
-    removeEventListener(evt, callback) {
+    removeEventListener(evt: string, callback: mixed => void) {
       super.removeListener(evt, callback);
     }
   };
@@ -807,20 +822,23 @@ function prepareWorkerContext(
       WebSocket,
       console,
       location: {hostname: 'localhost', origin: 'http://localhost'},
-      importScripts(...urls) {
+      importScripts(...urls: Array<string>) {
         for (let u of urls) {
           new vm.Script(
             overlayFS.readFileSync(
-              path.join(path.dirname(filePath), url.parse(u).pathname),
+              path.join(
+                path.dirname(filePath),
+                nullthrows(url.parse(u).pathname),
+              ),
               'utf8',
             ),
             {
-              filename: path.basename(url.parse(u).pathname),
+              filename: path.basename(nullthrows(url.parse(u).pathname)),
             },
           ).runInContext(ctx);
         }
       },
-      fetch(url) {
+      fetch(url: string) {
         return Promise.resolve({
           async arrayBuffer() {
             let readFilePromise = overlayFS.readFile(
@@ -839,10 +857,10 @@ function prepareWorkerContext(
           },
         });
       },
-      atob(str) {
+      atob(str: string) {
         return Buffer.from(str, 'base64').toString('binary');
       },
-      btoa(str) {
+      btoa(str: string) {
         return Buffer.from(str, 'binary').toString('base64');
       },
       URL,
@@ -862,7 +880,7 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
   let exports = {};
   let req =
     filePath &&
-    (specifier => {
+    ((specifier: string) => {
       // $FlowFixMe[prop-missing]
       let res = resolve.sync(specifier, {
         basedir: path.dirname(filePath),
@@ -892,11 +910,15 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
       // Shim FS module using overlayFS
       if (res === 'fs') {
         return {
-          readFile: async (file, encoding, cb) => {
+          readFile: async (
+            file: string,
+            encoding: ?string,
+            cb: (?Error, mixed) => void,
+          ) => {
             let res = await overlayFS.readFile(file, encoding);
             cb(null, res);
           },
-          readFileSync: (file, encoding) => {
+          readFileSync: (file: string, encoding: ?string) => {
             return overlayFS.readFileSync(file, encoding);
           },
         };
@@ -924,6 +946,7 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
           key !== '__dirname' &&
           key !== 'require'
         ) {
+          // $FlowFixMe[prop-missing]
           g[key] = ctx[key];
         }
       }
@@ -971,7 +994,11 @@ export async function runESM(
 ): Promise<Array<{|[string]: mixed|}>> {
   let id = instanceId++;
   let cache = new Map();
-  function load(specifier, referrer, code = null) {
+  function load(
+    specifier: string,
+    referrer: {|identifier: string|},
+    code: ?string = null,
+  ) {
     if (path.isAbsolute(specifier) || specifier.startsWith('.')) {
       let extname = path.extname(specifier);
       if (extname && extname !== '.js' && extname !== '.mjs') {
@@ -1025,8 +1052,10 @@ export async function runESM(
       // $FlowFixMe Experimental
       m = new vm.SyntheticModule(
         Object.keys(ns),
-        function () {
+        // eslint-disable-next-line no-unused-vars
+        function (this: mixed) {
           for (let [k, v] of Object.entries(ns)) {
+            // $FlowFixMe[incompatible-use]
             this.setExport(k, v);
           }
         },
@@ -1037,7 +1066,8 @@ export async function runESM(
     }
   }
 
-  async function _entry(m) {
+  // $FlowFixMe[unclear-type]
+  async function _entry(m: any) {
     if (m.status === 'unlinked') {
       await m.link((specifier, referrer) => load(specifier, referrer));
     }
@@ -1048,7 +1078,11 @@ export async function runESM(
   }
 
   let entryPromises = new Map();
-  function entry(specifier, referrer, code) {
+  function entry(
+    specifier: string,
+    referrer: {|identifier: string|},
+    code?: string,
+  ) {
     let m = load(specifier, referrer, code);
     let promise = entryPromises.get(m);
     if (!promise) {
@@ -1077,7 +1111,7 @@ export async function assertESMExports(
   expected: mixed,
   externalModules?: ExternalModules,
   // $FlowFixMe[unclear-type]
-  evaluate: ?({|[string]: any|}) => mixed,
+  evaluate: ?({|[string]: any|}) => {|[string]: mixed|},
 ) {
   let parcelResult = await run(b, undefined, undefined, externalModules);
 

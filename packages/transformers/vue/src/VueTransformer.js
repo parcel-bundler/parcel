@@ -1,5 +1,11 @@
 // @flow strict-local
-import type {TransformerResult} from '@parcel/types';
+import type {
+  FilePath,
+  MutableAsset,
+  PluginOptions,
+  ResolveFn,
+  TransformerResult,
+} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
@@ -170,7 +176,8 @@ export default script;`,
   },
 }): Transformer);
 
-function createDiagnostic(err, filePath) {
+// $FlowFixMe[unclear-type]
+function createDiagnostic(err: any, filePath: FilePath) {
   if (typeof err === 'string') {
     return {
       message: err,
@@ -219,7 +226,29 @@ async function processPipeline({
   resolve,
   id,
   hmrId,
-}) {
+}: {|
+  asset: MutableAsset,
+  // $FlowFixMe[unclear-type]
+  template: any,
+  // $FlowFixMe[unclear-type]
+  script: any,
+  // $FlowFixMe[unclear-type]
+  styles: any,
+  // $FlowFixMe[unclear-type]
+  customBlocks: any,
+  config: {|
+    // $FlowFixMe[unclear-type]
+    compilerOptions: any,
+    // $FlowFixMe[unclear-type]
+    customBlocks: any,
+    filePath: ?FilePath,
+  |},
+  basePath: string,
+  options: PluginOptions,
+  resolve: ResolveFn,
+  id: string,
+  hmrId: string,
+|}) {
   switch (asset.pipeline) {
     case 'template': {
       let isFunctional = template.functional;
@@ -498,7 +527,8 @@ export default script => {
   }
 }
 
-function createMap(rawMap, projectRoot: string) {
+// $FlowFixMe[unclear-type]
+function createMap(rawMap: any, projectRoot: string) {
   let newMap = new SourceMap(projectRoot);
   newMap.addVLQMap(rawMap);
   return newMap;

@@ -115,9 +115,9 @@ export type SchemaError =
 
 function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
   function walk(
-    schemaAncestors,
-    dataNode,
-    dataPath,
+    schemaAncestors: Array<SchemaEntity>,
+    dataNode: mixed,
+    dataPath: string,
   ): ?SchemaError | Array<SchemaError> {
     let [schemaNode] = schemaAncestors;
 

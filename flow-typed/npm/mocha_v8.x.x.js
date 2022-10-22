@@ -14,19 +14,19 @@ declare interface $npm$mocha$SetupOptions {
 
 declare type $npm$mocha$done = (error?: any) => any;
 
-// declare interface $npm$mocha$SuiteCallbackContext {
-//   timeout(ms: number): void;
-//   retries(n: number): void;
-//   slow(ms: number): void;
-// }
+declare interface $npm$mocha$SuiteCallbackContext {
+  timeout(ms: number): void;
+  retries(n: number): void;
+  slow(ms: number): void;
+}
 
-// declare interface $npm$mocha$TestCallbackContext {
-//   skip(): void;
-//   timeout(ms: number): void;
-//   retries(n: number): void;
-//   slow(ms: number): void;
-//   [index: string]: any;
-// }
+declare interface $npm$mocha$TestCallbackContext {
+  skip(): void;
+  timeout(ms: number): void;
+  retries(n: number): void;
+  slow(ms: number): void;
+  [index: string]: any;
+}
 
 declare interface $npm$mocha$Suite {
   parent: $npm$mocha$Suite;
@@ -35,16 +35,16 @@ declare interface $npm$mocha$Suite {
 }
 
 declare type $npm$mocha$ContextDefinition = {|
-  (description: string, callback: (/* this: $npm$mocha$SuiteCallbackContext */) => void): $npm$mocha$Suite;
-  only(description: string, callback: (/* this: $npm$mocha$SuiteCallbackContext */) => void): $npm$mocha$Suite;
-  skip(description: string, callback: (/* this: $npm$mocha$SuiteCallbackContext */) => void): void;
+  (description: string, callback: (this: $npm$mocha$SuiteCallbackContext) => void): $npm$mocha$Suite;
+  only(description: string, callback: (this: $npm$mocha$SuiteCallbackContext) => void): $npm$mocha$Suite;
+  skip(description: string, callback: (this: $npm$mocha$SuiteCallbackContext) => void): void;
   timeout(ms: number): void;
 |}
 
 declare type $npm$mocha$TestDefinition = {|
-  (expectation: string, callback?: (/* this: $npm$mocha$TestCallbackContext, */ done: $npm$mocha$done) => mixed): $npm$mocha$Test;
-  only(expectation: string, callback?: (/* this: $npm$mocha$TestCallbackContext, */ done: $npm$mocha$done) => mixed): $npm$mocha$Test;
-  skip(expectation: string, callback?: (/* this: $npm$mocha$TestCallbackContext, */ done: $npm$mocha$done) => mixed): void;
+  (expectation: string, callback?: (this: $npm$mocha$TestCallbackContext, done: $npm$mocha$done) => mixed): $npm$mocha$Test;
+  only(expectation: string, callback?: (this: $npm$mocha$TestCallbackContext, done: $npm$mocha$done) => mixed): $npm$mocha$Test;
+  skip(expectation: string, callback?: (this: $npm$mocha$TestCallbackContext, done: $npm$mocha$done) => mixed): void;
   timeout(ms: number): void;
   state: 'failed' | 'passed';
 |}
@@ -145,11 +145,11 @@ declare class $npm$mocha$Mocha {
   };
 }
 
-// declare interface $npm$mocha$HookCallbackContext {
-//   skip(): void;
-//   timeout(ms: number): void;
-//   [index: string]: any;
-// }
+declare interface $npm$mocha$HookCallbackContext {
+  skip(): void;
+  timeout(ms: number): void;
+  [index: string]: any;
+}
 
 declare interface $npm$mocha$Runnable {
   title: string;
@@ -167,9 +167,9 @@ declare interface $npm$mocha$Test extends $npm$mocha$Runnable {
   timeout(ms: number): void;
 }
 
-// declare interface $npm$mocha$BeforeAndAfterContext extends $npm$mocha$HookCallbackContext {
-//   currentTest: $npm$mocha$Test;
-// }
+declare interface $npm$mocha$BeforeAndAfterContext extends $npm$mocha$HookCallbackContext {
+  currentTest: $npm$mocha$Test;
+}
 
 declare var mocha: $npm$mocha$Mocha;
 declare var describe: $npm$mocha$ContextDefinition;
@@ -185,22 +185,22 @@ type Run = () => void;
 
 declare var run: Run;
 
-type Setup = (callback: (/* this: $npm$mocha$BeforeAndAfterContext, */ done: $npm$mocha$done) => mixed) => void;
-type Teardown = (callback: (/* this: $npm$mocha$BeforeAndAfterContext, */ done: $npm$mocha$done) => mixed) => void;
-type SuiteSetup = (callback: (/* this: $npm$mocha$HookCallbackContext, */ done: $npm$mocha$done) => mixed) => void;
-type SuiteTeardown = (callback: (/* this: $npm$mocha$HookCallbackContext, */ done: $npm$mocha$done) => mixed) => void;
+type Setup = (callback: (this: $npm$mocha$BeforeAndAfterContext, done: $npm$mocha$done) => mixed) => void;
+type Teardown = (callback: (this: $npm$mocha$BeforeAndAfterContext, done: $npm$mocha$done) => mixed) => void;
+type SuiteSetup = (callback: (this: $npm$mocha$HookCallbackContext, done: $npm$mocha$done) => mixed) => void;
+type SuiteTeardown = (callback: (this: $npm$mocha$HookCallbackContext, done: $npm$mocha$done) => mixed) => void;
 type Before =
-  | (callback: (/* this: $npm$mocha$HookCallbackContext, */ done: $npm$mocha$done) => mixed) => void
-  | (description: string, callback: (/* this: $npm$mocha$HookCallbackContext, */ done: $npm$mocha$done) => mixed) => void;
+  | (callback: (this: $npm$mocha$HookCallbackContext, done: $npm$mocha$done) => mixed) => void
+  | (description: string, callback: (this: $npm$mocha$HookCallbackContext, done: $npm$mocha$done) => mixed) => void;
 type After =
-  | (callback: (/* this: $npm$mocha$HookCallbackContext, */ done: $npm$mocha$done) => mixed) => void
-  | (description: string, callback: (/* this: $npm$mocha$HookCallbackContext, */ done: $npm$mocha$done) => mixed) => void;
+  | (callback: (this: $npm$mocha$HookCallbackContext, done: $npm$mocha$done) => mixed) => void
+  | (description: string, callback: (this: $npm$mocha$HookCallbackContext, done: $npm$mocha$done) => mixed) => void;
 type BeforeEach =
-  | (callback: (/* this: $npm$mocha$BeforeAndAfterContext, */ done: $npm$mocha$done) => mixed) => void
-  | (description: string, callback: (/* this: $npm$mocha$BeforeAndAfterContext, */ done: $npm$mocha$done) => mixed) => void;
+  | (callback: (this: $npm$mocha$BeforeAndAfterContext, done: $npm$mocha$done) => mixed) => void
+  | (description: string, callback: (this: $npm$mocha$BeforeAndAfterContext, done: $npm$mocha$done) => mixed) => void;
 type AfterEach =
-  | (callback: (/* this: $npm$mocha$BeforeAndAfterContext, */ done: $npm$mocha$done) => mixed) => void
-  | (description: string, callback: (/* this: $npm$mocha$BeforeAndAfterContext, */ done: $npm$mocha$done) => mixed) => void;
+  | (callback: (this: $npm$mocha$BeforeAndAfterContext, done: $npm$mocha$done) => mixed) => void
+  | (description: string, callback: (this: $npm$mocha$BeforeAndAfterContext, done: $npm$mocha$done) => mixed) => void;
 
 
 declare var setup: Setup;

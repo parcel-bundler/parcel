@@ -1,4 +1,5 @@
 // @flow
+import type {JSONObject, MutableAsset} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import json5 from 'json5';
@@ -36,7 +37,7 @@ export default (new Transformer({
   },
 }): Transformer);
 
-function extractUrlsFrom(data, asset) {
+function extractUrlsFrom(data: any, asset: MutableAsset) {
   if (!data) return null;
 
   if (typeof data === 'string') {
@@ -49,7 +50,7 @@ function extractUrlsFrom(data, asset) {
   return iterateThroughObject(data, asset);
 }
 
-function iterateThroughObject(jsonObject, asset) {
+function iterateThroughObject(jsonObject: JSONObject, asset: MutableAsset) {
   Object.keys(jsonObject)
     .filter(k => SCHEMA_ATTRS.includes(k))
     .forEach(k => {
@@ -60,7 +61,7 @@ function iterateThroughObject(jsonObject, asset) {
   return jsonObject;
 }
 
-function iterateThroughArray(jsonArray, asset) {
+function iterateThroughArray(jsonArray: any, asset: MutableAsset) {
   Object.keys(jsonArray).forEach(i => {
     let value = jsonArray[i];
     jsonArray[i] = extractUrlsFrom(value, asset);

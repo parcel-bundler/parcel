@@ -413,10 +413,10 @@ export class AssetGraphBuilder {
     });
 
     const logFallbackNamespaceInsertion = (
-      assetNode,
+      assetNode: AssetNode,
       symbol: Symbol,
-      depNode1,
-      depNode2,
+      depNode1: DependencyNode,
+      depNode2: DependencyNode,
     ) => {
       if (this.options.logLevel === 'verbose') {
         logger.warn({
@@ -543,7 +543,12 @@ export class AssetGraphBuilder {
 
       let errors: Array<Diagnostic> = [];
 
-      function usedSymbolsUpAmbiguous(old, current, s, value) {
+      function usedSymbolsUpAmbiguous(
+        old: Map<Symbol, ?{|asset: ContentKey, symbol: ?Symbol|}>,
+        current: Map<Symbol, ?{|asset: ContentKey, symbol: ?Symbol|}>,
+        s: Symbol,
+        value: {|asset: ContentKey, symbol: ?Symbol|},
+      ) {
         if (old.has(s)) {
           let valueOld = old.get(s);
           if (

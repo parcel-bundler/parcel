@@ -1,5 +1,10 @@
 // @flow
-import type {InitialParcelOptions, BuildSuccessEvent} from '@parcel/types';
+import type {
+  BuildSuccessEvent,
+  BundleGraph,
+  InitialParcelOptions,
+  PackagedBundle,
+} from '@parcel/types';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -31,13 +36,13 @@ import resolveOptions from '@parcel/core/src/resolveOptions';
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS, '/');
 
-function getEntries(entries = 'src/index.js') {
+function getEntries(entries: string | Array<string> = 'src/index.js') {
   return (Array.isArray(entries) ? entries : [entries]).map(entry =>
     path.resolve(inputDir, entry),
   );
 }
 
-function getOptions(opts) {
+function getOptions(opts?: InitialParcelOptions) {
   return mergeParcelOptions(
     {
       inputFS: overlayFS,
@@ -47,7 +52,10 @@ function getOptions(opts) {
   );
 }
 
-function runBundle(entries = 'src/index.js', opts) {
+function runBundle(
+  entries: string | Array<string> = 'src/index.js',
+  opts?: InitialParcelOptions,
+) {
   return bundler(getEntries(entries), getOptions(opts)).run();
 }
 
@@ -61,7 +69,7 @@ type TestConfig = {|
   update: UpdateFn,
 |};
 
-async function testCache(update: UpdateFn | TestConfig, integration) {
+async function testCache(update: UpdateFn | TestConfig, integration?: string) {
   await overlayFS.rimraf(path.join(__dirname, '/input'));
   await ncp(
     path.join(__dirname, '/integration', integration ?? 'cache'),
@@ -152,7 +160,10 @@ describe('cache', function () {
   });
 
   it('should support adding a dependency which changes the referenced bundles of a parent bundle', async function () {
-    async function exec(bundleGraph, bundle) {
+    async function exec(
+      bundleGraph: BundleGraph<PackagedBundle>,
+      bundle: PackagedBundle,
+    ) {
       let calls = [];
       await runSingleBundle(bundleGraph, nullthrows(bundle), {
         call(v) {
@@ -219,8 +230,8 @@ describe('cache', function () {
   });
 
   describe('babel', function () {
-    let json = config => JSON.stringify(config);
-    let cjs = config => `module.exports = ${JSON.stringify(config)}`;
+    let json = (config: any) => JSON.stringify(config);
+    let cjs = (config: any) => `module.exports = ${JSON.stringify(config)}`;
     // TODO: not sure how to invalidate the ESM cache in node...
     // let mjs = (config) => `export default ${JSON.stringify(config)}`;
     let configs = [
@@ -909,7 +920,8 @@ describe('cache', function () {
         assert(contents.includes('replaced'), 'string should be replaced');
       });
 
-      it('should invalidate when there are symlinked plugins', async function () {
+      // eslint-disable-next-line no-unused-vars
+      it('should invalidate when there are symlinked plugins', async function (this: $npm$mocha$TestCallbackContext) {
         // Symlinks don't work consistently on windows. Skip this test.
         if (process.platform === 'win32') {
           this.skip();
@@ -5881,7 +5893,8 @@ describe('cache', function () {
     assert.strictEqual(result3, 3);
   });
 
-  it('properly watches included files even after resaving them without changes', async function () {
+  // eslint-disable-next-line no-unused-vars
+  it('properly watches included files even after resaving them without changes', async function (this: $npm$mocha$TestCallbackContext) {
     this.timeout(15000);
     let subscription;
     let fixture = path.join(__dirname, '/integration/included-file');
@@ -5938,7 +5951,8 @@ describe('cache', function () {
     }
   });
 
-  it('properly handles included files even after when changing back to a cached state', async function () {
+  // eslint-disable-next-line no-unused-vars
+  it('properly handles included files even after when changing back to a cached state', async function (this: $npm$mocha$TestCallbackContext) {
     this.timeout(15000);
     let subscription;
     let fixture = path.join(__dirname, '/integration/included-file');
@@ -5985,7 +5999,8 @@ describe('cache', function () {
     }
   });
 
-  it('properly watches included files after a transformer error', async function () {
+  // eslint-disable-next-line no-unused-vars
+  it('properly watches included files after a transformer error', async function (this: $npm$mocha$TestCallbackContext) {
     this.timeout(15000);
     let subscription;
     let fixture = path.join(__dirname, '/integration/included-file');

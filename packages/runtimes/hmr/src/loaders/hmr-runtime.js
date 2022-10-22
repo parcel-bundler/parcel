@@ -6,6 +6,8 @@ import type {
   HMRAsset,
   HMRMessage,
 } from '@parcel/reporter-dev-server/src/HMRServer.js';
+import type {AnsiDiagnosticResult} from '@parcel/utils';
+
 interface ParcelRequire {
   (string): mixed;
   cache: {|[string]: ParcelModule|};
@@ -52,16 +54,16 @@ var OVERLAY_ID = '__parcel__error__overlay__';
 
 var OldModule = module.bundle.Module;
 
-function Module(moduleName) {
+function Module(/*:: this: any,*/ moduleName /* : string */) {
   OldModule.call(this, moduleName);
   this.hot = {
     data: module.bundle.hotData,
     _acceptCallbacks: [],
     _disposeCallbacks: [],
-    accept: function (fn) {
+    accept: function (/*:: this: any, */ fn) {
       this._acceptCallbacks.push(fn || function () {});
     },
-    dispose: function (fn) {
+    dispose: function (/*:: this: any, */ fn) {
       this._disposeCallbacks.push(fn);
     },
   };
@@ -207,7 +209,9 @@ function removeErrorOverlay() {
   }
 }
 
-function createErrorOverlay(diagnostics) {
+function createErrorOverlay(
+  diagnostics /*: Array<$Rest<AnsiDiagnosticResult, {codeframe: string, ...}>> */,
+) {
   var overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
 
@@ -215,7 +219,7 @@ function createErrorOverlay(diagnostics) {
     '<div style="background: black; opacity: 0.85; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; font-family: Menlo, Consolas, monospace; z-index: 9999;">';
 
   for (let diagnostic of diagnostics) {
-    let stack = diagnostic.frames.length
+    let stack = diagnostic.frames?.length
       ? diagnostic.frames.reduce((p, frame) => {
           return `${p}
 <a href="/__parcel_launch_editor?file=${encodeURIComponent(
@@ -230,11 +234,15 @@ ${frame.code}`;
     errorHTML += `
       <div>
         <div style="font-size: 18px; font-weight: bold; margin-top: 20px;">
-          🚨 ${diagnostic.message}
+          🚨 ${String(diagnostic.message)}
         </div>
-        <pre>${stack}</pre>
+        <pre>${String(stack)}</pre>
         <div>
-          ${diagnostic.hints.map(hint => '<div>💡 ' + hint + '</div>').join('')}
+          ${String(
+            diagnostic.hints
+              ?.map(hint => '<div>💡 ' + hint + '</div>')
+              .join(''),
+          )}
         </div>
         ${
           diagnostic.documentation
@@ -260,7 +268,10 @@ function fullReload() {
   }
 }
 
-function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
+function getParents(
+  bundle /*: ParcelRequire */,
+  id /*: string */,
+) /*: Array<[ParcelRequire, string]> */ {
   var modules = bundle.modules;
   if (!modules) {
     return [];
@@ -286,7 +297,7 @@ function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
   return parents;
 }
 
-function updateLink(link) {
+function updateLink(link /* : HTMLElement */) {
   var newLink = link.cloneNode();
   newLink.onload = function () {
     if (link.parentNode !== null) {
@@ -334,7 +345,7 @@ function reloadCSS() {
   }, 50);
 }
 
-function hmrDownload(asset) {
+function hmrDownload(asset /*: HMRAsset */) {
   if (asset.type === 'js') {
     if (typeof document !== 'undefined') {
       let script = document.createElement('script');
@@ -365,7 +376,7 @@ function hmrDownload(asset) {
   }
 }
 
-async function hmrApplyUpdates(assets) {
+async function hmrApplyUpdates(assets /*: Array<HMRAsset> */) {
   global.parcelHotUpdate = Object.create(null);
 
   let scriptsToRemove;
@@ -463,7 +474,7 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
   }
 }
 
-function hmrDelete(bundle, id) {
+function hmrDelete(bundle /* : ParcelRequire */, id /* : string */) {
   let modules = bundle.modules;
   if (!modules) {
     return;

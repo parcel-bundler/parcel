@@ -442,7 +442,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): NodeId[] {
-    let matches = node =>
+    let matches = (node: number) =>
       type === ALL_EDGE_TYPES ||
       (Array.isArray(type)
         ? type.includes(this.#nodes.typeOf(node))
@@ -478,7 +478,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): NodeId[] {
-    let matches = node =>
+    let matches = (node: number) =>
       type === ALL_EDGE_TYPES ||
       (Array.isArray(type)
         ? type.includes(this.#nodes.typeOf(node))

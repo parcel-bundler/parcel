@@ -51,7 +51,7 @@ async function logUncaughtError(e: mixed) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-const handleUncaughtException = async exception => {
+const handleUncaughtException = async (exception: Error) => {
   try {
     await logUncaughtError(exception);
   } catch (err) {
@@ -78,7 +78,7 @@ const commonOptions = {
   '--no-source-maps': 'disable sourcemaps',
   '--target [name]': [
     'only build given target(s)',
-    (val, list) => list.concat([val]),
+    (val: string, list: Array<string>) => list.concat([val]),
     [],
   ],
   '--log-level <level>': new commander.Option(
@@ -96,7 +96,7 @@ const commonOptions = {
   ],
   '--reporter <name>': [
     'additional reporters to run',
-    (val, acc) => {
+    (val: string, acc: Array<string>) => {
       acc.push(val);
       return acc;
     },
@@ -119,7 +119,7 @@ var hmrOptions = {
   '--hmr-host <host>': ['hot module replacement host', process.env.HMR_HOST],
 };
 
-function applyOptions(cmd, options) {
+function applyOptions(cmd: any, options: any) {
   for (let opt in options) {
     const option = options[opt];
     if (option instanceof commander.Option) {
@@ -209,7 +209,7 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 
 program.parse(args);
 
-function runCommand(...args) {
+function runCommand(...args: Array<any>) {
   run(...args).catch(handleUncaughtException);
 }
 
@@ -369,7 +369,7 @@ function parsePort(portValue: string): number {
   return parsedPort;
 }
 
-function parseOptionInt(value) {
+function parseOptionInt(value: string) {
   const parsedValue = parseInt(value, 10);
   if (isNaN(parsedValue)) {
     throw new commander.InvalidOptionArgumentError('Must be an integer.');
@@ -378,8 +378,8 @@ function parseOptionInt(value) {
 }
 
 async function normalizeOptions(
-  command,
-  inputFS,
+  command: any,
+  inputFS: NodeFS,
 ): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {

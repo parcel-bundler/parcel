@@ -87,7 +87,7 @@ async function installPeerDependencies(
   module: ModuleRequest,
   from: FilePath,
   projectRoot: FilePath,
-  options,
+  options: InstallOptions,
 ) {
   const {resolved} = await packageManager.resolve(module.name, from);
   const modulePkg: PackageJSON = nullthrows(

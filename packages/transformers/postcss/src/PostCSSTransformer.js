@@ -239,7 +239,7 @@ export default (new Transformer({
         code = `
           module.exports = Object.assign({}, ${deps
             .map(dep => `require(${JSON.stringify(dep.specifier)})`)
-            .join(', ')}, ${JSON.stringify(cssModules, null, 2)});
+            .join(', ')}, ${JSON.stringify(nullthrows(cssModules), null, 2)});
         `;
       } else {
         code = cssModulesList
@@ -291,7 +291,7 @@ async function createLoader(
     asset.filePath,
   );
   return class ParcelFileSystemLoader extends FileSystemLoader {
-    async fetch(composesPath, relativeTo) {
+    async fetch(composesPath: string, relativeTo: string): any {
       let importPath = composesPath.replace(/^["']|["']$/g, '');
       let resolved = await resolve(relativeTo, importPath);
       let rootRelativePath = path.resolve(path.dirname(relativeTo), resolved);
@@ -313,7 +313,7 @@ async function createLoader(
       return exportTokens;
     }
 
-    get finalSource() {
+    get finalSource(): string {
       return '';
     }
   };

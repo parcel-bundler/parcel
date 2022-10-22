@@ -22,7 +22,8 @@ function apiServer() {
   return server;
 }
 
-function get(file, port, client = http) {
+// $FlowFixMe[unclear-type]
+function get(file: string, port: number, client: any = http) {
   return new Promise((resolve, reject) => {
     client.get(
       {

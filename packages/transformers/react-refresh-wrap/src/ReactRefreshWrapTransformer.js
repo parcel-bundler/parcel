@@ -1,9 +1,10 @@
 // @flow
+import type {MutableAsset, PluginOptions} from '@parcel/types';
 
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
 
-function shouldExclude(asset, options) {
+function shouldExclude(asset: MutableAsset, options: PluginOptions) {
   return (
     !asset.isSource ||
     !options.hmrOptions ||

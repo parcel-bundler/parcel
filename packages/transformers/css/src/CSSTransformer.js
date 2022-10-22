@@ -193,7 +193,7 @@ export default (new Transformer({
       }
 
       let seen = new Set();
-      let add = key => {
+      let add = (key: string) => {
         if (seen.has(key)) {
           return;
         }
@@ -285,7 +285,7 @@ export default (new Transformer({
 
 let cache = new Map();
 
-function getTargets(browsers) {
+function getTargets(browsers: void | string | Array<string>) {
   if (browsers == null) {
     return undefined;
   }

@@ -29,7 +29,7 @@ export default class ValueEmitter<TValue> implements IDisposable {
     // slicing out the listener.
     // This prevents anyone holding onto the disposable after disposal from
     // unintentionally retaining a reference to this emitter.
-    let emitter = this;
+    let emitter: ?ValueEmitter<TValue> = this;
     return {
       dispose() {
         if (emitter == null) {

@@ -34,6 +34,7 @@ describe('throttle', () => {
 
   it('preserves the `this` when throttled functions are invoked', () => {
     let result;
+    // $FlowFixMe[missing-this-annot]
     let throttled = throttle(function () {
       result = this.bar;
     }, 100);

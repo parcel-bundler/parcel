@@ -6,6 +6,7 @@ export default function throttle<TArgs: Iterable<mixed>>(
 ): (...args: TArgs) => void {
   let lastCalled: ?number;
 
+  // $FlowFixMe[missing-this-annot]
   return function throttled(...args: TArgs) {
     if (lastCalled == null || lastCalled + delay <= Date.now()) {
       fn.call(this, ...args);

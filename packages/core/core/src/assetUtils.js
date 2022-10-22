@@ -39,7 +39,7 @@ import {
 import {hashString} from '@parcel/hash';
 import {BundleBehavior as BundleBehaviorMap} from './types';
 
-type AssetOptions = {|
+export type AssetOptions = {|
   id?: string,
   committed?: boolean,
   hash?: ?string,

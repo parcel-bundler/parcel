@@ -15,7 +15,7 @@ import {SpecifierType, Priority, BundleBehavior} from './types';
 import {toInternalSourceLocation} from './utils';
 import {toProjectPath} from './projectPath';
 
-type DependencyOpts = {|
+export type DependencyOpts = {|
   id?: string,
   sourcePath?: FilePath,
   sourceAssetId?: string,

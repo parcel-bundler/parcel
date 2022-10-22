@@ -1,6 +1,12 @@
 // @flow
 
-import type {Config, PluginOptions, PluginLogger} from '@parcel/types';
+import type {
+  Config,
+  PluginOptions,
+  PluginLogger,
+  FilePath,
+} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import typeof * as BabelCore from '@babel/core';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {BabelConfig} from './types';
@@ -102,7 +108,7 @@ export async function load(
     [string]: any,
   |} = await babelCore.loadPartialConfigAsync(babelOptions);
 
-  let addIncludedFile = file => {
+  let addIncludedFile = (file: FilePath) => {
     if (JS_EXTNAME_RE.test(path.extname(file))) {
       // We need to invalidate on startup in case the config is non-static,
       // e.g. uses unknown environment variables, reads from the filesystem, etc.
@@ -239,12 +245,16 @@ async function buildDefaultBabelConfig(
   };
 }
 
-function hasRequire(options) {
+function hasRequire(options: any) {
   let configItems = [...options.presets, ...options.plugins];
   return configItems.some(item => !item.file);
 }
 
-function definePluginDependencies(config, babelConfig: ?BabelConfig, options) {
+function definePluginDependencies(
+  config: Config,
+  babelConfig: ?BabelConfig,
+  options: PluginOptions,
+) {
   if (babelConfig == null) {
     return;
   }
@@ -280,7 +290,11 @@ const redundantPresets = new Set([
   '@parcel/babel-preset-env',
 ]);
 
-async function warnOnRedundantPlugins(fs, babelConfig, logger) {
+async function warnOnRedundantPlugins(
+  fs: FileSystem,
+  babelConfig: {[string]: any},
+  logger: PluginLogger,
+) {
   if (babelConfig == null) {
     return;
   }
@@ -377,7 +391,11 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
   }
 }
 
-async function getCodeHighlights(fs, filePath, redundantPresets) {
+async function getCodeHighlights(
+  fs: FileSystem,
+  filePath: FilePath,
+  redundantPresets: Set<string>,
+) {
   let ext = path.extname(filePath);
   if (ext !== '.js' && ext !== '.cjs' && ext !== '.mjs') {
     let contents = await fs.readFile(filePath, 'utf8');

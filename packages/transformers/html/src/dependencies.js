@@ -1,6 +1,6 @@
 // @flow
 
-import type {AST, MutableAsset} from '@parcel/types';
+import type {AST, DependencyOptions, MutableAsset} from '@parcel/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
 // A list of all attributes that may produce a dependency
@@ -74,7 +74,7 @@ const OPTIONS = {
   iframe: {
     src: {needsStableName: true},
   },
-  link(attrs) {
+  link(attrs: any) {
     if (attrs.rel === 'stylesheet') {
       return {
         // Keep in the same bundle group as the HTML.
@@ -84,7 +84,11 @@ const OPTIONS = {
   },
 };
 
-function collectSrcSetDependencies(asset, srcset, opts) {
+function collectSrcSetDependencies(
+  asset: MutableAsset,
+  srcset: string,
+  opts: $Shape<DependencyOptions>,
+) {
   let newSources = [];
   for (const source of srcset.split(',')) {
     let pair = source.trim().split(' ');
@@ -105,12 +109,13 @@ function collectSrcSetDependencies(asset, srcset, opts) {
   return newSources.join(', ');
 }
 
-function getAttrDepHandler(attr) {
+function getAttrDepHandler(attr: string) {
   if (attr === 'srcset' || attr === 'imagesrcset') {
     return collectSrcSetDependencies;
   }
 
-  return (asset, src, opts) => asset.addURLDependency(src, opts);
+  return (asset: MutableAsset, src: string, opts: $Shape<DependencyOptions>) =>
+    asset.addURLDependency(src, opts);
 }
 
 export default function collectDependencies(

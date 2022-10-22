@@ -344,7 +344,7 @@ export class NodePackageManager implements PackageManager {
     };
 
     let seen = new Set();
-    let addKey = (name, from) => {
+    let addKey = (name: string, from: string) => {
       let basedir = path.dirname(from);
       let key = basedir + ':' + name;
       if (seen.has(key)) {
@@ -380,7 +380,7 @@ export class NodePackageManager implements PackageManager {
   invalidate(name: DependencySpecifier, from: FilePath) {
     let seen = new Set();
 
-    let invalidate = (name, from) => {
+    let invalidate = (name: string, from: string) => {
       let basedir = path.dirname(from);
       let key = basedir + ':' + name;
       if (seen.has(key)) {

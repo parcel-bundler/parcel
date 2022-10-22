@@ -33,7 +33,7 @@ export function replaceURLReferences({
   bundleGraph,
   contents,
   map,
-  getReplacement = s => s,
+  getReplacement = (s: string) => s,
   relative = true,
 }: {|
   bundle: NamedBundle,

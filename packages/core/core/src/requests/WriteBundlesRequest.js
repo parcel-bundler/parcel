@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import type {Bundle, ParcelOptions} from '../types';
 import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
@@ -139,10 +140,10 @@ async function run({input, api, farm, options}: RunInput) {
 }
 
 function assignComplexNameHashes(
-  hashRefToNameHash,
-  bundles,
-  bundleInfoMap,
-  options,
+  hashRefToNameHash: Map<string, string>,
+  bundles: Array<Bundle>,
+  bundleInfoMap: {[string]: BundleInfo},
+  options: ParcelOptions,
 ) {
   for (let bundle of bundles) {
     if (hashRefToNameHash.get(bundle.hashReference) != null) {
@@ -162,9 +163,9 @@ function assignComplexNameHashes(
 }
 
 function getBundlesIncludedInHash(
-  bundleId,
-  bundleInfoMap,
-  included = new Set(),
+  bundleId: ContentKey,
+  bundleInfoMap: {[string]: BundleInfo},
+  included: Set<ContentKey> = new Set(),
 ) {
   included.add(bundleId);
   for (let hashRef of bundleInfoMap[bundleId].hashReferences) {

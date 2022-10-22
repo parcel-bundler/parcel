@@ -1,7 +1,7 @@
 // @flow
 
 import type {Asset, BundleBehavior} from '@parcel/types';
-import type {Graph} from '@parcel/graph';
+import type {Graph, NodeId} from '@parcel/graph';
 import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
 import {bundleGraphEdgeTypes} from './BundleGraph';
 import {requestGraphEdgeTypes} from './RequestTracker';
@@ -197,7 +197,7 @@ export default async function dumpGraphToGraphViz(
   console.log('Dumped', tmp);
 }
 
-function nodeId(id) {
+function nodeId(id: NodeId) {
   // $FlowFixMe
   return `node${id}`;
 }

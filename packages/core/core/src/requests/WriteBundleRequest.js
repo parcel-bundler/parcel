@@ -285,7 +285,7 @@ async function runCompressor(
   }
 }
 
-function replaceStream(hashRefToNameHash) {
+function replaceStream(hashRefToNameHash: Map<string, string>) {
   let boundaryStr = '';
   return new Transform({
     transform(chunk, encoding, cb) {
@@ -307,7 +307,7 @@ function replaceStream(hashRefToNameHash) {
   });
 }
 
-function cloneStream(readable) {
+function cloneStream(readable: Readable) {
   let res = new Readable();
   // $FlowFixMe
   res._read = () => {};

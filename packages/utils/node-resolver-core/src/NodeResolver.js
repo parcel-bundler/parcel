@@ -482,7 +482,7 @@ export default class NodeResolver {
     sourceFile: FilePath,
     name: string,
     ctx: ResolverContext,
-  ) {
+  ): Promise<void> {
     let [moduleName] = getModuleParts(name);
     let pkg = await this.findPackage(sourceFile, ctx);
     if (!pkg) {

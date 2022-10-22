@@ -412,7 +412,7 @@ export class RequestGraph extends ContentGraph<
   invalidateOnFileCreate(
     requestNodeId: NodeId,
     input: InternalFileCreateInvalidation,
-  ) {
+  ): void {
     let node;
     if (input.glob != null) {
       node = nodeFromGlob(input.glob);
@@ -1118,11 +1118,11 @@ export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
   return {ignore};
 }
 
-function getCacheKey(options) {
+function getCacheKey(options: ParcelOptions) {
   return `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}`;
 }
 
-async function loadRequestGraph(options): Async<RequestGraph> {
+async function loadRequestGraph(options: ParcelOptions): Async<RequestGraph> {
   if (options.shouldDisableCache) {
     return new RequestGraph();
   }
