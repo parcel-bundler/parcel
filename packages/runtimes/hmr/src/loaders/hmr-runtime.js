@@ -210,7 +210,7 @@ function removeErrorOverlay() {
 }
 
 function createErrorOverlay(
-  diagnostics /*: Array<$Rest<AnsiDiagnosticResult, {codeframe: string, ...}>> */,
+  diagnostics /*: $ReadOnlyArray<$Diff<AnsiDiagnosticResult, {codeframe: string, ...}>> */,
 ) {
   var overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;

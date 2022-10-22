@@ -49,7 +49,7 @@ export type HMRMessage =
       type: 'error',
       diagnostics: {|
         ansi: Array<AnsiDiagnosticResult>,
-        html: Array<$Rest<AnsiDiagnosticResult, {|codeframe: string|}>>,
+        html: Array<$Diff<AnsiDiagnosticResult, {|codeframe: string|}>>,
       |},
     |};
 

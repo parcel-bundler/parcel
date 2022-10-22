@@ -42,7 +42,7 @@ function getEntries(entries: string | Array<string> = 'src/index.js') {
   );
 }
 
-function getOptions(opts?: InitialParcelOptions) {
+function getOptions(opts: ?InitialParcelOptions) {
   return mergeParcelOptions(
     {
       inputFS: overlayFS,
@@ -54,7 +54,7 @@ function getOptions(opts?: InitialParcelOptions) {
 
 function runBundle(
   entries: string | Array<string> = 'src/index.js',
-  opts?: InitialParcelOptions,
+  opts: ?InitialParcelOptions,
 ) {
   return bundler(getEntries(entries), getOptions(opts)).run();
 }

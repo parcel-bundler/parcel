@@ -946,6 +946,7 @@ export default class RequestTracker {
 
     if (!opts?.force && hasValidResult) {
       // $FlowFixMe[incompatible-return]
+      // $FlowFixMe[incompatible-type]
       return this.getRequestResult<TResult>(request.id);
     }
 
@@ -956,6 +957,7 @@ export default class RequestTracker {
         try {
           if (await incompletePromise) {
             // $FlowFixMe[incompatible-return]
+            // $FlowFixMe[incompatible-type]
             return this.getRequestResult<TResult>(request.id);
           }
         } catch (e) {

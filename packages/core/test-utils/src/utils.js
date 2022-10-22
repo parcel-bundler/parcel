@@ -495,7 +495,11 @@ export function assertBundles(
     assets: Array<string>,
   |}>,
 ) {
-  let actualBundles = [];
+  let actualBundles: Array<{|
+    assets: Array<string>,
+    name: string,
+    type: string,
+  |}> = [];
   const byAlphabet = (a: string, b: string) =>
     a.toLowerCase() < b.toLowerCase() ? -1 : 1;
 
@@ -540,14 +544,7 @@ export function assertBundles(
     bundle.assets.sort(byAlphabet);
   }
 
-  const byName = (
-    a:
-      | {assets: Array<string>, name?: string | RegExp, type?: string, ...}
-      | {assets: Array<string>, name: string, type: string, ...},
-    b:
-      | {assets: Array<string>, name?: string | RegExp, type?: string, ...}
-      | {assets: Array<string>, name: string, type: string, ...},
-  ) => {
+  const byName = (a, b) => {
     if (typeof a.name === 'string' && typeof b.name === 'string') {
       return a.name.localeCompare(b.name);
     }
@@ -555,14 +552,8 @@ export function assertBundles(
     return 0;
   };
 
-  const byAssets = (
-    a:
-      | {assets: Array<string>, name?: string | RegExp, type?: string, ...}
-      | {assets: Array<string>, name: string, type: string, ...},
-    b:
-      | {assets: Array<string>, name?: string | RegExp, type?: string, ...}
-      | {assets: Array<string>, name: string, type: string, ...},
-  ) => a.assets.join(',').localeCompare(b.assets.join(','));
+  const byAssets = (a, b) =>
+    a.assets.join(',').localeCompare(b.assets.join(','));
   expectedBundles.sort(byName).sort(byAssets);
   actualBundles.sort(byName).sort(byAssets);
   assert.equal(
