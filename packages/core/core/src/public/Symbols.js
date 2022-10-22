@@ -35,6 +35,7 @@ export class AssetSymbols implements IAssetSymbols {
   #value: Asset;
   #options: ParcelOptions;
 
+  // $FlowFixMe(incompatible-return)
   constructor(options: ParcelOptions, asset: Asset): AssetSymbols {
     let existing = valueToSymbols.get(asset);
     if (existing != null) {
@@ -105,6 +106,7 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   #value: Asset;
   #options: ParcelOptions;
 
+  // $FlowFixMe(incompatible-return)
   constructor(options: ParcelOptions, asset: Asset): MutableAssetSymbols {
     let existing = valueToMutableAssetSymbols.get(asset);
     if (existing != null) {
@@ -206,6 +208,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   constructor(
     options: ParcelOptions,
     dep: Dependency,
+    // $FlowFixMe(incompatible-return)
   ): MutableDependencySymbols {
     let existing = valueToMutableDependencySymbols.get(dep);
     if (existing != null) {

@@ -193,6 +193,7 @@ class BaseAsset {
 export class Asset extends BaseAsset implements IAsset {
   #asset /*: CommittedAsset | UncommittedAsset */;
 
+  // $FlowFixMe(incompatible-return)
   constructor(asset: CommittedAsset | UncommittedAsset): Asset {
     let assetValueToAsset = asset.value.committed
       ? committedAssetValueToAsset
@@ -216,6 +217,7 @@ export class Asset extends BaseAsset implements IAsset {
 export class MutableAsset extends BaseAsset implements IMutableAsset {
   #asset /*: UncommittedAsset */;
 
+  // $FlowFixMe(incompatible-return)
   constructor(asset: UncommittedAsset): MutableAsset {
     let existing = assetValueToMutableAsset.get(asset.value);
     if (existing != null) {

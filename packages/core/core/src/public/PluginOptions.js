@@ -19,6 +19,7 @@ let parcelOptionsToPluginOptions: WeakMap<ParcelOptions, PluginOptions> =
 export default class PluginOptions implements IPluginOptions {
   #options /*: ParcelOptions */;
 
+  // $FlowFixMe(incompatible-return)
   constructor(options: ParcelOptions): PluginOptions {
     let existing = parcelOptionsToPluginOptions.get(options);
     if (existing != null) {

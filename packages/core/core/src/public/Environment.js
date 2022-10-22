@@ -144,6 +144,7 @@ export default class Environment implements IEnvironment {
   #environment /*: InternalEnvironment */;
   #options /*: ParcelOptions */;
 
+  // $FlowFixMe(incompatible-return)
   constructor(env: InternalEnvironment, options: ParcelOptions): Environment {
     let existing = internalEnvironmentToEnvironment.get(env);
     if (existing != null) {

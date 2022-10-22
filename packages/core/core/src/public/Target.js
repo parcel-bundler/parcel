@@ -24,6 +24,7 @@ export default class Target implements ITarget {
   #target /*: TargetValue */;
   #options /*: ParcelOptions */;
 
+  // $FlowFixMe(incompatible-return)
   constructor(target: TargetValue, options: ParcelOptions): Target {
     let existing = internalTargetToTarget.get(target);
     if (existing != null) {
