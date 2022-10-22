@@ -732,12 +732,13 @@ export default class PackagerRunner {
       let buffer = Buffer.from(contents);
       size = buffer.byteLength;
       hash = hashBuffer(buffer);
-      hashReferences = contents.match(HASH_REF_REGEX) ?? [];
+      hashReferences = contents.match(HASH_REF_REGEX) ?? ([]: Array<string>);
       await this.options.cache.setBlob(cacheKeys.content, buffer);
     } else {
       size = contents.length;
       hash = hashBuffer(contents);
-      hashReferences = contents.toString().match(HASH_REF_REGEX) ?? [];
+      hashReferences =
+        contents.toString().match(HASH_REF_REGEX) ?? ([]: Array<string>);
       await this.options.cache.setBlob(cacheKeys.content, contents);
     }
 

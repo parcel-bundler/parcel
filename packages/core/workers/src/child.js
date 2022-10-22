@@ -205,7 +205,7 @@ export class Child {
     try {
       this.send(result);
     } catch (e) {
-      result = this.send(errorResponseFromError(e));
+      this.send(errorResponseFromError(e));
     }
   }
 
