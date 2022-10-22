@@ -603,8 +603,8 @@ function createIdealGraph(
         b !== 'root' &&
         a !== b &&
         typeChangeIds.has(nodeIdB) &&
-        a.bundleBehavior !== 'inline' &&
-        b.bundleBehavior !== 'inline' &&
+        a.bundleBehavior == null &&
+        b.bundleBehavior == null &&
         a.type === b.type
       ) {
         let bundleBbundleGroups = getBundleGroupsForBundle(nodeIdB);
