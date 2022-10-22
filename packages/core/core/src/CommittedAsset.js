@@ -25,7 +25,8 @@ export default class CommittedAsset {
   }
 
   getContent(): Blob | Promise<Buffer | string> {
-    if (this.content == null) {
+    let content = this.content;
+    if (content == null) {
       if (this.value.contentKey != null) {
         if (this.value.isLargeBlob) {
           return this.options.cache.getStream(this.value.contentKey);
@@ -46,7 +47,7 @@ export default class CommittedAsset {
       }
     }
 
-    return this.content;
+    return content;
   }
 
   async getCode(): Promise<string> {

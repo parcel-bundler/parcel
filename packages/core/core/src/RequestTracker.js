@@ -945,7 +945,7 @@ export default class RequestTracker {
     let hasValidResult = requestId != null && this.hasValidResult(requestId);
 
     if (!opts?.force && hasValidResult) {
-      // $FlowFixMe[incompatible-type]
+      // $FlowFixMe[incompatible-return]
       return this.getRequestResult<TResult>(request.id);
     }
 
@@ -955,7 +955,7 @@ export default class RequestTracker {
         // There is a another instance of this request already running, wait for its completion and reuse its result
         try {
           if (await incompletePromise) {
-            // $FlowFixMe[incompatible-type]
+            // $FlowFixMe[incompatible-return]
             return this.getRequestResult<TResult>(request.id);
           }
         } catch (e) {
