@@ -5800,6 +5800,8 @@ describe('javascript', function () {
             'other.js',
             'esmodule-helpers.js',
             'bundle-url.js',
+            'cacheLoader.js',
+            'js-loader.js',
           ],
         },
         {
