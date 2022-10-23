@@ -6219,6 +6219,30 @@ describe('javascript', function () {
     assert.strictEqual(output.default, '4returned from bar');
   });
 
+  it('should produce working output with both scope hoisting and non scope hoisting targets', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/re-export-no-scope-hoist'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+    let bundles = b.getBundles();
+
+    let o1, o2;
+    await runBundle(b, bundles[0], {
+      output: (...o) => (o1 = o),
+    });
+
+    await runBundle(b, bundles[1], {
+      output: (...o) => (o2 = o),
+    });
+
+    assert.deepEqual(o1, ['UIIcon', 'Icon']);
+    assert.deepEqual(o2, ['UIIcon', 'Icon']);
+  });
+
   for (let shouldScopeHoist of [false, true]) {
     let options = {
       defaultTargetOptions: {
