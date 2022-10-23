@@ -1,6 +1,5 @@
 // @flow strict-local
 
-import type {TargetSourceMapOptions} from '../../../types/index';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
 import type {
@@ -10,6 +9,7 @@ import type {
   PackageJSON,
   PackageTargetDescriptor,
   TargetDescriptor,
+  TargetSourceMapOptions,
   OutputFormat,
 } from '@parcel/types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
