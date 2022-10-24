@@ -175,12 +175,15 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  createHandle(method: string, shouldSerialize?: boolean): HandleFunction {
+  createHandle(
+    method: string,
+    shouldSerialize: boolean = true,
+  ): HandleFunction {
     return async (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
       // This significantly speeds up startup time.
-      if (this.shouldUseRemoteWorkers()) {
+      if (this.shouldUseRemoteWorkers() && shouldSerialize) {
         return this.addCall(method, [...args, false]);
       } else {
         if (this.options.warmWorkers && this.shouldStartRemoteWorkers()) {
