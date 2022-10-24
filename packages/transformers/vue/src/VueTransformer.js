@@ -188,6 +188,7 @@ function createDiagnostic(err, filePath) {
   if (err.loc) {
     diagnostic.codeFrames = [
       {
+        filePath,
         codeHighlights: [
           {
             start: {
