@@ -540,7 +540,6 @@ function createIdealGraph(
                 typeChangeIds.add(bundleId);
               }
             } else {
-              // Otherwise, merge.
               bundle = bundleGraph.getNode(bundleId);
               invariant(bundle != null && bundle !== 'root');
 
