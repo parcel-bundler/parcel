@@ -2,6 +2,9 @@ on: pull_request
 
 name: Continuous Integration
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint
