@@ -390,11 +390,23 @@ export default class PackagerRunner {
     bundleConfigs: Map<string, Config>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
+    let publicBundleGraph = new BundleGraph<NamedBundleType>(
+      bundleGraph,
+      NamedBundle.get.bind(NamedBundle),
+      this.options,
+    );
+
+    if (this.useFarm) {
+      this.report({
+        type: 'bundleGraph',
+        bundleGraph: publicBundleGraph,
+      });
+    }
+
     this.report({
       type: 'buildProgress',
       phase: 'packaging',
       bundle,
-      bundleGraph: this.useFarm ? undefined : bundleGraph,
     });
 
     let packager = await this.config.getPackager(bundle.name);
@@ -404,11 +416,7 @@ export default class PackagerRunner {
         config: configs.get(name)?.result,
         bundleConfig: bundleConfigs.get(name)?.result,
         bundle,
-        bundleGraph: new BundleGraph<NamedBundleType>(
-          bundleGraph,
-          NamedBundle.get.bind(NamedBundle),
-          this.options,
-        ),
+        bundleGraph: publicBundleGraph,
         getSourceMapReference: map => {
           return this.getSourceMapReference(bundle, map);
         },
@@ -487,11 +495,17 @@ export default class PackagerRunner {
       return {type: bundle.type, contents, map};
     }
 
+    if (this.useFarm) {
+      this.report({
+        type: 'bundleGraph',
+        bundleGraph,
+      });
+    }
+
     this.report({
       type: 'buildProgress',
       phase: 'optimizing',
       bundle,
-      bundleGraph: this.useFarm ? undefined : internalBundleGraph,
     });
 
     let optimized = {

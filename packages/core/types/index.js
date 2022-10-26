@@ -5,7 +5,6 @@ import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
-import type InternalBundleGraph from '../core/src/BundleGraph';
 import type {
   Diagnostic,
   Diagnostifiable,
@@ -1710,7 +1709,11 @@ export type TextLogEvent = {|
 /**
  * @section reporter
  */
-export type LogEvent = ProgressLogEvent | DiagnosticLogEvent | TextLogEvent;
+export type LogEvent =
+  | ProgressLogEvent
+  | DiagnosticLogEvent
+  | TextLogEvent
+  | BundleGraphEvent;
 
 /**
  * The build just started.
@@ -1765,6 +1768,11 @@ export type BundlingProgressEvent = {|
   +phase: 'bundling',
 |};
 
+export type BundleGraphEvent = {|
+  +type: 'bundleGraph',
+  +bundleGraph: BundleGraph<NamedBundle>,
+|};
+
 /**
  * A new Bundle is being packaged.
  * @section reporter
@@ -1773,7 +1781,6 @@ export type PackagingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'packaging',
   +bundle: NamedBundle,
-  +bundleGraph?: InternalBundleGraph,
 |};
 
 /**
@@ -1784,7 +1791,6 @@ export type OptimizingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'optimizing',
   +bundle: NamedBundle,
-  +bundleGraph?: InternalBundleGraph,
 |};
 
 /**
@@ -1843,7 +1849,8 @@ export type ReporterEvent =
   | BuildFailureEvent
   | WatchStartEvent
   | WatchEndEvent
-  | ValidationEvent;
+  | ValidationEvent
+  | BundleGraphEvent;
 
 /**
  * @section reporter

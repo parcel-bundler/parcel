@@ -21,6 +21,7 @@ import logger, {
 } from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
 import BundleGraph from './BundleGraph';
+import {bundleGraphToInternalBundleGraph} from './public/BundleGraph';
 
 type Opts = {|
   config: ParcelConfig,
@@ -34,6 +35,7 @@ export default class ReporterRunner {
   options: ParcelOptions;
   pluginOptions: PluginOptions;
   reporters: Array<LoadedPlugin<Reporter>>;
+  bundleGraph: BundleGraph;
 
   constructor(opts: Opts) {
     this.config = opts.config;
@@ -53,7 +55,9 @@ export default class ReporterRunner {
   }
 
   eventHandler: ReporterEvent => void = (event): void => {
-    if (
+    if (event.type === 'bundleGraph') {
+      this.bundleGraph = bundleGraphToInternalBundleGraph(event.bundleGraph);
+    } else if (
       event.type === 'buildProgress' &&
       (event.phase === 'optimizing' || event.phase === 'packaging') &&
       !(event.bundle instanceof NamedBundle)
@@ -65,7 +69,7 @@ export default class ReporterRunner {
       // Convert any internal bundles back to their public equivalents as reporting
       // is public api
       let bundleGraph =
-        event.bundleGraph ??
+        this.bundleGraph ??
         this.workerFarm.workerApi.getSharedReference(
           // $FlowFixMe
           bundleGraphRef,
