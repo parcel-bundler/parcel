@@ -809,8 +809,10 @@ export interface Config {
   invalidateOnFileCreate(FileCreateInvalidation): void;
   /** Invalidates the config when the given environment variable changes. */
   invalidateOnEnvChange(string): void;
-  /** Invalidates the config when Parcel restarts. */
+  /** Invalidates the config only when Parcel restarts. */
   invalidateOnStartup(): void;
+  /** Invalidates the config on every build. */
+  invalidateOnBuild(): void;
   /**
    * Adds a dev dependency to the config. If the dev dependency or any of its
    * dependencies change, the config will be invalidated.
@@ -832,7 +834,7 @@ export interface Config {
    */
   getConfig<T>(
     filePaths: Array<FilePath>,
-    options: ?{|
+    options?: {|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
@@ -845,7 +847,7 @@ export interface Config {
   getConfigFrom<T>(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{|
+    options?: {|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
@@ -1592,18 +1594,26 @@ export type Runtime<ConfigType> = {|
 /**
  * @section packager
  */
-export type Packager<ConfigType> = {|
+export type Packager<ConfigType, BundleConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Promise<ConfigType> | ConfigType,
+  |}) => Async<ConfigType>,
+  loadBundleConfig?: ({|
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<BundleConfigType>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
     config: ConfigType,
+    bundleConfig: BundleConfigType,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,
@@ -1615,12 +1625,19 @@ export type Packager<ConfigType> = {|
 /**
  * @section optimizer
  */
-export type Optimizer<ConfigType> = {|
+export type Optimizer<ConfigType, BundleConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Promise<ConfigType> | ConfigType,
+  |}) => Async<ConfigType>,
+  loadBundleConfig?: ({|
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<BundleConfigType>,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1629,6 +1646,7 @@ export type Optimizer<ConfigType> = {|
     options: PluginOptions,
     logger: PluginLogger,
     config: ConfigType,
+    bundleConfig: BundleConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};

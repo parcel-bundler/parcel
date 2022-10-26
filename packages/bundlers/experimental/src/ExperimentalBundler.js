@@ -512,7 +512,8 @@ function createIdealGraph(
             if (
               entries.has(bundleGroupRootAsset) &&
               bundleGroupRootAsset.type === childAsset.type &&
-              childAsset.bundleBehavior !== 'inline'
+              childAsset.bundleBehavior !== 'inline' &&
+              dependency.bundleBehavior !== 'isolated'
             ) {
               bundleId = bundleGroupNodeId;
             }
@@ -816,6 +817,7 @@ function createIdealGraph(
           parallelAvailability,
           assetsFromBundleRoot,
         );
+        parallelAvailability.add(child); //The next sibling should have older sibling available via parallel
       }
     }
   }

@@ -7,7 +7,7 @@ import type {SharedReference} from '@parcel/workers';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Bundle} from '../types';
 import type BundleGraph from '../BundleGraph';
-import type {BundleInfo} from '../PackagerRunner';
+import type {BundleInfo, PackageRequestResult} from '../PackagerRunner';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import nullthrows from 'nullthrows';
@@ -57,7 +57,7 @@ async function run({input, api, farm}: RunInput) {
   );
 
   let {devDepRequests, configRequests, bundleInfo, invalidations} =
-    await runPackage({
+    (await runPackage({
       bundle,
       bundleGraphReference:
         bundleGraphReference == null ? input.bundleGraph : bundleGraphReference,
@@ -66,7 +66,7 @@ async function run({input, api, farm}: RunInput) {
       previousDevDeps: devDeps,
       invalidDevDeps,
       previousInvalidations: api.getInvalidations(),
-    });
+    }): PackageRequestResult);
 
   for (let devDepRequest of devDepRequests) {
     await runDevDepRequest(api, devDepRequest);
@@ -93,6 +93,7 @@ async function run({input, api, farm}: RunInput) {
     }
   }
 
+  // $FlowFixMe[cannot-write] time is marked read-only, but this is the exception
   bundleInfo.time = Date.now() - start;
 
   api.storeResult(bundleInfo);
