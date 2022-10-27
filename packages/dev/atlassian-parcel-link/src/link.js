@@ -21,20 +21,21 @@ import {
 
 export type LinkOptions = {|
   appRoot: string,
+  packageRoot: string,
   dryRun?: boolean,
   log?: (...data: mixed[]) => void,
 |};
 
 export default function link({
   appRoot,
+  packageRoot,
   dryRun = false,
   log = () => {},
 }: LinkOptions) {
   validateAppRoot(appRoot);
 
-  let opts: CmdOptions = {appRoot, dryRun, log};
+  let opts: CmdOptions = {appRoot, packageRoot, dryRun, log};
 
-  let packageRoot = path.join(__dirname, '../../../../packages');
   validatePackageRoot(packageRoot);
 
   // Step 1: Determine all Parcel packages to link

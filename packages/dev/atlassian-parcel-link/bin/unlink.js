@@ -6,7 +6,42 @@
 require('@parcel/babel-register');
 
 const unlink = require('../src/unlink').default;
-const {parseArgs, printUsage} = require('../src/util');
+
+/*::
+type ParsedArgs = {|
+  dryRun: boolean,
+  help: boolean,
+|};
+*/
+
+const defaultArgs /*: ParsedArgs */ = {
+  dryRun: false,
+  help: false,
+};
+
+function printUsage(log = console.log) {
+  log('Usage: atlassian-parcel-unlink [--dry]');
+  log('Options:');
+  log('  --dry        Do not write any changes');
+  log('  --help       Print this message');
+}
+
+function parseArgs(args) {
+  const parsedArgs = {...defaultArgs};
+  for (let arg of args) {
+    switch (arg) {
+      case '--dry':
+        parsedArgs.dryRun = true;
+        break;
+      case '--help':
+        parsedArgs.help = true;
+        break;
+      default:
+        throw new Error(`Unknown option: ${arg}`);
+    }
+  }
+  return parsedArgs;
+}
 
 let exitCode = 0;
 

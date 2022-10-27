@@ -6,44 +6,10 @@ import child_process from 'child_process';
 
 export type CmdOptions = {|
   appRoot: string,
+  packageRoot: string,
   dryRun: boolean,
   log: (...data: mixed[]) => void,
 |};
-
-export type ParsedArgs = {|
-  dryRun: boolean,
-  help: boolean,
-|};
-
-const defaultArgs: ParsedArgs = {
-  dryRun: false,
-  help: false,
-};
-
-/* eslint-disable-next-line no-console */
-export function printUsage(log: (...data: mixed[]) => void = console.log) {
-  log('Usage: atlassian-parcel-link [--dry]');
-  log('Options:');
-  log('  --dry      Do not write any changes');
-  log('  --help     Print this message');
-}
-
-export function parseArgs(args: Array<string>): ParsedArgs {
-  const parsedArgs = {...defaultArgs};
-  for (let arg of args) {
-    switch (arg) {
-      case '--dry':
-        parsedArgs.dryRun = true;
-        break;
-      case '--help':
-        parsedArgs.help = true;
-        break;
-      default:
-        throw new Error(`Unknown argument: '${arg}'`);
-    }
-  }
-  return parsedArgs;
-}
 
 export function validateAppRoot(appRoot: string) {
   try {

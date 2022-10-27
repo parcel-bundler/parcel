@@ -32,10 +32,13 @@ export default function unlink({
 }: UnlinkOptions) {
   validateAppRoot(appRoot);
 
-  let opts: CmdOptions = {appRoot, dryRun, log};
-
-  let packageRoot = path.join(__dirname, '../../../../packages');
+  // FIXME: This should be detected from the links in the app.
+  // Using this file's package root is techincally wrong
+  // if the link was performed against a different package root.
+  let packageRoot = path.join(__dirname, '../../../');
   validatePackageRoot(packageRoot);
+
+  let opts: CmdOptions = {appRoot, packageRoot, dryRun, log};
 
   // Step 1: Determine all Parcel packages that could be linked
   // --------------------------------------------------------------------------------
