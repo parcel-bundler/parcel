@@ -99,5 +99,5 @@ export default function unlink({
   // --------------------------------------------------------------------------------
 
   log('Running `yarn` to restore dependencies');
-  execSync('yarn', opts);
+  execSync('yarn install --force', opts);
 }
