@@ -511,8 +511,8 @@ function createIdealGraph(
             let bundleGroupRootAsset = nullthrows(bundleGroup.mainEntryAsset);
             if (
               entries.has(bundleGroupRootAsset) &&
-              bundleGroupRootAsset.type === childAsset.type &&
-              childAsset.bundleBehavior !== 'inline'
+              canMerge(bundleGroupRootAsset, childAsset) &&
+              dependency.bundleBehavior == null
             ) {
               bundleId = bundleGroupNodeId;
             }
@@ -522,7 +522,8 @@ function createIdealGraph(
                 asset: childAsset,
                 type: childAsset.type,
                 env: childAsset.env,
-                bundleBehavior: childAsset.bundleBehavior,
+                bundleBehavior:
+                  dependency.bundleBehavior ?? childAsset.bundleBehavior,
                 target: referencingBundle.target,
                 needsStableName:
                   childAsset.bundleBehavior === 'inline' ||
@@ -533,8 +534,15 @@ function createIdealGraph(
                     : referencingBundle.needsStableName,
               });
               bundleId = bundleGraph.addNode(bundle);
+
               // Store Type-Change bundles for later since we need to know ALL bundlegroups they are part of to reduce/combine them
-              typeChangeIds.add(bundleId);
+              if (parentAsset.type !== childAsset.type) {
+                typeChangeIds.add(bundleId);
+              }
+            } else {
+              bundle = bundleGraph.getNode(bundleId);
+              invariant(bundle != null && bundle !== 'root');
+
               if (
                 // If this dependency requests isolated, but the bundle is not,
                 // make the bundle isolated for all uses.
@@ -543,10 +551,6 @@ function createIdealGraph(
               ) {
                 bundle.bundleBehavior = dependency.bundleBehavior;
               }
-            } else {
-              // Otherwise, merge.
-              bundle = bundleGraph.getNode(bundleId);
-              invariant(bundle != null && bundle !== 'root');
             }
 
             bundles.set(childAsset.id, bundleId);
@@ -602,9 +606,7 @@ function createIdealGraph(
         b !== 'root' &&
         a !== b &&
         typeChangeIds.has(nodeIdB) &&
-        a.bundleBehavior !== 'inline' &&
-        b.bundleBehavior !== 'inline' &&
-        a.type === b.type
+        canMerge(a, b)
       ) {
         let bundleBbundleGroups = getBundleGroupsForBundle(nodeIdB);
         if (setEqual(bundleBbundleGroups, bundleABundleGroups)) {
@@ -669,8 +671,9 @@ function createIdealGraph(
             );
             if (
               bundle !== 'root' &&
-              bundle.bundleBehavior !== 'inline' &&
-              !bundle.env.isIsolated()
+              bundle.bundleBehavior == null &&
+              !bundle.env.isIsolated() &&
+              bundle.env.context === root.env.context
             ) {
               bundleRootGraph.addEdge(
                 bundleRootGraph.getNodeIdByContentKey(root.id),
@@ -690,11 +693,7 @@ function createIdealGraph(
       }
       //asset node type
       let asset = node.value;
-      if (
-        asset.bundleBehavior === 'isolated' ||
-        asset.bundleBehavior === 'inline' ||
-        root.type !== asset.type
-      ) {
+      if (asset.bundleBehavior != null || root.type !== asset.type) {
         actions.skipChildren();
         return;
       }
@@ -747,10 +746,7 @@ function createIdealGraph(
       ]) {
         let bundleInGroup = nullthrows(bundleGraph.getNode(bundleIdInGroup));
         invariant(bundleInGroup !== 'root');
-        if (
-          bundleInGroup.bundleBehavior === 'isolated' ||
-          bundleInGroup.bundleBehavior === 'inline'
-        ) {
+        if (bundleInGroup.bundleBehavior != null) {
           continue;
         }
 
@@ -783,7 +779,7 @@ function createIdealGraph(
       let child = bundleRootGraph.getNode(childId);
       invariant(child !== 'root' && child != null);
       let bundleBehavior = getBundleFromBundleRoot(child).bundleBehavior;
-      if (bundleBehavior === 'isolated' || bundleBehavior === 'inline') {
+      if (bundleBehavior != null) {
         continue;
       }
       let isParallel = bundleRootGraph.hasEdge(
@@ -1343,4 +1339,15 @@ function getEntryByTarget(
     },
   });
   return targets;
+}
+
+function canMerge(a, b) {
+  // Bundles can be merged if they have the same type and environment,
+  // unless they are explicitly marked as isolated or inline.
+  return (
+    a.type === b.type &&
+    a.env.context === b.env.context &&
+    a.bundleBehavior == null &&
+    b.bundleBehavior == null
+  );
 }

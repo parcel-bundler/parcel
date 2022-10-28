@@ -6,7 +6,6 @@ import formatCodeFrame from '@parcel/codeframe';
 import mdAnsi from '@parcel/markdown-ansi';
 import chalk from 'chalk';
 import path from 'path';
-import nullthrows from 'nullthrows';
 // $FlowFixMe
 import terminalLink from 'terminal-link';
 
@@ -60,10 +59,10 @@ export default async function prettyDiagnostic(
       }
 
       let highlights = codeFrame.codeHighlights;
-      let code =
-        codeFrame.code ??
-        (options &&
-          (await options.inputFS.readFile(nullthrows(filePath), 'utf8')));
+      let code = codeFrame.code;
+      if (code == null && options && filePath != null) {
+        code = await options.inputFS.readFile(filePath, 'utf8');
+      }
 
       let formattedCodeFrame = '';
       if (code != null) {

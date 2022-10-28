@@ -181,7 +181,11 @@ export default class BundleGraph {
       walkVisited.add(nodeId);
 
       let node = nullthrows(assetGraph.getNode(nodeId));
-      if (node.type === 'dependency' && node.value.symbols != null) {
+      if (
+        node.type === 'dependency' &&
+        node.value.symbols != null &&
+        node.value.env.shouldScopeHoist
+      ) {
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
           () => new Map(),

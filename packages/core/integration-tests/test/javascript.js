@@ -5703,7 +5703,7 @@ describe('javascript', function () {
           },
           {
             message:
-              'External dependency "@swc/helpers" does not satisfy required semver range "^0.4.2".',
+              'External dependency "@swc/helpers" does not satisfy required semver range "^0.4.12".',
             origin: '@parcel/resolver-default',
             codeFrames: [
               {
@@ -5726,7 +5726,7 @@ describe('javascript', function () {
               },
             ],
             hints: [
-              'Update the dependency on "@swc/helpers" to satisfy "^0.4.2".',
+              'Update the dependency on "@swc/helpers" to satisfy "^0.4.12".',
             ],
           },
         ],
@@ -5800,6 +5800,9 @@ describe('javascript', function () {
             'other.js',
             'esmodule-helpers.js',
             'bundle-url.js',
+            ...(process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER
+              ? ['cacheLoader.js', 'js-loader.js']
+              : []),
           ],
         },
         {
@@ -6217,6 +6220,30 @@ describe('javascript', function () {
     });
 
     assert.strictEqual(output.default, '4returned from bar');
+  });
+
+  it('should produce working output with both scope hoisting and non scope hoisting targets', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/re-export-no-scope-hoist'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+    let bundles = b.getBundles();
+
+    let o1, o2;
+    await runBundle(b, bundles[0], {
+      output: (...o) => (o1 = o),
+    });
+
+    await runBundle(b, bundles[1], {
+      output: (...o) => (o2 = o),
+    });
+
+    assert.deepEqual(o1, ['UIIcon', 'Icon']);
+    assert.deepEqual(o2, ['UIIcon', 'Icon']);
   });
 
   for (let shouldScopeHoist of [false, true]) {
