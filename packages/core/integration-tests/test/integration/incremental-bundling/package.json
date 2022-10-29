@@ -1,0 +1,11 @@
+{
+  "@parcel/bundler-default": {
+    "minBundleSize": 0
+  },
+  "sideEffects": [
+    "index-multi-symbol.js",
+    "index-export.js",
+    "index-with-css.js",
+    "index.js"
+  ]
+}

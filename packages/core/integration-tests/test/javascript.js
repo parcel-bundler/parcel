@@ -5800,6 +5800,9 @@ describe('javascript', function () {
             'other.js',
             'esmodule-helpers.js',
             'bundle-url.js',
+            ...(process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER
+              ? ['cacheLoader.js', 'js-loader.js']
+              : []),
           ],
         },
         {

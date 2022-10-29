@@ -114,6 +114,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   hash: ?string;
   envCache: Map<string, Environment>;
   symbolPropagationRan: boolean;
+  safeToIncrementallyBundle: boolean = true;
 
   constructor(opts: ?AssetGraphOpts) {
     if (opts) {
