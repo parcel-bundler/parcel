@@ -8,6 +8,9 @@ import AssetGraph, {
   nodeFromEntryFile,
   nodeFromAsset,
 } from '../src/AssetGraph';
+import type {AssetOptions} from '../src/assetUtils';
+import type {Dependency} from '../src/types';
+
 import {createDependency as _createDependency} from '../src/Dependency';
 import {createAsset as _createAsset} from '../src/assetUtils';
 import {DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
@@ -15,8 +18,11 @@ import {toProjectPath as _toProjectPath} from '../src/projectPath';
 
 const stats = {size: 0, time: 0};
 
-function createAsset(opts) {
-  return _createAsset('/', opts);
+function createAssetWithDeps(opts: AssetOptions, deps: Array<Dependency> = []) {
+  return {
+    asset: _createAsset('/', {...opts, dependencies: deps.map(d => d.id)}),
+    deps,
+  };
 }
 
 function createDependency(opts) {
@@ -320,53 +326,51 @@ describe('AssetGraph', () => {
     let req = {filePath, env: DEFAULT_ENV};
     graph.resolveDependency(dep, req, '3');
     let assets = [
-      createAsset({
-        id: '1',
-        filePath,
-        type: 'js',
-        isSource: true,
-        hash: '#1',
-        stats,
-        dependencies: new Map([
-          [
-            'utils',
-            createDependency({
-              specifier: './utils',
-              specifierType: 'esm',
-              env: DEFAULT_ENV,
-              sourcePath,
-            }),
-          ],
-        ]),
-        env: DEFAULT_ENV,
-      }),
-      createAsset({
-        id: '2',
-        filePath,
-        type: 'js',
-        isSource: true,
-        hash: '#2',
-        stats,
-        dependencies: new Map([
-          [
-            'styles',
-            createDependency({
-              specifier: './styles',
-              specifierType: 'esm',
-              env: DEFAULT_ENV,
-              sourcePath,
-            }),
-          ],
-        ]),
-        env: DEFAULT_ENV,
-      }),
-      createAsset({
+      createAssetWithDeps(
+        {
+          id: '1',
+          filePath,
+          type: 'js',
+          isSource: true,
+          hash: '#1',
+          stats,
+          env: DEFAULT_ENV,
+        },
+        [
+          createDependency({
+            specifier: './utils',
+            specifierType: 'esm',
+            env: DEFAULT_ENV,
+            sourcePath,
+          }),
+        ],
+      ),
+      createAssetWithDeps(
+        {
+          id: '2',
+          filePath,
+          type: 'js',
+          isSource: true,
+          hash: '#2',
+          stats,
+          env: DEFAULT_ENV,
+        },
+        [
+          createDependency({
+            specifier: './styles',
+            specifierType: 'esm',
+            env: DEFAULT_ENV,
+            sourcePath,
+          }),
+        ],
+      ),
+      createAssetWithDeps({
         id: '3',
         filePath,
         type: 'js',
         isSource: true,
         hash: '#3',
-        dependencies: new Map(),
+        dependencies: [],
         env: DEFAULT_ENV,
         stats,
       }),
@@ -383,10 +387,10 @@ describe('AssetGraph', () => {
     );
 
     let dependencyNodeId1 = graph.getNodeIdByContentKey(
-      [...assets[0].dependencies.values()][0].id,
+      assets[0].asset.dependencies[0],
     );
     let dependencyNodeId2 = graph.getNodeIdByContentKey(
-      [...assets[1].dependencies.values()][0].id,
+      assets[1].asset.dependencies[0],
     );
 
     assert(graph.nodes.has(nodeId1));
@@ -401,34 +405,32 @@ describe('AssetGraph', () => {
     assert(graph.hasEdge(nodeId2, dependencyNodeId2));
 
     let assets2 = [
-      createAsset({
-        id: '1',
-        filePath,
-        type: 'js',
-        isSource: true,
-        hash: '#1',
-        stats,
-        dependencies: new Map([
-          [
-            'utils',
-            createDependency({
-              specifier: './utils',
-              specifierType: 'esm',
-              env: DEFAULT_ENV,
-              sourcePath,
-            }),
-          ],
-        ]),
-        env: DEFAULT_ENV,
-      }),
-      createAsset({
+      createAssetWithDeps(
+        {
+          id: '1',
+          filePath,
+          type: 'js',
+          isSource: true,
+          hash: '#1',
+          stats,
+          env: DEFAULT_ENV,
+        },
+        [
+          createDependency({
+            specifier: './utils',
+            specifierType: 'esm',
+            env: DEFAULT_ENV,
+            sourcePath,
+          }),
+        ],
+      ),
+      createAssetWithDeps({
         id: '2',
         filePath,
         type: 'js',
         isSource: true,
         hash: '#2',
         stats,
-        dependencies: new Map(),
         env: DEFAULT_ENV,
       }),
     ];
@@ -499,28 +501,32 @@ describe('AssetGraph', () => {
       sourcePath,
     });
     let assets = [
-      createAsset({
-        id: '1',
-        filePath,
-        type: 'js',
-        isSource: true,
-        hash: '#1',
-        stats,
-        dependencies: new Map([['dep1', dep1]]),
-        env: DEFAULT_ENV,
-      }),
-      createAsset({
-        id: '2',
-        uniqueKey: 'dependent-asset-1',
-        filePath,
-        type: 'js',
-        isSource: true,
-        hash: '#1',
-        stats,
-        dependencies: new Map([['dep2', dep2]]),
-        env: DEFAULT_ENV,
-      }),
-      createAsset({
+      createAssetWithDeps(
+        {
+          id: '1',
+          filePath,
+          type: 'js',
+          isSource: true,
+          hash: '#1',
+          stats,
+          env: DEFAULT_ENV,
+        },
+        [dep1],
+      ),
+      createAssetWithDeps(
+        {
+          id: '2',
+          uniqueKey: 'dependent-asset-1',
+          filePath,
+          type: 'js',
+          isSource: true,
+          hash: '#1',
+          stats,
+          env: DEFAULT_ENV,
+        },
+        [dep2],
+      ),
+      createAssetWithDeps({
         id: '3',
         uniqueKey: 'dependent-asset-2',
         filePath,
@@ -578,19 +584,18 @@ describe('AssetGraph', () => {
       env: DEFAULT_ENV,
       sourcePath: '/index.js',
     });
-    let indexAsset = createAsset({
-      id: 'assetIndex',
-      filePath: toProjectPath('/index.js'),
-      type: 'js',
-      isSource: true,
-      hash: '#4',
-      stats,
-      dependencies: new Map([
-        ['./foo', indexFooDep],
-        ['./bar', indexBarDep],
-      ]),
-      env: DEFAULT_ENV,
-    });
+    let indexAsset = createAssetWithDeps(
+      {
+        id: 'assetIndex',
+        filePath: toProjectPath('/index.js'),
+        type: 'js',
+        isSource: true,
+        hash: '#4',
+        stats,
+        env: DEFAULT_ENV,
+      },
+      [indexFooDep, indexBarDep],
+    );
     graph.resolveAssetGroup(indexAssetGroup, [indexAsset], '0');
 
     // index imports foo
@@ -607,17 +612,19 @@ describe('AssetGraph', () => {
       sourcePath: '/foo.js',
     });
     let fooUtilsDepNode = nodeFromDep(fooUtilsDep);
-    let fooAsset = createAsset({
-      id: 'assetFoo',
-      filePath: toProjectPath('/foo.js'),
-      type: 'js',
-      isSource: true,
-      hash: '#1',
-      stats,
-      dependencies: new Map([['./utils', fooUtilsDep]]),
-      env: DEFAULT_ENV,
-    });
-    let fooAssetNode = nodeFromAsset(fooAsset);
+    let fooAsset = createAssetWithDeps(
+      {
+        id: 'assetFoo',
+        filePath: toProjectPath('/foo.js'),
+        type: 'js',
+        isSource: true,
+        hash: '#1',
+        stats,
+        env: DEFAULT_ENV,
+      },
+      [fooUtilsDep],
+    );
+    let fooAssetNode = nodeFromAsset(fooAsset.asset);
     graph.resolveAssetGroup(fooAssetGroup, [fooAsset], '0');
     let utilsAssetGroup = {
       filePath: toProjectPath('/utils.js'),
@@ -650,17 +657,19 @@ describe('AssetGraph', () => {
       env: DEFAULT_ENV,
       sourcePath: '/bar.js',
     });
-    let barAsset = createAsset({
-      id: 'assetBar',
-      filePath: toProjectPath('/bar.js'),
-      type: 'js',
-      isSource: true,
-      hash: '#2',
-      stats,
-      dependencies: new Map([['./utils', barUtilsDep]]),
-      env: DEFAULT_ENV,
-    });
-    let barAssetNode = nodeFromAsset(barAsset);
+    let barAsset = createAssetWithDeps(
+      {
+        id: 'assetBar',
+        filePath: toProjectPath('/bar.js'),
+        type: 'js',
+        isSource: true,
+        hash: '#2',
+        stats,
+        env: DEFAULT_ENV,
+      },
+      [barUtilsDep],
+    );
+    let barAssetNode = nodeFromAsset(barAsset.asset);
     graph.resolveAssetGroup(barAssetGroup, [barAsset], '3');
     graph.resolveDependency(barUtilsDep, utilsAssetGroup, '4');
 

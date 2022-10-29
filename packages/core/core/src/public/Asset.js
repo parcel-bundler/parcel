@@ -22,7 +22,9 @@ import type {
   BundleBehavior,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
+import type InternalBundleGraph from '../BundleGraph';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
@@ -66,13 +68,21 @@ export function mutableAssetToUncommittedAsset(
 
 export function assetFromValue(
   value: AssetValue,
+  graph: InternalBundleGraph,
   options: ParcelOptions,
 ): Asset {
   return new Asset(
     value.committed
-      ? new CommittedAsset(value, options)
+      ? new CommittedAsset(value, graph, options)
       : new UncommittedAsset({
           value,
+          dependencyValues: value.dependencies.map(id => {
+            let dep = nullthrows(
+              this.bundleGraph._graph.getNodeByContentKey(id),
+            );
+            invariant(dep.type === 'dependency');
+            return dep.value;
+          }),
           options,
         }),
   );

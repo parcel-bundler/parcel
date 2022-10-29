@@ -1,5 +1,7 @@
 // @flow strict-local
 
+import type {AssetOptions} from '../src/assetUtils';
+
 import assert from 'assert';
 import BundleGraph from '../src/BundleGraph';
 import {DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
@@ -8,7 +10,7 @@ import {createAsset as _createAsset} from '../src/assetUtils';
 import {createDependency as _createDependency} from '../src/Dependency';
 import {toProjectPath} from '../src/projectPath';
 
-function createAsset(opts) {
+function createAsset(opts: AssetOptions) {
   return _createAsset('/', opts);
 }
 
@@ -94,26 +96,32 @@ function createMockAssetGraph(ids: [string, string]) {
   });
 
   let assets = [
-    createAsset({
-      id: ids[0],
-      filePath,
-      type: 'js',
-      isSource: true,
-      hash: '#1',
-      stats,
-      dependencies: new Map([['dep1', dep1]]),
-      env: DEFAULT_ENV,
-    }),
-    createAsset({
-      id: ids[1],
-      filePath,
-      type: 'js',
-      isSource: true,
-      hash: '#2',
-      stats,
-      dependencies: new Map([['dep1', dep1]]),
-      env: DEFAULT_ENV,
-    }),
+    {
+      asset: createAsset({
+        id: ids[0],
+        filePath,
+        type: 'js',
+        isSource: true,
+        hash: '#1',
+        stats,
+        dependencies: [dep1.id],
+        env: DEFAULT_ENV,
+      }),
+      deps: [dep1],
+    },
+    {
+      asset: createAsset({
+        id: ids[1],
+        filePath,
+        type: 'js',
+        isSource: true,
+        hash: '#2',
+        stats,
+        dependencies: [dep1.id],
+        env: DEFAULT_ENV,
+      }),
+      deps: [dep1],
+    },
   ];
   graph.resolveAssetGroup(req, assets, '4');
 

@@ -948,13 +948,13 @@ export class AssetGraphBuilder {
       name: this.name,
       optionsRef: this.optionsRef,
     });
-    let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
-      request,
-      {force: true},
-    );
+    let assets = await this.api.runRequest<
+      AssetRequestInput,
+      Array<{|asset: Asset, deps: Array<Dependency>|}>,
+    >(request, {force: true});
 
     if (assets != null) {
-      for (let asset of assets) {
+      for (let {asset} of assets) {
         this.changedAssets.set(asset.id, asset);
       }
       this.assetGraph.resolveAssetGroup(input, assets, request.id);

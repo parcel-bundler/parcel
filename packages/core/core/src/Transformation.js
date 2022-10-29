@@ -11,6 +11,7 @@ import type {
 import type {WorkerApi} from '@parcel/workers';
 import type {
   Asset as AssetValue,
+  Dependency as DependencyValue,
   TransformationRequest,
   RequestInvalidation,
   Config,
@@ -21,6 +22,7 @@ import type {
 } from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
+import assert from 'assert';
 import path from 'path';
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
@@ -90,7 +92,7 @@ export type TransformationOpts = {|
 |};
 
 export type TransformationResult = {|
-  assets?: Array<AssetValue>,
+  assets?: Array<{|asset: AssetValue, deps: Array<DependencyValue>|}>,
   error?: Array<Diagnostic>,
   configRequests: Array<ConfigRequest>,
   invalidations: Array<RequestInvalidation>,
@@ -188,8 +190,11 @@ export default class Transformation {
     );
     let assets, error;
     try {
-      let results = await this.runPipelines(pipeline, asset);
-      assets = results.map(a => a.value);
+      let results: Array<UncommittedAsset> = await this.runPipelines(
+        pipeline,
+        asset,
+      );
+      assets = results.map(a => ({asset: a.value, deps: a.dependencyValues}));
     } catch (e) {
       error = e;
     }
@@ -258,6 +263,7 @@ export default class Transformation {
         },
         sideEffects,
       }),
+      dependencyValues: [],
       options: this.options,
       content,
       invalidations: this.invalidations,
@@ -549,17 +555,17 @@ export default class Transformation {
       return null;
     }
 
-    let cached = await this.options.cache.get<{|assets: Array<AssetValue>|}>(
-      cacheKey,
-    );
+    let cached = await this.options.cache.get<{|
+      assets: Array<[AssetValue, Array<DependencyValue>]>,
+    |}>(cacheKey);
     if (!cached) {
       return null;
     }
 
-    let cachedAssets = cached.assets;
+    let {assets} = cached;
 
     return Promise.all(
-      cachedAssets.map(async (value: AssetValue) => {
+      assets.map(async ([value, deps]) => {
         let content =
           value.contentKey != null
             ? value.isLargeBlob
@@ -577,8 +583,10 @@ export default class Transformation {
               await this.options.cache.getBlob(value.astKey)
             : null;
 
+        assert.equal(value.dependencies.length, deps.length);
         return new UncommittedAsset({
           value,
+          dependencyValues: deps,
           options: this.options,
           content,
           mapBuffer,
@@ -600,7 +608,7 @@ export default class Transformation {
 
     this.options.cache.set(cacheKey, {
       $$raw: true,
-      assets: assets.map(a => a.value),
+      assets: assets.map(a => [a.value, a.dependencyValues]),
     });
   }
 
