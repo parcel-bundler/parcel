@@ -11,6 +11,7 @@ import {
   overlayFS,
   ncp,
   request as get,
+  requestRaw as getRaw,
 } from '@parcel/test-utils';
 import https from 'https';
 import getPort from 'get-port';
@@ -56,6 +57,32 @@ describe('server', function () {
     );
 
     assert.equal(data, distFile);
+  });
+
+  it('should include content length for HEAD requests', async function () {
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      defaultTargetOptions: {
+        distDir,
+      },
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let result = await getRaw('/index.js', port, {method: 'HEAD'});
+    let distFile = await outputFS.readFile(path.join(distDir, 'index.js'));
+    assert.strictEqual(
+      result.res.headers['content-length'],
+      String(distFile.byteLength),
+    );
+    assert.strictEqual(result.data, '');
   });
 
   it('should serve source files', async function () {
