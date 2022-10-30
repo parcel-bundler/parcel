@@ -19,9 +19,7 @@ const {
   },
 } = require('./deep-imports.js');
 
-export function loadGraphs(
-  cacheDir: string,
-): {|
+export function loadGraphs(cacheDir: string): {|
   assetGraph: ?AssetGraph,
   bundleGraph: ?BundleGraph,
   requestTracker: ?RequestTracker,

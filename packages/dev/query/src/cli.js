@@ -1,5 +1,5 @@
 // @flow strict-local
-/* eslint-disable monorepo/no-internal-import */
+/* eslint-disable no-console, monorepo/no-internal-import */
 import type {ContentGraph, ContentKey, NodeId} from '@parcel/graph';
 import type {AssetGraphNode, BundleGraphNode} from '@parcel/core/src/types';
 import type {BundleGraphEdgeType} from '@parcel/core/src/BundleGraph.js';
