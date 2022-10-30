@@ -145,8 +145,8 @@ export default function createBundleGraphRequest(
         res.changedAssets.set(id, asset);
       }
 
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(
+        // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
         res.bundleGraph._graph,
         'BundleGraph',
         bundleGraphEdgeTypes,

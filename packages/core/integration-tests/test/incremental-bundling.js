@@ -787,6 +787,10 @@ console.log('index.js');`,
         path.join(fixture, '.parcelrc'),
         JSON.stringify({
           extends: '@parcel/config-default',
+          bundler:
+            process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
+              ? '@parcel/bundler-experimental'
+              : undefined,
           namers: ['parcel-namer-test'],
         }),
       );
@@ -831,6 +835,10 @@ console.log('index.js');`,
         path.join(fixture, '.parcelrc'),
         JSON.stringify({
           extends: '@parcel/config-default',
+          bundler:
+            process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
+              ? '@parcel/bundler-experimental'
+              : undefined,
           runtimes: ['parcel-runtime-test'],
         }),
       );
