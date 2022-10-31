@@ -91,7 +91,7 @@ export default (new Reporter({
         break;
       case 'buildProgress':
         if (event.phase === 'bundled' && hmrServer) {
-          hmrServer.emitUpdate(event);
+          await hmrServer.emitUpdate(event);
         }
         break;
       case 'buildSuccess':
