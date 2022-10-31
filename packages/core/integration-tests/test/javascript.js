@@ -5302,6 +5302,20 @@ describe('javascript', function () {
     assert.deepEqual(res.default, ['a', 'b', 'bar']);
   });
 
+  it('should retain the correct dependency order between import and reexports', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-reexport-dep-order/index.js'),
+    );
+
+    let calls = [];
+    await run(b, {
+      sideEffect(v) {
+        calls.push(v);
+      },
+    });
+    assert.deepEqual(calls, ['a', 'b', 'c']);
+  });
+
   it('should not freeze live default imports', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-import-default-live/index.js'),
