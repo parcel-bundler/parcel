@@ -342,6 +342,7 @@ export type AssetRequestInput = {|
   optionsRef: SharedReference,
   isURL?: boolean,
   query?: ?string,
+  isSingleChangeRebuild?: boolean,
 |};
 
 export type AssetRequestResult = Array<Asset>;

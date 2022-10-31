@@ -1710,11 +1710,7 @@ export type TextLogEvent = {|
 /**
  * @section reporter
  */
-export type LogEvent =
-  | ProgressLogEvent
-  | DiagnosticLogEvent
-  | TextLogEvent
-  | BundleGraphEvent;
+export type LogEvent = ProgressLogEvent | DiagnosticLogEvent | TextLogEvent;
 
 /**
  * The build just started.
@@ -1767,11 +1763,6 @@ export type TransformingProgressEvent = {|
 export type BundlingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'bundling',
-|};
-
-export type BundleGraphEvent = {|
-  +type: 'bundleGraph',
-  +bundleGraph: BundleGraph<NamedBundle>,
 |};
 
 /**
@@ -1850,8 +1841,7 @@ export type ReporterEvent =
   | BuildFailureEvent
   | WatchStartEvent
   | WatchEndEvent
-  | ValidationEvent
-  | BundleGraphEvent;
+  | ValidationEvent;
 
 /**
  * @section reporter

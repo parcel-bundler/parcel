@@ -25,6 +25,7 @@ import {registerCoreWithSerializer} from './utils';
 import {clearBuildCaches} from './buildCache';
 import {init as initSourcemaps} from '@parcel/source-map';
 import {init as initHash} from '@parcel/hash';
+import WorkerFarm from '@parcel/workers';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
@@ -121,7 +122,7 @@ export async function runPackage(
     previousInvalidations,
   }: {|
     bundle: Bundle,
-    bundleGraphReference: SharedReference | BundleGraph,
+    bundleGraphReference: SharedReference,
     configCachePath: string,
     optionsRef: SharedReference,
     previousDevDeps: Map<string, string>,
@@ -129,10 +130,7 @@ export async function runPackage(
     previousInvalidations: Array<RequestInvalidation>,
   |},
 ): Promise<PackageRequestResult> {
-  let bundleGraph =
-    typeof bundleGraphReference === 'number'
-      ? workerApi.getSharedReference(bundleGraphReference)
-      : bundleGraphReference;
+  let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);
   let parcelConfig = await loadConfig(configCachePath, options);
@@ -140,13 +138,9 @@ export async function runPackage(
   let runner = new PackagerRunner({
     config: parcelConfig,
     options,
-    report:
-      typeof bundleGraphReference === 'number'
-        ? reportWorker.bind(null, workerApi)
-        : report,
+    report: WorkerFarm.isWorker() ? reportWorker.bind(null, workerApi) : report,
     previousDevDeps,
     previousInvalidations,
-    useFarm: typeof bundleGraphReference === 'number' ? true : false,
   });
 
   return runner.run(bundleGraph, bundle, invalidDevDeps);

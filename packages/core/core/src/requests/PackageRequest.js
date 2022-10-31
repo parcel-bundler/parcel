@@ -18,9 +18,9 @@ import createParcelConfigRequest from './ParcelConfigRequest';
 type PackageRequestInput = {|
   bundleGraph: BundleGraph,
   bundle: Bundle,
-  bundleGraphReference?: SharedReference,
+  bundleGraphReference: SharedReference,
   optionsRef: SharedReference,
-  shouldSerialize?: boolean,
+  useMainThread?: boolean,
 |};
 
 type RunInput = {|
@@ -47,8 +47,8 @@ export function createPackageRequest(
 }
 
 async function run({input, api, farm}: RunInput) {
-  let {bundleGraphReference, optionsRef, bundle, shouldSerialize} = input;
-  let runPackage = farm.createHandle('runPackage', shouldSerialize);
+  let {bundleGraphReference, optionsRef, bundle, useMainThread} = input;
+  let runPackage = farm.createHandle('runPackage', useMainThread);
 
   let start = Date.now();
   let {devDeps, invalidDevDeps} = await getDevDepRequests(api);
@@ -59,8 +59,7 @@ async function run({input, api, farm}: RunInput) {
   let {devDepRequests, configRequests, bundleInfo, invalidations} =
     (await runPackage({
       bundle,
-      bundleGraphReference:
-        bundleGraphReference == null ? input.bundleGraph : bundleGraphReference,
+      bundleGraphReference,
       optionsRef,
       configCachePath: cachePath,
       previousDevDeps: devDeps,

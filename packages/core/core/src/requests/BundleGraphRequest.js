@@ -48,7 +48,7 @@ import {
   getConfigHash,
   type PluginWithLoadConfig,
 } from './ConfigRequest';
-import {cacheSerializedObject, deserializeToCache} from '../serializer';
+import {deserializeToCache} from '../serializer';
 import {
   joinProjectPath,
   fromProjectPathRelative,
@@ -356,11 +356,8 @@ class BundlerRunner {
       bundleGraphEdgeTypes,
     );
 
-    // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
-    // many times to send to each worker, and in build mode, when writing to cache on shutdown.
-    // Also, pre-compute the hashes for each bundle so they are only computed once and shared between workers.
+    // Pre-compute the hashes for each bundle so they are only computed once and shared between workers.
     internalBundleGraph.getBundleGraphHash();
-    cacheSerializedObject(internalBundleGraph);
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
     let {cacheKey: updatedCacheKey} = await this.getHashes(graph);

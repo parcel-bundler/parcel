@@ -68,7 +68,6 @@ type Opts = {|
   report: ReportFn,
   previousDevDeps: Map<string, string>,
   previousInvalidations: Array<RequestInvalidation>,
-  useFarm: boolean,
 |};
 
 export type PackageRequestResult = {|
@@ -111,7 +110,6 @@ export default class PackagerRunner {
   devDepRequests: Map<string, DevDepRequest>;
   invalidations: Map<string, RequestInvalidation>;
   previousInvalidations: Array<RequestInvalidation>;
-  useFarm: boolean;
 
   constructor({
     config,
@@ -119,7 +117,6 @@ export default class PackagerRunner {
     report,
     previousDevDeps,
     previousInvalidations,
-    useFarm,
   }: Opts) {
     this.config = config;
     this.options = options;
@@ -127,7 +124,6 @@ export default class PackagerRunner {
     this.previousDevDeps = previousDevDeps;
     this.devDepRequests = new Map();
     this.previousInvalidations = previousInvalidations;
-    this.useFarm = useFarm;
     this.invalidations = new Map();
     this.pluginOptions = new PluginOptions(
       optionsProxy(this.options, option => {
@@ -390,19 +386,6 @@ export default class PackagerRunner {
     bundleConfigs: Map<string, Config>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
-    let publicBundleGraph = new BundleGraph<NamedBundleType>(
-      bundleGraph,
-      NamedBundle.get.bind(NamedBundle),
-      this.options,
-    );
-
-    if (this.useFarm) {
-      this.report({
-        type: 'bundleGraph',
-        bundleGraph: publicBundleGraph,
-      });
-    }
-
     this.report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -416,7 +399,11 @@ export default class PackagerRunner {
         config: configs.get(name)?.result,
         bundleConfig: bundleConfigs.get(name)?.result,
         bundle,
-        bundleGraph: publicBundleGraph,
+        bundleGraph: new BundleGraph<NamedBundleType>(
+          bundleGraph,
+          NamedBundle.get.bind(NamedBundle),
+          this.options,
+        ),
         getSourceMapReference: map => {
           return this.getSourceMapReference(bundle, map);
         },
@@ -493,13 +480,6 @@ export default class PackagerRunner {
     );
     if (!optimizers.length) {
       return {type: bundle.type, contents, map};
-    }
-
-    if (this.useFarm) {
-      this.report({
-        type: 'bundleGraph',
-        bundleGraph,
-      });
     }
 
     this.report({

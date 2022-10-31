@@ -21,7 +21,6 @@ import logger, {
 } from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
 import BundleGraph from './BundleGraph';
-import {bundleGraphToInternalBundleGraph} from './public/BundleGraph';
 
 type Opts = {|
   config: ParcelConfig,
@@ -35,7 +34,6 @@ export default class ReporterRunner {
   options: ParcelOptions;
   pluginOptions: PluginOptions;
   reporters: Array<LoadedPlugin<Reporter>>;
-  bundleGraph: BundleGraph;
 
   constructor(opts: Opts) {
     this.config = opts.config;
@@ -55,9 +53,7 @@ export default class ReporterRunner {
   }
 
   eventHandler: ReporterEvent => void = (event): void => {
-    if (event.type === 'bundleGraph') {
-      this.bundleGraph = bundleGraphToInternalBundleGraph(event.bundleGraph);
-    } else if (
+    if (
       event.type === 'buildProgress' &&
       (event.phase === 'optimizing' || event.phase === 'packaging') &&
       !(event.bundle instanceof NamedBundle)
@@ -68,12 +64,10 @@ export default class ReporterRunner {
       let bundle: InternalBundle = event.bundle;
       // Convert any internal bundles back to their public equivalents as reporting
       // is public api
-      let bundleGraph =
-        this.bundleGraph ??
-        this.workerFarm.workerApi.getSharedReference(
-          // $FlowFixMe
-          bundleGraphRef,
-        );
+      let bundleGraph = this.workerFarm.workerApi.getSharedReference(
+        // $FlowFixMe
+        bundleGraphRef,
+      );
       invariant(bundleGraph instanceof BundleGraph);
       // $FlowFixMe[incompatible-call]
       this.report({
@@ -137,17 +131,5 @@ export function reportWorker(workerApi: WorkerApi, event: ReporterEvent) {
 }
 
 export function report(event: ReporterEvent) {
-  if (
-    event.bundleGraph &&
-    event.type === 'buildProgress' &&
-    (event.phase === 'optimizing' || event.phase === 'packaging')
-  ) {
-    bus.emit('reporterEvent', {
-      ...event,
-      bundle: bundleToInternalBundle(event.bundle),
-      bundleGraphRef: event.bundleGraph,
-    });
-  } else {
-    bus.emit('reporterEvent', event);
-  }
+  bus.emit('reporterEvent', event);
 }

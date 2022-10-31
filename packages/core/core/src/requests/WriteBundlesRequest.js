@@ -9,7 +9,6 @@ import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
 
 import {HASH_REF_PREFIX} from '../constants';
-import {serialize} from '../serializer';
 import {joinProjectPath} from '../projectPath';
 import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/hash';
@@ -49,6 +48,7 @@ export default function createWriteBundlesRequest(
 
 async function run({input, api, farm, options}: RunInput) {
   let {bundleGraph, optionsRef} = input;
+  let {ref, dispose} = await farm.createSharedReference(bundleGraph);
 
   api.invalidateOnOptionChange('shouldContentHash');
 
@@ -79,23 +79,13 @@ async function run({input, api, farm, options}: RunInput) {
     return true;
   });
 
-  let ref;
-  let dispose;
+  // Package on the main thread if there is only one bundle to package.
+  // This avoids the cost of serializing the bundle graph for single file change builds.
+  let useMainThread =
+    bundles.length === 1 ||
+    bundles.filter(b => !api.canSkipSubrequest(bundleGraph.getHash(b)))
+      .length === 1;
 
-  // Create shared reference in WorkerFarm if we need to change multiple bundles and if we
-  // can't skip the subrequests for all the bundles
-  let shouldSerialize = false;
-  if (
-    bundles.length > 1 &&
-    bundles.filter(b => !api.canSkipSubrequest(bundleGraph.getHash(b))).length >
-      1
-  ) {
-    shouldSerialize = true;
-    ({ref, dispose} = await farm.createSharedReference(
-      bundleGraph,
-      serialize(bundleGraph),
-    ));
-  }
   try {
     await Promise.all(
       bundles.map(async bundle => {
@@ -104,7 +94,7 @@ async function run({input, api, farm, options}: RunInput) {
           bundleGraph,
           bundleGraphReference: ref,
           optionsRef,
-          shouldSerialize,
+          useMainThread,
         });
 
         let info = await api.runRequest(request);
@@ -148,9 +138,7 @@ async function run({input, api, farm, options}: RunInput) {
     api.storeResult(res);
     return res;
   } finally {
-    if (dispose) {
-      await dispose();
-    }
+    await dispose();
   }
 }
 
