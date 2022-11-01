@@ -27,9 +27,10 @@ import {
   isGlobMatch,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
+  encodeJSONKeyComponent,
+  errorToDiagnostic,
   generateJSONCodeHighlights,
   md,
-  encodeJSONKeyComponent,
 } from '@parcel/diagnostic';
 import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
@@ -377,18 +378,21 @@ export default class NodeResolver {
         }
       } else if (builtin.range != null) {
         // Assert correct version
-
-        // TODO packageManager can be null for backwards compatibility, but that could cause invalid
-        // resolutions in monorepos
-        await packageManager?.resolve(
-          packageName,
-          this.projectRoot + '/index',
-          {
-            saveDev: true,
-            shouldAutoInstall: this.shouldAutoInstall,
-            range: builtin.range,
-          },
-        );
+        try {
+          // TODO packageManager can be null for backwards compatibility, but that could cause invalid
+          // resolutions in monorepos
+          await packageManager?.resolve(
+            packageName,
+            this.projectRoot + '/index',
+            {
+              saveDev: true,
+              shouldAutoInstall: this.shouldAutoInstall,
+              range: builtin.range,
+            },
+          );
+        } catch (e) {
+          this.logger?.warn(errorToDiagnostic(e));
+        }
       }
     }
 

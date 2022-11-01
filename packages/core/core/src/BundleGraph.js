@@ -26,6 +26,7 @@ import type {
 } from './types';
 import type AssetGraph from './AssetGraph';
 import type {ProjectPath} from './projectPath';
+import {nodeFromAsset} from './AssetGraph';
 
 import assert from 'assert';
 import invariant from 'assert';
@@ -181,7 +182,11 @@ export default class BundleGraph {
       walkVisited.add(nodeId);
 
       let node = nullthrows(assetGraph.getNode(nodeId));
-      if (node.type === 'dependency' && node.value.symbols != null) {
+      if (
+        node.type === 'dependency' &&
+        node.value.symbols != null &&
+        node.value.env.shouldScopeHoist
+      ) {
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
           () => new Map(),
@@ -1883,8 +1888,7 @@ export default class BundleGraph {
         otherGraphIdToThisNodeId.set(otherNodeId, existingNodeId);
 
         let existingNode = nullthrows(this._graph.getNode(existingNodeId));
-        // Merge symbols, recompute dep.exluded based on that
-
+        // Merge symbols, recompute dep.excluded based on that
         if (existingNode.type === 'asset') {
           invariant(otherNode.type === 'asset');
           existingNode.usedSymbols = new Set([
@@ -1934,6 +1938,21 @@ export default class BundleGraph {
       )
       .map(id => nullthrows(this._graph.getNode(id)))
       .some(n => n.type === 'root');
+  }
+
+  /**
+   * Update the asset in a Bundle Graph and clear the associated Bundle hash.
+   */
+  updateAsset(asset: Asset) {
+    this._graph.updateNode(
+      this._graph.getNodeIdByContentKey(asset.id),
+      nodeFromAsset(asset),
+    );
+    let bundles = this.getBundlesWithAsset(asset);
+    for (let bundle of bundles) {
+      // the bundle content will change with a modified asset
+      this._bundleContentHashes.delete(bundle.id);
+    }
   }
 
   getEntryRoot(projectRoot: FilePath, target: Target): FilePath {
