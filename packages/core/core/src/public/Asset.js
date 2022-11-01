@@ -36,6 +36,7 @@ import {
   BundleBehaviorNames,
 } from '../types';
 import {toInternalSourceLocation} from '../utils';
+import {generateIdBase} from '../assetUtils';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -72,6 +73,13 @@ export function assetFromValue(
     value.committed
       ? new CommittedAsset(value, options)
       : new UncommittedAsset({
+          idBase: generateIdBase({
+            virtual: value.virtual,
+            filePath: value.filePath,
+            hash: value.hash,
+            isSource: value.isSource,
+            key: value.key,
+          }),
           value,
           options,
         }),

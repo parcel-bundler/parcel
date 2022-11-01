@@ -1498,6 +1498,8 @@ export type ResolveResult = {|
   +isExcluded?: boolean,
   /** Overrides the priority set on the dependency. */
   +priority?: DependencyPriority,
+  /** An unique string to be used instead of the project root-relative filepath when deduplicating assets, e.g. `${pkgName}@${version}/${subPath}` */
+  +key?: string,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */
   +sideEffects?: boolean,
   /** The code of the resolved asset. If provided, this is used rather than reading the file from disk. */

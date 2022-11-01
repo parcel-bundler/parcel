@@ -38,6 +38,7 @@ import {
   createAssetIdFromOptions,
   getInvalidationId,
   getInvalidationHash,
+  generateIdBase,
 } from './assetUtils';
 import {BundleBehaviorNames} from './types';
 import {invalidateOnFileCreateToInternal} from './utils';
@@ -50,7 +51,7 @@ type UncommittedAssetOptions = {|
   mapBuffer?: ?Buffer,
   ast?: ?AST,
   isASTDirty?: ?boolean,
-  idBase?: ?string,
+  idBase: string,
   invalidations?: Map<string, RequestInvalidation>,
   fileCreateInvalidations?: Array<InternalFileCreateInvalidation>,
 |};
@@ -64,7 +65,7 @@ export default class UncommittedAsset {
   map: ?SourceMap;
   ast: ?AST;
   isASTDirty: boolean;
-  idBase: ?string;
+  idBase: string;
   invalidations: Map<string, RequestInvalidation>;
   fileCreateInvalidations: Array<InternalFileCreateInvalidation>;
   generate: ?() => Promise<GenerateOutput>;
@@ -379,6 +380,7 @@ export default class UncommittedAsset {
     let asset = new UncommittedAsset({
       value: createAsset(this.options.projectRoot, {
         idBase: this.idBase,
+        virtual: this.value.virtual,
         hash: this.value.hash,
         filePath: this.value.filePath,
         type: result.type,
@@ -390,6 +392,7 @@ export default class UncommittedAsset {
         isBundleSplittable:
           result.isBundleSplittable ?? this.value.isBundleSplittable,
         isSource: this.value.isSource,
+        key: this.value.key,
         env: mergeEnvironments(
           this.options.projectRoot,
           this.value.env,
@@ -442,7 +445,24 @@ export default class UncommittedAsset {
   }
 
   updateId() {
-    // $FlowFixMe - this is fine
-    this.value.id = createAssetIdFromOptions(this.value);
+    this.value.id = createAssetIdFromOptions({
+      idBase: generateIdBase({
+        filePath: this.value.filePath,
+        hash: this.value.hash,
+        isSource: this.value.isSource,
+        key: this.value.key,
+        virtual: this.value.virtual,
+      }),
+      filePath: this.value.filePath,
+      type: this.value.type,
+      hash: this.value.hash,
+      isSource: this.value.isSource,
+      key: this.value.key,
+      stats: this.value.stats,
+      env: this.value.env,
+      uniqueKey: this.value.uniqueKey,
+      pipeline: this.value.pipeline,
+      query: this.value.query,
+    });
   }
 }

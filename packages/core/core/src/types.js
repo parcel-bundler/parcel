@@ -155,13 +155,16 @@ export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
 export type Asset = {|
   id: ContentKey,
   committed: boolean,
-  hash: ?string,
+  // the asset's code was returned by a resolver and not loaded from disk
+  virtual: boolean,
+  hash: string,
   filePath: ProjectPath,
   query: ?string,
   type: string,
   dependencies: Map<string, Dependency>,
   bundleBehavior: ?$Values<typeof BundleBehavior>,
   isBundleSplittable: boolean,
+  key: ?string,
   isSource: boolean,
   env: Environment,
   meta: Meta,
@@ -342,6 +345,7 @@ export type AssetRequestInput = {|
   optionsRef: SharedReference,
   isURL?: boolean,
   query?: ?string,
+  key?: ?string,
 |};
 
 export type AssetRequestResult = Array<Asset>;

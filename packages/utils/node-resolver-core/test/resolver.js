@@ -8,6 +8,10 @@ import {loadConfig as configCache} from '@parcel/utils';
 import {createEnvironment} from '@parcel/core/src/Environment';
 import Environment from '@parcel/core/src/public/Environment';
 import {DEFAULT_OPTIONS} from '@parcel/core/test/test-utils';
+// flowlint-next-line untyped-import:off
+import pkg from '../package.json';
+
+const VERSION = pkg.version;
 
 const rootDir = path.join(__dirname, 'fixture');
 
@@ -294,6 +298,7 @@ describe('resolver', function () {
         filePath: require.resolve('browserify-zlib'),
         sideEffects: undefined,
         query: undefined,
+        key: 'browserify-zlib@0.2.0/lib/index.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -330,6 +335,7 @@ describe('resolver', function () {
         filePath: require.resolve('browserify-zlib'),
         sideEffects: undefined,
         query: undefined,
+        key: 'browserify-zlib@0.2.0/lib/index.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -366,6 +372,7 @@ describe('resolver', function () {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
         query: undefined,
+        key: `@parcel/node-resolver-core@${VERSION}/src/_empty.js`,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -432,6 +439,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
         query: undefined,
+        key: 'foo@0.0.0/index.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -464,6 +472,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'node_modules', 'package-main', 'main.js'),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-main@0.0.0/main.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -501,6 +510,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-module@0.0.0/module.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -538,6 +548,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-browser@0.0.0/browser.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -575,6 +586,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-browser@0.0.0/main.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -612,6 +624,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-fallback@0.0.0/index.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -687,6 +700,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-main-directory@0.0.0/nested/index.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -759,6 +773,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'nested', 'baz.js'),
         sideEffects: undefined,
         query: undefined,
+        key: 'foo@0.0.0/nested/baz.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -801,6 +816,7 @@ describe('resolver', function () {
         filePath: path.resolve(rootDir, 'node_modules/@scope/pkg/index.js'),
         sideEffects: undefined,
         query: undefined,
+        key: 'scope-pkg@0.0.0/index.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -833,6 +849,7 @@ describe('resolver', function () {
         filePath: path.resolve(rootDir, 'node_modules/@scope/pkg/foo/bar.js'),
         sideEffects: undefined,
         query: undefined,
+        key: 'scope-pkg@0.0.0/foo/bar.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -880,6 +897,7 @@ describe('resolver', function () {
           ),
           sideEffects: false,
           query: undefined,
+          key: 'side-effects-false@0.0.0/src/index.js',
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -930,6 +948,7 @@ describe('resolver', function () {
           ),
           sideEffects: false,
           query: undefined,
+          key: 'side-effects-false@0.0.0/src/index.js',
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -980,6 +999,7 @@ describe('resolver', function () {
           ),
           sideEffects: false,
           query: undefined,
+          key: 'side-effects-false@0.0.0/src/index.js',
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -1049,6 +1069,7 @@ describe('resolver', function () {
           ),
           sideEffects: false,
           query: undefined,
+          key: 'side-effects-false@0.0.0/src/index.js',
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -1118,6 +1139,7 @@ describe('resolver', function () {
           ),
           sideEffects: false,
           query: undefined,
+          key: 'side-effects-package-redirect-up@0.0.0/foo/real-bar.js',
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -1198,6 +1220,7 @@ describe('resolver', function () {
           ),
           sideEffects: false,
           query: undefined,
+          key: 'side-effects-package-redirect-down@0.0.0/foo/bar/baz/real-bar.js',
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -1446,6 +1469,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-browser-alias@0.0.0/browser.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1488,6 +1512,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-browser-alias@0.0.0/bar.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1535,6 +1560,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-browser-alias@0.0.0/bar.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1587,6 +1613,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-browser-alias@0.0.0/foo.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1634,6 +1661,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-browser-alias@0.0.0/subfolder1/subfolder2/subfile.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1692,6 +1720,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'node_modules', 'package-alias', 'bar.js'),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-alias@0.0.0/bar.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1729,6 +1758,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'node_modules', 'package-alias', 'bar.js'),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-alias@0.0.0/bar.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1782,6 +1812,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
+        key: 'package-alias-glob@0.0.0/src/test.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1840,6 +1871,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
         query: undefined,
+        key: 'foo@0.0.0/index.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1872,6 +1904,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
         query: undefined,
+        key: 'foo@0.0.0/index.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1915,6 +1948,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'bar.js'),
         sideEffects: undefined,
         query: undefined,
+        key: 'foo@0.0.0/bar.js',
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1958,6 +1992,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
         query: undefined,
+        key: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1987,6 +2022,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
         query: undefined,
+        key: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2024,6 +2060,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
         query: undefined,
+        key: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2057,6 +2094,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'nested', 'index.js'),
         sideEffects: undefined,
         query: undefined,
+        key: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2099,6 +2137,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
         query: undefined,
+        key: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2132,6 +2171,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'nested', 'index.js'),
         sideEffects: undefined,
         query: undefined,
+        key: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2174,6 +2214,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
         query: undefined,
+        key: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2203,6 +2244,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
         query: undefined,
+        key: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2236,6 +2278,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
         query: undefined,
+        key: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2269,6 +2312,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
         query: undefined,
+        key: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2310,6 +2354,7 @@ describe('resolver', function () {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
         query: undefined,
+        key: `@parcel/node-resolver-core@${VERSION}/src/_empty.js`,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2352,6 +2397,7 @@ describe('resolver', function () {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
         query: undefined,
+        key: `@parcel/node-resolver-core@${VERSION}/src/_empty.js`,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -2397,6 +2443,7 @@ describe('resolver', function () {
           filePath: path.join(rootDir, 'packages', 'source', 'source.js'),
           sideEffects: undefined,
           query: undefined,
+          key: undefined,
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -2437,6 +2484,7 @@ describe('resolver', function () {
           ),
           sideEffects: undefined,
           query: undefined,
+          key: 'source-pnpm@0.0.0/dist.js',
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -2476,6 +2524,7 @@ describe('resolver', function () {
           ),
           sideEffects: undefined,
           query: undefined,
+          key: 'source-not-symlinked@0.0.0/dist.js',
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',

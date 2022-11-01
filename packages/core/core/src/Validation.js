@@ -11,7 +11,7 @@ import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
 import UncommittedAsset from './UncommittedAsset';
-import {createAsset} from './assetUtils';
+import {createAsset, generateIdBase} from './assetUtils';
 import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
@@ -180,7 +180,7 @@ export default class Validation {
   }
 
   async loadAsset(request: AssetGroup): Promise<UncommittedAsset> {
-    let {filePath, env, code, sideEffects, query} = request;
+    let {filePath, env, code, sideEffects, query, key} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
       {
@@ -188,14 +188,19 @@ export default class Validation {
       },
     );
 
-    // If the transformer request passed code rather than a filename,
-    // use a hash as the base for the id to ensure it is unique.
-    let idBase = code != null ? hash : fromProjectPathRelative(filePath);
+    let idBase = generateIdBase({
+      virtual: code != null,
+      filePath,
+      hash,
+      isSource,
+      key,
+    });
     return new UncommittedAsset({
-      idBase,
       value: createAsset(this.options.projectRoot, {
         idBase,
+        virtual: code != null,
         filePath: filePath,
+        key,
         isSource,
         type: path.extname(fromProjectPathRelative(filePath)).slice(1),
         hash,
@@ -207,6 +212,7 @@ export default class Validation {
         },
         sideEffects: sideEffects,
       }),
+      idBase,
       options: this.options,
       content,
     });

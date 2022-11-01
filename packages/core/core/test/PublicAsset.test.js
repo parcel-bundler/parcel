@@ -1,4 +1,5 @@
 // @flow strict-local
+import type {AssetOptions} from '../src/assetUtils';
 
 import assert from 'assert';
 import {Asset, MutableAsset} from '../src/public/Asset';
@@ -8,7 +9,7 @@ import {createEnvironment} from '../src/Environment';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {toProjectPath} from '../src/projectPath';
 
-function createAsset(opts) {
+function createAsset(opts: AssetOptions) {
   return _createAsset('/', opts);
 }
 
@@ -16,9 +17,12 @@ describe('Public Asset', () => {
   let internalAsset;
   beforeEach(() => {
     internalAsset = new UncommittedAsset({
+      idBase: '',
       options: DEFAULT_OPTIONS,
       value: createAsset({
+        idBase: '',
         filePath: toProjectPath('/', '/does/not/exist'),
+        hash: '',
         type: 'js',
         env: createEnvironment({}),
         isSource: true,
