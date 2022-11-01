@@ -9,7 +9,6 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {Asset, AssetGroup, PackagedBundleInfo} from '../types';
 import type BundleGraph from '../BundleGraph';
 
-import createAssetGraphRequest from './AssetGraphRequest';
 import createBundleGraphRequest from './BundleGraphRequest';
 import createWriteBundlesRequest from './WriteBundlesRequest';
 import {assertSignalNotAborted} from '../utils';
@@ -54,31 +53,17 @@ export default function createParcelBuildRequest(
 
 async function run({input, api, options}: RunInput) {
   let {optionsRef, requestedAssetIds, signal} = input;
-  let request = createAssetGraphRequest({
-    name: 'Main',
-    entries: options.entries,
-    optionsRef,
-    shouldBuildLazily: options.shouldBuildLazily,
-    requestedAssetIds,
-  });
-  let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
-    request,
-    {
-      force: options.shouldBuildLazily && requestedAssetIds.size > 0,
-    },
-  );
 
   let bundleGraphRequest = createBundleGraphRequest({
-    assetGraph,
     optionsRef,
+    requestedAssetIds,
+    signal,
   });
 
-  let {bundleGraph, changedAssets: changedRuntimeAssets} = await api.runRequest(
+  let {bundleGraph, changedAssets, assetRequests} = await api.runRequest(
     bundleGraphRequest,
+    {force: options.shouldBuildLazily && requestedAssetIds.size > 0},
   );
-  for (let [id, asset] of changedRuntimeAssets) {
-    changedAssets.set(id, asset);
-  }
 
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
   dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph', bundleGraphEdgeTypes);

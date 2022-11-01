@@ -145,6 +145,7 @@ export type RunAPI = {|
   getRequestResult<T>(contentKey: ContentKey): Async<?T>,
   getPreviousResult<T>(ifMatch?: string): Async<?T>,
   getSubRequests(): Array<StoredRequest>,
+  getInvalidSubRequests(): Array<StoredRequest>,
   canSkipSubrequest(ContentKey): boolean,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
@@ -635,6 +636,25 @@ export class RequestGraph extends ContentGraph<
     });
   }
 
+  getInvalidSubRequests(requestNodeId: NodeId): Array<StoredRequest> {
+    if (!this.hasNode(requestNodeId)) {
+      return [];
+    }
+
+    let subRequests = this.getNodeIdsConnectedFrom(
+      requestNodeId,
+      requestGraphEdgeTypes.subrequest,
+    );
+
+    return subRequests
+      .filter(id => this.invalidNodeIds.has(id))
+      .map(nodeId => {
+        let node = nullthrows(this.getNode(nodeId));
+        invariant(node.type === 'request');
+        return node.value;
+      });
+  }
+
   invalidateFileNameNode(
     node: FileNameNode,
     filePath: ProjectPath,
@@ -1028,6 +1048,7 @@ export default class RequestTracker {
         this.storeResult(requestId, result, cacheKey);
       },
       getSubRequests: () => this.graph.getSubRequests(requestId),
+      getInvalidSubRequests: () => this.graph.getInvalidSubRequests(requestId),
       getPreviousResult: <T>(ifMatch?: string): Async<?T> => {
         let contentKey = nullthrows(this.graph.getNode(requestId)?.id);
         return this.getRequestResult<T>(contentKey, ifMatch);
