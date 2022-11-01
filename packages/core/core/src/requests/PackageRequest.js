@@ -20,6 +20,7 @@ type PackageRequestInput = {|
   bundle: Bundle,
   bundleGraphReference: SharedReference,
   optionsRef: SharedReference,
+  useMainThread?: boolean,
 |};
 
 type RunInput = {|
@@ -46,14 +47,15 @@ export function createPackageRequest(
 }
 
 async function run({input, api, farm}: RunInput) {
-  let {bundleGraphReference, optionsRef, bundle} = input;
-  let runPackage = farm.createHandle('runPackage');
+  let {bundleGraphReference, optionsRef, bundle, useMainThread} = input;
+  let runPackage = farm.createHandle('runPackage', useMainThread);
 
   let start = Date.now();
   let {devDeps, invalidDevDeps} = await getDevDepRequests(api);
   let {cachePath} = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
+
   let {devDepRequests, configRequests, bundleInfo, invalidations} =
     (await runPackage({
       bundle,
