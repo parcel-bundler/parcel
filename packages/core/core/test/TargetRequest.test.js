@@ -93,6 +93,9 @@ describe('TargetResolver', () => {
     getSubRequests() {
       return [];
     },
+    getInvalidSubRequests() {
+      return [];
+    },
   };
 
   it('resolves exactly specified targets', async () => {

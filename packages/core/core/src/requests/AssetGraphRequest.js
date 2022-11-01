@@ -113,6 +113,7 @@ export class AssetGraphBuilder {
   cacheKey: string;
   shouldBuildLazily: boolean;
   requestedAssetIds: Set<string>;
+  isSingleChangeRebuild: boolean;
 
   constructor(
     {input, api, options}: RunInput,
@@ -143,6 +144,9 @@ export class AssetGraphBuilder {
       `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
     );
 
+    this.isSingleChangeRebuild =
+      api.getInvalidSubRequests().filter(req => req.type === 'asset_request')
+        .length === 1;
     this.queue = new PromiseQueue();
   }
 
@@ -981,6 +985,7 @@ export class AssetGraphBuilder {
       ...input,
       name: this.name,
       optionsRef: this.optionsRef,
+      isSingleChangeRebuild: this.isSingleChangeRebuild,
     });
     let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
       request,
@@ -1007,6 +1012,8 @@ export class AssetGraphBuilder {
     } else {
       this.assetGraph.safeToIncrementallyBundle = false;
     }
+
+    this.isSingleChangeRebuild = false;
   }
 
   /**
