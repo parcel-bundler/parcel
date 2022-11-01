@@ -1230,7 +1230,14 @@ function createIdealGraph(
         dependencyBundleGraph.getNodeIdByContentKey(String(mainNodeId)),
       ]);
     }
-
+    let mainReachableRoot = reachableRoots.getNodeIdByContentKey(
+      mainBundleRoot.id,
+    );
+    for (let syncChildId of reachableRoots.getNodeIdsConnectedFrom(
+      reachableRoots.getNodeIdByContentKey(bundleRootB.id),
+    )) {
+      reachableRoots.addEdge(mainReachableRoot, syncChildId);
+    }
     //clean up asset reference
     for (let dependencyTuple of assetReference.get(bundleRootB)) {
       dependencyTuple[1] = a;
