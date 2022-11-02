@@ -20,4 +20,14 @@ describe('mdx', function () {
     assert.equal(typeof output.default, 'function');
     assert(output.default.isMDXComponent);
   });
+
+  it.only('should support merging types with sync children', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/merge-types-children/index.js'),
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output.default, 'function');
+    assert(output.default.isMDXComponent);
+  });
 });
