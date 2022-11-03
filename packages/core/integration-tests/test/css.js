@@ -492,4 +492,19 @@ describe('css', () => {
     let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(res.includes('.foo.bar'));
   });
+  it('should support merging types with sync children', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/merge-types-children/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+      {
+        assets: ['merge1.css', 'merge2.css', 'local.css', 'other.css'],
+      },
+    ]);
+  });
 });

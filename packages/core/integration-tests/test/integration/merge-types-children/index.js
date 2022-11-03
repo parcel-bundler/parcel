@@ -1,4 +1,8 @@
-import a from './index.mdx';
-import b from './merge2.mdx';
+require('./merge1.css');
+require('./merge2.css');
 
-export default 1;
+
+module.exports = function () {
+  return 2;
+};
+
