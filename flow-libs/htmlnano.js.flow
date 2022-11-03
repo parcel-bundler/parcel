@@ -1,0 +1,11 @@
+// @flow
+
+declare module 'htmlnano' {
+  declare type Options = {
+    minifyJs?: boolean,
+    minifyCss?: boolean,
+    ...
+  };
+
+  declare module.exports: (input: Options) => ?Array<Function>;
+}

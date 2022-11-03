@@ -1,0 +1,9 @@
+[package]
+name = "member"
+version = "0.1.0"
+authors = ["josealbizures <albizures3601@gmail.com>"]
+
+[dependencies]
+
+[lib]
+crate-type = ["cdylib"]

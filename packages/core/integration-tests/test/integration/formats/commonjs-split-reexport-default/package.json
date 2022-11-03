@@ -1,0 +1,7 @@
+{
+  "name": "commonjs-split-reexport-default",
+  "private": true,
+  "engines": {
+    "node": ">= 10"
+  }
+}

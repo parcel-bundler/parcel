@@ -1,0 +1,8 @@
+{
+  "alias": {
+    "foo": "lodash",
+    "bar": "./bar.js",
+    "foo-exclude": false,
+    "./bar-exclude": false
+  }
+}

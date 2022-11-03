@@ -1,0 +1,4 @@
+.composes3 {
+  composes: test from './mixins.module.scss';
+  border: 3px solid brown;
+}

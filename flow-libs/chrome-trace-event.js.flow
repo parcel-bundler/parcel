@@ -1,0 +1,25 @@
+// @flow
+
+// Based on https://github.com/samccone/chrome-trace-event/blob/master/lib/trace-event.ts
+declare module 'chrome-trace-event' {
+  declare type TracerOptions = {|
+    parent?: Tracer | null,
+    fields?: Fields | null,
+    objectMode?: boolean | null,
+    noStream?: boolean
+  |};
+
+  declare type Fields = {
+    cat?: any,
+    args?: any,
+    ...
+  };
+
+  declare export class Tracer extends stream$Readable {
+    constructor(opts?: TracerOptions): Tracer;
+    begin(fields: Fields): void;
+    completeEvent(fields: Fields): void;
+    instantEvent(fields: Fields): void;
+    flush(): void;
+  }
+}

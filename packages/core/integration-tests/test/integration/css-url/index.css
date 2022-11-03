@@ -1,0 +1,16 @@
+@font-face {
+  font-family: "Test";
+  src: url("./fonts/test.woff2") format("woff2");
+}
+
+.index {
+  background: url("http://google.com");
+}
+
+.quotes {
+  background: url("data:image/gif;base64,quotes");
+}
+
+.no-quote {
+  background: url(data:image/gif;base64,no-quote);
+}

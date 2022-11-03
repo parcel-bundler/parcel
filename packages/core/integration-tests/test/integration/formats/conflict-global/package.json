@@ -1,0 +1,6 @@
+{
+  "name": "conflict-global",
+  "private": true,
+  "module": "dist/esm.js",
+  "main": "dist/cjs.js"
+}

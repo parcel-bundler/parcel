@@ -1,0 +1,6 @@
+<svg width="120" height='120' xmlns="http://www.w3.org/2000/svg">
+  <filter id="blur-_.!~*">
+    <feGaussianBlur stdDeviation="5"/>
+  </filter>
+  <circle cx="60" cy="60" r="50" fill="green" filter="url(#blur-_.!~*)" />
+</svg>

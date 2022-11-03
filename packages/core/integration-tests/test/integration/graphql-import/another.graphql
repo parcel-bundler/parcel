@@ -1,0 +1,4 @@
+fragment AnotherUserFragment on User {
+    address
+    email
+}

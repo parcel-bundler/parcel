@@ -1,0 +1,14 @@
+// @flow
+
+// Derived from the base-x source available at:
+// https://github.com/cryptocoinjs/base-x
+// Which is licensed MIT
+
+declare module 'base-x' {
+  declare type BaseX = {|
+    decode(encoded: string): Buffer,
+    encode(buffer: Buffer): string,
+  |};
+
+  declare module.exports: (alphabet: string) => BaseX;
+}

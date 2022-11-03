@@ -1,0 +1,18 @@
+{
+  "main": "index.js",
+  "browser": {
+    "./ignore-me-in-browsers": false
+  },
+  "targets": {
+    "browsers": {
+      "engines": {
+        "browsers": [">= 1%"]
+      }
+    },
+    "node": {
+      "engines": {
+        "node": "12"
+      }
+    }
+  }
+}

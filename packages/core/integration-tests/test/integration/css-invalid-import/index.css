@@ -1,0 +1,5 @@
+@import './thisdoesnotexist.css';
+
+.index {
+  color: red;
+}

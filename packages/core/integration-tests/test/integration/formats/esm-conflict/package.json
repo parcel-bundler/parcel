@@ -1,0 +1,8 @@
+{
+  "name": "esm-conflict",
+  "private": true,
+  "module": "dist/index.js",
+  "dependencies": {
+    "foo": "*"
+  }
+}

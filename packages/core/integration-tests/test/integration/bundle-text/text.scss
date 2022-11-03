@@ -1,0 +1,9 @@
+$black: #000;
+
+body {
+  background-color: $black;
+}
+
+.svg-img {
+  background-image: url('data-url:img.svg');
+}

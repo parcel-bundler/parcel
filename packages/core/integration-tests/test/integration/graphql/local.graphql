@@ -1,0 +1,9 @@
+{
+  user(id: 5) {
+    ...UserFragment
+  }
+}
+fragment UserFragment on User {
+  firstName
+  lastName
+}

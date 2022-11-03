@@ -1,0 +1,4 @@
+{
+    "plugins": ["./babel-plugin-dummy-1"],
+    "babelrcRoots": [".", "packages/*"]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "commonjs-bundle-require",
+  "version": "1.2.3",
+  "main": "dist/index.js",
+  "engines": {
+    "node": "8"
+  },
+  "dependencies": {
+    "parcel-transformer-string": "*"
+  }
+}

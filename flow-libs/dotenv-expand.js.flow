@@ -1,0 +1,14 @@
+// @flow strict-local
+
+declare module 'dotenv-expand' {
+  // Must stay in sync with dotenv's type:
+  // https://github.com/motdotla/dotenv/blob/72fb66b051280ef5c2cc40ce4962ac4601f7f515/lib/main.js
+  declare type DotenvConfig = {
+    error?: Error,
+    parsed?: { [string]: string, ... },
+    ...
+  };
+
+  // See: https://github.com/motdotla/dotenv-expand/blob/ddb73d02322fe8522b4e05b73e1c1ad24ea7c14a/lib/main.js
+  declare module.exports: (config: DotenvConfig) => DotenvConfig;
+}

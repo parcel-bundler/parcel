@@ -1,0 +1,3 @@
+output = {
+  b: require('./b')
+};

@@ -1,0 +1,9 @@
+{
+  "extends": "../.eslintrc.json",
+  "parserOptions": {
+    "sourceType": "script"
+  },
+  "rules": {
+    "no-unused-vars": "off"
+  }
+}

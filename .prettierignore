@@ -1,0 +1,16 @@
+flow-typed
+packages/*/*/src/builtins
+packages/*/*/test/integration
+packages/*/*/test/input
+packages/*/*/test/dist
+packages/*/*/test/mochareporters.json
+packages/*/*/test/fixtures
+pacakges/*/*/test/.parcel-cache
+vendor
+tmp
+.parcel-cache
+
+# Ignoring main README for now because generated Table of Contents adds a line that prettier removes
+# in precommit hook, causing `yarn lint:readme` to fail
+/README.md
+/packages/core/parcel/README.md

@@ -1,0 +1,13 @@
+{
+  "name": "register-example",
+  "version": "2.0.0-beta.1",
+  "main": "./index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node ./index.js"
+  },
+  "dependencies": {
+    "@babel/core": "^7.12.0",
+    "something": "1.0.0"
+  }
+}

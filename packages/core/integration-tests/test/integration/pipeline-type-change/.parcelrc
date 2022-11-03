@@ -1,0 +1,6 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.{txt,ini}": ["parcel-transformer-a", "parcel-transformer-b"]
+  }
+}

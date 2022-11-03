@@ -1,0 +1,10 @@
+// @flow
+
+declare module 'grapheme-breaker' {
+  declare module.exports: {
+    break(str: string): Array<string>,
+    countBreaks(str: string): number,
+    previousBreak(str: string, index: number): number,
+    ...
+  };
+}

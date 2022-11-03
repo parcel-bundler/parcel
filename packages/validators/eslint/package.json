@@ -1,0 +1,34 @@
+{
+  "name": "@parcel/validator-eslint",
+  "version": "2.8.0",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/EslintValidator.js",
+  "source": "src/EslintValidator.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.8.0"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.8.0",
+    "@parcel/utils": "2.8.0",
+    "@parcel/diagnostic": "2.8.0",
+    "chalk": "^4.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^6.0.0"
+  },
+  "peerDependencies": {
+    "eslint": "^6.0.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "postcss": {
+    "plugins": {
+      "postcss-custom-properties": {
+        "importFrom": [
+          {
+            "customProperties": {
+              "--color": "red"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

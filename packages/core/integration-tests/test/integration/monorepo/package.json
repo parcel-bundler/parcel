@@ -1,0 +1,11 @@
+{
+  "name": "monorepo",
+  "private": true,
+  "workspaces": ["pkg-a", "pkg-b"],
+  "targets": {
+    "default": {
+      "outputFormat": "commonjs",
+      "isLibrary": true
+    }
+  }
+}

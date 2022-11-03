@@ -1,0 +1,6 @@
+{
+  "name": "esm-sideffects",
+  "private": true,
+  "module": "dist/index.js",
+  "sideEffects": false
+}

@@ -1,0 +1,14 @@
+// @flow
+
+declare module 'resolve' {
+  declare type ResolveOptions = {|
+    basedir?: string,
+    extensions?: Array<string>
+  |};
+
+  declare module.exports: { (
+    id: string,
+    opts?: ResolveOptions,
+    cb: (err: Error, res: string, pkg?: { [string]: any, ... }) => mixed
+  ): void, ... };
+}

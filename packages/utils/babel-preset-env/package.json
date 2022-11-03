@@ -1,0 +1,30 @@
+{
+  "name": "@parcel/babel-preset-env",
+  "version": "2.8.0",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/index.js",
+  "engines": {
+    "node": ">= 12.0.0"
+  },
+  "dependencies": {
+    "@babel/preset-env": "^7.4.0",
+    "semver": "^5.7.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.12.0"
+  },
+  "peerDependencies": {
+    "@babel/core": "^7.12.0"
+  }
+}

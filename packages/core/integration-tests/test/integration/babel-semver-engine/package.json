@@ -1,0 +1,19 @@
+{
+  "name": "babel-semver-engine",
+  "legacy": "dist/legacy.js",
+  "modern": "dist/modern.js",
+  "targets": {
+    "legacy": {
+      "engines": {
+        "node": ">= 0.12.0",
+        "foobar": "^99.0.0"
+      }
+    },
+    "modern": {
+      "engines": {
+        "node": ">= 12.0.0",
+        "yarn": "^1.13.0"
+      }
+    }
+  }
+}

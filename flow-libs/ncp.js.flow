@@ -1,0 +1,36 @@
+// @flow
+
+// Derived from the README and source of ncp located at
+// https://github.com/AvianFlu/ncp and
+// https://github.com/AvianFlu/ncp/blob/6820b0fbe3f7400fdb283c741ef88b6d8e2d4994/lib/ncp.js
+// Which is licensed MIT
+
+declare module 'ncp' {
+  import type {Readable, Writable} from 'stream';
+
+  declare type NcpOptions = {
+    filter?: RegExp,
+    transform?: (
+      readable: Readable,
+      writable: Writable,
+      filePath: string
+    ) => mixed,
+    clobber?: boolean,
+    dereference?: boolean,
+    stopOnErr?: boolean,
+    errs?: Writable,
+    ...
+  };
+
+  declare module.exports: (
+    source: string,
+    destination: string,
+    callback: (errors: Array<Error>) => void
+  ) => void &
+    ((
+      source: string,
+      destination: string,
+      options: NcpOptions,
+      callback: (errors: Array<Error>) => void
+    ) => void);
+}

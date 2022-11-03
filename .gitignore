@@ -1,0 +1,23 @@
+node_modules/
+/target/
+.DS_Store
+package-lock.json
+coverage/
+.nyc_output/
+.cache/
+.parcel-cache/
+dist/
+lib/
+.vscode/
+.idea/
+*.min.js
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+tmp
+parcel-bundle-reports/
+.verdaccio_storage/
+sourcemap-info.json

@@ -1,0 +1,6 @@
+{
+  "name": "ts-promise-or-value",
+  "private": true,
+  "main": "dist/main.js",
+  "types": "dist/types.d.ts"
+}

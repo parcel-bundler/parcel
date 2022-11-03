@@ -1,0 +1,28 @@
+{
+  "name": "@parcel/optimizer-data-url",
+  "version": "2.8.0",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/DataURLOptimizer.js",
+  "source": "src/DataURLOptimizer.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.8.0"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.8.0",
+    "@parcel/utils": "2.8.0",
+    "isbinaryfile": "^4.0.2",
+    "mime": "^2.4.4"
+  }
+}

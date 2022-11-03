@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "dependencies": {
+    "preact": "*"
+  },
+  "alias": {
+    "react": "preact/compat"
+  }
+}

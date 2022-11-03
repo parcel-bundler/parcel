@@ -1,0 +1,10 @@
+{
+  "name": "commonjs-split",
+  "private": true,
+  "main": "dist/index.js",
+  "targets": {
+    "main": {
+      "includeNodeModules": true
+    }
+  }
+}

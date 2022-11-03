@@ -1,0 +1,7 @@
+{
+  "name": "pkg-b",
+  "private": true,
+  "source": "src/index.js",
+  "main": "dist/pkg-b.cjs.js",
+  "module": "dist/pkg-b.module.js"
+}

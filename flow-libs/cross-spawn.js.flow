@@ -1,0 +1,26 @@
+// @flow
+
+declare module 'cross-spawn' {
+  declare module.exports: {
+    // Mirrors the child_process.spawn API:
+    // https://github.com/facebook/flow/blob/v0.94.0/lib/node.js#L314
+
+    // Callable export is the same as `spawn` below.
+    (
+      command: string,
+      args: Array<string> | child_process$spawnOpts,
+      options?: child_process$spawnOpts
+    ): child_process$ChildProcess,
+    spawn(
+      command: string,
+      args: Array<string> | child_process$spawnOpts,
+      options?: child_process$spawnOpts
+    ): child_process$ChildProcess,
+    spawnSync(
+      command: string,
+      args: Array<string> | child_process$spawnSyncOpts,
+      options?: child_process$spawnSyncOpts
+    ): child_process$spawnSyncRet,
+    ...
+  };
+}

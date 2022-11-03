@@ -1,0 +1,208 @@
+Carrot Search FoamTree License Agreement
+
+By downloading, installing, copying, saving on your computer, or otherwise
+using this software, you (Licensee, as defined below) are becoming a party to
+this Agreement and you are consenting to be bound by all the terms and
+conditions of this Agreement. If you do not agree to the terms and conditions
+of this Agreement, you should not download, install or use the software.
+
+If there is a separate agreement in force between Carrot Search and the
+Licensee, Licensee will not be bound by this Agreement.
+
+Upon your acceptance of this Agreement, Carrot Search grants to you a
+non-exclusive and non-transferable license to use FoamTree, provided that you
+agree to the following:
+
+
+1. Parties
+
+a. Carrot Search means Carrot Search s.c., located at Boznicza 11/57, 61-751
+Poznan, Poland.
+
+b. Licensee means the individual or legal entity specified in the License File
+defined below.
+
+
+2. Definitions
+
+a. FoamTree means a software system for visualizing hierarchical data
+structures. FoamTree is distributed in a binary form along with documentation.
+
+b. Integration Code means the source code provided by Carrot Search to Licensee
+to facilitate integration of FoamTree with the software developed by Licensee.
+
+c. License File means electronic evidence and specification of the license
+granted to the Licensee by Carrot Search. Only Carrot Search is permitted to
+produce License Files for FoamTree.
+
+d. Licensing Period means the perpetual or limited period in which Licensee can
+use FoamTree. Licensing Period is specified in the License File.
+
+e. Maintenance Period means the limited period in which Licensee is entitled to
+upgrade to new versions of FoamTree and receive support. Maintenance Period is
+specified in the License File.
+
+f. Server means a computer controlled by Licensee which serves FoamTree for the
+purposes of delivering services to end users. Identification of the Server in
+the License File may vary based on the characteristics of Licensee's software
+that uses FoamTree.
+
+
+3. Ownership
+
+a. FoamTree is the property of Carrot Search. FoamTree is licensed, not sold.
+Title and copyrights to FoamTree, in whole or in part, and all copies thereof,
+and all modifications, enhancements, derivatives and other alterations of
+FoamTree, regardless of who made them, if any, are, and will remain, the sole
+and exclusive property of Carrot Search.
+
+b. The structure, organization, and code embodied in FoamTree, except for
+Integration Code, are valuable and confidential trade secrets of Carrot Search
+and are protected by copyright laws, intellectual property laws and treaties.
+Licensee agrees to abide by the copyright law and all other applicable laws.
+
+
+4. Grant of license
+
+Subject to the terms, conditions, and limitations set forth in this Agreement,
+Carrot Search hereby grants to Licensee a worldwide, limited, non-exclusive,
+non-transferable license to use FoamTree as follows:
+
+a. Licensee may:
+
+   i. serve FoamTree from the Server or Servers identified in the License File
+   for the purposes of delivering services to end users during the Licensing
+   Period;
+
+   ii. use FoamTree on computers controlled by Licensee for the purposes of
+   development of Licensee's software dependent on FoamTree during the Licensing
+   Period;
+
+   iii. upgrade to any version of FoamTree released during the Maintenance
+   Period;
+
+   iv. include Integration Code, in entirety or in parts, in the software
+   developed by Licensee;
+
+   v. make back-up copies of FoamTree and License File solely for archival
+   purposes;
+
+   vi. use the Limited Version of FoamTree, as described in Section 5, without
+   purchasing a License File.
+
+
+b. Licensee may not:
+
+   i. sell, redistribute, encumber, give, lend, rent, lease, sublicense, or
+   otherwise transfer FoamTree, or any portions of FoamTree, to anyone without
+   the prior written consent of Carrot Search;
+
+   ii. reverse engineer, decompile, disassemble, modify, translate, make any
+   attempt to discover the source code of FoamTree, or create derivative works
+   from FoamTree;
+
+   iii. allow the use of FoamTree on Servers not identified in the License File;
+
+   iv. disable, remove or circumvent the feature limitation mechanisms built
+   into the Limited Version of FoamTree. Any attempt to do so will be in
+   violation of this Agreement and will terminate Licensee's rights to use
+   FoamTree.
+
+
+c. Carrot Search will:
+
+   i. promptly, and in any event within 72 hours, respond to e-mail requests
+   for support that are made during mutually agreed upon business hours, taking
+   into account time zone differences, except weekends and holidays;
+
+   ii. notify Licensee of and provide any bug fix and new releases of FoamTree;
+
+   iii. provide a number of free consulting hours, specified in the License
+   File, for integration code adjustments, performance tuning and extra
+   documentation. Any additional technical support shall be charged at standard
+   Carrot Search hourly rate.
+
+
+5. Use of the Limited Version
+
+a. Subject to the terms of this Agreement, Licensee is granted a right to use
+the Limited Version of FoamTree without charge;
+
+
+6. Disclaimer of warranty
+
+FoamTree is provided on an "as is" without warranties of any kind, express,
+implied or statutory, including but not limited to, the implied warranties of
+title, noninfringement, merchantability and fitness for a particular purpose.
+
+
+7. Disclaimer of damages
+
+a. Regardless of whether any remedy set forth herein fails of its essential
+purpose, in no event will Carrot Search be liable to Licensee under any theory
+for any damages suffered by Licensee or any user of FoamTree, or for any
+special, incidental, indirect, consequential, or similar damages (including
+without limitation, damages for loss of business profits, business
+interruption, loss of business information, or any other pecuniary loss)
+arising out of the use or inability to use FoamTree, or the provision of or
+failure to provide support services, even if Carrot Search has been advised of
+the possibility of such damages, and regardless of the legal or equitable
+theory (contract, tort or otherwise) upon which the claim is based;
+
+b. In any case, Carrot Search's entire liability under any provision of this
+agreement will be limited to the amount actually paid by licensee for FoamTree.
+
+
+8. Term and Termination
+
+This Agreement takes effect upon Licensee's acceptance of the terms of this
+Agreement and remains effective until terminated by either party in accordance
+with this Agreement. Licensee may terminate this Agreement at any time by
+destroying all copies of FoamTree. This Agreement will automatically terminate
+if Licensee fails to comply with any term or condition of this Agreement. Upon
+termination of this Agreement, Licensee warrants that they will immediately
+destroy all copies of FoamTree.
+
+
+9. General
+
+a. Unless the Licensee explicitly opts out by notifying the Carrot Search, the
+Licensee agrees to be identified as a customer of Carrot Search and that Carrot
+Search may refer to Licensee by name, trade name and trademark on Carrot Search
+web site and marketing materials;
+
+b. Carrot Search reserves the right at any time to cease the support of FoamTree
+and to alter prices, features, specifications, capabilities, functions,
+licensing terms, release dates, general availability or other characteristics
+of FoamTree;
+
+c. This Agreement, including Third Party Software license agreements,
+constitutes the entire agreement between the parties concerning Licensee' use
+of the Software, and supersedes any and all prior or contemporaneous oral or
+written representations, communications, or advertising with respect to the
+Software. No purchase order, other ordering document or any hand written or
+typewritten text which purports to modify or supplement the printed text of
+this Agreement or any schedule will add to or vary the terms of this Agreement
+unless signed by both Licensee and Carrot Search.
+
+d. A waiver by either party of any term or condition of this Agreement or any
+breach thereof, in any one instance, will not waive such term or condition or
+any subsequent breach. The provisions of this Agreement which require or
+contemplate performance after the expiration or termination of this Agreement
+will be enforceable notwithstanding said expiration or termination.
+
+e. This Agreement will be construed under the laws of the Polish trade and
+European Union, without regard to conflicts of laws provisions thereof. This
+Agreement and the performance of all obligations hereunder shall be governed
+according to Polish Law and the parties hereto hereby submit to the
+jurisdiction of the Polish Courts. All civil suits between the parties hereto
+shall be adjudicated by a common court with official residence in Poznan,
+Poland.
+
+f. Titles are inserted for convenience only and will not affect in any way the
+meaning or interpretation of this Agreement. If any provision of this Agreement
+is held invalid, the remainder of this Agreement will continue in full force
+and effect. Either Licensor or Licensee may assign this Agreement in the case
+of a merger or sale of substantially all of its respective assets to another
+entity. This Agreement will be binding upon and will inure to the benefit of
+the parties, their successors and assigns.

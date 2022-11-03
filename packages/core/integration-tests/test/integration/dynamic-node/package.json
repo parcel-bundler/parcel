@@ -1,0 +1,7 @@
+{
+  "name": "dynamic-node",
+  "private": true,
+  "engines": {
+    "node": "8"
+  }
+}

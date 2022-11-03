@@ -1,0 +1,48 @@
+// @flow
+
+// Derived from TypeScript typings and source code from
+// https://github.com/mrmlnc/fast-glob
+// which is MIT licensed (see LICENSE in root of repo)
+
+declare module 'fast-glob' {
+  import type {Stats} from 'fs';
+
+  declare interface IEntry extends Stats {
+    path: string;
+    depth: number;
+  }
+  declare type EntryItem = string | IEntry;
+
+  declare type FastGlobOptions<T: EntryItem> = {|
+    cwd?: string,
+    deep?: number | boolean,
+    ignore?: Array<string>,
+    dot?: boolean,
+    stats?: boolean,
+    onlyFiles?: boolean,
+    onlyDirectories?: boolean,
+    followSymlinkedDirectories?: boolean,
+    unique?: boolean,
+    markDirectories?: boolean,
+    absolute?: boolean,
+    nobrace?: boolean,
+    brace?: boolean,
+    noglobstar?: boolean,
+    globstar?: boolean,
+    noext?: boolean,
+    matchBase?: boolean,
+    transform?: ?() => T
+  |};
+
+  declare module.exports: {
+    <T: EntryItem>(
+      patterns: string | Array<string>,
+      options: FastGlobOptions<T>
+    ): Promise<Array<T>>,
+    sync<T: EntryItem>(
+      patterns: string | Array<string>,
+      options: FastGlobOptions<T>
+    ): Array<T>,
+    ...
+  };
+}
