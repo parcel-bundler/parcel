@@ -89,6 +89,11 @@ export default (new Reporter({
           server.buildStart();
         }
         break;
+      case 'buildProgress':
+        if (event.phase === 'bundled' && hmrServer) {
+          await hmrServer.emitUpdate(event);
+        }
+        break;
       case 'buildSuccess':
         if (serveOptions) {
           if (!server) {
@@ -99,9 +104,6 @@ export default (new Reporter({
           }
 
           server.buildSuccess(event.bundleGraph, event.requestBundle);
-        }
-        if (hmrServer) {
-          hmrServer.emitUpdate(event);
         }
         break;
       case 'buildFailure':

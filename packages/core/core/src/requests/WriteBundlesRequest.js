@@ -113,7 +113,10 @@ async function run({input, api, farm, options}: RunInput) {
             hashRefToNameHash,
             bundleGraph,
           });
-          writeEarlyPromises[bundle.id] = api.runRequest(writeBundleRequest);
+          let promise = api.runRequest(writeBundleRequest);
+          // If the promise rejects before we await it (below), we don't want to crash the build.
+          promise.catch(() => {});
+          writeEarlyPromises[bundle.id] = promise;
         }
       }),
     );

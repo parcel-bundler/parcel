@@ -1,12 +1,12 @@
 // @flow
 
 import type {
-  BuildSuccessEvent,
-  Dependency,
-  PluginOptions,
-  BundleGraph,
-  PackagedBundle,
   Asset,
+  BundleGraph,
+  Dependency,
+  NamedBundle,
+  PackagedBundle,
+  PluginOptions,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
@@ -60,7 +60,8 @@ export default class HMRServer {
   wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
   options: HMRServerOptions;
-  bundleGraph: BundleGraph<PackagedBundle> | null = null;
+  bundleGraph: BundleGraph<PackagedBundle> | BundleGraph<NamedBundle> | null =
+    null;
   stopServer: ?() => Promise<void>;
 
   constructor(options: HMRServerOptions) {
@@ -149,7 +150,11 @@ export default class HMRServer {
     this.broadcast(this.unresolvedError);
   }
 
-  async emitUpdate(event: BuildSuccessEvent) {
+  async emitUpdate(event: {
+    +bundleGraph: BundleGraph<PackagedBundle> | BundleGraph<NamedBundle>,
+    +changedAssets: Map<string, Asset>,
+    ...
+  }) {
     this.unresolvedError = null;
     this.bundleGraph = event.bundleGraph;
 
