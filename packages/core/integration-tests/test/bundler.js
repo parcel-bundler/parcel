@@ -3,6 +3,53 @@ import assert from 'assert';
 import {bundle, assertBundles, findAsset} from '@parcel/test-utils';
 
 describe('bundler', function () {
+  it('should not create a shared bundle from an asset if that asset is shared by less than minBundles bundles', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/min-bundles/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        // a and b are shared between only 2 bundles so they are kept in each bundle
+        assets: ['bar.js', 'a.js', 'b.js'],
+      },
+      {
+        assets: ['buzz.js'],
+      },
+      {
+        assets: ['a.js', 'b.js', 'foo.js'],
+      },
+      {
+        // c is shared between 3 different bundles, so it stays
+        assets: ['c.js'],
+      },
+      {
+        assets: ['styles.css'],
+      },
+      {
+        assets: ['local.html'],
+      },
+    ]);
+  });
+
   it('should remove reused bundle (over shared bundles based on size) if the bundlegroup hit the parallel request limit', async function () {
     if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
       let b = await bundle(
@@ -53,7 +100,7 @@ describe('bundler', function () {
     }
   });
 
-  //This test case is the sdame as previous except we remove the shared bundle since it is smaller
+  //This test case is the same as previous except we remove the shared bundle since it is smaller
   it('should remove shared bundle (over reused bundles based on size) if the bundlegroup hit the parallel request limit', async function () {
     let b = await bundle(
       path.join(
