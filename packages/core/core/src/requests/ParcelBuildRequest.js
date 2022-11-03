@@ -14,6 +14,10 @@ import createWriteBundlesRequest from './WriteBundlesRequest';
 import {assertSignalNotAborted} from '../utils';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 import {bundleGraphEdgeTypes} from '../BundleGraph';
+import {report} from '../ReporterRunner';
+import IBundleGraph from '../public/BundleGraph';
+import {NamedBundle} from '../public/Bundle';
+import {assetFromValue} from '../public/Asset';
 
 type ParcelBuildRequestInput = {|
   optionsRef: SharedReference,
@@ -67,6 +71,23 @@ async function run({input, api, options}: RunInput) {
 
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
   dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph', bundleGraphEdgeTypes);
+
+  await report({
+    type: 'buildProgress',
+    phase: 'bundled',
+    bundleGraph: new IBundleGraph(
+      bundleGraph,
+      (bundle, bundleGraph, options) =>
+        NamedBundle.get(bundle, bundleGraph, options),
+      options,
+    ),
+    changedAssets: new Map(
+      Array.from(changedAssets).map(([id, asset]) => [
+        id,
+        assetFromValue(asset, options),
+      ]),
+    ),
+  });
 
   let writeBundlesRequest = createWriteBundlesRequest({
     bundleGraph,
