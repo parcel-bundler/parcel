@@ -483,7 +483,8 @@ async function normalizeOptions(
     logLevel: command.logLevel,
     shouldProfile: command.profile,
     shouldBuildLazily: command.lazy,
-    shouldBundleIncrementally: command.incremental ?? false,
+    shouldBundleIncrementally:
+      process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,
     detailedReport:
       command.detailedReport != null
         ? {

@@ -77,6 +77,7 @@ describe('TargetResolver', () => {
     invalidateOnEnvChange() {},
     invalidateOnOptionChange() {},
     invalidateOnStartup() {},
+    invalidateOnBuild() {},
     getInvalidations() {
       return [];
     },
@@ -90,6 +91,9 @@ describe('TargetResolver', () => {
     getPreviousResult() {},
     getRequestResult() {},
     getSubRequests() {
+      return [];
+    },
+    getInvalidSubRequests() {
       return [];
     },
   };

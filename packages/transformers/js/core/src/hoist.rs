@@ -148,7 +148,9 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
+                  src: Box::new(
+                    format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
+                  ),
                   type_only: false,
                 })));
               // Ensure that all import specifiers are constant.
@@ -193,11 +195,11 @@ impl<'a> Fold for Hoist<'a> {
                     specifiers: vec![],
                     asserts: None,
                     span: DUMMY_SP,
-                    src: Str {
+                    src: Box::new(Str {
                       value: format!("{}:{}:{}", self.module_id, src.value, "esm").into(),
                       span: DUMMY_SP,
                       raw: None,
-                    },
+                    }),
                     type_only: false,
                   })));
 
@@ -286,7 +288,9 @@ impl<'a> Fold for Hoist<'a> {
                   specifiers: vec![],
                   asserts: None,
                   span: DUMMY_SP,
-                  src: format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
+                  src: Box::new(
+                    format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
+                  ),
                   type_only: false,
                 })));
               self.re_exports.push(ImportedSymbol {
@@ -302,7 +306,7 @@ impl<'a> Fold for Hoist<'a> {
               let init = export.expr.fold_with(self);
               self
                 .module_items
-                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
                   declare: false,
                   kind: VarDeclKind::Var,
                   span: DUMMY_SP,
@@ -312,7 +316,7 @@ impl<'a> Fold for Hoist<'a> {
                     name: Pat::Ident(BindingIdent::from(ident)),
                     init: Some(init),
                   }],
-                }))));
+                })))));
             }
             ModuleDecl::ExportDefaultDecl(export) => {
               let decl = match export.decl {
@@ -380,7 +384,7 @@ impl<'a> Fold for Hoist<'a> {
                             };
                             self
                               .module_items
-                              .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
+                              .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(var)))));
                           }
 
                           self
@@ -389,11 +393,11 @@ impl<'a> Fold for Hoist<'a> {
                               specifiers: vec![],
                               asserts: None,
                               span: DUMMY_SP,
-                              src: Str {
+                              src: Box::new(Str {
                                 value: format!("{}:{}", self.module_id, source).into(),
                                 span: DUMMY_SP,
                                 raw: None,
-                              },
+                              }),
                               type_only: false,
                             })));
 
@@ -422,7 +426,7 @@ impl<'a> Fold for Hoist<'a> {
                               };
                               self
                                 .module_items
-                                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
+                                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(var)))));
                             }
                             self
                               .module_items
@@ -430,11 +434,11 @@ impl<'a> Fold for Hoist<'a> {
                                 specifiers: vec![],
                                 asserts: None,
                                 span: DUMMY_SP,
-                                src: Str {
+                                src: Box::new(Str {
                                   value: format!("{}:{}", self.module_id, source,).into(),
                                   span: DUMMY_SP,
                                   raw: None,
-                                },
+                                }),
                                 type_only: false,
                               })));
 
@@ -460,9 +464,10 @@ impl<'a> Fold for Hoist<'a> {
                         declare: var.declare,
                         decls: std::mem::take(&mut decls),
                       };
-                      self
-                        .module_items
-                        .insert(items_len, ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
+                      self.module_items.insert(
+                        items_len,
+                        ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(var)))),
+                      );
                     }
                     decls.push(d);
                   }
@@ -477,7 +482,7 @@ impl<'a> Fold for Hoist<'a> {
                     };
                     self
                       .module_items
-                      .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))))
+                      .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(var)))))
                   }
                 }
                 item => {
@@ -897,7 +902,7 @@ impl<'a> Fold for Hoist<'a> {
         if self.collect.static_cjs_exports && self.export_decls.insert(ident.id.sym.clone()) {
           self
             .hoisted_imports
-            .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+            .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
               declare: false,
               kind: VarDeclKind::Var,
               span: node.span,
@@ -910,7 +915,7 @@ impl<'a> Fold for Hoist<'a> {
                 ))),
                 init: None,
               }],
-            }))));
+            })))));
         }
 
         return AssignExpr {
@@ -986,7 +991,7 @@ impl<'a> Hoist<'a> {
         specifiers: vec![],
         asserts: None,
         span: DUMMY_SP,
-        src: src.into(),
+        src: Box::new(src.into()),
         type_only: false,
       })));
   }
@@ -1025,10 +1030,10 @@ impl<'a> Hoist<'a> {
   }
 
   fn get_require_ident(&self, local: &JsWord) -> Ident {
-    return Ident::new(
+    Ident::new(
       format!("${}$require${}", self.module_id, local).into(),
       DUMMY_SP,
-    );
+    )
   }
 
   fn get_export_ident(&mut self, span: Span, exported: &JsWord) -> Ident {
@@ -1074,7 +1079,7 @@ impl<'a> Hoist<'a> {
         );
         self
           .module_items
-          .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+          .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
             declare: false,
             kind: VarDeclKind::Var,
             span: DUMMY_SP,
@@ -1084,7 +1089,7 @@ impl<'a> Hoist<'a> {
               name: Pat::Ident(BindingIdent::from(require_id)),
               init: Some(Box::new(Expr::Ident(import_id))),
             }],
-          }))));
+          })))));
       }
     }
   }
@@ -1104,7 +1109,7 @@ macro_rules! collect_visit_fn {
   };
 }
 
-#[derive(Debug, Deserialize, PartialEq, Clone, Copy, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone, Copy, Serialize)]
 pub enum ImportKind {
   Require,
   Import,
@@ -1119,7 +1124,7 @@ pub struct Import {
   pub loc: SourceLocation,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Export {
   pub source: Option<JsWord>,
   pub specifier: JsWord,
@@ -2225,6 +2230,7 @@ mod tests {
         minify: false,
         ascii_only: false,
         target: swc_ecmascript::ast::EsVersion::Es5,
+        omit_last_semi: false,
       };
       let mut emitter = swc_ecmascript::codegen::Emitter {
         cfg: config,

@@ -56,7 +56,7 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     deferred: false,
     excluded: false,
     usedSymbolsDown: new Set(),
-    usedSymbolsUp: new Set(),
+    usedSymbolsUp: new Map(),
     usedSymbolsDownDirty: true,
     usedSymbolsUpDirtyDown: true,
     usedSymbolsUpDirtyUp: true,
@@ -115,6 +115,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   envCache: Map<string, Environment>;
   safeToIncrementallyBundle: boolean = true;
   symbolPropagationRan: boolean;
+  safeToIncrementallyBundle: boolean = true;
 
   constructor(opts: ?AssetGraphOpts) {
     if (opts) {

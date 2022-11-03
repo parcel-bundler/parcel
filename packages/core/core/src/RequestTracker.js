@@ -71,6 +71,7 @@ type RequestGraphOpts = {|
   envNodeIds: Set<NodeId>,
   optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
+  invalidateOnBuildNodeIds: Set<NodeId>,
 |};
 
 type SerializedRequestGraph = {|
@@ -81,6 +82,7 @@ type SerializedRequestGraph = {|
   envNodeIds: Set<NodeId>,
   optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
+  invalidateOnBuildNodeIds: Set<NodeId>,
 |};
 
 type FileNode = {|id: ContentKey, +type: 'file', value: InternalFile|};
@@ -122,6 +124,7 @@ type RequestNode = {|
   +type: 'request',
   value: StoredRequest,
   invalidateReason: InvalidateReason,
+  tracer?: Tracer,
 |};
 type RequestGraphNode =
   | RequestNode
@@ -136,6 +139,7 @@ export type RunAPI = {|
   invalidateOnFileDelete: ProjectPath => void,
   invalidateOnFileUpdate: ProjectPath => void,
   invalidateOnStartup: () => void,
+  invalidateOnBuild: () => void,
   invalidateOnEnvChange: string => void,
   invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
@@ -143,10 +147,12 @@ export type RunAPI = {|
   getRequestResult<T>(contentKey: ContentKey): Async<?T>,
   getPreviousResult<T>(ifMatch?: string): Async<?T>,
   getSubRequests(): Array<StoredRequest>,
+  getInvalidSubRequests(): Array<StoredRequest>,
   canSkipSubrequest(ContentKey): boolean,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
     opts?: RunRequestOpts,
+    tracer?: Tracer,
   ) => Async<TResult>,
 |};
 
@@ -218,6 +224,7 @@ export class RequestGraph extends ContentGraph<
   // Unpredictable nodes are requests that cannot be predicted whether they should rerun based on
   // filesystem changes alone. They should rerun on each startup of Parcel.
   unpredicatableNodeIds: Set<NodeId> = new Set();
+  invalidateOnBuildNodeIds: Set<NodeId> = new Set();
 
   // $FlowFixMe[prop-missing]
   static deserialize(opts: RequestGraphOpts): RequestGraph {
@@ -229,6 +236,7 @@ export class RequestGraph extends ContentGraph<
     deserialized.envNodeIds = opts.envNodeIds;
     deserialized.optionNodeIds = opts.optionNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
+    deserialized.invalidateOnBuildNodeIds = opts.invalidateOnBuildNodeIds;
     return deserialized;
   }
 
@@ -242,6 +250,7 @@ export class RequestGraph extends ContentGraph<
       envNodeIds: this.envNodeIds,
       optionNodeIds: this.optionNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds,
+      invalidateOnBuildNodeIds: this.invalidateOnBuildNodeIds,
     };
   }
 
@@ -269,6 +278,7 @@ export class RequestGraph extends ContentGraph<
     this.incompleteNodeIds.delete(nodeId);
     this.incompleteNodePromises.delete(nodeId);
     this.unpredicatableNodeIds.delete(nodeId);
+    this.invalidateOnBuildNodeIds.delete(nodeId);
     let node = nullthrows(this.getNode(nodeId));
     if (node.type === 'glob') {
       this.globNodeIds.delete(nodeId);
@@ -322,6 +332,14 @@ export class RequestGraph extends ContentGraph<
 
   invalidateUnpredictableNodes() {
     for (let nodeId of this.unpredicatableNodeIds) {
+      let node = nullthrows(this.getNode(nodeId));
+      invariant(node.type !== 'file' && node.type !== 'glob');
+      this.invalidateNode(nodeId, STARTUP);
+    }
+  }
+
+  invalidateOnBuildNodes() {
+    for (let nodeId of this.invalidateOnBuildNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type !== 'file' && node.type !== 'glob');
       this.invalidateNode(nodeId, STARTUP);
@@ -506,6 +524,11 @@ export class RequestGraph extends ContentGraph<
     this.unpredicatableNodeIds.add(requestNodeId);
   }
 
+  invalidateOnBuild(requestNodeId: NodeId) {
+    this.getRequestNode(requestNodeId);
+    this.invalidateOnBuildNodeIds.add(requestNodeId);
+  }
+
   invalidateOnEnvChange(
     requestNodeId: NodeId,
     env: string,
@@ -554,6 +577,7 @@ export class RequestGraph extends ContentGraph<
 
   clearInvalidations(nodeId: NodeId) {
     this.unpredicatableNodeIds.delete(nodeId);
+    this.invalidateOnBuildNodeIds.delete(nodeId);
     this.replaceNodeIdsConnectedTo(
       nodeId,
       [],
@@ -614,6 +638,25 @@ export class RequestGraph extends ContentGraph<
       invariant(node.type === 'request');
       return node.value;
     });
+  }
+
+  getInvalidSubRequests(requestNodeId: NodeId): Array<StoredRequest> {
+    if (!this.hasNode(requestNodeId)) {
+      return [];
+    }
+
+    let subRequests = this.getNodeIdsConnectedFrom(
+      requestNodeId,
+      requestGraphEdgeTypes.subrequest,
+    );
+
+    return subRequests
+      .filter(id => this.invalidNodeIds.has(id))
+      .map(nodeId => {
+        let node = nullthrows(this.getNode(nodeId));
+        invariant(node.type === 'request');
+        return node.value;
+      });
   }
 
   invalidateFileNameNode(
@@ -680,6 +723,18 @@ export class RequestGraph extends ContentGraph<
     for (let {path: _filePath, type} of events) {
       let filePath = fromProjectPathRelative(_filePath);
       let hasFileRequest = this.hasContentKey(filePath);
+
+      // If we see a 'create' event for the project root itself,
+      // this means the project root was moved and we need to
+      // re-run all requests.
+      if (type === 'create' && filePath === '') {
+        for (let [id, node] of this.nodes) {
+          if (node.type === 'request') {
+            this.invalidNodeIds.add(id);
+          }
+        }
+        return true;
+      }
 
       // sometimes mac os reports update events as create events.
       // if it was a create event, but the file already exists in the graph,
@@ -985,6 +1040,7 @@ export default class RequestTracker {
       invalidateOnFileUpdate: filePath =>
         this.graph.invalidateOnFileUpdate(requestId, filePath),
       invalidateOnStartup: () => this.graph.invalidateOnStartup(requestId),
+      invalidateOnBuild: () => this.graph.invalidateOnBuild(requestId),
       invalidateOnEnvChange: env =>
         this.graph.invalidateOnEnvChange(requestId, env, this.options.env[env]),
       invalidateOnOptionChange: option =>
@@ -998,6 +1054,7 @@ export default class RequestTracker {
         this.storeResult(requestId, result, cacheKey);
       },
       getSubRequests: () => this.graph.getSubRequests(requestId),
+      getInvalidSubRequests: () => this.graph.getInvalidSubRequests(requestId),
       getPreviousResult: <T>(ifMatch?: string): Async<?T> => {
         let contentKey = nullthrows(this.graph.getNode(requestId)?.id);
         return this.getRequestResult<T>(contentKey, ifMatch);
@@ -1127,6 +1184,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     }
 
     requestGraph.invalidateUnpredictableNodes();
+    requestGraph.invalidateOnBuildNodes();
     requestGraph.invalidateEnvNodes(options.env);
     requestGraph.invalidateOptionNodes(options);
     requestGraph.respondToFSEvents(

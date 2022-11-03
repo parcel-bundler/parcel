@@ -1,4 +1,4 @@
-import a from './a';
+import {a} from './a';
 
 console.log('index.js');
 console.log(a);

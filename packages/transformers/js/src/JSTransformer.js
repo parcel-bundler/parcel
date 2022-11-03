@@ -856,8 +856,18 @@ export default (new Transformer({
           }
         }
 
-        for (let {source, local, imported, loc} of symbol_result.imports) {
-          let dep = deps.get(source + 'esm');
+        for (let {
+          source,
+          local,
+          imported,
+          kind,
+          loc,
+        } of symbol_result.imports) {
+          let specifierType = '';
+          if (kind === 'Import' || kind === 'Export') {
+            specifierType = 'esm';
+          }
+          let dep = deps.get(source + specifierType);
           if (!dep) continue;
           dep.symbols.ensure();
           dep.symbols.set(imported, local, convertLoc(loc));
