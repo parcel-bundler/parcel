@@ -949,7 +949,7 @@ function createIdealGraph(
     }
 
     // Create shared bundles for splittable bundles.
-    if (reachable.length >= config.minBundles) {
+    if (reachable.length > config.minBundles) {
       let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
       let key = reachable.map(a => a.id).join(',');
       let bundleId = bundles.get(key);
@@ -998,7 +998,7 @@ function createIdealGraph(
         value: bundle,
         type: 'bundle',
       });
-    } else if (reachable.length < config.minBundles) {
+    } else if (reachable.length <= config.minBundles) {
       for (let root of reachable) {
         let bundle = nullthrows(
           bundleGraph.getNode(nullthrows(bundles.get(root.id))),
