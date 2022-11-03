@@ -126,7 +126,7 @@ export function createAsset(
         ]),
       ),
     sideEffects: options.sideEffects ?? true,
-    uniqueKey: options.uniqueKey ?? '',
+    uniqueKey: options.uniqueKey,
     plugin: options.plugin,
     configPath: options.configPath,
     configKeyPath: options.configKeyPath,
