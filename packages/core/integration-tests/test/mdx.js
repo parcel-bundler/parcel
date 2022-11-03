@@ -1,6 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, run, assertBundles} = require('@parcel/test-utils');
+const {bundle, run} = require('@parcel/test-utils');
 
 describe('mdx', function () {
   it('should support bundling MDX', async function () {
