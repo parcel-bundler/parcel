@@ -573,6 +573,7 @@ fn emit(
       minify: false,
       ascii_only: false,
       target: swc_ecmascript::ast::EsVersion::Es5,
+      omit_last_semi: false,
     };
     let mut emitter = swc_ecmascript::codegen::Emitter {
       cfg: config,

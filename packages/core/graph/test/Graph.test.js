@@ -89,6 +89,16 @@ describe('Graph', () => {
     assert(!graph.isOrphanedNode(nodeC));
   });
 
+  it("removeEdge should throw if the edge doesn't exist", () => {
+    let graph = new Graph();
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
+
+    assert.throws(() => {
+      graph.removeEdge(nodeA, nodeB);
+    }, /Edge from 0 to 1 not found!/);
+  });
+
   it('removeEdge should prune the graph at that edge', () => {
     //         a
     //        / \

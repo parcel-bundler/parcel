@@ -25,6 +25,7 @@ export default (new Transformer({
       // React is the default. Users can override this by supplying their own tsconfig,
       // which many TypeScript users will already have for typechecking, etc.
       jsx: ts.JsxEmit.React,
+      moduleResolution: ts.ModuleResolutionKind.NodeJs,
       ...config,
       // Always emit output
       noEmit: false,
@@ -34,7 +35,6 @@ export default (new Transformer({
       isolatedModules: false,
       emitDeclarationOnly: true,
       outFile: 'index.d.ts',
-      moduleResolution: ts.ModuleResolutionKind.NodeJs,
       // createProgram doesn't support incremental mode
       composite: false,
       incremental: false,

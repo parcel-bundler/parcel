@@ -28,6 +28,8 @@ type Opts = {|
   workerFarm: WorkerFarm,
 |};
 
+const instances: Set<ReporterRunner> = new Set();
+
 export default class ReporterRunner {
   workerFarm: WorkerFarm;
   config: ParcelConfig;
@@ -44,6 +46,7 @@ export default class ReporterRunner {
     logger.onLog(event => this.report(event));
 
     bus.on('reporterEvent', this.eventHandler);
+    instances.add(this);
 
     if (this.options.shouldPatchConsole) {
       patchConsole();
@@ -107,6 +110,7 @@ export default class ReporterRunner {
 
   dispose() {
     bus.off('reporterEvent', this.eventHandler);
+    instances.delete(this);
   }
 }
 
@@ -130,6 +134,6 @@ export function reportWorker(workerApi: WorkerApi, event: ReporterEvent) {
   bus.emit('reporterEvent', event);
 }
 
-export function report(event: ReporterEvent) {
-  bus.emit('reporterEvent', event);
+export async function report(event: ReporterEvent): Promise<void> {
+  await Promise.all([...instances].map(instance => instance.report(event)));
 }

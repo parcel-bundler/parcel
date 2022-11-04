@@ -324,11 +324,6 @@ export default class Server {
       return next(req, res);
     }
 
-    if (req.method === 'HEAD') {
-      res.end();
-      return;
-    }
-
     if (fresh(req.headers, {'last-modified': stat.mtime.toUTCString()})) {
       res.statusCode = 304;
       res.end();

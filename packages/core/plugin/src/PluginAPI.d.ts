@@ -35,12 +35,12 @@ export declare class Validator<T> {
   constructor(opts: ValidatorOpts);
 }
 
-export declare class Packager<T> {
-  constructor(opts: PackagerOpts<T>);
+export declare class Packager<C, B> {
+  constructor(opts: PackagerOpts<C, B>);
 }
 
-export declare class Optimizer<T> {
-  constructor(opts: OptimizerOpts<T>);
+export declare class Optimizer<C, B> {
+  constructor(opts: OptimizerOpts<C, B>);
 }
 
 export declare class Compressor {
