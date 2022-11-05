@@ -1,4 +1,5 @@
 // @flow
+import type {InternalSourceLocation} from '../types';
 import type {
   Symbol as ISymbol,
   MutableAssetSymbols as IMutableAssetSymbols,
@@ -34,6 +35,7 @@ export class AssetSymbols implements IAssetSymbols {
   #value: Asset;
   #options: ParcelOptions;
 
+  // $FlowFixMe(incompatible-return)
   constructor(options: ParcelOptions, asset: Asset): AssetSymbols {
     let existing = valueToSymbols.get(asset);
     if (existing != null) {
@@ -104,6 +106,7 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   #value: Asset;
   #options: ParcelOptions;
 
+  // $FlowFixMe(incompatible-return)
   constructor(options: ParcelOptions, asset: Asset): MutableAssetSymbols {
     let existing = valueToMutableAssetSymbols.get(asset);
     if (existing != null) {
@@ -205,6 +208,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   constructor(
     options: ParcelOptions,
     dep: Dependency,
+    // $FlowFixMe(incompatible-return)
   ): MutableDependencySymbols {
     let existing = valueToMutableDependencySymbols.get(dep);
     if (existing != null) {
@@ -293,7 +297,15 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 }
 
-function fromInternalAssetSymbol(projectRoot: string, value) {
+function fromInternalAssetSymbol(
+  projectRoot: string,
+  value: void | {
+    loc: ?InternalSourceLocation,
+    local: ISymbol,
+    meta?: ?Meta,
+    ...
+  },
+) {
   return (
     value && {
       local: value.local,
@@ -303,7 +315,16 @@ function fromInternalAssetSymbol(projectRoot: string, value) {
   );
 }
 
-function fromInternalDependencySymbol(projectRoot: string, value) {
+function fromInternalDependencySymbol(
+  projectRoot: string,
+  value: void | {
+    isWeak: boolean,
+    loc: ?InternalSourceLocation,
+    local: ISymbol,
+    meta?: ?Meta,
+    ...
+  },
+) {
   return (
     value && {
       local: value.local,

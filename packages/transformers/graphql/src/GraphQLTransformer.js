@@ -1,4 +1,6 @@
 // @flow
+import type {FilePath} from '@parcel/types';
+
 import {Transformer} from '@parcel/plugin';
 import {parse, print, Source, stripIgnoredCharacters} from 'graphql';
 import {processDocumentImports} from 'graphql-import-macro';
@@ -8,7 +10,7 @@ export default (new Transformer({
     const document = parse(new Source(await asset.getCode(), asset.filePath));
     const expandedDocument = await processDocumentImports(document, loadImport);
 
-    async function loadImport(to, from) {
+    async function loadImport(to: FilePath, from: FilePath) {
       const filePath = await resolve(to, from);
 
       asset.invalidateOnFileChange(filePath);

@@ -115,7 +115,7 @@ export default (new Optimizer({
 // So map lowercased tag and attribute names back to their case-sensitive equivalents.
 function mapSVG(
   node: string | PostHTMLNode | Array<string | PostHTMLNode>,
-  inSVG = false,
+  inSVG: boolean = false,
 ) {
   if (Array.isArray(node)) {
     for (let i = 0; i < node.length; i++) {

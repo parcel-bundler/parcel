@@ -258,7 +258,8 @@ describe('AdjacencyList', () => {
     assert.ok(graph.hasEdge(b, c, [2, 3]));
   });
 
-  describe('deserialize', function () {
+  // eslint-disable-next-line no-unused-vars
+  describe('deserialize', function (this: $npm$mocha$SuiteCallbackContext) {
     this.timeout(10000);
 
     it('should share the underlying data across worker threads', async () => {

@@ -49,7 +49,7 @@ type WorkerValidationOpts = {|
 // TODO: this should eventually be replaced by an in memory cache layer
 let parcelConfigCache = new Map();
 
-function loadOptions(ref, workerApi) {
+function loadOptions(ref: SharedReference, workerApi: WorkerApi) {
   return nullthrows(
     ((workerApi.getSharedReference(
       ref,
@@ -58,7 +58,7 @@ function loadOptions(ref, workerApi) {
   );
 }
 
-async function loadConfig(cachePath, options) {
+async function loadConfig(cachePath: string, options: ParcelOptions) {
   let config = parcelConfigCache.get(cachePath);
   if (config && config.options === options) {
     return config;

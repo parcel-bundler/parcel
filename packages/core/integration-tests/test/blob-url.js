@@ -5,14 +5,14 @@ import path from 'path';
 import {bundle, distDir, outputFS, run} from '@parcel/test-utils';
 
 class Blob {
-  data;
-  constructor(data) {
+  data: string;
+  constructor(data: string) {
     this.data = data;
   }
 }
 
 const URL = {
-  createObjectURL(blob) {
+  createObjectURL(blob: Blob) {
     assert(blob instanceof Blob);
     return `data:application/javascript,${encodeURIComponent(blob.data)}`;
   },
@@ -25,7 +25,7 @@ describe('blob urls', () => {
     );
 
     class Worker {
-      constructor(src) {
+      constructor(src: string) {
         created.push(src);
       }
       postMessage() {}
@@ -68,7 +68,7 @@ describe('blob urls', () => {
     );
 
     class Worker {
-      constructor(src) {
+      constructor(src: string) {
         created.push(src);
       }
       postMessage() {}

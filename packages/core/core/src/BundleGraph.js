@@ -177,7 +177,7 @@ export default class BundleGraph {
     }
 
     let walkVisited = new Set();
-    function walk(nodeId) {
+    function walk(nodeId: NodeId) {
       if (walkVisited.has(nodeId)) return;
       walkVisited.add(nodeId);
 
@@ -517,7 +517,7 @@ export default class BundleGraph {
     }
   }
 
-  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency) {
+  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void {
     if (dependency.priority === Priority.sync) {
       throw new Error('Expected an async dependency');
     }
@@ -1658,7 +1658,7 @@ export default class BundleGraph {
       // ..., but if it does exist, it has to be behind this one reexport.
       return potentialResults[0];
     } else {
-      let result = identifier;
+      let result: Symbol | false | null | void = identifier;
       if (skipped) {
         // ... and it was excluded (by symbol propagation) or deferred.
         result = false;
@@ -1775,7 +1775,7 @@ export default class BundleGraph {
   getInlineBundles(bundle: Bundle): Array<Bundle> {
     let bundles = [];
     let seen = new Set();
-    let addReferencedBundles = bundle => {
+    let addReferencedBundles = (bundle: Bundle) => {
       if (seen.has(bundle.id)) {
         return;
       }

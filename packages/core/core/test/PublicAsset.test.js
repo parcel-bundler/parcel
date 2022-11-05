@@ -3,12 +3,15 @@
 import assert from 'assert';
 import {Asset, MutableAsset} from '../src/public/Asset';
 import UncommittedAsset from '../src/UncommittedAsset';
-import {createAsset as _createAsset} from '../src/assetUtils';
+import {
+  createAsset as _createAsset,
+  type AssetOptions,
+} from '../src/assetUtils';
 import {createEnvironment} from '../src/Environment';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {toProjectPath} from '../src/projectPath';
 
-function createAsset(opts) {
+function createAsset(opts: AssetOptions) {
   return _createAsset('/', opts);
 }
 

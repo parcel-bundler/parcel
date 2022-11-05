@@ -236,7 +236,11 @@ async function writeDiagnostic(
   }
 }
 
-function wrapWithIndent(string, indent = 0, initialIndent = indent) {
+function wrapWithIndent(
+  string: string,
+  indent: number = 0,
+  initialIndent: number = indent,
+) {
   let width = getTerminalWidth().columns;
   return indentString(
     wrapAnsi(string.trimEnd(), width - indent, {trim: false}),
@@ -245,7 +249,11 @@ function wrapWithIndent(string, indent = 0, initialIndent = indent) {
   );
 }
 
-function indentString(string, indent = 0, initialIndent = indent) {
+function indentString(
+  string: string,
+  indent: number = 0,
+  initialIndent: number = indent,
+) {
   return (
     ' '.repeat(initialIndent) + string.replace(/\n/g, '\n' + ' '.repeat(indent))
   );

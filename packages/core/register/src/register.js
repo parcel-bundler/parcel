@@ -51,7 +51,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
   let isProcessing = false;
 
   // As Parcel is pretty much fully asynchronous, create an async function and wrap it in a syncPromise later...
-  async function fileProcessor(code, filePath) {
+  async function fileProcessor(code: string, filePath: string) {
     if (isProcessing) {
       return code;
     }
@@ -84,9 +84,10 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     return '';
   }
 
-  let hookFunction = (...args) => syncPromise(fileProcessor(...args));
+  let hookFunction = (...args: Array<string>) =>
+    syncPromise(fileProcessor(...args));
 
-  function resolveFile(currFile, targetFile) {
+  function resolveFile(currFile: string, targetFile: string) {
     try {
       isProcessing = true;
 

@@ -1,5 +1,11 @@
 // @flow strict-local
-import type {Bundle, BundleGraph, NamedBundle} from '@parcel/types';
+import type {
+  Async,
+  Blob,
+  Bundle,
+  BundleGraph,
+  NamedBundle,
+} from '@parcel/types';
 
 import assert from 'assert';
 import {Readable} from 'stream';
@@ -99,8 +105,11 @@ export default (new Packager({
 
 async function getAssetContent(
   bundleGraph: BundleGraph<NamedBundle>,
-  getInlineBundleContents,
-  assetId,
+  getInlineBundleContents: (
+    Bundle,
+    BundleGraph<NamedBundle>,
+  ) => Async<{|contents: Blob|}>,
+  assetId: string,
 ) {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
@@ -125,8 +134,12 @@ async function getAssetContent(
 
 async function replaceInlineAssetContent(
   bundleGraph: BundleGraph<NamedBundle>,
-  getInlineBundleContents,
-  tree,
+  getInlineBundleContents: (
+    Bundle,
+    BundleGraph<NamedBundle>,
+  ) => Async<{|contents: Blob|}>,
+  // $FlowFixMe[unclear-type]
+  tree: any,
 ) {
   const inlineNodes = [];
   tree.walk(node => {
@@ -179,7 +192,8 @@ async function replaceInlineAssetContent(
   return tree;
 }
 
-function insertBundleReferences(siblingBundles, tree) {
+// $FlowFixMe[unclear-type]
+function insertBundleReferences(siblingBundles: Array<NamedBundle>, tree: any) {
   const bundles = [];
 
   for (let bundle of siblingBundles) {
@@ -211,7 +225,8 @@ function insertBundleReferences(siblingBundles, tree) {
   addBundlesToTree(bundles, tree);
 }
 
-function addBundlesToTree(bundles, tree) {
+// $FlowFixMe[unclear-type]
+function addBundlesToTree(bundles: Array<any>, tree: any) {
   const main = find(tree, 'head') || find(tree, 'html');
   const content = main ? main.content || (main.content = []) : tree;
   const index = findBundleInsertIndex(content);
@@ -219,7 +234,8 @@ function addBundlesToTree(bundles, tree) {
   content.splice(index, 0, ...bundles);
 }
 
-function find(tree, tag) {
+// $FlowFixMe[unclear-type]
+function find(tree: any, tag: string) {
   let res;
   tree.match({tag}, node => {
     res = node;
@@ -229,7 +245,8 @@ function find(tree, tag) {
   return res;
 }
 
-function findBundleInsertIndex(content) {
+// $FlowFixMe[unclear-type]
+function findBundleInsertIndex(content: Array<any>) {
   // HTML document order (https://html.spec.whatwg.org/multipage/syntax.html#writing)
   //   - Any number of comments and ASCII whitespace.
   //   - A DOCTYPE.
@@ -253,5 +270,5 @@ function findBundleInsertIndex(content) {
     }
   }
 
-  return doctypeIndex ? doctypeIndex + 1 : 0;
+  return doctypeIndex != null ? doctypeIndex + 1 : 0;
 }

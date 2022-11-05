@@ -192,7 +192,7 @@ Parcel\'s default CSS minifer changed from cssnano to @parcel/css, but a "cssnan
 
 let cache = new Map();
 
-function getTargets(browsers) {
+function getTargets(browsers: void | string | Array<string>) {
   if (browsers == null) {
     return undefined;
   }

@@ -1,4 +1,6 @@
 // @flow
+import type {MutableAsset} from '@parcel/types';
+
 import path from 'path';
 import {promisify} from 'util';
 import {Transformer} from '@parcel/plugin';
@@ -42,7 +44,7 @@ export default (new Transformer({
   },
 }): Transformer);
 
-function collectDependencies(asset, ast) {
+function collectDependencies(asset: MutableAsset, ast: any) {
   for (let dep of ast) {
     if (!dep.entry) {
       asset.invalidateOnFileChange(dep.file);

@@ -44,7 +44,7 @@ export default (new Transformer({
   },
 }): Transformer);
 
-function walk(element, visit) {
+function walk(element: any, visit: any) {
   visit(element);
 
   element = element.firstChild;

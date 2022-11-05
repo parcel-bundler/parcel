@@ -90,7 +90,7 @@ export default async function bundleReport(
   table(COLUMNS, rows);
 }
 
-function prettifySize(size, isLarge) {
+function prettifySize(size: number, isLarge: boolean = false) {
   let res = filesize(size);
   if (isLarge) {
     return chalk.yellow(emoji.warning + '  ' + res);

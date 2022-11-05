@@ -414,17 +414,19 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       invariant(firstAsset.type === 'asset');
       let resolvedAsset = firstAsset.value;
       let deps = this.getIncomingDependencies(resolvedAsset);
-      defer = deps.every(
-        d =>
-          d.symbols &&
+      defer = deps.every(d => {
+        if (!d.symbols) return false;
+        let dsymbols = d.symbols;
+        return (
           !(d.env.isLibrary && d.isEntry) &&
-          !d.symbols.has('*') &&
-          ![...d.symbols.keys()].some(symbol => {
+          !dsymbols.has('*') &&
+          ![...dsymbols.keys()].some(symbol => {
             if (!resolvedAsset.symbols) return true;
             let assetSymbol = resolvedAsset.symbols?.get(symbol)?.local;
             return assetSymbol != null && symbols.has(assetSymbol);
-          }),
-      );
+          })
+        );
+      });
     }
     return defer;
   }
@@ -435,8 +437,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     correspondingRequest: ContentKey,
   ) {
     this.normalizeEnvironment(assetGroup);
-    let assetGroupNode = nodeFromAssetGroup(assetGroup);
-    assetGroupNode = this.getNodeByContentKey(assetGroupNode.id);
+    let assetGroupNode = this.getNodeByContentKey(
+      nodeFromAssetGroup(assetGroup).id,
+    );
     if (!assetGroupNode) {
       return;
     }

@@ -158,7 +158,7 @@ export default class Validation {
     );
   }
 
-  handleResults(validatorResults: Array<?ValidateResult>) {
+  handleResults(validatorResults: Array<?ValidateResult>): void {
     let warnings: Array<Diagnostic> = [];
     let errors: Array<Diagnostic> = [];
     validatorResults.forEach(result => {

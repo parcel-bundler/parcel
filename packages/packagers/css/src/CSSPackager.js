@@ -1,7 +1,15 @@
 // @flow
 
 import type {Root} from 'postcss';
-import type {Asset, Dependency} from '@parcel/types';
+import type {
+  Asset,
+  Dependency,
+  JSONValue,
+  NamedBundle,
+  BundleGraph,
+  PluginLogger,
+  PluginOptions,
+} from '@parcel/types';
 import typeof PostCSS from 'postcss';
 
 import path from 'path';
@@ -188,12 +196,12 @@ function escapeString(contents: string): string {
 }
 
 async function processCSSModule(
-  options,
-  logger,
-  bundleGraph,
-  bundle,
-  asset,
-  media,
+  options: PluginOptions,
+  logger: PluginLogger,
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
+  asset: Asset,
+  media: Array<JSONValue>,
 ): Promise<[Asset, string, ?Buffer]> {
   let postcss: PostCSS = await options.packageManager.require(
     'postcss',
@@ -281,7 +289,7 @@ async function processCSSModule(
   return [asset, content, sourceMap?.toBuffer()];
 }
 
-function escapeDashedIdent(name) {
+function escapeDashedIdent(name: string) {
   // https://drafts.csswg.org/cssom/#serialize-an-identifier
   let res = '';
   for (let c of name) {

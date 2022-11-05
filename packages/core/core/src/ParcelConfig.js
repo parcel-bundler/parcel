@@ -477,12 +477,18 @@ export default class ParcelConfig {
   }
 }
 
-function getConfigPaths(options, nodes) {
+function getConfigPaths(
+  options: ParcelOptions,
+  nodes:
+    | Array<'...' | ParcelPluginNode>
+    | PureParcelConfigPipeline
+    | ExtendableParcelConfigPipeline,
+) {
   return nodes
     .map(node => (node !== '...' ? getConfigPath(options, node) : null))
     .filter(Boolean);
 }
 
-function getConfigPath(options, node) {
+function getConfigPath(options: ParcelOptions, node: ParcelPluginNode) {
   return fromProjectPath(options.projectRoot, node.resolveFrom);
 }

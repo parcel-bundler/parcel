@@ -42,6 +42,7 @@ export default class Dependency implements IDependency {
   #dep /*: InternalDependency */;
   #options /*: ParcelOptions */;
 
+  // $FlowFixMe(incompatible-return)
   constructor(dep: InternalDependency, options: ParcelOptions): Dependency {
     let existing = internalDependencyToDependency.get(dep);
     if (existing != null) {

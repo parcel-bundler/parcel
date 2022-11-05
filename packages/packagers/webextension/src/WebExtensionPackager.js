@@ -1,4 +1,5 @@
 // @flow strict-local
+import type {NamedBundle} from '@parcel/types';
 
 import assert from 'assert';
 import nullthrows from 'nullthrows';
@@ -19,7 +20,7 @@ export default (new Packager({
     );
     const asset = manifestAssets[0];
 
-    const relPath = b =>
+    const relPath = (b: NamedBundle) =>
       relativeBundlePath(bundle, b, {leadingDotSlash: false});
 
     const manifest = JSON.parse(await asset.getCode());

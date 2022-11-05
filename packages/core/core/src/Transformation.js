@@ -892,7 +892,7 @@ type TransformerWithNameAndConfig = {|
 |};
 
 function normalizeAssets(
-  options,
+  options: ParcelOptions,
   results: Array<TransformerResult | MutableAsset>,
 ): Array<TransformerResult | UncommittedAsset> {
   return results.map(result => {

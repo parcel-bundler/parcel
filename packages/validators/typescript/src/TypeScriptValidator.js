@@ -3,6 +3,7 @@ import type {
   Asset,
   ConfigResult,
   PluginOptions,
+  ResolveConfigWithPathFn,
   ValidateResult,
 } from '@parcel/types';
 import type {LanguageService, Diagnostic} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
@@ -79,9 +80,9 @@ export default (new Validator({
 }): Validator);
 
 async function getConfig(
-  asset,
-  options,
-  resolveConfigWithPath,
+  asset: Asset,
+  options: PluginOptions,
+  resolveConfigWithPath: ResolveConfigWithPathFn,
 ): Promise<TSValidatorConfig> {
   let configNames = ['tsconfig.json'];
   let tsconfig = await loadConfig(

@@ -1,4 +1,5 @@
 // @flow
+import type {Request, Response} from './types.js.flow';
 
 import {Reporter} from '@parcel/plugin';
 import HMRServer from './HMRServer';
@@ -46,7 +47,9 @@ export default (new Reporter({
               port: serveOptions.port,
               host: hmrOptions.host,
               devServer,
-              addMiddleware: handler => {
+              addMiddleware: (
+                handler: (req: Request, res: Response) => boolean,
+              ) => {
                 server?.middleware.push(handler);
               },
               logger,

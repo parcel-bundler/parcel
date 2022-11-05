@@ -1,5 +1,6 @@
 // @flow
 
+import type {FilePath} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
 
 import path from 'path';
@@ -8,7 +9,7 @@ import svgoPlugin from '@svgr/plugin-svgo';
 import jsxPlugin from '@svgr/plugin-jsx';
 import {transform} from '@svgr/core';
 
-function getComponentName(filePath) {
+function getComponentName(filePath: FilePath) {
   let validCharacters = /[^a-zA-Z0-9_-]/g;
   let name = path.parse(filePath).name.replace(validCharacters, '');
   return camelcase(name, {

@@ -16,7 +16,7 @@ import {
 import {loadSourceMapUrl} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
-const bundle = (name, opts?: InitialParcelOptions) => {
+const bundle = (name: string, opts?: InitialParcelOptions) => {
   return _bundle(
     name,
     mergeParcelOptions(
@@ -30,7 +30,7 @@ const bundle = (name, opts?: InitialParcelOptions) => {
   );
 };
 
-function indexToLineCol(str, index) {
+function indexToLineCol(str: string, index: number) {
   let beforeIndex = str.slice(0, index);
   return {
     line: beforeIndex.split('\n').length,
@@ -616,7 +616,7 @@ describe('sourcemaps', function () {
   });
 
   it('should create a valid sourcemap for a CSS bundle', async function () {
-    async function test(minify) {
+    async function test(minify: boolean) {
       let inputFilePath = path.join(
         __dirname,
         '/integration/sourcemap-css/style.css',
@@ -664,7 +664,7 @@ describe('sourcemaps', function () {
   });
 
   it('should create a valid sourcemap for a CSS bundle with imports', async function () {
-    async function test(minify) {
+    async function test(minify: boolean) {
       let inputFilePath = path.join(
         __dirname,
         '/integration/sourcemap-css-import/style.css',
@@ -752,7 +752,7 @@ describe('sourcemaps', function () {
   });
 
   it('should create a valid sourcemap for a Sass asset', async function () {
-    async function test(shouldOptimize) {
+    async function test(shouldOptimize: boolean) {
       let inputFilePath = path.join(
         __dirname,
         '/integration/sourcemap-sass/style.scss',
@@ -847,7 +847,7 @@ describe('sourcemaps', function () {
   });
 
   it('should create a valid sourcemap when for a CSS asset importing Sass', async function () {
-    async function test(shouldOptimize) {
+    async function test(shouldOptimize: boolean) {
       let inputFilePath = path.join(
         __dirname,
         '/integration/sourcemap-sass-imported/style.css',
@@ -910,7 +910,7 @@ describe('sourcemaps', function () {
   });
 
   it('should create a valid sourcemap for a LESS asset', async function () {
-    async function test(shouldOptimize) {
+    async function test(shouldOptimize: boolean) {
       let inputFilePath = path.join(
         __dirname,
         '/integration/sourcemap-less/style.less',
@@ -1145,7 +1145,7 @@ describe('sourcemaps', function () {
   });
 
   it.skip('should load existing sourcemaps for CSS files', async function () {
-    async function test(minify) {
+    async function test(minify: boolean) {
       let sourceFilename = path.join(
         __dirname,
         '/integration/sourcemap-css-existing/style.css',

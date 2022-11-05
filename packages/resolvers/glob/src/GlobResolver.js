@@ -1,4 +1,6 @@
 // @flow
+import type {Dependency} from '@parcel/types';
+
 import {Resolver} from '@parcel/plugin';
 import {
   isGlob,
@@ -13,7 +15,10 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import NodeResolver from '@parcel/node-resolver-core';
 import invariant from 'assert';
 
-function errorToThrowableDiagnostic(error, dependency): ThrowableDiagnostic {
+function errorToThrowableDiagnostic(
+  error: string,
+  dependency: Dependency,
+): ThrowableDiagnostic {
   return new ThrowableDiagnostic({
     diagnostic: {
       message: error,
@@ -191,7 +196,7 @@ export default (new Resolver({
   },
 }): Resolver);
 
-function set(obj, path, value) {
+function set(obj: {...}, path: Array<string>, value: string) {
   for (let i = 0; i < path.length - 1; i++) {
     let part = path[i];
 
@@ -205,7 +210,12 @@ function set(obj, path, value) {
   obj[path[path.length - 1]] = value;
 }
 
-function generate(matches, isAsync, indent = '', count = 0) {
+function generate(
+  matches: {...},
+  isAsync: boolean,
+  indent: string = '',
+  count: number = 0,
+) {
   if (typeof matches === 'string') {
     if (isAsync) {
       return {

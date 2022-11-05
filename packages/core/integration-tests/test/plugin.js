@@ -244,7 +244,7 @@ parcel-transformer-b`,
   });
 
   it('should allow resolvers to invalidateOnEnvChange', async () => {
-    async function assertAsset(replacedCode) {
+    async function assertAsset(replacedCode: string) {
       let b = await bundle(
         path.join(
           __dirname,

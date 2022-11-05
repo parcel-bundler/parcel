@@ -336,7 +336,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       },
     };
 
-    let walk = (nodeId, context: ?TContext) => {
+    let walk = (nodeId: NodeId, context: ?TContext) => {
       if (!this.hasNode(nodeId)) return;
       visited.add(nodeId);
 
@@ -376,6 +376,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
         // Make sure the graph still has the node: it may have been removed between enter and exit
         this.hasNode(nodeId)
       ) {
+        // $FlowFixMe[not-a-function]
         let newContext = visit.exit(nodeId, context, actions);
         if (typeof newContext !== 'undefined') {
           // $FlowFixMe[reassign-const]
@@ -486,7 +487,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return res;
   }
 
-  _assertHasNodeId(nodeId: NodeId) {
+  _assertHasNodeId(nodeId: NodeId): void {
     if (!this.hasNode(nodeId)) {
       throw new Error('Does not have node ' + fromNodeId(nodeId));
     }
@@ -497,8 +498,18 @@ export function mapVisitor<NodeId, TValue, TContext>(
   filter: (NodeId, TraversalActions) => ?TValue,
   visit: GraphVisitor<TValue, TContext>,
 ): GraphVisitor<NodeId, TContext> {
-  function makeEnter(visit) {
-    return function mappedEnter(nodeId, context, actions) {
+  function makeEnter(
+    visit: (
+      node: TValue,
+      context: ?TContext,
+      actions: TraversalActions,
+    ) => ?TContext,
+  ) {
+    return function mappedEnter(
+      nodeId: NodeId,
+      context: ?TContext,
+      actions: TraversalActions,
+    ) {
       let value = filter(nodeId, actions);
       if (value != null) {
         return visit(value, context, actions);

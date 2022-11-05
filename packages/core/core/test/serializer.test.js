@@ -6,7 +6,7 @@ import {
   unregisterSerializableClass,
 } from '../src/serializer';
 import assert from 'assert';
-import sinon from 'sinon';
+import sinon, {type SinonSpy} from 'sinon';
 
 describe('serializer', () => {
   it('should serialize a basic object', () => {
@@ -74,7 +74,7 @@ describe('serializer', () => {
         this.x = x;
       }
 
-      serialize() {
+      serialize(): {|x: number, serialized: true|} {
         return {
           x: this.x,
           serialized: true,
@@ -100,7 +100,7 @@ describe('serializer', () => {
         this.x = x;
       }
 
-      static deserialize(x: any) {
+      static deserialize(x: any): {|value: number, deserialized: true|} {
         return {
           deserialized: true,
           value: x,
@@ -255,11 +255,11 @@ describe('serializer', () => {
     class Outer {
       inner: Inner;
 
-      constructor(inner) {
+      constructor(inner: Inner) {
         this.inner = inner;
       }
 
-      serialize() {
+      serialize(): {|$$raw: true, inner: Inner|} {
         return {
           $$raw: true,
           inner: this.inner,
@@ -270,11 +270,11 @@ describe('serializer', () => {
     class Inner {
       x: number;
 
-      constructor(x) {
+      constructor(x: number) {
         this.x = x;
       }
 
-      static deserialize = sinon.spy();
+      static deserialize: SinonSpy = sinon.spy();
     }
 
     beforeEach(() => {

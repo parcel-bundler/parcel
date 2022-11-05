@@ -5,6 +5,7 @@ import type {
   BuildEvent,
   BuildSuccessEvent,
   InitialParcelOptions,
+  NamedBundle,
   PackagedBundle as IPackagedBundle,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
@@ -301,7 +302,7 @@ export default class Parcel {
           options,
         ),
         buildTime: Date.now() - startTime,
-        requestBundle: async bundle => {
+        requestBundle: async (bundle: NamedBundle) => {
           let bundleNode = bundleGraph._graph.getNodeByContentKey(bundle.id);
           invariant(bundleNode?.type === 'bundle', 'Bundle does not exist');
 

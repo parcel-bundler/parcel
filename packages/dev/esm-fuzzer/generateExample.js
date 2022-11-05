@@ -113,11 +113,11 @@ const TEMPLATES /*: {|mjs: Templates|}*/ = {
   //   },
 };
 
-function getRandom(max) {
+function getRandom(max: number) {
   return Math.floor(Math.random() * max);
 }
 
-function getRandomModuleIndex(state) {
+function getRandomModuleIndex(state: State) {
   return getRandom(Object.keys(state.modules).length);
 }
 

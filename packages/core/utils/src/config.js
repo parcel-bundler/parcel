@@ -148,7 +148,7 @@ loadConfig.clear = () => {
   resolveCache.clear();
 };
 
-function getParser(extname) {
+function getParser(extname: string) {
   switch (extname) {
     case 'toml':
       return toml;

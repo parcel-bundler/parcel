@@ -1140,7 +1140,7 @@ function createIdealGraph(
     });
     return bundleGroupBundleIds;
   }
-  function getBundlesForBundleGroup(bundleGroupId) {
+  function getBundlesForBundleGroup(bundleGroupId: NodeId) {
     let bundlesInABundleGroup = [];
     bundleGraph.traverse(nodeId => {
       bundlesInABundleGroup.push(nodeId);
@@ -1318,7 +1318,10 @@ async function loadBundlerConfig(
   };
 }
 
-function getReachableBundleRoots(asset, graph): Array<BundleRoot> {
+function getReachableBundleRoots(
+  asset: Asset,
+  graph: ContentGraph<Asset>,
+): Array<BundleRoot> {
   return graph
     .getNodeIdsConnectedTo(graph.getNodeIdByContentKey(asset.id))
     .map(nodeId => nullthrows(graph.getNode(nodeId)));

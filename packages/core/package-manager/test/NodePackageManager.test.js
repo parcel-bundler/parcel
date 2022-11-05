@@ -12,7 +12,8 @@ import {MockPackageInstaller, NodePackageManager} from '../src';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
-describe('NodePackageManager', function () {
+// eslint-disable-next-line no-unused-vars
+describe('NodePackageManager', function (this: $npm$mocha$SuiteCallbackContext) {
   let fs;
   let packageManager;
   let packageInstaller;

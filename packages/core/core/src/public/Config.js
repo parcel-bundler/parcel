@@ -26,6 +26,7 @@ export default class PublicConfig implements IConfig {
   #pkgFilePath /*: ?FilePath */;
   #options /*: ParcelOptions */;
 
+  // $FlowFixMe(incompatible-return)
   constructor(config: Config, options: ParcelOptions): PublicConfig {
     let existing = internalConfigToConfig.get(options).get(config);
     if (existing != null) {

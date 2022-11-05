@@ -1,6 +1,12 @@
 // @flow
 
-import type {Bundle, BundleGraph, NamedBundle} from '@parcel/types';
+import type {
+  Async,
+  Blob,
+  Bundle,
+  BundleGraph,
+  NamedBundle,
+} from '@parcel/types';
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
 import posthtml from 'posthtml';
@@ -77,8 +83,11 @@ export default (new Packager({
 
 async function replaceInlineAssetContent(
   bundleGraph: BundleGraph<NamedBundle>,
-  getInlineBundleContents,
-  tree,
+  getInlineBundleContents: (
+    Bundle,
+    BundleGraph<NamedBundle>,
+  ) => Async<{|contents: Blob|}>,
+  tree: any,
 ) {
   const inlineNodes = [];
   tree.walk(node => {
@@ -118,8 +127,11 @@ async function replaceInlineAssetContent(
 
 async function getAssetContent(
   bundleGraph: BundleGraph<NamedBundle>,
-  getInlineBundleContents,
-  assetId,
+  getInlineBundleContents: (
+    Bundle,
+    BundleGraph<NamedBundle>,
+  ) => Async<{|contents: Blob|}>,
+  assetId: string,
 ) {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
@@ -139,7 +151,7 @@ async function getAssetContent(
   return {bundle: inlineBundle, contents: bundleResult.contents};
 }
 
-function insertBundleReferences(siblingBundles, tree) {
+function insertBundleReferences(siblingBundles: Array<NamedBundle>, tree: any) {
   let scripts = [];
   let stylesheets = [];
 

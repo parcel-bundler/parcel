@@ -8,7 +8,8 @@ import assert from 'assert';
 import path from 'path';
 import Parcel, {createWorkerFarm} from '../src/Parcel';
 
-describe('Parcel', function () {
+// eslint-disable-next-line no-unused-vars
+describe('Parcel', function (this: $npm$mocha$SuiteCallbackContext) {
   this.timeout(75000);
 
   let workerFarm;

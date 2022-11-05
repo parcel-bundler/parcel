@@ -86,13 +86,13 @@ export default class Worker extends EventEmitter {
       }
     }
 
-    let onMessage = data => this.receive(data);
-    let onExit = code => {
+    let onMessage = (data: WorkerMessage) => this.receive(data);
+    let onExit = (code: number) => {
       this.exitCode = code;
       this.emit('exit', code);
     };
 
-    let onError = err => {
+    let onError = (err: Error) => {
       this.emit('error', err);
     };
 

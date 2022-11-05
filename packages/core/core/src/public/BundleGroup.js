@@ -29,6 +29,7 @@ export default class BundleGroup implements IBundleGroup {
   constructor(
     bundleGroup: InternalBundleGroup,
     options: ParcelOptions,
+    // $FlowFixMe(incompatible-return)
   ): BundleGroup {
     let existing = internalBundleGroupToBundleGroup.get(bundleGroup);
     if (existing != null) {

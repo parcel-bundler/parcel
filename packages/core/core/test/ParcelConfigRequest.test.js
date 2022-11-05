@@ -533,8 +533,9 @@ describe('ParcelConfigRequest', () => {
     });
 
     it('should call a merger function if provided', () => {
-      let merger = (a, b) => [a, b];
+      let merger = (a: string, b: string) => [a, b];
       assert.deepEqual(
+        // $FlowFixMe[incompatible-call]
         mergeMaps({'*.js': 'base-js'}, {'*.js': 'ext-js'}, merger),
         {'*.js': ['base-js', 'ext-js']},
       );

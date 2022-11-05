@@ -4,6 +4,7 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {
   FilePath,
   FileCreateInvalidation,
+  SemverRange,
   SourceLocation,
 } from '@parcel/types';
 import type {
@@ -140,7 +141,15 @@ function proxyPackageManager(
   packageManager: PackageManager,
   addDevDependency: (devDep: InternalDevDepOptions) => void,
 ): PackageManager {
-  let require = (id: string, from: string, opts) => {
+  let require = (
+    id: string,
+    from: string,
+    opts: ?{|
+      range?: ?SemverRange,
+      saveDev?: boolean,
+      shouldAutoInstall?: boolean,
+    |},
+  ) => {
     addDevDependency({
       specifier: id,
       resolveFrom: toProjectPath(projectRoot, from),

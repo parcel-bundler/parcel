@@ -468,7 +468,8 @@ describe('transpilation', function () {
       }
     });
 
-    it('should compile node_modules when symlinked with a source field in package.json', async function () {
+    // eslint-disable-next-line no-unused-vars
+    it('should compile node_modules when symlinked with a source field in package.json', async function (this: any) {
       if (process.platform === 'win32') {
         this.skip();
         return;

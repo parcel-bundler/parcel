@@ -32,7 +32,7 @@ class Hash {
 }
 module.exports.Hash = Hash;
 
-function concatUint8Arrays(arrays) {
+function concatUint8Arrays(arrays /*: Array<Uint8Array> */) {
   let totalLength = 0;
   for (let a of arrays) {
     totalLength += a.byteLength;
@@ -46,7 +46,7 @@ function concatUint8Arrays(arrays) {
   return result;
 }
 
-function toHex(arr) {
+function toHex(arr /*: Uint8Array */) {
   let dataView = new DataView(arr.buffer);
   return (
     dataView.getUint32(0, true).toString(16).padStart(8, '0') +

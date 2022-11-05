@@ -1,4 +1,11 @@
 // @flow
+import type {
+  FilePath,
+  MutableAsset,
+  PluginOptions,
+  ResolveFn,
+} from '@parcel/types';
+
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
 import {EOL} from 'os';
@@ -101,12 +108,22 @@ export default (new Transformer({
   },
 }): Transformer);
 
-function resolvePathImporter({asset, resolve, includePaths, options}) {
+function resolvePathImporter({
+  asset,
+  resolve,
+  includePaths,
+  options,
+}: {|
+  asset: MutableAsset,
+  resolve: ResolveFn,
+  includePaths: any,
+  options: PluginOptions,
+|}) {
   // This is a reimplementation of the Sass resolution algorithm that uses Parcel's
   // FS and tracks all tried files so they are watched for creation.
   async function resolvePath(
-    url,
-    prev,
+    url: string,
+    prev: FilePath,
   ): Promise<{filePath: string, contents: string, ...} | void> {
     /*
       Imports are resolved by trying, in order:
@@ -174,7 +191,11 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
     }
   }
 
-  return function (rawUrl, prev, done) {
+  return function (
+    rawUrl: string,
+    prev: FilePath,
+    done: (?{|file: FilePath, contents: string|}) => void,
+  ) {
     const url = rawUrl.replace(/^file:\/\//, '');
     resolvePath(url, prev)
       .then(resolved => {

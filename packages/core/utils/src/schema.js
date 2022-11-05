@@ -65,43 +65,43 @@ export type SchemaAny = {||};
 export type SchemaError =
   | {|
       type: 'type',
-      expectedTypes: Array<string>,
+      expectedTypes: $ReadOnlyArray<string>,
       dataType: ?'key' | 'value',
 
       dataPath: string,
-      ancestors: Array<SchemaEntity>,
+      ancestors: $ReadOnlyArray<SchemaEntity>,
       prettyType?: string,
     |}
   | {|
       type: 'enum',
-      expectedValues: Array<mixed>,
+      expectedValues: $ReadOnlyArray<mixed>,
       dataType: 'key' | 'value',
       actualValue: mixed,
 
       dataPath: string,
-      ancestors: Array<SchemaEntity>,
+      ancestors: $ReadOnlyArray<SchemaEntity>,
       prettyType?: string,
     |}
   | {|
       type: 'forbidden-prop',
       prop: string,
-      expectedProps: Array<string>,
-      actualProps: Array<string>,
+      expectedProps: $ReadOnlyArray<string>,
+      actualProps: $ReadOnlyArray<string>,
       dataType: 'key',
 
       dataPath: string,
-      ancestors: Array<SchemaEntity>,
+      ancestors: $ReadOnlyArray<SchemaEntity>,
       prettyType?: string,
     |}
   | {|
       type: 'missing-prop',
       prop: string,
-      expectedProps: Array<string>,
-      actualProps: Array<string>,
+      expectedProps: $ReadOnlyArray<string>,
+      actualProps: $ReadOnlyArray<string>,
       dataType: 'key' | 'value',
 
       dataPath: string,
-      ancestors: Array<SchemaEntity>,
+      ancestors: $ReadOnlyArray<SchemaEntity>,
       prettyType?: string,
     |}
   | {|
@@ -110,14 +110,14 @@ export type SchemaError =
       dataType: ?'key' | 'value',
       message?: string,
       dataPath: string,
-      ancestors: Array<SchemaEntity>,
+      ancestors: $ReadOnlyArray<SchemaEntity>,
     |};
 
 function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
   function walk(
-    schemaAncestors,
-    dataNode,
-    dataPath,
+    schemaAncestors: Array<SchemaEntity>,
+    dataNode: mixed,
+    dataPath: string,
   ): ?SchemaError | Array<SchemaError> {
     let [schemaNode] = schemaAncestors;
 
@@ -161,7 +161,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   type: 'enum',
                   dataType: 'value',
                   dataPath,
-                  expectedValues: schemaNode.enum,
+                  expectedValues: nullthrows(schemaNode.enum),
                   actualValue: value,
                   ancestors: schemaAncestors,
                 };
@@ -190,7 +190,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   type: 'enum',
                   dataType: 'value',
                   dataPath,
-                  expectedValues: schemaNode.enum,
+                  expectedValues: nullthrows(schemaNode.enum),
                   actualValue: value,
                   ancestors: schemaAncestors,
                 };
@@ -204,9 +204,9 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
             if (schemaNode.__forbiddenProperties) {
               // $FlowFixMe type was already checked
               let keys = Object.keys(dataNode);
-              invalidProps = schemaNode.__forbiddenProperties.filter(val =>
-                keys.includes(val),
-              );
+              invalidProps = nullthrows(
+                schemaNode.__forbiddenProperties,
+              ).filter(val => keys.includes(val));
               results.push(
                 ...invalidProps.map(
                   k =>
@@ -225,7 +225,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
             if (schemaNode.required) {
               // $FlowFixMe type was already checked
               let keys = Object.keys(dataNode);
-              let missingKeys = schemaNode.required.filter(
+              let missingKeys = nullthrows(schemaNode.required).filter(
                 val => !keys.includes(val),
               );
               results.push(
@@ -236,7 +236,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                       dataPath,
                       dataType: 'value',
                       prop: k,
-                      expectedProps: schemaNode.required,
+                      expectedProps: nullthrows(schemaNode.required),
                       actualProps: keys,
                       ancestors: schemaAncestors,
                     }: SchemaError),
@@ -365,7 +365,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
 export default validateSchema;
 
 export function fuzzySearch(
-  expectedValues: Array<string>,
+  expectedValues: $ReadOnlyArray<string>,
   actualValue: string,
 ): Array<string> {
   let result = expectedValues

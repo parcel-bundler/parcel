@@ -138,6 +138,6 @@ function nameFromContent(
   }
 }
 
-function basenameWithoutExtension(file) {
+function basenameWithoutExtension(file: FilePath) {
   return path.basename(file, path.extname(file));
 }

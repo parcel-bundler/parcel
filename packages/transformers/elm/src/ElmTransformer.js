@@ -1,4 +1,5 @@
 // @flow strict-local
+import type {FilePath, PluginLogger, MutableAsset} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import spawn from 'cross-spawn';
@@ -55,7 +56,7 @@ export default (new Transformer({
     // this can be removed after https://github.com/isaacs/node-graceful-fs/pull/200 was mergend and used in parcel
     // $FlowFixMe[method-unbinding]
     process.chdir.disabled = isWorker;
-    let code;
+    let code: ?string;
     try {
       code = await compileToString(elm, elmBinary, sources, compilerConfig);
     } catch (e) {
@@ -89,7 +90,13 @@ export default (new Transformer({
 }): Transformer);
 
 // gather extra modules that should be added to the compilation process
-function resolveExtraSources({asset, logger}) {
+function resolveExtraSources({
+  asset,
+  logger,
+}: {|
+  asset: MutableAsset,
+  logger: PluginLogger,
+|}) {
   const dirname = path.dirname(asset.filePath);
   const relativePaths = asset.query.getAll('with');
 
@@ -104,7 +111,14 @@ function resolveExtraSources({asset, logger}) {
   return relativePaths.map(relPath => path.join(dirname, relPath));
 }
 
-function compileToString(elm, elmBinary, sources, config) {
+function compileToString(
+  //$FlowFixMe[unclear-type]
+  elm: any,
+  elmBinary: ?string,
+  sources: Array<FilePath>,
+  //$FlowFixMe[unclear-type]
+  config: any,
+) {
   return elm.compileToString(sources, {
     pathToElm: elmBinary,
     ...config,
@@ -130,7 +144,7 @@ let elmPureFuncs = [
   'A9',
 ];
 
-async function minifyElmOutput(source) {
+async function minifyElmOutput(source: string) {
   // Recommended minification
   // Based on: http://elm-lang.org/0.19.0/optimize
   let result = await minify(source, {
@@ -151,7 +165,8 @@ async function minifyElmOutput(source) {
   throw result.error;
 }
 
-function formatMessagePiece(piece) {
+//$FlowFixMe[unclear-type]
+function formatMessagePiece(piece: any) {
   if (piece.string) {
     if (piece.underline) {
       return md`${md.underline(piece.string)}`;
@@ -161,12 +176,14 @@ function formatMessagePiece(piece) {
   return md`${piece}`;
 }
 
-function elmCompileErrorToParcelDiagnostics(error) {
+//$FlowFixMe[unclear-type]
+function elmCompileErrorToParcelDiagnostics(error: any) {
   const relativePath = path.relative(process.cwd(), error.path);
   return error.problems.map(problem => formatElmError(problem, relativePath));
 }
 
-function formatElmError(problem, relativePath) {
+//$FlowFixMe[unclear-type]
+function formatElmError(problem: any, relativePath: string) {
   const padLength = 80 - 5 - problem.title.length - relativePath.length;
   const dashes = '-'.repeat(padLength);
   const message = [
