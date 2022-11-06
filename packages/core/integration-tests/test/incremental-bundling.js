@@ -41,20 +41,12 @@ describe('incremental bundling', function () {
     let Bundler = (
       await packageManager.require('@parcel/bundler-default', __filename)
     ).default;
-    let ExperimentalBundler = (
-      await packageManager.require('@parcel/bundler-experimental', __filename)
-    ).default;
     let CustomBundler = await packageManager.require(
       './integration/incremental-bundling/node_modules/parcel-bundler-test',
       __filename,
     );
 
-    defaultBundlerSpy =
-      process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
-        ? // $FlowFixMe[prop-missing]
-          sinon.spy(ExperimentalBundler[CONFIG], 'bundle')
-        : // $FlowFixMe[prop-missing]
-          sinon.spy(Bundler[CONFIG], 'bundle');
+    defaultBundlerSpy = sinon.spy(Bundler[CONFIG], 'bundle'); // $FlowFixMe[prop-missing]
 
     customBundlerSpy = sinon.spy(CustomBundler[CONFIG], 'bundle');
   });
@@ -787,10 +779,6 @@ console.log('index.js');`,
         path.join(fixture, '.parcelrc'),
         JSON.stringify({
           extends: '@parcel/config-default',
-          bundler:
-            process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
-              ? '@parcel/bundler-experimental'
-              : undefined,
           namers: ['parcel-namer-test'],
         }),
       );
@@ -835,10 +823,6 @@ console.log('index.js');`,
         path.join(fixture, '.parcelrc'),
         JSON.stringify({
           extends: '@parcel/config-default',
-          bundler:
-            process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
-              ? '@parcel/bundler-experimental'
-              : undefined,
           runtimes: ['parcel-runtime-test'],
         }),
       );

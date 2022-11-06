@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@parcel/diagnostic": "2.7.0",
+    "@parcel/graph": "2.7.0",
     "@parcel/hash": "2.7.0",
     "@parcel/plugin": "2.7.0",
     "@parcel/utils": "2.7.0",
