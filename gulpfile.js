@@ -29,7 +29,16 @@ const paths = {
     ...IGNORED_PACKAGES,
   ],
   packageOther: ['packages/*/*/src/**/dev-prelude.js'],
-  packageFlow: ['packages/core/plugin/src/PluginAPI.js'],
+  packageFlow: [
+    'packages/core/cache/src/**/*.js',
+    'packages/core/core/src/**/*.js',
+    'packages/core/diagnostic/src/diagnostic.js',
+    'packages/core/fs/src/**/*.js',
+    'packages/core/package-manager/src/**/*.js',
+    'packages/core/plugin/src/PluginAPI.js',
+    'packages/core/utils/src/**/*.js',
+    'packages/core/workers/src/**/*.js',
+  ],
   packageJson: [
     'packages/core/parcel/package.json',
     'packages/utils/create-react-app/package.json',
