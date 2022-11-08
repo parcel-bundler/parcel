@@ -23,7 +23,7 @@
     "@parcel/diagnostic": "2.7.0",
     "@parcel/hash": "2.7.0",
     "@parcel/plugin": "2.7.0",
-    "@parcel/source-map": "^2.0.0",
+    "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.7.0",
     "globals": "^13.2.0",
     "nullthrows": "^1.1.1"

@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.7.0",
-    "@parcel/source-map": "^2.0.0",
+    "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.7.0",
     "coffeescript": "^2.0.3",
     "nullthrows": "^1.1.1",

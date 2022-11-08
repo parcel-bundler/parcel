@@ -32,7 +32,7 @@
   "dependencies": {
     "@parcel/diagnostic": "2.7.0",
     "@parcel/plugin": "2.7.0",
-    "@parcel/source-map": "^2.0.0",
+    "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.7.0",
     "@parcel/workers": "2.7.0",
     "@swc/helpers": "^0.4.12",

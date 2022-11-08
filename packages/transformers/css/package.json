@@ -20,12 +20,12 @@
     "parcel": "^2.7.0"
   },
   "dependencies": {
-    "@parcel/css": "^1.12.2",
     "@parcel/diagnostic": "2.7.0",
     "@parcel/plugin": "2.7.0",
-    "@parcel/source-map": "^2.0.0",
+    "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.7.0",
     "browserslist": "^4.6.6",
+    "lightningcss": "^1.16.1",
     "nullthrows": "^1.1.1"
   }
 }
