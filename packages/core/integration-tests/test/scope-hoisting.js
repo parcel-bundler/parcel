@@ -1126,74 +1126,36 @@ describe('scope hoisting', function () {
         ),
         {mode: 'production'},
       );
-      // Fork due to size calculation differences between bundlers
-      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
-        assertBundles(b, [
-          {
-            type: 'html',
-            assets: ['index1.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index1.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index2.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index2.js', 'b.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index3.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index3.js', 'b.js'],
-          },
-          {
-            type: 'js',
-            assets: ['a.js'],
-          },
-        ]);
-      } else {
-        assertBundles(b, [
-          {
-            type: 'html',
-            assets: ['index1.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index1.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index2.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index2.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index3.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index3.js'],
-          },
-          {
-            type: 'js',
-            assets: ['a.js'],
-          },
-          {
-            type: 'js',
-            assets: ['b.js'],
-          },
-        ]);
-      }
+      assertBundles(b, [
+        {
+          type: 'html',
+          assets: ['index1.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index1.js'],
+        },
+        {
+          type: 'html',
+          assets: ['index2.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index2.js', 'b.js'],
+        },
+        {
+          type: 'html',
+          assets: ['index3.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index3.js', 'b.js'],
+        },
+        {
+          type: 'js',
+          assets: ['a.js'],
+        },
+      ]);
       for (let bundle of b.getBundles().filter(b => b.type === 'html')) {
         let calls = [];
         await runBundle(b, bundle, {

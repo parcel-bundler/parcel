@@ -5814,9 +5814,8 @@ describe('javascript', function () {
             'other.js',
             'esmodule-helpers.js',
             'bundle-url.js',
-            ...(process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER
-              ? ['cacheLoader.js', 'js-loader.js']
-              : []),
+            'cacheLoader.js',
+            'js-loader.js',
           ],
         },
         {
@@ -5879,47 +5878,22 @@ describe('javascript', function () {
         ),
       );
 
-      // Change in behavior: ExperimentalBundler now produces a single bundle
-      // of the lowest common denominator of bundleBehavior
-      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
-        assertBundles(b, [
-          {
-            type: 'js',
-            assets: [
-              'dynamic-url.js',
-              'esmodule-helpers.js',
-              'bundle-url.js',
-              'cacheLoader.js',
-              'js-loader.js',
-            ],
-          },
-          {
-            type: 'js',
-            assets: ['other.js', 'esmodule-helpers.js'],
-          },
-        ]);
-      } else {
-        assertBundles(b, [
-          {
-            type: 'js',
-            assets: [
-              'dynamic-url.js',
-              'esmodule-helpers.js',
-              'bundle-url.js',
-              'cacheLoader.js',
-              'js-loader.js',
-            ],
-          },
-          {
-            type: 'js',
-            assets: ['other.js'],
-          },
-          {
-            type: 'js',
-            assets: ['other.js', 'esmodule-helpers.js'],
-          },
-        ]);
-      }
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'dynamic-url.js',
+            'esmodule-helpers.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'js-loader.js',
+          ],
+        },
+        {
+          type: 'js',
+          assets: ['other.js', 'esmodule-helpers.js'],
+        },
+      ]);
       let res = await run(b);
       assert.equal(typeof res.lazy, 'object');
       assert.equal(typeof (await res.lazy), 'function');
@@ -5944,35 +5918,16 @@ describe('javascript', function () {
         },
       );
 
-      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
-        // Change in behavior: ExperimentalBundler now produces a single bundle
-        // of the lowest common denominator of bundleBehavior
-        assertBundles(b, [
-          {
-            type: 'js',
-            assets: ['dynamic-url.js'],
-          },
-          {
-            type: 'js',
-            assets: ['other.js'],
-          },
-        ]);
-      } else {
-        assertBundles(b, [
-          {
-            type: 'js',
-            assets: ['dynamic-url.js'],
-          },
-          {
-            type: 'js',
-            assets: ['other.js'],
-          },
-          {
-            type: 'js',
-            assets: ['other.js'],
-          },
-        ]);
-      }
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['dynamic-url.js'],
+        },
+        {
+          type: 'js',
+          assets: ['other.js'],
+        },
+      ]);
 
       let res = await run(b);
       assert.equal(typeof res.lazy, 'object');
