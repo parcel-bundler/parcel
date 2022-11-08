@@ -87,11 +87,9 @@ export default function unlink({
     log('Restoring .parcelrc');
     let configPath = path.join(appRoot, '.parcelrc');
     let config = fs.readFileSync(configPath, 'utf8');
-
     for (let [alias, parcel] of namespacePackages) {
       config = config.replace(new RegExp(`"${parcel}"`, 'g'), `"${alias}"`);
     }
-
     fsWrite(configPath, config, opts);
 
     // Step 3.3: In the root package.json, restore all references to namespaced plugins
@@ -100,19 +98,13 @@ export default function unlink({
 
     log('Restoring root package.json');
     let rootPkgPath = path.join(appRoot, 'package.json');
-    let rootPkg: string = fs.readFileSync(rootPkgPath, 'utf8');
-    // TODO: extract this to a util and use in both link and unlink
-    for (let packageName of [
-      `${namespace}/parcel-bundler-default`,
-      `${namespace}/parcel-bundler-experimental`,
-      `${namespace}/parcel-transformer-css`,
-    ]) {
+    let rootPkg = fs.readFileSync(rootPkgPath, 'utf8');
+    for (let [alias, parcel] of namespacePackages) {
       rootPkg = rootPkg.replace(
-        new RegExp(nullthrows(namespacePackages.get(packageName)), 'g'),
-        packageName,
+        new RegExp(`"${parcel}"(\\s*:\\s*{)`, 'g'),
+        `"${alias}"$1`,
       );
     }
-
     fsWrite(rootPkgPath, rootPkg, opts);
 
     // Step 3.4: Delete all namespaced packages (`@namespace/parcel-*`) from node_modules

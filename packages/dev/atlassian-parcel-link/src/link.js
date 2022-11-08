@@ -110,19 +110,16 @@ export default function link({
 
     log('Rewriting root package.json');
     let rootPkgPath = path.join(appRoot, 'package.json');
-    let rootPkg: string = fs.readFileSync(rootPkgPath, 'utf8');
-    for (let packageName of [
-      `${namespace}/parcel-bundler-default`,
-      `${namespace}/parcel-bundler-experimental`,
-      `${namespace}/parcel-transformer-css`,
-    ]) {
-      rootPkg = rootPkg.replace(
-        new RegExp(packageName, 'g'),
-        nullthrows(namespacePackages.get(packageName)),
-      );
-    }
-
-    fsWrite(rootPkgPath, rootPkg, opts);
+    let rootPkg = fs.readFileSync(rootPkgPath, 'utf8');
+    fsWrite(
+      rootPkgPath,
+      rootPkg.replace(
+        new RegExp(`"(${namespace}/parcel-[^"]*)"(\\s*:\\s*{)`, 'g'),
+        (_, match, suffix) =>
+          `"${namespacePackages.get(match) ?? match}"${suffix}`,
+      ),
+      opts,
+    );
 
     // Step 5.3: Delete namespaced packages (`@namespace/parcel-*`) from node_modules
     // --------------------------------------------------------------------------------
