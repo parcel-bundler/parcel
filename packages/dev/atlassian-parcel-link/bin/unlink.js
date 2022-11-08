@@ -60,7 +60,19 @@ if (args?.help) {
 } else if (args) {
   try {
     if (args.dryRun) console.log('Dry run...');
-    unlink({appRoot: process.cwd(), dryRun: args.dryRun, log: console.log});
+    unlink({
+      appRoot: process.cwd(),
+      // FIXME: Derive namespace from argv
+      namespace: '@atlassian',
+      // FIXME: Derive nodeModulesGlobs from argv
+      nodeModulesGlobs: [
+        'build-tools/*/node_modules',
+        'build-tools/parcel/*/node_modules',
+        'node_modules',
+      ],
+      dryRun: args.dryRun,
+      log: console.log,
+    });
     console.log('🎉 unlinking successful');
   } catch (e) {
     console.error(e.message);

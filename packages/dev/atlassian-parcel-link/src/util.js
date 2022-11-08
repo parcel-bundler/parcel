@@ -84,24 +84,25 @@ export function findParcelPackages(
   return files;
 }
 
-export function mapAtlassianPackageAliases(
+export function mapNamespacePackageAliases(
+  ns: string,
   parcelPackages: Map<string, string>,
 ): Map<string, string> {
-  let atlassianToParcelPackages = new Map();
+  let aliasesToParcelPackages = new Map();
   for (let packageName of parcelPackages.keys()) {
-    if (packageName.startsWith('@atlassian')) {
+    if (packageName.startsWith(ns)) {
       continue;
     }
-    atlassianToParcelPackages.set(
+    aliasesToParcelPackages.set(
       packageName === 'parcel'
-        ? '@atlassian/parcel'
+        ? `${ns}/parcel`
         : packageName === 'parcelforvscode'
-        ? '@atlassian/parcelforvscode'
-        : packageName.replace(/^@parcel\//, '@atlassian/parcel-'),
+        ? `${ns}/parcelforvscode`
+        : packageName.replace(/^@parcel\//, `${ns}/parcel-`),
       packageName,
     );
   }
-  return atlassianToParcelPackages;
+  return aliasesToParcelPackages;
 }
 
 export function cleanupNodeModules(

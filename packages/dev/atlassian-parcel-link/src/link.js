@@ -13,7 +13,7 @@ import {
   validateAppRoot,
   validatePackageRoot,
   findParcelPackages,
-  mapAtlassianPackageAliases,
+  mapNamespacePackageAliases,
   cleanupNodeModules,
   fsWrite,
   fsSymlink,
@@ -22,6 +22,8 @@ import {
 export type LinkOptions = {|
   appRoot: string,
   packageRoot: string,
+  nodeModulesGlobs?: string[],
+  namespace?: string,
   dryRun?: boolean,
   log?: (...data: mixed[]) => void,
 |};
@@ -29,10 +31,17 @@ export type LinkOptions = {|
 export default function link({
   appRoot,
   packageRoot,
+  namespace,
   dryRun = false,
+  nodeModulesGlobs = ['node_modules'],
   log = () => {},
 }: LinkOptions) {
   validateAppRoot(appRoot);
+
+  let nodeModulesPaths = nodeModulesGlobs.reduce(
+    (matches, pattern) => [...matches, ...glob.sync(pattern, {cwd: appRoot})],
+    [],
+  );
 
   let opts: CmdOptions = {appRoot, packageRoot, dryRun, log};
 
@@ -42,71 +51,26 @@ export default function link({
   // --------------------------------------------------------------------------------
 
   let parcelPackages = findParcelPackages(packageRoot);
-  let atlassianToParcelPackages = mapAtlassianPackageAliases(parcelPackages);
 
-  // Step 2.1: In .parcelrc, rewrite all references to official plugins to `@parcel/*`
-  // This is optional as the packages are also linked under the `@atlassian/parcel-*` name
+  // Step 2: Delete all official packages (`@parcel/*`) from node_modules
   // --------------------------------------------------------------------------------
 
-  log('Rewriting .parcelrc');
-  let configPath = path.join(appRoot, '.parcelrc');
-  let config = fs.readFileSync(configPath, 'utf8');
-  fsWrite(
-    configPath,
-    config.replace(
-      /"(@atlassian\/parcel-[^"]*)"/g,
-      (_, match) => `"${atlassianToParcelPackages.get(match) ?? match}"`,
-    ),
-    opts,
-  );
-
-  // Step 2.2: In the root package.json, rewrite all references to official plugins to @parcel/...
-  // For configs like "@atlassian/parcel-bundler-default":{"maxParallelRequests": 10}
-  // --------------------------------------------------------------------------------
-
-  log('Rewriting root package.json');
-  let rootPkgPath = path.join(appRoot, 'package.json');
-  let rootPkg: string = fs.readFileSync(rootPkgPath, 'utf8');
-  for (let packageName of [
-    '@atlassian/parcel-bundler-default',
-    '@atlassian/parcel-bundler-experimental',
-    '@atlassian/parcel-transformer-css',
-  ]) {
-    rootPkg = rootPkg.replace(
-      new RegExp(packageName, 'g'),
-      nullthrows(atlassianToParcelPackages.get(packageName)),
+  for (let nodeModules of nodeModulesPaths) {
+    cleanupNodeModules(
+      nodeModules,
+      packageName => parcelPackages.has(packageName),
+      opts,
     );
   }
 
-  fsWrite(rootPkgPath, rootPkg, opts);
-
-  // Step 3: Delete all official packages (`@atlassian/parcel-*` or `@parcel/*`) from node_modules
-  // --------------------------------------------------------------------------------
-
-  const predicate = (packageName: string) =>
-    parcelPackages.has(packageName) ||
-    atlassianToParcelPackages.has(packageName);
-
-  for (let nodeModules of [
-    ...glob.sync('build-tools/*/node_modules', {cwd: appRoot}),
-    ...glob.sync('build-tools/parcel/*/node_modules', {cwd: appRoot}),
-    path.join(appRoot, 'node_modules'),
-  ]) {
-    cleanupNodeModules(nodeModules, predicate, opts);
-  }
-
-  // Step 4: Link the Parcel packages into node_modules as both `@parcel/*` and `@atlassian/parcel-*`
+  // Step 3: Link the Parcel packages into node_modules
   // --------------------------------------------------------------------------------
 
   for (let [packageName, p] of parcelPackages) {
     fsSymlink(p, path.join(appRoot, 'node_modules', packageName), opts);
   }
-  for (let [atlassianName, parcelName] of atlassianToParcelPackages) {
-    let p = nullthrows(parcelPackages.get(parcelName));
-    fsSymlink(p, path.join(appRoot, 'node_modules', atlassianName), opts);
-  }
 
-  // Step 5: Point `parcel` bin symlink to linked `packages/core/parcel/src/bin.js`
+  // Step 4: Point `parcel` bin symlink to linked `packages/core/parcel/src/bin.js`
   // --------------------------------------------------------------------------------
 
   fsSymlink(
@@ -114,4 +78,69 @@ export default function link({
     path.join(appRoot, 'node_modules/.bin/parcel'),
     opts,
   );
+
+  // Step 5 (optional): If a namespace is defined, map namespaced package aliases.
+  // --------------------------------------------------------------------------------
+
+  if (namespace != null) {
+    let namespacePackages = mapNamespacePackageAliases(
+      namespace,
+      parcelPackages,
+    );
+
+    // Step 5.1: In .parcelrc, rewrite all references to official plugins to `@parcel/*`
+    // This is optional as the packages are also linked under the `@atlassian/parcel-*` name
+    // --------------------------------------------------------------------------------
+
+    log('Rewriting .parcelrc');
+    let configPath = path.join(appRoot, '.parcelrc');
+    let config = fs.readFileSync(configPath, 'utf8');
+    fsWrite(
+      configPath,
+      config.replace(
+        new RegExp(`"(${namespace}/parcel-[^"]*)"`, 'g'),
+        (_, match) => `"${namespacePackages.get(match) ?? match}"`,
+      ),
+      opts,
+    );
+
+    // Step 5.2: In the root package.json, rewrite all references to official plugins to @parcel/...
+    // For configs like "@namespace/parcel-bundler-default":{"maxParallelRequests": 10}
+    // --------------------------------------------------------------------------------
+
+    log('Rewriting root package.json');
+    let rootPkgPath = path.join(appRoot, 'package.json');
+    let rootPkg: string = fs.readFileSync(rootPkgPath, 'utf8');
+    for (let packageName of [
+      `${namespace}/parcel-bundler-default`,
+      `${namespace}/parcel-bundler-experimental`,
+      `${namespace}/parcel-transformer-css`,
+    ]) {
+      rootPkg = rootPkg.replace(
+        new RegExp(packageName, 'g'),
+        nullthrows(namespacePackages.get(packageName)),
+      );
+    }
+
+    fsWrite(rootPkgPath, rootPkg, opts);
+
+    // Step 5.3: Delete namespaced packages (`@namespace/parcel-*`) from node_modules
+    // --------------------------------------------------------------------------------
+
+    for (let nodeModules of nodeModulesPaths) {
+      cleanupNodeModules(
+        nodeModules,
+        packageName => namespacePackages.has(packageName),
+        opts,
+      );
+    }
+
+    // Step 5.4: Link the Parcel packages into node_modules as `@namespace/parcel-*`
+    // --------------------------------------------------------------------------------
+
+    for (let [alias, parcelName] of namespacePackages) {
+      let p = nullthrows(parcelPackages.get(parcelName));
+      fsSymlink(p, path.join(appRoot, 'node_modules', alias), opts);
+    }
+  }
 }

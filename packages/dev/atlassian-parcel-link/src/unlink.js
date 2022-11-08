@@ -14,19 +14,24 @@ import {
   execSync,
   findParcelPackages,
   fsWrite,
-  mapAtlassianPackageAliases,
+  mapNamespacePackageAliases,
   validateAppRoot,
   validatePackageRoot,
 } from './util';
 
 export type UnlinkOptions = {|
   appRoot: string,
+  nodeModulesGlobs?: string[],
+  namespace?: string,
   dryRun?: boolean,
   log?: (...data: mixed[]) => void,
 |};
 
 export default function unlink({
   appRoot,
+  namespace,
+  // TODO: move this default up a level
+  nodeModulesGlobs = ['node_modules'],
   dryRun = false,
   log = () => {},
 }: UnlinkOptions) {
@@ -35,8 +40,15 @@ export default function unlink({
   // FIXME: This should be detected from the links in the app.
   // Using this file's package root is techincally wrong
   // if the link was performed against a different package root.
+  // We could add some config to the root package.json to store
+  // the package root that was used to link.
   let packageRoot = path.join(__dirname, '../../../');
   validatePackageRoot(packageRoot);
+
+  let nodeModulesPaths = nodeModulesGlobs.reduce(
+    (matches, pattern) => [...matches, ...glob.sync(pattern, {cwd: appRoot})],
+    [],
+  );
 
   let opts: CmdOptions = {appRoot, packageRoot, dryRun, log};
 
@@ -44,60 +56,82 @@ export default function unlink({
   // --------------------------------------------------------------------------------
 
   let parcelPackages = findParcelPackages(packageRoot);
-  let atlassianToParcelPackages = mapAtlassianPackageAliases(parcelPackages);
 
-  // Step 2.1: In .parcelrc, restore all references to atlassian plugins.
-  // --------------------------------------------------------------------------------
-
-  log('Restoring .parcelrc');
-  let configPath = path.join(appRoot, '.parcelrc');
-  let config = fs.readFileSync(configPath, 'utf8');
-
-  for (let [atlassian, parcel] of atlassianToParcelPackages) {
-    config = config.replace(new RegExp(`"${parcel}"`, 'g'), `"${atlassian}"`);
-  }
-
-  fsWrite(configPath, config, opts);
-
-  // Step 2.2: In the root package.json, restore all references to atlassian plugins
-  // For configs like "@atlassian/parcel-bundler-default":{"maxParallelRequests": 10}
-  // --------------------------------------------------------------------------------
-
-  log('Restoring root package.json');
-  let rootPkgPath = path.join(appRoot, 'package.json');
-  let rootPkg: string = fs.readFileSync(rootPkgPath, 'utf8');
-  for (let packageName of [
-    '@atlassian/parcel-bundler-default',
-    '@atlassian/parcel-bundler-experimental',
-    '@atlassian/parcel-transformer-css',
-  ]) {
-    rootPkg = rootPkg.replace(
-      new RegExp(nullthrows(atlassianToParcelPackages.get(packageName)), 'g'),
-      packageName,
-    );
-  }
-
-  fsWrite(rootPkgPath, rootPkg, opts);
-
-  // Step 3: Delete all official packages (`@atlassian/parcel-*` or `@parcel/*`) from node_modules
+  // Step 2: Delete all official packages (`@parcel/*`) from node_modules
   // This is very brute-force, but should ensure that we catch all linked packages.
   // --------------------------------------------------------------------------------
 
-  const predicate = (packageName: string) =>
-    parcelPackages.has(packageName) ||
-    atlassianToParcelPackages.has(packageName);
-
-  for (let nodeModules of [
-    ...glob.sync('build-tools/*/node_modules', {cwd: appRoot}),
-    ...glob.sync('build-tools/parcel/*/node_modules', {cwd: appRoot}),
-    path.join(appRoot, 'node_modules'),
-  ]) {
-    cleanupNodeModules(nodeModules, predicate, opts);
+  for (let nodeModules of nodeModulesPaths) {
+    cleanupNodeModules(
+      nodeModules,
+      packageName => parcelPackages.has(packageName),
+      opts,
+    );
   }
 
-  // Step 6: Run `yarn` to restore all dependencies.
+  // Step 3 (optional): If a namespace is defined, restore all aliased references.
   // --------------------------------------------------------------------------------
 
+  if (namespace != null) {
+    // Step 3.1: Determine all namespace packages that could be aliased
+    // --------------------------------------------------------------------------------
+
+    let namespacePackages = mapNamespacePackageAliases(
+      namespace,
+      parcelPackages,
+    );
+
+    // Step 3.2: In .parcelrc, restore all references to namespaced plugins.
+    // --------------------------------------------------------------------------------
+
+    log('Restoring .parcelrc');
+    let configPath = path.join(appRoot, '.parcelrc');
+    let config = fs.readFileSync(configPath, 'utf8');
+
+    for (let [alias, parcel] of namespacePackages) {
+      config = config.replace(new RegExp(`"${parcel}"`, 'g'), `"${alias}"`);
+    }
+
+    fsWrite(configPath, config, opts);
+
+    // Step 3.3: In the root package.json, restore all references to namespaced plugins
+    // For configs like "@namespace/parcel-bundler-default":{"maxParallelRequests": 10}
+    // --------------------------------------------------------------------------------
+
+    log('Restoring root package.json');
+    let rootPkgPath = path.join(appRoot, 'package.json');
+    let rootPkg: string = fs.readFileSync(rootPkgPath, 'utf8');
+    // TODO: extract this to a util and use in both link and unlink
+    for (let packageName of [
+      `${namespace}/parcel-bundler-default`,
+      `${namespace}/parcel-bundler-experimental`,
+      `${namespace}/parcel-transformer-css`,
+    ]) {
+      rootPkg = rootPkg.replace(
+        new RegExp(nullthrows(namespacePackages.get(packageName)), 'g'),
+        packageName,
+      );
+    }
+
+    fsWrite(rootPkgPath, rootPkg, opts);
+
+    // Step 3.4: Delete all namespaced packages (`@namespace/parcel-*`) from node_modules
+    // This is very brute-force, but should ensure that we catch all linked packages.
+    // --------------------------------------------------------------------------------
+
+    for (let nodeModules of nodeModulesPaths) {
+      cleanupNodeModules(
+        nodeModules,
+        packageName => namespacePackages.has(packageName),
+        opts,
+      );
+    }
+  }
+
+  // Step 4: Run `yarn` to restore all dependencies.
+  // --------------------------------------------------------------------------------
+
+  // FIXME: This should detect the package manager in use.
   log('Running `yarn` to restore dependencies');
   execSync('yarn install --force', opts);
 }

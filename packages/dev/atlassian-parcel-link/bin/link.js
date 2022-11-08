@@ -72,6 +72,14 @@ if (args?.help) {
     link({
       appRoot: process.cwd(),
       packageRoot: args.packageRoot ?? path.join(__dirname, '../../../'),
+      // FIXME: Derive namespace from argv
+      namespace: '@atlassian',
+      // FIXME: Derive nodeModulesGlobs from argv
+      nodeModulesGlobs: [
+        'build-tools/*/node_modules',
+        'build-tools/parcel/*/node_modules',
+        'node_modules',
+      ],
       dryRun: args.dryRun,
       log: console.log,
     });
