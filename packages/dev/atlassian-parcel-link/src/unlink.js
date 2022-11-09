@@ -24,6 +24,7 @@ export type UnlinkOptions = {|
   nodeModulesGlobs?: string[],
   namespace?: string,
   dryRun?: boolean,
+  forceInstall?: boolean,
   log?: (...data: mixed[]) => void,
 |};
 
@@ -33,6 +34,7 @@ export default function unlink({
   // TODO: move this default up a level
   nodeModulesGlobs = ['node_modules'],
   dryRun = false,
+  forceInstall = false,
   log = () => {},
 }: UnlinkOptions) {
   validateAppRoot(appRoot);
@@ -69,10 +71,10 @@ export default function unlink({
     );
   }
 
-  // Step 3 (optional): If a namespace is defined, restore all aliased references.
+  // Step 3 (optional): If a namespace is not "@parcel", restore all aliased references.
   // --------------------------------------------------------------------------------
 
-  if (namespace != null) {
+  if (namespace != null && namespace !== '@parcel') {
     // Step 3.1: Determine all namespace packages that could be aliased
     // --------------------------------------------------------------------------------
 
@@ -120,10 +122,14 @@ export default function unlink({
     }
   }
 
-  // Step 4: Run `yarn` to restore all dependencies.
+  // Step 4 (optional): Run `yarn` to restore all dependencies.
   // --------------------------------------------------------------------------------
 
-  // FIXME: This should detect the package manager in use.
-  log('Running `yarn` to restore dependencies');
-  execSync('yarn install --force', opts);
+  if (forceInstall) {
+    // FIXME: This should detect the package manager in use.
+    log('Running `yarn` to restore dependencies');
+    execSync('yarn install --force', opts);
+  } else {
+    log('Run `yarn install --force` (or similar) to restore dependencies');
+  }
 }

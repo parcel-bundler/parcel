@@ -7,87 +7,44 @@ require('@parcel/babel-register');
 
 const path = require('path');
 
+/*::
+import typeof Commander from 'commander';
+*/
+// $FlowFixMe[incompatible-type]
+// $FlowFixMe[prop-missing]
+const commander /*: Commander */ = require('commander');
+
+// $FlowFixMe[untyped-import]
+const {version} = require('../package.json');
 const link = require('../src/link').default;
 
-/*::
-type ParsedArgs = {|
-  dryRun: boolean,
-  help: boolean,
-  packageRoot?: string,
-|};
-*/
+const program = new commander.Command();
 
-const defaultArgs /*: ParsedArgs */ = {
-  dryRun: false,
-  help: false,
-};
-
-function printUsage(log = console.log) {
-  log('Usage: atlassian-parcel-link [--dry] [packageRoot]');
-  log('Options:');
-  log('  --dry        Do not write any changes');
-  log('  --help       Print this message');
-  log('Arguments:');
-  log('  packageRoot  Path to the Parcel package root');
-  log('               Defaults to the package root containing this package');
-}
-
-function parseArgs(args) {
-  const parsedArgs = {...defaultArgs};
-  for (let arg of args) {
-    switch (arg) {
-      case '--dry':
-        parsedArgs.dryRun = true;
-        break;
-      case '--help':
-        parsedArgs.help = true;
-        break;
-      default:
-        if (arg.startsWith('--')) {
-          throw new Error(`Unknown option: ${arg}`);
-        }
-        parsedArgs.packageRoot = arg;
-    }
-  }
-  return parsedArgs;
-}
-
-let exitCode = 0;
-
-let args;
-try {
-  args = parseArgs(process.argv.slice(2));
-} catch (e) {
-  console.error(e.message);
-  printUsage(console.error);
-  exitCode = 1;
-}
-
-if (args?.help) {
-  printUsage();
-  exitCode = 0;
-} else if (args) {
-  try {
-    if (args.dryRun) console.log('Dry run...');
+program
+  .arguments('[packageRoot]')
+  .version(version, '-V, --version')
+  .description('Link a dev copy of Parcel into an app', {
+    packageRoot:
+      'Path to the Parcel package root\nDefaults to the package root containing this package',
+  })
+  .option('-d, --dry-run', 'Do not write any changes')
+  .option('-n, --namespace <namespace>', 'Namespace for packages', '@parcel')
+  .option(
+    '-g, --node-modules-globs <globs...>',
+    'Locations where node_modules should be linked in the app',
+    value => (Array.isArray(value) ? value : [value]),
+    'node_modules',
+  )
+  .action((packageRoot, options) => {
+    if (options.dryRun) console.log('Dry run...');
     link({
       appRoot: process.cwd(),
-      packageRoot: args.packageRoot ?? path.join(__dirname, '../../../'),
-      // FIXME: Derive namespace from argv
-      namespace: '@atlassian',
-      // FIXME: Derive nodeModulesGlobs from argv
-      nodeModulesGlobs: [
-        'build-tools/*/node_modules',
-        'build-tools/parcel/*/node_modules',
-        'node_modules',
-      ],
-      dryRun: args.dryRun,
+      packageRoot: packageRoot ?? path.join(__dirname, '../../../'),
+      namespace: options.namespace,
+      nodeModulesGlobs: options.nodeModulesGlobs,
+      dryRun: options.dryRun,
       log: console.log,
     });
     console.log('🎉 Linking successful');
-  } catch (e) {
-    console.error(e.message);
-    exitCode = 1;
-  }
-}
-
-process.exit(exitCode);
+  })
+  .parse();

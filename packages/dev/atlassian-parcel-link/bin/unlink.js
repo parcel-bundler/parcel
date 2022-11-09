@@ -5,79 +5,45 @@
 // $FlowFixMe[untyped-import]
 require('@parcel/babel-register');
 
+/*::
+import typeof Commander from 'commander';
+*/
+// $FlowFixMe[incompatible-type]
+// $FlowFixMe[prop-missing]
+const commander /*: Commander */ = require('commander');
+
+// $FlowFixMe[untyped-import]
+const {version} = require('../package.json');
 const unlink = require('../src/unlink').default;
 
-/*::
-type ParsedArgs = {|
-  dryRun: boolean,
-  help: boolean,
-|};
-*/
+const program = new commander.Command();
 
-const defaultArgs /*: ParsedArgs */ = {
-  dryRun: false,
-  help: false,
-};
-
-function printUsage(log = console.log) {
-  log('Usage: atlassian-parcel-unlink [--dry]');
-  log('Options:');
-  log('  --dry        Do not write any changes');
-  log('  --help       Print this message');
-}
-
-function parseArgs(args) {
-  const parsedArgs = {...defaultArgs};
-  for (let arg of args) {
-    switch (arg) {
-      case '--dry':
-        parsedArgs.dryRun = true;
-        break;
-      case '--help':
-        parsedArgs.help = true;
-        break;
-      default:
-        throw new Error(`Unknown option: ${arg}`);
-    }
-  }
-  return parsedArgs;
-}
-
-let exitCode = 0;
-
-let args;
-try {
-  args = parseArgs(process.argv.slice(2));
-} catch (e) {
-  console.error(e.message);
-  printUsage(console.error);
-  exitCode = 1;
-}
-
-if (args?.help) {
-  printUsage();
-  exitCode = 0;
-} else if (args) {
-  try {
-    if (args.dryRun) console.log('Dry run...');
+program
+  .version(version, '-V, --version')
+  .description('Unlink a dev copy of Parcel from an app')
+  .option('-d, --dry-run', 'Do not write any changes')
+  .option('-f, --force-install', 'Force a reinstall after unlinking')
+  .option(
+    '-n, --namespace <namespace>',
+    'Package namespace to restore',
+    '@parcel',
+  )
+  .option(
+    '-g, --node-modules-globs <globs...>',
+    'Locations where node_modules should be unlinked in the app',
+    value => (Array.isArray(value) ? value : [value]),
+    'node_modules',
+  )
+  .action((packageRoot, options) => {
+    if (options.dryRun) console.log('Dry run...');
     unlink({
       appRoot: process.cwd(),
-      // FIXME: Derive namespace from argv
-      namespace: '@atlassian',
-      // FIXME: Derive nodeModulesGlobs from argv
-      nodeModulesGlobs: [
-        'build-tools/*/node_modules',
-        'build-tools/parcel/*/node_modules',
-        'node_modules',
-      ],
-      dryRun: args.dryRun,
+      namespace: options.namespace,
+      nodeModulesGlobs: options.nodeModulesGlobs,
+      dryRun: options.dryRun,
+      forceInstall: options.forceInstall,
       log: console.log,
     });
-    console.log('🎉 unlinking successful');
-  } catch (e) {
-    console.error(e.message);
-    exitCode = 1;
-  }
-}
-
-process.exit(exitCode);
+    console.log('🎉 Unlinking successful');
+  })
+  .parse();

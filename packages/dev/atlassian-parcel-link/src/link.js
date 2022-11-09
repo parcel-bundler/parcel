@@ -79,10 +79,10 @@ export default function link({
     opts,
   );
 
-  // Step 5 (optional): If a namespace is defined, map namespaced package aliases.
+  // Step 5 (optional): If a namespace is not "@parcel", map namespaced package aliases.
   // --------------------------------------------------------------------------------
 
-  if (namespace != null) {
+  if (namespace != null && namespace !== '@parcel') {
     let namespacePackages = mapNamespacePackageAliases(
       namespace,
       parcelPackages,
