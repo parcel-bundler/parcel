@@ -1,5 +1,6 @@
 {
   "name": "@parcel/link",
+  "description": "A CLI for linking a dev version of Parcel into a project",
   "version": "2.8.0",
   "private": true,
   "bin": {
