@@ -89,7 +89,6 @@ export default function link({
     );
 
     // Step 5.1: In .parcelrc, rewrite all references to official plugins to `@parcel/*`
-    // This is optional as the packages are also linked under the `@atlassian/parcel-*` name
     // --------------------------------------------------------------------------------
 
     log('Rewriting .parcelrc');

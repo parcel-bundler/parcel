@@ -1,15 +1,15 @@
 {
-  "name": "@atlassian/parcel-link",
-  "version": "2.0.40",
+  "name": "@parcel/link",
+  "version": "2.8.0",
   "private": true,
   "bin": {
-    "atlassian-parcel-link": "bin/link.js",
-    "atlassian-parcel-unlink": "bin/unlink.js"
+    "parcel-link": "bin/link.js",
+    "parcel-unlink": "bin/unlink.js"
   },
   "main": "src/index.js",
   "dependencies": {
     "@babel/core": "^7.0.0",
-    "@parcel/babel-register": "2.0.40",
+    "@parcel/babel-register": "2.8.0",
     "commander": "^7.0.0",
     "glob": "^7.1.6",
     "nullthrows": "^1.1.1"
