@@ -61,7 +61,7 @@
     "@parcel/transformer-inline-string": "2.8.0",
     "@parcel/transformer-jsonld": "2.8.0",
     "@parcel/transformer-less": "2.8.0",
-    "@parcel/transformer-mdx-2": "2.8.0",
+    "@parcel/transformer-mdx": "2.8.0",
     "@parcel/transformer-pug": "2.8.0",
     "@parcel/transformer-sass": "2.8.0",
     "@parcel/transformer-stylus": "2.8.0",
