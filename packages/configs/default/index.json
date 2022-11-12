@@ -33,13 +33,15 @@
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.elm": ["@parcel/transformer-elm"],
-    "*.mdx": ["@parcel/transformer-mdx"],
+    "*.mdx": ["@parcel/transformer-mdx-2"],
     "*.vue": ["@parcel/transformer-vue"],
     "template:*.vue": ["@parcel/transformer-vue"],
     "script:*.vue": ["@parcel/transformer-vue"],
     "style:*.vue": ["@parcel/transformer-vue"],
     "custom:*.vue": ["@parcel/transformer-vue"],
-    "*.{png,jpg,jpeg,webp,gif,tiff,avif,heic,heif}": ["@parcel/transformer-image"],
+    "*.{png,jpg,jpeg,webp,gif,tiff,avif,heic,heif}": [
+      "@parcel/transformer-image"
+    ],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{xml,rss,atom}": ["@parcel/transformer-xml"],
     "url:*": ["...", "@parcel/transformer-raw"]
