@@ -350,7 +350,7 @@ async function run(
     process.on('SIGINT', exit);
     process.on('SIGTERM', exit);
 
-    // When resuming from a suspend (ctrl-z), ensure we re-enable raw mode.
+    // When resuming from a suspend (ctrl+z), ensure we re-enable raw mode.
     process.on('SIGCONT', () => process.stdin.setRawMode(true));
   } else {
     try {
