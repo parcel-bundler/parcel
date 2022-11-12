@@ -1,0 +1,29 @@
+{
+  "name": "@parcel/transformer-mdx-2",
+  "version": "2.8.0",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/MDXTransformer.js",
+  "source": "src/MDXTransformer.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.8.0"
+  },
+  "dependencies": {
+    "@mdx-js/mdx": "^2.1.5",
+    "@parcel/plugin": "2.8.0"
+  },
+  "peerDependencies": {
+    "react": ">=17.0.0"
+  }
+}
