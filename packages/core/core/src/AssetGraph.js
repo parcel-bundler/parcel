@@ -28,6 +28,7 @@ import {hashObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
+import {environmentIsLibrary} from './Environment';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 
 type InitOpts = {|
@@ -67,7 +68,7 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
     id: hashString(
       fromProjectPathRelative(assetGroup.filePath) +
-        assetGroup.env.id +
+        String(assetGroup.env) +
         String(assetGroup.isSource) +
         String(assetGroup.sideEffects) +
         (assetGroup.code ?? '') +
@@ -152,15 +153,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
   // Deduplicates Environments by making them referentially equal
   normalizeEnvironment(input: Asset | Dependency | AssetGroup) {
-    let {id, context} = input.env;
-    let idAndContext = `${id}-${context}`;
-
-    let env = this.envCache.get(idAndContext);
-    if (env) {
-      input.env = env;
-    } else {
-      this.envCache.set(idAndContext, input.env);
-    }
+    // let {id, context} = input.env;
+    // let idAndContext = `${id}-${context}`;
+    // let env = this.envCache.get(idAndContext);
+    // if (env) {
+    //   input.env = env;
+    // } else {
+    //   this.envCache.set(idAndContext, input.env);
+    // }
   }
 
   setRootConnections({entries, assetGroups}: InitOpts) {
@@ -239,6 +239,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     correspondingRequest: string,
   ) {
     let depNodes = targets.map(target => {
+      let isLibrary = environmentIsLibrary(target.env);
       let node = nodeFromDep(
         // The passed project path is ignored in this case, because there is no `loc`
         createDependency('', {
@@ -249,13 +250,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           env: target.env,
           isEntry: true,
           needsStableName: true,
-          symbols: target.env.isLibrary
+          symbols: isLibrary
             ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
             : undefined,
         }),
       );
 
-      if (node.value.env.isLibrary) {
+      if (isLibrary) {
         // in library mode, all of the entry's symbols are "used"
         node.usedSymbolsDown.add('*');
       }
@@ -417,7 +418,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       defer = deps.every(
         d =>
           d.symbols &&
-          !(d.env.isLibrary && d.isEntry) &&
+          !(environmentIsLibrary(d.env) && d.isEntry) &&
           !d.symbols.has('*') &&
           ![...d.symbols.keys()].some(symbol => {
             if (!resolvedAsset.symbols) return true;

@@ -48,7 +48,7 @@ export function createDependency(
     hashString(
       (opts.sourceAssetId ?? '') +
         opts.specifier +
-        opts.env.id +
+        String(opts.env) +
         (opts.target ? JSON.stringify(opts.target) : '') +
         (opts.pipeline ?? '') +
         opts.specifierType +

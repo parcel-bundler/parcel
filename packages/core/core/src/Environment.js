@@ -2,13 +2,15 @@
 import type {
   EnvironmentOptions,
   Environment as IEnvironment,
+  EnvironmentContext,
   FilePath,
 } from '@parcel/types';
 import type {Environment, InternalSourceLocation} from './types';
-import {hashString} from '@parcel/hash';
+// import {hashString} from '@parcel/hash';
 import {toInternalSourceLocation} from './utils';
 import PublicEnvironment from './public/Environment';
 import {environmentToInternalEnvironment} from './public/Environment';
+import db from '@parcel/db';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
@@ -94,8 +96,7 @@ export function createEnvironment({
     }
   }
 
-  let res: Environment = {
-    id: '',
+  return db.createEnvironment({
     context,
     engines,
     includeNodeModules,
@@ -106,10 +107,24 @@ export function createEnvironment({
     shouldScopeHoist,
     sourceMap,
     loc,
-  };
+  });
 
-  res.id = getEnvironmentHash(res);
-  return res;
+  // let res: Environment = {
+  //   id: '',
+  //   context,
+  //   engines,
+  //   includeNodeModules,
+  //   outputFormat,
+  //   sourceType,
+  //   isLibrary,
+  //   shouldOptimize,
+  //   shouldScopeHoist,
+  //   sourceMap,
+  //   loc,
+  // };
+
+  // res.id = getEnvironmentHash(res);
+  // return res;
 }
 
 export function mergeEnvironments(
@@ -134,18 +149,41 @@ export function mergeEnvironments(
   });
 }
 
-function getEnvironmentHash(env: Environment): string {
-  return hashString(
-    JSON.stringify([
-      env.context,
-      env.engines,
-      env.includeNodeModules,
-      env.outputFormat,
-      env.sourceType,
-      env.isLibrary,
-      env.shouldOptimize,
-      env.shouldScopeHoist,
-      env.sourceMap,
-    ]),
-  );
+// function getEnvironmentHash(env: Environment): string {
+//   return hashString(
+//     JSON.stringify([
+//       env.context,
+//       env.engines,
+//       env.includeNodeModules,
+//       env.outputFormat,
+//       env.sourceType,
+//       env.isLibrary,
+//       env.shouldOptimize,
+//       env.shouldScopeHoist,
+//       env.sourceMap,
+//     ]),
+//   );
+// }
+
+export function getEnvironmentContext(env: Environment): EnvironmentContext {
+  switch (db.environmentContext(env)) {
+    case 0:
+      return 'browser';
+    case 1:
+      return 'web-worker';
+    case 2:
+      return 'service-worker';
+    case 3:
+      return 'worklet';
+    case 4:
+      return 'node';
+    case 5:
+      return 'electron-main';
+    case 6:
+      return 'electron-renderer';
+    default:
+      throw new Error('Invalid environment context');
+  }
 }
+
+export {environmentIsLibrary, environmentShouldScopeHoist} from '@parcel/db';

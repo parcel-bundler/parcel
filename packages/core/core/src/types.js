@@ -58,22 +58,23 @@ export type ProcessedParcelConfig = {|
   resolveFrom?: ProjectPath,
 |};
 
-export type Environment = {|
-  id: string,
-  context: EnvironmentContext,
-  engines: Engines,
-  includeNodeModules:
-    | boolean
-    | Array<PackageName>
-    | {[PackageName]: boolean, ...},
-  outputFormat: OutputFormat,
-  sourceType: SourceType,
-  isLibrary: boolean,
-  shouldOptimize: boolean,
-  shouldScopeHoist: boolean,
-  sourceMap: ?TargetSourceMapOptions,
-  loc: ?InternalSourceLocation,
-|};
+export opaque type Environment = number;
+// export type Environment = {|
+//   id: string,
+//   context: EnvironmentContext,
+//   engines: Engines,
+//   includeNodeModules:
+//     | boolean
+//     | Array<PackageName>
+//     | {[PackageName]: boolean, ...},
+//   outputFormat: OutputFormat,
+//   sourceType: SourceType,
+//   isLibrary: boolean,
+//   shouldOptimize: boolean,
+//   shouldScopeHoist: boolean,
+//   sourceMap: ?TargetSourceMapOptions,
+//   loc: ?InternalSourceLocation,
+// |};
 
 export type InternalSourceLocation = {|
   +filePath: ProjectPath,
@@ -155,11 +156,11 @@ export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
 export type Asset = {|
   id: ContentKey,
   committed: boolean,
-  hash: ?string,
+  hash: ?string, // only uncommitted
   filePath: ProjectPath,
-  query: ?string,
+  query: ?string, // only uncommitted
   type: string,
-  dependencies: Map<string, Dependency>,
+  dependencies: Map<string, Dependency>, // only uncommitted
   bundleBehavior: ?$Values<typeof BundleBehavior>,
   isBundleSplittable: boolean,
   isSource: boolean,
@@ -169,18 +170,18 @@ export type Asset = {|
   contentKey: ?string,
   mapKey: ?string,
   outputHash: ?string,
-  pipeline: ?string,
-  astKey: ?string,
-  astGenerator: ?ASTGenerator,
+  pipeline: ?string, // only uncommitted
+  astKey: ?string, // unused
+  astGenerator: ?ASTGenerator, // unused
   symbols: ?Map<
     Symbol,
     {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
   >,
   sideEffects: boolean,
   uniqueKey: ?string,
-  configPath?: ProjectPath,
-  plugin: ?PackageName,
-  configKeyPath?: string,
+  configPath?: ProjectPath, // unused
+  plugin: ?PackageName, // unused (generateFromAST)
+  configKeyPath?: string, // unused (generateFromAST)
   isLargeBlob?: boolean,
 |};
 

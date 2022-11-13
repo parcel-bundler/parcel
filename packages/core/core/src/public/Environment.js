@@ -16,6 +16,8 @@ import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import {fromInternalSourceLocation} from '../utils';
+import {getEnvironmentContext} from '../Environment';
+import db from '@parcel/db';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -126,14 +128,12 @@ const supportData = {
   },
 };
 
-const internalEnvironmentToEnvironment: WeakMap<
-  InternalEnvironment,
-  Environment,
-> = new WeakMap();
-const _environmentToInternalEnvironment: WeakMap<
+const internalEnvironmentToEnvironment: Map<InternalEnvironment, Environment> =
+  new Map();
+const _environmentToInternalEnvironment: Map<
   IEnvironment,
   InternalEnvironment,
-> = new WeakMap();
+> = new Map();
 export function environmentToInternalEnvironment(
   environment: IEnvironment,
 ): InternalEnvironment {
@@ -158,15 +158,16 @@ export default class Environment implements IEnvironment {
   }
 
   get id(): string {
-    return this.#environment.id;
+    return String(this.#environment);
   }
 
   get context(): EnvironmentContext {
-    return this.#environment.context;
+    // return this.#environment.context;
+    return getEnvironmentContext(this.#environment);
   }
 
   get engines(): Engines {
-    return this.#environment.engines;
+    return this.#environment.engines || {};
   }
 
   get includeNodeModules():
@@ -177,23 +178,41 @@ export default class Environment implements IEnvironment {
   }
 
   get outputFormat(): OutputFormat {
-    return this.#environment.outputFormat;
+    // return this.#environment.outputFormat;
+    switch (db.environmentOutputFormat(this.#environment)) {
+      case 0:
+        return 'global';
+      case 1:
+        return 'commonjs';
+      case 2:
+        return 'esmodule';
+      default:
+        throw new Error('Invalid environment output format');
+    }
   }
 
   get sourceType(): SourceType {
-    return this.#environment.sourceType;
+    // return this.#environment.sourceType;
+    switch (db.environmentSourceType(this.#environment)) {
+      case 0:
+        return 'module';
+      case 1:
+        return 'script';
+      default:
+        throw new Error('Invalid environment source type');
+    }
   }
 
   get isLibrary(): boolean {
-    return this.#environment.isLibrary;
+    return db.environmentIsLibrary(this.#environment);
   }
 
   get shouldOptimize(): boolean {
-    return this.#environment.shouldOptimize;
+    return db.environmentShouldOptimize(this.#environment);
   }
 
   get shouldScopeHoist(): boolean {
-    return this.#environment.shouldScopeHoist;
+    return db.environmentShouldScopeHoist(this.#environment);
   }
 
   get sourceMap(): ?TargetSourceMapOptions {
@@ -213,27 +232,27 @@ export default class Environment implements IEnvironment {
   }
 
   isBrowser(): boolean {
-    return BROWSER_ENVS.has(this.#environment.context);
+    return BROWSER_ENVS.has(this.context);
   }
 
   isNode(): boolean {
-    return NODE_ENVS.has(this.#environment.context);
+    return NODE_ENVS.has(this.context);
   }
 
   isElectron(): boolean {
-    return ELECTRON_ENVS.has(this.#environment.context);
+    return ELECTRON_ENVS.has(this.context);
   }
 
   isIsolated(): boolean {
-    return ISOLATED_ENVS.has(this.#environment.context);
+    return ISOLATED_ENVS.has(this.context);
   }
 
   isWorker(): boolean {
-    return WORKER_ENVS.has(this.#environment.context);
+    return WORKER_ENVS.has(this.context);
   }
 
   isWorklet(): boolean {
-    return this.#environment.context === 'worklet';
+    return this.context === 'worklet';
   }
 
   matchesEngines(

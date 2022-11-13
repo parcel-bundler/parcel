@@ -47,7 +47,7 @@ export function createConfig({
     id: hashString(
       plugin +
         fromProjectPathRelative(searchPath) +
-        environment.id +
+        String(environment) +
         String(isSource),
     ),
     isSource: isSource ?? false,

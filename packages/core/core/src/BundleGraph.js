@@ -33,12 +33,16 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {ContentGraph, ALL_EDGE_TYPES, mapVisitor} from '@parcel/graph';
 import {Hash, hashString} from '@parcel/hash';
-import {DefaultMap, objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
+import {DefaultMap, getRootDir} from '@parcel/utils';
 
 import {Priority, BundleBehavior, SpecifierType} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath} from './projectPath';
+import {
+  getEnvironmentContext,
+  environmentShouldScopeHoist,
+} from './Environment';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -185,7 +189,7 @@ export default class BundleGraph {
       if (
         node.type === 'dependency' &&
         node.value.symbols != null &&
-        node.value.env.shouldScopeHoist
+        environmentShouldScopeHoist(node.value.env)
       ) {
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
@@ -1065,7 +1069,8 @@ export default class BundleGraph {
 
         if (
           descendant.type !== bundle.type ||
-          descendant.env.context !== bundle.env.context
+          getEnvironmentContext(descendant.env) !==
+            getEnvironmentContext(bundle.env)
         ) {
           actions.skipChildren();
           return;
@@ -1104,7 +1109,7 @@ export default class BundleGraph {
     // If a bundle's environment is isolated, it can't access assets present
     // in any ancestor bundles. Don't consider any assets reachable.
     if (
-      ISOLATED_ENVS.has(bundle.env.context) ||
+      ISOLATED_ENVS.has(getEnvironmentContext(bundle.env)) ||
       !bundle.isSplittable ||
       bundle.bundleBehavior === BundleBehavior.isolated ||
       bundle.bundleBehavior === BundleBehavior.inline
@@ -1158,7 +1163,8 @@ export default class BundleGraph {
               node.type === 'root' ||
               (node.type === 'bundle' &&
                 (node.value.id === bundle.id ||
-                  node.value.env.context !== bundle.env.context))
+                  getEnvironmentContext(node.value.env) !==
+                    getEnvironmentContext(bundle.env)))
             ) {
               isReachable = false;
               actions.stop();
@@ -1821,7 +1827,7 @@ export default class BundleGraph {
       hash.writeString(referencedBundle.id);
     }
 
-    hash.writeString(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
+    hash.writeString(String(bundle.env));
     return hash.finish();
   }
 
