@@ -17,7 +17,7 @@
   "source": "src/MDXTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.8.0"
+    "parcel": "2.0.0 - 2.7.0"
   },
   "dependencies": {
     "@mdx-js/mdx": "^2.1.5",
