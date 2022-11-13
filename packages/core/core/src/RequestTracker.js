@@ -165,13 +165,13 @@ export type StaticRunOpts = {|
 |};
 
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
-  id: fromProjectPathRelative(filePath),
+  id: filePath,
   type: 'file',
   value: {filePath},
 });
 
 const nodeFromGlob = (glob: InternalGlob): RequestGraphNode => ({
-  id: fromProjectPathRelative(glob),
+  id: glob,
   type: 'glob',
   value: glob,
 });

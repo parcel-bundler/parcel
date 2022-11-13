@@ -2,11 +2,12 @@
 import type {FilePath} from '@parcel/types';
 import path from 'path';
 import {relativePath, normalizeSeparators} from '@parcel/utils';
+import db from '@parcel/db';
 
 /**
  * A path that's relative to the project root.
  */
-export opaque type ProjectPath = string;
+export opaque type ProjectPath = number;
 
 function toProjectPath_(projectRoot: FilePath, p: FilePath): ProjectPath {
   if (p == null) {
@@ -19,10 +20,10 @@ function toProjectPath_(projectRoot: FilePath, p: FilePath): ProjectPath {
   // portable anyway.
   let relative = relativePath(projectRoot, p, false);
   if (relative.startsWith('..')) {
-    return process.platform === 'win32' ? normalizeSeparators(p) : p;
+    relative = process.platform === 'win32' ? normalizeSeparators(p) : p;
   }
 
-  return relative;
+  return db.fileId(relative);
 }
 
 export const toProjectPath: ((
@@ -38,9 +39,11 @@ function fromProjectPath_(projectRoot: FilePath, p: ?ProjectPath): ?FilePath {
     return null;
   }
 
+  let name = db.fileName(p);
+
   // Project paths use normalized unix separators, so we only need to
   // convert them on Windows.
-  let projectPath = process.platform === 'win32' ? path.normalize(p) : p;
+  let projectPath = process.platform === 'win32' ? path.normalize(name) : name;
 
   // If the path is absolute (e.g. outside the project root), just return it.
   if (path.isAbsolute(projectPath)) {
@@ -66,14 +69,14 @@ export const fromProjectPath: ((
  * Returns a path relative to the project root. This should be used when computing cache keys
  */
 export function fromProjectPathRelative(p: ProjectPath): FilePath {
-  return p;
+  return db.fileName(p);
 }
 
 /**
  * This function should be avoided, it doesn't change the actual value.
  */
 export function toProjectPathUnsafe(p: FilePath): ProjectPath {
-  return p;
+  return db.fileId(p);
 }
 
 /**
@@ -83,5 +86,5 @@ export function joinProjectPath(
   a: ProjectPath,
   ...b: Array<FilePath>
 ): ProjectPath {
-  return path.posix.join(a, ...b);
+  return db.fileId(path.posix.join(db.fileName(a), ...b));
 }
