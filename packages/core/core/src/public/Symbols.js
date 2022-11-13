@@ -270,7 +270,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
 
   ensure(): void {
     if (this.#value.symbols == null) {
-      this.#value.symbols = new Map();
+      // this.#value.symbols = new Map();
     }
   }
 
@@ -280,16 +280,16 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     loc: ?SourceLocation,
     isWeak: ?boolean,
   ) {
-    let symbols = nullthrows(this.#value.symbols);
-    symbols.set(exportSymbol, {
-      local,
-      loc: toInternalSourceLocation(this.#options.projectRoot, loc),
-      isWeak: (symbols.get(exportSymbol)?.isWeak ?? true) && (isWeak ?? false),
-    });
+    // let symbols = nullthrows(this.#value.symbols);
+    // symbols.set(exportSymbol, {
+    //   local,
+    //   loc: toInternalSourceLocation(this.#options.projectRoot, loc),
+    //   isWeak: (symbols.get(exportSymbol)?.isWeak ?? true) && (isWeak ?? false),
+    // });
   }
 
   delete(exportSymbol: ISymbol) {
-    nullthrows(this.#value.symbols).delete(exportSymbol);
+    // nullthrows(this.#value.symbols).delete(exportSymbol);
   }
 }
 

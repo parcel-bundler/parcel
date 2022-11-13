@@ -51,7 +51,7 @@ type SerializedAssetGraph = {|
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
   return {
-    id: dep.id,
+    id: dep,
     type: 'dependency',
     value: dep,
     deferred: false,
@@ -279,7 +279,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     assetGroup: ?AssetGroup,
     correspondingRequest: string,
   ) {
-    let depNodeId = this.getNodeIdByContentKey(dependency.id);
+    let depNodeId = this.getNodeIdByContentKey(dependency);
     let depNode = nullthrows(this.getNode(depNodeId));
     invariant(depNode.type === 'dependency');
     depNode.correspondingRequest = correspondingRequest;
@@ -297,7 +297,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     }
 
     let assetGroupNodeId = this.addNode(assetGroupNode);
-    this.replaceNodeIdsConnectedTo(this.getNodeIdByContentKey(dependency.id), [
+    this.replaceNodeIdsConnectedTo(this.getNodeIdByContentKey(dependency), [
       assetGroupNodeId,
     ]);
 
@@ -402,7 +402,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       canDefer &&
       !dependencySymbols.has('*')
     ) {
-      let depNodeId = this.getNodeIdByContentKey(dependency.id);
+      let depNodeId = this.getNodeIdByContentKey(dependency);
       let depNode = this.getNode(depNodeId);
       invariant(depNode);
 
@@ -523,7 +523,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         depNode.complete = true;
         depNodesWithAssets.push([depNode, nodeFromAsset(dependentAsset)]);
       }
-      depNode.value.sourceAssetType = assetNode.value.type;
+      // depNode.value.sourceAssetType = assetNode.value.type;
       depNodeIds.push(this.addNode(depNode));
     }
 

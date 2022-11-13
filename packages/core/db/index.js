@@ -254,6 +254,16 @@ const {
   environmentContext,
   environmentOutputFormat,
   environmentSourceType,
+  createDependency,
+  dependencySpecifier,
+  dependencyEnv,
+  dependencyResolveFrom,
+  dependencySpecifierType,
+  dependencyPriority,
+  dependencyBundleBehavior,
+  dependencyIsEntry,
+  dependencyNeedsStableName,
+  dependencyIsOptional,
 } = nativeBinding;
 
 module.exports.fileId = fileId;
@@ -265,3 +275,13 @@ module.exports.environmentShouldScopeHoist = environmentShouldScopeHoist;
 module.exports.environmentContext = environmentContext;
 module.exports.environmentOutputFormat = environmentOutputFormat;
 module.exports.environmentSourceType = environmentSourceType;
+module.exports.createDependency = createDependency;
+module.exports.dependencySpecifier = dependencySpecifier;
+module.exports.dependencyEnv = dependencyEnv;
+module.exports.dependencyResolveFrom = dependencyResolveFrom;
+module.exports.dependencySpecifierType = dependencySpecifierType;
+module.exports.dependencyPriority = dependencyPriority;
+module.exports.dependencyBundleBehavior = dependencyBundleBehavior;
+module.exports.dependencyIsEntry = dependencyIsEntry;
+module.exports.dependencyNeedsStableName = dependencyNeedsStableName;
+module.exports.dependencyIsOptional = dependencyIsOptional;

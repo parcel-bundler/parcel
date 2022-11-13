@@ -14,6 +14,7 @@ import {SpecifierType, Priority, BundleBehavior} from './types';
 
 import {toInternalSourceLocation} from './utils';
 import {toProjectPath} from './projectPath';
+import db from '@parcel/db';
 
 type DependencyOpts = {|
   id?: string,
@@ -43,6 +44,25 @@ export function createDependency(
   projectRoot: FilePath,
   opts: DependencyOpts,
 ): Dependency {
+  return db.createDependency({
+    // assetId: opts.sourceAssetId || null,
+    assetId: 0,
+    envId: opts.env,
+    specifier: opts.specifier,
+    specifierType: SpecifierType[opts.specifierType],
+    priority: Priority[opts.priority ?? 'sync'],
+    bundleBehavior: opts.bundleBehavior
+      ? BundleBehavior[opts.bundleBehavior]
+      : 0,
+    isEntry: opts.isEntry ?? false,
+    isOptional: opts.isOptional ?? false,
+    needsStableName: opts.needsStableName ?? false,
+    resolveFrom: toProjectPath(
+      projectRoot,
+      opts.resolveFrom ?? opts.sourcePath,
+    ),
+  });
+
   let id =
     opts.id ||
     hashString(

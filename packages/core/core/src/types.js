@@ -114,40 +114,42 @@ export const Priority = {
   lazy: 2,
 };
 
-export type Dependency = {|
-  id: string,
-  specifier: DependencySpecifier,
-  specifierType: $Values<typeof SpecifierType>,
-  priority: $Values<typeof Priority>,
-  needsStableName: boolean,
-  bundleBehavior: ?$Values<typeof BundleBehavior>,
-  isEntry: boolean,
-  isOptional: boolean,
-  loc: ?InternalSourceLocation,
-  env: Environment,
-  meta: Meta,
-  resolverMeta?: ?Meta,
-  target: ?Target,
-  sourceAssetId: ?string,
-  sourcePath: ?ProjectPath,
-  sourceAssetType?: ?string,
-  resolveFrom: ?ProjectPath,
-  range: ?SemverRange,
-  symbols: ?Map<
-    Symbol,
-    {|
-      local: Symbol,
-      loc: ?InternalSourceLocation,
-      isWeak: boolean,
-      meta?: ?Meta,
-    |},
-  >,
-  pipeline?: ?string,
-|};
+// export type Dependency = {|
+//   id: string,
+//   specifier: DependencySpecifier,
+//   specifierType: $Values<typeof SpecifierType>,
+//   priority: $Values<typeof Priority>,
+//   needsStableName: boolean,
+//   bundleBehavior: ?$Values<typeof BundleBehavior>,
+//   isEntry: boolean,
+//   isOptional: boolean,
+//   loc: ?InternalSourceLocation,
+//   env: Environment,
+//   meta: Meta,
+//   resolverMeta?: ?Meta,
+//   target: ?Target,
+//   sourceAssetId: ?string,
+//   sourcePath: ?ProjectPath,
+//   sourceAssetType?: ?string,
+//   resolveFrom: ?ProjectPath,
+//   range: ?SemverRange,
+//   symbols: ?Map<
+//     Symbol,
+//     {|
+//       local: Symbol,
+//       loc: ?InternalSourceLocation,
+//       isWeak: boolean,
+//       meta?: ?Meta,
+//     |},
+//   >,
+//   pipeline?: ?string,
+// |};
+
+export opaque type Dependency = number;
 
 export const BundleBehavior = {
-  inline: 0,
-  isolated: 1,
+  inline: 1,
+  isolated: 2,
 };
 
 export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
@@ -184,6 +186,8 @@ export type Asset = {|
   configKeyPath?: string, // unused (generateFromAST)
   isLargeBlob?: boolean,
 |};
+
+export opaque type CommittedAsset = number;
 
 export type InternalGlob = ProjectPath;
 

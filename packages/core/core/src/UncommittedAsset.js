@@ -327,13 +327,13 @@ export default class UncommittedAsset {
         this.value.filePath,
       ),
     });
-    let existing = this.value.dependencies.get(dep.id);
+    let existing = this.value.dependencies.get(dep);
     if (existing) {
       mergeDependencies(existing, dep);
     } else {
-      this.value.dependencies.set(dep.id, dep);
+      this.value.dependencies.set(dep, dep);
     }
-    return dep.id;
+    return dep;
   }
 
   invalidateOnFileChange(filePath: ProjectPath) {

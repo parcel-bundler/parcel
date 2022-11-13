@@ -20,14 +20,15 @@ import {MutableDependencySymbols} from './Symbols';
 import {SpecifierType as SpecifierTypeMap, Priority} from '../types';
 import {fromProjectPath} from '../projectPath';
 import {fromInternalSourceLocation} from '../utils';
+import db from '@parcel/db';
 
 const SpecifierTypeNames = Object.keys(SpecifierTypeMap);
 const PriorityNames = Object.keys(Priority);
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const internalDependencyToDependency: WeakMap<InternalDependency, Dependency> =
-  new WeakMap();
+const internalDependencyToDependency: Map<InternalDependency, Dependency> =
+  new Map();
 const _dependencyToInternalDependency: WeakMap<
   IDependency,
   InternalDependency,
@@ -61,36 +62,36 @@ export default class Dependency implements IDependency {
   }
 
   get id(): string {
-    return this.#dep.id;
+    return this.#dep;
   }
 
   get specifier(): string {
-    return this.#dep.specifier;
+    return db.dependencySpecifier(this.#dep);
   }
 
   get specifierType(): SpecifierType {
-    return SpecifierTypeNames[this.#dep.specifierType];
+    return SpecifierTypeNames[db.dependencySpecifierType(this.#dep)];
   }
 
   get priority(): DependencyPriority {
-    return PriorityNames[this.#dep.priority];
+    return PriorityNames[db.dependencyPriority(this.#dep)];
   }
 
   get needsStableName(): boolean {
-    return this.#dep.needsStableName;
+    return db.dependencyNeedsStableName(this.#dep);
   }
 
   get bundleBehavior(): ?BundleBehavior {
-    let bundleBehavior = this.#dep.bundleBehavior;
-    return bundleBehavior == null ? null : BundleBehaviorNames[bundleBehavior];
+    let bundleBehavior = db.dependencyBundleBehavior(this.#dep);
+    return bundleBehavior == 0 ? null : BundleBehaviorNames[bundleBehavior];
   }
 
   get isEntry(): boolean {
-    return this.#dep.isEntry;
+    return db.dependencyIsEntry(this.#dep);
   }
 
   get isOptional(): boolean {
-    return this.#dep.isOptional;
+    return db.dependencyIsOptional(this.#dep);
   }
 
   get loc(): ?SourceLocation {
@@ -98,11 +99,11 @@ export default class Dependency implements IDependency {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#dep.env, this.#options);
+    return new Environment(db.dependencyEnv(this.#dep), this.#options);
   }
 
   get meta(): Meta {
-    return this.#dep.meta;
+    return this.#dep.meta ?? {};
   }
 
   get symbols(): IMutableDependencySymbols {
@@ -110,7 +111,13 @@ export default class Dependency implements IDependency {
   }
 
   get target(): ?Target {
-    let target = this.#dep.target;
+    // let target = this.#dep.target;
+    let target = {
+      distDir: db.fileId('dist'),
+      env: db.dependencyEnv(this.#dep),
+      name: 'test',
+      publicUrl: '/',
+    };
     return target ? new Target(target, this.#options) : null;
   }
 
@@ -131,7 +138,7 @@ export default class Dependency implements IDependency {
   get resolveFrom(): ?string {
     return fromProjectPath(
       this.#options.projectRoot,
-      this.#dep.resolveFrom ?? this.#dep.sourcePath,
+      db.dependencyResolveFrom(this.#dep) ?? this.#dep.sourcePath,
     );
   }
 

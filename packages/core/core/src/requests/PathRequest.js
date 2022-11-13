@@ -24,6 +24,7 @@ import {
   toProjectPath,
 } from '../projectPath';
 import {Priority} from '../types';
+import db from '@parcel/db';
 
 export type PathRequest = {|
   id: string,
@@ -49,7 +50,7 @@ export default function createPathRequest(
   input: PathRequestInput,
 ): PathRequest {
   return {
-    id: input.dependency.id + ':' + input.name,
+    id: String(input.dependency) + ':' + input.name,
     type,
     run,
     input,
@@ -167,22 +168,22 @@ export class ResolverRunner {
     let pipeline;
     let specifier;
     let validPipelines = new Set(this.config.getNamedPipelines());
-    let match = dependency.specifier.match(PIPELINE_REGEX);
+    let match = dep.specifier.match(PIPELINE_REGEX);
     if (
       match &&
       // Don't consider absolute paths. Absolute paths are only supported for entries,
       // and include e.g. `C:\` on Windows, conflicting with pipelines.
-      !path.isAbsolute(dependency.specifier)
+      !path.isAbsolute(dep.specifier)
     ) {
       [, pipeline, specifier] = match;
       if (!validPipelines.has(pipeline)) {
         // This may be a url protocol or scheme rather than a pipeline, such as
         // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
-        specifier = dependency.specifier;
+        specifier = dep.specifier;
         pipeline = null;
       }
     } else {
-      specifier = dependency.specifier;
+      specifier = dep.specifier;
     }
 
     // Entrypoints, convert ProjectPath in module specifier to absolute path
@@ -255,7 +256,7 @@ export class ResolverRunner {
                 query: result.query?.toString(),
                 sideEffects: result.sideEffects,
                 code: result.code,
-                env: dependency.env,
+                env: db.dependencyEnv(dependency),
                 pipeline:
                   result.pipeline === undefined
                     ? pipeline ?? dependency.pipeline
@@ -304,17 +305,12 @@ export class ResolverRunner {
       };
     }
 
-    let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
-    let dir =
-      resolveFrom != null
-        ? normalizePath(fromProjectPathRelative(resolveFrom))
-        : '';
+    let resolveFrom = dep.resolveFrom ?? dep.sourcePath;
+    let dir = resolveFrom != null ? normalizePath(resolveFrom) : '';
 
     let diagnostic = await this.getDiagnostic(
       dependency,
-      md`Failed to resolve '${dependency.specifier}' ${
-        dir ? `from '${dir}'` : ''
-      }`,
+      md`Failed to resolve '${dep.specifier}' ${dir ? `from '${dir}'` : ''}`,
     );
 
     diagnostics.unshift(diagnostic);

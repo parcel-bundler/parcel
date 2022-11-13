@@ -217,7 +217,7 @@ export class AssetGraphBuilder {
       );
 
     this.assetGraph.symbolPropagationRan = entryDependencies.some(
-      d => d.value.env.shouldScopeHoist,
+      d => false, //d.value.env.shouldScopeHoist,
     );
     if (this.assetGraph.symbolPropagationRan) {
       await dumpGraphToGraphViz(

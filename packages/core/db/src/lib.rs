@@ -1,10 +1,14 @@
-use std::sync::{Mutex, RwLock};
+#![allow(dead_code)]
+
+use std::sync::RwLock;
 
 use bitflags::bitflags;
 use generational_arena::{Arena, Index};
 use lazy_static::lazy_static;
 use napi::Env;
 use napi_derive::napi;
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 
 mod string_arena;
 use string_arena::StringArena;
@@ -122,6 +126,124 @@ fn environment_source_type(id: u32) -> u8 {
   env.source_type as u8
 }
 
+#[napi(object)]
+struct DependencyOptions {
+  pub asset_id: Option<u32>,
+  pub env_id: u32,
+  pub specifier: String,
+  pub specifier_type: u8,
+  pub resolve_from: Option<u32>,
+  pub priority: u8,
+  pub bundle_behavior: u8,
+  pub needs_stable_name: bool,
+  pub is_entry: bool,
+  pub is_optional: bool,
+}
+
+impl Into<Dependency> for DependencyOptions {
+  fn into(self) -> Dependency {
+    Dependency {
+      asset_id: self.asset_id,
+      env_id: self.env_id,
+      specifier: self.specifier,
+      specifier_type: SpecifierType::from_u8(self.specifier_type).unwrap(),
+      resolve_from: self.resolve_from,
+      priority: Priority::from_u8(self.priority).unwrap(),
+      bundle_behavior: BundleBehavior::from_u8(self.bundle_behavior).unwrap(),
+      flags: {
+        let mut flags = DependencyFlags::empty();
+        if self.is_entry {
+          flags |= DependencyFlags::ENTRY;
+        }
+
+        if self.is_optional {
+          flags |= DependencyFlags::OPTIONAL;
+        }
+
+        if self.needs_stable_name {
+          flags |= DependencyFlags::NEEDS_STABLE_NAME;
+        }
+
+        flags
+      },
+      loc: None,
+    }
+  }
+}
+
+#[napi]
+fn create_dependency(opts: DependencyOptions) -> u32 {
+  DB.write().unwrap().create_dependency(opts.into())
+}
+
+#[napi]
+fn dependency_specifier(env: Env, id: u32) -> napi::Result<napi::JsString> {
+  let db = DB.read().unwrap();
+  let dep = db.dependency(id);
+  env.create_string(&dep.specifier)
+}
+
+#[napi]
+fn dependency_env(id: u32) -> u32 {
+  let db = DB.read().unwrap();
+  let dep = db.dependency(id);
+  dep.env_id
+}
+
+#[napi]
+fn dependency_resolve_from(id: u32) -> Option<u32> {
+  let db = DB.read().unwrap();
+  let dep = db.dependency(id);
+  dep.resolve_from
+  // if let Some(r) = dep.resolve_from {
+  //   Ok(Some(file_name(env, r)?))
+  // } else {
+  //   Ok(None)
+  // }
+}
+
+#[napi]
+fn dependency_specifier_type(id: u32) -> u8 {
+  let db = DB.read().unwrap();
+  let dep = db.dependency(id);
+  dep.specifier_type as u8
+}
+
+#[napi]
+fn dependency_priority(id: u32) -> u8 {
+  let db = DB.read().unwrap();
+  let dep = db.dependency(id);
+  dep.priority as u8
+}
+
+#[napi]
+fn dependency_bundle_behavior(id: u32) -> u8 {
+  let db = DB.read().unwrap();
+  let dep = db.dependency(id);
+  dep.bundle_behavior as u8
+}
+
+#[napi]
+fn dependency_is_entry(id: u32) -> bool {
+  let db = DB.read().unwrap();
+  let dep = db.dependency(id);
+  dep.flags.contains(DependencyFlags::ENTRY)
+}
+
+#[napi]
+fn dependency_needs_stable_name(id: u32) -> bool {
+  let db = DB.read().unwrap();
+  let dep = db.dependency(id);
+  dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME)
+}
+
+#[napi]
+fn dependency_is_optional(id: u32) -> bool {
+  let db = DB.read().unwrap();
+  let dep = db.dependency(id);
+  dep.flags.contains(DependencyFlags::OPTIONAL)
+}
+
 #[derive(Default)]
 struct ParcelDb {
   files: StringArena,
@@ -155,6 +277,29 @@ impl ParcelDb {
       .get(Index::from_raw_parts(id as usize, 0))
       .unwrap()
   }
+
+  pub fn create_dependency(&mut self, dependency: Dependency) -> u32 {
+    println!("Create dependency {:?}", dependency);
+    self.dependencies.insert(dependency).into_raw_parts().0 as u32
+  }
+
+  pub fn dependency(&self, id: u32) -> &Dependency {
+    self
+      .dependencies
+      .get(Index::from_raw_parts(id as usize, 0))
+      .unwrap()
+  }
+
+  pub fn create_asset(&mut self, asset: Asset) -> u32 {
+    self.assets.insert(asset).into_raw_parts().0 as u32
+  }
+
+  pub fn asset(&self, id: u32) -> &Asset {
+    self
+      .assets
+      .get(Index::from_raw_parts(id as usize, 0))
+      .unwrap()
+  }
 }
 
 #[derive(PartialEq, Debug)]
@@ -168,6 +313,17 @@ struct SourceLocation {
 struct Location {
   line: u32,
   column: u32,
+}
+
+struct Target {
+  env_id: u32,
+  dist_dir: u32,
+  dist_entry: Option<String>,
+  name: String,
+  public_url: String,
+  loc: Option<SourceLocation>,
+  // pipeline: Option<String>,
+  // source: Option<u32>
 }
 
 #[derive(PartialEq, Debug)]
@@ -255,7 +411,7 @@ enum AssetType {
   Other,
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromPrimitive, Clone, Copy)]
 enum BundleBehavior {
   None,
   Inline,
@@ -276,16 +432,44 @@ bitflags! {
   }
 }
 
+#[derive(Debug)]
 struct Dependency {
-  asset_id: u32,
+  asset_id: Option<u32>,
+  env_id: u32,
   specifier: String,
+  specifier_type: SpecifierType,
+  resolve_from: Option<u32>,
+  priority: Priority,
+  bundle_behavior: BundleBehavior,
+  flags: DependencyFlags,
+  loc: Option<SourceLocation>,
+  // meta/resolver_meta/target
+  // symbols
+  // range
+  // pipeline
 }
 
 bitflags! {
   struct DependencyFlags: u8 {
     const ENTRY    = 0b00000001;
     const OPTIONAL = 0b00000010;
+    const NEEDS_STABLE_NAME = 0b00000100;
   }
+}
+
+#[derive(FromPrimitive, Clone, Copy, Debug)]
+enum SpecifierType {
+  Esm,
+  CommonJs,
+  Url,
+  Custom,
+}
+
+#[derive(FromPrimitive, Clone, Copy, Debug)]
+enum Priority {
+  Sync,
+  Parallel,
+  Lazy,
 }
 
 enum AssetGraphNode {

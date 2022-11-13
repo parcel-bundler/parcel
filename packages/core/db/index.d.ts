@@ -20,3 +20,25 @@ export function environmentShouldScopeHoist(id: number): boolean
 export function environmentContext(id: number): number
 export function environmentOutputFormat(id: number): number
 export function environmentSourceType(id: number): number
+export interface DependencyOptions {
+  assetId?: number
+  envId: number
+  specifier: string
+  specifierType: number
+  resolveFrom?: number
+  priority: number
+  bundleBehavior: number
+  needsStableName: boolean
+  isEntry: boolean
+  isOptional: boolean
+}
+export function createDependency(opts: DependencyOptions): number
+export function dependencySpecifier(id: number): string
+export function dependencyEnv(id: number): number
+export function dependencyResolveFrom(id: number): number | null
+export function dependencySpecifierType(id: number): number
+export function dependencyPriority(id: number): number
+export function dependencyBundleBehavior(id: number): number
+export function dependencyIsEntry(id: number): boolean
+export function dependencyNeedsStableName(id: number): boolean
+export function dependencyIsOptional(id: number): boolean
