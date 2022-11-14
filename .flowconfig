@@ -2,6 +2,7 @@
 .*/node_modules/@choojs/**/.*
 .*/node_modules/config-chain/.*
 .*/node_modules/graphviz/documentation.json
+.*/node_modules/resolve/*
 <PROJECT_ROOT>/.nyc_output/.*
 .*/tmp/**/.*
 .*/.parcel-cache/.*
