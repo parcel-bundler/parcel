@@ -15,6 +15,7 @@ import type {
   Dependency,
   ParcelOptions,
   InternalFileCreateInvalidation,
+  CommittedAsset,
 } from './types';
 
 import invariant from 'assert';
@@ -42,6 +43,7 @@ import {
 import {BundleBehaviorNames} from './types';
 import {invalidateOnFileCreateToInternal} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
+import db from '@parcel/db';
 
 type UncommittedAssetOptions = {|
   value: Asset,
@@ -137,6 +139,22 @@ export default class UncommittedAsset {
 
     this.value.isLargeBlob = this.content instanceof Readable;
     this.value.committed = true;
+  }
+
+  saveToDb(): {|asset: CommittedAsset, dependencies: Map<string, Dependency>|} {
+    let asset = db.createAsset({
+      fileId: this.value.filePath,
+      envId: this.value.env,
+      contentKey: this.value.contentKey,
+      mapKey: this.value.mapKey,
+      outputHash: this.value.outputHash,
+      assetType: this.value.type,
+      bundleBehavior: this.value.bundleBehavior || 0,
+      isSource: this.value.isSource,
+      sideEffects: this.value.sideEffects,
+      isBundleSplittable: this.value.isBundleSplittable,
+    });
+    return {asset, dependencies: this.value.dependencies};
   }
 
   async commitContent(contentKey: string): Promise<number> {

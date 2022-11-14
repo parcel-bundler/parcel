@@ -79,15 +79,16 @@ export function getPublicId(
   id: string,
   alreadyExists: string => boolean,
 ): string {
-  let encoded = base62.encode(Buffer.from(id, 'hex'));
-  for (let end = 5; end <= encoded.length; end++) {
-    let candidate = encoded.slice(0, end);
-    if (!alreadyExists(candidate)) {
-      return candidate;
-    }
-  }
+  return id;
+  // let encoded = base62.encode(Buffer.from(id, 'hex'));
+  // for (let end = 5; end <= encoded.length; end++) {
+  //   let candidate = encoded.slice(0, end);
+  //   if (!alreadyExists(candidate)) {
+  //     return candidate;
+  //   }
+  // }
 
-  throw new Error('Original id was not unique');
+  // throw new Error('Original id was not unique');
 }
 
 // These options don't affect compilation and should cause invalidations

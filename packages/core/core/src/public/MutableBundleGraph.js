@@ -26,6 +26,7 @@ import {HASH_REF_PREFIX} from '../constants';
 import {fromProjectPathRelative} from '../projectPath';
 import {BundleBehavior} from '../types';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
+import db from '@parcel/db';
 
 export default class MutableBundleGraph
   extends BundleGraph<IBundle>
@@ -87,7 +88,7 @@ export default class MutableBundleGraph
     let resolved = this.#graph.getResolvedAsset(
       dependencyToInternalDependency(dependency),
     );
-    if (!resolved) {
+    if (resolved == null) {
       throw new Error(
         'Dependency did not resolve to an asset ' + dependency.id,
       );
@@ -95,7 +96,7 @@ export default class MutableBundleGraph
 
     let bundleGroup: InternalBundleGroup = {
       target: targetToInternalTarget(target),
-      entryAssetId: resolved.id,
+      entryAssetId: 'asset:' + resolved,
     };
 
     let bundleGroupKey = getBundleGroupId(bundleGroup);
@@ -110,7 +111,9 @@ export default class MutableBundleGraph
     let dependencyNodeId = this.#graph._graph.getNodeIdByContentKey(
       dependencyNode.id,
     );
-    let resolvedNodeId = this.#graph._graph.getNodeIdByContentKey(resolved.id);
+    let resolvedNodeId = this.#graph._graph.getNodeIdByContentKey(
+      'asset:' + resolved,
+    );
     let assetNodes =
       this.#graph._graph.getNodeIdsConnectedFrom(dependencyNodeId);
     this.#graph._graph.addEdge(dependencyNodeId, bundleGroupNodeId);
@@ -186,10 +189,9 @@ export default class MutableBundleGraph
     this.#bundlePublicIds.add(publicId);
 
     let isPlaceholder = false;
-    if (entryAsset) {
-      let entryAssetNode = this.#graph._graph.getNodeByContentKey(
-        entryAsset.id,
-      );
+    let entryAssetId = entryAsset != null ? 'asset:' + entryAsset : null;
+    if (entryAssetId) {
+      let entryAssetNode = this.#graph._graph.getNodeByContentKey(entryAssetId);
       invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
       isPlaceholder = entryAssetNode.requested === false;
     }
@@ -205,9 +207,9 @@ export default class MutableBundleGraph
         type: opts.entryAsset ? opts.entryAsset.type : opts.type,
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)
-          : nullthrows(entryAsset).env,
-        entryAssetIds: entryAsset ? [entryAsset.id] : [],
-        mainEntryId: entryAsset?.id,
+          : db.assetEnv(nullthrows(entryAsset)),
+        entryAssetIds: entryAssetId ? [entryAssetId] : [],
+        mainEntryId: entryAssetId,
         pipeline: opts.entryAsset ? opts.entryAsset.pipeline : opts.pipeline,
         needsStableName: opts.needsStableName,
         bundleBehavior:

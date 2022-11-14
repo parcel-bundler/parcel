@@ -264,6 +264,14 @@ const {
   dependencyIsEntry,
   dependencyNeedsStableName,
   dependencyIsOptional,
+  createAsset,
+  assetEnv,
+  assetFileId,
+  assetBundleBehavior,
+  assetIsBundleSplittable,
+  assetSideEffects,
+  assetIsSource,
+  assetContentKey,
 } = nativeBinding;
 
 module.exports.fileId = fileId;
@@ -285,3 +293,11 @@ module.exports.dependencyBundleBehavior = dependencyBundleBehavior;
 module.exports.dependencyIsEntry = dependencyIsEntry;
 module.exports.dependencyNeedsStableName = dependencyNeedsStableName;
 module.exports.dependencyIsOptional = dependencyIsOptional;
+module.exports.createAsset = createAsset;
+module.exports.assetEnv = assetEnv;
+module.exports.assetFileId = assetFileId;
+module.exports.assetBundleBehavior = assetBundleBehavior;
+module.exports.assetIsBundleSplittable = assetIsBundleSplittable;
+module.exports.assetSideEffects = assetSideEffects;
+module.exports.assetIsSource = assetIsSource;
+module.exports.assetContentKey = assetContentKey;

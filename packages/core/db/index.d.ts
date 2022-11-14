@@ -42,3 +42,23 @@ export function dependencyBundleBehavior(id: number): number
 export function dependencyIsEntry(id: number): boolean
 export function dependencyNeedsStableName(id: number): boolean
 export function dependencyIsOptional(id: number): boolean
+export interface AssetOptions {
+  fileId: number
+  envId: number
+  contentKey: string
+  mapKey?: string
+  outputHash: string
+  assetType: string
+  bundleBehavior: number
+  isSource: boolean
+  sideEffects: boolean
+  isBundleSplittable: boolean
+}
+export function createAsset(opts: AssetOptions): number
+export function assetEnv(id: number): number
+export function assetFileId(id: number): number
+export function assetBundleBehavior(id: number): number
+export function assetIsBundleSplittable(id: number): boolean
+export function assetSideEffects(id: number): boolean
+export function assetIsSource(id: number): boolean
+export function assetContentKey(id: number): string

@@ -28,7 +28,7 @@ impl StringArena {
     let id = self.map.len() as u32;
     self.map.insert(name, id);
     self.vec.push(name);
-    println!("ADD {}", name);
+    // println!("ADD {}", name);
 
     debug_assert!(self.lookup(id) == name);
     debug_assert!(self.intern(name) == id);

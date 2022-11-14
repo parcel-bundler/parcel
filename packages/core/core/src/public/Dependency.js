@@ -62,7 +62,7 @@ export default class Dependency implements IDependency {
   }
 
   get id(): string {
-    return this.#dep;
+    return 'dep:' + this.#dep;
   }
 
   get specifier(): string {
@@ -112,6 +112,7 @@ export default class Dependency implements IDependency {
 
   get target(): ?Target {
     // let target = this.#dep.target;
+    // TODO: store targets in db
     let target = {
       distDir: db.fileId('dist'),
       env: db.dependencyEnv(this.#dep),

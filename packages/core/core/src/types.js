@@ -295,7 +295,7 @@ export type ParcelOptions = {|
 export type AssetNode = {|
   id: ContentKey,
   +type: 'asset',
-  value: Asset,
+  value: CommittedAsset,
   usedSymbols: Set<Symbol>,
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,

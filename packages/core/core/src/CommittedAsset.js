@@ -1,16 +1,21 @@
 // @flow strict-local
 
 import type {AST, Blob} from '@parcel/types';
-import type {Asset, Dependency, ParcelOptions} from './types';
+import type {
+  CommittedAsset as ComittedAssetRef,
+  Dependency,
+  ParcelOptions,
+} from './types';
 
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
 import {generateFromAST} from './assetUtils';
 import {deserializeRaw} from './serializer';
+import db from '@parcel/db';
 
 export default class CommittedAsset {
-  value: Asset;
+  value: ComittedAssetRef;
   options: ParcelOptions;
   content: ?Promise<Buffer | string>;
   mapBuffer: ?Promise<?Buffer>;
@@ -19,18 +24,19 @@ export default class CommittedAsset {
   idBase: ?string;
   generatingPromise: ?Promise<void>;
 
-  constructor(value: Asset, options: ParcelOptions) {
+  constructor(value: ComittedAssetRef, options: ParcelOptions) {
     this.value = value;
     this.options = options;
   }
 
   getContent(): Blob | Promise<Buffer | string> {
     if (this.content == null) {
-      if (this.value.contentKey != null) {
+      let contentKey = db.assetContentKey(this.value);
+      if (contentKey != null) {
         if (this.value.isLargeBlob) {
-          return this.options.cache.getStream(this.value.contentKey);
+          return this.options.cache.getStream(contentKey);
         } else {
-          return this.options.cache.getBlob(this.value.contentKey);
+          return this.options.cache.getBlob(contentKey);
         }
       } else if (this.value.astKey != null) {
         return streamFromPromise(
@@ -51,8 +57,9 @@ export default class CommittedAsset {
 
   async getCode(): Promise<string> {
     let content;
-    if (this.content == null && this.value.contentKey != null) {
-      this.content = this.options.cache.getBlob(this.value.contentKey);
+    let contentKey = db.assetContentKey(this.value);
+    if (this.content == null && contentKey != null) {
+      this.content = this.options.cache.getBlob(contentKey);
       content = await this.content;
     } else {
       content = await this.getContent();

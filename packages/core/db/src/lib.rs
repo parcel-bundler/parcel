@@ -13,6 +13,7 @@ use num_traits::FromPrimitive;
 mod string_arena;
 use string_arena::StringArena;
 
+// TODO: there should be a separate database for each active parcel instance.
 lazy_static! {
   static ref DB: RwLock<ParcelDb> = RwLock::new(ParcelDb::default());
 }
@@ -244,6 +245,108 @@ fn dependency_is_optional(id: u32) -> bool {
   dep.flags.contains(DependencyFlags::OPTIONAL)
 }
 
+#[napi(object)]
+struct AssetOptions {
+  pub file_id: u32,
+  pub env_id: u32,
+  pub content_key: String, // TODO: number
+  pub map_key: Option<String>,
+  pub output_hash: String,
+  // meta??
+  // stats: AssetStats,
+  // symbols
+  // unique_key: u64,
+  pub asset_type: String,
+  // asset_type: AssetType,
+  pub bundle_behavior: u8,
+  pub is_source: bool,
+  pub side_effects: bool,
+  pub is_bundle_splittable: bool,
+}
+
+impl Into<Asset> for AssetOptions {
+  fn into(self) -> Asset {
+    Asset {
+      file_id: self.file_id,
+      env_id: self.env_id,
+      content_key: self.content_key,
+      map_key: self.map_key,
+      output_hash: self.output_hash,
+      asset_type: AssetType::Js, // TODO
+      bundle_behavior: BundleBehavior::from_u8(self.bundle_behavior).unwrap(),
+      flags: {
+        let mut flags = AssetFlags::empty();
+        if self.is_source {
+          flags |= AssetFlags::IS_SOURCE;
+        }
+        if self.side_effects {
+          flags |= AssetFlags::SIDE_EFFECTS;
+        }
+        if self.is_bundle_splittable {
+          flags |= AssetFlags::IS_BUNDLE_SPLITTABLE;
+        }
+        flags
+      },
+      stats: AssetStats { size: 0, time: 0 }, // TODO
+      unique_key: 0,
+    }
+  }
+}
+
+#[napi]
+fn create_asset(opts: AssetOptions) -> u32 {
+  DB.write().unwrap().create_asset(opts.into())
+}
+
+#[napi]
+fn asset_env(id: u32) -> u32 {
+  let db = DB.read().unwrap();
+  let asset = db.asset(id);
+  asset.env_id
+}
+
+#[napi]
+fn asset_file_id(id: u32) -> u32 {
+  let db = DB.read().unwrap();
+  let asset = db.asset(id);
+  asset.file_id
+}
+
+#[napi]
+fn asset_bundle_behavior(id: u32) -> u8 {
+  let db = DB.read().unwrap();
+  let asset = db.asset(id);
+  asset.bundle_behavior as u8
+}
+
+#[napi]
+fn asset_is_bundle_splittable(id: u32) -> bool {
+  let db = DB.read().unwrap();
+  let asset = db.asset(id);
+  asset.flags.contains(AssetFlags::IS_BUNDLE_SPLITTABLE)
+}
+
+#[napi]
+fn asset_side_effects(id: u32) -> bool {
+  let db = DB.read().unwrap();
+  let asset = db.asset(id);
+  asset.flags.contains(AssetFlags::SIDE_EFFECTS)
+}
+
+#[napi]
+fn asset_is_source(id: u32) -> bool {
+  let db = DB.read().unwrap();
+  let asset = db.asset(id);
+  asset.flags.contains(AssetFlags::IS_SOURCE)
+}
+
+#[napi]
+fn asset_content_key(env: Env, id: u32) -> napi::Result<napi::JsString> {
+  let db = DB.read().unwrap();
+  let asset = db.asset(id);
+  env.create_string(&asset.content_key)
+}
+
 #[derive(Default)]
 struct ParcelDb {
   files: StringArena,
@@ -266,7 +369,7 @@ impl ParcelDb {
     if let Some((index, _)) = self.environments.iter().find(|(_, e)| **e == env) {
       index.into_raw_parts().0 as u32
     } else {
-      println!("Create environment {:?}", env);
+      // println!("Create environment {:?}", env);
       self.environments.insert(env).into_raw_parts().0 as u32
     }
   }
@@ -279,7 +382,7 @@ impl ParcelDb {
   }
 
   pub fn create_dependency(&mut self, dependency: Dependency) -> u32 {
-    println!("Create dependency {:?}", dependency);
+    // println!("Create dependency {:?}", dependency);
     self.dependencies.insert(dependency).into_raw_parts().0 as u32
   }
 
@@ -291,6 +394,7 @@ impl ParcelDb {
   }
 
   pub fn create_asset(&mut self, asset: Asset) -> u32 {
+    // println!("Create asset {:?}", asset);
     self.assets.insert(asset).into_raw_parts().0 as u32
   }
 
@@ -373,12 +477,13 @@ enum OutputFormat {
   EsModule,
 }
 
+#[derive(Debug)]
 struct Asset {
   file_id: u32,
   env_id: u32,
-  content_key: u32,
-  map_key: u32,
-  output_hash: u64,
+  content_key: String, // TODO: number
+  map_key: Option<String>,
+  output_hash: String,
   // meta??
   stats: AssetStats,
   // symbols
