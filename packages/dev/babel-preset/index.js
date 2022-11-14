@@ -7,10 +7,10 @@ module.exports = api => {
         // Inline the value of PARCEL_BUILD_ENV during self builds.
         // Parcel does not do this itself for node targets...
         [
-          'babel-plugin-transform-inline-environment-variables',
+          require('babel-plugin-transform-inline-environment-variables'),
           {include: ['PARCEL_BUILD_ENV']},
         ],
-        'babel-plugin-minify-dead-code-elimination',
+        require('babel-plugin-minify-dead-code-elimination'),
       ],
     };
   }
@@ -43,7 +43,7 @@ module.exports = api => {
           // Inline the value of PARCEL_BUILD_ENV during production builds so that
           // it can be removed through dead code elimination below
           [
-            'babel-plugin-transform-inline-environment-variables',
+            require('babel-plugin-transform-inline-environment-variables'),
             {
               include: [
                 'PARCEL_BUILD_ENV',
@@ -55,7 +55,7 @@ module.exports = api => {
               ],
             },
           ],
-          'babel-plugin-minify-dead-code-elimination',
+          require('babel-plugin-minify-dead-code-elimination'),
         ],
       },
     },

@@ -7,13 +7,17 @@
     "@parcel/eslint-plugin": "2.8.3",
     "eslint-config-prettier": "^7.2.0",
     "eslint-plugin-flowtype": "^5.2.0",
-    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-mocha": "^8.0.0",
     "eslint-plugin-monorepo": "^0.3.2",
-    "eslint-plugin-react": "^7.22.0"
+    "eslint-plugin-react": "^7.31.10"
   },
   "peerDependencies": {
     "@babel/core": "^7.0.0",
-    "eslint": ">= 7.0.0"
+    "eslint": "^7.32.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.0",
+    "eslint": "^7.32.0"
   }
 }

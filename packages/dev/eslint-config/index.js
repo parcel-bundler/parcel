@@ -45,6 +45,12 @@ module.exports = {
     '@parcel/no-self-package-imports': 'error',
     'import/first': 'error',
     'import/newline-after-import': 'error',
+    //
+    // Note: import/no-extraneous-dependencies:
+    // For this to work with mono repos the "packageDir" must be set
+    // ['error', { "packageDir": path.join(__dirname, '../../../') }]
+    // Setting an absolute path prevents this config from remaining generic
+    // Adding the rule to the top level eslintrc file resolve this
     'import/no-extraneous-dependencies': 'error',
     'import/no-self-import': 'error',
     'no-prototype-builtins': 'off',

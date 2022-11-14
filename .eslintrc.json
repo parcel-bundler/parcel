@@ -1,3 +1,6 @@
 {
-  "extends": "@parcel/eslint-config"
+  "extends": "@parcel/eslint-config",
+  "rules": {
+    "import/no-extraneous-dependencies": "error"
+  }
 }
