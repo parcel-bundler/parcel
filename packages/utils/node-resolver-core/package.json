@@ -40,6 +40,8 @@
     "semver": "^5.7.1"
   },
   "devDependencies": {
+    "@parcel/core": "2.8.3",
+    "@parcel/test-utils": "2.8.3",
     "assert": "^2.0.0",
     "browserify-zlib": "^0.2.0",
     "buffer": "^5.5.0",
@@ -62,5 +64,8 @@
     "url": "^0.11.0",
     "util": "^0.12.3",
     "vm-browserify": "^1.1.2"
+  },
+  "peerDependencies": {
+    "@parcel/core": "2.8.3"
   }
 }
