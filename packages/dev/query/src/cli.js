@@ -36,6 +36,12 @@ console.log('Loading graphs...');
 let {assetGraph, bundleGraph, bundleInfo, requestTracker} =
   loadGraphs(cacheDir);
 
+if (requestTracker == null) {
+  console.error('Request Graph could not be found');
+  process.exit(1);
+  throw new Error();
+}
+
 if (bundleGraph == null) {
   console.error('Bundle Graph could not be found');
   process.exit(1);
@@ -44,12 +50,6 @@ if (bundleGraph == null) {
 
 if (assetGraph == null) {
   console.error('Asset Graph could not be found');
-  process.exit(1);
-  throw new Error();
-}
-
-if (requestTracker == null) {
-  console.error('Request Graph could not be found');
   process.exit(1);
   throw new Error();
 }

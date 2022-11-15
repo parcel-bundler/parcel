@@ -1,6 +1,6 @@
 // @flow strict-local
 /* eslint-disable monorepo/no-internal-import */
-import type {ContentKey} from '@parcel/graph';
+import type {ContentKey, NodeId} from '@parcel/graph';
 import type {PackagedBundleInfo} from '@parcel/core/src/types';
 
 import fs from 'fs';
@@ -63,6 +63,12 @@ export function loadGraphs(cacheDir: string): {|
     }
   }
 
+  function getSubRequests(id: NodeId) {
+    return requestTracker.graph
+      .getNodeIdsConnectedFrom(id, requestGraphEdgeTypes.subrequest)
+      .map(n => nullthrows(requestTracker.graph.getNode(n)));
+  }
+
   // Load graphs by finding the main subrequests and loading their results
   let assetGraph, bundleGraph, bundleInfo;
 
@@ -77,31 +83,29 @@ export function loadGraphs(cacheDir: string): {|
     buildRequestNode.type === 'request' &&
       buildRequestNode.value.type === 'parcel_build_request',
   );
-  let subRequests = requestTracker.graph
-    .getNodeIdsConnectedFrom(buildRequestId, requestGraphEdgeTypes.subrequest)
-    .map(n => nullthrows(requestTracker.graph.getNode(n)));
+  let buildRequestSubRequests = getSubRequests(buildRequestId);
 
-  let assetGraphRequest = subRequests.find(
-    n => n.type === 'request' && n.value.type === 'asset_graph_request',
-  );
-  if (assetGraphRequest != null) {
-    assetGraph = AssetGraph.deserialize(
-      loadLargeBlobRequestRequestSync(cacheDir, assetGraphRequest).assetGraph
-        .value,
-    );
-  }
-
-  let bundleGraphRequest = subRequests.find(
+  let bundleGraphRequestNode = buildRequestSubRequests.find(
     n => n.type === 'request' && n.value.type === 'bundle_graph_request',
   );
-  if (bundleGraphRequest != null) {
+  if (bundleGraphRequestNode != null) {
     bundleGraph = BundleGraph.deserialize(
-      loadLargeBlobRequestRequestSync(cacheDir, bundleGraphRequest).bundleGraph
-        .value,
+      loadLargeBlobRequestRequestSync(cacheDir, bundleGraphRequestNode)
+        .bundleGraph.value,
     );
+
+    let assetGraphRequest = getSubRequests(
+      requestTracker.graph.getNodeIdByContentKey(bundleGraphRequestNode.id),
+    ).find(n => n.type === 'request' && n.value.type === 'asset_graph_request');
+    if (assetGraphRequest != null) {
+      assetGraph = AssetGraph.deserialize(
+        loadLargeBlobRequestRequestSync(cacheDir, assetGraphRequest).assetGraph
+          .value,
+      );
+    }
   }
 
-  let writeBundlesRequest = subRequests.find(
+  let writeBundlesRequest = buildRequestSubRequests.find(
     n => n.type === 'request' && n.value.type === 'write_bundles_request',
   );
   if (writeBundlesRequest != null) {
