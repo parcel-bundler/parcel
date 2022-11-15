@@ -49,11 +49,7 @@ type AssetGraphRequestInput = {|
   requestedAssetIds?: Set<string>,
 |};
 
-type AssetGraphRequestResult = AssetGraphBuilderResult & {|
-  previousAssetGraphHash: ?string,
-|};
-
-type AssetGraphBuilderResult = {|
+type AssetGraphRequestResult = {|
   assetGraph: AssetGraph,
   changedAssets: Map<string, Asset>,
   assetRequests: Array<AssetGroup>,
@@ -80,7 +76,6 @@ export default function createAssetGraphRequest(
     run: async input => {
       let prevResult =
         await input.api.getPreviousResult<AssetGraphRequestResult>();
-      let previousAssetGraphHash = prevResult?.assetGraph.getHash();
 
       let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
@@ -93,10 +88,7 @@ export default function createAssetGraphRequest(
         assetGraphRequest.assetGraph.safeToIncrementallyBundle = false;
       }
 
-      return {
-        ...assetGraphRequest,
-        previousAssetGraphHash,
-      };
+      return assetGraphRequest;
     },
     input,
   };
@@ -121,10 +113,11 @@ export class AssetGraphBuilder {
   cacheKey: string;
   shouldBuildLazily: boolean;
   requestedAssetIds: Set<string>;
+  isSingleChangeRebuild: boolean;
 
   constructor(
     {input, api, options}: RunInput,
-    prevResult: ?AssetGraphBuilderResult,
+    prevResult: ?AssetGraphRequestResult,
   ) {
     let {
       entries,
@@ -151,10 +144,13 @@ export class AssetGraphBuilder {
       `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
     );
 
+    this.isSingleChangeRebuild =
+      api.getInvalidSubRequests().filter(req => req.type === 'asset_request')
+        .length === 1;
     this.queue = new PromiseQueue();
   }
 
-  async build(): Promise<AssetGraphBuilderResult> {
+  async build(): Promise<AssetGraphRequestResult> {
     let errors = [];
     let rootNodeId = nullthrows(
       this.assetGraph.rootNodeId,
@@ -989,6 +985,7 @@ export class AssetGraphBuilder {
       ...input,
       name: this.name,
       optionsRef: this.optionsRef,
+      isSingleChangeRebuild: this.isSingleChangeRebuild,
     });
     let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
       request,
@@ -1015,6 +1012,8 @@ export class AssetGraphBuilder {
     } else {
       this.assetGraph.safeToIncrementallyBundle = false;
     }
+
+    this.isSingleChangeRebuild = false;
   }
 
   /**

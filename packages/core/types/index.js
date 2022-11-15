@@ -1765,6 +1765,13 @@ export type BundlingProgressEvent = {|
   +phase: 'bundling',
 |};
 
+export type BundledProgressEvent = {|
+  +type: 'buildProgress',
+  +phase: 'bundled',
+  +bundleGraph: BundleGraph<NamedBundle>,
+  +changedAssets: Map<string, Asset>,
+|};
+
 /**
  * A new Bundle is being packaged.
  * @section reporter
@@ -1792,6 +1799,7 @@ export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
   | BundlingProgressEvent
+  | BundledProgressEvent
   | PackagingProgressEvent
   | OptimizingProgressEvent;
 

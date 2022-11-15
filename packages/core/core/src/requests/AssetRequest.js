@@ -133,7 +133,10 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
     invalidations,
     invalidateOnFileCreate,
     devDepRequests,
-  } = (await farm.createHandle('runTransform')({
+  } = (await farm.createHandle(
+    'runTransform',
+    input.isSingleChangeRebuild,
+  )({
     configCachePath: cachePath,
     optionsRef,
     request,

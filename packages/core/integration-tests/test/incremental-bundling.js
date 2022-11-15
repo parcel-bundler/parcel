@@ -1,26 +1,23 @@
 // @flow strict-local
-import {bundler, getNextBuildSuccess, overlayFS, run} from '@parcel/test-utils';
+import {
+  bundler,
+  getNextBuildSuccess,
+  inputFS,
+  overlayFS,
+  run,
+} from '@parcel/test-utils';
 import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
-import Bundler from '@parcel/bundler-default';
-import ExperimentalBundler from '@parcel/bundler-experimental';
+import {NodePackageManager} from '@parcel/package-manager';
 
 import {type Asset} from '@parcel/types';
-// $FlowFixMe[untyped-import]
-import CustomBundler from './integration/incremental-bundling/node_modules/parcel-bundler-test';
 
 const CONFIG = Symbol.for('parcel-plugin-config');
+let packageManager = new NodePackageManager(inputFS, '/');
 
 describe('incremental bundling', function () {
-  let defaultBundlerSpy =
-    process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
-      ? // $FlowFixMe[prop-missing]
-        sinon.spy(ExperimentalBundler[CONFIG], 'bundle')
-      : // $FlowFixMe[prop-missing]
-        sinon.spy(Bundler[CONFIG], 'bundle');
-  let customBundlerSpy = sinon.spy(CustomBundler[CONFIG], 'bundle');
-
+  let defaultBundlerSpy, customBundlerSpy;
   let assertChangedAssets = (actual: number, expected: number) => {
     assert.equal(
       actual,
@@ -40,12 +37,21 @@ describe('incremental bundling', function () {
   let getChangedAssetsBeforeRuntimes = (changedAssets: Array<Asset>) => {
     return changedAssets.filter(a => !a.filePath.includes('runtime'));
   };
-  beforeEach(() => {
-    defaultBundlerSpy.resetHistory();
-    customBundlerSpy.resetHistory();
+  beforeEach(async () => {
+    let Bundler = (
+      await packageManager.require('@parcel/bundler-default', __filename)
+    ).default;
+    let CustomBundler = await packageManager.require(
+      './integration/incremental-bundling/node_modules/parcel-bundler-test',
+      __filename,
+    );
+
+    defaultBundlerSpy = sinon.spy(Bundler[CONFIG], 'bundle'); // $FlowFixMe[prop-missing]
+
+    customBundlerSpy = sinon.spy(CustomBundler[CONFIG], 'bundle');
   });
 
-  after(() => {
+  afterEach(() => {
     defaultBundlerSpy.restore();
     customBundlerSpy.restore();
   });
@@ -781,8 +787,7 @@ console.log('index.js');`,
 
       // should contain all the assets
       assertChangedAssets(event.changedAssets.size, 3);
-      // the default bundler was only called once
-      assertTimesBundled(defaultBundlerSpy.callCount, 1);
+      assertTimesBundled(defaultBundlerSpy.callCount, 2);
 
       let result = await b.run();
       let bundles = result.bundleGraph.getBundles();
@@ -827,7 +832,7 @@ console.log('index.js');`,
       // should contain all the assets
       let assets = Array.from(event.changedAssets.values());
       assertChangedAssets(getChangedAssetsBeforeRuntimes(assets).length, 3);
-      assertTimesBundled(defaultBundlerSpy.callCount, 1);
+      assertTimesBundled(defaultBundlerSpy.callCount, 2);
 
       let result = await b.run();
       let res = await run(result.bundleGraph, null, {require: false});

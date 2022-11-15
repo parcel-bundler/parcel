@@ -116,12 +116,7 @@ export function getParcelOptions(
       logLevel: 'none',
       shouldBundleIncrementally:
         process.env.NO_INCREMENTAL == null ? true : false,
-      defaultConfig: path.join(
-        __dirname,
-        process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER == null
-          ? '.parcelrc-no-reporters'
-          : '.parcelrc-experimental-bundler',
-      ),
+      defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
       inputFS,
       outputFS,
       workerFarm,
