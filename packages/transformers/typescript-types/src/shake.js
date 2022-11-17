@@ -204,8 +204,9 @@ export function shake(
         node.left.text,
         node.right.text,
       );
-      if (resolved && resolved.module.hasBinding(resolved.name)) {
-        return ts.createIdentifier(resolved.name);
+
+      if (resolved && resolved.module.hasBinding(resolved.imported)) {
+        return ts.createIdentifier(resolved.module.getName(resolved.imported));
       } else {
         return ts.updateQualifiedName(
           node,

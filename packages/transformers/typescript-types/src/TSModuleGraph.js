@@ -112,7 +112,7 @@ export class TSModuleGraph {
     return {
       module: m,
       name: exportName,
-      imported: e.imported != null ? m.getName(e.imported) : exportName,
+      imported: e.imported || exportName,
     };
   }
 
@@ -139,17 +139,19 @@ export class TSModuleGraph {
     module: TSModule,
     name: string,
   ): ?{|imported: string, module: TSModule, name: string|} {
+    let wildcardExports = [];
     for (let e of module.exports) {
       if (e.name === name) {
         return this.getExport(module, e);
-      } else if (e.specifier) {
-        const m = this.resolveExport(
-          nullthrows(this.getModule(e.specifier)),
-          name,
-        );
-        if (m) {
-          return m;
-        }
+      } else if (e.specifier && !e.name) {
+        // Only look inside wildcard export names if we don't find a named export.
+        wildcardExports.push(e.specifier);
+      }
+    }
+    for (const specifier of wildcardExports) {
+      const m = this.resolveExport(nullthrows(this.getModule(specifier)), name);
+      if (m) {
+        return m;
       }
     }
   }
@@ -243,7 +245,7 @@ export class TSModuleGraph {
 
       // If the module is bundled, map the local name to the original exported name.
       if (this.modules.has(imp.specifier)) {
-        m.names.set(orig, imported.imported);
+        m.names.set(orig, imported.module.getName(imported.imported));
         continue;
       }
 
