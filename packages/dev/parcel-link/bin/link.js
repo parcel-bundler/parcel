@@ -32,7 +32,6 @@ program
   .option(
     '-g, --node-modules-globs <globs...>',
     'Locations where node_modules should be linked in the app',
-    value => (Array.isArray(value) ? value : [value]),
     'node_modules',
   )
   .action((packageRoot, options) => {
@@ -41,7 +40,9 @@ program
       appRoot: process.cwd(),
       packageRoot: packageRoot ?? path.join(__dirname, '../../../'),
       namespace: options.namespace,
-      nodeModulesGlobs: options.nodeModulesGlobs,
+      nodeModulesGlobs: Array.isArray(options.nodeModulesGlobs)
+        ? options.nodeModulesGlobs
+        : [options.nodeModulesGlobs],
       dryRun: options.dryRun,
       log: console.log,
     });

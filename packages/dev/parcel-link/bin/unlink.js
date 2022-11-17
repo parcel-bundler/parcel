@@ -31,7 +31,6 @@ program
   .option(
     '-g, --node-modules-globs <globs...>',
     'Locations where node_modules should be unlinked in the app',
-    value => (Array.isArray(value) ? value : [value]),
     'node_modules',
   )
   .action((packageRoot, options) => {
@@ -39,7 +38,9 @@ program
     unlink({
       appRoot: process.cwd(),
       namespace: options.namespace,
-      nodeModulesGlobs: options.nodeModulesGlobs,
+      nodeModulesGlobs: Array.isArray(options.nodeModulesGlobs)
+        ? options.nodeModulesGlobs
+        : [options.nodeModulesGlobs],
       dryRun: options.dryRun,
       forceInstall: options.forceInstall,
       log: console.log,
