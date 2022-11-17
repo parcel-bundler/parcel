@@ -102,7 +102,7 @@ describe('resolver', function () {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
 
-    it('should resolve an absolute path from the root module', async function () {
+    it('should resolve an absolute path outside root module from the root module', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '/bar',
@@ -110,6 +110,19 @@ describe('resolver', function () {
         parent: path.join(rootDir, 'nested', 'test.js'),
       });
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
+    });
+
+    it('should resolve an absolute path inside root module from the root module', async function () {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'nested', 'test.js'),
+      });
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.join(rootDir, 'node_modules', 'foo', 'index.js'),
+      );
     });
 
     it('should resolve an absolute path from a node_modules folder', async function () {

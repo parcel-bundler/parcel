@@ -583,7 +583,9 @@ export default class NodeResolver {
 
         // Absolute path. Resolve relative to project root.
         dir = this.projectRoot;
-        filename = '.' + filename;
+        filename = filename.startsWith(dir)
+          ? path.relative(dir, filename)
+          : '.' + filename;
         break;
       }
 
