@@ -1,0 +1,6 @@
+{
+  "name": "babel-monorepos-component",
+  "dependencies": {
+    "react": "*"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "babel-monorepos-app",
+  "dependencies": {
+    "react": "*"
+  },
+  "browserslist": ">= 0.25%"
+}

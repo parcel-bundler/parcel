@@ -7,6 +7,7 @@ import type {BabelConfig} from './types';
 
 import json5 from 'json5';
 import path from 'path';
+import fs from 'fs';
 import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
 import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
 import {BABEL_CORE_RANGE} from './constants';
@@ -14,6 +15,7 @@ import {BABEL_CORE_RANGE} from './constants';
 import isJSX from './jsx';
 import getFlowOptions from './flow';
 import {enginesToBabelTargets} from './utils';
+import type { FilePath } from "../../../core/types/index";
 
 const TYPESCRIPT_EXTNAME_RE = /\.tsx?$/;
 const JS_EXTNAME_RE = /^\.(js|cjs|mjs)$/;
@@ -55,6 +57,11 @@ export async function load(
     });
   }
 
+  // In a monorepos babel can't find .babelrc for depencies if they
+  // are siblings to the entrypoint package. This prevents Parceljs
+  // from applying Babel transforms to sibling packages during development.
+  const cwd = resolveCurrentWorkingDirectory(config, options);
+
   // Do nothing if we cannot resolve any babel config filenames. Checking using our own
   // config resolution (which is cached) is much faster than relying on babel.
   if (
@@ -62,7 +69,7 @@ export async function load(
       options.inputFS,
       config.searchPath,
       BABEL_CONFIG_FILENAMES,
-      options.projectRoot,
+      cwd,
     ))
   ) {
     return buildDefaultBabelConfig(options, config);
@@ -87,7 +94,7 @@ export async function load(
   config.invalidateOnEnvChange('NODE_ENV');
   let babelOptions = {
     filename: config.searchPath,
-    cwd: options.projectRoot,
+    cwd,
     envName:
       options.env.BABEL_ENV ??
       options.env.NODE_ENV ??
@@ -410,4 +417,23 @@ async function getCodeHighlights(fs, filePath, redundantPresets) {
       },
     },
   ];
+}function resolveCurrentWorkingDirectory(
+  config: Config,
+  options: PluginOptions,
+): string | FilePath {
+  let cwd;
+  if (!config.searchPath.startsWith(options.projectRoot)) {
+    // This is probably a mono repos with development packages, set cwd to package root
+    let pathArr = config.searchPath.split(path.sep);
+    pathArr.pop();
+    while (pathArr.length > 0 && !cwd) {
+      if (fs.existsSync([...pathArr, "package.json"].join(path.sep))) {
+        cwd = pathArr.join(path.sep);
+      }
+      pathArr.pop();
+    }
+  }
+  
+  // If this isn't a package, return the original projectRoot
+  return cwd || options.projectRoot;
 }

@@ -526,6 +526,69 @@ describe('babel', function () {
     assert.strictEqual(output.default, 123);
   });
 
+
+  it('should compile with different babel plugins in monorepos using js', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/babel-monorepos/packages/app/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('class Test'));
+    assert(!file.includes('REPLACE_ME'));
+    assert(!file.includes('#private'));
+    assert(file.includes('---app---'));
+    assert(file.includes('---component---'));
+
+    let output = await run(b);
+    assert.strictEqual(typeof output, 'object');
+    assert.strictEqual(output.default, '---app---:---component---');
+  });
+
+  it('should compile with different babel plugins in monorepos using jsx', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/babel-monorepos/packages/app/jsx.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('REPLACE_ME'));
+    assert(file.includes('React.createElement'));
+    assert(file.includes('---app---'));
+    assert(file.includes('---component---'));
+  });
+
+  it('should compile with different babel plugins in monorepos using typescript', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/babel-monorepos/packages/app/ts.ts'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    
+    assert(!file.includes('class Test'));
+    assert(!file.includes('REPLACE_ME'));
+    assert(!file.includes('#private'));
+    assert(!file.includes('interface'));
+    assert(file.includes('---app---'));
+    assert(file.includes('---component---'));
+
+    let output = await run(b);
+    assert.strictEqual(typeof output, 'object');
+    assert.strictEqual(output.default, '---app---:---component---');
+  });
+
+  it('should compile with different babel plugins in monorepos using tsx', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/babel-monorepos/packages/app/tsx.tsx'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+
+    assert(!file.includes('REPLACE_ME'));
+    assert(!file.includes('interface'));
+    assert(file.includes('React.createElement'));
+    assert(file.includes('---app---'));
+    assert(file.includes('---component---'));
+  });
+
   it('should compile with custom babel plugin plus default transforms', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-custom/index.js'),
@@ -547,6 +610,7 @@ describe('babel', function () {
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    
     assert(!file.includes('REPLACE_ME'));
     assert(file.includes('React.createElement'));
   });
