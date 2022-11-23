@@ -446,6 +446,31 @@ export class AssetGraphBuilder {
       }
     };
 
+    const addNamespaceToDependencyResolution = (dep: DependencyNode) => {
+      // TODO factor this graph code into getDependencyAssets(), which
+      // only exists on the BundleGraph currently.
+      let depChildren = this.assetGraph.getNodeIdsConnectedFrom(
+        this.assetGraph.getNodeIdByContentKey(dep.id),
+      );
+      if (depChildren.length === 1) {
+        let childId = depChildren[0];
+        let child = nullthrows(this.assetGraph.getNode(childId));
+        if (child.type === 'asset_group') {
+          let assetIds = this.assetGraph.getNodeIdsConnectedFrom(childId);
+          for (let assetId of assetIds) {
+            let asset = nullthrows(this.assetGraph.getNode(assetId));
+            invariant(asset.type === 'asset');
+            asset.usedSymbols.add('*');
+          }
+        } else {
+          invariant(child.type === 'asset');
+          child.usedSymbols.add('*');
+        }
+      } else {
+        invariant(depChildren.length === 1);
+      }
+    };
+
     // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
     // root and remove requested symbols that aren't actually exported
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
@@ -503,13 +528,18 @@ export class AssetGraphBuilder {
             // namespace will be needed at runtime to perform the lookup on.
             if (reexportedSymbols.has(s)) {
               if (!assetNode.usedSymbols.has('*')) {
+                let previousOutgoingDep = nullthrows(
+                  reexportedSymbolsSource.get(s),
+                );
                 logFallbackNamespaceInsertion(
                   assetNode,
                   s,
-                  nullthrows(reexportedSymbolsSource.get(s)),
+                  previousOutgoingDep,
                   outgoingDep,
                 );
+                addNamespaceToDependencyResolution(previousOutgoingDep);
               }
+              addNamespaceToDependencyResolution(outgoingDep);
               assetNode.usedSymbols.add('*');
               reexportedSymbols.set(s, {asset: assetNode.id, symbol: s});
             } else {
@@ -538,13 +568,18 @@ export class AssetGraphBuilder {
               // see same code above
               if (reexportedSymbols.has(s)) {
                 if (!assetNode.usedSymbols.has('*')) {
+                  let previousOutgoingDep = nullthrows(
+                    reexportedSymbolsSource.get(s),
+                  );
                   logFallbackNamespaceInsertion(
                     assetNode,
                     s,
-                    nullthrows(reexportedSymbolsSource.get(s)),
+                    previousOutgoingDep,
                     outgoingDep,
                   );
+                  addNamespaceToDependencyResolution(previousOutgoingDep);
                 }
+                addNamespaceToDependencyResolution(outgoingDep);
                 assetNode.usedSymbols.add('*');
                 reexportedSymbols.set(s, {asset: assetNode.id, symbol: s});
               } else {
