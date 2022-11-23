@@ -108,6 +108,7 @@ pub struct TransformResult {
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
   has_node_replacements: bool,
+  is_empty_file: bool,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -446,6 +447,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               if let Some(bailouts) = &collect.bailouts {
                 diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
               }
+
+              result.is_empty_file = collect.decls.len() == 0
+                && collect.exports.len() == 0
+                && collect.exports_all.len() == 0
+                && collect.exports_locals.len() == 0
+                && collect.imports.len() == 0
+                && !collect.has_cjs_exports;
 
               let module = if config.scope_hoist {
                 let res = hoist(module, config.module_id.as_str(), unresolved_mark, &collect);

@@ -386,6 +386,7 @@ export default (new Transformer({
       diagnostics,
       used_env,
       has_node_replacements,
+      is_empty_file,
     } = transform({
       filename: asset.filePath,
       code,
