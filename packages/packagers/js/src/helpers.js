@@ -33,9 +33,7 @@ if (parcelRequire == null) {
 
 export const helpers = {
   $parcel$export: `function $parcel$export(e, n, v, s) {
-  if (!(n in e)) {
-    Object.defineProperty(e, n, {get: v, set: s, enumerable: true, configurable: true});
-  }
+  Object.defineProperty(e, n, {get: v, set: s, enumerable: true, configurable: true});
 }
 `,
   $parcel$exportWildcard: `function $parcel$exportWildcard(dest, source) {
