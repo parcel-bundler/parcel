@@ -6,7 +6,6 @@ import {createWorkerFarm} from '@parcel/core';
 import {md} from '@parcel/diagnostic';
 import {
   assertBundles,
-  assertDependencyWasExcluded,
   bundle as _bundle,
   bundler as _bundler,
   distDir,
@@ -1151,74 +1150,36 @@ describe('scope hoisting', function () {
         ),
         {mode: 'production'},
       );
-      // Fork due to size calculation differences between bundlers
-      if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
-        assertBundles(b, [
-          {
-            type: 'html',
-            assets: ['index1.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index1.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index2.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index2.js', 'b.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index3.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index3.js', 'b.js'],
-          },
-          {
-            type: 'js',
-            assets: ['a.js'],
-          },
-        ]);
-      } else {
-        assertBundles(b, [
-          {
-            type: 'html',
-            assets: ['index1.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index1.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index2.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index2.js'],
-          },
-          {
-            type: 'html',
-            assets: ['index3.html'],
-          },
-          {
-            type: 'js',
-            assets: ['index3.js'],
-          },
-          {
-            type: 'js',
-            assets: ['a.js'],
-          },
-          {
-            type: 'js',
-            assets: ['b.js'],
-          },
-        ]);
-      }
+      assertBundles(b, [
+        {
+          type: 'html',
+          assets: ['index1.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index1.js'],
+        },
+        {
+          type: 'html',
+          assets: ['index2.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index2.js', 'b.js'],
+        },
+        {
+          type: 'html',
+          assets: ['index3.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index3.js', 'b.js'],
+        },
+        {
+          type: 'js',
+          assets: ['a.js'],
+        },
+      ]);
       for (let bundle of b.getBundles().filter(b => b.type === 'html')) {
         let calls = [];
         await runBundle(b, bundle, {
@@ -1269,13 +1230,6 @@ describe('scope hoisting', function () {
           __dirname,
           '/integration/scope-hoisting/es6/import-namespace-static-member/a.js',
         ),
-      );
-
-      assert.deepStrictEqual(
-        new Set(
-          b.getUsedSymbols(findDependency(b, 'a.js', './library/index.js')),
-        ),
-        new Set(['foo', 'foobar']),
       );
 
       let calls = [];
@@ -2261,6 +2215,39 @@ describe('scope hoisting', function () {
       assert.deepEqual(output.foo, 'bar');
     });
 
+    it('should correctly codesplit even with reexporting library index', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/codesplit-reexports/src/entry.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'entry.js',
+            'foo.js',
+            'bar.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'js-loader.js',
+          ],
+        },
+        {
+          type: 'js',
+          assets: ['async.js', 'foo2.js', 'bar2.js'],
+        },
+      ]);
+
+      let output = await run(b);
+      assert.deepEqual(output, [
+        [20, 30],
+        [2, 3],
+      ]);
+    });
+
     it('should correctly handle circular dependencies', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/scope-hoisting/es6/circular/a.mjs'),
@@ -2464,12 +2451,6 @@ describe('scope hoisting', function () {
           assert.strictEqual(bundleEvent.type, 'buildSuccess');
           let output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123]);
-
-          assertDependencyWasExcluded(
-            bundleEvent.bundleGraph,
-            'a.js',
-            './c.js',
-          );
 
           await overlayFS.copyFile(
             path.join(testDir, 'index.2.js'),
@@ -2698,18 +2679,6 @@ describe('scope hoisting', function () {
             ),
             new Set(['gridSize']),
           );
-          assert.deepStrictEqual(
-            new Set(
-              bundleEvent.bundleGraph.getUsedSymbols(
-                findDependency(
-                  bundleEvent.bundleGraph,
-                  'theme.js',
-                  './themeColors',
-                ),
-              ),
-            ),
-            new Set(),
-          );
           assert(!findAsset(bundleEvent.bundleGraph, 'themeColors.js'));
 
           await overlayFS.copyFile(
@@ -2737,18 +2706,8 @@ describe('scope hoisting', function () {
             ),
             new Set(['borderRadius', 'gridSize']),
           );
-          assert.deepStrictEqual(
-            new Set(
-              bundleEvent.bundleGraph.getUsedSymbols(
-                findDependency(
-                  bundleEvent.bundleGraph,
-                  'theme.js',
-                  './themeColors',
-                ),
-              ),
-            ),
-            new Set('*'),
-          );
+          assert(!findAsset(bundleEvent.bundleGraph, 'theme.js'));
+          assert(findAsset(bundleEvent.bundleGraph, 'themeColors.js'));
 
           await overlayFS.copyFile(
             path.join(testDir, 'index.1.js'),
@@ -2772,18 +2731,7 @@ describe('scope hoisting', function () {
             ),
             new Set(['gridSize']),
           );
-          assert.deepStrictEqual(
-            new Set(
-              bundleEvent.bundleGraph.getUsedSymbols(
-                findDependency(
-                  bundleEvent.bundleGraph,
-                  'theme.js',
-                  './themeColors',
-                ),
-              ),
-            ),
-            new Set(),
-          );
+          assert(!findAsset(bundleEvent.bundleGraph, 'themeColors.js'));
         } finally {
           await subscription.unsubscribe();
         }
@@ -5514,7 +5462,7 @@ describe('scope hoisting', function () {
       shouldDisableCache: true,
     });
 
-    await run(b);
+    assert.strictEqual(await run(b), 'bar');
 
     await overlayFS.copyFile(
       path.join(testDir, 'index2.js'),
@@ -5527,7 +5475,7 @@ describe('scope hoisting', function () {
       shouldDisableCache: false,
     });
 
-    await run(b);
+    assert.strictEqual(await run(b), 'bar foo');
 
     await overlayFS.copyFile(
       path.join(testDir, 'index3.js'),
@@ -5540,8 +5488,7 @@ describe('scope hoisting', function () {
       shouldDisableCache: false,
     });
 
-    let output = await run(b);
-    assert.strictEqual(output, 'bar foo bar');
+    assert.strictEqual(await run(b), 'bar foo bar');
   });
 
   it("not insert unused requires that aren't registered anywhere", async function () {

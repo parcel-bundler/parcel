@@ -12,6 +12,7 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
+import type {IncomingMessage} from 'http';
 
 import invariant from 'assert';
 import util from 'util';
@@ -113,12 +114,9 @@ export function getParcelOptions(
       entries,
       shouldDisableCache: true,
       logLevel: 'none',
-      defaultConfig: path.join(
-        __dirname,
-        process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER == null
-          ? '.parcelrc-no-reporters'
-          : '.parcelrc-experimental-bundler',
-      ),
+      shouldBundleIncrementally:
+        process.env.NO_INCREMENTAL == null ? true : false,
+      defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
       inputFS,
       outputFS,
       workerFarm,
@@ -170,9 +168,15 @@ export function findDependency(
     `Couldn't find asset ${assetFileName}`,
   );
 
-  let dependency = bundleGraph
+  let dependencies = bundleGraph
     .getDependencies(asset)
-    .find(d => d.specifier === specifier);
+    .filter(d => d.specifier === specifier);
+
+  let dependency =
+    dependencies.length > 1
+      ? dependencies.find(d => !bundleGraph.isDependencySkipped(d))
+      : dependencies[0];
+
   invariant(
     dependency != null,
     `Couldn't find dependency ${assetFileName} -> ${specifier}`,
@@ -1159,6 +1163,40 @@ export async function assertNoFilePathInCache(
       }
     }
   }
+}
+
+export function requestRaw(
+  file: string,
+  port: number,
+  options: ?requestOptions,
+  client: typeof http | typeof https = http,
+): Promise<{|res: IncomingMessage, data: string|}> {
+  return new Promise((resolve, reject) => {
+    client
+      // $FlowFixMe
+      .request(
+        {
+          hostname: 'localhost',
+          port: port,
+          path: file,
+          rejectUnauthorized: false,
+          ...options,
+        },
+        (res: IncomingMessage) => {
+          res.setEncoding('utf8');
+          let data = '';
+          res.on('data', c => (data += c));
+          res.on('end', () => {
+            if (res.statusCode !== 200) {
+              return reject({res, data});
+            }
+
+            resolve({res, data});
+          });
+        },
+      )
+      .end();
+  });
 }
 
 export function request(

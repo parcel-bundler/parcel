@@ -110,7 +110,7 @@ export default class Parcel {
     await resolvedOptions.cache.ensure();
 
     let {dispose: disposeOptions, ref: optionsRef} =
-      await this.#farm.createSharedReference(resolvedOptions);
+      await this.#farm.createSharedReference(resolvedOptions, false);
     this.#optionsRef = optionsRef;
 
     this.#disposable = new Disposable();
@@ -260,6 +260,8 @@ export default class Parcel {
       this.#reporterRunner.report({
         type: 'buildStart',
       });
+
+      this.#requestTracker.graph.invalidateOnBuildNodes();
 
       let request = createParcelBuildRequest({
         optionsRef: this.#optionsRef,

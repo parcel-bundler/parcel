@@ -305,7 +305,7 @@ describe('resolver', function () {
           },
           {
             fileName: 'node_modules/browserify-zlib',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: path.join(rootDir, 'index'),
           },
           {
             fileName: 'package.json',
@@ -341,7 +341,7 @@ describe('resolver', function () {
           },
           {
             fileName: 'node_modules/browserify-zlib',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: path.join(rootDir, 'index'),
           },
           {
             fileName: 'package.json',

@@ -6,7 +6,7 @@ import {
   transform,
   transformStyleAttribute,
   browserslistToTargets,
-} from '@parcel/css';
+} from 'lightningcss';
 import {blobToBuffer} from '@parcel/utils';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
@@ -32,7 +32,7 @@ export default (new Optimizer({
       let message;
       if (filename === 'package.json') {
         message = md`
-Parcel\'s default CSS minifer changed from cssnano to @parcel/css, but a "cssnano" key was found in **package.json**. Either remove this configuration, or configure Parcel to use @parcel/optimizer-cssnano instead.
+Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssnano" key was found in **package.json**. Either remove this configuration, or configure Parcel to use @parcel/optimizer-cssnano instead.
         `;
         let contents = await options.inputFS.readFile(
           configFile.filePath,
@@ -42,7 +42,7 @@ Parcel\'s default CSS minifer changed from cssnano to @parcel/css, but a "cssnan
           {key: '/cssnano', type: 'key'},
         ]);
       } else {
-        message = md`Parcel\'s default CSS minifer changed from cssnano to @parcel/css, but a __${filename}__ config file was found. Either remove this config file, or configure Parcel to use @parcel/optimizer-cssnano instead.`;
+        message = md`Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a __${filename}__ config file was found. Either remove this config file, or configure Parcel to use @parcel/optimizer-cssnano instead.`;
         codeHighlights = [
           {
             start: {line: 1, column: 1},
