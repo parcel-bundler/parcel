@@ -529,4 +529,4 @@ export type ValidationOpts = {|
   configCachePath: string,
 |};
 
-export type ReportFn = (event: ReporterEvent) => void;
+export type ReportFn = (event: ReporterEvent) => void | Promise<void>;

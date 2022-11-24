@@ -577,77 +577,42 @@ describe('css modules', () => {
 
     assert.deepEqual(res, [['page2', '_4fY2uG_foo _1ZEqVW_foo j1UkRG_foo']]);
 
-    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
-      assertBundles(b, [
-        {
-          name: 'page1.html',
-          assets: ['page1.html'],
-        },
-        {
-          name: 'page2.html',
-          assets: ['page2.html'],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page1.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page2.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'css',
-          assets: ['a.module.css', 'b.module.css'],
-        },
-        {
-          type: 'css',
-          assets: ['index.module.css'],
-        },
-      ]);
-    } else {
-      assertBundles(b, [
-        {
-          name: 'page1.html',
-          assets: ['page1.html'],
-        },
-        {
-          name: 'page2.html',
-          assets: ['page2.html'],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page1.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page2.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'css',
-          assets: ['index.module.css', 'a.module.css', 'b.module.css'],
-        },
-      ]);
-    }
+    assertBundles(b, [
+      {
+        name: 'page1.html',
+        assets: ['page1.html'],
+      },
+      {
+        name: 'page2.html',
+        assets: ['page2.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page1.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page2.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css', 'b.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['index.module.css'],
+      },
+    ]);
   });
 
   it('should not process inline <style> elements as a CSS module', async function () {

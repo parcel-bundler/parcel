@@ -479,7 +479,7 @@ describe('css', () => {
     );
   });
 
-  it('should support css nesting with @parcel/css', async function () {
+  it('should support css nesting with lightningcss', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/css-nesting/a.css'),
       {
