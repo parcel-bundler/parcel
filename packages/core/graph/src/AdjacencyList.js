@@ -1,7 +1,7 @@
 // @flow
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import {SharedBuffer} from '@parcel/utils';
+import {SharedBuffer} from './shared-buffer';
 import {fromNodeId, toNodeId} from './types';
 import {ALL_EDGE_TYPES, type NullEdgeType, type AllEdgeTypes} from './Graph';
 import type {NodeId} from './types';
