@@ -2,14 +2,44 @@
 
 import {Transformer} from '@parcel/plugin';
 
+import path from 'path';
 import svgoPlugin from '@svgr/plugin-svgo';
 import jsxPlugin from '@svgr/plugin-jsx';
 import {transform} from '@svgr/core';
 
 export default (new Transformer({
   async loadConfig({config}) {
-    let result = await config.getConfig(['.svgrrc', '.svgrrc.json']);
-    return result?.contents ?? {};
+    let svgrResult = await config.getConfig([
+      '.svgrrc',
+      '.svgrrc.json',
+      '.svgrrc.js',
+      '.svgrrc.cjs',
+      'svgr.config.json',
+      'svgr.config.js',
+      'svgr.config.cjs',
+    ]);
+    let svgoResult = await config.getConfig([
+      '.svgorc',
+      '.svgorc.json',
+      '.svgorc.js',
+      '.svgorc.cjs',
+      'svgo.config.json',
+      'svgo.config.js',
+      'svgo.config.cjs',
+    ]);
+    if (svgrResult) {
+      let isJavascript = path.extname(svgrResult.filePath) === '.js';
+      if (isJavascript) {
+        config.invalidateOnStartup();
+      }
+    }
+    if (svgoResult) {
+      let isJavascript = path.extname(svgoResult.filePath) === '.js';
+      if (isJavascript) {
+        config.invalidateOnStartup();
+      }
+    }
+    return {svgr: svgrResult?.contents, svgo: svgoResult?.contents};
   },
 
   async transform({asset, config}) {
@@ -17,7 +47,7 @@ export default (new Transformer({
 
     const jsx = await transform(
       code,
-      {...config, runtimeConfig: false},
+      {svgoConfig: config.svgo, ...config.svgr, runtimeConfig: false},
       {
         caller: {
           name: '@parcel/transformer-svg-react',
@@ -27,7 +57,7 @@ export default (new Transformer({
       },
     );
 
-    asset.type = config?.typescript ? 'tsx' : 'jsx';
+    asset.type = config.svgr?.typescript ? 'tsx' : 'jsx';
     asset.bundleBehavior = null;
     asset.setCode(jsx);
 

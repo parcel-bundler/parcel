@@ -38,9 +38,9 @@ describe('svg-react', function () {
     assert(types.includes('const Icon: SVGRComponent'));
   });
 
-  it('should find and use a .svgrrc config file', async function () {
+  it('should find and use a .svgrrc and .svgorc config file', async function () {
     let b = await bundle(
-      path.join(__dirname, '/integration/svg-react-svgrrc/react.js'),
+      path.join(__dirname, '/integration/svg-react-config/react.js'),
       {
         defaultConfig: path.join(
           __dirname,
@@ -51,6 +51,7 @@ describe('svg-react', function () {
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
     assert(!file.includes('inkscape'));
+    assert(!/\d\.\d/.test(file));
     assert(file.includes('const SvgIcon ='));
     assert(file.includes('(0, _preact.h)("svg"'));
     assert(file.includes('width: "1em"'));
