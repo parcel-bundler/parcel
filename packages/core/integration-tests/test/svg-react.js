@@ -52,7 +52,7 @@ describe('svg-react', function () {
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
     assert(!file.includes('inkscape'));
     assert(file.includes('const SvgIcon ='));
-    assert(file.includes('h("svg"'));
+    assert(file.includes('(0, _preact.h)("svg"'));
     assert(file.includes('width: "1em"'));
   });
 });
