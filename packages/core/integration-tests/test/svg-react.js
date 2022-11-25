@@ -20,6 +20,24 @@ describe('svg-react', function () {
     assert(file.includes('_react.createElement("svg"'));
   });
 
+  it('should support transforming SVGs to typescript react components', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/svg-react-typescript/react.ts'),
+      {
+        defaultConfig: path.join(
+          __dirname,
+          'integration/custom-configs/.parcelrc-svg-react',
+        ),
+      },
+    );
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
+    let types = await outputFS.readFile(b.getBundles()[1].filePath, 'utf-8');
+
+    assert(!file.includes('inkscape'));
+    assert(file.includes('react.createElement("svg"'));
+    assert(types.includes('const Icon: SVGRComponent'));
+  });
+
   it('should find and use a .svgrrc config file', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/svg-react-svgrrc/react.js'),

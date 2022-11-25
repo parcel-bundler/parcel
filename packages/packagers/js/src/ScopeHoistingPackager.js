@@ -9,6 +9,7 @@ import type {
 } from '@parcel/types';
 
 import {
+  DefaultMap,
   PromiseQueue,
   relativeBundlePath,
   countLines,
@@ -400,7 +401,15 @@ export class ScopeHoistingPackager {
       for (let dep of deps) {
         let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
         let skipped = this.bundleGraph.isDependencySkipped(dep);
-        if (!resolved || skipped) {
+        if (skipped) {
+          continue;
+        }
+
+        if (!resolved) {
+          if (!dep.isOptional) {
+            this.addExternal(dep);
+          }
+
           continue;
         }
 
@@ -464,59 +473,64 @@ export class ScopeHoistingPackager {
 
         // If we matched an import, replace with the source code for the dependency.
         if (d != null) {
-          let dep = depMap.get(d);
-          if (!dep) {
+          let deps = depMap.get(d);
+          if (!deps) {
             return m;
           }
 
-          let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
-          let skipped = this.bundleGraph.isDependencySkipped(dep);
-          if (resolved && !skipped) {
-            // Hoist variable declarations for the referenced parcelRequire dependencies
-            // after the dependency is declared. This handles the case where the resulting asset
-            // is wrapped, but the dependency in this asset is not marked as wrapped. This means
-            // that it was imported/required at the top-level, so its side effects should run immediately.
-            let [res, lines] = this.getHoistedParcelRequires(
-              asset,
-              dep,
-              resolved,
-            );
-            let map;
-            if (
-              this.bundle.hasAsset(resolved) &&
-              !this.seenAssets.has(resolved.id)
-            ) {
-              // If this asset is wrapped, we need to hoist the code for the dependency
-              // outside our parcelRequire.register wrapper. This is safe because all
-              // assets referenced by this asset will also be wrapped. Otherwise, inline the
-              // asset content where the import statement was.
-              if (shouldWrap) {
-                depContent.push(this.visitAsset(resolved));
-              } else {
-                let [depCode, depMap, depLines] = this.visitAsset(resolved);
-                res = depCode + '\n' + res;
-                lines += 1 + depLines;
-                map = depMap;
+          let replacement = '';
+
+          // A single `${id}:${specifier}:esm` might have been resolved to multiple assets due to
+          // reexports.
+          for (let dep of deps) {
+            let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
+            let skipped = this.bundleGraph.isDependencySkipped(dep);
+            if (resolved && !skipped) {
+              // Hoist variable declarations for the referenced parcelRequire dependencies
+              // after the dependency is declared. This handles the case where the resulting asset
+              // is wrapped, but the dependency in this asset is not marked as wrapped. This means
+              // that it was imported/required at the top-level, so its side effects should run immediately.
+              let [res, lines] = this.getHoistedParcelRequires(
+                asset,
+                dep,
+                resolved,
+              );
+              let map;
+              if (
+                this.bundle.hasAsset(resolved) &&
+                !this.seenAssets.has(resolved.id)
+              ) {
+                // If this asset is wrapped, we need to hoist the code for the dependency
+                // outside our parcelRequire.register wrapper. This is safe because all
+                // assets referenced by this asset will also be wrapped. Otherwise, inline the
+                // asset content where the import statement was.
+                if (shouldWrap) {
+                  depContent.push(this.visitAsset(resolved));
+                } else {
+                  let [depCode, depMap, depLines] = this.visitAsset(resolved);
+                  res = depCode + '\n' + res;
+                  lines += 1 + depLines;
+                  map = depMap;
+                }
               }
+
+              // Push this asset's source mappings down by the number of lines in the dependency
+              // plus the number of hoisted parcelRequires. Then insert the source map for the dependency.
+              if (sourceMap) {
+                if (lines > 0) {
+                  sourceMap.offsetLines(lineCount + 1, lines);
+                }
+
+                if (map) {
+                  sourceMap.addSourceMap(map, lineCount);
+                }
+              }
+
+              replacement += res;
+              lineCount += lines;
             }
-
-            // Push this asset's source mappings down by the number of lines in the dependency
-            // plus the number of hoisted parcelRequires. Then insert the source map for the dependency.
-            if (sourceMap) {
-              if (lines > 0) {
-                sourceMap.offsetLines(lineCount + 1, lines);
-              }
-
-              if (map) {
-                sourceMap.addSourceMap(map, lineCount);
-              }
-            }
-
-            lineCount += lines;
-            return res;
           }
-
-          return '';
+          return replacement;
         }
 
         // If it wasn't a dependency, then it was an inline replacement (e.g. $id$import$foo -> $id$export$foo).
@@ -572,16 +586,24 @@ ${code}
   buildReplacements(
     asset: Asset,
     deps: Array<Dependency>,
-  ): [Map<string, Dependency>, Map<string, string>] {
+  ): [Map<string, Array<Dependency>>, Map<string, string>] {
     let assetId = asset.meta.id;
     invariant(typeof assetId === 'string');
 
     // Build two maps: one of import specifiers, and one of imported symbols to replace.
     // These will be used to build a regex below.
-    let depMap = new Map();
+    let depMap = new DefaultMap<string, Array<Dependency>>(() => []);
     let replacements = new Map();
     for (let dep of deps) {
-      depMap.set(`${assetId}:${getSpecifier(dep)}`, dep);
+      let specifierType =
+        dep.specifierType === 'esm' ? `:${dep.specifierType}` : '';
+      depMap
+        .get(
+          `${assetId}:${getSpecifier(dep)}${
+            !dep.meta.placeholder ? specifierType : ''
+          }`,
+        )
+        .push(dep);
 
       let asyncResolution = this.bundleGraph.resolveAsyncDependency(
         dep,
@@ -598,62 +620,7 @@ ${code}
         !dep.isOptional &&
         !this.bundleGraph.isDependencySkipped(dep)
       ) {
-        let external = this.addExternal(dep);
-        for (let [imported, {local}] of dep.symbols) {
-          // If already imported, just add the already renamed variable to the mapping.
-          let renamed = external.get(imported);
-          if (renamed && local !== '*') {
-            replacements.set(local, renamed);
-            continue;
-          }
-
-          // For CJS output, always use a property lookup so that exports remain live.
-          // For ESM output, use named imports which are always live.
-          if (this.bundle.env.outputFormat === 'commonjs') {
-            renamed = external.get('*');
-            if (!renamed) {
-              renamed = this.getTopLevelName(
-                `$${this.bundle.publicId}$${dep.specifier}`,
-              );
-
-              external.set('*', renamed);
-            }
-
-            if (local !== '*') {
-              let replacement;
-              if (imported === '*') {
-                replacement = renamed;
-              } else if (imported === 'default') {
-                replacement = `($parcel$interopDefault(${renamed}))`;
-                this.usedHelpers.add('$parcel$interopDefault');
-              } else {
-                replacement = this.getPropertyAccess(renamed, imported);
-              }
-
-              replacements.set(local, replacement);
-            }
-          } else {
-            // Rename the specifier so that multiple local imports of the same imported specifier
-            // are deduplicated. We have to prefix the imported name with the bundle id so that
-            // local variables do not shadow it.
-            if (this.exportedSymbols.has(local)) {
-              renamed = local;
-            } else if (imported === 'default' || imported === '*') {
-              renamed = this.getTopLevelName(
-                `$${this.bundle.publicId}$${dep.specifier}`,
-              );
-            } else {
-              renamed = this.getTopLevelName(
-                `$${this.bundle.publicId}$${imported}`,
-              );
-            }
-
-            external.set(imported, renamed);
-            if (local !== '*') {
-              replacements.set(local, renamed);
-            }
-          }
-        }
+        this.addExternal(dep, replacements);
       }
 
       if (!resolved) {
@@ -705,7 +672,7 @@ ${code}
     return [depMap, replacements];
   }
 
-  addExternal(dep: Dependency): Map<string, string> {
+  addExternal(dep: Dependency, replacements?: Map<string, string>) {
     if (this.bundle.env.outputFormat === 'global') {
       throw new ThrowableDiagnostic({
         diagnostic: {
@@ -735,7 +702,61 @@ ${code}
       this.externals.set(dep.specifier, external);
     }
 
-    return external;
+    for (let [imported, {local}] of dep.symbols) {
+      // If already imported, just add the already renamed variable to the mapping.
+      let renamed = external.get(imported);
+      if (renamed && local !== '*' && replacements) {
+        replacements.set(local, renamed);
+        continue;
+      }
+
+      // For CJS output, always use a property lookup so that exports remain live.
+      // For ESM output, use named imports which are always live.
+      if (this.bundle.env.outputFormat === 'commonjs') {
+        renamed = external.get('*');
+        if (!renamed) {
+          renamed = this.getTopLevelName(
+            `$${this.bundle.publicId}$${dep.specifier}`,
+          );
+
+          external.set('*', renamed);
+        }
+
+        if (local !== '*' && replacements) {
+          let replacement;
+          if (imported === '*') {
+            replacement = renamed;
+          } else if (imported === 'default') {
+            replacement = `($parcel$interopDefault(${renamed}))`;
+            this.usedHelpers.add('$parcel$interopDefault');
+          } else {
+            replacement = this.getPropertyAccess(renamed, imported);
+          }
+
+          replacements.set(local, replacement);
+        }
+      } else {
+        // Rename the specifier so that multiple local imports of the same imported specifier
+        // are deduplicated. We have to prefix the imported name with the bundle id so that
+        // local variables do not shadow it.
+        if (this.exportedSymbols.has(local)) {
+          renamed = local;
+        } else if (imported === 'default' || imported === '*') {
+          renamed = this.getTopLevelName(
+            `$${this.bundle.publicId}$${dep.specifier}`,
+          );
+        } else {
+          renamed = this.getTopLevelName(
+            `$${this.bundle.publicId}$${imported}`,
+          );
+        }
+
+        external.set(imported, renamed);
+        if (local !== '*' && replacements) {
+          replacements.set(local, renamed);
+        }
+      }
+    }
   }
 
   getSymbolResolution(
@@ -749,10 +770,16 @@ ${code}
       exportSymbol,
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
-    if (resolvedAsset.type !== 'js') {
-      // Graceful fallback for non-js imports
+
+    if (
+      resolvedAsset.type !== 'js' ||
+      (dep && this.bundleGraph.isDependencySkipped(dep))
+    ) {
+      // Graceful fallback for non-js imports or when trying to resolve a symbol
+      // that is actually unused but we still need a placeholder value.
       return '{}';
     }
+
     let isWrapped =
       !this.bundle.hasAsset(resolvedAsset) ||
       (this.wrappedAssets.has(resolvedAsset.id) &&

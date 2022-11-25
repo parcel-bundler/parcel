@@ -247,7 +247,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     if let Some(decl) = self.import_meta.take() {
       res.body.insert(
         0,
-        ast::ModuleItem::Stmt(ast::Stmt::Decl(ast::Decl::Var(decl))),
+        ast::ModuleItem::Stmt(ast::Stmt::Decl(ast::Decl::Var(Box::new(decl)))),
       );
     }
     res
@@ -288,7 +288,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     );
 
     if let Some(rewritten) = rewritten {
-      node.src.value = rewritten.into();
+      node.src.value = rewritten;
     }
 
     node
@@ -310,7 +310,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       );
 
       if let Some(rewritten) = rewritten {
-        src.value = rewritten.into();
+        src.value = rewritten;
       }
     }
 
@@ -328,7 +328,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     );
 
     if let Some(rewritten) = rewritten {
-      node.src.value = rewritten.into();
+      node.src.value = rewritten;
     }
 
     node
@@ -495,7 +495,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                     if match_member_expr(m, vec!["Promise", "resolve"], self.decls) &&
                       // Make sure the arglist is empty.
                       // I.e. do not proceed with the below unless Promise.resolve has an empty arglist
-                      // because build_promise_chain() will not work in this case.                   
+                      // because build_promise_chain() will not work in this case.
                       call.args.is_empty()
                     {
                       if let MemberProp::Ident(id) = &member.prop {
@@ -1004,7 +1004,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
             args: vec![ast::ExprOrSpread {
               expr: Box::new(ast::Expr::Fn(ast::FnExpr {
                 ident: None,
-                function: ast::Function {
+                function: Box::new(ast::Function {
                   body: Some(ast::BlockStmt {
                     span: DUMMY_SP,
                     stmts: vec![ast::Stmt::Return(ast::ReturnStmt {
@@ -1019,7 +1019,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
                   return_type: None,
                   type_params: None,
                   span: DUMMY_SP,
-                },
+                }),
               })),
               spread: None,
             }],
@@ -1203,7 +1203,7 @@ impl<'a> DependencyCollector<'a> {
         ..
       }) => {
         // Match "file:" + __filename
-        let left = match_str(&*left);
+        let left = match_str(left);
         match (left, &**right) {
           (Some((left, _)), Expr::Ident(Ident { sym: right, .. })) => {
             &left == "file:" && right == "__filename"

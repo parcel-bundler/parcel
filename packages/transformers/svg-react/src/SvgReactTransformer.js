@@ -27,7 +27,7 @@ export default (new Transformer({
       },
     );
 
-    asset.type = 'jsx';
+    asset.type = config?.typescript ? 'tsx' : 'jsx';
     asset.bundleBehavior = null;
     asset.setCode(jsx);
 

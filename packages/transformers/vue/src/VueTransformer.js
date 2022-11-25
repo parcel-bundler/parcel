@@ -23,7 +23,14 @@ const MODULE_BY_NAME_RE = /\.module\./;
 export default (new Transformer({
   async loadConfig({config}) {
     let conf = await config.getConfig(
-      ['.vuerc', '.vuerc.json', '.vuerc.js', 'vue.config.js'],
+      [
+        '.vuerc',
+        '.vuerc.json',
+        '.vuerc.js',
+        '.vuerc.cjs',
+        'vue.config.js',
+        'vue.config.cjs',
+      ],
       {packageKey: 'vue'},
     );
     let contents = {};
@@ -181,14 +188,15 @@ function createDiagnostic(err, filePath) {
   if (err.loc) {
     diagnostic.codeFrames = [
       {
+        filePath,
         codeHighlights: [
           {
             start: {
-              line: err.loc.start.line + err.loc.start.offset,
+              line: err.loc.start.line,
               column: err.loc.start.column,
             },
             end: {
-              line: err.loc.end.line + err.loc.end.offset,
+              line: err.loc.end.line,
               column: err.loc.end.column,
             },
           },

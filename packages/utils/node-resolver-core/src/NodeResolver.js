@@ -22,13 +22,15 @@ import {
   findAlternativeNodeModules,
   findAlternativeFiles,
   loadConfig,
+  getModuleParts,
   globToRegex,
   isGlobMatch,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
+  encodeJSONKeyComponent,
+  errorToDiagnostic,
   generateJSONCodeHighlights,
   md,
-  encodeJSONKeyComponent,
 } from '@parcel/diagnostic';
 import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
@@ -46,6 +48,7 @@ type Options = {|
   mainFields: Array<string>,
   packageManager?: PackageManager,
   logger?: PluginLogger,
+  shouldAutoInstall?: boolean,
 |};
 type ResolvedFile = {|
   path: string,
@@ -96,6 +99,7 @@ export default class NodeResolver {
   packageCache: Map<string, InternalPackageJSON>;
   rootPackage: InternalPackageJSON | null;
   packageManager: ?PackageManager;
+  shouldAutoInstall: boolean;
   logger: ?PluginLogger;
 
   constructor(opts: Options) {
@@ -108,6 +112,7 @@ export default class NodeResolver {
     this.packageCache = new Map();
     this.rootPackage = null;
     this.packageManager = opts.packageManager;
+    this.shouldAutoInstall = opts.shouldAutoInstall ?? false;
     this.logger = opts.logger;
   }
 
@@ -271,10 +276,10 @@ export default class NodeResolver {
     let builtin = this.findBuiltin(filename, env);
     if (builtin === null) {
       return null;
-    } else if (builtin === empty) {
+    } else if (builtin && builtin.name === empty) {
       return {filePath: empty};
     } else if (builtin !== undefined) {
-      filename = builtin;
+      filename = builtin.name;
     }
 
     if (this.shouldIncludeNodeModule(env, filename) === false) {
@@ -287,51 +292,26 @@ export default class NodeResolver {
     // Resolve the module in node_modules
     let resolved: ?Module;
     try {
-      resolved = this.findNodeModulePath(filename, sourceFile, ctx);
+      resolved = this.findNodeModulePath(
+        filename,
+        !builtin ? sourceFile : path.join(this.projectRoot, 'index'),
+        ctx,
+      );
     } catch (err) {
       // ignore
     }
 
-    // Auto install node builtin polyfills if not already available
-    if (resolved === undefined && builtin != null) {
-      let packageName = builtin.split('/')[0];
+    // Autoinstall/verify version of builtin polyfills
+    if (builtin?.range != null) {
+      // This assumes that there are no polyfill packages that are scoped
+      // Append '/' to force this.packageManager to look up the package in node_modules
+      let packageName = builtin.name.split('/')[0] + '/';
       let packageManager = this.packageManager;
-      if (packageManager) {
-        this.logger?.warn({
-          message: md`Auto installing polyfill for Node builtin module "${specifier}"...`,
-          codeFrames: [
-            {
-              filePath: ctx.loc?.filePath ?? sourceFile,
-              codeHighlights: ctx.loc
-                ? [
-                    {
-                      message: 'used here',
-                      start: ctx.loc.start,
-                      end: ctx.loc.end,
-                    },
-                  ]
-                : [],
-            },
-          ],
-          documentationURL:
-            'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
-        });
-
-        await packageManager.resolve(builtin, this.projectRoot + '/index', {
-          saveDev: true,
-          shouldAutoInstall: true,
-        });
-
-        // Re-resolve
-        try {
-          resolved = this.findNodeModulePath(filename, sourceFile, ctx);
-        } catch (err) {
-          // ignore
-        }
-      } else {
-        throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: md`Node builtin polyfill "${packageName}" is not installed, but auto install is disabled.`,
+      if (resolved == null) {
+        // Auto install the Node builtin polyfills
+        if (this.shouldAutoInstall && packageManager) {
+          this.logger?.warn({
+            message: md`Auto installing polyfill for Node builtin module "${specifier}"...`,
             codeFrames: [
               {
                 filePath: ctx.loc?.filePath ?? sourceFile,
@@ -348,17 +328,77 @@ export default class NodeResolver {
             ],
             documentationURL:
               'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
-            hints: [
-              md`Install the "${packageName}" package with your package manager, and run Parcel again.`,
-            ],
-          },
-        });
+          });
+
+          await packageManager.resolve(
+            packageName,
+            this.projectRoot + '/index',
+            {
+              saveDev: true,
+              shouldAutoInstall: true,
+              range: builtin.range,
+            },
+          );
+
+          // Re-resolve
+          try {
+            resolved = this.findNodeModulePath(
+              filename,
+              this.projectRoot + '/index',
+              ctx,
+            );
+          } catch (err) {
+            // ignore
+          }
+        } else {
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: md`Node builtin polyfill "${packageName}" is not installed, but auto install is disabled.`,
+              codeFrames: [
+                {
+                  filePath: ctx.loc?.filePath ?? sourceFile,
+                  codeHighlights: ctx.loc
+                    ? [
+                        {
+                          message: 'used here',
+                          start: ctx.loc.start,
+                          end: ctx.loc.end,
+                        },
+                      ]
+                    : [],
+                },
+              ],
+              documentationURL:
+                'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
+              hints: [
+                md`Install the "${packageName}" package with your package manager, and run Parcel again.`,
+              ],
+            },
+          });
+        }
+      } else if (builtin.range != null) {
+        // Assert correct version
+        try {
+          // TODO packageManager can be null for backwards compatibility, but that could cause invalid
+          // resolutions in monorepos
+          await packageManager?.resolve(
+            packageName,
+            this.projectRoot + '/index',
+            {
+              saveDev: true,
+              shouldAutoInstall: this.shouldAutoInstall,
+              range: builtin.range,
+            },
+          );
+        } catch (e) {
+          this.logger?.warn(errorToDiagnostic(e));
+        }
       }
     }
 
     if (resolved === undefined && process.versions.pnp != null && parent) {
       try {
-        let [moduleName, subPath] = this.getModuleParts(filename);
+        let [moduleName, subPath] = getModuleParts(filename);
         // $FlowFixMe[prop-missing]
         let pnp = _Module.findPnpApi(path.dirname(parent));
 
@@ -389,11 +429,11 @@ export default class NodeResolver {
 
     // If we couldn't resolve the node_modules path, just return the module name info
     if (resolved === undefined) {
-      let [moduleName, subPath] = this.getModuleParts(filename);
-      resolved = {
+      let [moduleName, subPath] = getModuleParts(filename);
+      resolved = ({
         moduleName,
         subPath,
-      };
+      }: Module);
 
       let alternativeModules = await findAlternativeNodeModules(
         this.fs,
@@ -429,12 +469,12 @@ export default class NodeResolver {
     }
 
     if (Array.isArray(includeNodeModules)) {
-      let [moduleName] = this.getModuleParts(name);
+      let [moduleName] = getModuleParts(name);
       return includeNodeModules.includes(moduleName);
     }
 
     if (includeNodeModules && typeof includeNodeModules === 'object') {
-      let [moduleName] = this.getModuleParts(name);
+      let [moduleName] = getModuleParts(name);
       let include = includeNodeModules[moduleName];
       if (include != null) {
         return !!include;
@@ -447,7 +487,7 @@ export default class NodeResolver {
     name: string,
     ctx: ResolverContext,
   ) {
-    let [moduleName] = this.getModuleParts(name);
+    let [moduleName] = getModuleParts(name);
     let pkg = await this.findPackage(sourceFile, ctx);
     if (!pkg) {
       return;
@@ -707,7 +747,10 @@ export default class NodeResolver {
     return resolvedFile;
   }
 
-  findBuiltin(filename: string, env: Environment): ?string {
+  findBuiltin(
+    filename: string,
+    env: Environment,
+  ): ?{|name: string, range: ?string|} {
     const isExplicitNode = filename.startsWith('node:');
     if (isExplicitNode || builtins[filename]) {
       if (env.isNode()) {
@@ -739,7 +782,7 @@ export default class NodeResolver {
     sourceFile: FilePath,
     ctx: ResolverContext,
   ): ?Module {
-    let [moduleName, subPath] = this.getModuleParts(filename);
+    let [moduleName, subPath] = getModuleParts(filename);
 
     ctx.invalidateOnFileCreate.push({
       fileName: `node_modules/${moduleName}`,
@@ -1150,7 +1193,7 @@ export default class NodeResolver {
       alias = this.lookupAlias(aliases, normalizeSeparators(filename));
       if (alias == null) {
         // If it didn't match, try only the module name.
-        let [moduleName, subPath] = this.getModuleParts(filename);
+        let [moduleName, subPath] = getModuleParts(filename);
         alias = this.lookupAlias(aliases, moduleName);
         if (typeof alias === 'string' && subPath) {
           let isRelative = alias.startsWith('./');
@@ -1286,22 +1329,6 @@ export default class NodeResolver {
     // Load the local package, and resolve aliases
     let pkg = await this.findPackage(sourceFile, ctx);
     return this.resolveAliases(filename, env, pkg);
-  }
-
-  getModuleParts(name: string): [FilePath, ?string] {
-    name = path.normalize(name);
-    let splitOn = name.indexOf(path.sep);
-    if (name.charAt(0) === '@') {
-      splitOn = name.indexOf(path.sep, splitOn + 1);
-    }
-    if (splitOn < 0) {
-      return [normalizeSeparators(name), undefined];
-    } else {
-      return [
-        normalizeSeparators(name.substring(0, splitOn)),
-        name.substring(splitOn + 1) || undefined,
-      ];
-    }
   }
 
   hasSideEffects(filePath: FilePath, pkg: InternalPackageJSON): boolean {
