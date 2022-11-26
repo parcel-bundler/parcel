@@ -257,7 +257,6 @@ function generateImports(factory: any, moduleGraph: TSModuleGraph) {
       } else {
         namedSpecifiers.push(
           createImportSpecifier(
-            ts,
             factory,
             name === imported ? undefined : factory.createIdentifier(imported),
             factory.createIdentifier(name),

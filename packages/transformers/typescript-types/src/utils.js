@@ -2,6 +2,8 @@
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {Identifier, ImportSpecifier} from 'typescript';
 
+import ts from 'typescript';
+
 export function getExportedName(ts: TypeScriptModule, node: any): ?string {
   if (!node.modifiers) {
     return null;
@@ -29,7 +31,6 @@ export function isDeclaration(ts: TypeScriptModule, node: any): boolean {
 }
 
 export function createImportSpecifier(
-  ts: TypeScriptModule,
   factory: any,
   propertyName: Identifier | void,
   name: Identifier,
