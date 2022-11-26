@@ -88,12 +88,12 @@ export function collect(
       currentModule.addExport('default', node.expression.text);
     }
 
-    if (isDeclaration(ts, node)) {
+    if (isDeclaration(node)) {
       if (node.name) {
         currentModule.addLocal(node.name.text, node);
       }
 
-      let name = getExportedName(ts, node);
+      let name = getExportedName(node);
       if (name) {
         currentModule.addLocal(name, node);
         currentModule.addExport(name, name);

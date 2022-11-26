@@ -125,8 +125,8 @@ export function shake(
       }
     }
 
-    if (isDeclaration(ts, node)) {
-      let name = getExportedName(ts, node) || node.name.text;
+    if (isDeclaration(node)) {
+      let name = getExportedName(node) || node.name.text;
 
       // Remove unused declarations
       if (!currentModule.used.has(name)) {
