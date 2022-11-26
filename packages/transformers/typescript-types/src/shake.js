@@ -4,7 +4,13 @@ import type {TSModuleGraph} from './TSModuleGraph';
 
 import ts from 'typescript';
 import nullthrows from 'nullthrows';
-import {getExportedName, isDeclaration, createImportSpecifier} from './utils';
+import {getExportedName, isDeclaration} from './utils';
+import {
+  createImportClause,
+  createImportDeclaration,
+  createImportSpecifier,
+  updateExportDeclaration,
+} from './wrappers';
 
 export function shake(
   moduleGraph: TSModuleGraph,
@@ -95,12 +101,14 @@ export function shake(
           }
 
           if (exported.length > 0) {
-            return ts.updateExportDeclaration(
+            return updateExportDeclaration(
+              factory,
               node,
-              undefined, // decorators
               undefined, // modifiers
+              false, // isTypeOnly
               factory.updateNamedExports(node.exportClause, exported),
               undefined, // moduleSpecifier
+              undefined, // assertClause
             );
           }
         }
@@ -258,6 +266,7 @@ function generateImports(factory: any, moduleGraph: TSModuleGraph) {
         namedSpecifiers.push(
           createImportSpecifier(
             factory,
+            false,
             name === imported ? undefined : factory.createIdentifier(imported),
             factory.createIdentifier(name),
           ),
@@ -266,35 +275,40 @@ function generateImports(factory: any, moduleGraph: TSModuleGraph) {
     }
 
     if (namespaceSpecifier) {
-      let importClause = ts.createImportClause(
+      let importClause = createImportClause(
+        factory,
+        false,
         defaultSpecifier,
         namespaceSpecifier,
       );
       importStatements.push(
-        ts.createImportDeclaration(
-          undefined,
+        createImportDeclaration(
+          factory,
           undefined,
           importClause,
-          // $FlowFixMe
-          ts.createLiteral(specifier),
+          factory.createStringLiteral(specifier),
+          undefined,
         ),
       );
       defaultSpecifier = undefined;
     }
 
     if (defaultSpecifier || namedSpecifiers.length > 0) {
-      let importClause = ts.createImportClause(
+      let importClause = createImportClause(
+        factory,
+        false,
         defaultSpecifier,
         namedSpecifiers.length > 0
           ? factory.createNamedImports(namedSpecifiers)
           : undefined,
       );
       importStatements.push(
-        ts.createImportDeclaration(
-          undefined,
+        createImportDeclaration(
+          factory,
           undefined,
           importClause,
           factory.createStringLiteral(specifier),
+          undefined,
         ),
       );
     }
