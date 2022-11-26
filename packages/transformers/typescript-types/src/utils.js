@@ -30,6 +30,7 @@ export function isDeclaration(ts: TypeScriptModule, node: any): boolean {
 
 export function createImportSpecifier(
   ts: TypeScriptModule,
+  factory: any,
   propertyName: Identifier | void,
   name: Identifier,
   isTypeOnly: boolean = false,
@@ -41,7 +42,7 @@ export function createImportSpecifier(
   // see: https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-5.html#type-modifiers-on-import-names
   if (majorVersion > 4 || (majorVersion === 4 && minorVersion >= 5)) {
     // $FlowFixMe
-    return ts.createImportSpecifier(isTypeOnly, propertyName, name);
+    return factory.createImportSpecifier(isTypeOnly, propertyName, name);
   } else {
     return ts.createImportSpecifier(propertyName, name);
   }

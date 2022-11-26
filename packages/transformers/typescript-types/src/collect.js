@@ -11,13 +11,16 @@ export function collect(
   context: any,
   sourceFile: any,
 ): any {
+  // Factory only exists on TS >= 4.0
+  const {factory = ts} = context;
+
   // When module definitions are nested inside each other (e.g with module augmentation),
   // we want to keep track of the hierarchy so we can associated nodes with the right module.
   const moduleStack: Array<?TSModule> = [];
   let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
-      return ts.updateBundle(node, ts.visitNodes(node.sourceFiles, visit));
+      return factory.updateBundle(node, ts.visitNodes(node.sourceFiles, visit));
     }
 
     if (ts.isModuleDeclaration(node)) {
