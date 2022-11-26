@@ -26,6 +26,10 @@ describe('webmanifest', function () {
         type: 'png',
         assets: ['screenshot.png'],
       },
+      {
+        type: 'png',
+        assets: ['shortcut-icon.png'],
+      },
     ]);
 
     const manifest = await outputFS.readFile(
@@ -34,6 +38,7 @@ describe('webmanifest', function () {
     );
     assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/shortcut-icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
   it('should support .json', async function () {
@@ -58,6 +63,10 @@ describe('webmanifest', function () {
         type: 'png',
         assets: ['screenshot.png'],
       },
+      {
+        type: 'png',
+        assets: ['shortcut-icon.png'],
+      },
     ]);
 
     const manifest = await outputFS.readFile(
@@ -66,6 +75,7 @@ describe('webmanifest', function () {
     );
     assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/shortcut-icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
   it('should throw on malformed icons and screenshots', async function () {
