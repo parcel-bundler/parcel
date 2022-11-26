@@ -123,7 +123,6 @@ export function shake(
       }
 
       // Remove original export modifiers
-      node = ts.getMutableClone(node);
       node.modifiers = (node.modifiers || []).filter(
         m =>
           m.kind !== ts.SyntaxKind.ExportKeyword &&
