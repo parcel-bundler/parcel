@@ -61,6 +61,28 @@ export default (new Transformer({
       }
     }
 
+    if (data.shortcuts) {
+      invariant(Array.isArray(data.shortcuts));
+      for (let i = 0; i < data.shortcuts.length; i++) {
+        const list = data.shortcuts[i].icons;
+        if (list) {
+          invariant(Array.isArray(list));
+          for (let j = 0; j < list.length; j++) {
+            const res = list[j];
+            res.src = asset.addURLDependency(res.src, {
+              loc: {
+                filePath: asset.filePath,
+                ...getJSONSourceLocation(
+                  pointers[`/shortcuts/${i}/icons/${j}/src`],
+                  'value',
+                ),
+              },
+            });
+          }
+        }
+      }
+    }
+
     asset.type = 'webmanifest';
     asset.setCode(JSON.stringify(data));
     return [asset];
