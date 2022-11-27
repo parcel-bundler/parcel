@@ -166,7 +166,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Fix hoisting for optional chaining member expressions - [Details](https://github.com/parcel-bundler/parcel/pull/8121)
 - Fix issues with web extensions - [Details](https://github.com/parcel-bundler/parcel/pull/8000)
 - Reload the closest package.json to an asset if it's a package entry to fix `sideEffects` - [Details](https://github.com/parcel-bundler/parcel/pull/7909)
-- Only emit non static import bailout warnings for variables which correspond to a * import - [Details](https://github.com/parcel-bundler/parcel/pull/8136)
+- Only emit non static import bailout warnings for variables which correspond to a \* import - [Details](https://github.com/parcel-bundler/parcel/pull/8136)
 
 ## [2.5.0] - 2022-04-21
 
