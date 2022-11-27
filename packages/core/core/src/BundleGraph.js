@@ -215,6 +215,10 @@ export default class BundleGraph {
           node.usedSymbolsUp.size > 0 &&
           // Only perform rewriting if the dependency only points to a single asset (e.g. CSS modules)
           !hasAmbiguousSymbols &&
+          // It doesn't make sense to retarget dependencies where `*` is used, because the
+          // retargeting won't enable any benefits in that case (apart from potentially even more
+          // code being generated).
+          !node.usedSymbolsUp.has('*') &&
           // TODO We currently can't rename imports in async imports, e.g. from
           //      (parcelRequire("...")).then(({ a }) => a);
           // to
