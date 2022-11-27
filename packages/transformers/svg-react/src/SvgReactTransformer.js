@@ -19,13 +19,9 @@ export default (new Transformer({
       'svgr.config.cjs',
     ]);
     let svgoResult = await config.getConfig([
-      '.svgorc',
-      '.svgorc.json',
-      '.svgorc.js',
-      '.svgorc.cjs',
-      'svgo.config.json',
       'svgo.config.js',
       'svgo.config.cjs',
+      'svgo.config.json',
     ]);
     if (svgrResult) {
       let isJavascript = path.extname(svgrResult.filePath).endsWith('js');
