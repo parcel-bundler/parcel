@@ -104,7 +104,7 @@ type IdealGraph = {|
 /**
  *
  * The Bundler works by creating an IdealGraph, which contains a BundleGraph that models bundles
- * connected to othervbundles by what references them, and thus models BundleGroups.
+ * connected to other bundles by what references them, and thus models BundleGroups.
  *
  * First, we enter `bundle({bundleGraph, config})`. Here, "bundleGraph" is actually just the
  * assetGraph turned into a type `MutableBundleGraph`, which will then be mutated in decorate,
