@@ -397,6 +397,18 @@ describe('scope hoisting', function () {
       assert.equal(output, 15);
     });
 
+    it('supports re-exporting all exports and overriding individual exports', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-override/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 'fooBfooCC');
+    });
+
     it('can import from a different bundle via a re-export (1)', async function () {
       let b = await bundle(
         path.join(
