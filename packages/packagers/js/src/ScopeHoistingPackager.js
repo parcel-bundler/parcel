@@ -996,50 +996,9 @@ ${code}
         this.usedHelpers.add('$parcel$defineInteropFlag');
       }
 
-      // Find the used exports of this module. This is based on the used symbols of
-      // incoming dependencies rather than the asset's own used exports so that we include
-      // re-exported symbols rather than only symbols declared in this asset.
-      let incomingDeps = this.bundleGraph.getIncomingDependencies(asset);
-      let usedExports = [...asset.symbols.exportSymbols()].filter(symbol => {
-        if (symbol === '*') {
-          return false;
-        }
-
-        // If we need default interop, then all symbols are needed because the `default`
-        // symbol really maps to the whole namespace.
-        if (defaultInterop) {
-          return true;
-        }
-
-        let unused = incomingDeps.every(d => {
-          let symbols = nullthrows(this.bundleGraph.getUsedSymbols(d));
-          return !symbols.has(symbol) && !symbols.has('*');
-        });
-        return !unused;
-      });
-
-      if (usedExports.length > 0) {
-        // Insert $parcel$export calls for each of the used exports. This creates a getter/setter
-        // for the symbol so that when the value changes the object property also changes. This is
-        // required to simulate ESM live bindings. It's easier to do it this way rather than inserting
-        // additional assignments after each mutation of the original binding.
-        prepend += `\n${usedExports
-          .map(exp => {
-            let resolved = this.getSymbolResolution(asset, asset, exp);
-            let get = this.buildFunctionExpression([], resolved);
-            let set = asset.meta.hasCJSExports
-              ? ', ' + this.buildFunctionExpression(['v'], `${resolved} = v`)
-              : '';
-            return `$parcel$export($${assetId}$exports, ${JSON.stringify(
-              exp,
-            )}, ${get}${set});`;
-          })
-          .join('\n')}\n`;
-        this.usedHelpers.add('$parcel$export');
-        prependLineCount += 1 + usedExports.length;
-      }
-
-      // Find wildcard re-export dependencies, and make sure their exports are also included in ours.
+      // Find wildcard re-export dependencies, and make sure their exports are also included in
+      // ours. Importantly, add them before the asset's own exports so that wildcard exports get
+      // correctly overwritten by own exports of the same name.
       for (let dep of deps) {
         let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
         if (dep.isOptional || this.bundleGraph.isDependencySkipped(dep)) {
@@ -1104,6 +1063,49 @@ ${code}
             }
           }
         }
+      }
+
+      // Find the used exports of this module. This is based on the used symbols of
+      // incoming dependencies rather than the asset's own used exports so that we include
+      // re-exported symbols rather than only symbols declared in this asset.
+      let incomingDeps = this.bundleGraph.getIncomingDependencies(asset);
+      let usedExports = [...asset.symbols.exportSymbols()].filter(symbol => {
+        if (symbol === '*') {
+          return false;
+        }
+
+        // If we need default interop, then all symbols are needed because the `default`
+        // symbol really maps to the whole namespace.
+        if (defaultInterop) {
+          return true;
+        }
+
+        let unused = incomingDeps.every(d => {
+          let symbols = nullthrows(this.bundleGraph.getUsedSymbols(d));
+          return !symbols.has(symbol) && !symbols.has('*');
+        });
+        return !unused;
+      });
+
+      if (usedExports.length > 0) {
+        // Insert $parcel$export calls for each of the used exports. This creates a getter/setter
+        // for the symbol so that when the value changes the object property also changes. This is
+        // required to simulate ESM live bindings. It's easier to do it this way rather than inserting
+        // additional assignments after each mutation of the original binding.
+        prepend += `\n${usedExports
+          .map(exp => {
+            let resolved = this.getSymbolResolution(asset, asset, exp);
+            let get = this.buildFunctionExpression([], resolved);
+            let set = asset.meta.hasCJSExports
+              ? ', ' + this.buildFunctionExpression(['v'], `${resolved} = v`)
+              : '';
+            return `$parcel$export($${assetId}$exports, ${JSON.stringify(
+              exp,
+            )}, ${get}${set});`;
+          })
+          .join('\n')}\n`;
+        this.usedHelpers.add('$parcel$export');
+        prependLineCount += 1 + usedExports.length;
       }
     }
 
