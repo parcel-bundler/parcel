@@ -31,7 +31,7 @@ export default (new Transformer({
     );
 
     if (configFile) {
-      let isJavascript = path.extname(configFile.filePath) === '.js';
+      let isJavascript = path.extname(configFile.filePath).endsWith('js');
       if (isJavascript) {
         // We have to invalidate on startup in case the config is non-deterministic,
         // e.g. using unknown environment variables, reading from the filesystem, etc.

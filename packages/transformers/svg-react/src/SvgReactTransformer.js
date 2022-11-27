@@ -28,13 +28,13 @@ export default (new Transformer({
       'svgo.config.cjs',
     ]);
     if (svgrResult) {
-      let isJavascript = path.extname(svgrResult.filePath) === '.js';
+      let isJavascript = path.extname(svgrResult.filePath).endsWith('js');
       if (isJavascript) {
         config.invalidateOnStartup();
       }
     }
     if (svgoResult) {
-      let isJavascript = path.extname(svgoResult.filePath) === '.js';
+      let isJavascript = path.extname(svgoResult.filePath).endsWith('js');
       if (isJavascript) {
         config.invalidateOnStartup();
       }
