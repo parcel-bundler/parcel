@@ -30,6 +30,15 @@ const MANIFEST_SCHEMA: SchemaEntity = {
   properties: {
     icons: RESOURCES_SCHEMA,
     screenshots: RESOURCES_SCHEMA,
+    shortcuts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          icons: RESOURCES_SCHEMA,
+        },
+      },
+    },
   },
 };
 
