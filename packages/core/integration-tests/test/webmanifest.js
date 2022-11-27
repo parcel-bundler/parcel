@@ -134,6 +134,39 @@ describe('webmanifest', function () {
                       line: 15,
                     },
                   },
+                  {
+                    end: {
+                      column: 17,
+                      line: 18,
+                    },
+                    message: 'Expected type array',
+                    start: {
+                      column: 16,
+                      line: 18,
+                    },
+                  },
+                  {
+                    end: {
+                      column: 9,
+                      line: 30,
+                    },
+                    message: 'Missing property src',
+                    start: {
+                      column: 9,
+                      line: 27,
+                    },
+                  },
+                  {
+                    end: {
+                      column: 10,
+                      line: 31,
+                    },
+                    message: 'Missing property src',
+                    start: {
+                      column: 9,
+                      line: 31,
+                    },
+                  },
                 ],
               },
             ],
