@@ -256,110 +256,102 @@ describe('bundler', function () {
     );
   });
   it('should add type change child to source bundles groups if its parent (a reused bundle) is removed by parallel request limit', async function () {
-    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/typechange-bundle-childof-reused-bundle-removal/index.js',
-        ),
-        {
-          mode: 'production',
-          defaultTargetOptions: {
-            shouldScopeHoist: false,
-          },
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/typechange-bundle-childof-reused-bundle-removal/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
         },
-      );
+      },
+    );
 
-      assertBundles(b, [
-        {
-          name: 'index.js',
-          assets: [
-            'index.js',
-            'bundle-url.js',
-            'cacheLoader.js',
-            'css-loader.js',
-            'esmodule-helpers.js',
-            'js-loader.js',
-            'bundle-manifest.js',
-          ],
-        },
-        {
-          assets: ['bar.js', 'foo.js', 'a.js', 'b.js'], // shared bundle merged back
-        },
-        {
-          assets: ['foo.js', 'a.js', 'b.js'],
-        },
-        {
-          assets: ['styles.css'],
-        },
-        {
-          assets: ['local.html'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['bar.js', 'foo.js', 'a.js', 'b.js'], // shared bundle merged back
+      },
+      {
+        assets: ['foo.js', 'a.js', 'b.js'],
+      },
+      {
+        assets: ['styles.css'],
+      },
+      {
+        assets: ['local.html'],
+      },
+    ]);
 
-      assert(
-        b
-          .getReferencedBundles(
-            b.getBundlesWithAsset(findAsset(b, 'bar.js'))[0],
-          )
-          .includes(b.getBundlesWithAsset(findAsset(b, 'styles.css'))[0]),
-      );
-    }
+    assert(
+      b
+        .getReferencedBundles(b.getBundlesWithAsset(findAsset(b, 'bar.js'))[0])
+        .includes(b.getBundlesWithAsset(findAsset(b, 'styles.css'))[0]),
+    );
   });
   it('should add type change bundles assets to source bundle groups if its parent (a reused bundle) is removed by parallel request limit and the bundlegroup has an existing bundle of that type', async function () {
     // Case: A reused bundle (foo) with type-change child (styles.css) is merged back via PRL (parallel request limit) and the
     // source bundle's bundleGroup already has an existing bundle of another type (c.css), so we duplicate the assets
-    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/typechange-bundle-childof-reused-bundle-removal-multi/index.js',
-        ),
-        {
-          mode: 'production',
-          defaultTargetOptions: {
-            shouldScopeHoist: false,
-          },
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/typechange-bundle-childof-reused-bundle-removal-multi/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
         },
-      );
+      },
+    );
 
-      assertBundles(b, [
-        {
-          name: 'index.js',
-          assets: [
-            'index.js',
-            'bundle-url.js',
-            'cacheLoader.js',
-            'css-loader.js',
-            'esmodule-helpers.js',
-            'js-loader.js',
-            'bundle-manifest.js',
-          ],
-        },
-        {
-          assets: ['bar.js', 'foo.js', 'a.js', 'b.js'], // shared bundle merged back
-        },
-        {
-          assets: ['foo.js', 'a.js', 'b.js'],
-        },
-        {
-          assets: ['styles.css', 'c.css'],
-        },
-        {
-          assets: ['styles.css'],
-        },
-        {
-          assets: ['local.html'],
-        },
-      ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['bar.js', 'foo.js', 'a.js', 'b.js'], // shared bundle merged back
+      },
+      {
+        assets: ['foo.js', 'a.js', 'b.js'],
+      },
+      {
+        assets: ['styles.css', 'c.css'],
+      },
+      {
+        assets: ['styles.css'],
+      },
+      {
+        assets: ['local.html'],
+      },
+    ]);
 
-      assert(
-        b
-          .getReferencedBundles(
-            b.getBundlesWithAsset(findAsset(b, 'bar.js'))[0],
-          )
-          .includes(b.getBundlesWithAsset(findAsset(b, 'styles.css'))[0]),
-      );
-    }
+    assert(
+      b
+        .getReferencedBundles(b.getBundlesWithAsset(findAsset(b, 'bar.js'))[0])
+        .includes(b.getBundlesWithAsset(findAsset(b, 'styles.css'))[0]),
+    );
   });
 });
