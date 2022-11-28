@@ -27,7 +27,7 @@ export default (new Transformer({
       );
     }
 
-    if (configFile && path.extname(configFile.filePath) === '.js') {
+    if (configFile && path.extname(configFile.filePath).endsWith('js')) {
       config.invalidateOnStartup();
     }
 
