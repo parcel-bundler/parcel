@@ -86,21 +86,13 @@ const OPTIONS = {
 };
 
 export function collectSrcSetDependencies(asset, srcset, opts) {
-  let newSources = [];
   const res = parse(srcset);
   res.forEach(r => {
-    let url;
-    let size;
     for (const [key, value] of Object.entries(r)) {
       if (key === 'url') {
-        url = value;
         asset.addURLDependency(value, opts);
-      } else {
-        size = `${value}${key === 'width' ? 'w' : 'x'}`;
       }
     }
-
-    newSources.push(`${url} ${size}`);
   });
 
   /**
@@ -109,7 +101,7 @@ export function collectSrcSetDependencies(asset, srcset, opts) {
    * If an image candidate string in srcset contains a width descriptor or a pixel density descriptor or ASCII whitespace, the following image candidate string must begin with whitespace.
    * So we need to join each image candidate string with ", ".
    */
-  return newSources.join(', ');
+  return srcset;
 }
 
 function getAttrDepHandler(attr) {
