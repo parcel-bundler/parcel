@@ -3,6 +3,7 @@
 import type {AST, MutableAsset} from '@parcel/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
+import parse from 'srcset-parse';
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
@@ -84,17 +85,23 @@ const OPTIONS = {
   },
 };
 
-function collectSrcSetDependencies(asset, srcset, opts) {
+export function collectSrcSetDependencies(asset, srcset, opts) {
   let newSources = [];
-  for (const source of srcset.split(',')) {
-    let pair = source.trim().split(' ');
-    if (pair.length === 0) {
-      continue;
+  const res = parse(srcset);
+  res.forEach(r => {
+    let url;
+    let size;
+    for (const [key, value] of Object.entries(r)) {
+      if (key === 'url') {
+        url = value;
+        asset.addURLDependency(value, opts);
+      } else {
+        size = `${value}${key === 'width' ? 'w' : 'x'}`;
+      }
     }
 
-    pair[0] = asset.addURLDependency(pair[0], opts);
-    newSources.push(pair.join(' '));
-  }
+    newSources.push(`${url} ${size}`);
+  });
 
   /**
    * https://html.spec.whatwg.org/multipage/images.html#srcset-attribute
