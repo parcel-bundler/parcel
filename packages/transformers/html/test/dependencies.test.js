@@ -1,18 +1,23 @@
 import {collectSrcSetDependencies} from '../src/dependencies';
 import assert from 'assert';
+import sinon from 'sinon';
 
 describe('collectSrcSetDependencies', () => {
   it('should parse srcset with comma in query params correctly', () => {
+    const asset = {
+      addURLDependency(url) {
+        return url;
+      },
+    };
+    const spy = sinon.spy(asset, 'addURLDependency');
     assert.strictEqual(
-      collectSrcSetDependencies(
-        {
-          addURLDependency(url) {
-            return url;
-          },
-        },
-        '/abc.png?x=1,2&b=3 100w, /foo.png 10x',
-      ),
+      collectSrcSetDependencies(asset, '/abc.png?x=1,2&b=3 100w, /foo.png 10x'),
       '/abc.png?x=1,2&b=3 100w, /foo.png 10x',
     );
+    assert(spy.callCount, 2);
+    const [first, second] = spy.getCalls();
+
+    assert.strictEqual(first.args[0], '/abc.png?x=1,2&b=3');
+    assert.strictEqual(second.args[0], '/foo.png');
   });
 });
