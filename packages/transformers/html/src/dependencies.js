@@ -3,6 +3,7 @@
 import type {AST, MutableAsset} from '@parcel/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
+import url from 'url';
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
@@ -128,6 +129,20 @@ export default function collectDependencies(
     }
 
     seen.add(node);
+
+    if (tag === 'img' && attrs.src && (attrs.width || attrs.height)) {
+      const src = url.parse(attrs.src, true);
+      if (!src.protocol && !src.query.width && !src.query.height) {
+        if (attrs.width) {
+          src.query.width = attrs.width;
+        }
+        if (attrs.height) {
+          src.query.height = attrs.height;
+        }
+
+        attrs.src = url.format({pathname: src.pathname, query: src.query});
+      }
+    }
 
     if (tag === 'meta') {
       const isMetaDependency = Object.keys(attrs).some(attr => {
