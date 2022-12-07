@@ -22,7 +22,7 @@ export default (new Resolver({
       extensions:
         dependency.specifierType === 'commonjs' ||
         dependency.specifierType === 'esm'
-          ? ['ts', 'tsx', 'js', 'jsx', 'json']
+          ? ['ts', 'tsx', 'mjs', 'js', 'jsx', 'cjs', 'json']
           : [],
       mainFields: ['source', 'browser', 'module', 'main'],
       packageManager: options.packageManager,
