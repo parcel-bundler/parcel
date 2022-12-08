@@ -19,6 +19,7 @@ const unlink = require('../src/unlink').default;
 const program = new commander.Command();
 
 program
+  .arguments('[packageRoot]')
   .version(version, '-V, --version')
   .description('Unlink a dev copy of Parcel from an app')
   .option('-d, --dry-run', 'Do not write any changes')
