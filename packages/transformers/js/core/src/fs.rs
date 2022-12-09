@@ -53,7 +53,7 @@ impl<'a> Fold for InlineFS<'a> {
         if let Some((source, specifier)) = self.match_module_reference(expr) {
           if &source == "fs" && &specifier == "readFileSync" {
             if let Some(arg) = call.args.get(0) {
-              if let Some(res) = self.evaluate_fs_arg(&*arg.expr, call.args.get(1), call.span) {
+              if let Some(res) = self.evaluate_fs_arg(&arg.expr, call.args.get(1), call.span) {
                 return res;
               }
             }
@@ -90,7 +90,7 @@ impl<'a> InlineFS<'a> {
           _ => return None,
         };
 
-        if let Some(source) = self.collect.match_require(&*member.obj) {
+        if let Some(source) = self.collect.match_require(&member.obj) {
           return Some((source, prop));
         }
 
@@ -127,7 +127,7 @@ impl<'a> InlineFS<'a> {
           Ok(path) => path,
           Err(_err) => return None,
         };
-        if !path.starts_with(&self.project_root) {
+        if !path.starts_with(self.project_root) {
           return None;
         }
 

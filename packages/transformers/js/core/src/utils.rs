@@ -93,7 +93,7 @@ pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
 
 pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
   match &node.prop {
-    ast::MemberProp::Computed(s) => match_str(&*s.expr),
+    ast::MemberProp::Computed(s) => match_str(&s.expr),
     ast::MemberProp::Ident(id) => Some((id.sym.clone(), id.span)),
     ast::MemberProp::PrivateName(_) => None,
   }
@@ -126,7 +126,7 @@ pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -
             && !is_marked(ident.span, ignore_mark)
           {
             if let Some(arg) = call.args.get(0) {
-              return match_str(&*arg.expr).map(|(name, _)| name);
+              return match_str(&arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -135,7 +135,7 @@ pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -
         Expr::Member(member) => {
           if match_member_expr(member, vec!["module", "require"], decls) {
             if let Some(arg) = call.args.get(0) {
-              return match_str(&*arg.expr).map(|(name, _)| name);
+              return match_str(&arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -156,7 +156,7 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
     Expr::Call(call) => match &call.callee {
       Callee::Import(ident) if !is_marked(ident.span, ignore_mark) => {
         if let Some(arg) = call.args.get(0) {
-          return match_str(&*arg.expr).map(|(name, _)| name);
+          return match_str(&arg.expr).map(|(name, _)| name);
         }
         None
       }
