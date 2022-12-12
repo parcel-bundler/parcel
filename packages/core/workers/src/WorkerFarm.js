@@ -26,8 +26,7 @@ import cpuCount from './cpuCount';
 import Handle from './Handle';
 import {child} from './childState';
 import {detectBackend} from './backend';
-import Profiler from './Profiler';
-import Trace from './Trace';
+import {Profiler, Trace} from '@parcel/profiler';
 import fs from 'fs';
 import logger from '@parcel/logger';
 

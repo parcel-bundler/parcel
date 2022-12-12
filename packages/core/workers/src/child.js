@@ -18,7 +18,7 @@ import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {deserialize} from '@parcel/core';
 import bus from './bus';
-import Profiler from './Profiler';
+import {Profiler} from '@parcel/profiler';
 import _Handle from './Handle';
 
 // The import of './Handle' should really be imported eagerly (with @babel/plugin-transform-modules-commonjs's lazy mode).
