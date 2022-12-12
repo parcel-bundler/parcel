@@ -16,6 +16,7 @@ import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
 import {Priority} from '@parcel/core/src/types';
 
 import {loadGraphs} from './index.js';
+import {setDifference} from '@parcel/utils';
 
 let args = process.argv.slice(2);
 let cacheDir = path.join(process.cwd(), '.parcel-cache');
@@ -366,6 +367,22 @@ function traverseBundle(v: string) {
   });
 }
 
+function listUnusedSymbols() {
+  for (let n of assetGraph.nodes.values()) {
+    if (n.type === 'asset') {
+      if (n.usedSymbols.size === 0) continue;
+      invariant(n.value.symbols != null);
+      let allSymbols = new Set([...n.value.symbols?.keys()]);
+      let unusedSymbols = setDifference(n.usedSymbols, allSymbols);
+      if (unusedSymbols.size === 0) continue;
+      console.log(
+        fromProjectPathRelative(n.value.filePath) + ' Does not use symbols: ',
+        [...unusedSymbols].join(','),
+      );
+    }
+  }
+}
+
 function getBundle(v: string) {
   let bundleRegex = new RegExp(v);
   for (let b of bundleGraph.getBundles()) {
@@ -664,6 +681,13 @@ if (initialCmd != null) {
       {
         help: 'args: <regex>. Lsit assets matching the filepath regex',
         action: findAsset,
+      },
+    ],
+    [
+      'listUnusedSymbols',
+      {
+        help: 'args: <>. Lists all unused symbols in the project',
+        action: listUnusedSymbols,
       },
     ],
   ])) {
