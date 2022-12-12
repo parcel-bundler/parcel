@@ -26,7 +26,7 @@ import cpuCount from './cpuCount';
 import Handle from './Handle';
 import {child} from './childState';
 import {detectBackend} from './backend';
-import {Profiler, Trace} from '@parcel/profiler';
+import {SamplingProfiler, Trace} from '@parcel/profiler';
 import fs from 'fs';
 import logger from '@parcel/logger';
 
@@ -76,7 +76,7 @@ export default class WorkerFarm extends EventEmitter {
   sharedReferences: Map<SharedReference, mixed> = new Map();
   sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
   serializedSharedReferences: Map<SharedReference, ?ArrayBuffer> = new Map();
-  profiler: ?Profiler;
+  profiler: ?SamplingProfiler;
 
   constructor(farmOptions: $Shape<FarmOptions> = {}) {
     super();
@@ -511,7 +511,7 @@ export default class WorkerFarm extends EventEmitter {
       );
     }
 
-    this.profiler = new Profiler();
+    this.profiler = new SamplingProfiler();
 
     promises.push(this.profiler.startProfiling());
     await Promise.all(promises);

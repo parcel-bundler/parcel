@@ -18,7 +18,7 @@ import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {deserialize} from '@parcel/core';
 import bus from './bus';
-import {Profiler} from '@parcel/profiler';
+import {SamplingProfiler} from '@parcel/profiler';
 import _Handle from './Handle';
 
 // The import of './Handle' should really be imported eagerly (with @babel/plugin-transform-modules-commonjs's lazy mode).
@@ -38,7 +38,7 @@ export class Child {
   responseQueue: Map<number, ChildCall> = new Map();
   loggerDisposable: IDisposable;
   child: ChildImpl;
-  profiler: ?Profiler;
+  profiler: ?SamplingProfiler;
   handles: Map<number, Handle> = new Map();
   sharedReferences: Map<SharedReference, mixed> = new Map();
   sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
@@ -146,7 +146,7 @@ export class Child {
         result = errorResponseFromError(e);
       }
     } else if (method === 'startProfile') {
-      this.profiler = new Profiler();
+      this.profiler = new SamplingProfiler();
       try {
         result = responseFromContent(await this.profiler.startProfiling());
       } catch (e) {
