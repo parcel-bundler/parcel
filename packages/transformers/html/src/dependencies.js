@@ -3,7 +3,7 @@
 import type {AST, MutableAsset} from '@parcel/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
-import parse from 'srcset-parse';
+import {parse} from 'srcset';
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
@@ -86,22 +86,21 @@ const OPTIONS = {
 };
 
 export function collectSrcSetDependencies(asset, srcset, opts) {
-  const res = parse(srcset);
-  res.forEach(r => {
-    for (const [key, value] of Object.entries(r)) {
+  const parsed = parse(srcset);
+  const newUrls = [];
+  parsed.forEach(srcset => {
+    let url;
+    let size;
+    Object.entries(srcset).forEach(([key, value]) => {
       if (key === 'url') {
-        asset.addURLDependency(value, opts);
+        url = value;
+      } else {
+        size = `${value}${key === 'width' ? 'w' : 'x'}`;
       }
-    }
+    });
+    newUrls.push(`${asset.addURLDependency(url, opts)} ${size}`);
   });
-
-  /**
-   * https://html.spec.whatwg.org/multipage/images.html#srcset-attribute
-   *
-   * If an image candidate string in srcset contains a width descriptor or a pixel density descriptor or ASCII whitespace, the following image candidate string must begin with whitespace.
-   * So we need to join each image candidate string with ", ".
-   */
-  return srcset;
+  return newUrls.join(', ');
 }
 
 function getAttrDepHandler(attr) {

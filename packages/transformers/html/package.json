@@ -28,6 +28,6 @@
     "posthtml-parser": "^0.10.1",
     "posthtml-render": "^3.0.0",
     "semver": "^5.7.1",
-    "srcset-parse": "^1.1.0"
+    "srcset": "^4.0.0"
   }
 }
