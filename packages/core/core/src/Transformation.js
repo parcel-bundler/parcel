@@ -76,6 +76,7 @@ import {
 } from './projectPath';
 import {invalidateOnFileCreateToInternal} from './utils';
 import invariant from 'assert';
+import {applicationProfiler} from '@parcel/profiler';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -446,6 +447,16 @@ export default class Transformation {
     let resultingAssets = [];
     let finalAssets = [];
     for (let transformer of pipeline.transformers) {
+      let measurement = applicationProfiler.createMeasurement(
+        transformer.name,
+        {
+          categories: ['transform'],
+          args: {
+            name: fromProjectPathRelative(initialAsset.value.filePath),
+          },
+        },
+      );
+
       resultingAssets = [];
       for (let asset of inputAssets) {
         if (
@@ -472,6 +483,10 @@ export default class Transformation {
             transformer.configKeyPath,
             this.parcelConfig,
           );
+
+          if (measurement) {
+            measurement.end();
+          }
 
           for (let result of transformerResults) {
             if (result instanceof UncommittedAsset) {

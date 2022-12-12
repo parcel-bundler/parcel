@@ -34,6 +34,7 @@
     "@parcel/logger": "2.8.3",
     "@parcel/package-manager": "2.8.3",
     "@parcel/plugin": "2.8.3",
+    "@parcel/profiler": "2.8.1",
     "@parcel/source-map": "^2.1.1",
     "@parcel/types": "2.8.3",
     "@parcel/utils": "2.8.3",
