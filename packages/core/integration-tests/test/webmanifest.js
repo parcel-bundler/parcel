@@ -26,6 +26,10 @@ describe('webmanifest', function () {
         type: 'png',
         assets: ['screenshot.png'],
       },
+      {
+        type: 'png',
+        assets: ['shortcut-icon.png'],
+      },
     ]);
 
     const manifest = await outputFS.readFile(
@@ -34,6 +38,7 @@ describe('webmanifest', function () {
     );
     assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/shortcut-icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
   it('should support .json', async function () {
@@ -58,6 +63,10 @@ describe('webmanifest', function () {
         type: 'png',
         assets: ['screenshot.png'],
       },
+      {
+        type: 'png',
+        assets: ['shortcut-icon.png'],
+      },
     ]);
 
     const manifest = await outputFS.readFile(
@@ -66,6 +75,7 @@ describe('webmanifest', function () {
     );
     assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/shortcut-icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
   it('should throw on malformed icons and screenshots', async function () {
@@ -122,6 +132,39 @@ describe('webmanifest', function () {
                     start: {
                       column: 18,
                       line: 15,
+                    },
+                  },
+                  {
+                    end: {
+                      column: 17,
+                      line: 18,
+                    },
+                    message: 'Expected type array',
+                    start: {
+                      column: 16,
+                      line: 18,
+                    },
+                  },
+                  {
+                    end: {
+                      column: 9,
+                      line: 30,
+                    },
+                    message: 'Missing property src',
+                    start: {
+                      column: 9,
+                      line: 27,
+                    },
+                  },
+                  {
+                    end: {
+                      column: 10,
+                      line: 31,
+                    },
+                    message: 'Missing property src',
+                    start: {
+                      column: 9,
+                      line: 31,
                     },
                   },
                 ],

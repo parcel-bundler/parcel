@@ -397,6 +397,18 @@ describe('scope hoisting', function () {
       assert.equal(output, 15);
     });
 
+    it('supports re-exporting all exports and overriding individual exports', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-override/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 'fooBfooCC');
+    });
+
     it('can import from a different bundle via a re-export (1)', async function () {
       let b = await bundle(
         path.join(
@@ -2222,6 +2234,17 @@ describe('scope hoisting', function () {
         [20, 30],
         [2, 3],
       ]);
+    });
+
+    it('should correctly retarget dependencies when both namespace and indvidual export are used', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/retarget-namespace-single/index.js',
+        ),
+      );
+      let output = await run(b);
+      assert.deepEqual(output, [123, 123]);
     });
 
     it('should correctly handle circular dependencies', async function () {

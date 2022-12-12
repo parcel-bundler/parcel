@@ -5,6 +5,23 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.8.1] - 2022-12-07
+
+### Fixed
+
+- Core
+  - fix: remove @parcel/utils dep in @parcel/graph – [Details](https://github.com/parcel-bundler/parcel/pull/8630)
+- JavaScript
+  - Don't retarget dependencies with `*` – [Details](https://github.com/parcel-bundler/parcel/pull/8645)
+  - Fix overriding single export of a `export *` – [Details](https://github.com/parcel-bundler/parcel/pull/8653)
+  - Add mjs and cjs to resolver extensions – [Details](https://github.com/parcel-bundler/parcel/pull/8667)
+- TypeScript
+  - Make ts-types transformer work with TS >= 4.8 – [Details](https://github.com/parcel-bundler/parcel/pull/8661)
+- Web manifest
+  - Parse shortcut icons in web app manifests – [Details](https://github.com/parcel-bundler/parcel/pull/8660)
+- SVG
+  - Fix transformer-svg-react not finding `.svgrrc` – [Details](https://github.com/parcel-bundler/parcel/pull/7741)
+
 ## [2.8.0] - 2022-11-09
 
 ### Added
@@ -166,7 +183,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Fix hoisting for optional chaining member expressions - [Details](https://github.com/parcel-bundler/parcel/pull/8121)
 - Fix issues with web extensions - [Details](https://github.com/parcel-bundler/parcel/pull/8000)
 - Reload the closest package.json to an asset if it's a package entry to fix `sideEffects` - [Details](https://github.com/parcel-bundler/parcel/pull/7909)
-- Only emit non static import bailout warnings for variables which correspond to a * import - [Details](https://github.com/parcel-bundler/parcel/pull/8136)
+- Only emit non static import bailout warnings for variables which correspond to a \* import - [Details](https://github.com/parcel-bundler/parcel/pull/8136)
 
 ## [2.5.0] - 2022-04-21
 
