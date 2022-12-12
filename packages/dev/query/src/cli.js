@@ -381,7 +381,7 @@ function listUnusedSymbols(v: string) {
       let unusedSymbols = setDifference(n.usedSymbols, allSymbols);
       if (unusedSymbols.size === 0) continue;
       console.log(
-        fromProjectPathRelative(n.value.filePath) + ' Does not use symbols: ',
+        fromProjectPathRelative(n.value.filePath) + ' contains these unused exports: ',
         [...unusedSymbols].join(','),
       );
     }
