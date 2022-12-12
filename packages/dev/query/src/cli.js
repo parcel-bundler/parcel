@@ -367,9 +367,14 @@ function traverseBundle(v: string) {
   });
 }
 
-function listUnusedSymbols() {
+function listUnusedSymbols(v: string) {
+  let assetRegex = new RegExp(v);
   for (let n of assetGraph.nodes.values()) {
-    if (n.type === 'asset') {
+    if (
+      n.type === 'asset' &&
+      assetRegex.test(fromProjectPathRelative(n.value.filePath)) &&
+      !n.value.filePath.includes('node_modules')
+    ) {
       if (n.usedSymbols.size === 0) continue;
       invariant(n.value.symbols != null);
       let allSymbols = new Set([...n.value.symbols?.keys()]);
@@ -679,14 +684,14 @@ if (initialCmd != null) {
     [
       'findAsset',
       {
-        help: 'args: <regex>. Lsit assets matching the filepath regex',
+        help: 'args: <regex>. List assets matching the filepath regex',
         action: findAsset,
       },
     ],
     [
       'listUnusedSymbols',
       {
-        help: 'args: <>. Lists all unused symbols in the project',
+        help: 'args: <filepath regex>. Lists all unused symbols for assets matching the filepath regex, excluding node_modules',
         action: listUnusedSymbols,
       },
     ],
