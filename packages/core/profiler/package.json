@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@parcel/diagnostic": "2.8.1",
+    "@parcel/events": "2.8.1",
     "chrome-trace-event": "^1.0.2"
   }
 }

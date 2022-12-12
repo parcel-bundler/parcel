@@ -1,10 +1,11 @@
 // @flow strict-local
 
+import type {ApplicationProfilerEvent, IDisposable} from '@parcel/types';
 import type {
-  ApplicationProfilerReportFn,
   ApplicationProfilerMeasurement,
   ApplicationProfilerMeasurementData,
 } from './types';
+import {ValueEmitter} from '@parcel/events';
 
 // $FlowFixMe
 import {performance as _performance} from 'perf_hooks';
@@ -20,10 +21,11 @@ const performance: Performance = _performance;
 const pid = process.pid;
 
 export default class ApplicationProfiler {
-  _report /*: ApplicationProfilerReportFn */;
+  #traceEmitter /* ValueEmitter<ApplicationProfilerEvent> */ =
+    new ValueEmitter();
 
-  constructor(report: ApplicationProfilerReportFn) {
-    this._report = report;
+  onTrace(cb: (event: ApplicationProfilerEvent) => mixed): IDisposable {
+    return this.#traceEmitter.addListener(cb);
   }
 
   async wrap(name: string, fn: () => mixed): Promise<void> {
@@ -42,7 +44,7 @@ export default class ApplicationProfiler {
     const start = performance.now();
     return {
       end: () => {
-        this._report({
+        this.trace({
           type: 'trace',
           name,
           pid,
@@ -54,13 +56,12 @@ export default class ApplicationProfiler {
       },
     };
   }
+
+  trace(event: ApplicationProfilerEvent): void {
+    this.#traceEmitter.emit(event);
+  }
 }
 
-const applicationProfiler: ApplicationProfiler = new ApplicationProfiler(
-  event => {
-    // eslint-disable-next-line no-console
-    console.log('app profiler event', event.name);
-  },
-);
+const applicationProfiler: ApplicationProfiler = new ApplicationProfiler();
 
 export {applicationProfiler};

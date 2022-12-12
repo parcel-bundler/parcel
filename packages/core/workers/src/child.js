@@ -18,7 +18,7 @@ import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {deserialize} from '@parcel/core';
 import bus from './bus';
-import {SamplingProfiler} from '@parcel/profiler';
+import {SamplingProfiler, applicationProfiler} from '@parcel/profiler';
 import _Handle from './Handle';
 
 // The import of './Handle' should really be imported eagerly (with @babel/plugin-transform-modules-commonjs's lazy mode).
@@ -37,6 +37,7 @@ export class Child {
   responseId: number = 0;
   responseQueue: Map<number, ChildCall> = new Map();
   loggerDisposable: IDisposable;
+  applicationProfilerDisposable: IDisposable;
   child: ChildImpl;
   profiler: ?SamplingProfiler;
   handles: Map<number, Handle> = new Map();
@@ -55,6 +56,10 @@ export class Child {
     // the main process via the bus.
     this.loggerDisposable = Logger.onLog(event => {
       bus.emit('logEvent', event);
+    });
+    // .. and do the same for application profiling events
+    this.applicationProfilerDisposable = applicationProfiler.onTrace(event => {
+      bus.emit('traceEvent', event);
     });
   }
 
@@ -289,6 +294,7 @@ export class Child {
 
   handleEnd(): void {
     this.loggerDisposable.dispose();
+    this.applicationProfilerDisposable.dispose();
   }
 
   createReverseHandle(fn: (...args: Array<any>) => mixed): Handle {

@@ -21,6 +21,7 @@ import logger, {
 } from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
 import BundleGraph from './BundleGraph';
+import {applicationProfiler} from '@parcel/profiler';
 
 type Opts = {|
   config: ParcelConfig,
@@ -44,6 +45,7 @@ export default class ReporterRunner {
     this.pluginOptions = new PluginOptions(this.options);
 
     logger.onLog(event => this.report(event));
+    applicationProfiler.onTrace(event => this.report(event));
 
     bus.on('reporterEvent', this.eventHandler);
     instances.add(this);

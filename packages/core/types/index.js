@@ -1897,6 +1897,23 @@ export type ValidationEvent = {|
 |};
 
 /**
+ * An application profiling trace event has occured.
+ * Loosely modeled on Chrome's Trace Event format: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
+ *
+ * @section reporter
+ */
+export type ApplicationProfilerEvent = {|
+  +type: 'trace',
+  +ts: number,
+  +duration: number,
+  +name: string,
+  +tid: number,
+  +pid: number,
+  +categories: string[],
+  +args?: {[key: string]: mixed},
+|};
+
+/**
  * @section reporter
  */
 export type ReporterEvent =
@@ -1907,7 +1924,8 @@ export type ReporterEvent =
   | BuildFailureEvent
   | WatchStartEvent
   | WatchEndEvent
-  | ValidationEvent;
+  | ValidationEvent
+  | ApplicationProfilerEvent;
 
 /**
  * @section reporter

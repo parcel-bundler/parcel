@@ -1,9 +1,10 @@
 // @flow
-import type {LogEvent} from '@parcel/types';
+import type {ApplicationProfilerEvent, LogEvent} from '@parcel/types';
 import invariant from 'assert';
 import WorkerFarm from './WorkerFarm';
 import Logger from '@parcel/logger';
 import bus from './bus';
+import {applicationProfiler} from '@parcel/profiler';
 
 if (!WorkerFarm.isWorker()) {
   // Forward all logger events originating from workers into the main process
@@ -28,6 +29,11 @@ if (!WorkerFarm.isWorker()) {
       default:
         throw new Error('Unknown log level');
     }
+  });
+
+  // Forward all application profiler trace events originating from workers into the main process
+  bus.on('traceEvent', (e: ApplicationProfilerEvent) => {
+    applicationProfiler.trace(e);
   });
 }
 
