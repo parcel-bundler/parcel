@@ -54,6 +54,7 @@ import {
   toProjectPathUnsafe,
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
+import {applicationProfiler} from '@parcel/profiler';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<string>,
@@ -290,6 +291,18 @@ class BundlerRunner {
           this.options,
         );
 
+        // FIXME only do this work if the profiler is enabled?
+        let measurementFilename = graph
+          .getEntryAssets()
+          .map(asset => fromProjectPathRelative(asset.filePath))
+          .join(', ');
+        let measurement = applicationProfiler.createMeasurement(plugin.name, {
+          categories: ['bundling:bundle'],
+          args: {
+            name: measurementFilename,
+          },
+        });
+
         // this the normal bundle workflow (bundle, optimizing, run-times, naming)
         await bundler.bundle({
           bundleGraph: mutableBundleGraph,
@@ -298,8 +311,20 @@ class BundlerRunner {
           logger,
         });
 
+        measurement.end();
+
         if (this.pluginOptions.mode === 'production') {
+          let optimizeMeasurement;
           try {
+            optimizeMeasurement = applicationProfiler.createMeasurement(
+              plugin.name,
+              {
+                categories: ['bundling:optimize'],
+                args: {
+                  name: measurementFilename,
+                },
+              },
+            );
             await bundler.optimize({
               bundleGraph: mutableBundleGraph,
               config: this.configs.get(plugin.name)?.result,
@@ -313,6 +338,7 @@ class BundlerRunner {
               }),
             });
           } finally {
+            optimizeMeasurement && optimizeMeasurement.end();
             await dumpGraphToGraphViz(
               // $FlowFixMe[incompatible-call]
               internalBundleGraph._graph,
