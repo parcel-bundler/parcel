@@ -121,23 +121,113 @@ function getAsset(v: string) {
   }
 }
 
-function findAsset(v: string) {
+function _findAssetNode(v: string) {
   let assetRegex = new RegExp(v);
   for (let node of assetGraph.nodes.values()) {
     if (
       node.type === 'asset' &&
       assetRegex.test(fromProjectPathRelative(node.value.filePath))
     ) {
-      try {
-        console.log(
-          `${bundleGraph.getAssetPublicId(
-            bundleGraph.getAssetById(node.id),
-          )} ${fromProjectPathRelative(node.value.filePath)}`,
-        );
-      } catch (e) {
-        console.log(fromProjectPathRelative(node.value.filePath));
+      return node;
+    }
+  }
+}
+
+function findAsset(v: string) {
+  let node = _findAssetNode(v);
+  if (node) {
+    try {
+      console.log(
+        `${bundleGraph.getAssetPublicId(
+          bundleGraph.getAssetById(node.id),
+        )} ${fromProjectPathRelative(node.value.filePath)}`,
+      );
+    } catch (e) {
+      console.log(fromProjectPathRelative(node.value.filePath));
+    }
+  }
+}
+
+function findAssetWithSymbol(local: string) {
+  let [, assetId, binding, ref] = nullthrows(
+    local.match(/^\$([^$]+)\$([^$]+)\$(.*)$/),
+    `symbol ${local} could not be resolved`,
+  );
+
+  let asset;
+  // Search against the id used by the JSTransformer and ScopeHoistingPackager,
+  // not the final asset id, as it may have changed with further transformation.
+  for (let node of assetGraph.nodes.values()) {
+    if (node.type === 'asset' && node.value.meta.id === assetId) {
+      asset = node;
+      break;
+    }
+  }
+
+  // If the asset couldn't be found by searching for the id,
+  // search for the local name in asset used symbols.
+  if (asset == null) {
+    outer: for (let node of assetGraph.nodes.values()) {
+      if (node.type === 'asset' && node.value.symbols) {
+        for (let symbol of node.value.symbols.values()) {
+          if (symbol.local === local) {
+            asset = node;
+            break outer;
+          }
+        }
       }
     }
+  }
+
+  invariant(asset, `An asset for ${assetId} could not be found`);
+  invariant(
+    asset.type === 'asset',
+    `Expected ${assetId} to be an asset, but found a ${asset.type}`,
+  );
+
+  try {
+    console.log(
+      `${bundleGraph.getAssetPublicId(
+        bundleGraph.getAssetById(asset.id),
+      )} ${fromProjectPathRelative(asset.value.filePath)}`,
+    );
+  } catch (e) {
+    console.log(fromProjectPathRelative(asset.value.filePath));
+  }
+  if (binding === 'export' && asset.value.symbols) {
+    for (let [symbolName, symbol] of asset.value.symbols) {
+      if (symbol.local === local) {
+        if (symbol.loc) {
+          let locPath = symbol.loc.filePath;
+          let locAsset = _findAssetNode(String(locPath));
+          if (locAsset != null) {
+            try {
+              console.log(
+                `${bundleGraph.getAssetPublicId(
+                  bundleGraph.getAssetById(locAsset.id),
+                )} ${fromProjectPathRelative(locAsset.value.filePath)}`,
+              );
+            } catch (e) {
+              console.log(
+                `imported as ${symbolName} from ${fromProjectPathRelative(
+                  locAsset.value.filePath,
+                )}`,
+              );
+            }
+          } else {
+            console.log(
+              `imported as ${symbolName} from ${fromProjectPathRelative(
+                locPath,
+              )}`,
+            );
+          }
+        } else {
+          console.log(`imported as ${symbolName}`);
+        }
+      }
+    }
+  } else if (ref) {
+    console.log(`possibly defined as ${ref}`);
   }
 }
 
@@ -664,6 +754,13 @@ if (initialCmd != null) {
       {
         help: 'args: <regex>. Lsit assets matching the filepath regex',
         action: findAsset,
+      },
+    ],
+    [
+      'findAssetWithSymbol',
+      {
+        help: 'args: <local>. Get the asset that defines the symbol with the given local name',
+        action: findAssetWithSymbol,
       },
     ],
   ])) {
