@@ -1,4 +1,3 @@
-#! /usr/bin/env node
 // @flow strict-local
 
 import type {CmdOptions} from './util';
@@ -7,7 +6,6 @@ import type {CmdOptions} from './util';
 import glob from 'glob';
 import path from 'path';
 import fs from 'fs';
-import nullthrows from 'nullthrows';
 
 import {
   cleanupNodeModules,
@@ -28,7 +26,7 @@ export type UnlinkOptions = {|
   log?: (...data: mixed[]) => void,
 |};
 
-export default function unlink({
+export function unlink({
   appRoot,
   namespace,
   // TODO: move this default up a level

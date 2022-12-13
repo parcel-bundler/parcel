@@ -16,8 +16,8 @@ const commander /*: Commander */ = require('commander');
 
 // $FlowFixMe[untyped-import]
 const {version} = require('../package.json');
-const link = require('../src/link').default;
-const unlink = require('../src/unlink').default;
+const {link} = require('../src/link');
+const {unlink} = require('../src/unlink');
 
 const program = new commander.Command();
 

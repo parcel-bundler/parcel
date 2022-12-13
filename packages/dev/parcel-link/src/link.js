@@ -1,4 +1,3 @@
-#! /usr/bin/env node
 // @flow strict-local
 
 import type {CmdOptions} from './util';
@@ -28,7 +27,7 @@ export type LinkOptions = {|
   log?: (...data: mixed[]) => void,
 |};
 
-export default function link({
+export function link({
   appRoot,
   packageRoot,
   namespace,
