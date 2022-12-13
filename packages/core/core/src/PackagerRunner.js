@@ -61,6 +61,7 @@ import {createBuildCache} from './buildCache';
 import {getInvalidationId, getInvalidationHash} from './assetUtils';
 import {optionsProxy} from './utils';
 import {invalidateDevDeps} from './requests/DevDepRequest';
+import {applicationProfiler} from '@parcel/profiler';
 
 type Opts = {|
   config: ParcelConfig,
@@ -394,7 +395,15 @@ export default class PackagerRunner {
 
     let packager = await this.config.getPackager(bundle.name);
     let {name, resolveFrom, plugin} = packager;
+    let measurement;
     try {
+      measurement = applicationProfiler.createMeasurement(name, {
+        categories: ['packaging'],
+        args: {
+          name: bundle.name,
+          type: bundle.type,
+        },
+      });
       return await plugin.package({
         config: configs.get(name)?.result,
         bundleConfig: bundleConfigs.get(name)?.result,
@@ -438,6 +447,7 @@ export default class PackagerRunner {
         }),
       });
     } finally {
+      measurement && measurement.end();
       // Add dev dependency for the packager. This must be done AFTER running it due to
       // the potential for lazy require() that aren't executed until the request runs.
       let devDepRequest = await createDevDependency(
