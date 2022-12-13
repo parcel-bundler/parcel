@@ -68,5 +68,5 @@ $ parcel-link -g build-tools/*/node_modules -g build-tools/parcel/*/node_modules
 To restore the project to its default Parcel install:
 
 ```sh
-$ parcel-unlink
+$ parcel-link unlink [options] [packageRoot]
 ```
