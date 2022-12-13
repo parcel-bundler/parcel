@@ -22,6 +22,7 @@
   "dependencies": {
     "@parcel/plugin": "2.8.1",
     "@parcel/utils": "2.8.1",
-    "chrome-trace-event": "^1.0.3"
+    "chrome-trace-event": "^1.0.3",
+    "nullthrows": "^1.1.1"
   }
 }

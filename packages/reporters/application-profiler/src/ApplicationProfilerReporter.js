@@ -1,9 +1,13 @@
 // @flow
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import {Reporter} from '@parcel/plugin';
 import {Tracer} from 'chrome-trace-event';
 
+// We need to maintain some state here to ensure we write to the same output, there should only be one
+// instance of this reporter (this gets asserted below)
 let tracer;
+let writeStream = null;
 
 function millisecondsToMicroseconds(milliseconds: number) {
   return Math.floor(milliseconds * 1000);
@@ -28,15 +32,24 @@ export default (new Reporter({
     let filename;
     switch (event.type) {
       case 'buildStart':
+        invariant(
+          tracer == null,
+          'Application profiler tracer multiple initialisation',
+        );
         tracer = new Tracer();
         filename = `parcel-application-profile-${getTimeId()}.json`;
         logger.info({message: `Writing application profile to ${filename}`});
-        tracer.pipe(options.outputFS.createWriteStream(filename));
+        invariant(
+          writeStream == null,
+          'Application profile write stream multiple initialisation',
+        );
+        writeStream = options.outputFS.createWriteStream(filename);
+        nullthrows(tracer).pipe(nullthrows(writeStream));
         break;
       case 'trace':
         invariant(
           tracer instanceof Tracer,
-          'Trace event received without Tracer instanciation',
+          'Trace event received without Tracer instantiation',
         );
         tracer.completeEvent({
           name: event.name,
@@ -50,7 +63,11 @@ export default (new Reporter({
         break;
       case 'buildSuccess':
       case 'buildFailure':
-        tracer.flush();
+        nullthrows(tracer).flush();
+        // Ensure that the nodeFS implementation of writeStream moves the temp file to it's proper location
+        nullthrows(writeStream).end();
+        writeStream = null;
+        tracer = null;
         break;
     }
   },

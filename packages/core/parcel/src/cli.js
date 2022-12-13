@@ -88,7 +88,8 @@ const commonOptions = {
   '--dist-dir <dir>':
     'output directory to write to when unspecified by targets',
   '--no-autoinstall': 'disable autoinstall',
-  '--profile': 'enable build profiling',
+  '--profile': 'enable sampling build profiling',
+  '--profile-application': 'enable application build profiling',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
@@ -463,6 +464,13 @@ async function normalizeOptions(
       resolveFrom: path.join(inputFS.cwd(), 'index'),
     })),
   ];
+
+  if (command.profileApplication) {
+    additionalReporters.unshift({
+      packageName: '@parcel/reporter-application-profiler',
+      resolveFrom: __filename,
+    });
+  }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
