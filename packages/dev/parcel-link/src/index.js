@@ -5,3 +5,4 @@ export type {UnlinkOptions} from './unlink';
 
 export {link} from './link';
 export {unlink} from './unlink';
+export {ParcelLinkConfig} from './ParcelLinkConfig';

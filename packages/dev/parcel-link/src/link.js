@@ -1,16 +1,9 @@
 // @flow strict-local
 
+import type {ParcelLinkConfig} from './ParcelLinkConfig';
 import type {CmdOptions} from './util';
 
-// $FlowFixMe[untyped-import]
-import glob from 'glob';
-import path from 'path';
-import fs from 'fs';
-import nullthrows from 'nullthrows';
-
 import {
-  validateAppRoot,
-  validatePackageRoot,
   findParcelPackages,
   mapNamespacePackageAliases,
   cleanupNodeModules,
@@ -18,33 +11,28 @@ import {
   fsSymlink,
 } from './util';
 
+import fs from 'fs';
+// $FlowFixMe[untyped-import]
+import glob from 'glob';
+import nullthrows from 'nullthrows';
+import path from 'path';
+
 export type LinkOptions = {|
-  appRoot: string,
-  packageRoot: string,
-  nodeModulesGlobs?: string[],
-  namespace?: string,
   dryRun?: boolean,
   log?: (...data: mixed[]) => void,
 |};
 
-export function link({
-  appRoot,
-  packageRoot,
-  namespace,
-  dryRun = false,
-  nodeModulesGlobs = ['node_modules'],
-  log = () => {},
-}: LinkOptions) {
-  validateAppRoot(appRoot);
+export function link(
+  config: ParcelLinkConfig,
+  {dryRun = false, log = () => {}}: LinkOptions,
+) {
+  config.validate();
 
-  let nodeModulesPaths = nodeModulesGlobs.reduce(
-    (matches, pattern) => [...matches, ...glob.sync(pattern, {cwd: appRoot})],
-    [],
-  );
+  let {appRoot, packageRoot, namespace, nodeModulesGlobs} = config;
+
+  let nodeModulesPaths = config.getNodeModulesPaths();
 
   let opts: CmdOptions = {appRoot, packageRoot, dryRun, log};
-
-  validatePackageRoot(packageRoot);
 
   // Step 1: Determine all Parcel packages to link
   // --------------------------------------------------------------------------------

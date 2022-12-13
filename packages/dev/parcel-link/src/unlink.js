@@ -1,11 +1,7 @@
 // @flow strict-local
 
+import type {ParcelLinkConfig} from './ParcelLinkConfig';
 import type {CmdOptions} from './util';
-
-// $FlowFixMe[untyped-import]
-import glob from 'glob';
-import path from 'path';
-import fs from 'fs';
 
 import {
   cleanupNodeModules,
@@ -13,42 +9,28 @@ import {
   findParcelPackages,
   fsWrite,
   mapNamespacePackageAliases,
-  validateAppRoot,
-  validatePackageRoot,
 } from './util';
 
+import fs from 'fs';
+// $FlowFixMe[untyped-import]
+import glob from 'glob';
+import path from 'path';
+
 export type UnlinkOptions = {|
-  appRoot: string,
-  nodeModulesGlobs?: string[],
-  namespace?: string,
   dryRun?: boolean,
   forceInstall?: boolean,
   log?: (...data: mixed[]) => void,
 |};
 
-export function unlink({
-  appRoot,
-  namespace,
-  // TODO: move this default up a level
-  nodeModulesGlobs = ['node_modules'],
-  dryRun = false,
-  forceInstall = false,
-  log = () => {},
-}: UnlinkOptions) {
-  validateAppRoot(appRoot);
+export function unlink(
+  config: ParcelLinkConfig,
+  {dryRun = false, forceInstall = false, log = () => {}}: UnlinkOptions,
+) {
+  config.validate();
 
-  // FIXME: This should be detected from the links in the app.
-  // Using this file's package root is techincally wrong
-  // if the link was performed against a different package root.
-  // We could add some config to the root package.json to store
-  // the package root that was used to link.
-  let packageRoot = path.join(__dirname, '../../../');
-  validatePackageRoot(packageRoot);
+  let {appRoot, packageRoot, namespace, nodeModulesGlobs} = config;
 
-  let nodeModulesPaths = nodeModulesGlobs.reduce(
-    (matches, pattern) => [...matches, ...glob.sync(pattern, {cwd: appRoot})],
-    [],
-  );
+  let nodeModulesPaths = config.getNodeModulesPaths();
 
   let opts: CmdOptions = {appRoot, packageRoot, dryRun, log};
 

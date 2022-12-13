@@ -1,8 +1,8 @@
 // @flow strict-local
 
-import path from 'path';
-import fs from 'fs';
 import child_process from 'child_process';
+import fs from 'fs';
+import path from 'path';
 
 export type CmdOptions = {|
   appRoot: string,
@@ -10,22 +10,6 @@ export type CmdOptions = {|
   dryRun: boolean,
   log: (...data: mixed[]) => void,
 |};
-
-export function validateAppRoot(appRoot: string) {
-  try {
-    fs.accessSync(path.join(appRoot, 'yarn.lock'));
-  } catch (e) {
-    throw new Error(`Not a root: '${appRoot}'`);
-  }
-}
-
-export function validatePackageRoot(packageRoot: string) {
-  try {
-    fs.accessSync(path.join(packageRoot, 'core/core'));
-  } catch (e) {
-    throw new Error(`Not a package root: '${packageRoot}'`);
-  }
-}
 
 export function fsWrite(
   f: string,

@@ -18,6 +18,7 @@ const commander /*: Commander */ = require('commander');
 const {version} = require('../package.json');
 const {link} = require('../src/link');
 const {unlink} = require('../src/unlink');
+const {ParcelLinkConfig} = require('../src/ParcelLinkConfig');
 
 const program = new commander.Command();
 
@@ -41,16 +42,15 @@ program
   )
   .action((packageRoot, options) => {
     if (options.dryRun) console.log('Dry run...');
-    link({
+    let parcelLinkConfig = new ParcelLinkConfig({
       appRoot: process.cwd(),
       packageRoot: packageRoot ?? path.join(__dirname, '../../../'),
       namespace: options.namespace,
       nodeModulesGlobs: Array.isArray(options.nodeModulesGlobs)
         ? options.nodeModulesGlobs
         : [options.nodeModulesGlobs],
-      dryRun: options.dryRun,
-      log: console.log,
     });
+    link(parcelLinkConfig, {dryRun: options.dryRun, log: console.log});
     console.log('🎉 Linking successful');
   });
 
@@ -74,12 +74,16 @@ program
   )
   .action((packageRoot, options) => {
     if (options.dryRun) console.log('Dry run...');
-    unlink({
+    let parcelLinkConfig = new ParcelLinkConfig({
       appRoot: process.cwd(),
+      packageRoot: packageRoot ?? path.join(__dirname, '../../../'),
       namespace: options.namespace,
       nodeModulesGlobs: Array.isArray(options.nodeModulesGlobs)
         ? options.nodeModulesGlobs
         : [options.nodeModulesGlobs],
+    });
+
+    unlink(parcelLinkConfig, {
       dryRun: options.dryRun,
       forceInstall: options.forceInstall,
       log: console.log,
