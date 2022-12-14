@@ -4,7 +4,7 @@
   "version": "2.8.0",
   "private": true,
   "bin": {
-    "parcel-link": "bin/cli.js"
+    "parcel-link": "bin.js"
   },
   "main": "src/index.js",
   "dependencies": {
