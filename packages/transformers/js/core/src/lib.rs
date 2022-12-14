@@ -484,11 +484,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 result.diagnostics = Some(diagnostics);
               }
 
-              let (buf, mut src_map_buf) =
+              let (buf, src_map_buf) =
                 emit(source_map.clone(), comments, &module, config.source_maps)?;
               if config.source_maps
                 && source_map
-                  .build_source_map(&mut src_map_buf)
+                  .build_source_map(&src_map_buf)
                   .to_writer(&mut map_buf)
                   .is_ok()
               {
