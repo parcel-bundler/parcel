@@ -106,6 +106,9 @@ export class DevPackager {
           } else if (resolved) {
             deps[getSpecifier(dep)] =
               this.bundleGraph.getAssetPublicId(resolved);
+          } else {
+            // An external module - map placeholder to original specifier.
+            deps[getSpecifier(dep)] = dep.specifier;
           }
         }
 

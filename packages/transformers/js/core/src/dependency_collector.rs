@@ -115,12 +115,12 @@ impl<'a> DependencyCollector<'a> {
       }
     }
 
-    // For normal imports/requires, the specifier will remain unchanged.
+    // For ESM imports, the specifier will remain unchanged.
     // For other types of dependencies, the specifier will be changed to a hash
     // that also contains the dependency kind. This way, multiple kinds of dependencies
     // to the same specifier can be used within the same file.
     let placeholder = match kind {
-      DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => {
+      DependencyKind::Import | DependencyKind::Export => {
         if is_specifier_rewritten {
           Some(specifier.as_ref().to_owned())
         } else {
