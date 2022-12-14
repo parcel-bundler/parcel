@@ -87,6 +87,7 @@ export class OverlayFS implements FileSystem {
   }
   stat: (...args: Array<any>) => Promise<Buffer & string & $Shape<Stats>> =
     read('stat');
+  symlink: (...args: Array<any>) => any = write('symlink');
   unlink: (...args: Array<any>) => any = write('unlink');
   mkdirp: (...args: Array<any>) => any = write('mkdirp');
   rimraf: (...args: Array<any>) => any = write('rimraf');
