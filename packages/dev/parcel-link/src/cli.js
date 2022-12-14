@@ -1,16 +1,31 @@
 // @flow strict-local
 /* eslint-disable no-console */
 
+import type {FileSystem} from '@parcel/fs';
+
 // $FlowFixMe[untyped-import]
 import {version} from '../package.json';
 import {ParcelLinkConfig} from './ParcelLinkConfig';
-import {link} from './link';
-import {unlink} from './unlink';
+import {link as linkAction} from './link';
+import {unlink as unlinkAction} from './unlink';
+import {NodeFS} from '@parcel/fs';
 
 import commander from 'commander';
 import path from 'path';
 
-export function createProgram(): commander.Command {
+type ProgramOptions = {|
+  fs?: FileSystem,
+  link?: typeof linkAction,
+  unlink?: typeof unlinkAction,
+|};
+
+export function createProgram(opts?: ProgramOptions): commander.Command {
+  const {
+    fs = new NodeFS(),
+    link = linkAction,
+    unlink = unlinkAction,
+  } = opts ?? {};
+
   const program = new commander.Command();
 
   program
@@ -38,7 +53,7 @@ export function createProgram(): commander.Command {
       let parcelLinkConfig;
 
       try {
-        parcelLinkConfig = await ParcelLinkConfig.load(appRoot);
+        parcelLinkConfig = await ParcelLinkConfig.load(appRoot, {fs});
       } catch (e) {
         // boop!
       }
@@ -51,6 +66,7 @@ export function createProgram(): commander.Command {
       }
 
       parcelLinkConfig = new ParcelLinkConfig({
+        fs,
         appRoot,
         packageRoot: packageRoot ?? path.join(__dirname, '../../../'),
         namespace: options.namespace,
@@ -90,7 +106,7 @@ export function createProgram(): commander.Command {
 
       let parcelLinkConfig;
       try {
-        parcelLinkConfig = await ParcelLinkConfig.load(appRoot);
+        parcelLinkConfig = await ParcelLinkConfig.load(appRoot, {fs});
       } catch (e) {
         // boop!
       }

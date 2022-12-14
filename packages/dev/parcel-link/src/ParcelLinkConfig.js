@@ -7,21 +7,19 @@ import assert from 'assert';
 import glob from 'glob';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {NodeFS} from '@parcel/fs';
 
 export class ParcelLinkConfig {
+  fs: FileSystem;
   appRoot: string;
   packageRoot: string;
-  fs: FileSystem;
   namespace: string = '@parcel';
   nodeModulesGlobs: string[] = ['node_modules'];
   filename: string = '.parcel-link';
 
   static load(
     appRoot: string,
-    options?: {|filename?: string, fs?: FileSystem|},
+    {fs, filename = '.parcel-link'}: {|fs: FileSystem, filename?: string|},
   ): ParcelLinkConfig {
-    let {fs = new NodeFS(), filename = '.parcel-link'} = options ?? {};
     let manifest = JSON.parse(
       fs.readFileSync(path.join(appRoot, filename), 'utf8'),
     );
@@ -29,13 +27,14 @@ export class ParcelLinkConfig {
   }
 
   constructor(options: {|
+    fs: FileSystem,
     appRoot: string,
     packageRoot: string,
     namespace?: string,
     nodeModulesGlobs?: string[],
-    fs?: FileSystem,
     filename?: string,
   |}) {
+    this.fs = nullthrows(options.fs, 'fs is required');
     this.appRoot = nullthrows(options.appRoot, 'appRoot is required');
     this.packageRoot = nullthrows(
       options.packageRoot,
@@ -44,7 +43,6 @@ export class ParcelLinkConfig {
     this.namespace = options.namespace ?? this.namespace;
     this.nodeModulesGlobs = options.nodeModulesGlobs ?? this.nodeModulesGlobs;
     this.filename = options.filename ?? this.filename;
-    this.fs = options.fs ?? new NodeFS();
   }
 
   async save(): Promise<void> {
