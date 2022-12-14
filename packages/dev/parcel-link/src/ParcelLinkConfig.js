@@ -1,23 +1,31 @@
 // @flow
 
-import fs from 'fs';
+import type {FileSystem} from '@parcel/fs';
+
 // $FlowFixMe[untyped-import]
+import assert from 'assert';
 import glob from 'glob';
 import nullthrows from 'nullthrows';
 import path from 'path';
+import {NodeFS} from '@parcel/fs';
 
 export class ParcelLinkConfig {
   appRoot: string;
   packageRoot: string;
+  fs: FileSystem;
   namespace: string = '@parcel';
   nodeModulesGlobs: string[] = ['node_modules'];
+  filename: string = '.parcel-link';
 
-  static async load(filepath: string): Promise<ParcelLinkConfig> {
-    return ParcelLinkConfig.parse(await fs.promises.readFile(filepath, 'utf8'));
-  }
-
-  static parse(manifest: string): ParcelLinkConfig {
-    return new ParcelLinkConfig(JSON.parse(manifest));
+  static load(
+    appRoot: string,
+    options?: {|filename?: string, fs?: FileSystem|},
+  ): ParcelLinkConfig {
+    let {fs = new NodeFS(), filename = '.parcel-link'} = options ?? {};
+    let manifest = JSON.parse(
+      fs.readFileSync(path.join(appRoot, filename), 'utf8'),
+    );
+    return new ParcelLinkConfig({...manifest, fs});
   }
 
   constructor(options: {|
@@ -25,6 +33,8 @@ export class ParcelLinkConfig {
     packageRoot: string,
     namespace?: string,
     nodeModulesGlobs?: string[],
+    fs?: FileSystem,
+    filename?: string,
   |}) {
     this.appRoot = nullthrows(options.appRoot, 'appRoot is required');
     this.packageRoot = nullthrows(
@@ -33,11 +43,24 @@ export class ParcelLinkConfig {
     );
     this.namespace = options.namespace ?? this.namespace;
     this.nodeModulesGlobs = options.nodeModulesGlobs ?? this.nodeModulesGlobs;
+    this.filename = options.filename ?? this.filename;
+    this.fs = options.fs ?? new NodeFS();
+  }
+
+  async save(): Promise<void> {
+    return this.fs.writeFile(
+      path.join(this.appRoot, this.filename),
+      JSON.stringify(this, null, 2),
+    );
+  }
+
+  async delete(): Promise<void> {
+    return this.fs.rimraf(path.join(this.appRoot, this.filename));
   }
 
   validateAppRoot() {
     try {
-      fs.accessSync(path.join(this.appRoot, 'yarn.lock'));
+      assert(this.fs.existsSync(path.join(this.appRoot, 'yarn.lock')));
     } catch (e) {
       throw new Error(`Not a root: '${this.appRoot}'`);
     }
@@ -45,7 +68,7 @@ export class ParcelLinkConfig {
 
   validatePackageRoot() {
     try {
-      fs.accessSync(path.join(this.packageRoot, 'core/core'));
+      assert(this.fs.existsSync(path.join(this.packageRoot, 'core/core')));
     } catch (e) {
       throw new Error(`Not a package root: '${this.packageRoot}'`);
     }

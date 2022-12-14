@@ -35,7 +35,22 @@ export function createProgram(): commander.Command {
       if (options.dryRun) console.log('Dry run...');
       let appRoot = process.cwd();
 
-      let parcelLinkConfig = new ParcelLinkConfig({
+      let parcelLinkConfig;
+
+      try {
+        parcelLinkConfig = await ParcelLinkConfig.load(appRoot);
+      } catch (e) {
+        // boop!
+      }
+
+      if (parcelLinkConfig) {
+        console.error(
+          'A Parcel link already exists! Try `parcel-link unlink` to re-link.',
+        );
+        process.exit(1);
+      }
+
+      parcelLinkConfig = new ParcelLinkConfig({
         appRoot,
         packageRoot: packageRoot ?? path.join(__dirname, '../../../'),
         namespace: options.namespace,
@@ -44,7 +59,9 @@ export function createProgram(): commander.Command {
           : [options.nodeModulesGlobs],
       });
 
-      link(parcelLinkConfig, {dryRun: options.dryRun, log: console.log});
+      await link(parcelLinkConfig, {dryRun: options.dryRun, log: console.log});
+
+      if (!options.dryRun) await parcelLinkConfig.save();
 
       console.log('🎉 Linking successful');
     });
@@ -67,22 +84,30 @@ export function createProgram(): commander.Command {
       'Locations where node_modules should be unlinked in the app',
       'node_modules',
     )
-    .action((packageRoot, options) => {
+    .action(async (packageRoot, options) => {
       if (options.dryRun) console.log('Dry run...');
-      let parcelLinkConfig = new ParcelLinkConfig({
-        appRoot: process.cwd(),
-        packageRoot: packageRoot ?? path.join(__dirname, '../../../'),
-        namespace: options.namespace,
-        nodeModulesGlobs: Array.isArray(options.nodeModulesGlobs)
-          ? options.nodeModulesGlobs
-          : [options.nodeModulesGlobs],
-      });
+      let appRoot = process.cwd();
 
-      unlink(parcelLinkConfig, {
-        dryRun: options.dryRun,
-        forceInstall: options.forceInstall,
-        log: console.log,
-      });
+      let parcelLinkConfig;
+      try {
+        parcelLinkConfig = await ParcelLinkConfig.load(appRoot);
+      } catch (e) {
+        // boop!
+      }
+
+      if (parcelLinkConfig) {
+        await unlink(parcelLinkConfig, {
+          dryRun: options.dryRun,
+          forceInstall: options.forceInstall,
+          log: console.log,
+        });
+
+        if (!options.dryRun) await parcelLinkConfig.delete();
+      } else {
+        console.error('A Parcel link could not be found!');
+        process.exit(1);
+      }
+
       console.log('🎉 Unlinking successful');
     });
 

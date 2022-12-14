@@ -1,39 +1,44 @@
 // @flow strict-local
 
 import child_process from 'child_process';
-import fs from 'fs';
 import path from 'path';
+
+import type {FileSystem} from '@parcel/fs';
 
 export type CmdOptions = {|
   appRoot: string,
   packageRoot: string,
   dryRun: boolean,
+  fs: FileSystem,
   log: (...data: mixed[]) => void,
 |};
 
-export function fsWrite(
+export async function fsWrite(
   f: string,
   content: string,
-  {appRoot, log, dryRun}: CmdOptions,
-) {
+  {appRoot, log, dryRun, fs}: CmdOptions,
+): Promise<void> {
   log('Writing', path.join('<app>', path.relative(appRoot, f)));
   if (!dryRun) {
-    fs.writeFileSync(f, content);
+    return fs.writeFile(f, content);
   }
 }
 
-export function fsDelete(f: string, {appRoot, log, dryRun}: CmdOptions) {
+export async function fsDelete(
+  f: string,
+  {appRoot, log, dryRun, fs}: CmdOptions,
+): Promise<void> {
   log('Deleting', path.join('<app>', path.relative(appRoot, f)));
   if (!dryRun) {
-    fs.rmSync(f, {recursive: true});
+    return fs.rimraf(f);
   }
 }
 
-export function fsSymlink(
+export async function fsSymlink(
   source: string,
   target: string,
-  {appRoot, log, dryRun}: CmdOptions,
-) {
+  {appRoot, log, dryRun, fs}: CmdOptions,
+): Promise<void> {
   log(
     'Symlink',
     source,
@@ -41,14 +46,15 @@ export function fsSymlink(
     path.join('<app>', path.relative(appRoot, target)),
   );
   if (!dryRun) {
-    fs.symlinkSync(source, target);
+    return fs.symlink(source, target);
   }
 }
 
-export function findParcelPackages(
+export async function findParcelPackages(
+  fs: FileSystem,
   rootDir: string,
   files: Map<string, string> = new Map(),
-): Map<string, string> {
+): Promise<Map<string, string>> {
   for (let file of fs.readdirSync(rootDir)) {
     if (file === 'node_modules') continue;
     let projectPath = path.join(rootDir, file);
@@ -56,12 +62,12 @@ export function findParcelPackages(
     if (stats && stats.isDirectory()) {
       let packagePath = path.join(projectPath, 'package.json');
       if (fs.existsSync(packagePath)) {
-        let pack = JSON.parse(fs.readFileSync(packagePath).toString());
+        let pack = JSON.parse(await fs.readFile(packagePath, 'utf8'));
         if (!pack.private) {
           files.set(pack.name, projectPath);
         }
       } else {
-        findParcelPackages(projectPath, files);
+        await findParcelPackages(fs, projectPath, files);
       }
     }
   }
@@ -89,26 +95,25 @@ export function mapNamespacePackageAliases(
   return aliasesToParcelPackages;
 }
 
-export function cleanupNodeModules(
+export async function cleanupNodeModules(
   root: string,
   predicate: (filepath: string) => boolean,
   opts: CmdOptions,
-) {
+): Promise<void> {
+  let {fs} = opts;
   for (let dirName of fs.readdirSync(root)) {
     let dirPath = path.join(root, dirName);
     if (dirName === '.bin') {
       let binSymlink = path.join(root, '.bin/parcel');
       try {
-        fs.accessSync(binSymlink);
-        // no access error, exists
-        fsDelete(binSymlink, opts);
+        await fsDelete(binSymlink, opts);
       } catch (e) {
         // noop
       }
       continue;
     }
     if (dirName[0].startsWith('@')) {
-      cleanupNodeModules(dirPath, predicate, opts);
+      await cleanupNodeModules(dirPath, predicate, opts);
       continue;
     }
 
@@ -123,7 +128,7 @@ export function cleanupNodeModules(
     // -------
 
     if (predicate(packageName)) {
-      fsDelete(dirPath, opts);
+      await fsDelete(dirPath, opts);
     }
 
     // -------
@@ -136,7 +141,7 @@ export function cleanupNodeModules(
       // noop
     }
     if (stat?.isDirectory()) {
-      cleanupNodeModules(packageNodeModules, predicate, opts);
+      await cleanupNodeModules(packageNodeModules, predicate, opts);
     }
   }
 }

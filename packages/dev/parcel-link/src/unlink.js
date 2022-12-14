@@ -11,7 +11,6 @@ import {
   mapNamespacePackageAliases,
 } from './util';
 
-import fs from 'fs';
 // $FlowFixMe[untyped-import]
 import glob from 'glob';
 import path from 'path';
@@ -22,7 +21,7 @@ export type UnlinkOptions = {|
   log?: (...data: mixed[]) => void,
 |};
 
-export function unlink(
+export async function unlink(
   config: ParcelLinkConfig,
   {dryRun = false, forceInstall = false, log = () => {}}: UnlinkOptions,
 ) {
@@ -32,19 +31,19 @@ export function unlink(
 
   let nodeModulesPaths = config.getNodeModulesPaths();
 
-  let opts: CmdOptions = {appRoot, packageRoot, dryRun, log};
+  let opts: CmdOptions = {appRoot, packageRoot, dryRun, log, fs: config.fs};
 
   // Step 1: Determine all Parcel packages that could be linked
   // --------------------------------------------------------------------------------
 
-  let parcelPackages = findParcelPackages(packageRoot);
+  let parcelPackages = await findParcelPackages(config.fs, packageRoot);
 
   // Step 2: Delete all official packages (`@parcel/*`) from node_modules
   // This is very brute-force, but should ensure that we catch all linked packages.
   // --------------------------------------------------------------------------------
 
   for (let nodeModules of nodeModulesPaths) {
-    cleanupNodeModules(
+    await cleanupNodeModules(
       nodeModules,
       packageName => parcelPackages.has(packageName),
       opts,
@@ -67,12 +66,15 @@ export function unlink(
     // --------------------------------------------------------------------------------
 
     log('Restoring .parcelrc');
-    let configPath = path.join(appRoot, '.parcelrc');
-    let config = fs.readFileSync(configPath, 'utf8');
+    let parcelConfigPath = path.join(appRoot, '.parcelrc');
+    let parcelConfig = config.fs.readFileSync(parcelConfigPath, 'utf8');
     for (let [alias, parcel] of namespacePackages) {
-      config = config.replace(new RegExp(`"${parcel}"`, 'g'), `"${alias}"`);
+      parcelConfig = parcelConfig.replace(
+        new RegExp(`"${parcel}"`, 'g'),
+        `"${alias}"`,
+      );
     }
-    fsWrite(configPath, config, opts);
+    await fsWrite(parcelConfigPath, parcelConfig, opts);
 
     // Step 3.3: In the root package.json, restore all references to namespaced plugins
     // For configs like "@namespace/parcel-bundler-default":{"maxParallelRequests": 10}
@@ -80,21 +82,21 @@ export function unlink(
 
     log('Restoring root package.json');
     let rootPkgPath = path.join(appRoot, 'package.json');
-    let rootPkg = fs.readFileSync(rootPkgPath, 'utf8');
+    let rootPkg = config.fs.readFileSync(rootPkgPath, 'utf8');
     for (let [alias, parcel] of namespacePackages) {
       rootPkg = rootPkg.replace(
         new RegExp(`"${parcel}"(\\s*:\\s*{)`, 'g'),
         `"${alias}"$1`,
       );
     }
-    fsWrite(rootPkgPath, rootPkg, opts);
+    await fsWrite(rootPkgPath, rootPkg, opts);
 
     // Step 3.4: Delete all namespaced packages (`@namespace/parcel-*`) from node_modules
     // This is very brute-force, but should ensure that we catch all linked packages.
     // --------------------------------------------------------------------------------
 
     for (let nodeModules of nodeModulesPaths) {
-      cleanupNodeModules(
+      await cleanupNodeModules(
         nodeModules,
         packageName => namespacePackages.has(packageName),
         opts,

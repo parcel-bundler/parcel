@@ -11,7 +11,6 @@ import {
   fsSymlink,
 } from './util';
 
-import fs from 'fs';
 // $FlowFixMe[untyped-import]
 import glob from 'glob';
 import nullthrows from 'nullthrows';
@@ -22,28 +21,28 @@ export type LinkOptions = {|
   log?: (...data: mixed[]) => void,
 |};
 
-export function link(
+export async function link(
   config: ParcelLinkConfig,
   {dryRun = false, log = () => {}}: LinkOptions,
-) {
+): Promise<void> {
   config.validate();
 
   let {appRoot, packageRoot, namespace, nodeModulesGlobs} = config;
 
   let nodeModulesPaths = config.getNodeModulesPaths();
 
-  let opts: CmdOptions = {appRoot, packageRoot, dryRun, log};
+  let opts: CmdOptions = {appRoot, packageRoot, dryRun, log, fs: config.fs};
 
   // Step 1: Determine all Parcel packages to link
   // --------------------------------------------------------------------------------
 
-  let parcelPackages = findParcelPackages(packageRoot);
+  let parcelPackages = await findParcelPackages(config.fs, packageRoot);
 
   // Step 2: Delete all official packages (`@parcel/*`) from node_modules
   // --------------------------------------------------------------------------------
 
   for (let nodeModules of nodeModulesPaths) {
-    cleanupNodeModules(
+    await cleanupNodeModules(
       nodeModules,
       packageName => parcelPackages.has(packageName),
       opts,
@@ -54,13 +53,13 @@ export function link(
   // --------------------------------------------------------------------------------
 
   for (let [packageName, p] of parcelPackages) {
-    fsSymlink(p, path.join(appRoot, 'node_modules', packageName), opts);
+    await fsSymlink(p, path.join(appRoot, 'node_modules', packageName), opts);
   }
 
   // Step 4: Point `parcel` bin symlink to linked `packages/core/parcel/src/bin.js`
   // --------------------------------------------------------------------------------
 
-  fsSymlink(
+  await fsSymlink(
     path.join(packageRoot, 'core/parcel/src/bin.js'),
     path.join(appRoot, 'node_modules/.bin/parcel'),
     opts,
@@ -79,11 +78,11 @@ export function link(
     // --------------------------------------------------------------------------------
 
     log('Rewriting .parcelrc');
-    let configPath = path.join(appRoot, '.parcelrc');
-    let config = fs.readFileSync(configPath, 'utf8');
-    fsWrite(
-      configPath,
-      config.replace(
+    let parcelConfigPath = path.join(appRoot, '.parcelrc');
+    let parcelConfig = config.fs.readFileSync(parcelConfigPath, 'utf8');
+    await fsWrite(
+      parcelConfigPath,
+      parcelConfig.replace(
         new RegExp(`"(${namespace}/parcel-[^"]*)"`, 'g'),
         (_, match) => `"${namespacePackages.get(match) ?? match}"`,
       ),
@@ -96,8 +95,8 @@ export function link(
 
     log('Rewriting root package.json');
     let rootPkgPath = path.join(appRoot, 'package.json');
-    let rootPkg = fs.readFileSync(rootPkgPath, 'utf8');
-    fsWrite(
+    let rootPkg = config.fs.readFileSync(rootPkgPath, 'utf8');
+    await fsWrite(
       rootPkgPath,
       rootPkg.replace(
         new RegExp(`"(${namespace}/parcel-[^"]*)"(\\s*:\\s*{)`, 'g'),
@@ -111,7 +110,7 @@ export function link(
     // --------------------------------------------------------------------------------
 
     for (let nodeModules of nodeModulesPaths) {
-      cleanupNodeModules(
+      await cleanupNodeModules(
         nodeModules,
         packageName => namespacePackages.has(packageName),
         opts,
@@ -123,7 +122,7 @@ export function link(
 
     for (let [alias, parcelName] of namespacePackages) {
       let p = nullthrows(parcelPackages.get(parcelName));
-      fsSymlink(p, path.join(appRoot, 'node_modules', alias), opts);
+      await fsSymlink(p, path.join(appRoot, 'node_modules', alias), opts);
     }
   }
 }

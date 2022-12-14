@@ -9,7 +9,8 @@
   "main": "src/index.js",
   "dependencies": {
     "@babel/core": "^7.0.0",
-    "@parcel/babel-register": "2.8.0",
+    "@parcel/babel-register": "2.8.1",
+    "@parcel/fs": "2.8.1",
     "commander": "^7.0.0",
     "glob": "^7.1.6",
     "nullthrows": "^1.1.1"
