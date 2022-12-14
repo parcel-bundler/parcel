@@ -19,7 +19,7 @@ export function createProgram(): commander.Command {
     .addHelpText('after', `\nThe link command is the default command.`);
 
   program
-    .command('link [packageRoot]')
+    .command('link [packageRoot]', {isDefault: true})
     .description('Link a dev copy of Parcel into an app', {
       packageRoot:
         'Path to the Parcel package root\nDefaults to the package root containing this package',
