@@ -146,6 +146,10 @@ export class Child {
           unpatchConsole();
         }
 
+        if (childOptions.shouldProfileApplication) {
+          applicationProfiler.enable();
+        }
+
         result = responseFromContent(await this.childInit(moduleName, child));
       } catch (e) {
         result = errorResponseFromError(e);

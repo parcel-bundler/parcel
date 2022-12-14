@@ -291,17 +291,20 @@ class BundlerRunner {
           this.options,
         );
 
-        // FIXME only do this work if the profiler is enabled?
-        let measurementFilename = graph
-          .getEntryAssets()
-          .map(asset => fromProjectPathRelative(asset.filePath))
-          .join(', ');
-        let measurement = applicationProfiler.createMeasurement(plugin.name, {
-          categories: ['bundling:bundle'],
-          args: {
-            name: measurementFilename,
-          },
-        });
+        let measurement;
+        let measurementFilename;
+        if (applicationProfiler.enabled) {
+          measurementFilename = graph
+            .getEntryAssets()
+            .map(asset => fromProjectPathRelative(asset.filePath))
+            .join(', ');
+          measurement = applicationProfiler.createMeasurement(plugin.name, {
+            categories: ['bundling:bundle'],
+            args: {
+              name: measurementFilename,
+            },
+          });
+        }
 
         // this the normal bundle workflow (bundle, optimizing, run-times, naming)
         await bundler.bundle({
@@ -311,20 +314,22 @@ class BundlerRunner {
           logger,
         });
 
-        measurement.end();
+        measurement && measurement.end();
 
         if (this.pluginOptions.mode === 'production') {
           let optimizeMeasurement;
           try {
-            optimizeMeasurement = applicationProfiler.createMeasurement(
-              plugin.name,
-              {
-                categories: ['bundling:optimize'],
-                args: {
-                  name: measurementFilename,
+            if (applicationProfiler.enabled) {
+              optimizeMeasurement = applicationProfiler.createMeasurement(
+                plugin.name,
+                {
+                  categories: ['bundling:optimize'],
+                  args: {
+                    name: nullthrows(measurementFilename),
+                  },
                 },
-              },
-            );
+              );
+            }
             await bundler.optimize({
               bundleGraph: mutableBundleGraph,
               config: this.configs.get(plugin.name)?.result,

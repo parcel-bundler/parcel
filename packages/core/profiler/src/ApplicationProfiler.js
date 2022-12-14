@@ -24,6 +24,8 @@ export default class ApplicationProfiler {
   #traceEmitter /* ValueEmitter<ApplicationProfilerEvent> */ =
     new ValueEmitter();
 
+  #enabled /* boolean */ = false;
+
   onTrace(cb: (event: ApplicationProfilerEvent) => mixed): IDisposable {
     return this.#traceEmitter.addListener(cb);
   }
@@ -57,7 +59,20 @@ export default class ApplicationProfiler {
     };
   }
 
+  get enabled(): boolean {
+    return this.#enabled;
+  }
+
+  enable(): void {
+    this.#enabled = true;
+  }
+
+  disable(): void {
+    this.#enabled = false;
+  }
+
   trace(event: ApplicationProfilerEvent): void {
+    if (!this.#enabled) return;
     this.#traceEmitter.emit(event);
   }
 }

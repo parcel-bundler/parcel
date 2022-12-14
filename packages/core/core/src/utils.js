@@ -103,6 +103,7 @@ const ignoreOptions = new Set([
   'shouldAutoInstall',
   'logLevel',
   'shouldProfile',
+  'shouldProfileApplication',
   'shouldPatchConsole',
   'projectRoot',
   'additionalReporters',

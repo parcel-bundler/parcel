@@ -11,6 +11,7 @@ export type FarmOptions = {
   workerPath?: FilePath,
   backend: BackendType,
   shouldPatchConsole?: boolean,
+  shouldProfileApplication?: boolean,
 };
 
 declare class WorkerFarm {

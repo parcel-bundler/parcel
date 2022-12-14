@@ -298,6 +298,7 @@ export type InitialParcelOptions = {|
   +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
   +shouldProfile?: boolean,
+  +shouldProfileApplication?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
   +shouldBundleIncrementally?: boolean,

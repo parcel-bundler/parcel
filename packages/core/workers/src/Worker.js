@@ -23,6 +23,7 @@ type WorkerOpts = {|
   forcedKillTime: number,
   backend: BackendType,
   shouldPatchConsole?: boolean,
+  shouldProfileApplication?: boolean,
   sharedReferences: $ReadOnlyMap<SharedReference, mixed>,
 |};
 
@@ -108,6 +109,7 @@ export default class Worker extends EventEmitter {
           forkModule,
           {
             shouldPatchConsole: !!this.options.shouldPatchConsole,
+            shouldProfileApplication: !!this.options.shouldProfileApplication,
           },
         ],
         retries: 0,
