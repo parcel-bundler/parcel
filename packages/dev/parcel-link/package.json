@@ -6,6 +6,9 @@
   "bin": {
     "parcel-link": "bin.js"
   },
+  "scripts": {
+    "test": "cd ../../.. && yarn test:integration --grep @parcel/link"
+  },
   "main": "src/index.js",
   "dependencies": {
     "@babel/core": "^7.0.0",

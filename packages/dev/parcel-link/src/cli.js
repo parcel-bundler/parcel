@@ -13,10 +13,10 @@ import {NodeFS} from '@parcel/fs';
 import commander from 'commander';
 import path from 'path';
 
-type ProgramOptions = {|
-  fs?: FileSystem,
-  link?: typeof linkAction,
-  unlink?: typeof unlinkAction,
+export type ProgramOptions = {|
+  +fs?: FileSystem,
+  +link?: typeof linkAction,
+  +unlink?: typeof unlinkAction,
 |};
 
 export function createProgram(opts?: ProgramOptions): commander.Command {
