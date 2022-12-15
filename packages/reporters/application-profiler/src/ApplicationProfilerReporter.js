@@ -38,11 +38,11 @@ export default (new Reporter({
         );
         tracer = new Tracer();
         filename = `parcel-application-profile-${getTimeId()}.json`;
-        logger.info({message: `Writing application profile to ${filename}`});
         invariant(
           writeStream == null,
           'Application profile write stream multiple initialisation',
         );
+        logger.info({message: `Writing application profile to ${filename}`});
         writeStream = options.outputFS.createWriteStream(filename);
         nullthrows(tracer).pipe(nullthrows(writeStream));
         break;

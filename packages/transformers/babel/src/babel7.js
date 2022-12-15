@@ -8,6 +8,8 @@ import {relativeUrl} from '@parcel/utils';
 import {remapAstLocations} from './remapAstLocations';
 
 import packageJson from '../package.json';
+import {applicationProfiler} from '@parcel/profiler';
+import path from 'path';
 
 const transformerVersion: mixed = packageJson.version;
 invariant(typeof transformerVersion === 'string');
@@ -65,6 +67,29 @@ export default async function babel7(
       outputFormat: asset.env.outputFormat,
     },
   };
+
+  if (applicationProfiler.enabled) {
+    config.wrapPluginVisitorMethod = (
+      key: string,
+      nodeType: string,
+      fn: Function,
+    ) => {
+      return function () {
+        const measurement = applicationProfiler.createMeasurement(
+          `babel:${key}`,
+          {
+            categories: ['transform:babel'],
+            args: {
+              name: path.relative(options.projectRoot, asset.filePath),
+              nodeType,
+            },
+          },
+        );
+        fn.apply(this, arguments);
+        measurement.end();
+      };
+    };
+  }
 
   let ast = await asset.getAST();
   let res;
