@@ -64,11 +64,22 @@ export default (new Reporter({
       case 'buildSuccess':
       case 'buildFailure':
         nullthrows(tracer).flush();
-        // Ensure that the nodeFS implementation of writeStream moves the temp file to it's proper location
-        nullthrows(writeStream).end();
-        writeStream = null;
-        tracer = null;
-        break;
+        // We explicitly trigger `end` on the writeStream for the trace, then we need to wait for
+        // the `close` event before resolving the promise this report function returns to ensure
+        // that the file has been properly closed and moved from it's temp location before Parcel
+        // shuts down.
+        return new Promise((resolve, reject) => {
+          nullthrows(writeStream).once('close', err => {
+            writeStream = null;
+            tracer = null;
+            if (err) {
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+          nullthrows(writeStream).end();
+        });
     }
   },
 }): Reporter);
