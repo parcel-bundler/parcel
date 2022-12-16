@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import assert from 'assert';
 import child_process from 'child_process';
 import path from 'path';
 
@@ -18,20 +19,17 @@ export async function fsWrite(
   content: string,
   {appRoot, log, dryRun, fs}: CmdOptions,
 ): Promise<void> {
-  log('Writing', path.join('<app>', path.relative(appRoot, f)));
-  if (!dryRun) {
-    return fs.writeFile(f, content);
-  }
+  if (!dryRun) await fs.writeFile(f, content);
+  log('Wrote', path.join('<app>', path.relative(appRoot, f)));
 }
 
 export async function fsDelete(
   f: string,
   {appRoot, log, dryRun, fs}: CmdOptions,
 ): Promise<void> {
-  log('Deleting', path.join('<app>', path.relative(appRoot, f)));
-  if (!dryRun) {
-    return fs.rimraf(f);
-  }
+  assert(await fs.exists(f));
+  if (!dryRun) await fs.rimraf(f);
+  log('Deleted', path.join('<app>', path.relative(appRoot, f)));
 }
 
 export async function fsSymlink(
@@ -39,15 +37,15 @@ export async function fsSymlink(
   target: string,
   {appRoot, log, dryRun, fs}: CmdOptions,
 ): Promise<void> {
+  assert(await fs.exists(source));
+  assert(!(await fs.exists(target)));
+  if (!dryRun) await fs.symlink(source, target);
   log(
     'Symlink',
     source,
     '->',
     path.join('<app>', path.relative(appRoot, target)),
   );
-  if (!dryRun) {
-    return fs.symlink(source, target);
-  }
 }
 
 export async function findParcelPackages(
