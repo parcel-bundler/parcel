@@ -90,7 +90,7 @@ export class ParcelLinkConfig {
     );
   }
 
-  toJson(): {|
+  toJSON(): {|
     appRoot: string,
     packageRoot: string,
     namespace: string,
