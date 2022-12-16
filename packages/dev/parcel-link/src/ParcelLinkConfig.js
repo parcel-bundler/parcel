@@ -8,6 +8,9 @@ import glob from 'glob';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
+const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
+const SCM_FILE_NAMES = ['.git', '.hg'];
+
 export class ParcelLinkConfig {
   fs: FileSystem;
   appRoot: string;
@@ -57,19 +60,19 @@ export class ParcelLinkConfig {
   }
 
   validateAppRoot() {
-    try {
-      assert(this.fs.existsSync(path.join(this.appRoot, 'yarn.lock')));
-    } catch (e) {
-      throw new Error(`Not a root: '${this.appRoot}'`);
-    }
+    assert(
+      [...LOCK_FILE_NAMES, ...SCM_FILE_NAMES].some(filename =>
+        this.fs.existsSync(path.join(this.appRoot, filename)),
+      ),
+      `Not a project root: '${this.appRoot}'`,
+    );
   }
 
   validatePackageRoot() {
-    try {
-      assert(this.fs.existsSync(path.join(this.packageRoot, 'core/core')));
-    } catch (e) {
-      throw new Error(`Not a package root: '${this.packageRoot}'`);
-    }
+    assert(
+      this.fs.existsSync(path.join(this.packageRoot, 'core/core')),
+      `Not a package root: '${this.packageRoot}'`,
+    );
   }
 
   validate(): void {
