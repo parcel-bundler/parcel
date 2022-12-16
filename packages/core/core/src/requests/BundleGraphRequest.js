@@ -481,7 +481,14 @@ class BundlerRunner {
     );
 
     for (let namer of namers) {
+      let measurement;
       try {
+        measurement = applicationProfiler.createMeasurement(namer.name, {
+          categories: ['namer'],
+          args: {
+            name: bundle.id,
+          },
+        });
         let name = await namer.plugin.name({
           bundle,
           bundleGraph,
@@ -505,6 +512,8 @@ class BundlerRunner {
             origin: namer.name,
           }),
         });
+      } finally {
+        measurement && measurement.end();
       }
     }
 
