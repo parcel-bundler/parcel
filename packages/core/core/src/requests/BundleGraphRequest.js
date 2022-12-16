@@ -93,6 +93,7 @@ export default function createBundleGraphRequest(
     run: async input => {
       let {options, api, invalidateReason} = input;
       let {optionsRef, requestedAssetIds, signal} = input.input;
+      let measurement = applicationProfiler.createMeasurement('building');
       let request = createAssetGraphRequest({
         name: 'Main',
         entries: options.entries,
@@ -106,7 +107,7 @@ export default function createBundleGraphRequest(
           force: options.shouldBuildLazily && requestedAssetIds.size > 0,
         },
       );
-
+      measurement.end();
       assertSignalNotAborted(signal);
 
       // If any subrequests are invalid (e.g. dev dep requests or config requests),
@@ -134,13 +135,16 @@ export default function createBundleGraphRequest(
       let {devDeps, invalidDevDeps} = await getDevDepRequests(input.api);
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
+      let bundlingMeasurement = applicationProfiler.createMeasurement(
+        'bundling',
+      );
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
       let res: BundleGraphResult = await builder.bundle({
         graph: assetGraph,
         changedAssets: changedAssets,
         assetRequests,
       });
-
+      bundlingMeasurement.end();
       for (let [id, asset] of changedAssets) {
         res.changedAssets.set(id, asset);
       }

@@ -21,6 +21,8 @@ import IBundleGraph from '../public/BundleGraph';
 import {NamedBundle} from '../public/Bundle';
 import {assetFromValue} from '../public/Asset';
 
+import {applicationProfiler} from '@parcel/profiler';
+
 type ParcelBuildRequestInput = {|
   optionsRef: SharedReference,
   requestedAssetIds: Set<string>,
@@ -91,12 +93,14 @@ async function run({input, api, options}) {
     ),
   });
 
+  let packaingMeasurement = applicationProfiler.createMeasurement('packaging');
   let writeBundlesRequest = createWriteBundlesRequest({
     bundleGraph,
     optionsRef,
   });
 
   let bundleInfo = await api.runRequest(writeBundlesRequest);
+  packaingMeasurement.end();
   assertSignalNotAborted(signal);
 
   return {bundleGraph, bundleInfo, changedAssets, assetRequests};
