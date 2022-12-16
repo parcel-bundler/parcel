@@ -41,6 +41,11 @@ export function setDifference<T>(a: Set<T>, b: Set<T>): Set<T> {
       difference.add(e);
     }
   }
+  for (let d of b) {
+    if (!a.has(d)) {
+      difference.add(d);
+    }
+  }
   return difference;
 }
 
