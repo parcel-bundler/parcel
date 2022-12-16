@@ -6,4 +6,13 @@
 // $FlowFixMe[untyped-import]
 require('@parcel/babel-register');
 
-require('./src/cli').createProgram().parse();
+let program = require('./src/cli').createProgram();
+
+(async function main() {
+  try {
+    await program.parseAsync();
+  } catch (e) {
+    console.error(e);
+    process.exit(1);
+  }
+})();

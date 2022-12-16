@@ -59,10 +59,9 @@ export function createProgram(opts?: ProgramOptions): commander.Command {
       }
 
       if (parcelLinkConfig) {
-        console.error(
+        throw new Error(
           'A Parcel link already exists! Try `parcel-link unlink` to re-link.',
         );
-        process.exit(1);
       }
 
       parcelLinkConfig = new ParcelLinkConfig({
@@ -120,8 +119,7 @@ export function createProgram(opts?: ProgramOptions): commander.Command {
 
         if (!options.dryRun) await parcelLinkConfig.delete();
       } else {
-        console.error('A Parcel link could not be found!');
-        process.exit(1);
+        throw new Error('A Parcel link could not be found!');
       }
 
       console.log('🎉 Unlinking successful');
