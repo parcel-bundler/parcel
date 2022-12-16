@@ -505,7 +505,14 @@ export default class PackagerRunner {
     };
 
     for (let optimizer of optimizers) {
+      let measurement;
       try {
+        measurement = applicationProfiler.createMeasurement(optimizer.name, {
+          categories: ['optimize'],
+          args: {
+            name: bundle.name,
+          },
+        });
         let next = await optimizer.plugin.optimize({
           config: configs.get(optimizer.name)?.result,
           bundleConfig: bundleConfigs.get(optimizer.name)?.result,
@@ -531,6 +538,7 @@ export default class PackagerRunner {
           }),
         });
       } finally {
+        measurement && measurement.end();
         // Add dev dependency for the optimizer. This must be done AFTER running it due to
         // the potential for lazy require() that aren't executed until the request runs.
         let devDepRequest = await createDevDependency(
@@ -681,7 +689,9 @@ export default class PackagerRunner {
     return devDepHashes;
   }
 
-  async readFromCache(cacheKey: string): Promise<?{|
+  async readFromCache(
+    cacheKey: string,
+  ): Promise<?{|
     contents: Readable,
     map: ?Readable,
   |}> {
