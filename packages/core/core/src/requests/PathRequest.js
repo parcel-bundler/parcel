@@ -46,6 +46,7 @@ import {
   invalidateDevDeps,
   runDevDepRequest,
 } from './DevDepRequest';
+import {applicationProfiler} from '@parcel/profiler';
 
 export type PathRequest = {|
   id: string,
@@ -275,7 +276,14 @@ export class ResolverRunner {
     let invalidateOnFileChange = [];
     let invalidateOnEnvChange = [];
     for (let resolver of resolvers) {
+      let measurement;
       try {
+        measurement = applicationProfiler.createMeasurement(resolver.name, {
+          categories: ['resolve'],
+          args: {
+            name: specifier,
+          },
+        });
         let result = await resolver.plugin.resolve({
           specifier,
           pipeline,
@@ -374,18 +382,6 @@ export class ResolverRunner {
         }
 
         break;
-      } finally {
-        // Add dev dependency for the resolver. This must be done AFTER running it due to
-        // the potential for lazy require() that aren't executed until the request runs.
-        let devDepRequest = await createDevDependency(
-          {
-            specifier: resolver.name,
-            resolveFrom: resolver.resolveFrom,
-          },
-          this.previousDevDeps,
-          this.options,
-        );
-        this.runDevDepRequest(devDepRequest);
       }
     }
 
