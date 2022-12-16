@@ -5,6 +5,14 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+# [2.8.2] - 2022-12-14
+
+- Core
+  - Ensure maxListeners for process.stdout accounts for workers – [Details](https://github.com/parcel-bundler/parcel/pull/8689)
+- JavaScript
+  - Bump SWC to fix scoping issue with block-less loops – [Details](https://github.com/parcel-bundler/parcel/pull/8686)
+  - Fix requires of external CommonJS SWC helpers – [Details](https://github.com/parcel-bundler/parcel/pull/8693)
+
 ## [2.8.1] - 2022-12-07
 
 ### Fixed

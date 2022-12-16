@@ -2694,27 +2694,27 @@ describe('javascript', function () {
     let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements")',
+        'resolve(__dirname, "../test/integration/env-node-replacements")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/other")',
+        'resolve(__dirname, "../test/integration/env-node-replacements/other")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
+        'resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub")',
+        'resolve(__dirname, "../test/integration/env-node-replacements/sub")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
+        'resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
       ),
     );
     let f = await run(b);

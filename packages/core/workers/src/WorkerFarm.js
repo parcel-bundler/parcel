@@ -101,6 +101,21 @@ export default class WorkerFarm extends EventEmitter {
       this.localWorker.childInit != null ? this.localWorker.childInit() : null;
     this.run = this.createHandle('run');
 
+    // Worker thread stdout is by default piped into the process stdout, if there are enough worker
+    // threads to exceed the default listener limit, then anything else piping into stdout will trigger
+    // the `MaxListenersExceededWarning`, so we should ensure the max listeners is at least equal to the
+    // number of workers + 1 for the main thread.
+    //
+    // Note this can't be fixed easily where other things pipe into stdout -  even after starting > 10 worker
+    // threads `process.stdout.getMaxListeners()` will still return 10, however adding another pipe into `stdout`
+    // will give the warning with `<worker count + 1>` as the number of listeners.
+    process.stdout.setMaxListeners(
+      Math.max(
+        process.stdout.getMaxListeners(),
+        WorkerFarm.getNumWorkers() + 1,
+      ),
+    );
+
     this.startMaxWorkers();
   }
 

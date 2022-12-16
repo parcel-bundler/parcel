@@ -411,12 +411,12 @@ describe('transpilation', function () {
                 {
                   message: null,
                   start: {
-                    column: 15,
-                    line: 3,
+                    column: 1,
+                    line: 1,
                   },
                   end: {
-                    column: 43,
-                    line: 3,
+                    column: 12,
+                    line: 1,
                   },
                 },
               ],
@@ -424,7 +424,7 @@ describe('transpilation', function () {
             },
           ],
           hints: null,
-          message: 'Spread children are not supported in React.',
+          message: 'pragma cannot be set when runtime is automatic',
           origin: '@parcel/transformer-js',
         },
         {
@@ -435,11 +435,11 @@ describe('transpilation', function () {
                   message: null,
                   start: {
                     column: 4,
-                    line: 7,
+                    line: 9,
                   },
                   end: {
                     column: 4,
-                    line: 7,
+                    line: 9,
                   },
                 },
               ],
