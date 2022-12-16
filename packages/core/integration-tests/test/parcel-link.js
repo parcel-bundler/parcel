@@ -4,15 +4,15 @@ import type {FileSystem} from '@parcel/fs';
 import type {ProgramOptions} from '@parcel/link';
 
 import {MemoryFS, NodeFS, OverlayFS, ncp} from '@parcel/fs';
-import {createProgram} from '@parcel/link';
+import {createProgram as _createProgram} from '@parcel/link';
 import {workerFarm} from '@parcel/test-utils';
 
 import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 
-function createTestProgram(opts: {|...ProgramOptions, fs: FileSystem|}) {
-  let program = createProgram(opts).exitOverride();
+function createProgram(opts: {|...ProgramOptions, fs: FileSystem|}) {
+  let program = _createProgram(opts).exitOverride();
 
   function cli(command: string = ''): Promise<void> {
     return program.parseAsync(command.split(/\s+/), {from: 'user'});
@@ -52,7 +52,7 @@ describe('@parcel/link', () => {
 
   it('prints help text', async () => {
     let fs = await createFS();
-    let cli = createTestProgram({fs});
+    let cli = createProgram({fs});
     // $FlowFixMe[prop-missing]
     await assert.rejects(async () => cli('--help'), /\(outputHelp\)/);
   });
@@ -60,7 +60,7 @@ describe('@parcel/link', () => {
   it('links by default', async () => {
     let link = sinon.stub();
     let fs = await createFS();
-    let cli = createTestProgram({fs, link});
+    let cli = createProgram({fs, link});
     await cli();
     assert(link.called);
   });
