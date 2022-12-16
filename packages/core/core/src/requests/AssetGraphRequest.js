@@ -449,8 +449,6 @@ export class AssetGraphBuilder {
     // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
     // root and remove requested symbols that aren't actually exported
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
-      invariant(assetNode.type === 'asset');
-
       let assetSymbols: ?$ReadOnlyMap<
         Symbol,
         {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
@@ -761,16 +759,23 @@ export class AssetGraphBuilder {
       outgoing: $ReadOnlyArray<DependencyNode>,
     ) => Array<Diagnostic>,
   ): void {
+    // Traverse the graph in a post-order DFS, with the idea that all children of a node should have
+    // been processed first. With a tree, this would result in a minimal amount of work (processing
+    // every asset exactly once).
+    //
+    // For graphs in general (so with cyclic dependencies), some nodes will have to be revisited. So
+    // after the tree traversal, just run a regular queue-based BFS for anything that's still dirty
+    // (in the hope that this affects only a small part of the graph).
+
+    let errors = new Map<NodeId, Array<Diagnostic>>();
+    let dirtyDeps = new Set<NodeId>();
+
     let rootNodeId = nullthrows(
       this.assetGraph.rootNodeId,
       'A root node is required to traverse',
     );
 
-    let errors = new Map<NodeId, Array<Diagnostic>>();
-
-    let dirtyDeps = new Set<NodeId>();
     let visited = new Set([rootNodeId]);
-    // post-order dfs
     const walk = (nodeId: NodeId) => {
       let node = nullthrows(this.assetGraph.getNode(nodeId));
       let outgoing = this.assetGraph.getNodeIdsConnectedFrom(nodeId);
@@ -830,13 +835,11 @@ export class AssetGraphBuilder {
       }
     };
     walk(rootNodeId);
+
     // traverse circular dependencies if necessary (ancestors of `dirtyDeps`)
-    visited = new Set();
     let queue = new Set(dirtyDeps);
     while (queue.size > 0) {
-      let queuedNodeId = nullthrows(queue.values().next().value);
-      queue.delete(queuedNodeId);
-      visited.add(queuedNodeId);
+      let queuedNodeId = setPop(queue);
       let node = nullthrows(this.assetGraph.getNode(queuedNodeId));
       if (node.type === 'asset') {
         let incoming = this.assetGraph
@@ -883,6 +886,7 @@ export class AssetGraphBuilder {
         }
       }
     }
+
     // Just throw the first error. Since errors can bubble (e.g. reexporting a reexported symbol also fails),
     // determining which failing export is the root cause is nontrivial (because of circular dependencies).
     if (errors.size > 0) {
@@ -1057,4 +1061,10 @@ function equalMap<K>(
 
 function equalSet<T>(a: $ReadOnlySet<T>, b: $ReadOnlySet<T>) {
   return a.size === b.size && [...a].every(i => b.has(i));
+}
+
+function setPop<T>(set: Set<T>): T {
+  let v = nullthrows(set.values().next().value);
+  set.delete(v);
+  return v;
 }
