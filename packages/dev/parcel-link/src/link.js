@@ -77,7 +77,6 @@ export async function link(
     // Step 5.1: In .parcelrc, rewrite all references to official plugins to `@parcel/*`
     // --------------------------------------------------------------------------------
 
-    log('Rewriting .parcelrc');
     let parcelConfigPath = path.join(appRoot, '.parcelrc');
     let parcelConfig = config.fs.readFileSync(parcelConfigPath, 'utf8');
     await fsWrite(
@@ -93,7 +92,6 @@ export async function link(
     // For configs like "@namespace/parcel-bundler-default":{"maxParallelRequests": 10}
     // --------------------------------------------------------------------------------
 
-    log('Rewriting root package.json');
     let rootPkgPath = path.join(appRoot, 'package.json');
     let rootPkg = config.fs.readFileSync(rootPkgPath, 'utf8');
     await fsWrite(

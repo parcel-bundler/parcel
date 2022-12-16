@@ -35,14 +35,14 @@ export async function fsDelete(
 export async function fsSymlink(
   source: string,
   target: string,
-  {appRoot, log, dryRun, fs}: CmdOptions,
+  {appRoot, packageRoot, log, dryRun, fs}: CmdOptions,
 ): Promise<void> {
   assert(await fs.exists(source));
   assert(!(await fs.exists(target)));
   if (!dryRun) await fs.symlink(source, target);
   log(
-    'Symlink',
-    source,
+    'Linked',
+    path.join('<pkg>', path.relative(packageRoot, source)),
     '->',
     path.join('<app>', path.relative(appRoot, target)),
   );

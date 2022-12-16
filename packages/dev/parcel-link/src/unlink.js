@@ -65,7 +65,6 @@ export async function unlink(
     // Step 3.2: In .parcelrc, restore all references to namespaced plugins.
     // --------------------------------------------------------------------------------
 
-    log('Restoring .parcelrc');
     let parcelConfigPath = path.join(appRoot, '.parcelrc');
     let parcelConfig = config.fs.readFileSync(parcelConfigPath, 'utf8');
     for (let [alias, parcel] of namespacePackages) {
@@ -80,7 +79,6 @@ export async function unlink(
     // For configs like "@namespace/parcel-bundler-default":{"maxParallelRequests": 10}
     // --------------------------------------------------------------------------------
 
-    log('Restoring root package.json');
     let rootPkgPath = path.join(appRoot, 'package.json');
     let rootPkg = config.fs.readFileSync(rootPkgPath, 'utf8');
     for (let [alias, parcel] of namespacePackages) {
