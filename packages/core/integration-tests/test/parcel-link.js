@@ -3,12 +3,12 @@
 import type {FileSystem} from '@parcel/fs';
 import type {ProgramOptions} from '@parcel/link';
 
-import {MemoryFS} from '@parcel/fs';
+import {MemoryFS, NodeFS, OverlayFS, ncp} from '@parcel/fs';
 import {createProgram} from '@parcel/link';
 import {workerFarm} from '@parcel/test-utils';
 
-// import {execSync} from 'child_process';
 import assert from 'assert';
+import path from 'path';
 import sinon from 'sinon';
 
 function createTestProgram(opts: {|...ProgramOptions, fs: FileSystem|}) {
@@ -22,23 +22,36 @@ function createTestProgram(opts: {|...ProgramOptions, fs: FileSystem|}) {
 }
 
 describe('@parcel/link', () => {
-  let cwd;
-  let stdout;
-  let fs;
+  let _cwd;
+  let _stdout;
+
+  async function createFS(dir?: string): Promise<FileSystem> {
+    assert(_cwd == null, 'FS already exists!');
+    let inputFS = new NodeFS();
+    let outputFS = new MemoryFS(workerFarm);
+    let fs = new OverlayFS(outputFS, inputFS);
+    if (dir != null) {
+      fs.chdir(dir);
+      await ncp(inputFS, dir, outputFS, dir);
+    }
+    // $FlowFixMe[incompatible-call]
+    _cwd = sinon.stub(process, 'cwd').callsFake(() => fs.cwd());
+    return fs;
+  }
 
   beforeEach(async function () {
-    // $FlowFixMe[incompatible-call]
-    cwd = sinon.stub(process, 'cwd').callsFake(() => fs.cwd());
-    stdout = sinon.stub(process.stdout, 'write');
-    fs = new MemoryFS(workerFarm);
+    _stdout = sinon.stub(process.stdout, 'write');
   });
 
   afterEach(async function () {
-    cwd.restore();
-    stdout.restore();
+    _cwd?.restore();
+    _stdout?.restore();
+    _cwd = null;
+    _stdout = null;
   });
 
   it('prints help text', async () => {
+    let fs = await createFS();
     let cli = createTestProgram({fs});
     // $FlowFixMe[prop-missing]
     await assert.rejects(async () => cli('--help'), /\(outputHelp\)/);
@@ -46,11 +59,10 @@ describe('@parcel/link', () => {
 
   it('links by default', async () => {
     let link = sinon.stub();
+    let fs = await createFS();
     let cli = createTestProgram({fs, link});
-
-    assert(link.called);
-
     await cli();
+    assert(link.called);
   });
 
   describe('link', () => {
