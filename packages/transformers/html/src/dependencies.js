@@ -3,7 +3,7 @@
 import type {AST, MutableAsset} from '@parcel/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
-import {parse} from 'srcset';
+import {parse, stringify} from 'srcset';
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
@@ -85,22 +85,12 @@ const OPTIONS = {
   },
 };
 
-export function collectSrcSetDependencies(asset, srcset, opts) {
-  const parsed = parse(srcset);
-  const newUrls = [];
-  parsed.forEach(srcset => {
-    let url;
-    let size;
-    Object.entries(srcset).forEach(([key, value]) => {
-      if (key === 'url') {
-        url = value;
-      } else {
-        size = `${value}${key === 'width' ? 'w' : 'x'}`;
-      }
-    });
-    newUrls.push(`${asset.addURLDependency(url, opts)} ${size}`);
-  });
-  return newUrls.join(', ');
+function collectSrcSetDependencies(asset, srcset, opts) {
+  let parsed = parse(srcset).map(({url, ...v}) => ({
+    url: asset.addURLDependency(url, opts),
+    ...v,
+  }));
+  return stringify(parsed);
 }
 
 function getAttrDepHandler(attr) {
