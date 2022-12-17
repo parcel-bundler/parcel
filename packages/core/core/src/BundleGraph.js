@@ -84,7 +84,6 @@ type BundleGraphOpts = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
-  symbolPropagationRan: boolean,
 |};
 
 type SerializedBundleGraph = {|
@@ -93,7 +92,6 @@ type SerializedBundleGraph = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
-  symbolPropagationRan: boolean,
 |};
 
 function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
@@ -133,26 +131,22 @@ export default class BundleGraph {
   _targetEntryRoots: Map<ProjectPath, FilePath> = new Map();
   /** The internal core Graph structure */
   _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
-  _symbolPropagationRan /*: boolean*/;
 
   constructor({
     graph,
     publicIdByAssetId,
     assetPublicIds,
     bundleContentHashes,
-    symbolPropagationRan,
   }: {|
     graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>,
     publicIdByAssetId: Map<string, string>,
     assetPublicIds: Set<string>,
     bundleContentHashes: Map<string, string>,
-    symbolPropagationRan: boolean,
   |}) {
     this._graph = graph;
     this._assetPublicIds = assetPublicIds;
     this._publicIdByAssetId = publicIdByAssetId;
     this._bundleContentHashes = bundleContentHashes;
-    this._symbolPropagationRan = symbolPropagationRan;
   }
 
   /**
@@ -373,7 +367,6 @@ export default class BundleGraph {
       assetPublicIds,
       bundleContentHashes: new Map(),
       publicIdByAssetId,
-      symbolPropagationRan: assetGraph.symbolPropagationRan,
     });
   }
 
@@ -384,7 +377,6 @@ export default class BundleGraph {
       assetPublicIds: this._assetPublicIds,
       bundleContentHashes: this._bundleContentHashes,
       publicIdByAssetId: this._publicIdByAssetId,
-      symbolPropagationRan: this._symbolPropagationRan,
     };
   }
 
@@ -394,7 +386,6 @@ export default class BundleGraph {
       assetPublicIds: serialized.assetPublicIds,
       bundleContentHashes: serialized.bundleContentHashes,
       publicIdByAssetId: serialized.publicIdByAssetId,
-      symbolPropagationRan: serialized.symbolPropagationRan,
     });
   }
 
@@ -1893,7 +1884,7 @@ export default class BundleGraph {
   getUsedSymbolsAsset(asset: Asset): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(asset.id);
     invariant(node && node.type === 'asset');
-    return this._symbolPropagationRan
+    return node.value.symbols
       ? makeReadOnlySet(new Set(node.usedSymbols.keys()))
       : null;
   }
@@ -1901,8 +1892,9 @@ export default class BundleGraph {
   getUsedSymbolsDependency(dep: Dependency): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(dep.id);
     invariant(node && node.type === 'dependency');
-    let result = new Set(node.usedSymbolsUp.keys());
-    return this._symbolPropagationRan ? makeReadOnlySet(result) : null;
+    return node.value.symbols
+      ? makeReadOnlySet(new Set(node.usedSymbolsUp.keys()))
+      : null;
   }
 
   merge(other: BundleGraph) {

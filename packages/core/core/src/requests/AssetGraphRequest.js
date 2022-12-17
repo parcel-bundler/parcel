@@ -201,25 +201,8 @@ export class AssetGraphBuilder {
     if (errors.length) {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
-    // Skip symbol propagation if no target is using scope hoisting
-    // (mainly for faster development builds)
-    let entryDependencies = this.assetGraph
-      .getNodeIdsConnectedFrom(rootNodeId)
-      .flatMap(entrySpecifier =>
-        this.assetGraph.getNodeIdsConnectedFrom(entrySpecifier),
-      )
-      .flatMap(entryFile =>
-        this.assetGraph.getNodeIdsConnectedFrom(entryFile).map(depNodeId => {
-          let dep = nullthrows(this.assetGraph.getNode(depNodeId));
-          invariant(dep.type === 'dependency');
-          return dep;
-        }),
-      );
 
-    this.assetGraph.symbolPropagationRan = entryDependencies.some(
-      d => d.value.env.shouldScopeHoist,
-    );
-    if (this.assetGraph.symbolPropagationRan) {
+    if (this.assetGraph.nodes.size > 1) {
       await dumpGraphToGraphViz(
         this.assetGraph,
         'AssetGraph_' + this.name + '_before_prop',

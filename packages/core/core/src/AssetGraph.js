@@ -38,14 +38,12 @@ type InitOpts = {|
 
 type AssetGraphOpts = {|
   ...ContentGraphOpts<AssetGraphNode>,
-  symbolPropagationRan: boolean,
   hash?: ?string,
 |};
 
 type SerializedAssetGraph = {|
   ...SerializedContentGraph<AssetGraphNode>,
   hash?: ?string,
-  symbolPropagationRan: boolean,
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
@@ -113,15 +111,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   onNodeRemoved: ?(nodeId: NodeId) => mixed;
   hash: ?string;
   envCache: Map<string, Environment>;
-  symbolPropagationRan: boolean;
   safeToIncrementallyBundle: boolean = true;
 
   constructor(opts: ?AssetGraphOpts) {
     if (opts) {
-      let {hash, symbolPropagationRan, ...rest} = opts;
+      let {hash, ...rest} = opts;
       super(rest);
       this.hash = hash;
-      this.symbolPropagationRan = symbolPropagationRan;
     } else {
       super();
       this.setRootNodeId(
@@ -133,7 +129,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       );
     }
     this.envCache = new Map();
-    this.symbolPropagationRan = false;
   }
 
   // $FlowFixMe[prop-missing]
@@ -146,7 +141,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     return {
       ...super.serialize(),
       hash: this.hash,
-      symbolPropagationRan: this.symbolPropagationRan,
     };
   }
 
