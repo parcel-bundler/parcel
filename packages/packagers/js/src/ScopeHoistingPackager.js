@@ -170,6 +170,7 @@ export class ScopeHoistingPackager {
     });
 
     let [prelude, preludeLines] = this.buildBundlePrelude();
+    console.log(prelude, preludeLines);
     res = prelude + res;
     lineCount += preludeLines;
     sourceMap?.offsetLines(1, preludeLines);
@@ -1116,6 +1117,11 @@ ${code}
     let enableSourceMaps = this.bundle.env.sourceMap;
     let res = '';
     let lines = 0;
+
+    if (this.bundle.env.sourceType === 'module') {
+      res += "'use strict';\n";
+      lines++;
+    }
 
     // Add hashbang if the entry asset recorded an interpreter.
     let mainEntry = this.bundle.getMainEntry();

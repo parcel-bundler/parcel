@@ -62,11 +62,6 @@ export default (new Packager({
       ({contents, map} = await packager.package());
     }
 
-    if (bundle.env.sourceType === 'module') {
-      contents = "'use strict';\n" + contents;
-      map?.offsetLines(1, 1);
-    }
-
     contents += '\n' + (await getSourceMapSuffix(getSourceMapReference, map));
 
     // For library builds, we need to replace URL references with their final resolved paths.

@@ -235,6 +235,7 @@ export class DevPackager {
     }
 
     return (
+      (this.bundle.env.sourceType === 'module' ? "'use strict';\n" : '') +
       // If the entry asset included a hashbang, repeat it at the top of the bundle
       (interpreter != null ? `#!${interpreter}\n` : '') +
       importScripts +
