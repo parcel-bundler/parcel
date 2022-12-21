@@ -1324,22 +1324,37 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
   addAssetToBundle(Asset, Bundle): void;
+  /**
+   * Adds an asset as an entry to a bundle. Entry assets are executed immediately
+   * when the bundle is loaded.
+   */
   addEntryToBundle(
     Asset,
     Bundle,
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
+  /** Adds the Bundle to the BundleGroup, loading it along with others in the group */
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset, Bundle): void;
   createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
   createBundleGroup(Dependency, Target): BundleGroup;
+  /** @returns all Asset-s attached to the Dependency */
   getDependencyAssets(Dependency): Array<Asset>;
+  /** Get Bundles that load this bundle asynchronously. */
   getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
+  /** @returns the size in bytes of an asset and all assets in its subgraph */
   getTotalSize(Asset): number;
-  /** Remove all "contains" edges from the bundle to the nodes in the asset's subgraph. */
+  /**
+   * Recursively removes an asset and its dependencies from a bundle. Stops at
+   * bundle group boundaries.
+   */
   removeAssetGraphFromBundle(Asset, Bundle): void;
+  /**
+   * Removes a BundleGroup from the graph. If any of the group's Bundle-s no
+   * longer exist in the graph, those are removed as well.
+   */
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;

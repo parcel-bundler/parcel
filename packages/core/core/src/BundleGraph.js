@@ -110,15 +110,28 @@ function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
   });
 }
 
+/**
+ * Stores assets, dependencies, bundle groups, bundles, and the relationships between them.
+ * The BundleGraph is passed to the bundler plugin wrapped in a MutableBundleGraph,
+ * and is passed to packagers and optimizers wrapped in the public BundleGraph object, both
+ * of which implement public api for this structure. This is the internal structure.
+ */
 export default class BundleGraph {
+  /** A set of all existing concise asset ids present in the BundleGraph */
   _assetPublicIds: Set<string>;
+  /** Maps full asset ids (currently 32-character strings) to concise ids (minimum of 5 character strings) */
   _publicIdByAssetId: Map<string, string>;
-  // TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
-  // property so it is possible to reach in and mutate the graph without invalidating these hashes.
-  // It needs to be exposed in BundlerRunner for now based on how applying runtimes works and the
-  // BundlerRunner takes care of invalidating hashes when runtimes are applied, but this is not ideal.
+  /**
+   * A cache of bundle hashes by bundle id.
+   *
+   * TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
+   * property so it is possible to reach in and mutate the graph without invalidating these hashes.
+   * It needs to be exposed in BundlerRunner for now based on how applying runtimes works and the
+   * BundlerRunner takes care of invalidating hashes when runtimes are applied, but this is not ideal.
+   */
   _bundleContentHashes: Map<string, string>;
   _targetEntryRoots: Map<ProjectPath, FilePath> = new Map();
+  /** The internal core Graph structure */
   _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
   _symbolPropagationRan /*: boolean*/;
 
@@ -142,6 +155,10 @@ export default class BundleGraph {
     this._symbolPropagationRan = symbolPropagationRan;
   }
 
+  /**
+   * Produce a BundleGraph from an AssetGraph by removing asset groups and retargeting dependencies
+   * based on the symbol data (resolving side-effect free reexports).
+   */
   static fromAssetGraph(
     assetGraph: AssetGraph,
     publicIdByAssetId: Map<string, string> = new Map(),
@@ -555,7 +572,7 @@ export default class BundleGraph {
       this._graph.getNodeIdByContentKey(dependency.id),
       bundleGraphEdgeTypes.internal_async,
     );
-    this.removeExternalDependency(bundle, dependency);
+    this._removeExternalDependency(bundle, dependency);
   }
 
   isDependencySkipped(dependency: Dependency): boolean {
@@ -725,7 +742,7 @@ export default class BundleGraph {
       }
 
       if (node.type === 'dependency') {
-        this.removeExternalDependency(bundle, node.value);
+        this._removeExternalDependency(bundle, node.value);
         if (
           this._graph.hasEdge(
             bundleNodeId,
@@ -764,6 +781,10 @@ export default class BundleGraph {
     this._bundleContentHashes.delete(bundle.id);
   }
 
+  /**
+   * Remove a bundle from the bundle graph. Remove its bundle group if it is
+   * the only bundle in the group.
+   */
   removeBundle(bundle: Bundle): Set<BundleGroup> {
     // Remove bundle node if it no longer has any entry assets
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
@@ -833,7 +854,7 @@ export default class BundleGraph {
     );
   }
 
-  removeExternalDependency(bundle: Bundle, dependency: Dependency) {
+  _removeExternalDependency(bundle: Bundle, dependency: Dependency) {
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
     for (let bundleGroupNode of this._graph
       .getNodeIdsConnectedFrom(this._graph.getNodeIdByContentKey(dependency.id))
