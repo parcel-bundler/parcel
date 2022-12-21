@@ -170,7 +170,6 @@ export class ScopeHoistingPackager {
     });
 
     let [prelude, preludeLines] = this.buildBundlePrelude();
-    console.log(prelude, preludeLines);
     res = prelude + res;
     lineCount += preludeLines;
     sourceMap?.offsetLines(1, preludeLines);
@@ -1118,7 +1117,10 @@ ${code}
     let res = '';
     let lines = 0;
 
-    if (this.bundle.env.sourceType === 'module') {
+    if (
+      this.bundle.env.sourceType === 'module' &&
+      this.bundle.env.outputFormat !== 'esmodule'
+    ) {
       res += "'use strict';\n";
       lines++;
     }
