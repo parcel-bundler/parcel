@@ -37,8 +37,14 @@ export async function fsSymlink(
   target: string,
   {appRoot, packageRoot, log, dryRun, fs}: CmdOptions,
 ): Promise<void> {
-  assert(await fs.exists(source));
-  assert(!(await fs.exists(target)));
+  assert(
+    await fs.exists(source),
+    `Can't link from ${source}; it doesn't exist!`,
+  );
+  assert(
+    !(await fs.exists(target)),
+    `Can't link to ${target}; it already exists!`,
+  );
   if (!dryRun) await fs.symlink(source, target);
   log(
     'Linked',
