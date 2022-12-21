@@ -1,19 +1,42 @@
 // @flow
 
-import type {BuildSuccessEvent, Dependency, PluginOptions} from '@parcel/types';
+import type {
+  Asset,
+  BundleGraph,
+  Dependency,
+  NamedBundle,
+  PackagedBundle,
+  PluginOptions,
+} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
-import type {ServerError, HMRServerOptions} from './types.js.flow';
+import type {
+  ServerError,
+  HMRServerOptions,
+  Request,
+  Response,
+} from './types.js.flow';
+import {setHeaders, SOURCES_ENDPOINT} from './Server';
 
+import nullthrows from 'nullthrows';
+import url from 'url';
+import mime from 'mime-types';
 import WebSocket from 'ws';
 import invariant from 'assert';
-import {ansiHtml, prettyDiagnostic, PromiseQueue} from '@parcel/utils';
+import {
+  ansiHtml,
+  createHTTPServer,
+  prettyDiagnostic,
+  PromiseQueue,
+} from '@parcel/utils';
 
 export type HMRAsset = {|
   id: string,
+  url: string,
   type: string,
   output: string,
   envHash: string,
+  outputFormat: string,
   depsByBundle: {[string]: {[string]: string, ...}, ...},
 |};
 
@@ -26,27 +49,44 @@ export type HMRMessage =
       type: 'error',
       diagnostics: {|
         ansi: Array<AnsiDiagnosticResult>,
-        html: Array<AnsiDiagnosticResult>,
+        html: Array<$Rest<AnsiDiagnosticResult, {|codeframe: string|}>>,
       |},
     |};
 
 const FS_CONCURRENCY = 64;
+const HMR_ENDPOINT = '/__parcel_hmr';
 
 export default class HMRServer {
   wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
   options: HMRServerOptions;
+  bundleGraph: BundleGraph<PackagedBundle> | BundleGraph<NamedBundle> | null =
+    null;
+  stopServer: ?() => Promise<void>;
 
   constructor(options: HMRServerOptions) {
     this.options = options;
   }
 
-  start(): any {
-    this.wss = new WebSocket.Server(
-      this.options.devServer
-        ? {server: this.options.devServer}
-        : {port: this.options.port},
-    );
+  async start() {
+    let server = this.options.devServer;
+    if (!server) {
+      let result = await createHTTPServer({
+        listener: (req, res) => {
+          setHeaders(res);
+          if (!this.handle(req, res)) {
+            res.statusCode = 404;
+            res.end();
+          }
+        },
+      });
+      server = result.server;
+      server.listen(this.options.port, this.options.host);
+      this.stopServer = result.stop;
+    } else {
+      this.options.addMiddleware?.((req, res) => this.handle(req, res));
+    }
+    this.wss = new WebSocket.Server({server});
 
     this.wss.on('connection', ws => {
       if (this.unresolvedError) {
@@ -56,13 +96,28 @@ export default class HMRServer {
 
     // $FlowFixMe[incompatible-exact]
     this.wss.on('error', err => this.handleSocketError(err));
-
-    let address = this.wss.address();
-    invariant(typeof address === 'object' && address != null);
-    return address.port;
   }
 
-  stop() {
+  handle(req: Request, res: Response): boolean {
+    let {pathname} = url.parse(req.originalUrl || req.url);
+    if (pathname != null && pathname.startsWith(HMR_ENDPOINT)) {
+      let id = pathname.slice(HMR_ENDPOINT.length + 1);
+      let bundleGraph = nullthrows(this.bundleGraph);
+      let asset = bundleGraph.getAssetById(id);
+      this.getHotAssetContents(asset).then(output => {
+        res.setHeader('Content-Type', mime.contentType(asset.type));
+        res.end(output);
+      });
+      return true;
+    }
+    return false;
+  }
+
+  async stop() {
+    if (this.stopServer != null) {
+      await this.stopServer();
+      this.stopServer = null;
+    }
     this.wss.close();
   }
 
@@ -81,7 +136,10 @@ export default class HMRServer {
           return {
             message: ansiHtml(d.message),
             stack: ansiHtml(d.stack),
-            codeframe: ansiHtml(d.codeframe),
+            frames: d.frames.map(f => ({
+              location: f.location,
+              code: ansiHtml(f.code),
+            })),
             hints: d.hints.map(hint => ansiHtml(hint)),
             documentation: diagnostics[i].documentationURL ?? '',
           };
@@ -92,8 +150,13 @@ export default class HMRServer {
     this.broadcast(this.unresolvedError);
   }
 
-  async emitUpdate(event: BuildSuccessEvent) {
+  async emitUpdate(event: {
+    +bundleGraph: BundleGraph<PackagedBundle> | BundleGraph<NamedBundle>,
+    +changedAssets: Map<string, Asset>,
+    ...
+  }) {
     this.unresolvedError = null;
+    this.bundleGraph = event.bundleGraph;
 
     let changedAssets = new Set(event.changedAssets.values());
     if (changedAssets.size === 0) return;
@@ -141,10 +204,13 @@ export default class HMRServer {
 
         return {
           id: event.bundleGraph.getAssetPublicId(asset),
+          url: this.getSourceURL(asset),
           type: asset.type,
           // No need to send the contents of non-JS assets to the client.
-          output: asset.type === 'js' ? await asset.getCode() : '',
+          output:
+            asset.type === 'js' ? await this.getHotAssetContents(asset) : '',
           envHash: asset.env.id,
+          outputFormat: asset.env.outputFormat,
           depsByBundle,
         };
       });
@@ -155,6 +221,41 @@ export default class HMRServer {
       type: 'update',
       assets: assets,
     });
+  }
+
+  async getHotAssetContents(asset: Asset): Promise<string> {
+    let output = await asset.getCode();
+    let bundleGraph = nullthrows(this.bundleGraph);
+    if (asset.type === 'js') {
+      let publicId = bundleGraph.getAssetPublicId(asset);
+      output = `parcelHotUpdate['${publicId}'] = function (require, module, exports) {${output}}`;
+    }
+
+    let sourcemap = await asset.getMap();
+    if (sourcemap) {
+      let sourcemapStringified = await sourcemap.stringify({
+        format: 'inline',
+        sourceRoot: SOURCES_ENDPOINT + '/',
+        // $FlowFixMe
+        fs: asset.fs,
+      });
+
+      invariant(typeof sourcemapStringified === 'string');
+      output += `\n//# sourceMappingURL=${sourcemapStringified}`;
+      output += `\n//# sourceURL=${encodeURI(this.getSourceURL(asset))}\n`;
+    }
+
+    return output;
+  }
+
+  getSourceURL(asset: Asset): string {
+    let origin = '';
+    if (!this.options.devServer) {
+      origin = `http://${this.options.host || 'localhost'}:${
+        this.options.port
+      }`;
+    }
+    return origin + HMR_ENDPOINT + '/' + asset.id;
   }
 
   handleSocketError(err: ServerError) {

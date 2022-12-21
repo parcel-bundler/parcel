@@ -31,7 +31,9 @@ export class IDBCache implements Cache {
   }
 
   serialize(): {||} {
-    return {...null};
+    return {
+      /*::...null*/
+    };
   }
 
   static deserialize(): IDBCache {

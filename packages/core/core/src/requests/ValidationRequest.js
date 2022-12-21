@@ -47,12 +47,13 @@ export default function createValidationRequest(
       });
 
       // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
-      let promises = trackedRequestsDesc.map(async request =>
-        (await farm.createHandle('runValidate'))({
-          requests: [request],
-          optionsRef: optionsRef,
-          configCachePath: cachePath,
-        }),
+      let promises = trackedRequestsDesc.map(
+        async request =>
+          ((await farm.createHandle('runValidate'))({
+            requests: [request],
+            optionsRef: optionsRef,
+            configCachePath: cachePath,
+          }): void),
       );
 
       // Skip sending validation requests if no validators were configured

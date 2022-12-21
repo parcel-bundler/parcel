@@ -12,7 +12,14 @@ const IGNORED_PACKAGES = [
   '!packages/core/is-v2-ready-yet/**',
   '!packages/core/test-utils/**',
   '!packages/core/types/**',
-  '!packages/utils/node-libs-browser/**',
+
+  // These packages are bundled.
+  '!packages/core/codeframe/**',
+  '!packages/core/fs/**',
+  '!packages/core/package-manager/**',
+  '!packages/core/utils/**',
+  '!packages/reporters/cli/**',
+  '!packages/reporters/dev-server/**',
 ];
 
 const paths = {
@@ -21,10 +28,7 @@ const paths = {
     '!**/dev-prelude.js',
     ...IGNORED_PACKAGES,
   ],
-  packageOther: [
-    'packages/*/*/src/**/dev-prelude.js',
-    'packages/*/dev-server/src/templates/**',
-  ],
+  packageOther: ['packages/*/*/src/**/dev-prelude.js'],
   packageJson: [
     'packages/core/parcel/package.json',
     'packages/utils/create-react-app/package.json',

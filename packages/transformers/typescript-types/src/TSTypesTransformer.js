@@ -8,6 +8,7 @@ import type {CompilerOptions} from 'typescript';
 
 import ts from 'typescript';
 import {CompilerHost, loadTSConfig} from '@parcel/ts-utils';
+import {normalizeSeparators} from '@parcel/utils';
 import {escapeMarkdown} from '@parcel/diagnostic';
 import {TSModuleGraph} from './TSModuleGraph';
 import nullthrows from 'nullthrows';
@@ -24,6 +25,7 @@ export default (new Transformer({
       // React is the default. Users can override this by supplying their own tsconfig,
       // which many TypeScript users will already have for typechecking, etc.
       jsx: ts.JsxEmit.React,
+      moduleResolution: ts.ModuleResolutionKind.NodeJs,
       ...config,
       // Always emit output
       noEmit: false,
@@ -33,7 +35,6 @@ export default (new Transformer({
       isolatedModules: false,
       emitDeclarationOnly: true,
       outFile: 'index.d.ts',
-      moduleResolution: ts.ModuleResolutionKind.NodeJs,
       // createProgram doesn't support incremental mode
       composite: false,
       incremental: false,
@@ -51,9 +52,11 @@ export default (new Transformer({
       }
     }
 
-    let mainModuleName = path
-      .relative(program.getCommonSourceDirectory(), asset.filePath)
-      .slice(0, -path.extname(asset.filePath).length);
+    let mainModuleName = normalizeSeparators(
+      path
+        .relative(program.getCommonSourceDirectory(), asset.filePath)
+        .slice(0, -path.extname(asset.filePath).length),
+    );
     let moduleGraph = new TSModuleGraph(mainModuleName);
 
     let emitResult = program.emit(undefined, undefined, undefined, true, {

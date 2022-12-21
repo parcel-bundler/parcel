@@ -10,9 +10,9 @@ import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation} from '@parcel/utils';
-import {isMatch} from 'micromatch';
+import {validateSchema, remapSourceLocation, isGlobMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
+import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
   jsx: true,
@@ -23,7 +23,7 @@ const JSX_PRAGMA = {
   react: {
     pragma: 'React.createElement',
     pragmaFrag: 'React.Fragment',
-    automatic: '>= 17.0.0',
+    automatic: '>= 17.0.0 || ^16.14.0 || >= 0.0.0-0 < 0.0.0',
   },
   preact: {
     pragma: 'h',
@@ -139,6 +139,8 @@ type TSConfig = {
     jsxImportSource?: string,
     // https://www.typescriptlang.org/tsconfig#experimentalDecorators
     experimentalDecorators?: boolean,
+    // https://www.typescriptlang.org/tsconfig#useDefineForClassFields
+    useDefineForClassFields?: boolean,
     ...
   },
   ...
@@ -153,7 +155,8 @@ export default (new Transformer({
       jsxImportSource,
       automaticJSXRuntime,
       reactRefresh,
-      decorators;
+      decorators,
+      useDefineForClassFields;
     if (config.isSource) {
       let reactLib;
       if (pkg?.alias && pkg.alias['react']) {
@@ -221,7 +224,9 @@ export default (new Transformer({
           automaticVersion &&
           !compilerOptions?.jsxFactory &&
           minReactLibVersion != null &&
-          semver.satisfies(minReactLibVersion, automaticVersion);
+          semver.satisfies(minReactLibVersion, automaticVersion, {
+            includePrerelease: true,
+          });
 
         if (automaticJSXRuntime) {
           jsxImportSource = reactLib;
@@ -230,6 +235,7 @@ export default (new Transformer({
 
       isJSX = Boolean(compilerOptions?.jsx || pragma);
       decorators = compilerOptions?.experimentalDecorators;
+      useDefineForClassFields = compilerOptions?.useDefineForClassFields;
     }
 
     // Check if we should ignore fs calls
@@ -279,6 +285,7 @@ export default (new Transformer({
       inlineFS,
       reactRefresh,
       decorators,
+      useDefineForClassFields,
     };
   },
   async transform({asset, config, options, logger}) {
@@ -333,11 +340,6 @@ export default (new Transformer({
       targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
     }
 
-    // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
-    if (/@swc[/\\]helpers/.test(asset.filePath)) {
-      targets = null;
-    }
-
     let env: EnvMap = {};
 
     if (!config?.inlineEnvironment) {
@@ -350,7 +352,7 @@ export default (new Transformer({
       }
     } else if (Array.isArray(config?.inlineEnvironment)) {
       for (let key in options.env) {
-        if (isMatch(key, config.inlineEnvironment)) {
+        if (isGlobMatch(key, config.inlineEnvironment)) {
           env[key] = String(options.env[key]);
         }
       }
@@ -383,6 +385,7 @@ export default (new Transformer({
       needs_esm_helpers,
       diagnostics,
       used_env,
+      has_node_replacements,
     } = transform({
       filename: asset.filePath,
       code,
@@ -390,7 +393,9 @@ export default (new Transformer({
       project_root: options.projectRoot,
       replace_env: !asset.env.isNode(),
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
-      insert_node_globals: !asset.env.isNode(),
+      insert_node_globals:
+        !asset.env.isNode() && asset.env.sourceType !== 'script',
+      node_replacer: asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
       env,
@@ -403,10 +408,12 @@ export default (new Transformer({
       is_development: options.mode === 'development',
       react_refresh:
         asset.env.isBrowser() &&
+        !asset.env.isLibrary &&
         !asset.env.isWorker() &&
         !asset.env.isWorklet() &&
         Boolean(config?.reactRefresh),
       decorators: Boolean(config?.decorators),
+      use_define_for_class_fields: Boolean(config?.useDefineForClassFields),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist:
@@ -416,6 +423,7 @@ export default (new Transformer({
       is_library: asset.env.isLibrary,
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
+      is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
     });
 
     let convertLoc = loc => {
@@ -517,6 +525,10 @@ export default (new Transformer({
 
     if (shebang) {
       asset.meta.interpreter = shebang;
+    }
+
+    if (has_node_replacements) {
+      asset.meta.has_node_replacements = has_node_replacements;
     }
 
     for (let env of used_env) {
@@ -678,6 +690,17 @@ export default (new Transformer({
           };
         }
 
+        // Add required version range for helpers.
+        let range;
+        if (isHelper) {
+          let idx = dep.specifier.indexOf('/');
+          if (dep.specifier[0] === '@') {
+            idx = dep.specifier.indexOf('/', idx + 1);
+          }
+          let module = idx >= 0 ? dep.specifier.slice(0, idx) : dep.specifier;
+          range = pkg.dependencies[module];
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
@@ -686,6 +709,7 @@ export default (new Transformer({
           isOptional: dep.is_optional,
           meta,
           resolveFrom: isHelper ? __filename : undefined,
+          range,
           env,
         });
       }
@@ -698,6 +722,11 @@ export default (new Transformer({
         asset.symbols.set(exported, local, convertLoc(loc));
       }
 
+      // deps is a map of dependencies that are keyed by placeholder or specifier
+      // If a placeholder is present, that is used first since placeholders are
+      // hashed with DependencyKind's.
+      // If not, the specifier is used along with its specifierType appended to
+      // it to separate dependencies with the same specifier.
       let deps = new Map(
         asset
           .getDependencies()
@@ -721,7 +750,6 @@ export default (new Transformer({
       for (let {source, local, imported, loc} of hoist_result.re_exports) {
         let dep = deps.get(source);
         if (!dep) continue;
-
         if (local === '*' && imported === '*') {
           dep.symbols.set('*', '*', convertLoc(loc), true);
         } else {

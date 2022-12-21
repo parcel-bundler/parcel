@@ -104,7 +104,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   hasEdge(
     from: NodeId,
     to: NodeId,
-    type?: TEdgeType | NullEdgeType = 1,
+    type?: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): boolean {
     return this.adjacencyList.hasEdge(from, to, type);
   }
@@ -137,10 +137,12 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
   // Removes node and any edges coming from or to that node
   removeNode(nodeId: NodeId) {
-    this._assertHasNodeId(nodeId);
+    if (!this.hasNode(nodeId)) {
+      return;
+    }
 
     for (let {type, from} of this.adjacencyList.getInboundEdgesByType(nodeId)) {
-      this.removeEdge(
+      this._removeEdge(
         from,
         nodeId,
         type,
@@ -151,7 +153,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     }
 
     for (let {type, to} of this.adjacencyList.getOutboundEdgesByType(nodeId)) {
-      this.removeEdge(nodeId, to, type);
+      this._removeEdge(nodeId, to, type);
     }
 
     let wasRemoved = this.nodes.delete(nodeId);
@@ -159,14 +161,15 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   }
 
   removeEdges(nodeId: NodeId, type: TEdgeType | NullEdgeType = 1) {
-    this._assertHasNodeId(nodeId);
+    if (!this.hasNode(nodeId)) {
+      return;
+    }
 
     for (let to of this.getNodeIdsConnectedFrom(nodeId, type)) {
-      this.removeEdge(nodeId, to, type);
+      this._removeEdge(nodeId, to, type);
     }
   }
 
-  // Removes edge and node the edge is to if the node is orphaned
   removeEdge(
     from: NodeId,
     to: NodeId,
@@ -179,6 +182,20 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       );
     }
 
+    this._removeEdge(from, to, type, removeOrphans);
+  }
+
+  // Removes edge and node the edge is to if the node is orphaned
+  _removeEdge(
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | NullEdgeType = 1,
+    removeOrphans: boolean = true,
+  ) {
+    if (!this.adjacencyList.hasEdge(from, to, type)) {
+      return;
+    }
+
     this.adjacencyList.removeEdge(from, to, type);
     if (removeOrphans && this.isOrphanedNode(to)) {
       this.removeNode(to);
@@ -186,7 +203,9 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   }
 
   isOrphanedNode(nodeId: NodeId): boolean {
-    this._assertHasNodeId(nodeId);
+    if (!this.hasNode(nodeId)) {
+      return false;
+    }
 
     if (this.rootNodeId == null) {
       // If the graph does not have a root, and there are inbound edges,
@@ -245,7 +264,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     }
 
     for (let child of childrenToRemove) {
-      this.removeEdge(fromNodeId, child, type);
+      this._removeEdge(fromNodeId, child, type);
     }
   }
 
@@ -403,13 +422,17 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return null;
   }
 
-  topoSort(): Array<NodeId> {
+  topoSort(type?: TEdgeType): Array<NodeId> {
     let sorted: Array<NodeId> = [];
-    this.traverse({
-      exit: nodeId => {
-        sorted.push(nodeId);
+    this.traverse(
+      {
+        exit: nodeId => {
+          sorted.push(nodeId);
+        },
       },
-    });
+      null,
+      type,
+    );
     return sorted.reverse();
   }
 

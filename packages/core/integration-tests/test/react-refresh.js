@@ -9,9 +9,10 @@ import {
   overlayFS as fs,
   sleep,
   run,
+  getNextBuildSuccess,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
-import type {BuildEvent} from '@parcel/types';
+import type {BuildEvent, Asset} from '@parcel/types';
 // flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 import nullthrows from 'nullthrows';
@@ -36,10 +37,14 @@ if (MessageChannel) {
 
       let b,
         root,
-        randoms = {};
+        randoms,
+        subscription,
+        window = {};
 
       beforeEach(async () => {
-        ({b, root, randoms} = await setup(path.join(testDir, 'index.html')));
+        ({b, root, randoms, subscription, window} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
       });
 
       it('retains state in functional components', async function () {
@@ -60,6 +65,10 @@ if (MessageChannel) {
         assert.equal(randoms.appNum, appNum);
         assert.equal(randoms.fooNum, fooNum);
         assert.equal(fooText, 'OtherFunctional');
+      });
+
+      afterEach(async () => {
+        await cleanup({subscription, window});
       });
     });
 
@@ -203,8 +212,47 @@ if (MessageChannel) {
           },
         },
       );
-
       await run(b, {}, {require: false});
+    });
+
+    it('does not apply to library targets', async () => {
+      let port = await getPort();
+      let parcel = await bundler(
+        path.join(
+          __dirname,
+          '/integration/react-refresh-library-target/index.js',
+        ),
+        {
+          hmrOptions: {
+            port,
+          },
+        },
+      );
+      let result = await getNextBuildSuccess(parcel);
+      let bundle = nullthrows(
+        result.bundleGraph.getBundles().find(b => b.type === 'js'),
+      );
+
+      // Make sure react-refresh transforms were not applied.
+      let assets: Asset[] = [];
+      bundle.traverse(node => {
+        if (node.type === 'asset') {
+          assets.push(node.value);
+        } else if (node.type === 'dependency') {
+          assert(
+            !node.value.specifier.startsWith('react-refresh/runtime') &&
+              !node.value.specifier.startsWith(
+                '@parcel/transformer-react-refresh-wrap',
+              ),
+          );
+        }
+      });
+      for (let asset of assets) {
+        let code = await asset.getCode();
+        assert(
+          !code.includes('$RefreshReg$') && !code.includes('$RefreshSig$'),
+        );
+      }
     });
   });
 }

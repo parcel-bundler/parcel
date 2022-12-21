@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "2.2.1",
+  "version": "2.8.2",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -42,7 +42,7 @@
     "ncp": "^2.0.0",
     "nib": "^1.1.2",
     "node-elm-compiler": "^5.0.5",
-    "parcel": "^2.2.1",
+    "parcel": "2.8.2",
     "postcss": "^8.4.5",
     "postcss-custom-properties": "^12.1.2",
     "postcss-import": "^14.0.2",
@@ -51,7 +51,6 @@
     "preact": "^10.5.9",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "rimraf": "^2.6.1",
     "sugarss": "^3.0.3",
     "tailwindcss": "^3.0.2",
     "tempy": "^0.3.0",

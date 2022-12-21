@@ -3,6 +3,8 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+permissions:
+  contents: read  #  for actions/checkout
 jobs:
   build:
     strategy:
@@ -35,9 +37,9 @@ jobs:
 
   build-linux-gnu-x64:
     name: linux-gnu-x64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container:
-      image: docker.io/centos/nodejs-12-centos7
+      image: docker.io/adrienv1520/nodejs-16-centos7
     steps:
       - uses: actions/checkout@v1
       - name: Install yarn
@@ -77,7 +79,7 @@ jobs:
             strip: aarch64-linux-gnu-strip
             cflags: ''
     name: ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v1
       - name: Install Rust
@@ -127,7 +129,7 @@ jobs:
             strip: aarch64-linux-musl-strip
             cflags: ''
     name: ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
       credentials:
@@ -144,12 +146,6 @@ jobs:
           profile: minimal
           override: true
           target: ${{ matrix.target }}
-      - name: Install cross compile toolchains
-        if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
-        run: |
-          curl -O http://musl.cc/aarch64-linux-musl-cross.tgz
-          tar xzf aarch64-linux-musl-cross.tgz
-          cp -R aarch64-linux-musl-cross/* /usr
       - uses: bahmutov/npm-install@v1.1.0
       - name: Build native packages
         run: yarn build-native-release
@@ -200,7 +196,7 @@ jobs:
         run: ls -l packages/*/*/*.node
 
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: Build and release nightly
     needs:
       - build

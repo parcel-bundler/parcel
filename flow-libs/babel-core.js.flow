@@ -171,4 +171,5 @@ declare module "@babel/core" {
       | [string | { ... } | Function, { ... } | void],
     {| dirname?: string, type?: "preset" | "plugin" |}
   ): ConfigItem;
+  declare export * as types from "@babel/types";
 }

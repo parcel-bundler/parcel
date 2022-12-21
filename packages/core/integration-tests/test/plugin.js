@@ -1,14 +1,16 @@
 // @flow
 
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {
   assertBundles,
   bundle,
+  bundler,
   distDir,
   findAsset,
-  findDependency,
+  getNextBuild,
   outputFS as fs,
   overlayFS,
   run,
@@ -87,6 +89,67 @@ parcel-transformer-b`,
     assert.deepEqual(calls, [1234]);
   });
 
+  it('invalidate the cache based on loadBundleConfig in a packager', async function () {
+    let fixture = path.join(
+      __dirname,
+      '/integration/packager-loadBundleConfig',
+    );
+    let entry = path.join(fixture, 'index.html');
+
+    let b = await bundler(entry, {
+      inputFS: overlayFS,
+      shouldDisableCache: false,
+    });
+
+    let subscription = await b.watch();
+    try {
+      let bundleEvent = await getNextBuild(b);
+      invariant(bundleEvent.type === 'buildSuccess');
+
+      assert.strictEqual(
+        await overlayFS.readFile(
+          nullthrows(
+            bundleEvent.bundleGraph
+              .getBundles()
+              .find(b => b.getMainEntry()?.filePath.endsWith('a.txt')),
+          ).filePath,
+          'utf8',
+        ),
+        `Bundles: a.txt. Contents: Hello from a\n`,
+      );
+
+      await overlayFS.copyFile(path.join(fixture, 'index.2.html'), entry);
+
+      bundleEvent = await getNextBuild(b);
+      invariant(bundleEvent.type === 'buildSuccess');
+
+      assert.strictEqual(
+        await overlayFS.readFile(
+          nullthrows(
+            bundleEvent.bundleGraph
+              .getBundles()
+              .find(b => b.getMainEntry()?.filePath.endsWith('a.txt')),
+          ).filePath,
+          'utf8',
+        ),
+        `Bundles: a.txt,b.txt. Contents: Hello from a\n`,
+      );
+      assert.strictEqual(
+        await overlayFS.readFile(
+          nullthrows(
+            bundleEvent.bundleGraph
+              .getBundles()
+              .find(b => b.getMainEntry()?.filePath.endsWith('b.txt')),
+          ).filePath,
+          'utf8',
+        ),
+        `Bundles: a.txt,b.txt. Contents: Hello from b\n`,
+      );
+    } finally {
+      await subscription.unsubscribe();
+    }
+  });
+
   it('invalidate the cache based on loadConfig in a packager', async function () {
     let fixture = path.join(__dirname, '/integration/packager-loadConfig');
     let entry = path.join(fixture, 'index.txt');
@@ -123,24 +186,13 @@ parcel-transformer-b`,
       },
     );
 
-    assert.deepStrictEqual(
-      new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'index.js')))),
-      new Set([]),
-    );
+    assert(!findAsset(b, 'index.js'));
     assert.deepStrictEqual(
       new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'a.js')))),
       new Set(['a']),
     );
     assert.deepStrictEqual(
       new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'b.js')))),
-      new Set(['b']),
-    );
-    assert.deepStrictEqual(
-      new Set(b.getUsedSymbols(findDependency(b, 'index.js', './a.js'))),
-      new Set(['a']),
-    );
-    assert.deepStrictEqual(
-      new Set(b.getUsedSymbols(findDependency(b, 'index.js', './b.js'))),
       new Set(['b']),
     );
 
@@ -189,5 +241,25 @@ parcel-transformer-b`,
     );
 
     assert.equal(await run(b), 2);
+  });
+
+  it('should allow resolvers to invalidateOnEnvChange', async () => {
+    async function assertAsset(replacedCode) {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/resolver-can-invalidateonenvchange/index.js',
+        ),
+        {
+          shouldDisableCache: false,
+          inputFS: overlayFS,
+          env: {replacedCode},
+        },
+      );
+      let code = await b.getBundles()[0].getEntryAssets()[0].getCode();
+      assert(code.indexOf(replacedCode) !== -1);
+    }
+    await assertAsset('const replaced = 1;');
+    await assertAsset('const replaced = 2;');
   });
 });

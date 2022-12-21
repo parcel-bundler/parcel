@@ -131,6 +131,7 @@ export type Dependency = {|
   sourcePath: ?ProjectPath,
   sourceAssetType?: ?string,
   resolveFrom: ?ProjectPath,
+  range: ?SemverRange,
   symbols: ?Map<
     Symbol,
     {|
@@ -255,6 +256,7 @@ export type ParcelOptions = {|
   shouldContentHash: boolean,
   serveOptions: ServerOptions | false,
   shouldBuildLazily: boolean,
+  shouldBundleIncrementally: boolean,
   shouldAutoInstall: boolean,
   logLevel: LogLevel,
   projectRoot: FilePath,
@@ -306,7 +308,16 @@ export type DependencyNode = {|
   /** dependency was deferred (= no used symbols (in immediate parents) & side-effect free) */
   hasDeferred?: boolean,
   usedSymbolsDown: Set<Symbol>,
-  usedSymbolsUp: Set<Symbol>,
+  /**
+   * a requested symbol -> either
+   *  - if ambiguous (e.g. dependency to asset group with both CSS modules and JS asset): undefined
+   *  - if external: null
+   *  - the asset it resolved to, and the potentially renamed export name
+   */
+  usedSymbolsUp: Map<
+    Symbol,
+    {|asset: ContentKey, symbol: ?Symbol|} | void | null,
+  >,
   /** for the "down" pass, the dependency resolution asset needs to be updated */
   usedSymbolsDownDirty: boolean,
   /** for the "up" pass, the parent asset needs to be updated */
@@ -331,6 +342,7 @@ export type AssetRequestInput = {|
   optionsRef: SharedReference,
   isURL?: boolean,
   query?: ?string,
+  isSingleChangeRebuild?: boolean,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -435,6 +447,7 @@ export type Config = {|
   invalidateOnOptionChange: Set<string>,
   devDeps: Array<InternalDevDepOptions>,
   invalidateOnStartup: boolean,
+  invalidateOnBuild: boolean,
 |};
 
 export type EntryRequest = {|
@@ -516,4 +529,4 @@ export type ValidationOpts = {|
   configCachePath: string,
 |};
 
-export type ReportFn = (event: ReporterEvent) => void;
+export type ReportFn = (event: ReporterEvent) => void | Promise<void>;

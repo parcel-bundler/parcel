@@ -1,8 +1,9 @@
 import assert from 'assert';
 import path from 'path';
 import {
-  bundle as originalBundle,
+  bundle,
   run,
+  runBundle,
   assertBundles,
   distDir,
   outputFS,
@@ -10,486 +11,666 @@ import {
 import postcss from 'postcss';
 
 describe('css modules', () => {
-  for (let name of ['old', 'new']) {
-    describe(name, () => {
-      let bundle = (entries, opts = {}) => {
-        if (name === 'new') {
-          // $FlowFixMe
-          opts.defaultConfig =
-            path.dirname(require.resolve('@parcel/test-utils')) +
-            '/.parcelrc-css';
-        }
-        return originalBundle(entries, opts);
-      };
+  it('should support transforming css modules (require)', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-modules-cjs/index.js'),
+    );
 
-      it('should support transforming css modules (require)', async () => {
-        let b = await bundle(
-          path.join(__dirname, '/integration/postcss-modules-cjs/index.js'),
-        );
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'foo.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.css', 'foo.module.css'],
+      },
+    ]);
 
-        assertBundles(b, [
-          {
-            name: 'index.js',
-            assets: ['index.js', 'foo.module.css'],
-          },
-          {
-            name: 'index.css',
-            assets: ['index.css', 'foo.module.css'],
-          },
-        ]);
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
 
-        let output = await run(b);
-        assert.equal(typeof output, 'function');
+    let value = output();
+    assert(/[_0-9a-zA-Z]+_foo/.test(value));
 
-        let value = output();
-        assert(/foo_[0-9a-zA-Z]/.test(value));
+    let cssClass = value.match(/([_0-9a-zA-Z]+_foo)/)[1];
 
-        let cssClass = value.match(/(foo_[0-9a-zA-Z])/)[1];
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes(`.${cssClass}`));
+  });
 
-        let css = await outputFS.readFile(
-          path.join(distDir, 'index.css'),
-          'utf8',
-        );
-        assert(css.includes(`.${cssClass}`));
-      });
+  it('should support transforming css modules (import default)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-default/index.js',
+      ),
+      {mode: 'production'},
+    );
 
-      it('should support transforming css modules (import default)', async () => {
-        let b = await bundle(
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['style.module.css'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert(/[_0-9a-zA-Z]+_b-2/.test(output));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert(includedRules.has('.page'));
+    assert(includedRules.has(`.${output}`));
+  });
+
+  it('should tree shake unused css modules classes with a namespace import', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-namespace/index.js',
+      ),
+      {mode: 'production'},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['global.css', 'style.module.css'],
+      },
+    ]);
+
+    let js = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'js').filePath,
+      'utf8',
+    );
+    assert(!js.includes('unused'));
+
+    let output = await run(b);
+    assert(/[_0-9a-zA-Z]+_b-2/.test(output));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert.deepStrictEqual(
+      includedRules,
+      new Set(['body', `.${output}`, '.page']),
+    );
+  });
+
+  it('should produce correct css without symbol propagation for css modules classes with a namespace import', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-namespace/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['global.css', 'style.module.css'],
+      },
+    ]);
+
+    let {output} = await run(b, null, {require: false});
+    assert(/[_0-9a-zA-Z]+_b-2/.test(output));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert(includedRules.has('body'));
+    assert(includedRules.has(`.${output}`));
+    assert(includedRules.has('.page'));
+  });
+
+  it('should support importing css modules with a non-static namespace import', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-namespace-whole/index.js',
+      ),
+      {mode: 'production'},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['global.css', 'style.module.css'],
+      },
+    ]);
+
+    let js = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'js').filePath,
+      'utf8',
+    );
+    assert(js.includes('unused'));
+
+    let output = await run(b);
+    assert(/[_0-9a-zA-Z]+_b-2/.test(output['b-2']));
+    assert(/[_0-9a-zA-Z]+_unused/.test(output['unused']));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert.deepStrictEqual(
+      includedRules,
+      new Set(['body', `.${output['b-2']}`, `.${output['unused']}`, '.page']),
+    );
+  });
+
+  it('should support css modules composes imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'composes-1.module.css',
+          'composes-2.module.css',
+          'mixins.module.css',
+        ],
+      },
+      {
+        name: 'index.css',
+        assets: [
+          'composes-1.module.css',
+          'composes-2.module.css',
+          'mixins.module.css',
+        ],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    const composes1Classes = value.composes1.split(' ');
+    const composes2Classes = value.composes2.split(' ');
+    assert(composes1Classes[0].endsWith('_composes1'));
+    assert(composes1Classes[1].endsWith('_test'));
+    assert(composes2Classes[0].endsWith('_composes2'));
+    assert(composes2Classes[1].endsWith('_test'));
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let cssClass1 = value.composes1.match(/([_0-9a-zA-Z]+_composes1)/)[1];
+    assert(css.includes(`.${cssClass1}`));
+    let cssClass2 = value.composes2.match(/([_0-9a-zA-Z]+_composes2)/)[1];
+    assert(css.includes(`.${cssClass2}`));
+  });
+
+  it('should not include css twice for composes imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index.js'),
+    );
+
+    await run(b);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert.equal(
+      css.indexOf('height: 100px;'),
+      css.lastIndexOf('height: 100px;'),
+    );
+  });
+
+  it('should support composes imports for sass', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index2.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index2.js',
+        assets: ['index2.js', 'composes-3.module.css', 'mixins.module.scss'],
+      },
+      {
+        name: 'index2.css',
+        assets: ['composes-3.module.css', 'mixins.module.scss'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    const composes3Classes = value.composes3.split(' ');
+    assert(composes3Classes[0].endsWith('_composes3'));
+    assert(composes3Classes[1].endsWith('_test'));
+
+    let css = await outputFS.readFile(path.join(distDir, 'index2.css'), 'utf8');
+    assert(css.includes('height: 200px;'));
+  });
+
+  it('should support composes imports with custom path names', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index3.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index3.js',
+        assets: ['index3.js', 'composes-4.module.css', 'mixins.module.css'],
+      },
+      {
+        name: 'index3.css',
+        assets: ['composes-4.module.css', 'mixins.module.css'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    const composes4Classes = value.composes4.split(' ');
+    assert(composes4Classes[0].endsWith('_composes4'));
+    assert(composes4Classes[1].endsWith('_test'));
+
+    let css = await outputFS.readFile(path.join(distDir, 'index3.css'), 'utf8');
+    assert(css.includes('height: 100px;'));
+  });
+
+  it('should support deep nested composes imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index4.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index4.js',
+        assets: [
+          'index4.js',
+          'composes-5.module.css',
+          'mixins-intermediate.module.css',
+          'mixins.module.css',
+        ],
+      },
+      {
+        name: 'index4.css',
+        assets: [
+          'composes-5.module.css',
+          'mixins-intermediate.module.css',
+          'mixins.module.css',
+        ],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    const composes5Classes = value.composes5.split(' ');
+    assert(composes5Classes[0].endsWith('_composes5'));
+    assert(composes5Classes[1].endsWith('_intermediate'));
+    assert(composes5Classes[2].endsWith('_test'));
+
+    let css = await outputFS.readFile(path.join(distDir, 'index4.css'), 'utf8');
+    assert(css.includes('height: 100px;'));
+    assert(css.includes('height: 300px;'));
+    assert(css.indexOf('_test') < css.indexOf('_intermediate'));
+  });
+
+  it('should support composes imports for multiple selectors', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index5.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index5.js',
+        assets: ['index5.js', 'composes-6.module.css', 'mixins.module.css'],
+      },
+      {
+        name: 'index5.css',
+        assets: ['composes-6.module.css', 'mixins.module.css'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    const composes6Classes = value.composes6.split(' ');
+    assert(composes6Classes[0].endsWith('_composes6'));
+    assert(composes6Classes[1].endsWith('_test'));
+    assert(composes6Classes[2].endsWith('_test-2'));
+  });
+
+  it('should throw an error when importing a missing class', async function () {
+    await assert.rejects(
+      () =>
+        bundle(
           path.join(
             __dirname,
-            '/integration/postcss-modules-import-default/index.js',
-          ),
-          {mode: 'production'},
-        );
-
-        assertBundles(b, [
-          {
-            name: 'index.js',
-            assets: ['index.js', 'style.module.css'],
-          },
-          {
-            name: 'index.css',
-            assets: ['style.module.css'],
-          },
-        ]);
-
-        let output = await run(b);
-        assert(/b-2_[0-9a-zA-Z]/.test(output));
-
-        let css = await outputFS.readFile(
-          b.getBundles().find(b => b.type === 'css').filePath,
-          'utf8',
-        );
-        let includedRules = new Set();
-        postcss.parse(css).walkRules(rule => {
-          includedRules.add(rule.selector);
-        });
-        assert(includedRules.has('.page'));
-        assert(includedRules.has(`.${output}`));
-      });
-
-      it('should tree shake unused css modules classes with a namespace import', async () => {
-        let b = await bundle(
-          path.join(
-            __dirname,
-            '/integration/postcss-modules-import-namespace/index.js',
-          ),
-          {mode: 'production'},
-        );
-
-        assertBundles(b, [
-          {
-            name: 'index.js',
-            assets: ['index.js', 'style.module.css'],
-          },
-          {
-            name: 'index.css',
-            assets: ['global.css', 'style.module.css'],
-          },
-        ]);
-
-        let js = await outputFS.readFile(
-          b.getBundles().find(b => b.type === 'js').filePath,
-          'utf8',
-        );
-        assert(!js.includes('unused'));
-
-        let output = await run(b);
-        assert(/b-2_[0-9a-zA-Z]/.test(output));
-
-        let css = await outputFS.readFile(
-          b.getBundles().find(b => b.type === 'css').filePath,
-          'utf8',
-        );
-        let includedRules = new Set();
-        postcss.parse(css).walkRules(rule => {
-          includedRules.add(rule.selector);
-        });
-        assert.deepStrictEqual(
-          includedRules,
-          new Set(['body', `.${output}`, '.page']),
-        );
-      });
-
-      it('should produce correct css without symbol propagation for css modules classes with a namespace import', async () => {
-        let b = await bundle(
-          path.join(
-            __dirname,
-            '/integration/postcss-modules-import-namespace/index.js',
+            '/integration/no-export-error-with-correct-filetype/src/App.jsx',
           ),
           {
-            mode: 'production',
+            shouldDisableCache: true,
             defaultTargetOptions: {
-              shouldScopeHoist: false,
+              shouldScopeHoist: true,
             },
           },
-        );
-
-        assertBundles(b, [
+        ),
+      {
+        name: 'BuildError',
+        diagnostics: [
           {
-            name: 'index.js',
-            assets: ['index.js', 'style.module.css'],
-          },
-          {
-            name: 'index.css',
-            assets: ['global.css', 'style.module.css'],
-          },
-        ]);
-
-        let {output} = await run(b, null, {require: false});
-        assert(/b-2_[0-9a-zA-Z]/.test(output));
-
-        let css = await outputFS.readFile(
-          b.getBundles().find(b => b.type === 'css').filePath,
-          'utf8',
-        );
-        let includedRules = new Set();
-        postcss.parse(css).walkRules(rule => {
-          includedRules.add(rule.selector);
-        });
-        assert(includedRules.has('body'));
-        assert(includedRules.has(`.${output}`));
-        assert(includedRules.has('.page'));
-      });
-
-      it('should support importing css modules with a non-static namespace import', async () => {
-        let b = await bundle(
-          path.join(
-            __dirname,
-            '/integration/postcss-modules-import-namespace-whole/index.js',
-          ),
-          {mode: 'production'},
-        );
-
-        assertBundles(b, [
-          {
-            name: 'index.js',
-            assets: ['index.js', 'style.module.css'],
-          },
-          {
-            name: 'index.css',
-            assets: ['global.css', 'style.module.css'],
-          },
-        ]);
-
-        let js = await outputFS.readFile(
-          b.getBundles().find(b => b.type === 'js').filePath,
-          'utf8',
-        );
-        assert(js.includes('unused'));
-
-        let output = await run(b);
-        assert(/b-2_[0-9a-zA-Z]/.test(output['b-2']));
-        assert(/unused_[0-9a-zA-Z]/.test(output['unused']));
-
-        let css = await outputFS.readFile(
-          b.getBundles().find(b => b.type === 'css').filePath,
-          'utf8',
-        );
-        let includedRules = new Set();
-        postcss.parse(css).walkRules(rule => {
-          includedRules.add(rule.selector);
-        });
-        assert.deepStrictEqual(
-          includedRules,
-          new Set([
-            'body',
-            `.${output['b-2']}`,
-            `.${output['unused']}`,
-            '.page',
-          ]),
-        );
-      });
-
-      it('should support css modules composes imports', async () => {
-        let b = await bundle(
-          path.join(__dirname, '/integration/postcss-composes/index.js'),
-        );
-
-        assertBundles(b, [
-          {
-            name: 'index.js',
-            assets: [
-              'index.js',
-              'composes-1.module.css',
-              'composes-2.module.css',
-              'mixins.module.css',
-            ],
-          },
-          {
-            name: 'index.css',
-            assets: [
-              'composes-1.module.css',
-              'composes-2.module.css',
-              'mixins.module.css',
-            ],
-          },
-        ]);
-
-        let output = await run(b);
-        assert.equal(typeof output, 'function');
-
-        let value = output();
-        const composes1Classes = value.composes1.split(' ');
-        const composes2Classes = value.composes2.split(' ');
-        assert(composes1Classes[0].startsWith('composes1_'));
-        assert(composes1Classes[1].startsWith('test_'));
-        assert(composes2Classes[0].startsWith('composes2_'));
-        assert(composes2Classes[1].startsWith('test_'));
-
-        let css = await outputFS.readFile(
-          path.join(distDir, 'index.css'),
-          'utf8',
-        );
-        let cssClass1 = value.composes1.match(/(composes1_[0-9a-zA-Z]+)/)[1];
-        assert(css.includes(`.${cssClass1}`));
-        let cssClass2 = value.composes2.match(/(composes2_[0-9a-zA-Z]+)/)[1];
-        assert(css.includes(`.${cssClass2}`));
-      });
-
-      it('should not include css twice for composes imports', async () => {
-        let b = await bundle(
-          path.join(__dirname, '/integration/postcss-composes/index.js'),
-        );
-
-        await run(b);
-
-        let css = await outputFS.readFile(
-          path.join(distDir, 'index.css'),
-          'utf8',
-        );
-        assert.equal(
-          css.indexOf('height: 100px;'),
-          css.lastIndexOf('height: 100px;'),
-        );
-      });
-
-      it('should support composes imports for sass', async () => {
-        let b = await bundle(
-          path.join(__dirname, '/integration/postcss-composes/index2.js'),
-        );
-
-        assertBundles(b, [
-          {
-            name: 'index2.js',
-            assets: [
-              'index2.js',
-              'composes-3.module.css',
-              'mixins.module.scss',
-            ],
-          },
-          {
-            name: 'index2.css',
-            assets: ['composes-3.module.css', 'mixins.module.scss'],
-          },
-        ]);
-
-        let output = await run(b);
-        assert.equal(typeof output, 'function');
-
-        let value = output();
-        const composes3Classes = value.composes3.split(' ');
-        assert(composes3Classes[0].startsWith('composes3_'));
-        assert(composes3Classes[1].startsWith('test_'));
-
-        let css = await outputFS.readFile(
-          path.join(distDir, 'index2.css'),
-          'utf8',
-        );
-        assert(css.includes('height: 200px;'));
-      });
-
-      it('should support composes imports with custom path names', async () => {
-        let b = await bundle(
-          path.join(__dirname, '/integration/postcss-composes/index3.js'),
-        );
-
-        assertBundles(b, [
-          {
-            name: 'index3.js',
-            assets: ['index3.js', 'composes-4.module.css', 'mixins.module.css'],
-          },
-          {
-            name: 'index3.css',
-            assets: ['composes-4.module.css', 'mixins.module.css'],
-          },
-        ]);
-
-        let output = await run(b);
-        assert.equal(typeof output, 'function');
-
-        let value = output();
-        const composes4Classes = value.composes4.split(' ');
-        assert(composes4Classes[0].startsWith('composes4_'));
-        assert(composes4Classes[1].startsWith('test_'));
-
-        let css = await outputFS.readFile(
-          path.join(distDir, 'index3.css'),
-          'utf8',
-        );
-        assert(css.includes('height: 100px;'));
-      });
-
-      it('should support deep nested composes imports', async () => {
-        let b = await bundle(
-          path.join(__dirname, '/integration/postcss-composes/index4.js'),
-        );
-
-        assertBundles(b, [
-          {
-            name: 'index4.js',
-            assets: [
-              'index4.js',
-              'composes-5.module.css',
-              'mixins-intermediate.module.css',
-              'mixins.module.css',
-            ],
-          },
-          {
-            name: 'index4.css',
-            assets: [
-              'composes-5.module.css',
-              'mixins-intermediate.module.css',
-              'mixins.module.css',
-            ],
-          },
-        ]);
-
-        let output = await run(b);
-        assert.equal(typeof output, 'function');
-
-        let value = output();
-        const composes5Classes = value.composes5.split(' ');
-        assert(composes5Classes[0].startsWith('composes5_'));
-        assert(composes5Classes[1].startsWith('intermediate_'));
-        assert(composes5Classes[2].startsWith('test_'));
-
-        let css = await outputFS.readFile(
-          path.join(distDir, 'index4.css'),
-          'utf8',
-        );
-        assert(css.includes('height: 100px;'));
-        assert(css.includes('height: 300px;'));
-        assert(css.indexOf('.test_') < css.indexOf('.intermediate_'));
-      });
-
-      it('should support composes imports for multiple selectors', async () => {
-        let b = await bundle(
-          path.join(__dirname, '/integration/postcss-composes/index5.js'),
-        );
-
-        assertBundles(b, [
-          {
-            name: 'index5.js',
-            assets: ['index5.js', 'composes-6.module.css', 'mixins.module.css'],
-          },
-          {
-            name: 'index5.css',
-            assets: ['composes-6.module.css', 'mixins.module.css'],
-          },
-        ]);
-
-        let output = await run(b);
-        assert.equal(typeof output, 'function');
-
-        let value = output();
-        const composes6Classes = value.composes6.split(' ');
-        assert(composes6Classes[0].startsWith('composes6_'));
-        assert(composes6Classes[1].startsWith('test_'));
-        assert(composes6Classes[2].startsWith('test-2_'));
-      });
-
-      it('should throw an error when importing a missing class', async function () {
-        await assert.rejects(
-          () =>
-            bundle(
-              path.join(
-                __dirname,
-                '/integration/no-export-error-with-correct-filetype/src/App.jsx',
-              ),
+            codeFrames: [
               {
-                shouldDisableCache: true,
-                defaultTargetOptions: {
-                  shouldScopeHoist: true,
-                },
-              },
-            ),
-          {
-            name: 'BuildError',
-            diagnostics: [
-              {
-                codeFrames: [
+                filePath: path.join(
+                  __dirname,
+                  '/integration/no-export-error-with-correct-filetype/src/App.jsx',
+                ),
+                language: 'js',
+                codeHighlights: [
                   {
-                    filePath: path.join(
-                      __dirname,
-                      '/integration/no-export-error-with-correct-filetype/src/App.jsx',
-                    ),
-                    language: 'js',
-                    codeHighlights: [
-                      {
-                        end: {
-                          column: 45,
-                          line: 7,
-                        },
-                        start: {
-                          column: 28,
-                          line: 7,
-                        },
-                      },
-                    ],
+                    end: {
+                      column: 45,
+                      line: 7,
+                    },
+                    start: {
+                      column: 28,
+                      line: 7,
+                    },
                   },
                 ],
-                message:
-                  "integration/no-export-error-with-correct-filetype/src/app.module.css does not export 'notExisting'",
-                origin: '@parcel/core',
               },
             ],
+            message:
+              "integration/no-export-error-with-correct-filetype/src/app.module.css does not export 'notExisting'",
+            origin: '@parcel/core',
           },
-        );
-      });
+        ],
+      },
+    );
+  });
 
-      it('should fall back to postcss for legacy css modules', async function () {
-        let b = await bundle(
-          path.join(__dirname, '/integration/css-modules-legacy/index.js'),
-        );
+  it('should fall back to postcss for legacy css modules', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-legacy/index.js'),
+    );
 
-        assertBundles(b, [
-          {
-            name: 'index.js',
-            assets: ['index.js', 'index.module.css'],
-          },
-          {
-            name: 'index.css',
-            assets: ['index.module.css'],
-          },
-        ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.module.css'],
+      },
+    ]);
 
-        let css = await outputFS.readFile(
-          path.join(distDir, 'index.css'),
-          'utf8',
-        );
-        assert(css.includes('color: red'));
-      });
-    });
-  }
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('color: red'));
+  });
+
+  it('should fall back to postcss for legacy css modules with :export', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-legacy/b.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'b.js',
+        assets: ['b.js', 'b.module.css'],
+      },
+      {
+        name: 'b.css',
+        assets: ['b.module.css'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.deepEqual(res, {color: 'red'});
+  });
+
+  it('should optimize away unused @keyframes', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-keyframes/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.module.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(/@keyframes _[_0-9a-zA-Z]+_test/.test(css));
+    assert(!css.includes('unused'));
+  });
+
+  it('should not double optimize css modules processed with postcss', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-modules-optimize/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('@keyframes test'));
+    assert(css.includes('@keyframes unused'));
+  });
+
+  it('should compile css modules for multiple targets', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-targets/index.html'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js', 'foo.module.css'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js', 'foo.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['foo.module.css'],
+      },
+    ]);
+  });
+  // Forked because experimental bundler will not merge bundles of same types if they do not share all their bundlegroups
+  it('should handle @import in css modules', async function () {
+    let b = await bundle(
+      [
+        path.join(__dirname, '/integration/css-modules-import/page1.html'),
+        path.join(__dirname, '/integration/css-modules-import/page2.html'),
+      ],
+      {mode: 'production'},
+    );
+
+    let res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'page1.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+
+    assert.deepEqual(res, [['page1', '_1ZEqVW_a']]);
+
+    res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'page2.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+
+    assert.deepEqual(res, [['page2', '_4fY2uG_foo _1ZEqVW_foo j1UkRG_foo']]);
+
+    assertBundles(b, [
+      {
+        name: 'page1.html',
+        assets: ['page1.html'],
+      },
+      {
+        name: 'page2.html',
+        assets: ['page2.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page1.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page2.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css', 'b.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['index.module.css'],
+      },
+    ]);
+  });
+
+  it('should not process inline <style> elements as a CSS module', async function () {
+    await bundle(
+      path.join(__dirname, '/integration/css-modules-style/index.html'),
+    );
+    let contents = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(contents.includes('.index {'));
+  });
+
+  it('should support global css modules via boolean config', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-global/a/index.js'),
+      {mode: 'production'},
+    );
+    let res = await run(b);
+    assert.deepEqual(res, 'C-gzXq_foo');
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    assert(contents.includes('.C-gzXq_foo'));
+    assert(contents.includes('.x'));
+  });
+
+  it('should support global css modules via object config', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-global/b/index.js'),
+      {mode: 'production'},
+    );
+    let res = await run(b);
+    assert.deepEqual(res, 'C-gzXq_foo');
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    assert(contents.includes('.C-gzXq_foo'));
+    assert(contents.includes('.x'));
+  });
+
+  it('should optimize away unused variables when dashedIdents option is used', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-vars/index.js'),
+      {mode: 'production'},
+    );
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    assert.equal(
+      contents.split('\n')[0],
+      ':root{--wGsoEa_color:red;--wGsoEa_font:Helvetica;--wGsoEa_theme-sizes-1\\/12:2;--wGsoEa_from-js:purple}body{font:var(--wGsoEa_font)}._4fY2uG_foo{color:var(--wGsoEa_color);width:var(--wGsoEa_theme-sizes-1\\/12);height:var(--height)}',
+    );
+    let res = await run(b);
+    assert.deepEqual(res, ['_4fY2uG_foo', '--wGsoEa_from-js']);
+  });
 });

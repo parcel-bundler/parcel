@@ -258,7 +258,13 @@ export type PackageJSON = {
   types?: FilePath,
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
   source?: FilePath | Array<FilePath>,
-  alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
+  alias?: {
+    [PackageName | FilePath | Glob]:
+      | PackageName
+      | FilePath
+      | {|global: string|},
+    ...
+  },
   browserslist?: Array<string> | {[string]: Array<string>},
   engines?: Engines,
   targets?: {[string]: PackageTargetDescriptor, ...},
@@ -294,6 +300,7 @@ export type InitialParcelOptions = {|
   +shouldProfile?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
+  +shouldBundleIncrementally?: boolean,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
@@ -519,6 +526,8 @@ export type DependencyOptions = {|
    * By default, this is the path of the source file where the dependency was specified.
    */
   +resolveFrom?: FilePath,
+  /** The semver version range expected for the dependency. */
+  +range?: SemverRange,
   /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,
@@ -595,6 +604,8 @@ export interface Dependency {
    * By default, this is the path of the source file where the dependency was specified.
    */
   +resolveFrom: ?FilePath;
+  /** The semver version range expected for the dependency. */
+  +range: ?SemverRange;
   /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   +pipeline: ?string;
 
@@ -744,9 +755,9 @@ export interface MutableAsset extends BaseAsset {
   setBuffer(Buffer): void;
   /** Sets the asset contents as a stream. */
   setStream(Readable): void;
-  /** Returns whether the AST has been modified. */
-  setAST(AST): void;
   /** Sets the asset's AST. */
+  setAST(AST): void;
+  /** Returns whether the AST has been modified. */
   isASTDirty(): boolean;
   /** Sets the asset's source map. */
   setMap(?SourceMap): void;
@@ -798,8 +809,10 @@ export interface Config {
   invalidateOnFileCreate(FileCreateInvalidation): void;
   /** Invalidates the config when the given environment variable changes. */
   invalidateOnEnvChange(string): void;
-  /** Invalidates the config when Parcel restarts. */
+  /** Invalidates the config only when Parcel restarts. */
   invalidateOnStartup(): void;
+  /** Invalidates the config on every build. */
+  invalidateOnBuild(): void;
   /**
    * Adds a dev dependency to the config. If the dev dependency or any of its
    * dependencies change, the config will be invalidated.
@@ -821,7 +834,7 @@ export interface Config {
    */
   getConfig<T>(
     filePaths: Array<FilePath>,
-    options: ?{|
+    options?: {|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
@@ -834,7 +847,7 @@ export interface Config {
   getConfigFrom<T>(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{|
+    options?: {|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
@@ -1041,6 +1054,17 @@ export type Transformer<ConfigType> = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<Array<TransformerResult | MutableAsset>>,
+  /**
+   * Do some processing after the transformation
+   * @experimental
+   */
+  postProcess?: ({|
+    assets: Array<MutableAsset>,
+    config: ConfigType,
+    resolve: ResolveFn,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<Array<TransformerResult>>,
   /** Stringify the AST */
   generate?: ({|
     asset: Asset,
@@ -1243,7 +1267,10 @@ export interface Bundle {
   /** Returns whether the bundle includes the given dependency. */
   hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
-  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
+  traverseAssets<TContext>(
+    visit: GraphVisitor<Asset, TContext>,
+    startAsset?: Asset,
+  ): ?TContext;
   /** Traverses assets and dependencies in the bundle. */
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,
@@ -1485,6 +1512,8 @@ export type ResolveResult = {|
   +invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   /** A list of files that should invalidate the resolution if modified or deleted. */
   +invalidateOnFileChange?: Array<FilePath>,
+  /** Invalidates the resolution when the given environment variable changes.*/
+  +invalidateOnEnvChange?: Array<string>,
 |};
 
 /**
@@ -1565,18 +1594,26 @@ export type Runtime<ConfigType> = {|
 /**
  * @section packager
  */
-export type Packager<ConfigType> = {|
+export type Packager<ConfigType, BundleConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Promise<ConfigType> | ConfigType,
+  |}) => Async<ConfigType>,
+  loadBundleConfig?: ({|
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<BundleConfigType>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
     config: ConfigType,
+    bundleConfig: BundleConfigType,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,
@@ -1588,12 +1625,19 @@ export type Packager<ConfigType> = {|
 /**
  * @section optimizer
  */
-export type Optimizer<ConfigType> = {|
+export type Optimizer<ConfigType, BundleConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Promise<ConfigType> | ConfigType,
+  |}) => Async<ConfigType>,
+  loadBundleConfig?: ({|
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<BundleConfigType>,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1602,6 +1646,7 @@ export type Optimizer<ConfigType> = {|
     options: PluginOptions,
     logger: PluginLogger,
     config: ConfigType,
+    bundleConfig: BundleConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
@@ -1720,6 +1765,13 @@ export type BundlingProgressEvent = {|
   +phase: 'bundling',
 |};
 
+export type BundledProgressEvent = {|
+  +type: 'buildProgress',
+  +phase: 'bundled',
+  +bundleGraph: BundleGraph<NamedBundle>,
+  +changedAssets: Map<string, Asset>,
+|};
+
 /**
  * A new Bundle is being packaged.
  * @section reporter
@@ -1747,6 +1799,7 @@ export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
   | BundlingProgressEvent
+  | BundledProgressEvent
   | PackagingProgressEvent
   | OptimizingProgressEvent;
 

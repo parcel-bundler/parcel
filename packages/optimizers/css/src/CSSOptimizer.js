@@ -6,12 +6,63 @@ import {
   transform,
   transformStyleAttribute,
   browserslistToTargets,
-} from '@parcel/css';
+} from 'lightningcss';
 import {blobToBuffer} from '@parcel/utils';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
+import path from 'path';
+import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
 
 export default (new Optimizer({
+  async loadConfig({config, logger, options}) {
+    const configFile = await config.getConfig(
+      [
+        '.cssnanorc',
+        'cssnano.config.json',
+        'cssnano.config.js',
+        'cssnano.config.cjs',
+      ],
+      {
+        packageKey: 'cssnano',
+      },
+    );
+    if (configFile) {
+      let filename = path.basename(configFile.filePath);
+      let codeHighlights;
+      let message;
+      if (filename === 'package.json') {
+        message = md`
+Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssnano" key was found in **package.json**. Either remove this configuration, or configure Parcel to use @parcel/optimizer-cssnano instead.
+        `;
+        let contents = await options.inputFS.readFile(
+          configFile.filePath,
+          'utf8',
+        );
+        codeHighlights = generateJSONCodeHighlights(contents, [
+          {key: '/cssnano', type: 'key'},
+        ]);
+      } else {
+        message = md`Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a __${filename}__ config file was found. Either remove this config file, or configure Parcel to use @parcel/optimizer-cssnano instead.`;
+        codeHighlights = [
+          {
+            start: {line: 1, column: 1},
+            end: {line: 1, column: 1},
+          },
+        ];
+      }
+
+      logger.warn({
+        message,
+        documentationURL: 'https://parceljs.org/languages/css/#minification',
+        codeFrames: [
+          {
+            filePath: configFile.filePath,
+            codeHighlights,
+          },
+        ],
+      });
+    }
+  },
   async optimize({
     bundle,
     bundleGraph,
@@ -32,7 +83,10 @@ export default (new Optimizer({
     if (bundle.env.shouldScopeHoist) {
       unusedSymbols = [];
       bundle.traverseAssets(asset => {
-        if (asset.symbols.isCleared) {
+        if (
+          asset.symbols.isCleared ||
+          asset.meta.cssModulesCompiled === 'postcss'
+        ) {
           return;
         }
 

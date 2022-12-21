@@ -1,7 +1,7 @@
 // @flow
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import {SharedBuffer} from '@parcel/utils';
+import {SharedBuffer} from './shared-buffer';
 import {fromNodeId, toNodeId} from './types';
 import {ALL_EDGE_TYPES, type NullEdgeType, type AllEdgeTypes} from './Graph';
 import type {NodeId} from './types';
@@ -246,7 +246,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): boolean {
-    assert(type > 0, `Unsupported edge type ${0}`);
+    assert(type > 0, `Unsupported edge type ${type}`);
 
     let hash = this.#edges.hash(from, to, type);
     let edge = this.#edges.addressOf(hash, from, to, type);
@@ -329,10 +329,18 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   hasEdge(
     from: NodeId,
     to: NodeId,
-    type: TEdgeType | NullEdgeType = 1,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): boolean {
-    let hash = this.#edges.hash(from, to, type);
-    return this.#edges.addressOf(hash, from, to, type) !== null;
+    let hasEdge = (type: TEdgeType | NullEdgeType) => {
+      let hash = this.#edges.hash(from, to, type);
+      return this.#edges.addressOf(hash, from, to, type) !== null;
+    };
+
+    if (Array.isArray(type)) {
+      return type.some(hasEdge);
+    }
+
+    return hasEdge(type);
   }
 
   /**
@@ -439,14 +447,18 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       (Array.isArray(type)
         ? type.includes(this.#nodes.typeOf(node))
         : type === this.#nodes.typeOf(node));
-
     let nodes = [];
+    let seen = new Set<NodeId>();
     let node = this.#nodes.head(from);
     while (node !== null) {
       if (matches(node)) {
         let edge = this.#nodes.firstOut(node);
         while (edge !== null) {
-          nodes.push(this.#edges.to(edge));
+          let to = this.#edges.to(edge);
+          if (!seen.has(to)) {
+            nodes.push(to);
+            seen.add(to);
+          }
           edge = this.#edges.nextOut(edge);
         }
       }
@@ -473,12 +485,17 @@ export default class AdjacencyList<TEdgeType: number = 1> {
         : type === this.#nodes.typeOf(node));
 
     let nodes = [];
+    let seen = new Set<NodeId>();
     let node = this.#nodes.head(to);
     while (node !== null) {
       if (matches(node)) {
         let edge = this.#nodes.firstIn(node);
         while (edge !== null) {
-          nodes.push(this.#edges.from(edge));
+          let from = this.#edges.from(edge);
+          if (!seen.has(from)) {
+            nodes.push(from);
+            seen.add(from);
+          }
           edge = this.#edges.nextIn(edge);
         }
       }
@@ -600,7 +617,7 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
 
   get bufferSize(): string {
     return `${(this.data.byteLength / 1024 / 1024).toLocaleString(undefined, {
-      minmumFractionDigits: 2,
+      minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })} mb`;
   }

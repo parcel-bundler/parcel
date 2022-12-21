@@ -10,7 +10,7 @@ import type {
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
-import type {HTTPServer} from '@parcel/utils';
+import type {HTTPServer, FormattedCodeFrame} from '@parcel/utils';
 
 import invariant from 'assert';
 import path from 'path';
@@ -28,9 +28,11 @@ import ejs from 'ejs';
 import connect from 'connect';
 import serveHandler from 'serve-handler';
 import {createProxyMiddleware} from 'http-proxy-middleware';
-import {URL} from 'url';
+import {URL, URLSearchParams} from 'url';
+import launchEditor from 'launch-editor';
+import fresh from 'fresh';
 
-function setHeaders(res: Response) {
+export function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader(
     'Access-Control-Allow-Methods',
@@ -40,9 +42,11 @@ function setHeaders(res: Response) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
+  res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
 }
 
-const SOURCES_ENDPOINT = '/__parcel_source_root';
+export const SOURCES_ENDPOINT = '/__parcel_source_root';
+const EDITOR_ENDPOINT = '/__parcel_launch_editor';
 const TEMPLATE_404 = fs.readFileSync(
   path.join(__dirname, 'templates/404.html'),
   'utf8',
@@ -57,13 +61,15 @@ type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 export default class Server {
   pending: boolean;
   pendingRequests: Array<[Request, Response]>;
+  middleware: Array<(req: Request, res: Response) => boolean>;
   options: DevServerOptions;
   rootPath: string;
   bundleGraph: BundleGraph<PackagedBundle> | null;
   requestBundle: ?(bundle: PackagedBundle) => Promise<BuildSuccessEvent>;
   errors: Array<{|
     message: string,
-    stack: string,
+    stack: ?string,
+    frames: Array<FormattedCodeFrame>,
     hints: Array<string>,
     documentation: string,
   |}> | null;
@@ -78,6 +84,7 @@ export default class Server {
     }
     this.pending = true;
     this.pendingRequests = [];
+    this.middleware = [];
     this.bundleGraph = null;
     this.requestBundle = null;
     this.errors = null;
@@ -113,9 +120,11 @@ export default class Server {
 
         return {
           message: ansiHtml(ansiDiagnostic.message),
-          stack: ansiDiagnostic.codeframe
-            ? ansiHtml(ansiDiagnostic.codeframe)
-            : ansiHtml(ansiDiagnostic.stack),
+          stack: ansiDiagnostic.stack ? ansiHtml(ansiDiagnostic.stack) : null,
+          frames: ansiDiagnostic.frames.map(f => ({
+            location: f.location,
+            code: ansiHtml(f.code),
+          })),
           hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
           documentation: d.documentationURL ?? '',
         };
@@ -124,13 +133,24 @@ export default class Server {
   }
 
   respond(req: Request, res: Response): mixed {
-    let {pathname} = url.parse(req.originalUrl || req.url);
-
+    if (this.middleware.some(handler => handler(req, res))) return;
+    let {pathname, search} = url.parse(req.originalUrl || req.url);
     if (pathname == null) {
       pathname = '/';
     }
 
-    if (this.errors) {
+    if (pathname.startsWith(EDITOR_ENDPOINT) && search) {
+      let query = new URLSearchParams(search);
+      let file = query.get('file');
+      if (file) {
+        // File location might start with /__parcel_source_root if it came from a source map.
+        if (file.startsWith(SOURCES_ENDPOINT)) {
+          file = file.slice(SOURCES_ENDPOINT.length + 1);
+        }
+        launchEditor(file);
+      }
+      res.end();
+    } else if (this.errors) {
       return this.send500(req, res);
     } else if (path.extname(pathname) === '') {
       // If the URL doesn't start with the public path, or the URL doesn't
@@ -304,7 +324,8 @@ export default class Server {
       return next(req, res);
     }
 
-    if (req.method === 'HEAD') {
+    if (fresh(req.headers, {'last-modified': stat.mtime.toUTCString()})) {
+      res.statusCode = 304;
       res.end();
       return;
     }
@@ -327,19 +348,15 @@ export default class Server {
 
   sendError(res: Response, statusCode: number) {
     res.statusCode = statusCode;
-    setHeaders(res);
     res.end();
   }
 
   send404(req: Request, res: Response) {
     res.statusCode = 404;
-    setHeaders(res);
     res.end(TEMPLATE_404);
   }
 
   send500(req: Request, res: Response): void | Response {
-    setHeaders(res);
-
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.writeHead(500);
 
@@ -347,6 +364,7 @@ export default class Server {
       return res.end(
         ejs.render(TEMPLATE_500, {
           errors: this.errors,
+          hmrOptions: this.options.hmrOptions,
         }),
       );
     }

@@ -1,0 +1,27 @@
+{
+  "name": "@parcel/runtime-webextension",
+  "version": "2.8.2",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/WebExtensionRuntime.js",
+  "source": "src/WebExtensionRuntime.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.8.2"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.8.2",
+    "@parcel/utils": "2.8.2",
+    "nullthrows": "^1.1.1"
+  }
+}

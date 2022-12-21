@@ -21,11 +21,14 @@ const COLORS = {
 };
 
 const TYPE_COLORS = {
+  // bundle graph
   bundle: 'blue',
   contains: 'grey',
   internal_async: 'orange',
   references: 'red',
   sibling: 'green',
+  // asset graph
+  // request graph
   invalidated_by_create: 'green',
   invalidated_by_create_above: 'orange',
   invalidate_by_update: 'cyan',
@@ -33,12 +36,11 @@ const TYPE_COLORS = {
 };
 
 export default async function dumpGraphToGraphViz(
-  // $FlowFixMe
   graph:
     | Graph<AssetGraphNode>
     | Graph<{|
-        assets: Array<Asset>,
-        sourceBundles: Array<number>,
+        assets: Set<Asset>,
+        sourceBundles: Set<number>,
         bundleBehavior?: ?BundleBehavior,
       |}>
     | Graph<BundleGraphNode>,
@@ -73,16 +75,21 @@ export default async function dumpGraphToGraphViz(
           let arr = a.filePath.split('/');
           return arr[arr.length - 1];
         })
-        .join(', ')}) (sourceBundles: ${node.sourceBundles.join(', ')}) (bb ${
-        node.bundleBehavior ?? 'none'
-      })`;
+        .join(', ')}) (sourceBundles: ${[...node.sourceBundles].join(
+        ', ',
+      )}) (bb ${node.bundleBehavior ?? 'none'})`;
     } else if (node.type) {
       label = `[${fromNodeId(id)}] ${node.type || 'No Type'}: [${node.id}]: `;
       if (node.type === 'dependency') {
         label += node.value.specifier;
         let parts = [];
-        if (node.value.priority !== Priority.sync)
-          parts.push(node.value.priority);
+        if (node.value.priority !== Priority.sync) {
+          parts.push(
+            Object.entries(Priority).find(
+              ([, v]) => v === node.value.priority,
+            )?.[0],
+          );
+        }
         if (node.value.isOptional) parts.push('optional');
         if (node.value.specifierType === SpecifierType.url) parts.push('url');
         if (node.hasDeferred) parts.push('deferred');
@@ -104,7 +111,17 @@ export default async function dumpGraphToGraphViz(
               label += '\\nweakSymbols: ' + weakSymbols.join(',');
             }
             if (node.usedSymbolsUp.size > 0) {
-              label += '\\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
+              label +=
+                '\\nusedSymbolsUp: ' +
+                [...node.usedSymbolsUp]
+                  .map(([s, sAsset]) =>
+                    sAsset
+                      ? `${s}(${sAsset.asset}.${sAsset.symbol ?? ''})`
+                      : sAsset === null
+                      ? `${s}(external)`
+                      : `${s}(ambiguous)`,
+                  )
+                  .join(',');
             }
             if (node.usedSymbolsDown.size > 0) {
               label +=
@@ -137,15 +154,12 @@ export default async function dumpGraphToGraphViz(
         }
       } else if (node.type === 'asset_group') {
         if (node.deferred) label += '(deferred)';
-        // $FlowFixMe
       } else if (node.type === 'file') {
         label += path.basename(node.value.filePath);
-        // $FlowFixMe
       } else if (node.type === 'transformer_request') {
         label +=
           path.basename(node.value.filePath) +
           ` (${getEnvDescription(node.value.env)})`;
-        // $FlowFixMe
       } else if (node.type === 'bundle') {
         let parts = [];
         if (node.value.needsStableName) parts.push('stable name');
@@ -153,7 +167,6 @@ export default async function dumpGraphToGraphViz(
         parts.push('bb:' + (node.value.bundleBehavior ?? 'null'));
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-        // $FlowFixMe
       } else if (node.type === 'request') {
         label = node.value.type + ':' + node.id;
       }
