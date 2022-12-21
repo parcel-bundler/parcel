@@ -6242,6 +6242,30 @@ describe('javascript', function () {
     assert.deepEqual(o2, ['UIIcon', 'Icon']);
   });
 
+  it('should add strict mode directive to module bundles', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js/index.html'),
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'js').filePath,
+      'utf8',
+    );
+    assert(contents.startsWith("'use strict';"));
+  });
+
+  it('should not add strict mode directive to classic scripts', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-classic/index.html'),
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'js').filePath,
+      'utf8',
+    );
+    assert(!contents.includes('use strict'));
+  });
+
   for (let shouldScopeHoist of [false, true]) {
     let options = {
       defaultTargetOptions: {
