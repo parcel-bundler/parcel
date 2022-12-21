@@ -15,7 +15,7 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-typescript-validation',
 );
 
-describe('ts-validator', function() {
+describe('ts-validator', function () {
   let subscription;
   afterEach(async () => {
     if (subscription) {
@@ -24,7 +24,7 @@ describe('ts-validator', function() {
     subscription = null;
   });
 
-  it('should throw validation error on typescript typing errors across multiple files', async function() {
+  it('should throw validation error on typescript typing errors across multiple files', async function () {
     let didThrow = false;
     let entry = normalizeFilePath(
       path.join(__dirname, '/integration/ts-validation-error/index.ts'),
@@ -43,22 +43,22 @@ describe('ts-validator', function() {
       assert(e.diagnostics.length === 2);
 
       let entryDiagnostic = e.diagnostics.find(
-        diagnostic => diagnostic.filePath === entry,
+        diagnostic => diagnostic.codeFrames[0].filePath === entry,
       );
       assert(!!entryDiagnostic);
-      assert(!!entryDiagnostic.codeFrame);
+      assert(!!entryDiagnostic.codeFrames);
       assert.equal(entryDiagnostic.origin, '@parcel/validator-typescript');
       assert.equal(
         entryDiagnostic.message,
-        `Argument of type '"a string"' is not assignable to parameter of type 'Params'.`,
+        `Argument of type 'string' is not assignable to parameter of type 'Params'.`,
       );
-      assert.equal(entryDiagnostic.filePath, entry);
+      assert.equal(entryDiagnostic.codeFrames[0].filePath, entry);
 
       let testFileDiagnostic = e.diagnostics.find(
-        diagnostic => diagnostic.filePath === testFile,
+        diagnostic => diagnostic.codeFrames[0].filePath === testFile,
       );
       assert(!!testFileDiagnostic);
-      assert(!!testFileDiagnostic.codeFrame);
+      assert(!!testFileDiagnostic.codeFrames);
       assert.equal(testFileDiagnostic.origin, '@parcel/validator-typescript');
       assert.equal(
         testFileDiagnostic.message,
@@ -71,7 +71,7 @@ describe('ts-validator', function() {
     assert(didThrow);
   });
 
-  it('should re-run when .ts files change', async function() {
+  it('should re-run when .ts files change', async function () {
     // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
     // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-change');
@@ -92,7 +92,7 @@ describe('ts-validator', function() {
     assert.equal(buildEvent.diagnostics.length, 1);
     assert.equal(
       buildEvent.diagnostics[0].message,
-      "Type '\"This is a type error!\"' is not assignable to type 'number'.",
+      "Type 'string' is not assignable to type 'number'.",
     );
 
     await outputFS.writeFile(
@@ -106,18 +106,18 @@ describe('ts-validator', function() {
 
     await outputFS.writeFile(
       path.join(inputDir, '/index.ts'),
-      `export const message: boolean = "Now it is back!"`,
+      `export const message: boolean = {}`,
     );
     buildEvent = await getNextBuild(b);
     assert.equal(buildEvent.type, 'buildFailure');
     assert.equal(buildEvent.diagnostics.length, 1);
     assert.equal(
       buildEvent.diagnostics[0].message,
-      "Type '\"Now it is back!\"' is not assignable to type 'boolean'.",
+      "Type '{}' is not assignable to type 'boolean'.",
     );
   });
 
-  it('should report correct errors when multiple .ts files change at the same time - no errors', async function() {
+  it('should report correct errors when multiple .ts files change at the same time - no errors', async function () {
     // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
     // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-multi-change');
@@ -161,7 +161,7 @@ describe('ts-validator', function() {
     assert.equal(output.output, 123456);
   });
 
-  it('should report correct errors when multiple .ts files change at the same time - with errors', async function() {
+  it('should report correct errors when multiple .ts files change at the same time - with errors', async function () {
     // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
     // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-multi-change-errors');
@@ -185,9 +185,9 @@ describe('ts-validator', function() {
 
     let buildEvent = await getNextBuild(b);
     assert.equal(buildEvent.type, 'buildFailure');
-    assert.equal(buildEvent.diagnostics.length, 1);
+    assert.equal(buildEvent.diagnostics.length, 2);
     assert.equal(
-      buildEvent.diagnostics[0].message,
+      buildEvent.diagnostics[1].message,
       "Argument of type 'string' is not assignable to parameter of type 'number'.",
     );
 
@@ -211,7 +211,7 @@ describe('ts-validator', function() {
     );
   });
 
-  it('should report correct errors when .ts dependencies change in a way that breaks a contract', async function() {
+  it('should report correct errors when .ts dependencies change in a way that breaks a contract', async function () {
     // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
     // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-dependencies-change');

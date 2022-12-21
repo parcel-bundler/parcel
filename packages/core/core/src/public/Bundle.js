@@ -1,17 +1,22 @@
 // @flow strict-local
 
-import type {Bundle as InternalBundle, ParcelOptions} from '../types';
+import type {
+  Bundle as InternalBundle,
+  ParcelOptions,
+  PackagedBundleInfo,
+} from '../types';
 import type {
   Asset as IAsset,
   Bundle as IBundle,
   BundleTraversable,
   Dependency as IDependency,
   Environment as IEnvironment,
+  GraphVisitor,
   NamedBundle as INamedBundle,
   PackagedBundle as IPackagedBundle,
   Stats,
   Target as ITarget,
-  GraphVisitor,
+  BundleBehavior,
 } from '@parcel/types';
 import type BundleGraph from '../BundleGraph';
 
@@ -20,10 +25,12 @@ import nullthrows from 'nullthrows';
 import {DefaultWeakMap} from '@parcel/utils';
 
 import {assetToAssetValue, assetFromValue} from './Asset';
-import {mapVisitor} from '../Graph';
+import {mapVisitor} from '@parcel/graph';
 import Environment from './Environment';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import Target from './Target';
+import {BundleBehaviorNames} from '../types';
+import {fromProjectPath} from '../projectPath';
 
 const internalBundleToBundle: DefaultWeakMap<
   ParcelOptions,
@@ -44,10 +51,8 @@ const _bundleToInternalBundle: WeakMap<IBundle, InternalBundle> = new WeakMap();
 export function bundleToInternalBundle(bundle: IBundle): InternalBundle {
   return nullthrows(_bundleToInternalBundle.get(bundle));
 }
-const _bundleToInternalBundleGraph: WeakMap<
-  IBundle,
-  BundleGraph,
-> = new WeakMap();
+const _bundleToInternalBundleGraph: WeakMap<IBundle, BundleGraph> =
+  new WeakMap();
 export function bundleToInternalBundleGraph(bundle: IBundle): BundleGraph {
   return nullthrows(_bundleToInternalBundleGraph.get(bundle));
 }
@@ -108,15 +113,16 @@ export class Bundle implements IBundle {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#bundle.env);
+    return new Environment(this.#bundle.env, this.#options);
   }
 
-  get isEntry(): ?boolean {
-    return this.#bundle.isEntry;
+  get needsStableName(): ?boolean {
+    return this.#bundle.needsStableName;
   }
 
-  get isInline(): ?boolean {
-    return this.#bundle.isInline;
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#bundle.bundleBehavior;
+    return bundleBehavior != null ? BundleBehaviorNames[bundleBehavior] : null;
   }
 
   get isSplittable(): ?boolean {
@@ -124,11 +130,7 @@ export class Bundle implements IBundle {
   }
 
   get target(): ITarget {
-    return new Target(this.#bundle.target);
-  }
-
-  get stats(): Stats {
-    return this.#bundle.stats;
+    return new Target(this.#bundle.target, this.#options);
   }
 
   hasAsset(asset: IAsset): boolean {
@@ -175,16 +177,23 @@ export class Bundle implements IBundle {
             value: assetFromValue(node.value, this.#options),
           };
         } else if (node.type === 'dependency') {
-          return {type: 'dependency', value: new Dependency(node.value)};
+          return {
+            type: 'dependency',
+            value: new Dependency(node.value, this.#options),
+          };
         }
       }, visit),
     );
   }
 
-  traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>): ?TContext {
+  traverseAssets<TContext>(
+    visit: GraphVisitor<IAsset, TContext>,
+    startAsset?: IAsset,
+  ): ?TContext {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
       mapVisitor(asset => assetFromValue(asset, this.#options), visit),
+      startAsset ? assetToAssetValue(startAsset) : undefined,
     );
   }
 }
@@ -192,6 +201,7 @@ export class Bundle implements IBundle {
 export class NamedBundle extends Bundle implements INamedBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
+  #options /*: ParcelOptions */;
 
   constructor(
     sentinel: mixed,
@@ -202,6 +212,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
     super(sentinel, bundle, bundleGraph, options);
     this.#bundle = bundle; // Repeating for flow
     this.#bundleGraph = bundleGraph; // Repeating for flow
+    this.#options = options;
   }
 
   static get(
@@ -244,6 +255,8 @@ export class NamedBundle extends Bundle implements INamedBundle {
 export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
+  #options /*: ParcelOptions */;
+  #bundleInfo /*: ?PackagedBundleInfo */;
 
   constructor(
     sentinel: mixed,
@@ -254,6 +267,7 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     super(sentinel, bundle, bundleGraph, options);
     this.#bundle = bundle; // Repeating for flow
     this.#bundleGraph = bundleGraph; // Repeating for flow
+    this.#options = options; // Repeating for flow
   }
 
   static get(
@@ -282,7 +296,35 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     return packagedBundle;
   }
 
+  static getWithInfo(
+    internalBundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions,
+    bundleInfo: ?PackagedBundleInfo,
+  ): PackagedBundle {
+    let packagedBundle = PackagedBundle.get(
+      internalBundle,
+      bundleGraph,
+      options,
+    );
+    packagedBundle.#bundleInfo = bundleInfo;
+    return packagedBundle;
+  }
+
   get filePath(): string {
-    return nullthrows(this.#bundle.filePath);
+    return fromProjectPath(
+      this.#options.projectRoot,
+      nullthrows(this.#bundleInfo).filePath,
+    );
+  }
+
+  get type(): string {
+    // The bundle type may be overridden in the packager.
+    // However, inline bundles will not have a bundleInfo here since they are not written to the filesystem.
+    return this.#bundleInfo ? this.#bundleInfo.type : this.#bundle.type;
+  }
+
+  get stats(): Stats {
+    return nullthrows(this.#bundleInfo).stats;
   }
 }

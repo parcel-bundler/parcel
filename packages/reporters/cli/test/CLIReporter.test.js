@@ -12,7 +12,6 @@ const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
   entries: [],
   logLevel: 'info',
-  entryRoot: __dirname,
   targets: [],
   projectRoot: '',
   distDir: 'dist',
@@ -30,7 +29,7 @@ const EMPTY_OPTIONS = {
   inputFS,
   outputFS,
   instanceId: 'test',
-  packageManager: new NodePackageManager(inputFS),
+  packageManager: new NodePackageManager(inputFS, '/'),
   detailedReport: {
     assetsPerBundle: 10,
   },
@@ -134,7 +133,7 @@ describe('CLIReporter', () => {
       EMPTY_OPTIONS,
     );
 
-    assert.equal(stdoutOutput, '');
+    assert.equal(stdoutOutput, '\n\n');
     assert.equal(stderrOutput, 'test: error\ntest: warn\n');
   });
 
@@ -166,7 +165,7 @@ describe('CLIReporter', () => {
       EMPTY_OPTIONS,
     );
 
-    assert.equal(stdoutOutput, '');
+    assert.equal(stdoutOutput, '\n\n');
     assert(stderrOutput.includes('test: error\n'));
     assert(stderrOutput.includes('test: warn\n'));
   });

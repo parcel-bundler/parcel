@@ -4,8 +4,8 @@ import {Transformer} from '@parcel/plugin';
 
 import path from 'path';
 import posthtml from 'posthtml';
-import parse from 'posthtml-parser';
-import render from 'posthtml-render';
+import {parser as parse} from 'posthtml-parser';
+import {render} from 'posthtml-render';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
 import {relativePath} from '@parcel/utils';
@@ -13,15 +13,25 @@ import loadPlugins from './loadPlugins';
 
 export default (new Transformer({
   async loadConfig({config, options, logger}) {
+    if (!config.isSource) {
+      return;
+    }
+
     let configFile = await config.getConfig(
-      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+      [
+        '.posthtmlrc',
+        '.posthtmlrc.js',
+        '.posthtmlrc.cjs',
+        'posthtml.config.js',
+        'posthtml.config.cjs',
+      ],
       {
         packageKey: 'posthtml',
       },
     );
 
     if (configFile) {
-      let isJavascript = path.extname(configFile.filePath) === '.js';
+      let isJavascript = path.extname(configFile.filePath).endsWith('js');
       if (isJavascript) {
         // We have to invalidate on startup in case the config is non-deterministic,
         // e.g. using unknown environment variables, reading from the filesystem, etc.
@@ -30,11 +40,11 @@ export default (new Transformer({
             'WARNING: Using a JavaScript PostHTML config file means losing out on caching features of Parcel. Use a .posthtmlrc (JSON) file whenever possible.',
         });
 
-        config.shouldInvalidateOnStartup();
+        config.invalidateOnStartup();
 
         // Also add the config as a dev dependency so we attempt to reload in watch mode.
         config.addDevDependency({
-          moduleSpecifier: relativePath(
+          specifier: relativePath(
             path.dirname(config.searchPath),
             configFile.filePath,
           ),
@@ -56,7 +66,7 @@ export default (new Transformer({
       for (let p of pluginArray) {
         if (typeof p === 'string') {
           config.addDevDependency({
-            moduleSpecifier: p,
+            specifier: p,
             resolveFrom: configFile.filePath,
           });
         }
@@ -68,7 +78,7 @@ export default (new Transformer({
       configFile.contents.skipParse = true;
       delete configFile.contents.render;
 
-      config.setResult(configFile.contents);
+      return configFile.contents;
     }
   },
 
@@ -87,6 +97,8 @@ export default (new Transformer({
       version: '0.4.1',
       program: parse(await asset.getCode(), {
         lowerCaseAttributeNames: true,
+        sourceLocations: true,
+        xmlMode: asset.type === 'xhtml',
       }),
     };
   },
@@ -106,7 +118,7 @@ export default (new Transformer({
       await Promise.all(
         res.messages.map(({type, file: filePath}) => {
           if (type === 'dependency') {
-            return asset.addIncludedFile(filePath);
+            return asset.invalidateOnFileChange(filePath);
           }
           return Promise.resolve();
         }),
@@ -122,9 +134,11 @@ export default (new Transformer({
     return [asset];
   },
 
-  generate({ast}) {
+  generate({ast, asset}) {
     return {
-      content: render(ast.program),
+      content: render(ast.program, {
+        closingSingleTag: asset.type === 'xhtml' ? 'slash' : undefined,
+      }),
     };
   },
 }): Transformer);

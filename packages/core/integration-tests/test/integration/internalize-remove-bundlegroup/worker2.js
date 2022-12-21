@@ -1,2 +1,2 @@
 import './core.js';
-new Worker('./worker3.js');
+new Worker(new URL('./worker3.js', import.meta.url), {type: 'module'});

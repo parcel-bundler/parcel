@@ -14,7 +14,7 @@ Please be polite and take the time to write a well-worded question so our commun
 
 In order to make it easier to get familiar with the codebase we labeled simpler issues using [Good First Issue](https://github.com/parcel-bundler/parcel/issues?q=is%3Aopen+is%3Aissue+label%3A%22%E2%9C%A8+Parcel+2%22+label%3A%22%3Ababy%3A+Good+First+Issue%22) and [Help Wanted](https://github.com/parcel-bundler/parcel/issues?q=is%3Aopen+is%3Aissue+label%3A%22%E2%9C%A8+Parcel+2%22+label%3A%22%3Apray%3A+Help+Wanted%22).
 
-Before starting make sure you have the following requirements installed: [git](https://git-scm.com), [Node](https://nodejs.org) and [Yarn](https://yarnpkg.com).
+Before starting make sure you have the following requirements installed: [git](https://git-scm.com), [Node](https://nodejs.org), [Yarn](https://yarnpkg.com) and [Rust](https://www.rust-lang.org/tools/install).
 
 The process starts by [forking](https://docs.github.com/en/github/getting-started-with-github/fork-a-repo) the project and setup a new branch to work in. It's important that the changes are made in separated branches in order to ensure a pull request only includes the commits related to a bug or feature.
 
@@ -24,13 +24,12 @@ Clone the forked repository locally and install the dependencies:
 git clone https://github.com/USERNAME/parcel.git
 cd parcel
 yarn install
+yarn build-native
 ```
 
-In the folder `packages/example`, create a temporary example to debug. You can start by copying the `simple` example and try to reproduce the bug.
+If you want, you can create a temporary example for debugging in the folder `packages/examples`. You can start by copying the `simple` example and try to reproduce the bug. It has everything set up for working on local changes and you can run `yarn build` to build the project. If you're re-using another example or creating one from scratch, make sure to use the `--no-cache` flag for `parcel build` to see your local changes reflected. _Please don't commit this example._
 
-In the newly created example run `yarn parcel build index.html` to build.
-
-After you've figured out where the issue originated from and found a fix, try to add a test case or ask for help on how to proceed if the use case it more complex.
+After you've figured out where the issue originated from and found a fix, try to add a test case or ask for help on how to proceed if the use case is more complex.
 
 Use `yarn test` to run all unit and integration tests. Make sure all tests pass before submitting a pull request.
 
@@ -38,7 +37,7 @@ Use `yarn format` to make sure we keep the code format consistent.
 
 Use `yarn lint` to check for stylistic or unwanted errors.
 
-If you want to test out your change outside of the monorepo, you ran run `/path/to/monorepo/packages/core/parcel/src/bin.js build src/index.html` (provided that you don't have any `@parcel/*` plugins installed in this project).
+If you want to test out your change outside the monorepo, you can run `/path/to/monorepo/packages/core/parcel/src/bin.js build src/index.html` (provided that you don't have any `@parcel/*` plugins installed in this project).
 
 ## Notes and things to be aware of
 
@@ -72,7 +71,7 @@ When releasing a new version of Parcel a couple steps should be followed:
 
 After these steps are completed there should be a new version of Parcel published on npm.
 
-In case the automatic npm release failed or you want to do a manual release for any other reason you can also run `yarn run release`
+In case the automatic npm release failed, or you want to do a manual release for any other reason you can also run `yarn run release`
 
 ## Become a backer or sponsor
 

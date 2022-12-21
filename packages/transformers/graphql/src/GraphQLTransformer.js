@@ -11,7 +11,7 @@ export default (new Transformer({
     async function loadImport(to, from) {
       const filePath = await resolve(to, from);
 
-      asset.addIncludedFile(filePath);
+      asset.invalidateOnFileChange(filePath);
 
       return parse(
         new Source(await options.inputFS.readFile(filePath, 'utf-8'), filePath),

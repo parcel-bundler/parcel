@@ -10,7 +10,7 @@ import type {
   ChildImpl,
 } from './types';
 import type {Async, IDisposable} from '@parcel/types';
-import type {SharedReference, WorkerApi} from './WorkerFarm';
+import type {SharedReference} from './WorkerFarm';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -39,15 +39,16 @@ export class Child {
   loggerDisposable: IDisposable;
   child: ChildImpl;
   profiler: ?Profiler;
-  workerApi: WorkerApi;
   handles: Map<number, Handle> = new Map();
   sharedReferences: Map<SharedReference, mixed> = new Map();
   sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
-      this.messageListener.bind(this),
-      this.handleEnd.bind(this),
+      m => {
+        this.messageListener(m);
+      },
+      () => this.handleEnd(),
     );
 
     // Monitior all logging events inside this child process and forward to
@@ -93,10 +94,14 @@ export class Child {
     this.child.send(data);
   }
 
-  childInit(module: string, childId: number): void {
+  async childInit(module: string, childId: number): Promise<void> {
     // $FlowFixMe this must be dynamic
     this.module = require(module);
     this.childId = childId;
+
+    if (this.module.childInit != null) {
+      await this.module.childInit();
+    }
   }
 
   async handleRequest(data: WorkerRequest): Promise<void> {
@@ -136,7 +141,7 @@ export class Child {
           unpatchConsole();
         }
 
-        result = responseFromContent(this.childInit(moduleName, child));
+        result = responseFromContent(await this.childInit(moduleName, child));
       } catch (e) {
         result = errorResponseFromError(e);
       }
@@ -158,7 +163,6 @@ export class Child {
       try {
         let v8 = require('v8');
         result = responseFromContent(
-          // $FlowFixMe
           v8.writeHeapSnapshot(
             'heap-' +
               args[0] +

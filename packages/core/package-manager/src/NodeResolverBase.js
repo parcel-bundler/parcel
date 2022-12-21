@@ -4,26 +4,21 @@ import type {
   PackageJSON,
   FileCreateInvalidation,
   FilePath,
-  ModuleSpecifier,
+  DependencySpecifier,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import type {ResolveResult} from './types';
+
 // $FlowFixMe
 import Module from 'module';
 import path from 'path';
 import invariant from 'assert';
-import {normalizeSeparators} from '@parcel/utils';
+import {getModuleParts} from '@parcel/utils';
 
 const builtins = {pnpapi: true};
 for (let builtin of Module.builtinModules) {
   builtins[builtin] = true;
 }
-
-export type ResolveResult = {|
-  resolved: FilePath | ModuleSpecifier,
-  pkg?: ?PackageJSON,
-  invalidateOnFileCreate: Array<FileCreateInvalidation>,
-  invalidateOnFileChange: Set<FilePath>,
-|};
 
 export type ModuleInfo = {|
   moduleName: string,
@@ -44,14 +39,23 @@ export class NodeResolverBase<T> {
   fs: FileSystem;
   extensions: Array<string>;
   packageCache: Map<string, PackageJSON>;
+  projectRoot: FilePath;
 
-  constructor(fs: FileSystem, extensions?: Array<string>) {
+  constructor(
+    fs: FileSystem,
+    projectRoot: FilePath,
+    extensions?: Array<string>,
+  ) {
     this.fs = fs;
-    this.extensions = extensions || Object.keys(Module._extensions);
+    this.projectRoot = projectRoot;
+    this.extensions =
+      extensions ||
+      // $FlowFixMe[prop-missing]
+      Object.keys(Module._extensions);
     this.packageCache = new Map();
   }
 
-  resolve(id: ModuleSpecifier, from: FilePath): T {
+  resolve(id: DependencySpecifier, from: FilePath): T {
     throw new Error(`Could not resolve "${id}" from "${from}"`);
   }
 
@@ -75,8 +79,10 @@ export class NodeResolverBase<T> {
   getPackageEntries(dir: FilePath, pkg: PackageJSON): Array<string> {
     let main = pkg.main;
     if (
-      process.env.PARCEL_BUILD_ENV !== 'production' &&
+      (process.env.PARCEL_BUILD_ENV !== 'production' ||
+        process.env.PARCEL_SELF_BUILD) &&
       typeof pkg.name === 'string' &&
+      typeof pkg.source === 'string' &&
       pkg.name.startsWith('@parcel/') &&
       pkg.name !== '@parcel/watcher'
     ) {
@@ -96,28 +102,12 @@ export class NodeResolverBase<T> {
       });
   }
 
-  getModuleParts(name: string): [FilePath, ?string] {
-    name = path.normalize(name);
-    let splitOn = name.indexOf(path.sep);
-    if (name.charAt(0) === '@') {
-      splitOn = name.indexOf(path.sep, splitOn + 1);
-    }
-    if (splitOn < 0) {
-      return [normalizeSeparators(name), undefined];
-    } else {
-      return [
-        normalizeSeparators(name.substring(0, splitOn)),
-        name.substring(splitOn + 1) || undefined,
-      ];
-    }
-  }
-
-  isBuiltin(name: ModuleSpecifier): boolean {
-    return !!builtins[name];
+  isBuiltin(name: DependencySpecifier): boolean {
+    return !!(builtins[name] || name.startsWith('node:'));
   }
 
   findNodeModulePath(
-    id: ModuleSpecifier,
+    id: DependencySpecifier,
     sourceFile: FilePath,
     ctx: ResolverContext,
   ): ?ResolveResult | ?ModuleInfo {
@@ -129,7 +119,7 @@ export class NodeResolverBase<T> {
       };
     }
 
-    let [moduleName, subPath] = this.getModuleParts(id);
+    let [moduleName, subPath] = getModuleParts(id);
     let dir = path.dirname(sourceFile);
     let moduleDir = this.fs.findNodeModule(moduleName, dir);
 
@@ -140,6 +130,7 @@ export class NodeResolverBase<T> {
 
     if (!moduleDir && process.versions.pnp != null) {
       try {
+        // $FlowFixMe[prop-missing]
         let pnp = Module.findPnpApi(dir + '/');
         moduleDir = pnp.resolveToUnqualified(
           moduleName +

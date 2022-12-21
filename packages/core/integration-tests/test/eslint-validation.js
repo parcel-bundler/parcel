@@ -8,8 +8,8 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-eslint',
 );
 
-describe('eslint-validator', function() {
-  it('should throw validation error with eslint errors', async function() {
+describe('eslint-validator', function () {
+  it('should throw validation error with eslint errors', async function () {
     let didThrow = false;
     let entry = path.join(__dirname, '/integration/eslint-error/index.js');
     try {
@@ -19,16 +19,16 @@ describe('eslint-validator', function() {
     } catch (e) {
       assert.equal(e.name, 'BuildError');
       assert(Array.isArray(e.diagnostics));
-      assert(e.diagnostics[0].codeFrame);
+      assert(e.diagnostics[0].codeFrames);
       assert.equal(e.diagnostics[0].origin, '@parcel/validator-eslint');
       assert.equal(
         e.diagnostics[0].message,
         'ESLint found **1** __errors__ and **1** __warnings__.',
       );
-      assert.equal(e.diagnostics[0].filePath, entry);
 
-      let codeframe = e.diagnostics[0].codeFrame;
+      let codeframe = e.diagnostics[0].codeFrames[0];
       assert(codeframe);
+      assert.equal(codeframe.filePath, entry);
       assert.equal(codeframe.codeHighlights.length, 2);
       codeframe.codeHighlights.sort(
         ({start: {line: a}}, {start: {line: b}}) => a - b,
@@ -47,7 +47,7 @@ describe('eslint-validator', function() {
     assert(didThrow);
   });
 
-  it('should throw a correct codeframe for a parse error', async function() {
+  it('should throw a correct codeframe for a parse error', async function () {
     let didThrow = false;
     let entry = path.join(
       __dirname,
@@ -65,10 +65,10 @@ describe('eslint-validator', function() {
         e.diagnostics[0].message,
         'ESLint found **1** __errors__ and **0** __warnings__.',
       );
-      assert.equal(e.diagnostics[0].filePath, entry);
 
-      let codeframe = e.diagnostics[0].codeFrame;
+      let codeframe = e.diagnostics[0].codeFrames[0];
       assert(codeframe);
+      assert.equal(codeframe.filePath, entry);
       assert.equal(codeframe.codeHighlights.length, 1);
       assert(codeframe.codeHighlights[0].start.line != null);
       assert(codeframe.codeHighlights[0].start.column != null);

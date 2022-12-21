@@ -1,12 +1,14 @@
 // @flow
 
-import type {FilePath, ModuleSpecifier, PackageJSON} from '@parcel/types';
-import type {ResolveResult, ResolverContext} from './NodeResolverBase';
+import type {FilePath, DependencySpecifier, PackageJSON} from '@parcel/types';
+import type {ResolverContext} from './NodeResolverBase';
+import type {ResolveResult} from './types';
+
 import path from 'path';
 import {NodeResolverBase} from './NodeResolverBase';
 
 export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
-  resolve(id: ModuleSpecifier, from: FilePath): ResolveResult {
+  resolve(id: DependencySpecifier, from: FilePath): ResolveResult {
     let ctx = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
@@ -48,7 +50,11 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
 
     // Find the nearest package.json file within the current node_modules folder
     let dir = path.dirname(sourceFile);
-    let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
+    let pkgFile = this.fs.findAncestorFile(
+      ['package.json'],
+      dir,
+      this.projectRoot,
+    );
     if (pkgFile != null) {
       return this.readPackage(pkgFile, ctx);
     }
@@ -144,7 +150,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
   }
 
   loadNodeModules(
-    id: ModuleSpecifier,
+    id: DependencySpecifier,
     from: FilePath,
     ctx: ResolverContext,
   ): ?ResolveResult {

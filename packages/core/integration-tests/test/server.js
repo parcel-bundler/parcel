@@ -10,8 +10,9 @@ import {
   outputFS,
   overlayFS,
   ncp,
+  request as get,
+  requestRaw as getRaw,
 } from '@parcel/test-utils';
-import http from 'http';
 import https from 'https';
 import getPort from 'get-port';
 import type {BuildEvent} from '@parcel/types';
@@ -22,33 +23,7 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-dev-server',
 );
 
-function get(file, port, client = http) {
-  return new Promise((resolve, reject) => {
-    // $FlowFixMe
-    client.get(
-      {
-        hostname: 'localhost',
-        port: port,
-        path: file,
-        rejectUnauthorized: false,
-      },
-      res => {
-        res.setEncoding('utf8');
-        let data = '';
-        res.on('data', c => (data += c));
-        res.on('end', () => {
-          if (res.statusCode !== 200) {
-            return reject({statusCode: res.statusCode, data});
-          }
-
-          resolve(data);
-        });
-      },
-    );
-  });
-}
-
-describe('server', function() {
+describe('server', function () {
   let subscription;
 
   afterEach(async () => {
@@ -58,7 +33,7 @@ describe('server', function() {
     subscription = null;
   });
 
-  it('should serve files', async function() {
+  it('should serve files', async function () {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       defaultTargetOptions: {
@@ -84,7 +59,33 @@ describe('server', function() {
     assert.equal(data, distFile);
   });
 
-  it('should serve source files', async function() {
+  it('should include content length for HEAD requests', async function () {
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      defaultTargetOptions: {
+        distDir,
+      },
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let result = await getRaw('/index.js', port, {method: 'HEAD'});
+    let distFile = await outputFS.readFile(path.join(distDir, 'index.js'));
+    assert.strictEqual(
+      result.res.headers['content-length'],
+      String(distFile.byteLength),
+    );
+    assert.strictEqual(result.data, '');
+  });
+
+  it('should serve source files', async function () {
     let port = await getPort();
     let inputPath = path.join(__dirname, '/integration/commonjs/index.js');
     let b = bundler(inputPath, {
@@ -111,7 +112,7 @@ describe('server', function() {
     assert.equal(data, inputFile);
   });
 
-  it('should serve sourcemaps', async function() {
+  it('should serve sourcemaps', async function () {
     let port = await getPort();
     let inputPath = path.join(__dirname, '/integration/commonjs/index.js');
     let b = bundler(inputPath, {
@@ -138,7 +139,7 @@ describe('server', function() {
     assert.equal(data, distFile);
   });
 
-  it('should serve a default page if the main bundle is an HTML asset', async function() {
+  it('should serve a default page if the main bundle is an HTML asset', async function () {
     let port = await getPort();
     let b = bundler(
       [
@@ -161,19 +162,27 @@ describe('server', function() {
     subscription = await b.watch();
     await getNextBuild(b);
 
-    let outputFile = await outputFS.readFile(
+    let rootIndexFile = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
     );
 
     let data = await get('/', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
+
+    let fooIndexFile = await outputFS.readFile(
+      path.join(distDir, 'foo/index.html'),
+      'utf8',
+    );
+
+    data = await get('/foo', port);
+    assert.equal(data, fooIndexFile);
 
     data = await get('/foo/bar', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, fooIndexFile);
   });
 
-  it('should serve a default page if the main bundle is an HTML asset even if it is not called index', async function() {
+  it('should serve a default page if the main bundle is an HTML asset even if it is not called index', async function () {
     let port = await getPort();
     let inputPath = path.join(__dirname, '/integration/html/other.html');
     let b = bundler(inputPath, {
@@ -191,19 +200,22 @@ describe('server', function() {
     subscription = await b.watch();
     await getNextBuild(b);
 
-    let outputFile = await outputFS.readFile(
+    let rootIndexFile = await outputFS.readFile(
       path.join(distDir, 'other.html'),
       'utf8',
     );
 
     let data = await get('/', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
+
+    data = await get('/foo', port);
+    assert.equal(data, rootIndexFile);
 
     data = await get('/foo/bar', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
   });
 
-  it('should serve a default page if the main bundle is an HTML asset with package.json#source', async function() {
+  it('should serve a default page if the main bundle is an HTML asset with package.json#source', async function () {
     let port = await getPort();
     let inputPath = path.join(__dirname, '/integration/html-pkg-source/');
     let b = bundler(inputPath, {
@@ -235,7 +247,7 @@ describe('server', function() {
     assert.equal(data, outputFile);
   });
 
-  it('should serve a 404 if the file does not exist', async function() {
+  it('should serve a 404 if the file does not exist', async function () {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
@@ -259,7 +271,7 @@ describe('server', function() {
     assert.equal(statusCode, 404);
   });
 
-  it('should serve a 500 if the bundler errored', async function() {
+  it('should serve a 500 if the bundler errored', async function () {
     let port = await getPort();
     let inputDir = path.join(__dirname, '/input/server-500');
     await ncp(path.join(__dirname, '/integration/babel'), inputDir);
@@ -291,13 +303,13 @@ describe('server', function() {
       await get('/index.js', port);
     } catch (err) {
       statusCode = err.statusCode;
-      assert(err.data.includes('Expecting Unicode escape sequence'));
+      assert(err.data.includes('Expected unicode escape'));
     }
 
     assert.equal(statusCode, 500);
   });
 
-  it('should support HTTPS', async function() {
+  it('should support HTTPS', async function () {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       defaultTargetOptions: {
@@ -321,7 +333,7 @@ describe('server', function() {
     );
   });
 
-  it('should support HTTPS via custom certificate', async function() {
+  it('should support HTTPS via custom certificate', async function () {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       defaultTargetOptions: {
@@ -348,7 +360,7 @@ describe('server', function() {
     );
   });
 
-  it('should support setting a public url', async function() {
+  it('should support setting a public url', async function () {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       defaultTargetOptions: {
@@ -373,7 +385,7 @@ describe('server', function() {
     );
   });
 
-  it('should work with query parameters that contain a dot', async function() {
+  it('should work with query parameters that contain a dot', async function () {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       defaultTargetOptions: {
@@ -397,7 +409,7 @@ describe('server', function() {
     );
   });
 
-  it('should work with paths that contain a dot', async function() {
+  it('should work with paths that contain a dot', async function () {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       defaultTargetOptions: {
@@ -421,7 +433,7 @@ describe('server', function() {
     );
   });
 
-  it('should support lazy bundling', async function() {
+  it('should support lazy bundling', async function () {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       defaultTargetOptions: {
@@ -477,6 +489,12 @@ describe('server', function() {
         assets: ['index.html'],
       },
       {
+        // index.html
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        // foo/index.html
         name: 'index.html',
         assets: ['index.html'],
       },
@@ -504,11 +522,11 @@ describe('server', function() {
 
     // Sibling bundles should have been fully written to disk, but not async bundles.
     dir = await outputFS.readdir(distDir);
-    assert.deepEqual(dir.length, 7);
+    assert.deepEqual(dir.length, 8);
     assert(!dir.includes('other.html'));
   });
 
-  it('should support lazy bundling sibling css files of dynamic import', async function() {
+  it('should support lazy bundling sibling css files of dynamic import', async function () {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/dynamic-css/index.js'), {
       defaultTargetOptions: {
@@ -563,8 +581,6 @@ describe('server', function() {
           'css-loader.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
@@ -605,12 +621,10 @@ describe('server', function() {
           'css-loader.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {name: 'index.css', assets: ['index.css']},
-      {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js', 'JSRuntime.js']},
+      {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
       {name: /local\.[0-9a-f]{8}\.css/, assets: ['local.css']},
     ]);
 
@@ -625,6 +639,5 @@ describe('server', function() {
     invariant(localCSS);
 
     assert(data.includes(path.basename(localCSS.filePath)));
-    assert(data.includes('css-loader'));
   });
 });

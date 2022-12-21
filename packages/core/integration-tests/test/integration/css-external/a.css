@@ -1,0 +1,6 @@
+@import 'b.css';
+@import 'http://example.com/external.css';
+
+.a {
+  color: green;
+}

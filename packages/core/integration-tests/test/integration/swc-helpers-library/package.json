@@ -1,0 +1,8 @@
+{
+  "main": "dist/main.js",
+  "module": "dist/module.js",
+  "browserslist": "IE >= 11",
+  "dependencies": {
+    "@swc/helpers": "^0.4.2"
+  }
+}

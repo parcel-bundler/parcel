@@ -68,6 +68,7 @@ export default class WorkerFarm extends EventEmitter {
   callQueue: Array<WorkerCall> = [];
   ending: boolean = false;
   localWorker: WorkerModule;
+  localWorkerInit: ?Promise<void>;
   options: FarmOptions;
   run: HandleFunction;
   warmWorkers: number = 0;
@@ -75,6 +76,7 @@ export default class WorkerFarm extends EventEmitter {
   handles: Map<number, Handle> = new Map();
   sharedReferences: Map<SharedReference, mixed> = new Map();
   sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
+  serializedSharedReferences: Map<SharedReference, ?ArrayBuffer> = new Map();
   profiler: ?Profiler;
 
   constructor(farmOptions: $Shape<FarmOptions> = {}) {
@@ -95,7 +97,24 @@ export default class WorkerFarm extends EventEmitter {
 
     // $FlowFixMe this must be dynamic
     this.localWorker = require(this.options.workerPath);
+    this.localWorkerInit =
+      this.localWorker.childInit != null ? this.localWorker.childInit() : null;
     this.run = this.createHandle('run');
+
+    // Worker thread stdout is by default piped into the process stdout, if there are enough worker
+    // threads to exceed the default listener limit, then anything else piping into stdout will trigger
+    // the `MaxListenersExceededWarning`, so we should ensure the max listeners is at least equal to the
+    // number of workers + 1 for the main thread.
+    //
+    // Note this can't be fixed easily where other things pipe into stdout -  even after starting > 10 worker
+    // threads `process.stdout.getMaxListeners()` will still return 10, however adding another pipe into `stdout`
+    // will give the warning with `<worker count + 1>` as the number of listeners.
+    process.stdout.setMaxListeners(
+      Math.max(
+        process.stdout.getMaxListeners(),
+        WorkerFarm.getNumWorkers() + 1,
+      ),
+    );
 
     this.startMaxWorkers();
   }
@@ -172,21 +191,31 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  createHandle(method: string): HandleFunction {
-    return (...args) => {
+  createHandle(method: string, useMainThread: boolean = false): HandleFunction {
+    return async (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
       // This significantly speeds up startup time.
-      if (this.shouldUseRemoteWorkers()) {
+      if (this.shouldUseRemoteWorkers() && !useMainThread) {
         return this.addCall(method, [...args, false]);
       } else {
         if (this.options.warmWorkers && this.shouldStartRemoteWorkers()) {
           this.warmupWorker(method, args);
         }
 
-        let processedArgs = restoreDeserializedObject(
-          prepareForSerialization([...args, false]),
-        );
+        let processedArgs;
+        if (!useMainThread) {
+          processedArgs = restoreDeserializedObject(
+            prepareForSerialization([...args, false]),
+          );
+        } else {
+          processedArgs = args;
+        }
+
+        if (this.localWorkerInit != null) {
+          await this.localWorkerInit;
+          this.localWorkerInit = null;
+        }
         return this.localWorker[method](this.workerApi, ...processedArgs);
       }
     };
@@ -251,7 +280,11 @@ export default class WorkerFarm extends EventEmitter {
       this.startChild();
     }
 
-    for (let worker of this.workers.values()) {
+    let workers = [...this.workers.values()].sort(
+      (a, b) => a.calls.size - b.calls.size,
+    );
+
+    for (let worker of workers) {
       if (!this.callQueue.length) {
         break;
       }
@@ -261,9 +294,22 @@ export default class WorkerFarm extends EventEmitter {
       }
 
       if (worker.calls.size < this.options.maxConcurrentCallsPerWorker) {
-        worker.call(this.callQueue.shift());
+        this.callWorker(worker, this.callQueue.shift());
       }
     }
+  }
+
+  async callWorker(worker: Worker, call: WorkerCall): Promise<void> {
+    for (let ref of this.sharedReferences.keys()) {
+      if (!worker.sentSharedReferences.has(ref)) {
+        await worker.sendSharedReference(
+          ref,
+          this.getSerializedSharedReference(ref),
+        );
+      }
+    }
+
+    worker.call(call);
   }
 
   async processRequest(
@@ -388,33 +434,31 @@ export default class WorkerFarm extends EventEmitter {
     return handle;
   }
 
-  async createSharedReference(
+  createSharedReference(
     value: mixed,
-    // An optional, pre-serialized representation of the value to be used
-    // in its place.
-    buffer?: Buffer,
-  ): Promise<{|ref: SharedReference, dispose(): Promise<mixed>|}> {
+    isCacheable: boolean = true,
+  ): {|ref: SharedReference, dispose(): Promise<mixed>|} {
     let ref = referenceId++;
     this.sharedReferences.set(ref, value);
     this.sharedReferencesByValue.set(value, ref);
-
-    let toSend = buffer ? buffer.buffer : value;
-    let promises = [];
-    for (let worker of this.workers.values()) {
-      if (worker.ready) {
-        promises.push(worker.sendSharedReference(ref, toSend));
-      }
+    if (!isCacheable) {
+      this.serializedSharedReferences.set(ref, null);
     }
-
-    await Promise.all(promises);
 
     return {
       ref,
       dispose: () => {
         this.sharedReferences.delete(ref);
         this.sharedReferencesByValue.delete(value);
+        this.serializedSharedReferences.delete(ref);
+
         let promises = [];
         for (let worker of this.workers.values()) {
+          if (!worker.sentSharedReferences.has(ref)) {
+            continue;
+          }
+
+          worker.sentSharedReferences.delete(ref);
           promises.push(
             new Promise((resolve, reject) => {
               worker.call({
@@ -431,6 +475,24 @@ export default class WorkerFarm extends EventEmitter {
         return Promise.all(promises);
       },
     };
+  }
+
+  getSerializedSharedReference(ref: SharedReference): ArrayBuffer {
+    let cached = this.serializedSharedReferences.get(ref);
+    if (cached) {
+      return cached;
+    }
+
+    let value = this.sharedReferences.get(ref);
+    let buf = serialize(value).buffer;
+
+    // If the reference was created with the isCacheable option set to false,
+    // serializedSharedReferences will contain `null` as the value.
+    if (cached !== null) {
+      this.serializedSharedReferences.set(ref, buf);
+    }
+
+    return buf;
   }
 
   async startProfile() {
@@ -557,7 +619,7 @@ export default class WorkerFarm extends EventEmitter {
   static getNumWorkers(): number {
     return process.env.PARCEL_WORKERS
       ? parseInt(process.env.PARCEL_WORKERS, 10)
-      : cpuCount();
+      : Math.ceil(cpuCount() / 2);
   }
 
   static isWorker(): boolean {
@@ -582,7 +644,7 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   static getConcurrentCallsPerWorker(): number {
-    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
+    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 30;
   }
 }
 

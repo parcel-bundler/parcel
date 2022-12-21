@@ -2,10 +2,22 @@
 import type {Config} from '@parcel/types';
 import path from 'path';
 
-export async function load({config}: {|config: Config|}): Promise<void> {
-  let configFile = await config.getConfig(['.lessrc', '.lessrc.js'], {
-    packageKey: 'less',
-  });
+type ConfigResult = {|
+  isStatic: boolean,
+  config: any,
+|};
+
+export async function load({
+  config,
+}: {|
+  config: Config,
+|}): Promise<ConfigResult> {
+  let configFile = await config.getConfig(
+    ['.lessrc', '.lessrc.js', '.lessrc.cjs'],
+    {
+      packageKey: 'less',
+    },
+  );
 
   let configContents = {};
   if (configFile != null) {
@@ -26,8 +38,8 @@ export async function load({config}: {|config: Config|}): Promise<void> {
   // This should enforce the config to be reloaded on every run as it's JS
   let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
   if (isDynamic) {
-    config.shouldInvalidateOnStartup();
+    config.invalidateOnStartup();
   }
 
-  return config.setResult({isStatic: !isDynamic, config: configContents});
+  return {isStatic: !isDynamic, config: configContents};
 }

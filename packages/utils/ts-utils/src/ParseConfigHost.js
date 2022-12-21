@@ -2,9 +2,10 @@
 import type {FileSystem} from '@parcel/fs';
 import type {FilePath} from '@parcel/types';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
+import type {ParseConfigHost as IParseConfigHost} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import {FSHost} from './FSHost';
 
-export class ParseConfigHost extends FSHost {
+export class ParseConfigHost extends FSHost implements IParseConfigHost {
   filesRead: Set<FilePath>;
   useCaseSensitiveFileNames: boolean;
 

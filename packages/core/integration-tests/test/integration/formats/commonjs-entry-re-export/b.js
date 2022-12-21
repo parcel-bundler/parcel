@@ -1,1 +1,1 @@
-exports.default = "default";
+exports.foo = "foo";

@@ -3,8 +3,8 @@ import path from 'path';
 import {bundle, assertBundles, inputFS, outputFS} from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 
-describe('webmanifest', function() {
-  it('should support .webmanifest', async function() {
+describe('webmanifest', function () {
+  it('should support .webmanifest', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/webmanifest/index.html'),
     );
@@ -15,7 +15,7 @@ describe('webmanifest', function() {
         assets: ['index.html'],
       },
       {
-        type: 'webmanifest',
+        name: 'manifest.webmanifest',
         assets: ['manifest.webmanifest'],
       },
       {
@@ -26,6 +26,10 @@ describe('webmanifest', function() {
         type: 'png',
         assets: ['screenshot.png'],
       },
+      {
+        type: 'png',
+        assets: ['shortcut-icon.png'],
+      },
     ]);
 
     const manifest = await outputFS.readFile(
@@ -34,9 +38,47 @@ describe('webmanifest', function() {
     );
     assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/shortcut-icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
-  it('should throw on malformed icons and screenshots', async function() {
+  it('should support .json', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/webmanifest-json/index.html'),
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        name: 'manifest.webmanifest',
+        assets: ['manifest.json'],
+      },
+      {
+        type: 'png',
+        assets: ['icon.png'],
+      },
+      {
+        type: 'png',
+        assets: ['screenshot.png'],
+      },
+      {
+        type: 'png',
+        assets: ['shortcut-icon.png'],
+      },
+    ]);
+
+    const manifest = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'webmanifest').filePath,
+      'utf8',
+    );
+    assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
+    assert(/icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/shortcut-icon\.[0-9a-f]+\.png/.test(manifest));
+  });
+
+  it('should throw on malformed icons and screenshots', async function () {
     let manifestPath = path.join(
       __dirname,
       '/integration/webmanifest-schema/manifest.webmanifest',
@@ -53,46 +95,81 @@ describe('webmanifest', function() {
         message: path.normalize('Invalid webmanifest'),
         diagnostics: [
           {
-            codeFrame: {
-              code: manifest,
-              codeHighlights: [
-                {
-                  end: {
-                    column: 5,
-                    line: 12,
+            codeFrames: [
+              {
+                filePath: manifestPath,
+                language: 'json',
+                code: manifest,
+                codeHighlights: [
+                  {
+                    end: {
+                      column: 5,
+                      line: 12,
+                    },
+                    message: 'Missing property src',
+                    start: {
+                      column: 5,
+                      line: 9,
+                    },
                   },
-                  message: 'Missing property src',
-                  start: {
-                    column: 5,
-                    line: 9,
+                  {
+                    end: {
+                      column: 6,
+                      line: 13,
+                    },
+                    message: 'Missing property src',
+                    start: {
+                      column: 5,
+                      line: 13,
+                    },
                   },
-                },
-                {
-                  end: {
-                    column: 6,
-                    line: 13,
+                  {
+                    end: {
+                      column: 19,
+                      line: 15,
+                    },
+                    message: 'Expected type array',
+                    start: {
+                      column: 18,
+                      line: 15,
+                    },
                   },
-                  message: 'Missing property src',
-                  start: {
-                    column: 5,
-                    line: 13,
+                  {
+                    end: {
+                      column: 17,
+                      line: 18,
+                    },
+                    message: 'Expected type array',
+                    start: {
+                      column: 16,
+                      line: 18,
+                    },
                   },
-                },
-                {
-                  end: {
-                    column: 19,
-                    line: 15,
+                  {
+                    end: {
+                      column: 9,
+                      line: 30,
+                    },
+                    message: 'Missing property src',
+                    start: {
+                      column: 9,
+                      line: 27,
+                    },
                   },
-                  message: 'Expected type array',
-                  start: {
-                    column: 18,
-                    line: 15,
+                  {
+                    end: {
+                      column: 10,
+                      line: 31,
+                    },
+                    message: 'Missing property src',
+                    start: {
+                      column: 9,
+                      line: 31,
+                    },
                   },
-                },
-              ],
-            },
-            filePath: manifestPath,
-            language: 'json',
+                ],
+              },
+            ],
             message: 'Invalid webmanifest',
             origin: '@parcel/transformer-webmanifest',
           },
@@ -101,7 +178,7 @@ describe('webmanifest', function() {
     );
   });
 
-  it('should throw on missing dependency', async function() {
+  it('should throw on missing dependency', async function () {
     let manifestPathRelative =
       './integration/webmanifest-not-found/manifest.webmanifest';
     let manifestPath = path.join(__dirname, manifestPathRelative);
@@ -119,23 +196,25 @@ describe('webmanifest', function() {
         message,
         diagnostics: [
           {
-            codeFrame: {
-              code: manifest,
-              codeHighlights: [
-                {
-                  end: {
-                    column: 23,
-                    line: 5,
+            codeFrames: [
+              {
+                filePath: manifestPath,
+                code: manifest,
+                codeHighlights: [
+                  {
+                    end: {
+                      column: 23,
+                      line: 5,
+                    },
+                    start: {
+                      column: 14,
+                      line: 5,
+                    },
                   },
-                  start: {
-                    column: 14,
-                    line: 5,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
             message,
-            filePath: manifestPath,
             origin: '@parcel/core',
           },
           {
@@ -148,5 +227,22 @@ describe('webmanifest', function() {
         ],
       },
     );
+  });
+
+  it('should work when there is a target in package.json', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/webmanifest-targets/index.html'),
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        name: 'manifest.webmanifest',
+        assets: ['manifest.json'],
+      },
+    ]);
   });
 });

@@ -27,7 +27,24 @@ const metadataContent = new Set([
 ]);
 
 export default (new Packager({
-  async package({bundle, bundleGraph, getInlineBundleContents}) {
+  async loadConfig({config}) {
+    let posthtmlConfig = await config.getConfig(
+      [
+        '.posthtmlrc',
+        '.posthtmlrc.js',
+        '.posthtmlrc.cjs',
+        'posthtml.config.js',
+        'posthtml.config.cjs',
+      ],
+      {
+        packageKey: 'posthtml',
+      },
+    );
+    return {
+      render: posthtmlConfig?.contents?.render,
+    };
+  },
+  async package({bundle, bundleGraph, getInlineBundleContents, config}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
@@ -45,29 +62,25 @@ export default (new Packager({
         new Set(bundleGraph.getReferencedBundles(bundle)),
         new Set(bundleGraph.getReferencedBundles(bundle, {recursive: false})),
       ),
-    ].filter(b => !b.isInline);
-    let posthtmlConfig = await asset.getConfig(
-      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
-      {
-        packageKey: 'posthtml',
-      },
-    );
-    let renderConfig = posthtmlConfig?.render;
+    ];
+    let renderConfig = config?.render;
 
     let {html} = await posthtml([
-      insertBundleReferences.bind(this, referencedBundles),
-      replaceInlineAssetContent.bind(
-        this,
-        bundleGraph,
-        getInlineBundleContents,
-      ),
-    ]).process(code, renderConfig);
+      tree => insertBundleReferences(referencedBundles, tree),
+      tree =>
+        replaceInlineAssetContent(bundleGraph, getInlineBundleContents, tree),
+    ]).process(code, {
+      ...renderConfig,
+      xmlMode: bundle.type === 'xhtml',
+      closingSingleTag: bundle.type === 'xhtml' ? 'slash' : undefined,
+    });
 
     let {contents, map} = replaceURLReferences({
       bundle,
       bundleGraph,
       contents: html,
       relative: false,
+      getReplacement: contents => contents.replace(/"/g, '&quot;'),
     });
 
     return replaceInlineReferences({
@@ -77,7 +90,7 @@ export default (new Packager({
       getInlineBundleContents,
       getInlineReplacement: (dep, inlineType, contents) => ({
         from: dep.id,
-        to: contents,
+        to: contents.replace(/"/g, '&quot;').trim(),
       }),
       map,
     });
@@ -132,13 +145,30 @@ async function replaceInlineAssetContent(
 
     if (newContent != null) {
       let {contents, bundle} = newContent;
-      node.content = (contents instanceof Readable
-        ? await bufferStream(contents)
-        : contents
+      node.content = (
+        contents instanceof Readable ? await bufferStream(contents) : contents
       ).toString();
 
-      if (nullthrows(bundle).env.outputFormat === 'esmodule') {
+      if (
+        node.tag === 'script' &&
+        nullthrows(bundle).env.outputFormat === 'esmodule'
+      ) {
         node.attrs.type = 'module';
+      }
+
+      // Escape closing script tags and HTML comments in JS content.
+      // https://www.w3.org/TR/html52/semantics-scripting.html#restrictions-for-contents-of-script-elements
+      // Avoid replacing </script with <\/script as it would break the following valid JS: 0</script/ (i.e. regexp literal).
+      // Instead, escape the s character.
+      if (node.tag === 'script') {
+        node.content = node.content
+          .replace(/<!--/g, '<\\!--')
+          .replace(/<\/(script)/gi, '</\\$1');
+      }
+
+      // Escape closing style tags in CSS content.
+      if (node.tag === 'style') {
+        node.content = node.content.replace(/<\/(style)/gi, '<\\/$1');
       }
 
       // remove attr from output
@@ -158,21 +188,21 @@ function insertBundleReferences(siblingBundles, tree) {
         tag: 'link',
         attrs: {
           rel: 'stylesheet',
-          href: urlJoin(
-            nullthrows(bundle.target).publicUrl,
-            nullthrows(bundle.name),
-          ),
+          href: urlJoin(bundle.target.publicUrl, bundle.name),
         },
       });
     } else if (bundle.type === 'js') {
+      let nomodule =
+        bundle.env.outputFormat !== 'esmodule' &&
+        bundle.env.sourceType === 'module' &&
+        bundle.env.shouldScopeHoist;
       bundles.push({
         tag: 'script',
         attrs: {
           type: bundle.env.outputFormat === 'esmodule' ? 'module' : undefined,
-          src: urlJoin(
-            nullthrows(bundle.target).publicUrl,
-            nullthrows(bundle.name),
-          ),
+          nomodule: nomodule ? '' : undefined,
+          defer: nomodule ? '' : undefined,
+          src: urlJoin(bundle.target.publicUrl, bundle.name),
         },
       });
     }

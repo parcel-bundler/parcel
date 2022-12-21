@@ -1,11 +1,12 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {
+  Asset,
   AssetGroup,
   Bundle as InternalBundle,
-  ContentKey,
   Config,
   DevDepRequest,
   ParcelOptions,
@@ -14,18 +15,22 @@ import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
 import type {RunAPI} from './RequestTracker';
 
+import path from 'path';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
+import {nodeFromAssetGroup} from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
-import InternalBundleGraph from './BundleGraph';
+import InternalBundleGraph, {bundleGraphEdgeTypes} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
+import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
+import {mergeEnvironments} from './Environment';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
+import {toProjectPath, fromProjectPathRelative} from './projectPath';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -54,18 +59,18 @@ export default async function applyRuntimes({
   previousDevDeps: Map<string, string>,
   devDepRequests: Map<string, DevDepRequest>,
   configs: Map<string, Config>,
-|}): Promise<void> {
+|}): Promise<Map<string, Asset>> {
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
 
-  for (let bundle of bundleGraph.getBundles()) {
+  for (let bundle of bundleGraph.getBundles({includeInline: true})) {
     for (let runtime of runtimes) {
       try {
         let applied = await runtime.plugin.apply({
           bundle: NamedBundle.get(bundle, bundleGraph, options),
           bundleGraph: new BundleGraph<INamedBundle>(
             bundleGraph,
-            NamedBundle.get,
+            NamedBundle.get.bind(NamedBundle),
             options,
           ),
           config: configs.get(runtime.name)?.result,
@@ -75,11 +80,22 @@ export default async function applyRuntimes({
 
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
-          for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
+          for (let {
+            code,
+            dependency,
+            filePath,
+            isEntry,
+            env,
+          } of runtimeAssets) {
+            let sourceName = path.join(
+              path.dirname(filePath),
+              `runtime-${hashString(code)}.${bundle.type}`,
+            );
+
             let assetGroup = {
               code,
-              filePath,
-              env: bundle.env,
+              filePath: toProjectPath(options.projectRoot, sourceName),
+              env: mergeEnvironments(options.projectRoot, bundle.env, env),
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,
@@ -97,7 +113,6 @@ export default async function applyRuntimes({
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
             origin: runtime.name,
-            filePath: bundle.filePath,
           }),
         });
       }
@@ -108,25 +123,23 @@ export default async function applyRuntimes({
   for (let runtime of runtimes) {
     let devDepRequest = await createDevDependency(
       {
-        moduleSpecifier: runtime.name,
+        specifier: runtime.name,
         resolveFrom: runtime.resolveFrom,
       },
-      runtime,
       previousDevDeps,
       options,
     );
     devDepRequests.set(
-      `${devDepRequest.moduleSpecifier}:${devDepRequest.resolveFrom}`,
+      `${devDepRequest.specifier}:${fromProjectPathRelative(
+        devDepRequest.resolveFrom,
+      )}`,
       devDepRequest,
     );
     await runDevDepRequest(api, devDepRequest);
   }
 
-  let runtimesAssetGraph = await reconcileNewRuntimes(
-    api,
-    connections,
-    optionsRef,
-  );
+  let {assetGraph: runtimesAssetGraph, changedAssets} =
+    await reconcileNewRuntimes(api, connections, optionsRef);
 
   let runtimesGraph = InternalBundleGraph.fromAssetGraph(
     runtimesAssetGraph,
@@ -153,7 +166,7 @@ export default async function applyRuntimes({
 
     let resolution =
       dependency &&
-      bundleGraph.getDependencyResolution(
+      bundleGraph.getResolvedAsset(
         dependencyToInternalDependency(dependency),
         bundle,
       );
@@ -203,7 +216,11 @@ export default async function applyRuntimes({
         const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(
           node.id,
         ); // the node id is not constant between graphs
-        bundleGraph._graph.addEdge(bundleNodeId, bundleGraphNodeId, 'contains');
+        bundleGraph._graph.addEdge(
+          bundleNodeId,
+          bundleGraphNodeId,
+          bundleGraphEdgeTypes.contains,
+        );
       }
     }, runtimesGraphRuntimeNodeId);
 
@@ -226,13 +243,15 @@ export default async function applyRuntimes({
       bundleGraph._graph.addEdge(dependencyNodeId, bundleGraphRuntimeNodeId);
     }
   }
+
+  return changedAssets;
 }
 
-async function reconcileNewRuntimes(
+function reconcileNewRuntimes(
   api: RunAPI,
   connections: Array<RuntimeConnection>,
   optionsRef: SharedReference,
-): Promise<AssetGraph> {
+) {
   let assetGroups = connections.map(t => t.assetGroup);
   let request = createAssetGraphRequest({
     name: 'Runtimes',
@@ -241,5 +260,5 @@ async function reconcileNewRuntimes(
   });
 
   // rebuild the graph
-  return (await api.runRequest(request, {force: true})).assetGraph;
+  return api.runRequest(request, {force: true});
 }

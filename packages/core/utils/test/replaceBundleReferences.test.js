@@ -33,7 +33,8 @@ describe('replace bundle references', () => {
     // $FlowFixMe
     let dependency: Dependency = {
       id: '074b36596e3147e900a8ad17ceb5c90b',
-      moduleSpecifier: 'url:./image.jpg?as=webp',
+      specifier: 'url:./image.jpg?as=webp',
+      specifierType: 'esm',
     };
 
     let result = getURLReplacement({
@@ -77,7 +78,8 @@ describe('replace bundle references', () => {
     // $FlowFixMe
     let dependency: Dependency = {
       id: '074b36596e3147e900a8ad17ceb5c90b',
-      moduleSpecifier: 'url:./image.jpg?as=webp',
+      specifier: 'url:./image.jpg?as=webp',
+      specifierType: 'esm',
     };
 
     let result = getURLReplacement({
@@ -121,7 +123,8 @@ describe('replace bundle references', () => {
     // $FlowFixMe
     let dependency: Dependency = {
       id: '074b36596e314797845a8ad17ceb5c9b',
-      moduleSpecifier: './image.jpg',
+      specifier: './image.jpg',
+      specifierType: 'esm',
     };
 
     let result = getURLReplacement({
@@ -165,7 +168,8 @@ describe('replace bundle references', () => {
     // $FlowFixMe
     let dependency: Dependency = {
       id: '074b36596e3147e900a8ad17ceb5c90b',
-      moduleSpecifier: 'url:./image.jpg?as=webp',
+      specifier: 'url:./image.jpg?as=webp',
+      specifierType: 'esm',
     };
 
     let result = getURLReplacement({
@@ -180,5 +184,85 @@ describe('replace bundle references', () => {
       'assets/image.HASH_REF_87f9d66c16c2216ccc7e5664cf089305.webp',
     );
     assert.equal(result.from, '074b36596e3147e900a8ad17ceb5c90b');
+  });
+
+  it('should work with bundle names with colons, relative', () => {
+    // $FlowFixMe
+    let fromBundle: NamedBundle = {
+      filePath: '/user/dist/reformat.html',
+      name: 'reformat.html',
+      // $FlowFixMe
+      target: {
+        distDir: '/user/dist',
+        publicUrl: '/',
+      },
+    };
+
+    // $FlowFixMe
+    let toBundle: NamedBundle = {
+      filePath: '/user/dist/a:b:c.html',
+      name: 'a:b:c.html',
+      // $FlowFixMe
+      target: {
+        distDir: '/user/dist',
+        publicUrl: '/',
+      },
+    };
+
+    // $FlowFixMe
+    let dependency: Dependency = {
+      id: '074b36596e3147e900a8ad17ceb5c90b',
+      specifier: './a:b:c.html',
+      specifierType: 'esm',
+    };
+
+    let result = getURLReplacement({
+      dependency,
+      fromBundle,
+      toBundle,
+      relative: true,
+    });
+
+    assert.equal(result.to, './a:b:c.html');
+  });
+
+  it('should work with bundle names with colons, absolute', () => {
+    // $FlowFixMe
+    let fromBundle: NamedBundle = {
+      filePath: '/user/dist/reformat.html',
+      name: 'reformat.html',
+      // $FlowFixMe
+      target: {
+        distDir: '/user/dist',
+        publicUrl: '/',
+      },
+    };
+
+    // $FlowFixMe
+    let toBundle: NamedBundle = {
+      filePath: '/user/dist/a:b:c.html',
+      name: 'a:b:c.html',
+      // $FlowFixMe
+      target: {
+        distDir: '/user/dist',
+        publicUrl: '/',
+      },
+    };
+
+    // $FlowFixMe
+    let dependency: Dependency = {
+      id: '074b36596e3147e900a8ad17ceb5c90b',
+      specifier: './a:b:c.html',
+      specifierType: 'esm',
+    };
+
+    let result = getURLReplacement({
+      dependency,
+      fromBundle,
+      toBundle,
+      relative: false,
+    });
+
+    assert.equal(result.to, '/a:b:c.html');
   });
 });
