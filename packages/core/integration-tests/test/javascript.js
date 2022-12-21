@@ -5814,7 +5814,7 @@ describe('javascript', function () {
 
   it('should not affect ESM import order', async function () {
     const b = await bundle(
-      path.join(__dirname, '/integration/import-initialization/a.mjs'),
+      path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
     );
 
     await assert.rejects(
@@ -5825,7 +5825,7 @@ describe('javascript', function () {
 
   it('should not affect ESM import order with scope hoisting', async function () {
     const b = await bundle(
-      path.join(__dirname, '/integration/import-initialization/a.mjs'),
+      path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
       {
         defaultTargetOptions: {
           shouldScopeHoist: true,
