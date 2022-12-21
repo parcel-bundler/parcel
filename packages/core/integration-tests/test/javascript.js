@@ -6242,21 +6242,44 @@ describe('javascript', function () {
     assert.deepEqual(o2, ['UIIcon', 'Icon']);
   });
 
-  it('should add strict mode directive to module bundles', async function () {
+  it('should add strict mode directive to nomodule bundles', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js/index.html'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          engines: {
+            browsers: ['Chrome 50'],
+          },
+        },
+      },
     );
 
-    let contents = await outputFS.readFile(
-      b.getBundles().find(b => b.type === 'js').filePath,
+    let moduleBundle = await outputFS.readFile(
+      b
+        .getBundles()
+        .find(b => b.type === 'js' && b.env.outputFormat === 'esmodule')
+        .filePath,
       'utf8',
     );
-    assert(contents.startsWith("'use strict';"));
+    let nomoduleBundle = await outputFS.readFile(
+      b
+        .getBundles()
+        .find(b => b.type === 'js' && b.env.outputFormat === 'global').filePath,
+      'utf8',
+    );
+    assert(!/^["']use strict["'];/.test(moduleBundle.includes('use strict')));
+    assert(nomoduleBundle.startsWith("'use strict';"));
   });
 
   it('should not add strict mode directive to classic scripts', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-classic/index.html'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     let contents = await outputFS.readFile(
