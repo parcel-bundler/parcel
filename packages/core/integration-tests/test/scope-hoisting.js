@@ -2137,7 +2137,7 @@ describe('scope hoisting', function () {
         b.getBundles()[0].filePath,
         'utf8',
       );
-      assert.strictEqual(contents.trim().length, 0);
+      assert.strictEqual(contents.trim(), '"use strict";');
     });
 
     it('should support the jsx pragma', async function () {
