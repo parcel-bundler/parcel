@@ -6,7 +6,10 @@ const wasm = require('./browser.js');
 const suite = new Benchmark(10000);
 
 suite.add('md5 crypto', () => {
-  crypto.createHash('md5').update('hello world').digest('hex');
+  crypto
+    .createHash('md5')
+    .update('hello world')
+    .digest('hex');
 });
 
 suite.add('hashString small rust', () => {

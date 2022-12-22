@@ -86,7 +86,7 @@ window.addEventListener(
 function debounce(fn, delay) {
   let timeout;
 
-  return function (...args) {
+  return function(...args) {
     if (timeout) {
       clearTimeout(timeout);
     }
@@ -103,10 +103,9 @@ function translate3d(x, y, z) {
 
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 function formatSize(x) {
-  let l = 0,
-    n = parseInt(x, 10) || 0;
-  while (n >= 1000 && ++l) {
-    n /= 1000;
+  let l = 0, n = parseInt(x, 10) || 0;
+  while(n >= 1000 && ++l){
+      n /= 1000;
   }
-  return `${n.toFixed(l > 0 ? 2 : 0)} ${UNITS[l]}`;
+  return(`${n.toFixed(l > 0 ? 2 : 0)} ${UNITS[l]}`);
 }
