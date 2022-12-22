@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {ParcelLinkConfig} from './ParcelLinkConfig';
-import type {CmdOptions} from './util';
+import type {CmdOptions} from './utils';
 
 import {
   cleanupNodeModules,
@@ -9,7 +9,7 @@ import {
   findParcelPackages,
   fsWrite,
   mapNamespacePackageAliases,
-} from './util';
+} from './utils';
 
 // $FlowFixMe[untyped-import]
 import glob from 'glob';
