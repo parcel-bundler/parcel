@@ -341,6 +341,7 @@ export async function runBundles(
   ctx.sideEffectNoop = v => v;
   if (!('output' in ctx)) {
     // So that assignments to `output` don't fail in strict mode.
+    // Related: https://github.com/nodejs/node/issues/38918#issuecomment-1110258667
     // $FlowFixMe[prop-missing]
     ctx.output = undefined;
   }
