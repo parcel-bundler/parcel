@@ -1,6 +1,8 @@
 #! /usr/bin/env node
 
 // @flow strict-local
+/* eslint-disable no-console */
+
 'use strict';
 
 // $FlowFixMe[untyped-import]
