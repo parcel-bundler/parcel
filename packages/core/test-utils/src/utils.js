@@ -35,6 +35,7 @@ import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 
+export * from './CopyOnWriteToMemoryFS';
 export {fsFixture} from './fsFixture';
 
 export const workerFarm = (createWorkerFarm(): WorkerFarm);
