@@ -464,7 +464,6 @@ describe('javascript', function () {
       (await outputFS.stat(mainPath)).mode,
       (await inputFS.stat(path.join(fixturePath, 'main.js'))).mode,
     );
-    await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
   it('should not preserve hashbangs in browser bundles', async () => {
@@ -476,7 +475,6 @@ describe('javascript', function () {
       'utf8',
     );
     assert(!main.includes('#!/usr/bin/env node\n'));
-    await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
   it('should preserve hashbangs in scopehoisted bundles', async () => {
@@ -492,7 +490,6 @@ describe('javascript', function () {
       'utf8',
     );
     assert.equal(main.lastIndexOf('#!/usr/bin/env node\n'), 0);
-    await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
   it('should bundle node_modules for a node environment if includeNodeModules is specified', async function () {

@@ -1117,14 +1117,6 @@ ${code}
     let res = '';
     let lines = 0;
 
-    if (
-      this.bundle.env.sourceType === 'module' &&
-      this.bundle.env.outputFormat !== 'esmodule'
-    ) {
-      res += "'use strict';\n";
-      lines++;
-    }
-
     // Add hashbang if the entry asset recorded an interpreter.
     let mainEntry = this.bundle.getMainEntry();
     if (
@@ -1138,6 +1130,14 @@ ${code}
         res += `#!${interpreter}\n`;
         lines++;
       }
+    }
+
+    if (
+      this.bundle.env.sourceType === 'module' &&
+      this.bundle.env.outputFormat !== 'esmodule'
+    ) {
+      res += "'use strict';\n";
+      lines++;
     }
 
     // The output format may have specific things to add at the start of the bundle (e.g. imports).
