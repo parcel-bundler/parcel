@@ -6191,6 +6191,33 @@ describe('javascript', function () {
     assert.strictEqual(output.default, '4returned from bar');
   });
 
+  it('should not affect ESM import order', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
+    );
+
+    await assert.rejects(
+      run(b),
+      new ReferenceError("Cannot access 'foo' before initialization"),
+    );
+  });
+
+  it('should not affect ESM import order with scope hoisting', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    await assert.rejects(
+      run(b),
+      /^ReferenceError: Cannot access '(.+)' before initialization$/,
+    );
+  });
+
   it('should produce working output with both scope hoisting and non scope hoisting targets', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/re-export-no-scope-hoist'),
