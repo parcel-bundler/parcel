@@ -3,9 +3,8 @@
 import type {FileSystem} from '@parcel/fs';
 import type {ProgramOptions} from '@parcel/link';
 
-import {MemoryFS, NodeFS, OverlayFS, ncp} from '@parcel/fs';
 import {createProgram as _createProgram} from '@parcel/link';
-import {workerFarm} from '@parcel/test-utils';
+import {workerFarm, inputFS, CopyOnWriteToMemoryFS} from '@parcel/test-utils';
 
 import assert from 'assert';
 import path from 'path';
@@ -25,17 +24,14 @@ describe('@parcel/link', () => {
   let _cwd;
   let _stdout;
 
-  async function createFS(dir?: string): Promise<FileSystem> {
+  function createFS(dir?: string) {
     assert(_cwd == null, 'FS already exists!');
-    let inputFS = new NodeFS();
-    let outputFS = new MemoryFS(workerFarm);
-    let fs = new OverlayFS(outputFS, inputFS);
-    if (dir != null) {
-      fs.chdir(dir);
-      await ncp(inputFS, dir, outputFS, dir);
-    }
-    // $FlowFixMe[incompatible-call]
+
+    let fs = new CopyOnWriteToMemoryFS(workerFarm, inputFS);
+    if (dir != null) fs.chdir(dir);
+
     _cwd = sinon.stub(process, 'cwd').callsFake(() => fs.cwd());
+
     return fs;
   }
 
@@ -51,7 +47,7 @@ describe('@parcel/link', () => {
   });
 
   it('prints help text', async () => {
-    let fs = await createFS();
+    let fs = createFS();
     let cli = createProgram({fs});
     // $FlowFixMe[prop-missing]
     await assert.rejects(async () => cli('--help'), /\(outputHelp\)/);
@@ -59,7 +55,7 @@ describe('@parcel/link', () => {
 
   it('links by default', async () => {
     let link = sinon.stub();
-    let fs = await createFS();
+    let fs = createFS();
     let cli = createProgram({fs, link});
     await cli();
     assert(link.called);
