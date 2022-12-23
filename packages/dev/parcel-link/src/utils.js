@@ -59,11 +59,10 @@ export async function findParcelPackages(
   rootDir: string,
   files: Map<string, string> = new Map(),
 ): Promise<Map<string, string>> {
-  for (let file of fs.readdirSync(rootDir)) {
-    if (file === 'node_modules') continue;
-    let projectPath = path.join(rootDir, file);
-    const stats = fs.statSync(projectPath);
-    if (stats && stats.isDirectory()) {
+  for (let file of fs.readdirSync(rootDir, {withFileTypes: true})) {
+    if (file.name === 'node_modules') continue;
+    let projectPath = path.join(rootDir, file.name);
+    if (file.isDirectory()) {
       let packagePath = path.join(projectPath, 'package.json');
       if (fs.existsSync(packagePath)) {
         let pack = JSON.parse(await fs.readFile(packagePath, 'utf8'));
