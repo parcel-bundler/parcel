@@ -48,9 +48,9 @@ export async function fsSymlink(
   if (!dryRun) await fs.symlink(source, target);
   log(
     'Linked',
-    path.join('<pkg>', path.relative(packageRoot, source)),
-    '->',
     path.join('<app>', path.relative(appRoot, target)),
+    '->',
+    path.join('<pkg>', path.relative(packageRoot, source)),
   );
 }
 
