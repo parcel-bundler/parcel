@@ -64,28 +64,32 @@ export async function unlink(
     // --------------------------------------------------------------------------------
 
     let parcelConfigPath = path.join(appRoot, '.parcelrc');
-    let parcelConfig = config.fs.readFileSync(parcelConfigPath, 'utf8');
-    for (let [alias, parcel] of namespacePackages) {
-      parcelConfig = parcelConfig.replace(
-        new RegExp(`"${parcel}"`, 'g'),
-        `"${alias}"`,
-      );
+    if (config.fs.existsSync(parcelConfigPath)) {
+      let parcelConfig = config.fs.readFileSync(parcelConfigPath, 'utf8');
+      for (let [alias, parcel] of namespacePackages) {
+        parcelConfig = parcelConfig.replace(
+          new RegExp(`"${parcel}"`, 'g'),
+          `"${alias}"`,
+        );
+      }
+      await fsWrite(parcelConfigPath, parcelConfig, opts);
     }
-    await fsWrite(parcelConfigPath, parcelConfig, opts);
 
     // Step 3.3: In the root package.json, restore all references to namespaced plugins
     // For configs like "@namespace/parcel-bundler-default":{"maxParallelRequests": 10}
     // --------------------------------------------------------------------------------
 
     let rootPkgPath = path.join(appRoot, 'package.json');
-    let rootPkg = config.fs.readFileSync(rootPkgPath, 'utf8');
-    for (let [alias, parcel] of namespacePackages) {
-      rootPkg = rootPkg.replace(
-        new RegExp(`"${parcel}"(\\s*:\\s*{)`, 'g'),
-        `"${alias}"$1`,
-      );
+    if (config.fs.existsSync(rootPkgPath)) {
+      let rootPkg = config.fs.readFileSync(rootPkgPath, 'utf8');
+      for (let [alias, parcel] of namespacePackages) {
+        rootPkg = rootPkg.replace(
+          new RegExp(`"${parcel}"(\\s*:\\s*{)`, 'g'),
+          `"${alias}"$1`,
+        );
+      }
+      await fsWrite(rootPkgPath, rootPkg, opts);
     }
-    await fsWrite(rootPkgPath, rootPkg, opts);
 
     // Step 3.4: Delete all namespaced packages (`@namespace/parcel-*`) from node_modules
     // This is very brute-force, but should ensure that we catch all linked packages.

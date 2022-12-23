@@ -76,31 +76,35 @@ export async function link(
     // --------------------------------------------------------------------------------
 
     let parcelConfigPath = path.join(appRoot, '.parcelrc');
-    let parcelConfig = config.fs.readFileSync(parcelConfigPath, 'utf8');
-    await fsWrite(
-      parcelConfigPath,
-      parcelConfig.replace(
-        new RegExp(`"(${namespace}/parcel-[^"]*)"`, 'g'),
-        (_, match) => `"${namespacePackages.get(match) ?? match}"`,
-      ),
-      opts,
-    );
+    if (config.fs.existsSync(parcelConfigPath)) {
+      let parcelConfig = config.fs.readFileSync(parcelConfigPath, 'utf8');
+      await fsWrite(
+        parcelConfigPath,
+        parcelConfig.replace(
+          new RegExp(`"(${namespace}/parcel-[^"]*)"`, 'g'),
+          (_, match) => `"${namespacePackages.get(match) ?? match}"`,
+        ),
+        opts,
+      );
+    }
 
     // Step 5.2: In the root package.json, rewrite all references to official plugins to @parcel/...
     // For configs like "@namespace/parcel-bundler-default":{"maxParallelRequests": 10}
     // --------------------------------------------------------------------------------
 
     let rootPkgPath = path.join(appRoot, 'package.json');
-    let rootPkg = config.fs.readFileSync(rootPkgPath, 'utf8');
-    await fsWrite(
-      rootPkgPath,
-      rootPkg.replace(
-        new RegExp(`"(${namespace}/parcel-[^"]*)"(\\s*:\\s*{)`, 'g'),
-        (_, match, suffix) =>
-          `"${namespacePackages.get(match) ?? match}"${suffix}`,
-      ),
-      opts,
-    );
+    if (config.fs.existsSync(rootPkgPath)) {
+      let rootPkg = config.fs.readFileSync(rootPkgPath, 'utf8');
+      await fsWrite(
+        rootPkgPath,
+        rootPkg.replace(
+          new RegExp(`"(${namespace}/parcel-[^"]*)"(\\s*:\\s*{)`, 'g'),
+          (_, match, suffix) =>
+            `"${namespacePackages.get(match) ?? match}"${suffix}`,
+        ),
+        opts,
+      );
+    }
 
     // Step 5.3: Delete namespaced packages (`@namespace/parcel-*`) from node_modules
     // --------------------------------------------------------------------------------

@@ -159,8 +159,100 @@ describe('@parcel/link', () => {
       );
     });
 
-    it.skip('links with a custom namespace', () => {});
-    it.skip('updates config for custom namespace', () => {});
+    it('links with a custom namespace', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+      await fs.mkdirp('node_modules/@namespace/parcel');
+      await fs.mkdirp('node_modules/@namespace/parcel-core');
+
+      let cli = createProgram({fs});
+      await cli('link --namespace @namespace');
+
+      assert(fs.existsSync('.parcel-link'));
+
+      assert.equal(
+        fs.realpathSync('node_modules/@namespace/parcel-core'),
+        path.resolve(__dirname, '../../core'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/@parcel/core'),
+        path.resolve(__dirname, '../../core'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/@namespace/parcel'),
+        path.resolve(__dirname, '../../parcel'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/parcel'),
+        path.resolve(__dirname, '../../parcel'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/.bin/parcel'),
+        path.resolve(__dirname, '../../parcel/src/bin.js'),
+      );
+    });
+
+    it('updates config for custom namespace', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+
+      await fs.writeFile(
+        '.parcelrc',
+        JSON.stringify({
+          extends: '@namespace/parcel-config-namespace',
+          transformers: {
+            '*': [
+              '@namespace/parcel-transformer-js',
+              '@namespace/parcel-transformer-local',
+            ],
+          },
+        }),
+      );
+
+      await fs.writeFile(
+        'package.json',
+        JSON.stringify({
+          ['@namespace/parcel-transformer-js']: {},
+          ['@namespace/parcel-transformer-local']: {},
+        }),
+      );
+
+      await fs.writeFile(
+        path.join(__dirname, '../../../configs/namespace/package.json'),
+        '{"name": "@parcel/config-namespace"}',
+      );
+
+      let cli = createProgram({fs});
+      await cli('link --namespace @namespace');
+
+      assert(fs.existsSync('.parcel-link'));
+
+      assert.equal(
+        fs.readFileSync('.parcelrc', 'utf8'),
+        JSON.stringify({
+          extends: '@parcel/config-namespace',
+          transformers: {
+            '*': [
+              '@parcel/transformer-js',
+              '@namespace/parcel-transformer-local',
+            ],
+          },
+        }),
+      );
+
+      assert.equal(
+        fs.readFileSync('package.json', 'utf8'),
+        JSON.stringify({
+          ['@parcel/transformer-js']: {},
+          ['@namespace/parcel-transformer-local']: {},
+        }),
+      );
+    });
+
     it.skip('links with custom node modules glob', () => {});
     it.skip('does not do anything with dry run', () => {});
   });
