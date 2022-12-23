@@ -63,12 +63,106 @@ describe('@parcel/link', () => {
   });
 
   describe('link', () => {
-    it.skip('errors when a link exists', () => {});
-    it.skip('does not do anything with --dryRun', () => {});
-    it.skip('links with the default options', () => {});
-    it.skip('links from a custom --packageRoot', () => {});
-    it.skip('links with a custom --namespace', () => {});
-    it.skip('links with custom --nodeModulesGlob', () => {});
+    it('errors for invalid app root', async () => {
+      let fs = createFS('/app');
+
+      let cli = createProgram({fs});
+
+      // $FlowFixMe[prop-missing]
+      await assert.rejects(async () => cli('link'), /Not a project root/);
+    });
+
+    it('errors for invalid package root', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+
+      let cli = createProgram({fs});
+
+      // $FlowFixMe[prop-missing]
+      await assert.rejects(async () => cli('link /fake'), /Not a package root/);
+    });
+
+    it('errors when a link exists', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+
+      let cli = createProgram({fs});
+      await cli(`link`);
+
+      // $FlowFixMe[prop-missing]
+      await assert.rejects(async () => cli('link'), /link already exists/);
+    });
+
+    it('links with the default options', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+      await fs.mkdirp('node_modules/parcel');
+      await fs.mkdirp('node_modules/@parcel/core');
+
+      let cli = createProgram({fs});
+      await cli('link');
+
+      assert(fs.existsSync('.parcel-link'));
+
+      assert.equal(
+        fs.realpathSync('node_modules/@parcel/core'),
+        path.resolve(__dirname, '../../core'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/parcel'),
+        path.resolve(__dirname, '../../parcel'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/.bin/parcel'),
+        path.resolve(__dirname, '../../parcel/src/bin.js'),
+      );
+    });
+
+    it('links from a custom package root', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+      await fs.mkdirp('node_modules/parcel');
+      await fs.mkdirp('node_modules/@parcel/core');
+
+      await fs.writeFile(
+        '../package-root/core/core/package.json',
+        '{"name": "@parcel/core"}',
+      );
+
+      await fs.writeFile(
+        '../package-root/core/parcel/package.json',
+        '{"name": "parcel"}',
+      );
+
+      await fs.writeFile('../package-root/core/parcel/src/bin.js', '');
+
+      let cli = createProgram({fs});
+      await cli(`link ../package-root`);
+
+      assert(fs.existsSync('.parcel-link'));
+
+      assert.equal(
+        fs.realpathSync('node_modules/@parcel/core'),
+        path.resolve(fs.cwd(), '../package-root/core/core'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/parcel'),
+        path.resolve(fs.cwd(), '../package-root/core/parcel'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/.bin/parcel'),
+        path.resolve(fs.cwd(), '../package-root/core/parcel/src/bin.js'),
+      );
+    });
+
+    it.skip('links with a custom namespace', () => {});
+    it.skip('updates config for custom namespace', () => {});
+    it.skip('links with custom node modules glob', () => {});
+    it.skip('does not do anything with dry run', () => {});
   });
 
   describe('unlink', () => {
