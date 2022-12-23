@@ -11,8 +11,6 @@ import {
   fsSymlink,
 } from './utils';
 
-// $FlowFixMe[untyped-import]
-import glob from 'glob';
 import nullthrows from 'nullthrows';
 import path from 'path';
 

@@ -2,9 +2,9 @@
 
 import type {FileSystem} from '@parcel/fs';
 
-// $FlowFixMe[untyped-import]
+import {globSync} from '@parcel/utils';
+
 import assert from 'assert';
-import glob from 'glob';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
@@ -84,7 +84,7 @@ export class ParcelLinkConfig {
     return this.nodeModulesGlobs.reduce(
       (matches, pattern) => [
         ...matches,
-        ...glob.sync(pattern, {cwd: this.appRoot}),
+        ...globSync(pattern, this.fs, {cwd: this.appRoot, onlyFiles: false}),
       ],
       [],
     );

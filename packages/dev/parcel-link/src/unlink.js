@@ -11,8 +11,6 @@ import {
   mapNamespacePackageAliases,
 } from './utils';
 
-// $FlowFixMe[untyped-import]
-import glob from 'glob';
 import path from 'path';
 
 export type UnlinkOptions = {|
