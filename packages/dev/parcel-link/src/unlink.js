@@ -25,7 +25,7 @@ export async function unlink(
 ) {
   config.validate();
 
-  let {appRoot, packageRoot, namespace, nodeModulesGlobs} = config;
+  let {appRoot, packageRoot, namespace} = config;
 
   let nodeModulesPaths = config.getNodeModulesPaths();
 

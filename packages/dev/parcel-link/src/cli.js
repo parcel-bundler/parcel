@@ -42,9 +42,10 @@ export function createProgram(opts?: ProgramOptions): commander.Command {
     .option('-d, --dry-run', 'Do not write any changes')
     .option('-n, --namespace <namespace>', 'Namespace for packages', '@parcel')
     .option(
-      '-g, --node-modules-globs <globs...>',
-      'Locations where node_modules should be linked in the app',
-      'node_modules',
+      '-g, --node-modules-glob <glob>',
+      'Location where node_modules should be linked in the app.\nCan be repeated with multiple globs.',
+      (glob, globs) => globs.concat([glob.replace(/["']/g, '')]),
+      ['node_modules'],
     )
     .action(async (packageRoot, options) => {
       if (options.dryRun) console.log('Dry run...');
@@ -69,9 +70,7 @@ export function createProgram(opts?: ProgramOptions): commander.Command {
         appRoot,
         packageRoot: packageRoot ?? path.join(__dirname, '../../../'),
         namespace: options.namespace,
-        nodeModulesGlobs: Array.isArray(options.nodeModulesGlobs)
-          ? options.nodeModulesGlobs
-          : [options.nodeModulesGlobs],
+        nodeModulesGlobs: options.nodeModulesGlob,
       });
 
       await link(parcelLinkConfig, {dryRun: options.dryRun, log: console.log});

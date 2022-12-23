@@ -253,7 +253,39 @@ describe('@parcel/link', () => {
       );
     });
 
-    it.skip('links with custom node modules glob', () => {});
+    it('links with custom node modules glob', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+      await fs.mkdirp('tools/test/node_modules/parcel');
+      await fs.mkdirp('tools/test2/node_modules/@parcel/core');
+
+      let cli = createProgram({fs});
+      await cli('link --node-modules-glob "tools/*/node_modules"');
+
+      assert(fs.existsSync('.parcel-link'));
+
+      assert(fs.existsSync('tools/test/node_modules'));
+      assert(!fs.existsSync('tools/test/node_modules/parcel'));
+
+      assert(fs.existsSync('tools/test2/node_modules'));
+      assert(!fs.existsSync('tools/test2/node_modules/@parcel/core'));
+
+      assert.equal(
+        fs.realpathSync('node_modules/parcel'),
+        path.resolve(__dirname, '../../parcel'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/.bin/parcel'),
+        path.resolve(__dirname, '../../parcel/src/bin.js'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/@parcel/core'),
+        path.resolve(__dirname, '../../core'),
+      );
+    });
+
     it.skip('does not do anything with dry run', () => {});
   });
 

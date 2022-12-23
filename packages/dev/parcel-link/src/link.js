@@ -25,7 +25,7 @@ export async function link(
 ): Promise<void> {
   config.validate();
 
-  let {appRoot, packageRoot, namespace, nodeModulesGlobs} = config;
+  let {appRoot, packageRoot, namespace} = config;
 
   let nodeModulesPaths = config.getNodeModulesPaths();
 
