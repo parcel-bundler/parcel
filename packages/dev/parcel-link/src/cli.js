@@ -81,24 +81,11 @@ export function createProgram(opts?: ProgramOptions): commander.Command {
     });
 
   program
-    .command('unlink [packageRoot]')
-    .description('Unlink a dev copy of Parcel into an app', {
-      packageRoot:
-        'Path to the Parcel package root\nDefaults to the package root containing this package',
-    })
+    .command('unlink')
+    .description('Unlink a dev copy of Parcel into an app')
     .option('-d, --dry-run', 'Do not write any changes')
     .option('-f, --force-install', 'Force a reinstall after unlinking')
-    .option(
-      '-n, --namespace <namespace>',
-      'Package namespace to restore',
-      '@parcel',
-    )
-    .option(
-      '-g, --node-modules-globs <globs...>',
-      'Locations where node_modules should be unlinked in the app',
-      'node_modules',
-    )
-    .action(async (packageRoot, options) => {
+    .action(async options => {
       if (options.dryRun) console.log('Dry run...');
       let appRoot = process.cwd();
 
