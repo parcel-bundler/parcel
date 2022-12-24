@@ -513,13 +513,14 @@ function propagateSymbolsUp(
     outgoing: $ReadOnlyArray<DependencyNode>,
   ) => Array<Diagnostic>,
 ): void {
-  // Traverse the graph in a post-order DFS, with the idea that all children of a node should have
-  // been processed first. With a tree, this would result in a minimal amount of work (processing
-  // every asset exactly once).
-  //
   // For graphs in general (so with cyclic dependencies), some nodes will have to be revisited. So
-  // after the tree traversal, just run a regular queue-based BFS for anything that's still dirty
-  // (in the hope that this affects only a small part of the graph).
+  // run a regular queue-based BFS for anything that's still dirty.
+  //
+  // (Previously, there was first a recursive post-order DFS, with the idea that all children of a
+  // node should be processed first. With a tree, this would result in a minimal amount of work by
+  // processing every asset exactly once and then the remaining cycles would have been handled
+  // with the loop. This was slightly faster for initial builds but had O(project) instead of
+  // O(changes).)
 
   let errors = new Map<NodeId, Array<Diagnostic>>();
   let dirtyDeps = new Set<NodeId>();
