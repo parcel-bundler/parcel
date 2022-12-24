@@ -199,7 +199,7 @@ export class AssetGraphBuilder {
         'AssetGraph_' + this.name + '_before_prop',
       );
       try {
-        propagateSymbols(this.options, this.assetGraph);
+        propagateSymbols(this.options, this.changedAssets, this.assetGraph);
       } catch (e) {
         await dumpGraphToGraphViz(
           this.assetGraph,
