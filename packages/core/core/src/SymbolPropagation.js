@@ -14,6 +14,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import logger from '@parcel/logger';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
+import {setEqual} from '@parcel/utils';
 import {type Asset, BundleBehavior} from './types';
 import {type default as AssetGraph} from './AssetGraph';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
@@ -166,7 +167,7 @@ export function propagateSymbols(
         } else {
           depUsedSymbolsDown.clear();
         }
-        if (!equalSet(depUsedSymbolsDownOld, depUsedSymbolsDown)) {
+        if (!setEqual(depUsedSymbolsDownOld, depUsedSymbolsDown)) {
           dep.usedSymbolsDownDirty = true;
           dep.usedSymbolsUpDirtyDown = true;
         }
@@ -657,10 +658,6 @@ function equalMap<K>(
     if (vB?.asset !== v?.asset || vB?.symbol !== v?.symbol) return false;
   }
   return true;
-}
-
-function equalSet<T>(a: $ReadOnlySet<T>, b: $ReadOnlySet<T>) {
-  return a.size === b.size && [...a].every(i => b.has(i));
 }
 
 function setPop<T>(set: Set<T>): T {
