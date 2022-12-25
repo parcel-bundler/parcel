@@ -318,11 +318,17 @@ export type DependencyNode = {|
     Symbol,
     {|asset: ContentKey, symbol: ?Symbol|} | void | null,
   >,
-  /** for the "down" pass, the dependency resolution asset needs to be updated */
+  /** For the "down" pass, the resolutionAsset needs to be updated. */
   usedSymbolsDownDirty: boolean,
-  /** for the "up" pass, the parent asset needs to be updated */
+  /**
+   * In the up pass, `usedSymbolsUp` changed. This needs to be propagated to the sourceAsset in the
+   * up pass.
+   */
   usedSymbolsUpDirtyUp: boolean,
-  /** for the "up" pass, the dependency resolution asset needs to be updated */
+  /**
+   * In the down pass, `usedSymbolsDown` changed. This needs to be propagated to the resolutionAsset
+   * in the up pass.
+   */
   usedSymbolsUpDirtyDown: boolean,
   /** dependency was excluded (= no used symbols (globally) & side-effect free) */
   excluded: boolean,
