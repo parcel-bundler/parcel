@@ -854,6 +854,16 @@ export default (new Transformer({
           dep.symbols.ensure();
           dep.symbols.set('*', '*', convertLoc(loc), true);
         }
+
+        if (
+          symbol_result.has_cjs_exports ||
+          (!symbol_result.is_esm &&
+            deps.size === 0 &&
+            symbol_result.exports.length === 0) ||
+          (symbol_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
+        ) {
+          asset.symbols.set('*', `$`);
+        }
       }
 
       if (needs_esm_helpers) {

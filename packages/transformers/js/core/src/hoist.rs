@@ -1187,6 +1187,9 @@ pub struct CollectResult {
   imports: Vec<CollectImportedSymbol>,
   exports: Vec<CollectExportedSymbol>,
   exports_all: Vec<CollectExportedAll>,
+  should_wrap: bool,
+  has_cjs_exports: bool,
+  is_esm: bool,
 }
 
 impl Collect {
@@ -1289,6 +1292,9 @@ impl From<Collect> for CollectResult {
         .into_iter()
         .map(|(source, loc)| CollectExportedAll { source, loc })
         .collect(),
+      should_wrap: collect.should_wrap,
+      has_cjs_exports: collect.has_cjs_exports,
+      is_esm: collect.is_esm,
     }
   }
 }
