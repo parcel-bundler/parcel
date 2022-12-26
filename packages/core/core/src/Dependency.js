@@ -32,7 +32,7 @@ type DependencyOpts = {|
   resolveFrom?: FilePath,
   range?: SemverRange,
   target?: Target,
-  symbols?: Map<
+  symbols?: ?Map<
     Symbol,
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
   >,
