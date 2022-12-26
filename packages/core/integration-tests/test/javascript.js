@@ -6348,13 +6348,7 @@ describe('javascript', function () {
             type: 'js',
             assets: usesSymbolPropagation
               ? ['a.js', 'message1.js']
-              : [
-                  'a.js',
-                  'esmodule-helpers.js',
-                  'index.js',
-                  'message1.js',
-                  'message3.js',
-                ],
+              : ['a.js', 'esmodule-helpers.js', 'index.js', 'message1.js'],
           },
         ]);
 
@@ -6376,7 +6370,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['message1'] : ['message1', 'message3', 'index'],
+          shouldScopeHoist ? ['message1'] : ['message1', 'index'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -6424,9 +6418,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist
-            ? ['message2']
-            : ['message1', 'message2', 'message3', 'index'],
+          shouldScopeHoist ? ['message2'] : ['message2', 'index'],
         );
         assert.deepEqual(res.output, 'Message 2');
       });
@@ -6445,13 +6437,7 @@ describe('javascript', function () {
             type: 'js',
             assets: usesSymbolPropagation
               ? ['c.js', 'message3.js']
-              : [
-                  'c.js',
-                  'esmodule-helpers.js',
-                  'index.js',
-                  'message1.js',
-                  'message3.js',
-                ],
+              : ['c.js', 'esmodule-helpers.js', 'index.js', 'message3.js'],
           },
         ]);
 
@@ -6472,7 +6458,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['message3'] : ['message1', 'message3', 'index'],
+          shouldScopeHoist ? ['message3'] : ['message3', 'index'],
         );
         assert.deepEqual(res.output, {default: 'Message 3'});
       });
@@ -6503,10 +6489,7 @@ describe('javascript', function () {
           {require: false},
         );
 
-        assert.deepEqual(
-          calls,
-          shouldScopeHoist ? ['index'] : ['message1', 'message3', 'index'],
-        );
+        assert.deepEqual(calls, ['index']);
         assert.deepEqual(res.output, 'Message 4');
       });
 
@@ -6542,7 +6525,7 @@ describe('javascript', function () {
             assert.deepEqual(calls, ['foo', 'key', 'index']);
           }
         } else {
-          assert.deepEqual(calls, ['key', 'foo', 'bar', 'types', 'index']);
+          assert.deepEqual(calls, ['key', 'foo', 'types', 'index']);
         }
 
         assert.deepEqual(res.output, ['key', 'foo']);
@@ -6969,16 +6952,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist
-            ? ['message1']
-            : [
-                'message1',
-                'message2',
-                'message',
-                'symbol1',
-                'symbol2',
-                'symbol',
-              ],
+          shouldScopeHoist ? ['message1'] : ['message1', 'message'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -7007,10 +6981,7 @@ describe('javascript', function () {
           {require: false},
         );
 
-        assert.deepEqual(
-          calls,
-          usesSymbolPropagation ? ['index'] : ['other', 'index'],
-        );
+        assert.deepEqual(calls, ['index']);
         assert.deepEqual(res.output, 'Message 1');
       });
 
@@ -7040,7 +7011,7 @@ describe('javascript', function () {
           calls,
           shouldScopeHoist
             ? ['message1']
-            : ['message1', 'message2', 'message', 'index2', 'index'],
+            : ['message1', 'message', 'index2', 'index'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -7255,7 +7226,7 @@ describe('javascript', function () {
 
         let [v, async] = res;
 
-        assert.deepEqual(calls, shouldScopeHoist ? ['b'] : ['a', 'b', 'index']);
+        assert.deepEqual(calls, shouldScopeHoist ? ['b'] : ['b', 'index']);
         assert.deepEqual(v, 2);
 
         v = await async();
@@ -7263,7 +7234,7 @@ describe('javascript', function () {
           calls,
           shouldScopeHoist
             ? ['b', 'a', 'index', 'dynamic']
-            : ['a', 'b', 'index', 'dynamic'],
+            : ['b', 'index', 'a', 'dynamic'],
         );
         assert.deepEqual(v.default, [1, 3]);
       });
@@ -7292,7 +7263,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['esm1'] : ['esm1', 'other', 'esm2', 'index'],
+          shouldScopeHoist ? ['esm1'] : ['esm1', 'index'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -7371,7 +7342,7 @@ describe('javascript', function () {
         );
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['commonjs'] : ['esm', 'commonjs', 'index'],
+          shouldScopeHoist ? ['commonjs'] : ['commonjs', 'index'],
         );
         assert.deepEqual(res.output, 'Message 2');
       });
