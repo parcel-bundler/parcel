@@ -193,19 +193,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   removeNode(nodeId: NodeId): void {
     this.hash = null;
     this.onNodeRemoved && this.onNodeRemoved(nodeId);
-    // This needs to mark all connected nodes that doesn't become orphaned
-    // due to replaceNodesConnectedTo to make sure that the symbols of
-    // nodes from which at least one parent was removed are updated.
-    let node = nullthrows(this.getNode(nodeId));
-    if (this.isOrphanedNode(nodeId) && node.type === 'dependency') {
-      let children = this.getNodeIdsConnectedFrom(nodeId).map(id =>
-        nullthrows(this.getNode(id)),
-      );
-      for (let n of children) {
-        invariant(n.type === 'asset_group' || n.type === 'asset');
-        n.usedSymbolsDownDirty = true;
-      }
-    }
     return super.removeNode(nodeId);
   }
 

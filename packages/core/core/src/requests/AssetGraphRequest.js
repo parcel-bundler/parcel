@@ -105,6 +105,7 @@ export class AssetGraphBuilder {
   shouldBuildLazily: boolean;
   requestedAssetIds: Set<string>;
   isSingleChangeRebuild: boolean;
+  dependenciesWithRemovedParents: Set<NodeId> = new Set<NodeId>();
 
   constructor(
     {input, api, options}: RunInput,
@@ -124,6 +125,26 @@ export class AssetGraphBuilder {
       entries,
       assetGroups,
     });
+    assetGraph.onNodeRemoved = nodeId => {
+      // TODO is this performant? or instead skip in propagation?
+      this.dependenciesWithRemovedParents.delete(nodeId);
+
+      // This needs to mark all connected nodes that doesn't become orphaned
+      // due to replaceNodesConnectedTo to make sure that the symbols of
+      // nodes from which at least one parent was removed are updated.
+      let node = nullthrows(assetGraph.getNode(nodeId));
+      if (assetGraph.isOrphanedNode(nodeId) && node.type === 'dependency') {
+        let children = assetGraph.getNodeIdsConnectedFrom(nodeId);
+        for (let child of children) {
+          let childNode = nullthrows(assetGraph.getNode(child));
+          invariant(
+            childNode.type === 'asset_group' || childNode.type === 'asset',
+          );
+          childNode.usedSymbolsDownDirty = true;
+          this.dependenciesWithRemovedParents.add(child);
+        }
+      }
+    };
     this.assetGraph = assetGraph;
     this.optionsRef = optionsRef;
     this.options = options;
@@ -184,6 +205,7 @@ export class AssetGraphBuilder {
       {
         assetGraph: this.assetGraph,
         changedAssets: new Map(),
+        // TODO dependenciesWithRemovedParents?
         assetRequests: [],
       },
       this.cacheKey,
@@ -198,8 +220,22 @@ export class AssetGraphBuilder {
         this.assetGraph,
         'AssetGraph_' + this.name + '_before_prop',
       );
+      // console.log(
+      //   'propagate',
+      //   this.name,
+      //   [...this.changedAssets.keys()],
+      //   this.dependenciesWithRemovedParents,
+      // );
       try {
-        propagateSymbols(this.options, this.changedAssets, this.assetGraph);
+        // console.log("-----");
+        // console.log(require("util").inspect(this.assetGraph.nodes, {depth: Infinity}));
+        propagateSymbols(
+          this.options,
+          this.assetGraph,
+          this.changedAssets,
+          this.dependenciesWithRemovedParents,
+        );
+        // console.log(require("util").inspect(this.assetGraph.nodes, {depth: Infinity}));
       } catch (e) {
         await dumpGraphToGraphViz(
           this.assetGraph,
@@ -213,6 +249,7 @@ export class AssetGraphBuilder {
     return {
       assetGraph: this.assetGraph,
       changedAssets: this.changedAssets,
+      // TOOD dependenciesWithRemovedParents?
       assetRequests: this.assetRequests,
     };
   }
