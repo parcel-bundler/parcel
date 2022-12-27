@@ -53,10 +53,11 @@ export default class Worker extends EventEmitter {
 
     for (let i = 0; i < filteredArgs.length; i++) {
       let arg = filteredArgs[i];
-      if (
-        (arg === '-r' || arg === '--require') &&
-        filteredArgs[i + 1] === '@parcel/register'
-      ) {
+      let hasArgWithParam =
+        ((arg === '-r' || arg === '--require') &&
+          filteredArgs[i + 1] === '@parcel/register') ||
+        arg === '--title';
+      if (hasArgWithParam) {
         filteredArgs.splice(i, 2);
         i--;
       }
