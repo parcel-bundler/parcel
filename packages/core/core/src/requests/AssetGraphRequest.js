@@ -15,11 +15,13 @@ import type {
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import {Priority} from '../types';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
@@ -43,6 +45,8 @@ type AssetGraphRequestInput = {|
 type AssetGraphRequestResult = {|
   assetGraph: AssetGraph,
   changedAssets: Map<string, Asset>,
+  dependenciesWithRemovedParents: ?Set<NodeId>,
+  previousSymbolPropagationErrors: ?Map<NodeId, Array<Diagnostic>>,
   assetRequests: Array<AssetGroup>,
 |};
 
@@ -96,7 +100,7 @@ export class AssetGraphBuilder {
   assetGraph: AssetGraph;
   assetRequests: Array<AssetGroup> = [];
   queue: PromiseQueue<mixed>;
-  changedAssets: Map<string, Asset> = new Map();
+  changedAssets: Map<string, Asset>;
   optionsRef: SharedReference;
   options: ParcelOptions;
   api: RunAPI;
@@ -105,7 +109,8 @@ export class AssetGraphBuilder {
   shouldBuildLazily: boolean;
   requestedAssetIds: Set<string>;
   isSingleChangeRebuild: boolean;
-  dependenciesWithRemovedParents: Set<NodeId> = new Set<NodeId>();
+  dependenciesWithRemovedParents: Set<NodeId>;
+  previousSymbolPropagationErrors: Map<NodeId, Array<Diagnostic>>;
 
   constructor(
     {input, api, options}: RunInput,
@@ -125,6 +130,27 @@ export class AssetGraphBuilder {
       entries,
       assetGroups,
     });
+    this.dependenciesWithRemovedParents =
+      prevResult?.dependenciesWithRemovedParents ?? new Set();
+    this.previousSymbolPropagationErrors =
+      prevResult?.previousSymbolPropagationErrors ?? new Map();
+    this.changedAssets = prevResult?.changedAssets ?? new Map();
+    this.assetGraph = assetGraph;
+    this.optionsRef = optionsRef;
+    this.options = options;
+    this.api = api;
+    this.name = name;
+    this.requestedAssetIds = requestedAssetIds ?? new Set();
+    this.shouldBuildLazily = shouldBuildLazily ?? false;
+    this.cacheKey = hashString(
+      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
+    );
+
+    this.isSingleChangeRebuild =
+      api.getInvalidSubRequests().filter(req => req.type === 'asset_request')
+        .length === 1;
+    this.queue = new PromiseQueue();
+
     assetGraph.onNodeRemoved = nodeId => {
       // TODO is this performant? or instead skip in propagation?
       this.dependenciesWithRemovedParents.delete(nodeId);
@@ -145,21 +171,6 @@ export class AssetGraphBuilder {
         }
       }
     };
-    this.assetGraph = assetGraph;
-    this.optionsRef = optionsRef;
-    this.options = options;
-    this.api = api;
-    this.name = name;
-    this.requestedAssetIds = requestedAssetIds ?? new Set();
-    this.shouldBuildLazily = shouldBuildLazily ?? false;
-    this.cacheKey = hashString(
-      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
-    );
-
-    this.isSingleChangeRebuild =
-      api.getInvalidSubRequests().filter(req => req.type === 'asset_request')
-        .length === 1;
-    this.queue = new PromiseQueue();
   }
 
   async build(): Promise<AssetGraphRequestResult> {
@@ -201,18 +212,20 @@ export class AssetGraphBuilder {
     visit(rootNodeId);
     await this.queue.run();
 
-    this.api.storeResult(
-      {
-        assetGraph: this.assetGraph,
-        changedAssets: new Map(),
-        // TODO dependenciesWithRemovedParents?
-        assetRequests: [],
-      },
-      this.cacheKey,
-    );
-
     if (errors.length) {
-      throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
+      this.api.storeResult(
+        {
+          assetGraph: this.assetGraph,
+          changedAssets: this.changedAssets,
+          dependenciesWithRemovedParents: this.dependenciesWithRemovedParents,
+          previousSymbolPropagationErrors: undefined,
+          assetRequests: [],
+        },
+        this.cacheKey,
+      );
+
+      // TODO: eventually support multiple errors since requests could reject in parallel
+      throw errors[0];
     }
 
     if (this.assetGraph.nodes.size > 1) {
@@ -229,13 +242,32 @@ export class AssetGraphBuilder {
       try {
         // console.log("-----");
         // console.log(require("util").inspect(this.assetGraph.nodes, {depth: Infinity}));
-        propagateSymbols(
-          this.options,
-          this.assetGraph,
-          this.changedAssets,
-          this.dependenciesWithRemovedParents,
-        );
-        // console.log(require("util").inspect(this.assetGraph.nodes, {depth: Infinity}));
+        let errors = propagateSymbols({
+          options: this.options,
+          assetGraph: this.assetGraph,
+          changedAssets: this.changedAssets,
+          dependenciesWithRemovedParents: this.dependenciesWithRemovedParents,
+          previousErrors: this.previousSymbolPropagationErrors,
+        });
+        if (errors.size > 0) {
+          this.api.storeResult(
+            {
+              assetGraph: this.assetGraph,
+              changedAssets: this.changedAssets,
+              dependenciesWithRemovedParents:
+                this.dependenciesWithRemovedParents,
+              previousSymbolPropagationErrors: errors,
+              assetRequests: [],
+            },
+            this.cacheKey,
+          );
+
+          // Just throw the first error. Since errors can bubble (e.g. reexporting a reexported symbol also fails),
+          // determining which failing export is the root cause is nontrivial (because of circular dependencies).
+          throw new ThrowableDiagnostic({
+            diagnostic: [...errors.values()][0],
+          });
+        }
       } catch (e) {
         await dumpGraphToGraphViz(
           this.assetGraph,
@@ -246,10 +278,22 @@ export class AssetGraphBuilder {
     }
     await dumpGraphToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
 
+    this.api.storeResult(
+      {
+        assetGraph: this.assetGraph,
+        changedAssets: new Map(),
+        dependenciesWithRemovedParents: undefined,
+        previousSymbolPropagationErrors: undefined,
+        assetRequests: [],
+      },
+      this.cacheKey,
+    );
+
     return {
       assetGraph: this.assetGraph,
       changedAssets: this.changedAssets,
-      // TOOD dependenciesWithRemovedParents?
+      dependenciesWithRemovedParents: undefined,
+      previousSymbolPropagationErrors: undefined,
       assetRequests: this.assetRequests,
     };
   }

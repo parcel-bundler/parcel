@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {ContentKey, NodeId} from '@parcel/graph';
@@ -13,23 +13,31 @@ import type {
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import logger from '@parcel/logger';
-import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
+import {md} from '@parcel/diagnostic';
 import {setEqual} from '@parcel/utils';
 import {type Asset, BundleBehavior} from './types';
 import {type default as AssetGraph} from './AssetGraph';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
 
-export function propagateSymbols(
+export function propagateSymbols({
+  options,
+  assetGraph,
+  changedAssets,
+  dependenciesWithRemovedParents,
+  previousErrors,
+}: {|
   options: ParcelOptions,
   assetGraph: AssetGraph,
   changedAssets: Map<string, Asset>,
   dependenciesWithRemovedParents: Set<NodeId>,
-) {
+  previousErrors?: ?Map<NodeId, Array<Diagnostic>>,
+|}): Map<NodeId, Array<Diagnostic>> {
   let changedDeps = new Set<DependencyNode>();
 
-  // The nodes with `usedSymbolsDownDirty` set are exactly `changedAssets`.
-
   let changedDepsUsedSymbolsUpDirtyDown = new Set<ContentKey>();
+
+  // The nodes with `usedSymbolsDownDirty` set are exactly `changedAssets` or the resolutions of
+  // `dependenciesWithRemovedParents`.
 
   // Propagate the requested symbols down from the root to the leaves
   propagateSymbolsDown(
@@ -116,7 +124,7 @@ export function propagateSymbols(
           assetNode.value.sideEffects ||
           // For entries, we still need to add dep.value.symbols of the entry (which are "used" but not according to the symbols data)
           isEntry ||
-          // If not a single asset is used, we can say the entire subgraph is not used.
+          // If not a single symbol is used, we can say the entire subgraph is not used.
           // This is e.g. needed when some symbol is imported and then used for a export which isn't used (= "semi-weak" reexport)
           //    index.js:     `import {bar} from "./lib"; ...`
           //    lib/index.js: `export * from "./foo.js"; export * from "./bar.js";`
@@ -184,9 +192,6 @@ export function propagateSymbols(
     },
   );
 
-  // TODO
-  // store changedDepsUsedSymbolsUpDirtyDown in cache in case `propagateSymbolsUp` fails with an error
-
   const logFallbackNamespaceInsertion = (
     assetNode,
     symbol: Symbol,
@@ -209,9 +214,10 @@ export function propagateSymbols(
 
   // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
   // root and remove requested symbols that aren't actually exported
-  propagateSymbolsUp(
+  let errors = propagateSymbolsUp(
     assetGraph,
     changedDepsUsedSymbolsUpDirtyDown,
+    previousErrors,
     (assetNode, incomingDeps, outgoingDeps) => {
       let assetSymbols: ?$ReadOnlyMap<
         Symbol,
@@ -449,6 +455,8 @@ export function propagateSymbols(
       [...dep.usedSymbolsUp].sort(([a], [b]) => a.localeCompare(b)),
     );
   }
+
+  return errors;
 }
 
 function propagateSymbolsDown(
@@ -535,12 +543,13 @@ function propagateSymbolsDown(
 function propagateSymbolsUp(
   assetGraph: AssetGraph,
   changedDepsUsedSymbolsUpDirtyDown: Set<ContentKey>,
+  previousErrors: ?Map<NodeId, Array<Diagnostic>>,
   visit: (
     assetNode: AssetNode,
     incoming: $ReadOnlyArray<DependencyNode>,
     outgoing: $ReadOnlyArray<DependencyNode>,
   ) => Array<Diagnostic>,
-): void {
+): Map<NodeId, Array<Diagnostic>> {
   // For graphs in general (so with cyclic dependencies), some nodes will have to be revisited. So
   // run a regular queue-based BFS for anything that's still dirty.
   //
@@ -550,7 +559,11 @@ function propagateSymbolsUp(
   // with the loop. This was slightly faster for initial builds but had O(project) instead of
   // O(changes).)
 
-  let errors = new Map<NodeId, Array<Diagnostic>>();
+  let errors: Map<NodeId, Array<Diagnostic>> = previousErrors
+    ? // Some nodes might have been removed since the last build
+      new Map([...previousErrors].filter(([n]) => assetGraph.hasNode(n)))
+    : new Map();
+
   // let dirtyDeps = new Set<NodeId>();
   // let rootNodeId = nullthrows(
   //   assetGraph.rootNodeId,
@@ -678,13 +691,7 @@ function propagateSymbolsUp(
     }
   }
 
-  // Just throw the first error. Since errors can bubble (e.g. reexporting a reexported symbol also fails),
-  // determining which failing export is the root cause is nontrivial (because of circular dependencies).
-  if (errors.size > 0) {
-    throw new ThrowableDiagnostic({
-      diagnostic: [...errors.values()][0],
-    });
-  }
+  return errors;
 }
 
 function getDependencyResolution(

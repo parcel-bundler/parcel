@@ -276,9 +276,15 @@ async function testPropagation(
     dependencies.map(([from, to, symbols]) => [from, to, symbols]),
   );
 
-  await dumpGraphToGraphViz(graph, 'test');
+  propagateSymbols({
+    options: DEFAULT_OPTIONS,
+    assetGraph: graph,
+    changedAssets,
+    dependenciesWithRemovedParents: new Set(),
+    previousErrors: undefined,
+  });
 
-  propagateSymbols(DEFAULT_OPTIONS, graph, changedAssets, new Set());
+  await dumpGraphToGraphViz(graph, 'test');
 
   assertUsedSymbols(
     graph,
@@ -354,7 +360,12 @@ describe('SymbolPropagation', () => {
         });
       }),
     ];
-    propagateSymbols(DEFAULT_OPTIONS, graph, new Map(changedAssets), new Set());
+    propagateSymbols({
+      options: DEFAULT_OPTIONS,
+      assetGraph: graph,
+      changedAssets: new Map(changedAssets),
+      dependenciesWithRemovedParents: new Set(),
+    });
 
     // prettier-ignore
     assertUsedSymbols(graph,
@@ -393,7 +404,12 @@ describe('SymbolPropagation', () => {
         });
       }),
     ];
-    propagateSymbols(DEFAULT_OPTIONS, graph, new Map(changedAssets), new Set());
+    propagateSymbols({
+      options: DEFAULT_OPTIONS,
+      assetGraph: graph,
+      changedAssets: new Map(changedAssets),
+      dependenciesWithRemovedParents: new Set(),
+    });
 
     // prettier-ignore
     assertUsedSymbols(graph,
