@@ -864,6 +864,13 @@ export default (new Transformer({
         ) {
           asset.symbols.set('*', `$`);
         }
+
+        for (let d of deps.values()) {
+          if (d.priority === 'lazy') {
+            d.symbols.ensure();
+            d.symbols.set('*', '$');
+          }
+        }
       }
 
       if (needs_esm_helpers) {
