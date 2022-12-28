@@ -233,15 +233,7 @@ export class AssetGraphBuilder {
         this.assetGraph,
         'AssetGraph_' + this.name + '_before_prop',
       );
-      // console.log(
-      //   'propagate',
-      //   this.name,
-      //   [...this.changedAssets.keys()],
-      //   this.dependenciesWithRemovedParents,
-      // );
       try {
-        // console.log("-----");
-        // console.log(require("util").inspect(this.assetGraph.nodes, {depth: Infinity}));
         let errors = propagateSymbols({
           options: this.options,
           assetGraph: this.assetGraph,
