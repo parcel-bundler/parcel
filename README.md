@@ -1,5 +1,4 @@
-./packages/core/parcel/README.md
-# -'Skip to content
+Skip to content
 Search or jump to…
 Pull requests
 Issues
@@ -545,4 +544,4 @@ API
 Training
 Blog
 About
-Create main.yml · zakwarlord7/PARADICE-CONSTRUCTION@c0f8397'
+Create main.yml · zakwarlord7/PARADICE-CONSTRUCTION@c0f8397
