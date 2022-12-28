@@ -564,83 +564,93 @@ function propagateSymbolsUp(
       new Map([...previousErrors].filter(([n]) => assetGraph.hasNode(n)))
     : new Map();
 
-  // let dirtyDeps = new Set<NodeId>();
-  // let rootNodeId = nullthrows(
-  //   assetGraph.rootNodeId,
-  //   'A root node is required to traverse',
-  // );
-  // let visited = new Set([rootNodeId]);
-  // const walk = (nodeId: NodeId) => {
-  //   let node = nullthrows(assetGraph.getNode(nodeId));
-  //   let outgoing = assetGraph.getNodeIdsConnectedFrom(nodeId);
-  //   for (let childId of outgoing) {
-  //     if (!visited.has(childId)) {
-  //       visited.add(childId);
-  //       walk(childId);
-  //       let child = nullthrows(assetGraph.getNode(childId));
-  //       if (node.type === 'asset') {
-  //         invariant(child.type === 'dependency');
-  //         if (child.usedSymbolsUpDirtyUp) {
-  //           node.usedSymbolsUpDirty = true;
-  //           child.usedSymbolsUpDirtyUp = false;
-  //         }
-  //       }
-  //     }
-  //   }
-  //
-  //   if (node.type === 'asset') {
-  //     let incoming = assetGraph.getIncomingDependencies(node.value).map(d => {
-  //       let n = assetGraph.getNodeByContentKey(d.id);
-  //       invariant(n && n.type === 'dependency');
-  //       return n;
-  //     });
-  //     for (let dep of incoming) {
-  //       if (dep.usedSymbolsUpDirtyDown) {
-  //         dep.usedSymbolsUpDirtyDown = false;
-  //         node.usedSymbolsUpDirty = true;
-  //       }
-  //     }
-  //     if (node.usedSymbolsUpDirty) {
-  //       let e = visit(
-  //         node,
-  //         incoming,
-  //         outgoing.map(depNodeId => {
-  //           let depNode = nullthrows(assetGraph.getNode(depNodeId));
-  //           invariant(depNode.type === 'dependency');
-  //           return depNode;
-  //         }),
-  //       );
-  //       if (e.length > 0) {
-  //         node.usedSymbolsUpDirty = true;
-  //         errors.set(nodeId, e);
-  //       } else {
-  //         node.usedSymbolsUpDirty = false;
-  //         errors.delete(nodeId);
-  //       }
-  //     }
-  //   } else if (node.type === 'dependency') {
-  //     if (node.usedSymbolsUpDirtyUp) {
-  //       dirtyDeps.add(nodeId);
-  //     } else {
-  //       dirtyDeps.delete(nodeId);
-  //     }
-  //   }
-  // };
-  // walk(rootNodeId);
-  // traverse circular dependencies if necessary (ancestors of `dirtyDeps`)
-  // let queue = new Set(dirtyDeps);
-
-  let queue = new Set([
+  let changedDepsUsedSymbolsUpDirtyDownAssets = new Set([
     ...[...changedDepsUsedSymbolsUpDirtyDown]
       .reverse()
       .flatMap(id => getDependencyResolution(assetGraph, id)),
   ]);
+
+  // Do a more efficient full traversal (less recomputations) if more than half of the assets
+  // changed.
+  let runFullPass =
+    // Every asset has ~4 dependencies, and every asset has ~1 asset_group.
+    assetGraph.nodes.size * (1 / 6) * 0.5 <
+    changedDepsUsedSymbolsUpDirtyDownAssets.size;
+
+  let dirtyDeps;
+  if (runFullPass) {
+    dirtyDeps = new Set<NodeId>();
+    let rootNodeId = nullthrows(
+      assetGraph.rootNodeId,
+      'A root node is required to traverse',
+    );
+    let visited = new Set([rootNodeId]);
+    const walk = (nodeId: NodeId) => {
+      let node = nullthrows(assetGraph.getNode(nodeId));
+      let outgoing = assetGraph.getNodeIdsConnectedFrom(nodeId);
+      for (let childId of outgoing) {
+        if (!visited.has(childId)) {
+          visited.add(childId);
+          walk(childId);
+          let child = nullthrows(assetGraph.getNode(childId));
+          if (node.type === 'asset') {
+            invariant(child.type === 'dependency');
+            if (child.usedSymbolsUpDirtyUp) {
+              node.usedSymbolsUpDirty = true;
+              child.usedSymbolsUpDirtyUp = false;
+            }
+          }
+        }
+      }
+
+      if (node.type === 'asset') {
+        let incoming = assetGraph.getIncomingDependencies(node.value).map(d => {
+          let n = assetGraph.getNodeByContentKey(d.id);
+          invariant(n && n.type === 'dependency');
+          return n;
+        });
+        for (let dep of incoming) {
+          if (dep.usedSymbolsUpDirtyDown) {
+            dep.usedSymbolsUpDirtyDown = false;
+            node.usedSymbolsUpDirty = true;
+          }
+        }
+        if (node.usedSymbolsUpDirty) {
+          let e = visit(
+            node,
+            incoming,
+            outgoing.map(depNodeId => {
+              let depNode = nullthrows(assetGraph.getNode(depNodeId));
+              invariant(depNode.type === 'dependency');
+              return depNode;
+            }),
+          );
+          if (e.length > 0) {
+            node.usedSymbolsUpDirty = true;
+            errors.set(nodeId, e);
+          } else {
+            node.usedSymbolsUpDirty = false;
+            errors.delete(nodeId);
+          }
+        }
+      } else {
+        if (node.type === 'dependency') {
+          if (node.usedSymbolsUpDirtyUp) {
+            dirtyDeps.add(nodeId);
+          } else {
+            dirtyDeps.delete(nodeId);
+          }
+        }
+      }
+    };
+    walk(rootNodeId);
+  }
+
+  let queue = dirtyDeps ? dirtyDeps : changedDepsUsedSymbolsUpDirtyDownAssets;
   while (queue.size > 0) {
     let queuedNodeId = setPop(queue);
     let node = nullthrows(assetGraph.getNode(queuedNodeId));
     if (node.type === 'asset') {
-      // console.log('up', node.value.filePath);
-
       let incoming = assetGraph.getIncomingDependencies(node.value).map(dep => {
         let depNode = assetGraph.getNodeByContentKey(dep.id);
         invariant(depNode && depNode.type === 'dependency');
@@ -661,7 +671,6 @@ function propagateSymbolsUp(
       }
 
       if (node.usedSymbolsUpDirty) {
-        // console.log('run up', node.value.filePath);
         let e = visit(node, incoming, outgoing);
         if (e.length > 0) {
           node.usedSymbolsUpDirty = true;
