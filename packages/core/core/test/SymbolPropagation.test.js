@@ -5,6 +5,8 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import type {FilePath, SourceLocation, Meta, Symbol} from '@parcel/types';
 import type {ContentKey, NodeId} from '@parcel/graph';
+import type {Diagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import {setEqual} from '@parcel/utils';
 import AssetGraph, {
   nodeFromAssetGroup,
@@ -71,6 +73,7 @@ function createAssetGraph(
       >,
     ],
   >,
+  isLibrary?: boolean,
 ) {
   let graph = new AssetGraph();
   let entryFilePath = '/index.js';
@@ -87,6 +90,15 @@ function createAssetGraph(
   let entryDependencyId = graph.getNodeIdsConnectedFrom(
     graph.getNodeIdByContentKey(entryNodeContentKey),
   )[0];
+  if (isLibrary) {
+    let entryDependencyNode = nullthrows(graph.getNode(entryDependencyId));
+    invariant(entryDependencyNode.type === 'dependency');
+    entryDependencyNode.value.symbols = new Map([
+      ['*', {local: '*', isWeak: true, loc: null}],
+    ]);
+    entryDependencyNode.usedSymbolsDown.add('*');
+    entryDependencyNode.usedSymbolsUp.set('*', undefined);
+  }
 
   let assetId = 1;
   let changedAssets = new Map();
@@ -157,6 +169,7 @@ function assertUsedSymbols(
       /* usedSymbols */ Array<[Symbol, ?[FilePath, ?Symbol]] | [Symbol]> | null,
     ],
   >,
+  isLibrary?: boolean,
 ) {
   let expectedAsset = new Map(
     _expectedAsset.map(([f, symbols]) => [f, symbols]),
@@ -168,6 +181,53 @@ function assertUsedSymbols(
       sym ? sym.map(v => [v[0], v[1] ?? [to, v[0]]]) : sym,
     ]),
   );
+
+  if (isLibrary) {
+    let entryDep = nullthrows(
+      [...graph.nodes.values()].find(
+        n => n.type === 'dependency' && n.value.sourceAssetId == null,
+      ),
+    );
+    invariant(entryDep.type === 'dependency');
+    assertDependencyUsedSymbols(
+      entryDep.usedSymbolsUp,
+      new Map([['*', undefined]]),
+      'entryDep',
+    );
+  }
+
+  function assertDependencyUsedSymbols(usedSymbolsUp, expectedMap, id) {
+    assertSetEqual(
+      new Set(usedSymbolsUp.keys()),
+      new Set(expectedMap.keys()),
+      id,
+    );
+
+    for (let [s, resolved] of usedSymbolsUp) {
+      let exp = expectedMap.get(s);
+      if (resolved && exp) {
+        let asset = nullthrows(graph.getNodeByContentKey(resolved.asset));
+        invariant(asset.type === 'asset');
+        assert.strictEqual(
+          fromProjectPath('/', asset.value.filePath),
+          exp[0],
+          `dep ${id}@${s} resolved asset: ${fromProjectPath(
+            '/',
+            asset.value.filePath,
+          )} !== ${exp[0]}`,
+        );
+        assert.strictEqual(
+          resolved.symbol,
+          exp[1],
+          `dep ${id}@${s} resolved symbol: ${String(
+            resolved.symbol,
+          )} !== ${String(exp[1])}`,
+        );
+      } else {
+        assert.equal(resolved, exp);
+      }
+    }
+  }
 
   for (let [nodeId, node] of graph.nodes) {
     if (node.type === 'asset') {
@@ -193,36 +253,7 @@ function assertUsedSymbols(
         assert(!node.excluded, `${id} should not be excluded`);
         let expectedMap = new Map(expected);
 
-        assertSetEqual(
-          new Set(node.usedSymbolsUp.keys()),
-          new Set(expectedMap.keys()),
-          id,
-        );
-
-        for (let [s, resolved] of node.usedSymbolsUp) {
-          let exp = expectedMap.get(s);
-          if (resolved && exp) {
-            let asset = nullthrows(graph.getNodeByContentKey(resolved.asset));
-            invariant(asset.type === 'asset');
-            assert.strictEqual(
-              fromProjectPath('/', asset.value.filePath),
-              exp[0],
-              `dep ${id}@${s} resolved asset: ${fromProjectPath(
-                '/',
-                asset.value.filePath,
-              )} !== ${exp[0]}`,
-            );
-            assert.strictEqual(
-              resolved.symbol,
-              exp[1],
-              `dep ${id}@${s} resolved symbol: ${String(
-                resolved.symbol,
-              )} !== ${String(exp[1])}`,
-            );
-          } else {
-            assert.equal(resolved, exp);
-          }
-        }
+        assertDependencyUsedSymbols(node.usedSymbolsUp, expectedMap, id);
       }
     }
   }
@@ -270,29 +301,43 @@ async function testPropagation(
       > | /* excluded */ null,
     ],
   >,
+  isLibrary?: boolean,
 ): Promise<AssetGraph> {
   let {graph, changedAssets} = createAssetGraph(
     assets.map(([f, symbols, sideEffects]) => [f, symbols, sideEffects]),
     dependencies.map(([from, to, symbols]) => [from, to, symbols]),
+    isLibrary,
+  );
+  await dumpGraphToGraphViz(graph, 'test');
+
+  handlePropagationErrors(
+    propagateSymbols({
+      options: DEFAULT_OPTIONS,
+      assetGraph: graph,
+      changedAssets,
+      dependenciesWithRemovedParents: new Set(),
+      previousErrors: undefined,
+    }),
   );
 
-  propagateSymbols({
-    options: DEFAULT_OPTIONS,
-    assetGraph: graph,
-    changedAssets,
-    dependenciesWithRemovedParents: new Set(),
-    previousErrors: undefined,
-  });
-
-  await dumpGraphToGraphViz(graph, 'test');
+  await dumpGraphToGraphViz(graph, 'test2');
 
   assertUsedSymbols(
     graph,
     assets.map(([f, , , usedSymbols]) => [f, usedSymbols]),
     dependencies.map(([from, to, , usedSymbols]) => [from, to, usedSymbols]),
+    isLibrary,
   );
 
   return graph;
+}
+
+function handlePropagationErrors(errors: Map<NodeId, Array<Diagnostic>>) {
+  if (errors.size > 0) {
+    throw new ThrowableDiagnostic({
+      diagnostic: [...errors.values()][0],
+    });
+  }
 }
 
 function changeDependency(
@@ -476,6 +521,31 @@ describe('SymbolPropagation', () => {
         ['/lib.js', '/lib1.js', [['b', {local: 'lib1$foo', isWeak: true}]], []],
         ['/lib.js', '/lib2.js', [['*', {local: '*', isWeak: true}]], null],
       ],
+    );
+  });
+
+  it('library build with entry dependency', async () => {
+    // prettier-ignore
+    await testPropagation(
+      [
+        ['/index.js', [["foo", {local: "foo"}], ['b', {local: 'b$b'}]], true, ['*']],
+      ],
+      [],
+      true
+    );
+  });
+
+  it('library build with entry dependency and reexport', async () => {
+    // prettier-ignore
+    await testPropagation(
+      [
+        ['/index.js', [["foo", {local: "foo"}], ['b', {local: 'b$b'}]], true, ['*']],
+        ['/b.js', [['b', {local: 'b'}]], true, ['b']],
+      ],
+      [
+        ['/index.js', '/b.js', [['b', {local: 'b$b', isWeak: false}]], [['b']]],
+      ],
+      true
     );
   });
 

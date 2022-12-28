@@ -239,6 +239,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       if (node.value.env.isLibrary) {
         // in library mode, all of the entry's symbols are "used"
         node.usedSymbolsDown.add('*');
+        node.usedSymbolsUp.set('*', undefined);
       }
       return node;
     });
