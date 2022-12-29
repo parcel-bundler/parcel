@@ -80,6 +80,38 @@ describe('loadConfig', () => {
     );
   });
 
+  it('should load with js when inside an ESM project', async () => {
+    assert.deepEqual(
+      (
+        await loadConfig(
+          fs,
+          path.join(__dirname, './input/config/esm/config.js'),
+          ['config.js'],
+          path.join(__dirname, './input/config/esm/'),
+        )
+      )?.config,
+      {
+        hoge: 'fuga',
+      },
+    );
+  });
+
+  it('should load with cjs when inside an ESM project', async () => {
+    assert.deepEqual(
+      (
+        await loadConfig(
+          fs,
+          path.join(__dirname, './input/config/esm/config.cjs'),
+          ['config.js'],
+          path.join(__dirname, './input/config/esm/'),
+        )
+      )?.config,
+      {
+        hoge: 'fuga',
+      },
+    );
+  });
+
   it('should load without an extension as json', async () => {
     assert.deepEqual(
       (

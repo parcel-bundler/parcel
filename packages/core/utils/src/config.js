@@ -72,9 +72,10 @@ export async function loadConfig(
     try {
       let extname = path.extname(configFile).slice(1);
       if (extname === 'js' || extname === 'cjs') {
+        let importedConfig = clone(await import(configFile));
         let output = {
           // $FlowFixMe
-          config: clone(require(configFile)),
+          config: importedConfig?.default || importedConfig,
           files: [{filePath: configFile}],
         };
 
