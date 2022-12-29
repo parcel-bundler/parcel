@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 // @flow strict-local
 import assert from 'assert';
 import invariant from 'assert';
@@ -17,20 +16,13 @@ import AssetGraph, {
 import {createDependency as _createDependency} from '../src/Dependency';
 import {createAsset as _createAsset} from '../src/assetUtils';
 import {
-  fromProjectPath,
   toProjectPath as _toProjectPath,
+  type ProjectPath,
 } from '../src/projectPath';
 import {propagateSymbols} from '../src/SymbolPropagation';
 import dumpGraphToGraphViz from '../src/dumpGraphToGraphViz';
 import {DEFAULT_ENV, DEFAULT_OPTIONS, DEFAULT_TARGETS} from './test-utils';
-import type {
-  Asset,
-  AssetGroup,
-  AssetGroupNode,
-  AssetNode,
-  Dependency,
-  DependencyNode,
-} from '../src/types';
+import type {Asset, AssetNode, Dependency, DependencyNode} from '../src/types';
 
 const stats = {size: 0, time: 0};
 
@@ -44,6 +36,11 @@ function createDependency(opts) {
 
 function toProjectPath(p) {
   return _toProjectPath('/', p);
+}
+
+function fromProjectPathUnix(p: ProjectPath) {
+  // $FlowFixMe
+  return '/' + p;
 }
 
 function createAssetGraph(
@@ -209,10 +206,9 @@ function assertUsedSymbols(
         let asset = nullthrows(graph.getNodeByContentKey(resolved.asset));
         invariant(asset.type === 'asset');
         assert.strictEqual(
-          fromProjectPath('/', asset.value.filePath),
+          fromProjectPathUnix(asset.value.filePath),
           exp[0],
-          `dep ${id}@${s} resolved asset: ${fromProjectPath(
-            '/',
+          `dep ${id}@${s} resolved asset: ${fromProjectPathUnix(
             asset.value.filePath,
           )} !== ${exp[0]}`,
         );
@@ -231,7 +227,7 @@ function assertUsedSymbols(
 
   for (let [nodeId, node] of graph.nodes) {
     if (node.type === 'asset') {
-      let filePath = fromProjectPath('/', node.value.filePath);
+      let filePath = fromProjectPathUnix(node.value.filePath);
       let expected = new Set(nullthrows(expectedAsset.get(filePath)));
       assertSetEqual(node.usedSymbols, expected, filePath);
     } else if (node.type === 'dependency' && node.value.sourcePath != null) {
@@ -241,9 +237,9 @@ function assertUsedSymbols(
       let to = resolution.value.filePath;
 
       let id =
-        fromProjectPath('/', nullthrows(node.value.sourcePath)) +
+        fromProjectPathUnix(nullthrows(node.value.sourcePath)) +
         ':' +
-        fromProjectPath('/', nullthrows(to));
+        fromProjectPathUnix(nullthrows(to));
       let expected = expectedDependency.get(id);
       if (!expected) {
         assert(expected === null);
