@@ -25,7 +25,6 @@
     "node-ipc": "^9.1.4",
     "nullthrows": "^1.1.1",
     "ps-node": "^0.1.6",
-    "vscode-jsonrpc": "^6.0.0",
-    "vscode-languageserver": "^7.0.0"
+    "vscode-jsonrpc": "^8.0.2"
   }
 }

@@ -5,9 +5,45 @@ import {
   RequestType,
 } from 'vscode-jsonrpc/node';
 
+opaque type ODiagnosticTag = 1 | 2 | 3 | 4;
+opaque type ODiagnosticSeverity = 1 | 2 | 3 | 4;
+
+export const DiagnosticTag = {
+  /**
+   * Unused or unnecessary code.
+   *
+   * Clients are allowed to render diagnostics with this tag faded out instead of having
+   * an error squiggle.
+   */
+  Unnecessary: (1: ODiagnosticTag),
+  /**
+   * Deprecated or obsolete code.
+   *
+   * Clients are allowed to rendered diagnostics with this tag strike through.
+   */
+  Deprecated: (2: ODiagnosticTag),
+};
+
+export const DiagnosticSeverity = {
+  /**
+   * Reports an error.
+   */
+  Error: (1: ODiagnosticSeverity),
+  /**
+   * Reports a warning.
+   */
+  Warning: (2: ODiagnosticSeverity),
+  /**
+   * Reports an information.
+   */
+  Information: (3: ODiagnosticSeverity),
+  /**
+   * Reports a hint.
+   */
+  Hint: (4: ODiagnosticSeverity),
+};
+
 export type DocumentUri = string;
-export type DiagnosticSeverity = 1 | 2 | 3 | 4; // error | warning | info | hint
-export type DiagnosticTag = 1 | 2; // Unnecessary | Deprecated
 export type Position = {|line: number, character: number|};
 export type Range = {|start: Position, end: Position|};
 export type CodeDescription = {|href: string|};
@@ -18,12 +54,12 @@ export type DiagnosticRelatedInformation = {|
 |};
 export type Diagnostic = {|
   range: Range,
-  severity?: DiagnosticSeverity,
+  severity?: ODiagnosticSeverity,
   code?: number | string,
   codeDescription?: CodeDescription,
   source?: string,
   message: string,
-  tags?: DiagnosticTag[],
+  tags?: ODiagnosticTag[],
   relatedInformation?: DiagnosticRelatedInformation[],
   data?: mixed,
 |};

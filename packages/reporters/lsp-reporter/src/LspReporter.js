@@ -9,14 +9,8 @@ import type {
   PackagedBundle,
 } from '@parcel/types';
 import type {Program, Query} from 'ps-node';
-import type {
-  DiagnosticSeverity as IDiagnosticSeverity,
-  Diagnostic,
-  PublishDiagnostic,
-} from './protocol';
+import type {Diagnostic, PublishDiagnostic} from './protocol';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
-
-import {DiagnosticSeverity, DiagnosticTag} from 'vscode-languageserver/node';
 
 import {
   DefaultMap,
@@ -33,6 +27,8 @@ import {promisify} from 'util';
 
 import {createServer} from './ipc';
 import {
+  DiagnosticSeverity,
+  DiagnosticTag,
   NotificationBuildStatus,
   NotificationWorkspaceDiagnostics,
   RequestDocumentDiagnostics,
@@ -344,9 +340,7 @@ function getDiagnosticsUnusedExports(
   return diagnostics;
 }
 
-function parcelSeverityToLspSeverity(
-  parcelSeverity: ParcelSeverity,
-): IDiagnosticSeverity {
+function parcelSeverityToLspSeverity(parcelSeverity: ParcelSeverity) {
   switch (parcelSeverity) {
     case 'error':
       return DiagnosticSeverity.Error;
