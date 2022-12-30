@@ -17,25 +17,22 @@ import {
   TextDocumentSyncKind,
   InitializeResult,
   WorkDoneProgressServerReporter,
+  DocumentUri,
 } from 'vscode-languageserver/node';
 
 import {
-  CloseAction,
-  ErrorAction,
-  LanguageClient,
-  LanguageClientOptions,
-  MessageTransports,
-} from 'vscode-languageclient/node';
-
-import * as net from 'net';
+  createServerPipeTransport,
+  createMessageConnection,
+  MessageConnection,
+} from 'vscode-jsonrpc/node';
 import * as invariant from 'assert';
-import nullthrows from 'nullthrows';
-import {IPC} from 'node-ipc';
 
 import {TextDocument} from 'vscode-languageserver-textdocument';
 import * as watcher from '@parcel/watcher';
-
-type IPCType = InstanceType<typeof IPC>;
+import {
+  NotificationBuildStatus,
+  NotificationWorkspaceDiagnostics,
+} from './protocol';
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -67,8 +64,6 @@ connection.onInitialize((params: InitializeParams) => {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       // Tell the client that this server supports code completion.
-      completionProvider: {
-        resolveProvider: true,
       },
     },
   };
@@ -132,105 +127,86 @@ class ProgressReporter {
   }
 }
 
-function createIPCClientIfPossible(
-  parcelLspDir: string,
-  filePath: string,
-): {client: IPCType; uris: Set<string>} | undefined {
-  let transportName: string;
-  try {
-    transportName = JSON.parse(
-      fs.readFileSync(filePath, {
-        encoding: 'utf8',
-      }),
-    ).transportName;
-  } catch (e) {
-    // TODO: Handle this
-    console.log(e);
-    return;
-  }
+type Client = {
+  connection: MessageConnection;
+  uris: Set<DocumentUri>;
+};
 
-  let uris: Set<string> = new Set();
-  let client = new IPC();
-  client.config.id = `parcel-lsp-${process.pid}`;
-  client.config.retry = 1500;
-  client.connectTo(transportName, function () {
-    client.of[transportName].on(
-      'message', //any event or message type your server listens for
-      function (data: any) {
-        switch (data.type) {
-          case 'parcelBuildEnd':
-            progressReporter.done();
-            break;
+const BASEDIR = fs.realpathSync(path.join(os.tmpdir(), 'parcel-lsp'));
+let progressReporter = new ProgressReporter();
+let clients: Map<string, Client> = new Map();
 
-          case 'parcelFileDiagnostics':
-            for (let [uri, diagnostics] of data.fileDiagnostics) {
-              connection.sendDiagnostics({uri, diagnostics});
-              uris.add(uri);
-            }
-            break;
+function createClient(metafile: string) {
+  let socketfilepath = metafile.slice(0, -5);
+  let [reader, writer] = createServerPipeTransport(socketfilepath);
+  let client = createMessageConnection(reader, writer);
+  client.listen();
 
-          case 'parcelBuildSuccess':
-            progressReporter.done();
-            break;
+  let uris = new Set<DocumentUri>();
 
-          case 'parcelBuildStart':
-            uris.clear();
-            progressReporter.begin();
-            break;
+  client.onNotification(NotificationBuildStatus, (state, message) => {
+    console.log('got NotificationBuildStatus', state, message);
+    if (state === 'start') {
+      progressReporter.begin();
+      for (let uri of uris) {
+        connection.sendDiagnostics({uri, diagnostics: []});
+      }
+    } else if (state === 'progress' && message != null) {
+      progressReporter.report(message);
+    } else if (state === 'end') {
+      progressReporter.done();
+    }
+  });
 
-          case 'parcelBuildProgress':
-            progressReporter.report(data.message);
-            break;
+  client.onNotification(NotificationWorkspaceDiagnostics, diagnostics => {
+    console.log('got NotificationWorkspaceDiagnostics', diagnostics);
+    for (let d of diagnostics) {
+      uris.add(d.uri);
+      connection.sendDiagnostics(d);
+    }
+  });
 
-          default:
-            throw new Error();
-        }
-      },
+  return {connection: client, uris};
+  client.onClose(() => {
+    console.log('close', uris);
+    clients.delete(metafile);
+    return Promise.all(
+      [...uris].map(uri => connection.sendDiagnostics({uri, diagnostics: []})),
     );
   });
 
-  return {client, uris};
+  clients.set(metafile, {connection: client, uris});
 }
 
-let progressReporter = new ProgressReporter();
-let clients: Map<string, {client: IPCType; uris: Set<string>}> = new Map();
-let parcelLspDir = path.join(fs.realpathSync(os.tmpdir()), 'parcel-lsp');
-fs.mkdirSync(parcelLspDir, {recursive: true});
+fs.mkdirSync(BASEDIR, {recursive: true});
 // Search for currently running Parcel processes in the parcel-lsp dir.
 // Create an IPC client connection for each running process.
-for (let filename of fs.readdirSync(parcelLspDir)) {
-  const filepath = path.join(parcelLspDir, filename);
-  let client = createIPCClientIfPossible(parcelLspDir, filepath);
-  if (client) {
-    clients.set(filepath, client);
-  }
+for (let filename of fs.readdirSync(BASEDIR)) {
+  if (!filename.endsWith('.json')) continue;
+  let filepath = path.join(BASEDIR, filename);
+  createClient(filepath);
+  console.log('connected initial', filepath);
 }
 
 // Watch for new Parcel processes in the parcel-lsp dir, and disconnect the
 // client for each corresponding connection when a Parcel process ends
-watcher.subscribe(parcelLspDir, async (err, events) => {
+watcher.subscribe(BASEDIR, async (err, events) => {
   if (err) {
     throw err;
   }
 
   for (let event of events) {
-    if (event.type === 'create') {
-      let client = createIPCClientIfPossible(parcelLspDir, event.path);
-      if (client) {
-        clients.set(event.path, client);
-      }
-    } else if (event.type === 'delete') {
+    console.log('event', event);
+    if (event.type === 'create' && event.path.endsWith('.json')) {
+      createClient(event.path);
+      console.log('connected watched', event.path);
+    } else if (event.type === 'delete' && event.path.endsWith('.json')) {
       let existing = clients.get(event.path);
+      console.log('existing', event.path, existing);
       if (existing) {
         clients.delete(event.path);
-        for (let id of Object.keys(existing.client.of)) {
-          existing.client.disconnect(id);
-        }
-        await Promise.all(
-          [...existing.uris].map(uri =>
-            connection.sendDiagnostics({uri, diagnostics: []}),
-          ),
-        );
+        existing.connection.end();
+        console.log('disconnected watched', event.path);
       }
     }
   }

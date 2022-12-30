@@ -1,9 +1,16 @@
+/* eslint-disable no-unused-vars */
 // @flow strict-local
 /* eslint-disable no-console */
 
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
-import type {FilePath} from '@parcel/types';
+import type {DiagnosticLogEvent, FilePath} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
+import type {
+  DiagnosticSeverity as IDiagnosticSeverity,
+  Diagnostic,
+  PublishDiagnostic,
+} from './protocol';
+import type {MessageConnection} from 'vscode-jsonrpc/node';
 
 import {DiagnosticSeverity} from 'vscode-languageserver/node';
 
@@ -15,111 +22,94 @@ import os from 'os';
 import fs from 'fs';
 import * as ps from 'ps-node';
 import {promisify} from 'util';
-import ipc from 'node-ipc';
+
+import {createServer} from './ipc';
+import {
+  NotificationBuildStatus,
+  NotificationWorkspaceDiagnostics,
+} from './protocol';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
-// flowlint-next-line unclear-type:off
-type LspDiagnostic = any;
+const ignoreFail = func => {
+  try {
+    func();
+  } catch (e) {
+    /**/
+  }
+};
 
-type ParcelSeverity = 'error' | 'warn' | 'info' | 'verbose';
+type ParcelSeverity = DiagnosticLogEvent['level'];
 
-let watchEnded = false;
-let fileDiagnostics: DefaultMap<string, Array<LspDiagnostic>> = new DefaultMap(
-  () => [],
-);
-let pipeFilename;
+const BASEDIR = fs.realpathSync(path.join(os.tmpdir(), 'parcel-lsp'));
+const SOCKET_FILE = path.join(BASEDIR, `parcel-${process.pid}`);
+const META_FILE = path.join(BASEDIR, `parcel-${process.pid}.json`);
+
+let workspaceDiagnostics: DefaultMap<
+  string,
+  Array<Diagnostic>,
+> = new DefaultMap(() => []);
+
+const getWorkspaceDiagnostics = (): Array<PublishDiagnostic> =>
+  [...workspaceDiagnostics].map(([uri, diagnostics]) => ({uri, diagnostics}));
+
+let server;
+let connections: Array<MessageConnection> = [];
 
 export default (new Reporter({
   async report({event, logger, options}) {
     switch (event.type) {
       case 'watchStart': {
-        let transportName = `parcel-${process.pid}`;
-        ipc.config.id = transportName;
-        ipc.config.retry = 1500;
-        ipc.config.logger = message => logger.verbose({message});
-        ipc.serve(() => {
-          ipc.server.on('init', (_, socket) => {
-            ipc.server.emit(socket, 'message', {
-              type: 'parcelFileDiagnostics',
-              fileDiagnostics: [...fileDiagnostics],
-            });
-            ipc.server.on('connect', () => {
-              ipc.server.emit(socket, 'message', {
-                type: 'parcelFileDiagnostics',
-                fileDiagnostics: [...fileDiagnostics],
-              });
-            });
-          });
-        });
-        ipc.server.start();
-
-        // Create a file to ID the transport
-        let pathname = path.join(os.tmpdir(), 'parcel-lsp');
-        await fs.promises.mkdir(pathname, {recursive: true});
+        await fs.promises.mkdir(BASEDIR, {recursive: true});
 
         // For each existing file, check if the pid matches a running process.
         // If no process matches, delete the file, assuming it was orphaned
         // by a process that quit unexpectedly.
-        for (let filename of fs.readdirSync(pathname)) {
-          let pid = parseInt(filename, 10);
+        for (let filename of fs.readdirSync(BASEDIR)) {
+          if (filename.endsWith('.json')) continue;
+          let pid = parseInt(filename.slice('parcel-'.length), 10);
           let resultList = await lookupPid({pid});
-          if (resultList.length) continue;
-          fs.unlinkSync(path.join(pathname, filename));
+          if (resultList.length > 0) continue;
+          fs.unlinkSync(path.join(BASEDIR, filename));
+          ignoreFail(() =>
+            fs.unlinkSync(path.join(BASEDIR, filename + '.json')),
+          );
         }
 
-        pipeFilename = path.join(pathname, String(process.pid));
+        server = await createServer(SOCKET_FILE, connection => {
+          console.log('got connection');
+          connections.push(connection);
+          connection.onClose(() => {
+            connections = connections.filter(c => c !== connection);
+          });
+
+          sendDiagnostics();
+        });
         await fs.promises.writeFile(
-          pipeFilename,
+          META_FILE,
           JSON.stringify({
-            transportName,
+            projectRoot: options.projectRoot,
             pid: process.pid,
             argv: process.argv,
           }),
         );
 
-        console.debug('connection listening...');
-
-        if (watchEnded) {
-          ipc.server.stop();
-          invariant(pipeFilename);
-          fs.unlinkSync(pipeFilename);
-        } else if (fileDiagnostics.size > 0) {
-          ipc.server.broadcast('message', {
-            type: 'parcelFileDiagnostics',
-            fileDiagnostics: [...fileDiagnostics],
-          });
-        }
         break;
       }
+
       case 'buildStart': {
-        ipc.server.broadcast('message', {type: 'parcelBuildStart'});
-        ipc.server.broadcast('message', {
-          type: 'parcelFileDiagnostics',
-          fileDiagnostics: [...fileDiagnostics].map(([uri]) => [uri, []]),
-        });
-        fileDiagnostics.clear();
+        updateBuildState('start');
+        clearDiagnostics();
         break;
       }
       case 'buildSuccess':
-        ipc.server.broadcast('message', {type: 'parcelBuildSuccess'});
-        ipc.server.broadcast('message', {
-          type: 'parcelFileDiagnostics',
-          fileDiagnostics: [...fileDiagnostics],
-        });
+        updateBuildState('end');
+        sendDiagnostics();
         break;
       case 'buildFailure': {
-        updateDiagnostics(
-          fileDiagnostics,
-          event.diagnostics,
-          'error',
-          options.projectRoot,
-        );
-        ipc.server.broadcast('message', {type: 'parcelBuildEnd'});
-        ipc.server.broadcast('message', {
-          type: 'parcelFileDiagnostics',
-          fileDiagnostics: [...fileDiagnostics],
-        });
+        updateDiagnostics(event.diagnostics, 'error', options.projectRoot);
+        updateBuildState('end');
+        sendDiagnostics();
         break;
       }
       case 'log':
@@ -131,7 +121,6 @@ export default (new Reporter({
             event.level === 'verbose')
         ) {
           updateDiagnostics(
-            fileDiagnostics,
             event.diagnostics,
             event.level,
             options.projectRoot,
@@ -141,27 +130,42 @@ export default (new Reporter({
       case 'buildProgress': {
         let message = getProgressMessage(event);
         if (message != null) {
-          ipc.server.broadcast('message', {
-            type: 'parcelBuildProgress',
-            message,
-          });
+          updateBuildState('progress', message);
         }
         break;
       }
       case 'watchEnd':
-        watchEnded = true;
-        if (pipeFilename != null) {
-          fs.unlinkSync(pipeFilename);
-        }
-        ipc.server.stop();
-        console.debug('connection disposed of');
+        connections.forEach(c => c.end());
+        await server.close();
+        ignoreFail(() => fs.unlinkSync(META_FILE));
         break;
     }
   },
 }): Reporter);
 
+function updateBuildState(
+  state: 'start' | 'progress' | 'end',
+  message: string | void,
+) {
+  connections.forEach(c =>
+    c.sendNotification(NotificationBuildStatus, state, message),
+  );
+}
+
+function clearDiagnostics() {
+  workspaceDiagnostics.clear();
+}
+function sendDiagnostics() {
+  console.log('send', getWorkspaceDiagnostics());
+  connections.forEach(c =>
+    c.sendNotification(
+      NotificationWorkspaceDiagnostics,
+      getWorkspaceDiagnostics(),
+    ),
+  );
+}
+
 function updateDiagnostics(
-  fileDiagnostics: DefaultMap<string, Array<LspDiagnostic>>,
   parcelDiagnostics: Array<ParcelDiagnostic>,
   parcelSeverity: ParcelSeverity,
   projectRoot: FilePath,
@@ -214,7 +218,7 @@ function updateDiagnostics(
       }
     }
 
-    fileDiagnostics
+    workspaceDiagnostics
       .get(`file://${normalizeFilePath(filePath, projectRoot)}`)
       .push({
         range: {
@@ -239,7 +243,9 @@ function updateDiagnostics(
   }
 }
 
-function parcelSeverityToLspSeverity(parcelSeverity: ParcelSeverity): mixed {
+function parcelSeverityToLspSeverity(
+  parcelSeverity: ParcelSeverity,
+): IDiagnosticSeverity {
   switch (parcelSeverity) {
     case 'error':
       return DiagnosticSeverity.Error;
