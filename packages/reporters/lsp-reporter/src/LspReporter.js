@@ -1,9 +1,13 @@
-/* eslint-disable no-unused-vars */
-// @flow strict-local
 /* eslint-disable no-console */
+// @flow strict-local
 
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
-import type {DiagnosticLogEvent, FilePath} from '@parcel/types';
+import type {
+  BundleGraph,
+  DiagnosticLogEvent,
+  FilePath,
+  PackagedBundle,
+} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
 import type {
   DiagnosticSeverity as IDiagnosticSeverity,
@@ -12,13 +16,17 @@ import type {
 } from './protocol';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
 
-import {DiagnosticSeverity} from 'vscode-languageserver/node';
+import {DiagnosticSeverity, DiagnosticTag} from 'vscode-languageserver/node';
 
-import {DefaultMap, getProgressMessage} from '@parcel/utils';
+import {
+  DefaultMap,
+  getProgressMessage,
+  makeDeferredWithPromise,
+} from '@parcel/utils';
 import {Reporter} from '@parcel/plugin';
-import invariant from 'assert';
 import path from 'path';
 import os from 'os';
+import url from 'url';
 import fs from 'fs';
 import * as ps from 'ps-node';
 import {promisify} from 'util';
@@ -27,6 +35,7 @@ import {createServer} from './ipc';
 import {
   NotificationBuildStatus,
   NotificationWorkspaceDiagnostics,
+  RequestDocumentDiagnostics,
 } from './protocol';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
@@ -56,8 +65,13 @@ const getWorkspaceDiagnostics = (): Array<PublishDiagnostic> =>
 let server;
 let connections: Array<MessageConnection> = [];
 
+let bundleGraphDeferrable =
+  makeDeferredWithPromise<?BundleGraph<PackagedBundle>>();
+let bundleGraph: Promise<?BundleGraph<PackagedBundle>> =
+  bundleGraphDeferrable.promise;
+
 export default (new Reporter({
-  async report({event, logger, options}) {
+  async report({event, options}) {
     switch (event.type) {
       case 'watchStart': {
         await fs.promises.mkdir(BASEDIR, {recursive: true});
@@ -77,10 +91,19 @@ export default (new Reporter({
         }
 
         server = await createServer(SOCKET_FILE, connection => {
-          console.log('got connection');
+          // console.log('got connection');
           connections.push(connection);
           connection.onClose(() => {
             connections = connections.filter(c => c !== connection);
+          });
+
+          connection.onRequest(RequestDocumentDiagnostics, async uri => {
+            console.log('got request RequestDocumentDiagnostics', uri);
+            let graph = await bundleGraph;
+            if (!graph) return;
+
+            let v = await getDiagnosticsUnusedExports(graph, uri);
+            return v;
           });
 
           sendDiagnostics();
@@ -98,15 +121,19 @@ export default (new Reporter({
       }
 
       case 'buildStart': {
+        bundleGraphDeferrable = makeDeferredWithPromise();
+        bundleGraph = bundleGraphDeferrable.promise;
         updateBuildState('start');
         clearDiagnostics();
         break;
       }
       case 'buildSuccess':
+        bundleGraphDeferrable.deferred.resolve(event.bundleGraph);
         updateBuildState('end');
         sendDiagnostics();
         break;
       case 'buildFailure': {
+        bundleGraphDeferrable.deferred.resolve(undefined);
         updateDiagnostics(event.diagnostics, 'error', options.projectRoot);
         updateBuildState('end');
         sendDiagnostics();
@@ -156,7 +183,7 @@ function clearDiagnostics() {
   workspaceDiagnostics.clear();
 }
 function sendDiagnostics() {
-  console.log('send', getWorkspaceDiagnostics());
+  // console.log('send', getWorkspaceDiagnostics());
   connections.forEach(c =>
     c.sendNotification(
       NotificationWorkspaceDiagnostics,
@@ -241,6 +268,80 @@ function updateDiagnostics(
         relatedInformation,
       });
   }
+}
+
+function getDiagnosticsUnusedExports(
+  bundleGraph: BundleGraph<PackagedBundle>,
+  document: string,
+): Array<Diagnostic> {
+  let filename = url.fileURLToPath(document);
+  let diagnostics = [];
+
+  let asset = bundleGraph.traverse((node, context, actions) => {
+    if (node.type === 'asset' && node.value.filePath === filename) {
+      actions.stop();
+      return node.value;
+    }
+  });
+
+  if (asset) {
+    const generateDiagnostic = (loc, type) => ({
+      range: {
+        start: {
+          line: loc.start.line - 1,
+          character: loc.start.column - 1,
+        },
+        end: {
+          line: loc.end.line - 1,
+          character: loc.end.column,
+        },
+      },
+      source: '@parcel/core',
+      severity: DiagnosticSeverity.Hint,
+      message: `Unused ${type}.`,
+      tags: [DiagnosticTag.Unnecessary],
+    });
+
+    let usedSymbols = bundleGraph.getUsedSymbols(asset);
+    if (usedSymbols) {
+      for (let [exported, symbol] of asset.symbols) {
+        if (!usedSymbols.has(exported)) {
+          if (symbol.loc) {
+            diagnostics.push(generateDiagnostic(symbol.loc, 'export'));
+          }
+        }
+      }
+      // if (usedSymbols.size === 0 && asset.sideEffects !== false) {
+      //   diagnostics.push({
+      //     range: {
+      //       start: {
+      //         line: 0,
+      //         character: 0,
+      //       },
+      //       end: {
+      //         line: 0,
+      //         character: 1,
+      //       },
+      //     },
+      //     source: '@parcel/core',
+      //     severity: DiagnosticSeverity.Warning,
+      //     message: `Asset has no used exports, but is not marked as sideEffect-free so it cannot be excluded automatically.`,
+      //   });
+      // }
+    }
+
+    for (let dep of asset.getDependencies()) {
+      let usedSymbols = bundleGraph.getUsedSymbols(dep);
+      if (usedSymbols) {
+        for (let [exported, symbol] of dep.symbols) {
+          if (!usedSymbols.has(exported) && symbol.isWeak && symbol.loc) {
+            diagnostics.push(generateDiagnostic(symbol.loc, 'reexport'));
+          }
+        }
+      }
+    }
+  }
+  return diagnostics;
 }
 
 function parcelSeverityToLspSeverity(

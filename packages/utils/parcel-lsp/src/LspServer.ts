@@ -5,19 +5,22 @@ import * as fs from 'fs';
 import * as os from 'os';
 import {
   createConnection,
-  TextDocuments,
-  Diagnostic,
-  DiagnosticSeverity,
-  ProposedFeatures,
-  InitializeParams,
+  DiagnosticRefreshRequest,
   DidChangeConfigurationNotification,
-  CompletionItem,
-  CompletionItemKind,
-  TextDocumentPositionParams,
-  TextDocumentSyncKind,
-  InitializeResult,
-  WorkDoneProgressServerReporter,
+  DocumentDiagnosticParams,
+  DocumentDiagnosticReport,
+  DocumentDiagnosticReportKind,
+  DocumentDiagnosticRequest,
   DocumentUri,
+  InitializeParams,
+  InitializeResult,
+  ProposedFeatures,
+  TextDocuments,
+  TextDocumentSyncKind,
+  WorkDoneProgressServerReporter,
+  WorkspaceDiagnosticRequest,
+  WorkspaceDiagnosticParams,
+  WorkspaceDiagnosticReport,
 } from 'vscode-languageserver/node';
 
 import {
@@ -32,6 +35,7 @@ import * as watcher from '@parcel/watcher';
 import {
   NotificationBuildStatus,
   NotificationWorkspaceDiagnostics,
+  RequestDocumentDiagnostics,
 } from './protocol';
 
 const connection = createConnection(ProposedFeatures.all);
@@ -42,6 +46,7 @@ const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
+let hasDiagnosticsRefreshSupport = false;
 
 connection.onInitialize((params: InitializeParams) => {
   const capabilities = params.capabilities;
@@ -59,11 +64,17 @@ connection.onInitialize((params: InitializeParams) => {
     capabilities.textDocument.publishDiagnostics &&
     capabilities.textDocument.publishDiagnostics.relatedInformation
   );
+  hasDiagnosticsRefreshSupport = Boolean(
+    capabilities.workspace?.diagnostics?.refreshSupport,
+  );
 
   const result: InitializeResult = {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       // Tell the client that this server supports code completion.
+      diagnosticProvider: {
+        workspaceDiagnostics: false,
+        interFileDependencies: true,
       },
     },
   };
@@ -92,6 +103,57 @@ connection.onInitialized(() => {
     });
   }
 });
+
+// connection.onRequest(
+//   WorkspaceDiagnosticRequest.type,
+//   (params: WorkspaceDiagnosticParams): WorkspaceDiagnosticReport => {
+//     console.log('WorkspaceDiagnosticRequest', params.partialResultToken);
+//     let value: WorkspaceDiagnosticReport = {
+//       items: [],
+//     };
+//     return value;
+//   },
+// );
+
+connection.onRequest(
+  DocumentDiagnosticRequest.type,
+  async (
+    params: DocumentDiagnosticParams,
+  ): Promise<DocumentDiagnosticReport> => {
+    // if (params.previousResultId === buildId) {
+    //   return {
+    //     kind: DocumentDiagnosticReportKind.Unchanged,
+    //     resultId: buildId,
+    //   };
+    // }
+    console.log('DocumentDiagnosticRequest', params.textDocument.uri);
+
+    let client = clients.values().next().value as Client | undefined;
+
+    let result;
+    if (client) {
+      result = await client.connection.sendRequest(
+        RequestDocumentDiagnostics,
+        params.textDocument.uri,
+      );
+
+      if (result) {
+        client.uris.add(params.textDocument.uri);
+      }
+    }
+
+    return {
+      kind: DocumentDiagnosticReportKind.Full,
+      // resultId: buildId,
+      items: [
+        // ...(workspaceDiagnostics.get(params.textDocument.uri) ?? []),
+        ...(result ?? []),
+      ],
+    };
+  },
+);
+
+connection.listen();
 
 class ProgressReporter {
   progressReporterPromise?: Promise<WorkDoneProgressServerReporter> | null;
@@ -127,6 +189,12 @@ class ProgressReporter {
   }
 }
 
+function sendDiagnosticsRefresh() {
+  if (hasDiagnosticsRefreshSupport) {
+    connection.sendRequest(DiagnosticRefreshRequest.type);
+  }
+}
+
 type Client = {
   connection: MessageConnection;
   uris: Set<DocumentUri>;
@@ -154,6 +222,7 @@ function createClient(metafile: string) {
     } else if (state === 'progress' && message != null) {
       progressReporter.report(message);
     } else if (state === 'end') {
+      sendDiagnosticsRefresh();
       progressReporter.done();
     }
   });
@@ -166,15 +235,16 @@ function createClient(metafile: string) {
     }
   });
 
-  return {connection: client, uris};
   client.onClose(() => {
     console.log('close', uris);
     clients.delete(metafile);
+    sendDiagnosticsRefresh();
     return Promise.all(
       [...uris].map(uri => connection.sendDiagnostics({uri, diagnostics: []})),
     );
   });
 
+  sendDiagnosticsRefresh();
   clients.set(metafile, {connection: client, uris});
 }
 
@@ -196,7 +266,6 @@ watcher.subscribe(BASEDIR, async (err, events) => {
   }
 
   for (let event of events) {
-    console.log('event', event);
     if (event.type === 'create' && event.path.endsWith('.json')) {
       createClient(event.path);
       console.log('connected watched', event.path);
@@ -211,5 +280,3 @@ watcher.subscribe(BASEDIR, async (err, events) => {
     }
   }
 });
-
-connection.listen();
