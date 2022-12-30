@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@parcel/watcher": "^2.0.7",
+    "common-path-prefix": "^3.0.0",
     "nullthrows": "^1.1.1",
     "ps-node": "^0.1.6",
     "vscode-languageclient": "^8.0.2",

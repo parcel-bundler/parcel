@@ -29,8 +29,10 @@ import {
   MessageConnection,
 } from 'vscode-jsonrpc/node';
 import * as invariant from 'assert';
+import * as url from 'url';
+import commonPathPrefix = require('common-path-prefix');
 
-import {TextDocument} from 'vscode-languageserver-textdocument';
+// import {TextDocument} from 'vscode-languageserver-textdocument';
 import * as watcher from '@parcel/watcher';
 import {
   NotificationBuildStatus,
@@ -40,8 +42,8 @@ import {
 
 const connection = createConnection(ProposedFeatures.all);
 
-// Create a simple text document manager.
-const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+// // Create a simple text document manager.
+// const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
@@ -120,18 +122,22 @@ connection.onRequest(
   async (
     params: DocumentDiagnosticParams,
   ): Promise<DocumentDiagnosticReport> => {
-    // if (params.previousResultId === buildId) {
-    //   return {
-    //     kind: DocumentDiagnosticReportKind.Unchanged,
-    //     resultId: buildId,
-    //   };
-    // }
-    console.log('DocumentDiagnosticRequest', params.textDocument.uri);
-
-    let client = clients.values().next().value as Client | undefined;
-
+    let client = findClient(params.textDocument.uri);
     let result;
     if (client) {
+      // console.log(
+      //   'DocumentDiagnosticRequest',
+      //   params.textDocument.uri,
+      //   params.previousResultId === client.lastBuild,
+      // );
+
+      if (params.previousResultId === client.lastBuild) {
+        return {
+          kind: DocumentDiagnosticReportKind.Unchanged,
+          resultId: client.lastBuild,
+        };
+      }
+
       result = await client.connection.sendRequest(
         RequestDocumentDiagnostics,
         params.textDocument.uri,
@@ -144,7 +150,7 @@ connection.onRequest(
 
     return {
       kind: DocumentDiagnosticReportKind.Full,
-      // resultId: buildId,
+      resultId: client?.lastBuild,
       items: [
         // ...(workspaceDiagnostics.get(params.textDocument.uri) ?? []),
         ...(result ?? []),
@@ -197,23 +203,51 @@ function sendDiagnosticsRefresh() {
 
 type Client = {
   connection: MessageConnection;
+  projectRoot: string;
   uris: Set<DocumentUri>;
+  lastBuild: string;
 };
 
 const BASEDIR = fs.realpathSync(path.join(os.tmpdir(), 'parcel-lsp'));
 let progressReporter = new ProgressReporter();
 let clients: Map<string, Client> = new Map();
 
-function createClient(metafile: string) {
-  let socketfilepath = metafile.slice(0, -5);
+function findClient(document: DocumentUri): Client | undefined {
+  let filepath = url.fileURLToPath(document);
+
+  let longestPrefix = 0;
+  let bestClient;
+  for (let [, client] of clients) {
+    let prefix = commonPathPrefix([client.projectRoot, filepath]).length;
+    if (longestPrefix < prefix) {
+      longestPrefix = prefix;
+      bestClient = client;
+    } else if (longestPrefix === prefix) {
+      console.warn('Ambiguous client for ' + filepath);
+    }
+  }
+  return bestClient;
+}
+
+function createClient(metafilepath: string) {
+  let metafile = JSON.parse(fs.readFileSync(metafilepath, 'utf8'));
+
+  let socketfilepath = metafilepath.slice(0, -5);
   let [reader, writer] = createServerPipeTransport(socketfilepath);
   let client = createMessageConnection(reader, writer);
   client.listen();
 
   let uris = new Set<DocumentUri>();
 
+  let result = {
+    connection: client,
+    uris,
+    projectRoot: metafile.projectRoot,
+    lastBuild: '0',
+  };
+
   client.onNotification(NotificationBuildStatus, (state, message) => {
-    console.log('got NotificationBuildStatus', state, message);
+    // console.log('got NotificationBuildStatus', state, message);
     if (state === 'start') {
       progressReporter.begin();
       for (let uri of uris) {
@@ -222,13 +256,14 @@ function createClient(metafile: string) {
     } else if (state === 'progress' && message != null) {
       progressReporter.report(message);
     } else if (state === 'end') {
+      result.lastBuild = String(Date.now());
       sendDiagnosticsRefresh();
       progressReporter.done();
     }
   });
 
   client.onNotification(NotificationWorkspaceDiagnostics, diagnostics => {
-    console.log('got NotificationWorkspaceDiagnostics', diagnostics);
+    // console.log('got NotificationWorkspaceDiagnostics', diagnostics);
     for (let d of diagnostics) {
       uris.add(d.uri);
       connection.sendDiagnostics(d);
@@ -236,7 +271,6 @@ function createClient(metafile: string) {
   });
 
   client.onClose(() => {
-    console.log('close', uris);
     clients.delete(metafile);
     sendDiagnosticsRefresh();
     return Promise.all(
@@ -245,7 +279,7 @@ function createClient(metafile: string) {
   });
 
   sendDiagnosticsRefresh();
-  clients.set(metafile, {connection: client, uris});
+  clients.set(metafile, result);
 }
 
 fs.mkdirSync(BASEDIR, {recursive: true});
@@ -255,7 +289,7 @@ for (let filename of fs.readdirSync(BASEDIR)) {
   if (!filename.endsWith('.json')) continue;
   let filepath = path.join(BASEDIR, filename);
   createClient(filepath);
-  console.log('connected initial', filepath);
+  // console.log('connected initial', filepath);
 }
 
 // Watch for new Parcel processes in the parcel-lsp dir, and disconnect the
@@ -268,10 +302,10 @@ watcher.subscribe(BASEDIR, async (err, events) => {
   for (let event of events) {
     if (event.type === 'create' && event.path.endsWith('.json')) {
       createClient(event.path);
-      console.log('connected watched', event.path);
+      // console.log('connected watched', event.path);
     } else if (event.type === 'delete' && event.path.endsWith('.json')) {
       let existing = clients.get(event.path);
-      console.log('existing', event.path, existing);
+      // console.log('existing', event.path, existing);
       if (existing) {
         clients.delete(event.path);
         existing.connection.end();
