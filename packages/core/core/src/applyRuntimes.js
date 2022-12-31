@@ -39,7 +39,7 @@ type RuntimeConnection = {|
   isEntry: ?boolean,
 |};
 
-export default async function applyRuntimes({
+export default async function applyRuntimes<TResult>({
   bundleGraph,
   config,
   options,
@@ -55,7 +55,7 @@ export default async function applyRuntimes({
   options: ParcelOptions,
   optionsRef: SharedReference,
   pluginOptions: PluginOptions,
-  api: RunAPI,
+  api: RunAPI<TResult>,
   previousDevDeps: Map<string, string>,
   devDepRequests: Map<string, DevDepRequest>,
   configs: Map<string, Config>,
@@ -247,8 +247,8 @@ export default async function applyRuntimes({
   return changedAssets;
 }
 
-function reconcileNewRuntimes(
-  api: RunAPI,
+function reconcileNewRuntimes<TResult>(
+  api: RunAPI<TResult>,
   connections: Array<RuntimeConnection>,
   optionsRef: SharedReference,
 ) {
