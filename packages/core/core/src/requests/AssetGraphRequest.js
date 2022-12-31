@@ -159,7 +159,6 @@ export class AssetGraphBuilder {
     this.queue = new PromiseQueue();
 
     assetGraph.onNodeRemoved = nodeId => {
-      // TODO is this performant? or instead skip in propagation?
       this.dependenciesWithRemovedParents.delete(nodeId);
 
       // This needs to mark all connected nodes that doesn't become orphaned
@@ -785,7 +784,6 @@ export class AssetGraphBuilder {
       outgoing: $ReadOnlyArray<DependencyNode>,
     ) => void,
   ) {
-    // TODO happens sometimes in runtime graph?
     if (changedAssets.size === 0 && dependenciesWithRemovedParents.size === 0) {
       return;
     }
