@@ -5,8 +5,16 @@ import {
   RequestType,
 } from 'vscode-jsonrpc/node';
 
-opaque type ODiagnosticTag = 1 | 2 | 3 | 4;
-opaque type ODiagnosticSeverity = 1 | 2 | 3 | 4;
+import type {
+  DefinitionLink,
+  Diagnostic,
+  DocumentUri,
+  TextDocumentPositionParams,
+  ODiagnosticTag,
+  ODiagnosticSeverity,
+} from 'vscode-languageserver';
+
+// Copied over from vscode-languageserver to prevent the runtime dependency
 
 export const DiagnosticTag = {
   /**
@@ -15,54 +23,38 @@ export const DiagnosticTag = {
    * Clients are allowed to render diagnostics with this tag faded out instead of having
    * an error squiggle.
    */
+  // $FlowFixMe
   Unnecessary: (1: ODiagnosticTag),
   /**
    * Deprecated or obsolete code.
    *
    * Clients are allowed to rendered diagnostics with this tag strike through.
    */
+  // $FlowFixMe
   Deprecated: (2: ODiagnosticTag),
 };
-
 export const DiagnosticSeverity = {
   /**
    * Reports an error.
    */
+  // $FlowFixMe
   Error: (1: ODiagnosticSeverity),
   /**
    * Reports a warning.
    */
+  // $FlowFixMe
   Warning: (2: ODiagnosticSeverity),
   /**
    * Reports an information.
    */
+  // $FlowFixMe
   Information: (3: ODiagnosticSeverity),
   /**
    * Reports a hint.
    */
+  // $FlowFixMe
   Hint: (4: ODiagnosticSeverity),
 };
-
-export type DocumentUri = string;
-export type Position = {|line: number, character: number|};
-export type Range = {|start: Position, end: Position|};
-export type CodeDescription = {|href: string|};
-export type Location = {|uri: string, range: Range|};
-export type DiagnosticRelatedInformation = {|
-  location: Location,
-  message: string,
-|};
-export type Diagnostic = {|
-  range: Range,
-  severity?: ODiagnosticSeverity,
-  code?: number | string,
-  codeDescription?: CodeDescription,
-  source?: string,
-  message: string,
-  tags?: ODiagnosticTag[],
-  relatedInformation?: DiagnosticRelatedInformation[],
-  data?: mixed,
-|};
 
 // --------------------------------
 // Keep in sync with packages/utils/parcel-lsp/src/protocol.ts!
@@ -71,6 +63,13 @@ export type PublishDiagnostic = {|
   uri: DocumentUri,
   diagnostics: Array<Diagnostic>,
 |};
+
+// Request: Client -> Server
+export const RequestDefinition: RequestType<
+  TextDocumentPositionParams,
+  Array<DefinitionLink> | void,
+  void,
+> = new RequestType('RequestDefinition');
 
 // Request: Client -> Server
 export const RequestDocumentDiagnostics: RequestType<

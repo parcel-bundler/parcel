@@ -5,7 +5,12 @@ import {
   RequestType,
 } from 'vscode-jsonrpc/node';
 
-import type {DocumentUri, Diagnostic} from 'vscode-languageserver';
+import type {
+  DefinitionLink,
+  Diagnostic,
+  DocumentUri,
+  TextDocumentPositionParams,
+} from 'vscode-languageserver';
 
 // --------------------------------
 // Keep in sync with packages/reporters/lsp-reporter/src/protocol.js!
@@ -14,6 +19,13 @@ export type PublishDiagnostic = {
   uri: DocumentUri;
   diagnostics: Array<Diagnostic>;
 };
+
+// Request: Client -> Server
+export const RequestDefinition: RequestType<
+  TextDocumentPositionParams,
+  Array<DefinitionLink> | undefined,
+  void
+> = new RequestType('RequestDefinition');
 
 // Request: Client -> Server
 export const RequestDocumentDiagnostics: RequestType<

@@ -31,6 +31,7 @@ import * as watcher from '@parcel/watcher';
 import {
   NotificationBuildStatus,
   NotificationWorkspaceDiagnostics,
+  RequestDefinition,
   RequestDocumentDiagnostics,
 } from './protocol';
 
@@ -72,6 +73,7 @@ connection.onInitialize((params: InitializeParams) => {
         workspaceDiagnostics: false,
         interFileDependencies: true,
       },
+      definitionProvider: true,
     },
   };
 
@@ -98,6 +100,15 @@ connection.onInitialized(() => {
       connection.console.log('Workspace folder change event received.');
     });
   }
+});
+
+connection.onDefinition(async params => {
+  let client = findClient(params.textDocument.uri);
+  if (client) {
+    let result = await client.connection.sendRequest(RequestDefinition, params);
+    return result;
+  }
+  return null;
 });
 
 connection.onRequest(

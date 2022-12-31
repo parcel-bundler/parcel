@@ -1,15 +1,12 @@
 // @flow strict-local
 
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
-import type {
-  BundleGraph,
-  DiagnosticLogEvent,
-  FilePath,
-  PackagedBundle,
-} from '@parcel/types';
+import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
-import type {Diagnostic, PublishDiagnostic} from './protocol';
+import type {Diagnostic, LocationLink, Position} from 'vscode-languageserver';
+import type {PublishDiagnostic} from './protocol';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
+import type {ParcelSeverity} from './utils';
 
 import {
   DefaultMap,
@@ -30,8 +27,15 @@ import {
   DiagnosticTag,
   NotificationBuildStatus,
   NotificationWorkspaceDiagnostics,
+  RequestDefinition,
   RequestDocumentDiagnostics,
 } from './protocol';
+import {
+  isInRange,
+  normalizeFilePath,
+  parcelSeverityToLspSeverity,
+  RANGE_DUMMY,
+} from './utils';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
@@ -42,8 +46,6 @@ const ignoreFail = func => {
     /**/
   }
 };
-
-type ParcelSeverity = DiagnosticLogEvent['level'];
 
 const BASEDIR = fs.realpathSync(path.join(os.tmpdir(), 'parcel-lsp'));
 const SOCKET_FILE = path.join(BASEDIR, `parcel-${process.pid}`);
@@ -96,8 +98,18 @@ export default (new Reporter({
             let graph = await bundleGraph;
             if (!graph) return;
 
-            let v = await getDiagnosticsUnusedExports(graph, uri);
-            return v;
+            return getDiagnosticsUnusedExports(graph, uri);
+          });
+
+          connection.onRequest(RequestDefinition, async params => {
+            let graph = await bundleGraph;
+            if (!graph) return;
+
+            return getDefinition(
+              graph,
+              params.textDocument.uri,
+              params.position,
+            );
           });
 
           sendDiagnostics();
@@ -338,23 +350,42 @@ function getDiagnosticsUnusedExports(
   return diagnostics;
 }
 
-function parcelSeverityToLspSeverity(parcelSeverity: ParcelSeverity) {
-  switch (parcelSeverity) {
-    case 'error':
-      return DiagnosticSeverity.Error;
-    case 'warn':
-      return DiagnosticSeverity.Warning;
-    case 'info':
-      return DiagnosticSeverity.Information;
-    case 'verbose':
-      return DiagnosticSeverity.Hint;
-    default:
-      throw new Error('Unknown severity');
-  }
-}
+function getDefinition(
+  bundleGraph: BundleGraph<PackagedBundle>,
+  document: string,
+  position: Position,
+): Array<LocationLink> | void {
+  let filename = url.fileURLToPath(document);
 
-function normalizeFilePath(filePath: FilePath, projectRoot: FilePath) {
-  return path.isAbsolute(filePath)
-    ? filePath
-    : path.join(projectRoot, filePath);
+  let asset = bundleGraph.traverse((node, context, actions) => {
+    if (node.type === 'asset' && node.value.filePath === filename) {
+      actions.stop();
+      return node.value;
+    }
+  });
+
+  if (asset) {
+    for (let dep of bundleGraph.getDependencies(asset)) {
+      let loc = dep.loc;
+      if (loc && isInRange(loc, position)) {
+        let resolution = bundleGraph.getResolvedAsset(dep);
+        if (resolution) {
+          return [
+            {
+              originSelectionRange: {
+                start: {
+                  line: loc.start.line - 1,
+                  character: loc.start.column - 1,
+                },
+                end: {line: loc.end.line - 1, character: loc.end.column},
+              },
+              targetUri: `file://${resolution.filePath}`,
+              targetRange: RANGE_DUMMY,
+              targetSelectionRange: RANGE_DUMMY,
+            },
+          ];
+        }
+      }
+    }
+  }
 }
