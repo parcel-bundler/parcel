@@ -72,6 +72,13 @@ export const RequestDefinition: RequestType<
 > = new RequestType('RequestDefinition');
 
 // Request: Client -> Server
+export const RequestImporters: RequestType<
+  DocumentUri,
+  Array<DocumentUri> | null,
+  void,
+> = new RequestType('RequestImporters');
+
+// Request: Client -> Server
 export const RequestDocumentDiagnostics: RequestType<
   DocumentUri,
   Array<Diagnostic> | void,

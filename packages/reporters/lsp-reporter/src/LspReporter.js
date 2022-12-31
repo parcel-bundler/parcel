@@ -3,7 +3,12 @@
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
-import type {Diagnostic, LocationLink, Position} from 'vscode-languageserver';
+import type {
+  Diagnostic,
+  DocumentUri,
+  LocationLink,
+  Position,
+} from 'vscode-languageserver';
 import type {PublishDiagnostic} from './protocol';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
 import type {ParcelSeverity} from './utils';
@@ -18,6 +23,7 @@ import path from 'path';
 import os from 'os';
 import url from 'url';
 import fs from 'fs';
+import nullthrows from 'nullthrows';
 import * as ps from 'ps-node';
 import {promisify} from 'util';
 
@@ -29,6 +35,7 @@ import {
   NotificationWorkspaceDiagnostics,
   RequestDefinition,
   RequestDocumentDiagnostics,
+  RequestImporters,
 } from './protocol';
 import {
   isInRange,
@@ -110,6 +117,13 @@ export default (new Reporter({
               params.textDocument.uri,
               params.position,
             );
+          });
+
+          connection.onRequest(RequestImporters, async params => {
+            let graph = await bundleGraph;
+            if (!graph) return null;
+
+            return getImporters(graph, params);
           });
 
           sendDiagnostics();
@@ -388,4 +402,26 @@ function getDefinition(
       }
     }
   }
+}
+
+function getImporters(
+  bundleGraph: BundleGraph<PackagedBundle>,
+  document: string,
+): Array<DocumentUri> | null {
+  let filename = url.fileURLToPath(document);
+
+  let asset = bundleGraph.traverse((node, context, actions) => {
+    if (node.type === 'asset' && node.value.filePath === filename) {
+      actions.stop();
+      return node.value;
+    }
+  });
+
+  if (asset) {
+    let incoming = bundleGraph.getIncomingDependencies(asset);
+    return incoming
+      .filter(dep => dep.sourcePath != null)
+      .map(dep => `file://${nullthrows(dep.sourcePath)}`);
+  }
+  return null;
 }

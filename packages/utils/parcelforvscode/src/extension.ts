@@ -1,5 +1,5 @@
-import * as path from 'path';
-import {workspace, ExtensionContext} from 'vscode';
+/* eslint-disable @typescript-eslint/naming-convention */
+import * as vscode from 'vscode';
 
 import {
   LanguageClient,
@@ -7,10 +7,11 @@ import {
   ServerOptions,
   TransportKind,
 } from 'vscode-languageclient/node';
+import {addImportersView} from './importersView';
 
 let client: LanguageClient;
 
-export function activate(context: ExtensionContext) {
+export function activate(context: vscode.ExtensionContext) {
   // The server is implemented in node
   let serverModule = require.resolve('@parcel/lsp');
   // The debug options for the server
@@ -37,6 +38,8 @@ export function activate(context: ExtensionContext) {
 
   // Start the client. This will also launch the server
   client.start();
+
+  addImportersView(client);
 }
 
 export function deactivate(): Thenable<void> | undefined {

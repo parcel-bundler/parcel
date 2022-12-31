@@ -1,6 +1,6 @@
 // @flow
 import type {DiagnosticLogEvent, FilePath, SourceLocation} from '@parcel/types';
-import type {ODiagnosticSeverity, Position, Range} from './protocol';
+import type {ODiagnosticSeverity, Position, Range} from 'vscode-languageserver';
 
 import path from 'path';
 import {DiagnosticSeverity} from './protocol';

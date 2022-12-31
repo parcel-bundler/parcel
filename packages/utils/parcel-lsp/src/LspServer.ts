@@ -29,10 +29,12 @@ import commonPathPrefix = require('common-path-prefix');
 // import {TextDocument} from 'vscode-languageserver-textdocument';
 import * as watcher from '@parcel/watcher';
 import {
+  NotificationBuild,
   NotificationBuildStatus,
   NotificationWorkspaceDiagnostics,
   RequestDefinition,
   RequestDocumentDiagnostics,
+  RequestImporters,
 } from './protocol';
 
 const connection = createConnection(ProposedFeatures.all);
@@ -106,6 +108,16 @@ connection.onDefinition(async params => {
   let client = findClient(params.textDocument.uri);
   if (client) {
     let result = await client.connection.sendRequest(RequestDefinition, params);
+    return result;
+  }
+  return null;
+});
+
+// Proxy
+connection.onRequest(RequestImporters, async params => {
+  let client = findClient(params);
+  if (client) {
+    let result = await client.connection.sendRequest(RequestImporters, params);
     return result;
   }
   return null;
@@ -250,6 +262,7 @@ function createClient(metafilepath: string) {
       result.lastBuild = String(Date.now());
       sendDiagnosticsRefresh();
       progressReporter.done();
+      connection.sendNotification(NotificationBuild);
     }
   });
 
