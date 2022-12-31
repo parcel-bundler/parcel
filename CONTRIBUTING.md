@@ -16,7 +16,7 @@ In order to make it easier to get familiar with the codebase we labeled simpler 
 
 Before starting make sure you have the following requirements installed: [git](https://git-scm.com), [Node](https://nodejs.org), [Yarn](https://yarnpkg.com) and [Rust](https://www.rust-lang.org/tools/install).
 
-Parcel uses [flow](https://flow.org) for type checking. If you're using an IDE, make sure to install the [flow extension](https://flow.org/en/docs/editors/) to get the best experience.
+Parcel uses [flow](https://flow.org) for type checking. If you're using an IDE, make sure to install the [flow extension](https://flow.org/en/docs/editors/) to ensure your editor's autocomplete and type-checking works as expected.
 
 The process starts by [forking](https://docs.github.com/en/github/getting-started-with-github/fork-a-repo) the project and setup a new branch to work in. It's important that the changes are made in separated branches in order to ensure a pull request only includes the commits related to a bug or feature.
 
