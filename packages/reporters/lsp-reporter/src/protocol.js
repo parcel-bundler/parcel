@@ -65,6 +65,7 @@ export type Diagnostic = {|
 |};
 
 // --------------------------------
+// Keep in sync with packages/utils/parcel-lsp/src/protocol.ts!
 
 export type PublishDiagnostic = {|
   uri: DocumentUri,

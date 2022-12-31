@@ -8,6 +8,7 @@ import {
 import type {DocumentUri, Diagnostic} from 'vscode-languageserver';
 
 // --------------------------------
+// Keep in sync with packages/reporters/lsp-reporter/src/protocol.js!
 
 export type PublishDiagnostic = {
   uri: DocumentUri;

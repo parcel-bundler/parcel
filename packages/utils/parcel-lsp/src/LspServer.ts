@@ -1,5 +1,3 @@
-/* eslint-disable no-console */
-
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -291,7 +289,7 @@ watcher.subscribe(BASEDIR, async (err, events) => {
       if (existing) {
         clients.delete(event.path);
         existing.connection.end();
-        console.log('disconnected watched', event.path);
+        // console.log('disconnected watched', event.path);
       }
     }
   }

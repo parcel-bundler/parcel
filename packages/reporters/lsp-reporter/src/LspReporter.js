@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 // @flow strict-local
 
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
