@@ -1,0 +1,22 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-resolver"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = "2.3.3"
+napi-derive = "2"
+xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+url = "*"
+percent-encoding = "*"
+serde = { version = "1.0.123", features = ["derive"] }
+serde_json = "*"
+es-module-lexer = { path = "/Users/devongovett/dev/es-module-lexer" }
+bitflags = "*"
+
+[build-dependencies]
+napi-build = "1"

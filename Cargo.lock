@@ -476,6 +476,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "es-module-lexer"
+version = "0.1.0"
+dependencies = [
+ "bumpalo",
+ "cc",
+]
+
+[[package]]
 name = "filetime"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1160,6 +1168,22 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen 0.3.1",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "parcel-resolver"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "es-module-lexer",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "url",
+ "xxhash-rust",
 ]
 
 [[package]]
