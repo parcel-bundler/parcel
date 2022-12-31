@@ -34,7 +34,7 @@ let testCache: {|[string]: Promise<string>|} = {
 };
 export function hashFile(fs: FileSystem, filePath: string): Promise<string> {
   if (process.env.PARCEL_BUILD_ENV === 'test') {
-    // Development builds of these native modules are especially slow and slow to hash.
+    // Development builds of these native modules are especially big and slow to hash.
     if (
       /parcel-swc\.[^\\/]+\.node$|lightningcss.[^\\/]+.node$/.test(filePath)
     ) {
