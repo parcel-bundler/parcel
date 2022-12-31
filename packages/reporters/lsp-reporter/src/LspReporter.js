@@ -94,7 +94,6 @@ export default (new Reporter({
           });
 
           connection.onRequest(RequestDocumentDiagnostics, async uri => {
-            console.log('got request RequestDocumentDiagnostics', uri);
             let graph = await bundleGraph;
             if (!graph) return;
 

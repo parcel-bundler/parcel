@@ -53,26 +53,3 @@ export function createServer(
     },
   );
 }
-
-// import {notifyState, requestFile} from './c';
-// (async () => {
-//   await createClientPipeTransport(
-//     '/tmp/something',
-//     (reader: MessageReader, writer: MessageWriter) => {
-//       let connection = rpc.createMessageConnection(reader, writer);
-//       connection.listen();
-//       connection.onClose(() => {
-//         console.log('closed');
-//       });
-
-//       connection.onRequest(requestFile, f => {
-//         console.log('onRequest', f);
-
-//         setTimeout(() => {
-//           connection.sendNotification(notifyState, 'packaging');
-//         }, 200);
-//         return 123;
-//       });
-//     },
-//   );
-// })();

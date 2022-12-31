@@ -15,12 +15,8 @@ import {
   InitializeParams,
   InitializeResult,
   ProposedFeatures,
-  TextDocuments,
   TextDocumentSyncKind,
   WorkDoneProgressServerReporter,
-  WorkspaceDiagnosticRequest,
-  WorkspaceDiagnosticParams,
-  WorkspaceDiagnosticReport,
 } from 'vscode-languageserver/node';
 
 import {
@@ -42,12 +38,12 @@ import {
 
 const connection = createConnection(ProposedFeatures.all);
 
-// // Create a simple text document manager.
+// Create a simple text document manager.
 // const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
-let hasDiagnosticRelatedInformationCapability = false;
+// let hasDiagnosticRelatedInformationCapability = false;
 let hasDiagnosticsRefreshSupport = false;
 
 connection.onInitialize((params: InitializeParams) => {
@@ -61,11 +57,11 @@ connection.onInitialize((params: InitializeParams) => {
   hasWorkspaceFolderCapability = !!(
     capabilities.workspace && !!capabilities.workspace.workspaceFolders
   );
-  hasDiagnosticRelatedInformationCapability = !!(
-    capabilities.textDocument &&
-    capabilities.textDocument.publishDiagnostics &&
-    capabilities.textDocument.publishDiagnostics.relatedInformation
-  );
+  // hasDiagnosticRelatedInformationCapability = !!(
+  //   capabilities.textDocument &&
+  //   capabilities.textDocument.publishDiagnostics &&
+  //   capabilities.textDocument.publishDiagnostics.relatedInformation
+  // );
   hasDiagnosticsRefreshSupport = Boolean(
     capabilities.workspace?.diagnostics?.refreshSupport,
   );
@@ -106,17 +102,6 @@ connection.onInitialized(() => {
   }
 });
 
-// connection.onRequest(
-//   WorkspaceDiagnosticRequest.type,
-//   (params: WorkspaceDiagnosticParams): WorkspaceDiagnosticReport => {
-//     console.log('WorkspaceDiagnosticRequest', params.partialResultToken);
-//     let value: WorkspaceDiagnosticReport = {
-//       items: [],
-//     };
-//     return value;
-//   },
-// );
-
 connection.onRequest(
   DocumentDiagnosticRequest.type,
   async (
@@ -151,10 +136,7 @@ connection.onRequest(
     return {
       kind: DocumentDiagnosticReportKind.Full,
       resultId: client?.lastBuild,
-      items: [
-        // ...(workspaceDiagnostics.get(params.textDocument.uri) ?? []),
-        ...(result ?? []),
-      ],
+      items: result ?? [],
     };
   },
 );
