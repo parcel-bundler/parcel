@@ -10,7 +10,7 @@ pub enum Specifier<'a> {
   Absolute(Cow<'a, Path>),
   Tilde(Cow<'a, Path>),
   Hash(Cow<'a, str>),
-  Package(Cow<'a, str>, Cow<'a, Path>),
+  Package(Cow<'a, str>, Cow<'a, str>),
   Builtin(Cow<'a, str>),
   Url(Url)
 }
@@ -75,11 +75,11 @@ fn parse_package<'a>(specifier: Cow<'a, str>) -> Result<Specifier, ()> {
   match specifier {
     Cow::Borrowed(specifier) => {
       let (module, subpath) = parse_package_specifier(specifier)?;
-      Ok(Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(Path::new(subpath))))
+      Ok(Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath)))
     }
     Cow::Owned(specifier) => {
       let (module, subpath) = parse_package_specifier(&specifier)?;
-      Ok(Specifier::Package(Cow::Owned(module.to_owned()), Cow::Owned(Path::new(subpath).to_owned())))
+      Ok(Specifier::Package(Cow::Owned(module.to_owned()), Cow::Owned(subpath.to_owned())))
     }
   }
 }

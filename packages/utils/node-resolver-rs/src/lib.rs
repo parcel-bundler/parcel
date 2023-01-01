@@ -243,7 +243,7 @@ impl Resolver {
     })
   }
   
-  fn resolve_node_module(&self, module: &str, subpath: &Path, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
+  fn resolve_node_module(&self, module: &str, subpath: &str, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
     if BUILTINS.contains(&module) {
       return Ok(Resolution::Builtin(module.to_owned()))
     }
@@ -269,10 +269,10 @@ impl Resolver {
         // If the exports field is present, use the Node ESM algorithm.
         // Otherwise, fall back to classic CJS resolution.
         if package.has_exports() {
-          match package.resolve_package_exports(&subpath.as_os_str().to_string_lossy(), &[])? {
+          match package.resolve_package_exports(subpath, &[])? {
             ExportsResolution::Package(pkg) => {
               let (module, subpath) = parse_package_specifier(&pkg)?;
-              return self.resolve_node_module(&module, Path::new(subpath), &package_path, specifier_type)
+              return self.resolve_node_module(&module, subpath, &package_path, specifier_type)
             }
             ExportsResolution::Path(path) => {
               // Extensionless specifiers are not supported in the exports field.
@@ -282,7 +282,7 @@ impl Resolver {
             }
             _ => {}
           }
-        } else if !subpath.as_os_str().is_empty() {
+        } else if !subpath.is_empty() {
           package_dir.push(subpath);
           return self.load_path(&package_dir, specifier_type, Some(&package), Prioritize::File)
         } else {

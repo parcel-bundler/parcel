@@ -1,5 +1,6 @@
 use bitflags::bitflags;
 use indexmap::{indexmap, IndexMap};
+use serde::Deserialize;
 use std::{
   borrow::Cow,
   cmp::Ordering,
@@ -34,7 +35,7 @@ pub struct PackageJson<'a> {
   #[serde(default)]
   exports: ExportsField<'a>,
   #[serde(default)]
-  imports: IndexMap<&'a str, ExportsField<'a>>,
+  imports: IndexMap<ExportsKey<'a>, ExportsField<'a>>,
 }
 
 impl<'a> Default for PackageJson<'a> {
@@ -95,12 +96,42 @@ pub enum ExportsField<'a> {
   #[serde(borrow)]
   String(&'a str),
   Array(Vec<ExportsField<'a>>), // ???
-  Map(IndexMap<&'a str, ExportsField<'a>>),
+  Map(IndexMap<ExportsKey<'a>, ExportsField<'a>>),
 }
 
 impl<'a> Default for ExportsField<'a> {
   fn default() -> Self {
     ExportsField::None
+  }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+enum ExportsKey<'a> {
+  Main,
+  Pattern(&'a str),
+  Target(&'a str)
+}
+
+impl<'a> From<&'a str> for ExportsKey<'a> {
+  fn from(key: &'a str) -> Self {
+    if key == "." {
+      ExportsKey::Main
+    } else if key.starts_with("./") {
+      ExportsKey::Pattern(&key[2..])
+    } else if key.starts_with('#') {
+      ExportsKey::Pattern(key)
+    } else {
+      ExportsKey::Target(key)
+    }
+  }
+}
+
+impl<'a, 'de: 'a> Deserialize<'de> for ExportsKey<'a> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+      where
+          D: serde::Deserializer<'de> {
+    let s: &'de str = Deserialize::deserialize(deserializer)?;
+    Ok(ExportsKey::from(s))
   }
 }
 
@@ -150,21 +181,21 @@ impl<'a> PackageJson<'a> {
 
   pub fn resolve_package_exports(
     &self,
-    subpath: &str,
+    subpath: &'a str,
     conditions: &[&str],
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     // TODO: If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
 
-    if subpath == "." {
+    if subpath.is_empty() {
       let mut main_export = &ExportsField::None;
       match &self.exports {
         ExportsField::None | ExportsField::String(_) | ExportsField::Array(_) => {
           main_export = &self.exports;
         }
         ExportsField::Map(map) => {
-          if let Some(v) = map.get(".") {
+          if let Some(v) = map.get(&ExportsKey::Main) {
             main_export = v;
-          } else if !map.keys().any(|k| k.starts_with('.')) {
+          } else if !map.keys().any(|k| matches!(k, ExportsKey::Pattern(_))) {
             main_export = &self.exports;
           }
         }
@@ -189,7 +220,7 @@ impl<'a> PackageJson<'a> {
 
   fn resolve_package_imports(
     &self,
-    specifier: &str,
+    specifier: &'a str,
     conditions: &[&str],
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     if specifier == "#" || specifier.starts_with("#/") {
@@ -242,10 +273,12 @@ impl<'a> PackageJson<'a> {
       ExportsField::Map(target) => {
         // We must iterate in object insertion order.
         for (key, value) in target {
-          if *key == "default" || conditions.contains(key) {
-            match self.resolve_package_target(value, pattern_match, is_imports, conditions)? {
-              ExportsResolution::None => continue,
-              res => return Ok(res),
+          if let ExportsKey::Target(key) = key {
+            if *key == "default" || conditions.contains(key) {
+              match self.resolve_package_target(value, pattern_match, is_imports, conditions)? {
+                ExportsResolution::None => continue,
+                res => return Ok(res),
+              }
             }
           }
         }
@@ -270,12 +303,13 @@ impl<'a> PackageJson<'a> {
 
   fn resolve_package_imports_exports(
     &self,
-    match_key: &str,
-    match_obj: &'a IndexMap<&'a str, ExportsField<'a>>,
+    match_key: &'a str,
+    match_obj: &'a IndexMap<ExportsKey<'a>, ExportsField<'a>>,
     is_imports: bool,
     conditions: &[&str],
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
-    if let Some(target) = match_obj.get(match_key) {
+    let pattern = ExportsKey::Pattern(match_key);
+    if let Some(target) = match_obj.get(&pattern) {
       if !match_key.contains('*') {
         return self.resolve_package_target(target, "", is_imports, conditions);
       }
@@ -284,20 +318,22 @@ impl<'a> PackageJson<'a> {
     let mut best_key = "";
     let mut best_match = "";
     for key in match_obj.keys() {
-      if let Some((pattern_base, pattern_trailer)) = key.split_once('*') {
-        if match_key.starts_with(pattern_base)
-          && (pattern_trailer.is_empty()
-            || (match_key.len() >= key.len() && match_key.ends_with(pattern_trailer)))
-          && pattern_key_compare(best_key, key) == Ordering::Greater
-        {
-          best_key = key;
-          best_match = &match_key[pattern_base.len()..match_key.len() - pattern_trailer.len()];
+      if let ExportsKey::Pattern(key) = key {
+        if let Some((pattern_base, pattern_trailer)) = key.split_once('*') {
+          if match_key.starts_with(pattern_base)
+            && (pattern_trailer.is_empty()
+              || (match_key.len() >= key.len() && match_key.ends_with(pattern_trailer)))
+            && pattern_key_compare(best_key, key) == Ordering::Greater
+          {
+            best_key = key;
+            best_match = &match_key[pattern_base.len()..match_key.len() - pattern_trailer.len()];
+          }
         }
       }
     }
 
     if !best_key.is_empty() {
-      return self.resolve_package_target(&match_obj[best_key], best_match, is_imports, conditions);
+      return self.resolve_package_target(&match_obj[&ExportsKey::Pattern(best_key)], best_match, is_imports, conditions);
     }
 
     Ok(ExportsResolution::None)
@@ -345,15 +381,15 @@ impl<'a> PackageJson<'a> {
 
     match specifier {
       Specifier::Package(package, subpath) => {
-        if let Some(alias) = self.lookup_alias(map, &Specifier::Package(package.clone(), Cow::Borrowed(Path::new("")))) {
+        if let Some(alias) = self.lookup_alias(map, &Specifier::Package(package.clone(), Cow::Borrowed(""))) {
           match alias.as_ref() {
             AliasValue::Specifier(base) => {
               // Join the subpath back onto the resolved alias.
               match base {
                 Specifier::Package(base_pkg, base_subpath) => {
-                  let subpath = if !base_subpath.as_os_str().is_empty() && !subpath.as_os_str().is_empty() {
-                    Cow::Owned(base_subpath.join(subpath))
-                  } else if !subpath.as_os_str().is_empty() {
+                  let subpath = if !base_subpath.is_empty() && !subpath.is_empty() {
+                    Cow::Owned(format!("{}/{}", base_subpath, subpath))
+                  } else if !subpath.is_empty() {
                     subpath.clone()
                   } else {
                     return Some(alias)
@@ -361,24 +397,24 @@ impl<'a> PackageJson<'a> {
                   return Some(Cow::Owned(AliasValue::Specifier(Specifier::Package(base_pkg.clone(), subpath))))
                 }
                 Specifier::Relative(path) => {
-                  if subpath.as_os_str().is_empty() {
+                  if subpath.is_empty() {
                     return Some(alias)
                   } else {
-                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Relative(Cow::Owned(path.join(subpath))))))
+                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Relative(Cow::Owned(path.join(subpath.as_ref()))))))
                   }
                 }
                 Specifier::Absolute(path) => {
-                  if subpath.as_os_str().is_empty() {
+                  if subpath.is_empty() {
                     return Some(alias)
                   } else {
-                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Absolute(Cow::Owned(path.join(subpath))))))
+                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Absolute(Cow::Owned(path.join(subpath.as_ref()))))))
                   }
                 }
                 Specifier::Tilde(path) => {
-                  if subpath.as_os_str().is_empty() {
+                  if subpath.is_empty() {
                     return Some(alias)
                   } else {
-                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Tilde(Cow::Owned(path.join(subpath))))))
+                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Tilde(Cow::Owned(path.join(subpath.as_ref()))))))
                   }
                 }
                 _ => {
@@ -446,7 +482,7 @@ impl<'a> Iterator for EntryIter<'a> {
       match &self.package.browser {
         BrowserField::None => {}
         BrowserField::String(browser) => return Some(self.package.path.with_file_name(browser)),
-        BrowserField::Map(map) => match map.get(&Specifier::Package(Cow::Borrowed(self.package.name), Cow::Borrowed(Path::new("")))) {
+        BrowserField::Map(map) => match map.get(&Specifier::Package(Cow::Borrowed(self.package.name), Cow::Borrowed(""))) {
           Some(AliasValue::Specifier(s)) => {
             match s {
               Specifier::Relative(s) => return Some(self.package.path.with_file_name(s.as_ref())),
@@ -492,7 +528,7 @@ mod tests {
     };
 
     assert_eq!(
-      pkg.resolve_package_exports(".", &[]).unwrap(),
+      pkg.resolve_package_exports("", &[]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/exports.js"))
     );
     // assert_eq!(pkg.resolve_package_exports("./exports.js", &[]).unwrap(), ExportsResolution::Path(PathBuf::from("/foo/exports.js")));
@@ -505,13 +541,13 @@ mod tests {
       path: Path::new("/foo/package.json"),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "." => ExportsField::String("./exports.js")
+        ".".into() => ExportsField::String("./exports.js")
       }),
       ..PackageJson::default()
     };
 
     assert_eq!(
-      pkg.resolve_package_exports(".", &[]).unwrap(),
+      pkg.resolve_package_exports("", &[]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/exports.js"))
     );
     // assert_eq!(pkg.resolve_package_exports("foobar", &[]).unwrap(), ExportsResolution::Path(PathBuf::from("/foo/exports.js")));
@@ -523,9 +559,9 @@ mod tests {
       path: Path::new("/foo/package.json"),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "." => ExportsField::Map(indexmap! {
-          "import" => ExportsField::String("./import.js"),
-          "require" => ExportsField::String("./require.js")
+        ".".into() => ExportsField::Map(indexmap! {
+          "import".into() => ExportsField::String("./import.js"),
+          "require".into() => ExportsField::String("./require.js")
         })
       }),
       ..PackageJson::default()
@@ -533,12 +569,12 @@ mod tests {
 
     assert_eq!(
       pkg
-        .resolve_package_exports(".", &["import", "require"])
+        .resolve_package_exports("", &["import", "require"])
         .unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/import.js"))
     );
     assert_eq!(
-      pkg.resolve_package_exports(".", &["require"]).unwrap(),
+      pkg.resolve_package_exports("", &["require"]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/require.js"))
     );
   }
@@ -549,13 +585,13 @@ mod tests {
       path: Path::new("/foo/package.json"),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "./foo" => ExportsField::String("./exports.js")
+        "./foo".into() => ExportsField::String("./exports.js")
       }),
       ..PackageJson::default()
     };
 
     assert_eq!(
-      pkg.resolve_package_exports("./foo", &[]).unwrap(),
+      pkg.resolve_package_exports("foo", &[]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/exports.js"))
     );
   }
@@ -566,9 +602,9 @@ mod tests {
       path: Path::new("/foo/package.json"),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "./foo" => ExportsField::Map(indexmap! {
-          "import" => ExportsField::String("./import.js"),
-          "require" => ExportsField::String("./require.js")
+        "./foo".into() => ExportsField::Map(indexmap! {
+          "import".into() => ExportsField::String("./import.js"),
+          "require".into() => ExportsField::String("./require.js")
         })
       }),
       ..PackageJson::default()
@@ -576,12 +612,12 @@ mod tests {
 
     assert_eq!(
       pkg
-        .resolve_package_exports("./foo", &["import", "require"])
+        .resolve_package_exports("foo", &["import", "require"])
         .unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/import.js"))
     );
     assert_eq!(
-      pkg.resolve_package_exports("./foo", &["require"]).unwrap(),
+      pkg.resolve_package_exports("foo", &["require"]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/require.js"))
     );
   }
@@ -592,29 +628,29 @@ mod tests {
       path: Path::new("/foo/package.json"),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "node" => ExportsField::Map(indexmap! {
-          "import" => ExportsField::String("./import.js"),
-          "require" => ExportsField::String("./require.js")
+        "node".into() => ExportsField::Map(indexmap! {
+          "import".into() => ExportsField::String("./import.js"),
+          "require".into() => ExportsField::String("./require.js")
         }),
-        "default" => ExportsField::String("./default.js")
+        "default".into() => ExportsField::String("./default.js")
       }),
       ..PackageJson::default()
     };
 
     assert_eq!(
       pkg
-        .resolve_package_exports(".", &["node", "import"])
+        .resolve_package_exports("", &["node", "import"])
         .unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/import.js"))
     );
     assert_eq!(
       pkg
-        .resolve_package_exports(".", &["node", "require"])
+        .resolve_package_exports("", &["node", "require"])
         .unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/require.js"))
     );
     assert_eq!(
-      pkg.resolve_package_exports(".", &["import"]).unwrap(),
+      pkg.resolve_package_exports("", &["import"]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/default.js"))
     );
   }
@@ -625,14 +661,14 @@ mod tests {
       path: Path::new("/foo/package.json"),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "./lite" => ExportsField::Map(indexmap! {
-          "node" => ExportsField::Map(indexmap! {
-            "import" => ExportsField::String("./node_import.js"),
-            "require" => ExportsField::String("./node_require.js")
+        "./lite".into() => ExportsField::Map(indexmap! {
+          "node".into() => ExportsField::Map(indexmap! {
+            "import".into() => ExportsField::String("./node_import.js"),
+            "require".into() => ExportsField::String("./node_require.js")
           }),
-          "browser" => ExportsField::Map(indexmap! {
-            "import" => ExportsField::String("./browser_import.js"),
-            "require" => ExportsField::String("./browser_require.js")
+          "browser".into() => ExportsField::Map(indexmap! {
+            "import".into() => ExportsField::String("./browser_import.js"),
+            "require".into() => ExportsField::String("./browser_require.js")
           }),
         })
       }),
@@ -641,25 +677,25 @@ mod tests {
 
     assert_eq!(
       pkg
-        .resolve_package_exports("./lite", &["node", "import"])
+        .resolve_package_exports("lite", &["node", "import"])
         .unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/node_import.js"))
     );
     assert_eq!(
       pkg
-        .resolve_package_exports("./lite", &["node", "require"])
+        .resolve_package_exports("lite", &["node", "require"])
         .unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/node_require.js"))
     );
     assert_eq!(
       pkg
-        .resolve_package_exports("./lite", &["browser", "import"])
+        .resolve_package_exports("lite", &["browser", "import"])
         .unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/browser_import.js"))
     );
     assert_eq!(
       pkg
-        .resolve_package_exports("./lite", &["browser", "require"])
+        .resolve_package_exports("lite", &["browser", "require"])
         .unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/browser_require.js"))
     );
@@ -671,31 +707,31 @@ mod tests {
       path: Path::new("/foo/package.json"),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
-        "./*" => ExportsField::String("./cheese/*.mjs"),
-        "./pizza/*" => ExportsField::String("./pizza/*.mjs"),
-        "./burritos/*" => ExportsField::String("./burritos/*/*.mjs")
+        "./*".into() => ExportsField::String("./cheese/*.mjs"),
+        "./pizza/*".into() => ExportsField::String("./pizza/*.mjs"),
+        "./burritos/*".into() => ExportsField::String("./burritos/*/*.mjs")
       }),
       ..PackageJson::default()
     };
 
     assert_eq!(
-      pkg.resolve_package_exports("./hello", &[]).unwrap(),
+      pkg.resolve_package_exports("hello", &[]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/cheese/hello.mjs"))
     );
     assert_eq!(
-      pkg.resolve_package_exports("./hello/world", &[]).unwrap(),
+      pkg.resolve_package_exports("hello/world", &[]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/cheese/hello/world.mjs"))
     );
     assert_eq!(
-      pkg.resolve_package_exports("./hello.js", &[]).unwrap(),
+      pkg.resolve_package_exports("hello.js", &[]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/cheese/hello.js.mjs"))
     );
     assert_eq!(
-      pkg.resolve_package_exports("./pizza/test", &[]).unwrap(),
+      pkg.resolve_package_exports("pizza/test", &[]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/pizza/test.mjs"))
     );
     assert_eq!(
-      pkg.resolve_package_exports("./burritos/test", &[]).unwrap(),
+      pkg.resolve_package_exports("burritos/test", &[]).unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/burritos/test/test.mjs"))
     );
   }
