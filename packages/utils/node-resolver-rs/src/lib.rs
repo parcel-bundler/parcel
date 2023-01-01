@@ -7,6 +7,12 @@ use url::{Url, ParseError};
 use percent_encoding::percent_decode_str;
 // use bitflags::bitflags;
 use es_module_lexer::{lex, ImportKind};
+use utils::parse_package_specifier;
+
+use package_json::{PackageJson, Fields, ExportsResolution, PackageJsonError};
+
+mod package_json;
+mod utils;
 
 const EXTENSIONS: &'static [&'static str] = &["js", "json"];
 const BUILTINS: &'static [&'static str] = &[
@@ -65,7 +71,8 @@ pub enum ResolverError {
   UnknownError,
   FileNotFound,
   JsonError(serde_json::Error),
-  IOError(std::io::Error)
+  IOError(std::io::Error),
+  PackageJsonError(PackageJsonError)
 }
 
 impl From<ParseError> for ResolverError {
@@ -98,20 +105,17 @@ impl From<std::io::Error> for ResolverError {
   }
 }
 
+impl From<PackageJsonError> for ResolverError {
+  fn from(e: PackageJsonError) -> Self {
+    ResolverError::PackageJsonError(e)
+  }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Resolution {
   Excluded,
   Path(PathBuf),
   Builtin(String)
-}
-
-#[derive(serde::Deserialize)]
-struct PackageJson<'a> {
-  #[serde(borrow)]
-  main: Option<&'a str>,
-  module: Option<&'a str>,
-  source: Option<&'a str>,
-  browser: Option<&'a str>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -179,7 +183,31 @@ impl Resolver {
       }
     };
 
-    self.load_path(&path, specifier_type, Prioritize::File)
+    self.find_package(from, |package| {
+      self.load_path(&path, specifier_type, package, Prioritize::File)
+    })
+  }
+  
+  fn find_package<T, F: FnOnce(Option<&PackageJson>) -> Result<T, ResolverError>>(&self, path: &Path, cb: F) -> Result<T, ResolverError> {
+    for dir in path.ancestors() {
+      if dir == self.project_root {
+        break
+      }
+
+      if let Some(filename) = dir.file_name() {
+        if filename == "node_modules" {
+          break;
+        }
+      }
+
+      let pkg = dir.join("package.json");
+      if let Ok(data) = std::fs::read_to_string(&pkg) {
+        let package = PackageJson::parse(&pkg, &data)?;
+        return cb(Some(&package))
+      }
+    }
+
+    cb(None)
   }
 
   fn resolve_bare(&self, specifier: &str, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
@@ -197,13 +225,16 @@ impl Resolver {
                 Ok(Resolution::Builtin(url.path().to_owned()))
               }
               "file" => {
-                self.load_path(&url.to_file_path()?, specifier_type, Prioritize::File)
+                self.find_package(from, |package| {
+                  self.load_path(&url.to_file_path()?, specifier_type, package, Prioritize::File)
+                })
               }
               _ => {
                 if specifier_type == SpecifierType::Url {
-                  return Ok(Resolution::Excluded)
+                  Ok(Resolution::Excluded)
+                } else {
+                  Err(ResolverError::UnknownScheme)
                 }
-                Err(ResolverError::UnknownScheme)
               }
             }
           }
@@ -223,19 +254,13 @@ impl Resolver {
       return Ok(Resolution::Builtin(specifier.as_ref().to_owned()))
     }
 
-    let idx = specifier.chars().position(|p| p == '/');
-    let (module, sub_path) = if specifier.starts_with('@') {
-      let idx = idx.ok_or(ResolverError::UnknownError)?;
-      if let Some(next) = &specifier[idx + 1..].chars().position(|p| p == '/') {
-        (&specifier[0..idx + 1 + *next], Some(&specifier[idx + *next + 2..]))
-      } else {
-        (&specifier[..], None)
-      }
-    } else if let Some(idx) = idx {
-      (&specifier[0..idx], Some(&specifier[idx + 1..]))
-    } else {
-      (&specifier[..], None)
-    };
+    let (module, sub_path) = parse_package_specifier(&specifier)?;
+
+    // TODO: aliases/browser
+
+    // TODO: tsconfig.json
+    // TODO: do pnp here
+    // TODO: check if module == self
 
     for dir in from.ancestors() {
       // Skip over node_modules directories
@@ -245,54 +270,101 @@ impl Resolver {
         }
       }
   
-      let mut fullpath = dir.join("node_modules").join(module);
-      if fullpath.is_dir() {
-        if let Some(sub_path) = sub_path {
-          // TODO: if node esm, only allow exports field.
-          fullpath.push(sub_path);
-          return self.load_path(&fullpath, specifier_type, Prioritize::File)
+      let mut package_dir = dir.join("node_modules").join(module);
+      if package_dir.is_dir() {
+        let package_path = package_dir.join("package.json");
+        let contents = std::fs::read_to_string(&package_path)?;
+        let package = PackageJson::parse(&package_path, &contents)?;
+
+        // If the exports field is present, use the Node ESM algorithm.
+        // Otherwise, fall back to classic CJS resolution.
+        if package.has_exports() {
+          match package.resolve_package_exports(sub_path, &[])? {
+            ExportsResolution::Package(pkg) => {
+              return self.resolve_node_module(pkg, &package_path, specifier_type)
+            }
+            ExportsResolution::Path(path) => {
+              // Extensionless specifiers are not supported in the exports field.
+              if path.is_file() {
+                return Ok(Resolution::Path(fs::canonicalize(path)?))
+              }
+            }
+            _ => {}
+          }
+        } else if !sub_path.is_empty() {
+          package_dir.push(sub_path);
+          return self.load_path(&package_dir, specifier_type, Some(&package), Prioritize::File)
         } else {
-          // return self.load_path(&fullpath, specifier_type, Prioritize::Directory)
-          return self.load_directory(&fullpath, specifier_type)
+          return self.try_package_entries(&package, specifier_type).or_else(|e| {
+            // Node ESM doesn't allow directory imports.
+            if self.mode != ResolverMode::Node || specifier_type != SpecifierType::Esm {
+              self.try_extensions(&package_dir.join("index"), EXTENSIONS, Some(&package))
+            } else {
+              Err(e)
+            }
+          })
         }
+      }
+    }
+
+    // NODE_PATH??
+
+    Err(ResolverError::FileNotFound)
+  }
+
+  fn try_package_entries(&self, package: &PackageJson, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
+    let mut fields = Fields::MAIN;
+    if self.mode == ResolverMode::Parcel {
+      fields.insert(Fields::MODULE | Fields::BROWSER);
+    }
+
+    // Try all entry fields.
+    for entry in package.entries(fields) {
+      let prioritize = if entry.extension().is_some() {
+        Prioritize::File
+      } else {
+        Prioritize::Directory
+      };
+
+      if let Ok(res) = self.load_path(&entry, specifier_type, Some(package), prioritize) {
+        return Ok(res)
       }
     }
 
     Err(ResolverError::FileNotFound)
   }
 
-  fn load_path(&self, path: &Path, specifier_type: SpecifierType, prioritize: Prioritize) -> Result<Resolution, ResolverError> {
+  fn load_path(&self, path: &Path, specifier_type: SpecifierType, package: Option<&PackageJson>, prioritize: Prioritize) -> Result<Resolution, ResolverError> {
     // Urls and Node ESM do not resolve directory index files and do not add any extensions.
     match specifier_type {
       SpecifierType::Cjs => {},
-      SpecifierType::Esm if self.mode == ResolverMode::Parcel => {},
+      SpecifierType::Esm if self.mode != ResolverMode::Node => {},
       SpecifierType::Url | SpecifierType::Esm => {
-        return self.load_file(path, &[])
+        return self.try_extensions(path, &[], package)
       },
     }
 
     if prioritize == Prioritize::Directory {
-      self.load_directory(path, specifier_type).or_else(|_| self.load_file(path, EXTENSIONS))
+      self.load_directory(path, specifier_type, package).or_else(|_| self.try_extensions(path, EXTENSIONS, package))
     } else {
-      self.load_file(path, EXTENSIONS).or_else(|_| self.load_directory(path, specifier_type))
+      self.try_extensions(path, EXTENSIONS, package).or_else(|_| self.load_directory(path, specifier_type, package))
     }
   }
 
-  fn load_file(&self, path: &Path, extensions: &[&str]) -> Result<Resolution, ResolverError> {
-    if path.is_file() {
-      return Ok(Resolution::Path(fs::canonicalize(path)?))
+  fn try_extensions(&self, path: &Path, extensions: &[&str], package: Option<&PackageJson>) -> Result<Resolution, ResolverError> {
+    // First try the path as is.
+    if let Ok(res) = self.try_file(path, extensions, package) {
+      return Ok(res)
     }
 
+    // Try appending each extension.
     for ext in extensions {
-      // Append extension.
       let mut p: OsString = path.into();
       p.push(".");
       p.push(ext);
-      let p: PathBuf = p.into();
 
-      println!("{:?}", p);
-      if p.is_file() {
-        return Ok(Resolution::Path(fs::canonicalize(p)?))
+      if let Ok(res) = self.try_file(Path::new(&p), extensions, package) {
+        return Ok(res)
       }
 
       // TODO: add invalidation
@@ -301,49 +373,49 @@ impl Resolver {
     Err(ResolverError::FileNotFound)
   }
 
-  fn load_directory(&self, dir: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
-    if let Ok(res) = self.load_package(dir, specifier_type) {
-      return Ok(res)
+  fn try_file(&self, path: &Path, extensions: &[&str], package: Option<&PackageJson>) -> Result<Resolution, ResolverError> {
+    let path = Cow::Borrowed(path);
+    if let Some(package) = package {
+      let s = path.strip_prefix(package.path.parent().unwrap()).unwrap();
+      let specifier = format!("./{}", s.to_string_lossy());
+      match package.resolve_aliases(&specifier, Fields::BROWSER | Fields::ALIAS) {
+        ExportsResolution::Path(resolved) => {
+          // Try all extensions, but skip resolving aliases again by omitting package.json.
+          return self.try_extensions(&resolved, extensions, None)
+        }
+        ExportsResolution::Package(specifier) => {
+          return self.resolve_node_module(specifier, &package.path, SpecifierType::Cjs)
+        }
+        ExportsResolution::None => {}
+      }
     }
 
-    if dir.is_dir() {
-      return self.load_file(&dir.join("index"), EXTENSIONS)
+    println!("{:?}", path);
+    if path.is_file() {
+      Ok(Resolution::Path(fs::canonicalize(path)?))
+    } else {
+      Err(ResolverError::FileNotFound)
     }
-
-    Err(ResolverError::FileNotFound)
   }
 
-  fn load_package(&self, dir: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
+  fn load_directory(&self, dir: &Path, specifier_type: SpecifierType, parent_package: Option<&PackageJson>) -> Result<Resolution, ResolverError> {
+    // Check if there is a package.json in this directory, and if so, use its entries.
+    // Note that the "exports" field is NOT used here - only in resolve_node_module.
     let path = dir.join("package.json");
-    let file = std::fs::read_to_string(path)?;
-    let package: PackageJson = serde_json::from_str(&file)?;
-
-    if self.mode == ResolverMode::Parcel {
-      if let Ok(res) = self.load_package_entry(dir, package.module, specifier_type) {
+    let contents = std::fs::read_to_string(&path);
+    let package = if let Ok(file) = &contents {
+      let package = PackageJson::parse(&path, &file)?;
+      if let Ok(res) = self.try_package_entries(&package, specifier_type) {
         return Ok(res)
       }
+      Some(package)
+    } else {
+      None
+    };
 
-      if let Ok(res) = self.load_package_entry(dir, package.browser, specifier_type) {
-        return Ok(res)
-      }
-    }
-
-    if let Ok(res) = self.load_package_entry(dir, package.main, specifier_type) {
-      return Ok(res)
-    }
-
-    self.load_file(&dir.join("index"), EXTENSIONS)
-  }
-
-  fn load_package_entry(&self, dir: &Path, entry: Option<&str>, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
-    if let Some(entry) = entry {
-      let path = dir.join(entry);
-      let prioritize = if path.extension().is_some() {
-        Prioritize::File
-      } else {
-        Prioritize::Directory
-      };
-      return self.load_path(&path, specifier_type, prioritize)
+    // If no package.json, or no entries, try an index file with all possible extensions.
+    if dir.is_dir() {
+      return self.try_extensions(&dir.join("index"), EXTENSIONS, package.as_ref().or(parent_package))
     }
 
     Err(ResolverError::FileNotFound)
@@ -516,15 +588,27 @@ mod tests {
   }
 
   #[test]
-  fn test_visitor() {
-    let resolved = test_resolver().resolve("unified", &root(), SpecifierType::Esm).unwrap();
-    println!("{:?}", resolved);
-    if let Resolution::Path(p) = resolved {
-      let res = build_esm_graph(
-        &p,
-        root()
-      ).unwrap();
-      println!("{:?}", res);
-    }
+  fn browser_field() {
+    assert_eq!(
+      test_resolver().resolve("package-browser-alias", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("node_modules/package-browser-alias/browser.js"))
+    );
+    assert_eq!(
+      test_resolver().resolve("./foo", &root().join("node_modules/package-browser-alias/browser.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("node_modules/package-browser-alias/bar.js"))
+    );
   }
+
+  // #[test]
+  // fn test_visitor() {
+  //   let resolved = test_resolver().resolve("unified", &root(), SpecifierType::Esm).unwrap();
+  //   println!("{:?}", resolved);
+  //   if let Resolution::Path(p) = resolved {
+  //     let res = build_esm_graph(
+  //       &p,
+  //       root()
+  //     ).unwrap();
+  //     println!("{:?}", res);
+  //   }
+  // }
 }

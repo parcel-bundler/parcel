@@ -630,6 +630,7 @@ dependencies = [
  "autocfg",
  "hashbrown 0.11.2",
  "rayon",
+ "serde",
 ]
 
 [[package]]
@@ -1176,6 +1177,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "es-module-lexer",
+ "indexmap",
  "napi",
  "napi-build",
  "napi-derive",

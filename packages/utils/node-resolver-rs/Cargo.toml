@@ -17,6 +17,7 @@ serde = { version = "1.0.123", features = ["derive"] }
 serde_json = "*"
 es-module-lexer = { path = "/Users/devongovett/dev/es-module-lexer" }
 bitflags = "*"
+indexmap = { version = "*", features = ["serde"] }
 
 [build-dependencies]
 napi-build = "1"
