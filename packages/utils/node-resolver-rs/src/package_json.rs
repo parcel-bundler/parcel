@@ -6,7 +6,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::utils::parse_package_specifier;
+use crate::{utils::parse_package_specifier, specifier::Specifier};
 
 bitflags! {
   pub struct Fields: u8 {
@@ -30,7 +30,7 @@ pub struct PackageJson<'a> {
   #[serde(default)]
   browser: BrowserField<'a>,
   #[serde(default)]
-  alias: IndexMap<&'a str, AliasValue<'a>>,
+  alias: IndexMap<Specifier<'a>, AliasValue<'a>>,
   #[serde(default)]
   exports: ExportsField<'a>,
   #[serde(default)]
@@ -63,7 +63,7 @@ pub enum BrowserField<'a> {
   None,
   #[serde(borrow)]
   String(&'a str),
-  Map(IndexMap<&'a str, AliasValue<'a>>),
+  Map(IndexMap<Specifier<'a>, AliasValue<'a>>),
 }
 
 impl<'a> Default for BrowserField<'a> {
@@ -78,7 +78,7 @@ pub enum SourceField<'a> {
   None,
   #[serde(borrow)]
   String(&'a str),
-  Map(IndexMap<&'a str, AliasValue<'a>>),
+  Map(IndexMap<Specifier<'a>, AliasValue<'a>>),
   Array(Vec<&'a str>),
 }
 
@@ -108,7 +108,7 @@ impl<'a> Default for ExportsField<'a> {
 #[serde(untagged)]
 pub enum AliasValue<'a> {
   #[serde(borrow)]
-  String(Cow<'a, str>),
+  Specifier(Specifier<'a>),
   Bool(bool),
   Global {
     global: &'a str,
@@ -303,11 +303,11 @@ impl<'a> PackageJson<'a> {
     Ok(ExportsResolution::None)
   }
 
-  pub fn resolve_aliases(&self, specifier: &str, fields: Fields) -> ExportsResolution {
+  pub fn resolve_aliases(&self, specifier: &Specifier<'a>, fields: Fields) -> Option<Cow<'_, AliasValue>> {
     if fields.contains(Fields::SOURCE) {
       match &self.source {
         SourceField::Map(source) => match self.resolve_alias(source, specifier) {
-          ExportsResolution::None => {}
+          None => {}
           res => return res,
         },
         _ => {}
@@ -316,7 +316,7 @@ impl<'a> PackageJson<'a> {
 
     if fields.contains(Fields::ALIAS) {
       match self.resolve_alias(&self.alias, specifier) {
-        ExportsResolution::None => {}
+        None => {}
         res => return res,
       }
     }
@@ -324,68 +324,85 @@ impl<'a> PackageJson<'a> {
     if fields.contains(Fields::BROWSER) {
       match &self.browser {
         BrowserField::Map(browser) => match self.resolve_alias(browser, specifier) {
-          ExportsResolution::None => {}
+          None => {}
           res => return res,
         },
         _ => {}
       }
     }
 
-    ExportsResolution::None
+    None
   }
 
   fn resolve_alias(
     &self,
-    map: &'a IndexMap<&'a str, AliasValue<'a>>,
-    specifier: &str,
-  ) -> ExportsResolution {
+    map: &'a IndexMap<Specifier<'a>, AliasValue<'a>>,
+    specifier: &Specifier<'a>,
+  ) -> Option<Cow<'_, AliasValue>> {
     if let Some(alias) = self.lookup_alias(map, specifier) {
-      return match alias {
-        AliasValue::String(val) => {
-          if val.starts_with("./") {
-            ExportsResolution::Path(self.path.with_file_name(val.as_ref()))
-          } else {
-            ExportsResolution::Package(val.clone())
-          }
-        }
-        _ => todo!(),
-      }
+      return Some(alias)
     }
 
-    if !specifier.starts_with("./") {
-      if let Ok((module_name, subpath)) = parse_package_specifier(specifier) {
-        return match self.lookup_alias(map, module_name) {
-          None => ExportsResolution::None,
-          Some(AliasValue::String(base)) => {
-            // Join the subpath back onto the resolved alias.
-            // If the alias starts with "./", it could be a directory.
-            if base.starts_with("./") {
-              let mut path = self.path.with_file_name(base.as_ref());
-              path.push(subpath);
-              return ExportsResolution::Path(path);
+    match specifier {
+      Specifier::Package(package, subpath) => {
+        if let Some(alias) = self.lookup_alias(map, &Specifier::Package(package.clone(), Cow::Borrowed(Path::new("")))) {
+          match alias.as_ref() {
+            AliasValue::Specifier(base) => {
+              // Join the subpath back onto the resolved alias.
+              match base {
+                Specifier::Package(base_pkg, base_subpath) => {
+                  let subpath = if !base_subpath.as_os_str().is_empty() && !subpath.as_os_str().is_empty() {
+                    Cow::Owned(base_subpath.join(subpath))
+                  } else if !subpath.as_os_str().is_empty() {
+                    subpath.clone()
+                  } else {
+                    return Some(alias)
+                  };
+                  return Some(Cow::Owned(AliasValue::Specifier(Specifier::Package(base_pkg.clone(), subpath))))
+                }
+                Specifier::Relative(path) => {
+                  if subpath.as_os_str().is_empty() {
+                    return Some(alias)
+                  } else {
+                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Relative(Cow::Owned(path.join(subpath))))))
+                  }
+                }
+                Specifier::Absolute(path) => {
+                  if subpath.as_os_str().is_empty() {
+                    return Some(alias)
+                  } else {
+                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Absolute(Cow::Owned(path.join(subpath))))))
+                  }
+                }
+                Specifier::Tilde(path) => {
+                  if subpath.as_os_str().is_empty() {
+                    return Some(alias)
+                  } else {
+                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Tilde(Cow::Owned(path.join(subpath))))))
+                  }
+                }
+                _ => {
+                  todo!()
+                }
+              }
             }
-
-            return ExportsResolution::Package(Cow::Owned(format!(
-              "{}/{}",
-              base.trim_end_matches('/'),
-              subpath
-            )));
-          }
-          Some(alias) => todo!(),
-        };
+            _ => return Some(alias)
+          };
+        }
       }
+      _ => {}
     }
 
-    ExportsResolution::None
+    None
   }
 
   fn lookup_alias(
     &self,
-    map: &'a IndexMap<&'a str, AliasValue<'a>>,
-    specifier: &str,
-  ) -> Option<&AliasValue> {
+    map: &'a IndexMap<Specifier<'a>, AliasValue<'a>>,
+    specifier: &Specifier<'a>,
+  ) -> Option<Cow<'_, AliasValue>> {
     if let Some(value) = map.get(specifier) {
-      return Some(value);
+      return Some(Cow::Borrowed(value));
     }
 
     // TODO: glob
@@ -429,8 +446,13 @@ impl<'a> Iterator for EntryIter<'a> {
       match &self.package.browser {
         BrowserField::None => {}
         BrowserField::String(browser) => return Some(self.package.path.with_file_name(browser)),
-        BrowserField::Map(map) => match map.get(self.package.name) {
-          Some(AliasValue::String(s)) => return Some(self.package.path.with_file_name(s.as_ref())),
+        BrowserField::Map(map) => match map.get(&Specifier::Package(Cow::Borrowed(self.package.name), Cow::Borrowed(Path::new("")))) {
+          Some(AliasValue::Specifier(s)) => {
+            match s {
+              Specifier::Relative(s) => return Some(self.package.path.with_file_name(s.as_ref())),
+              _ => {}
+            }
+          },
           _ => {}
         },
       }
@@ -684,42 +706,42 @@ mod tests {
       path: Path::new("/foo/package.json"),
       name: "foobar",
       alias: indexmap! {
-        "./foo.js" => AliasValue::String("./foo-alias.js".into()),
-        "bar" => AliasValue::String("./bar-alias.js".into()),
-        "lodash" => AliasValue::String("my-lodash".into()),
-        "lodash/clone" => AliasValue::String("./clone.js".into()),
-        "test" => AliasValue::String("./test".into()),
+        "./foo.js".into() => AliasValue::Specifier("./foo-alias.js".into()),
+        "bar".into()  => AliasValue::Specifier("./bar-alias.js".into()),
+        "lodash".into()  => AliasValue::Specifier("my-lodash".into()),
+        "lodash/clone".into()  => AliasValue::Specifier("./clone.js".into()),
+        "test".into() => AliasValue::Specifier("./test".into()),
       },
       ..PackageJson::default()
     };
 
     assert_eq!(
-      pkg.resolve_aliases("./foo.js", Fields::ALIAS),
-      ExportsResolution::Path(PathBuf::from("/foo/foo-alias.js"))
+      pkg.resolve_aliases(&"./foo.js".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./foo-alias.js".into())))
     );
     assert_eq!(
-      pkg.resolve_aliases("bar", Fields::ALIAS),
-      ExportsResolution::Path(PathBuf::from("/foo/bar-alias.js"))
+      pkg.resolve_aliases(&"bar".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./bar-alias.js".into())))
     );
     assert_eq!(
-      pkg.resolve_aliases("lodash", Fields::ALIAS),
-      ExportsResolution::Package("my-lodash".into())
+      pkg.resolve_aliases(&"lodash".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("my-lodash".into())))
     );
     assert_eq!(
-      pkg.resolve_aliases("lodash/foo", Fields::ALIAS),
-      ExportsResolution::Package("my-lodash/foo".into())
+      pkg.resolve_aliases(&"lodash/foo".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("my-lodash/foo".into())))
     );
     assert_eq!(
-      pkg.resolve_aliases("lodash/clone", Fields::ALIAS),
-      ExportsResolution::Path(PathBuf::from("/foo/clone.js"))
+      pkg.resolve_aliases(&"lodash/clone".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./clone.js".into())))
     );
     assert_eq!(
-      pkg.resolve_aliases("test", Fields::ALIAS),
-      ExportsResolution::Path(PathBuf::from("/foo/test"))
+      pkg.resolve_aliases(&"test".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./test".into())))
     );
     assert_eq!(
-      pkg.resolve_aliases("test/foo", Fields::ALIAS),
-      ExportsResolution::Path(PathBuf::from("/foo/test/foo"))
+      pkg.resolve_aliases(&"test/foo".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./test/foo".into())))
     );
   }
 }

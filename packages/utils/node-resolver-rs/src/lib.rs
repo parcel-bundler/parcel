@@ -9,8 +9,10 @@ use percent_encoding::percent_decode_str;
 // use es_module_lexer::{lex, ImportKind};
 use utils::parse_package_specifier;
 
-use package_json::{PackageJson, Fields, ExportsResolution, PackageJsonError};
+use package_json::{PackageJson, Fields, ExportsResolution, PackageJsonError, AliasValue};
+use specifier::Specifier;
 
+mod specifier;
 mod package_json;
 mod utils;
 
@@ -35,7 +37,7 @@ const BUILTINS: &'static [&'static str] = &[
 //   }
 // }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum ResolverMode {
   Parcel,
   Node,
@@ -129,65 +131,20 @@ impl Resolver {
     if specifier.is_empty() {
       return Err(ResolverError::EmptySpecifier)
     }
+    
+    let specifier = Specifier::parse(specifier, specifier_type, self.mode)?;
 
-    match specifier.as_bytes()[0] {
-      b'.' => {
-        // Relative path
-        self.resolve_relative(specifier, from, specifier_type)
+    // First, check the project root package.json for any aliases.
+    self.find_package(&self.project_root, |package| {
+      if let Some(package) = package {
+        self.resolve_aliases(&package, &specifier, Fields::ALIAS)
+          .or_else(|_| self.resolve_specifier(&specifier, from, specifier_type))
+      } else {
+        self.resolve_specifier(&specifier, from, specifier_type)
       }
-      b'~' if self.mode == ResolverMode::Parcel => {
-        // Tilde path. Resolve relative to nearest node_modules directory,
-        // the nearest directory with package.json or the project root - whichever comes first.
-        let mut specifier = &specifier[1..];
-        if specifier.starts_with('/') {
-          specifier = &specifier[1..];
-        }
-        for ancestor in from.ancestors() {
-          if let Some(parent) = ancestor.parent() {
-            if parent == self.project_root {
-              return self.resolve_relative(specifier, &ancestor, specifier_type);
-            }
-          }
-          
-          let p = ancestor.join("package.json");
-          if p.is_file() {
-            return self.resolve_relative(specifier, &p, specifier_type);
-          }
-        }
-        
-        Err(ResolverError::FileNotFound)
-      }
-      b'/' if self.mode == ResolverMode::Parcel => {
-        self.resolve_relative(&specifier[1..], &self.project_root.join("index"), specifier_type)
-      }
-      b'#' if self.mode == ResolverMode::Parcel && specifier_type == SpecifierType::Url => {
-        // An ID-only URL, e.g. `url(#clip-path)` for CSS rules. Ignore.
-        // TODO: handle '#' for Node package imports.
-        Ok(Resolution::Excluded)
-      }
-      _ => {
-        // Bare specifier.
-        self.resolve_bare(specifier, from, specifier_type)
-      }
-    }
-  }
-
-  fn resolve_relative(&self, specifier: &str, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
-    let path = match specifier_type {
-      SpecifierType::Url | SpecifierType::Esm => {
-        let url = Url::from_file_path(from)?;
-        url.join(specifier)?.to_file_path()?
-      }
-      SpecifierType::Cjs => {
-        from.with_file_name(specifier)
-      }
-    };
-
-    self.find_package(from, |package| {
-      self.load_path(&path, specifier_type, package, Prioritize::File)
     })
   }
-  
+
   fn find_package<T, F: FnOnce(Option<&PackageJson>) -> Result<T, ResolverError>>(&self, path: &Path, cb: F) -> Result<T, ResolverError> {
     for dir in path.ancestors() {
       if let Some(filename) = dir.file_name() {
@@ -210,83 +167,87 @@ impl Resolver {
     cb(None)
   }
 
-  fn resolve_bare(&self, specifier: &str, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
-    match specifier_type {
-      SpecifierType::Url | SpecifierType::Esm => {
-        match Url::parse(specifier) {
-          Ok(url) => {
-            match url.scheme() {
-              "npm" if self.mode == ResolverMode::Parcel => {
-                self.resolve_node_module_with_aliases(percent_decode_str(url.path()).decode_utf8()?, from, specifier_type)
-              }
-              "node" => {
-                // Node does not URL decode or support query params here.
-                // See https://github.com/nodejs/node/issues/39710.
-                Ok(Resolution::Builtin(url.path().to_owned()))
-              }
-              "file" => {
-                self.find_package(from, |package| {
-                  self.load_path(&url.to_file_path()?, specifier_type, package, Prioritize::File)
-                })
-              }
-              _ => {
-                if specifier_type == SpecifierType::Url {
-                  Ok(Resolution::Excluded)
-                } else {
-                  Err(ResolverError::UnknownScheme)
-                }
-              }
+  fn resolve_aliases(&self, package: &PackageJson, specifier: &Specifier, fields: Fields) -> Result<Resolution, ResolverError> {
+    match package.resolve_aliases(&specifier, fields) {
+      Some(alias) => {
+        match alias.as_ref() {
+          AliasValue::Specifier(specifier) => {
+            self.resolve_specifier(&specifier, &package.path, SpecifierType::Cjs)
+          },
+          _ => todo!()
+        }
+      },
+      None => Err(ResolverError::FileNotFound)
+    }
+  }
+
+  fn resolve_specifier(&self, specifier: &Specifier, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
+    match specifier {
+      Specifier::Relative(specifier) => {
+        // Relative path
+        self.resolve_relative(&specifier, from, specifier_type)
+      }
+      Specifier::Tilde(specifier) if self.mode == ResolverMode::Parcel => {
+        // Tilde path. Resolve relative to nearest node_modules directory,
+        // the nearest directory with package.json or the project root - whichever comes first.
+        for ancestor in from.ancestors() {
+          if let Some(parent) = ancestor.parent() {
+            if parent == self.project_root {
+              return self.resolve_relative(&specifier, &ancestor, specifier_type);
             }
           }
-          Err(_) => {
-            self.resolve_node_module_with_aliases(percent_decode_str(specifier).decode_utf8()?, from, specifier_type)
+          
+          let p = ancestor.join("package.json");
+          if p.is_file() {
+            return self.resolve_relative(&specifier, &p, specifier_type);
           }
         }
-      }
-      SpecifierType::Cjs => {
-        self.resolve_node_module_with_aliases(Cow::Borrowed(specifier), from, specifier_type)
-      }
-    }
-  }
-
-  fn resolve_node_module_with_aliases(&self, specifier: Cow<'_, str>, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
-    let res = self.find_package(&self.project_root, |package| {
-      if let Some(package) = package {
-        self.resolve_aliases(&package, &specifier, Fields::ALIAS)
-      } else {
+        
         Err(ResolverError::FileNotFound)
       }
-    });
-
-    if let Ok(res) = res {
-      return Ok(res)
+      Specifier::Absolute(specifier) => {
+        if self.mode == ResolverMode::Parcel {
+          self.resolve_relative(specifier.strip_prefix("/").unwrap(), &self.project_root.join("index"), specifier_type)
+        } else {
+          self.load_path(&specifier, specifier_type, None, Prioritize::File)
+        }
+      }
+      Specifier::Hash(_) if self.mode == ResolverMode::Parcel && specifier_type == SpecifierType::Url => {
+        // An ID-only URL, e.g. `url(#clip-path)` for CSS rules. Ignore.
+        // TODO: handle '#' for Node package imports.
+        Ok(Resolution::Excluded)
+      }
+      Specifier::Package(module, subpath) => {
+        // Bare specifier.
+        self.resolve_node_module(&module, &subpath, from, specifier_type)
+      }
+      Specifier::Builtin(builtin) => {
+        Ok(Resolution::Builtin(builtin.as_ref().to_owned()))
+      }
+      Specifier::Url(_) => {
+        if specifier_type == SpecifierType::Url {
+          Ok(Resolution::Excluded)
+        } else {
+          Err(ResolverError::UnknownScheme)
+        }
+      }
+      _ => Err(ResolverError::UnknownError)
     }
-
-    self.resolve_node_module(specifier, from, specifier_type)
   }
 
-  fn resolve_aliases(&self, package: &PackageJson, specifier: &str, fields: Fields) -> Result<Resolution, ResolverError> {
-    match package.resolve_aliases(&specifier, fields) {
-      ExportsResolution::Path(resolved) => {
-        // Try all extensions, but skip resolving aliases again by omitting package.json.
-        self.load_path(&resolved, SpecifierType::Cjs, None, Prioritize::File)
-      }
-      ExportsResolution::Package(specifier) => {
-        self.resolve_node_module(specifier, &package.path, SpecifierType::Cjs)
-      }
-      ExportsResolution::None => Err(ResolverError::FileNotFound)
-    }
+  fn resolve_relative(&self, specifier: &Path, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
+    // Find a package.json above the source file where the dependency was located.
+    // This is used to resolve any aliases.
+    self.find_package(from, |package| {
+      self.load_path(&from.with_file_name(specifier), specifier_type, package, Prioritize::File)
+    })
   }
-
-  fn resolve_node_module(&self, specifier: Cow<'_, str>, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
-    if BUILTINS.contains(&specifier.as_ref()) {
-      return Ok(Resolution::Builtin(specifier.as_ref().to_owned()))
+  
+  fn resolve_node_module(&self, module: &str, subpath: &Path, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
+    if BUILTINS.contains(&module) {
+      return Ok(Resolution::Builtin(module.to_owned()))
     }
     
-    let (module, sub_path) = parse_package_specifier(&specifier)?;
-
-    // TODO: aliases/browser
-
     // TODO: tsconfig.json
     // TODO: do pnp here
     // TODO: check if module == self
@@ -308,9 +269,10 @@ impl Resolver {
         // If the exports field is present, use the Node ESM algorithm.
         // Otherwise, fall back to classic CJS resolution.
         if package.has_exports() {
-          match package.resolve_package_exports(sub_path, &[])? {
+          match package.resolve_package_exports(&subpath.as_os_str().to_string_lossy(), &[])? {
             ExportsResolution::Package(pkg) => {
-              return self.resolve_node_module(pkg, &package_path, specifier_type)
+              let (module, subpath) = parse_package_specifier(&pkg)?;
+              return self.resolve_node_module(&module, Path::new(subpath), &package_path, specifier_type)
             }
             ExportsResolution::Path(path) => {
               // Extensionless specifiers are not supported in the exports field.
@@ -320,8 +282,8 @@ impl Resolver {
             }
             _ => {}
           }
-        } else if !sub_path.is_empty() {
-          package_dir.push(sub_path);
+        } else if !subpath.as_os_str().is_empty() {
+          package_dir.push(subpath);
           return self.load_path(&package_dir, specifier_type, Some(&package), Prioritize::File)
         } else {
           return self.try_package_entries(&package, specifier_type).or_else(|e| {
@@ -406,13 +368,13 @@ impl Resolver {
     let path = Cow::Borrowed(path);
     if let Some(package) = package {
       let s = path.strip_prefix(package.path.parent().unwrap()).unwrap();
-      let specifier = format!("./{}", s.to_string_lossy());
+      let specifier = Specifier::Relative(Cow::Borrowed(s));
       if let Ok(res) = self.resolve_aliases(package, &specifier, Fields::BROWSER | Fields::ALIAS) {
         return Ok(res)
       }
     }
 
-    println!("{:?}", path);
+    // println!("{:?}", path);
     if path.is_file() {
       Ok(Resolution::Path(fs::canonicalize(path)?))
     } else {
@@ -679,14 +641,14 @@ mod tests {
       test_resolver().resolve("aliasedfolder", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
       Resolution::Path(root().join("nested/index.js"))
     );
-    // assert_eq!(
-    //   test_resolver().resolve("aliasedabsolute/test.js", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
-    //   Resolution::Path(root().join("nested/test.js"))
-    // );
-    // assert_eq!(
-    //   test_resolver().resolve("aliasedabsolute", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
-    //   Resolution::Path(root().join("nested/index.js"))
-    // );
+    assert_eq!(
+      test_resolver().resolve("aliasedabsolute/test.js", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("nested/test.js"))
+    );
+    assert_eq!(
+      test_resolver().resolve("aliasedabsolute", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("nested/index.js"))
+    );
     assert_eq!(
       test_resolver().resolve("foo/bar", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
       Resolution::Path(root().join("bar.js"))
