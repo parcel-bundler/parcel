@@ -6,7 +6,7 @@ use std::{path::{PathBuf, Path}, collections::{HashSet}, borrow::Cow, ffi::OsStr
 use url::{Url, ParseError};
 use percent_encoding::percent_decode_str;
 // use bitflags::bitflags;
-use es_module_lexer::{lex, ImportKind};
+// use es_module_lexer::{lex, ImportKind};
 use utils::parse_package_specifier;
 
 use package_json::{PackageJson, Fields, ExportsResolution, PackageJsonError};
@@ -190,10 +190,6 @@ impl Resolver {
   
   fn find_package<T, F: FnOnce(Option<&PackageJson>) -> Result<T, ResolverError>>(&self, path: &Path, cb: F) -> Result<T, ResolverError> {
     for dir in path.ancestors() {
-      if dir == self.project_root {
-        break
-      }
-
       if let Some(filename) = dir.file_name() {
         if filename == "node_modules" {
           break;
@@ -204,6 +200,10 @@ impl Resolver {
       if let Ok(data) = std::fs::read_to_string(&pkg) {
         let package = PackageJson::parse(&pkg, &data)?;
         return cb(Some(&package))
+      }
+
+      if dir == self.project_root {
+        break
       }
     }
 
@@ -217,7 +217,7 @@ impl Resolver {
           Ok(url) => {
             match url.scheme() {
               "npm" if self.mode == ResolverMode::Parcel => {
-                self.resolve_node_module(percent_decode_str(url.path()).decode_utf8()?, from, specifier_type)
+                self.resolve_node_module_with_aliases(percent_decode_str(url.path()).decode_utf8()?, from, specifier_type)
               }
               "node" => {
                 // Node does not URL decode or support query params here.
@@ -239,13 +239,42 @@ impl Resolver {
             }
           }
           Err(_) => {
-            self.resolve_node_module(percent_decode_str(specifier).decode_utf8()?, from, specifier_type)
+            self.resolve_node_module_with_aliases(percent_decode_str(specifier).decode_utf8()?, from, specifier_type)
           }
         }
       }
       SpecifierType::Cjs => {
-        self.resolve_node_module(Cow::Borrowed(specifier), from, specifier_type)
+        self.resolve_node_module_with_aliases(Cow::Borrowed(specifier), from, specifier_type)
       }
+    }
+  }
+
+  fn resolve_node_module_with_aliases(&self, specifier: Cow<'_, str>, from: &Path, specifier_type: SpecifierType) -> Result<Resolution, ResolverError> {
+    let res = self.find_package(&self.project_root, |package| {
+      if let Some(package) = package {
+        self.resolve_aliases(&package, &specifier, Fields::ALIAS)
+      } else {
+        Err(ResolverError::FileNotFound)
+      }
+    });
+
+    if let Ok(res) = res {
+      return Ok(res)
+    }
+
+    self.resolve_node_module(specifier, from, specifier_type)
+  }
+
+  fn resolve_aliases(&self, package: &PackageJson, specifier: &str, fields: Fields) -> Result<Resolution, ResolverError> {
+    match package.resolve_aliases(&specifier, fields) {
+      ExportsResolution::Path(resolved) => {
+        // Try all extensions, but skip resolving aliases again by omitting package.json.
+        self.load_path(&resolved, SpecifierType::Cjs, None, Prioritize::File)
+      }
+      ExportsResolution::Package(specifier) => {
+        self.resolve_node_module(specifier, &package.path, SpecifierType::Cjs)
+      }
+      ExportsResolution::None => Err(ResolverError::FileNotFound)
     }
   }
 
@@ -253,7 +282,7 @@ impl Resolver {
     if BUILTINS.contains(&specifier.as_ref()) {
       return Ok(Resolution::Builtin(specifier.as_ref().to_owned()))
     }
-
+    
     let (module, sub_path) = parse_package_specifier(&specifier)?;
 
     // TODO: aliases/browser
@@ -353,7 +382,7 @@ impl Resolver {
 
   fn try_extensions(&self, path: &Path, extensions: &[&str], package: Option<&PackageJson>) -> Result<Resolution, ResolverError> {
     // First try the path as is.
-    if let Ok(res) = self.try_file(path, extensions, package) {
+    if let Ok(res) = self.try_file(path, package) {
       return Ok(res)
     }
 
@@ -363,7 +392,7 @@ impl Resolver {
       p.push(".");
       p.push(ext);
 
-      if let Ok(res) = self.try_file(Path::new(&p), extensions, package) {
+      if let Ok(res) = self.try_file(Path::new(&p), package) {
         return Ok(res)
       }
 
@@ -373,20 +402,13 @@ impl Resolver {
     Err(ResolverError::FileNotFound)
   }
 
-  fn try_file(&self, path: &Path, extensions: &[&str], package: Option<&PackageJson>) -> Result<Resolution, ResolverError> {
+  fn try_file(&self, path: &Path, package: Option<&PackageJson>) -> Result<Resolution, ResolverError> {
     let path = Cow::Borrowed(path);
     if let Some(package) = package {
       let s = path.strip_prefix(package.path.parent().unwrap()).unwrap();
       let specifier = format!("./{}", s.to_string_lossy());
-      match package.resolve_aliases(&specifier, Fields::BROWSER | Fields::ALIAS) {
-        ExportsResolution::Path(resolved) => {
-          // Try all extensions, but skip resolving aliases again by omitting package.json.
-          return self.try_extensions(&resolved, extensions, None)
-        }
-        ExportsResolution::Package(specifier) => {
-          return self.resolve_node_module(specifier, &package.path, SpecifierType::Cjs)
-        }
-        ExportsResolution::None => {}
+      if let Ok(res) = self.resolve_aliases(package, &specifier, Fields::BROWSER | Fields::ALIAS) {
+        return Ok(res)
       }
     }
 
@@ -422,79 +444,79 @@ impl Resolver {
   }
 }
 
-#[derive(Debug)]
-enum EsmGraphBuilderError {
-  IOError(std::io::Error),
-  ParseError,
-  ResolverError(ResolverError),
-  Dynamic
-}
+// #[derive(Debug)]
+// enum EsmGraphBuilderError {
+//   IOError(std::io::Error),
+//   ParseError,
+//   ResolverError(ResolverError),
+//   Dynamic
+// }
 
-impl From<std::io::Error> for EsmGraphBuilderError {
-  fn from(e: std::io::Error) -> Self {
-    EsmGraphBuilderError::IOError(e)
-  }
-}
+// impl From<std::io::Error> for EsmGraphBuilderError {
+//   fn from(e: std::io::Error) -> Self {
+//     EsmGraphBuilderError::IOError(e)
+//   }
+// }
 
-impl From<usize> for EsmGraphBuilderError {
-  fn from(e: usize) -> Self {
-    EsmGraphBuilderError::ParseError
-  }
-}
+// impl From<usize> for EsmGraphBuilderError {
+//   fn from(e: usize) -> Self {
+//     EsmGraphBuilderError::ParseError
+//   }
+// }
 
-impl From<ResolverError> for EsmGraphBuilderError {
-  fn from(e: ResolverError) -> Self {
-    EsmGraphBuilderError::ResolverError(e)
-  }
-}
+// impl From<ResolverError> for EsmGraphBuilderError {
+//   fn from(e: ResolverError) -> Self {
+//     EsmGraphBuilderError::ResolverError(e)
+//   }
+// }
 
-struct EsmGraphBuilder {
-  visited: HashSet<PathBuf>,
-  resolver: Resolver
-}
+// struct EsmGraphBuilder {
+//   visited: HashSet<PathBuf>,
+//   resolver: Resolver
+// }
 
-impl EsmGraphBuilder {
-  pub fn build(&mut self, file: &Path) -> Result<(), EsmGraphBuilderError> {
-    if self.visited.contains(file) {
-      return Ok(());
-    }
+// impl EsmGraphBuilder {
+//   pub fn build(&mut self, file: &Path) -> Result<(), EsmGraphBuilderError> {
+//     if self.visited.contains(file) {
+//       return Ok(());
+//     }
 
-    self.visited.insert(file.to_owned());
+//     self.visited.insert(file.to_owned());
     
-    let contents = std::fs::read_to_string(&file)?;
-    let module = lex(&contents)?;
-    for import in module.imports() {
-      println!("IMPORT {} {:?} {:?}", import.specifier(), import.kind(), file);
-      match import.kind() {
-        ImportKind::DynamicExpression => return Err(EsmGraphBuilderError::Dynamic),
-        ImportKind::DynamicString | ImportKind::Standard => {
-          match self.resolver.resolve(import.specifier(), &file, SpecifierType::Esm)? {
-            Resolution::Path(p) => {
-              self.build(&p)?;
-            }
-            _ => {}
-          }
-        }
-        ImportKind::Meta => {}
-      }
-    }
+//     let contents = std::fs::read_to_string(&file)?;
+//     let module = lex(&contents)?;
+//     for import in module.imports() {
+//       println!("IMPORT {} {:?} {:?}", import.specifier(), import.kind(), file);
+//       match import.kind() {
+//         ImportKind::DynamicExpression => return Err(EsmGraphBuilderError::Dynamic),
+//         ImportKind::DynamicString | ImportKind::Standard => {
+//           match self.resolver.resolve(import.specifier(), &file, SpecifierType::Esm)? {
+//             Resolution::Path(p) => {
+//               self.build(&p)?;
+//             }
+//             _ => {}
+//           }
+//         }
+//         ImportKind::Meta => {}
+//       }
+//     }
 
-    Ok(())
-  }
-}
+//     Ok(())
+//   }
+// }
 
-fn build_esm_graph(file: &Path, project_root: PathBuf) -> Result<HashSet<PathBuf>, EsmGraphBuilderError> {
-  let mut visitor = EsmGraphBuilder {
-    visited: HashSet::new(),
-    resolver: Resolver {
-      project_root,
-      mode: ResolverMode::Node
-    }
-  };
+// fn build_esm_graph(file: &Path, project_root: PathBuf) -> Result<HashSet<PathBuf>, EsmGraphBuilderError> {
+//   let mut visitor = EsmGraphBuilder {
+//     visited: HashSet::new(),
+//     resolver: Resolver {
+//       project_root,
+//       mode: ResolverMode::Node
+//     }
+//   };
 
-  visitor.build(file)?;
-  Ok(visitor.visited)
-}
+//   visitor.build(file)?;
+//   Ok(visitor.visited)
+// }
 
 #[cfg(test)]
 mod tests {
@@ -594,9 +616,97 @@ mod tests {
       Resolution::Path(root().join("node_modules/package-browser-alias/browser.js"))
     );
     assert_eq!(
+      test_resolver().resolve("package-browser-alias/foo", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("node_modules/package-browser-alias/bar.js"))
+    );
+    assert_eq!(
       test_resolver().resolve("./foo", &root().join("node_modules/package-browser-alias/browser.js"), SpecifierType::Esm).unwrap(),
       Resolution::Path(root().join("node_modules/package-browser-alias/bar.js"))
     );
+    assert_eq!(
+      test_resolver().resolve("./nested", &root().join("node_modules/package-browser-alias/browser.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("node_modules/package-browser-alias/subfolder1/subfolder2/subfile.js"))
+    );
+  }
+
+  #[test]
+  fn local_aliases() {
+    assert_eq!(
+      test_resolver().resolve("package-alias/foo", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("node_modules/package-alias/bar.js"))
+    );
+    assert_eq!(
+      test_resolver().resolve("./foo", &root().join("node_modules/package-alias/browser.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("node_modules/package-alias/bar.js"))
+    );
+    // assert_eq!(
+    //   test_resolver().resolve("./lib/test", &root().join("node_modules/package-alias-glob/browser.js"), SpecifierType::Esm).unwrap(),
+    //   Resolution::Path(root().join("node_modules/package-alias-glob/src/test.js"))
+    // );
+    // assert_eq!(
+    //   test_resolver().resolve("package-browser-exclude", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+    //   Resolution::Path(root().join("nested/test.js"))
+    // );
+  }
+
+  #[test]
+  fn global_aliases() {
+    assert_eq!(
+      test_resolver().resolve("aliased", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("node_modules/foo/index.js"))
+    );
+    assert_eq!(
+      test_resolver().resolve("aliased", &root().join("node_modules/package-alias/foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("node_modules/foo/index.js"))
+    );
+    assert_eq!(
+      test_resolver().resolve("aliased/bar", &root().join("node_modules/package-alias/foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("node_modules/foo/bar.js"))
+    );
+    assert_eq!(
+      test_resolver().resolve("aliased-file", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("bar.js"))
+    );
+    assert_eq!(
+      test_resolver().resolve("aliased-file", &root().join("node_modules/package-alias/foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("bar.js"))
+    );
+    assert_eq!(
+      test_resolver().resolve("aliasedfolder/test.js", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("nested/test.js"))
+    );
+    assert_eq!(
+      test_resolver().resolve("aliasedfolder", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("nested/index.js"))
+    );
+    // assert_eq!(
+    //   test_resolver().resolve("aliasedabsolute/test.js", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+    //   Resolution::Path(root().join("nested/test.js"))
+    // );
+    // assert_eq!(
+    //   test_resolver().resolve("aliasedabsolute", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+    //   Resolution::Path(root().join("nested/index.js"))
+    // );
+    assert_eq!(
+      test_resolver().resolve("foo/bar", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("bar.js"))
+    );
+    // assert_eq!(
+    //   test_resolver().resolve("glob/bar/test", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+    //   Resolution::Path(root().join("nested/test.js"))
+    // );
+    assert_eq!(
+      test_resolver().resolve("something", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("nested/test.js"))
+    );
+    assert_eq!(
+      test_resolver().resolve("something", &root().join("node_modules/package-alias/foo.js"), SpecifierType::Esm).unwrap(),
+      Resolution::Path(root().join("nested/test.js"))
+    );
+    // assert_eq!(
+    //   test_resolver().resolve("package-alias-exclude", &root().join("foo.js"), SpecifierType::Esm).unwrap(),
+    //   Resolution::Path(root().join("nested/test.js"))
+    // );
   }
 
   // #[test]
