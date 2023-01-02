@@ -6242,6 +6242,23 @@ describe('javascript', function () {
     assert.deepEqual(o2, ['UIIcon', 'Icon']);
   });
 
+  it('should not deduplicate an asset if it will become unreachable', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/sibling-deduplicate-unreachable/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+    let res = await run(b);
+    assert.equal(await res.default, 'target');
+  });
+
   for (let shouldScopeHoist of [false, true]) {
     let options = {
       defaultTargetOptions: {
