@@ -884,6 +884,7 @@ impl<'a> Fold for Hoist<'a> {
           match_member_expr(member, vec!["module", "exports"], &self.collect.decls)
         }
         Expr::Ident(ident) => &*ident.sym == "exports" && !self.collect.decls.contains(&id!(ident)),
+        Expr::This(_) if !self.in_function_scope => true,
         _ => false,
       };
 

@@ -225,12 +225,12 @@ export default class BundleGraph {
         }
 
         if (
-          // Only perform rewriting when there is an imported symbol
+          // Only perform retargeting when there is an imported symbol
           // - If the target is side-effect-free, the symbols point to the actual target and removing
           //   the original dependency resolution is fine
           // - Otherwise, keep this dependency unchanged for its potential side effects
           node.usedSymbolsUp.size > 0 &&
-          // Only perform rewriting if the dependency only points to a single asset (e.g. CSS modules)
+          // Only perform retargeting if the dependency only points to a single asset (e.g. CSS modules)
           !hasAmbiguousSymbols &&
           // It doesn't make sense to retarget dependencies where `*` is used, because the
           // retargeting won't enable any benefits in that case (apart from potentially even more
@@ -243,7 +243,13 @@ export default class BundleGraph {
           // or
           //      (parcelRequire("...")).then((a)=>a);
           // if the reexporting asset did `export {a as b}` or `export * as a`
-          node.value.priority === Priority.sync
+          node.value.priority === Priority.sync &&
+          // For every asset, no symbol is imported multiple times (with a different local name).
+          // Don't retarget because this cannot be resolved without also changing the asset symbols
+          // (and the asset content itself).
+          [...targets].every(
+            ([, t]) => new Set([...t.values()]).size === t.size,
+          )
         ) {
           // TODO adjust sourceAssetIdNode.value.dependencies ?
           let deps = [

@@ -7079,19 +7079,6 @@ describe('javascript', function () {
         assert.deepEqual(res.output, 'bar');
       });
 
-      it('supports reexports via variable declaration (unused)', async function () {
-        let b = await bundle(
-          path.join(
-            __dirname,
-            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-var-unused/index.js',
-          ),
-          options,
-        );
-
-        let res = await run(b, {}, {require: false});
-        assert.deepEqual((await res.output).foo, 'foo');
-      });
-
       it('supports named and renamed reexports of the same asset (named used)', async function () {
         let b = await bundle(
           path.join(
@@ -7124,6 +7111,32 @@ describe('javascript', function () {
           shouldScopeHoist ? ['other'] : ['other', 'index'],
         );
         assert.deepEqual(res.output, 'bar');
+      });
+
+      it('supports named and renamed reexports of the same asset (namespace used)', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-same/index.js',
+          ),
+          options,
+        );
+
+        let res = await run(b, null, {require: false});
+        assert.deepEqual(res.output, [{value1: 123, value2: 123}, 123, 123]);
+      });
+
+      it('supports reexports via variable declaration (unused)', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-var-unused/index.js',
+          ),
+          options,
+        );
+
+        let res = await run(b, {}, {require: false});
+        assert.deepEqual((await res.output).foo, 'foo');
       });
 
       it('supports named and namespace exports of the same asset (named used)', async function () {
