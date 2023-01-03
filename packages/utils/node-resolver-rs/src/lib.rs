@@ -528,7 +528,8 @@ impl<'a> Resolver<'a> {
     specifier_type: SpecifierType,
   ) -> Result<Resolution, ResolverError> {
     if let Some(path) = self.find_ancestor_file(from, "tsconfig.json") {
-      let tsconfig = self.read_tsconfig(path)?;
+      let mut contents = Vec::new();
+      let tsconfig = self.read_tsconfig(path, &mut contents)?;
       for path in tsconfig.paths(specifier) {
         // TODO: should aliases apply to tsconfig paths??
         if let Ok(res) = self.load_path(&path, specifier_type, None, Prioritize::File) {
@@ -540,14 +541,17 @@ impl<'a> Resolver<'a> {
     Err(ResolverError::FileNotFound)
   }
 
-  fn read_tsconfig(&self, path: PathBuf) -> Result<TsConfig, ResolverError> {
+  fn read_tsconfig(&self, path: PathBuf, storage: &mut Vec<String>) -> Result<TsConfig, ResolverError> {
     let contents = std::fs::read_to_string(&path)?;
-    let mut tsconfig = TsConfig::parse(path, &contents)?;
+    storage.push(contents);
+    // SAFETY: storage is append only so the pointer won't be dropped or moved.
+    let contents = unsafe {  &*(storage.last().unwrap().as_ref() as *const str) };
+    let mut tsconfig = TsConfig::parse(path, contents)?;
     for i in 0..tsconfig.extends.len() {
       let path = match &tsconfig.extends[i] {
         Specifier::Absolute(path) => path.as_ref().to_owned(),
         Specifier::Relative(path) => {
-          let mut absolute_path = tsconfig.path.with_file_name(path.as_ref());
+          let mut absolute_path = tsconfig.compiler_options.path.with_file_name(path.as_ref());
 
           // TypeScript allows "." and ".." to implicitly refer to a tsconfig.json file.
           if path == Path::new(".") || path == Path::new("..") {
@@ -566,21 +570,21 @@ impl<'a> Resolver<'a> {
           };
 
           if let Resolution::Path(res) =
-            resolver.resolve_node_module(module, subpath, &tsconfig.path, SpecifierType::Cjs)?
+            resolver.resolve_node_module(module, subpath, &tsconfig.compiler_options.path, SpecifierType::Cjs)?
           {
             res
           } else {
             return Err(ResolverError::UnknownError);
           }
         }
-        _ => return Ok(tsconfig),
+        _ => return Ok(tsconfig.compiler_options),
       };
 
-      let extended = self.read_tsconfig(path)?;
-      tsconfig.extend(extended);
+      let extended = self.read_tsconfig(path, storage)?;
+      tsconfig.compiler_options.extend(extended);
     }
 
-    Ok(tsconfig)
+    Ok(tsconfig.compiler_options)
   }
 }
 
@@ -1307,6 +1311,30 @@ mod tests {
         .resolve("node:zlib", &root().join("foo.js"), SpecifierType::Esm)
         .unwrap(),
       Resolution::Builtin("zlib".into())
+    );
+  }
+
+  #[test]
+  fn test_tsconfig() {
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "ts-path",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("foo.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "ts-path",
+          &root().join("nested/index.js"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("nested/test.js"))
     );
   }
 

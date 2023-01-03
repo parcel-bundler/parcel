@@ -26,11 +26,14 @@ impl<'a> Specifier<'a> {
   ) -> Result<Specifier, ()> {
     Ok(match specifier.as_bytes()[0] {
       b'.' => {
-        if specifier.starts_with("./") {
-          Specifier::Relative(decode_path(&specifier[2..], specifier_type))
+        let specifier = if specifier.starts_with("./") {
+          &specifier[2..]
+        } else if specifier.starts_with("..") {
+          specifier
         } else {
-          Specifier::Relative(decode_path(&specifier[1..], specifier_type))
-        }
+          &specifier[1..]
+        };
+        Specifier::Relative(decode_path(specifier, specifier_type))
       }
       b'~' => {
         let mut specifier = &specifier[1..];

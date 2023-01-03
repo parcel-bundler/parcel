@@ -11,15 +11,15 @@ use crate::specifier::{self, Specifier};
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct TsConfig {
+pub struct TsConfig<'a> {
   #[serde(skip)]
   pub path: PathBuf,
-  #[serde(deserialize_with = "deserialize_extends")]
-  pub extends: Vec<Specifier<'static>>,
-  base_url: Option<PathBuf>,
+  base_url: Option<Cow<'a, Path>>,
   #[serde(borrow)]
-  paths: Option<IndexMap<Specifier<'static>, Vec<String>>>,
-  module_suffixes: Option<Vec<String>>,
+  paths: Option<IndexMap<Specifier<'a>, Vec<&'a str>>>,
+  #[serde(skip)]
+  paths_base: PathBuf,
+  module_suffixes: Option<Vec<&'a str>>,
   // rootDirs??
 }
 
@@ -46,24 +46,37 @@ where
 #[derive(serde::Deserialize, Debug)]
 #[serde(
   rename_all = "camelCase",
-  bound(deserialize = "TsConfig: serde::Deserialize<'de>")
 )]
-struct TsConfigWrapper {
-  compiler_options: TsConfig,
+pub struct TsConfigWrapper<'a> {
+  #[serde(borrow, default, deserialize_with = "deserialize_extends")]
+  pub extends: Vec<Specifier<'a>>,
+  pub compiler_options: TsConfig<'a>,
 }
 
-impl TsConfig {
-  pub fn parse(path: PathBuf, data: &str) -> serde_json::Result<TsConfig> {
-    let stripped = StripComments::new(data.as_bytes());
-    let wrapper: TsConfigWrapper = serde_json::from_reader(stripped).map(serde_detach::detach)?;
-    let mut parsed = wrapper.compiler_options;
-    parsed.path = path;
+impl<'a> TsConfig<'a> {
+  pub fn parse(path: PathBuf, data: &'a str) -> serde_json::Result<TsConfigWrapper<'a>> {
+    // let stripped = StripComments::new(data.as_bytes());
+    let mut wrapper: TsConfigWrapper = serde_json::from_str(data)?;
+    wrapper.compiler_options.path = path;
+    wrapper.compiler_options.validate();
+    Ok(wrapper)
+  }
+  
+  fn validate(&mut self) {
+    if let Some(base_url) = &mut self.base_url {
+      *base_url = Cow::Owned(self.path.with_file_name(base_url.as_ref()));
+    }
 
-    // TODO: validate?
-    Ok(parsed)
+    if self.paths.is_some() {
+      self.paths_base = if let Some(base_url) = &self.base_url {
+        base_url.as_ref().to_owned()
+      } else {
+        self.path.parent().unwrap().to_owned()
+      };
+    }
   }
 
-  pub fn extend(&mut self, extended: TsConfig) {
+  pub fn extend(&mut self, extended: TsConfig<'a>) {
     if self.base_url.is_none() {
       self.base_url = extended.base_url;
     }
@@ -77,30 +90,23 @@ impl TsConfig {
     }
   }
 
-  pub fn paths<'a>(&'a self, specifier: &'a Specifier) -> impl Iterator<Item = PathBuf> + 'a {
+  pub fn paths(&'a self, specifier: &'a Specifier) -> impl Iterator<Item = PathBuf> + 'a {
     if !matches!(specifier, Specifier::Package(..)) {
       return Either::Right(Either::Right(std::iter::empty()));
     }
 
     // If there is a base url setting, resolve it relative to the tsconfig.json file.
     // Otherwise, the base for paths is implicitly the directory containing the tsconfig.
-    let (path_base, base_url_iter) = if let Some(base_url) = &self.base_url {
-      let base_url = self.path.with_file_name(base_url);
-      (
-        Cow::Owned(base_url.clone()),
-        Either::Left(base_url_iter(base_url, specifier)),
-      )
+    let base_url_iter = if let Some(base_url) = &self.base_url {
+      Either::Left(base_url_iter(base_url, specifier))
     } else {
-      (
-        Cow::Borrowed(self.path.parent().unwrap()),
-        Either::Right(std::iter::empty()),
-      )
+      Either::Right(std::iter::empty())
     };
 
     if let Some(paths) = &self.paths {
       // Check exact match first.
       if let Some(paths) = paths.get(specifier) {
-        return Either::Left(join_paths(path_base, paths, None).chain(base_url_iter));
+        return Either::Left(join_paths(&self.paths_base, paths, None).chain(base_url_iter));
       }
 
       // Check patterns
@@ -134,7 +140,7 @@ impl TsConfig {
         let paths = paths.get(key).unwrap();
         return Either::Left(
           join_paths(
-            path_base,
+            &self.paths_base,
             paths,
             Some((full_specifier, longest_prefix_length, longest_suffix_length)),
           )
@@ -157,8 +163,8 @@ fn concat_specifier<'a>(module: &'a str, subpath: &'a str) -> Cow<'a, str> {
 }
 
 fn join_paths<'a>(
-  base_url: Cow<'a, Path>,
-  paths: &'a Vec<String>,
+  base_url: &'a Path,
+  paths: &'a Vec<&'a str>,
   replacement: Option<(Cow<'a, str>, usize, usize)>,
 ) -> impl Iterator<Item = PathBuf> + 'a {
   paths
@@ -175,11 +181,11 @@ fn join_paths<'a>(
 }
 
 fn base_url_iter<'a>(
-  base_url: PathBuf,
+  base_url: &'a Path,
   specifier: &'a Specifier,
 ) -> impl Iterator<Item = PathBuf> + 'a {
   std::iter::once_with(move || {
-    let mut path = base_url;
+    let mut path = base_url.to_owned();
     if let Specifier::Package(module, subpath) = specifier {
       path.push(module.as_ref());
       path.push(subpath.as_ref());
@@ -195,7 +201,7 @@ mod tests {
 
   #[test]
   fn test_paths() {
-    let tsconfig = TsConfig {
+    let mut tsconfig = TsConfig {
       path: "/foo/tsconfig.json".into(),
       paths: Some(indexmap! {
         "jquery".into() => vec!["node_modules/jquery/dist/jquery".into()],
@@ -206,6 +212,7 @@ mod tests {
       }),
       ..Default::default()
     };
+    tsconfig.validate();
 
     let test = |specifier: &str| tsconfig.paths(&specifier.into()).collect::<Vec<PathBuf>>();
 
@@ -232,11 +239,12 @@ mod tests {
 
   #[test]
   fn test_base_url() {
-    let tsconfig = TsConfig {
+    let mut tsconfig = TsConfig {
       path: "/foo/tsconfig.json".into(),
-      base_url: Some("src".into()),
+      base_url: Some(Path::new("src").into()),
       ..Default::default()
     };
+    tsconfig.validate();
 
     let test = |specifier: &str| tsconfig.paths(&specifier.into()).collect::<Vec<PathBuf>>();
 
@@ -250,9 +258,9 @@ mod tests {
 
   #[test]
   fn test_paths_and_base_url() {
-    let tsconfig = TsConfig {
+    let mut tsconfig = TsConfig {
       path: "/foo/tsconfig.json".into(),
-      base_url: Some("src".into()),
+      base_url: Some(Path::new("src").into()),
       paths: Some(indexmap! {
         "*".into() => vec!["generated/*".into()],
         "bar/*".into() => vec!["test/*".into()],
@@ -261,6 +269,7 @@ mod tests {
       }),
       ..Default::default()
     };
+    tsconfig.validate();
 
     let test = |specifier: &str| tsconfig.paths(&specifier.into()).collect::<Vec<PathBuf>>();
 
