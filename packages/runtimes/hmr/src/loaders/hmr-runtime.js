@@ -144,15 +144,19 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       if (handled) {
         console.clear();
 
+        var supportsCustomEvents =
+          typeof window !== 'undefined' && typeof CustomEvent !== 'undefined';
+
         // Dispatch custom event so other runtimes (e.g React Refresh) are aware.
-        if (
-          typeof window !== 'undefined' &&
-          typeof CustomEvent !== 'undefined'
-        ) {
+        if (supportsCustomEvents) {
           window.dispatchEvent(new CustomEvent('parcelhmraccept'));
         }
 
         await hmrApplyUpdates(assets);
+
+        if (supportsCustomEvents) {
+          window.dispatchEvent(new CustomEvent('parcelhmrapplied'));
+        }
 
         for (var i = 0; i < assetsToAccept.length; i++) {
           var id = assetsToAccept[i][1];
