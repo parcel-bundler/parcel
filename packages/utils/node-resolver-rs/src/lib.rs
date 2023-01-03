@@ -19,6 +19,7 @@ use specifier::Specifier;
 mod builtins;
 mod package_json;
 mod specifier;
+mod tsconfig;
 
 const EXTENSIONS: &'static [&'static str] = &["js", "json"];
 const BUILTINS: &'static [&'static str] = &[

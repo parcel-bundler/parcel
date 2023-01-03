@@ -1178,6 +1178,7 @@ dependencies = [
  "bitflags",
  "es-module-lexer",
  "indexmap",
+ "itertools",
  "napi",
  "napi-build",
  "napi-derive",
