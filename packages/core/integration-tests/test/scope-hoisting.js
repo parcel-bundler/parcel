@@ -3833,8 +3833,8 @@ describe('scope hoisting', function () {
         ),
       );
 
-      let output = await run(b);
-      assert.strictEqual(output, 2);
+      let output = await run(b, {output: null}, {strict: true});
+      assert.deepEqual(output, [6, undefined]);
     });
 
     it('supports assigning to this as exports object in wrapped module', async function () {
@@ -3845,8 +3845,8 @@ describe('scope hoisting', function () {
         ),
       );
 
-      let output = await run(b);
-      assert.strictEqual(output, 6);
+      let output = await run(b, {output: null}, {strict: true});
+      assert.deepEqual(output, [6, undefined, 4]);
     });
 
     it('supports using exports self reference', async function () {
