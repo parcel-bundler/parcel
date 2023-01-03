@@ -29,7 +29,7 @@ impl<'a> Specifier<'a> {
         if specifier.starts_with("./") {
           Specifier::Relative(decode_path(&specifier[2..], specifier_type))
         } else {
-          Specifier::Relative(decode_path(specifier, specifier_type))
+          Specifier::Relative(decode_path(&specifier[1..], specifier_type))
         }
       }
       b'~' => {

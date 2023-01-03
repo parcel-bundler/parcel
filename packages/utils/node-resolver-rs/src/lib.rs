@@ -15,6 +15,7 @@ use specifier::parse_package_specifier;
 
 use package_json::{AliasValue, ExportsResolution, Fields, PackageJson, PackageJsonError};
 use specifier::Specifier;
+use tsconfig::TsConfig;
 
 mod builtins;
 mod package_json;
@@ -47,9 +48,12 @@ pub enum ResolverMode {
   Node,
 }
 
-pub struct Resolver {
-  project_root: PathBuf,
+pub struct Resolver<'a> {
+  project_root: Cow<'a, Path>,
   mode: ResolverMode,
+  extensions: &'a [&'a str],
+  index_file: &'a str,
+  entries: Fields,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -123,7 +127,7 @@ enum Prioritize {
   File,
 }
 
-impl Resolver {
+impl<'a> Resolver<'a> {
   pub fn resolve(
     &self,
     specifier: &str,
@@ -174,6 +178,27 @@ impl Resolver {
     cb(None)
   }
 
+  fn find_ancestor_file(&self, from: &Path, filename: &str) -> Option<PathBuf> {
+    for dir in from.ancestors() {
+      if let Some(filename) = dir.file_name() {
+        if filename == "node_modules" {
+          break;
+        }
+      }
+
+      let file = dir.join(filename);
+      if file.is_file() {
+        return Some(file);
+      }
+
+      if dir == self.project_root {
+        break;
+      }
+    }
+
+    None
+  }
+
   fn resolve_aliases(
     &self,
     package: &PackageJson,
@@ -207,17 +232,8 @@ impl Resolver {
       Specifier::Tilde(specifier) if self.mode == ResolverMode::Parcel => {
         // Tilde path. Resolve relative to nearest node_modules directory,
         // the nearest directory with package.json or the project root - whichever comes first.
-        for ancestor in from.ancestors() {
-          if let Some(parent) = ancestor.parent() {
-            if parent == self.project_root {
-              return self.resolve_relative(&specifier, &ancestor, specifier_type);
-            }
-          }
-
-          let p = ancestor.join("package.json");
-          if p.is_file() {
-            return self.resolve_relative(&specifier, &p, specifier_type);
-          }
+        if let Some(p) = self.find_ancestor_file(from, "package.json") {
+          return self.resolve_relative(&specifier, &p, specifier_type);
         }
 
         Err(ResolverError::FileNotFound)
@@ -308,6 +324,14 @@ impl Resolver {
       return Ok(Resolution::Builtin(module.to_owned()));
     }
 
+    if let Ok(res) = self.resolve_tsconfig(
+      &Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath)),
+      from,
+      specifier_type,
+    ) {
+      return Ok(res);
+    }
+
     // TODO: tsconfig.json
     // TODO: do pnp here
     // TODO: check if module == self
@@ -349,7 +373,11 @@ impl Resolver {
             .or_else(|e| {
               // Node ESM doesn't allow directory imports.
               if self.mode != ResolverMode::Node || specifier_type != SpecifierType::Esm {
-                self.try_extensions(&package_dir.join("index"), EXTENSIONS, Some(&package))
+                self.try_extensions(
+                  &package_dir.join(self.index_file),
+                  EXTENSIONS,
+                  Some(&package),
+                )
               } else {
                 Err(e)
               }
@@ -368,13 +396,8 @@ impl Resolver {
     package: &PackageJson,
     specifier_type: SpecifierType,
   ) -> Result<Resolution, ResolverError> {
-    let mut fields = Fields::MAIN;
-    if self.mode == ResolverMode::Parcel {
-      fields.insert(Fields::MODULE | Fields::BROWSER);
-    }
-
     // Try all entry fields.
-    for entry in package.entries(fields) {
+    for entry in package.entries(self.entries) {
       let prioritize = if entry.extension().is_some() {
         Prioritize::File
       } else {
@@ -424,6 +447,9 @@ impl Resolver {
     if let Ok(res) = self.try_file(path, package) {
       return Ok(res);
     }
+
+    // TODO: if typescript, try _removing_ `.js` and replacing with `.ts`.
+    // TODO: tsconfig moduleSuffixes
 
     // Try appending each extension.
     for ext in extensions {
@@ -486,13 +512,75 @@ impl Resolver {
     // If no package.json, or no entries, try an index file with all possible extensions.
     if dir.is_dir() {
       return self.try_extensions(
-        &dir.join("index"),
+        &dir.join(self.index_file),
         EXTENSIONS,
         package.as_ref().or(parent_package),
       );
     }
 
     Err(ResolverError::FileNotFound)
+  }
+
+  fn resolve_tsconfig(
+    &self,
+    specifier: &Specifier,
+    from: &Path,
+    specifier_type: SpecifierType,
+  ) -> Result<Resolution, ResolverError> {
+    if let Some(path) = self.find_ancestor_file(from, "tsconfig.json") {
+      let tsconfig = self.read_tsconfig(path)?;
+      for path in tsconfig.paths(specifier) {
+        // TODO: should aliases apply to tsconfig paths??
+        if let Ok(res) = self.load_path(&path, specifier_type, None, Prioritize::File) {
+          return Ok(res);
+        }
+      }
+    }
+
+    Err(ResolverError::FileNotFound)
+  }
+
+  fn read_tsconfig(&self, path: PathBuf) -> Result<TsConfig, ResolverError> {
+    let contents = std::fs::read_to_string(&path)?;
+    let mut tsconfig = TsConfig::parse(path, &contents)?;
+    for i in 0..tsconfig.extends.len() {
+      let path = match &tsconfig.extends[i] {
+        Specifier::Absolute(path) => path.as_ref().to_owned(),
+        Specifier::Relative(path) => {
+          let mut absolute_path = tsconfig.path.with_file_name(path.as_ref());
+
+          // TypeScript allows "." and ".." to implicitly refer to a tsconfig.json file.
+          if path == Path::new(".") || path == Path::new("..") {
+            absolute_path.push("tsconfig.json");
+          }
+
+          absolute_path
+        }
+        Specifier::Package(module, subpath) => {
+          let resolver = Resolver {
+            project_root: Cow::Borrowed(&self.project_root),
+            mode: ResolverMode::Node,
+            extensions: &["json"],
+            index_file: "tsconfig.json",
+            entries: Fields::TSCONFIG,
+          };
+
+          if let Resolution::Path(res) =
+            resolver.resolve_node_module(module, subpath, &tsconfig.path, SpecifierType::Cjs)?
+          {
+            res
+          } else {
+            return Err(ResolverError::UnknownError);
+          }
+        }
+        _ => return Ok(tsconfig),
+      };
+
+      let extended = self.read_tsconfig(path)?;
+      tsconfig.extend(extended);
+    }
+
+    Ok(tsconfig)
   }
 }
 
@@ -581,17 +669,23 @@ mod tests {
       .join("node-resolver-core/test/fixture")
   }
 
-  fn test_resolver() -> Resolver {
+  fn test_resolver<'a>() -> Resolver<'a> {
     Resolver {
-      project_root: root(),
+      project_root: root().into(),
       mode: ResolverMode::Parcel,
+      index_file: "index",
+      extensions: EXTENSIONS,
+      entries: Fields::MAIN | Fields::MODULE | Fields::BROWSER,
     }
   }
 
-  fn node_resolver() -> Resolver {
+  fn node_resolver<'a>() -> Resolver<'a> {
     Resolver {
-      project_root: root(),
+      project_root: root().into(),
       mode: ResolverMode::Node,
+      index_file: "index",
+      extensions: EXTENSIONS,
+      entries: Fields::MAIN,
     }
   }
 

@@ -19,6 +19,8 @@ es-module-lexer = { path = "/Users/devongovett/dev/es-module-lexer" }
 bitflags = "*"
 indexmap = { version = "*", features = ["serde"] }
 itertools = "*"
+json_comments = "*"
+serde-detach = "*"
 
 [build-dependencies]
 napi-build = "1"

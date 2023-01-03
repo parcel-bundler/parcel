@@ -16,6 +16,7 @@ bitflags! {
     const SOURCE = 1 << 2;
     const BROWSER = 1 << 3;
     const ALIAS = 1 << 4;
+    const TSCONFIG = 1 << 5;
   }
 }
 
@@ -26,6 +27,8 @@ pub struct PackageJson<'a> {
   name: &'a str,
   main: Option<&'a str>,
   module: Option<&'a str>,
+  #[serde(default)]
+  tsconfig: Option<&'a str>,
   #[serde(default)]
   source: SourceField<'a>,
   #[serde(default)]
@@ -45,6 +48,7 @@ impl<'a> Default for PackageJson<'a> {
       name: "",
       main: None,
       module: None,
+      tsconfig: None,
       source: Default::default(),
       browser: Default::default(),
       alias: Default::default(),
@@ -527,6 +531,13 @@ impl<'a> Iterator for EntryIter<'a> {
       self.fields.remove(Fields::MAIN);
       if let Some(main) = self.package.main {
         return Some(self.package.path.with_file_name(main));
+      }
+    }
+
+    if self.fields.contains(Fields::TSCONFIG) {
+      self.fields.remove(Fields::TSCONFIG);
+      if let Some(tsconfig) = self.package.tsconfig {
+        return Some(self.package.path.with_file_name(tsconfig));
       }
     }
 
