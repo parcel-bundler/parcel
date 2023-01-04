@@ -28,10 +28,8 @@ impl<'a> Specifier<'a> {
       b'.' => {
         let specifier = if specifier.starts_with("./") {
           &specifier[2..]
-        } else if specifier.starts_with("..") {
-          specifier
         } else {
-          &specifier[1..]
+          specifier
         };
         Specifier::Relative(decode_path(specifier, specifier_type))
       }

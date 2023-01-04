@@ -50,6 +50,7 @@ where
 pub struct TsConfigWrapper<'a> {
   #[serde(borrow, default, deserialize_with = "deserialize_extends")]
   pub extends: Vec<Specifier<'a>>,
+  #[serde(default)]
   pub compiler_options: TsConfig<'a>,
 }
 
@@ -82,6 +83,7 @@ impl<'a> TsConfig<'a> {
     }
 
     if self.paths.is_none() {
+      self.paths_base = extended.paths_base;
       self.paths = extended.paths;
     }
 

@@ -267,7 +267,7 @@ impl<'a> Resolver<'a> {
                 }
                 ExportsResolution::Package(specifier) => {
                   let (module, subpath) = parse_package_specifier(&specifier)?;
-                  return self.resolve_node_module(module, subpath, from, specifier_type);
+                  return self.resolve_bare(module, subpath, from, specifier_type);
                 }
                 _ => {}
               }
@@ -281,7 +281,7 @@ impl<'a> Resolver<'a> {
       }
       Specifier::Package(module, subpath) => {
         // Bare specifier.
-        self.resolve_node_module(&module, &subpath, from, specifier_type)
+        self.resolve_bare(&module, &subpath, from, specifier_type)
       }
       Specifier::Builtin(builtin) => Ok(Resolution::Builtin(builtin.as_ref().to_owned())),
       Specifier::Url(_) => {
@@ -313,7 +313,7 @@ impl<'a> Resolver<'a> {
     })
   }
 
-  fn resolve_node_module(
+  fn resolve_bare(
     &self,
     module: &str,
     subpath: &str,
@@ -332,7 +332,16 @@ impl<'a> Resolver<'a> {
       return Ok(res);
     }
 
-    // TODO: tsconfig.json
+    self.resolve_node_module(module, subpath, from, specifier_type)
+  }
+
+  fn resolve_node_module(
+    &self,
+    module: &str,
+    subpath: &str,
+    from: &Path,
+    specifier_type: SpecifierType,
+  ) -> Result<Resolution, ResolverError> {
     // TODO: do pnp here
     // TODO: check if module == self
 
@@ -1335,6 +1344,36 @@ mod tests {
         )
         .unwrap(),
       Resolution::Path(root().join("nested/test.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "foo",
+          &root().join("tsconfig/index/index.js"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("node_modules/tsconfig-index/foo.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "foo",
+          &root().join("tsconfig/field/index.js"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("node_modules/tsconfig-field/foo.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "foo",
+          &root().join("tsconfig/exports/index.js"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("node_modules/tsconfig-exports/foo.js"))
     );
   }
 
