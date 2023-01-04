@@ -8,7 +8,7 @@ import {
 
 import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
 
-// Notification: LSP Server -> Extension Client
+// Notification: LSP Server -> VSC Extension
 export const NotificationBuild: NotificationType0 = new NotificationType0(
   'NotificationBuild',
 );
@@ -21,26 +21,26 @@ export type PublishDiagnostic = {
   diagnostics: Array<Diagnostic>;
 };
 
-// Request: Client -> Server
+// Request: LSP Server -> Reporter
 export const RequestImporters: RequestType<
   DocumentUri,
   Array<DocumentUri> | null,
   void
 > = new RequestType('RequestImporters');
 
-// Request: Client -> Server
+// Request: LSP Server -> Reporter
 export const RequestDocumentDiagnostics: RequestType<
   DocumentUri,
   Array<Diagnostic> | undefined,
   void
 > = new RequestType('RequestDocumentDiagnostics');
 
-// Notification: Server -> Client
+// Notification: Reporter -> LSP Server
 export const NotificationWorkspaceDiagnostics: NotificationType<
   Array<PublishDiagnostic>
 > = new NotificationType('NotificationWorkspaceDiagnostics');
 
-// Notification: Server -> Client
+// Notification: Reporter -> LSP Server
 export const NotificationBuildStatus: NotificationType2<
   'start' | 'progress' | 'end',
   string | void
