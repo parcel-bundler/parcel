@@ -189,7 +189,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
   // $FlowFixMe[method-unbinding]
   async symlink(target: FilePath, filePath: FilePath): Promise<void> {
     target = this._normalizePath(target);
-    filePath = this._normalizePath(filePath);
+    filePath = await this._ensureNormalizedPath(filePath);
     await super.symlink(target, filePath);
     this.deleted.delete(filePath);
   }
