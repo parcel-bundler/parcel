@@ -312,8 +312,353 @@ describe('@parcel/link', () => {
   });
 
   describe('unlink', () => {
-    it.skip('errors without a link config', () => {});
-    it.skip('does not do anything with --dryRun', () => {});
-    it.skip('unlinks', () => {});
+    it('errors without a link config', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+
+      let cli = createProgram({fs});
+
+      // $FlowFixMe[prop-missing]
+      await assert.rejects(
+        async () => cli('unlink'),
+        /link could not be found/,
+      );
+    });
+
+    it('errors for invalid app root', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+      await fs.writeFile(
+        '.parcel-link',
+        JSON.stringify({
+          appRoot: '/app2',
+          packageRoot: path.resolve(__dirname, '../../..'),
+          nodeModulesGlobs: ['node_modules'],
+          namespace: '@parcel',
+        }),
+      );
+
+      let cli = createProgram({fs});
+
+      // $FlowFixMe[prop-missing]
+      await assert.rejects(async () => cli('unlink'), /Not a project root/);
+    });
+
+    it('errors for invalid package root', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+      await fs.writeFile(
+        '.parcel-link',
+        JSON.stringify({
+          appRoot: '/app',
+          packageRoot: path.resolve(__dirname, '../../..') + '2',
+          nodeModulesGlobs: ['node_modules'],
+          namespace: '@parcel',
+        }),
+      );
+
+      let cli = createProgram({fs});
+
+      // $FlowFixMe[prop-missing]
+      await assert.rejects(async () => cli('unlink'), /Not a package root/);
+    });
+
+    it('unlinks with the default options', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../parcel'),
+        'node_modules/parcel',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../core'),
+        'node_modules/@parcel/core',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../parcel/src/bin.js'),
+        'node_modules/.bin/parcel',
+      );
+
+      await fs.writeFile(
+        '.parcel-link',
+        JSON.stringify({
+          appRoot: '/app',
+          packageRoot: path.resolve(__dirname, '../../..'),
+          nodeModulesGlobs: ['node_modules'],
+          namespace: '@parcel',
+        }),
+      );
+
+      let cli = createProgram({fs});
+      await cli('unlink');
+
+      assert(!fs.existsSync('.parcel-link'));
+      assert(!fs.existsSync('node_modules/@parcel/core'));
+      assert(!fs.existsSync('node_modules/parcel'));
+      assert(!fs.existsSync('node_modules/.bin/parcel'));
+    });
+
+    it('unlinks from a custom package root', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+
+      await fs.writeFile(
+        '../package-root/core/core/package.json',
+        '{"name": "@parcel/core"}',
+      );
+
+      await fs.writeFile(
+        '../package-root/core/parcel/package.json',
+        '{"name": "parcel"}',
+      );
+
+      await fs.writeFile('../package-root/core/parcel/src/bin.js', '');
+
+      await fs.symlink('/package-root/core/parcel', 'node_modules/parcel');
+
+      await fs.symlink('/package-root/core/core', 'node_modules/@parcel/core');
+
+      await fs.symlink(
+        '/package-root/core/parcel/src/bin.js',
+        'node_modules/.bin/parcel',
+      );
+
+      await fs.writeFile(
+        '.parcel-link',
+        JSON.stringify({
+          appRoot: '/app',
+          packageRoot: '/package-root',
+          nodeModulesGlobs: ['node_modules'],
+          namespace: '@parcel',
+        }),
+      );
+
+      let cli = createProgram({fs});
+      await cli('unlink');
+
+      assert(!fs.existsSync('.parcel-link'));
+      assert(!fs.existsSync('node_modules/@parcel/core'));
+      assert(!fs.existsSync('node_modules/parcel'));
+      assert(!fs.existsSync('node_modules/.bin/parcel'));
+    });
+
+    it('unlinks with a custom namespace', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../parcel'),
+        'node_modules/parcel',
+      );
+      await fs.symlink(
+        path.resolve(__dirname, '../../parcel'),
+        'node_modules/@namespace/parcel',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../core'),
+        'node_modules/@parcel/core',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../core'),
+        'node_modules/@namespace/parcel-core',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../parcel/src/bin.js'),
+        'node_modules/.bin/parcel',
+      );
+
+      await fs.writeFile(
+        '.parcel-link',
+        JSON.stringify({
+          appRoot: '/app',
+          packageRoot: path.resolve(__dirname, '../../..'),
+          nodeModulesGlobs: ['node_modules'],
+          namespace: '@namespace',
+        }),
+      );
+
+      let cli = createProgram({fs});
+      await cli('unlink');
+
+      assert(!fs.existsSync('.parcel-link'));
+      assert(!fs.existsSync('node_modules/@parcel/core'));
+      assert(!fs.existsSync('node_modules/parcel'));
+      assert(!fs.existsSync('node_modules/.bin/parcel'));
+      assert(!fs.existsSync('node_modules/@namespace/parcel-core'));
+      assert(!fs.existsSync('node_modules/@namespace/parcel'));
+    });
+
+    it('updates config for custom namespace', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+
+      await fs.writeFile(
+        '.parcelrc',
+        JSON.stringify({
+          extends: '@parcel/config-namespace',
+          transformers: {
+            '*': [
+              '@parcel/transformer-js',
+              '@namespace/parcel-transformer-local',
+            ],
+          },
+        }),
+      );
+
+      await fs.writeFile(
+        'package.json',
+        JSON.stringify({
+          ['@parcel/transformer-js']: {},
+          ['@namespace/parcel-transformer-local']: {},
+        }),
+      );
+
+      await fs.writeFile(
+        path.join(__dirname, '../../../configs/namespace/package.json'),
+        '{"name": "@parcel/config-namespace"}',
+      );
+
+      await fs.writeFile(
+        '.parcel-link',
+        JSON.stringify({
+          appRoot: '/app',
+          packageRoot: path.resolve(__dirname, '../../..'),
+          nodeModulesGlobs: ['node_modules'],
+          namespace: '@namespace',
+        }),
+      );
+
+      let cli = createProgram({fs});
+      await cli('unlink');
+
+      assert(!fs.existsSync('.parcel-link'));
+
+      assert.equal(
+        fs.readFileSync('.parcelrc', 'utf8'),
+        JSON.stringify({
+          extends: '@namespace/parcel-config-namespace',
+          transformers: {
+            '*': [
+              '@namespace/parcel-transformer-js',
+              '@namespace/parcel-transformer-local',
+            ],
+          },
+        }),
+      );
+
+      assert.equal(
+        fs.readFileSync('package.json', 'utf8'),
+        JSON.stringify({
+          ['@namespace/parcel-transformer-js']: {},
+          ['@namespace/parcel-transformer-local']: {},
+        }),
+      );
+    });
+
+    it('unlinks with custom node modules glob', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../parcel'),
+        'node_modules/parcel',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../core'),
+        'node_modules/@parcel/core',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../parcel/src/bin.js'),
+        'node_modules/.bin/parcel',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../parcel'),
+        'tools/test/node_modules/parcel',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../core'),
+        'tools/test2/node_modules/@parcel/core',
+      );
+
+      await fs.writeFile(
+        '.parcel-link',
+        JSON.stringify({
+          appRoot: '/app',
+          packageRoot: path.resolve(__dirname, '../../..'),
+          nodeModulesGlobs: ['node_modules', 'tools/*/node_modules'],
+          namespace: '@parcel',
+        }),
+      );
+
+      let cli = createProgram({fs});
+      await cli('unlink');
+
+      assert(!fs.existsSync('.parcel-link'));
+      assert(!fs.existsSync('node_modules/@parcel/core'));
+      assert(!fs.existsSync('node_modules/parcel'));
+      assert(!fs.existsSync('node_modules/.bin/parcel'));
+      assert(!fs.existsSync('tools/test/node_modules/parcel'));
+      assert(!fs.existsSync('tools/test2/node_modules/@parcel/core'));
+    });
+
+    it('does not do anything with dry run', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../parcel'),
+        'node_modules/parcel',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../core'),
+        'node_modules/@parcel/core',
+      );
+
+      await fs.symlink(
+        path.resolve(__dirname, '../../parcel/src/bin.js'),
+        'node_modules/.bin/parcel',
+      );
+
+      await fs.writeFile(
+        '.parcel-link',
+        JSON.stringify({
+          appRoot: '/app',
+          packageRoot: path.resolve(__dirname, '../../..'),
+          nodeModulesGlobs: ['node_modules'],
+          namespace: '@parcel',
+        }),
+      );
+
+      let cli = createProgram({fs});
+      await cli('unlink --dry-run');
+
+      assert(fs.existsSync('.parcel-link'));
+
+      assert.equal(
+        fs.realpathSync('node_modules/@parcel/core'),
+        path.resolve(__dirname, '../../core'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/parcel'),
+        path.resolve(__dirname, '../../parcel'),
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/.bin/parcel'),
+        path.resolve(__dirname, '../../parcel/src/bin.js'),
+      );
+    });
   });
 });
