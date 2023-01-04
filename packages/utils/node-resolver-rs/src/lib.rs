@@ -554,7 +554,7 @@ impl<'a> Resolver<'a> {
     let contents = std::fs::read_to_string(&path)?;
     storage.push(contents);
     // SAFETY: storage is append only so the pointer won't be dropped or moved.
-    let contents = unsafe {  &*(storage.last().unwrap().as_ref() as *const str) };
+    let contents = unsafe {  &mut *(storage.last_mut().unwrap().as_mut() as *mut str) };
     let mut tsconfig = TsConfig::parse(path, contents)?;
     for i in 0..tsconfig.extends.len() {
       let path = match &tsconfig.extends[i] {

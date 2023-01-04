@@ -5,9 +5,9 @@ use std::{
 
 use indexmap::IndexMap;
 use itertools::Either;
-use json_comments::StripComments;
+use json_comments::strip_comments_in_place;
 
-use crate::specifier::{self, Specifier};
+use crate::specifier::Specifier;
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -55,8 +55,8 @@ pub struct TsConfigWrapper<'a> {
 }
 
 impl<'a> TsConfig<'a> {
-  pub fn parse(path: PathBuf, data: &'a str) -> serde_json::Result<TsConfigWrapper<'a>> {
-    // let stripped = StripComments::new(data.as_bytes());
+  pub fn parse(path: PathBuf, data: &'a mut str) -> serde_json::Result<TsConfigWrapper<'a>> {
+    let _ = strip_comments_in_place(data, Default::default());
     let mut wrapper: TsConfigWrapper = serde_json::from_str(data)?;
     wrapper.compiler_options.path = path;
     wrapper.compiler_options.validate();
