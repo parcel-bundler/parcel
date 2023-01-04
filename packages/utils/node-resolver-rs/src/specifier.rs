@@ -5,7 +5,7 @@ use std::{
 };
 use url::Url;
 
-use crate::{builtins::BUILTINS, ResolverMode, SpecifierType};
+use crate::{builtins::BUILTINS, SpecifierType, Flags};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Specifier<'a> {
@@ -22,7 +22,7 @@ impl<'a> Specifier<'a> {
   pub fn parse(
     specifier: &str,
     specifier_type: SpecifierType,
-    mode: ResolverMode,
+    flags: Flags,
   ) -> Result<Specifier, ()> {
     Ok(match specifier.as_bytes()[0] {
       b'.' => {
@@ -61,7 +61,7 @@ impl<'a> Specifier<'a> {
             if let Ok((scheme, rest)) = parse_scheme(specifier) {
               let (path, _rest) = parse_path(rest);
               match scheme.as_ref() {
-                "npm" if mode == ResolverMode::Parcel => {
+                "npm" if flags.contains(Flags::NPM_SCHEME) => {
                   parse_package(percent_decode_str(path).decode_utf8_lossy())?
                 }
                 "node" => {
@@ -209,7 +209,7 @@ pub fn decode_path<'a>(specifier: &'a str, specifier_type: SpecifierType) -> Cow
 
 impl<'a> From<&'a str> for Specifier<'a> {
   fn from(specifier: &'a str) -> Self {
-    Specifier::parse(specifier, SpecifierType::Cjs, ResolverMode::Parcel).unwrap()
+    Specifier::parse(specifier, SpecifierType::Cjs, Flags::empty()).unwrap()
   }
 }
 
@@ -222,7 +222,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for Specifier<'a> {
     let s: &'de str = Deserialize::deserialize(deserializer)?;
     // Specifiers are only deserialized as part of the "alias" and "browser" fields,
     // so we assume CJS specifiers in Parcel mode.
-    Specifier::parse(s, SpecifierType::Cjs, ResolverMode::Parcel)
+    Specifier::parse(s, SpecifierType::Cjs, Flags::empty())
       .map_err(|_| serde::de::Error::custom("Invalid specifier"))
   }
 }
