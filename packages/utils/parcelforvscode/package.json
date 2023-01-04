@@ -27,6 +27,25 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "jsonValidation": [
+      {
+        "fileMatch": ".parcelrc",
+        "url": "./schemas/parcelrc.schema.json"
+      },
+      {
+        "fileMatch": "package.json",
+        "url": "./schemas/package-targets.schema.json"
+      }
+    ],
+    "languages": [
+      {
+        "id": "jsonc",
+        "filenames": [
+          ".parcelrc",
+          ".parcelrc*"
+        ]
+      }
+    ],
     "views": {
       "explorer": [
         {
