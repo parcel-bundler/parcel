@@ -7,7 +7,7 @@ on:
     branches:
       - 'v2'
 
-name: Populate Caches
+name: Populate Rust Cache
 
 permissions:
   contents: read

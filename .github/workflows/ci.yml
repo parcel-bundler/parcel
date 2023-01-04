@@ -55,6 +55,8 @@ jobs:
           node-version: 16
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: false
       - run: yarn --frozen-lockfile
       - run: yarn build-native-release
       # Compiling Rust on Linux is much faster, so run the platform-independent unit tests there
