@@ -4,18 +4,18 @@ name: Continuous Integration
 
 permissions:
   contents: read
+  checks: write
 
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           cache: yarn
-      - uses: actions-rs/toolchain@v1
-      - uses: Swatinem/rust-cache@v1
+      - uses: dtolnay/rust-toolchain@stable
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
       - run: yarn --frozen-lockfile
@@ -25,8 +25,8 @@ jobs:
     name: Flow
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           cache: yarn
       - run: yarn --frozen-lockfile
@@ -41,6 +41,35 @@ jobs:
         env:
           PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
 
+  build-native:
+    name: Build native packages (${{matrix.os}})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          cache: yarn
+          node-version: 16
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: yarn --frozen-lockfile
+      - run: yarn build-native-release
+      # Compiling Rust on Linux is much faster, so run the platform-independent unit tests there
+      - run: yarn test:unit-rust
+        if: ${{matrix.os == 'ubuntu-latest'}}
+      - name: Upload builds
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-native-${{matrix.os}}
+          path: |
+            packages/optimizers/image/*.node
+            packages/transformers/js/*.node
+            packages/utils/fs-search/*.node
+            packages/utils/hash/*.node
+
   unit_tests:
     name: Unit tests (${{matrix.os}}, Node ${{matrix.node}})
     strategy:
@@ -48,20 +77,22 @@ jobs:
         node: [14, 16]
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{matrix.os}}
+    needs: build-native
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           cache: yarn
           node-version: ${{matrix.node}}
-      - uses: actions-rs/toolchain@v1
-      - uses: Swatinem/rust-cache@v1
+      - uses: actions/download-artifact@v3
+        with:
+          name: build-native-${{matrix.os}}
+          path: packages
       - name: Bump max inotify watches (Linux only)
         run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
         if: ${{matrix.os == 'ubuntu-latest'}}
       - run: yarn --frozen-lockfile
-      - run: yarn build-native-release
-      - run: yarn test:unit
+      - run: yarn test:unit-js
 
   integration_tests:
     name: Integration tests (${{matrix.os}}, Node ${{matrix.node}})
@@ -73,37 +104,19 @@ jobs:
       # others from potentially succeeding
       fail-fast: false
     runs-on: ${{matrix.os}}
+    needs: build-native
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           cache: yarn
           node-version: ${{matrix.node}}
-      - uses: actions-rs/toolchain@v1
-      - uses: Swatinem/rust-cache@v1
+      - uses: actions/download-artifact@v3
+        with:
+          name: build-native-${{matrix.os}}
+          path: packages
       - name: Bump max inotify watches (Linux only)
         run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
         if: ${{matrix.os == 'ubuntu-latest'}}
       - run: yarn --frozen-lockfile
-      - run: yarn build-native-release
       - run: yarn test:integration-ci
-      # Similar to
-      # https://github.com/marketplace/actions/publish-unit-test-results#use-with-matrix-strategy
-      - name: Upload JUnit results
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: Integration tests (${{matrix.os}}, node ${{matrix.node}})
-          path: "**/junit-*.xml"
-
-  test_report:
-    name: Test report
-    runs-on: ubuntu-latest
-    needs:
-      [unit_tests, integration_tests]
-    if: always()
-    steps:
-      - name: Create test report
-        uses: mikepenz/action-junit-report@v2
-        with:
-          report_paths: artifacts/**/*.xml

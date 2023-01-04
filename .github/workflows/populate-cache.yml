@@ -1,0 +1,31 @@
+# Building on the main branch isn't really necessary bceause we require that PRs are up-to-date
+# before merging, but this step is needed so that branches can share caches:
+# https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows#restrictions-for-accessing-a-cache
+
+on:
+  push:
+    branches:
+      - 'v2'
+
+name: Populate Caches
+
+permissions:
+  contents: read
+
+jobs:
+  build-native:
+    name: Build native packages (${{matrix.os}})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          cache: yarn
+          node-version: 16
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: yarn --frozen-lockfile
+      - run: yarn build-native-release
