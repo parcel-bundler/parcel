@@ -286,7 +286,29 @@ describe('@parcel/link', () => {
       );
     });
 
-    it.skip('does not do anything with dry run', () => {});
+    it('does not do anything with dry run', async () => {
+      let fs = createFS('/app');
+      await fs.writeFile('yarn.lock', '');
+      await fs.mkdirp('node_modules/parcel');
+      await fs.mkdirp('node_modules/@parcel/core');
+
+      let cli = createProgram({fs});
+      await cli('link --dry-run');
+
+      assert(!fs.existsSync('.parcel-link'));
+
+      assert.equal(
+        fs.realpathSync('node_modules/@parcel/core'),
+        '/app/node_modules/@parcel/core',
+      );
+
+      assert.equal(
+        fs.realpathSync('node_modules/parcel'),
+        '/app/node_modules/parcel',
+      );
+
+      assert(!fs.existsSync('node_modules/.bin/parcel'));
+    });
   });
 
   describe('unlink', () => {
