@@ -33,22 +33,23 @@ export function normalizeFilePath(
     : path.join(projectRoot, filePath);
 }
 
-export function isInRange(loc: SourceLocation, position: Position): boolean {
-  let pos = {line: position.line + 1, column: position.character + 1};
+// export function isInRange(loc: SourceLocation, position: Position): boolean {
+//   let pos = {line: position.line + 1, column: position.character + 1};
 
-  if (pos.line < loc.start.line || loc.end.line < pos.line) {
-    return false;
-  }
-  if (pos.line === loc.start.line) {
-    return loc.start.column <= pos.column;
-  }
-  if (pos.line === loc.end.line - 1) {
-    return pos.column < loc.start.column;
-  }
-  return true;
-}
+//   if (pos.line < loc.start.line || loc.end.line < pos.line) {
+//     return false;
+//   }
+//   if (pos.line === loc.start.line) {
+//     return loc.start.column <= pos.column;
+//   }
+//   if (pos.line === loc.end.line - 1) {
+//     return pos.column < loc.start.column;
+//   }
+//   return true;
+// }
 
-export const RANGE_DUMMY: Range = {
-  start: {line: 0, character: 0},
-  end: {line: 0, character: 0},
-};
+// /** This range is used when refering to a whole file and not a specific range. */
+// export const RANGE_DUMMY: Range = {
+//   start: {line: 0, character: 0},
+//   end: {line: 0, character: 0},
+// };

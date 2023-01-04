@@ -3,12 +3,7 @@
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
-import type {
-  Diagnostic,
-  DocumentUri,
-  LocationLink,
-  Position,
-} from 'vscode-languageserver';
+import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
 import type {PublishDiagnostic} from './protocol';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
 import type {ParcelSeverity} from './utils';
@@ -33,16 +28,10 @@ import {
   DiagnosticTag,
   NotificationBuildStatus,
   NotificationWorkspaceDiagnostics,
-  RequestDefinition,
   RequestDocumentDiagnostics,
   RequestImporters,
 } from './protocol';
-import {
-  isInRange,
-  normalizeFilePath,
-  parcelSeverityToLspSeverity,
-  RANGE_DUMMY,
-} from './utils';
+import {normalizeFilePath, parcelSeverityToLspSeverity} from './utils';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
@@ -106,17 +95,6 @@ export default (new Reporter({
             if (!graph) return;
 
             return getDiagnosticsUnusedExports(graph, uri);
-          });
-
-          connection.onRequest(RequestDefinition, async params => {
-            let graph = await bundleGraph;
-            if (!graph) return;
-
-            return getDefinition(
-              graph,
-              params.textDocument.uri,
-              params.position,
-            );
           });
 
           connection.onRequest(RequestImporters, async params => {
@@ -364,45 +342,45 @@ function getDiagnosticsUnusedExports(
   return diagnostics;
 }
 
-function getDefinition(
-  bundleGraph: BundleGraph<PackagedBundle>,
-  document: string,
-  position: Position,
-): Array<LocationLink> | void {
-  let filename = url.fileURLToPath(document);
+// function getDefinition(
+//   bundleGraph: BundleGraph<PackagedBundle>,
+//   document: string,
+//   position: Position,
+// ): Array<LocationLink> | void {
+//   let filename = url.fileURLToPath(document);
 
-  let asset = bundleGraph.traverse((node, context, actions) => {
-    if (node.type === 'asset' && node.value.filePath === filename) {
-      actions.stop();
-      return node.value;
-    }
-  });
+//   let asset = bundleGraph.traverse((node, context, actions) => {
+//     if (node.type === 'asset' && node.value.filePath === filename) {
+//       actions.stop();
+//       return node.value;
+//     }
+//   });
 
-  if (asset) {
-    for (let dep of bundleGraph.getDependencies(asset)) {
-      let loc = dep.loc;
-      if (loc && isInRange(loc, position)) {
-        let resolution = bundleGraph.getResolvedAsset(dep);
-        if (resolution) {
-          return [
-            {
-              originSelectionRange: {
-                start: {
-                  line: loc.start.line - 1,
-                  character: loc.start.column - 1,
-                },
-                end: {line: loc.end.line - 1, character: loc.end.column},
-              },
-              targetUri: `file://${resolution.filePath}`,
-              targetRange: RANGE_DUMMY,
-              targetSelectionRange: RANGE_DUMMY,
-            },
-          ];
-        }
-      }
-    }
-  }
-}
+//   if (asset) {
+//     for (let dep of bundleGraph.getDependencies(asset)) {
+//       let loc = dep.loc;
+//       if (loc && isInRange(loc, position)) {
+//         let resolution = bundleGraph.getResolvedAsset(dep);
+//         if (resolution) {
+//           return [
+//             {
+//               originSelectionRange: {
+//                 start: {
+//                   line: loc.start.line - 1,
+//                   character: loc.start.column - 1,
+//                 },
+//                 end: {line: loc.end.line - 1, character: loc.end.column},
+//               },
+//               targetUri: `file://${resolution.filePath}`,
+//               targetRange: RANGE_DUMMY,
+//               targetSelectionRange: RANGE_DUMMY,
+//             },
+//           ];
+//         }
+//       }
+//     }
+//   }
+// }
 
 function getImporters(
   bundleGraph: BundleGraph<PackagedBundle>,

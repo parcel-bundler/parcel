@@ -6,12 +6,7 @@ import {
   RequestType,
 } from 'vscode-jsonrpc/node';
 
-import type {
-  DefinitionLink,
-  Diagnostic,
-  DocumentUri,
-  TextDocumentPositionParams,
-} from 'vscode-languageserver';
+import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
 
 // Notification: LSP Server -> Extension Client
 export const NotificationBuild: NotificationType0 = new NotificationType0(
@@ -25,13 +20,6 @@ export type PublishDiagnostic = {
   uri: DocumentUri;
   diagnostics: Array<Diagnostic>;
 };
-
-// Request: Client -> Server
-export const RequestDefinition: RequestType<
-  TextDocumentPositionParams,
-  Array<DefinitionLink> | undefined,
-  void
-> = new RequestType('RequestDefinition');
 
 // Request: Client -> Server
 export const RequestImporters: RequestType<

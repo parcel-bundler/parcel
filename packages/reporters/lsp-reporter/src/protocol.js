@@ -6,10 +6,8 @@ import {
 } from 'vscode-jsonrpc/node';
 
 import type {
-  DefinitionLink,
   Diagnostic,
   DocumentUri,
-  TextDocumentPositionParams,
   ODiagnosticTag,
   ODiagnosticSeverity,
 } from 'vscode-languageserver';
@@ -63,13 +61,6 @@ export type PublishDiagnostic = {|
   uri: DocumentUri,
   diagnostics: Array<Diagnostic>,
 |};
-
-// Request: Client -> Server
-export const RequestDefinition: RequestType<
-  TextDocumentPositionParams,
-  Array<DefinitionLink> | void,
-  void,
-> = new RequestType('RequestDefinition');
 
 // Request: Client -> Server
 export const RequestImporters: RequestType<
