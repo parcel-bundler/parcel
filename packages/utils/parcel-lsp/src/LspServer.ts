@@ -34,7 +34,7 @@ import {
   NotificationWorkspaceDiagnostics,
   RequestDocumentDiagnostics,
   RequestImporters,
-} from './protocol';
+} from '@parcel/lsp-protocol';
 
 const connection = createConnection(ProposedFeatures.all);
 

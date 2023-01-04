@@ -1,9 +1,8 @@
 // @flow
-import type {DiagnosticLogEvent, FilePath, SourceLocation} from '@parcel/types';
-import type {ODiagnosticSeverity, Position, Range} from 'vscode-languageserver';
+import type {DiagnosticLogEvent, FilePath} from '@parcel/types';
+import type {ODiagnosticSeverity} from 'vscode-languageserver';
 
 import path from 'path';
-import {DiagnosticSeverity} from './protocol';
 
 export type ParcelSeverity = DiagnosticLogEvent['level'];
 
@@ -53,3 +52,44 @@ export function normalizeFilePath(
 //   start: {line: 0, character: 0},
 //   end: {line: 0, character: 0},
 // };
+
+// Copied over from vscode-languageserver to prevent the runtime dependency
+export const DiagnosticTag = {
+  /**
+   * Unused or unnecessary code.
+   *
+   * Clients are allowed to render diagnostics with this tag faded out instead of having
+   * an error squiggle.
+   */
+  // $FlowFixMe
+  Unnecessary: (1: ODiagnosticTag),
+  /**
+   * Deprecated or obsolete code.
+   *
+   * Clients are allowed to rendered diagnostics with this tag strike through.
+   */
+  // $FlowFixMe
+  Deprecated: (2: ODiagnosticTag),
+};
+export const DiagnosticSeverity = {
+  /**
+   * Reports an error.
+   */
+  // $FlowFixMe
+  Error: (1: ODiagnosticSeverity),
+  /**
+   * Reports a warning.
+   */
+  // $FlowFixMe
+  Warning: (2: ODiagnosticSeverity),
+  /**
+   * Reports an information.
+   */
+  // $FlowFixMe
+  Information: (3: ODiagnosticSeverity),
+  /**
+   * Reports a hint.
+   */
+  // $FlowFixMe
+  Hint: (4: ODiagnosticSeverity),
+};

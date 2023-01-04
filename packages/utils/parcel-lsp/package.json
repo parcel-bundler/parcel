@@ -15,6 +15,7 @@
   },
   "main": "./out/LspServer.js",
   "source": "src/LspServer.ts",
+  "types": "src/LspServer.ts",
   "scripts": {
     "vscode:prepublish": "yarn run compile",
     "compile": "tsc -p ./",

@@ -4,7 +4,6 @@ import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
 import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
-import type {PublishDiagnostic} from './protocol';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
 import type {ParcelSeverity} from './utils';
 
@@ -24,14 +23,19 @@ import {promisify} from 'util';
 
 import {createServer} from './ipc';
 import {
-  DiagnosticSeverity,
-  DiagnosticTag,
+  type PublishDiagnostic,
   NotificationBuildStatus,
   NotificationWorkspaceDiagnostics,
   RequestDocumentDiagnostics,
   RequestImporters,
-} from './protocol';
-import {normalizeFilePath, parcelSeverityToLspSeverity} from './utils';
+} from '@parcel/lsp-protocol';
+
+import {
+  DiagnosticSeverity,
+  DiagnosticTag,
+  normalizeFilePath,
+  parcelSeverityToLspSeverity,
+} from './utils';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 

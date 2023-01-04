@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 import {LanguageClient, DocumentUri} from 'vscode-languageclient/node';
-import {NotificationBuild, RequestImporters} from '@parcel/lsp/src/protocol';
+import {NotificationBuild, RequestImporters} from '@parcel/lsp-protocol';
 
 export function addImportersView(client: LanguageClient) {
   let importersTreeProvider = new ImportersTreeProvider(client);
