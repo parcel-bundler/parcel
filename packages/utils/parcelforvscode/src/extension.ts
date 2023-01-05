@@ -39,7 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Start the client. This will also launch the server
   client.start();
 
-  addImportersView(client);
+  addImportersView(context, client);
 }
 
 export function deactivate(): Thenable<void> | undefined {
