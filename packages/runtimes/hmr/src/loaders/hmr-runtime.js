@@ -71,7 +71,6 @@ module.bundle.Module = Module;
 module.bundle.hotData = {};
 
 var checkedAssets /*: {|[string]: boolean|} */,
-  acceptedAssets /*: {|[string]: boolean|} */,
   assetsToDispose /*: Array<[ParcelRequire, string]> */,
   assetsToAccept /*: Array<[ParcelRequire, string]> */;
 
@@ -121,7 +120,6 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   // $FlowFixMe
   ws.onmessage = async function (event /*: {data: string, ...} */) {
     checkedAssets = ({} /*: {|[string]: boolean|} */);
-    acceptedAssets = ({} /*: {|[string]: boolean|} */);
     assetsToAccept = [];
     assetsToDispose = [];
 
@@ -158,23 +156,24 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         await hmrApplyUpdates(assets);
 
         // Dispose all old assets.
+        let processedAssets = ({} /*: {|[string]: boolean|} */);
         for (let i = 0; i < assetsToDispose.length; i++) {
           let id = assetsToDispose[i][1];
 
-          if (!acceptedAssets[id]) {
+          if (!processedAssets[id]) {
             hmrDispose(assetsToDispose[i][0], id);
-            acceptedAssets[id] = true;
+            processedAssets[id] = true;
           }
         }
 
         // Run accept callbacks. This will also re-execute other disposed assets in topological order.
-        acceptedAssets = {};
+        processedAssets = {};
         for (let i = 0; i < assetsToAccept.length; i++) {
           let id = assetsToAccept[i][1];
 
-          if (!acceptedAssets[id]) {
+          if (!processedAssets[id]) {
             hmrAccept(assetsToAccept[i][0], id);
-            acceptedAssets[id] = true;
+            processedAssets[id] = true;
           }
         }
       } else fullReload();
