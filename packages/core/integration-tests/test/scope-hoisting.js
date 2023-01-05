@@ -3826,8 +3826,7 @@ describe('scope hoisting', function () {
       assert.strictEqual(output, 'Say other');
     });
 
-    // TODO this should be working
-    it.skip('supports assigning to this as exports object', async function () {
+    it('supports assigning to this as exports object', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -3835,7 +3834,7 @@ describe('scope hoisting', function () {
         ),
       );
 
-      let output = await run(b, {output: null}, {strict: true});
+      let output = await run(b);
       assert.deepEqual(output, [6, undefined]);
     });
 
@@ -3847,7 +3846,7 @@ describe('scope hoisting', function () {
         ),
       );
 
-      let output = await run(b, {output: null}, {strict: true});
+      let output = await run(b);
       assert.deepEqual(output, [6, undefined, 4]);
     });
 
