@@ -6,7 +6,12 @@ import type {SharedReference} from '@parcel/workers';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import type {StaticRunOpts} from '../RequestTracker';
-import type {Asset, AssetGroup, PackagedBundleInfo} from '../types';
+import type {
+  Asset,
+  AssetGroup,
+  InternalDiagnosticWithLevel,
+  PackagedBundleInfo,
+} from '../types';
 import type BundleGraph from '../BundleGraph';
 
 import createBundleGraphRequest, {
@@ -32,6 +37,7 @@ type ParcelBuildRequestResult = {|
   bundleInfo: Map<string, PackagedBundleInfo>,
   changedAssets: Map<string, Asset>,
   assetRequests: Array<AssetGroup>,
+  diagnostics: Array<InternalDiagnosticWithLevel>,
 |};
 
 type RunInput<TResult> = {|
@@ -66,10 +72,14 @@ async function run({input, api, options}) {
     signal,
   });
 
-  let {bundleGraph, changedAssets, assetRequests}: BundleGraphResult =
-    await api.runRequest(bundleGraphRequest, {
-      force: options.shouldBuildLazily && requestedAssetIds.size > 0,
-    });
+  let {
+    bundleGraph,
+    changedAssets,
+    assetRequests,
+    diagnostics,
+  }: BundleGraphResult = await api.runRequest(bundleGraphRequest, {
+    force: options.shouldBuildLazily && requestedAssetIds.size > 0,
+  });
 
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
   dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph', bundleGraphEdgeTypes);
@@ -96,8 +106,16 @@ async function run({input, api, options}) {
     optionsRef,
   });
 
-  let bundleInfo = await api.runRequest(writeBundlesRequest);
+  let {bundleInfo, diagnostics: bundleDiagnostics} = await api.runRequest(
+    writeBundlesRequest,
+  );
   assertSignalNotAborted(signal);
 
-  return {bundleGraph, bundleInfo, changedAssets, assetRequests};
+  return {
+    bundleGraph,
+    bundleInfo,
+    changedAssets,
+    diagnostics: diagnostics.concat(bundleDiagnostics),
+    assetRequests,
+  };
 }

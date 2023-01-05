@@ -76,17 +76,39 @@ export default (new Packager({
       }));
     }
 
-    return replaceInlineReferences({
-      bundle,
-      bundleGraph,
-      contents,
-      getInlineReplacement: (dependency, inlineType, content) => ({
-        from: `"${dependency.id}"`,
-        to: inlineType === 'string' ? JSON.stringify(content) : content,
-      }),
-      getInlineBundleContents,
-      map,
-    });
+    return {
+      ...(await replaceInlineReferences({
+        bundle,
+        bundleGraph,
+        contents,
+        getInlineReplacement: (dependency, inlineType, content) => ({
+          from: `"${dependency.id}"`,
+          to: inlineType === 'string' ? JSON.stringify(content) : content,
+        }),
+        getInlineBundleContents,
+        map,
+      })),
+      diagnostics: contents.includes('warning2')
+        ? [
+            {
+              message: 'From the packager',
+              level: 'verbose',
+              codeFrames: [
+                {
+                  filePath: '/Users/niklas/Desktop/y/a.js',
+                  codeHighlights: [
+                    {
+                      start: {line: 1, column: 2},
+                      end: {line: 1, column: 5},
+                      message: 'here',
+                    },
+                  ],
+                },
+              ],
+            },
+          ]
+        : [],
+    };
   },
 }): Packager);
 

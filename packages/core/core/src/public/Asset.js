@@ -21,6 +21,7 @@ import type {
   AssetSymbols as IAssetSymbols,
   BundleBehavior,
 } from '@parcel/types';
+import type {DiagnosticWithLevel} from '@parcel/diagnostic';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
@@ -35,7 +36,10 @@ import {
   BundleBehavior as BundleBehaviorMap,
   BundleBehaviorNames,
 } from '../types';
-import {toInternalSourceLocation} from '../utils';
+import {
+  toInternalSourceLocation,
+  toInternalDiagnosticWithLevel,
+} from '../utils';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -277,6 +281,25 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   addDependency(dep: DependencyOptions): string {
     return this.#asset.addDependency(dep);
+  }
+
+  addDiagnostic(
+    diagnostic: DiagnosticWithLevel | Array<DiagnosticWithLevel>,
+  ): void {
+    if (Array.isArray(diagnostic)) {
+      this.#asset.diagnostics.push(
+        ...diagnostic.map(d =>
+          toInternalDiagnosticWithLevel(this.#asset.options.projectRoot, d),
+        ),
+      );
+    } else {
+      this.#asset.diagnostics.push(
+        toInternalDiagnosticWithLevel(
+          this.#asset.options.projectRoot,
+          diagnostic,
+        ),
+      );
+    }
   }
 
   invalidateOnFileChange(filePath: FilePath): void {

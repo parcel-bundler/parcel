@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {Diagnostic} from '@parcel/diagnostic';
+import type {Diagnostic, DiagnosticWithLevel} from '@parcel/diagnostic';
 import type {PluginOptions} from '@parcel/types';
 
 import formatCodeFrame from '@parcel/codeframe';
@@ -26,7 +26,7 @@ export type AnsiDiagnosticResult = {|
 |};
 
 export default async function prettyDiagnostic(
-  diagnostic: Diagnostic,
+  diagnostic: Diagnostic | DiagnosticWithLevel,
   options?: PluginOptions,
   terminalWidth?: number,
 ): Promise<AnsiDiagnosticResult> {

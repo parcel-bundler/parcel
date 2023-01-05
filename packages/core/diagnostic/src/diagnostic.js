@@ -93,6 +93,13 @@ export type DiagnosticWithoutOrigin = {|
   origin?: string,
 |};
 
+export type DiagnosticLevel = 'error' | 'warn' | 'info' | 'verbose';
+
+export type DiagnosticWithLevel = {|
+  ...Diagnostic,
+  level: DiagnosticLevel,
+|};
+
 /** Something that can be turned into a diagnostic. */
 export type Diagnostifiable =
   | Diagnostic

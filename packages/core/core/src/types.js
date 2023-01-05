@@ -29,8 +29,33 @@ import type {
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
 import type {Cache} from '@parcel/cache';
+import type {
+  DiagnosticLevel,
+  DiagnosticCodeHighlight,
+} from '@parcel/diagnostic';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
+
+export type InternalDiagnosticCodeFrame = {|
+  code?: string,
+  filePath?: ?ProjectPath,
+  language?: string,
+  codeHighlights: Array<DiagnosticCodeHighlight>,
+|};
+export type InternalDiagnostic = {|
+  message: string,
+  origin?: string,
+  stack?: string,
+  name?: string,
+  codeFrames?: ?Array<InternalDiagnosticCodeFrame>,
+  hints?: Array<string>,
+  skipFormatting?: boolean,
+  documentationURL?: string,
+|};
+export type InternalDiagnosticWithLevel = {|
+  ...InternalDiagnostic,
+  level: DiagnosticLevel,
+|};
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -367,7 +392,10 @@ export type AssetRequestInput = {|
   isSingleChangeRebuild?: boolean,
 |};
 
-export type AssetRequestResult = Array<Asset>;
+export type AssetRequestResult = {|
+  assets: Array<Asset>,
+  diagnostics: ?Map<string, Array<InternalDiagnosticWithLevel>>,
+|};
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = $Rest<
   AssetRequestInput,
@@ -537,6 +565,7 @@ export type PackagedBundleInfo = {|
   filePath: ProjectPath,
   type: string,
   stats: Stats,
+  diagnostics: Array<InternalDiagnosticWithLevel>,
 |};
 
 export type TransformationOpts = {|

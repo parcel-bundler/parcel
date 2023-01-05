@@ -4,7 +4,7 @@ import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {StaticRunOpts} from '../RequestTracker';
-import type {PackagedBundleInfo} from '../types';
+import type {InternalDiagnosticWithLevel, PackagedBundleInfo} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
 
@@ -25,12 +25,17 @@ type RunInput<TResult> = {|
   ...StaticRunOpts<TResult>,
 |};
 
+type WriteBundlesRequestResult = {|
+  bundleInfo: Map<string, PackagedBundleInfo>,
+  diagnostics: Array<InternalDiagnosticWithLevel>,
+|};
+
 export type WriteBundlesRequest = {|
   id: ContentKey,
   +type: 'write_bundles_request',
   run: (
-    RunInput<Map<string, PackagedBundleInfo>>,
-  ) => Async<Map<string, PackagedBundleInfo>>,
+    RunInput<WriteBundlesRequestResult>,
+  ) => Async<WriteBundlesRequestResult>,
   input: WriteBundlesRequestInput,
 |};
 
@@ -48,17 +53,22 @@ export default function createWriteBundlesRequest(
   };
 }
 
-async function run({input, api, farm, options}) {
+async function run({
+  input,
+  api,
+  farm,
+  options,
+}): Promise<WriteBundlesRequestResult> {
   let {bundleGraph, optionsRef} = input;
   let {ref, dispose} = await farm.createSharedReference(bundleGraph);
 
   api.invalidateOnOptionChange('shouldContentHash');
 
-  let res = new Map();
+  let bundleInfo = new Map();
   let bundleInfoMap: {|
     [string]: BundleInfo,
   |} = {};
-  let writeEarlyPromises = {};
+  let writeEarlyPromises = new Map();
   let hashRefToNameHash = new Map();
   let bundles = bundleGraph.getBundles().filter(bundle => {
     // Do not package and write placeholder bundles to disk. We just
@@ -67,13 +77,14 @@ async function run({input, api, farm, options}) {
       let hash = bundle.id.slice(-8);
       hashRefToNameHash.set(bundle.hashReference, hash);
       let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
-      res.set(bundle.id, {
+      bundleInfo.set(bundle.id, {
         filePath: joinProjectPath(bundle.target.distDir, name),
         type: bundle.type, // FIXME: this is wrong if the packager changes the type...
         stats: {
           time: 0,
           size: 0,
         },
+        diagnostics: [],
       });
       return false;
     }
@@ -88,6 +99,8 @@ async function run({input, api, farm, options}) {
     bundles.filter(b => !api.canSkipSubrequest(bundleGraph.getHash(b)))
       .length === 1;
 
+  let diagnostics = [];
+
   try {
     await Promise.all(
       bundles.map(async bundle => {
@@ -100,6 +113,7 @@ async function run({input, api, farm, options}) {
         });
 
         let info = await api.runRequest(request);
+        diagnostics.push(...info.diagnostics);
 
         bundleInfoMap[bundle.id] = info;
         if (!info.hashReferences.length) {
@@ -118,15 +132,15 @@ async function run({input, api, farm, options}) {
           let promise = api.runRequest(writeBundleRequest);
           // If the promise rejects before we await it (below), we don't want to crash the build.
           promise.catch(() => {});
-          writeEarlyPromises[bundle.id] = promise;
+          writeEarlyPromises.set(bundle.id, promise);
         }
       }),
     );
     assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap, options);
     await Promise.all(
-      bundles.map(bundle => {
+      bundles.map(async bundle => {
         let promise =
-          writeEarlyPromises[bundle.id] ??
+          writeEarlyPromises.get(bundle.id) ??
           api.runRequest(
             createWriteBundleRequest({
               bundle,
@@ -136,10 +150,16 @@ async function run({input, api, farm, options}) {
             }),
           );
 
-        return promise.then(r => res.set(bundle.id, r));
+        let r = await promise;
+        diagnostics.push(...r.diagnostics);
+        bundleInfo.set(bundle.id, r);
       }),
     );
 
+    let res = {
+      bundleInfo,
+      diagnostics,
+    };
     api.storeResult(res);
     return res;
   } finally {

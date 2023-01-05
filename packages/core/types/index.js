@@ -7,6 +7,7 @@ import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {
   Diagnostic,
+  DiagnosticWithLevel,
   Diagnostifiable,
   DiagnosticWithoutOrigin,
 } from '@parcel/diagnostic';
@@ -757,6 +758,10 @@ export interface MutableAsset extends BaseAsset {
    * This is a shortcut for addDependency that sets the specifierType to 'url' and priority to 'lazy'.
    */
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  /** Non-fatal messages to emit for this asset. */
+  addDiagnostic(
+    diagnostic: DiagnosticWithLevel | Array<DiagnosticWithLevel>,
+  ): void;
   /** Invalidates the transformation when the given file is modified or deleted. */
   invalidateOnFileChange(FilePath): void;
   /** Invalidates the transformation when matched files are created. */
@@ -936,6 +941,8 @@ export type TransformerResult = {|
    * assets returned by a transformer by using the unique key as the dependency specifier.
    */
   +uniqueKey?: ?string,
+  /** Non-fatal messages to emit for this asset. */
+  +diagnostics?: Array<DiagnosticWithLevel>,
 |};
 
 export type Async<T> = T | Promise<T>;
@@ -1506,13 +1513,14 @@ export interface BundleGraph<TBundle: Bundle> {
 }
 
 /**
- * @section bundler
+ * @section packager
  */
 export type BundleResult = {|
   +contents: Blob,
   +ast?: AST,
   +map?: ?SourceMap,
   +type?: string,
+  +diagnostics?: Array<DiagnosticWithLevel>,
 |};
 
 export type GlobInvalidation = {|
@@ -1714,6 +1722,7 @@ export type Compressor = {|
   |}): Async<?{|
     stream: Readable,
     type?: string,
+    diagnostics?: Array<DiagnosticWithLevel>,
   |}>,
 |};
 
@@ -1869,7 +1878,8 @@ export type BuildSuccessEvent = {|
   +type: 'buildSuccess',
   +bundleGraph: BundleGraph<PackagedBundle>,
   +buildTime: number,
-  +changedAssets: Map<string, Asset>,
+  +diagnostics: Array<DiagnosticWithLevel>,
+  +changedAssets: $ReadOnlyMap<string, Asset>,
   +requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>,
 |};
 
