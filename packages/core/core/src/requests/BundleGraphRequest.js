@@ -67,10 +67,10 @@ type BundleGraphRequestResult = {|
 
 type RunInput = {|
   input: BundleGraphRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<BundleGraphResult>,
 |};
 
-type BundleGraphResult = {|
+export type BundleGraphResult = {|
   bundleGraph: InternalBundleGraph,
   changedAssets: Map<string, Asset>,
   assetRequests: Array<AssetGroup>,
@@ -162,7 +162,7 @@ class BundlerRunner {
   optionsRef: SharedReference;
   config: ParcelConfig;
   pluginOptions: PluginOptions;
-  api: RunAPI;
+  api: RunAPI<BundleGraphResult>;
   previousDevDeps: Map<string, string>;
   devDepRequests: Map<string, DevDepRequest>;
   configs: Map<string, Config>;
