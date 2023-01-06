@@ -25,15 +25,15 @@ import {
   toProjectPath,
 } from '../projectPath';
 
-type RunOpts = {|
+type RunOpts<TResult> = {|
   input: ProjectPath,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type EntryRequest = {|
   id: string,
   +type: 'entry_request',
-  run: RunOpts => Async<EntryResult>,
+  run: (RunOpts<EntryResult>) => Async<EntryResult>,
   input: ProjectPath,
 |};
 
@@ -53,7 +53,7 @@ export default function createEntryRequest(input: ProjectPath): EntryRequest {
   };
 }
 
-async function run({input, api, options}: RunOpts): Promise<EntryResult> {
+async function run({input, api, options}): Promise<EntryResult> {
   let entryResolver = new EntryResolver(options);
   let filePath = fromProjectPath(options.projectRoot, input);
   let result = await entryResolver.resolveEntry(filePath);

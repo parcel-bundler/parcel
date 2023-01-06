@@ -2,7 +2,7 @@
 
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import RequestTracker from '../src/RequestTracker';
+import RequestTracker, {type RunAPI} from '../src/RequestTracker';
 import WorkerFarm from '@parcel/workers';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {INITIAL_BUILD} from '../src/constants';
@@ -144,7 +144,7 @@ describe('RequestTracker', () => {
     await tracker.runRequest({
       id: 'abc',
       type: 'mock_request',
-      run: async ({api}) => {
+      run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         let result = await Promise.resolve('hello');
         api.storeResult(result);
       },
@@ -193,7 +193,7 @@ describe('RequestTracker', () => {
     let requestA = tracker.runRequest({
       id: 'abc',
       type: 'mock_request',
-      run: async ({api}) => {
+      run: async ({api}: {api: RunAPI<string>, ...}) => {
         await lockA.promise;
         api.storeResult('a');
         return 'a';
@@ -205,7 +205,7 @@ describe('RequestTracker', () => {
     let requestB = tracker.runRequest({
       id: 'abc',
       type: 'mock_request',
-      run: async ({api}) => {
+      run: async ({api}: {api: RunAPI<string>, ...}) => {
         calledB = true;
         await lockB.promise;
         api.storeResult('b');
@@ -254,7 +254,7 @@ describe('RequestTracker', () => {
     let requestB = tracker.runRequest({
       id: 'abc',
       type: 'mock_request',
-      run: async ({api}) => {
+      run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         await lockB.promise;
         api.storeResult('b');
       },

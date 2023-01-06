@@ -9,7 +9,9 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {Asset, AssetGroup, PackagedBundleInfo} from '../types';
 import type BundleGraph from '../BundleGraph';
 
-import createBundleGraphRequest from './BundleGraphRequest';
+import createBundleGraphRequest, {
+  type BundleGraphResult,
+} from './BundleGraphRequest';
 import createWriteBundlesRequest from './WriteBundlesRequest';
 import {assertSignalNotAborted} from '../utils';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
@@ -32,15 +34,15 @@ type ParcelBuildRequestResult = {|
   assetRequests: Array<AssetGroup>,
 |};
 
-type RunInput = {|
+type RunInput<TResult> = {|
   input: ParcelBuildRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type ParcelBuildRequest = {|
   id: ContentKey,
   +type: 'parcel_build_request',
-  run: RunInput => Async<ParcelBuildRequestResult>,
+  run: (RunInput<ParcelBuildRequestResult>) => Async<ParcelBuildRequestResult>,
   input: ParcelBuildRequestInput,
 |};
 
@@ -55,7 +57,7 @@ export default function createParcelBuildRequest(
   };
 }
 
-async function run({input, api, options}: RunInput) {
+async function run({input, api, options}) {
   let {optionsRef, requestedAssetIds, signal} = input;
 
   let bundleGraphRequest = createBundleGraphRequest({
@@ -64,10 +66,10 @@ async function run({input, api, options}: RunInput) {
     signal,
   });
 
-  let {bundleGraph, changedAssets, assetRequests} = await api.runRequest(
-    bundleGraphRequest,
-    {force: options.shouldBuildLazily && requestedAssetIds.size > 0},
-  );
+  let {bundleGraph, changedAssets, assetRequests}: BundleGraphResult =
+    await api.runRequest(bundleGraphRequest, {
+      force: options.shouldBuildLazily && requestedAssetIds.size > 0,
+    });
 
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
   dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph', bundleGraphEdgeTypes);

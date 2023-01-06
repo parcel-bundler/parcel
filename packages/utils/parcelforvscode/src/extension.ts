@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import * as vscode from 'vscode';
+import type {ExtensionContext} from 'vscode';
 
+import * as vscode from 'vscode';
+import * as path from 'path';
 import {
   LanguageClient,
   LanguageClientOptions,
@@ -13,7 +15,7 @@ let client: LanguageClient;
 
 export function activate(context: vscode.ExtensionContext) {
   // The server is implemented in node
-  let serverModule = require.resolve('@parcel/lsp');
+  let serverModule = path.join(context.extensionPath, 'out', 'server.js');
   // The debug options for the server
   // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging
   let debugOptions = {execArgv: ['--nolazy', '--inspect=6009']};
