@@ -21,3 +21,5 @@ tmp
 parcel-bundle-reports/
 .verdaccio_storage/
 sourcemap-info.json
+
+packages/core/integration-tests/junit-testresults.xml

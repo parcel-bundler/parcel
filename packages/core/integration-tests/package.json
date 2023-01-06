@@ -8,8 +8,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "scripts": {
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules NODE_ENV=test PARCEL_BUILD_ENV=test mocha",
-    "test-ci": "yarn test --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json"
+    "test": "yarn workspace @parcel/monorepo test:integration"
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",
