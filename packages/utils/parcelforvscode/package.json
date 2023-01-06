@@ -101,11 +101,10 @@
     "typescript": ">=3.0.0",
     "vsce-yarn-patch": "^1.66.2",
     "vscode-languageclient": "^8.0.2",
-    "vscode-test": "^1.5.0"
+    "vscode-test": "^1.5.0",
+    "@parcel/lsp-protocol": "2.8.2"
   },
   "dependencies": {
-    "@parcel/lsp-protocol": "2.8.2",
-    "@parcel/watcher": "^2.0.7",
-    "vscode-languageclient": "^8.0.2"
+    "@parcel/watcher": "^2.0.7"
   }
 }
