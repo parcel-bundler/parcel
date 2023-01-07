@@ -1,12 +1,24 @@
 {
-  "name": "parcelforvscode",
+  "name": "parcel-for-vscode",
+  "version": "2.8.2",
+  "license": "MIT",
+  "publisher": "parcel",
+  "icon": "logo.png",
   "displayName": "Parcel for VS Code",
   "parcel-lsp.trace.server": "verbose",
   "description": "",
-  "version": "2.8.2",
   "private": true,
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git",
+    "directory": "packages/utils/parcelforvscode"
+  },
   "engines": {
-    "vscode": "^1.46.0"
+    "vscode": "^1.67.0"
   },
   "categories": [
     "Other"
@@ -15,17 +27,42 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
+  "server": "./out/server.js",
+  "targets": {
+    "main": {
+      "source": "src/extension.ts",
+      "outputFormat": "commonjs",
+      "isLibrary": false,
+      "optimize": false,
+      "includeNodeModules": {
+        "vscode": false
+      },
+      "context": "node"
+    },
+    "server": {
+      "source": "src/server.ts",
+      "outputFormat": "commonjs",
+      "isLibrary": false,
+      "optimize": false,
+      "includeNodeModules": {
+        "@parcel/watcher": false
+      },
+      "context": "node"
+    }
+  },
   "scripts": {
-    "vscode:prepublish": "yarn run compile",
+    "vscode:prepublish": "rm -rf out; parcel build --no-cache",
+    "package": "vsce package --yarn",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "yarn run compile && yarn run lint",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
+    "@parcel/lsp": "2.8.2",
     "@types/glob": "^7.1.3",
     "@types/mocha": "^8.0.4",
-    "@types/node": "^12.11.7",
+    "@types/node": "^15.12.4",
     "@types/vscode": "^1.67.0",
     "@typescript-eslint/eslint-plugin": "^4.14.1",
     "@typescript-eslint/parser": "^4.14.1",
@@ -33,10 +70,11 @@
     "glob": "^7.1.6",
     "mocha": "^8.2.1",
     "typescript": ">=3.0.0",
+    "vsce-yarn-patch": "^1.66.2",
+    "vscode-languageclient": "^8.0.2",
     "vscode-test": "^1.5.0"
   },
   "dependencies": {
-    "@parcel/lsp": "2.8.2",
-    "vscode-languageclient": "^8.0.2"
+    "@parcel/watcher": "^2.0.7"
   }
 }

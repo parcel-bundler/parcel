@@ -23,15 +23,15 @@ type PackageRequestInput = {|
   useMainThread?: boolean,
 |};
 
-type RunInput = {|
+type RunInput<TResult> = {|
   input: PackageRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type PackageRequest = {|
   id: ContentKey,
   +type: 'package_request',
-  run: RunInput => Async<BundleInfo>,
+  run: (RunInput<BundleInfo>) => Async<BundleInfo>,
   input: PackageRequestInput,
 |};
 
@@ -46,7 +46,7 @@ export function createPackageRequest(
   };
 }
 
-async function run({input, api, farm}: RunInput) {
+async function run({input, api, farm}) {
   let {bundleGraphReference, optionsRef, bundle, useMainThread} = input;
   let runPackage = farm.createHandle('runPackage', useMainThread);
 

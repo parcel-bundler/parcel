@@ -45,16 +45,16 @@ export type ConfigAndCachePath = {|
   cachePath: string,
 |};
 
-type RunOpts = {|
+type RunOpts<TResult> = {|
   input: null,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type ParcelConfigRequest = {|
   id: string,
   type: string,
   input: null,
-  run: RunOpts => Async<ConfigAndCachePath>,
+  run: (RunOpts<ConfigAndCachePath>) => Async<ConfigAndCachePath>,
 |};
 
 type ParcelConfigChain = {|
@@ -68,7 +68,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
   return {
     id: type,
     type,
-    async run({api, options}: RunOpts): Promise<ConfigAndCachePath> {
+    async run({api, options}) {
       let {
         config,
         extendedFiles,

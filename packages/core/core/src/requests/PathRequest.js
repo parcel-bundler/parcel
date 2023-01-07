@@ -28,7 +28,7 @@ import {Priority} from '../types';
 export type PathRequest = {|
   id: string,
   +type: 'path_request',
-  run: RunOpts => Async<?AssetGroup>,
+  run: (RunOpts<?AssetGroup>) => Async<?AssetGroup>,
   input: PathRequestInput,
 |};
 
@@ -37,9 +37,9 @@ export type PathRequestInput = {|
   name: string,
 |};
 
-type RunOpts = {|
+type RunOpts<TResult> = {|
   input: PathRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 const type = 'path_request';
@@ -56,7 +56,7 @@ export default function createPathRequest(
   };
 }
 
-async function run({input, api, options}: RunOpts) {
+async function run({input, api, options}) {
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );

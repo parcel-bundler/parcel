@@ -21,15 +21,15 @@ import {runConfigRequest} from './ConfigRequest';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {report} from '../ReporterRunner';
 
-type RunInput = {|
+type RunInput<TResult> = {|
   input: AssetRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type AssetRequest = {|
   id: ContentKey,
   +type: 'asset_request',
-  run: RunInput => Async<AssetRequestResult>,
+  run: (RunInput<AssetRequestResult>) => Async<AssetRequestResult>,
   input: AssetRequestInput,
 |};
 
@@ -63,7 +63,7 @@ function getId(input: AssetRequestInput) {
   );
 }
 
-async function run({input, api, farm, invalidateReason, options}: RunInput) {
+async function run({input, api, farm, invalidateReason, options}) {
   report({
     type: 'buildProgress',
     phase: 'transforming',

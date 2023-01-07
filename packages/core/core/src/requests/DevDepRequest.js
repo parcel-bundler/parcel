@@ -1,5 +1,5 @@
 // @flow
-import type {DependencySpecifier} from '@parcel/types';
+import type {DependencySpecifier, SemverRange} from '@parcel/types';
 import type ParcelConfig from '../ParcelConfig';
 import type {
   DevDepRequest,
@@ -100,7 +100,9 @@ type DevDepRequests = {|
   invalidDevDeps: Array<DevDepSpecifier>,
 |};
 
-export async function getDevDepRequests(api: RunAPI): Promise<DevDepRequests> {
+export async function getDevDepRequests<TResult>(
+  api: RunAPI<TResult>,
+): Promise<DevDepRequests> {
   let previousDevDepRequests = new Map(
     await Promise.all(
       api
@@ -163,11 +165,22 @@ export function invalidateDevDeps(
   }
 }
 
-export async function runDevDepRequest(
-  api: RunAPI,
+type DevDepRequestResult = {|
+  specifier: DependencySpecifier,
+  resolveFrom: ProjectPath,
+  hash: string,
+  additionalInvalidations: void | Array<{|
+    range?: ?SemverRange,
+    resolveFrom: ProjectPath,
+    specifier: DependencySpecifier,
+  |}>,
+|};
+
+export async function runDevDepRequest<TResult>(
+  api: RunAPI<TResult>,
   devDepRequest: DevDepRequest,
 ) {
-  await api.runRequest<null, void>({
+  await api.runRequest<null, DevDepRequestResult | void>({
     id: 'dev_dep_request:' + devDepRequest.specifier + ':' + devDepRequest.hash,
     type: 'dev_dep_request',
     run: ({api}) => {
