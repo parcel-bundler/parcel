@@ -9,7 +9,7 @@ import type {
 interface ParcelRequire {
   (string): mixed;
   cache: {|[string]: ParcelModule|};
-  hotData: mixed;
+  hotData: {|[string]: mixed|};
   Module: any;
   parent: ?ParcelRequire;
   isParcelRequire: true;
@@ -55,7 +55,7 @@ var OldModule = module.bundle.Module;
 function Module(moduleName) {
   OldModule.call(this, moduleName);
   this.hot = {
-    data: module.bundle.hotData,
+    data: module.bundle.hotData[moduleName],
     _acceptCallbacks: [],
     _disposeCallbacks: [],
     accept: function (fn) {
@@ -65,12 +65,13 @@ function Module(moduleName) {
       this._disposeCallbacks.push(fn);
     },
   };
-  module.bundle.hotData = undefined;
+  module.bundle.hotData[moduleName] = undefined;
 }
 module.bundle.Module = Module;
+module.bundle.hotData = {};
 
 var checkedAssets /*: {|[string]: boolean|} */,
-  acceptedAssets /*: {|[string]: boolean|} */,
+  assetsToDispose /*: Array<[ParcelRequire, string]> */,
   assetsToAccept /*: Array<[ParcelRequire, string]> */;
 
 function getHostname() {
@@ -119,8 +120,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   // $FlowFixMe
   ws.onmessage = async function (event /*: {data: string, ...} */) {
     checkedAssets = ({} /*: {|[string]: boolean|} */);
-    acceptedAssets = ({} /*: {|[string]: boolean|} */);
     assetsToAccept = [];
+    assetsToDispose = [];
 
     var data /*: HMRMessage */ = JSON.parse(event.data);
 
@@ -154,10 +155,25 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
         await hmrApplyUpdates(assets);
 
-        for (var i = 0; i < assetsToAccept.length; i++) {
-          var id = assetsToAccept[i][1];
-          if (!acceptedAssets[id]) {
-            hmrAcceptRun(assetsToAccept[i][0], id);
+        // Dispose all old assets.
+        let processedAssets = ({} /*: {|[string]: boolean|} */);
+        for (let i = 0; i < assetsToDispose.length; i++) {
+          let id = assetsToDispose[i][1];
+
+          if (!processedAssets[id]) {
+            hmrDispose(assetsToDispose[i][0], id);
+            processedAssets[id] = true;
+          }
+        }
+
+        // Run accept callbacks. This will also re-execute other disposed assets in topological order.
+        processedAssets = {};
+        for (let i = 0; i < assetsToAccept.length; i++) {
+          let id = assetsToAccept[i][1];
+
+          if (!processedAssets[id]) {
+            hmrAccept(assetsToAccept[i][0], id);
+            processedAssets[id] = true;
           }
         }
       } else fullReload();
@@ -553,41 +569,49 @@ function hmrAcceptCheckOne(
   checkedAssets[id] = true;
 
   var cached = bundle.cache[id];
-
-  assetsToAccept.push([bundle, id]);
+  assetsToDispose.push([bundle, id]);
 
   if (!cached || (cached.hot && cached.hot._acceptCallbacks.length)) {
+    assetsToAccept.push([bundle, id]);
     return true;
   }
 }
 
-function hmrAcceptRun(bundle /*: ParcelRequire */, id /*: string */) {
+function hmrDispose(bundle /*: ParcelRequire */, id /*: string */) {
   var cached = bundle.cache[id];
-  bundle.hotData = {};
+  bundle.hotData[id] = {};
   if (cached && cached.hot) {
-    cached.hot.data = bundle.hotData;
+    cached.hot.data = bundle.hotData[id];
   }
 
   if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
     cached.hot._disposeCallbacks.forEach(function (cb) {
-      cb(bundle.hotData);
+      cb(bundle.hotData[id]);
     });
   }
 
   delete bundle.cache[id];
+}
+
+function hmrAccept(bundle /*: ParcelRequire */, id /*: string */) {
+  // Execute the module.
   bundle(id);
 
-  cached = bundle.cache[id];
+  // Run the accept callbacks in the new version of the module.
+  var cached = bundle.cache[id];
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     cached.hot._acceptCallbacks.forEach(function (cb) {
       var assetsToAlsoAccept = cb(function () {
         return getParents(module.bundle.root, id);
       });
       if (assetsToAlsoAccept && assetsToAccept.length) {
+        assetsToAlsoAccept.forEach(function (a) {
+          hmrDispose(a[0], a[1]);
+        });
+
         // $FlowFixMe[method-unbinding]
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
       }
     });
   }
-  acceptedAssets[id] = true;
 }
