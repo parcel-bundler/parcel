@@ -48,15 +48,15 @@ type WriteBundleRequestInput = {|
   hashRefToNameHash: Map<string, string>,
 |};
 
-type RunInput = {|
+type RunInput<TResult> = {|
   input: WriteBundleRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type WriteBundleRequest = {|
   id: ContentKey,
   +type: 'write_bundle_request',
-  run: RunInput => Async<PackagedBundleInfo>,
+  run: (RunInput<PackagedBundleInfo>) => Async<PackagedBundleInfo>,
   input: WriteBundleRequestInput,
 |};
 
@@ -78,7 +78,7 @@ export default function createWriteBundleRequest(
   };
 }
 
-async function run({input, options, api}: RunInput) {
+async function run({input, options, api}) {
   let {bundleGraph, bundle, info, hashRefToNameHash} = input;
   let {inputFS, outputFS} = options;
   let name = nullthrows(bundle.name);
@@ -203,7 +203,7 @@ async function writeFiles(
   filePath: ProjectPath,
   writeOptions: ?FileOptions,
   devDeps: Map<string, string>,
-  api: RunAPI,
+  api: RunAPI<PackagedBundleInfo>,
 ) {
   let compressors = await config.getCompressors(
     fromProjectPathRelative(filePath),
@@ -241,7 +241,7 @@ async function runCompressor(
   filePath: FilePath,
   writeOptions: ?FileOptions,
   devDeps: Map<string, string>,
-  api: RunAPI,
+  api: RunAPI<PackagedBundleInfo>,
 ) {
   try {
     let res = await compressor.plugin.compress({
