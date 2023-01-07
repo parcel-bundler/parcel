@@ -28,35 +28,34 @@ import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
 */
 
 // --------------------------------
-// Keep in sync with packages/reporters/lsp-reporter/src/protocol.js!
 
 /**
  * @type {RequestType<DocumentUri, Array<DocumentUri> | null, void>}
  */
 // Request: LSP Server -> Reporter
 export const RequestImporters /*: RequestType<DocumentUri, Array<DocumentUri> | null, void> */ =
-  new RequestType('RequestImporters');
+  new RequestType('parcel/request-importers');
 
 /**
  * @type {RequestType<DocumentUri, Array<Diagnostic> | undefined, void>}
  */
 // Request: LSP Server -> Reporter
 export const RequestDocumentDiagnostics /*: RequestType<DocumentUri, Array<Diagnostic> | void, void> */ =
-  new RequestType('RequestDocumentDiagnostics');
+  new RequestType('parcel/request-document-diagnostics');
 
 /**
  * @type {NotificationType<Array<PublishDiagnostic>>}
  */
 // Notification: Reporter -> LSP Server
 export const NotificationWorkspaceDiagnostics /*: NotificationType<Array<PublishDiagnostic>> */ =
-  new NotificationType('NotificationWorkspaceDiagnostics');
+  new NotificationType('parcel/notification-workspace-diagnostics');
 
 /**
  * @type {NotificationType2<'start' | 'progress' | 'end', string | void>}
  */
 // Notification: Reporter -> LSP Server
 export const NotificationBuildStatus /*: NotificationType2<'start' | 'progress' | 'end', string | void> */ =
-  new NotificationType2('NotificationBuildStatus');
+  new NotificationType2('parcel/notification-build-status');
 
 // --------------------------------
 
@@ -65,5 +64,5 @@ export const NotificationBuildStatus /*: NotificationType2<'start' | 'progress' 
  * @type {import('vscode-languageserver').NotificationType0}
  */
 export const NotificationBuild /*: mixed */ = new NotificationType0(
-  'NotificationBuild',
+  'parcel/notification-build',
 );
