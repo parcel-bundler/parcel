@@ -408,7 +408,7 @@ impl<'a> Resolver<'a> {
             .or_else(|e| {
               // Node ESM doesn't allow directory imports.
               if self.flags.contains(Flags::DIR_INDEX) {
-                self.try_extensions(
+                self.load_file(
                   &package_dir.join(self.index_file),
                   Some(&package),
                 )
@@ -455,26 +455,28 @@ impl<'a> Resolver<'a> {
   ) -> Result<Resolution, ResolverError> {
     // Urls and Node ESM do not resolve directory index files.
     if !self.flags.contains(Flags::DIR_INDEX) || specifier_type == SpecifierType::Url {
-      return self.try_extensions(path, package)
+      return self.load_file(path, package)
     }
 
     if prioritize == Prioritize::Directory {
       self
         .load_directory(path, specifier_type, package)
-        .or_else(|_| self.try_extensions(path, package))
+        .or_else(|_| self.load_file(path, package))
     } else {
       self
-        .try_extensions(path, package)
+        .load_file(path, package)
         .or_else(|_| self.load_directory(path, specifier_type, package))
     }
   }
 
-  fn try_extensions(
+  fn load_file(
     &self,
     path: &Path,
     package: Option<&PackageJson>,
   ) -> Result<Resolution, ResolverError> {
     // First try the path as is.
+    // TypeScript only supports resolving specifiers ending with `.ts` or `.tsx`
+    // in a certain mode, but we always allow it.
     if let Ok(res) = self.try_file(path, package) {
       return Ok(res);
     }
@@ -482,9 +484,43 @@ impl<'a> Resolver<'a> {
     // TODO: if typescript, try _removing_ `.js` and replacing with `.ts`.
     // TODO: tsconfig moduleSuffixes
 
+    // TypeScript allows a specifier like "./foo.js" to resolve to "./foo.ts".
+    // TypeScipt does this _before_ trying to append an extension.
+    if self.flags.contains(Flags::TYPESCRIPT_EXTENSIONS) {
+      if let Some(ext) = path.extension() {
+        // TODO: would be nice if there was a way to do this without cloning
+        // but OsStr doesn't let you create a slice.
+        let without_extension = &path.with_extension("");
+        let res = if ext == "js" || ext == "jsx" {
+          self.try_extensions(&without_extension, package, &["ts", "tsx"])
+        } else if ext == "mjs" {
+          self.try_extensions(&without_extension, package, &["mts"])
+        } else if ext == "cjs" {
+          self.try_extensions(&without_extension, package, &["cts"])
+        } else {
+          Err(ResolverError::FileNotFound)
+        };
+
+        if res.is_ok() {
+          return res
+        }
+      }
+    }
+
+    self.try_extensions(path, package, &self.extensions)
+  }
+
+  fn try_extensions(
+    &self,
+    path: &Path,
+    package: Option<&PackageJson>,
+    extensions: &[&str]
+  ) -> Result<Resolution, ResolverError> {
+    // TODO: tsconfig moduleSuffixes
+
     if self.flags.contains(Flags::OPTIONAL_EXTENSIONS) {
       // Try appending each extension.
-      for ext in self.extensions {
+      for ext in extensions {
         let mut p: OsString = path.into();
         p.push(".");
         p.push(ext);
@@ -492,8 +528,6 @@ impl<'a> Resolver<'a> {
         if let Ok(res) = self.try_file(Path::new(&p), package) {
           return Ok(res);
         }
-
-        // TODO: add invalidation
       }
     }
 
@@ -518,6 +552,7 @@ impl<'a> Resolver<'a> {
     }
 
     // println!("{:?}", path);
+    // TODO: add invalidation
     if path.is_file() {
       Ok(Resolution::Path(fs::canonicalize(path)?))
     } else {
@@ -547,7 +582,7 @@ impl<'a> Resolver<'a> {
 
     // If no package.json, or no entries, try an index file with all possible extensions.
     if dir.is_dir() {
-      return self.try_extensions(
+      return self.load_file(
         &dir.join(self.index_file),
         package.as_ref().or(parent_package),
       );
