@@ -19,7 +19,7 @@ pub struct TsConfig<'a> {
   paths: Option<IndexMap<Specifier<'a>, Vec<&'a str>>>,
   #[serde(skip)]
   paths_base: PathBuf,
-  module_suffixes: Option<Vec<&'a str>>,
+  pub module_suffixes: Option<Vec<&'a str>>,
   // rootDirs??
 }
 
@@ -44,9 +44,7 @@ where
 }
 
 #[derive(serde::Deserialize, Debug)]
-#[serde(
-  rename_all = "camelCase",
-)]
+#[serde(rename_all = "camelCase")]
 pub struct TsConfigWrapper<'a> {
   #[serde(borrow, default, deserialize_with = "deserialize_extends")]
   pub extends: Vec<Specifier<'a>>,
@@ -62,7 +60,7 @@ impl<'a> TsConfig<'a> {
     wrapper.compiler_options.validate();
     Ok(wrapper)
   }
-  
+
   fn validate(&mut self) {
     if let Some(base_url) = &mut self.base_url {
       *base_url = Cow::Owned(self.path.with_file_name(base_url.as_ref()));
