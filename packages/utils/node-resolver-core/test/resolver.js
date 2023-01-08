@@ -319,7 +319,7 @@ describe('resolver', function () {
       });
     });
 
-    it('Should be able to handle node: prefixes', async function () {
+    it('Should be able to handle node: prefixes on esm', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'node:zlib',
@@ -353,6 +353,16 @@ describe('resolver', function () {
           require.resolve('browserify-zlib/package.json'),
         ],
       });
+    });
+
+    it('Should be able to handle node: prefixes on commonjs', async function () {
+      let resolved = await resolver.resolve({
+        env: NODE_ENV,
+        filename: 'node:fs',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(resolved, {alias: 'fs', isExcluded: true});
     });
 
     it('should resolve unimplemented node builtin modules to an empty file', async function () {

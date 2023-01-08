@@ -68,6 +68,7 @@ type Module = {|
   filePath?: FilePath,
   code?: string,
   query?: URLSearchParams,
+  isExcluded?: boolean,
 |};
 
 type ResolverContext = {|
@@ -161,6 +162,10 @@ export default class NodeResolver {
         ctx,
         sourcePath,
       });
+
+      if (module.isExcluded) {
+        return module;
+      }
 
       if (!module) {
         return {
@@ -286,7 +291,13 @@ export default class NodeResolver {
       if (sourcePath && env.isLibrary && !builtin) {
         await this.checkExcludedDependency(sourcePath, filename, ctx);
       }
-      return null;
+      if (builtin !== undefined) {
+        return {
+          alias: filename,
+          isExcluded: true,
+        };
+      }
+      return {isExcluded: true};
     }
 
     // Resolve the module in node_modules
@@ -753,12 +764,20 @@ export default class NodeResolver {
   ): ?{|name: string, range: ?string|} {
     const isExplicitNode = filename.startsWith('node:');
     if (isExplicitNode || builtins[filename]) {
-      if (env.isNode()) {
-        return null;
-      }
-
       if (isExplicitNode) {
         filename = filename.substr(5);
+      }
+
+      if (
+        env.isNode() &&
+        env.outputFormat === 'commonjs' &&
+        this.shouldIncludeNodeModule(env, filename) !== true
+      ) {
+        return filename;
+      }
+
+      if (env.isNode()) {
+        return null;
       }
 
       // By default, exclude node builtins from libraries unless explicitly opted in.
