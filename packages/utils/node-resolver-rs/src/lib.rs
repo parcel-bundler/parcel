@@ -681,7 +681,7 @@ impl<'a> Resolver<'a> {
   }
 
   fn find_tsconfig(&self, from: &Path) -> Result<Option<TsConfig>, ResolverError> {
-    if self.flags.contains(Flags::TSCONFIG) {
+    if self.flags.contains(Flags::TSCONFIG) && !from.components().any(|c| c.as_os_str() == "node_modules") {
       if let Some(path) = self.find_ancestor_file(from, "tsconfig.json") {
         let tsconfig = self.read_tsconfig(path)?;
         return Ok(Some(tsconfig));
@@ -1503,6 +1503,14 @@ mod tests {
         .unwrap(),
       Resolution::Path(root().join("node_modules/tsconfig-exports/foo.js"))
     );
+    assert!(matches!(
+      test_resolver().resolve(
+        "ts-path",
+        &root().join("node_modules/tsconfig-not-used/index.js"),
+        SpecifierType::Esm
+      ),
+      Err(ResolverError::FileNotFound)
+    ));
   }
 
   #[test]
