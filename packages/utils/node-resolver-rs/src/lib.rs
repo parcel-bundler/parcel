@@ -486,21 +486,23 @@ impl<'a> Resolver<'a> {
     // First try the path as is.
     // TypeScript only supports resolving specifiers ending with `.ts` or `.tsx`
     // in a certain mode, but we always allow it.
-    if let Ok(res) = self.try_file(path, package) {
+    if let Ok(res) = self.try_suffixes(path, "", package, tsconfig) {
       return Ok(res);
     }
 
-    // TODO: if typescript, try _removing_ `.js` and replacing with `.ts`.
-    // TODO: tsconfig moduleSuffixes
-
     // TypeScript allows a specifier like "./foo.js" to resolve to "./foo.ts".
-    // TypeScipt does this _before_ trying to append an extension.
+    // TSC does this before trying to append an extension. We match this
+    // rather than matching "./foo.js.ts", which seems more unlikely.
+    // However, if "./foo.js" exists we will resolve to it (above), unlike TSC.
+    // This is to match Node and other bundlers.
+    // TODO: don't do this in node_modules? Only if source path is a TS file?
     if self.flags.contains(Flags::TYPESCRIPT_EXTENSIONS) {
       if let Some(ext) = path.extension() {
         // TODO: would be nice if there was a way to do this without cloning
         // but OsStr doesn't let you create a slice.
         let without_extension = &path.with_extension("");
         let res = if ext == "js" || ext == "jsx" {
+          // TSC always prioritizes .ts over .tsx, even when the original extension was .jsx.
           self.try_extensions(&without_extension, package, &["ts", "tsx"], tsconfig)
         } else if ext == "mjs" {
           self.try_extensions(&without_extension, package, &["mts"], tsconfig)
@@ -526,29 +528,70 @@ impl<'a> Resolver<'a> {
     extensions: &[&str],
     tsconfig: Option<&TsConfig>,
   ) -> Result<Resolution, ResolverError> {
+    if self.flags.contains(Flags::OPTIONAL_EXTENSIONS) {
+      // Try appending each extension.
+      for ext in extensions {
+        if let Ok(res) = self.try_suffixes(path, ext, package, tsconfig) {
+          return Ok(res);
+        }
+      }
+    }
+
+    Err(ResolverError::FileNotFound)
+  }
+
+  fn try_suffixes(
+    &self,
+    path: &Path,
+    ext: &str,
+    package: Option<&PackageJson>,
+    tsconfig: Option<&TsConfig>,
+  ) -> Result<Resolution, ResolverError> {
+    // TypeScript supports a moduleSuffixes option in tsconfig.json which allows suffixes
+    // such as ".ios" to be appended just before the last extension.
     let module_suffixes = tsconfig
       .and_then(|tsconfig| tsconfig.module_suffixes.as_ref())
       .map_or([""].as_slice(), |v| v.as_slice());
 
-    if self.flags.contains(Flags::OPTIONAL_EXTENSIONS) {
-      // Try appending each extension.
-      for ext in extensions {
-        for suffix in module_suffixes {
-          let mut p = if *suffix != "" {
-            // Slice off the leading "." from moduleSuffixes config.
-            let p = path.with_extension(&suffix[1..]);
-            p.into_os_string()
-          } else {
-            path.into()
-          };
+    for suffix in module_suffixes {
+      let mut p = if *suffix != "" {
+        // The suffix is placed before the _last_ extension. If we will be appending
+        // another extension later, then we only need to append the suffix first.
+        // Otherwise, we need to remove the original extension so we can add the suffix.
+        // TODO: TypeScript only removes certain extensions here...
+        let original_ext = path.extension();
+        let mut s = if ext == "" && original_ext.is_some() {
+          path.with_extension("").into_os_string()
+        } else {
+          path.into()
+        };
 
-          p.push(".");
-          p.push(ext);
+        // Append the suffix (this is not necessarily an extension).
+        s.push(suffix);
 
-          if let Ok(res) = self.try_file(Path::new(&p), package) {
-            return Ok(res);
+        // Re-add the original extension if we removed it earlier.
+        if ext == "" {
+          if let Some(original_ext) = original_ext {
+            s.push(".");
+            s.push(original_ext);
           }
         }
+
+        Cow::Owned(PathBuf::from(s))
+      } else {
+        Cow::Borrowed(path)
+      };
+
+      if ext != "" {
+        // Append the extension.
+        let mut s = p.into_owned().into_os_string();
+        s.push(".");
+        s.push(ext);
+        p = Cow::Owned(PathBuf::from(s));
+      }
+
+      if let Ok(res) = self.try_file(p.as_ref(), package) {
+        return Ok(res);
       }
     }
 
@@ -1459,6 +1502,137 @@ mod tests {
         )
         .unwrap(),
       Resolution::Path(root().join("node_modules/tsconfig-exports/foo.js"))
+    );
+  }
+
+  #[test]
+  fn test_module_suffixes() {
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./a",
+          &root().join("tsconfig/suffixes/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("tsconfig/suffixes/a.ios.ts"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./a.ts",
+          &root().join("tsconfig/suffixes/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("tsconfig/suffixes/a.ios.ts"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./b",
+          &root().join("tsconfig/suffixes/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("tsconfig/suffixes/b.ts"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./b.ts",
+          &root().join("tsconfig/suffixes/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("tsconfig/suffixes/b.ts"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./c",
+          &root().join("tsconfig/suffixes/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("tsconfig/suffixes/c-test.ts"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./c.ts",
+          &root().join("tsconfig/suffixes/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("tsconfig/suffixes/c-test.ts"))
+    );
+  }
+
+  #[test]
+  fn test_ts_extensions() {
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./a.js",
+          &root().join("ts-extensions/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("ts-extensions/a.ts"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./a.jsx",
+          &root().join("ts-extensions/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      // TSC always prioritizes .ts over .tsx
+      Resolution::Path(root().join("ts-extensions/a.ts"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./a.mjs",
+          &root().join("ts-extensions/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("ts-extensions/a.mts"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./a.cjs",
+          &root().join("ts-extensions/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      Resolution::Path(root().join("ts-extensions/a.cts"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./b.js",
+          &root().join("ts-extensions/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      // We deviate from TSC here to match Node/bundlers.
+      Resolution::Path(root().join("ts-extensions/b.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./c.js",
+          &root().join("ts-extensions/index.ts"),
+          SpecifierType::Esm
+        )
+        .unwrap(),
+      // This matches TSC. c.js.ts seems kinda unlikely?
+      Resolution::Path(root().join("ts-extensions/c.ts"))
     );
   }
 
