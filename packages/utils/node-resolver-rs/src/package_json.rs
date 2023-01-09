@@ -22,8 +22,8 @@ bitflags! {
 
 #[derive(serde::Deserialize, Debug)]
 pub struct PackageJson<'a> {
-  #[serde(skip, borrow, default = "empty_path")]
-  pub path: &'a Path,
+  #[serde(skip)]
+  pub path: PathBuf,
   name: &'a str,
   main: Option<&'a str>,
   module: Option<&'a str>,
@@ -44,7 +44,7 @@ pub struct PackageJson<'a> {
 impl<'a> Default for PackageJson<'a> {
   fn default() -> Self {
     PackageJson {
-      path: empty_path(),
+      path: Default::default(),
       name: "",
       main: None,
       module: None,
@@ -56,10 +56,6 @@ impl<'a> Default for PackageJson<'a> {
       imports: Default::default(),
     }
   }
-}
-
-fn empty_path() -> &'static Path {
-  Path::new("")
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -151,7 +147,7 @@ pub enum AliasValue<'a> {
   },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PackageJsonError {
   InvalidPackageTarget,
   PackagePathNotExported,
@@ -167,7 +163,7 @@ pub enum ExportsResolution<'a> {
 }
 
 impl<'a> PackageJson<'a> {
-  pub fn parse(path: &'a Path, data: &'a str) -> serde_json::Result<PackageJson<'a>> {
+  pub fn parse(path: PathBuf, data: &'a str) -> serde_json::Result<PackageJson<'a>> {
     let mut parsed: PackageJson = serde_json::from_str(data)?;
     parsed.path = path;
     Ok(parsed)
@@ -555,7 +551,7 @@ mod tests {
   #[test]
   fn exports_string() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       exports: ExportsField::String("./exports.js"),
       ..PackageJson::default()
@@ -572,7 +568,7 @@ mod tests {
   #[test]
   fn exports_dot() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
         ".".into() => ExportsField::String("./exports.js")
@@ -590,7 +586,7 @@ mod tests {
   #[test]
   fn exports_dot_conditions() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
         ".".into() => ExportsField::Map(indexmap! {
@@ -616,7 +612,7 @@ mod tests {
   #[test]
   fn exports_map_string() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "./foo".into() => ExportsField::String("./exports.js")
@@ -633,7 +629,7 @@ mod tests {
   #[test]
   fn exports_map_conditions() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "./foo".into() => ExportsField::Map(indexmap! {
@@ -659,7 +655,7 @@ mod tests {
   #[test]
   fn nested_conditions() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "node".into() => ExportsField::Map(indexmap! {
@@ -692,7 +688,7 @@ mod tests {
   #[test]
   fn subpath_nested_conditions() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "./lite".into() => ExportsField::Map(indexmap! {
@@ -738,7 +734,7 @@ mod tests {
   #[test]
   fn subpath_star() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "./*".into() => ExportsField::String("./cheese/*.mjs"),
@@ -773,7 +769,7 @@ mod tests {
   #[test]
   fn exports_null() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "./features/*.js".into() => ExportsField::String("./src/features/*.js"),
@@ -804,7 +800,7 @@ mod tests {
   #[test]
   fn exports_invalid() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       exports: ExportsField::Map(indexmap! {
         "./invalid".into() => ExportsField::String("../invalid"),
@@ -831,7 +827,7 @@ mod tests {
   #[test]
   fn imports() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       imports: indexmap! {
         "#foo".into() => ExportsField::String("./foo.mjs"),
@@ -858,7 +854,7 @@ mod tests {
   #[test]
   fn aliases() {
     let pkg = PackageJson {
-      path: Path::new("/foo/package.json"),
+      path: "/foo/package.json".into(),
       name: "foobar",
       alias: indexmap! {
         "./foo.js".into() => AliasValue::Specifier("./foo-alias.js".into()),

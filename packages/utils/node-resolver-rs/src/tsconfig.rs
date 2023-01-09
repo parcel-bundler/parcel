@@ -75,18 +75,18 @@ impl<'a> TsConfig<'a> {
     }
   }
 
-  pub fn extend(&mut self, extended: TsConfig<'a>) {
+  pub fn extend(&mut self, extended: &TsConfig<'a>) {
     if self.base_url.is_none() {
-      self.base_url = extended.base_url;
+      self.base_url = extended.base_url.clone();
     }
 
     if self.paths.is_none() {
-      self.paths_base = extended.paths_base;
-      self.paths = extended.paths;
+      self.paths_base = extended.paths_base.clone();
+      self.paths = extended.paths.clone();
     }
 
     if self.module_suffixes.is_none() {
-      self.module_suffixes = extended.module_suffixes;
+      self.module_suffixes = extended.module_suffixes.clone();
     }
   }
 

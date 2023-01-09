@@ -9,15 +9,18 @@ use std::{
   ffi::OsString,
   fs,
   path::{Path, PathBuf},
+  rc::Rc,
 };
 // use es_module_lexer::{lex, ImportKind};
 use specifier::parse_package_specifier;
 
+use cache::{Cache, CacheCow};
 use package_json::{AliasValue, ExportsResolution, Fields, PackageJson, PackageJsonError};
 use specifier::Specifier;
 use tsconfig::TsConfig;
 
 mod builtins;
+mod cache;
 mod package_json;
 mod specifier;
 mod tsconfig;
@@ -58,6 +61,7 @@ pub struct Resolver<'a> {
   index_file: &'a str,
   entries: Fields,
   flags: Flags,
+  cache: CacheCow<'a>,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -77,14 +81,14 @@ pub enum SpecifierType {
   Url,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ResolverError {
   EmptySpecifier,
   UnknownScheme,
   UnknownError,
   FileNotFound,
-  JsonError(serde_json::Error),
-  IOError(std::io::Error),
+  JsonError(Rc<serde_json::Error>),
+  IOError(Rc<std::io::Error>),
   PackageJsonError(PackageJsonError),
 }
 
@@ -102,13 +106,13 @@ impl From<std::str::Utf8Error> for ResolverError {
 
 impl From<serde_json::Error> for ResolverError {
   fn from(e: serde_json::Error) -> Self {
-    ResolverError::JsonError(e)
+    ResolverError::JsonError(Rc::new(e))
   }
 }
 
 impl From<std::io::Error> for ResolverError {
   fn from(e: std::io::Error) -> Self {
-    ResolverError::IOError(e)
+    ResolverError::IOError(Rc::new(e))
   }
 }
 
@@ -132,23 +136,25 @@ enum Prioritize {
 }
 
 impl<'a> Resolver<'a> {
-  pub fn node(project_root: Cow<'a, Path>) -> Self {
+  pub fn node(project_root: Cow<'a, Path>, cache: CacheCow<'a>) -> Self {
     Self {
       project_root,
       extensions: &["js", "json", "node"],
       index_file: "index",
       entries: Fields::MAIN,
       flags: Flags::NODE_CJS,
+      cache,
     }
   }
 
-  pub fn parcel(project_root: Cow<'a, Path>) -> Self {
+  pub fn parcel(project_root: Cow<'a, Path>, cache: CacheCow<'a>) -> Self {
     Self {
       project_root,
       extensions: &["ts", "tsx", "mjs", "js", "jsx", "cjs", "json"],
       index_file: "index",
       entries: Fields::MAIN | Fields::SOURCE | Fields::BROWSER | Fields::MODULE,
       flags: Flags::all(),
+      cache,
     }
   }
 
@@ -166,44 +172,24 @@ impl<'a> Resolver<'a> {
 
     // First, check the project root package.json for any aliases.
     if self.flags.contains(Flags::ALIASES) {
-      self.find_package(&self.project_root, |package| {
-        if let Some(package) = package {
-          self
-            .resolve_aliases(&package, &specifier, Fields::ALIAS)
-            .or_else(|_| self.resolve_specifier(&specifier, from, specifier_type))
-        } else {
-          self.resolve_specifier(&specifier, from, specifier_type)
+      let package = self.find_package(&self.project_root)?;
+      if let Some(package) = package {
+        if let Ok(res) = self.resolve_aliases(&package, &specifier, Fields::ALIAS) {
+          return Ok(res);
         }
-      })
-    } else {
-      self.resolve_specifier(&specifier, from, specifier_type)
+      }
     }
+
+    self.resolve_specifier(&specifier, from, specifier_type)
   }
 
-  fn find_package<T, F: FnOnce(Option<&PackageJson>) -> Result<T, ResolverError>>(
-    &self,
-    path: &Path,
-    cb: F,
-  ) -> Result<T, ResolverError> {
-    for dir in path.ancestors() {
-      if let Some(filename) = dir.file_name() {
-        if filename == "node_modules" {
-          break;
-        }
-      }
-
-      let pkg = dir.join("package.json");
-      if let Ok(data) = std::fs::read_to_string(&pkg) {
-        let package = PackageJson::parse(&pkg, &data)?;
-        return cb(Some(&package));
-      }
-
-      if dir == self.project_root {
-        break;
-      }
+  fn find_package(&self, from: &Path) -> Result<Option<&PackageJson>, ResolverError> {
+    if let Some(path) = self.find_ancestor_file(from, "package.json") {
+      let package = self.cache.read_package(path)?;
+      return Ok(Some(package));
     }
 
-    cb(None)
+    Ok(None)
   }
 
   fn find_ancestor_file(&self, from: &Path, filename: &str) -> Option<PathBuf> {
@@ -276,13 +262,7 @@ impl<'a> Resolver<'a> {
           )
         } else {
           let tsconfig = self.find_tsconfig(from)?;
-          self.load_path(
-            &specifier,
-            specifier_type,
-            None,
-            tsconfig.as_ref(),
-            Prioritize::File,
-          )
+          self.load_path(&specifier, specifier_type, None, tsconfig, Prioritize::File)
         }
       }
       Specifier::Hash(hash) => {
@@ -291,25 +271,24 @@ impl<'a> Resolver<'a> {
           Ok(Resolution::Excluded)
         } else if specifier_type == SpecifierType::Esm && self.flags.contains(Flags::EXPORTS) {
           // An internal package #import specifier.
-          self.find_package(from, |package| {
-            if let Some(package) = package {
-              match package.resolve_package_imports(&hash, &[])? {
-                ExportsResolution::Path(path) => {
-                  // Extensionless specifiers are not supported in the imports field.
-                  if path.is_file() {
-                    return Ok(Resolution::Path(fs::canonicalize(path)?));
-                  }
+          let package = self.find_package(from)?;
+          if let Some(package) = package {
+            match package.resolve_package_imports(&hash, &[])? {
+              ExportsResolution::Path(path) => {
+                // Extensionless specifiers are not supported in the imports field.
+                if path.is_file() {
+                  return Ok(Resolution::Path(fs::canonicalize(path)?));
                 }
-                ExportsResolution::Package(specifier) => {
-                  let (module, subpath) = parse_package_specifier(&specifier)?;
-                  return self.resolve_bare(module, subpath, from, specifier_type);
-                }
-                _ => {}
               }
+              ExportsResolution::Package(specifier) => {
+                let (module, subpath) = parse_package_specifier(&specifier)?;
+                return self.resolve_bare(module, subpath, from, specifier_type);
+              }
+              _ => {}
             }
+          }
 
-            Err(ResolverError::UnknownError)
-          })
+          Err(ResolverError::UnknownError)
         } else {
           Err(ResolverError::UnknownError)
         }
@@ -338,16 +317,15 @@ impl<'a> Resolver<'a> {
   ) -> Result<Resolution, ResolverError> {
     // Find a package.json above the source file where the dependency was located.
     // This is used to resolve any aliases.
-    self.find_package(from, |package| {
-      let tsconfig = self.find_tsconfig(from)?;
-      self.load_path(
-        &from.with_file_name(specifier),
-        specifier_type,
-        package,
-        tsconfig.as_ref(),
-        Prioritize::File,
-      )
-    })
+    let package = self.find_package(from)?;
+    let tsconfig = self.find_tsconfig(from)?;
+    self.load_path(
+      &from.with_file_name(specifier),
+      specifier_type,
+      package,
+      tsconfig,
+      Prioritize::File,
+    )
   }
 
   fn resolve_bare(
@@ -366,7 +344,7 @@ impl<'a> Resolver<'a> {
       }
     }
 
-    self.resolve_node_module(module, subpath, from, specifier_type, tsconfig.as_ref())
+    self.resolve_node_module(module, subpath, from, specifier_type, tsconfig)
   }
 
   fn resolve_node_module(
@@ -391,8 +369,7 @@ impl<'a> Resolver<'a> {
       let mut package_dir = dir.join("node_modules").join(module);
       if package_dir.is_dir() {
         let package_path = package_dir.join("package.json");
-        let contents = std::fs::read_to_string(&package_path)?;
-        let package = PackageJson::parse(&package_path, &contents)?;
+        let package = self.cache.read_package(package_path)?;
 
         // If the exports field is present, use the Node ESM algorithm.
         // Otherwise, fall back to classic CJS resolution.
@@ -635,9 +612,7 @@ impl<'a> Resolver<'a> {
     // Check if there is a package.json in this directory, and if so, use its entries.
     // Note that the "exports" field is NOT used here - only in resolve_node_module.
     let path = dir.join("package.json");
-    let contents = std::fs::read_to_string(&path);
-    let package = if let Ok(file) = &contents {
-      let package = PackageJson::parse(&path, &file)?;
+    let package = if let Ok(package) = self.cache.read_package(path) {
       if let Ok(res) = self.try_package_entries(&package, specifier_type) {
         return Ok(res);
       }
@@ -650,7 +625,7 @@ impl<'a> Resolver<'a> {
     if dir.is_dir() {
       return self.load_file(
         &dir.join(self.index_file),
-        package.as_ref().or(parent_package),
+        package.or(parent_package),
         tsconfig,
       );
     }
@@ -680,8 +655,10 @@ impl<'a> Resolver<'a> {
     Err(ResolverError::FileNotFound)
   }
 
-  fn find_tsconfig(&self, from: &Path) -> Result<Option<TsConfig>, ResolverError> {
-    if self.flags.contains(Flags::TSCONFIG) && !from.components().any(|c| c.as_os_str() == "node_modules") {
+  fn find_tsconfig(&self, from: &Path) -> Result<Option<&TsConfig>, ResolverError> {
+    if self.flags.contains(Flags::TSCONFIG)
+      && !from.components().any(|c| c.as_os_str() == "node_modules")
+    {
       if let Some(path) = self.find_ancestor_file(from, "tsconfig.json") {
         let tsconfig = self.read_tsconfig(path)?;
         return Ok(Some(tsconfig));
@@ -691,53 +668,54 @@ impl<'a> Resolver<'a> {
     Ok(None)
   }
 
-  fn read_tsconfig(&self, path: PathBuf) -> Result<TsConfig, ResolverError> {
-    let contents = std::fs::read_to_string(&path)?;
-    // TODO
-    let contents = Box::leak(contents.into_boxed_str());
-    let mut tsconfig = TsConfig::parse(path, contents)?;
-    for i in 0..tsconfig.extends.len() {
-      let path = match &tsconfig.extends[i] {
-        Specifier::Absolute(path) => path.as_ref().to_owned(),
-        Specifier::Relative(path) => {
-          let mut absolute_path = tsconfig.compiler_options.path.with_file_name(path.as_ref());
+  fn read_tsconfig(&self, path: PathBuf) -> Result<&TsConfig, ResolverError> {
+    let tsconfig = self.cache.read_tsconfig(path, |tsconfig| {
+      for i in 0..tsconfig.extends.len() {
+        let path = match &tsconfig.extends[i] {
+          Specifier::Absolute(path) => path.as_ref().to_owned(),
+          Specifier::Relative(path) => {
+            let mut absolute_path = tsconfig.compiler_options.path.with_file_name(path.as_ref());
 
-          // TypeScript allows "." and ".." to implicitly refer to a tsconfig.json file.
-          if path == Path::new(".") || path == Path::new("..") {
-            absolute_path.push("tsconfig.json");
+            // TypeScript allows "." and ".." to implicitly refer to a tsconfig.json file.
+            if path == Path::new(".") || path == Path::new("..") {
+              absolute_path.push("tsconfig.json");
+            }
+
+            absolute_path
           }
+          Specifier::Package(module, subpath) => {
+            let resolver = Resolver {
+              project_root: Cow::Borrowed(&self.project_root),
+              extensions: &["json"],
+              index_file: "tsconfig.json",
+              entries: Fields::TSCONFIG,
+              flags: Flags::NODE_CJS,
+              cache: CacheCow::Borrowed(&self.cache),
+            };
 
-          absolute_path
-        }
-        Specifier::Package(module, subpath) => {
-          let resolver = Resolver {
-            project_root: Cow::Borrowed(&self.project_root),
-            extensions: &["json"],
-            index_file: "tsconfig.json",
-            entries: Fields::TSCONFIG,
-            flags: Flags::NODE_CJS,
-          };
-
-          if let Resolution::Path(res) = resolver.resolve_node_module(
-            module,
-            subpath,
-            &tsconfig.compiler_options.path,
-            SpecifierType::Cjs,
-            None,
-          )? {
-            res
-          } else {
-            return Err(ResolverError::UnknownError);
+            if let Resolution::Path(res) = resolver.resolve_node_module(
+              module,
+              subpath,
+              &tsconfig.compiler_options.path,
+              SpecifierType::Cjs,
+              None,
+            )? {
+              res
+            } else {
+              return Err(ResolverError::UnknownError);
+            }
           }
-        }
-        _ => return Ok(tsconfig.compiler_options),
-      };
+          _ => return Ok(()),
+        };
 
-      let extended = self.read_tsconfig(path)?;
-      tsconfig.compiler_options.extend(extended);
-    }
+        let extended = self.read_tsconfig(path)?;
+        tsconfig.compiler_options.extend(extended);
+      }
 
-    Ok(tsconfig.compiler_options)
+      Ok(())
+    })?;
+
+    Ok(&tsconfig.compiler_options)
   }
 }
 
@@ -827,11 +805,11 @@ mod tests {
   }
 
   fn test_resolver<'a>() -> Resolver<'a> {
-    Resolver::parcel(root().into())
+    Resolver::parcel(root().into(), CacheCow::Owned(Cache::default()))
   }
 
   fn node_resolver<'a>() -> Resolver<'a> {
-    Resolver::node(root().into())
+    Resolver::node(root().into(), CacheCow::Owned(Cache::default()))
   }
 
   #[test]

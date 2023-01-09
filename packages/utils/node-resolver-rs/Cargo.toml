@@ -20,6 +20,8 @@ bitflags = "*"
 indexmap = { version = "*", features = ["serde"] }
 itertools = "*"
 json_comments = { git = "https://github.com/devongovett/json-comments-rs", branch = "strip_in_place" }
+typed-arena = "*"
+elsa = "*"
 
 [build-dependencies]
 napi-build = "1"
