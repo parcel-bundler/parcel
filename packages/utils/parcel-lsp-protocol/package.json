@@ -27,5 +27,8 @@
   },
   "dependencies": {
     "vscode-jsonrpc": "^8.0.2"
+  },
+  "targets": {
+    "types": false
   }
 }

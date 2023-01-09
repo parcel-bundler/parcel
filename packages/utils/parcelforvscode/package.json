@@ -55,8 +55,8 @@
       ]
     }
   },
-  "main": "./out/extension.js",
-  "server": "./out/server.js",
+  "main": "./lib/extension.js",
+  "server": "./lib/server.js",
   "targets": {
     "main": {
       "source": "src/extension.ts",
@@ -80,7 +80,7 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "rm -rf out; parcel build --no-cache",
+    "vscode:prepublish": "rm -rf lib; parcel build --no-cache",
     "package": "vsce package --yarn",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
