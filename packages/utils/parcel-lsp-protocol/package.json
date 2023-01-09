@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/reporter-lsp",
+  "name": "@parcel/lsp-protocol",
   "version": "2.8.2",
   "license": "MIT",
   "publishConfig": {
@@ -13,19 +13,22 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/LspReporter.js",
-  "source": "src/LspReporter.js",
+  "main": "lib/index.js",
+  "source": "src/index.js",
+  "types": "src/index.js",
+  "scripts": {
+    "watch": "tsc -watch -p ./"
+  },
   "engines": {
-    "node": ">= 12.0.0",
-    "parcel": "^2.8.2"
+    "node": ">= 12.0.0"
+  },
+  "devDependencies": {
+    "typescript": ">=3.0.0"
   },
   "dependencies": {
-    "@parcel/lsp-protocol": "2.8.2",
-    "@parcel/plugin": "2.8.2",
-    "@parcel/utils": "2.8.2",
-    "node-ipc": "^9.1.4",
-    "nullthrows": "^1.1.1",
-    "ps-node": "^0.1.6",
     "vscode-jsonrpc": "^8.0.2"
+  },
+  "targets": {
+    "types": false
   }
 }
