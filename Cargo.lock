@@ -1198,6 +1198,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "once_cell",
  "percent-encoding",
  "serde",
  "serde_json",

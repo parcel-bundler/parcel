@@ -22,6 +22,7 @@ itertools = "*"
 json_comments = { git = "https://github.com/devongovett/json-comments-rs", branch = "strip_in_place" }
 typed-arena = "*"
 elsa = "*"
+once_cell = "*"
 
 [build-dependencies]
 napi-build = "1"

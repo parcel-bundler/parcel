@@ -1,4 +1,5 @@
 use std::{
+  borrow::Cow,
   ops::Deref,
   path::{Path, PathBuf},
 };
@@ -42,8 +43,8 @@ impl<'a> Deref for CacheCow<'a> {
 }
 
 impl Cache {
-  pub fn read_package(&self, path: PathBuf) -> Result<&PackageJson, ResolverError> {
-    if let Some(pkg) = self.packages.get(&path) {
+  pub fn read_package<'a>(&'a self, path: Cow<Path>) -> Result<&'a PackageJson<'a>, ResolverError> {
+    if let Some(pkg) = self.packages.get(path.as_ref()) {
       return clone_result(pkg);
     }
 
@@ -55,9 +56,10 @@ impl Cache {
       Ok(PackageJson::parse(path, data)?)
     }
 
+    let path = path.into_owned();
     let pkg = self
       .packages
-      .insert(path.to_owned(), Box::new(read_package(&self.arena, path)));
+      .insert(path.clone(), Box::new(read_package(&self.arena, path)));
 
     clone_result(pkg)
   }
@@ -66,7 +68,7 @@ impl Cache {
     &'a self,
     path: PathBuf,
     process: F,
-  ) -> Result<&TsConfigWrapper<'a>, ResolverError> {
+  ) -> Result<&'a TsConfigWrapper<'a>, ResolverError> {
     if let Some(tsconfig) = self.tsconfigs.get(&path) {
       return clone_result(tsconfig);
     }
