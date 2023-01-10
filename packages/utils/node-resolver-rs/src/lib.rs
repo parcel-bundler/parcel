@@ -386,11 +386,9 @@ impl<'a> ResolveRequest<'a> {
 
   fn resolve_bare(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
     // First check tsconfig.json for the paths and baseUrl options.
-    if let Ok(res) = self.resolve_tsconfig_paths(&self.specifier) {
-      return Ok(res);
-    }
-
-    self.resolve_node_module(module, subpath)
+    self
+      .resolve_tsconfig_paths()
+      .or_else(|_| self.resolve_node_module(module, subpath))
   }
 
   fn resolve_node_module(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
@@ -657,9 +655,9 @@ impl<'a> ResolveRequest<'a> {
     Err(ResolverError::FileNotFound)
   }
 
-  fn resolve_tsconfig_paths(&self, specifier: &Specifier) -> Result<Resolution, ResolverError> {
+  fn resolve_tsconfig_paths(&self) -> Result<Resolution, ResolverError> {
     if let Some(tsconfig) = self.tsconfig()? {
-      for path in tsconfig.paths(specifier) {
+      for path in tsconfig.paths(&self.specifier) {
         // TODO: should aliases apply to tsconfig paths??
         if let Ok(res) = self.load_path(&path, None, Prioritize::File) {
           return Ok(res);
