@@ -6,7 +6,6 @@ use bitflags::bitflags;
 use std::{
   borrow::Cow,
   collections::HashSet,
-  ffi::OsString,
   fs,
   path::{Path, PathBuf},
   rc::Rc,
@@ -14,7 +13,7 @@ use std::{
 // use es_module_lexer::{lex, ImportKind};
 use specifier::parse_package_specifier;
 
-use cache::{Cache, CacheCow};
+use cache::CacheCow;
 use package_json::{AliasValue, ExportsResolution, Fields, PackageJson, PackageJsonError};
 use specifier::Specifier;
 use tsconfig::TsConfig;
@@ -169,23 +168,64 @@ impl<'a> Resolver<'a> {
     }
 
     let specifier = Specifier::parse(specifier, specifier_type, self.flags)?;
+    let request = ResolveRequest::new(self, &specifier, specifier_type, from);
+    request.resolve()
+  }
+}
 
-    // First, check the project root package.json for any aliases.
-    if self.flags.contains(Flags::ALIASES) {
-      let package = self.find_package(&self.project_root)?;
-      if let Some(package) = package {
-        if let Ok(res) = self.resolve_aliases(&package, &specifier, Fields::ALIAS) {
-          return Ok(res);
-        }
+struct ResolveRequest<'a> {
+  resolver: &'a Resolver<'a>,
+  specifier: &'a Specifier<'a>,
+  specifier_type: SpecifierType,
+  from: &'a Path,
+  flags: RequestFlags,
+}
+
+bitflags! {
+  struct RequestFlags: u8 {
+    const IN_TS_FILE = 1 << 0;
+    const IN_JS_FILE = 1 << 1;
+    const IN_NODE_MODULES = 1 << 2;
+  }
+}
+
+impl<'a> ResolveRequest<'a> {
+  fn new(
+    resolver: &'a Resolver<'a>,
+    specifier: &'a Specifier<'a>,
+    mut specifier_type: SpecifierType,
+    from: &'a Path,
+  ) -> Self {
+    let mut flags = RequestFlags::empty();
+    if let Some(ext) = from.extension() {
+      if ext == "ts" || ext == "tsx" || ext == "mts" || ext == "cts" {
+        flags |= RequestFlags::IN_TS_FILE;
+      } else if ext == "js" || ext == "jsx" || ext == "mjs" || ext == "cjs" {
+        flags |= RequestFlags::IN_JS_FILE;
       }
     }
 
-    self.resolve_specifier(&specifier, from, specifier_type)
+    if from.components().any(|c| c.as_os_str() == "node_modules") {
+      flags |= RequestFlags::IN_NODE_MODULES;
+    }
+
+    // Replace the specifier type for `npm:` URLs so we resolve it like a module.
+    if specifier_type == SpecifierType::Url && matches!(specifier, Specifier::Package(..)) {
+      specifier_type = SpecifierType::Esm;
+    }
+
+    Self {
+      resolver,
+      specifier,
+      specifier_type,
+      from,
+      flags,
+    }
   }
 
   fn find_package(&self, from: &Path) -> Result<Option<&PackageJson>, ResolverError> {
     if let Some(path) = self.find_ancestor_file(from, "package.json") {
-      let package = self.cache.read_package(path)?;
+      let package = self.resolver.cache.read_package(path)?;
       return Ok(Some(package));
     }
 
@@ -205,7 +245,7 @@ impl<'a> Resolver<'a> {
         return Some(file);
       }
 
-      if dir == self.project_root {
+      if dir == self.resolver.project_root {
         break;
       }
     }
@@ -222,7 +262,9 @@ impl<'a> Resolver<'a> {
     match package.resolve_aliases(&specifier, fields) {
       Some(alias) => match alias.as_ref() {
         AliasValue::Specifier(specifier) => {
-          self.resolve_specifier(&specifier, &package.path, SpecifierType::Cjs)
+          let req =
+            ResolveRequest::new(&self.resolver, specifier, SpecifierType::Cjs, &package.path);
+          req.resolve_specifier()
         }
         AliasValue::Bool(false) => Ok(Resolution::Excluded),
         AliasValue::Bool(true) => Err(ResolverError::FileNotFound),
@@ -232,46 +274,56 @@ impl<'a> Resolver<'a> {
     }
   }
 
-  fn resolve_specifier(
-    &self,
-    specifier: &Specifier,
-    from: &Path,
-    specifier_type: SpecifierType,
-  ) -> Result<Resolution, ResolverError> {
-    match specifier {
+  fn resolve(&self) -> Result<Resolution, ResolverError> {
+    // First, check the project root package.json for any aliases.
+    if self.resolver.flags.contains(Flags::ALIASES) {
+      let package = self.find_package(&self.resolver.project_root)?;
+      if let Some(package) = package {
+        if let Ok(res) = self.resolve_aliases(&package, &self.specifier, Fields::ALIAS) {
+          return Ok(res);
+        }
+      }
+    }
+
+    self.resolve_specifier()
+  }
+
+  fn resolve_specifier(&self) -> Result<Resolution, ResolverError> {
+    match &self.specifier {
       Specifier::Relative(specifier) => {
         // Relative path
-        self.resolve_relative(&specifier, from, specifier_type)
+        self.resolve_relative(&specifier, &self.from)
       }
-      Specifier::Tilde(specifier) if self.flags.contains(Flags::TILDE_SPECIFIERS) => {
+      Specifier::Tilde(specifier) if self.resolver.flags.contains(Flags::TILDE_SPECIFIERS) => {
         // Tilde path. Resolve relative to nearest node_modules directory,
         // the nearest directory with package.json or the project root - whichever comes first.
-        if let Some(p) = self.find_ancestor_file(from, "package.json") {
-          return self.resolve_relative(&specifier, &p, specifier_type);
+        if let Some(p) = self.find_ancestor_file(&self.from, "package.json") {
+          return self.resolve_relative(&specifier, &p);
         }
 
         Err(ResolverError::FileNotFound)
       }
       Specifier::Absolute(specifier) => {
         // In Parcel mode, absolute paths are actually relative to the project root.
-        if self.flags.contains(Flags::ABSOLUTE_SPECIFIERS) {
+        if self.resolver.flags.contains(Flags::ABSOLUTE_SPECIFIERS) {
           self.resolve_relative(
             specifier.strip_prefix("/").unwrap(),
-            &self.project_root.join("index"),
-            specifier_type,
+            &self.resolver.project_root.join("index"),
           )
         } else {
-          let tsconfig = self.find_tsconfig(from)?;
-          self.load_path(&specifier, specifier_type, None, tsconfig, Prioritize::File)
+          let tsconfig = self.find_tsconfig()?;
+          self.load_path(&specifier, None, tsconfig, Prioritize::File)
         }
       }
       Specifier::Hash(hash) => {
-        if specifier_type == SpecifierType::Url {
+        if self.specifier_type == SpecifierType::Url {
           // An ID-only URL, e.g. `url(#clip-path)` for CSS rules. Ignore.
           Ok(Resolution::Excluded)
-        } else if specifier_type == SpecifierType::Esm && self.flags.contains(Flags::EXPORTS) {
+        } else if self.specifier_type == SpecifierType::Esm
+          && self.resolver.flags.contains(Flags::EXPORTS)
+        {
           // An internal package #import specifier.
-          let package = self.find_package(from)?;
+          let package = self.find_package(&self.from)?;
           if let Some(package) = package {
             match package.resolve_package_imports(&hash, &[])? {
               ExportsResolution::Path(path) => {
@@ -282,7 +334,7 @@ impl<'a> Resolver<'a> {
               }
               ExportsResolution::Package(specifier) => {
                 let (module, subpath) = parse_package_specifier(&specifier)?;
-                return self.resolve_bare(module, subpath, from, specifier_type);
+                return self.resolve_bare(module, subpath);
               }
               _ => {}
             }
@@ -295,11 +347,11 @@ impl<'a> Resolver<'a> {
       }
       Specifier::Package(module, subpath) => {
         // Bare specifier.
-        self.resolve_bare(&module, &subpath, from, specifier_type)
+        self.resolve_bare(&module, &subpath)
       }
       Specifier::Builtin(builtin) => Ok(Resolution::Builtin(builtin.as_ref().to_owned())),
       Specifier::Url(_) => {
-        if specifier_type == SpecifierType::Url {
+        if self.specifier_type == SpecifierType::Url {
           Ok(Resolution::Excluded)
         } else {
           Err(ResolverError::UnknownScheme)
@@ -309,56 +361,41 @@ impl<'a> Resolver<'a> {
     }
   }
 
-  fn resolve_relative(
-    &self,
-    specifier: &Path,
-    from: &Path,
-    specifier_type: SpecifierType,
-  ) -> Result<Resolution, ResolverError> {
+  fn resolve_relative(&self, specifier: &Path, from: &Path) -> Result<Resolution, ResolverError> {
     // Find a package.json above the source file where the dependency was located.
     // This is used to resolve any aliases.
     let package = self.find_package(from)?;
-    let tsconfig = self.find_tsconfig(from)?;
+    let tsconfig = self.find_tsconfig()?;
     self.load_path(
       &from.with_file_name(specifier),
-      specifier_type,
       package,
       tsconfig,
       Prioritize::File,
     )
   }
 
-  fn resolve_bare(
-    &self,
-    module: &str,
-    subpath: &str,
-    from: &Path,
-    specifier_type: SpecifierType,
-  ) -> Result<Resolution, ResolverError> {
+  fn resolve_bare(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
     // First check tsconfig.json for the paths and baseUrl options.
-    let tsconfig = self.find_tsconfig(from)?;
+    let tsconfig = self.find_tsconfig()?;
     if let Some(tsconfig) = &tsconfig {
-      let specifier = Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath));
-      if let Ok(res) = self.resolve_tsconfig_paths(&specifier, specifier_type, &tsconfig) {
+      if let Ok(res) = self.resolve_tsconfig_paths(&self.specifier, &tsconfig) {
         return Ok(res);
       }
     }
 
-    self.resolve_node_module(module, subpath, from, specifier_type, tsconfig)
+    self.resolve_node_module(module, subpath, tsconfig)
   }
 
   fn resolve_node_module(
     &self,
     module: &str,
     subpath: &str,
-    from: &Path,
-    specifier_type: SpecifierType,
     tsconfig: Option<&TsConfig>,
   ) -> Result<Resolution, ResolverError> {
     // TODO: do pnp here
     // TODO: check if module == self
 
-    for dir in from.ancestors() {
+    for dir in self.from.ancestors() {
       // Skip over node_modules directories
       if let Some(filename) = dir.file_name() {
         if filename == "node_modules" {
@@ -369,11 +406,11 @@ impl<'a> Resolver<'a> {
       let mut package_dir = dir.join("node_modules").join(module);
       if package_dir.is_dir() {
         let package_path = package_dir.join("package.json");
-        let package = self.cache.read_package(package_path)?;
+        let package = self.resolver.cache.read_package(package_path)?;
 
         // If the exports field is present, use the Node ESM algorithm.
         // Otherwise, fall back to classic CJS resolution.
-        if self.flags.contains(Flags::EXPORTS) && package.has_exports() {
+        if self.resolver.flags.contains(Flags::EXPORTS) && package.has_exports() {
           let path = package.resolve_package_exports(subpath, &[])?;
 
           // Extensionless specifiers are not supported in the exports field.
@@ -382,24 +419,20 @@ impl<'a> Resolver<'a> {
           }
         } else if !subpath.is_empty() {
           package_dir.push(subpath);
-          return self.load_path(
-            &package_dir,
-            specifier_type,
-            Some(&package),
-            tsconfig,
-            Prioritize::File,
-          );
+          return self.load_path(&package_dir, Some(&package), tsconfig, Prioritize::File);
         } else {
-          return self
-            .try_package_entries(&package, specifier_type)
-            .or_else(|e| {
-              // Node ESM doesn't allow directory imports.
-              if self.flags.contains(Flags::DIR_INDEX) {
-                self.load_file(&package_dir.join(self.index_file), Some(&package), tsconfig)
-              } else {
-                Err(e)
-              }
-            });
+          return self.try_package_entries(&package).or_else(|e| {
+            // Node ESM doesn't allow directory imports.
+            if self.resolver.flags.contains(Flags::DIR_INDEX) {
+              self.load_file(
+                &package_dir.join(self.resolver.index_file),
+                Some(&package),
+                tsconfig,
+              )
+            } else {
+              Err(e)
+            }
+          });
         }
       }
     }
@@ -409,20 +442,16 @@ impl<'a> Resolver<'a> {
     Err(ResolverError::FileNotFound)
   }
 
-  fn try_package_entries(
-    &self,
-    package: &PackageJson,
-    specifier_type: SpecifierType,
-  ) -> Result<Resolution, ResolverError> {
+  fn try_package_entries(&self, package: &PackageJson) -> Result<Resolution, ResolverError> {
     // Try all entry fields.
-    for entry in package.entries(self.entries) {
+    for entry in package.entries(self.resolver.entries) {
       let prioritize = if entry.extension().is_some() {
         Prioritize::File
       } else {
         Prioritize::Directory
       };
 
-      if let Ok(res) = self.load_path(&entry, specifier_type, Some(package), None, prioritize) {
+      if let Ok(res) = self.load_path(&entry, Some(package), None, prioritize) {
         return Ok(res);
       }
     }
@@ -433,24 +462,24 @@ impl<'a> Resolver<'a> {
   fn load_path(
     &self,
     path: &Path,
-    specifier_type: SpecifierType,
     package: Option<&PackageJson>,
     tsconfig: Option<&TsConfig>,
     prioritize: Prioritize,
   ) -> Result<Resolution, ResolverError> {
     // Urls and Node ESM do not resolve directory index files.
-    if !self.flags.contains(Flags::DIR_INDEX) || specifier_type == SpecifierType::Url {
+    if !self.resolver.flags.contains(Flags::DIR_INDEX) || self.specifier_type == SpecifierType::Url
+    {
       return self.load_file(path, package, tsconfig);
     }
 
     if prioritize == Prioritize::Directory {
       self
-        .load_directory(path, specifier_type, package, tsconfig)
+        .load_directory(path, package, tsconfig)
         .or_else(|_| self.load_file(path, package, tsconfig))
     } else {
       self
         .load_file(path, package, tsconfig)
-        .or_else(|_| self.load_directory(path, specifier_type, package, tsconfig))
+        .or_else(|_| self.load_directory(path, package, tsconfig))
     }
   }
 
@@ -472,8 +501,11 @@ impl<'a> Resolver<'a> {
     // rather than matching "./foo.js.ts", which seems more unlikely.
     // However, if "./foo.js" exists we will resolve to it (above), unlike TSC.
     // This is to match Node and other bundlers.
-    // TODO: don't do this in node_modules? Only if source path is a TS file?
-    if self.flags.contains(Flags::TYPESCRIPT_EXTENSIONS) {
+    if self.resolver.flags.contains(Flags::TYPESCRIPT_EXTENSIONS)
+      && self.flags.contains(RequestFlags::IN_TS_FILE)
+      && !self.flags.contains(RequestFlags::IN_NODE_MODULES)
+      && self.specifier_type != SpecifierType::Url
+    {
       if let Some(ext) = path.extension() {
         // TODO: would be nice if there was a way to do this without cloning
         // but OsStr doesn't let you create a slice.
@@ -495,7 +527,7 @@ impl<'a> Resolver<'a> {
       }
     }
 
-    self.try_extensions(path, package, &self.extensions, tsconfig)
+    self.try_extensions(path, package, &self.resolver.extensions, tsconfig)
   }
 
   fn try_extensions(
@@ -505,7 +537,9 @@ impl<'a> Resolver<'a> {
     extensions: &[&str],
     tsconfig: Option<&TsConfig>,
   ) -> Result<Resolution, ResolverError> {
-    if self.flags.contains(Flags::OPTIONAL_EXTENSIONS) {
+    if self.resolver.flags.contains(Flags::OPTIONAL_EXTENSIONS)
+      && self.specifier_type != SpecifierType::Url
+    {
       // Try appending each extension.
       for ext in extensions {
         if let Ok(res) = self.try_suffixes(path, ext, package, tsconfig) {
@@ -582,7 +616,7 @@ impl<'a> Resolver<'a> {
   ) -> Result<Resolution, ResolverError> {
     let path = Cow::Borrowed(path);
 
-    if self.flags.contains(Flags::ALIASES) {
+    if self.resolver.flags.contains(Flags::ALIASES) {
       if let Some(package) = package {
         let s = path.strip_prefix(package.path.parent().unwrap()).unwrap();
         let specifier = Specifier::Relative(Cow::Borrowed(s));
@@ -605,15 +639,14 @@ impl<'a> Resolver<'a> {
   fn load_directory(
     &self,
     dir: &Path,
-    specifier_type: SpecifierType,
     parent_package: Option<&PackageJson>,
     tsconfig: Option<&TsConfig>,
   ) -> Result<Resolution, ResolverError> {
     // Check if there is a package.json in this directory, and if so, use its entries.
     // Note that the "exports" field is NOT used here - only in resolve_node_module.
     let path = dir.join("package.json");
-    let package = if let Ok(package) = self.cache.read_package(path) {
-      if let Ok(res) = self.try_package_entries(&package, specifier_type) {
+    let package = if let Ok(package) = self.resolver.cache.read_package(path) {
+      if let Ok(res) = self.try_package_entries(&package) {
         return Ok(res);
       }
       Some(package)
@@ -624,7 +657,7 @@ impl<'a> Resolver<'a> {
     // If no package.json, or no entries, try an index file with all possible extensions.
     if dir.is_dir() {
       return self.load_file(
-        &dir.join(self.index_file),
+        &dir.join(self.resolver.index_file),
         package.or(parent_package),
         tsconfig,
       );
@@ -636,18 +669,11 @@ impl<'a> Resolver<'a> {
   fn resolve_tsconfig_paths(
     &self,
     specifier: &Specifier,
-    specifier_type: SpecifierType,
     tsconfig: &TsConfig,
   ) -> Result<Resolution, ResolverError> {
     for path in tsconfig.paths(specifier) {
       // TODO: should aliases apply to tsconfig paths??
-      if let Ok(res) = self.load_path(
-        &path,
-        specifier_type,
-        None,
-        Some(tsconfig),
-        Prioritize::File,
-      ) {
+      if let Ok(res) = self.load_path(&path, None, Some(tsconfig), Prioritize::File) {
         return Ok(res);
       }
     }
@@ -655,11 +681,14 @@ impl<'a> Resolver<'a> {
     Err(ResolverError::FileNotFound)
   }
 
-  fn find_tsconfig(&self, from: &Path) -> Result<Option<&TsConfig>, ResolverError> {
-    if self.flags.contains(Flags::TSCONFIG)
-      && !from.components().any(|c| c.as_os_str() == "node_modules")
+  fn find_tsconfig(&self) -> Result<Option<&TsConfig>, ResolverError> {
+    if self.resolver.flags.contains(Flags::TSCONFIG)
+      && self
+        .flags
+        .intersects(RequestFlags::IN_TS_FILE | RequestFlags::IN_JS_FILE)
+      && !self.flags.contains(RequestFlags::IN_NODE_MODULES)
     {
-      if let Some(path) = self.find_ancestor_file(from, "tsconfig.json") {
+      if let Some(path) = self.find_ancestor_file(&self.from, "tsconfig.json") {
         let tsconfig = self.read_tsconfig(path)?;
         return Ok(Some(tsconfig));
       }
@@ -669,7 +698,7 @@ impl<'a> Resolver<'a> {
   }
 
   fn read_tsconfig(&self, path: PathBuf) -> Result<&TsConfig, ResolverError> {
-    let tsconfig = self.cache.read_tsconfig(path, |tsconfig| {
+    let tsconfig = self.resolver.cache.read_tsconfig(path, |tsconfig| {
       for i in 0..tsconfig.extends.len() {
         let path = match &tsconfig.extends[i] {
           Specifier::Absolute(path) => path.as_ref().to_owned(),
@@ -683,23 +712,24 @@ impl<'a> Resolver<'a> {
 
             absolute_path
           }
-          Specifier::Package(module, subpath) => {
+          specifier @ Specifier::Package(..) => {
             let resolver = Resolver {
-              project_root: Cow::Borrowed(&self.project_root),
+              project_root: Cow::Borrowed(&self.resolver.project_root),
               extensions: &["json"],
               index_file: "tsconfig.json",
               entries: Fields::TSCONFIG,
               flags: Flags::NODE_CJS,
-              cache: CacheCow::Borrowed(&self.cache),
+              cache: CacheCow::Borrowed(&self.resolver.cache),
             };
 
-            if let Resolution::Path(res) = resolver.resolve_node_module(
-              module,
-              subpath,
-              &tsconfig.compiler_options.path,
+            let req = ResolveRequest::new(
+              &resolver,
+              specifier,
               SpecifierType::Cjs,
-              None,
-            )? {
+              &tsconfig.compiler_options.path,
+            );
+
+            if let Resolution::Path(res) = req.resolve()? {
               res
             } else {
               return Err(ResolverError::UnknownError);
@@ -795,6 +825,7 @@ impl<'a> Resolver<'a> {
 
 #[cfg(test)]
 mod tests {
+  use super::cache::Cache;
   use super::*;
 
   fn root() -> PathBuf {
@@ -1290,6 +1321,10 @@ mod tests {
         .unwrap(),
       Resolution::Path(root().join("bar.js"))
     );
+    assert!(matches!(
+      test_resolver().resolve("bar", &root().join("foo.js"), SpecifierType::Url),
+      Err(ResolverError::FileNotFound)
+    ));
     assert_eq!(
       test_resolver()
         .resolve("npm:foo", &root().join("foo.js"), SpecifierType::Url)
@@ -1489,6 +1524,10 @@ mod tests {
       ),
       Err(ResolverError::FileNotFound)
     ));
+    assert!(matches!(
+      test_resolver().resolve("ts-path", &root().join("foo.css"), SpecifierType::Esm),
+      Err(ResolverError::FileNotFound)
+    ));
   }
 
   #[test]
@@ -1620,6 +1659,14 @@ mod tests {
       // This matches TSC. c.js.ts seems kinda unlikely?
       Resolution::Path(root().join("ts-extensions/c.ts"))
     );
+    assert!(matches!(
+      test_resolver().resolve(
+        "./a.js",
+        &root().join("ts-extensions/index.js"),
+        SpecifierType::Esm
+      ),
+      Err(ResolverError::FileNotFound)
+    ));
   }
 
   // #[test]
