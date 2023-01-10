@@ -29,10 +29,12 @@ import commonPathPrefix = require('common-path-prefix');
 // import {TextDocument} from 'vscode-languageserver-textdocument';
 import * as watcher from '@parcel/watcher';
 import {
+  NotificationBuild,
   NotificationBuildStatus,
   NotificationWorkspaceDiagnostics,
   RequestDocumentDiagnostics,
-} from './protocol';
+  RequestImporters,
+} from '@parcel/lsp-protocol';
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -98,6 +100,16 @@ connection.onInitialized(() => {
       connection.console.log('Workspace folder change event received.');
     });
   }
+});
+
+// Proxy
+connection.onRequest(RequestImporters, async params => {
+  let client = findClient(params);
+  if (client) {
+    let result = await client.connection.sendRequest(RequestImporters, params);
+    return result;
+  }
+  return null;
 });
 
 connection.onRequest(
@@ -188,7 +200,6 @@ type Client = {
   lastBuild: string;
 };
 
-const BASEDIR = fs.realpathSync(path.join(os.tmpdir(), 'parcel-lsp'));
 let progressReporter = new ProgressReporter();
 let clients: Map<string, Client> = new Map();
 
@@ -239,6 +250,7 @@ function createClient(metafilepath: string) {
       result.lastBuild = String(Date.now());
       sendDiagnosticsRefresh();
       progressReporter.done();
+      connection.sendNotification(NotificationBuild);
     }
   });
 
@@ -262,6 +274,8 @@ function createClient(metafilepath: string) {
   clients.set(metafile, result);
 }
 
+// Take realpath because to have consistent cache keys on macOS (/var -> /private/var)
+const BASEDIR = path.join(fs.realpathSync(os.tmpdir()), 'parcel-lsp');
 fs.mkdirSync(BASEDIR, {recursive: true});
 // Search for currently running Parcel processes in the parcel-lsp dir.
 // Create an IPC client connection for each running process.
