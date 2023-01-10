@@ -27,9 +27,10 @@ export async function fsDelete(
   f: string,
   {appRoot, log, dryRun, fs}: CmdOptions,
 ): Promise<void> {
-  assert(await fs.exists(f));
-  if (!dryRun) await fs.rimraf(f);
-  log('Deleted', path.join('<app>', path.relative(appRoot, f)));
+  if (await fs.exists(f)) {
+    if (!dryRun) await fs.rimraf(f);
+    log('Deleted', path.join('<app>', path.relative(appRoot, f)));
+  }
 }
 
 export async function fsSymlink(
