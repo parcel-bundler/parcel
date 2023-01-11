@@ -49,13 +49,13 @@
     "@parcel/types": "2.8.3",
     "@parcel/utils": "2.8.3",
     "@parcel/workers": "2.8.3",
-    "semver": "^5.7.1",
-    "sinon": "^7.3.1"
+    "semver": "^5.7.1"
   },
   "devDependencies": {
     "command-exists": "^1.2.6",
     "cross-spawn": "^6.0.4",
     "nullthrows": "^1.1.1",
+    "sinon": "^7.3.1",
     "split2": "^3.1.1"
   },
   "peerDependencies": {
