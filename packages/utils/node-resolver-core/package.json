@@ -65,8 +65,5 @@
     "url": "^0.11.0",
     "util": "^0.12.3",
     "vm-browserify": "^1.1.2"
-  },
-  "peerDependencies": {
-    "@parcel/core": "2.8.3"
   }
 }
