@@ -7,16 +7,16 @@ import type {
 } from '@parcel/types';
 import path from 'path';
 import {relativePath} from '@parcel/utils';
+import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
 import {POSTCSS_RANGE} from './constants';
 
 import loadExternalPlugins from './loadPlugins';
 
-const MODULE_BY_NAME_RE = /\.module\./;
-
 type ConfigResult = {|
   raw: any,
+  filePath: string,
   hydrated: {|
     plugins: Array<any>,
     from: FilePath,
@@ -28,20 +28,10 @@ type ConfigResult = {|
 async function configHydrator(
   configFile: any,
   config: Config,
-  resolveFrom: ?FilePath,
+  resolveFrom: FilePath,
   options: PluginOptions,
+  logger: PluginLogger,
 ): Promise<?ConfigResult> {
-  // Use a basic, modules-only PostCSS config if the file opts in by a name
-  // like foo.module.css
-  if (configFile == null && config.searchPath.match(MODULE_BY_NAME_RE)) {
-    configFile = {
-      plugins: {
-        'postcss-modules': {},
-      },
-    };
-    resolveFrom = __filename;
-  }
-
   if (configFile == null) {
     return;
   }
@@ -84,8 +74,69 @@ async function configHydrator(
     }
   }
 
+  let redundantPlugins = pluginArray.filter(
+    p => p === 'autoprefixer' || p === 'postcss-preset-env',
+  );
+  if (redundantPlugins.length > 0) {
+    let filename = path.basename(resolveFrom);
+    let isPackageJson = filename === 'package.json';
+    let message;
+    let hints = [];
+    if (!isPackageJson && redundantPlugins.length === pluginArray.length) {
+      message = md`Parcel includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains only redundant plugins. Deleting it may significantly improve build performance.`;
+      hints.push(md`Delete __${filename}__`);
+    } else {
+      message = md`Parcel includes CSS transpilation and vendor prefixing by default. PostCSS config __${filename}__ contains the following redundant plugins: ${[
+        ...redundantPlugins,
+      ].map(p =>
+        md.underline(p),
+      )}. Removing these may improve build performance.`;
+      hints.push(md`Remove the above plugins from __${filename}__`);
+    }
+
+    let codeFrames;
+    if (path.extname(filename) !== '.js') {
+      let contents = await options.inputFS.readFile(resolveFrom, 'utf8');
+      let prefix = isPackageJson ? '/postcss' : '';
+      codeFrames = [
+        {
+          language: 'json',
+          filePath: resolveFrom,
+          code: contents,
+          codeHighlights: generateJSONCodeHighlights(
+            contents,
+            redundantPlugins.map(plugin => ({
+              key: `${prefix}/plugins/${plugin}`,
+              type: 'key',
+            })),
+          ),
+        },
+      ];
+    } else {
+      codeFrames = [
+        {
+          filePath: resolveFrom,
+          codeHighlights: [
+            {
+              start: {line: 1, column: 1},
+              end: {line: 1, column: 1},
+            },
+          ],
+        },
+      ];
+    }
+
+    logger.warn({
+      message,
+      hints,
+      documentationURL: 'https://parceljs.org/languages/css/#default-plugins',
+      codeFrames,
+    });
+  }
+
   return {
     raw: configFile,
+    filePath: resolveFrom,
     hydrated: {
       plugins,
       from: config.searchPath,
@@ -104,8 +155,19 @@ export async function load({
   options: PluginOptions,
   logger: PluginLogger,
 |}): Promise<?ConfigResult> {
+  if (!config.isSource) {
+    return;
+  }
+
   let configFile: any = await config.getConfig(
-    ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
+    [
+      '.postcssrc',
+      '.postcssrc.json',
+      '.postcssrc.js',
+      '.postcssrc.cjs',
+      'postcss.config.js',
+      'postcss.config.cjs',
+    ],
     {packageKey: 'postcss'},
   );
 
@@ -118,7 +180,8 @@ export async function load({
     });
 
     contents = configFile.contents;
-    let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
+    let isDynamic =
+      configFile && path.extname(configFile.filePath).endsWith('js');
     if (isDynamic) {
       // We have to invalidate on startup in case the config is non-deterministic,
       // e.g. using unknown environment variables, reading from the filesystem, etc.
@@ -152,5 +215,11 @@ export async function load({
     }
   }
 
-  return configHydrator(contents, config, configFile?.filePath, options);
+  return configHydrator(
+    contents,
+    config,
+    configFile?.filePath,
+    options,
+    logger,
+  );
 }

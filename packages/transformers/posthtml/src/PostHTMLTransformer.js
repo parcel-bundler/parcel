@@ -13,15 +13,25 @@ import loadPlugins from './loadPlugins';
 
 export default (new Transformer({
   async loadConfig({config, options, logger}) {
+    if (!config.isSource) {
+      return;
+    }
+
     let configFile = await config.getConfig(
-      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+      [
+        '.posthtmlrc',
+        '.posthtmlrc.js',
+        '.posthtmlrc.cjs',
+        'posthtml.config.js',
+        'posthtml.config.cjs',
+      ],
       {
         packageKey: 'posthtml',
       },
     );
 
     if (configFile) {
-      let isJavascript = path.extname(configFile.filePath) === '.js';
+      let isJavascript = path.extname(configFile.filePath).endsWith('js');
       if (isJavascript) {
         // We have to invalidate on startup in case the config is non-deterministic,
         // e.g. using unknown environment variables, reading from the filesystem, etc.

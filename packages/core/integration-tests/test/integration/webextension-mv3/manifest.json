@@ -1,0 +1,20 @@
+{
+  "name": "MV3 Migration - content script example",
+  "description": "Source: https://github.com/GoogleChrome/chrome-extensions-samples",
+  "version": "0.1",
+  "manifest_version": 3,
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "scripting",
+    "activeTab"
+  ],
+  "content_scripts": [{
+    "matches": ["https://*.google.com/*"],
+    "js": ["other-content-script.js"]
+  }],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

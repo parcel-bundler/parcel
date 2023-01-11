@@ -1,6 +1,6 @@
 {
   "name": "@parcel/hash",
-  "version": "2.0.0-rc.0",
+  "version": "2.8.2",
   "license": "MIT",
   "main": "index.js",
   "browser": "browser.js",
@@ -33,10 +33,10 @@
   },
   "dependencies": {
     "detect-libc": "^1.0.3",
-    "xxhash-wasm": "^0.4.1"
+    "xxhash-wasm": "^0.4.2"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.4",
+    "@napi-rs/cli": "^2.6.2",
     "tiny-benchy": "^1.0.2"
   }
 }

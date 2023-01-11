@@ -29,7 +29,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import json5 from 'json5';
 
-import {makeRe} from 'micromatch';
+import {globToRegex} from '@parcel/utils';
 import {basename} from 'path';
 import loadPlugin from './loadParcelPlugin';
 import {
@@ -116,9 +116,7 @@ export default class ParcelConfig {
     };
   }
 
-  _loadPlugin<T>(
-    node: ParcelPluginNode,
-  ): Promise<{|
+  _loadPlugin<T>(node: ParcelPluginNode): Promise<{|
     plugin: T,
     version: Semver,
     resolveFrom: ProjectPath,
@@ -179,9 +177,8 @@ export default class ParcelConfig {
   }
 
   getValidatorNames(filePath: ProjectPath): Array<string> {
-    let validators: PureParcelConfigPipeline = this._getValidatorNodes(
-      filePath,
-    );
+    let validators: PureParcelConfigPipeline =
+      this._getValidatorNodes(filePath);
     return validators.map(v => v.packageName);
   }
 
@@ -203,11 +200,8 @@ export default class ParcelConfig {
     pipeline?: ?string,
     allowEmpty?: boolean,
   ): Promise<Array<LoadedPlugin<Transformer<mixed>>>> {
-    let transformers: PureParcelConfigPipeline | null = this.matchGlobMapPipelines(
-      filePath,
-      this.transformers,
-      pipeline,
-    );
+    let transformers: PureParcelConfigPipeline | null =
+      this.matchGlobMapPipelines(filePath, this.transformers, pipeline);
     if (!transformers || transformers.length === 0) {
       if (allowEmpty) {
         return [];
@@ -259,7 +253,7 @@ export default class ParcelConfig {
 
   async getPackager(
     filePath: FilePath,
-  ): Promise<LoadedPlugin<Packager<mixed>>> {
+  ): Promise<LoadedPlugin<Packager<mixed, mixed>>> {
     let packager = this.matchGlobMap(
       toProjectPathUnsafe(filePath),
       this.packagers,
@@ -271,7 +265,7 @@ export default class ParcelConfig {
         '/packagers',
       );
     }
-    return this.loadPlugin<Packager<mixed>>(packager);
+    return this.loadPlugin<Packager<mixed, mixed>>(packager);
   }
 
   _getOptimizerNodes(
@@ -304,13 +298,13 @@ export default class ParcelConfig {
   getOptimizers(
     filePath: FilePath,
     pipeline: ?string,
-  ): Promise<Array<LoadedPlugin<Optimizer<mixed>>>> {
+  ): Promise<Array<LoadedPlugin<Optimizer<mixed, mixed>>>> {
     let optimizers = this._getOptimizerNodes(filePath, pipeline);
     if (optimizers.length === 0) {
       return Promise.resolve([]);
     }
 
-    return this.loadPlugins<Optimizer<mixed>>(optimizers);
+    return this.loadPlugins<Optimizer<mixed, mixed>>(optimizers);
   }
 
   async getCompressors(
@@ -353,7 +347,7 @@ export default class ParcelConfig {
 
     let re = this.regexCache.get(patternGlob);
     if (!re) {
-      re = makeRe(patternGlob, {dot: true, nocase: true});
+      re = globToRegex(patternGlob, {dot: true, nocase: true});
       this.regexCache.set(patternGlob, re);
     }
 

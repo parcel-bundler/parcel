@@ -1,5 +1,5 @@
 // @flow
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser, globalThis, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */
 
 /*::
 import type {
@@ -9,7 +9,7 @@ import type {
 interface ParcelRequire {
   (string): mixed;
   cache: {|[string]: ParcelModule|};
-  hotData: mixed;
+  hotData: {|[string]: mixed|};
   Module: any;
   parent: ?ParcelRequire;
   isParcelRequire: true;
@@ -28,11 +28,24 @@ interface ParcelModule {
     _disposeCallbacks: Array<(mixed) => void>,
   |};
 }
+interface ExtensionContext {
+  runtime: {|
+    reload(): void,
+    getURL(url: string): string;
+    getManifest(): {manifest_version: number, ...};
+  |};
+}
 declare var module: {bundle: ParcelRequire, ...};
 declare var HMR_HOST: string;
 declare var HMR_PORT: string;
 declare var HMR_ENV_HASH: string;
 declare var HMR_SECURE: boolean;
+declare var chrome: ExtensionContext;
+declare var browser: ExtensionContext;
+declare var __parcel__import__: (string) => Promise<void>;
+declare var __parcel__importScripts__: (string) => Promise<void>;
+declare var globalThis: typeof self;
+declare var ServiceWorkerGlobalScope: Object;
 */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -42,22 +55,23 @@ var OldModule = module.bundle.Module;
 function Module(moduleName) {
   OldModule.call(this, moduleName);
   this.hot = {
-    data: module.bundle.hotData,
+    data: module.bundle.hotData[moduleName],
     _acceptCallbacks: [],
     _disposeCallbacks: [],
-    accept: function(fn) {
-      this._acceptCallbacks.push(fn || function() {});
+    accept: function (fn) {
+      this._acceptCallbacks.push(fn || function () {});
     },
-    dispose: function(fn) {
+    dispose: function (fn) {
       this._disposeCallbacks.push(fn);
     },
   };
-  module.bundle.hotData = undefined;
+  module.bundle.hotData[moduleName] = undefined;
 }
 module.bundle.Module = Module;
+module.bundle.hotData = {};
 
 var checkedAssets /*: {|[string]: boolean|} */,
-  acceptedAssets /*: {|[string]: boolean|} */,
+  assetsToDispose /*: Array<[ParcelRequire, string]> */,
   assetsToAccept /*: Array<[ParcelRequire, string]> */;
 
 function getHostname() {
@@ -85,11 +99,29 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var ws = new WebSocket(
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );
+
+  // Web extension context
+  var extCtx =
+    typeof chrome === 'undefined'
+      ? typeof browser === 'undefined'
+        ? null
+        : browser
+      : chrome;
+
+  // Safari doesn't support sourceURL in error stacks.
+  // eval may also be disabled via CSP, so do a quick check.
+  var supportsSourceURL = false;
+  try {
+    (0, eval)('throw new Error("test"); //# sourceURL=test.js');
+  } catch (err) {
+    supportsSourceURL = err.stack.includes('test.js');
+  }
+
   // $FlowFixMe
-  ws.onmessage = function(event /*: {data: string, ...} */) {
+  ws.onmessage = async function (event /*: {data: string, ...} */) {
     checkedAssets = ({} /*: {|[string]: boolean|} */);
-    acceptedAssets = ({} /*: {|[string]: boolean|} */);
     assetsToAccept = [];
+    assetsToDispose = [];
 
     var data /*: HMRMessage */ = JSON.parse(event.data);
 
@@ -113,19 +145,38 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       if (handled) {
         console.clear();
 
-        assets.forEach(function(asset) {
-          hmrApply(module.bundle.root, asset);
-        });
+        // Dispatch custom event so other runtimes (e.g React Refresh) are aware.
+        if (
+          typeof window !== 'undefined' &&
+          typeof CustomEvent !== 'undefined'
+        ) {
+          window.dispatchEvent(new CustomEvent('parcelhmraccept'));
+        }
 
-        for (var i = 0; i < assetsToAccept.length; i++) {
-          var id = assetsToAccept[i][1];
-          if (!acceptedAssets[id]) {
-            hmrAcceptRun(assetsToAccept[i][0], id);
+        await hmrApplyUpdates(assets);
+
+        // Dispose all old assets.
+        let processedAssets = ({} /*: {|[string]: boolean|} */);
+        for (let i = 0; i < assetsToDispose.length; i++) {
+          let id = assetsToDispose[i][1];
+
+          if (!processedAssets[id]) {
+            hmrDispose(assetsToDispose[i][0], id);
+            processedAssets[id] = true;
           }
         }
-      } else {
-        window.location.reload();
-      }
+
+        // Run accept callbacks. This will also re-execute other disposed assets in topological order.
+        processedAssets = {};
+        for (let i = 0; i < assetsToAccept.length; i++) {
+          let id = assetsToAccept[i][1];
+
+          if (!processedAssets[id]) {
+            hmrAccept(assetsToAccept[i][0], id);
+            processedAssets[id] = true;
+          }
+        }
+      } else fullReload();
     }
 
     if (data.type === 'error') {
@@ -154,10 +205,10 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       }
     }
   };
-  ws.onerror = function(e) {
+  ws.onerror = function (e) {
     console.error(e.message);
   };
-  ws.onclose = function(e) {
+  ws.onclose = function (e) {
     if (process.env.PARCEL_BUILD_ENV !== 'test') {
       console.warn('[parcel] 🚨 Connection to the HMR server was lost');
     }
@@ -180,7 +231,17 @@ function createErrorOverlay(diagnostics) {
     '<div style="background: black; opacity: 0.85; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; font-family: Menlo, Consolas, monospace; z-index: 9999;">';
 
   for (let diagnostic of diagnostics) {
-    let stack = diagnostic.codeframe ? diagnostic.codeframe : diagnostic.stack;
+    let stack = diagnostic.frames.length
+      ? diagnostic.frames.reduce((p, frame) => {
+          return `${p}
+<a href="/__parcel_launch_editor?file=${encodeURIComponent(
+            frame.location,
+          )}" style="text-decoration: underline; color: #888" onclick="fetch(this.href); return false">${
+            frame.location
+          }</a>
+${frame.code}`;
+        }, '')
+      : diagnostic.stack;
 
     errorHTML += `
       <div>
@@ -205,6 +266,14 @@ function createErrorOverlay(diagnostics) {
   overlay.innerHTML = errorHTML;
 
   return overlay;
+}
+
+function fullReload() {
+  if ('reload' in location) {
+    location.reload();
+  } else if (extCtx && extCtx.runtime && extCtx.runtime.reload) {
+    extCtx.runtime.reload();
+  }
 }
 
 function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
@@ -235,7 +304,7 @@ function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
 
 function updateLink(link) {
   var newLink = link.cloneNode();
-  newLink.onload = function() {
+  newLink.onload = function () {
     if (link.parentNode !== null) {
       // $FlowFixMe
       link.parentNode.removeChild(link);
@@ -256,7 +325,7 @@ function reloadCSS() {
     return;
   }
 
-  cssTimeout = setTimeout(function() {
+  cssTimeout = setTimeout(function () {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
       // $FlowFixMe[incompatible-type]
@@ -270,7 +339,7 @@ function reloadCSS() {
           : href.indexOf(hostname + ':' + getPort());
       var absolute =
         /^https?:\/\//i.test(href) &&
-        href.indexOf(window.location.origin) !== 0 &&
+        href.indexOf(location.origin) !== 0 &&
         !servedFromHMRServer;
       if (!absolute) {
         updateLink(links[i]);
@@ -279,6 +348,94 @@ function reloadCSS() {
 
     cssTimeout = null;
   }, 50);
+}
+
+function hmrDownload(asset) {
+  if (asset.type === 'js') {
+    if (typeof document !== 'undefined') {
+      let script = document.createElement('script');
+      script.src = asset.url + '?t=' + Date.now();
+      if (asset.outputFormat === 'esmodule') {
+        script.type = 'module';
+      }
+      return new Promise((resolve, reject) => {
+        script.onload = () => resolve(script);
+        script.onerror = reject;
+        document.head?.appendChild(script);
+      });
+    } else if (typeof importScripts === 'function') {
+      // Worker scripts
+      if (asset.outputFormat === 'esmodule') {
+        return __parcel__import__(asset.url + '?t=' + Date.now());
+      } else {
+        return new Promise((resolve, reject) => {
+          try {
+            __parcel__importScripts__(asset.url + '?t=' + Date.now());
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }
+    }
+  }
+}
+
+async function hmrApplyUpdates(assets) {
+  global.parcelHotUpdate = Object.create(null);
+
+  let scriptsToRemove;
+  try {
+    // If sourceURL comments aren't supported in eval, we need to load
+    // the update from the dev server over HTTP so that stack traces
+    // are correct in errors/logs. This is much slower than eval, so
+    // we only do it if needed (currently just Safari).
+    // https://bugs.webkit.org/show_bug.cgi?id=137297
+    // This path is also taken if a CSP disallows eval.
+    if (!supportsSourceURL) {
+      let promises = assets.map(asset =>
+        hmrDownload(asset)?.catch(err => {
+          // Web extension bugfix for Chromium
+          // https://bugs.chromium.org/p/chromium/issues/detail?id=1255412#c12
+          if (
+            extCtx &&
+            extCtx.runtime &&
+            extCtx.runtime.getManifest().manifest_version == 3
+          ) {
+            if (
+              typeof ServiceWorkerGlobalScope != 'undefined' &&
+              global instanceof ServiceWorkerGlobalScope
+            ) {
+              extCtx.runtime.reload();
+              return;
+            }
+            asset.url = extCtx.runtime.getURL(
+              '/__parcel_hmr_proxy__?url=' +
+                encodeURIComponent(asset.url + '?t=' + Date.now()),
+            );
+            return hmrDownload(asset);
+          }
+          throw err;
+        }),
+      );
+
+      scriptsToRemove = await Promise.all(promises);
+    }
+
+    assets.forEach(function (asset) {
+      hmrApply(module.bundle.root, asset);
+    });
+  } finally {
+    delete global.parcelHotUpdate;
+
+    if (scriptsToRemove) {
+      scriptsToRemove.forEach(script => {
+        if (script) {
+          document.head?.removeChild(script);
+        }
+      });
+    }
+  }
 }
 
 function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
@@ -292,7 +449,29 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
   } else if (asset.type === 'js') {
     let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
     if (deps) {
-      var fn = new Function('require', 'module', 'exports', asset.output);
+      if (modules[asset.id]) {
+        // Remove dependencies that are removed and will become orphaned.
+        // This is necessary so that if the asset is added back again, the cache is gone, and we prevent a full page reload.
+        let oldDeps = modules[asset.id][1];
+        for (let dep in oldDeps) {
+          if (!deps[dep] || deps[dep] !== oldDeps[dep]) {
+            let id = oldDeps[dep];
+            let parents = getParents(module.bundle.root, id);
+            if (parents.length === 1) {
+              hmrDelete(module.bundle.root, id);
+            }
+          }
+        }
+      }
+
+      if (supportsSourceURL) {
+        // Global eval. We would use `new Function` here but browser
+        // support for source maps is better with eval.
+        (0, eval)(asset.output);
+      }
+
+      // $FlowFixMe
+      let fn = global.parcelHotUpdate[asset.id];
       modules[asset.id] = [fn, deps];
     } else if (bundle.parent) {
       hmrApply(bundle.parent, asset);
@@ -300,7 +479,70 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
   }
 }
 
+function hmrDelete(bundle, id) {
+  let modules = bundle.modules;
+  if (!modules) {
+    return;
+  }
+
+  if (modules[id]) {
+    // Collect dependencies that will become orphaned when this module is deleted.
+    let deps = modules[id][1];
+    let orphans = [];
+    for (let dep in deps) {
+      let parents = getParents(module.bundle.root, deps[dep]);
+      if (parents.length === 1) {
+        orphans.push(deps[dep]);
+      }
+    }
+
+    // Delete the module. This must be done before deleting dependencies in case of circular dependencies.
+    delete modules[id];
+    delete bundle.cache[id];
+
+    // Now delete the orphans.
+    orphans.forEach(id => {
+      hmrDelete(module.bundle.root, id);
+    });
+  } else if (bundle.parent) {
+    hmrDelete(bundle.parent, id);
+  }
+}
+
 function hmrAcceptCheck(
+  bundle /*: ParcelRequire */,
+  id /*: string */,
+  depsByBundle /*: ?{ [string]: { [string]: string } }*/,
+) {
+  if (hmrAcceptCheckOne(bundle, id, depsByBundle)) {
+    return true;
+  }
+
+  // Traverse parents breadth first. All possible ancestries must accept the HMR update, or we'll reload.
+  let parents = getParents(module.bundle.root, id);
+  let accepted = false;
+  while (parents.length > 0) {
+    let v = parents.shift();
+    let a = hmrAcceptCheckOne(v[0], v[1], null);
+    if (a) {
+      // If this parent accepts, stop traversing upward, but still consider siblings.
+      accepted = true;
+    } else {
+      // Otherwise, queue the parents in the next level upward.
+      let p = getParents(module.bundle.root, v[1]);
+      if (p.length === 0) {
+        // If there are no parents, then we've reached an entry without accepting. Reload.
+        accepted = false;
+        break;
+      }
+      parents.push(...p);
+    }
+  }
+
+  return accepted;
+}
+
+function hmrAcceptCheckOne(
   bundle /*: ParcelRequire */,
   id /*: string */,
   depsByBundle /*: ?{ [string]: { [string]: string } }*/,
@@ -327,52 +569,49 @@ function hmrAcceptCheck(
   checkedAssets[id] = true;
 
   var cached = bundle.cache[id];
+  assetsToDispose.push([bundle, id]);
 
-  assetsToAccept.push([bundle, id]);
-
-  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
+  if (!cached || (cached.hot && cached.hot._acceptCallbacks.length)) {
+    assetsToAccept.push([bundle, id]);
     return true;
   }
-
-  let parents = getParents(module.bundle.root, id);
-
-  // If no parents, the asset is new. Prevent reloading the page.
-  if (!parents.length) {
-    return true;
-  }
-
-  return parents.some(function(v) {
-    return hmrAcceptCheck(v[0], v[1], null);
-  });
 }
 
-function hmrAcceptRun(bundle /*: ParcelRequire */, id /*: string */) {
+function hmrDispose(bundle /*: ParcelRequire */, id /*: string */) {
   var cached = bundle.cache[id];
-  bundle.hotData = {};
+  bundle.hotData[id] = {};
   if (cached && cached.hot) {
-    cached.hot.data = bundle.hotData;
+    cached.hot.data = bundle.hotData[id];
   }
 
   if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
-    cached.hot._disposeCallbacks.forEach(function(cb) {
-      cb(bundle.hotData);
+    cached.hot._disposeCallbacks.forEach(function (cb) {
+      cb(bundle.hotData[id]);
     });
   }
 
   delete bundle.cache[id];
+}
+
+function hmrAccept(bundle /*: ParcelRequire */, id /*: string */) {
+  // Execute the module.
   bundle(id);
 
-  cached = bundle.cache[id];
+  // Run the accept callbacks in the new version of the module.
+  var cached = bundle.cache[id];
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
-    cached.hot._acceptCallbacks.forEach(function(cb) {
-      var assetsToAlsoAccept = cb(function() {
+    cached.hot._acceptCallbacks.forEach(function (cb) {
+      var assetsToAlsoAccept = cb(function () {
         return getParents(module.bundle.root, id);
       });
       if (assetsToAlsoAccept && assetsToAccept.length) {
+        assetsToAlsoAccept.forEach(function (a) {
+          hmrDispose(a[0], a[1]);
+        });
+
         // $FlowFixMe[method-unbinding]
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
       }
     });
   }
-  acceptedAssets[id] = true;
 }

@@ -45,14 +45,16 @@ export default (new Transformer({
       );
     }
 
-    const width = asset.query.width ? parseInt(asset.query.width, 10) : null;
-    const height = asset.query.height ? parseInt(asset.query.height, 10) : null;
-    const quality = asset.query.quality
-      ? parseInt(asset.query.quality, 10)
-      : config.quality;
-    let targetFormat = asset.query.as
-      ? asset.query.as.toLowerCase().trim()
+    const width = asset.query.has('width')
+      ? parseInt(asset.query.get('width'), 10)
       : null;
+    const height = asset.query.has('height')
+      ? parseInt(asset.query.get('height'), 10)
+      : null;
+    const quality = asset.query.has('quality')
+      ? parseInt(asset.query.get('quality'), 10)
+      : config.quality;
+    let targetFormat = asset.query.get('as')?.toLowerCase().trim();
     if (targetFormat && !FORMATS.has(targetFormat)) {
       throw new Error(
         `The image transformer does not support ${targetFormat} images.`,
@@ -87,7 +89,7 @@ export default (new Transformer({
         true,
       );
 
-      let imagePipeline = sharp(inputBuffer);
+      let imagePipeline = sharp(inputBuffer, {animated: true});
 
       imagePipeline.withMetadata();
 

@@ -2,7 +2,7 @@ import assert from 'assert';
 import {assertBundles, bundle, distDir, outputFS} from '@parcel/test-utils';
 import path from 'path';
 
-describe('svg', function() {
+describe('svg', function () {
   it('should support bundling SVG', async () => {
     let b = await bundle(path.join(__dirname, '/integration/svg/circle.svg'));
 
@@ -94,7 +94,7 @@ describe('svg', function() {
     );
   });
 
-  it('should minify SVG bundles', async function() {
+  it('should minify SVG bundles', async function () {
     let b = await bundle(path.join(__dirname, '/integration/svg/circle.svg'), {
       defaultTargetOptions: {
         shouldOptimize: true,
@@ -108,7 +108,7 @@ describe('svg', function() {
     assert(!file.includes('comment'));
   });
 
-  it('support SVGO config files', async function() {
+  it('support SVGO config files', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/svgo-config/index.html'),
       {
@@ -126,7 +126,7 @@ describe('svg', function() {
     assert(file.includes('comment'));
   });
 
-  it('should detect xml-stylesheet processing instructions', async function() {
+  it('should detect xml-stylesheet processing instructions', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/svg-xml-stylesheet/img.svg'),
     );
@@ -155,7 +155,7 @@ describe('svg', function() {
     assert(file.includes('<?xml-not-a-stylesheet'));
   });
 
-  it('should handle inline CSS with @imports', async function() {
+  it('should handle inline CSS with @imports', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/svg-inline-css-import/img.svg'),
     );
@@ -186,20 +186,20 @@ describe('svg', function() {
     const svg = await outputFS.readFile(path.join(distDir, 'img.svg'), 'utf8');
 
     assert(!svg.includes('@import'));
-    assert(svg.includes(':root {\n  fill: red\n}'));
+    assert(svg.includes(':root {\n  fill: red;\n}'));
     assert(
       svg.includes(
-        `"fill: url(${path.basename(
+        `"fill: url(&quot;${path.basename(
           b.getBundles().find(b => b.name.startsWith('gradient')).filePath,
-        )}#myGradient)"`,
+        )}#myGradient&quot;)`,
       ),
     );
     assert(svg.includes('<script>'));
-    assert(svg.includes("console.log('script')"));
+    assert(svg.includes(`console.log("script")`));
     assert(!svg.includes('import '));
   });
 
-  it('should process inline styles using lang', async function() {
+  it('should process inline styles using lang', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/svg-inline-sass/img.svg'),
       {
@@ -225,7 +225,7 @@ describe('svg', function() {
     assert(svg.includes('<style>:root{fill:red}</style>'));
   });
 
-  it('should be in separate bundles', async function() {
+  it('should be in separate bundles', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/svg-multiple/index.js'),
     );

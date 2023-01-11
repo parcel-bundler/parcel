@@ -63,12 +63,11 @@ export default (new Namer({
                   {
                     start: loc.start,
                     end: loc.end,
-                    message: md`Did you mean "${fullName.slice(
-                      0,
-                      -path.extname(fullName).length,
-                    ) +
+                    message: md`Did you mean "${
+                      fullName.slice(0, -path.extname(fullName).length) +
                       '.' +
-                      bundle.type}"?`,
+                      bundle.type
+                    }"?`,
                   },
                 ],
               },

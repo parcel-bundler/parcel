@@ -11,6 +11,7 @@ export default (new Optimizer({
   async loadConfig({config}) {
     let configFile = await config.getConfig([
       'svgo.config.js',
+      'svgo.config.cjs',
       'svgo.config.json',
     ]);
 

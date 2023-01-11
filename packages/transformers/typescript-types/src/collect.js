@@ -11,13 +11,20 @@ export function collect(
   context: any,
   sourceFile: any,
 ): any {
+  // Factory only exists on TS >= 4.0
+  const {factory = ts} = context;
+
+  // When module definitions are nested inside each other (e.g with module augmentation),
+  // we want to keep track of the hierarchy so we can associated nodes with the right module.
+  const moduleStack: Array<?TSModule> = [];
   let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
-      return ts.updateBundle(node, ts.visitNodes(node.sourceFiles, visit));
+      return factory.updateBundle(node, ts.visitNodes(node.sourceFiles, visit));
     }
 
     if (ts.isModuleDeclaration(node)) {
+      moduleStack.push(_currentModule);
       _currentModule = new TSModule();
       moduleGraph.addModule(node.name.text, _currentModule);
     }
@@ -81,12 +88,12 @@ export function collect(
       currentModule.addExport('default', node.expression.text);
     }
 
-    if (isDeclaration(ts, node)) {
+    if (isDeclaration(node)) {
       if (node.name) {
         currentModule.addLocal(node.name.text, node);
       }
 
-      let name = getExportedName(ts, node);
+      let name = getExportedName(node);
       if (name) {
         currentModule.addLocal(name, node);
         currentModule.addExport(name, name);
@@ -105,7 +112,13 @@ export function collect(
       }
     }
 
-    return ts.visitEachChild(node, visit, context);
+    const results = ts.visitEachChild(node, visit, context);
+    // After we finish traversing the children of a module definition,
+    // we need to make sure that subsequent nodes get associated with the next-highest level module.
+    if (ts.isModuleDeclaration(node)) {
+      _currentModule = moduleStack.pop();
+    }
+    return results;
   };
 
   return ts.visitNode(sourceFile, visit);

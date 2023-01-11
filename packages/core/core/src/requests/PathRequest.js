@@ -28,7 +28,7 @@ import {Priority} from '../types';
 export type PathRequest = {|
   id: string,
   +type: 'path_request',
-  run: RunOpts => Async<?AssetGroup>,
+  run: (RunOpts<?AssetGroup>) => Async<?AssetGroup>,
   input: PathRequestInput,
 |};
 
@@ -37,9 +37,9 @@ export type PathRequestInput = {|
   name: string,
 |};
 
-type RunOpts = {|
+type RunOpts<TResult> = {|
   input: PathRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 const type = 'path_request';
@@ -56,7 +56,7 @@ export default function createPathRequest(
   };
 }
 
-async function run({input, api, options}: RunOpts) {
+async function run({input, api, options}) {
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
@@ -66,6 +66,12 @@ async function run({input, api, options}: RunOpts) {
     config,
   });
   let result: ResolverResult = await resolverRunner.resolve(input.dependency);
+
+  if (result.invalidateOnEnvChange) {
+    for (let env of result.invalidateOnEnvChange) {
+      api.invalidateOnEnvChange(env);
+    }
+  }
 
   if (result.invalidateOnFileCreate) {
     for (let file of result.invalidateOnFileCreate) {
@@ -105,6 +111,7 @@ type ResolverResult = {|
   assetGroup: ?AssetGroup,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   invalidateOnFileChange?: Array<FilePath>,
+  invalidateOnEnvChange?: Array<string>,
   diagnostics?: Array<Diagnostic>,
 |};
 
@@ -185,6 +192,7 @@ export class ResolverRunner {
     let diagnostics: Array<Diagnostic> = [];
     let invalidateOnFileCreate = [];
     let invalidateOnFileChange = [];
+    let invalidateOnEnvChange = [];
     for (let resolver of resolvers) {
       try {
         let result = await resolver.plugin.resolve({
@@ -208,6 +216,10 @@ export class ResolverRunner {
             dependency.priority = Priority[result.priority];
           }
 
+          if (result.invalidateOnEnvChange) {
+            invalidateOnEnvChange.push(...result.invalidateOnEnvChange);
+          }
+
           if (result.invalidateOnFileCreate) {
             invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
           }
@@ -221,6 +233,7 @@ export class ResolverRunner {
               assetGroup: null,
               invalidateOnFileCreate,
               invalidateOnFileChange,
+              invalidateOnEnvChange,
             };
           }
 
@@ -239,7 +252,7 @@ export class ResolverRunner {
                   this.options.projectRoot,
                   resultFilePath,
                 ),
-                query: result.query,
+                query: result.query?.toString(),
                 sideEffects: result.sideEffects,
                 code: result.code,
                 env: dependency.env,
@@ -251,6 +264,7 @@ export class ResolverRunner {
               },
               invalidateOnFileCreate,
               invalidateOnFileChange,
+              invalidateOnEnvChange,
             };
           }
 
@@ -286,6 +300,7 @@ export class ResolverRunner {
         assetGroup: null,
         invalidateOnFileCreate,
         invalidateOnFileChange,
+        invalidateOnEnvChange,
       };
     }
 
@@ -308,6 +323,7 @@ export class ResolverRunner {
       assetGroup: null,
       invalidateOnFileCreate,
       invalidateOnFileChange,
+      invalidateOnEnvChange,
       diagnostics,
     };
   }

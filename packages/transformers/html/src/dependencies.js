@@ -3,7 +3,7 @@
 import type {AST, MutableAsset} from '@parcel/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
-
+import {parse, stringify} from 'srcset';
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
@@ -19,7 +19,7 @@ const ATTRS = {
     'amp-img',
   ],
   // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
-  href: ['link', 'a', 'use', 'script'],
+  href: ['link', 'a', 'use', 'script', 'image'],
   srcset: ['img', 'source'],
   imagesrcset: ['link'],
   poster: ['video'],
@@ -86,18 +86,11 @@ const OPTIONS = {
 };
 
 function collectSrcSetDependencies(asset, srcset, opts) {
-  let newSources = [];
-  for (const source of srcset.split(',')) {
-    let pair = source.trim().split(' ');
-    if (pair.length === 0) {
-      continue;
-    }
-
-    pair[0] = asset.addURLDependency(pair[0], opts);
-    newSources.push(pair.join(' '));
-  }
-
-  return newSources.join(',');
+  let parsed = parse(srcset).map(({url, ...v}) => ({
+    url: asset.addURLDependency(url, opts),
+    ...v,
+  }));
+  return stringify(parsed);
 }
 
 function getAttrDepHandler(attr) {
@@ -113,8 +106,9 @@ export default function collectDependencies(
   ast: AST,
 ): boolean {
   let isDirty = false;
-  let hasScripts = false;
+  let hasModuleScripts = false;
   let seen = new Set();
+  const errors = [];
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
     if (!attrs || seen.has(node)) {
@@ -239,7 +233,7 @@ export default function collectDependencies(
       });
 
       asset.setAST(ast);
-      hasScripts = true;
+      if (sourceType === 'module') hasModuleScripts = true;
       return copy ? [node, copy] : node;
     }
 
@@ -256,6 +250,15 @@ export default function collectDependencies(
 
       let elements = ATTRS[attr];
       if (elements && elements.includes(node.tag)) {
+        // Check for empty string
+        if (attrs[attr].length === 0) {
+          errors.push({
+            message: `'${attr}' should not be empty string`,
+            filePath: asset.filePath,
+            loc: node.location,
+          });
+        }
+
         let depHandler = getAttrDepHandler(attr);
         let depOptionsHandler = OPTIONS[node.tag];
         let depOptions =
@@ -274,5 +277,9 @@ export default function collectDependencies(
     return node;
   });
 
-  return hasScripts;
+  if (errors.length > 0) {
+    throw errors;
+  }
+
+  return hasModuleScripts;
 }

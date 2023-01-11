@@ -29,7 +29,13 @@ const metadataContent = new Set([
 export default (new Packager({
   async loadConfig({config}) {
     let posthtmlConfig = await config.getConfig(
-      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+      [
+        '.posthtmlrc',
+        '.posthtmlrc.js',
+        '.posthtmlrc.cjs',
+        'posthtml.config.js',
+        'posthtml.config.cjs',
+      ],
       {
         packageKey: 'posthtml',
       },
@@ -74,6 +80,7 @@ export default (new Packager({
       bundleGraph,
       contents: html,
       relative: false,
+      getReplacement: contents => contents.replace(/"/g, '&quot;'),
     });
 
     return replaceInlineReferences({
@@ -138,9 +145,8 @@ async function replaceInlineAssetContent(
 
     if (newContent != null) {
       let {contents, bundle} = newContent;
-      node.content = (contents instanceof Readable
-        ? await bufferStream(contents)
-        : contents
+      node.content = (
+        contents instanceof Readable ? await bufferStream(contents) : contents
       ).toString();
 
       if (

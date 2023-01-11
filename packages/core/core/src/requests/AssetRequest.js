@@ -12,8 +12,8 @@ import type {
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
-import {objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import {hashString} from '@parcel/hash';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
@@ -21,15 +21,15 @@ import {runConfigRequest} from './ConfigRequest';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {report} from '../ReporterRunner';
 
-type RunInput = {|
+type RunInput<TResult> = {|
   input: AssetRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type AssetRequest = {|
   id: ContentKey,
   +type: 'asset_request',
-  run: RunInput => Async<AssetRequestResult>,
+  run: (RunInput<AssetRequestResult>) => Async<AssetRequestResult>,
   input: AssetRequestInput,
 |};
 
@@ -59,11 +59,11 @@ function getId(input: AssetRequestInput) {
       ':' +
       (input.pipeline ?? '') +
       ':' +
-      (input.query ? JSON.stringify(objectSortedEntries(input.query)) : ''),
+      (input.query ?? ''),
   );
 }
 
-async function run({input, api, farm, invalidateReason, options}: RunInput) {
+async function run({input, api, farm, invalidateReason, options}) {
   report({
     type: 'buildProgress',
     phase: 'transforming',
@@ -129,18 +129,24 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
   let {
     assets,
     configRequests,
+    error,
     invalidations,
     invalidateOnFileCreate,
     devDepRequests,
-  } = (await farm.createHandle('runTransform')({
+  } = (await farm.createHandle(
+    'runTransform',
+    input.isSingleChangeRebuild,
+  )({
     configCachePath: cachePath,
     optionsRef,
     request,
   }): TransformationResult);
 
   let time = Date.now() - start;
-  for (let asset of assets) {
-    asset.stats.time = time;
+  if (assets) {
+    for (let asset of assets) {
+      asset.stats.time = time;
+    }
   }
 
   for (let invalidation of invalidateOnFileCreate) {
@@ -172,5 +178,9 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
     await runConfigRequest(api, configRequest);
   }
 
-  return assets;
+  if (error != null) {
+    throw new ThrowableDiagnostic({diagnostic: error});
+  } else {
+    return nullthrows(assets);
+  }
 }

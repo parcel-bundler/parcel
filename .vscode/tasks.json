@@ -1,0 +1,58 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "path": "packages/utils/parcel-lsp/",
+      "label": "npm: watch - packages/utils/parcel-lsp",
+      "type": "npm",
+      "script": "watch",
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "path": "packages/utils/parcel-lsp-protocol/",
+      "label": "npm: watch - packages/utils/parcel-lsp-protocol",
+      "type": "npm",
+      "script": "watch",
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "path": "packages/utils/parcelforvscode/",
+      "label": "npm: watch - packages/utils/parcelforvscode",
+      "type": "npm",
+      "script": "watch",
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Watch VSCode Extension",
+      "dependsOn": [
+        "npm: watch - packages/utils/parcel-lsp",
+        "npm: watch - packages/utils/parcel-lsp-protocol",
+        "npm: watch - packages/utils/parcelforvscode"
+      ]
+    }
+  ]
+}

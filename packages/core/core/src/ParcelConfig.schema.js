@@ -93,6 +93,9 @@ const mapStringSchema = (pluginType: string, key: string): SchemaEntity => {
 export default {
   type: 'object',
   properties: {
+    $schema: {
+      type: 'string',
+    },
     extends: {
       oneOf: [
         {

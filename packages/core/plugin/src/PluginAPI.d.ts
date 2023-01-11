@@ -6,10 +6,11 @@ import type {
   Runtime as RuntimeOpts,
   Packager as PackagerOpts,
   Optimizer as OptimizerOpts,
+  Compressor as CompressorOpts,
   Reporter as ReporterOpts,
   Validator as ValidatorOpts,
 } from '@parcel/types';
-  
+
 export declare class Transformer<T> {
   constructor(opts: TransformerOpts<T>);
 }
@@ -34,12 +35,16 @@ export declare class Validator<T> {
   constructor(opts: ValidatorOpts);
 }
 
-export declare class Packager<T> {
-  constructor(opts: PackagerOpts<T>);
+export declare class Packager<C, B> {
+  constructor(opts: PackagerOpts<C, B>);
 }
 
-export declare class Optimizer<T> {
-  constructor(opts: OptimizerOpts<T>);
+export declare class Optimizer<C, B> {
+  constructor(opts: OptimizerOpts<C, B>);
+}
+
+export declare class Compressor {
+  constructor(opts: CompressorOpts);
 }
 
 export declare class Reporter {

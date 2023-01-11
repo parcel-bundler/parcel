@@ -25,8 +25,6 @@ export type ConfigResultWithFilePath<T> = {|
 /** <code>process.env</code> */
 export type EnvMap = typeof process.env;
 
-export type QueryParameters = {[key: string]: string, ...};
-
 export type JSONValue =
   | null
   | void // ? Is this okay?
@@ -188,7 +186,7 @@ export type EnvironmentOptions = {|
  */
 export type VersionMap = {
   [string]: string,
-  ...,
+  ...
 };
 
 export type EnvironmentFeature =
@@ -260,7 +258,13 @@ export type PackageJSON = {
   types?: FilePath,
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
   source?: FilePath | Array<FilePath>,
-  alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
+  alias?: {
+    [PackageName | FilePath | Glob]:
+      | PackageName
+      | FilePath
+      | {|global: string|},
+    ...
+  },
   browserslist?: Array<string> | {[string]: Array<string>},
   engines?: Engines,
   targets?: {[string]: PackageTargetDescriptor, ...},
@@ -296,6 +300,7 @@ export type InitialParcelOptions = {|
   +shouldProfile?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
+  +shouldBundleIncrementally?: boolean,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
@@ -400,9 +405,11 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|};
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    meta?: ?Meta,
+  |};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -441,9 +448,12 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|};
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    isWeak: boolean,
+    meta?: ?Meta,
+  |};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -516,6 +526,8 @@ export type DependencyOptions = {|
    * By default, this is the path of the source file where the dependency was specified.
    */
   +resolveFrom?: FilePath,
+  /** The semver version range expected for the dependency. */
+  +range?: SemverRange,
   /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,
@@ -592,6 +604,8 @@ export interface Dependency {
    * By default, this is the path of the source file where the dependency was specified.
    */
   +resolveFrom: ?FilePath;
+  /** The semver version range expected for the dependency. */
+  +range: ?SemverRange;
   /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   +pipeline: ?string;
 
@@ -634,7 +648,7 @@ export interface BaseAsset {
    */
   +type: string;
   /** The transformer options for the asset from the dependency query string. */
-  +query: QueryParameters;
+  +query: URLSearchParams;
   /** The environment of the asset. */
   +env: Environment;
   /**
@@ -741,9 +755,9 @@ export interface MutableAsset extends BaseAsset {
   setBuffer(Buffer): void;
   /** Sets the asset contents as a stream. */
   setStream(Readable): void;
-  /** Returns whether the AST has been modified. */
-  setAST(AST): void;
   /** Sets the asset's AST. */
+  setAST(AST): void;
+  /** Returns whether the AST has been modified. */
   isASTDirty(): boolean;
   /** Sets the asset's source map. */
   setMap(?SourceMap): void;
@@ -795,8 +809,10 @@ export interface Config {
   invalidateOnFileCreate(FileCreateInvalidation): void;
   /** Invalidates the config when the given environment variable changes. */
   invalidateOnEnvChange(string): void;
-  /** Invalidates the config when Parcel restarts. */
+  /** Invalidates the config only when Parcel restarts. */
   invalidateOnStartup(): void;
+  /** Invalidates the config on every build. */
+  invalidateOnBuild(): void;
   /**
    * Adds a dev dependency to the config. If the dev dependency or any of its
    * dependencies change, the config will be invalidated.
@@ -818,7 +834,7 @@ export interface Config {
    */
   getConfig<T>(
     filePaths: Array<FilePath>,
-    options: ?{|
+    options?: {|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
@@ -831,7 +847,7 @@ export interface Config {
   getConfigFrom<T>(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{|
+    options?: {|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
@@ -875,7 +891,7 @@ export type TransformerResult = {|
   /** The dependencies of the asset. */
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
   /** The environment of the asset. The options are merged with the input asset's environment. */
-  +env?: EnvironmentOptions,
+  +env?: EnvironmentOptions | Environment,
   /**
    * Controls which bundle the asset is placed into.
    *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
@@ -1038,6 +1054,17 @@ export type Transformer<ConfigType> = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<Array<TransformerResult | MutableAsset>>,
+  /**
+   * Do some processing after the transformation
+   * @experimental
+   */
+  postProcess?: ({|
+    assets: Array<MutableAsset>,
+    config: ConfigType,
+    resolve: ResolveFn,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<Array<TransformerResult>>,
   /** Stringify the AST */
   generate?: ({|
     asset: Asset,
@@ -1240,7 +1267,10 @@ export interface Bundle {
   /** Returns whether the bundle includes the given dependency. */
   hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
-  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
+  traverseAssets<TContext>(
+    visit: GraphVisitor<Asset, TContext>,
+    startAsset?: Asset,
+  ): ?TContext;
   /** Traverses assets and dependencies in the bundle. */
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,
@@ -1293,22 +1323,38 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
     Bundle,
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
+  addAssetToBundle(Asset, Bundle): void;
+  /**
+   * Adds an asset as an entry to a bundle. Entry assets are executed immediately
+   * when the bundle is loaded.
+   */
   addEntryToBundle(
     Asset,
     Bundle,
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
+  /** Adds the Bundle to the BundleGroup, loading it along with others in the group */
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset, Bundle): void;
   createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
   createBundleGroup(Dependency, Target): BundleGroup;
+  /** @returns all Asset-s attached to the Dependency */
   getDependencyAssets(Dependency): Array<Asset>;
+  /** Get Bundles that load this bundle asynchronously. */
   getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
+  /** @returns the size in bytes of an asset and all assets in its subgraph */
   getTotalSize(Asset): number;
-  /** Remove all "contains" edges from the bundle to the nodes in the asset's subgraph. */
+  /**
+   * Recursively removes an asset and its dependencies from a bundle. Stops at
+   * bundle group boundaries.
+   */
   removeAssetGraphFromBundle(Asset, Bundle): void;
+  /**
+   * Removes a BundleGroup from the graph. If any of the group's Bundle-s no
+   * longer exist in the graph, those are removed as well.
+   */
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
@@ -1326,7 +1372,10 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Returns a list of bundles in the bundle graph. By default, inline bundles are excluded. */
   getBundles(opts?: {|includeInline: boolean|}): Array<TBundle>;
   /** Traverses the assets and dependencies in the bundle graph, in depth first order. */
-  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
+  traverse<TContext>(
+    visit: GraphVisitor<BundleGraphTraversable, TContext>,
+    startAsset: ?Asset,
+  ): ?TContext;
   /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
@@ -1412,8 +1461,12 @@ export interface BundleGraph<TBundle: Bundle> {
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
-  /** Returns a list of symbols from an asset or dependency that are referenced by a dependent asset. */
-  getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
+  /**
+   * Returns a list of symbols from an asset or dependency that are referenced by a dependent asset.
+   *
+   * Returns null if symbol propagation didn't run (so the result is unknown).
+   */
+  getUsedSymbols(Asset | Dependency): ?$ReadOnlySet<Symbol>;
   /** Returns the common root directory for the entry assets of a target. */
   getEntryRoot(target: Target): FilePath;
 }
@@ -1455,7 +1508,7 @@ export type ResolveResult = {|
   /** An optional named pipeline to use to compile the resolved file. */
   +pipeline?: ?string,
   /** Query parameters to be used by transformers when compiling the resolved file. */
-  +query?: QueryParameters,
+  +query?: URLSearchParams,
   /** Whether the resolved file should be excluded from the build. */
   +isExcluded?: boolean,
   /** Overrides the priority set on the dependency. */
@@ -1474,6 +1527,8 @@ export type ResolveResult = {|
   +invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   /** A list of files that should invalidate the resolution if modified or deleted. */
   +invalidateOnFileChange?: Array<FilePath>,
+  /** Invalidates the resolution when the given environment variable changes.*/
+  +invalidateOnEnvChange?: Array<string>,
 |};
 
 /**
@@ -1554,18 +1609,26 @@ export type Runtime<ConfigType> = {|
 /**
  * @section packager
  */
-export type Packager<ConfigType> = {|
+export type Packager<ConfigType, BundleConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Promise<ConfigType> | ConfigType,
+  |}) => Async<ConfigType>,
+  loadBundleConfig?: ({|
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<BundleConfigType>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
     config: ConfigType,
+    bundleConfig: BundleConfigType,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,
@@ -1577,12 +1640,19 @@ export type Packager<ConfigType> = {|
 /**
  * @section optimizer
  */
-export type Optimizer<ConfigType> = {|
+export type Optimizer<ConfigType, BundleConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Promise<ConfigType> | ConfigType,
+  |}) => Async<ConfigType>,
+  loadBundleConfig?: ({|
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<BundleConfigType>,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1591,6 +1661,7 @@ export type Optimizer<ConfigType> = {|
     options: PluginOptions,
     logger: PluginLogger,
     config: ConfigType,
+    bundleConfig: BundleConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
@@ -1603,7 +1674,7 @@ export type Compressor = {|
     stream: Readable,
     options: PluginOptions,
     logger: PluginLogger,
-  |}): Async<{|
+  |}): Async<?{|
     stream: Readable,
     type?: string,
   |}>,
@@ -1709,6 +1780,13 @@ export type BundlingProgressEvent = {|
   +phase: 'bundling',
 |};
 
+export type BundledProgressEvent = {|
+  +type: 'buildProgress',
+  +phase: 'bundled',
+  +bundleGraph: BundleGraph<NamedBundle>,
+  +changedAssets: Map<string, Asset>,
+|};
+
 /**
  * A new Bundle is being packaged.
  * @section reporter
@@ -1736,6 +1814,7 @@ export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
   | BundlingProgressEvent
+  | BundledProgressEvent
   | PackagingProgressEvent
   | OptimizingProgressEvent;
 

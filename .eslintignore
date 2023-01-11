@@ -10,7 +10,6 @@ packages/*/*/test/integration/**
 packages/*/*/test/mochareporters.json
 packages/core/integration-tests/test/input/**
 packages/core/utils/test/input/**
-packages/utils/fs-write-stream-atomic/**
 packages/utils/create-react-app/templates
 packages/examples
 

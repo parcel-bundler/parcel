@@ -1,15 +1,21 @@
 // @flow strict-local
 
-import type {Readable} from 'stream';
+import type {Readable, Writable} from 'stream';
 import type {FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {Cache} from './types';
 
+import stream from 'stream';
 import path from 'path';
+import {promisify} from 'util';
 import logger from '@parcel/logger';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
+
+const pipeline: (Readable, Writable) => Promise<void> = promisify(
+  stream.pipeline,
+);
 
 export class FSCache implements Cache {
   fs: FileSystem;
@@ -41,16 +47,14 @@ export class FSCache implements Cache {
   }
 
   getStream(key: string): Readable {
-    return this.fs.createReadStream(this._getCachePath(key));
+    return this.fs.createReadStream(this._getCachePath(`${key}-large`));
   }
 
   setStream(key: string, stream: Readable): Promise<void> {
-    return new Promise((resolve, reject) => {
-      stream
-        .pipe(this.fs.createWriteStream(this._getCachePath(key)))
-        .on('error', reject)
-        .on('finish', resolve);
-    });
+    return pipeline(
+      stream,
+      this.fs.createWriteStream(this._getCachePath(`${key}-large`)),
+    );
   }
 
   has(key: string): Promise<boolean> {
@@ -75,6 +79,18 @@ export class FSCache implements Cache {
         throw err;
       }
     }
+  }
+
+  hasLargeBlob(key: string): Promise<boolean> {
+    return this.fs.exists(this._getCachePath(`${key}-large`));
+  }
+
+  getLargeBlob(key: string): Promise<Buffer> {
+    return this.fs.readFile(this._getCachePath(`${key}-large`));
+  }
+
+  async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
+    await this.fs.writeFile(this._getCachePath(`${key}-large`), contents);
   }
 
   async get<T>(key: string): Promise<?T> {

@@ -9,9 +9,10 @@ import {
   overlayFS as fs,
   sleep,
   run,
+  getNextBuildSuccess,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
-import type {BuildEvent} from '@parcel/types';
+import type {BuildEvent, Asset} from '@parcel/types';
 // flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 import nullthrows from 'nullthrows';
@@ -27,7 +28,50 @@ try {
 }
 
 if (MessageChannel) {
-  describe('react-refresh', function() {
+  describe('react-refresh', function () {
+    describe('synchronous (automatic runtime)', () => {
+      const testDir = path.join(
+        __dirname,
+        '/integration/react-refresh-automatic',
+      );
+
+      let b,
+        root,
+        randoms,
+        subscription,
+        window = {};
+
+      beforeEach(async () => {
+        ({b, root, randoms, subscription, window} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
+      });
+
+      it('retains state in functional components', async function () {
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Foo.1.js'),
+          path.join(testDir, 'Foo.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await sleep(100);
+
+        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+        );
+        assert.equal(randoms?.indexNum, indexNum);
+        assert.equal(randoms?.appNum, appNum);
+        assert.equal(randoms?.fooNum, fooNum);
+        assert.equal(fooText, 'OtherFunctional');
+      });
+
+      afterEach(async () => {
+        await cleanup({subscription, window});
+      });
+    });
+
     describe('synchronous', () => {
       const testDir = path.join(__dirname, '/integration/react-refresh');
 
@@ -43,7 +87,7 @@ if (MessageChannel) {
         ));
       });
 
-      it('retains state in functional components', async function() {
+      it('retains state in functional components', async function () {
         await fs.mkdirp(testDir);
         await fs.copyFile(
           path.join(testDir, 'Foo.1.js'),
@@ -57,13 +101,13 @@ if (MessageChannel) {
         let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
           /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
         );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(randoms?.indexNum, indexNum);
+        assert.equal(randoms?.appNum, appNum);
+        assert.equal(randoms?.fooNum, fooNum);
         assert.equal(fooText, 'OtherFunctional');
       });
 
-      it('supports changing hooks in functional components', async function() {
+      it('supports changing hooks in functional components', async function () {
         await fs.mkdirp(testDir);
         await fs.copyFile(
           path.join(testDir, 'Foo.2-hooks.js'),
@@ -74,24 +118,18 @@ if (MessageChannel) {
         // Wait for the hmr-runtime to process the event
         await sleep(100);
 
-        let [
-          ,
-          indexNum,
-          appNum,
-          fooText,
-          fooNum,
-          fooNum2,
-        ] = root.textContent.match(
-          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
-        );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.notEqual(randoms.fooNum, fooNum);
+        let [, indexNum, appNum, fooText, fooNum, fooNum2] =
+          root.textContent.match(
+            /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
+          );
+        assert.equal(randoms?.indexNum, indexNum);
+        assert.equal(randoms?.appNum, appNum);
+        assert.notEqual(randoms?.fooNum, fooNum);
         assert(fooNum2);
         assert.equal(fooText, 'Hooks');
       });
 
-      it('retains state in parent components when swapping function and class component', async function() {
+      it('retains state in parent components when swapping function and class component', async function () {
         await fs.mkdirp(testDir);
         await fs.copyFile(
           path.join(testDir, 'Foo.3-class.js'),
@@ -105,9 +143,9 @@ if (MessageChannel) {
         let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
           /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
         );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.notEqual(randoms.fooNum, fooNum);
+        assert.equal(randoms?.indexNum, indexNum);
+        assert.equal(randoms?.appNum, appNum);
+        assert.notEqual(randoms?.fooNum, fooNum);
         assert.equal(fooText, 'Class');
       });
 
@@ -134,8 +172,8 @@ if (MessageChannel) {
         ));
       });
 
-      it('retains state in async components on change', async function() {
-        assert.equal(randoms.fooText, 'Async');
+      it('retains state in async components on change', async function () {
+        assert.equal(randoms?.fooText, 'Async');
 
         await fs.mkdirp(testDir);
         await fs.copyFile(
@@ -150,10 +188,59 @@ if (MessageChannel) {
         let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
           /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
         );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(randoms?.indexNum, indexNum);
+        assert.equal(randoms?.appNum, appNum);
+        assert.equal(randoms?.fooNum, fooNum);
         assert.equal(fooText, 'OtherAsync');
+      });
+
+      afterEach(async () => {
+        await cleanup({subscription, window});
+      });
+    });
+
+    describe('circular context dependency', () => {
+      const testDir = path.join(
+        __dirname,
+        '/integration/react-refresh-circular',
+      );
+
+      let b,
+        root,
+        subscription,
+        window = {};
+
+      beforeEach(async () => {
+        ({b, root, subscription, window} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
+      });
+
+      it('does not become null when modifying provider', async function () {
+        await fs.mkdirp(testDir);
+        let f = path.join(testDir, 'Provider.js');
+        await fs.writeFile(f, (await fs.readFile(f, 'utf8')).replace('2', '3'));
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await sleep(100);
+
+        assert.equal(root.textContent, '3');
+      });
+
+      it('does not become null when modifying consumer', async function () {
+        await fs.mkdirp(testDir);
+        let f = path.join(testDir, 'Consumer.js');
+        await fs.writeFile(
+          f,
+          (await fs.readFile(f, 'utf8')).replace('tmp', 'foo'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await sleep(100);
+
+        assert.equal(root.textContent, '2');
       });
 
       afterEach(async () => {
@@ -174,8 +261,47 @@ if (MessageChannel) {
           },
         },
       );
-
       await run(b, {}, {require: false});
+    });
+
+    it('does not apply to library targets', async () => {
+      let port = await getPort();
+      let parcel = await bundler(
+        path.join(
+          __dirname,
+          '/integration/react-refresh-library-target/index.js',
+        ),
+        {
+          hmrOptions: {
+            port,
+          },
+        },
+      );
+      let result = await getNextBuildSuccess(parcel);
+      let bundle = nullthrows(
+        result.bundleGraph.getBundles().find(b => b.type === 'js'),
+      );
+
+      // Make sure react-refresh transforms were not applied.
+      let assets: Asset[] = [];
+      bundle.traverse(node => {
+        if (node.type === 'asset') {
+          assets.push(node.value);
+        } else if (node.type === 'dependency') {
+          assert(
+            !node.value.specifier.startsWith('react-refresh/runtime') &&
+              !node.value.specifier.startsWith(
+                '@parcel/transformer-react-refresh-wrap',
+              ),
+          );
+        }
+      });
+      for (let asset of assets) {
+        let code = await asset.getCode();
+        assert(
+          !code.includes('$RefreshReg$') && !code.includes('$RefreshSig$'),
+        );
+      }
     });
   });
 }
@@ -237,15 +363,15 @@ async function setup(entry) {
   ).default();
   await sleep(100);
 
-  let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-    /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-  );
-  assert(indexNum);
-  assert(appNum);
-  assert(fooNum);
+  let m = root.textContent.match(/^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/);
+  if (m) {
+    let [, indexNum, appNum, fooText, fooNum] = m;
+    assert(indexNum);
+    assert(appNum);
+    assert(fooNum);
 
-  randoms = {indexNum, appNum, fooText, fooNum};
-
+    randoms = {indexNum, appNum, fooText, fooNum};
+  }
   return {port, b, window, randoms, subscription, root};
 }
 

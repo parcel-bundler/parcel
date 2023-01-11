@@ -51,10 +51,8 @@ const _bundleToInternalBundle: WeakMap<IBundle, InternalBundle> = new WeakMap();
 export function bundleToInternalBundle(bundle: IBundle): InternalBundle {
   return nullthrows(_bundleToInternalBundle.get(bundle));
 }
-const _bundleToInternalBundleGraph: WeakMap<
-  IBundle,
-  BundleGraph,
-> = new WeakMap();
+const _bundleToInternalBundleGraph: WeakMap<IBundle, BundleGraph> =
+  new WeakMap();
 export function bundleToInternalBundleGraph(bundle: IBundle): BundleGraph {
   return nullthrows(_bundleToInternalBundleGraph.get(bundle));
 }
@@ -188,10 +186,14 @@ export class Bundle implements IBundle {
     );
   }
 
-  traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>): ?TContext {
+  traverseAssets<TContext>(
+    visit: GraphVisitor<IAsset, TContext>,
+    startAsset?: IAsset,
+  ): ?TContext {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
       mapVisitor(asset => assetFromValue(asset, this.#options), visit),
+      startAsset ? assetToAssetValue(startAsset) : undefined,
     );
   }
 }
@@ -314,6 +316,12 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
       this.#options.projectRoot,
       nullthrows(this.#bundleInfo).filePath,
     );
+  }
+
+  get type(): string {
+    // The bundle type may be overridden in the packager.
+    // However, inline bundles will not have a bundleInfo here since they are not written to the filesystem.
+    return this.#bundleInfo ? this.#bundleInfo.type : this.#bundle.type;
   }
 
   get stats(): Stats {

@@ -64,9 +64,11 @@ export class TSModuleGraph {
       return ts.visitEachChild(node, visit, context);
     };
 
-    let node = module.bindings.get(name);
-    if (node) {
-      ts.visitEachChild(node, visit, context);
+    let bindings = module.bindings.get(name);
+    if (bindings) {
+      for (let node of bindings) {
+        ts.visitEachChild(node, visit, context);
+      }
     }
   }
 
@@ -141,10 +143,13 @@ export class TSModuleGraph {
       if (e.name === name) {
         return this.getExport(module, e);
       } else if (e.specifier) {
-        return this.resolveExport(
+        const m = this.resolveExport(
           nullthrows(this.getModule(e.specifier)),
           name,
         );
+        if (m) {
+          return m;
+        }
       }
     }
   }

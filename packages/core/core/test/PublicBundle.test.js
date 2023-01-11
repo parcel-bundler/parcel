@@ -42,6 +42,7 @@ describe('Public Bundle', () => {
       assetPublicIds: new Set(),
       publicIdByAssetId: new Map(),
       bundleContentHashes: new Map(),
+      symbolPropagationRan: false,
     });
   });
 

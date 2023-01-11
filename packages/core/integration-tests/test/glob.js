@@ -10,8 +10,8 @@ import {
 } from '@parcel/test-utils';
 import nullthrows from 'nullthrows';
 
-describe('glob', function() {
-  it('should require a glob of files', async function() {
+describe('glob', function () {
+  it('should require a glob of files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/glob/index.js'));
 
     await assertBundles(b, [
@@ -26,7 +26,7 @@ describe('glob', function() {
     assert.equal(await output(), 3);
   });
 
-  it('should require nested directories with a glob', async function() {
+  it('should require nested directories with a glob', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/glob-deep/index.js'),
     );
@@ -43,7 +43,7 @@ describe('glob', function() {
     assert.equal(await output(), 13);
   });
 
-  it('should support importing a glob of CSS files', async function() {
+  it('should support importing a glob of CSS files', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/glob-css/index.js'),
     );
@@ -72,7 +72,7 @@ describe('glob', function() {
     assert(css.includes('.index'));
   });
 
-  it('should require a glob using a pipeline', async function() {
+  it('should require a glob using a pipeline', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/glob-pipeline/index.js'),
     );
@@ -103,7 +103,7 @@ describe('glob', function() {
     });
   });
 
-  it('should import a glob with dynamic import', async function() {
+  it('should import a glob with dynamic import', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/glob-async/index.js'),
     );
@@ -133,7 +133,7 @@ describe('glob', function() {
     assert.equal(await output(), 3);
   });
 
-  it('should error when an unsupported asset type imports a glob', async function() {
+  it('should error when an unsupported asset type imports a glob', async function () {
     let filePath = path.join(__dirname, '/integration/glob-error/index.html');
     // $FlowFixMe
     await assert.rejects(() => bundle(filePath), {
@@ -152,7 +152,7 @@ describe('glob', function() {
     });
   });
 
-  it('should error when a URL dependency imports a glob', async function() {
+  it('should error when a URL dependency imports a glob', async function () {
     let filePath = path.join(__dirname, '/integration/glob-error/index.css');
     // $FlowFixMe
     await assert.rejects(() => bundle(filePath), {
@@ -168,11 +168,11 @@ describe('glob', function() {
               codeHighlights: [
                 {
                   start: {
-                    column: 7,
+                    column: 19,
                     line: 2,
                   },
                   end: {
-                    column: 20,
+                    column: 30,
                     line: 2,
                   },
                 },
@@ -188,11 +188,11 @@ describe('glob', function() {
               codeHighlights: [
                 {
                   start: {
-                    column: 7,
+                    column: 19,
                     line: 2,
                   },
                   end: {
-                    column: 20,
+                    column: 30,
                     line: 2,
                   },
                 },
@@ -202,5 +202,48 @@ describe('glob', function() {
         },
       ],
     });
+  });
+
+  it('should require a glob of files from a package', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/glob-package/index.js'),
+    );
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['*.js', '*.js', 'a.js', 'b.js', 'x.js', 'y.js', 'index.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 10);
+  });
+
+  it('should require a glob of files from a package async', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/glob-package-async/index.js'),
+    );
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          '*.js',
+          '*.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+      {type: 'js', assets: ['a.js']},
+      {type: 'js', assets: ['b.js']},
+      {type: 'js', assets: ['x.js']},
+      {type: 'js', assets: ['y.js']},
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 10);
   });
 });

@@ -8,8 +8,8 @@ import {
   outputFS,
 } from '@parcel/test-utils';
 
-describe('stylus', function() {
-  it('should support requiring stylus files', async function() {
+describe('stylus', function () {
+  it('should support requiring stylus files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/stylus/index.js'));
 
     assertBundles(b, [
@@ -31,7 +31,7 @@ describe('stylus', function() {
     assert(css.includes('.index'));
   });
 
-  it('should support requiring stylus files with dependencies', async function() {
+  it('should support requiring stylus files with dependencies', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-deps/index.js'),
     );
@@ -61,7 +61,7 @@ describe('stylus', function() {
     assert(css.includes('.foo'));
   });
 
-  it('should support linking to assets with url() from stylus', async function() {
+  it('should support linking to assets with url() from stylus', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-url/index.js'),
     );
@@ -86,18 +86,18 @@ describe('stylus', function() {
     assert.equal(output(), 2);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
-    assert(css.includes('url("http://google.com")'));
+    assert(/url\("?test\.[0-9a-f]+\.woff2"?\)/.test(css));
+    assert(/url\("?http:\/\/google.com"?\)/.test(css));
     assert(css.includes('.index'));
 
     assert(
       await outputFS.exists(
-        path.join(distDir, css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]),
+        path.join(distDir, css.match(/url\("?(test\.[0-9a-f]+\.woff2)"?\)/)[1]),
       ),
     );
   });
 
-  it('should ignore paths starting with "#" when resolving with stylus url()', async function() {
+  it('should ignore paths starting with "#" when resolving with stylus url()', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-id-url/index.js'),
     );
@@ -122,7 +122,7 @@ describe('stylus', function() {
     assert(css.includes('.svg-background'));
   });
 
-  it('should support transforming stylus with css modules', async function() {
+  it('should support transforming stylus with css modules', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-postcss/index.js'),
     );
@@ -140,13 +140,13 @@ describe('stylus', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert(output().startsWith('_index_'));
+    assert(output().endsWith('_index'));
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(css.includes('._index_'));
+    assert(/\.[_0-9a-zA-Z]+_index/.test(css));
   });
 
-  it('should support requiring stylus files with glob dependencies', async function() {
+  it('should support requiring stylus files with glob dependencies', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-glob-import/index.js'),
     );

@@ -27,7 +27,6 @@ const EMPTY_ITERATOR = {
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 let valueToSymbols: WeakMap<Asset, AssetSymbols> = new WeakMap();
-
 export class AssetSymbols implements IAssetSymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
@@ -75,7 +74,6 @@ export class AssetSymbols implements IAssetSymbols {
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    // $FlowFixMe
     return this.#value.symbols?.keys() ?? [];
   }
   // $FlowFixMe
@@ -97,10 +95,8 @@ export class AssetSymbols implements IAssetSymbols {
   }
 }
 
-let valueToMutableAssetSymbols: WeakMap<
-  Asset,
-  MutableAssetSymbols,
-> = new WeakMap();
+let valueToMutableAssetSymbols: WeakMap<Asset, MutableAssetSymbols> =
+  new WeakMap();
 export class MutableAssetSymbols implements IMutableAssetSymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }

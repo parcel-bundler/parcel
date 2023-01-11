@@ -24,7 +24,6 @@ import type {
   OutputFormat,
   TargetDescriptor,
   HMROptions,
-  QueryParameters,
   DetailedReportOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
@@ -132,6 +131,7 @@ export type Dependency = {|
   sourcePath: ?ProjectPath,
   sourceAssetType?: ?string,
   resolveFrom: ?ProjectPath,
+  range: ?SemverRange,
   symbols: ?Map<
     Symbol,
     {|
@@ -149,16 +149,15 @@ export const BundleBehavior = {
   isolated: 1,
 };
 
-export const BundleBehaviorNames: Array<
-  $Keys<typeof BundleBehavior>,
-> = Object.keys(BundleBehavior);
+export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
+  Object.keys(BundleBehavior);
 
 export type Asset = {|
   id: ContentKey,
   committed: boolean,
   hash: ?string,
   filePath: ProjectPath,
-  query: ?QueryParameters,
+  query: ?string,
   type: string,
   dependencies: Map<string, Dependency>,
   bundleBehavior: ?$Values<typeof BundleBehavior>,
@@ -182,6 +181,7 @@ export type Asset = {|
   configPath?: ProjectPath,
   plugin: ?PackageName,
   configKeyPath?: string,
+  isLargeBlob?: boolean,
 |};
 
 export type InternalGlob = ProjectPath;
@@ -256,6 +256,7 @@ export type ParcelOptions = {|
   shouldContentHash: boolean,
   serveOptions: ServerOptions | false,
   shouldBuildLazily: boolean,
+  shouldBundleIncrementally: boolean,
   shouldAutoInstall: boolean,
   logLevel: LogLevel,
   projectRoot: FilePath,
@@ -307,7 +308,17 @@ export type DependencyNode = {|
   /** dependency was deferred (= no used symbols (in immediate parents) & side-effect free) */
   hasDeferred?: boolean,
   usedSymbolsDown: Set<Symbol>,
-  usedSymbolsUp: Set<Symbol>,
+  /**
+   * a requested symbol -> either
+   *  - if ambiguous (e.g. dependency to asset group with both CSS modules and JS asset): undefined
+   *  - if external: null
+   *  - the asset it resolved to, and the potentially renamed export name
+   */
+  usedSymbolsUp: Map<
+    Symbol,
+    {|asset: ContentKey, symbol: ?Symbol|} | void | null,
+  >,
+  /** for the "down" pass, the dependency resolution asset needs to be updated */
   usedSymbolsDownDirty: boolean,
   /** for the "up" pass, the parent asset needs to be updated */
   usedSymbolsUpDirtyUp: boolean,
@@ -330,7 +341,8 @@ export type AssetRequestInput = {|
   pipeline?: ?string,
   optionsRef: SharedReference,
   isURL?: boolean,
-  query?: ?QueryParameters,
+  query?: ?string,
+  isSingleChangeRebuild?: boolean,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -435,6 +447,7 @@ export type Config = {|
   invalidateOnOptionChange: Set<string>,
   devDeps: Array<InternalDevDepOptions>,
   invalidateOnStartup: boolean,
+  invalidateOnBuild: boolean,
 |};
 
 export type EntryRequest = {|
@@ -500,6 +513,7 @@ export type BundleGroupNode = {|
 
 export type PackagedBundleInfo = {|
   filePath: ProjectPath,
+  type: string,
   stats: Stats,
 |};
 
@@ -515,4 +529,4 @@ export type ValidationOpts = {|
   configCachePath: string,
 |};
 
-export type ReportFn = (event: ReporterEvent) => void;
+export type ReportFn = (event: ReporterEvent) => void | Promise<void>;

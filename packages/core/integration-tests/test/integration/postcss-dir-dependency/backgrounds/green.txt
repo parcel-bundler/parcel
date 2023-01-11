@@ -1,1 +1,1 @@
-green
+linear-gradient(green, pink)

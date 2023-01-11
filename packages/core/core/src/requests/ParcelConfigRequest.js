@@ -45,16 +45,16 @@ export type ConfigAndCachePath = {|
   cachePath: string,
 |};
 
-type RunOpts = {|
+type RunOpts<TResult> = {|
   input: null,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type ParcelConfigRequest = {|
   id: string,
   type: string,
   input: null,
-  run: RunOpts => Async<ConfigAndCachePath>,
+  run: (RunOpts<ConfigAndCachePath>) => Async<ConfigAndCachePath>,
 |};
 
 type ParcelConfigChain = {|
@@ -68,7 +68,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
   return {
     id: type,
     type,
-    async run({api, options}: RunOpts): Promise<ConfigAndCachePath> {
+    async run({api, options}) {
       let {
         config,
         extendedFiles,
@@ -340,7 +340,9 @@ export async function processConfig(
             configFile.resolveFrom,
           ),
         }
-      : {...null}),
+      : {
+          /*::...null*/
+        }),
     resolvers: processPipeline(
       options,
       configFile.resolvers,
@@ -443,16 +445,8 @@ export async function processConfigChain(
             : '/extends';
           let resolved = await resolveExtends(ext, filePath, key, options);
           extendedFiles.push(resolved);
-          let {
-            extendedFiles: moreExtendedFiles,
-            config: nextConfig,
-          } = await processExtendedConfig(
-            filePath,
-            key,
-            ext,
-            resolved,
-            options,
-          );
+          let {extendedFiles: moreExtendedFiles, config: nextConfig} =
+            await processExtendedConfig(filePath, key, ext, resolved, options);
           extendedFiles = extendedFiles.concat(moreExtendedFiles);
           extStartConfig = extStartConfig
             ? mergeConfigs(extStartConfig, nextConfig)

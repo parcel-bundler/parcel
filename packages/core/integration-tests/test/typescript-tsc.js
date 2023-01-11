@@ -1,3 +1,4 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
 import {
@@ -10,7 +11,7 @@ import {
 
 const config = path.join(__dirname, '/integration/typescript-config/.parcelrc');
 
-describe('typescript tsc', function() {
+describe('typescript tsc', function () {
   it('should support loading tsconfig.json', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/typescript-config/index.ts'),
@@ -37,7 +38,7 @@ describe('typescript tsc', function() {
     assert(!js.includes('/* test comment */'));
   });
 
-  it('should produce a type declaration file when overriding the ts pipeline', async function() {
+  it('should produce a type declaration file when overriding the ts pipeline', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/typescript-types-parcelrc/index.ts'),
     );

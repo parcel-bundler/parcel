@@ -26,10 +26,8 @@ const PriorityNames = Object.keys(Priority);
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const internalDependencyToDependency: WeakMap<
-  InternalDependency,
-  Dependency,
-> = new WeakMap();
+const internalDependencyToDependency: WeakMap<InternalDependency, Dependency> =
+  new WeakMap();
 const _dependencyToInternalDependency: WeakMap<
   IDependency,
   InternalDependency,
@@ -135,6 +133,10 @@ export default class Dependency implements IDependency {
       this.#options.projectRoot,
       this.#dep.resolveFrom ?? this.#dep.sourcePath,
     );
+  }
+
+  get range(): ?string {
+    return this.#dep.range;
   }
 
   get pipeline(): ?string {

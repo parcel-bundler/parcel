@@ -12,9 +12,12 @@ export async function load({
 }: {|
   config: Config,
 |}): Promise<ConfigResult> {
-  let configFile = await config.getConfig(['.lessrc', '.lessrc.js'], {
-    packageKey: 'less',
-  });
+  let configFile = await config.getConfig(
+    ['.lessrc', '.lessrc.js', '.lessrc.cjs'],
+    {
+      packageKey: 'less',
+    },
+  );
 
   let configContents = {};
   if (configFile != null) {

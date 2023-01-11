@@ -25,7 +25,9 @@ export default (new Runtime({
     return {
       filePath: __filename,
       code:
-        `var HMR_HOST = ${JSON.stringify(host != null ? host : null)};` +
+        `var HMR_HOST = ${JSON.stringify(
+          host != null && host !== '0.0.0.0' ? host : null,
+        )};` +
         `var HMR_PORT = ${JSON.stringify(
           port != null &&
             // Default to the HTTP port in the browser, only override

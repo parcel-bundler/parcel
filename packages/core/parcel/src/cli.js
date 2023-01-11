@@ -25,13 +25,8 @@ const SIGINT_EXIT_CODE = 130;
 async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let {
-        message,
-        codeframe,
-        stack,
-        hints,
-        documentation,
-      } = await prettyDiagnostic(diagnostic);
+      let {message, codeframe, stack, hints, documentation} =
+        await prettyDiagnostic(diagnostic);
       INTERNAL_ORIGINAL_CONSOLE.error(chalk.red(message));
       if (codeframe || stack) {
         INTERNAL_ORIGINAL_CONSOLE.error('');
@@ -121,6 +116,7 @@ var hmrOptions = {
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
   '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
+  '--hmr-host <host>': ['hot module replacement host', process.env.HMR_HOST],
 };
 
 function applyOptions(cmd, options) {
@@ -177,12 +173,12 @@ applyOptions(build, commonOptions);
 program
   .command('help [command]')
   .description('display help information for a command')
-  .action(function(command) {
+  .action(function (command) {
     let cmd = program.commands.find(c => c.name() === command) || program;
     cmd.help();
   });
 
-program.on('--help', function() {
+program.on('--help', function () {
   INTERNAL_ORIGINAL_CONSOLE.log('');
   INTERNAL_ORIGINAL_CONSOLE.log(
     '  Run `' +
@@ -193,7 +189,8 @@ program.on('--help', function() {
 });
 
 // Override to output option description if argument was missing
-commander.Command.prototype.optionMissingArgument = function(option) {
+// $FlowFixMe[prop-missing]
+commander.Command.prototype.optionMissingArgument = function (option) {
   INTERNAL_ORIGINAL_CONSOLE.error(
     "error: option `%s' argument missing",
     option.flags,
@@ -325,8 +322,9 @@ async function run(
 
     if (command.open && options.serveOptions) {
       await openInBrowser(
-        `${options.serveOptions.https ? 'https' : 'http'}://${options
-          .serveOptions.host || 'localhost'}:${options.serveOptions.port}`,
+        `${options.serveOptions.https ? 'https' : 'http'}://${
+          options.serveOptions.host || 'localhost'
+        }:${options.serveOptions.port}`,
         command.open,
       );
     }
@@ -449,8 +447,9 @@ async function normalizeOptions(
   let hmrOptions = null;
   if (command.name() !== 'build' && command.hmr !== false) {
     let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
+    let hmrhost = command.hmrHost ? command.hmrHost : host;
 
-    hmrOptions = {port: hmrport, host};
+    hmrOptions = {port: hmrport, host: hmrhost};
   }
 
   if (command.detailedReport === true) {
@@ -479,6 +478,8 @@ async function normalizeOptions(
     logLevel: command.logLevel,
     shouldProfile: command.profile,
     shouldBuildLazily: command.lazy,
+    shouldBundleIncrementally:
+      process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,
     detailedReport:
       command.detailedReport != null
         ? {

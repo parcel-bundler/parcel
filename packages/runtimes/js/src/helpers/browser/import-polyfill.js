@@ -22,7 +22,7 @@ module.exports = cacheLoader(function importModule(bundle) {
     script.type = 'module';
     script.charset = 'utf-8';
     script.textContent = `import * as m from '${bundle}'; ${globalName}(m);`;
-    script.onerror = function(e) {
+    script.onerror = function (e) {
       reject(e);
       cleanup();
     };
