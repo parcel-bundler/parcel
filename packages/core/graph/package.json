@@ -21,7 +21,9 @@
   },
   "dependencies": {
     "@parcel/utils": "2.8.3",
-    "nullthrows": "^1.1.1",
+    "nullthrows": "^1.1.1"
+  },
+  "devDependencies": {
     "sinon": "^7.3.1"
   }
 }

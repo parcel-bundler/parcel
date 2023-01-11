@@ -21,7 +21,9 @@
   },
   "dependencies": {
     "@parcel/diagnostic": "2.8.3",
-    "@parcel/events": "2.8.3",
+    "@parcel/events": "2.8.3"
+  },
+  "devDependencies": {
     "sinon": "^7.3.1"
   }
 }
