@@ -13,6 +13,7 @@ import type {Readable, Writable} from 'stream';
 import {MemoryFS, OverlayFS} from '@parcel/fs';
 import WorkerFarm from '@parcel/workers';
 
+import nullthrows from 'nullthrows';
 import path from 'path';
 
 // An OverlayFS with added delete tracking and copy-on-write behavior.
@@ -47,19 +48,43 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     this.chdir(sourceFS.cwd());
   }
 
+  _deletedThrows(filePath: FilePath): FilePath {
+    filePath = this._normalizePath(filePath);
+    if (this.deleted.has(filePath)) {
+      throw new FSError('ENOENT', filePath, 'does not exist');
+    }
+    return filePath;
+  }
+
+  _checkExists(filePath: FilePath): FilePath {
+    filePath = this._deletedThrows(filePath);
+    if (
+      !this.writable.existsSync(filePath) &&
+      !this.readable.existsSync(filePath)
+    ) {
+      throw new FSError('ENOENT', filePath, 'does not exist');
+    }
+    return filePath;
+  }
+
   _normalizePath(filePath: FilePath): FilePath {
     return path.resolve(this.cwd(), filePath);
   }
 
-  async _ensureNormalizedPath(filePath: FilePath): Promise<FilePath> {
-    filePath = this._normalizePath(filePath);
-    await this.mkdirp(path.dirname(filePath));
+  _resolvePath(filePath: FilePath): FilePath {
+    try {
+      filePath = this.realpathSync(filePath);
+    } catch (e) {
+      if (e.type !== 'ENOENT') {
+        throw e;
+      }
+    }
     return filePath;
   }
 
   async copyFile(from: FilePath, to: FilePath): Promise<void> {
     from = this._normalizePath(from);
-    to = await this._ensureNormalizedPath(to);
+    to = await this._normalizePath(to);
     await super.copyFile(from, to);
     this.deleted.delete(to);
   }
@@ -73,18 +98,11 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     filePath = this._normalizePath(filePath);
     if (this.deleted.has(filePath)) return false;
 
-    let dir = path.dirname(filePath);
-    let root = path.parse(dir).root;
-
-    while (dir !== root) {
-      if (this.deleted.has(dir)) return false;
-      dir = path.dirname(dir);
-    }
+    filePath = this._resolvePath(filePath);
+    if (this.deleted.has(filePath)) return false;
 
     return (
-      this.writable.existsSync(filePath) ||
-      this.writable.symlinks.has(filePath) ||
-      this.readable.existsSync(filePath)
+      this.writable.existsSync(filePath) || this.readable.existsSync(filePath)
     );
   }
 
@@ -111,7 +129,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     dir: FilePath,
     opts?: ReaddirOptions,
   ): Array<FilePath> | Array<Dirent> {
-    dir = this.writable.realpathSync(this._normalizePath(dir));
+    dir = this.realpathSync(dir);
     let entries = new Map();
 
     try {
@@ -149,7 +167,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
 
   // $FlowFixMe[method-unbinding]
   readFileSync(filePath: FilePath, encoding: ?Encoding): Buffer | string {
-    filePath = this._normalizePath(filePath);
+    filePath = this._resolvePath(filePath);
     return super.readFileSync(filePath, encoding);
   }
 
@@ -160,24 +178,21 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
 
   // $FlowFixMe[method-unbinding]
   realpathSync(filePath: FilePath): FilePath {
-    filePath = this.writable.realpathSync(this._normalizePath(filePath));
-    return super.realpathSync(filePath);
+    filePath = this._deletedThrows(filePath);
+    filePath = this.writable.realpathSync(filePath);
+    if (!this.writable.existsSync(filePath)) {
+      return this.readable.realpathSync(filePath);
+    }
+    return filePath;
   }
 
   // $FlowFixMe[method-unbinding]
   async rimraf(filePath: FilePath): Promise<void> {
-    filePath = await this._normalizePath(filePath);
-
-    await super.rimraf(filePath);
-
-    // Clean up redundant deleted paths.
-    for (let deletedPath of this.deleted) {
-      if (deletedPath.startsWith(filePath)) {
-        this.deleted.delete(deletedPath);
-      }
+    try {
+      await this.unlink(filePath);
+    } catch (e) {
+      // noop
     }
-
-    this.deleted.add(filePath);
   }
 
   // $FlowFixMe[method-unbinding]
@@ -187,18 +202,67 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
   }
 
   // $FlowFixMe[method-unbinding]
+  statSync(filePath: FilePath): Stats {
+    filePath = this._normalizePath(filePath);
+    try {
+      return this.writable.statSync(filePath);
+    } catch (e) {
+      if (e.code === 'ENOENT' && this.existsSync(filePath)) {
+        return this.readable.statSync(filePath);
+      }
+      throw e;
+    }
+  }
+
+  // $FlowFixMe[method-unbinding]
   async symlink(target: FilePath, filePath: FilePath): Promise<void> {
     target = this._normalizePath(target);
-    filePath = await this._ensureNormalizedPath(filePath);
+    filePath = await this._normalizePath(filePath);
     await super.symlink(target, filePath);
     this.deleted.delete(filePath);
   }
 
   // $FlowFixMe[method-unbinding]
   async unlink(filePath: FilePath): Promise<void> {
-    filePath = await this._normalizePath(filePath);
-    await super.unlink(filePath);
-    this.deleted.add(filePath);
+    filePath = await this._checkExists(filePath);
+
+    let toDelete = [filePath];
+
+    if (this.statSync(filePath).isDirectory()) {
+      let stack = [filePath];
+
+      // Recursively add every descendant path to deleted.
+      while (stack.length) {
+        let root = nullthrows(stack.pop());
+        for (let ent of this.readdirSync(root, {withFileTypes: true})) {
+          if (typeof ent === 'string') {
+            let childPath = path.join(root, ent);
+            toDelete.push(childPath);
+            if (this.statSync(childPath).isDir()) {
+              stack.push(childPath);
+            }
+          } else {
+            let childPath = path.join(root, ent.name);
+            toDelete.push(childPath);
+            if (ent.isDirectory()) {
+              stack.push(childPath);
+            }
+          }
+        }
+      }
+    }
+
+    try {
+      await super.unlink(filePath);
+    } catch (e) {
+      if (e.code === 'ENOENT' && !this.readable.existsSync(filePath)) {
+        throw e;
+      }
+    }
+
+    for (let pathToDelete of toDelete) {
+      this.deleted.add(pathToDelete);
+    }
   }
 
   // $FlowFixMe[method-unbinding]
@@ -207,8 +271,20 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     contents: string | Buffer,
     options: ?FileOptions,
   ): Promise<void> {
-    filePath = await this._ensureNormalizedPath(filePath);
+    filePath = await this._normalizePath(filePath);
     await super.writeFile(filePath, contents, options);
     this.deleted.delete(filePath);
+  }
+}
+
+class FSError extends Error {
+  code: string;
+  path: FilePath;
+  constructor(code: string, path: FilePath, message: string) {
+    super(`${code}: ${path} ${message}`);
+    this.name = 'FSError';
+    this.code = code;
+    this.path = path;
+    Error.captureStackTrace?.(this, this.constructor);
   }
 }
