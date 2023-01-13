@@ -53,6 +53,7 @@ async function applyFixture(
       break;
     }
     case 'link': {
+      // $FlowFixMe[prop-missing]
       await fs.symlink(node.target, path.join(dir, node.name));
       break;
     }
@@ -63,34 +64,81 @@ async function applyFixture(
   }
 }
 
-const NAME = /([^:>\n\\\/]+)(?=\/|\b)/.source;
-const EOL = / *(?:\n|$)/.source;
-const CONTENT = /"(.*)"/.source; // TODO: support multiline
-const PATH = /([^:>\n]+)\b/.source;
+// Named capture groups that can be directly tokenized.
+// e.g., a string matching `nest` can be tokenized as `nest` token,
+// a match for `dirname` can be tokenized as a `dirname` token, etc.
+const TOKEN_TYPES = [
+  // `/` in `a/b` or `  ` in `a\n  b`
+  /^(?<nest>\/|  )/,
+  // e.g. `a` or `b` in `a/b/c.txt`
+  /^(?<dirname>[^:>\n\/]+\b)(?:(?=\/)| *\n| *$)/,
+  // e.g. `c.txt` in `a/b/c.txt:` or `a/b/c.txt ->`
+  /^(?<filename>[^:>\n\/]+\b) *(?:->|:) *(?:\n|$)/,
+];
 
-const TOKEN_TYPES = {
-  nest: /^(\/|  )/,
-  dirname: new RegExp(`^${NAME}(?:(?=\/)|${EOL})`),
-  filename: new RegExp(`^${NAME}(?= *(?::|->))`),
-  content: new RegExp(`^ *: *${CONTENT}${EOL}`),
-  link: new RegExp(`^ *-> *${PATH}${EOL}`),
-};
+// Named capture groups that can be directly tokenized,
+// with the exception of the `indent` and `path` groups, which
+// capture patterns that should be subsequently matched on `TOKEN_TYPES`.
+const COMPOUND_TYPES = [
+  // Matches are captured as `indent` and`path` groups,
+  // which can then be matched to `TOKEN_TYPES`.
+  /^(?<indent>(?:  )*)(?<path>[^:>\n]+\b) *(?:\n|$)/,
+  // Matches are captured as `indent`,`path`, and `link` groups.
+  // The `indent` and `path` groups can be matched to `TOKEN_TYPES`,
+  // and then `link` can be directly tokenized as `link`.
+  /^(?<indent>(?:  )*)(?<path>[^:>\n]+\b *->) *(?<link>[^:>\n]+\b) *(?:\n|$)/,
+  // Matches are captured as `indent`,`path`, and `content` groups.
+  // The `indent` and `path` groups can be matched to `TOKEN_TYPES`,
+  // and then `content` can be directly tokenized as `content`.
+  /^(?<indent>(?:  )*)(?<path>[^:>\n]+\b *:)(?<content>.*(?:\n^(?:$|\k<indent>  .*))*) *(?:\n|$)/m,
+];
+
+const MAX_ITER = 10000;
+
+function checkIteration(i, str) {
+  if (i >= MAX_ITER) {
+    throw new Error(`Possible infinite loop while tokenizing "${str}"`);
+  }
+  return i + 1;
+}
 
 export class FixtureTokenizer {
   #src: string;
   #tokens: Array<FixtureToken>;
 
-  #tokenizeNext = () => {
-    for (let type in TOKEN_TYPES) {
-      let match = this.#src.match(TOKEN_TYPES[type]);
+  #tokenizeNext = (src, types) => {
+    for (let expr of types) {
+      let match = src.match(expr);
       if (match) {
-        let [substr, value] = match;
-        this.#src = this.#src.slice(substr.length);
-        this.#tokens.push({type, value});
-        return;
+        let {indent, path, ...groups} = nullthrows(match.groups);
+        if (indent != null) this.#tokenize(indent, TOKEN_TYPES);
+        if (path != null) this.#tokenize(path, TOKEN_TYPES);
+
+        // Additional tokens that aren't captured by `indent` and `path`.
+        for (let type in groups) {
+          // If the value is multiline, dedent each line.
+          let value = groups[type]
+            .trim()
+            .replace(new RegExp(`^${indent}  (.*)$`, 'gm'), '$1');
+          this.#tokens.push({type, value});
+        }
+
+        return src.slice(match[0].length);
       }
     }
-    throw new Error(`Failed to match token on "${this.#src}"`);
+
+    throw new Error(`Failed to match token on "${src}"`);
+  };
+
+  #tokenize = (src, types = COMPOUND_TYPES) => {
+    let i = 0;
+    while (src.length > 0) {
+      // It is _possible_ (though not expected!) to loop infinitely here,
+      // so guard against that by throwing if we count a lot of iterations.
+      i = checkIteration(i, src);
+      // $FlowFixMe[reassign-const]
+      src = this.#tokenizeNext(src, types);
+    }
   };
 
   constructor(src: string) {
@@ -100,9 +148,7 @@ export class FixtureTokenizer {
   tokenize(): Array<FixtureToken> {
     if (!this.#tokens) {
       this.#tokens = [];
-      while (this.#src.length > 0) {
-        this.#tokenizeNext();
-      }
+      this.#tokenize(this.#src);
     }
     return this.#tokens;
   }
@@ -133,7 +179,7 @@ export class FixtureParser {
     while (this.#peek('nest')) {
       nest = this.#consume('nest');
       if (nest.value === '/') {
-        assert(!isSegment, 'Unexpected segment nest');
+        assert(!isSegment && !depth, 'Unexpected segment nest');
         isSegment = true;
       } else {
         assert(!isSegment, 'Unexpected indent nest');
@@ -142,7 +188,7 @@ export class FixtureParser {
     }
 
     if (!isSegment) {
-      assert(depth <= this.#dirStack.length, 'Invalid nesting');
+      assert(depth < this.#dirStack.length, 'Invalid nesting');
       this.#dirStack = this.#dirStack.slice(0, depth + 1);
       this.#cwd = this.#dirStack[this.#dirStack.length - 1];
     }
