@@ -66,20 +66,20 @@ impl Cache {
 
   pub fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
     &'a self,
-    path: PathBuf,
+    path: &Path,
     process: F,
   ) -> Result<&'a TsConfigWrapper<'a>, ResolverError> {
-    if let Some(tsconfig) = self.tsconfigs.get(&path) {
+    if let Some(tsconfig) = self.tsconfigs.get(path) {
       return clone_result(tsconfig);
     }
 
     fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
       arena: &Arena<Box<str>>,
-      path: PathBuf,
+      path: &Path,
       process: F,
     ) -> Result<TsConfigWrapper<'static>, ResolverError> {
       let data = read(arena, &path)?;
-      let mut tsconfig = TsConfig::parse(path, data)?;
+      let mut tsconfig = TsConfig::parse(path.to_owned(), data)?;
       // Convice the borrow checker that 'a will live as long as self and not 'static.
       // Since the data is in our arena, this is true.
       process(unsafe { std::mem::transmute(&mut tsconfig) })?;
@@ -87,7 +87,7 @@ impl Cache {
     }
 
     let tsconfig = self.tsconfigs.insert(
-      path.clone(),
+      path.to_owned(),
       Box::new(read_tsconfig(&self.arena, path, process)),
     );
 
