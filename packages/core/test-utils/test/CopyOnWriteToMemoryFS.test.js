@@ -66,10 +66,12 @@ describe('CopyOnWriteToMemoryFS', () => {
 
     assert(fs.existsSync('foo'));
     assert.equal(fs.realpathSync('baz'), '/foo');
+    assert(fs._isSymlink('baz'));
 
     await fs.rimraf('foo');
 
     assert(!fs.existsSync('foo'));
+    assert(fs._isSymlink('baz'));
     assert(!fs.existsSync('baz'));
     assert(underlayFS.existsSync('foo'));
     assert(underlayFS.existsSync('baz'));
@@ -82,9 +84,11 @@ describe('CopyOnWriteToMemoryFS', () => {
 
     assert(fs.existsSync('baz'));
     assert.equal(fs.realpathSync('baz'), '/foo');
+    assert(fs._isSymlink('baz'));
 
     await fs.unlink('baz');
 
+    assert(!fs._isSymlink('baz'));
     assert(!fs.existsSync('baz'));
     assert(fs.existsSync('foo'));
     assert(underlayFS.existsSync('foo'));

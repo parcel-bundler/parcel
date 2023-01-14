@@ -58,28 +58,48 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
 
   _checkExists(filePath: FilePath): FilePath {
     filePath = this._deletedThrows(filePath);
-    if (
-      !this.writable.existsSync(filePath) &&
-      !this.readable.existsSync(filePath)
-    ) {
+    if (!this.existsSync(filePath)) {
       throw new FSError('ENOENT', filePath, 'does not exist');
     }
     return filePath;
   }
 
-  _normalizePath(filePath: FilePath): FilePath {
-    return path.resolve(this.cwd(), filePath);
-  }
-
-  _resolvePath(filePath: FilePath): FilePath {
-    try {
-      filePath = this.realpathSync(filePath);
-    } catch (e) {
-      if (e.type !== 'ENOENT') {
-        throw e;
+  _isSymlink(filePath: FilePath): boolean {
+    filePath = this._normalizePath(filePath);
+    // Check the parts of the path to see if any are symlinks.
+    let {root, dir, base} = path.parse(filePath);
+    let segments = dir.slice(root.length).split(path.sep).concat(base);
+    while (segments.length) {
+      filePath = path.join(root, ...segments);
+      let name = segments.pop();
+      if (this.deleted.has(filePath)) {
+        return false;
+      } else if (this.writable.symlinks.has(filePath)) {
+        return true;
+      } else {
+        // HACK: Parcel fs does not provide `lstatSync`,
+        // so we use `readdirSync` to check if the path is a symlink.
+        let parent = path.resolve(filePath, '..');
+        if (parent === filePath) {
+          return false;
+        }
+        for (let dirent of this.readdirSync(parent, {withFileTypes: true})) {
+          if (typeof dirent === 'string') {
+            break; // {withFileTypes: true} not supported
+          } else if (dirent.name === name) {
+            if (dirent.isSymbolicLink()) {
+              return true;
+            }
+          }
+        }
       }
     }
-    return filePath;
+
+    return false;
+  }
+
+  _normalizePath(filePath: FilePath): FilePath {
+    return path.resolve(this.cwd(), filePath);
   }
 
   async copyFile(from: FilePath, to: FilePath): Promise<void> {
@@ -98,7 +118,12 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     filePath = this._normalizePath(filePath);
     if (this.deleted.has(filePath)) return false;
 
-    filePath = this._resolvePath(filePath);
+    try {
+      filePath = this.realpathSync(filePath);
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+    }
+
     if (this.deleted.has(filePath)) return false;
 
     return (
@@ -167,7 +192,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
 
   // $FlowFixMe[method-unbinding]
   readFileSync(filePath: FilePath, encoding: ?Encoding): Buffer | string {
-    filePath = this._resolvePath(filePath);
+    filePath = this.realpathSync(filePath);
     return super.readFileSync(filePath, encoding);
   }
 
@@ -179,7 +204,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
   // $FlowFixMe[method-unbinding]
   realpathSync(filePath: FilePath): FilePath {
     filePath = this._deletedThrows(filePath);
-    filePath = this.writable.realpathSync(filePath);
+    filePath = this._deletedThrows(this.writable.realpathSync(filePath));
     if (!this.writable.existsSync(filePath)) {
       return this.readable.realpathSync(filePath);
     }
@@ -224,11 +249,13 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
 
   // $FlowFixMe[method-unbinding]
   async unlink(filePath: FilePath): Promise<void> {
-    filePath = await this._checkExists(filePath);
+    filePath = await this._normalizePath(filePath);
 
     let toDelete = [filePath];
 
-    if (this.statSync(filePath).isDirectory()) {
+    if (this._isSymlink(filePath)) {
+      this.writable.symlinks.delete(filePath);
+    } else if (this.statSync(filePath).isDirectory()) {
       let stack = [filePath];
 
       // Recursively add every descendant path to deleted.
