@@ -222,6 +222,10 @@ export default (new Transformer({
                 ref.specifier,
               )};\n`;
               dependencies.set(ref.specifier, d);
+              asset.addDependency({
+                specifier: ref.specifier,
+                specifierType: 'esm',
+              });
             }
             s += '${' + `${d}[${JSON.stringify(ref.name)}]` + '}';
           }

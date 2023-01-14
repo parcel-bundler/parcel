@@ -1155,10 +1155,9 @@ function createIdealGraph(
     invariant(a !== 'root' && b !== 'root');
     let bundleRootB = nullthrows(b.mainEntryAsset);
     let mainBundleRoot = nullthrows(a.mainEntryAsset);
-    for (let asset of a.assets) {
-      b.assets.add(asset);
+    for (let asset of b.assets) {
+      a.assets.add(asset);
     }
-    a.assets = b.assets;
     for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
       dependencyBundleGraph.getNodeIdByContentKey(String(otherNodeId)),
       ALL_EDGE_TYPES,
