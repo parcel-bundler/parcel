@@ -4,9 +4,6 @@ name = "parcel-resolver"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-crate-type = ["cdylib"]
-
 [dependencies]
 napi = "2.3.3"
 napi-derive = "2"
@@ -24,5 +21,14 @@ typed-arena = "*"
 elsa = "*"
 once_cell = "*"
 
+[dev-dependencies]
+criterion = "0.4.0"
+glob = "*"
+globset = "*"
+
 [build-dependencies]
 napi-build = "1"
+
+[[bench]]
+name = "glob"
+harness = false

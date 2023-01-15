@@ -22,7 +22,7 @@ use tsconfig::TsConfig;
 
 mod builtins;
 mod cache;
-mod glob;
+pub mod glob;
 mod package_json;
 mod specifier;
 mod tsconfig;
