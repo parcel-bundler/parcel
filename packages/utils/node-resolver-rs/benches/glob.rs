@@ -24,16 +24,16 @@ fn globset(pat: &str, s: &str) -> bool {
 }
 
 fn mine(b: &mut Criterion) {
-  b.bench_function("mine", |b| b.iter(|| assert!(glob_match(EXT_PAT, EXT))));
+  b.bench_function("mine", |b| b.iter(|| assert!(glob_match(LONG_PAT, EXT))));
 }
 
 fn glob_crate(b: &mut Criterion) {
-  b.bench_function("glob_crate", |b| b.iter(|| assert!(glob(EXT_PAT, EXT))));
+  b.bench_function("glob_crate", |b| b.iter(|| assert!(glob(LONG_PAT, EXT))));
 }
 
 fn globset_crate(b: &mut Criterion) {
   b.bench_function("globset_crate", |b| {
-    b.iter(|| assert!(globset(EXT_PAT, EXT)))
+    b.iter(|| assert!(globset(LONG_PAT, EXT)))
   });
 }
 

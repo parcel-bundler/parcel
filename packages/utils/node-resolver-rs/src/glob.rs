@@ -1,115 +1,143 @@
 // use std::path::is_separator;
 
+#[derive(Clone, Copy, Debug, Default)]
+struct State {
+  // These store character indices into the glob and path strings.
+  path_index: usize,
+  glob_index: usize,
+
+  // When we hit a * or **, we store the state for backtracking.
+  next_glob_index: usize,
+  next_path_index: usize,
+
+  // These flags are for * and ** matching.
+  // allow_sep indicates that path separators are allowed (only in **).
+  // needs_sep indicates that a path separator is needed following a ** pattern.
+  // saw_globstar indicates that we previously saw a ** pattern.
+  allow_sep: bool,
+  needs_sep: bool,
+  saw_globstar: bool,
+}
+
 pub fn glob_match(glob: &str, path: &str) -> bool {
   // This algorithm is based on https://research.swtch.com/glob
   let glob = glob.as_bytes();
-  let glob_len = glob.len();
   let path = path.as_bytes();
-  let path_len = path.len();
-  let mut glob_index = 0;
-  let mut path_index = 0;
-  let mut next_glob_index = 0;
-  let mut next_path_index = 0;
-  let mut in_braces = false;
-  let mut brace_start = 0;
-  let mut allow_sep = true;
-  let mut needs_sep = false;
-  let mut saw_globstar = false;
 
+  let mut state = State::default();
+
+  // Store the state when we see an opening '{' brace in a stack.
+  // Up to 10 nested braces are supported.
+  let mut brace_stack = [State::default(); 10];
+  let mut brace_ptr = 0;
+  let mut longest_brace_match = 0;
+
+  // First, check if the pattern is negated with a leading '!' character.
+  // Multiple negations can occur.
   let mut negated = false;
-  while glob_index < glob_len && glob[glob_index] == b'!' {
+  while state.glob_index < glob.len() && glob[state.glob_index] == b'!' {
     negated = !negated;
-    glob_index += 1;
+    state.glob_index += 1;
   }
 
-  while glob_index < glob_len || path_index < path_len {
-    if !allow_sep && path_index < path_len && is_separator(path[path_index]) {
-      next_path_index = 0;
-      allow_sep = true;
+  while state.glob_index < glob.len() || state.path_index < path.len() {
+    // println!(
+    //   "{:?} {:?} {:?}",
+    //   glob_index,
+    //   glob.get(glob_index).map(|c| *c as char),
+    //   path.get(path_index).map(|c| *c as char)
+    // );
+    if !state.allow_sep && state.path_index < path.len() && is_separator(path[state.path_index]) {
+      state.next_path_index = 0;
+      state.allow_sep = true;
     }
 
-    if glob_index < glob_len {
-      match glob[glob_index] {
+    if state.glob_index < glob.len() {
+      match glob[state.glob_index] {
         b'*' => {
-          next_glob_index = glob_index;
-          next_path_index = path_index + 1;
-          glob_index += 1;
+          state.next_glob_index = state.glob_index;
+          state.next_path_index = state.path_index + 1;
+          state.glob_index += 1;
 
-          allow_sep = saw_globstar;
-          needs_sep = false;
+          state.allow_sep = state.saw_globstar;
+          state.needs_sep = false;
 
           // ** allows path separators, whereas * does not.
           // However, ** must be a full path component, i.e. a/**/b not a**b.
-          if glob_index < glob_len && glob[glob_index] == b'*' {
-            glob_index += 1;
-            if glob_len == glob_index {
-              allow_sep = true;
-            } else if (glob_index < 3 || is_separator(glob[glob_index - 3]))
-              && is_separator(glob[glob_index])
+          if state.glob_index < glob.len() && glob[state.glob_index] == b'*' {
+            state.glob_index += 1;
+            if glob.len() == state.glob_index {
+              state.allow_sep = true;
+            } else if (state.glob_index < 3 || is_separator(glob[state.glob_index - 3]))
+              && is_separator(glob[state.glob_index])
             {
               // Matched a full /**/ segment. Skip the ending / so we search for the following character.
               // In effect, this makes the whole segment optional so that a/**/b matches a/b.
-              glob_index += 1;
+              state.glob_index += 1;
 
               // The allows_sep flag allows separator characters in ** matches.
               // The needs_sep flag ensures that the character just before the next matching
               // one is a '/', which prevents a/**/b from matching a/bb.
-              allow_sep = true;
-              needs_sep = true;
+              state.allow_sep = true;
+              state.needs_sep = true;
             }
           }
-          if allow_sep {
-            saw_globstar = true;
+          if state.allow_sep {
+            state.saw_globstar = true;
           }
 
           // If the next char is a special brace separator,
           // skip to the end of the braces so we don't try to match it.
-          if in_braces && glob_index < glob_len && matches!(glob[glob_index], b',' | b'}') {
-            if !skip_braces(glob, &mut glob_index) {
+          if brace_ptr > 0
+            && state.glob_index < glob.len()
+            && matches!(glob[state.glob_index], b',' | b'}')
+          {
+            if !skip_braces(glob, &mut state.glob_index) {
               // invalid pattern!
               return false;
             }
           }
           continue;
         }
-        b'?' if path_index < path_len => {
-          if !is_separator(path[path_index]) {
-            glob_index += 1;
-            path_index += 1;
+        b'?' if state.path_index < path.len() => {
+          if !is_separator(path[state.path_index]) {
+            state.glob_index += 1;
+            state.path_index += 1;
             continue;
           }
         }
-        b'[' if path_index < path_len => {
-          glob_index += 1;
-          let c = path[path_index];
+        b'[' if state.path_index < path.len() => {
+          state.glob_index += 1;
+          let c = path[state.path_index];
           let mut negated = false;
-          if glob_index < glob_len && matches!(glob[glob_index], b'^' | b'!') {
+          if state.glob_index < glob.len() && matches!(glob[state.glob_index], b'^' | b'!') {
             negated = true;
-            glob_index += 1;
+            state.glob_index += 1;
           }
 
-          let start = glob_index;
+          let start = state.glob_index;
           let mut is_match = false;
-          while glob_index < glob_len && (glob_index == start || glob[glob_index] != b']') {
-            // TODO: unescape
-            let mut low = glob[glob_index];
-            if !unescape(&mut low, glob, &mut glob_index) {
+          while state.glob_index < glob.len()
+            && (state.glob_index == start || glob[state.glob_index] != b']')
+          {
+            let mut low = glob[state.glob_index];
+            if !unescape(&mut low, glob, &mut state.glob_index) {
               // Invalid pattern!
               return false;
             }
-            glob_index += 1;
+            state.glob_index += 1;
 
-            let high = if glob_index + 1 < glob_len
-              && glob[glob_index] == b'-'
-              && glob[glob_index + 1] != b']'
+            let high = if state.glob_index + 1 < glob.len()
+              && glob[state.glob_index] == b'-'
+              && glob[state.glob_index + 1] != b']'
             {
-              glob_index += 1;
-              let mut high = glob[glob_index];
-              if !unescape(&mut high, glob, &mut glob_index) {
+              state.glob_index += 1;
+              let mut high = glob[state.glob_index];
+              if !unescape(&mut high, glob, &mut state.glob_index) {
                 // Invalid pattern!
                 return false;
               }
-              glob_index += 1;
+              state.glob_index += 1;
               high
             } else {
               low
@@ -119,53 +147,69 @@ pub fn glob_match(glob: &str, path: &str) -> bool {
               is_match = true;
             }
           }
-          if glob_index < glob_len && glob[glob_index] != b']' {
+          if state.glob_index < glob.len() && glob[state.glob_index] != b']' {
             // invalid pattern!
             return false;
           }
-          glob_index += 1;
+          state.glob_index += 1;
           if is_match != negated {
-            path_index += 1;
+            state.path_index += 1;
             continue;
           }
         }
-        b'{' if path_index < path_len => {
-          in_braces = true;
-          glob_index += 1;
-          brace_start = path_index;
-          continue;
-        }
-        b'}' if in_braces => {
-          // If we hit the end of the braces, we matched the last option.
-          in_braces = false;
-          glob_index += 1;
-          continue;
-        }
-        b',' if in_braces => {
-          // If we hit a comma, we matched one of the options!
-          // Skip forward to the end of the braces.
-          if !skip_braces(glob, &mut glob_index) {
-            // invalid pattern!
+        b'{' if state.path_index < path.len() => {
+          if brace_ptr >= brace_stack.len() {
+            // Invalid pattern! Too many nested braces.
             return false;
           }
-          in_braces = false;
+
+          // Push old state to the stack, and reset current state.
+          brace_stack[brace_ptr] = state;
+          brace_ptr += 1;
+          state = State {
+            path_index: state.path_index,
+            glob_index: state.glob_index + 1,
+            ..State::default()
+          };
           continue;
         }
-        mut c if path_index < path_len => {
+        b'}' if brace_ptr > 0 => {
+          // If we hit the end of the braces, we matched the last option.
+          brace_ptr -= 1;
+          state.glob_index += 1;
+          if state.path_index < longest_brace_match {
+            state.path_index = longest_brace_match;
+          }
+          if brace_ptr == 0 {
+            longest_brace_match = 0;
+          }
+          continue;
+        }
+        b',' if brace_ptr > 0 => {
+          // If we hit a comma, we matched one of the options!
+          // But we still need to check the others in case there is a longer match.
+          if state.path_index > longest_brace_match {
+            longest_brace_match = state.path_index;
+          }
+          state.path_index = brace_stack[brace_ptr - 1].path_index;
+          state.glob_index += 1;
+          continue;
+        }
+        mut c if state.path_index < path.len() => {
           // Match escaped characters as literals.
-          if !unescape(&mut c, glob, &mut glob_index) {
+          if !unescape(&mut c, glob, &mut state.glob_index) {
             // Invalid pattern!
             return false;
           }
 
-          // println!("{} {} {:?}", path[path_index] as char, c as char, allow_sep);
-          if path[path_index] == c
-            && (!needs_sep || (path_index > 0 && is_separator(path[path_index - 1])))
+          if path[state.path_index] == c
+            && (!state.needs_sep
+              || (state.path_index > 0 && is_separator(path[state.path_index - 1])))
           {
-            glob_index += 1;
-            path_index += 1;
-            needs_sep = false;
-            saw_globstar = false;
+            state.glob_index += 1;
+            state.path_index += 1;
+            state.needs_sep = false;
+            state.saw_globstar = false;
             continue;
           }
         }
@@ -173,27 +217,47 @@ pub fn glob_match(glob: &str, path: &str) -> bool {
       }
     }
 
-    if next_path_index > 0 && next_path_index <= path_len {
-      glob_index = next_glob_index;
-      path_index = next_path_index;
+    // println!(
+    //   "MISMATCH {:?} {:?} {:?} {:?} {:?}",
+    //   glob_index,
+    //   path_index,
+    //   glob.get(glob_index).map(|c| *c as char),
+    //   path.get(path_index).map(|c| *c as char),
+    //   brace_stack
+    // );
+
+    // If we didn't match, restore state to the previous star pattern.
+    if state.next_path_index > 0 && state.next_path_index <= path.len() {
+      state.glob_index = state.next_glob_index;
+      state.path_index = state.next_path_index;
       continue;
     }
 
-    if in_braces {
+    if brace_ptr > 0 {
       // If in braces, find next option and reset path to index where we saw the '{'
-      let mut idx = glob_index;
+      let mut idx = state.glob_index;
       let mut found_next = false;
-      while idx < glob_len {
+      let mut braces = 1;
+      while idx < glob.len() {
         match glob[idx] {
-          b',' => {
+          b',' if braces == 1 => {
             // Start matching from here.
-            glob_index = idx + 1;
-            path_index = brace_start;
+            state.glob_index = idx + 1;
+            state.path_index = brace_stack[brace_ptr - 1].path_index;
             found_next = true;
             break;
           }
+          b'{' => {
+            // Skip nested braces.
+            braces += 1;
+            idx += 1;
+          }
           b'}' => {
-            break;
+            braces -= 1;
+            idx += 1;
+            if braces == 0 {
+              break;
+            }
           }
           b'\\' => {
             idx += 2;
@@ -204,6 +268,38 @@ pub fn glob_match(glob: &str, path: &str) -> bool {
 
       if found_next {
         continue;
+      }
+
+      if braces != 0 {
+        // Invalid pattern!
+        return false;
+      }
+
+      // Hit the end. Pop the stack.
+      brace_ptr -= 1;
+
+      // If we matched a previous option, use that.
+      if longest_brace_match > 0 {
+        state = State {
+          glob_index: idx,
+          path_index: longest_brace_match,
+          // Since we matched, preserve these flags.
+          allow_sep: state.allow_sep,
+          needs_sep: state.needs_sep,
+          saw_globstar: state.saw_globstar,
+          // But restore star state if needed later.
+          next_glob_index: brace_stack[brace_ptr].next_glob_index,
+          next_path_index: brace_stack[brace_ptr].next_path_index,
+        };
+        continue;
+      } else {
+        // Didn't match. Restore state, and check if we need to jump back to a star pattern.
+        state = brace_stack[brace_ptr];
+        if state.next_path_index > 0 && state.next_path_index <= path.len() {
+          state.glob_index = state.next_glob_index;
+          state.path_index = state.next_path_index;
+          continue;
+        }
       }
     }
 
@@ -240,7 +336,20 @@ fn unescape(c: &mut u8, glob: &[u8], glob_index: &mut usize) -> bool {
 
 #[inline(always)]
 fn skip_braces(glob: &[u8], glob_index: &mut usize) -> bool {
-  while *glob_index < glob.len() && glob[*glob_index] != b'}' {
+  let mut braces = 0;
+  while *glob_index < glob.len() {
+    match glob[*glob_index] {
+      // Skip nested braces.
+      b'{' => braces += 1,
+      b'}' => {
+        if braces > 0 {
+          braces -= 1;
+        } else {
+          break;
+        }
+      }
+      _ => {}
+    }
     *glob_index += 1;
   }
 
@@ -340,6 +449,23 @@ mod tests {
     assert!(!glob_match("test/{foo/**,bar}/baz", "test/bar/test/baz"));
 
     assert!(!glob_match("*.txt", "some/big/path/to/the/needle.txt"));
+    assert!(glob_match(
+      "some/**/needle.{js,tsx,mdx,ts,jsx,txt}",
+      "some/a/bigger/path/to/the/crazy/needle.txt"
+    ));
+    assert!(glob_match(
+      "some/**/{a,b,c}/**/needle.txt",
+      "some/foo/a/bigger/path/to/the/crazy/needle.txt"
+    ));
+    assert!(!glob_match(
+      "some/**/{a,b,c}/**/needle.txt",
+      "some/foo/d/bigger/path/to/the/crazy/needle.txt"
+    ));
+    assert!(glob_match("a/{a{a,b},b}", "a/aa"));
+    assert!(glob_match("a/{a{a,b},b}", "a/ab"));
+    assert!(!glob_match("a/{a{a,b},b}", "a/ac"));
+    assert!(glob_match("a/{a{a,b},b}", "a/b"));
+    assert!(!glob_match("a/{a{a,b},b}", "a/c"));
     // assert!(glob_match("**.txt", "some/big/path/to/the/needle.txt"));
   }
 
@@ -1246,5 +1372,91 @@ mod tests {
     assert!(glob_match("!**/*.md", "a.js"));
     // assert!(!glob_match("!**/*.md", "b.md"));
     assert!(glob_match("!**/*.md", "c.txt"));
+  }
+
+  #[test]
+  fn braces() {
+    assert!(glob_match("{a,b,c}", "a"));
+    assert!(glob_match("{a,b,c}", "b"));
+    assert!(glob_match("{a,b,c}", "c"));
+    assert!(!glob_match("{a,b,c}", "aa"));
+    assert!(!glob_match("{a,b,c}", "bb"));
+    assert!(!glob_match("{a,b,c}", "cc"));
+
+    assert!(glob_match("a/{a,b}", "a/a"));
+    assert!(glob_match("a/{a,b}", "a/b"));
+    assert!(!glob_match("a/{a,b}", "a/c"));
+    assert!(!glob_match("a/{a,b}", "b/b"));
+    assert!(!glob_match("a/{a,b,c}", "b/b"));
+    assert!(glob_match("a/{a,b,c}", "a/c"));
+    assert!(glob_match("a{b,bc}.txt", "abc.txt"));
+
+    assert!(glob_match("foo[{a,b}]baz", "foo{baz"));
+
+    assert!(!glob_match("a{,b}.txt", "abc.txt"));
+    assert!(!glob_match("a{a,b,}.txt", "abc.txt"));
+    assert!(!glob_match("a{b,}.txt", "abc.txt"));
+    assert!(glob_match("a{,b}.txt", "a.txt"));
+    assert!(glob_match("a{b,}.txt", "a.txt"));
+    assert!(glob_match("a{a,b,}.txt", "aa.txt"));
+    assert!(glob_match("a{a,b,}.txt", "aa.txt"));
+    assert!(glob_match("a{,b}.txt", "ab.txt"));
+    assert!(glob_match("a{b,}.txt", "ab.txt"));
+
+    // assert!(glob_match("{a/,}a/**", "a"));
+    assert!(glob_match("a{a,b/}*.txt", "aa.txt"));
+    assert!(glob_match("a{a,b/}*.txt", "ab/.txt"));
+    assert!(glob_match("a{a,b/}*.txt", "ab/a.txt"));
+    // assert!(glob_match("{a/,}a/**", "a/"));
+    assert!(glob_match("{a/,}a/**", "a/a/"));
+    // assert!(glob_match("{a/,}a/**", "a/a"));
+    assert!(glob_match("{a/,}a/**", "a/a/a"));
+    assert!(glob_match("{a/,}a/**", "a/a/"));
+    assert!(glob_match("{a/,}a/**", "a/a/a/"));
+    assert!(glob_match("{a/,}b/**", "a/b/a/"));
+    assert!(glob_match("{a/,}b/**", "b/a/"));
+    assert!(glob_match("a{,/}*.txt", "a.txt"));
+    assert!(glob_match("a{,/}*.txt", "ab.txt"));
+    assert!(glob_match("a{,/}*.txt", "a/b.txt"));
+    assert!(glob_match("a{,/}*.txt", "a/ab.txt"));
+
+    assert!(glob_match("a{,.*{foo,db},\\(bar\\)}.txt", "a.txt"));
+    assert!(!glob_match("a{,.*{foo,db},\\(bar\\)}.txt", "adb.txt"));
+    assert!(glob_match("a{,.*{foo,db},\\(bar\\)}.txt", "a.db.txt"));
+
+    assert!(glob_match("a{,*.{foo,db},\\(bar\\)}.txt", "a.txt"));
+    assert!(!glob_match("a{,*.{foo,db},\\(bar\\)}.txt", "adb.txt"));
+    assert!(glob_match("a{,*.{foo,db},\\(bar\\)}.txt", "a.db.txt"));
+
+    // assert!(glob_match("a{,.*{foo,db},\\(bar\\)}", "a"));
+    assert!(!glob_match("a{,.*{foo,db},\\(bar\\)}", "adb"));
+    assert!(glob_match("a{,.*{foo,db},\\(bar\\)}", "a.db"));
+
+    // assert!(glob_match("a{,*.{foo,db},\\(bar\\)}", "a"));
+    assert!(!glob_match("a{,*.{foo,db},\\(bar\\)}", "adb"));
+    assert!(glob_match("a{,*.{foo,db},\\(bar\\)}", "a.db"));
+
+    assert!(!glob_match("{,.*{foo,db},\\(bar\\)}", "a"));
+    assert!(!glob_match("{,.*{foo,db},\\(bar\\)}", "adb"));
+    assert!(!glob_match("{,.*{foo,db},\\(bar\\)}", "a.db"));
+    assert!(glob_match("{,.*{foo,db},\\(bar\\)}", ".db"));
+
+    assert!(!glob_match("{,*.{foo,db},\\(bar\\)}", "a"));
+    assert!(glob_match("{*,*.{foo,db},\\(bar\\)}", "a"));
+    assert!(!glob_match("{,*.{foo,db},\\(bar\\)}", "adb"));
+    assert!(glob_match("{,*.{foo,db},\\(bar\\)}", "a.db"));
+
+    assert!(!glob_match("a/b/**/c{d,e}/**/xyz.md", "a/b/c/xyz.md"));
+    assert!(!glob_match("a/b/**/c{d,e}/**/xyz.md", "a/b/d/xyz.md"));
+    assert!(glob_match("a/b/**/c{d,e}/**/xyz.md", "a/b/cd/xyz.md"));
+    assert!(glob_match("a/b/**/{c,d,e}/**/xyz.md", "a/b/c/xyz.md"));
+    assert!(glob_match("a/b/**/{c,d,e}/**/xyz.md", "a/b/d/xyz.md"));
+
+    assert!(glob_match("*{a,b}*", "xax"));
+    assert!(glob_match("*{a,b}*", "xxax"));
+    assert!(glob_match("*{a,b}*", "xbx"));
+
+    assert!(glob_match("*{*a,b}", "xba"));
+    assert!(glob_match("*{*a,b}", "xb"));
   }
 }
