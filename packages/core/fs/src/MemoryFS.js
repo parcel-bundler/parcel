@@ -743,6 +743,7 @@ class WriteStream extends Writable {
 const S_IFREG = 0o100000;
 const S_IFDIR = 0o040000;
 const S_IFLNK = 0o120000;
+const S_IFMT = 0o170000;
 
 class Entry {
   mode: number;
@@ -853,11 +854,11 @@ class Dirent {
   }
 
   isFile(): boolean {
-    return Boolean(this.#mode & S_IFREG);
+    return (this.#mode & S_IFMT) === S_IFREG;
   }
 
   isDirectory(): boolean {
-    return Boolean(this.#mode & S_IFDIR);
+    return (this.#mode & S_IFMT) === S_IFDIR;
   }
 
   isBlockDevice(): boolean {
@@ -869,7 +870,7 @@ class Dirent {
   }
 
   isSymbolicLink(): boolean {
-    return Boolean(this.#mode & S_IFLNK);
+    return (this.#mode & S_IFMT) === S_IFLNK;
   }
 
   isFIFO(): boolean {
