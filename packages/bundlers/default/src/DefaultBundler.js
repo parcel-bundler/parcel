@@ -1165,10 +1165,10 @@ function createIdealGraph(
       replaceAssetReference(movingAsset, b, a);
     }
 
-    for (let asset of a.assets) {
-      b.assets.add(asset);
+    for (let asset of b.assets) {
+      a.assets.add(asset);
+      a.size += asset.stats.size;
     }
-    a.assets = b.assets;
     for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
       dependencyBundleGraph.getNodeIdByContentKey(String(otherNodeId)),
       ALL_EDGE_TYPES,

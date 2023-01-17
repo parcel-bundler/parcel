@@ -353,6 +353,7 @@ describe('css modules', () => {
     assert(css.includes('height: 100px;'));
     assert(css.includes('height: 300px;'));
     assert(css.indexOf('_test') < css.indexOf('_intermediate'));
+    assert(css.indexOf('_intermediate') < css.indexOf('_composes5'));
   });
 
   it('should support composes imports for multiple selectors', async () => {
