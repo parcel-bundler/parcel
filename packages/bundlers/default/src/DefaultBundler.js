@@ -1157,6 +1157,7 @@ function createIdealGraph(
     let mainBundleRoot = nullthrows(a.mainEntryAsset);
     for (let asset of b.assets) {
       a.assets.add(asset);
+      a.size += asset.stats.size;
     }
     for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
       dependencyBundleGraph.getNodeIdByContentKey(String(otherNodeId)),
