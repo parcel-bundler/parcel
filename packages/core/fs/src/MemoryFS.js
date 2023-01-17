@@ -244,10 +244,15 @@ export class MemoryFS implements FileSystem {
       throw new FSError('ENOENT', dir, 'does not exist');
     }
 
-    dir += path.sep;
+    if (!dir.endsWith(path.sep)) {
+      dir += path.sep;
+    }
 
     let res = [];
     for (let [filePath, entry] of this.dirs) {
+      if (filePath === dir) {
+        continue;
+      }
       if (
         filePath.startsWith(dir) &&
         filePath.indexOf(path.sep, dir.length) === -1
