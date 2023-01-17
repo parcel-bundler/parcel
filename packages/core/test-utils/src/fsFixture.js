@@ -28,7 +28,52 @@ export function fsFixture(
   };
 }
 
-async function applyFixture(
+declare function toFixture(
+  fs: FileSystem,
+  dir?: string,
+): Promise<FixtureRoot | FixtureDir>;
+
+declare function toFixture<T>(
+  fs: FileSystem,
+  dir: string,
+  parent: T,
+): Promise<T>;
+
+export async function toFixture(
+  fs: FileSystem,
+  dir: string = fs.cwd(),
+  fixture?: FixtureRoot | FixtureDir = new FixtureRoot(),
+) {
+  assert(
+    (await fs.stat(dir)).isDirectory(),
+    `Expected ${dir} to be a directory`,
+  );
+
+  for (let dirent of await fs.readdir(dir, {withFileTypes: true})) {
+    let name = dirent.name;
+    let filepath = path.join(dir, name);
+    if (dirent.isSymbolicLink()) {
+      fixture.children.push(
+        // FIXME: `realpath` is not the correct behavior here,
+        // but Parcel fs doesn't define `readlink.
+        new FixtureLink(name, await fs.realpath(filepath)),
+      );
+    } else if (dirent.isFile()) {
+      // TODO: throw for binary files.
+      let content = await fs.readFile(filepath, 'utf8');
+      fixture.children.push(new FixtureFile(name, content));
+    } else if (dirent.isDirectory()) {
+      fixture.children.push(
+        await toFixture(fs, filepath, new FixtureDir(name)),
+      );
+    } else {
+      throw new Error(`Unknown file type: ${name}`);
+    }
+  }
+  return fixture;
+}
+
+export async function applyFixture(
   fs: FileSystem,
   node: Fixture,
   dir: string,
@@ -244,6 +289,9 @@ export class FixtureParser {
 export class FixtureRoot {
   type: 'root' = 'root';
   children: Array<FixtureChild> = [];
+  toString(): string {
+    return this.children.map(child => child.toString()).join('\n');
+  }
 }
 
 export class FixtureDir {
@@ -252,6 +300,18 @@ export class FixtureDir {
   children: Array<FixtureChild> = [];
   constructor(name: string) {
     this.name = name;
+  }
+  toString(): string {
+    return [this.name]
+      .concat(
+        this.children.flatMap(child =>
+          child
+            .toString()
+            .split('\n')
+            .map(line => `  ${line}`),
+        ),
+      )
+      .join('\n');
   }
 }
 
@@ -263,6 +323,11 @@ export class FixtureFile {
     this.name = name;
     this.content = content;
   }
+  toString(): string {
+    return [`${this.name}:`]
+      .concat(this.content.split('\n').map(line => `  ${line}`))
+      .join('\n');
+  }
 }
 
 export class FixtureLink {
@@ -272,6 +337,9 @@ export class FixtureLink {
   constructor(name: string, target: string) {
     this.name = name;
     this.target = target;
+  }
+  toString(): string {
+    return `${this.name} -> ${this.target}`;
   }
 }
 

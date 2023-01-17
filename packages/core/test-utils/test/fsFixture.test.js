@@ -3,6 +3,7 @@
 import {
   dedentRaw,
   fsFixture,
+  toFixture,
   FixtureParser,
   FixtureTokenizer,
   FixtureRoot,
@@ -490,5 +491,78 @@ describe('fsFixture', () => {
       fs.readFileSync('/app/bar.js', 'utf8'),
       `import foo from "foo";\n\nexport function bar() {\n  return \`\${foo()} bar\`\n}`,
     );
+  });
+});
+
+describe('toFixture', () => {
+  let fs;
+  let workerFarm;
+
+  beforeEach(() => {
+    workerFarm = new WorkerFarm({
+      workerPath: require.resolve('@parcel/core/src/worker.js'),
+    });
+    fs = new MemoryFS(workerFarm);
+  });
+
+  afterEach(async () => {
+    await workerFarm.end();
+  });
+
+  it('errors for invalid cwd', async () => {
+    await fs.mkdirp('/foo');
+    await fs.writeFile('/foo/bar', 'bar');
+    await fs.symlink('/foo/bar', '/foo/bat');
+
+    // $FlowFixMe[prop-missing]
+    assert.rejects(() => toFixture(fs, '/bar'), /bar does not exist/);
+
+    // $FlowFixMe[prop-missing]
+    assert.rejects(() => toFixture(fs, '/foo/bar'), /to be a directory/);
+
+    // $FlowFixMe[prop-missing]
+    assert.rejects(() => toFixture(fs, '/foo/bat'), /to be a directory/);
+  });
+
+  it('creates a fixture from an fs', async () => {
+    await fs.mkdirp('/foo');
+    await fs.writeFile('/foo/bar', 'bar');
+    await fs.symlink('/foo/bar', '/foo/bat');
+
+    let fixture = await toFixture(fs);
+
+    assert.deepEqual(fixture, {
+      type: 'root',
+      children: [
+        {
+          type: 'dir',
+          name: 'foo',
+          children: [
+            {type: 'file', name: 'bar', content: 'bar'},
+            {type: 'link', name: 'bat', target: '/foo/bar'},
+          ],
+        },
+      ],
+    });
+
+    assert.equal(fixture.toString(), `foo\n  bar:\n    bar\n  bat -> /foo/bar`);
+  });
+
+  it('creates a fixture from an fs with a cwd', async () => {
+    await fs.mkdirp('/foo');
+    await fs.writeFile('/foo/bar', 'bar');
+    await fs.symlink('/foo/bar', '/foo/bat');
+
+    let fixture = await toFixture(fs, 'foo');
+
+    assert.deepEqual(fixture, {
+      type: 'root',
+      children: [
+        {type: 'file', name: 'bar', content: 'bar'},
+        {type: 'link', name: 'bat', target: '/foo/bar'},
+      ],
+    });
+
+    assert.equal(fixture.toString(), `bar:\n  bar\nbat -> /foo/bar`);
   });
 });
