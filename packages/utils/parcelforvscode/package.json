@@ -26,8 +26,37 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "main": "./out/extension.js",
-  "server": "./out/server.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "importersView",
+          "name": "Importers"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "importersView",
+        "contents": "Use 'Focus in importers view' to show importers of the active editor"
+      }
+    ],
+    "commands": [
+      {
+        "command": "importersView.focus",
+        "title": "Focus in importers view"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "importersView.focus"
+        }
+      ]
+    }
+  },
+  "main": "./lib/extension.js",
+  "server": "./lib/server.js",
   "targets": {
     "main": {
       "source": "src/extension.ts",
@@ -51,7 +80,7 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "rm -rf out; parcel build --no-cache",
+    "vscode:prepublish": "rm -rf lib; parcel build --no-cache",
     "package": "vsce package --yarn",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
@@ -72,7 +101,8 @@
     "typescript": ">=3.0.0",
     "vsce-yarn-patch": "^1.66.2",
     "vscode-languageclient": "^8.0.2",
-    "vscode-test": "^1.5.0"
+    "vscode-test": "^1.5.0",
+    "@parcel/lsp-protocol": "2.8.2"
   },
   "dependencies": {
     "@parcel/watcher": "^2.0.7"
