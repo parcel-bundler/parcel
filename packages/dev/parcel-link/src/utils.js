@@ -101,6 +101,16 @@ export function mapNamespacePackageAliases(
   return aliasesToParcelPackages;
 }
 
+export async function cleanupBin(root: string, opts: CmdOptions) {
+  let {fs} = opts;
+  let binSymlink = path.join(root, '.bin/parcel');
+  try {
+    await fsDelete(binSymlink, opts);
+  } catch (e) {
+    // noop
+  }
+}
+
 export async function cleanupNodeModules(
   root: string,
   predicate: (filepath: string) => boolean,
@@ -108,16 +118,8 @@ export async function cleanupNodeModules(
 ): Promise<void> {
   let {fs} = opts;
   for (let dirName of fs.readdirSync(root)) {
+    if (dirName === '.bin') continue;
     let dirPath = path.join(root, dirName);
-    if (dirName === '.bin') {
-      let binSymlink = path.join(root, '.bin/parcel');
-      try {
-        await fsDelete(binSymlink, opts);
-      } catch (e) {
-        // noop
-      }
-      continue;
-    }
     if (dirName[0].startsWith('@')) {
       await cleanupNodeModules(dirPath, predicate, opts);
       continue;

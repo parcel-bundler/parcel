@@ -6,6 +6,7 @@ import type {CmdOptions} from './utils';
 import {
   findParcelPackages,
   mapNamespacePackageAliases,
+  cleanupBin,
   cleanupNodeModules,
   fsWrite,
   fsSymlink,
@@ -40,6 +41,7 @@ export async function link(
   // --------------------------------------------------------------------------------
 
   for (let nodeModules of nodeModulesPaths) {
+    await cleanupBin(nodeModules, opts);
     await cleanupNodeModules(
       nodeModules,
       packageName => parcelPackages.has(packageName),

@@ -4,6 +4,7 @@ import type {ParcelLinkConfig} from './ParcelLinkConfig';
 import type {CmdOptions} from './utils';
 
 import {
+  cleanupBin,
   cleanupNodeModules,
   execSync,
   findParcelPackages,
@@ -41,6 +42,7 @@ export async function unlink(
   // --------------------------------------------------------------------------------
 
   for (let nodeModules of nodeModulesPaths) {
+    await cleanupBin(nodeModules, opts);
     await cleanupNodeModules(
       nodeModules,
       packageName => parcelPackages.has(packageName),
