@@ -27,7 +27,7 @@ import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
-import {unique} from '@parcel/utils';
+import {unique, setDifference} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
@@ -420,9 +420,10 @@ class BundlerRunner {
     assert.deepEqual(
       bundleNames,
       unique(bundleNames),
-      'Bundles must have unique name, but instead got: [' +
-        bundleNames.join(', ') +
-        ']',
+      'Bundles must have unique name. Conflicting names: ' +
+        [
+          ...setDifference(new Set(bundleNames), new Set(unique(bundleNames))),
+        ].join(),
     );
   }
 
