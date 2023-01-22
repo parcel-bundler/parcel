@@ -420,7 +420,9 @@ class BundlerRunner {
     assert.deepEqual(
       bundleNames,
       unique(bundleNames),
-      'Bundles must have unique names',
+      'Bundles must have unique name, but instead got: [' +
+        bundleNames.join(', ') +
+        ']',
     );
   }
 
