@@ -268,9 +268,12 @@ checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
 name = "convert_case"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb4a24b1aaf0fd0ce8b45161144d6f42cd91677fd5940fd431183eb023b3a2b8"
+checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "cpufeatures"
@@ -958,13 +961,14 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "2.5.0"
+version = "2.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec369bd2ae196a21bb08fb53761e637862c3c0699da9cd21b6d954e32dda04b3"
+checksum = "78a40be07b2dec780e248465221dc36ddd74875f7b8a82fc9bb67e45f49568d9"
 dependencies = [
+ "bitflags",
  "ctor",
- "lazy_static",
  "napi-sys",
+ "once_cell",
  "serde",
  "serde_json",
  "thread_local",
@@ -977,10 +981,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebd4419172727423cf30351406c54f6cc1b354a2cfb4f1dba3e6cd07f6d5522b"
 
 [[package]]
-name = "napi-derive"
-version = "2.5.0"
+name = "napi-build"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c0308f2313ee504b032bad9c75343d967e6ba27be2e3f19e89bb0ee8786b5b0"
+checksum = "882a73d9ef23e8dc2ebbffb6a6ae2ef467c0f18ac10711e4cc59c5485d41df0e"
+
+[[package]]
+name = "napi-derive"
+version = "2.9.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "813c5b57e0615d5f9d413d25900e1348ed23e1042d0fa892ce350c761ba9a64e"
 dependencies = [
  "convert_case",
  "napi-derive-backend",
@@ -991,9 +1001,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.33"
+version = "1.0.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c97606e865ebfca1c5d0c952e34969ca26b3c8ba0c246c569a2fc945719a78ea"
+checksum = "17925fff04b6fa636f8e4b4608cc1a4f1360b64ac8ecbfdb7da1be1dc74f6843"
 dependencies = [
  "convert_case",
  "once_cell",
@@ -1111,9 +1121,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.12.0"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7709cef83f0c1f58f666e746a08b21e0085f7440fa6a29cc194d68aac97a4225"
+checksum = "6f61fba1741ea2b3d6a1e3178721804bb716a68a6aeba1149b5d52e3d464ea66"
 
 [[package]]
 name = "oxipng"
@@ -1147,7 +1157,7 @@ name = "parcel-fs-search"
 version = "0.1.0"
 dependencies = [
  "napi",
- "napi-build",
+ "napi-build 1.2.1",
  "napi-derive",
 ]
 
@@ -1156,7 +1166,7 @@ name = "parcel-hash"
 version = "0.1.0"
 dependencies = [
  "napi",
- "napi-build",
+ "napi-build 1.2.1",
  "napi-derive",
  "xxhash-rust",
 ]
@@ -1168,7 +1178,7 @@ dependencies = [
  "libc",
  "mozjpeg-sys",
  "napi",
- "napi-build",
+ "napi-build 1.2.1",
  "napi-derive",
  "oxipng",
 ]
@@ -1198,7 +1208,7 @@ dependencies = [
  "jemallocator",
  "mimalloc",
  "napi",
- "napi-build",
+ "napi-build 1.2.1",
  "napi-derive",
  "parcel-js-swc-core",
 ]
@@ -1227,9 +1237,7 @@ dependencies = [
  "indexmap",
  "itertools",
  "json_comments",
- "napi",
- "napi-build",
- "napi-derive",
+ "napi-build 1.2.1",
  "once_cell",
  "percent-encoding",
  "serde",
@@ -1237,6 +1245,16 @@ dependencies = [
  "typed-arena 2.0.1",
  "url",
  "xxhash-rust",
+]
+
+[[package]]
+name = "parcel-resolver-node"
+version = "0.1.0"
+dependencies = [
+ "napi",
+ "napi-build 2.0.1",
+ "napi-derive",
+ "parcel-resolver",
 ]
 
 [[package]]
@@ -2468,6 +2486,12 @@ checksum = "d54590932941a9e9266f0832deed84ebe1bf2e4c9e4a3554d393d18f5e854bf9"
 dependencies = [
  "tinyvec",
 ]
+
+[[package]]
+name = "unicode-segmentation"
+version = "1.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fdbf052a0783de01e944a6ce7a8cb939e295b1e7be835a1112c3b9a7f047a5a"
 
 [[package]]
 name = "unicode-width"
