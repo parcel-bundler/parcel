@@ -22,7 +22,6 @@ use tsconfig::TsConfig;
 
 mod builtins;
 mod cache;
-pub mod glob;
 mod package_json;
 mod specifier;
 mod tsconfig;
@@ -1358,6 +1357,17 @@ mod tests {
         .0,
       Resolution::Excluded
     );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./lib/test",
+          &root().join("node_modules/package-alias-glob/index.js"),
+          SpecifierType::Esm
+        )
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/package-alias-glob/src/test.js"))
+    );
 
     let invalidations = test_resolver()
       .resolve(
@@ -1490,10 +1500,13 @@ mod tests {
         .0,
       Resolution::Path(root().join("bar.js"))
     );
-    // assert_eq!(
-    //   test_resolver().resolve("glob/bar/test", &root().join("foo.js"), SpecifierType::Esm).unwrap().0,
-    //   Resolution::Path(root().join("nested/test.js"))
-    // );
+    assert_eq!(
+      test_resolver()
+        .resolve("glob/bar/test", &root().join("foo.js"), SpecifierType::Esm)
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("nested/test.js"))
+    );
     assert_eq!(
       test_resolver()
         .resolve("something", &root().join("foo.js"), SpecifierType::Esm)

@@ -1,9 +1,11 @@
 use bitflags::bitflags;
+use glob_match::glob_match_with_captures;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::{
   borrow::Cow,
   cmp::Ordering,
+  ops::Range,
   path::{Path, PathBuf},
 };
 
@@ -462,10 +464,84 @@ impl<'a> PackageJson<'a> {
       return Some(Cow::Borrowed(value));
     }
 
-    // TODO: glob
+    // Match glob aliases.
+    for (key, value) in map {
+      let (glob, path) = match (key, specifier) {
+        (Specifier::Relative(glob), Specifier::Relative(path))
+        | (Specifier::Absolute(glob), Specifier::Absolute(path))
+        | (Specifier::Tilde(glob), Specifier::Tilde(path)) => {
+          (glob.as_os_str().to_str()?, path.as_os_str().to_str()?)
+        }
+        (Specifier::Package(module_a, glob), Specifier::Package(module_b, path))
+          if module_a == module_b =>
+        {
+          (glob.as_ref(), path.as_ref())
+        }
+        _ => continue,
+      };
+
+      if let Some(captures) = glob_match_with_captures(glob, path) {
+        let res = match value {
+          AliasValue::Specifier(specifier) => AliasValue::Specifier(match specifier {
+            Specifier::Relative(r) => {
+              Specifier::Relative(replace_path_captures(r, path, &captures)?)
+            }
+            Specifier::Absolute(r) => {
+              Specifier::Absolute(replace_path_captures(r, path, &captures)?)
+            }
+            Specifier::Tilde(r) => Specifier::Tilde(replace_path_captures(r, path, &captures)?),
+            Specifier::Package(module, subpath) => {
+              Specifier::Package(module.clone(), replace_captures(subpath, path, &captures))
+            }
+            _ => return Some(Cow::Borrowed(value)),
+          }),
+          _ => return Some(Cow::Borrowed(value)),
+        };
+
+        return Some(Cow::Owned(res));
+      }
+    }
 
     None
   }
+}
+
+fn replace_path_captures<'a>(
+  s: &'a Path,
+  path: &str,
+  captures: &Vec<Range<usize>>,
+) -> Option<Cow<'a, Path>> {
+  Some(
+    match replace_captures(s.as_os_str().to_str()?, path, &captures) {
+      Cow::Borrowed(b) => Cow::Borrowed(Path::new(b)),
+      Cow::Owned(b) => Cow::Owned(PathBuf::from(b)),
+    },
+  )
+}
+
+/// Inserts captures matched in a glob against `path` using a pattern string.
+/// Replacements are inserted using JS-like $N syntax, e.g. $1 for the first capture.
+fn replace_captures<'a>(s: &'a str, path: &str, captures: &Vec<Range<usize>>) -> Cow<'a, str> {
+  let mut res = Cow::Borrowed(s);
+  let bytes = s.as_bytes();
+  for (idx, _) in s.match_indices('$').rev() {
+    let mut end = idx;
+    while end + 1 < bytes.len() && bytes[end + 1].is_ascii_digit() {
+      end += 1;
+    }
+
+    if end != idx {
+      if let Ok(capture_index) = s[idx + 1..end + 1].parse::<usize>() {
+        if capture_index > 0 && capture_index - 1 < captures.len() {
+          res
+            .to_mut()
+            .replace_range(idx..end + 1, &path[captures[capture_index - 1].clone()]);
+        }
+      }
+    }
+  }
+
+  res
 }
 
 fn pattern_key_compare(a: &str, b: &str) -> Ordering {
@@ -862,6 +938,10 @@ mod tests {
         "lodash".into()  => AliasValue::Specifier("my-lodash".into()),
         "lodash/clone".into()  => AliasValue::Specifier("./clone.js".into()),
         "test".into() => AliasValue::Specifier("./test".into()),
+        "foo/*".into() => AliasValue::Specifier("bar/$1".into()),
+        "./foo/src/**".into() => AliasValue::Specifier("./foo/lib/$1".into()),
+        "/foo/src/**".into() => AliasValue::Specifier("/foo/lib/$1".into()),
+        "~/foo/src/**".into() => AliasValue::Specifier("~/foo/lib/$1".into()),
       },
       ..PackageJson::default()
     };
@@ -893,6 +973,46 @@ mod tests {
     assert_eq!(
       pkg.resolve_aliases(&"test/foo".into(), Fields::ALIAS),
       Some(Cow::Owned(AliasValue::Specifier("./test/foo".into())))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"foo/hi".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("bar/hi".into())))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"./foo/src/a/b".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./foo/lib/a/b".into())))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"/foo/src/a/b".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("/foo/lib/a/b".into())))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"~/foo/src/a/b".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("~/foo/lib/a/b".into())))
+    );
+  }
+
+  #[test]
+  fn test_replace_captures() {
+    assert_eq!(
+      replace_captures("test/$1/$2", "foo/bar/baz", &vec![4..7, 8..11]),
+      Cow::Borrowed("test/bar/baz")
+    );
+    assert_eq!(
+      replace_captures("test/$1/$2", "foo/bar/baz", &vec![4..7]),
+      Cow::Borrowed("test/bar/$2")
+    );
+    assert_eq!(
+      replace_captures("test/$1/$2/$3", "foo/bar/baz", &vec![4..7, 8..11]),
+      Cow::Borrowed("test/bar/baz/$3")
+    );
+    assert_eq!(
+      replace_captures("test/$1/$2/$", "foo/bar/baz", &vec![4..7, 8..11]),
+      Cow::Borrowed("test/bar/baz/$")
+    );
+    assert_eq!(
+      replace_captures("te$st/$1/$2", "foo/bar/baz", &vec![4..7, 8..11]),
+      Cow::Borrowed("te$st/bar/baz")
     );
   }
 }

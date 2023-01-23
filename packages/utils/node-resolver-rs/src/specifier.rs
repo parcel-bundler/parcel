@@ -5,7 +5,7 @@ use std::{
 };
 use url::Url;
 
-use crate::{builtins::BUILTINS, SpecifierType, Flags};
+use crate::{builtins::BUILTINS, Flags, SpecifierType};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Specifier<'a> {
