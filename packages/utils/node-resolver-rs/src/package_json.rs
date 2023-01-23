@@ -1,5 +1,5 @@
 use bitflags::bitflags;
-use glob_match::glob_match_with_captures;
+use glob_match::{glob_match, glob_match_with_captures};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::{
@@ -23,9 +23,11 @@ bitflags! {
 }
 
 #[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct PackageJson<'a> {
   #[serde(skip)]
   pub path: PathBuf,
+  #[serde(default)]
   name: &'a str,
   main: Option<&'a str>,
   module: Option<&'a str>,
@@ -41,6 +43,8 @@ pub struct PackageJson<'a> {
   exports: ExportsField<'a>,
   #[serde(default)]
   imports: IndexMap<ExportsKey<'a>, ExportsField<'a>>,
+  #[serde(default)]
+  side_effects: SideEffects<'a>,
 }
 
 impl<'a> Default for PackageJson<'a> {
@@ -56,6 +60,7 @@ impl<'a> Default for PackageJson<'a> {
       alias: Default::default(),
       exports: Default::default(),
       imports: Default::default(),
+      side_effects: Default::default(),
     }
   }
 }
@@ -147,6 +152,22 @@ pub enum AliasValue<'a> {
   Global {
     global: &'a str,
   },
+}
+
+#[derive(serde::Deserialize, Clone, PartialEq, Debug)]
+#[serde(untagged)]
+pub enum SideEffects<'a> {
+  None,
+  Boolean(bool),
+  #[serde(borrow)]
+  String(&'a str),
+  Array(Vec<&'a str>),
+}
+
+impl<'a> Default for SideEffects<'a> {
+  fn default() -> Self {
+    SideEffects::None
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -503,6 +524,45 @@ impl<'a> PackageJson<'a> {
     }
 
     None
+  }
+
+  pub fn has_side_effects(&self, path: &Path) -> bool {
+    let path = path
+      .strip_prefix(self.path.parent().unwrap())
+      .ok()
+      .and_then(|path| path.as_os_str().to_str());
+
+    let path = match path {
+      Some(p) => p,
+      None => return true,
+    };
+
+    fn side_effects_glob_matches(glob: &str, path: &str) -> bool {
+      // Trim leading "./"
+      let glob = if glob.starts_with("./") {
+        &glob[2..]
+      } else {
+        &glob
+      };
+
+      // If the glob does not contain any '/' characters, prefix with "**/" to match webpack.
+      let glob = if !glob.contains('/') {
+        Cow::Owned(format!("**/{}", glob))
+      } else {
+        Cow::Borrowed(glob)
+      };
+
+      glob_match(glob.as_ref(), path)
+    }
+
+    match &self.side_effects {
+      SideEffects::None => true,
+      SideEffects::Boolean(b) => *b,
+      SideEffects::String(glob) => side_effects_glob_matches(glob, path),
+      SideEffects::Array(globs) => globs
+        .iter()
+        .any(|glob| side_effects_glob_matches(glob, path)),
+    }
   }
 }
 
@@ -1014,5 +1074,102 @@ mod tests {
       replace_captures("te$st/$1/$2", "foo/bar/baz", &vec![4..7, 8..11]),
       Cow::Borrowed("te$st/bar/baz")
     );
+  }
+
+  #[test]
+  fn side_effects_none() {
+    let pkg = PackageJson {
+      path: "/foo/package.json".into(),
+      name: "foobar",
+      ..PackageJson::default()
+    };
+
+    assert!(pkg.has_side_effects(Path::new("/foo/index.js")));
+    assert!(pkg.has_side_effects(Path::new("/foo/bar/index.js")));
+    assert!(pkg.has_side_effects(Path::new("/index.js")));
+  }
+
+  #[test]
+  fn side_effects_bool() {
+    let pkg = PackageJson {
+      path: "/foo/package.json".into(),
+      name: "foobar",
+      side_effects: SideEffects::Boolean(false),
+      ..PackageJson::default()
+    };
+
+    assert!(!pkg.has_side_effects(Path::new("/foo/index.js")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/bar/index.js")));
+    assert!(pkg.has_side_effects(Path::new("/index.js")));
+
+    let pkg = PackageJson {
+      side_effects: SideEffects::Boolean(true),
+      ..pkg
+    };
+
+    assert!(pkg.has_side_effects(Path::new("/foo/index.js")));
+    assert!(pkg.has_side_effects(Path::new("/foo/bar/index.js")));
+    assert!(pkg.has_side_effects(Path::new("/index.js")));
+  }
+
+  #[test]
+  fn side_effects_glob() {
+    let pkg = PackageJson {
+      path: "/foo/package.json".into(),
+      name: "foobar",
+      side_effects: SideEffects::String("*.css"),
+      ..PackageJson::default()
+    };
+
+    assert!(pkg.has_side_effects(Path::new("/foo/a.css")));
+    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
+    assert!(pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
+    assert!(pkg.has_side_effects(Path::new("/index.js")));
+
+    let pkg = PackageJson {
+      side_effects: SideEffects::String("bar/*.css"),
+      ..pkg
+    };
+
+    assert!(!pkg.has_side_effects(Path::new("/foo/a.css")));
+    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
+    assert!(pkg.has_side_effects(Path::new("/index.js")));
+
+    let pkg = PackageJson {
+      side_effects: SideEffects::String("./bar/*.css"),
+      ..pkg
+    };
+
+    assert!(!pkg.has_side_effects(Path::new("/foo/a.css")));
+    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
+    assert!(pkg.has_side_effects(Path::new("/index.js")));
+  }
+
+  #[test]
+  fn side_effects_array() {
+    let pkg = PackageJson {
+      path: "/foo/package.json".into(),
+      name: "foobar",
+      side_effects: SideEffects::Array(vec!["*.css", "*.html"]),
+      ..PackageJson::default()
+    };
+
+    assert!(pkg.has_side_effects(Path::new("/foo/a.css")));
+    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
+    assert!(pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
+    assert!(pkg.has_side_effects(Path::new("/foo/a.html")));
+    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.html")));
+    assert!(pkg.has_side_effects(Path::new("/foo/bar/x/baz.html")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
+    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
+    assert!(pkg.has_side_effects(Path::new("/index.js")));
   }
 }

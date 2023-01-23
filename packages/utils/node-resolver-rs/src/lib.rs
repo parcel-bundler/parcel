@@ -223,6 +223,14 @@ impl<'a> Resolver<'a> {
     }
   }
 
+  pub fn resolve_side_effects(&self, path: &Path) -> Result<bool, ResolverError> {
+    if let Some(package) = self.find_package(path.parent().unwrap())? {
+      Ok(package.has_side_effects(path))
+    } else {
+      Ok(true)
+    }
+  }
+
   fn root_package(&self) -> Result<Option<&PackageJson>, ResolverError> {
     if self.flags.contains(Flags::ALIASES) {
       let path = self
@@ -2003,6 +2011,76 @@ mod tests {
     assert_eq!(
       *invalidations.invalidate_on_file_change.read().unwrap(),
       HashSet::from([root().join("package.json"), root().join("tsconfig.json")])
+    );
+  }
+
+  fn resolve_side_effects(specifier: &str, from: &Path) -> bool {
+    let resolver = test_resolver();
+    let resolved = resolver
+      .resolve(specifier, from, SpecifierType::Esm)
+      .unwrap()
+      .0;
+
+    if let Resolution::Path(path) = resolved {
+      resolver.resolve_side_effects(&path).unwrap()
+    } else {
+      unreachable!()
+    }
+  }
+
+  #[test]
+  fn test_side_effects() {
+    assert_eq!(
+      resolve_side_effects("side-effects-false/src/index.js", &root().join("foo.js")),
+      false,
+    );
+    assert_eq!(
+      resolve_side_effects("side-effects-false/src/index", &root().join("foo.js")),
+      false,
+    );
+    assert_eq!(
+      resolve_side_effects("side-effects-false/src/", &root().join("foo.js")),
+      false,
+    );
+    assert_eq!(
+      resolve_side_effects("side-effects-false", &root().join("foo.js")),
+      false,
+    );
+    assert_eq!(
+      resolve_side_effects(
+        "side-effects-package-redirect-up/foo/bar",
+        &root().join("foo.js")
+      ),
+      false,
+    );
+    assert_eq!(
+      resolve_side_effects(
+        "side-effects-package-redirect-down/foo/bar",
+        &root().join("foo.js")
+      ),
+      false,
+    );
+    assert_eq!(
+      resolve_side_effects("side-effects-false-glob/a/index", &root().join("foo.js")),
+      true,
+    );
+    assert_eq!(
+      resolve_side_effects("side-effects-false-glob/b/index.js", &root().join("foo.js")),
+      false,
+    );
+    assert_eq!(
+      resolve_side_effects(
+        "side-effects-false-glob/sub/a/index.js",
+        &root().join("foo.js")
+      ),
+      false,
+    );
+    assert_eq!(
+      resolve_side_effects(
+        "side-effects-false-glob/sub/index.json",
+        &root().join("foo.js")
+      ),
+      true,
     );
   }
 
