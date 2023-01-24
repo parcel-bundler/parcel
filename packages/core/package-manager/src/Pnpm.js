@@ -2,6 +2,8 @@
 
 import type {PackageInstaller, InstallerOptions} from './types';
 
+import path from 'path';
+import fs from 'fs';
 import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
 import logger from '@parcel/logger';
@@ -84,7 +86,10 @@ export class Pnpm implements PackageInstaller {
   }: InstallerOptions): Promise<void> {
     let args = ['add', '--reporter', 'ndjson'];
     if (saveDev) {
-      args.push('-D', '-W');
+      args.push('-D');
+    }
+    if (fs.existsSync(path.join(cwd, '.pnpm_workspaces'))) {
+      args.push('-w');
     }
     args = args.concat(modules.map(npmSpecifierFromModuleRequest));
 
@@ -148,9 +153,9 @@ export class Pnpm implements PackageInstaller {
       if (addedCount > 0 || removedCount > 0) {
         logger.log({
           origin: '@parcel/package-manager',
-          message: `Added ${addedCount} and ${
-            removedCount > 0 ? `removed ${removedCount}` : ''
-          } packages via pnpm`,
+          message: `Added ${addedCount} ${
+            removedCount > 0 ? `and removed ${removedCount} ` : ''
+          }packages via pnpm`,
         });
       }
 
