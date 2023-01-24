@@ -8,13 +8,15 @@ use elsa::FrozenMap;
 use typed_arena::Arena;
 
 use crate::{
-  package_json::PackageJson,
+  fs::{FileSystem, OsFileSystem},
+  package_json::{PackageJson, SourceField},
   tsconfig::{TsConfig, TsConfigWrapper},
   ResolverError,
 };
 
 #[derive(Default)]
-pub struct Cache {
+pub struct Cache<Fs = OsFileSystem> {
+  pub fs: Fs,
   // This stores file content strings, which are borrowed when parsing package.json and tsconfig.json files.
   arena: Arena<Box<str>>,
   // These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
@@ -26,13 +28,13 @@ pub struct Cache {
 }
 
 // Special Cow implementation for a Cache that doesn't require Clone.
-pub enum CacheCow<'a> {
-  Borrowed(&'a Cache),
-  Owned(Cache),
+pub enum CacheCow<'a, Fs> {
+  Borrowed(&'a Cache<Fs>),
+  Owned(Cache<Fs>),
 }
 
-impl<'a> Deref for CacheCow<'a> {
-  type Target = Cache;
+impl<'a, Fs> Deref for CacheCow<'a, Fs> {
+  type Target = Cache<Fs>;
 
   fn deref(&self) -> &Self::Target {
     match self {
@@ -42,24 +44,37 @@ impl<'a> Deref for CacheCow<'a> {
   }
 }
 
-impl Cache {
+impl<Fs: FileSystem> Cache<Fs> {
+  pub fn new(fs: Fs) -> Self {
+    Self {
+      fs,
+      arena: Arena::new(),
+      packages: FrozenMap::new(),
+      tsconfigs: FrozenMap::new(),
+    }
+  }
+
   pub fn read_package<'a>(&'a self, path: Cow<Path>) -> Result<&'a PackageJson<'a>, ResolverError> {
     if let Some(pkg) = self.packages.get(path.as_ref()) {
       return clone_result(pkg);
     }
 
-    fn read_package(
+    fn read_package<Fs: FileSystem>(
+      fs: &Fs,
       arena: &Arena<Box<str>>,
       path: PathBuf,
     ) -> Result<PackageJson<'static>, ResolverError> {
-      let data = read(arena, &path)?;
-      Ok(PackageJson::parse(path, data)?)
+      let data = read(fs, arena, &path)?;
+      let mut pkg = PackageJson::parse(path, data)?;
+
+      Ok(pkg)
     }
 
     let path = path.into_owned();
-    let pkg = self
-      .packages
-      .insert(path.clone(), Box::new(read_package(&self.arena, path)));
+    let pkg = self.packages.insert(
+      path.clone(),
+      Box::new(read_package(&self.fs, &self.arena, path)),
+    );
 
     clone_result(pkg)
   }
@@ -73,12 +88,17 @@ impl Cache {
       return clone_result(tsconfig);
     }
 
-    fn read_tsconfig<'a, F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>>(
+    fn read_tsconfig<
+      'a,
+      Fs: FileSystem,
+      F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>,
+    >(
+      fs: &Fs,
       arena: &Arena<Box<str>>,
       path: &Path,
       process: F,
     ) -> Result<TsConfigWrapper<'static>, ResolverError> {
-      let data = read(arena, &path)?;
+      let data = read(fs, arena, &path)?;
       let mut tsconfig = TsConfig::parse(path.to_owned(), data)?;
       // Convice the borrow checker that 'a will live as long as self and not 'static.
       // Since the data is in our arena, this is true.
@@ -88,15 +108,19 @@ impl Cache {
 
     let tsconfig = self.tsconfigs.insert(
       path.to_owned(),
-      Box::new(read_tsconfig(&self.arena, path, process)),
+      Box::new(read_tsconfig(&self.fs, &self.arena, path, process)),
     );
 
     clone_result(tsconfig)
   }
 }
 
-fn read(arena: &Arena<Box<str>>, path: &Path) -> std::io::Result<&'static mut str> {
-  let data = arena.alloc(std::fs::read_to_string(path)?.into_boxed_str());
+fn read<F: FileSystem>(
+  fs: &F,
+  arena: &Arena<Box<str>>,
+  path: &Path,
+) -> std::io::Result<&'static mut str> {
+  let data = arena.alloc(fs.read_to_string(path)?.into_boxed_str());
   // The data lives as long as the arena. In public methods, we only vend temporary references.
   Ok(unsafe { &mut *(&mut **data as *mut str) })
 }

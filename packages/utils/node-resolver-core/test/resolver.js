@@ -79,7 +79,12 @@ describe('resolver', function () {
     //   mainFields: ['browser', 'source', 'module', 'main'],
     //   extensions: ['.js', '.json'],
     // });
-    resolver = new Resolver(rootDir);
+    resolver = new Resolver(rootDir, {
+      canonicalize: path => overlayFS.realpathSync(path),
+      read: path => overlayFS.readFileSync(path),
+      isFile: path => overlayFS.statSync(path).isFile(),
+      isDir: path => overlayFS.statSync(path).isDirectory()
+    });
 
     configCache.clear();
   });
@@ -196,7 +201,7 @@ describe('resolver', function () {
       ]);
     });
 
-    it.skip('should resolve a file with a question mark with CommonJS specifiers', async function () {
+    it('should resolve a file with a question mark with CommonJS specifiers', async function () {
       // Windows filenames cannot contain question marks.
       if (process.platform === 'win32') {
         return;
@@ -232,7 +237,7 @@ describe('resolver', function () {
       ]);
     });
 
-    it.skip('should resolve a file with an encoded question mark with ESM specifiers', async function () {
+    it('should resolve a file with an encoded question mark with ESM specifiers', async function () {
       // Windows filenames cannot contain question marks.
       if (process.platform === 'win32') {
         return;
@@ -2400,7 +2405,7 @@ describe('resolver', function () {
     });
   });
 
-  describe.skip('source field', function () {
+  describe('source field', function () {
     describe('package behind symlinks', function () {
       it('should use the source field, when its realpath is not under `node_modules`', async function () {
         let resolved = await resolver.resolve({
@@ -2520,7 +2525,7 @@ describe('resolver', function () {
     });
   });
 
-  describe.skip('symlinks', function () {
+  describe('symlinks', function () {
     it('should resolve symlinked files to their realpath', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,

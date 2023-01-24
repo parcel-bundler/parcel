@@ -7,7 +7,6 @@ use once_cell::unsync::OnceCell;
 use std::{
   borrow::Cow,
   collections::HashSet,
-  fs,
   path::{Path, PathBuf},
   rc::Rc,
   sync::RwLock,
@@ -15,16 +14,19 @@ use std::{
 // use es_module_lexer::{lex, ImportKind};
 use specifier::parse_package_specifier;
 
-use cache::CacheCow;
 use package_json::{AliasValue, ExportsResolution, Fields, PackageJson, PackageJsonError};
 use specifier::Specifier;
 use tsconfig::TsConfig;
 
 mod builtins;
 mod cache;
+mod fs;
 mod package_json;
 mod specifier;
 mod tsconfig;
+
+pub use cache::{Cache, CacheCow};
+pub use fs::{FileSystem, OsFileSystem};
 
 bitflags! {
   pub struct Flags: u16 {
@@ -56,26 +58,26 @@ bitflags! {
   }
 }
 
-pub struct Resolver<'a> {
+pub struct Resolver<'a, Fs> {
   project_root: Cow<'a, Path>,
   extensions: &'a [&'a str],
   index_file: &'a str,
   entries: Fields,
   flags: Flags,
-  cache: CacheCow<'a>,
+  cache: CacheCow<'a, Fs>,
   root_package: OnceCell<Option<PathBuf>>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
-enum FileCreateInvalidation {
+pub enum FileCreateInvalidation {
   Path(PathBuf),
   FileName { file_name: String, above: PathBuf },
 }
 
 #[derive(Default, Debug)]
 pub struct Invalidations {
-  invalidate_on_file_create: RwLock<HashSet<FileCreateInvalidation>>,
-  invalidate_on_file_change: RwLock<HashSet<PathBuf>>,
+  pub invalidate_on_file_create: RwLock<HashSet<FileCreateInvalidation>>,
+  pub invalidate_on_file_change: RwLock<HashSet<PathBuf>>,
 }
 
 impl Invalidations {
@@ -176,8 +178,8 @@ enum Prioritize {
   File,
 }
 
-impl<'a> Resolver<'a> {
-  pub fn node(project_root: Cow<'a, Path>, cache: CacheCow<'a>) -> Self {
+impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
+  pub fn node(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
     Self {
       project_root,
       extensions: &["js", "json", "node"],
@@ -189,7 +191,7 @@ impl<'a> Resolver<'a> {
     }
   }
 
-  pub fn parcel(project_root: Cow<'a, Path>, cache: CacheCow<'a>) -> Self {
+  pub fn parcel(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
     Self {
       project_root,
       extensions: &["ts", "tsx", "mjs", "js", "jsx", "cjs", "json"],
@@ -263,7 +265,7 @@ impl<'a> Resolver<'a> {
       }
 
       let file = dir.join(filename);
-      if file.is_file() {
+      if self.cache.fs.is_file(&file) {
         return Some(file);
       }
 
@@ -276,8 +278,8 @@ impl<'a> Resolver<'a> {
   }
 }
 
-struct ResolveRequest<'a> {
-  resolver: &'a Resolver<'a>,
+struct ResolveRequest<'a, Fs> {
+  resolver: &'a Resolver<'a, Fs>,
   specifier: &'a Specifier<'a>,
   specifier_type: SpecifierType,
   from: &'a Path,
@@ -294,9 +296,9 @@ bitflags! {
   }
 }
 
-impl<'a> ResolveRequest<'a> {
+impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   fn new(
-    resolver: &'a Resolver<'a>,
+    resolver: &'a Resolver<'a, Fs>,
     specifier: &'a Specifier<'a>,
     mut specifier_type: SpecifierType,
     from: &'a Path,
@@ -517,7 +519,7 @@ impl<'a> ResolveRequest<'a> {
       }
 
       let mut package_dir = dir.join("node_modules").join(module);
-      if package_dir.is_dir() {
+      if self.resolver.cache.fs.is_dir(&package_dir) {
         let package_path = package_dir.join("package.json");
         let package = self.invalidations.read(&package_path, || {
           self
@@ -738,8 +740,8 @@ impl<'a> ResolveRequest<'a> {
   }
 
   fn try_file_without_aliases(&self, path: &Path) -> Result<Resolution, ResolverError> {
-    if path.is_file() {
-      Ok(Resolution::Path(fs::canonicalize(path)?))
+    if self.resolver.cache.fs.is_file(path) {
+      Ok(Resolution::Path(self.resolver.cache.fs.canonicalize(path)?))
     } else {
       self
         .invalidations
@@ -768,7 +770,7 @@ impl<'a> ResolveRequest<'a> {
     };
 
     // If no package.json, or no entries, try an index file with all possible extensions.
-    if dir.is_dir() {
+    if self.resolver.cache.fs.is_dir(dir) {
       return self.load_file(
         &dir.join(self.resolver.index_file),
         package.or(parent_package),
@@ -953,11 +955,11 @@ mod tests {
       .join("node-resolver-core/test/fixture")
   }
 
-  fn test_resolver<'a>() -> Resolver<'a> {
+  fn test_resolver<'a>() -> Resolver<'a, OsFileSystem> {
     Resolver::parcel(root().into(), CacheCow::Owned(Cache::default()))
   }
 
-  fn node_resolver<'a>() -> Resolver<'a> {
+  fn node_resolver<'a>() -> Resolver<'a, OsFileSystem> {
     Resolver::node(root().into(), CacheCow::Owned(Cache::default()))
   }
 
