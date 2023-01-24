@@ -34,7 +34,7 @@ pub struct PackageJson<'a> {
   #[serde(default)]
   tsconfig: Option<&'a str>,
   #[serde(default)]
-  source: SourceField<'a>,
+  pub source: SourceField<'a>,
   #[serde(default)]
   browser: BrowserField<'a>,
   #[serde(default)]
@@ -634,6 +634,24 @@ impl<'a> Iterator for EntryIter<'a> {
   type Item = PathBuf;
 
   fn next(&mut self) -> Option<Self::Item> {
+    if self.fields.contains(Fields::SOURCE) {
+      self.fields.remove(Fields::SOURCE);
+      match &self.package.source {
+        SourceField::None | SourceField::Array(_) => {}
+        SourceField::String(source) => return Some(self.package.path.with_file_name(source)),
+        SourceField::Map(map) => match map.get(&Specifier::Package(
+          Cow::Borrowed(self.package.name),
+          Cow::Borrowed(""),
+        )) {
+          Some(AliasValue::Specifier(s)) => match s {
+            Specifier::Relative(s) => return Some(self.package.path.with_file_name(s.as_ref())),
+            _ => {}
+          },
+          _ => {}
+        },
+      }
+    }
+
     if self.fields.contains(Fields::BROWSER) {
       self.fields.remove(Fields::BROWSER);
       match &self.package.browser {

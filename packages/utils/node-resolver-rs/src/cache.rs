@@ -67,6 +67,22 @@ impl<Fs: FileSystem> Cache<Fs> {
       let data = read(fs, arena, &path)?;
       let mut pkg = PackageJson::parse(path, data)?;
 
+      // If the package has a `source` field, make sure
+      // - the package is behind symlinks
+      // - and the realpath to the packages does not includes `node_modules`.
+      // Since such package is likely a pre-compiled module
+      // installed with package managers, rather than including a source code.
+      if !matches!(pkg.source, SourceField::None) {
+        let realpath = fs.canonicalize(&pkg.path)?;
+        if realpath == pkg.path
+          || realpath
+            .components()
+            .any(|c| c.as_os_str() == "node_modules")
+        {
+          pkg.source = SourceField::None;
+        }
+      }
+
       Ok(pkg)
     }
 
