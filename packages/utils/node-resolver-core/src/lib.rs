@@ -128,6 +128,7 @@ struct FileNameCreateInvalidation {
 #[napi(object)]
 struct ResolveResult {
   pub file_path: Option<String>,
+  pub builtin: Option<String>,
   pub invalidate_on_file_change: Vec<String>,
   pub invalidate_on_file_create:
     Vec<napi::Either<FilePathCreateInvalidation, FileNameCreateInvalidation>>,
@@ -188,6 +189,7 @@ impl Resolver {
         let side_effects = self.resolver.resolve_side_effects(&p).unwrap();
         Ok(ResolveResult {
           file_path: Some(p.to_string_lossy().into_owned()),
+          builtin: None,
           invalidate_on_file_change,
           invalidate_on_file_create,
           side_effects,
@@ -199,6 +201,19 @@ impl Resolver {
           convert_invalidations(invalidations);
         Ok(ResolveResult {
           file_path: None,
+          builtin: None,
+          invalidate_on_file_change,
+          invalidate_on_file_create,
+          side_effects: true,
+          query: (),
+        })
+      }
+      Ok((Resolution::Builtin(builtin), invalidations)) => {
+        let (invalidate_on_file_change, invalidate_on_file_create) =
+          convert_invalidations(invalidations);
+        Ok(ResolveResult {
+          file_path: None,
+          builtin: Some(builtin),
           invalidate_on_file_change,
           invalidate_on_file_create,
           side_effects: true,
@@ -218,6 +233,7 @@ impl Resolver {
         // ))
         Ok(ResolveResult {
           file_path: None,
+          builtin: None,
           invalidate_on_file_change,
           invalidate_on_file_create,
           side_effects: true,

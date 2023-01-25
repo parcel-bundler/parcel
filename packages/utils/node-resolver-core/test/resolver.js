@@ -9,7 +9,7 @@ import {createEnvironment} from '@parcel/core/src/Environment';
 import Environment from '@parcel/core/src/public/Environment';
 import {DEFAULT_OPTIONS} from '@parcel/core/test/test-utils';
 
-import {Resolver} from '../index';
+import NodeResolver from '../src/Wrapper';
 
 const rootDir = path.join(__dirname, 'fixture');
 
@@ -79,7 +79,7 @@ describe('resolver', function () {
     //   mainFields: ['browser', 'source', 'module', 'main'],
     //   extensions: ['.js', '.json'],
     // });
-    resolver = new Resolver(rootDir, {
+    resolver = new NodeResolver(rootDir, {
       canonicalize: path => overlayFS.realpathSync(path),
       read: path => overlayFS.readFileSync(path),
       isFile: path => overlayFS.statSync(path).isFile(),
@@ -303,7 +303,7 @@ describe('resolver', function () {
     });
   });
 
-  describe.skip('builtins', function () {
+  describe('builtins', function () {
     it('should resolve node builtin modules', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
