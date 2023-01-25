@@ -1,12 +1,8 @@
-// trait FileSystem {
-//   read()
-// }
-
 use bitflags::bitflags;
 use once_cell::unsync::OnceCell;
 use std::{
   borrow::Cow,
-  collections::HashSet,
+  collections::{HashMap, HashSet},
   path::{Path, PathBuf},
   rc::Rc,
   sync::RwLock,
@@ -58,6 +54,19 @@ bitflags! {
   }
 }
 
+#[derive(Clone)]
+pub enum IncludeNodeModules {
+  Bool(bool),
+  Array(Vec<String>),
+  Map(HashMap<String, bool>),
+}
+
+impl Default for IncludeNodeModules {
+  fn default() -> Self {
+    IncludeNodeModules::Bool(true)
+  }
+}
+
 pub struct Resolver<'a, Fs> {
   project_root: Cow<'a, Path>,
   extensions: &'a [&'a str],
@@ -66,6 +75,7 @@ pub struct Resolver<'a, Fs> {
   flags: Flags,
   cache: CacheCow<'a, Fs>,
   root_package: OnceCell<Option<PathBuf>>,
+  pub include_node_modules: Cow<'a, IncludeNodeModules>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
@@ -188,6 +198,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       flags: Flags::NODE_CJS,
       cache,
       root_package: OnceCell::new(),
+      include_node_modules: Cow::Owned(IncludeNodeModules::default()),
     }
   }
 
@@ -200,6 +211,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       flags: Flags::all(),
       cache,
       root_package: OnceCell::new(),
+      include_node_modules: Cow::Owned(IncludeNodeModules::default()),
     }
   }
 
@@ -493,6 +505,16 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   }
 
   fn resolve_bare(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
+    let include = match self.resolver.include_node_modules.as_ref() {
+      IncludeNodeModules::Bool(b) => *b,
+      IncludeNodeModules::Array(a) => a.iter().any(|v| v == module),
+      IncludeNodeModules::Map(m) => *m.get(module).unwrap_or(&true),
+    };
+
+    if !include {
+      return Ok(Resolution::Excluded);
+    }
+
     // First check tsconfig.json for the paths and baseUrl options.
     self
       .resolve_tsconfig_paths()
@@ -838,6 +860,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 flags: Flags::NODE_CJS,
                 cache: CacheCow::Borrowed(&self.resolver.cache),
                 root_package: self.resolver.root_package.clone(),
+                include_node_modules: Cow::Borrowed(self.resolver.include_node_modules.as_ref()),
               };
 
               let req = ResolveRequest::new(
@@ -2083,6 +2106,62 @@ mod tests {
         &root().join("foo.js")
       ),
       true,
+    );
+  }
+
+  #[test]
+  fn test_include_node_modules() {
+    let mut resolver = test_resolver();
+    resolver.include_node_modules = Cow::Owned(IncludeNodeModules::Bool(false));
+
+    assert_eq!(
+      resolver
+        .resolve("foo", &root().join("foo.js"), SpecifierType::Esm)
+        .unwrap()
+        .0,
+      Resolution::Excluded
+    );
+    assert_eq!(
+      resolver
+        .resolve("@scope/pkg", &root().join("foo.js"), SpecifierType::Esm)
+        .unwrap()
+        .0,
+      Resolution::Excluded
+    );
+
+    resolver.include_node_modules = Cow::Owned(IncludeNodeModules::Array(vec!["foo".into()]));
+    assert_eq!(
+      resolver
+        .resolve("foo", &root().join("foo.js"), SpecifierType::Esm)
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/foo/index.js"))
+    );
+    assert_eq!(
+      resolver
+        .resolve("@scope/pkg", &root().join("foo.js"), SpecifierType::Esm)
+        .unwrap()
+        .0,
+      Resolution::Excluded
+    );
+
+    resolver.include_node_modules = Cow::Owned(IncludeNodeModules::Map(HashMap::from([
+      ("foo".into(), false),
+      ("@scope/pkg".into(), true),
+    ])));
+    assert_eq!(
+      resolver
+        .resolve("foo", &root().join("foo.js"), SpecifierType::Esm)
+        .unwrap()
+        .0,
+      Resolution::Excluded
+    );
+    assert_eq!(
+      resolver
+        .resolve("@scope/pkg", &root().join("foo.js"), SpecifierType::Esm)
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/@scope/pkg/index.js"))
     );
   }
 
