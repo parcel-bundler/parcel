@@ -249,6 +249,24 @@ describe('FixtureParser', () => {
     result = new FixtureParser([
       {type: 'dirname', value: 'foo'},
       {type: 'nest', value: '/'},
+      {type: 'filename', value: 'bar'},
+      {type: 'link', value: 'foo/bat'},
+      {type: 'nest', value: ''},
+    ]);
+    assert.throws(() => result.parse(), /Invalid nesting/);
+
+    result = new FixtureParser([
+      {type: 'dirname', value: 'foo'},
+      {type: 'nest', value: '/'},
+      {type: 'filename', value: 'bar'},
+      {type: 'content', value: ''},
+      {type: 'nest', value: ''},
+    ]);
+    assert.throws(() => result.parse(), /Invalid nesting/);
+
+    result = new FixtureParser([
+      {type: 'dirname', value: 'foo'},
+      {type: 'nest', value: '/'},
       {type: 'nest', value: ''},
     ]);
     assert.throws(() => result.parse(), /Unexpected indent/);
@@ -321,6 +339,7 @@ describe('FixtureParser', () => {
     //   bat
     //   bat/baz
     //     qux
+    //   quux
     let result = new FixtureParser([
       {type: 'dirname', value: 'foo'},
       {type: 'dirname', value: 'bar'},
@@ -333,16 +352,19 @@ describe('FixtureParser', () => {
       {type: 'nest', value: ''},
       {type: 'nest', value: ''},
       {type: 'dirname', value: 'qux'},
+      {type: 'nest', value: ''},
+      {type: 'dirname', value: 'quux'},
     ]).parse();
 
     let expected = new FixtureRoot();
-    let bar, bat;
+    let bar, bat, baz;
     expected.children.push(new FixtureDir('foo'));
     expected.children.push((bar = new FixtureDir('bar')));
     bar.children.push(new FixtureDir('bat'));
     bar.children.push((bat = new FixtureDir('bat')));
-    bat.children.push(new FixtureDir('baz'));
-    bat.children.push(new FixtureDir('qux'));
+    bat.children.push((baz = new FixtureDir('baz')));
+    baz.children.push(new FixtureDir('qux'));
+    bar.children.push(new FixtureDir('quux'));
 
     assert.deepEqual(result, expected);
   });
@@ -350,19 +372,15 @@ describe('FixtureParser', () => {
   it('parses nested files and links', () => {
     // foo
     //   bar: "bar"
-    // foo/bar -> foo/bat
     //   bat
     //     qux -> qux
     //   bat/qux: "qux"
+    // foo/bar -> foo/bat
     let result = new FixtureParser([
       {type: 'dirname', value: 'foo'},
       {type: 'nest', value: ''},
       {type: 'filename', value: 'bar'},
       {type: 'content', value: 'bar'},
-      {type: 'dirname', value: 'foo'},
-      {type: 'nest', value: '/'},
-      {type: 'filename', value: 'bar'},
-      {type: 'link', value: 'foo/bat'},
       {type: 'nest', value: ''},
       {type: 'dirname', value: 'bat'},
       {type: 'nest', value: ''},
@@ -374,6 +392,10 @@ describe('FixtureParser', () => {
       {type: 'nest', value: '/'},
       {type: 'filename', value: 'qux'},
       {type: 'content', value: 'qux'},
+      {type: 'dirname', value: 'foo'},
+      {type: 'nest', value: '/'},
+      {type: 'filename', value: 'bar'},
+      {type: 'link', value: 'foo/bat'},
     ]).parse();
 
     let expected = new FixtureRoot();
@@ -381,12 +403,12 @@ describe('FixtureParser', () => {
 
     expected.children.push((foo = new FixtureDir('foo')));
     foo.children.push(new FixtureFile('bar', 'bar'));
-    expected.children.push((foo = new FixtureDir('foo')));
-    foo.children.push(new FixtureLink('bar', 'foo/bat'));
     foo.children.push((bat = new FixtureDir('bat')));
     bat.children.push(new FixtureLink('qux', 'qux'));
     foo.children.push((bat = new FixtureDir('bat')));
     bat.children.push(new FixtureFile('qux', 'qux'));
+    expected.children.push((foo = new FixtureDir('foo')));
+    foo.children.push(new FixtureLink('bar', 'foo/bat'));
 
     assert.deepEqual(result, expected);
   });
@@ -411,10 +433,10 @@ describe('fsFixture', () => {
     await fsFixture(fs)`
       foo
         bar: bar
-      foo/bar -> foo/bat
         bat
           qux -> qux
         bat/qux: qux
+      foo/bar -> foo/bat
     `;
 
     assert.equal(fs.realpathSync('foo/bar'), '/foo/bat');

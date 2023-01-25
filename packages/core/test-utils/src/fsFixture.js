@@ -236,6 +236,9 @@ export class FixtureParser {
       assert(depth < this.#dirStack.length, 'Invalid nesting');
       this.#dirStack = this.#dirStack.slice(0, depth + 1);
       this.#cwd = this.#dirStack[this.#dirStack.length - 1];
+    } else {
+      assert(this.#dirStack.length > 1, 'Invalid nesting');
+      this.#dirStack.pop();
     }
   };
 
