@@ -80,10 +80,12 @@ describe('resolver', function () {
     //   extensions: ['.js', '.json'],
     // });
     resolver = new NodeResolver(rootDir, {
-      canonicalize: path => overlayFS.realpathSync(path),
-      read: path => overlayFS.readFileSync(path),
-      isFile: path => overlayFS.statSync(path).isFile(),
-      isDir: path => overlayFS.statSync(path).isDirectory()
+      fs: {
+        canonicalize: path => overlayFS.realpathSync(path),
+        read: path => overlayFS.readFileSync(path),
+        isFile: path => overlayFS.statSync(path).isFile(),
+        isDir: path => overlayFS.statSync(path).isDirectory()
+      }
     });
 
     configCache.clear();

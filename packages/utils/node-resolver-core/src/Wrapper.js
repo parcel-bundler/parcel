@@ -27,7 +27,8 @@ export default class NodeResolver {
     if (!resolver) {
       resolver = new Resolver(this.projectRoot, {
         ...this.options,
-        includeNodeModules: options.env.includeNodeModules
+        includeNodeModules: options.env.includeNodeModules,
+        isBrowser: options.env.isBrowser()
       });
       this.resolversByEnv.set(options.env.id, resolver);
     }

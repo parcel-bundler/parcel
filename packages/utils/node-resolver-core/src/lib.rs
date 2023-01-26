@@ -1,17 +1,16 @@
 use napi::{
-  bindgen_prelude::{Reference, SharedReference, Undefined},
-  Env, JsBoolean, JsBuffer, JsFunction, JsString, Ref, Result,
+  bindgen_prelude::Undefined, Env, JsBoolean, JsBuffer, JsFunction, JsString, Ref, Result,
 };
 use napi_derive::napi;
-use std::{borrow::Cow, collections::HashMap, io::ErrorKind, path::Path};
+use std::{borrow::Cow, collections::HashMap, path::Path};
 
 use parcel_resolver::{
-  FileCreateInvalidation, FileSystem, IncludeNodeModules, Invalidations, OsFileSystem, Resolution,
-  SpecifierType,
+  Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules, Invalidations, OsFileSystem,
+  Resolution, SpecifierType,
 };
 
-#[napi(object, js_name = "FileSystem")]
-struct JsResolverOptions {
+#[napi(object)]
+pub struct JsFileSystemOptions {
   pub canonicalize: JsFunction,
   pub read: JsFunction,
   pub is_file: JsFunction,
@@ -20,7 +19,15 @@ struct JsResolverOptions {
     Option<napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>>,
 }
 
-struct JsFileSystemWrapper {
+#[napi(object, js_name = "FileSystem")]
+pub struct JsResolverOptions {
+  pub fs: Option<JsFileSystemOptions>,
+  pub include_node_modules:
+    Option<napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>>,
+  pub is_browser: bool,
+}
+
+struct JsFileSystem {
   env: Env,
   canonicalize: Ref<()>,
   read: Ref<()>,
@@ -28,7 +35,7 @@ struct JsFileSystemWrapper {
   is_dir: Ref<()>,
 }
 
-impl Drop for JsFileSystemWrapper {
+impl Drop for JsFileSystem {
   fn drop(&mut self) {
     drop(self.canonicalize.unref(self.env));
     drop(self.read.unref(self.env));
@@ -37,7 +44,7 @@ impl Drop for JsFileSystemWrapper {
   }
 }
 
-impl FileSystem for JsFileSystemWrapper {
+impl FileSystem for JsFileSystem {
   fn canonicalize<P: AsRef<Path>>(&self, path: P) -> std::io::Result<std::path::PathBuf> {
     let canonicalize = || -> napi::Result<_> {
       let path = path.as_ref().to_string_lossy();
@@ -75,7 +82,7 @@ impl FileSystem for JsFileSystemWrapper {
 
     match is_file() {
       Ok(res) => res,
-      Err(e) => false,
+      Err(_) => false,
     }
   }
 
@@ -95,41 +102,61 @@ impl FileSystem for JsFileSystemWrapper {
   }
 }
 
-#[napi]
-struct Cache {
-  cache: parcel_resolver::Cache,
+enum EitherFs<A, B> {
+  A(A),
+  B(B),
 }
 
-#[napi]
-impl Cache {
-  #[napi(constructor)]
-  pub fn new() -> Self {
-    Self {
-      cache: parcel_resolver::Cache::default(),
+impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
+  fn canonicalize<P: AsRef<Path>>(&self, path: P) -> std::io::Result<std::path::PathBuf> {
+    match self {
+      EitherFs::A(a) => a.canonicalize(path),
+      EitherFs::B(b) => b.canonicalize(path),
+    }
+  }
+
+  fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
+    match self {
+      EitherFs::A(a) => a.read_to_string(path),
+      EitherFs::B(b) => b.read_to_string(path),
+    }
+  }
+
+  fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
+    match self {
+      EitherFs::A(a) => a.is_file(path),
+      EitherFs::B(b) => b.is_file(path),
+    }
+  }
+
+  fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
+    match self {
+      EitherFs::A(a) => a.is_dir(path),
+      EitherFs::B(b) => b.is_dir(path),
     }
   }
 }
 
 #[napi(object)]
-struct ResolveOptions {
+pub struct ResolveOptions {
   pub filename: String,
   pub specifier_type: String,
   pub parent: String,
 }
 
 #[napi(object)]
-struct FilePathCreateInvalidation {
+pub struct FilePathCreateInvalidation {
   pub file_path: String,
 }
 
 #[napi(object)]
-struct FileNameCreateInvalidation {
+pub struct FileNameCreateInvalidation {
   pub file_name: String,
   pub above_file_path: String,
 }
 
 #[napi(object)]
-struct ResolveResult {
+pub struct ResolveResult {
   pub file_path: Option<String>,
   pub builtin: Option<String>,
   pub invalidate_on_file_change: Vec<String>,
@@ -140,30 +167,32 @@ struct ResolveResult {
 }
 
 #[napi]
-struct Resolver {
-  // cache: SharedReference<Cache, &'static parcel_resolver::Cache>,
-  resolver: parcel_resolver::Resolver<'static, JsFileSystemWrapper>,
+pub struct Resolver {
+  resolver: parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
 }
 
 #[napi]
 impl Resolver {
   #[napi(constructor)]
-  pub fn new(project_root: String, fs: JsResolverOptions, env: Env) -> Result<Self> {
-    // let cache = cache.share_with(env, |cache| Ok(&cache.cache))?;
-
-    let mut resolver = parcel_resolver::Resolver::parcel(
-      Cow::Owned(project_root.into()),
-      // parcel_resolver::CacheCow::Borrowed(*cache),
-      parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(JsFileSystemWrapper {
+  pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
+    let fs = if let Some(fs) = options.fs {
+      EitherFs::A(JsFileSystem {
         env,
         canonicalize: env.create_reference(fs.canonicalize)?,
         read: env.create_reference(fs.read)?,
         is_file: env.create_reference(fs.is_file)?,
         is_dir: env.create_reference(fs.is_dir)?,
-      })),
+      })
+    } else {
+      EitherFs::B(OsFileSystem)
+    };
+
+    let mut resolver = parcel_resolver::Resolver::parcel(
+      Cow::Owned(project_root.into()),
+      parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
     );
 
-    if let Some(include_node_modules) = fs.include_node_modules {
+    if let Some(include_node_modules) = options.include_node_modules {
       resolver.include_node_modules = Cow::Owned(match include_node_modules {
         napi::Either::A(b) => IncludeNodeModules::Bool(b),
         napi::Either::B(napi::Either::A(v)) => IncludeNodeModules::Array(v),
@@ -171,10 +200,11 @@ impl Resolver {
       });
     }
 
-    Ok(Self {
-      // cache,
-      resolver,
-    })
+    if !options.is_browser {
+      resolver.entries.remove(Fields::BROWSER);
+    }
+
+    Ok(Self { resolver })
   }
 
   #[napi]
@@ -253,13 +283,6 @@ impl Resolver {
           query: (),
         })
       }
-      _ => Err(napi::Error::new(
-        napi::Status::GenericFailure,
-        format!(
-          "Failed to resolve {} from {}",
-          options.filename, options.parent
-        ),
-      )),
     }
   }
 }

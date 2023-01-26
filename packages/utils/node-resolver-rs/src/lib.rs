@@ -10,7 +10,7 @@ use std::{
 // use es_module_lexer::{lex, ImportKind};
 use specifier::parse_package_specifier;
 
-use package_json::{AliasValue, ExportsResolution, Fields, PackageJson, PackageJsonError};
+use package_json::{AliasValue, ExportsResolution, PackageJson, PackageJsonError};
 use specifier::Specifier;
 use tsconfig::TsConfig;
 
@@ -23,6 +23,7 @@ mod tsconfig;
 
 pub use cache::{Cache, CacheCow};
 pub use fs::{FileSystem, OsFileSystem};
+pub use package_json::Fields;
 
 bitflags! {
   pub struct Flags: u16 {
@@ -68,14 +69,14 @@ impl Default for IncludeNodeModules {
 }
 
 pub struct Resolver<'a, Fs> {
-  project_root: Cow<'a, Path>,
-  extensions: &'a [&'a str],
-  index_file: &'a str,
-  entries: Fields,
-  flags: Flags,
+  pub project_root: Cow<'a, Path>,
+  pub extensions: &'a [&'a str],
+  pub index_file: &'a str,
+  pub entries: Fields,
+  pub flags: Flags,
+  pub include_node_modules: Cow<'a, IncludeNodeModules>,
   cache: CacheCow<'a, Fs>,
   root_package: OnceCell<Option<PathBuf>>,
-  pub include_node_modules: Cow<'a, IncludeNodeModules>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
@@ -751,8 +752,11 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       if let Some(package) = package {
         let s = path.strip_prefix(package.path.parent().unwrap()).unwrap();
         let specifier = Specifier::Relative(Cow::Borrowed(s));
-        if let Ok(res) = self.resolve_aliases(package, &specifier, Fields::BROWSER | Fields::ALIAS)
-        {
+        let mut fields = Fields::ALIAS;
+        if self.resolver.entries.contains(Fields::BROWSER) {
+          fields |= Fields::BROWSER;
+        }
+        if let Ok(res) = self.resolve_aliases(package, &specifier, fields) {
           return Ok(res);
         }
       }
@@ -1375,10 +1379,17 @@ mod tests {
         .0,
       Resolution::Path(root().join("node_modules/package-alias/bar.js"))
     );
-    // assert_eq!(
-    //   test_resolver().resolve("./lib/test", &root().join("node_modules/package-alias-glob/browser.js"), SpecifierType::Esm).unwrap(),
-    //   Resolution::Path(root().join("node_modules/package-alias-glob/src/test.js"))
-    // );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./lib/test",
+          &root().join("node_modules/package-alias-glob/browser.js"),
+          SpecifierType::Esm
+        )
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/package-alias-glob/src/test.js"))
+    );
     assert_eq!(
       test_resolver()
         .resolve(
