@@ -170,7 +170,7 @@ impl<'a> Default for SideEffects<'a> {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PackageJsonError {
   InvalidPackageTarget,
   PackagePathNotExported,

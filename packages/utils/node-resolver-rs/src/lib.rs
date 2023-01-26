@@ -194,6 +194,59 @@ impl From<PackageJsonError> for ResolverError {
   }
 }
 
+// Can't derive this because std::io::Error and serde_json::Error don't implement it.
+impl PartialEq for ResolverError {
+  fn eq(&self, other: &Self) -> bool {
+    use ResolverError::*;
+
+    match (self, other) {
+      (EmptySpecifier, EmptySpecifier)
+      | (UnknownScheme, UnknownScheme)
+      | (UnknownError, UnknownError) => true,
+      (
+        FileNotFound {
+          relative: ra,
+          from: fa,
+        },
+        FileNotFound {
+          relative: rb,
+          from: fb,
+        },
+      ) => ra == rb && fa == fb,
+      (ModuleNotFound { module: a }, ModuleNotFound { module: b }) => a == b,
+      (
+        ModuleEntryNotFound {
+          module: ma,
+          entry_path: ea,
+          package_path: pa,
+          field: fa,
+        },
+        ModuleEntryNotFound {
+          module: mb,
+          entry_path: eb,
+          package_path: pb,
+          field: fb,
+        },
+      ) => ma == mb && ea == eb && pa == pb && fa == fb,
+      (
+        ModuleSubpathNotFound {
+          module: ma,
+          path: pa,
+          package_path: ppa,
+        },
+        ModuleSubpathNotFound {
+          module: mb,
+          path: pb,
+          package_path: ppb,
+        },
+      ) => ma == mb && pa == pb && ppa == ppb,
+      (InvalidAlias, InvalidAlias) => true,
+      (PackageJsonError(a), PackageJsonError(b)) => a == b,
+      _ => false,
+    }
+  }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Resolution {
   Excluded,
@@ -704,8 +757,8 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     // First try the path as is.
     // TypeScript only supports resolving specifiers ending with `.ts` or `.tsx`
     // in a certain mode, but we always allow it.
-    if let Ok(res) = self.try_suffixes(path, "", package) {
-      return Ok(res);
+    if let Some(res) = self.try_suffixes(path, "", package)? {
+      return Ok(Some(res));
     }
 
     // TypeScript allows a specifier like "./foo.js" to resolve to "./foo.ts".
@@ -753,8 +806,8 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     {
       // Try appending each extension.
       for ext in extensions {
-        if let Ok(res) = self.try_suffixes(path, ext, package) {
-          return Ok(res);
+        if let Some(res) = self.try_suffixes(path, ext, package)? {
+          return Ok(Some(res));
         }
       }
     }
@@ -812,8 +865,8 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         p = Cow::Owned(PathBuf::from(s));
       }
 
-      if let Ok(res) = self.try_file(p.as_ref(), package) {
-        return Ok(res);
+      if let Some(res) = self.try_file(p.as_ref(), package)? {
+        return Ok(Some(res));
       }
     }
 
@@ -1124,10 +1177,16 @@ mod tests {
         .0,
       Resolution::Path(root().join("bar.js"))
     );
-    assert!(matches!(
-      test_resolver().resolve("./bar?foo=2", &root().join("foo.js"), SpecifierType::Cjs),
-      Err((ResolverError::FileNotFound, _))
-    ));
+    assert_eq!(
+      test_resolver()
+        .resolve("./bar?foo=2", &root().join("foo.js"), SpecifierType::Cjs)
+        .unwrap_err()
+        .0,
+      ResolverError::FileNotFound {
+        relative: "bar?foo=2".into(),
+        from: root().join("foo.js")
+      },
+    );
 
     let invalidations = test_resolver()
       .resolve("./bar", &root().join("foo.js"), SpecifierType::Esm)
@@ -1325,14 +1384,21 @@ mod tests {
         .0,
       Resolution::Path(root().join("node_modules/foo/with space.mjs"))
     );
-    assert!(matches!(
-      test_resolver().resolve(
-        "foo/with%20space.mjs",
-        &root().join("foo.js"),
-        SpecifierType::Cjs
-      ),
-      Err((ResolverError::FileNotFound, _))
-    ));
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "foo/with%20space.mjs",
+          &root().join("foo.js"),
+          SpecifierType::Cjs
+        )
+        .unwrap_err()
+        .0,
+      ResolverError::ModuleSubpathNotFound {
+        module: "foo".into(),
+        path: root().join("node_modules/foo/with%20space.mjs"),
+        package_path: root().join("node_modules/foo/package.json")
+      },
+    );
     assert_eq!(
       test_resolver()
         .resolve(
@@ -1344,14 +1410,19 @@ mod tests {
         .0,
       Resolution::Path(root().join("node_modules/@scope/pkg/index.js"))
     );
-    assert!(matches!(
-      test_resolver().resolve(
-        "@scope/pkg?foo=2",
-        &root().join("foo.js"),
-        SpecifierType::Cjs
-      ),
-      Err((ResolverError::FileNotFound, _))
-    ));
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "@scope/pkg?foo=2",
+          &root().join("foo.js"),
+          SpecifierType::Cjs
+        )
+        .unwrap_err()
+        .0,
+      ResolverError::ModuleNotFound {
+        module: "@scope/pkg?foo=2".into()
+      },
+    );
 
     let invalidations = test_resolver()
       .resolve("foo", &root().join("foo.js"), SpecifierType::Esm)
@@ -1707,10 +1778,16 @@ mod tests {
         .0,
       Resolution::Path(root().join("bar.js"))
     );
-    assert!(matches!(
-      test_resolver().resolve("bar", &root().join("foo.js"), SpecifierType::Url),
-      Err((ResolverError::FileNotFound, _))
-    ));
+    assert_eq!(
+      test_resolver()
+        .resolve("bar", &root().join("foo.js"), SpecifierType::Url)
+        .unwrap_err()
+        .0,
+      ResolverError::FileNotFound {
+        relative: "bar".into(),
+        from: root().join("foo.js")
+      }
+    );
     assert_eq!(
       test_resolver()
         .resolve("npm:foo", &root().join("foo.js"), SpecifierType::Url)
@@ -1921,18 +1998,28 @@ mod tests {
         .0,
       Resolution::Path(root().join("node_modules/tsconfig-exports/foo.js"))
     );
-    assert!(matches!(
-      test_resolver().resolve(
-        "ts-path",
-        &root().join("node_modules/tsconfig-not-used/index.js"),
-        SpecifierType::Esm
-      ),
-      Err((ResolverError::FileNotFound, _))
-    ));
-    assert!(matches!(
-      test_resolver().resolve("ts-path", &root().join("foo.css"), SpecifierType::Esm),
-      Err((ResolverError::FileNotFound, _))
-    ));
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "ts-path",
+          &root().join("node_modules/tsconfig-not-used/index.js"),
+          SpecifierType::Esm
+        )
+        .unwrap_err()
+        .0,
+      ResolverError::ModuleNotFound {
+        module: "ts-path".into()
+      },
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve("ts-path", &root().join("foo.css"), SpecifierType::Esm)
+        .unwrap_err()
+        .0,
+      ResolverError::ModuleNotFound {
+        module: "ts-path".into()
+      },
+    );
 
     let invalidations = test_resolver()
       .resolve("ts-path", &root().join("foo.js"), SpecifierType::Esm)
@@ -2092,14 +2179,20 @@ mod tests {
       // This matches TSC. c.js.ts seems kinda unlikely?
       Resolution::Path(root().join("ts-extensions/c.ts"))
     );
-    assert!(matches!(
-      test_resolver().resolve(
-        "./a.js",
-        &root().join("ts-extensions/index.js"),
-        SpecifierType::Esm
-      ),
-      Err((ResolverError::FileNotFound, _))
-    ));
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./a.js",
+          &root().join("ts-extensions/index.js"),
+          SpecifierType::Esm
+        )
+        .unwrap_err()
+        .0,
+      ResolverError::FileNotFound {
+        relative: "a.js".into(),
+        from: root().join("ts-extensions/index.js")
+      },
+    );
 
     let invalidations = test_resolver()
       .resolve(
