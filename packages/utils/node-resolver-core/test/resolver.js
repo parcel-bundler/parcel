@@ -191,13 +191,14 @@ describe('resolver', function () {
       );
     });
 
-    it.skip('should not resolve an index file in a directory for URL specifiers', async function () {
+    it.only('should not resolve an index file in a directory for URL specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './nested',
         specifierType: 'url',
         parent: path.join(rootDir, 'foo.js'),
       });
+      console.log(resolved)
       assert.deepEqual(nullthrows(resolved).diagnostics, [
         {message: "Cannot load file './nested' in './'.", hints: []},
       ]);

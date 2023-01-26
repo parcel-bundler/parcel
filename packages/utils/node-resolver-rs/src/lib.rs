@@ -10,7 +10,7 @@ use std::{
 // use es_module_lexer::{lex, ImportKind};
 use specifier::parse_package_specifier;
 
-use package_json::{AliasValue, ExportsResolution, PackageJson, PackageJsonError};
+use package_json::{AliasValue, ExportsResolution, PackageJson};
 use specifier::Specifier;
 use tsconfig::TsConfig;
 
@@ -23,7 +23,7 @@ mod tsconfig;
 
 pub use cache::{Cache, CacheCow};
 pub use fs::{FileSystem, OsFileSystem};
-pub use package_json::Fields;
+pub use package_json::{Fields, PackageJsonError};
 
 bitflags! {
   pub struct Flags: u16 {
@@ -140,7 +140,25 @@ pub enum ResolverError {
   EmptySpecifier,
   UnknownScheme,
   UnknownError,
-  FileNotFound,
+  FileNotFound {
+    relative: PathBuf,
+    from: PathBuf,
+  },
+  ModuleNotFound {
+    module: String,
+  },
+  ModuleEntryNotFound {
+    module: String,
+    entry_path: PathBuf,
+    package_path: PathBuf,
+    field: Fields,
+  },
+  ModuleSubpathNotFound {
+    module: String,
+    path: PathBuf,
+    package_path: PathBuf,
+  },
+  InvalidAlias,
   JsonError(Rc<serde_json::Error>),
   IOError(Rc<std::io::Error>),
   PackageJsonError(PackageJsonError),
@@ -351,7 +369,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     package: &PackageJson,
     specifier: &Specifier,
     fields: Fields,
-  ) -> Result<Resolution, ResolverError> {
+  ) -> Result<Option<Resolution>, ResolverError> {
     match package.resolve_aliases(&specifier, fields) {
       Some(alias) => match alias.as_ref() {
         AliasValue::Specifier(specifier) => {
@@ -362,13 +380,14 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             &package.path,
             self.invalidations,
           );
-          req.resolve_specifier()
+          let resolved = req.resolve_specifier()?;
+          Ok(Some(resolved))
         }
-        AliasValue::Bool(false) => Ok(Resolution::Excluded),
-        AliasValue::Bool(true) => Err(ResolverError::FileNotFound),
+        AliasValue::Bool(false) => Ok(Some(Resolution::Excluded)),
+        AliasValue::Bool(true) => Err(ResolverError::InvalidAlias),
         _ => todo!(),
       },
-      None => Err(ResolverError::FileNotFound),
+      None => Ok(None),
     }
   }
 
@@ -379,7 +398,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       .invalidations
       .read(&path, || self.resolver.root_package())?
     {
-      if let Ok(res) = self.resolve_aliases(&package, &self.specifier, Fields::ALIAS) {
+      if let Some(res) = self.resolve_aliases(&package, &self.specifier, Fields::ALIAS)? {
         return Ok(res);
       }
     }
@@ -400,7 +419,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           return self.resolve_relative(&specifier, &p);
         }
 
-        Err(ResolverError::FileNotFound)
+        Err(ResolverError::UnknownError)
       }
       Specifier::Absolute(specifier) => {
         // In Parcel mode, absolute paths are actually relative to the project root.
@@ -409,8 +428,13 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             specifier.strip_prefix("/").unwrap(),
             &self.resolver.project_root.join("index"),
           )
+        } else if let Some(res) = self.load_path(&specifier, None, Prioritize::File)? {
+          Ok(res)
         } else {
-          self.load_path(&specifier, None, Prioritize::File)
+          Err(ResolverError::FileNotFound {
+            relative: specifier.as_ref().to_owned(),
+            from: PathBuf::from("/"),
+          })
         }
       }
       Specifier::Hash(hash) => {
@@ -426,7 +450,9 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             match package.resolve_package_imports(&hash, &[])? {
               ExportsResolution::Path(path) => {
                 // Extensionless specifiers are not supported in the imports field.
-                return self.try_file_without_aliases(&path);
+                if let Some(res) = self.try_file_without_aliases(&path)? {
+                  return Ok(res);
+                }
               }
               ExportsResolution::Package(specifier) => {
                 let (module, subpath) = parse_package_specifier(&specifier)?;
@@ -502,7 +528,14 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     // Find a package.json above the source file where the dependency was located.
     // This is used to resolve any aliases.
     let package = self.find_package(from)?;
-    self.load_path(&from.with_file_name(specifier), package, Prioritize::File)
+    if let Some(res) = self.load_path(&from.with_file_name(specifier), package, Prioritize::File)? {
+      return Ok(res);
+    }
+
+    Err(ResolverError::FileNotFound {
+      relative: specifier.to_owned(),
+      from: from.to_owned(),
+    })
   }
 
   fn resolve_bare(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
@@ -517,9 +550,11 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     }
 
     // First check tsconfig.json for the paths and baseUrl options.
-    self
-      .resolve_tsconfig_paths()
-      .or_else(|_| self.resolve_node_module(module, subpath))
+    if let Some(res) = self.resolve_tsconfig_paths()? {
+      return Ok(res);
+    }
+
+    self.resolve_node_module(module, subpath)
   }
 
   fn resolve_node_module(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
@@ -557,43 +592,83 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           let path = package.resolve_package_exports(subpath, &[])?;
 
           // Extensionless specifiers are not supported in the exports field.
-          return self.try_file_without_aliases(&path);
+          if let Some(res) = self.try_file_without_aliases(&path)? {
+            return Ok(res);
+          }
+
+          return Err(ResolverError::ModuleSubpathNotFound {
+            module: module.to_owned(),
+            path,
+            package_path: package.path.clone(),
+          });
         } else if !subpath.is_empty() {
           package_dir.push(subpath);
-          return self.load_path(&package_dir, Some(&package), Prioritize::File);
-        } else {
-          return self.try_package_entries(&package).or_else(|e| {
-            // Node ESM doesn't allow directory imports.
-            if self.resolver.flags.contains(Flags::DIR_INDEX) {
-              self.load_file(&package_dir.join(self.resolver.index_file), Some(&package))
-            } else {
-              Err(e)
-            }
+          if let Some(res) = self.load_path(&package_dir, Some(&package), Prioritize::File)? {
+            return Ok(res);
+          }
+
+          return Err(ResolverError::ModuleSubpathNotFound {
+            module: module.to_owned(),
+            path: package_dir,
+            package_path: package.path.clone(),
           });
+        } else {
+          if let Some(res) = self.try_package_entries(&package)? {
+            return Ok(res);
+          }
+
+          // Node ESM doesn't allow directory imports.
+          if self.resolver.flags.contains(Flags::DIR_INDEX) {
+            if let Some(res) =
+              self.load_file(&package_dir.join(self.resolver.index_file), Some(&package))?
+            {
+              return Ok(res);
+            }
+          }
+
+          if let Some((entry, field)) = package.entries(self.resolver.entries).next() {
+            return Err(ResolverError::ModuleEntryNotFound {
+              module: module.to_owned(),
+              entry_path: entry,
+              package_path: package.path.clone(),
+              field,
+            });
+          } else {
+            return Err(ResolverError::ModuleSubpathNotFound {
+              module: module.to_owned(),
+              path: package_dir.join(self.resolver.index_file),
+              package_path: package.path.clone(),
+            });
+          }
         }
       }
     }
 
     // NODE_PATH??
 
-    Err(ResolverError::FileNotFound)
+    Err(ResolverError::ModuleNotFound {
+      module: module.to_owned(),
+    })
   }
 
-  fn try_package_entries(&self, package: &PackageJson) -> Result<Resolution, ResolverError> {
+  fn try_package_entries(
+    &self,
+    package: &PackageJson,
+  ) -> Result<Option<Resolution>, ResolverError> {
     // Try all entry fields.
-    for entry in package.entries(self.resolver.entries) {
+    for (entry, _) in package.entries(self.resolver.entries) {
       let prioritize = if entry.extension().is_some() {
         Prioritize::File
       } else {
         Prioritize::Directory
       };
 
-      if let Ok(res) = self.load_path(&entry, Some(package), prioritize) {
-        return Ok(res);
+      if let Some(res) = self.load_path(&entry, Some(package), prioritize)? {
+        return Ok(Some(res));
       }
     }
 
-    Err(ResolverError::FileNotFound)
+    Ok(None)
   }
 
   fn load_path(
@@ -601,7 +676,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     path: &Path,
     package: Option<&PackageJson>,
     prioritize: Prioritize,
-  ) -> Result<Resolution, ResolverError> {
+  ) -> Result<Option<Resolution>, ResolverError> {
     // Urls and Node ESM do not resolve directory index files.
     if !self.resolver.flags.contains(Flags::DIR_INDEX) || self.specifier_type == SpecifierType::Url
     {
@@ -609,13 +684,15 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     }
 
     if prioritize == Prioritize::Directory {
-      self
-        .load_directory(path, package)
-        .or_else(|_| self.load_file(path, package))
+      if let Some(res) = self.load_directory(path, package)? {
+        return Ok(Some(res));
+      }
+      self.load_file(path, package)
     } else {
-      self
-        .load_file(path, package)
-        .or_else(|_| self.load_directory(path, package))
+      if let Some(res) = self.load_file(path, package)? {
+        return Ok(Some(res));
+      }
+      self.load_directory(path, package)
     }
   }
 
@@ -623,7 +700,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     &self,
     path: &Path,
     package: Option<&PackageJson>,
-  ) -> Result<Resolution, ResolverError> {
+  ) -> Result<Option<Resolution>, ResolverError> {
     // First try the path as is.
     // TypeScript only supports resolving specifiers ending with `.ts` or `.tsx`
     // in a certain mode, but we always allow it.
@@ -647,17 +724,17 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         let without_extension = &path.with_extension("");
         let res = if ext == "js" || ext == "jsx" {
           // TSC always prioritizes .ts over .tsx, even when the original extension was .jsx.
-          self.try_extensions(&without_extension, package, &["ts", "tsx"])
+          self.try_extensions(&without_extension, package, &["ts", "tsx"])?
         } else if ext == "mjs" {
-          self.try_extensions(&without_extension, package, &["mts"])
+          self.try_extensions(&without_extension, package, &["mts"])?
         } else if ext == "cjs" {
-          self.try_extensions(&without_extension, package, &["cts"])
+          self.try_extensions(&without_extension, package, &["cts"])?
         } else {
-          Err(ResolverError::FileNotFound)
+          None
         };
 
-        if res.is_ok() {
-          return res;
+        if res.is_some() {
+          return Ok(res);
         }
       }
     }
@@ -670,7 +747,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     path: &Path,
     package: Option<&PackageJson>,
     extensions: &[&str],
-  ) -> Result<Resolution, ResolverError> {
+  ) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.flags.contains(Flags::OPTIONAL_EXTENSIONS)
       && self.specifier_type != SpecifierType::Url
     {
@@ -682,7 +759,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       }
     }
 
-    Err(ResolverError::FileNotFound)
+    Ok(None)
   }
 
   fn try_suffixes(
@@ -690,7 +767,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     path: &Path,
     ext: &str,
     package: Option<&PackageJson>,
-  ) -> Result<Resolution, ResolverError> {
+  ) -> Result<Option<Resolution>, ResolverError> {
     // TypeScript supports a moduleSuffixes option in tsconfig.json which allows suffixes
     // such as ".ios" to be appended just before the last extension.
     let module_suffixes = self
@@ -740,14 +817,14 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       }
     }
 
-    Err(ResolverError::FileNotFound)
+    Ok(None)
   }
 
   fn try_file(
     &self,
     path: &Path,
     package: Option<&PackageJson>,
-  ) -> Result<Resolution, ResolverError> {
+  ) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.flags.contains(Flags::ALIASES) {
       if let Some(package) = package {
         let s = path.strip_prefix(package.path.parent().unwrap()).unwrap();
@@ -756,8 +833,8 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         if self.resolver.entries.contains(Fields::BROWSER) {
           fields |= Fields::BROWSER;
         }
-        if let Ok(res) = self.resolve_aliases(package, &specifier, fields) {
-          return Ok(res);
+        if let Some(res) = self.resolve_aliases(package, &specifier, fields)? {
+          return Ok(Some(res));
         }
       }
     }
@@ -765,14 +842,16 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     self.try_file_without_aliases(path)
   }
 
-  fn try_file_without_aliases(&self, path: &Path) -> Result<Resolution, ResolverError> {
+  fn try_file_without_aliases(&self, path: &Path) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.cache.fs.is_file(path) {
-      Ok(Resolution::Path(self.resolver.cache.fs.canonicalize(path)?))
+      Ok(Some(Resolution::Path(
+        self.resolver.cache.fs.canonicalize(path)?,
+      )))
     } else {
       self
         .invalidations
         .invalidate_on_file_create(FileCreateInvalidation::Path(path.to_owned()));
-      Err(ResolverError::FileNotFound)
+      Ok(None)
     }
   }
 
@@ -780,15 +859,15 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     &self,
     dir: &Path,
     parent_package: Option<&PackageJson>,
-  ) -> Result<Resolution, ResolverError> {
+  ) -> Result<Option<Resolution>, ResolverError> {
     // Check if there is a package.json in this directory, and if so, use its entries.
     // Note that the "exports" field is NOT used here - only in resolve_node_module.
     let path = dir.join("package.json");
     let package = if let Ok(package) = self.invalidations.read(&path, || {
       self.resolver.cache.read_package(Cow::Borrowed(&path))
     }) {
-      if let Ok(res) = self.try_package_entries(&package) {
-        return Ok(res);
+      if let Some(res) = self.try_package_entries(&package)? {
+        return Ok(Some(res));
       }
       Some(package)
     } else {
@@ -796,27 +875,27 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     };
 
     // If no package.json, or no entries, try an index file with all possible extensions.
-    if self.resolver.cache.fs.is_dir(dir) {
+    if self.resolver.flags.contains(Flags::DIR_INDEX) && self.resolver.cache.fs.is_dir(dir) {
       return self.load_file(
         &dir.join(self.resolver.index_file),
         package.or(parent_package),
       );
     }
 
-    Err(ResolverError::FileNotFound)
+    Ok(None)
   }
 
-  fn resolve_tsconfig_paths(&self) -> Result<Resolution, ResolverError> {
+  fn resolve_tsconfig_paths(&self) -> Result<Option<Resolution>, ResolverError> {
     if let Some(tsconfig) = self.tsconfig()? {
       for path in tsconfig.paths(&self.specifier) {
         // TODO: should aliases apply to tsconfig paths??
-        if let Ok(res) = self.load_path(&path, None, Prioritize::File) {
-          return Ok(res);
+        if let Some(res) = self.load_path(&path, None, Prioritize::File)? {
+          return Ok(Some(res));
         }
       }
     }
 
-    Err(ResolverError::FileNotFound)
+    Ok(None)
   }
 
   fn tsconfig(&self) -> Result<&Option<&TsConfig>, ResolverError> {

@@ -6,7 +6,7 @@ use std::{borrow::Cow, collections::HashMap, path::Path};
 
 use parcel_resolver::{
   Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules, Invalidations, OsFileSystem,
-  Resolution, SpecifierType,
+  PackageJsonError, Resolution, ResolverError, SpecifierType,
 };
 
 #[napi(object)]
@@ -164,6 +164,7 @@ pub struct ResolveResult {
     Vec<napi::Either<FilePathCreateInvalidation, FileNameCreateInvalidation>>,
   pub query: Undefined,
   pub side_effects: bool,
+  pub error: u8,
 }
 
 #[napi]
@@ -237,6 +238,7 @@ impl Resolver {
           invalidate_on_file_create,
           side_effects,
           query: (),
+          error: 0,
         })
       }
       Ok((Resolution::Excluded, invalidations)) => {
@@ -249,6 +251,7 @@ impl Resolver {
           invalidate_on_file_create,
           side_effects: true,
           query: (),
+          error: 0,
         })
       }
       Ok((Resolution::Builtin(builtin), invalidations)) => {
@@ -261,6 +264,7 @@ impl Resolver {
           invalidate_on_file_create,
           side_effects: true,
           query: (),
+          error: 0,
         })
       }
       Err((err, invalidations)) => {
@@ -281,6 +285,21 @@ impl Resolver {
           invalidate_on_file_create,
           side_effects: true,
           query: (),
+          error: match err {
+            ResolverError::EmptySpecifier => 1,
+            ResolverError::UnknownScheme => 2,
+            ResolverError::UnknownError => 3,
+            ResolverError::FileNotFound => 4,
+            ResolverError::InvalidAlias => 5,
+            ResolverError::JsonError(_) => 6,
+            ResolverError::IOError(_) => 7,
+            ResolverError::PackageJsonError(e) => match e {
+              PackageJsonError::ImportNotDefined => 8,
+              PackageJsonError::InvalidPackageTarget => 9,
+              PackageJsonError::InvalidSpecifier => 10,
+              PackageJsonError::PackagePathNotExported => 11,
+            },
+          },
         })
       }
     }
