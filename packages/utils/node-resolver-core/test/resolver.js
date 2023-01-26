@@ -412,7 +412,7 @@ describe('resolver', function () {
       });
     });
 
-    it('should error when resolving node builtin modules with --target=node', async function () {
+    it('should exclude node builtin modules with --target=node', async function () {
       let resolved = await resolver.resolve({
         env: NODE_ENV,
         filename: 'zlib',

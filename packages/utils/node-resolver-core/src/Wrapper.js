@@ -12,9 +12,26 @@ type ResolveOptions = {|
   loc?: ?SourceLocation,
 |};
 
-export default class NodeResolver extends Resolver {
+export default class NodeResolver {
+  resolversByEnv: Map<string, any>;
+  options: any;
+
+  constructor(projectRoot: string, options: any) {
+    this.projectRoot = projectRoot;
+    this.options = options;
+    this.resolversByEnv = new Map();
+  }
+
   resolve(options: ResolveOptions) {
-    let res = super.resolve(options);
+    let resolver = this.resolversByEnv.get(options.env.id);
+    if (!resolver) {
+      resolver = new Resolver(this.projectRoot, {
+        ...this.options,
+        includeNodeModules: options.env.includeNodeModules
+      });
+      this.resolversByEnv.set(options.env.id, resolver);
+    }
+    let res = resolver.resolve(options);
 
     if (res.builtin) {
       return this.resolveBuiltin(res.builtin, options);
@@ -47,7 +64,7 @@ export default class NodeResolver extends Resolver {
       };
     }
 
-    let resolved = super.resolve({
+    let resolved = this.resolve({
       ...options,
       filename: builtin.name,
     });

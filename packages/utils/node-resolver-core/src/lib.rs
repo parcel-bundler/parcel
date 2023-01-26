@@ -3,18 +3,21 @@ use napi::{
   Env, JsBoolean, JsBuffer, JsFunction, JsString, Ref, Result,
 };
 use napi_derive::napi;
-use std::{borrow::Cow, io::ErrorKind, path::Path};
+use std::{borrow::Cow, collections::HashMap, io::ErrorKind, path::Path};
 
 use parcel_resolver::{
-  FileCreateInvalidation, FileSystem, Invalidations, OsFileSystem, Resolution, SpecifierType,
+  FileCreateInvalidation, FileSystem, IncludeNodeModules, Invalidations, OsFileSystem, Resolution,
+  SpecifierType,
 };
 
 #[napi(object, js_name = "FileSystem")]
-struct JsFileSystem {
+struct JsResolverOptions {
   pub canonicalize: JsFunction,
   pub read: JsFunction,
   pub is_file: JsFunction,
   pub is_dir: JsFunction,
+  pub include_node_modules:
+    Option<napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>>,
 }
 
 struct JsFileSystemWrapper {
@@ -145,22 +148,32 @@ struct Resolver {
 #[napi]
 impl Resolver {
   #[napi(constructor)]
-  pub fn new(project_root: String, fs: JsFileSystem, env: Env) -> Result<Self> {
+  pub fn new(project_root: String, fs: JsResolverOptions, env: Env) -> Result<Self> {
     // let cache = cache.share_with(env, |cache| Ok(&cache.cache))?;
+
+    let mut resolver = parcel_resolver::Resolver::parcel(
+      Cow::Owned(project_root.into()),
+      // parcel_resolver::CacheCow::Borrowed(*cache),
+      parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(JsFileSystemWrapper {
+        env,
+        canonicalize: env.create_reference(fs.canonicalize)?,
+        read: env.create_reference(fs.read)?,
+        is_file: env.create_reference(fs.is_file)?,
+        is_dir: env.create_reference(fs.is_dir)?,
+      })),
+    );
+
+    if let Some(include_node_modules) = fs.include_node_modules {
+      resolver.include_node_modules = Cow::Owned(match include_node_modules {
+        napi::Either::A(b) => IncludeNodeModules::Bool(b),
+        napi::Either::B(napi::Either::A(v)) => IncludeNodeModules::Array(v),
+        napi::Either::B(napi::Either::B(v)) => IncludeNodeModules::Map(v),
+      });
+    }
 
     Ok(Self {
       // cache,
-      resolver: parcel_resolver::Resolver::parcel(
-        Cow::Owned(project_root.into()),
-        // parcel_resolver::CacheCow::Borrowed(*cache),
-        parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(JsFileSystemWrapper {
-          env,
-          canonicalize: env.create_reference(fs.canonicalize)?,
-          read: env.create_reference(fs.read)?,
-          is_file: env.create_reference(fs.is_file)?,
-          is_dir: env.create_reference(fs.is_dir)?,
-        })),
-      ),
+      resolver,
     })
   }
 
