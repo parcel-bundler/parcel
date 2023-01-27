@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = "2.10.6"
+napi = { version = "2.10.6", features = ["serde-json"] }
 napi-derive = "2.9.4"
 parcel-resolver = { path = "../node-resolver-rs" }
 

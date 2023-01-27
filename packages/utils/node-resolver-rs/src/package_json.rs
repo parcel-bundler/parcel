@@ -12,6 +12,7 @@ use std::{
 use crate::{specifier::decode_path, specifier::Specifier, SpecifierType};
 
 bitflags! {
+  #[derive(serde::Serialize)]
   pub struct Fields: u8 {
     const MAIN = 1 << 0;
     const MODULE = 1 << 1;
@@ -170,7 +171,8 @@ impl<'a> Default for SideEffects<'a> {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "type")]
 pub enum PackageJsonError {
   InvalidPackageTarget,
   PackagePathNotExported,

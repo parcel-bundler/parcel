@@ -1,5 +1,6 @@
 use bitflags::bitflags;
 use once_cell::unsync::OnceCell;
+use serde::Serialize;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
@@ -135,7 +136,8 @@ pub enum SpecifierType {
   Url,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "type")]
 pub enum ResolverError {
   EmptySpecifier,
   UnknownScheme,
@@ -159,9 +161,25 @@ pub enum ResolverError {
     package_path: PathBuf,
   },
   InvalidAlias,
+  #[serde(serialize_with = "serialize_json_error")]
   JsonError(Rc<serde_json::Error>),
+  #[serde(serialize_with = "serialize_io_error")]
   IOError(Rc<std::io::Error>),
   PackageJsonError(PackageJsonError),
+}
+
+fn serialize_json_error<S: serde::Serializer>(
+  e: &Rc<serde_json::Error>,
+  s: S,
+) -> Result<S::Ok, S::Error> {
+  e.to_string().serialize(s)
+}
+
+fn serialize_io_error<S: serde::Serializer>(
+  e: &Rc<std::io::Error>,
+  s: S,
+) -> Result<S::Ok, S::Error> {
+  e.to_string().serialize(s)
 }
 
 impl From<()> for ResolverError {

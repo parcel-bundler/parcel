@@ -1,5 +1,6 @@
 use napi::{
-  bindgen_prelude::Undefined, Env, JsBoolean, JsBuffer, JsFunction, JsString, Ref, Result,
+  bindgen_prelude::Undefined, Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref,
+  Result,
 };
 use napi_derive::napi;
 use std::{borrow::Cow, collections::HashMap, path::Path};
@@ -164,7 +165,7 @@ pub struct ResolveResult {
     Vec<napi::Either<FilePathCreateInvalidation, FileNameCreateInvalidation>>,
   pub query: Undefined,
   pub side_effects: bool,
-  pub error: u8,
+  pub error: JsUnknown,
 }
 
 #[napi]
@@ -209,7 +210,7 @@ impl Resolver {
   }
 
   #[napi]
-  pub fn resolve(&self, options: ResolveOptions) -> Result<ResolveResult> {
+  pub fn resolve(&self, options: ResolveOptions, env: Env) -> Result<ResolveResult> {
     let res = self.resolver.resolve(
       &options.filename,
       Path::new(&options.parent),
@@ -238,7 +239,7 @@ impl Resolver {
           invalidate_on_file_create,
           side_effects,
           query: (),
-          error: 0,
+          error: env.get_undefined()?.into_unknown(),
         })
       }
       Ok((Resolution::Excluded, invalidations)) => {
@@ -251,7 +252,7 @@ impl Resolver {
           invalidate_on_file_create,
           side_effects: true,
           query: (),
-          error: 0,
+          error: env.get_undefined()?.into_unknown(),
         })
       }
       Ok((Resolution::Builtin(builtin), invalidations)) => {
@@ -264,7 +265,7 @@ impl Resolver {
           invalidate_on_file_create,
           side_effects: true,
           query: (),
-          error: 0,
+          error: env.get_undefined()?.into_unknown(),
         })
       }
       Err((err, invalidations)) => {
@@ -285,21 +286,7 @@ impl Resolver {
           invalidate_on_file_create,
           side_effects: true,
           query: (),
-          error: match err {
-            ResolverError::EmptySpecifier => 1,
-            ResolverError::UnknownScheme => 2,
-            ResolverError::UnknownError => 3,
-            ResolverError::FileNotFound => 4,
-            ResolverError::InvalidAlias => 5,
-            ResolverError::JsonError(_) => 6,
-            ResolverError::IOError(_) => 7,
-            ResolverError::PackageJsonError(e) => match e {
-              PackageJsonError::ImportNotDefined => 8,
-              PackageJsonError::InvalidPackageTarget => 9,
-              PackageJsonError::InvalidSpecifier => 10,
-              PackageJsonError::PackagePathNotExported => 11,
-            },
-          },
+          error: env.to_js_value(&err)?,
         })
       }
     }
