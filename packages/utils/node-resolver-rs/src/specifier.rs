@@ -102,7 +102,7 @@ impl<'a> Specifier<'a> {
 
 // https://url.spec.whatwg.org/#scheme-state
 // https://github.com/servo/rust-url/blob/1c1e406874b3d2aa6f36c5d2f3a5c2ea74af9efb/url/src/parser.rs#L387
-fn parse_scheme<'a>(input: &'a str) -> Result<(Cow<'a, str>, &'a str), ()> {
+pub fn parse_scheme<'a>(input: &'a str) -> Result<(Cow<'a, str>, &'a str), ()> {
   if input.is_empty() || !input.starts_with(ascii_alpha) {
     return Err(());
   }

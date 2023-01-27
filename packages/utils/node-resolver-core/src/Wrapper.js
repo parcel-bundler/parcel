@@ -375,6 +375,38 @@ export default class NodeResolver {
           ],
         };
       }
+      case 'EmptySpecifier': {
+        return {
+          message: md`Invalid empty specifier`,
+          codeFrames: options.loc ? [
+            {
+              filePath: options.loc.filePath,
+              codeHighlights: [
+                {
+                  start: options.loc.start,
+                  end: options.loc.end
+                }
+              ]
+            }
+          ] : []
+        };
+      }
+      case 'UnknownScheme': {
+        return {
+          message: md`Unknown url scheme or pipeline '${error.scheme}'`,
+          codeFrames: options.loc ? [
+            {
+              filePath: options.loc.filePath,
+              codeHighlights: [
+                {
+                  start: options.loc.start,
+                  end: options.loc.end
+                }
+              ]
+            }
+          ] : []
+        };
+      }
     }
   }
 

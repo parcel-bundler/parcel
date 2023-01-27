@@ -611,7 +611,7 @@ describe('resolver', function () {
       });
     });
 
-    it.skip('should fall back to index.js when it cannot find package.main', async function () {
+    it('should fall back to index.js when it cannot find package.main', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-fallback',
@@ -2758,7 +2758,87 @@ describe('resolver', function () {
             ]
           }]
         }
-      ])
+      ]);
+    });
+
+    it('should error on an invalid empty specifier', async function () {
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: '',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+        loc: {
+          filePath: path.join(rootDir, 'foo.js'),
+          start: {
+            line: 1,
+            column: 1
+          },
+          end: {
+            line: 1,
+            column: 2
+          }
+        }
+      });
+      assert.deepEqual(result.diagnostics, [
+        {
+          message: 'Invalid empty specifier',
+          codeFrames: [{
+            filePath:  path.join(rootDir, 'foo.js'),
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 1
+                },
+                end: {
+                  line: 1,
+                  column: 2
+                }
+              }
+            ]
+          }]
+        }
+      ]);
+    });
+
+    it('should error on unknown URL schemes', async function () {
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'http://parceljs.org',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+        loc: {
+          filePath: path.join(rootDir, 'foo.js'),
+          start: {
+            line: 1,
+            column: 1
+          },
+          end: {
+            line: 1,
+            column: 10
+          }
+        }
+      });
+      assert.deepEqual(result.diagnostics, [
+        {
+          message: `Unknown url scheme or pipeline 'http'`,
+          codeFrames: [{
+            filePath:  path.join(rootDir, 'foo.js'),
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 1
+                },
+                end: {
+                  line: 1,
+                  column: 10
+                }
+              }
+            ]
+          }]
+        }
+      ]);
     });
   });
 

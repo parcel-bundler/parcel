@@ -10,7 +10,7 @@ use std::{
   sync::RwLock,
 };
 // use es_module_lexer::{lex, ImportKind};
-use specifier::parse_package_specifier;
+use specifier::{parse_package_specifier, parse_scheme};
 
 use package_json::{AliasValue, ExportsResolution, PackageJson};
 use specifier::Specifier;
@@ -141,7 +141,9 @@ pub enum SpecifierType {
 #[serde(tag = "type")]
 pub enum ResolverError {
   EmptySpecifier,
-  UnknownScheme,
+  UnknownScheme {
+    scheme: String,
+  },
   UnknownError,
   FileNotFound {
     relative: PathBuf,
@@ -211,9 +213,8 @@ impl PartialEq for ResolverError {
     use ResolverError::*;
 
     match (self, other) {
-      (EmptySpecifier, EmptySpecifier)
-      | (UnknownScheme, UnknownScheme)
-      | (UnknownError, UnknownError) => true,
+      (EmptySpecifier, EmptySpecifier) | (UnknownError, UnknownError) => true,
+      (UnknownScheme { scheme: a }, UnknownScheme { scheme: b }) => a == b,
       (
         FileNotFound {
           relative: ra,
@@ -536,11 +537,14 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         self.resolve_bare(&module, &subpath)
       }
       Specifier::Builtin(builtin) => Ok(Resolution::Builtin(builtin.as_ref().to_owned())),
-      Specifier::Url(_) => {
+      Specifier::Url(url) => {
         if self.specifier_type == SpecifierType::Url {
           Ok(Resolution::Excluded)
         } else {
-          Err(ResolverError::UnknownScheme)
+          let (scheme, _) = parse_scheme(url)?;
+          Err(ResolverError::UnknownScheme {
+            scheme: scheme.into_owned(),
+          })
         }
       }
       _ => Err(ResolverError::UnknownError),
@@ -677,7 +681,8 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             package_path: package.path.clone(),
           });
         } else {
-          if let Some(res) = self.try_package_entries(&package)? {
+          let res = self.try_package_entries(&package);
+          if let Ok(Some(res)) = res {
             return Ok(res);
           }
 
@@ -688,6 +693,10 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             {
               return Ok(res);
             }
+          }
+
+          if let Err(e) = res {
+            return Err(e);
           }
 
           return Err(ResolverError::ModuleSubpathNotFound {
@@ -925,11 +934,13 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     // Check if there is a package.json in this directory, and if so, use its entries.
     // Note that the "exports" field is NOT used here - only in resolve_node_module.
     let path = dir.join("package.json");
+    let mut res = Ok(None);
     let package = if let Ok(package) = self.invalidations.read(&path, || {
       self.resolver.cache.read_package(Cow::Borrowed(&path))
     }) {
-      if let Some(res) = self.try_package_entries(&package)? {
-        return Ok(Some(res));
+      res = self.try_package_entries(&package);
+      if matches!(res, Ok(Some(_))) {
+        return res;
       }
       Some(package)
     } else {
@@ -944,7 +955,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       );
     }
 
-    Ok(None)
+    res
   }
 
   fn resolve_tsconfig_paths(&self) -> Result<Option<Resolution>, ResolverError> {
@@ -1772,14 +1783,19 @@ mod tests {
         .0,
       Resolution::Excluded
     );
-    assert!(matches!(
-      test_resolver().resolve(
-        "http://example.com/foo.png",
-        &root().join("foo.js"),
-        SpecifierType::Esm
-      ),
-      Err((ResolverError::UnknownScheme, _))
-    ));
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "http://example.com/foo.png",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .unwrap_err()
+        .0,
+      ResolverError::UnknownScheme {
+        scheme: "http".into()
+      },
+    );
     assert_eq!(
       test_resolver()
         .resolve("bar.js", &root().join("foo.js"), SpecifierType::Url)
