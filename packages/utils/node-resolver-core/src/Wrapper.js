@@ -349,6 +349,32 @@ export default class NodeResolver {
           }),
         };
       }
+      case 'JsonError': {
+        let pkgContent = await this.options.fs.readFile(error.path, 'utf8');
+        return {
+          message: md`Error parsing JSON`,
+          codeFrames: [
+            {
+              filePath: error.path,
+              language: 'json',
+              code: pkgContent,
+              codeHighlights: [
+                {
+                  message: error.message,
+                  start: {
+                    line: error.line,
+                    column: error.column
+                  },
+                  end: {
+                    line: error.line,
+                    column: error.column
+                  }
+                }
+              ]
+            },
+          ],
+        };
+      }
     }
   }
 

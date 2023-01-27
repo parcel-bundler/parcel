@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use cache::JsonError;
 use once_cell::unsync::OnceCell;
 use serde::Serialize;
 use std::{
@@ -161,18 +162,10 @@ pub enum ResolverError {
     package_path: PathBuf,
   },
   InvalidAlias,
-  #[serde(serialize_with = "serialize_json_error")]
-  JsonError(Rc<serde_json::Error>),
+  JsonError(JsonError),
   #[serde(serialize_with = "serialize_io_error")]
   IOError(Rc<std::io::Error>),
   PackageJsonError(PackageJsonError),
-}
-
-fn serialize_json_error<S: serde::Serializer>(
-  e: &Rc<serde_json::Error>,
-  s: S,
-) -> Result<S::Ok, S::Error> {
-  e.to_string().serialize(s)
 }
 
 fn serialize_io_error<S: serde::Serializer>(
@@ -194,9 +187,9 @@ impl From<std::str::Utf8Error> for ResolverError {
   }
 }
 
-impl From<serde_json::Error> for ResolverError {
-  fn from(e: serde_json::Error) -> Self {
-    ResolverError::JsonError(Rc::new(e))
+impl From<JsonError> for ResolverError {
+  fn from(e: JsonError) -> Self {
+    ResolverError::JsonError(e)
   }
 }
 

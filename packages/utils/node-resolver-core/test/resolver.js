@@ -2727,6 +2727,39 @@ describe('resolver', function () {
         'External dependency "foo" does not satisfy required semver range "^0.4.0".',
       );
     });
+
+    it('should error when package.json is invalid', async function () {
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'json-error',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      let file = path.join(rootDir, 'node_modules', 'json-error', 'package.json');
+      assert.deepEqual(result.diagnostics, [
+        {
+          message: 'Error parsing JSON',
+          codeFrames: [{
+            language: 'json',
+            filePath: file,
+            code: await overlayFS.readFile(file, 'utf8'),
+            codeHighlights: [
+              {
+                message: 'expected `,` or `}` at line 3 column 3',
+                start: {
+                  line: 3,
+                  column: 3
+                },
+                end: {
+                  line: 3,
+                  column: 3
+                }
+              }
+            ]
+          }]
+        }
+      ])
+    });
   });
 
   describe('urls', function () {

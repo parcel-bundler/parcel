@@ -2,6 +2,7 @@ use std::{
   borrow::Cow,
   ops::Deref,
   path::{Path, PathBuf},
+  rc::Rc,
 };
 
 use elsa::FrozenMap;
@@ -44,6 +45,25 @@ impl<'a, Fs> Deref for CacheCow<'a, Fs> {
   }
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct JsonError {
+  pub path: PathBuf,
+  pub line: usize,
+  pub column: usize,
+  pub message: String,
+}
+
+impl JsonError {
+  fn new(path: PathBuf, err: serde_json::Error) -> JsonError {
+    JsonError {
+      path,
+      line: err.line(),
+      column: err.column(),
+      message: err.to_string(),
+    }
+  }
+}
+
 impl<Fs: FileSystem> Cache<Fs> {
   pub fn new(fs: Fs) -> Self {
     Self {
@@ -65,7 +85,7 @@ impl<Fs: FileSystem> Cache<Fs> {
       path: PathBuf,
     ) -> Result<PackageJson<'static>, ResolverError> {
       let data = read(fs, arena, &path)?;
-      let mut pkg = PackageJson::parse(path, data)?;
+      let mut pkg = PackageJson::parse(path.clone(), data).map_err(|e| JsonError::new(path, e))?;
 
       // If the package has a `source` field, make sure
       // - the package is behind symlinks
@@ -115,7 +135,8 @@ impl<Fs: FileSystem> Cache<Fs> {
       process: F,
     ) -> Result<TsConfigWrapper<'static>, ResolverError> {
       let data = read(fs, arena, &path)?;
-      let mut tsconfig = TsConfig::parse(path.to_owned(), data)?;
+      let mut tsconfig =
+        TsConfig::parse(path.to_owned(), data).map_err(|e| JsonError::new(path.to_owned(), e))?;
       // Convice the borrow checker that 'a will live as long as self and not 'static.
       // Since the data is in our arena, this is true.
       process(unsafe { std::mem::transmute(&mut tsconfig) })?;
