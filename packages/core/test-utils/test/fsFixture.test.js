@@ -587,4 +587,28 @@ describe('toFixture', () => {
 
     assert.equal(fixture.toString(), `bar:\n  bar\nbat -> /foo/bar`);
   });
+
+  it('includes the directory name in the fixture', async () => {
+    await fs.mkdirp('/foo');
+    await fs.writeFile('/foo/bar', 'bar');
+    await fs.symlink('/foo/bar', '/foo/bat');
+
+    let fixture = await toFixture(fs, 'foo', true);
+
+    assert.deepEqual(fixture, {
+      type: 'root',
+      children: [
+        {
+          type: 'dir',
+          name: 'foo',
+          children: [
+            {type: 'file', name: 'bar', content: 'bar'},
+            {type: 'link', name: 'bat', target: '/foo/bar'},
+          ],
+        },
+      ],
+    });
+
+    assert.equal(fixture.toString(), `foo\n  bar:\n    bar\n  bat -> /foo/bar`);
+  });
 });

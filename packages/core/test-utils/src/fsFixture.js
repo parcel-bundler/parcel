@@ -33,6 +33,12 @@ declare function toFixture(
   dir?: string,
 ): Promise<FixtureRoot | FixtureDir>;
 
+declare function toFixture(
+  fs: FileSystem,
+  dir: string,
+  includeDir?: boolean,
+): Promise<FixtureRoot | FixtureDir>;
+
 declare function toFixture<T>(
   fs: FileSystem,
   dir: string,
@@ -42,8 +48,21 @@ declare function toFixture<T>(
 export async function toFixture(
   fs: FileSystem,
   dir: string = fs.cwd(),
-  fixture?: FixtureRoot | FixtureDir = new FixtureRoot(),
+  fixtureOrIncludeDir?: FixtureRoot | FixtureDir | boolean = false,
 ) {
+  let fixture: FixtureRoot | FixtureDir;
+  if (fixtureOrIncludeDir == null || typeof fixtureOrIncludeDir === 'boolean') {
+    fixture = new FixtureRoot();
+    if (fixtureOrIncludeDir) {
+      fixture.children.push(
+        await toFixture(fs, dir, new FixtureDir(path.basename(dir))),
+      );
+      return fixture;
+    }
+  } else {
+    fixture = nullthrows(fixtureOrIncludeDir);
+  }
+
   assert(
     (await fs.stat(dir)).isDirectory(),
     `Expected ${dir} to be a directory`,
