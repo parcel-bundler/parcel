@@ -153,7 +153,7 @@ pub enum ResolverError {
     module: String,
     entry_path: PathBuf,
     package_path: PathBuf,
-    field: Fields,
+    field: &'static str,
   },
   ModuleSubpathNotFound {
     module: String,
@@ -697,20 +697,11 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             }
           }
 
-          if let Some((entry, field)) = package.entries(self.resolver.entries).next() {
-            return Err(ResolverError::ModuleEntryNotFound {
-              module: module.to_owned(),
-              entry_path: entry,
-              package_path: package.path.clone(),
-              field,
-            });
-          } else {
-            return Err(ResolverError::ModuleSubpathNotFound {
-              module: module.to_owned(),
-              path: package_dir.join(self.resolver.index_file),
-              package_path: package.path.clone(),
-            });
-          }
+          return Err(ResolverError::ModuleSubpathNotFound {
+            module: module.to_owned(),
+            path: package_dir.join(self.resolver.index_file),
+            package_path: package.path.clone(),
+          });
         }
       }
     }
@@ -727,7 +718,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     package: &PackageJson,
   ) -> Result<Option<Resolution>, ResolverError> {
     // Try all entry fields.
-    for (entry, _) in package.entries(self.resolver.entries) {
+    for (entry, field) in package.entries(self.resolver.entries) {
       let prioritize = if entry.extension().is_some() {
         Prioritize::File
       } else {
@@ -736,6 +727,13 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
       if let Some(res) = self.load_path(&entry, Some(package), prioritize)? {
         return Ok(Some(res));
+      } else {
+        return Err(ResolverError::ModuleEntryNotFound {
+          module: package.name.to_owned(),
+          entry_path: entry,
+          package_path: package.path.clone(),
+          field,
+        });
       }
     }
 

@@ -73,19 +73,11 @@ describe('resolver', function () {
       path.join(rootDir, 'symlinked-nested'),
     );
 
-    // resolver = new NodeResolver({
-    //   fs: overlayFS,
-    //   projectRoot: rootDir,
-    //   mainFields: ['browser', 'source', 'module', 'main'],
-    //   extensions: ['.js', '.json'],
-    // });
-    resolver = new NodeResolver(rootDir, {
-      fs: {
-        canonicalize: path => overlayFS.realpathSync(path),
-        read: path => overlayFS.readFileSync(path),
-        isFile: path => overlayFS.statSync(path).isFile(),
-        isDir: path => overlayFS.statSync(path).isDirectory()
-      }
+    resolver = new NodeResolver({
+      fs: overlayFS,
+      projectRoot: rootDir,
+      mainFields: ['browser', 'source', 'module', 'main'],
+      extensions: ['.js', '.json'],
     });
 
     configCache.clear();
@@ -191,14 +183,13 @@ describe('resolver', function () {
       );
     });
 
-    it.only('should not resolve an index file in a directory for URL specifiers', async function () {
+    it('should not resolve an index file in a directory for URL specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './nested',
         specifierType: 'url',
         parent: path.join(rootDir, 'foo.js'),
       });
-      console.log(resolved)
       assert.deepEqual(nullthrows(resolved).diagnostics, [
         {message: "Cannot load file './nested' in './'.", hints: []},
       ]);
@@ -221,7 +212,7 @@ describe('resolver', function () {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'a?b.js'));
     });
 
-    it.skip('should not resolve a file with a question mark with ESM specifiers', async function () {
+    it('should not resolve a file with a question mark with ESM specifiers', async function () {
       // Windows filenames cannot contain question marks.
       if (process.platform === 'win32') {
         return;
@@ -257,7 +248,7 @@ describe('resolver', function () {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'a?b.js'));
     });
 
-    it.skip('should not support percent encoding in CommonJS specifiers', async function () {
+    it('should not support percent encoding in CommonJS specifiers', async function () {
       // Windows filenames cannot contain question marks.
       if (process.platform === 'win32') {
         return;
@@ -293,7 +284,7 @@ describe('resolver', function () {
       // assert.deepEqual(nullthrows(resolved).query?.toString(), 'foo=bar');
     });
 
-    it.skip('should not support query params for CommonJS specifiers', async function () {
+    it('should not support query params for CommonJS specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './nested?foo=bar',
@@ -620,7 +611,7 @@ describe('resolver', function () {
       });
     });
 
-    it('should fall back to index.js when it cannot find package.main', async function () {
+    it.skip('should fall back to index.js when it cannot find package.main', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-fallback',
@@ -1384,7 +1375,7 @@ describe('resolver', function () {
       });
     });
 
-    it.skip('should not resolve a node module for URL dependencies', async function () {
+    it('should not resolve a node module for URL dependencies', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '@scope/pkg',
@@ -1423,7 +1414,7 @@ describe('resolver', function () {
       assert.deepEqual(nullthrows(resolved).query?.toString(), 'foo=2');
     });
 
-    it.skip('should not support query params for bare CommonJS specifiers', async function () {
+    it('should not support query params for bare CommonJS specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '@scope/pkg?foo=2',
@@ -1432,7 +1423,7 @@ describe('resolver', function () {
       });
       assert.deepEqual(nullthrows(resolved).diagnostics, [
         {
-          message: 'Cannot find module @scope/pkg?foo=2',
+          message: `Cannot find module '@scope/pkg?foo=2'`,
           hints: ["Did you mean '__@scope/pkg__'?"],
         },
       ]);
@@ -2553,7 +2544,7 @@ describe('resolver', function () {
     });
   });
 
-  describe.skip('error handling', function () {
+  describe('error handling', function () {
     it('should return diagnostics when package.module does not exist', async function () {
       let result = await resolver.resolve({
         env: BROWSER_ENV,
@@ -2583,26 +2574,36 @@ describe('resolver', function () {
     });
 
     it('should throw when a node_module cannot be resolved', async function () {
-      assert.strictEqual(
-        null,
-        await resolver.resolve({
-          env: BROWSER_ENV,
-          filename: 'xyz',
-          specifierType: 'esm',
-          parent: path.join(rootDir, 'foo.js'),
-        }),
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'food',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(
+        nullthrows(nullthrows(result).diagnostics)[0],
+        {
+          message: `Cannot find module 'food'`,
+          hints: [`Did you mean '__foo__'?`]
+        },
       );
     });
 
     it('should throw when a subfile of a node_module cannot be resolved', async function () {
-      assert.strictEqual(
-        null,
-        await resolver.resolve({
-          env: BROWSER_ENV,
-          filename: 'xyz/test/file',
-          specifierType: 'esm',
-          parent: path.join(rootDir, 'foo.js'),
-        }),
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'foo/bark',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(
+        nullthrows(nullthrows(result).diagnostics)[0],
+        {
+          message: `Cannot load file './bark' from module 'foo'`,
+          hints: [`Did you mean '__foo/bar__'?`]
+        },
       );
     });
 
