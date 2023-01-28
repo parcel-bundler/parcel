@@ -10,6 +10,9 @@
     "foo/bar": "./bar.js",
     "glob/*/*": "./nested/$2"
   },
+  "imports": {
+    "#test": "./bar.js"
+  },
   "dependencies": {
     "foo": "^0.3.4"
   },

@@ -2840,6 +2840,123 @@ describe('resolver', function () {
         }
       ]);
     });
+
+    it('should error on non-exported package paths', async function () {
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-exports/internal',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      let file = path.join(rootDir, 'node_modules/package-exports/package.json');
+      assert.deepEqual(result.diagnostics, [
+        {
+          message: `Module 'package-exports/internal' is not exported from the 'package-exports' package`,
+          codeFrames: [{
+            language: 'json',
+            filePath: file,
+            code: await overlayFS.readFile(file, 'utf8'),
+            codeHighlights: [
+              {
+                message: undefined,
+                start: {
+                  line: 4,
+                  column: 14
+                },
+                end: {
+                  line: 12,
+                  column: 3
+                }
+              }
+            ]
+          }]
+        }
+      ]);
+    });
+
+    it('should error when export does not exist', async function () {
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-exports/missing',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      let file = path.join(rootDir, 'node_modules/package-exports/package.json');
+      assert.deepEqual(result.diagnostics, [
+        {
+          message: `Cannot load file './missing.mjs' from module 'package-exports'`,
+          hints: []
+        }
+      ]);
+    });
+
+    it('should error on undefined package imports', async function () {
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: '#foo',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      let file = path.join(rootDir, 'package.json');
+      assert.deepEqual(result.diagnostics, [
+        {
+          message: `Package import '#foo' is not defined in the 'resolver' package`,
+          codeFrames: [{
+            language: 'json',
+            filePath: file,
+            code: await overlayFS.readFile(file, 'utf8'),
+            codeHighlights: [
+              {
+                message: undefined,
+                start: {
+                  line: 13,
+                  column: 14
+                },
+                end: {
+                  line: 15,
+                  column: 3
+                }
+              }
+            ]
+          }]
+        }
+      ]);
+    });
+
+    it('should error when package.json doesn\'t define imports field', async function () {
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: '#foo',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'node_modules', 'foo', 'foo.js'),
+      });
+      let file = path.join(rootDir, 'node_modules', 'foo', 'package.json');
+      assert.deepEqual(result.diagnostics, [
+        {
+          message: `Package import '#foo' is not defined in the 'foo' package`,
+          codeFrames: [{
+            language: 'json',
+            filePath: file,
+            code: await overlayFS.readFile(file, 'utf8'),
+            codeHighlights: []
+          }]
+        }
+      ]);
+    });
+
+    it('should error when a package.json couldn\'t be found', async function () {
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: '#foo',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'node_modules', 'tsconfig-not-used', 'foo.js'),
+      });
+      assert.deepEqual(result.diagnostics, [
+        {
+          message: `Cannot find a package.json above './node\\_modules/tsconfig-not-used'`,
+        }
+      ]);
+    });
   });
 
   describe('urls', function () {

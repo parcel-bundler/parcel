@@ -45,7 +45,7 @@ impl<'a, Fs> Deref for CacheCow<'a, Fs> {
   }
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct JsonError {
   pub path: PathBuf,
   pub line: usize,

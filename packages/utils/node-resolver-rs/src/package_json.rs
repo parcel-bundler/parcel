@@ -172,7 +172,6 @@ impl<'a> Default for SideEffects<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[serde(tag = "type")]
 pub enum PackageJsonError {
   InvalidPackageTarget,
   PackagePathNotExported,

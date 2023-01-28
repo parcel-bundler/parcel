@@ -137,7 +137,7 @@ pub enum SpecifierType {
   Url,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "type")]
 pub enum ResolverError {
   EmptySpecifier,
@@ -165,16 +165,33 @@ pub enum ResolverError {
   },
   InvalidAlias,
   JsonError(JsonError),
-  #[serde(serialize_with = "serialize_io_error")]
-  IOError(Rc<std::io::Error>),
-  PackageJsonError(PackageJsonError),
+  IOError(IOError),
+  PackageJsonError {
+    module: String,
+    path: PathBuf,
+    error: PackageJsonError,
+  },
+  PackageJsonNotFound {
+    from: PathBuf,
+  },
 }
 
-fn serialize_io_error<S: serde::Serializer>(
-  e: &Rc<std::io::Error>,
-  s: S,
-) -> Result<S::Ok, S::Error> {
-  e.to_string().serialize(s)
+#[derive(Debug, Clone)]
+pub struct IOError(Rc<std::io::Error>);
+
+impl serde::Serialize for IOError {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.0.to_string().serialize(serializer)
+  }
+}
+
+impl PartialEq for IOError {
+  fn eq(&self, other: &Self) -> bool {
+    self.0.kind() == other.0.kind()
+  }
 }
 
 impl From<()> for ResolverError {
@@ -197,65 +214,7 @@ impl From<JsonError> for ResolverError {
 
 impl From<std::io::Error> for ResolverError {
   fn from(e: std::io::Error) -> Self {
-    ResolverError::IOError(Rc::new(e))
-  }
-}
-
-impl From<PackageJsonError> for ResolverError {
-  fn from(e: PackageJsonError) -> Self {
-    ResolverError::PackageJsonError(e)
-  }
-}
-
-// Can't derive this because std::io::Error and serde_json::Error don't implement it.
-impl PartialEq for ResolverError {
-  fn eq(&self, other: &Self) -> bool {
-    use ResolverError::*;
-
-    match (self, other) {
-      (EmptySpecifier, EmptySpecifier) | (UnknownError, UnknownError) => true,
-      (UnknownScheme { scheme: a }, UnknownScheme { scheme: b }) => a == b,
-      (
-        FileNotFound {
-          relative: ra,
-          from: fa,
-        },
-        FileNotFound {
-          relative: rb,
-          from: fb,
-        },
-      ) => ra == rb && fa == fb,
-      (ModuleNotFound { module: a }, ModuleNotFound { module: b }) => a == b,
-      (
-        ModuleEntryNotFound {
-          module: ma,
-          entry_path: ea,
-          package_path: pa,
-          field: fa,
-        },
-        ModuleEntryNotFound {
-          module: mb,
-          entry_path: eb,
-          package_path: pb,
-          field: fb,
-        },
-      ) => ma == mb && ea == eb && pa == pb && fa == fb,
-      (
-        ModuleSubpathNotFound {
-          module: ma,
-          path: pa,
-          package_path: ppa,
-        },
-        ModuleSubpathNotFound {
-          module: mb,
-          path: pb,
-          package_path: ppb,
-        },
-      ) => ma == mb && pa == pb && ppa == ppb,
-      (InvalidAlias, InvalidAlias) => true,
-      (PackageJsonError(a), PackageJsonError(b)) => a == b,
-      _ => false,
-    }
+    ResolverError::IOError(IOError(Rc::new(e)))
   }
 }
 
@@ -484,7 +443,9 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           return self.resolve_relative(&specifier, &p);
         }
 
-        Err(ResolverError::UnknownError)
+        Err(ResolverError::PackageJsonNotFound {
+          from: self.from.to_owned(),
+        })
       }
       Specifier::Absolute(specifier) => {
         // In Parcel mode, absolute paths are actually relative to the project root.
@@ -512,7 +473,14 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           // An internal package #import specifier.
           let package = self.find_package(&self.from)?;
           if let Some(package) = package {
-            match package.resolve_package_imports(&hash, &[])? {
+            let res = package.resolve_package_imports(&hash, &[]).map_err(|e| {
+              ResolverError::PackageJsonError {
+                module: package.name.to_owned(),
+                path: package.path.clone(),
+                error: e,
+              }
+            })?;
+            match res {
               ExportsResolution::Path(path) => {
                 // Extensionless specifiers are not supported in the imports field.
                 if let Some(res) = self.try_file_without_aliases(&path)? {
@@ -527,7 +495,9 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             }
           }
 
-          Err(ResolverError::UnknownError)
+          Err(ResolverError::PackageJsonNotFound {
+            from: self.from.to_owned(),
+          })
         } else {
           Err(ResolverError::UnknownError)
         }
@@ -657,13 +627,20 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         // If the exports field is present, use the Node ESM algorithm.
         // Otherwise, fall back to classic CJS resolution.
         if self.resolver.flags.contains(Flags::EXPORTS) && package.has_exports() {
-          let path = package.resolve_package_exports(subpath, &[])?;
+          let path = package.resolve_package_exports(subpath, &[]).map_err(|e| {
+            ResolverError::PackageJsonError {
+              module: package.name.to_owned(),
+              path: package.path.clone(),
+              error: e,
+            }
+          })?;
 
           // Extensionless specifiers are not supported in the exports field.
           if let Some(res) = self.try_file_without_aliases(&path)? {
             return Ok(res);
           }
 
+          // TODO: track location of resolved field
           return Err(ResolverError::ModuleSubpathNotFound {
             module: module.to_owned(),
             path,
@@ -1880,50 +1857,66 @@ mod tests {
     //   test_resolver().resolve("package-exports/with%20space", &root().join("foo.js"), SpecifierType::Esm).unwrap().0,
     //   Resolution::Path(root().join("node_modules/package-exports/with space.mjs"))
     // );
-    assert!(matches!(
-      test_resolver().resolve(
-        "package-exports/with space",
-        &root().join("foo.js"),
-        SpecifierType::Esm
-      ),
-      Err((
-        ResolverError::PackageJsonError(PackageJsonError::PackagePathNotExported),
-        _
-      ))
-    ));
-    assert!(matches!(
-      test_resolver().resolve(
-        "package-exports/internal",
-        &root().join("foo.js"),
-        SpecifierType::Esm
-      ),
-      Err((
-        ResolverError::PackageJsonError(PackageJsonError::PackagePathNotExported),
-        _
-      ))
-    ));
-    assert!(matches!(
-      test_resolver().resolve(
-        "package-exports/internal.mjs",
-        &root().join("foo.js"),
-        SpecifierType::Esm
-      ),
-      Err((
-        ResolverError::PackageJsonError(PackageJsonError::PackagePathNotExported),
-        _
-      ))
-    ));
-    assert!(matches!(
-      test_resolver().resolve(
-        "package-exports/invalid",
-        &root().join("foo.js"),
-        SpecifierType::Esm
-      ),
-      Err((
-        ResolverError::PackageJsonError(PackageJsonError::InvalidPackageTarget),
-        _
-      ))
-    ));
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "package-exports/with space",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .unwrap_err()
+        .0,
+      ResolverError::PackageJsonError {
+        module: "package-exports".into(),
+        path: root().join("node_modules/package-exports/package.json"),
+        error: PackageJsonError::PackagePathNotExported
+      },
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "package-exports/internal",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .unwrap_err()
+        .0,
+      ResolverError::PackageJsonError {
+        module: "package-exports".into(),
+        path: root().join("node_modules/package-exports/package.json"),
+        error: PackageJsonError::PackagePathNotExported
+      },
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "package-exports/internal.mjs",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .unwrap_err()
+        .0,
+      ResolverError::PackageJsonError {
+        module: "package-exports".into(),
+        path: root().join("node_modules/package-exports/package.json"),
+        error: PackageJsonError::PackagePathNotExported
+      },
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "package-exports/invalid",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .unwrap_err()
+        .0,
+      ResolverError::PackageJsonError {
+        module: "package-exports".into(),
+        path: root().join("node_modules/package-exports/package.json"),
+        error: PackageJsonError::InvalidPackageTarget
+      }
+    );
   }
 
   #[test]

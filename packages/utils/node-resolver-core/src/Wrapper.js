@@ -5,15 +5,11 @@ import {Resolver} from '../index';
 import builtins, {empty} from './builtins';
 import path from 'path';
 import {
-  isGlob,
   relativePath,
-  normalizeSeparators,
   findAlternativeNodeModules,
   findAlternativeFiles,
   loadConfig,
   getModuleParts,
-  globToRegex,
-  isGlobMatch,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
@@ -22,6 +18,7 @@ import ThrowableDiagnostic, {
   md,
 } from '@parcel/diagnostic';
 import semver from 'semver';
+import {parse} from '@mischnic/json-sourcemap';
 
 type Options = {|
   fs: FileSystem,
@@ -188,20 +185,18 @@ export default class NodeResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`Node builtin polyfill "${packageName}" is not installed, but auto install is disabled.`,
-              codeFrames: [
+              codeFrames: options.loc ? [
                 {
-                  filePath: ctx.loc?.filePath ?? sourceFile,
-                  codeHighlights: ctx.loc
-                    ? [
-                        {
-                          message: 'used here',
-                          start: ctx.loc.start,
-                          end: ctx.loc.end,
-                        },
-                      ]
-                    : [],
+                  filePath: options.loc.filePath,
+                  codeHighlights: [
+                    {
+                      message: 'used here',
+                      start: options.loc.start,
+                      end: options.loc.end,
+                    },
+                  ]
                 },
-              ],
+              ] : [],
               documentationURL:
                 'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
               hints: [
@@ -334,16 +329,25 @@ export default class NodeResolver {
       case 'ModuleSubpathNotFound': {
         let dir = path.dirname(error.package_path);
         let relative = relativePath(dir, error.path, false);
-        let potentialFiles = await findAlternativeFiles(
-          this.options.fs,
-          relative,
-          dir,
-          this.options.projectRoot,
-          false
-        );
+        let pkgContent = await this.options.fs.readFile(error.package_path, 'utf8');
+        let pkg = JSON.parse(pkgContent);
+        let potentialFiles = [];
+        if (!pkg.exports) {
+          potentialFiles = await findAlternativeFiles(
+            this.options.fs,
+            relative,
+            dir,
+            this.options.projectRoot,
+            false
+          );
+
+          if (!relative.startsWith('.')) {
+            relative = './' + relative;
+          }
+        }
 
         return {
-          message: md`Cannot load file './${relative}' from module '${error.module}'`,
+          message: md`Cannot load file '${relative}' from module '${error.module}'`,
           hints: potentialFiles.map(r => {
             return `Did you mean '__${error.module}/${r}__'?`;
           }),
@@ -407,6 +411,60 @@ export default class NodeResolver {
           ] : []
         };
       }
+      case 'PackageJsonError': {
+        let pkgContent = await this.options.fs.readFile(error.path, 'utf8');
+        // TODO: find alternative exports?
+        switch (error.error) {
+          case 'PackagePathNotExported': {
+            return {
+              message: md`Module '${options.filename}' is not exported from the '${error.module}' package`,
+              codeFrames: [
+                {
+                  filePath: error.path,
+                  language: 'json',
+                  code: pkgContent,
+                  codeHighlights: generateJSONCodeHighlights(pkgContent, [
+                    {
+                      key: `/exports`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+            };
+          }
+          case 'ImportNotDefined': {
+            let parsed = parse(pkgContent);
+            return {
+              message: md`Package import '${options.filename}' is not defined in the '${error.module}' package`,
+              codeFrames: [
+                {
+                  filePath: error.path,
+                  language: 'json',
+                  code: pkgContent,
+                  codeHighlights: parsed.pointers['/imports'] ? generateJSONCodeHighlights(parsed, [
+                    {
+                      key: `/imports`,
+                      type: 'value',
+                    },
+                  ]) : [],
+                },
+              ],
+            };
+          }
+          // TODO: InvalidPackageTarget, InvalidSpecifier
+        }
+        break;
+      }
+      case 'PackageJsonNotFound': {
+        return {
+          message: md`Cannot find a package.json above '${relativePath(
+            this.options.projectRoot,
+            options.parent ? path.dirname(options.parent) : this.options.projectRoot,
+          )}'`,
+        };
+      }
+      // TODO: UnknownError, IOError, InvalidAlias
     }
   }
 
