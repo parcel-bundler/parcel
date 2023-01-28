@@ -1,5 +1,5 @@
 // @flow
-import type {FilePath, SpecifierType, SemverRange, Environment, SourceLocation} from '@parcel/types';
+import type {FilePath, SpecifierType, SemverRange, Environment, SourceLocation, BuildMode} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {Resolver} from '../index';
 import builtins, {empty} from './builtins';
@@ -28,7 +28,18 @@ type Options = {|
   packageManager?: PackageManager,
   logger?: PluginLogger,
   shouldAutoInstall?: boolean,
+  mode?: BuildMode,
 |};
+
+// Exports conditions.
+// These must match the values in package_json.rs.
+const NODE = 1 << 3;
+const BROWSER = 1 << 4;
+const WORKER = 1 << 5;
+const WORKLET = 1 << 6;
+const ELECTRON = 1 << 7;
+const DEVELOPMENT = 1 << 8;
+const PRODUCTION = 1 << 9;
 
 type ResolveOptions = {|
   filename: FilePath,
@@ -96,7 +107,8 @@ export default class NodeResolver {
           isDir: path => this.options.fs.statSync(path).isDirectory()
         },
         includeNodeModules: options.env.includeNodeModules,
-        isBrowser: options.env.isBrowser()
+        isBrowser: options.env.isBrowser(),
+        conditions: environmentToExportsConditions(options.env, this.options.mode)
       });
       this.resolversByEnv.set(options.env.id, resolver);
     }
@@ -559,4 +571,35 @@ export default class NodeResolver {
       }
     }
   }
+}
+
+function environmentToExportsConditions(env: Environment, mode: ?BuildMode): number {
+  let conditions = 0;
+  if (env.isBrowser()) {
+    conditions |= BROWSER;
+  }
+
+  if (env.isWorker()) {
+    conditions |= WORKER;
+  }
+
+  if (env.isWorklet()) {
+    conditions |= WORKLET;
+  }
+
+  if (env.isElectron()) {
+    conditions |= ELECTRON;
+  }
+
+  if (env.isNode()) {
+    conditions |= NODE;
+  }
+
+  if (mode === 'production') {
+    conditions |= PRODUCTION;
+  } else if (mode === 'development') {
+    conditions |= DEVELOPMENT;
+  }
+
+  return conditions;
 }

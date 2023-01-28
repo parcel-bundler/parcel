@@ -38,7 +38,7 @@ const BROWSER_ENV = new Environment(
 );
 
 describe('resolver', function () {
-  let resolver;
+  let resolver, prodResolver;
 
   beforeEach(async function () {
     await overlayFS.mkdirp(rootDir);
@@ -76,8 +76,17 @@ describe('resolver', function () {
     resolver = new NodeResolver({
       fs: overlayFS,
       projectRoot: rootDir,
-      mainFields: ['browser', 'source', 'module', 'main'],
-      extensions: ['.js', '.json'],
+      // mainFields: ['browser', 'source', 'module', 'main'],
+      // extensions: ['.js', '.json'],
+      mode: 'development'
+    });
+
+    prodResolver = new NodeResolver({
+      fs: overlayFS,
+      projectRoot: rootDir,
+      // mainFields: ['browser', 'source', 'module', 'main'],
+      // extensions: ['.js', '.json'],
+      mode: 'production'
     });
 
     configCache.clear();
@@ -2516,6 +2525,68 @@ describe('resolver', function () {
           ],
         });
       });
+    });
+  });
+
+  describe('package exports', function () {
+    it('should resolve a browser development import', async function () {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-conditions',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-import-dev.mjs'));
+    });
+
+    it('should resolve a browser development require', async function () {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-conditions',
+        specifierType: 'commonjs',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-require-dev.cjs'));
+    });
+
+    it('should resolve a browser production import', async function () {
+      let resolved = await prodResolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-conditions',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-import-prod.mjs'));
+    });
+
+    it('should resolve a browser development require', async function () {
+      let resolved = await prodResolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-conditions',
+        specifierType: 'commonjs',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-require-prod.cjs'));
+    });
+
+    it('should resolve a node import', async function () {
+      let resolved = await resolver.resolve({
+        env: NODE_INCLUDE_ENV,
+        filename: 'package-conditions',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/node-import.mjs'));
+    });
+
+    it('should resolve a node require', async function () {
+      let resolved = await resolver.resolve({
+        env: NODE_INCLUDE_ENV,
+        filename: 'package-conditions',
+        specifierType: 'commonjs',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/node-require.cjs'));
     });
   });
 

@@ -113,11 +113,50 @@ impl<'a> Default for ExportsField<'a> {
   }
 }
 
+bitflags! {
+  pub struct ExportsCondition: u16 {
+    const IMPORT = 1 << 0;
+    const REQUIRE = 1 << 1;
+    const MODULE = 1 << 2;
+    const NODE = 1 << 3;
+    const BROWSER = 1 << 4;
+    const WORKER = 1 << 5;
+    const WORKLET = 1 << 6;
+    const ELECTRON = 1 << 7;
+    const DEVELOPMENT = 1 << 8;
+    const PRODUCTION = 1 << 9;
+    const TYPES = 1 << 10;
+    const DEFAULT = 1 << 11;
+  }
+}
+
+impl TryFrom<&str> for ExportsCondition {
+  type Error = ();
+  fn try_from(value: &str) -> Result<Self, Self::Error> {
+    Ok(match value {
+      "import" => ExportsCondition::IMPORT,
+      "require" => ExportsCondition::REQUIRE,
+      "module" => ExportsCondition::MODULE,
+      "node" => ExportsCondition::NODE,
+      "browser" => ExportsCondition::BROWSER,
+      "worker" => ExportsCondition::WORKER,
+      "worklet" => ExportsCondition::WORKLET,
+      "electron" => ExportsCondition::ELECTRON,
+      "development" => ExportsCondition::DEVELOPMENT,
+      "production" => ExportsCondition::PRODUCTION,
+      "types" => ExportsCondition::TYPES,
+      "default" => ExportsCondition::DEFAULT,
+      _ => return Err(()),
+    })
+  }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum ExportsKey<'a> {
   Main,
   Pattern(&'a str),
-  Target(&'a str),
+  Condition(ExportsCondition),
+  CustomCondition(&'a str),
 }
 
 impl<'a> From<&'a str> for ExportsKey<'a> {
@@ -128,8 +167,10 @@ impl<'a> From<&'a str> for ExportsKey<'a> {
       ExportsKey::Pattern(&key[2..])
     } else if key.starts_with('#') {
       ExportsKey::Pattern(&key[1..])
+    } else if let Ok(c) = ExportsCondition::try_from(key) {
+      ExportsKey::Condition(c)
     } else {
-      ExportsKey::Target(key)
+      ExportsKey::CustomCondition(key)
     }
   }
 }
@@ -207,7 +248,7 @@ impl<'a> PackageJson<'a> {
   pub fn resolve_package_exports(
     &self,
     subpath: &'a str,
-    conditions: &[&str],
+    conditions: ExportsCondition,
   ) -> Result<PathBuf, PackageJsonError> {
     // TODO: If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
 
@@ -246,7 +287,7 @@ impl<'a> PackageJson<'a> {
   pub fn resolve_package_imports(
     &self,
     specifier: &'a str,
-    conditions: &[&str],
+    conditions: ExportsCondition,
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     if specifier == "#" || specifier.starts_with("#/") {
       return Err(PackageJsonError::InvalidSpecifier);
@@ -265,7 +306,7 @@ impl<'a> PackageJson<'a> {
     target: &'a ExportsField,
     pattern_match: &str,
     is_imports: bool,
-    conditions: &[&str],
+    conditions: ExportsCondition,
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     match target {
       ExportsField::String(target) => {
@@ -300,8 +341,8 @@ impl<'a> PackageJson<'a> {
       ExportsField::Map(target) => {
         // We must iterate in object insertion order.
         for (key, value) in target {
-          if let ExportsKey::Target(key) = key {
-            if *key == "default" || conditions.contains(key) {
+          if let ExportsKey::Condition(key) = key {
+            if *key == ExportsCondition::DEFAULT || conditions.contains(*key) {
               match self.resolve_package_target(value, pattern_match, is_imports, conditions)? {
                 ExportsResolution::None => continue,
                 res => return Ok(res),
@@ -333,7 +374,7 @@ impl<'a> PackageJson<'a> {
     match_key: &'a str,
     match_obj: &'a IndexMap<ExportsKey<'a>, ExportsField<'a>>,
     is_imports: bool,
-    conditions: &[&str],
+    conditions: ExportsCondition,
   ) -> Result<ExportsResolution<'_>, PackageJsonError> {
     let pattern = ExportsKey::Pattern(match_key);
     if let Some(target) = match_obj.get(&pattern) {
@@ -721,7 +762,9 @@ mod tests {
     };
 
     assert_eq!(
-      pkg.resolve_package_exports("", &[]).unwrap(),
+      pkg
+        .resolve_package_exports("", ExportsCondition::empty())
+        .unwrap(),
       PathBuf::from("/foo/exports.js")
     );
     // assert_eq!(pkg.resolve_package_exports("./exports.js", &[]).unwrap(), PathBuf::from("/foo/exports.js"));
@@ -740,7 +783,9 @@ mod tests {
     };
 
     assert_eq!(
-      pkg.resolve_package_exports("", &[]).unwrap(),
+      pkg
+        .resolve_package_exports("", ExportsCondition::empty())
+        .unwrap(),
       PathBuf::from("/foo/exports.js")
     );
     // assert_eq!(pkg.resolve_package_exports("foobar", &[]).unwrap(), PathBuf::from("/foo/exports.js"));
@@ -762,12 +807,14 @@ mod tests {
 
     assert_eq!(
       pkg
-        .resolve_package_exports("", &["import", "require"])
+        .resolve_package_exports("", ExportsCondition::IMPORT | ExportsCondition::REQUIRE)
         .unwrap(),
       PathBuf::from("/foo/import.js")
     );
     assert_eq!(
-      pkg.resolve_package_exports("", &["require"]).unwrap(),
+      pkg
+        .resolve_package_exports("", ExportsCondition::REQUIRE)
+        .unwrap(),
       PathBuf::from("/foo/require.js")
     );
   }
@@ -784,7 +831,9 @@ mod tests {
     };
 
     assert_eq!(
-      pkg.resolve_package_exports("foo", &[]).unwrap(),
+      pkg
+        .resolve_package_exports("foo", ExportsCondition::empty())
+        .unwrap(),
       PathBuf::from("/foo/exports.js")
     );
   }
@@ -805,12 +854,14 @@ mod tests {
 
     assert_eq!(
       pkg
-        .resolve_package_exports("foo", &["import", "require"])
+        .resolve_package_exports("foo", ExportsCondition::IMPORT | ExportsCondition::REQUIRE)
         .unwrap(),
       PathBuf::from("/foo/import.js")
     );
     assert_eq!(
-      pkg.resolve_package_exports("foo", &["require"]).unwrap(),
+      pkg
+        .resolve_package_exports("foo", ExportsCondition::REQUIRE)
+        .unwrap(),
       PathBuf::from("/foo/require.js")
     );
   }
@@ -832,18 +883,20 @@ mod tests {
 
     assert_eq!(
       pkg
-        .resolve_package_exports("", &["node", "import"])
+        .resolve_package_exports("", ExportsCondition::NODE | ExportsCondition::IMPORT)
         .unwrap(),
       PathBuf::from("/foo/import.js")
     );
     assert_eq!(
       pkg
-        .resolve_package_exports("", &["node", "require"])
+        .resolve_package_exports("", ExportsCondition::NODE | ExportsCondition::REQUIRE)
         .unwrap(),
       PathBuf::from("/foo/require.js")
     );
     assert_eq!(
-      pkg.resolve_package_exports("", &["import"]).unwrap(),
+      pkg
+        .resolve_package_exports("", ExportsCondition::IMPORT)
+        .unwrap(),
       PathBuf::from("/foo/default.js")
     );
   }
@@ -870,25 +923,28 @@ mod tests {
 
     assert_eq!(
       pkg
-        .resolve_package_exports("lite", &["node", "import"])
+        .resolve_package_exports("lite", ExportsCondition::NODE | ExportsCondition::IMPORT)
         .unwrap(),
       PathBuf::from("/foo/node_import.js")
     );
     assert_eq!(
       pkg
-        .resolve_package_exports("lite", &["node", "require"])
+        .resolve_package_exports("lite", ExportsCondition::NODE | ExportsCondition::REQUIRE)
         .unwrap(),
       PathBuf::from("/foo/node_require.js")
     );
     assert_eq!(
       pkg
-        .resolve_package_exports("lite", &["browser", "import"])
+        .resolve_package_exports("lite", ExportsCondition::BROWSER | ExportsCondition::IMPORT)
         .unwrap(),
       PathBuf::from("/foo/browser_import.js")
     );
     assert_eq!(
       pkg
-        .resolve_package_exports("lite", &["browser", "require"])
+        .resolve_package_exports(
+          "lite",
+          ExportsCondition::BROWSER | ExportsCondition::REQUIRE
+        )
         .unwrap(),
       PathBuf::from("/foo/browser_require.js")
     );
@@ -908,23 +964,33 @@ mod tests {
     };
 
     assert_eq!(
-      pkg.resolve_package_exports("hello", &[]).unwrap(),
+      pkg
+        .resolve_package_exports("hello", ExportsCondition::empty())
+        .unwrap(),
       PathBuf::from("/foo/cheese/hello.mjs")
     );
     assert_eq!(
-      pkg.resolve_package_exports("hello/world", &[]).unwrap(),
+      pkg
+        .resolve_package_exports("hello/world", ExportsCondition::empty())
+        .unwrap(),
       PathBuf::from("/foo/cheese/hello/world.mjs")
     );
     assert_eq!(
-      pkg.resolve_package_exports("hello.js", &[]).unwrap(),
+      pkg
+        .resolve_package_exports("hello.js", ExportsCondition::empty())
+        .unwrap(),
       PathBuf::from("/foo/cheese/hello.js.mjs")
     );
     assert_eq!(
-      pkg.resolve_package_exports("pizza/test", &[]).unwrap(),
+      pkg
+        .resolve_package_exports("pizza/test", ExportsCondition::empty())
+        .unwrap(),
       PathBuf::from("/foo/pizza/test.mjs")
     );
     assert_eq!(
-      pkg.resolve_package_exports("burritos/test", &[]).unwrap(),
+      pkg
+        .resolve_package_exports("burritos/test", ExportsCondition::empty())
+        .unwrap(),
       PathBuf::from("/foo/burritos/test/test.mjs")
     );
   }
@@ -942,17 +1008,22 @@ mod tests {
     };
 
     assert_eq!(
-      pkg.resolve_package_exports("features/foo.js", &[]).unwrap(),
+      pkg
+        .resolve_package_exports("features/foo.js", ExportsCondition::empty())
+        .unwrap(),
       PathBuf::from("/foo/src/features/foo.js")
     );
     assert_eq!(
       pkg
-        .resolve_package_exports("features/foo/bar.js", &[])
+        .resolve_package_exports("features/foo/bar.js", ExportsCondition::empty())
         .unwrap(),
       PathBuf::from("/foo/src/features/foo/bar.js")
     );
     assert!(matches!(
-      pkg.resolve_package_exports("features/private-internal/foo.js", &[]),
+      pkg.resolve_package_exports(
+        "features/private-internal/foo.js",
+        ExportsCondition::empty()
+      ),
       Err(PackageJsonError::PackagePathNotExported)
     ),);
   }
@@ -974,15 +1045,15 @@ mod tests {
     };
 
     assert!(matches!(
-      pkg.resolve_package_exports("invalid", &[]),
+      pkg.resolve_package_exports("invalid", ExportsCondition::empty()),
       Err(PackageJsonError::InvalidPackageTarget)
     ),);
     assert!(matches!(
-      pkg.resolve_package_exports("absolute", &[]),
+      pkg.resolve_package_exports("absolute", ExportsCondition::empty()),
       Err(PackageJsonError::InvalidPackageTarget)
     ),);
     assert!(matches!(
-      pkg.resolve_package_exports("package", &[]),
+      pkg.resolve_package_exports("package", ExportsCondition::empty()),
       Err(PackageJsonError::InvalidPackageTarget)
     ),);
   }
@@ -1001,15 +1072,21 @@ mod tests {
     };
 
     assert_eq!(
-      pkg.resolve_package_imports("foo", &[]).unwrap(),
+      pkg
+        .resolve_package_imports("foo", ExportsCondition::empty())
+        .unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/foo.mjs"))
     );
     assert_eq!(
-      pkg.resolve_package_imports("internal/foo", &[]).unwrap(),
+      pkg
+        .resolve_package_imports("internal/foo", ExportsCondition::empty())
+        .unwrap(),
       ExportsResolution::Path(PathBuf::from("/foo/src/internal/foo.mjs"))
     );
     assert_eq!(
-      pkg.resolve_package_imports("bar", &[]).unwrap(),
+      pkg
+        .resolve_package_imports("bar", ExportsCondition::empty())
+        .unwrap(),
       ExportsResolution::Package("bar".into())
     );
   }

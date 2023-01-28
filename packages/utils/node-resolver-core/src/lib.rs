@@ -6,8 +6,8 @@ use napi_derive::napi;
 use std::{borrow::Cow, collections::HashMap, path::Path};
 
 use parcel_resolver::{
-  Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules, Invalidations, OsFileSystem,
-  PackageJsonError, Resolution, ResolverError, SpecifierType,
+  ExportsCondition, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules, Invalidations,
+  OsFileSystem, Resolution, SpecifierType,
 };
 
 #[napi(object)]
@@ -26,6 +26,7 @@ pub struct JsResolverOptions {
   pub include_node_modules:
     Option<napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>>,
   pub is_browser: bool,
+  pub conditions: u16,
 }
 
 struct JsFileSystem {
@@ -206,6 +207,7 @@ impl Resolver {
       resolver.entries.remove(Fields::BROWSER);
     }
 
+    resolver.conditions = ExportsCondition::from_bits_truncate(options.conditions);
     Ok(Self { resolver })
   }
 

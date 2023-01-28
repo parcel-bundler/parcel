@@ -2,7 +2,6 @@ use std::{
   borrow::Cow,
   ops::Deref,
   path::{Path, PathBuf},
-  rc::Rc,
 };
 
 use elsa::FrozenMap;

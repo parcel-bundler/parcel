@@ -1,7 +1,6 @@
 use bitflags::bitflags;
 use cache::JsonError;
 use once_cell::unsync::OnceCell;
-use serde::Serialize;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
@@ -25,7 +24,7 @@ mod tsconfig;
 
 pub use cache::{Cache, CacheCow};
 pub use fs::{FileSystem, OsFileSystem};
-pub use package_json::{Fields, PackageJsonError};
+pub use package_json::{ExportsCondition, Fields, PackageJsonError};
 
 bitflags! {
   pub struct Flags: u16 {
@@ -77,6 +76,7 @@ pub struct Resolver<'a, Fs> {
   pub entries: Fields,
   pub flags: Flags,
   pub include_node_modules: Cow<'a, IncludeNodeModules>,
+  pub conditions: ExportsCondition,
   cache: CacheCow<'a, Fs>,
   root_package: OnceCell<Option<PathBuf>>,
 }
@@ -242,6 +242,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       cache,
       root_package: OnceCell::new(),
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
+      conditions: ExportsCondition::NODE,
     }
   }
 
@@ -255,6 +256,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       cache,
       root_package: OnceCell::new(),
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
+      conditions: ExportsCondition::empty(),
     }
   }
 
@@ -341,6 +343,7 @@ struct ResolveRequest<'a, Fs> {
   flags: RequestFlags,
   tsconfig: OnceCell<Option<&'a TsConfig<'a>>>,
   invalidations: &'a Invalidations,
+  conditions: ExportsCondition,
 }
 
 bitflags! {
@@ -377,6 +380,18 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       specifier_type = SpecifierType::Esm;
     }
 
+    let mut conditions = resolver.conditions;
+    let module_condition = if resolver.entries.contains(Fields::MODULE) {
+      ExportsCondition::MODULE
+    } else {
+      ExportsCondition::empty()
+    };
+    match specifier_type {
+      SpecifierType::Esm => conditions |= ExportsCondition::IMPORT | module_condition,
+      SpecifierType::Cjs => conditions |= ExportsCondition::REQUIRE | module_condition,
+      _ => {}
+    }
+
     Self {
       resolver,
       specifier,
@@ -385,6 +400,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       flags,
       tsconfig: OnceCell::new(),
       invalidations,
+      conditions,
     }
   }
 
@@ -473,13 +489,13 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           // An internal package #import specifier.
           let package = self.find_package(&self.from)?;
           if let Some(package) = package {
-            let res = package.resolve_package_imports(&hash, &[]).map_err(|e| {
-              ResolverError::PackageJsonError {
+            let res = package
+              .resolve_package_imports(&hash, self.conditions)
+              .map_err(|e| ResolverError::PackageJsonError {
                 module: package.name.to_owned(),
                 path: package.path.clone(),
                 error: e,
-              }
-            })?;
+              })?;
             match res {
               ExportsResolution::Path(path) => {
                 // Extensionless specifiers are not supported in the imports field.
@@ -627,13 +643,13 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         // If the exports field is present, use the Node ESM algorithm.
         // Otherwise, fall back to classic CJS resolution.
         if self.resolver.flags.contains(Flags::EXPORTS) && package.has_exports() {
-          let path = package.resolve_package_exports(subpath, &[]).map_err(|e| {
-            ResolverError::PackageJsonError {
+          let path = package
+            .resolve_package_exports(subpath, self.conditions)
+            .map_err(|e| ResolverError::PackageJsonError {
               module: package.name.to_owned(),
               path: package.path.clone(),
               error: e,
-            }
-          })?;
+            })?;
 
           // Extensionless specifiers are not supported in the exports field.
           if let Some(res) = self.try_file_without_aliases(&path)? {
@@ -994,6 +1010,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 cache: CacheCow::Borrowed(&self.resolver.cache),
                 root_package: self.resolver.root_package.clone(),
                 include_node_modules: Cow::Borrowed(self.resolver.include_node_modules.as_ref()),
+                conditions: ExportsCondition::TYPES,
               };
 
               let req = ResolveRequest::new(
