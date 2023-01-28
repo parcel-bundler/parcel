@@ -1,5 +1,7 @@
 // @flow
-import type {FilePath, SpecifierType, SemverRange, Environment, SourceLocation, BuildMode} from '@parcel/types';
+import type {FilePath, SpecifierType, SemverRange, Environment, SourceLocation, BuildMode, ResolveResult, PluginLogger} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
+import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {Resolver} from '../index';
 import builtins, {empty} from './builtins';
@@ -61,42 +63,7 @@ export default class NodeResolver {
     this.resolversByEnv = new Map();
   }
 
-  async resolve(options: ResolveOptions) {
-    let res = this.resolveBase(options);
-
-    if (res.error) {
-      let diagnostic = await this.handleError(res.error, options);
-      return {
-        diagnostics: [diagnostic],
-        invalidateOnFileCreate: res.invalidateOnFileCreate,
-        invalidateOnFileChange: res.invalidateOnFileChange
-      };
-    }
-
-    if (res.builtin) {
-      return this.resolveBuiltin(res.builtin, options);
-    }
-
-    if (res.filePath == null) {
-      if (options.sourcePath && options.env.isLibrary && options.specifierType !== 'url') {
-        let diagnostic = await this.checkExcludedDependency(options.sourcePath, options.filename, options);
-        if (diagnostic) {
-          return {
-            diagnostics: [diagnostic],
-            invalidateOnFileCreate: res.invalidateOnFileCreate,
-            invalidateOnFileChange: res.invalidateOnFileChange
-          };
-        }
-      }
-
-      // TODO: invalidations?
-      return {isExcluded: true}
-    }
-
-    return res;
-  }
-
-  resolveBase(options: ResolveOptions) {
+  async resolve(options: ResolveOptions): Promise<?ResolveResult> {
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
       resolver = new Resolver(this.options.projectRoot, {
@@ -112,10 +79,57 @@ export default class NodeResolver {
       });
       this.resolversByEnv.set(options.env.id, resolver);
     }
-    return resolver.resolve(options);
+
+    let res = resolver.resolve(options);
+
+    if (res.error) {
+      let diagnostic = await this.handleError(res.error, options);
+      return {
+        diagnostics: diagnostic ? [diagnostic] : [],
+        invalidateOnFileCreate: res.invalidateOnFileCreate,
+        invalidateOnFileChange: res.invalidateOnFileChange
+      };
+    }
+
+    switch (res.resolution?.type) {
+      case 'Path':
+        return {
+          filePath: res.resolution.value,
+          invalidateOnFileCreate: res.invalidateOnFileCreate,
+          invalidateOnFileChange: res.invalidateOnFileChange,
+          sideEffects: res.sideEffects,
+          query: res.query != null ? new URLSearchParams(res.query) : undefined
+        };
+      case 'Builtin':
+        return this.resolveBuiltin(res.resolution.value, options);
+      case 'External': {
+        if (options.sourcePath && options.env.isLibrary && options.specifierType !== 'url') {
+          let diagnostic = await this.checkExcludedDependency(options.sourcePath, options.filename, options);
+          if (diagnostic) {
+            return {
+              diagnostics: [diagnostic],
+              invalidateOnFileCreate: res.invalidateOnFileCreate,
+              invalidateOnFileChange: res.invalidateOnFileChange
+            };
+          }
+        }
+  
+        // TODO: invalidations?
+        return {isExcluded: true};
+      }
+      case 'Empty':
+        return {filePath: empty};
+      case 'Global':
+        return {
+          filePath: path.join(this.projectRoot, `${res.resolution.value}.js`),
+          code: `module.exports=${res.resolution.value};`,
+        };
+      default:
+        return null;
+    }
   }
 
-  async resolveBuiltin(name: string, options: ResolveOptions) {
+  async resolveBuiltin(name: string, options: ResolveOptions): Promise<?ResolveResult> {
     if (options.env.isNode()) {
       return {isExcluded: true};
     }
@@ -139,7 +153,7 @@ export default class NodeResolver {
       };
     }
 
-    let resolved = this.resolveBase({
+    let resolved = await this.resolve({
       ...options,
       filename: builtin.name,
     });
@@ -150,25 +164,25 @@ export default class NodeResolver {
       // Append '/' to force this.packageManager to look up the package in node_modules
       let packageName = builtin.name.split('/')[0] + '/';
       let packageManager = this.options.packageManager;
-      if (resolved == null) {
+      if (resolved?.filePath == null) {
         // Auto install the Node builtin polyfills
         if (this.options.shouldAutoInstall && packageManager) {
           this.options.logger?.warn({
-            message: md`Auto installing polyfill for Node builtin module "${specifier}"...`,
-            codeFrames: [
+            message: md`Auto installing polyfill for Node builtin module "${packageName}"...`,
+            codeFrames: options.loc ? [
               {
-                filePath: ctx.loc?.filePath ?? sourceFile,
-                codeHighlights: ctx.loc
+                filePath: options.loc.filePath,
+                codeHighlights: options.loc
                   ? [
                       {
                         message: 'used here',
-                        start: ctx.loc.start,
-                        end: ctx.loc.end,
+                        start: options.loc.start,
+                        end: options.loc.end,
                       },
                     ]
                   : [],
               },
-            ],
+            ] : [],
             documentationURL:
               'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
           });
@@ -184,15 +198,11 @@ export default class NodeResolver {
           );
 
           // Re-resolve
-          try {
-            resolved = this.findNodeModulePath(
-              filename,
-              this.options.projectRoot + '/index',
-              ctx,
-            );
-          } catch (err) {
-            // ignore
-          }
+          return this.resolve({
+            ...options,
+            filename: builtin.name,
+            parent: this.options.projectRoot + '/index',
+          });
         } else {
           throw new ThrowableDiagnostic({
             diagnostic: {
@@ -262,7 +272,7 @@ export default class NodeResolver {
     }
   }
 
-  async handleError(error, options: ResolveOptions) {
+  async handleError(error: any, options: ResolveOptions): Promise<?Diagnostic> {
     // console.log(error)
     switch (error.type) {
       case 'FileNotFound': {

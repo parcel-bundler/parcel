@@ -335,7 +335,7 @@ impl<'a> PackageJson<'a> {
 
         let resolved_target = self
           .path
-          .with_file_name(decode_path(target.as_ref(), SpecifierType::Esm).as_ref());
+          .with_file_name(decode_path(target.as_ref(), SpecifierType::Esm).0.as_ref());
         return Ok(ExportsResolution::Path(resolved_target));
       }
       ExportsField::Map(target) => {

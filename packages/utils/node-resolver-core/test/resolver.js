@@ -1409,7 +1409,7 @@ describe('resolver', function () {
       );
     });
 
-    it.skip('should support query params for bare ESM specifiers', async function () {
+    it('should support query params for bare ESM specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '@scope/pkg?foo=2',
@@ -1438,7 +1438,7 @@ describe('resolver', function () {
       ]);
     });
 
-    it.skip('should support query params for npm: specifiers', async function () {
+    it('should support query params for npm: specifiers', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'npm:@scope/pkg?foo=2',
@@ -2323,7 +2323,7 @@ describe('resolver', function () {
       });
     });
 
-    it.skip('should resolve to an empty file when package.browser resolves to false', async function () {
+    it('should resolve to an empty file when package.browser resolves to false', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-browser-exclude',
@@ -2365,7 +2365,7 @@ describe('resolver', function () {
       });
     });
 
-    it.skip('should resolve to an empty file when package.alias resolves to false', async function () {
+    it('should resolve to an empty file when package.alias resolves to false', async function () {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-alias-exclude',

@@ -159,12 +159,11 @@ pub struct FileNameCreateInvalidation {
 
 #[napi(object)]
 pub struct ResolveResult {
-  pub file_path: Option<String>,
-  pub builtin: Option<String>,
+  pub resolution: JsUnknown,
   pub invalidate_on_file_change: Vec<String>,
   pub invalidate_on_file_create:
     Vec<napi::Either<FilePathCreateInvalidation, FileNameCreateInvalidation>>,
-  pub query: Undefined,
+  pub query: Option<String>,
   pub side_effects: bool,
   pub error: JsUnknown,
 }
@@ -229,50 +228,25 @@ impl Resolver {
       },
     );
 
-    match res {
-      Ok((Resolution::Path(p), invalidations)) => {
-        let (invalidate_on_file_change, invalidate_on_file_create) =
-          convert_invalidations(invalidations);
-        let side_effects = self.resolver.resolve_side_effects(&p).unwrap();
+    let (invalidate_on_file_change, invalidate_on_file_create) =
+      convert_invalidations(res.invalidations);
+    match res.result {
+      Ok((res, query)) => {
+        let side_effects = if let Resolution::Path(p) = &res {
+          self.resolver.resolve_side_effects(&p).unwrap()
+        } else {
+          true
+        };
         Ok(ResolveResult {
-          file_path: Some(p.to_string_lossy().into_owned()),
-          builtin: None,
+          resolution: env.to_js_value(&res)?,
           invalidate_on_file_change,
           invalidate_on_file_create,
           side_effects,
-          query: (),
+          query: query.map(|q| q.to_owned()),
           error: env.get_undefined()?.into_unknown(),
         })
       }
-      Ok((Resolution::Excluded, invalidations)) => {
-        let (invalidate_on_file_change, invalidate_on_file_create) =
-          convert_invalidations(invalidations);
-        Ok(ResolveResult {
-          file_path: None,
-          builtin: None,
-          invalidate_on_file_change,
-          invalidate_on_file_create,
-          side_effects: true,
-          query: (),
-          error: env.get_undefined()?.into_unknown(),
-        })
-      }
-      Ok((Resolution::Builtin(builtin), invalidations)) => {
-        let (invalidate_on_file_change, invalidate_on_file_create) =
-          convert_invalidations(invalidations);
-        Ok(ResolveResult {
-          file_path: None,
-          builtin: Some(builtin),
-          invalidate_on_file_change,
-          invalidate_on_file_create,
-          side_effects: true,
-          query: (),
-          error: env.get_undefined()?.into_unknown(),
-        })
-      }
-      Err((err, invalidations)) => {
-        let (invalidate_on_file_change, invalidate_on_file_create) =
-          convert_invalidations(invalidations);
+      Err(err) => {
         println!("{:?}", err);
         // Err(napi::Error::new(
         //   napi::Status::GenericFailure,
@@ -282,12 +256,11 @@ impl Resolver {
         //   ),
         // ))
         Ok(ResolveResult {
-          file_path: None,
-          builtin: None,
+          resolution: env.get_undefined()?.into_unknown(),
           invalidate_on_file_change,
           invalidate_on_file_create,
           side_effects: true,
-          query: (),
+          query: None,
           error: env.to_js_value(&err)?,
         })
       }
