@@ -191,7 +191,7 @@ export default async function dumpGraphToGraphViz(
       gEdge.set('color', color);
     }
   }
-  let tmp = tempy.file({name: `${name}.png`});
+  let tmp = tempy.file({name: `parcel-${name}.png`});
   await g.output('png', tmp);
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);
