@@ -1,2 +1,2 @@
-export const lazy = import('./other').then(({default: LazyFoo}) => LazyFoo);
-export const url = new URL('./other', import.meta.url).toString();
+export const lazy = import('./other.js').then(({default: LazyFoo}) => LazyFoo);
+export const url = new URL('./other.js', import.meta.url).toString();

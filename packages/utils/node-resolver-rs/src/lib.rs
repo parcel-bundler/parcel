@@ -664,7 +664,26 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             .resolver
             .cache
             .read_package(Cow::Borrowed(&package_path))
-        })?;
+        });
+
+        let package = match package {
+          Ok(package) => package,
+          Err(ResolverError::IOError(_)) => {
+            // No package.json in node_modules is probably invalid but we have tests for it...
+            if self.resolver.flags.contains(Flags::DIR_INDEX) {
+              if let Some(res) =
+                self.load_file(&package_dir.join(self.resolver.index_file), None)?
+              {
+                return Ok(res);
+              }
+            }
+
+            return Err(ResolverError::ModuleNotFound {
+              module: module.to_owned(),
+            });
+          }
+          Err(err) => return Err(err),
+        };
 
         // If the exports field is present, use the Node ESM algorithm.
         // Otherwise, fall back to classic CJS resolution.

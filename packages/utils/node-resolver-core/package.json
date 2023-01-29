@@ -14,12 +14,13 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "lib/NodeResolver.js",
-  "source": "src/NodeResolver.js",
+  "source": "src/Wrapper.js",
   "engines": {
     "node": ">= 12.0.0"
   },
   "scripts": {
     "build": "napi build --platform",
+    "build-release": "napi build --platform --release",
     "test": "mocha test"
   },
   "napi": {

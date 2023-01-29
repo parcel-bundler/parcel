@@ -1,7 +1,4 @@
-use napi::{
-  bindgen_prelude::Undefined, Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref,
-  Result,
-};
+use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref, Result};
 use napi_derive::napi;
 use std::{borrow::Cow, collections::HashMap, path::Path};
 
@@ -57,7 +54,7 @@ impl FileSystem for JsFileSystem {
       Ok(utf8.into_owned()?.into())
     };
 
-    canonicalize().map_err(|_| std::io::Error::new(std::io::ErrorKind::NotFound, "Test"))
+    canonicalize().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
   fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
@@ -70,7 +67,7 @@ impl FileSystem for JsFileSystem {
       Ok(unsafe { String::from_utf8_unchecked(value.to_vec()) })
     };
 
-    read().map_err(|_| std::io::Error::new(std::io::ErrorKind::NotFound, "Test"))
+    read().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
   fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
@@ -233,7 +230,19 @@ impl Resolver {
     match res.result {
       Ok((res, query)) => {
         let side_effects = if let Resolution::Path(p) = &res {
-          self.resolver.resolve_side_effects(&p).unwrap()
+          match self.resolver.resolve_side_effects(&p) {
+            Ok(side_effects) => side_effects,
+            Err(err) => {
+              return Ok(ResolveResult {
+                resolution: env.get_undefined()?.into_unknown(),
+                invalidate_on_file_change,
+                invalidate_on_file_create,
+                side_effects: true,
+                query: None,
+                error: env.to_js_value(&err)?,
+              })
+            }
+          }
         } else {
           true
         };

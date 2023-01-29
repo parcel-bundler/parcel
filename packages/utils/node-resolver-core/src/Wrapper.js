@@ -80,6 +80,14 @@ export default class NodeResolver {
       this.resolversByEnv.set(options.env.id, resolver);
     }
 
+    // Special case for entries. Convert absolute paths to relative from project root.
+    if (options.parent == null) {
+      options.parent = path.join(this.options.projectRoot, 'index');
+      if (path.isAbsolute(options.filename)) {
+        options.filename = relativePath(this.options.projectRoot, options.filename);
+      }
+    }
+
     let res = resolver.resolve(options);
 
     if (res.error) {
@@ -419,18 +427,18 @@ export default class NodeResolver {
       }
       case 'UnknownScheme': {
         return {
-          message: md`Unknown url scheme or pipeline '${error.scheme}'`,
-          codeFrames: options.loc ? [
-            {
-              filePath: options.loc.filePath,
-              codeHighlights: [
-                {
-                  start: options.loc.start,
-                  end: options.loc.end
-                }
-              ]
-            }
-          ] : []
+          message: md`Unknown url scheme or pipeline '${error.scheme}:'`,
+          // codeFrames: options.loc ? [
+          //   {
+          //     filePath: options.loc.filePath,
+          //     codeHighlights: [
+          //       {
+          //         start: options.loc.start,
+          //         end: options.loc.end
+          //       }
+          //     ]
+          //   }
+          // ] : []
         };
       }
       case 'PackageJsonError': {

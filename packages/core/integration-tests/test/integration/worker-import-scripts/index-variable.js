@@ -1,1 +1,1 @@
-new Worker(new URL('./variable', import.meta.url))
+new Worker(new URL('./variable.js', import.meta.url))
