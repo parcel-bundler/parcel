@@ -89,6 +89,7 @@ pub enum SourceField<'a> {
   String(&'a str),
   Map(IndexMap<Specifier<'a>, AliasValue<'a>>),
   Array(Vec<&'a str>),
+  Bool(bool),
 }
 
 impl<'a> Default for SourceField<'a> {
@@ -679,7 +680,7 @@ impl<'a> Iterator for EntryIter<'a> {
     if self.fields.contains(Fields::SOURCE) {
       self.fields.remove(Fields::SOURCE);
       match &self.package.source {
-        SourceField::None | SourceField::Array(_) => {}
+        SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => {}
         SourceField::String(source) => {
           return Some((self.package.path.with_file_name(source), "source"))
         }

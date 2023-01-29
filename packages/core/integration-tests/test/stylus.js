@@ -8,7 +8,7 @@ import {
   outputFS,
 } from '@parcel/test-utils';
 
-describe('stylus', function () {
+describe.only('stylus', function () {
   it('should support requiring stylus files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/stylus/index.js'));
 

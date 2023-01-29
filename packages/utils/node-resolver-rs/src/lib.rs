@@ -46,6 +46,8 @@ bitflags! {
     const OPTIONAL_EXTENSIONS = 1 << 7;
     /// Whether extensions are replaced in specifiers, e.g. `./foo.js` -> `./foo.ts`.
     const TYPESCRIPT_EXTENSIONS = 1 << 8;
+    /// Whether to allow omitting the extension when resolving the same file type.
+    const PARENT_EXTENSION = 1 << 9;
 
     /// Default Node settings for CommonJS.
     const NODE_CJS = Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits;
@@ -844,6 +846,18 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
         if res.is_some() {
           return Ok(res);
+        }
+      }
+    }
+
+    // Try adding the same extension as in the parent file.
+    // TODO: only for certain extensions?
+    if self.resolver.flags.contains(Flags::PARENT_EXTENSION) {
+      if let Some(ext) = self.from.extension().and_then(|ext| ext.to_str()) {
+        if !self.resolver.extensions.contains(&ext) {
+          if let Some(res) = self.try_extensions(path, package, &[ext])? {
+            return Ok(Some(res));
+          }
         }
       }
     }

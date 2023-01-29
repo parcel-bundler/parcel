@@ -2892,7 +2892,7 @@ describe('resolver', function () {
       });
       assert.deepEqual(result.diagnostics, [
         {
-          message: `Unknown url scheme or pipeline 'http'`,
+          message: `Unknown url scheme or pipeline 'http:'`,
           codeFrames: [{
             filePath:  path.join(rootDir, 'foo.js'),
             codeHighlights: [
