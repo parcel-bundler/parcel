@@ -318,20 +318,6 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     }
   }
 
-  fn root_package(&self) -> Result<Option<&PackageJson>, ResolverError> {
-    if self.flags.contains(Flags::ALIASES) {
-      let path = self
-        .root_package
-        .get_or_init(|| self.find_ancestor_file(&self.project_root, "package.json"));
-      if let Some(path) = path {
-        let package = self.cache.read_package(Cow::Borrowed(path))?;
-        return Ok(Some(package));
-      }
-    }
-
-    Ok(None)
-  }
-
   fn find_package(&self, from: &Path) -> Result<Option<&PackageJson>, ResolverError> {
     if let Some(path) = self.find_ancestor_file(from, "package.json") {
       let package = self.cache.read_package(Cow::Owned(path))?;
@@ -441,6 +427,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     match package.resolve_aliases(&specifier, fields) {
       Some(alias) => match alias.as_ref() {
         AliasValue::Specifier(specifier) => {
+          // TODO: avoid circular aliases.
           let req = ResolveRequest::new(
             &self.resolver,
             specifier,
@@ -461,13 +448,15 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
   fn resolve(&self) -> Result<Resolution, ResolverError> {
     // First, check the project root package.json for any aliases.
-    let path = self.resolver.project_root.join("package.json");
-    if let Some(package) = self
-      .invalidations
-      .read(&path, || self.resolver.root_package())?
-    {
-      if let Some(res) = self.resolve_aliases(&package, &self.specifier, Fields::ALIAS)? {
-        return Ok(res);
+    if self.resolver.flags.contains(Flags::ALIASES) {
+      let path = self.resolver.project_root.join("package.json");
+      if let Ok(package) = self.invalidations.read(&path, || {
+        self.resolver.cache.read_package(Cow::Borrowed(&path))
+      }) {
+        // TODO: convert specifier to be relative to package?
+        if let Some(res) = self.resolve_aliases(&package, &self.specifier, Fields::ALIAS)? {
+          return Ok(res);
+        }
       }
     }
 
@@ -533,6 +522,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
               }
               ExportsResolution::Package(specifier) => {
                 let (module, subpath) = parse_package_specifier(&specifier)?;
+                // TODO: should this follow aliases??
                 return self.resolve_bare(module, subpath);
               }
               _ => {}
@@ -607,10 +597,10 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   }
 
   fn resolve_relative(&self, specifier: &Path, from: &Path) -> Result<Resolution, ResolverError> {
-    // Find a package.json above the source file where the dependency was located.
-    // This is used to resolve any aliases.
-    let package = self.find_package(from)?;
-    if let Some(res) = self.load_path(&from.with_file_name(specifier), package, Prioritize::File)? {
+    // Resolve aliases from the nearest package.json.
+    let path = from.with_file_name(specifier);
+    let package = self.find_package(&path)?;
+    if let Some(res) = self.load_path(&path, package, Prioritize::File)? {
       return Ok(res);
     }
 
@@ -631,7 +621,24 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       return Ok(Resolution::External);
     }
 
-    // First check tsconfig.json for the paths and baseUrl options.
+    // First, check for a local alias within the parent package.json.
+    if self.resolver.flags.contains(Flags::ALIASES) {
+      if let Some(package) = self.find_package(&self.from)? {
+        let mut fields = Fields::ALIAS;
+        if self.resolver.entries.contains(Fields::BROWSER) {
+          fields |= Fields::BROWSER;
+        }
+        if let Some(res) = self.resolve_aliases(
+          package,
+          &Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath)),
+          fields,
+        )? {
+          return Ok(res);
+        }
+      }
+    }
+
+    // Next, check tsconfig.json for the paths and baseUrl options.
     if let Some(res) = self.resolve_tsconfig_paths()? {
       return Ok(res);
     }
@@ -950,14 +957,15 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   ) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.flags.contains(Flags::ALIASES) {
       if let Some(package) = package {
-        let s = path.strip_prefix(package.path.parent().unwrap()).unwrap();
-        let specifier = Specifier::Relative(Cow::Borrowed(s));
-        let mut fields = Fields::ALIAS;
-        if self.resolver.entries.contains(Fields::BROWSER) {
-          fields |= Fields::BROWSER;
-        }
-        if let Some(res) = self.resolve_aliases(package, &specifier, fields)? {
-          return Ok(Some(res));
+        if let Ok(s) = path.strip_prefix(package.path.parent().unwrap()) {
+          let specifier = Specifier::Relative(Cow::Borrowed(s));
+          let mut fields = Fields::ALIAS;
+          if self.resolver.entries.contains(Fields::BROWSER) {
+            fields |= Fields::BROWSER;
+          }
+          if let Some(res) = self.resolve_aliases(package, &specifier, fields)? {
+            return Ok(Some(res));
+          }
         }
       }
     }

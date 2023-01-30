@@ -326,7 +326,7 @@ export default class NodeResolver {
       }
       case 'ModuleEntryNotFound': {
         let dir = path.dirname(error.package_path);
-        let fileSpecifier = relativePath(dir, error.entry_path);
+        let fileSpecifier = relativePath(dir, path.normalize(error.entry_path));
         let alternatives = await findAlternativeFiles(
           this.options.fs,
           fileSpecifier,
