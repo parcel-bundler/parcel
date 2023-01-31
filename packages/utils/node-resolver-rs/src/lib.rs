@@ -842,11 +842,11 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         let without_extension = &path.with_extension("");
         let res = if ext == "js" || ext == "jsx" {
           // TSC always prioritizes .ts over .tsx, even when the original extension was .jsx.
-          self.try_extensions(&without_extension, package, &["ts", "tsx"])?
+          self.try_extensions(&without_extension, package, &["ts", "tsx"], false)?
         } else if ext == "mjs" {
-          self.try_extensions(&without_extension, package, &["mts"])?
+          self.try_extensions(&without_extension, package, &["mts"], false)?
         } else if ext == "cjs" {
-          self.try_extensions(&without_extension, package, &["cts"])?
+          self.try_extensions(&without_extension, package, &["cts"], false)?
         } else {
           None
         };
@@ -857,19 +857,17 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       }
     }
 
-    // Try adding the same extension as in the parent file.
+    // Try adding the same extension as in the parent file first.
     // TODO: only for certain extensions?
     if self.resolver.flags.contains(Flags::PARENT_EXTENSION) {
       if let Some(ext) = self.from.extension().and_then(|ext| ext.to_str()) {
-        if !self.resolver.extensions.contains(&ext) {
-          if let Some(res) = self.try_extensions(path, package, &[ext])? {
-            return Ok(Some(res));
-          }
+        if let Some(res) = self.try_extensions(path, package, &[ext], false)? {
+          return Ok(Some(res));
         }
       }
     }
 
-    self.try_extensions(path, package, &self.resolver.extensions)
+    self.try_extensions(path, package, &self.resolver.extensions, true)
   }
 
   fn try_extensions(
@@ -877,12 +875,21 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     path: &Path,
     package: Option<&PackageJson>,
     extensions: &[&str],
+    skip_parent: bool,
   ) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.flags.contains(Flags::OPTIONAL_EXTENSIONS)
       && self.specifier_type != SpecifierType::Url
     {
       // Try appending each extension.
       for ext in extensions {
+        // Skip parent extension if we already tried it.
+        if skip_parent
+          && self.resolver.flags.contains(Flags::PARENT_EXTENSION)
+          && matches!(self.from.extension(), Some(e) if e == *ext)
+        {
+          continue;
+        }
+
         if let Some(res) = self.try_suffixes(path, ext, package)? {
           return Ok(Some(res));
         }
