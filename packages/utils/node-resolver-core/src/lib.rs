@@ -46,7 +46,7 @@ impl Drop for JsFileSystem {
 impl FileSystem for JsFileSystem {
   fn canonicalize<P: AsRef<Path>>(&self, path: P) -> std::io::Result<std::path::PathBuf> {
     let canonicalize = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = normalize_path(path.as_ref());
       let path = self.env.create_string(path.as_ref())?;
       let canonicalize: JsFunction = self.env.get_reference_value(&self.canonicalize)?;
       let res: JsString = canonicalize.call(None, &[path])?.try_into()?;
@@ -59,7 +59,7 @@ impl FileSystem for JsFileSystem {
 
   fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
     let read = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = normalize_path(path.as_ref());
       let path = self.env.create_string(path.as_ref())?;
       let read: JsFunction = self.env.get_reference_value(&self.read)?;
       let res: JsBuffer = read.call(None, &[path])?.try_into()?;
@@ -72,7 +72,7 @@ impl FileSystem for JsFileSystem {
 
   fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
     let is_file = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = normalize_path(path.as_ref());
       let p = self.env.create_string(path.as_ref())?;
       let is_file: JsFunction = self.env.get_reference_value(&self.is_file)?;
       let res: JsBoolean = is_file.call(None, &[p])?.try_into()?;
@@ -87,7 +87,7 @@ impl FileSystem for JsFileSystem {
 
   fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
     let is_dir = || -> napi::Result<_> {
-      let path = path.as_ref().to_string_lossy();
+      let path = normalize_path(path.as_ref());
       let path = self.env.create_string(path.as_ref())?;
       let is_dir: JsFunction = self.env.get_reference_value(&self.is_dir)?;
       let res: JsBoolean = is_dir.call(None, &[path])?.try_into()?;
@@ -99,6 +99,38 @@ impl FileSystem for JsFileSystem {
       Err(_) => false,
     }
   }
+}
+
+fn normalize_path(path: &Path) -> String {
+  use std::path::{Component, PathBuf};
+
+  // Normalize path components to resolve ".." and "." segments.
+  // https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+  let mut components = path.components().peekable();
+  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+    components.next();
+    PathBuf::from(c.as_os_str())
+  } else {
+    PathBuf::new()
+  };
+
+  for component in components {
+    match component {
+      Component::Prefix(..) => unreachable!(),
+      Component::RootDir => {
+        ret.push(component.as_os_str());
+      }
+      Component::CurDir => {}
+      Component::ParentDir => {
+        ret.pop();
+      }
+      Component::Normal(c) => {
+        ret.push(c);
+      }
+    }
+  }
+
+  ret.into_os_string().into_string().unwrap()
 }
 
 enum EitherFs<A, B> {
