@@ -94,22 +94,14 @@ export default (new Resolver({
         logger,
       });
 
-      let ctx = {
-        invalidateOnFileCreate,
-        invalidateOnFileChange,
-        specifierType: dependency.specifierType,
-        loc: dependency.loc,
-        range: dependency.range,
-      };
-
       let result;
       try {
-        result = await resolver.resolveModule({
-          filename: pkg,
+        result = await resolver.resolve({
+          filename: pkg + '/package.json',
           parent: dependency.resolveFrom,
+          specifierType: 'esm',
           env: dependency.env,
           sourcePath: dependency.sourcePath,
-          ctx,
         });
       } catch (err) {
         if (err instanceof ThrowableDiagnostic) {
@@ -124,14 +116,22 @@ export default (new Resolver({
         }
       }
 
-      if (!result || !result.moduleDir) {
+      if (!result || !result.filePath) {
         throw errorToThrowableDiagnostic(
           `Unable to resolve ${pkg} from ${sourceFile} when resolving specifier ${specifier}`,
           dependency,
         );
       }
 
-      specifier = path.resolve(result.moduleDir, rest);
+      specifier = path.resolve(path.dirname(result.filePath), rest);
+      if (result.invalidateOnFileChange) {
+        for (let f of result.invalidateOnFileChange) {
+          invalidateOnFileChange.add(f);
+        }
+      }
+      if (result.invalidateOnFileCreate) {
+        invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
+      }
     } else {
       specifier = path.resolve(path.dirname(sourceFile), specifier);
     }

@@ -449,10 +449,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   fn resolve(&self) -> Result<Resolution, ResolverError> {
     // First, check the project root package.json for any aliases.
     if self.resolver.flags.contains(Flags::ALIASES) {
-      let path = self.resolver.project_root.join("package.json");
-      if let Ok(package) = self.invalidations.read(&path, || {
-        self.resolver.cache.read_package(Cow::Borrowed(&path))
-      }) {
+      if let Some(package) = self.find_package(&self.resolver.project_root)? {
         // TODO: convert specifier to be relative to package?
         if let Some(res) = self.resolve_aliases(&package, &self.specifier, Fields::ALIAS)? {
           return Ok(res);
