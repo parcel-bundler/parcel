@@ -53,7 +53,6 @@ type ResolveOptions = {|
 
 export default class NodeResolver {
   resolversByEnv: Map<string, any>;
-  projectRoot: FilePath;
   options: Options;
 
   constructor(options: Options) {
@@ -146,7 +145,7 @@ export default class NodeResolver {
         return {filePath: empty};
       case 'Global':
         return {
-          filePath: path.join(this.projectRoot, `${res.resolution.value}.js`),
+          filePath: path.join(this.options.projectRoot, `${res.resolution.value}.js`),
           code: `module.exports=${res.resolution.value};`,
         };
       default:
@@ -214,7 +213,7 @@ export default class NodeResolver {
 
           await packageManager.resolve(
             packageName,
-            this.projectRoot + '/index',
+            this.options.projectRoot + '/index',
             {
               saveDev: true,
               shouldAutoInstall: true,
@@ -298,7 +297,6 @@ export default class NodeResolver {
   }
 
   async handleError(error: any, options: ResolveOptions): Promise<?Diagnostic> {
-    // console.log(error)
     switch (error.type) {
       case 'FileNotFound': {
         let dir = path.dirname(error.from);
@@ -525,7 +523,7 @@ export default class NodeResolver {
       this.options.fs,
       sourceFile,
       ['package.json'],
-      this.projectRoot,
+      this.options.projectRoot,
       // By default, loadConfig uses JSON5. Use normal JSON for package.json files
       // since they don't support comments and JSON.parse is faster.
       {parser: (...args) => JSON.parse(...args)},

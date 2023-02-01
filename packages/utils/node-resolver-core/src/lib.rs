@@ -3,8 +3,7 @@ use napi_derive::napi;
 use std::{
   borrow::Cow,
   collections::HashMap,
-  ops::Deref,
-  path::{Path, PathBuf},
+  path::{Component, Path, PathBuf},
   rc::Rc,
 };
 
@@ -69,7 +68,7 @@ struct JsFileSystem {
 impl FileSystem for JsFileSystem {
   fn canonicalize<P: AsRef<Path>>(&self, path: P) -> std::io::Result<std::path::PathBuf> {
     let canonicalize = || -> napi::Result<_> {
-      let path = normalize_path(path.as_ref());
+      let path = path.as_ref().to_string_lossy();
       let path = self.env.create_string(path.as_ref())?;
       let res: JsString = self.canonicalize.get()?.call(None, &[path])?.try_into()?;
       let utf8 = res.into_utf8()?;
@@ -81,7 +80,7 @@ impl FileSystem for JsFileSystem {
 
   fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
     let read = || -> napi::Result<_> {
-      let path = normalize_path(path.as_ref());
+      let path = path.as_ref().to_string_lossy();
       let path = self.env.create_string(path.as_ref())?;
       let res: JsBuffer = self.read.get()?.call(None, &[path])?.try_into()?;
       let value = res.into_value()?;
@@ -93,7 +92,7 @@ impl FileSystem for JsFileSystem {
 
   fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
     let is_file = || -> napi::Result<_> {
-      let path = normalize_path(path.as_ref());
+      let path = path.as_ref().to_string_lossy();
       let p = self.env.create_string(path.as_ref())?;
       let res: JsBoolean = self.is_file.get()?.call(None, &[p])?.try_into()?;
       res.get_value()
@@ -107,7 +106,7 @@ impl FileSystem for JsFileSystem {
 
   fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
     let is_dir = || -> napi::Result<_> {
-      let path = normalize_path(path.as_ref());
+      let path = path.as_ref().to_string_lossy();
       let path = self.env.create_string(path.as_ref())?;
       let res: JsBoolean = self.is_dir.get()?.call(None, &[path])?.try_into()?;
       res.get_value()
@@ -118,38 +117,6 @@ impl FileSystem for JsFileSystem {
       Err(_) => false,
     }
   }
-}
-
-fn normalize_path(path: &Path) -> String {
-  use std::path::{Component, PathBuf};
-
-  // Normalize path components to resolve ".." and "." segments.
-  // https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
-  let mut components = path.components().peekable();
-  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
-    components.next();
-    PathBuf::from(c.as_os_str())
-  } else {
-    PathBuf::new()
-  };
-
-  for component in components {
-    match component {
-      Component::Prefix(..) => unreachable!(),
-      Component::RootDir => {
-        ret.push(component.as_os_str());
-      }
-      Component::CurDir => {}
-      Component::ParentDir => {
-        ret.pop();
-      }
-      Component::Normal(c) => {
-        ret.push(c);
-      }
-    }
-  }
-
-  ret.into_os_string().into_string().unwrap()
 }
 
 enum EitherFs<A, B> {
@@ -275,7 +242,7 @@ impl Resolver {
       resolver.module_dir_resolver = Some(Rc::new(move |module: &str, from: &Path| {
         let call = |module: &str| -> napi::Result<PathBuf> {
           let s = env.create_string(module)?;
-          let f = env.create_string_from_std(normalize_path(from))?;
+          let f = env.create_string(from.to_string_lossy().as_ref())?;
           let res: JsString = module_dir_resolver.get()?.call(None, &[s, f])?.try_into()?;
           let utf8 = res.into_utf8()?;
           Ok(utf8.into_owned()?.into())
@@ -338,24 +305,14 @@ impl Resolver {
           error: env.get_undefined()?.into_unknown(),
         })
       }
-      Err(err) => {
-        println!("{:?}", err);
-        // Err(napi::Error::new(
-        //   napi::Status::GenericFailure,
-        //   format!(
-        //     "Failed to resolve {} from {}",
-        //     options.filename, options.parent
-        //   ),
-        // ))
-        Ok(ResolveResult {
-          resolution: env.get_undefined()?.into_unknown(),
-          invalidate_on_file_change,
-          invalidate_on_file_create,
-          side_effects: true,
-          query: None,
-          error: env.to_js_value(&err)?,
-        })
-      }
+      Err(err) => Ok(ResolveResult {
+        resolution: env.get_undefined()?.into_unknown(),
+        invalidate_on_file_change,
+        invalidate_on_file_create,
+        side_effects: true,
+        query: None,
+        error: env.to_js_value(&err)?,
+      }),
     }
   }
 }

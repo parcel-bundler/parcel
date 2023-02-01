@@ -29,6 +29,7 @@
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
     "@parcel/diagnostic": "2.8.1",
+    "@parcel/fs": "2.8.1",
     "@parcel/utils": "2.8.1",
     "nullthrows": "^1.1.1",
     "semver": "^5.7.1"
