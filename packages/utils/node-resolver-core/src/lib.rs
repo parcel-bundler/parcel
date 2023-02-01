@@ -31,6 +31,7 @@ pub struct JsResolverOptions {
   pub is_browser: bool,
   pub conditions: u16,
   pub module_dir_resolver: Option<JsFunction>,
+  pub mode: u8,
 }
 
 struct FunctionRef {
@@ -236,10 +237,22 @@ impl Resolver {
       EitherFs::B(OsFileSystem)
     };
 
-    let mut resolver = parcel_resolver::Resolver::parcel(
-      Cow::Owned(project_root.into()),
-      parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
-    );
+    let mut resolver = match options.mode {
+      1 => parcel_resolver::Resolver::parcel(
+        Cow::Owned(project_root.into()),
+        parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
+      ),
+      2 => parcel_resolver::Resolver::node(
+        Cow::Owned(project_root.into()),
+        parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
+      ),
+      _ => {
+        return Err(napi::Error::new(
+          napi::Status::InvalidArg,
+          "Invalid mode".into(),
+        ))
+      }
+    };
 
     if let Some(include_node_modules) = options.include_node_modules {
       resolver.include_node_modules = Cow::Owned(match include_node_modules {

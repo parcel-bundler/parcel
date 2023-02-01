@@ -75,6 +75,7 @@ export default class NodeResolver {
           isFile: path => this.options.fs.statSync(path).isFile(),
           isDir: path => this.options.fs.statSync(path).isDirectory()
         },
+        mode: 1,
         includeNodeModules: options.env.includeNodeModules,
         isBrowser: options.env.isBrowser(),
         conditions: environmentToExportsConditions(options.env, this.options.mode),

@@ -83,7 +83,6 @@ pub struct Resolver<'a, Fs> {
   pub conditions: ExportsCondition,
   pub module_dir_resolver: Option<Rc<ResolveModuleDir>>,
   cache: CacheCow<'a, Fs>,
-  root_package: OnceCell<Option<PathBuf>>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
@@ -255,10 +254,10 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       project_root,
       extensions: &["js", "json", "node"],
       index_file: "index",
-      entries: Fields::MAIN,
+      // TODO: remove source by default
+      entries: Fields::MAIN | Fields::SOURCE,
       flags: Flags::NODE_CJS,
       cache,
-      root_package: OnceCell::new(),
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
       conditions: ExportsCondition::NODE,
       module_dir_resolver: None,
@@ -273,7 +272,6 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       entries: Fields::MAIN | Fields::SOURCE | Fields::BROWSER | Fields::MODULE,
       flags: Flags::all(),
       cache,
-      root_package: OnceCell::new(),
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
       conditions: ExportsCondition::empty(),
       module_dir_resolver: None,
@@ -1096,7 +1094,6 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 entries: Fields::TSCONFIG,
                 flags: Flags::NODE_CJS,
                 cache: CacheCow::Borrowed(&self.resolver.cache),
-                root_package: self.resolver.root_package.clone(),
                 include_node_modules: Cow::Borrowed(self.resolver.include_node_modules.as_ref()),
                 conditions: ExportsCondition::TYPES,
                 module_dir_resolver: self.resolver.module_dir_resolver.clone(),

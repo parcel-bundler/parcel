@@ -17,6 +17,7 @@ import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   md,
 } from '@parcel/diagnostic';
+import {NodeFS} from '@parcel/fs';
 import nativeFS from 'fs';
 import Module from 'module';
 import path from 'path';
@@ -26,8 +27,7 @@ import {getModuleParts} from '@parcel/utils';
 import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
 import pkg from '../package.json';
-import {NodeResolver} from './NodeResolver';
-import {NodeResolverSync} from './NodeResolverSync';
+import {Resolver} from '@parcel/node-resolver-core/index';
 
 // There can be more than one instance of NodePackageManager, but node has only a single module cache.
 // Therefore, the resolution cache and the map of parent to child modules should also be global.
@@ -43,8 +43,7 @@ export class NodePackageManager implements PackageManager {
   fs: FileSystem;
   projectRoot: FilePath;
   installer: ?PackageInstaller;
-  resolver: NodeResolver;
-  syncResolver: NodeResolverSync;
+  resolver: Resolver;
   invalidationsCache: Map<string, Invalidations> = new Map();
 
   constructor(
@@ -55,8 +54,31 @@ export class NodePackageManager implements PackageManager {
     this.fs = fs;
     this.projectRoot = projectRoot;
     this.installer = installer;
-    this.resolver = new NodeResolver(this.fs, projectRoot);
-    this.syncResolver = new NodeResolverSync(this.fs, projectRoot);
+    this.resolver = this._createResolver();
+  }
+
+  _createResolver(): Resolver {
+    return new Resolver(this.projectRoot, {
+      fs: this.fs instanceof NodeFS && process.versions.pnp == null ? undefined : {
+        canonicalize: path => this.fs.realpathSync(path),
+        read: path => this.fs.readFileSync(path),
+        isFile: path => this.fs.statSync(path).isFile(),
+        isDir: path => this.fs.statSync(path).isDirectory()
+      },
+      mode: 2,
+      isBrowser: false,
+      conditions: 0,
+      moduleDirResolver: process.versions.pnp != null ? (module, from) => {
+        // $FlowFixMe[prop-missing]
+        let pnp = Module.findPnpApi(path.dirname(from));
+
+        return pnp.resolveToUnqualified(
+          // append slash to force loading builtins from npm
+          module + '/',
+          from,
+        );
+      } : undefined,
+    });
   }
 
   static deserialize(opts: any): NodePackageManager {
@@ -153,7 +175,7 @@ export class NodePackageManager implements PackageManager {
     if (!resolved) {
       let [name] = getModuleParts(id);
       try {
-        resolved = await this.resolver.resolve(id, from);
+        resolved = this.resolveInternal(id, from);
       } catch (e) {
         if (
           e.code !== 'MODULE_NOT_FOUND' ||
@@ -302,7 +324,7 @@ export class NodePackageManager implements PackageManager {
     let key = basedir + ':' + name;
     let resolved = cache.get(key);
     if (!resolved) {
-      resolved = this.syncResolver.resolve(name, from);
+      resolved = this.resolveInternal(name, from);
       cache.set(key, resolved);
       this.invalidationsCache.clear();
 
@@ -409,11 +431,44 @@ export class NodePackageManager implements PackageManager {
 
       children.delete(resolved.resolved);
       cache.delete(key);
-      this.resolver.invalidate(resolved.resolved);
-      this.syncResolver.invalidate(resolved.resolved);
+      this.resolver = this._createResolver();
     };
 
     invalidate(name, from);
+  }
+
+  resolveInternal(name: string, from: string): ResolveResult {
+    let res = this.resolver.resolve({
+      filename: name,
+      specifierType: 'commonjs',
+      parent: from
+    });
+    if (res.error) {
+      let e = new Error(`Could not resolve module "${name}" from "${from}"`);
+      // $FlowFixMe
+      e.code = 'MODULE_NOT_FOUND';
+      throw e;
+    }
+    let getPkg;
+    switch (res.resolution.type) {
+      case 'Path':
+        getPkg = () => {
+          let pkgPath = this.fs.findAncestorFile(['package.json'], res.resolution.value, this.projectRoot);
+          return pkgPath ? JSON.parse(this.fs.readFileSync(pkgPath, 'utf8')) : null;
+        };
+        // fallthrough
+      case 'Builtin':
+        return {
+          resolved: res.resolution.value,
+          invalidateOnFileChange: new Set(res.invalidationOnFileChange),
+          invalidateOnFileCreate: res.invalidateOnFileCreate,
+          get pkg() {
+            return getPkg();
+          }
+        };
+      default:
+        throw new Error('Unknown resolution type');
+    }
   }
 }
 
