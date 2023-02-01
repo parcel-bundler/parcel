@@ -3115,6 +3115,15 @@ describe('cache', function () {
                   // $FlowFixMe
                   require(path.join(inputDir, '.pnp.js'));
 
+                let pnp = await inputFS.readFile(
+                  path.join(inputDir, '.pnp.js'),
+                  'utf8',
+                );
+                await inputFS.writeFile(
+                  path.join(inputDir, '.pnp.js'),
+                  pnp.replace("'zipfs',", ''),
+                );
+
                 await inputFS.mkdirp(path.join(inputDir, 'pnp/testmodule2'));
                 await inputFS.writeFile(
                   path.join(inputDir, 'pnp/testmodule2/index.js'),

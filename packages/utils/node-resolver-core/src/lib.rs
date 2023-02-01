@@ -1,10 +1,16 @@
 use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref, Result};
 use napi_derive::napi;
-use std::{borrow::Cow, collections::HashMap, path::Path};
+use std::{
+  borrow::Cow,
+  collections::HashMap,
+  ops::Deref,
+  path::{Path, PathBuf},
+  rc::Rc,
+};
 
 use parcel_resolver::{
   ExportsCondition, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules, Invalidations,
-  OsFileSystem, Resolution, SpecifierType,
+  OsFileSystem, Resolution, ResolverError, SpecifierType,
 };
 
 #[napi(object)]
@@ -24,23 +30,39 @@ pub struct JsResolverOptions {
     Option<napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>>,
   pub is_browser: bool,
   pub conditions: u16,
+  pub module_dir_resolver: Option<JsFunction>,
+}
+
+struct FunctionRef {
+  env: Env,
+  reference: Ref<()>,
+}
+
+impl FunctionRef {
+  fn new(env: Env, f: JsFunction) -> napi::Result<Self> {
+    Ok(Self {
+      env,
+      reference: env.create_reference(f)?,
+    })
+  }
+
+  fn get(&self) -> napi::Result<JsFunction> {
+    self.env.get_reference_value(&self.reference)
+  }
+}
+
+impl Drop for FunctionRef {
+  fn drop(&mut self) {
+    drop(self.reference.unref(self.env))
+  }
 }
 
 struct JsFileSystem {
   env: Env,
-  canonicalize: Ref<()>,
-  read: Ref<()>,
-  is_file: Ref<()>,
-  is_dir: Ref<()>,
-}
-
-impl Drop for JsFileSystem {
-  fn drop(&mut self) {
-    drop(self.canonicalize.unref(self.env));
-    drop(self.read.unref(self.env));
-    drop(self.is_file.unref(self.env));
-    drop(self.is_dir.unref(self.env));
-  }
+  canonicalize: FunctionRef,
+  read: FunctionRef,
+  is_file: FunctionRef,
+  is_dir: FunctionRef,
 }
 
 impl FileSystem for JsFileSystem {
@@ -48,8 +70,7 @@ impl FileSystem for JsFileSystem {
     let canonicalize = || -> napi::Result<_> {
       let path = normalize_path(path.as_ref());
       let path = self.env.create_string(path.as_ref())?;
-      let canonicalize: JsFunction = self.env.get_reference_value(&self.canonicalize)?;
-      let res: JsString = canonicalize.call(None, &[path])?.try_into()?;
+      let res: JsString = self.canonicalize.get()?.call(None, &[path])?.try_into()?;
       let utf8 = res.into_utf8()?;
       Ok(utf8.into_owned()?.into())
     };
@@ -61,8 +82,7 @@ impl FileSystem for JsFileSystem {
     let read = || -> napi::Result<_> {
       let path = normalize_path(path.as_ref());
       let path = self.env.create_string(path.as_ref())?;
-      let read: JsFunction = self.env.get_reference_value(&self.read)?;
-      let res: JsBuffer = read.call(None, &[path])?.try_into()?;
+      let res: JsBuffer = self.read.get()?.call(None, &[path])?.try_into()?;
       let value = res.into_value()?;
       Ok(unsafe { String::from_utf8_unchecked(value.to_vec()) })
     };
@@ -74,8 +94,7 @@ impl FileSystem for JsFileSystem {
     let is_file = || -> napi::Result<_> {
       let path = normalize_path(path.as_ref());
       let p = self.env.create_string(path.as_ref())?;
-      let is_file: JsFunction = self.env.get_reference_value(&self.is_file)?;
-      let res: JsBoolean = is_file.call(None, &[p])?.try_into()?;
+      let res: JsBoolean = self.is_file.get()?.call(None, &[p])?.try_into()?;
       res.get_value()
     };
 
@@ -89,8 +108,7 @@ impl FileSystem for JsFileSystem {
     let is_dir = || -> napi::Result<_> {
       let path = normalize_path(path.as_ref());
       let path = self.env.create_string(path.as_ref())?;
-      let is_dir: JsFunction = self.env.get_reference_value(&self.is_dir)?;
-      let res: JsBoolean = is_dir.call(None, &[path])?.try_into()?;
+      let res: JsBoolean = self.is_dir.get()?.call(None, &[path])?.try_into()?;
       res.get_value()
     };
 
@@ -209,10 +227,10 @@ impl Resolver {
     let fs = if let Some(fs) = options.fs {
       EitherFs::A(JsFileSystem {
         env,
-        canonicalize: env.create_reference(fs.canonicalize)?,
-        read: env.create_reference(fs.read)?,
-        is_file: env.create_reference(fs.is_file)?,
-        is_dir: env.create_reference(fs.is_dir)?,
+        canonicalize: FunctionRef::new(env, fs.canonicalize)?,
+        read: FunctionRef::new(env, fs.read)?,
+        is_file: FunctionRef::new(env, fs.is_file)?,
+        is_dir: FunctionRef::new(env, fs.is_dir)?,
       })
     } else {
       EitherFs::B(OsFileSystem)
@@ -236,6 +254,23 @@ impl Resolver {
     }
 
     resolver.conditions = ExportsCondition::from_bits_truncate(options.conditions);
+    if let Some(module_dir_resolver) = options.module_dir_resolver {
+      let module_dir_resolver = FunctionRef::new(env, module_dir_resolver)?;
+      resolver.module_dir_resolver = Some(Rc::new(move |module: &str, from: &Path| {
+        let call = |module: &str| -> napi::Result<PathBuf> {
+          let s = env.create_string(module)?;
+          let f = env.create_string_from_std(normalize_path(from))?;
+          let res: JsString = module_dir_resolver.get()?.call(None, &[s, f])?.try_into()?;
+          let utf8 = res.into_utf8()?;
+          Ok(utf8.into_owned()?.into())
+        };
+
+        call(module).map_err(|_| ResolverError::ModuleNotFound {
+          module: module.to_owned(),
+        })
+      }));
+    }
+
     Ok(Self { resolver })
   }
 

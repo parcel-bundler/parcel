@@ -1,8 +1,8 @@
 const path = require('path');
 
 const resolve = request => {
-  if (request === 'testmodule') {
-    return path.join(__dirname, 'pnp', 'testmodule');
+  if (request === 'testmodule/') {
+    return path.join(__dirname, 'zipfs', 'pnp', 'testmodule');
   } else if (request === 'pnpapi') {
     return __filename;
   } else {

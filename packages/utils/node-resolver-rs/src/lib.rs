@@ -71,6 +71,8 @@ impl Default for IncludeNodeModules {
   }
 }
 
+type ResolveModuleDir = dyn Fn(&str, &Path) -> Result<PathBuf, ResolverError>;
+
 pub struct Resolver<'a, Fs> {
   pub project_root: Cow<'a, Path>,
   pub extensions: &'a [&'a str],
@@ -79,6 +81,7 @@ pub struct Resolver<'a, Fs> {
   pub flags: Flags,
   pub include_node_modules: Cow<'a, IncludeNodeModules>,
   pub conditions: ExportsCondition,
+  pub module_dir_resolver: Option<Rc<ResolveModuleDir>>,
   cache: CacheCow<'a, Fs>,
   root_package: OnceCell<Option<PathBuf>>,
 }
@@ -258,6 +261,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       root_package: OnceCell::new(),
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
       conditions: ExportsCondition::NODE,
+      module_dir_resolver: None,
     }
   }
 
@@ -272,6 +276,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       root_package: OnceCell::new(),
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
       conditions: ExportsCondition::empty(),
+      module_dir_resolver: None,
     }
   }
 
@@ -644,110 +649,31 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   }
 
   fn resolve_node_module(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
-    // TODO: do pnp here
     // TODO: check if module == self
 
-    self
-      .invalidations
-      .invalidate_on_file_create(FileCreateInvalidation::FileName {
-        file_name: format!("node_modules/{}", module),
-        above: self.from.to_owned(),
-      });
-
-    for dir in self.from.ancestors() {
-      // Skip over node_modules directories
-      if let Some(filename) = dir.file_name() {
-        if filename == "node_modules" {
-          continue;
-        }
-      }
-
-      let mut package_dir = dir.join("node_modules").join(module);
-      if self.resolver.cache.fs.is_dir(&package_dir) {
-        let package_path = package_dir.join("package.json");
-        let package = self.invalidations.read(&package_path, || {
-          self
-            .resolver
-            .cache
-            .read_package(Cow::Borrowed(&package_path))
+    // If there is a custom module directory resolver (e.g. Yarn PnP), use that.
+    if let Some(module_dir_resolver) = &self.resolver.module_dir_resolver {
+      let package_dir = module_dir_resolver(module, self.from)?;
+      return self.resolve_package(package_dir, module, subpath);
+    } else {
+      self
+        .invalidations
+        .invalidate_on_file_create(FileCreateInvalidation::FileName {
+          file_name: format!("node_modules/{}", module),
+          above: self.from.to_owned(),
         });
 
-        let package = match package {
-          Ok(package) => package,
-          Err(ResolverError::IOError(_)) => {
-            // No package.json in node_modules is probably invalid but we have tests for it...
-            if self.resolver.flags.contains(Flags::DIR_INDEX) {
-              if let Some(res) =
-                self.load_file(&package_dir.join(self.resolver.index_file), None)?
-              {
-                return Ok(res);
-              }
-            }
-
-            return Err(ResolverError::ModuleNotFound {
-              module: module.to_owned(),
-            });
+      for dir in self.from.ancestors() {
+        // Skip over node_modules directories
+        if let Some(filename) = dir.file_name() {
+          if filename == "node_modules" {
+            continue;
           }
-          Err(err) => return Err(err),
-        };
+        }
 
-        // If the exports field is present, use the Node ESM algorithm.
-        // Otherwise, fall back to classic CJS resolution.
-        if self.resolver.flags.contains(Flags::EXPORTS) && package.has_exports() {
-          let path = package
-            .resolve_package_exports(subpath, self.conditions)
-            .map_err(|e| ResolverError::PackageJsonError {
-              module: package.name.to_owned(),
-              path: package.path.clone(),
-              error: e,
-            })?;
-
-          // Extensionless specifiers are not supported in the exports field.
-          if let Some(res) = self.try_file_without_aliases(&path)? {
-            return Ok(res);
-          }
-
-          // TODO: track location of resolved field
-          return Err(ResolverError::ModuleSubpathNotFound {
-            module: module.to_owned(),
-            path,
-            package_path: package.path.clone(),
-          });
-        } else if !subpath.is_empty() {
-          package_dir.push(subpath);
-          if let Some(res) = self.load_path(&package_dir, Some(&package), Prioritize::File)? {
-            return Ok(res);
-          }
-
-          return Err(ResolverError::ModuleSubpathNotFound {
-            module: module.to_owned(),
-            path: package_dir,
-            package_path: package.path.clone(),
-          });
-        } else {
-          let res = self.try_package_entries(&package);
-          if let Ok(Some(res)) = res {
-            return Ok(res);
-          }
-
-          // Node ESM doesn't allow directory imports.
-          if self.resolver.flags.contains(Flags::DIR_INDEX) {
-            if let Some(res) =
-              self.load_file(&package_dir.join(self.resolver.index_file), Some(&package))?
-            {
-              return Ok(res);
-            }
-          }
-
-          if let Err(e) = res {
-            return Err(e);
-          }
-
-          return Err(ResolverError::ModuleSubpathNotFound {
-            module: module.to_owned(),
-            path: package_dir.join(self.resolver.index_file),
-            package_path: package.path.clone(),
-          });
+        let package_dir = dir.join("node_modules").join(module);
+        if self.resolver.cache.fs.is_dir(&package_dir) {
+          return self.resolve_package(package_dir, module, subpath);
         }
       }
     }
@@ -757,6 +683,97 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     Err(ResolverError::ModuleNotFound {
       module: module.to_owned(),
     })
+  }
+
+  fn resolve_package(
+    &self,
+    mut package_dir: PathBuf,
+    module: &str,
+    subpath: &str,
+  ) -> Result<Resolution, ResolverError> {
+    let package_path = package_dir.join("package.json");
+    let package = self.invalidations.read(&package_path, || {
+      self
+        .resolver
+        .cache
+        .read_package(Cow::Borrowed(&package_path))
+    });
+
+    let package = match package {
+      Ok(package) => package,
+      Err(ResolverError::IOError(_)) => {
+        // No package.json in node_modules is probably invalid but we have tests for it...
+        if self.resolver.flags.contains(Flags::DIR_INDEX) {
+          if let Some(res) = self.load_file(&package_dir.join(self.resolver.index_file), None)? {
+            return Ok(res);
+          }
+        }
+
+        return Err(ResolverError::ModuleNotFound {
+          module: module.to_owned(),
+        });
+      }
+      Err(err) => return Err(err),
+    };
+
+    // If the exports field is present, use the Node ESM algorithm.
+    // Otherwise, fall back to classic CJS resolution.
+    if self.resolver.flags.contains(Flags::EXPORTS) && package.has_exports() {
+      let path = package
+        .resolve_package_exports(subpath, self.conditions)
+        .map_err(|e| ResolverError::PackageJsonError {
+          module: package.name.to_owned(),
+          path: package.path.clone(),
+          error: e,
+        })?;
+
+      // Extensionless specifiers are not supported in the exports field.
+      if let Some(res) = self.try_file_without_aliases(&path)? {
+        return Ok(res);
+      }
+
+      // TODO: track location of resolved field
+      return Err(ResolverError::ModuleSubpathNotFound {
+        module: module.to_owned(),
+        path,
+        package_path: package.path.clone(),
+      });
+    } else if !subpath.is_empty() {
+      package_dir.push(subpath);
+      if let Some(res) = self.load_path(&package_dir, Some(&package), Prioritize::File)? {
+        return Ok(res);
+      }
+
+      return Err(ResolverError::ModuleSubpathNotFound {
+        module: module.to_owned(),
+        path: package_dir,
+        package_path: package.path.clone(),
+      });
+    } else {
+      let res = self.try_package_entries(&package);
+      if let Ok(Some(res)) = res {
+        return Ok(res);
+      }
+
+      // Node ESM doesn't allow directory imports.
+      if self.resolver.flags.contains(Flags::DIR_INDEX) {
+        if let Some(res) =
+          self.load_file(&package_dir.join(self.resolver.index_file), Some(&package))?
+        {
+          return Ok(res);
+        }
+      }
+
+      if let Err(e) = res {
+        return Err(e);
+      }
+
+      return Err(ResolverError::ModuleSubpathNotFound {
+        module: module.to_owned(),
+        path: package_dir.join(self.resolver.index_file),
+        package_path: package.path.clone(),
+      });
+    }
   }
 
   fn try_package_entries(
@@ -1082,6 +1099,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 root_package: self.resolver.root_package.clone(),
                 include_node_modules: Cow::Borrowed(self.resolver.include_node_modules.as_ref()),
                 conditions: ExportsCondition::TYPES,
+                module_dir_resolver: self.resolver.module_dir_resolver.clone(),
               };
 
               let req = ResolveRequest::new(

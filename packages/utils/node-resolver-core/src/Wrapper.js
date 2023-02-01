@@ -3,6 +3,7 @@ import type {FilePath, SpecifierType, SemverRange, Environment, SourceLocation, 
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
+import {NodeFS} from '@parcel/fs';
 import {Resolver} from '../index';
 import builtins, {empty} from './builtins';
 import path from 'path';
@@ -21,6 +22,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import semver from 'semver';
 import {parse} from '@mischnic/json-sourcemap';
+import _Module from 'module';
 
 type Options = {|
   fs: FileSystem,
@@ -67,7 +69,7 @@ export default class NodeResolver {
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
       resolver = new Resolver(this.options.projectRoot, {
-        fs: {
+        fs: this.options.fs instanceof NodeFS && process.versions.pnp == null ? undefined : {
           canonicalize: path => this.options.fs.realpathSync(path),
           read: path => this.options.fs.readFileSync(path),
           isFile: path => this.options.fs.statSync(path).isFile(),
@@ -75,7 +77,17 @@ export default class NodeResolver {
         },
         includeNodeModules: options.env.includeNodeModules,
         isBrowser: options.env.isBrowser(),
-        conditions: environmentToExportsConditions(options.env, this.options.mode)
+        conditions: environmentToExportsConditions(options.env, this.options.mode),
+        moduleDirResolver: process.versions.pnp != null ? (module, from) => {
+          // $FlowFixMe[prop-missing]
+          let pnp = _Module.findPnpApi(path.dirname(from));
+
+          return pnp.resolveToUnqualified(
+            // append slash to force loading builtins from npm
+            module + '/',
+            from,
+          );
+        } : undefined,
       });
       this.resolversByEnv.set(options.env.id, resolver);
     }
@@ -89,6 +101,14 @@ export default class NodeResolver {
     }
 
     let res = resolver.resolve(options);
+
+    // Invalidate whenever the .pnp.js file changes.
+    // TODO: only when we actually resolve a node_modules package?
+    if (process.versions.pnp != null && options.parent && res.invalidateOnFileChange) {
+      // $FlowFixMe[prop-missing]
+      let pnp = _Module.findPnpApi(path.dirname(options.parent));
+      res.invalidateOnFileChange.push(pnp.resolveToUnqualified('pnpapi', null));
+    }
 
     if (res.error) {
       let diagnostic = await this.handleError(res.error, options);
