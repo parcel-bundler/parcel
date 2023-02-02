@@ -52,5 +52,27 @@ export default async function loadEnv(
     }),
   );
 
+  const packageFile = await resolveConfig(
+    fs,
+    filePath,
+    ['package.json'],
+    projectRoot,
+  );
+
+  // load npm_package_* variables from package.json (for node emulation)
+  if (packageFile != null) {
+    const packageJSON = await fs.readFile(packageFile, 'utf8').then(JSON.parse);
+
+    let packageEnv = packageJSON
+      .map((key, value) => {
+        if (typeof value === 'string') {
+          return 'npm_package_' + key.replace(/-/g, '_');
+        }
+      })
+      .filter(Boolean);
+
+    envs.push(packageEnv);
+  }
+
   return Object.assign({}, ...envs);
 }
