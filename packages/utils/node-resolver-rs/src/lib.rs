@@ -360,6 +360,7 @@ struct ResolveRequest<'a, Fs> {
   tsconfig: OnceCell<Option<&'a TsConfig<'a>>>,
   invalidations: &'a Invalidations,
   conditions: ExportsCondition,
+  priority_extension: Option<&'a str>,
 }
 
 bitflags! {
@@ -417,6 +418,11 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       tsconfig: OnceCell::new(),
       invalidations,
       conditions,
+      priority_extension: if resolver.flags.contains(Flags::PARENT_EXTENSION) {
+        from.extension().and_then(|ext| ext.to_str())
+      } else {
+        None
+      },
     }
   }
 
@@ -434,13 +440,14 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     match package.resolve_aliases(&specifier, fields) {
       Some(alias) => match alias.as_ref() {
         AliasValue::Specifier(specifier) => {
-          let req = ResolveRequest::new(
+          let mut req = ResolveRequest::new(
             &self.resolver,
             specifier,
             SpecifierType::Cjs,
             &package.path,
             self.invalidations,
           );
+          req.priority_extension = self.priority_extension;
           let resolved = req.resolve_specifier()?;
           Ok(Some(resolved))
         }
@@ -874,11 +881,9 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
     // Try adding the same extension as in the parent file first.
     // TODO: only for certain extensions?
-    if self.resolver.flags.contains(Flags::PARENT_EXTENSION) {
-      if let Some(ext) = self.from.extension().and_then(|ext| ext.to_str()) {
-        if let Some(res) = self.try_extensions(path, package, &[ext], false)? {
-          return Ok(Some(res));
-        }
+    if let Some(ext) = self.priority_extension {
+      if let Some(res) = self.try_extensions(path, package, &[ext], false)? {
+        return Ok(Some(res));
       }
     }
 
@@ -1305,12 +1310,13 @@ mod tests {
       *invalidations.invalidate_on_file_create.read().unwrap(),
       HashSet::from([
         FileCreateInvalidation::Path(root().join("bar")),
-        FileCreateInvalidation::Path(root().join("bar.ts")),
-        FileCreateInvalidation::Path(root().join("bar.tsx")),
-        FileCreateInvalidation::Path(root().join("bar.mjs")),
         FileCreateInvalidation::FileName {
           file_name: "package.json".into(),
-          above: root().join("foo.js")
+          above: root().join("bar")
+        },
+        FileCreateInvalidation::FileName {
+          file_name: "package.json".into(),
+          above: root()
         },
         FileCreateInvalidation::FileName {
           file_name: "tsconfig.json".into(),
@@ -1562,12 +1568,17 @@ mod tests {
           above: root().join("foo.js")
         },
         FileCreateInvalidation::Path(root().join("node_modules/foo/index")),
-        FileCreateInvalidation::Path(root().join("node_modules/foo/index.ts")),
-        FileCreateInvalidation::Path(root().join("node_modules/foo/index.tsx")),
-        FileCreateInvalidation::Path(root().join("node_modules/foo/index.mjs")),
         FileCreateInvalidation::FileName {
           file_name: "tsconfig.json".into(),
           above: root().join("foo.js")
+        },
+        FileCreateInvalidation::FileName {
+          file_name: "package.json".into(),
+          above: root().join("foo.js")
+        },
+        FileCreateInvalidation::FileName {
+          file_name: "package.json".into(),
+          above: root()
         },
       ])
     );
@@ -1713,12 +1724,21 @@ mod tests {
           above: root().join("foo.js")
         },
         FileCreateInvalidation::Path(root().join("node_modules/package-alias/bar")),
-        FileCreateInvalidation::Path(root().join("node_modules/package-alias/bar.ts")),
-        FileCreateInvalidation::Path(root().join("node_modules/package-alias/bar.tsx")),
-        FileCreateInvalidation::Path(root().join("node_modules/package-alias/bar.mjs")),
         FileCreateInvalidation::FileName {
           file_name: "tsconfig.json".into(),
           above: root().join("foo.js")
+        },
+        FileCreateInvalidation::FileName {
+          file_name: "package.json".into(),
+          above: root().join("foo.js")
+        },
+        FileCreateInvalidation::FileName {
+          file_name: "package.json".into(),
+          above: root()
+        },
+        FileCreateInvalidation::FileName {
+          file_name: "package.json".into(),
+          above: root().join("node_modules/package-alias/bar")
         },
       ])
     );
@@ -2214,10 +2234,20 @@ mod tests {
       .invalidations;
     assert_eq!(
       *invalidations.invalidate_on_file_create.read().unwrap(),
-      HashSet::from([FileCreateInvalidation::FileName {
-        file_name: "tsconfig.json".into(),
-        above: root().join("foo.js")
-      }])
+      HashSet::from([
+        FileCreateInvalidation::FileName {
+          file_name: "tsconfig.json".into(),
+          above: root().join("foo.js")
+        },
+        FileCreateInvalidation::FileName {
+          file_name: "package.json".into(),
+          above: root().join("foo.js")
+        },
+        FileCreateInvalidation::FileName {
+          file_name: "package.json".into(),
+          above: root()
+        }
+      ])
     );
     assert_eq!(
       *invalidations.invalidate_on_file_change.read().unwrap(),
@@ -2410,7 +2440,11 @@ mod tests {
         },
         FileCreateInvalidation::FileName {
           file_name: "package.json".into(),
-          above: root().join("ts-extensions/index.ts")
+          above: root().join("ts-extensions/a.js")
+        },
+        FileCreateInvalidation::FileName {
+          file_name: "package.json".into(),
+          above: root()
         },
       ])
     );
