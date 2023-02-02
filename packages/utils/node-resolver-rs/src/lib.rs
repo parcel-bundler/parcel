@@ -254,8 +254,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       project_root,
       extensions: &["js", "json", "node"],
       index_file: "index",
-      // TODO: remove source by default
-      entries: Fields::MAIN | Fields::SOURCE,
+      entries: Fields::MAIN,
       flags: Flags::NODE_CJS,
       cache,
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),

@@ -24,6 +24,12 @@ import semver from 'semver';
 import {parse} from '@mischnic/json-sourcemap';
 import _Module from 'module';
 
+// Package.json fields. Must match package_json.rs.
+const MAIN = 1 << 0;
+const MODULE = 1 << 1;
+const SOURCE = 1 << 2;
+const BROWSER = 1 << 3;
+
 type Options = {|
   fs: FileSystem,
   projectRoot: FilePath,
@@ -34,16 +40,6 @@ type Options = {|
   shouldAutoInstall?: boolean,
   mode?: BuildMode,
 |};
-
-// Exports conditions.
-// These must match the values in package_json.rs.
-const NODE = 1 << 3;
-const BROWSER = 1 << 4;
-const WORKER = 1 << 5;
-const WORKLET = 1 << 6;
-const ELECTRON = 1 << 7;
-const DEVELOPMENT = 1 << 8;
-const PRODUCTION = 1 << 9;
 
 type ResolveOptions = {|
   filename: FilePath,
@@ -77,7 +73,7 @@ export default class NodeResolver {
         },
         mode: 1,
         includeNodeModules: options.env.includeNodeModules,
-        isBrowser: options.env.isBrowser(),
+        entries: MAIN | MODULE | SOURCE | (options.env.isBrowser() ? BROWSER : 0),
         conditions: environmentToExportsConditions(options.env, this.options.mode),
         moduleDirResolver: process.versions.pnp != null ? (module, from) => {
           // $FlowFixMe[prop-missing]
@@ -613,6 +609,15 @@ export default class NodeResolver {
 }
 
 function environmentToExportsConditions(env: Environment, mode: ?BuildMode): number {
+  // These must match the values in package_json.rs.
+  const NODE = 1 << 3;
+  const BROWSER = 1 << 4;
+  const WORKER = 1 << 5;
+  const WORKLET = 1 << 6;
+  const ELECTRON = 1 << 7;
+  const DEVELOPMENT = 1 << 8;
+  const PRODUCTION = 1 << 9;
+
   let conditions = 0;
   if (env.isBrowser()) {
     conditions |= BROWSER;

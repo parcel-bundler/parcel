@@ -28,10 +28,10 @@ pub struct JsResolverOptions {
   pub fs: Option<JsFileSystemOptions>,
   pub include_node_modules:
     Option<napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>>,
-  pub is_browser: bool,
-  pub conditions: u16,
+  pub conditions: Option<u16>,
   pub module_dir_resolver: Option<JsFunction>,
   pub mode: u8,
+  pub entries: Option<u8>,
 }
 
 struct FunctionRef {
@@ -262,11 +262,14 @@ impl Resolver {
       });
     }
 
-    if !options.is_browser {
-      resolver.entries.remove(Fields::BROWSER);
+    if let Some(conditions) = options.conditions {
+      resolver.conditions = ExportsCondition::from_bits_truncate(conditions);
     }
 
-    resolver.conditions = ExportsCondition::from_bits_truncate(options.conditions);
+    if let Some(entries) = options.entries {
+      resolver.entries = Fields::from_bits_truncate(entries);
+    }
+
     if let Some(module_dir_resolver) = options.module_dir_resolver {
       let module_dir_resolver = FunctionRef::new(env, module_dir_resolver)?;
       resolver.module_dir_resolver = Some(Rc::new(move |module: &str, from: &Path| {

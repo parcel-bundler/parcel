@@ -29,6 +29,11 @@ import {installPackage} from './installPackage';
 import pkg from '../package.json';
 import {Resolver} from '@parcel/node-resolver-core/index';
 
+// Package.json fields. Must match package_json.rs.
+const MAIN = 1 << 0;
+const SOURCE = 1 << 2;
+const ENTRIES = MAIN | (process.env.PARCEL_BUILD_ENV !== 'production' || process.env.PARCEL_SELF_BUILD ? SOURCE : 0);
+
 // There can be more than one instance of NodePackageManager, but node has only a single module cache.
 // Therefore, the resolution cache and the map of parent to child modules should also be global.
 const cache = new Map<DependencySpecifier, ResolveResult>();
@@ -43,7 +48,7 @@ export class NodePackageManager implements PackageManager {
   fs: FileSystem;
   projectRoot: FilePath;
   installer: ?PackageInstaller;
-  resolver: Resolver;
+  resolver: any;
   invalidationsCache: Map<string, Invalidations> = new Map();
 
   constructor(
@@ -57,7 +62,7 @@ export class NodePackageManager implements PackageManager {
     this.resolver = this._createResolver();
   }
 
-  _createResolver(): Resolver {
+  _createResolver(): any {
     return new Resolver(this.projectRoot, {
       fs: this.fs instanceof NodeFS && process.versions.pnp == null ? undefined : {
         canonicalize: path => this.fs.realpathSync(path),
@@ -66,8 +71,7 @@ export class NodePackageManager implements PackageManager {
         isDir: path => this.fs.statSync(path).isDirectory()
       },
       mode: 2,
-      isBrowser: false,
-      conditions: 0,
+      entries: ENTRIES,
       moduleDirResolver: process.versions.pnp != null ? (module, from) => {
         // $FlowFixMe[prop-missing]
         let pnp = Module.findPnpApi(path.dirname(from));
