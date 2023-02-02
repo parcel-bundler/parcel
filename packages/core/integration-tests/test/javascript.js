@@ -2962,7 +2962,7 @@ describe('javascript', function () {
 
     let output = await run(b);
 
-    assert.equal(output(), 'env-package-json:1.0.0');
+    assert.equal(output(), 'env-package-json:1.0.0:1:2');
   });
 
   it('should not insert environment variables in browser environment if disabled', async function () {

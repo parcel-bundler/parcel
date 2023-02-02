@@ -1,1 +1,1 @@
-module.exports = process.env.npm_package_name + ':' + process.env.npm_package_version;
+module.exports = process.env.npm_package_name + ':' + process.env.npm_package_version + ':' + process.env.npm_package_subobject_one + ':' + process.env.npm_package_subobject_two_number;

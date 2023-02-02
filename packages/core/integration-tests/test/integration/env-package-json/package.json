@@ -1,5 +1,11 @@
 {
     "name": "env-package-json",
     "source": "index.js",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "subobject": {
+        "one": "1",
+        "two": {
+            "number": "2"
+        }
+    }
 }
