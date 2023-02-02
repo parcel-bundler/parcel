@@ -106,12 +106,12 @@ impl Invalidations {
       .insert(invalidation);
   }
 
-  fn invalidate_on_file_change(&self, invalidation: PathBuf) {
+  fn invalidate_on_file_change(&self, invalidation: &Path) {
     self
       .invalidate_on_file_change
       .write()
       .unwrap()
-      .insert(invalidation);
+      .insert(normalize_path(invalidation));
   }
 
   fn read<V, F: FnOnce() -> Result<V, ResolverError>>(
@@ -121,17 +121,49 @@ impl Invalidations {
   ) -> Result<V, ResolverError> {
     match f() {
       Ok(v) => {
-        self.invalidate_on_file_change(path.to_owned());
+        self.invalidate_on_file_change(path);
         Ok(v)
       }
       Err(e) => {
         if matches!(e, ResolverError::IOError(..)) {
-          self.invalidate_on_file_create(FileCreateInvalidation::Path(path.to_owned()));
+          self.invalidate_on_file_create(FileCreateInvalidation::Path(normalize_path(path)));
         }
         Err(e)
       }
     }
   }
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+  use std::path::Component;
+
+  // Normalize path components to resolve ".." and "." segments.
+  // https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+  let mut components = path.components().peekable();
+  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+    components.next();
+    PathBuf::from(c.as_os_str())
+  } else {
+    PathBuf::new()
+  };
+
+  for component in components {
+    match component {
+      Component::Prefix(..) => unreachable!(),
+      Component::RootDir => {
+        ret.push(component.as_os_str());
+      }
+      Component::CurDir => {}
+      Component::ParentDir => {
+        ret.pop();
+      }
+      Component::Normal(c) => {
+        ret.push(c);
+      }
+    }
+  }
+
+  ret
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -570,14 +602,12 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       .invalidations
       .invalidate_on_file_create(FileCreateInvalidation::FileName {
         file_name: filename.into(),
-        above: from.to_owned(),
+        above: normalize_path(from),
       });
 
     let res = self.resolver.find_ancestor_file(from, filename);
     if let Some(path) = &res {
-      self
-        .invalidations
-        .invalidate_on_file_change(path.to_owned());
+      self.invalidations.invalidate_on_file_change(path);
     }
     res
   }
@@ -593,15 +623,13 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         .invalidations
         .invalidate_on_file_create(FileCreateInvalidation::FileName {
           file_name: "package.json".into(),
-          above: from.to_owned(),
+          above: normalize_path(from),
         });
     }
 
     let package = self.resolver.find_package(from)?;
     if let Some(package) = &package {
-      self
-        .invalidations
-        .invalidate_on_file_change(package.path.clone());
+      self.invalidations.invalidate_on_file_change(&package.path);
     }
     Ok(package)
   }
@@ -1008,7 +1036,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     } else {
       self
         .invalidations
-        .invalidate_on_file_create(FileCreateInvalidation::Path(path.to_owned()));
+        .invalidate_on_file_create(FileCreateInvalidation::Path(normalize_path(path)));
       Ok(None)
     }
   }
