@@ -3875,10 +3875,15 @@ describe('cache', function () {
               `
                 const path = require('path');
                 const resolve = request => {
-                  if (request === 'parcel-transformer-mock' || request === 'foo') {
+                  if (request === 'parcel-transformer-mock/' || request === 'foo/') {
                     return path.join(__dirname, 'pnp', request);
                   } else if (request === 'pnpapi') {
                     return __filename;
+                  } else if (request.startsWith('@parcel/')) {
+                    // Use node_modules path for parcel packages so source field is used.
+                    return path.join(__dirname, '../../../../../../node_modules/', request);
+                  } else if (/^((@[^/]+\\/[^/]+)|[^/]+)\\/?$/.test(request)) {
+                    return path.dirname(require.resolve(path.join(request, 'package.json')));
                   } else {
                     return require.resolve(request);
                   }
@@ -3915,10 +3920,15 @@ describe('cache', function () {
               `
                 const path = require('path');
                 const resolve = request => {
-                  if (request === 'parcel-transformer-mock' || request === 'foo') {
+                  if (request === 'parcel-transformer-mock/' || request === 'foo/') {
                     return path.join(__dirname, 'pnp2', request);
                   } else if (request === 'pnpapi') {
                     return __filename;
+                  } else if (request.startsWith('@parcel/')) {
+                    // Use node_modules path for parcel packages so source field is used.
+                    return path.join(__dirname, '../../../../../../node_modules/', request);
+                  } else if (/^((@[^/]+\\/[^/]+)|[^/]+)\\/?$/.test(request)) {
+                    return path.dirname(require.resolve(path.join(request, 'package.json')));
                   } else {
                     return require.resolve(request);
                   }

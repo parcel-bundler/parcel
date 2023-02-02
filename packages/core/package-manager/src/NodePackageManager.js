@@ -75,7 +75,7 @@ export class NodePackageManager implements PackageManager {
       moduleDirResolver: process.versions.pnp != null ? (module, from) => {
         // $FlowFixMe[prop-missing]
         let pnp = Module.findPnpApi(path.dirname(from));
-
+        
         return pnp.resolveToUnqualified(
           // append slash to force loading builtins from npm
           module + '/',
@@ -435,10 +435,10 @@ export class NodePackageManager implements PackageManager {
 
       children.delete(resolved.resolved);
       cache.delete(key);
-      this.resolver = this._createResolver();
     };
-
+    
     invalidate(name, from);
+    this.resolver = this._createResolver();
   }
 
   resolveInternal(name: string, from: string): ResolveResult {
@@ -447,6 +447,15 @@ export class NodePackageManager implements PackageManager {
       specifierType: 'commonjs',
       parent: from
     });
+
+    // Invalidate whenever the .pnp.js file changes.
+    // TODO: only when we actually resolve a node_modules package?
+    if (process.versions.pnp != null && res.invalidateOnFileChange) {
+      // $FlowFixMe[prop-missing]
+      let pnp = Module.findPnpApi(path.dirname(from));
+      res.invalidateOnFileChange.push(pnp.resolveToUnqualified('pnpapi', null));
+    }
+
     if (res.error) {
       let e = new Error(`Could not resolve module "${name}" from "${from}"`);
       // $FlowFixMe
@@ -464,7 +473,7 @@ export class NodePackageManager implements PackageManager {
       case 'Builtin':
         return {
           resolved: res.resolution.value,
-          invalidateOnFileChange: new Set(res.invalidationOnFileChange),
+          invalidateOnFileChange: new Set(res.invalidateOnFileChange),
           invalidateOnFileCreate: res.invalidateOnFileCreate,
           get pkg() {
             return getPkg();
