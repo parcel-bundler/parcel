@@ -25,6 +25,8 @@ export default async function loadEnv(
     `.env.${NODE_ENV}.local`,
   ].filter(Boolean);
 
+  type Env = {[string]: string};
+
   let envs = await Promise.all(
     dotenvFiles.map(async dotenvFile => {
       const envPath = await resolveConfig(
@@ -59,18 +61,30 @@ export default async function loadEnv(
     projectRoot,
   );
 
+  function jsonToEnv(obj, prefix: string): Env {
+    let result: Env = {};
+    for (let key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        let value = obj[key];
+        let newPrefix = prefix ? `${prefix}_${key}` : key;
+        if (typeof value === 'object') {
+          result = {...result, ...jsonToEnv(value, newPrefix)};
+        } else {
+          result[newPrefix] = value;
+        }
+      }
+    }
+
+    return result;
+  }
+
   // load npm_package_* variables from package.json (for node emulation)
   if (packageFile != null) {
     const packageJSON = await fs.readFile(packageFile, 'utf8').then(JSON.parse);
 
-    let packageEnv = packageJSON
-      .map((key, value) => {
-        if (typeof value === 'string') {
-          return 'npm_package_' + key.replace(/-/g, '_');
-        }
-      })
-      .filter(Boolean);
+    const packageEnv = jsonToEnv(packageJSON, 'npm_package');
 
+    // $FlowFixMe - Flow is having trouble adding Env to Env | void
     envs.push(packageEnv);
   }
 
