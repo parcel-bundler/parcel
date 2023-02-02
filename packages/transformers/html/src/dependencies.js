@@ -3,6 +3,7 @@
 import type {AST, MutableAsset} from '@parcel/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
+import {parse, stringify} from 'srcset';
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
@@ -85,24 +86,11 @@ const OPTIONS = {
 };
 
 function collectSrcSetDependencies(asset, srcset, opts) {
-  let newSources = [];
-  for (const source of srcset.split(',')) {
-    let pair = source.trim().split(' ');
-    if (pair.length === 0) {
-      continue;
-    }
-
-    pair[0] = asset.addURLDependency(pair[0], opts);
-    newSources.push(pair.join(' '));
-  }
-
-  /**
-   * https://html.spec.whatwg.org/multipage/images.html#srcset-attribute
-   *
-   * If an image candidate string in srcset contains a width descriptor or a pixel density descriptor or ASCII whitespace, the following image candidate string must begin with whitespace.
-   * So we need to join each image candidate string with ", ".
-   */
-  return newSources.join(', ');
+  let parsed = parse(srcset).map(({url, ...v}) => ({
+    url: asset.addURLDependency(url, opts),
+    ...v,
+  }));
+  return stringify(parsed);
 }
 
 function getAttrDepHandler(attr) {

@@ -14,13 +14,13 @@ import createParcelConfigRequest from './ParcelConfigRequest';
 type ValidationRequest = {|
   id: string,
   +type: 'validation_request',
-  run: RunOpts => Async<void>,
+  run: (RunOpts<void>) => Async<void>,
   input: ValidationRequestInput,
 |};
 
-type RunOpts = {|
+type RunOpts<TResult> = {|
   input: ValidationRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 type ValidationRequestInput = {|

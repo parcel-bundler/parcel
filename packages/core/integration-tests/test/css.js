@@ -22,17 +22,21 @@ describe('css', () => {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'local.js'],
+        assets: ['index.js', 'local.js', 'c.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.css', 'local.css'],
+        assets: ['index.css', 'local.css', 'c.css'],
       },
     ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert.ok(css.indexOf('.c {') < css.indexOf('.local {'));
+    assert.ok(css.indexOf('.local {') < css.indexOf('.index {'));
   });
 
   it('should bundle css dependencies in the correct, postorder traversal order', async () => {

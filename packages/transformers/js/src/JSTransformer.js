@@ -730,12 +730,7 @@ export default (new Transformer({
       let deps = new Map(
         asset
           .getDependencies()
-          .map(dep => [
-            dep.meta.placeholder ??
-              dep.specifier +
-                (dep.specifierType === 'esm' ? dep.specifierType : ''),
-            dep,
-          ]),
+          .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();
@@ -746,19 +741,14 @@ export default (new Transformer({
         local,
         imported,
         loc,
-        kind,
       } of hoist_result.imported_symbols) {
-        let specifierType = '';
-        if (kind === 'Import' || kind === 'Export') {
-          specifierType = 'esm';
-        }
-        let dep = deps.get(source + specifierType);
+        let dep = deps.get(source);
         if (!dep) continue;
         dep.symbols.set(imported, local, convertLoc(loc));
       }
 
       for (let {source, local, imported, loc} of hoist_result.re_exports) {
-        let dep = deps.get(source + 'esm');
+        let dep = deps.get(source);
         if (!dep) continue;
         if (local === '*' && imported === '*') {
           dep.symbols.set('*', '*', convertLoc(loc), true);
@@ -829,17 +819,12 @@ export default (new Transformer({
         let deps = new Map(
           asset
             .getDependencies()
-            .map(dep => [
-              dep.meta.placeholder ??
-                dep.specifier +
-                  (dep.specifierType === 'esm' ? dep.specifierType : ''),
-              dep,
-            ]),
+            .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
         );
         asset.symbols.ensure();
 
         for (let {exported, local, loc, source} of symbol_result.exports) {
-          let dep = source ? deps.get(source + 'esm') : undefined;
+          let dep = source ? deps.get(source) : undefined;
           asset.symbols.set(
             exported,
             `${dep?.id ?? ''}$${local}`,
@@ -856,25 +841,15 @@ export default (new Transformer({
           }
         }
 
-        for (let {
-          source,
-          local,
-          imported,
-          kind,
-          loc,
-        } of symbol_result.imports) {
-          let specifierType = '';
-          if (kind === 'Import' || kind === 'Export') {
-            specifierType = 'esm';
-          }
-          let dep = deps.get(source + specifierType);
+        for (let {source, local, imported, loc} of symbol_result.imports) {
+          let dep = deps.get(source);
           if (!dep) continue;
           dep.symbols.ensure();
           dep.symbols.set(imported, local, convertLoc(loc));
         }
 
         for (let {source, loc} of symbol_result.exports_all) {
-          let dep = deps.get(source + 'esm');
+          let dep = deps.get(source);
           if (!dep) continue;
           dep.symbols.ensure();
           dep.symbols.set('*', '*', convertLoc(loc), true);

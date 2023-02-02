@@ -410,7 +410,7 @@ impl<'a> Fold for Hoist<'a> {
                       if let Expr::Member(member) = &**init {
                         // Match var x = require('foo').bar;
                         if let Some(source) =
-                          match_require(&*member.obj, &self.collect.decls, self.collect.ignore_mark)
+                          match_require(&member.obj, &self.collect.decls, self.collect.ignore_mark)
                         {
                           if !self.collect.non_static_requires.contains(&source) {
                             // If this is not the first declarator in the variable declaration, we need to
@@ -742,7 +742,7 @@ impl<'a> Fold for Hoist<'a> {
       .enumerate()
       .map(|(i, expr)| {
         if i != len - 1
-          && match_require(&*expr, &self.collect.decls, self.collect.ignore_mark).is_some()
+          && match_require(&expr, &self.collect.decls, self.collect.ignore_mark).is_some()
         {
           return Box::new(Expr::Unary(UnaryExpr {
             op: UnaryOp::Bang,
@@ -884,6 +884,7 @@ impl<'a> Fold for Hoist<'a> {
           match_member_expr(member, vec!["module", "exports"], &self.collect.decls)
         }
         Expr::Ident(ident) => &*ident.sym == "exports" && !self.collect.decls.contains(&id!(ident)),
+        Expr::This(_) if !self.in_function_scope => true,
         _ => false,
       };
 
@@ -1346,7 +1347,7 @@ impl Visit for Collect {
           }
           Stmt::Expr(expr) => {
             // Top-level require(). Do not traverse further so it is not marked as wrapped.
-            if let Some(_source) = self.match_require(&*expr.expr) {
+            if let Some(_source) = self.match_require(&expr.expr) {
               return;
             }
 
@@ -1844,7 +1845,7 @@ impl Visit for Collect {
 
       match &**init {
         Expr::Member(member) => {
-          if let Some(source) = self.match_require(&*member.obj) {
+          if let Some(source) = self.match_require(&member.obj) {
             // Convert member expression on require to a destructuring assignment.
             // const yx = require('y').x; -> const {x: yx} = require('x');
             let key = match &member.prop {
@@ -1875,7 +1876,7 @@ impl Visit for Collect {
         Expr::Await(await_exp) => {
           // let x = await import('foo');
           // let {x} = await import('foo');
-          if let Some(source) = match_import(&*await_exp.arg, self.ignore_mark) {
+          if let Some(source) = match_import(&await_exp.arg, self.ignore_mark) {
             self.add_pat_imports(&node.name, &source, ImportKind::DynamicImport);
             return;
           }
@@ -1903,7 +1904,7 @@ impl Visit for Collect {
         }
         Expr::Member(member) => {
           // import('foo').then(foo => ...);
-          if let Some(source) = match_import(&*member.obj, self.ignore_mark) {
+          if let Some(source) = match_import(&member.obj, self.ignore_mark) {
             if match_property_name(member).map_or(false, |f| &*f.0 == "then") {
               if let Some(ExprOrSpread { expr, .. }) = node.args.get(0) {
                 let param = match &**expr {
@@ -2078,7 +2079,7 @@ impl Collect {
         for prop in &object.props {
           match prop {
             ObjectPatProp::KeyValue(kv) => {
-              self.get_non_const_binding_idents(&*kv.value, idents);
+              self.get_non_const_binding_idents(&kv.value, idents);
             }
             ObjectPatProp::Assign(assign) => {
               if self.non_const_bindings.contains_key(&id!(assign.key)) {
@@ -2086,7 +2087,7 @@ impl Collect {
               }
             }
             ObjectPatProp::Rest(rest) => {
-              self.get_non_const_binding_idents(&*rest.arg, idents);
+              self.get_non_const_binding_idents(&rest.arg, idents);
             }
           }
         }
@@ -2121,7 +2122,7 @@ fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<Id>) -> bool
       for prop in &object.props {
         match prop {
           ObjectPatProp::KeyValue(kv) => {
-            if has_binding_identifier(&*kv.value, sym, decls) {
+            if has_binding_identifier(&kv.value, sym, decls) {
               return true;
             }
           }
@@ -2131,7 +2132,7 @@ fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<Id>) -> bool
             }
           }
           ObjectPatProp::Rest(rest) => {
-            if has_binding_identifier(&*rest.arg, sym, decls) {
+            if has_binding_identifier(&rest.arg, sym, decls) {
               return true;
             }
           }

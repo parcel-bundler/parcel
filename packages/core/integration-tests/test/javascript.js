@@ -2694,27 +2694,27 @@ describe('javascript', function () {
     let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements")',
+        'resolve(__dirname, "../test/integration/env-node-replacements")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/other")',
+        'resolve(__dirname, "../test/integration/env-node-replacements/other")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
+        'resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub")',
+        'resolve(__dirname, "../test/integration/env-node-replacements/sub")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
+        'resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
       ),
     );
     let f = await run(b);
@@ -6196,6 +6196,33 @@ describe('javascript', function () {
     assert.strictEqual(output.default, '4returned from bar');
   });
 
+  it('should not affect ESM import order', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
+    );
+
+    await assert.rejects(
+      run(b),
+      new ReferenceError("Cannot access 'foo' before initialization"),
+    );
+  });
+
+  it('should not affect ESM import order with scope hoisting', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    await assert.rejects(
+      run(b),
+      /^ReferenceError: Cannot access '(.+)' before initialization$/,
+    );
+  });
+
   it('should produce working output with both scope hoisting and non scope hoisting targets', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/re-export-no-scope-hoist'),
@@ -6218,6 +6245,23 @@ describe('javascript', function () {
 
     assert.deepEqual(o1, ['UIIcon', 'Icon']);
     assert.deepEqual(o2, ['UIIcon', 'Icon']);
+  });
+
+  it('should not deduplicate an asset if it will become unreachable', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/sibling-deduplicate-unreachable/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+    let res = await run(b);
+    assert.equal(await res.default, 'target');
   });
 
   for (let shouldScopeHoist of [false, true]) {
@@ -7057,19 +7101,6 @@ describe('javascript', function () {
         assert.deepEqual(res.output, 'bar');
       });
 
-      it('supports reexports via variable declaration (unused)', async function () {
-        let b = await bundle(
-          path.join(
-            __dirname,
-            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-var-unused/index.js',
-          ),
-          options,
-        );
-
-        let res = await run(b, {}, {require: false});
-        assert.deepEqual((await res.output).foo, 'foo');
-      });
-
       it('supports named and renamed reexports of the same asset (named used)', async function () {
         let b = await bundle(
           path.join(
@@ -7102,6 +7133,32 @@ describe('javascript', function () {
           shouldScopeHoist ? ['other'] : ['other', 'index'],
         );
         assert.deepEqual(res.output, 'bar');
+      });
+
+      it('supports named and renamed reexports of the same asset (namespace used)', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-same/index.js',
+          ),
+          options,
+        );
+
+        let res = await run(b, null, {require: false});
+        assert.deepEqual(res.output, [{value1: 123, value2: 123}, 123, 123]);
+      });
+
+      it('supports reexports via variable declaration (unused)', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-var-unused/index.js',
+          ),
+          options,
+        );
+
+        let res = await run(b, {}, {require: false});
+        assert.deepEqual((await res.output).foo, 'foo');
       });
 
       it('supports named and namespace exports of the same asset (named used)', async function () {

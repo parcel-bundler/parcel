@@ -90,8 +90,8 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
   }
 }
 
-export async function runConfigRequest(
-  api: RunAPI,
+export async function runConfigRequest<TResult>(
+  api: RunAPI<TResult>,
   configRequest: ConfigRequest,
 ) {
   let {

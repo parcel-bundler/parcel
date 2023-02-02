@@ -353,6 +353,7 @@ describe('css modules', () => {
     assert(css.includes('height: 100px;'));
     assert(css.includes('height: 300px;'));
     assert(css.indexOf('_test') < css.indexOf('_intermediate'));
+    assert(css.indexOf('_intermediate') < css.indexOf('_composes5'));
   });
 
   it('should support composes imports for multiple selectors', async () => {
@@ -672,5 +673,23 @@ describe('css modules', () => {
     );
     let res = await run(b);
     assert.deepEqual(res, ['_4fY2uG_foo', '--wGsoEa_from-js']);
+  });
+
+  it('should group together css and css modules into one bundle', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-module-css-siblings/index.html'),
+    );
+
+    let res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'index.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+    assert.deepEqual(res, [
+      ['mainJs', '_1ZEqVW_myClass', 'j1UkRG_myOtherClass'],
+    ]);
   });
 });

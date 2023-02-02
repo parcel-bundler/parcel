@@ -639,6 +639,5 @@ describe('server', function () {
     invariant(localCSS);
 
     assert(data.includes(path.basename(localCSS.filePath)));
-    assert(data.includes('css-loader'));
   });
 });
