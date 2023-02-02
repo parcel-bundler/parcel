@@ -426,10 +426,14 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     specifier: &Specifier,
     fields: Fields,
   ) -> Result<Option<Resolution>, ResolverError> {
+    // Don't resolve alias if it came from the package.json itself (i.e. another alias).
+    if self.from == package.path {
+      return Ok(None);
+    }
+
     match package.resolve_aliases(&specifier, fields) {
       Some(alias) => match alias.as_ref() {
         AliasValue::Specifier(specifier) => {
-          // TODO: avoid circular aliases.
           let req = ResolveRequest::new(
             &self.resolver,
             specifier,

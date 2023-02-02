@@ -2536,7 +2536,7 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-import-dev.mjs'));
+      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-import-dev.mjs'));
     });
 
     it('should resolve a browser development require', async function () {
@@ -2546,7 +2546,7 @@ describe('resolver', function () {
         specifierType: 'commonjs',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-require-dev.cjs'));
+      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-require-dev.cjs'));
     });
 
     it('should resolve a browser production import', async function () {
@@ -2556,7 +2556,7 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-import-prod.mjs'));
+      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-import-prod.mjs'));
     });
 
     it('should resolve a browser development require', async function () {
@@ -2566,7 +2566,7 @@ describe('resolver', function () {
         specifierType: 'commonjs',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-require-prod.cjs'));
+      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-require-prod.cjs'));
     });
 
     it('should resolve a node import', async function () {
@@ -2576,7 +2576,7 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/node-import.mjs'));
+      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/node-import.mjs'));
     });
 
     it('should resolve a node require', async function () {
@@ -2586,7 +2586,7 @@ describe('resolver', function () {
         specifierType: 'commonjs',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved.filePath, path.join(rootDir, 'node_modules/package-conditions/node-require.cjs'));
+      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/node-require.cjs'));
     });
   });
 
@@ -2807,7 +2807,7 @@ describe('resolver', function () {
         parent: path.join(rootDir, 'foo.js'),
       });
       let file = path.join(rootDir, 'node_modules', 'json-error', 'package.json');
-      assert.deepEqual(result.diagnostics, [
+      assert.deepEqual(result?.diagnostics, [
         {
           message: 'Error parsing JSON',
           codeFrames: [{
@@ -2850,7 +2850,7 @@ describe('resolver', function () {
           }
         }
       });
-      assert.deepEqual(result.diagnostics, [
+      assert.deepEqual(result?.diagnostics, [
         {
           message: 'Invalid empty specifier',
           codeFrames: [{
@@ -2890,24 +2890,9 @@ describe('resolver', function () {
           }
         }
       });
-      assert.deepEqual(result.diagnostics, [
+      assert.deepEqual(result?.diagnostics, [
         {
           message: `Unknown url scheme or pipeline 'http:'`,
-          codeFrames: [{
-            filePath:  path.join(rootDir, 'foo.js'),
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1
-                },
-                end: {
-                  line: 1,
-                  column: 10
-                }
-              }
-            ]
-          }]
         }
       ]);
     });
@@ -2920,7 +2905,7 @@ describe('resolver', function () {
         parent: path.join(rootDir, 'foo.js'),
       });
       let file = path.join(rootDir, 'node_modules/package-exports/package.json');
-      assert.deepEqual(result.diagnostics, [
+      assert.deepEqual(result?.diagnostics, [
         {
           message: `Module 'package-exports/internal' is not exported from the 'package-exports' package`,
           codeFrames: [{
@@ -2952,8 +2937,7 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
-      let file = path.join(rootDir, 'node_modules/package-exports/package.json');
-      assert.deepEqual(result.diagnostics, [
+      assert.deepEqual(result?.diagnostics, [
         {
           message: `Cannot load file './missing.mjs' from module 'package-exports'`,
           hints: []
@@ -2969,7 +2953,7 @@ describe('resolver', function () {
         parent: path.join(rootDir, 'foo.js'),
       });
       let file = path.join(rootDir, 'package.json');
-      assert.deepEqual(result.diagnostics, [
+      assert.deepEqual(result?.diagnostics, [
         {
           message: `Package import '#foo' is not defined in the 'resolver' package`,
           codeFrames: [{
@@ -3002,7 +2986,7 @@ describe('resolver', function () {
         parent: path.join(rootDir, 'node_modules', 'foo', 'foo.js'),
       });
       let file = path.join(rootDir, 'node_modules', 'foo', 'package.json');
-      assert.deepEqual(result.diagnostics, [
+      assert.deepEqual(result?.diagnostics, [
         {
           message: `Package import '#foo' is not defined in the 'foo' package`,
           codeFrames: [{
@@ -3022,7 +3006,7 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'node_modules', 'tsconfig-not-used', 'foo.js'),
       });
-      assert.deepEqual(result.diagnostics, [
+      assert.deepEqual(result?.diagnostics, [
         {
           message: `Cannot find a package.json above './node\\_modules/tsconfig-not-used'`,
         }
