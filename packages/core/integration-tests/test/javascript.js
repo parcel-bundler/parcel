@@ -2955,6 +2955,16 @@ describe('javascript', function () {
     assert.equal(output(), 'test:undefined');
   });
 
+  it('should turn package.json fields into environment variables', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-package-json/index.js'),
+    );
+
+    let output = await run(b);
+
+    assert.equal(output(), 'env-package-json:1.0.0');
+  });
+
   it('should not insert environment variables in browser environment if disabled', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/env-disabled/index.js'),

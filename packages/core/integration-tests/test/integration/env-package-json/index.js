@@ -1,0 +1,1 @@
+module.exports = process.env.npm_package_name + ':' + process.env.npm_package_version;
