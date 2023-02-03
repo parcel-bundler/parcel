@@ -2838,36 +2838,10 @@ describe('resolver', function () {
         filename: '',
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
-        loc: {
-          filePath: path.join(rootDir, 'foo.js'),
-          start: {
-            line: 1,
-            column: 1
-          },
-          end: {
-            line: 1,
-            column: 2
-          }
-        }
       });
       assert.deepEqual(result?.diagnostics, [
         {
           message: 'Invalid empty specifier',
-          codeFrames: [{
-            filePath:  path.join(rootDir, 'foo.js'),
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1
-                },
-                end: {
-                  line: 1,
-                  column: 2
-                }
-              }
-            ]
-          }]
         }
       ]);
     });

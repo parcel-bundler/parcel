@@ -1,3 +1,4 @@
+use crate::{builtins::BUILTINS, Flags};
 use percent_encoding::percent_decode_str;
 use std::{
   borrow::Cow,
@@ -5,7 +6,36 @@ use std::{
 };
 use url::Url;
 
-use crate::{builtins::BUILTINS, Flags, SpecifierType};
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum SpecifierType {
+  Esm,
+  Cjs,
+  Url,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", content = "value")]
+pub enum SpecifierError {
+  EmptySpecifier,
+  InvalidPackageSpecifier,
+  #[serde(serialize_with = "serialize_url_error")]
+  UrlError(url::ParseError),
+  InvalidFileUrl,
+}
+
+impl From<url::ParseError> for SpecifierError {
+  fn from(value: url::ParseError) -> Self {
+    SpecifierError::UrlError(value)
+  }
+}
+
+fn serialize_url_error<S>(value: &url::ParseError, serializer: S) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
+  use serde::Serialize;
+  value.to_string().serialize(serializer)
+}
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Specifier<'a> {
@@ -23,7 +53,11 @@ impl<'a> Specifier<'a> {
     specifier: &'a str,
     specifier_type: SpecifierType,
     flags: Flags,
-  ) -> Result<(Specifier<'a>, Option<&'a str>), ()> {
+  ) -> Result<(Specifier<'a>, Option<&'a str>), SpecifierError> {
+    if specifier.is_empty() {
+      return Err(SpecifierError::EmptySpecifier);
+    }
+
     Ok(match specifier.as_bytes()[0] {
       b'.' => {
         let specifier = if specifier.starts_with("./") {
@@ -76,8 +110,15 @@ impl<'a> Specifier<'a> {
                 }
                 "file" => {
                   // Fully parsing file urls is somewhat complex, so use the url crate for this.
-                  let url = Url::parse(specifier).map_err(|_| ())?;
-                  (Specifier::Absolute(Cow::Owned(url.to_file_path()?)), query)
+                  let url = Url::parse(specifier)?;
+                  (
+                    Specifier::Absolute(Cow::Owned(
+                      url
+                        .to_file_path()
+                        .map_err(|_| SpecifierError::InvalidFileUrl)?,
+                    )),
+                    query,
+                  )
                 }
                 _ => (Specifier::Url(specifier), None),
               }
@@ -174,7 +215,7 @@ fn ascii_alpha(ch: char) -> bool {
   matches!(ch, 'a'..='z' | 'A'..='Z')
 }
 
-fn parse_package<'a>(specifier: Cow<'a, str>) -> Result<Specifier, ()> {
+fn parse_package<'a>(specifier: Cow<'a, str>) -> Result<Specifier, SpecifierError> {
   match specifier {
     Cow::Borrowed(specifier) => {
       let (module, subpath) = parse_package_specifier(specifier)?;
@@ -193,10 +234,10 @@ fn parse_package<'a>(specifier: Cow<'a, str>) -> Result<Specifier, ()> {
   }
 }
 
-pub fn parse_package_specifier(specifier: &str) -> Result<(&str, &str), ()> {
+pub fn parse_package_specifier(specifier: &str) -> Result<(&str, &str), SpecifierError> {
   let idx = specifier.chars().position(|p| p == '/');
   if specifier.starts_with('@') {
-    let idx = idx.ok_or(())?;
+    let idx = idx.ok_or(SpecifierError::InvalidPackageSpecifier)?;
     if let Some(next) = &specifier[idx + 1..].chars().position(|p| p == '/') {
       Ok((
         &specifier[0..idx + 1 + *next],

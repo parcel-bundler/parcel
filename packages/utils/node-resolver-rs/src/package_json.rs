@@ -9,7 +9,10 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::{specifier::decode_path, specifier::Specifier, SpecifierType};
+use crate::{
+  specifier::decode_path,
+  specifier::{Specifier, SpecifierType},
+};
 
 bitflags! {
   #[derive(serde::Serialize)]

@@ -1,15 +1,12 @@
 use bitflags::bitflags;
-use cache::JsonError;
 use once_cell::unsync::OnceCell;
+use specifier::{parse_package_specifier, parse_scheme};
 use std::{
   borrow::Cow,
-  collections::{HashMap, HashSet},
+  collections::HashMap,
   path::{Path, PathBuf},
   rc::Rc,
-  sync::RwLock,
 };
-// use es_module_lexer::{lex, ImportKind};
-use specifier::{parse_package_specifier, parse_scheme};
 
 use package_json::{AliasValue, ExportsResolution, PackageJson};
 use specifier::Specifier;
@@ -17,14 +14,19 @@ use tsconfig::TsConfig;
 
 mod builtins;
 mod cache;
+mod error;
 mod fs;
+mod invalidations;
 mod package_json;
 mod specifier;
 mod tsconfig;
 
 pub use cache::{Cache, CacheCow};
+pub use error::ResolverError;
 pub use fs::{FileSystem, OsFileSystem};
+pub use invalidations::*;
 pub use package_json::{ExportsCondition, Fields, PackageJsonError};
+pub use specifier::SpecifierType;
 
 bitflags! {
   pub struct Flags: u16 {
@@ -85,175 +87,6 @@ pub struct Resolver<'a, Fs> {
   cache: CacheCow<'a, Fs>,
 }
 
-#[derive(PartialEq, Eq, Hash, Debug)]
-pub enum FileCreateInvalidation {
-  Path(PathBuf),
-  FileName { file_name: String, above: PathBuf },
-}
-
-#[derive(Default, Debug)]
-pub struct Invalidations {
-  pub invalidate_on_file_create: RwLock<HashSet<FileCreateInvalidation>>,
-  pub invalidate_on_file_change: RwLock<HashSet<PathBuf>>,
-}
-
-impl Invalidations {
-  fn invalidate_on_file_create(&self, invalidation: FileCreateInvalidation) {
-    self
-      .invalidate_on_file_create
-      .write()
-      .unwrap()
-      .insert(invalidation);
-  }
-
-  fn invalidate_on_file_change(&self, invalidation: &Path) {
-    self
-      .invalidate_on_file_change
-      .write()
-      .unwrap()
-      .insert(normalize_path(invalidation));
-  }
-
-  fn read<V, F: FnOnce() -> Result<V, ResolverError>>(
-    &self,
-    path: &Path,
-    f: F,
-  ) -> Result<V, ResolverError> {
-    match f() {
-      Ok(v) => {
-        self.invalidate_on_file_change(path);
-        Ok(v)
-      }
-      Err(e) => {
-        if matches!(e, ResolverError::IOError(..)) {
-          self.invalidate_on_file_create(FileCreateInvalidation::Path(normalize_path(path)));
-        }
-        Err(e)
-      }
-    }
-  }
-}
-
-fn normalize_path(path: &Path) -> PathBuf {
-  use std::path::Component;
-
-  // Normalize path components to resolve ".." and "." segments.
-  // https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
-  let mut components = path.components().peekable();
-  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
-    components.next();
-    PathBuf::from(c.as_os_str())
-  } else {
-    PathBuf::new()
-  };
-
-  for component in components {
-    match component {
-      Component::Prefix(..) => unreachable!(),
-      Component::RootDir => {
-        ret.push(component.as_os_str());
-      }
-      Component::CurDir => {}
-      Component::ParentDir => {
-        ret.pop();
-      }
-      Component::Normal(c) => {
-        ret.push(c);
-      }
-    }
-  }
-
-  ret
-}
-
-#[derive(PartialEq, Eq, Clone, Copy)]
-pub enum SpecifierType {
-  Esm,
-  Cjs,
-  Url,
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[serde(tag = "type")]
-pub enum ResolverError {
-  EmptySpecifier,
-  UnknownScheme {
-    scheme: String,
-  },
-  UnknownError,
-  FileNotFound {
-    relative: PathBuf,
-    from: PathBuf,
-  },
-  ModuleNotFound {
-    module: String,
-  },
-  ModuleEntryNotFound {
-    module: String,
-    entry_path: PathBuf,
-    package_path: PathBuf,
-    field: &'static str,
-  },
-  ModuleSubpathNotFound {
-    module: String,
-    path: PathBuf,
-    package_path: PathBuf,
-  },
-  InvalidAlias,
-  JsonError(JsonError),
-  IOError(IOError),
-  PackageJsonError {
-    module: String,
-    path: PathBuf,
-    error: PackageJsonError,
-  },
-  PackageJsonNotFound {
-    from: PathBuf,
-  },
-}
-
-#[derive(Debug, Clone)]
-pub struct IOError(Rc<std::io::Error>);
-
-impl serde::Serialize for IOError {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    self.0.to_string().serialize(serializer)
-  }
-}
-
-impl PartialEq for IOError {
-  fn eq(&self, other: &Self) -> bool {
-    self.0.kind() == other.0.kind()
-  }
-}
-
-impl From<()> for ResolverError {
-  fn from(_: ()) -> Self {
-    ResolverError::UnknownError
-  }
-}
-
-impl From<std::str::Utf8Error> for ResolverError {
-  fn from(_: std::str::Utf8Error) -> Self {
-    ResolverError::UnknownError
-  }
-}
-
-impl From<JsonError> for ResolverError {
-  fn from(e: JsonError) -> Self {
-    ResolverError::JsonError(e)
-  }
-}
-
-impl From<std::io::Error> for ResolverError {
-  fn from(e: std::io::Error) -> Self {
-    ResolverError::IOError(IOError(Rc::new(e)))
-  }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum Resolution {
@@ -295,6 +128,20 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     }
   }
 
+  pub fn node_esm(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
+    Self {
+      project_root,
+      extensions: &[],
+      index_file: "index",
+      entries: Fields::MAIN,
+      flags: Flags::NODE_ESM,
+      cache,
+      include_node_modules: Cow::Owned(IncludeNodeModules::default()),
+      conditions: ExportsCondition::NODE,
+      module_dir_resolver: None,
+    }
+  }
+
   pub fn parcel(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
     Self {
       project_root,
@@ -315,13 +162,6 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     from: &Path,
     specifier_type: SpecifierType,
   ) -> ResolveResult<'s> {
-    if specifier.is_empty() {
-      return ResolveResult {
-        result: Err(ResolverError::EmptySpecifier),
-        invalidations: Invalidations::default(),
-      };
-    }
-
     let invalidations = Invalidations::default();
     let (specifier, query) = match Specifier::parse(specifier, specifier_type, self.flags) {
       Ok(s) => s,
@@ -429,6 +269,8 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       specifier_type = SpecifierType::Esm;
     }
 
+    // Add "import" or "require" condition to global conditions based on specifier type.
+    // Also add the "module" condition if the "module" entry field is enabled.
     let mut conditions = resolver.conditions;
     let module_condition = if resolver.entries.contains(Fields::MODULE) {
       ExportsCondition::MODULE
@@ -441,6 +283,13 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       _ => {}
     }
 
+    // Store the parent file extension so we can prioritize it even in sub-requests.
+    let priority_extension = if resolver.flags.contains(Flags::PARENT_EXTENSION) {
+      from.extension().and_then(|ext| ext.to_str())
+    } else {
+      None
+    };
+
     Self {
       resolver,
       specifier,
@@ -450,11 +299,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       tsconfig: OnceCell::new(),
       invalidations,
       conditions,
-      priority_extension: if resolver.flags.contains(Flags::PARENT_EXTENSION) {
-        from.extension().and_then(|ext| ext.to_str())
-      } else {
-        None
-      },
+      priority_extension,
     }
   }
 
@@ -600,10 +445,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   fn find_ancestor_file(&self, from: &Path, filename: &str) -> Option<PathBuf> {
     self
       .invalidations
-      .invalidate_on_file_create(FileCreateInvalidation::FileName {
-        file_name: filename.into(),
-        above: normalize_path(from),
-      });
+      .invalidate_on_file_create_above(filename, from);
 
     let res = self.resolver.find_ancestor_file(from, filename);
     if let Some(path) = &res {
@@ -621,10 +463,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     if is_package_json {
       self
         .invalidations
-        .invalidate_on_file_create(FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: normalize_path(from),
-        });
+        .invalidate_on_file_create_above("package.json", from);
     }
 
     let package = self.resolver.find_package(from)?;
@@ -694,10 +533,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     } else {
       self
         .invalidations
-        .invalidate_on_file_create(FileCreateInvalidation::FileName {
-          file_name: format!("node_modules/{}", module),
-          above: self.from.to_owned(),
-        });
+        .invalidate_on_file_create_above(format!("node_modules/{}", module), self.from);
 
       for dir in self.from.ancestors() {
         // Skip over node_modules directories
@@ -1034,9 +870,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         self.resolver.cache.fs.canonicalize(path)?,
       )))
     } else {
-      self
-        .invalidations
-        .invalidate_on_file_create(FileCreateInvalidation::Path(normalize_path(path)));
+      self.invalidations.invalidate_on_file_create(path);
       Ok(None)
     }
   }
@@ -1164,82 +998,10 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   }
 }
 
-// #[derive(Debug)]
-// enum EsmGraphBuilderError {
-//   IOError(std::io::Error),
-//   ParseError,
-//   ResolverError(ResolverError),
-//   Dynamic
-// }
-
-// impl From<std::io::Error> for EsmGraphBuilderError {
-//   fn from(e: std::io::Error) -> Self {
-//     EsmGraphBuilderError::IOError(e)
-//   }
-// }
-
-// impl From<usize> for EsmGraphBuilderError {
-//   fn from(e: usize) -> Self {
-//     EsmGraphBuilderError::ParseError
-//   }
-// }
-
-// impl From<ResolverError> for EsmGraphBuilderError {
-//   fn from(e: ResolverError) -> Self {
-//     EsmGraphBuilderError::ResolverError(e)
-//   }
-// }
-
-// struct EsmGraphBuilder {
-//   visited: HashSet<PathBuf>,
-//   resolver: Resolver
-// }
-
-// impl EsmGraphBuilder {
-//   pub fn build(&self, file: &Path) -> Result<(), EsmGraphBuilderError> {
-//     if self.visited.contains(file) {
-//       return Ok(());
-//     }
-
-//     self.visited.insert(file.to_owned());
-
-//     let contents = std::fs::read_to_string(&file)?;
-//     let module = lex(&contents)?;
-//     for import in module.imports() {
-//       println!("IMPORT {} {:?} {:?}", import.specifier(), import.kind(), file);
-//       match import.kind() {
-//         ImportKind::DynamicExpression => return Err(EsmGraphBuilderError::Dynamic),
-//         ImportKind::DynamicString | ImportKind::Standard => {
-//           match self.resolver.resolve(import.specifier(), &file, SpecifierType::Esm)? {
-//             Resolution::Path(p) => {
-//               self.build(&p)?;
-//             }
-//             _ => {}
-//           }
-//         }
-//         ImportKind::Meta => {}
-//       }
-//     }
-
-//     Ok(())
-//   }
-// }
-
-// fn build_esm_graph(file: &Path, project_root: PathBuf) -> Result<HashSet<PathBuf>, EsmGraphBuilderError> {
-//   let mut visitor = EsmGraphBuilder {
-//     visited: HashSet::new(),
-//     resolver: Resolver {
-//       project_root,
-//       mode: ResolverMode::Node
-//     }
-//   };
-
-//   visitor.build(file)?;
-//   Ok(visitor.visited)
-// }
-
 #[cfg(test)]
 mod tests {
+  use std::collections::HashSet;
+
   use super::cache::Cache;
   use super::*;
 

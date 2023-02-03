@@ -158,6 +158,7 @@ export default class NodeResolver {
       return {isExcluded: true};
     }
 
+    // TODO
     if (options.env.isElectron() && name === 'electron') {
       return {isExcluded: true};
     }
@@ -424,21 +425,27 @@ export default class NodeResolver {
           ],
         };
       }
-      case 'EmptySpecifier': {
-        return {
-          message: md`Invalid empty specifier`,
-          codeFrames: options.loc ? [
-            {
-              filePath: options.loc.filePath,
-              codeHighlights: [
-                {
-                  start: options.loc.start,
-                  end: options.loc.end
-                }
-              ]
-            }
-          ] : []
-        };
+      case 'InvalidSpecifier': {
+        switch (error.kind) {
+          case 'EmptySpecifier':
+            return {
+              message: 'Invalid empty specifier',
+            };
+          case 'InvalidPackageSpecifier':
+            return {
+              message: 'Invalid package specifier'
+            };
+          case 'InvalidFileUrl':
+            return {
+              message: 'Invalid file url'
+            };
+          case 'UrlError':
+            return {
+              message: `Invalid URL: ${error.value}`,
+            };
+          default:
+            throw new Error('Unknown specifier error kind');
+        }
       }
       case 'UnknownScheme': {
         return {
