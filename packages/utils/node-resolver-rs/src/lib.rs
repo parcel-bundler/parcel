@@ -476,7 +476,12 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   fn resolve_relative(&self, specifier: &Path, from: &Path) -> Result<Resolution, ResolverError> {
     // Resolve aliases from the nearest package.json.
     let path = from.with_file_name(specifier);
-    let package = self.find_package(&path)?;
+    let package = if self.resolver.flags.contains(Flags::ALIASES) {
+      self.find_package(&path)?
+    } else {
+      None
+    };
+
     if let Some(res) = self.load_path(&path, package, Prioritize::File)? {
       return Ok(res);
     }
