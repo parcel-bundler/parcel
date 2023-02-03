@@ -3,7 +3,7 @@ use napi_derive::napi;
 use std::{
   borrow::Cow,
   collections::HashMap,
-  path::{Component, Path, PathBuf},
+  path::{Path, PathBuf},
   rc::Rc,
 };
 

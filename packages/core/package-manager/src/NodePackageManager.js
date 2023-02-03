@@ -27,7 +27,7 @@ import {getModuleParts} from '@parcel/utils';
 import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
 import pkg from '../package.json';
-import {Resolver} from '@parcel/node-resolver-core/index';
+import {ResolverBase} from '@parcel/node-resolver-core';
 
 // Package.json fields. Must match package_json.rs.
 const MAIN = 1 << 0;
@@ -63,7 +63,7 @@ export class NodePackageManager implements PackageManager {
   }
 
   _createResolver(): any {
-    return new Resolver(this.projectRoot, {
+    return new ResolverBase(this.projectRoot, {
       fs: this.fs instanceof NodeFS && process.versions.pnp == null ? undefined : {
         canonicalize: path => this.fs.realpathSync(path),
         read: path => this.fs.readFileSync(path),
