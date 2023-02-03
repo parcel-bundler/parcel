@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   cmp::Ordering,
   ops::Range,
-  path::{Path, PathBuf},
+  path::{Component, Path, PathBuf},
 };
 
 use crate::{
@@ -327,19 +327,30 @@ impl<'a> PackageJson<'a> {
           return Ok(ExportsResolution::Package(Cow::Borrowed(target)));
         }
 
-        // TODO: If target split on "/" or "\" contains any "", ".", "..", or "node_modules" segments after
-        // the first "." segment, case insensitive and including percent encoded variants,
-        // throw an Invalid Package Target error.
-
         let target = if pattern_match == "" {
           Cow::Borrowed(*target)
         } else {
           Cow::Owned(target.replace('*', pattern_match))
         };
 
-        let resolved_target = self
-          .path
-          .with_file_name(decode_path(target.as_ref(), SpecifierType::Esm).0.as_ref());
+        // If target split on "/" or "\" contains any "", ".", "..", or "node_modules" segments after
+        // the first "." segment, case insensitive and including percent encoded variants,
+        // throw an Invalid Package Target error.
+        let target_path = decode_path(target.as_ref(), SpecifierType::Esm).0;
+        if target_path
+          .components()
+          .enumerate()
+          .any(|(index, c)| match c {
+            Component::ParentDir => true,
+            Component::CurDir => index > 0,
+            Component::Normal(c) => c == "node_modules",
+            _ => false,
+          })
+        {
+          return Err(PackageJsonError::InvalidPackageTarget);
+        }
+
+        let resolved_target = self.path.with_file_name(target_path.as_ref());
         return Ok(ExportsResolution::Path(resolved_target));
       }
       ExportsField::Map(target) => {
@@ -357,7 +368,7 @@ impl<'a> PackageJson<'a> {
       }
       ExportsField::Array(target) => {
         if target.is_empty() {
-          return Ok(ExportsResolution::None);
+          return Err(PackageJsonError::PackagePathNotExported);
         }
 
         for item in target {
@@ -370,7 +381,7 @@ impl<'a> PackageJson<'a> {
       ExportsField::None => return Ok(ExportsResolution::None),
     }
 
-    Err(PackageJsonError::InvalidPackageTarget)
+    Ok(ExportsResolution::None)
   }
 
   fn resolve_package_imports_exports(
@@ -1033,7 +1044,53 @@ mod tests {
   }
 
   #[test]
-  fn exports_array() {}
+  fn exports_array() {
+    let pkg = PackageJson {
+      path: "/foo/package.json".into(),
+      name: "foobar",
+      exports: ExportsField::Map(indexmap! {
+        "./utils/*".into() => ExportsField::Map(indexmap! {
+          "browser".into() => ExportsField::Map(indexmap! {
+            "worklet".into() => ExportsField::Array(vec![ExportsField::String("./*"), ExportsField::String("./node/*")]),
+            "default".into() => ExportsField::Map(indexmap! {
+              "node".into() => ExportsField::String("./node/*")
+            })
+          })
+        }),
+        "./test/*".into() => ExportsField::Array(vec![ExportsField::String("lodash/*"), ExportsField::String("./bar/*")])
+      }),
+      ..PackageJson::default()
+    };
+
+    assert_eq!(
+      pkg
+        .resolve_package_exports(
+          "utils/index.js",
+          ExportsCondition::BROWSER | ExportsCondition::WORKLET
+        )
+        .unwrap(),
+      PathBuf::from("/foo/index.js")
+    );
+    assert_eq!(
+      pkg
+        .resolve_package_exports(
+          "utils/index.js",
+          ExportsCondition::BROWSER | ExportsCondition::NODE
+        )
+        .unwrap(),
+      PathBuf::from("/foo/node/index.js")
+    );
+    assert_eq!(
+      pkg
+        .resolve_package_exports("test/index.js", ExportsCondition::empty())
+        .unwrap(),
+      PathBuf::from("/foo/bar/index.js")
+    );
+    assert!(matches!(
+      pkg.resolve_package_exports("utils/index.js", ExportsCondition::BROWSER),
+      Err(PackageJsonError::PackagePathNotExported)
+    ));
+  }
 
   #[test]
   fn exports_invalid() {
@@ -1044,6 +1101,9 @@ mod tests {
         "./invalid".into() => ExportsField::String("../invalid"),
         "./absolute".into() => ExportsField::String("/absolute"),
         "./package".into() => ExportsField::String("package"),
+        "./utils/index".into() => ExportsField::String("./src/../index.js"),
+        "./dist/*".into() => ExportsField::String("./src/../../*"),
+        "./modules/*".into() => ExportsField::String("./node_modules/*"),
       }),
       ..PackageJson::default()
     };
@@ -1051,15 +1111,27 @@ mod tests {
     assert!(matches!(
       pkg.resolve_package_exports("invalid", ExportsCondition::empty()),
       Err(PackageJsonError::InvalidPackageTarget)
-    ),);
+    ));
     assert!(matches!(
       pkg.resolve_package_exports("absolute", ExportsCondition::empty()),
       Err(PackageJsonError::InvalidPackageTarget)
-    ),);
+    ));
     assert!(matches!(
       pkg.resolve_package_exports("package", ExportsCondition::empty()),
       Err(PackageJsonError::InvalidPackageTarget)
-    ),);
+    ));
+    assert!(matches!(
+      pkg.resolve_package_exports("utils/index", ExportsCondition::empty()),
+      Err(PackageJsonError::InvalidPackageTarget)
+    ));
+    assert!(matches!(
+      pkg.resolve_package_exports("dist/foo", ExportsCondition::empty()),
+      Err(PackageJsonError::InvalidPackageTarget)
+    ));
+    assert!(matches!(
+      pkg.resolve_package_exports("modules/foo", ExportsCondition::empty()),
+      Err(PackageJsonError::InvalidPackageTarget)
+    ));
   }
 
   #[test]
