@@ -259,7 +259,7 @@ impl Resolver {
 
   #[napi]
   pub fn resolve(&self, options: ResolveOptions, env: Env) -> Result<ResolveResult> {
-    let res = self.resolver.resolve(
+    let mut res = self.resolver.resolve(
       &options.filename,
       Path::new(&options.parent),
       match options.specifier_type.as_ref() {
@@ -275,36 +275,29 @@ impl Resolver {
       },
     );
 
+    let side_effects = if let Ok((Resolution::Path(p), _)) = &res.result {
+      match self.resolver.resolve_side_effects(&p, &res.invalidations) {
+        Ok(side_effects) => side_effects,
+        Err(err) => {
+          res.result = Err(err);
+          true
+        }
+      }
+    } else {
+      true
+    };
+
     let (invalidate_on_file_change, invalidate_on_file_create) =
       convert_invalidations(res.invalidations);
     match res.result {
-      Ok((res, query)) => {
-        let side_effects = if let Resolution::Path(p) = &res {
-          match self.resolver.resolve_side_effects(&p) {
-            Ok(side_effects) => side_effects,
-            Err(err) => {
-              return Ok(ResolveResult {
-                resolution: env.get_undefined()?.into_unknown(),
-                invalidate_on_file_change,
-                invalidate_on_file_create,
-                side_effects: true,
-                query: None,
-                error: env.to_js_value(&err)?,
-              })
-            }
-          }
-        } else {
-          true
-        };
-        Ok(ResolveResult {
-          resolution: env.to_js_value(&res)?,
-          invalidate_on_file_change,
-          invalidate_on_file_create,
-          side_effects,
-          query: query.map(|q| q.to_owned()),
-          error: env.get_undefined()?.into_unknown(),
-        })
-      }
+      Ok((res, query)) => Ok(ResolveResult {
+        resolution: env.to_js_value(&res)?,
+        invalidate_on_file_change,
+        invalidate_on_file_create,
+        side_effects,
+        query: query.map(|q| q.to_owned()),
+        error: env.get_undefined()?.into_unknown(),
+      }),
       Err(err) => Ok(ResolveResult {
         resolution: env.get_undefined()?.into_unknown(),
         invalidate_on_file_change,

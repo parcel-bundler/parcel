@@ -33,8 +33,6 @@ const BROWSER = 1 << 3;
 type Options = {|
   fs: FileSystem,
   projectRoot: FilePath,
-  extensions: Array<string>,
-  mainFields: Array<string>,
   packageManager?: PackageManager,
   logger?: PluginLogger,
   shouldAutoInstall?: boolean,
@@ -142,11 +140,17 @@ export default class NodeResolver {
         return {isExcluded: true};
       }
       case 'Empty':
-        return {filePath: empty};
+        return {
+          filePath: empty,
+          invalidateOnFileCreate: res.invalidateOnFileCreate,
+          invalidateOnFileChange: res.invalidateOnFileChange
+        };
       case 'Global':
         return {
           filePath: path.join(this.options.projectRoot, `${res.resolution.value}.js`),
           code: `module.exports=${res.resolution.value};`,
+          invalidateOnFileCreate: res.invalidateOnFileCreate,
+          invalidateOnFileChange: res.invalidateOnFileChange
         };
       default:
         return null;
@@ -387,7 +391,7 @@ export default class NodeResolver {
             false
           );
         }
-        
+
         if (!relative.startsWith('.')) {
           relative = './' + relative;
         }

@@ -76,16 +76,12 @@ describe('resolver', function () {
     resolver = new NodeResolver({
       fs: overlayFS,
       projectRoot: rootDir,
-      // mainFields: ['browser', 'source', 'module', 'main'],
-      // extensions: ['.js', '.json'],
       mode: 'development'
     });
 
     prodResolver = new NodeResolver({
       fs: overlayFS,
       projectRoot: rootDir,
-      // mainFields: ['browser', 'source', 'module', 'main'],
-      // extensions: ['.js', '.json'],
       mode: 'production'
     });
 
@@ -94,10 +90,14 @@ describe('resolver', function () {
 
   function normalize(res) {
     return {
-      filePath: res.filePath,
-      // invalidateOnFileCreate: res.invalidateOnFileCreate.sort((a, b) => (a.filePath || a.fileName) < (b.filePath || b.fileName) ? -1 : 1),
-      // invalidateOnFileChange: res.invalidateOnFileChange.sort()
-      sideEffects: res.sideEffects ?? true
+      filePath: res?.filePath,
+      invalidateOnFileCreate: res?.invalidateOnFileCreate?.sort((a, b) => {
+        let ax = a.filePath ?? a.glob ?? (a.aboveFilePath != null && a.fileName != null ? a.aboveFilePath + a.fileName : '');
+        let bx = b.filePath ?? b.glob ?? (b.aboveFilePath != null && b.fileName != null ? b.aboveFilePath + b.fileName : '');
+        return ax < bx ? -1 : 1;
+      }) ?? [],
+      invalidateOnFileChange: res?.invalidateOnFileChange?.sort() ?? [],
+      sideEffects: res?.sideEffects ?? true
     };
   }
 
@@ -320,24 +320,17 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/browserify-zlib',
-            aboveFilePath: path.join(rootDir, 'index'),
+            aboveFilePath: rootDir,
           },
           {
             fileName: 'package.json',
-            aboveFilePath: require.resolve('browserify-zlib/lib/index.js'),
+            aboveFilePath: path.dirname(require.resolve('browserify-zlib/lib')),
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           require.resolve('browserify-zlib/package.json'),
         ],
       });
@@ -356,24 +349,17 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/browserify-zlib',
-            aboveFilePath: path.join(rootDir, 'index'),
+            aboveFilePath: rootDir,
           },
           {
             fileName: 'package.json',
-            aboveFilePath: require.resolve('browserify-zlib/lib/index.js'),
+            aboveFilePath: path.dirname(require.resolve('browserify-zlib/lib')),
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           require.resolve('browserify-zlib/package.json'),
         ],
       });
@@ -390,28 +376,6 @@ describe('resolver', function () {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
         query: undefined,
-        invalidateOnFileCreate: [
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(__dirname, '..', 'src', '_empty.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(__dirname, '..', 'src', '_empty.js'),
-          },
-        ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-          path.join(__dirname, '..', 'package.json'),
-        ],
       });
     });
 
@@ -458,20 +422,13 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/foo',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(rootDir, 'node_modules', 'foo', 'package.json'),
         ],
       });
@@ -490,20 +447,13 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-main',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(rootDir, 'node_modules', 'package-main', 'package.json'),
         ],
       });
@@ -527,20 +477,13 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-module',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(rootDir, 'node_modules', 'package-module', 'package.json'),
         ],
       });
@@ -564,20 +507,13 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-browser',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(rootDir, 'node_modules', 'package-browser', 'package.json'),
         ],
       });
@@ -601,20 +537,13 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-browser',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(rootDir, 'node_modules', 'package-browser', 'package.json'),
         ],
       });
@@ -638,16 +567,8 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-fallback',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
           {
             filePath: path.join(
@@ -655,6 +576,46 @@ describe('resolver', function () {
               'node_modules',
               'package-fallback',
               'main.js',
+            ),
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-fallback',
+              'main.js.cjs',
+            ),
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-fallback',
+              'main.js.mjs',
+            ),
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-fallback',
+              'main.js.jsx',
+            ),
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-fallback',
+              'main.js.ts',
+            ),
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-fallback',
+              'main.js.tsx',
             ),
           },
           {
@@ -684,6 +645,7 @@ describe('resolver', function () {
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(
             rootDir,
             'node_modules',
@@ -713,32 +675,8 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-main-directory',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            filePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-main-directory',
-              'nested.js',
-            ),
-          },
-          {
-            filePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-main-directory',
-              'nested.json',
-            ),
+            aboveFilePath: rootDir,
           },
           {
             filePath: path.join(
@@ -756,12 +694,76 @@ describe('resolver', function () {
               'node_modules',
               'package-main-directory',
               'nested',
-              'index.js',
             ),
           },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested'
+            )
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested.js'
+            )
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested.json'
+            )
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested.jsx'
+            )
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested.cjs'
+            )
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested.mjs'
+            )
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested.ts'
+            )
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested.tsx'
+            )
+          }
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(
             rootDir,
             'node_modules',
@@ -785,16 +787,8 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/foo',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
           {
             fileName: 'package.json',
@@ -803,12 +797,12 @@ describe('resolver', function () {
               'node_modules',
               'foo',
               'nested',
-              'baz.js',
             ),
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(rootDir, 'node_modules', 'foo', 'package.json'),
         ],
       });
@@ -827,20 +821,13 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/@scope/pkg',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(rootDir, 'node_modules', '@scope', 'pkg', 'package.json'),
         ],
       });
@@ -859,16 +846,8 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/@scope/pkg',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
           {
             fileName: 'package.json',
@@ -878,12 +857,12 @@ describe('resolver', function () {
               '@scope',
               'pkg',
               'foo',
-              'bar.js',
             ),
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(rootDir, 'node_modules', '@scope', 'pkg', 'package.json'),
         ],
       });
@@ -906,16 +885,8 @@ describe('resolver', function () {
           query: undefined,
           invalidateOnFileCreate: [
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'index'),
-            },
-            {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
-            },
-            {
               fileName: 'node_modules/side-effects-false',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
+              aboveFilePath: rootDir,
             },
             {
               fileName: 'package.json',
@@ -924,12 +895,12 @@ describe('resolver', function () {
                 'node_modules',
                 'side-effects-false',
                 'src',
-                'index.js',
               ),
             },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
             path.join(
               rootDir,
               'node_modules',
@@ -956,16 +927,8 @@ describe('resolver', function () {
           query: undefined,
           invalidateOnFileCreate: [
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'index'),
-            },
-            {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
-            },
-            {
               fileName: 'node_modules/side-effects-false',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
+              aboveFilePath: rootDir,
             },
             {
               fileName: 'package.json',
@@ -974,12 +937,12 @@ describe('resolver', function () {
                 'node_modules',
                 'side-effects-false',
                 'src',
-                'index.js',
               ),
             },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
             path.join(
               rootDir,
               'node_modules',
@@ -1006,16 +969,8 @@ describe('resolver', function () {
           query: undefined,
           invalidateOnFileCreate: [
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'index'),
-            },
-            {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
-            },
-            {
               fileName: 'node_modules/side-effects-false',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
+              aboveFilePath: rootDir,
             },
             {
               filePath: path.join(
@@ -1032,23 +987,13 @@ describe('resolver', function () {
                 'node_modules',
                 'side-effects-false',
                 'src',
-                'index',
-              ),
-              fileName: 'package.json',
-            },
-            {
-              aboveFilePath: path.join(
-                rootDir,
-                'node_modules',
-                'side-effects-false',
-                'src',
-                'index.js',
               ),
               fileName: 'package.json',
             },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
             path.join(
               rootDir,
               'node_modules',
@@ -1075,16 +1020,8 @@ describe('resolver', function () {
           query: undefined,
           invalidateOnFileCreate: [
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'index'),
-            },
-            {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
-            },
-            {
               fileName: 'node_modules/side-effects-false',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
+              aboveFilePath: rootDir,
             },
             {
               filePath: path.join(
@@ -1101,23 +1038,13 @@ describe('resolver', function () {
                 'node_modules',
                 'side-effects-false',
                 'src',
-                'index',
-              ),
-              fileName: 'package.json',
-            },
-            {
-              aboveFilePath: path.join(
-                rootDir,
-                'node_modules',
-                'side-effects-false',
-                'src',
-                'index.js',
               ),
               fileName: 'package.json',
             },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
             path.join(
               rootDir,
               'node_modules',
@@ -1144,16 +1071,17 @@ describe('resolver', function () {
           query: undefined,
           invalidateOnFileCreate: [
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'index'),
-            },
-            {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
-            },
-            {
               fileName: 'node_modules/side-effects-package-redirect-up',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
+              aboveFilePath: rootDir,
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-up',
+                'foo',
+                'bar',
+              ),
             },
             {
               filePath: path.join(
@@ -1174,15 +1102,54 @@ describe('resolver', function () {
               ),
             },
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(
+              filePath: path.join(
                 rootDir,
-                'node_modules/side-effects-package-redirect-up/foo/real-bar.js',
+                'node_modules',
+                'side-effects-package-redirect-up',
+                'foo',
+                'bar.jsx',
+              ),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-up',
+                'foo',
+                'bar.cjs',
+              ),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-up',
+                'foo',
+                'bar.mjs',
+              ),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-up',
+                'foo',
+                'bar.ts',
+              ),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-up',
+                'foo',
+                'bar.tsx',
               ),
             },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
             path.join(
               rootDir,
               'node_modules',
@@ -1224,16 +1191,17 @@ describe('resolver', function () {
           query: undefined,
           invalidateOnFileCreate: [
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'index'),
-            },
-            {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
-            },
-            {
               fileName: 'node_modules/side-effects-package-redirect-down',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
+              aboveFilePath: rootDir,
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-down',
+                'foo',
+                'bar',
+              ),
             },
             {
               filePath: path.join(
@@ -1250,19 +1218,58 @@ describe('resolver', function () {
                 'node_modules',
                 'side-effects-package-redirect-down',
                 'foo',
+                'bar.jsx',
+              ),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-down',
+                'foo',
                 'bar.json',
               ),
             },
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(
+              filePath: path.join(
                 rootDir,
-                'node_modules/side-effects-package-redirect-down/foo/bar/baz/real-bar.js',
+                'node_modules',
+                'side-effects-package-redirect-down',
+                'foo',
+                'bar.ts',
+              ),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-down',
+                'foo',
+                'bar.tsx',
+              ),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-down',
+                'foo',
+                'bar.cjs',
+              ),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-package-redirect-down',
+                'foo',
+                'bar.mjs',
               ),
             },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
             path.join(
               rootDir,
               'node_modules',
@@ -1472,20 +1479,13 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-browser-alias',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(
             rootDir,
             'node_modules',
@@ -1514,20 +1514,13 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-browser-alias',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(
             rootDir,
             'node_modules',
@@ -1559,30 +1552,7 @@ describe('resolver', function () {
         ),
         sideEffects: undefined,
         query: undefined,
-        invalidateOnFileCreate: [
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-browser-alias',
-              'browser.js',
-            ),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-browser-alias',
-              'bar',
-            ),
-          },
-        ],
+        invalidateOnFileCreate: [],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
           path.join(
@@ -1613,20 +1583,13 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-browser-alias',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(
             rootDir,
             'node_modules',
@@ -1661,35 +1624,12 @@ describe('resolver', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-browser-alias',
-              'browser.js',
-            ),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-browser-alias',
-              'nested',
-            ),
-          },
-          {
-            fileName: 'package.json',
             aboveFilePath: path.join(
               rootDir,
               'node_modules',
               'package-browser-alias',
               'subfolder1',
               'subfolder2',
-              'subfile.js',
             ),
           },
         ],
@@ -1718,20 +1658,13 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-alias',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
         ],
       });
@@ -1753,30 +1686,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'node_modules', 'package-alias', 'bar.js'),
         sideEffects: undefined,
         query: undefined,
-        invalidateOnFileCreate: [
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-alias',
-              'browser.js',
-            ),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-alias',
-              'bar',
-            ),
-          },
-        ],
+        invalidateOnFileCreate: [],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
           path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
@@ -1809,15 +1719,11 @@ describe('resolver', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
             aboveFilePath: path.join(
               rootDir,
               'node_modules',
               'package-alias-glob',
-              'index.js',
+              'lib',
             ),
           },
           {
@@ -1827,17 +1733,6 @@ describe('resolver', function () {
               'node_modules',
               'package-alias-glob',
               'src',
-              'test',
-            ),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-alias-glob',
-              'src',
-              'test.js',
             ),
           },
         ],
@@ -1866,16 +1761,8 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/foo',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
@@ -1898,31 +1785,12 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-alias',
-              'foo.js',
-            ),
-          },
-          {
             fileName: 'node_modules/foo',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-alias',
-              'foo.js',
-            ),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
           path.join(rootDir, 'node_modules', 'foo', 'package.json'),
         ],
       });
@@ -1941,31 +1809,12 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-alias',
-              'foo.js',
-            ),
-          },
-          {
             fileName: 'node_modules/foo',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-alias',
-              'foo.js',
-            ),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
           path.join(rootDir, 'node_modules', 'foo', 'package.json'),
         ],
       });
@@ -1982,20 +1831,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
         query: undefined,
-        invalidateOnFileCreate: [
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'bar.js'),
-          },
-        ],
+        invalidateOnFileCreate: [],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
@@ -2011,28 +1847,9 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
         query: undefined,
-        invalidateOnFileCreate: [
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-alias',
-              'foo.js',
-            ),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'bar.js'),
-          },
-        ],
+        invalidateOnFileCreate: [],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
         ],
       });
     });
@@ -2051,19 +1868,7 @@ describe('resolver', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
+            aboveFilePath: path.join(rootDir, 'nested'),
           },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
@@ -2084,28 +1889,31 @@ describe('resolver', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
             aboveFilePath: path.join(rootDir, 'nested'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested'),
           },
           {
             filePath: path.join(rootDir, 'nested.js'),
           },
           {
-            filePath: path.join(rootDir, 'nested.json'),
+            filePath: path.join(rootDir, 'nested.jsx'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested.cjs'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested.mjs'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested.ts'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested.tsx'),
           },
           {
             filePath: path.join(rootDir, 'nested', 'package.json'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested/index.js'),
           },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
@@ -2126,19 +1934,7 @@ describe('resolver', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
+            aboveFilePath: path.join(rootDir, 'nested'),
           },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
@@ -2159,28 +1955,31 @@ describe('resolver', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
             aboveFilePath: path.join(rootDir, 'nested'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested'),
           },
           {
             filePath: path.join(rootDir, 'nested.js'),
           },
           {
-            filePath: path.join(rootDir, 'nested.json'),
+            filePath: path.join(rootDir, 'nested.jsx'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested.cjs'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested.mjs'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested.ts'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested.tsx'),
           },
           {
             filePath: path.join(rootDir, 'nested', 'package.json'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested/index.js'),
           },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
@@ -2198,20 +1997,7 @@ describe('resolver', function () {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
         query: undefined,
-        invalidateOnFileCreate: [
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'bar.js'),
-          },
-        ],
+        invalidateOnFileCreate: [],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
@@ -2230,19 +2016,7 @@ describe('resolver', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested', 'test'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
+            aboveFilePath: path.join(rootDir, 'nested'),
           },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
@@ -2263,19 +2037,7 @@ describe('resolver', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
+            aboveFilePath: path.join(rootDir, 'nested'),
           },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
@@ -2296,29 +2058,11 @@ describe('resolver', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-alias',
-              'foo.js',
-            ),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
+            aboveFilePath: path.join(rootDir, 'nested'),
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
         ],
       });
     });
@@ -2336,31 +2080,19 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-browser-exclude',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(__dirname, '..', 'src', '_empty.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(
             rootDir,
             'node_modules',
             'package-browser-exclude',
             'package.json',
           ),
-          path.join(__dirname, '..', 'package.json'),
         ],
       });
     });
@@ -2378,31 +2110,19 @@ describe('resolver', function () {
         query: undefined,
         invalidateOnFileCreate: [
           {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'index'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
             fileName: 'node_modules/package-alias-exclude',
-            aboveFilePath: path.join(rootDir, 'foo.js'),
-          },
-          {
-            fileName: 'package.json',
-            aboveFilePath: path.join(__dirname, '..', 'src', '_empty.js'),
+            aboveFilePath: rootDir,
           },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'tsconfig.json'),
           path.join(
             rootDir,
             'node_modules',
             'package-alias-exclude',
             'package.json',
           ),
-          path.join(__dirname, '..', 'package.json'),
         ],
       });
     });
@@ -2423,21 +2143,15 @@ describe('resolver', function () {
           query: undefined,
           invalidateOnFileCreate: [
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'index'),
-            },
-            {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
-            },
-            {
               fileName: 'node_modules/source',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
+              aboveFilePath: rootDir,
             },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
             path.join(rootDir, 'node_modules', 'source', 'package.json'),
+            path.join(rootDir, 'packages', 'source', 'package.json'),
           ],
         });
       });
@@ -2463,21 +2177,15 @@ describe('resolver', function () {
           query: undefined,
           invalidateOnFileCreate: [
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'index'),
-            },
-            {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
-            },
-            {
               fileName: 'node_modules/source-pnpm',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
+              aboveFilePath: rootDir,
             },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
             path.join(rootDir, 'node_modules', 'source-pnpm', 'package.json'),
+            path.join(rootDir, 'node_modules', '.pnpm', 'source-pnpm@1.0.0', 'node_modules', 'source-pnpm', 'package.json'),
           ],
         });
       });
@@ -2502,20 +2210,13 @@ describe('resolver', function () {
           query: undefined,
           invalidateOnFileCreate: [
             {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'index'),
-            },
-            {
-              fileName: 'package.json',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
-            },
-            {
               fileName: 'node_modules/source-not-symlinked',
-              aboveFilePath: path.join(rootDir, 'foo.js'),
+              aboveFilePath: rootDir,
             },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
             path.join(
               rootDir,
               'node_modules',

@@ -110,12 +110,6 @@ pub struct ResolveResult<'a> {
   pub invalidations: Invalidations,
 }
 
-#[derive(PartialEq, Eq)]
-enum Prioritize {
-  Directory,
-  File,
-}
-
 impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
   pub fn node(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
     Self {
@@ -187,16 +181,24 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     }
   }
 
-  pub fn resolve_side_effects(&self, path: &Path) -> Result<bool, ResolverError> {
-    if let Some(package) = self.find_package(path.parent().unwrap())? {
+  pub fn resolve_side_effects(
+    &self,
+    path: &Path,
+    invalidations: &Invalidations,
+  ) -> Result<bool, ResolverError> {
+    if let Some(package) = self.find_package(path.parent().unwrap(), invalidations)? {
       Ok(package.has_side_effects(path))
     } else {
       Ok(true)
     }
   }
 
-  fn find_package(&self, from: &Path) -> Result<Option<&PackageJson>, ResolverError> {
-    if let Some(path) = self.find_ancestor_file(from, "package.json") {
+  fn find_package(
+    &self,
+    from: &Path,
+    invalidations: &Invalidations,
+  ) -> Result<Option<&PackageJson>, ResolverError> {
+    if let Some(path) = self.find_ancestor_file(from, "package.json", invalidations) {
       let package = self.cache.read_package(Cow::Owned(path))?;
       return Ok(Some(package));
     }
@@ -204,7 +206,13 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     Ok(None)
   }
 
-  fn find_ancestor_file(&self, from: &Path, filename: &str) -> Option<PathBuf> {
+  fn find_ancestor_file(
+    &self,
+    from: &Path,
+    filename: &str,
+    invalidations: &Invalidations,
+  ) -> Option<PathBuf> {
+    let mut first = true;
     for dir in from.ancestors() {
       if let Some(filename) = dir.file_name() {
         if filename == "node_modules" {
@@ -214,12 +222,19 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
 
       let file = dir.join(filename);
       if self.cache.fs.is_file(&file) {
+        invalidations.invalidate_on_file_change(&file);
         return Some(file);
       }
 
       if dir == self.project_root {
         break;
       }
+
+      if first {
+        invalidations.invalidate_on_file_create_above(filename, from);
+      }
+
+      first = false;
     }
 
     None
@@ -371,7 +386,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             specifier.strip_prefix("/").unwrap(),
             &self.resolver.project_root.join("index"),
           )
-        } else if let Some(res) = self.load_path(&specifier, None, Prioritize::File)? {
+        } else if let Some(res) = self.load_path(&specifier, None)? {
           Ok(res)
         } else {
           Err(ResolverError::FileNotFound {
@@ -388,7 +403,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           && self.resolver.flags.contains(Flags::EXPORTS)
         {
           // An internal package #import specifier.
-          let package = self.find_package(&self.from)?;
+          let package = self.find_package(&self.from.parent().unwrap())?;
           if let Some(package) = package {
             let res = package
               .resolve_package_imports(&hash, self.conditions)
@@ -440,46 +455,26 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   }
 
   fn find_ancestor_file(&self, from: &Path, filename: &str) -> Option<PathBuf> {
+    let from = from.parent().unwrap();
     self
-      .invalidations
-      .invalidate_on_file_create_above(filename, from);
-
-    let res = self.resolver.find_ancestor_file(from, filename);
-    if let Some(path) = &res {
-      self.invalidations.invalidate_on_file_change(path);
-    }
-    res
+      .resolver
+      .find_ancestor_file(from, filename, &self.invalidations)
   }
 
   fn find_package(&self, from: &Path) -> Result<Option<&'a PackageJson<'a>>, ResolverError> {
-    let is_package_json = match from.file_name() {
-      None => true,
-      Some(f) => f != "package.json",
-    };
-
-    if is_package_json {
-      self
-        .invalidations
-        .invalidate_on_file_create_above("package.json", from);
-    }
-
-    let package = self.resolver.find_package(from)?;
-    if let Some(package) = &package {
-      self.invalidations.invalidate_on_file_change(&package.path);
-    }
-    Ok(package)
+    self.resolver.find_package(from, &self.invalidations)
   }
 
   fn resolve_relative(&self, specifier: &Path, from: &Path) -> Result<Resolution, ResolverError> {
     // Resolve aliases from the nearest package.json.
     let path = resolve_path(from, specifier);
     let package = if self.resolver.flags.contains(Flags::ALIASES) {
-      self.find_package(&path)?
+      self.find_package(&path.parent().unwrap())?
     } else {
       None
     };
 
-    if let Some(res) = self.load_path(&path, package, Prioritize::File)? {
+    if let Some(res) = self.load_path(&path, package)? {
       return Ok(res);
     }
 
@@ -513,7 +508,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       }
 
       // Next, try the local package.json.
-      if let Some(package) = self.find_package(&self.from)? {
+      if let Some(package) = self.find_package(&self.from.parent().unwrap())? {
         let mut fields = Fields::ALIAS;
         if self.resolver.entries.contains(Fields::BROWSER) {
           fields |= Fields::BROWSER;
@@ -544,9 +539,10 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       let package_dir = module_dir_resolver(module, self.from)?;
       return self.resolve_package(package_dir, module, subpath);
     } else {
-      self
-        .invalidations
-        .invalidate_on_file_create_above(format!("node_modules/{}", module), self.from);
+      self.invalidations.invalidate_on_file_create_above(
+        format!("node_modules/{}", module),
+        self.from.parent().unwrap(),
+      );
 
       for dir in self.from.ancestors() {
         // Skip over node_modules directories
@@ -625,7 +621,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       });
     } else if !subpath.is_empty() {
       package_dir.push(subpath);
-      if let Some(res) = self.load_path(&package_dir, Some(&package), Prioritize::File)? {
+      if let Some(res) = self.load_path(&package_dir, Some(&package))? {
         return Ok(res);
       }
 
@@ -667,13 +663,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   ) -> Result<Option<Resolution>, ResolverError> {
     // Try all entry fields.
     for (entry, field) in package.entries(self.resolver.entries) {
-      let prioritize = if entry.extension().is_some() {
-        Prioritize::File
-      } else {
-        Prioritize::Directory
-      };
-
-      if let Some(res) = self.load_path(&entry, Some(package), prioritize)? {
+      if let Some(res) = self.load_path(&entry, Some(package))? {
         return Ok(Some(res));
       } else {
         return Err(ResolverError::ModuleEntryNotFound {
@@ -692,25 +682,31 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     &self,
     path: &Path,
     package: Option<&PackageJson>,
-    prioritize: Prioritize,
   ) -> Result<Option<Resolution>, ResolverError> {
     // Urls and Node ESM do not resolve directory index files.
-    if !self.resolver.flags.contains(Flags::DIR_INDEX) || self.specifier_type == SpecifierType::Url
-    {
-      return self.load_file(path, package);
-    }
+    let can_load_directory =
+      self.resolver.flags.contains(Flags::DIR_INDEX) && self.specifier_type != SpecifierType::Url;
 
-    if prioritize == Prioritize::Directory {
-      if let Some(res) = self.load_directory(path, package)? {
-        return Ok(Some(res));
-      }
-      self.load_file(path, package)
-    } else {
+    // If path ends with / only try loading as a directory.
+    let is_directory = can_load_directory
+      && path
+        .as_os_str()
+        .to_str()
+        .map(|s| s.ends_with('/'))
+        .unwrap_or(false);
+
+    if !is_directory {
       if let Some(res) = self.load_file(path, package)? {
         return Ok(Some(res));
       }
-      self.load_directory(path, package)
     }
+
+    // Urls and Node ESM do not resolve directory index files.
+    if can_load_directory {
+      return self.load_directory(path, package);
+    }
+
+    Ok(None)
   }
 
   fn load_file(
@@ -721,7 +717,9 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     // First try the path as is.
     // TypeScript only supports resolving specifiers ending with `.ts` or `.tsx`
     // in a certain mode, but we always allow it.
-    if let Some(res) = self.try_suffixes(path, "", package)? {
+    // If there is no extension in the original specifier, only check aliases
+    // here and delay checking for an extensionless file until later (since this is unlikely).
+    if let Some(res) = self.try_suffixes(path, "", package, path.extension().is_none())? {
       return Ok(Some(res));
     }
 
@@ -757,14 +755,25 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     }
 
     // Try adding the same extension as in the parent file first.
-    // TODO: only for certain extensions?
     if let Some(ext) = self.priority_extension {
       if let Some(res) = self.try_extensions(path, package, &[ext], false)? {
         return Ok(Some(res));
       }
     }
 
-    self.try_extensions(path, package, &self.resolver.extensions, true)
+    // Try appending the configured extensions.
+    if let Some(res) = self.try_extensions(path, package, &self.resolver.extensions, true)? {
+      return Ok(Some(res));
+    }
+
+    // If there is no extension in the specifier, try an extensionless file as a last resort.
+    if path.extension().is_none() {
+      if let Some(res) = self.try_suffixes(path, "", package, false)? {
+        return Ok(Some(res));
+      }
+    }
+
+    Ok(None)
   }
 
   fn try_extensions(
@@ -787,7 +796,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           continue;
         }
 
-        if let Some(res) = self.try_suffixes(path, ext, package)? {
+        if let Some(res) = self.try_suffixes(path, ext, package, false)? {
           return Ok(Some(res));
         }
       }
@@ -801,6 +810,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     path: &Path,
     ext: &str,
     package: Option<&PackageJson>,
+    alias_only: bool,
   ) -> Result<Option<Resolution>, ResolverError> {
     // TypeScript supports a moduleSuffixes option in tsconfig.json which allows suffixes
     // such as ".ios" to be appended just before the last extension.
@@ -846,7 +856,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         p = Cow::Owned(PathBuf::from(s));
       }
 
-      if let Some(res) = self.try_file(p.as_ref(), package)? {
+      if let Some(res) = self.try_file(p.as_ref(), package, alias_only)? {
         return Ok(Some(res));
       }
     }
@@ -858,6 +868,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     &self,
     path: &Path,
     package: Option<&PackageJson>,
+    alias_only: bool,
   ) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.flags.contains(Flags::ALIASES) {
       // Check the project root package.json first.
@@ -883,6 +894,10 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           }
         }
       }
+    }
+
+    if alias_only {
+      return Ok(None);
     }
 
     self.try_file_without_aliases(path)
@@ -935,7 +950,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     if let Some(tsconfig) = self.tsconfig()? {
       for path in tsconfig.paths(&self.specifier) {
         // TODO: should aliases apply to tsconfig paths??
-        if let Some(res) = self.load_path(&path, None, Prioritize::File)? {
+        if let Some(res) = self.load_path(&path, None)? {
           return Ok(Some(res));
         }
       }
@@ -1116,27 +1131,25 @@ mod tests {
         from: root().join("foo.js")
       },
     );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./foo",
+          &root().join("priority/index.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("priority/foo.js"))
+    );
 
     let invalidations = test_resolver()
       .resolve("./bar", &root().join("foo.js"), SpecifierType::Esm)
       .invalidations;
     assert_eq!(
       *invalidations.invalidate_on_file_create.read().unwrap(),
-      HashSet::from([
-        FileCreateInvalidation::Path(root().join("bar")),
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root().join("bar")
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root()
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "tsconfig.json".into(),
-          above: root().join("foo.js")
-        },
-      ])
+      HashSet::new()
     );
     assert_eq!(
       *invalidations.invalidate_on_file_change.read().unwrap(),
@@ -1376,25 +1389,10 @@ mod tests {
       .invalidations;
     assert_eq!(
       *invalidations.invalidate_on_file_create.read().unwrap(),
-      HashSet::from([
-        FileCreateInvalidation::FileName {
-          file_name: "node_modules/foo".into(),
-          above: root().join("foo.js")
-        },
-        FileCreateInvalidation::Path(root().join("node_modules/foo/index")),
-        FileCreateInvalidation::FileName {
-          file_name: "tsconfig.json".into(),
-          above: root().join("foo.js")
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root().join("foo.js")
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root()
-        },
-      ])
+      HashSet::from([FileCreateInvalidation::FileName {
+        file_name: "node_modules/foo".into(),
+        above: root()
+      },])
     );
     assert_eq!(
       *invalidations.invalidate_on_file_change.read().unwrap(),
@@ -1532,29 +1530,10 @@ mod tests {
       .invalidations;
     assert_eq!(
       *invalidations.invalidate_on_file_create.read().unwrap(),
-      HashSet::from([
-        FileCreateInvalidation::FileName {
-          file_name: "node_modules/package-alias".into(),
-          above: root().join("foo.js")
-        },
-        FileCreateInvalidation::Path(root().join("node_modules/package-alias/bar")),
-        FileCreateInvalidation::FileName {
-          file_name: "tsconfig.json".into(),
-          above: root().join("foo.js")
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root().join("foo.js")
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root()
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root().join("node_modules/package-alias/bar")
-        },
-      ])
+      HashSet::from([FileCreateInvalidation::FileName {
+        file_name: "node_modules/package-alias".into(),
+        above: root()
+      },])
     );
     assert_eq!(
       *invalidations.invalidate_on_file_change.read().unwrap(),
@@ -2108,20 +2087,7 @@ mod tests {
       .invalidations;
     assert_eq!(
       *invalidations.invalidate_on_file_create.read().unwrap(),
-      HashSet::from([
-        FileCreateInvalidation::FileName {
-          file_name: "tsconfig.json".into(),
-          above: root().join("foo.js")
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root().join("foo.js")
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root()
-        }
-      ])
+      HashSet::new()
     );
     assert_eq!(
       *invalidations.invalidate_on_file_change.read().unwrap(),
@@ -2309,16 +2275,12 @@ mod tests {
       HashSet::from([
         FileCreateInvalidation::Path(root().join("ts-extensions/a.js")),
         FileCreateInvalidation::FileName {
+          file_name: "package.json".into(),
+          above: root().join("ts-extensions")
+        },
+        FileCreateInvalidation::FileName {
           file_name: "tsconfig.json".into(),
-          above: root().join("ts-extensions/index.ts")
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root().join("ts-extensions/a.js")
-        },
-        FileCreateInvalidation::FileName {
-          file_name: "package.json".into(),
-          above: root()
+          above: root().join("ts-extensions")
         },
       ])
     );
@@ -2337,7 +2299,9 @@ mod tests {
       .0;
 
     if let Resolution::Path(path) = resolved {
-      resolver.resolve_side_effects(&path).unwrap()
+      resolver
+        .resolve_side_effects(&path, &Invalidations::default())
+        .unwrap()
     } else {
       unreachable!()
     }
