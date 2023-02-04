@@ -2938,11 +2938,11 @@ describe('resolver', function () {
               {
                 message: undefined,
                 start: {
-                  line: 13,
+                  line: 14,
                   column: 14
                 },
                 end: {
-                  line: 15,
+                  line: 16,
                   column: 3
                 }
               }

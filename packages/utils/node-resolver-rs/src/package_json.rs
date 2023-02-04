@@ -10,6 +10,7 @@ use std::{
 };
 
 use crate::{
+  path::resolve_path,
   specifier::decode_path,
   specifier::{Specifier, SpecifierType},
 };
@@ -365,7 +366,7 @@ impl<'a> PackageJson<'a> {
           return Err(PackageJsonError::InvalidPackageTarget);
         }
 
-        let resolved_target = self.path.with_file_name(target_path.as_ref());
+        let resolved_target = resolve_path(&self.path, &target_path);
         return Ok(ExportsResolution::Path(resolved_target));
       }
       ExportsField::Map(target) => {
@@ -712,16 +713,14 @@ impl<'a> Iterator for EntryIter<'a> {
       match &self.package.source {
         SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => {}
         SourceField::String(source) => {
-          return Some((self.package.path.with_file_name(source), "source"))
+          return Some((resolve_path(&self.package.path, source), "source"))
         }
         SourceField::Map(map) => match map.get(&Specifier::Package(
           Cow::Borrowed(self.package.name),
           Cow::Borrowed(""),
         )) {
           Some(AliasValue::Specifier(s)) => match s {
-            Specifier::Relative(s) => {
-              return Some((self.package.path.with_file_name(s.as_ref()), "source"))
-            }
+            Specifier::Relative(s) => return Some((resolve_path(&self.package.path, s), "source")),
             _ => {}
           },
           _ => {}
@@ -734,7 +733,7 @@ impl<'a> Iterator for EntryIter<'a> {
       match &self.package.browser {
         BrowserField::None => {}
         BrowserField::String(browser) => {
-          return Some((self.package.path.with_file_name(browser), "browser"))
+          return Some((resolve_path(&self.package.path, browser), "browser"))
         }
         BrowserField::Map(map) => match map.get(&Specifier::Package(
           Cow::Borrowed(self.package.name),
@@ -742,7 +741,7 @@ impl<'a> Iterator for EntryIter<'a> {
         )) {
           Some(AliasValue::Specifier(s)) => match s {
             Specifier::Relative(s) => {
-              return Some((self.package.path.with_file_name(s.as_ref()), "browser"))
+              return Some((resolve_path(&self.package.path, s), "browser"))
             }
             _ => {}
           },
@@ -754,21 +753,21 @@ impl<'a> Iterator for EntryIter<'a> {
     if self.fields.contains(Fields::MODULE) {
       self.fields.remove(Fields::MODULE);
       if let Some(module) = self.package.module {
-        return Some((self.package.path.with_file_name(module), "module"));
+        return Some((resolve_path(&self.package.path, module), "module"));
       }
     }
 
     if self.fields.contains(Fields::MAIN) {
       self.fields.remove(Fields::MAIN);
       if let Some(main) = self.package.main {
-        return Some((self.package.path.with_file_name(main), "main"));
+        return Some((resolve_path(&self.package.path, main), "main"));
       }
     }
 
     if self.fields.contains(Fields::TSCONFIG) {
       self.fields.remove(Fields::TSCONFIG);
       if let Some(tsconfig) = self.package.tsconfig {
-        return Some((self.package.path.with_file_name(tsconfig), "tsconfig"));
+        return Some((resolve_path(&self.package.path, tsconfig), "tsconfig"));
       }
     }
 

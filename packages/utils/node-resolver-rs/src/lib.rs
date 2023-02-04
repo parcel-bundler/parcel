@@ -18,6 +18,7 @@ mod error;
 mod fs;
 mod invalidations;
 mod package_json;
+mod path;
 mod specifier;
 mod tsconfig;
 
@@ -27,6 +28,8 @@ pub use fs::{FileSystem, OsFileSystem};
 pub use invalidations::*;
 pub use package_json::{ExportsCondition, Fields, PackageJsonError};
 pub use specifier::SpecifierType;
+
+use crate::path::resolve_path;
 
 bitflags! {
   pub struct Flags: u16 {
@@ -230,6 +233,7 @@ struct ResolveRequest<'a, Fs> {
   from: &'a Path,
   flags: RequestFlags,
   tsconfig: OnceCell<Option<&'a TsConfig<'a>>>,
+  root_package: OnceCell<Option<&'a PackageJson<'a>>>,
   invalidations: &'a Invalidations,
   conditions: ExportsCondition,
   priority_extension: Option<&'a str>,
@@ -297,6 +301,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       from,
       flags,
       tsconfig: OnceCell::new(),
+      root_package: OnceCell::new(),
       invalidations,
       conditions,
       priority_extension,
@@ -325,7 +330,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             self.invalidations,
           );
           req.priority_extension = self.priority_extension;
-          let resolved = req.resolve_specifier()?;
+          let resolved = req.resolve()?;
           Ok(Some(resolved))
         }
         AliasValue::Bool(false) => Ok(Some(Resolution::Empty)),
@@ -336,21 +341,13 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     }
   }
 
-  fn resolve(&self) -> Result<Resolution, ResolverError> {
-    // First, check the project root package.json for any aliases.
-    if self.resolver.flags.contains(Flags::ALIASES) {
-      if let Some(package) = self.find_package(&self.resolver.project_root)? {
-        // TODO: convert specifier to be relative to package?
-        if let Some(res) = self.resolve_aliases(&package, &self.specifier, Fields::ALIAS)? {
-          return Ok(res);
-        }
-      }
-    }
-
-    self.resolve_specifier()
+  fn root_package(&self) -> Result<&Option<&PackageJson>, ResolverError> {
+    self
+      .root_package
+      .get_or_try_init(|| self.find_package(&self.resolver.project_root))
   }
 
-  fn resolve_specifier(&self) -> Result<Resolution, ResolverError> {
+  fn resolve(&self) -> Result<Resolution, ResolverError> {
     match &self.specifier {
       Specifier::Relative(specifier) => {
         // Relative path
@@ -454,7 +451,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     res
   }
 
-  fn find_package(&self, from: &Path) -> Result<Option<&PackageJson>, ResolverError> {
+  fn find_package(&self, from: &Path) -> Result<Option<&'a PackageJson<'a>>, ResolverError> {
     let is_package_json = match from.file_name() {
       None => true,
       Some(f) => f != "package.json",
@@ -475,7 +472,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
   fn resolve_relative(&self, specifier: &Path, from: &Path) -> Result<Resolution, ResolverError> {
     // Resolve aliases from the nearest package.json.
-    let path = from.with_file_name(specifier);
+    let path = resolve_path(from, specifier);
     let package = if self.resolver.flags.contains(Flags::ALIASES) {
       self.find_package(&path)?
     } else {
@@ -503,8 +500,19 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       return Ok(Resolution::External);
     }
 
-    // First, check for a local alias within the parent package.json.
     if self.resolver.flags.contains(Flags::ALIASES) {
+      // First, check for an alias in the root package.json.
+      if let Some(package) = self.root_package()? {
+        if let Some(res) = self.resolve_aliases(
+          package,
+          &Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath)),
+          Fields::ALIAS,
+        )? {
+          return Ok(res);
+        }
+      }
+
+      // Next, try the local package.json.
       if let Some(package) = self.find_package(&self.from)? {
         let mut fields = Fields::ALIAS;
         if self.resolver.entries.contains(Fields::BROWSER) {
@@ -852,6 +860,17 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     package: Option<&PackageJson>,
   ) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.flags.contains(Flags::ALIASES) {
+      // Check the project root package.json first.
+      if let Some(package) = self.root_package()? {
+        if let Ok(s) = path.strip_prefix(package.path.parent().unwrap()) {
+          let specifier = Specifier::Relative(Cow::Borrowed(s));
+          if let Some(res) = self.resolve_aliases(package, &specifier, Fields::ALIAS)? {
+            return Ok(Some(res));
+          }
+        }
+      }
+
+      // Next try the local package.json.
       if let Some(package) = package {
         if let Ok(s) = path.strip_prefix(package.path.parent().unwrap()) {
           let specifier = Specifier::Relative(Cow::Borrowed(s));
@@ -952,7 +971,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           let path = match &tsconfig.extends[i] {
             Specifier::Absolute(path) => path.as_ref().to_owned(),
             Specifier::Relative(path) => {
-              let mut absolute_path = tsconfig.compiler_options.path.with_file_name(path.as_ref());
+              let mut absolute_path = resolve_path(&tsconfig.compiler_options.path, path);
 
               // TypeScript allows "." and ".." to implicitly refer to a tsconfig.json file.
               if path == Path::new(".") || path == Path::new("..") {
@@ -1692,6 +1711,66 @@ mod tests {
         .unwrap()
         .0,
       Resolution::Empty
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve("./baz", &root().join("foo.js"), SpecifierType::Esm)
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("bar.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve("../baz", &root().join("x/foo.js"), SpecifierType::Esm)
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("bar.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve("~/baz", &root().join("x/foo.js"), SpecifierType::Esm)
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("bar.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./baz",
+          &root().join("node_modules/foo/bar.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/foo/baz.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "~/baz",
+          &root().join("node_modules/foo/bar.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/foo/baz.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "/baz",
+          &root().join("node_modules/foo/bar.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("bar.js"))
     );
   }
 

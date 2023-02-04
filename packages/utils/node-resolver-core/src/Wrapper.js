@@ -386,10 +386,10 @@ export default class NodeResolver {
             this.options.projectRoot,
             false
           );
-
-          if (!relative.startsWith('.')) {
-            relative = './' + relative;
-          }
+        }
+        
+        if (!relative.startsWith('.')) {
+          relative = './' + relative;
         }
 
         return {

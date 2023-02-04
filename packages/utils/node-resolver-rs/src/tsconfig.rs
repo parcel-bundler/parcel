@@ -7,7 +7,7 @@ use indexmap::IndexMap;
 use itertools::Either;
 use json_comments::strip_comments_in_place;
 
-use crate::specifier::Specifier;
+use crate::{path::resolve_path, specifier::Specifier};
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -63,7 +63,7 @@ impl<'a> TsConfig<'a> {
 
   fn validate(&mut self) {
     if let Some(base_url) = &mut self.base_url {
-      *base_url = Cow::Owned(self.path.with_file_name(base_url.as_ref()));
+      *base_url = Cow::Owned(resolve_path(&self.path, &base_url));
     }
 
     if self.paths.is_some() {

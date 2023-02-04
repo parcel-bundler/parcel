@@ -1,10 +1,10 @@
 use std::{
   collections::HashSet,
-  path::{Component, Path, PathBuf},
+  path::{Path, PathBuf},
   sync::RwLock,
 };
 
-use crate::ResolverError;
+use crate::{path::normalize_path, ResolverError};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum FileCreateInvalidation {
@@ -64,34 +64,4 @@ impl Invalidations {
       }
     }
   }
-}
-
-fn normalize_path(path: &Path) -> PathBuf {
-  // Normalize path components to resolve ".." and "." segments.
-  // https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
-  let mut components = path.components().peekable();
-  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
-    components.next();
-    PathBuf::from(c.as_os_str())
-  } else {
-    PathBuf::new()
-  };
-
-  for component in components {
-    match component {
-      Component::Prefix(..) => unreachable!(),
-      Component::RootDir => {
-        ret.push(component.as_os_str());
-      }
-      Component::CurDir => {}
-      Component::ParentDir => {
-        ret.pop();
-      }
-      Component::Normal(c) => {
-        ret.push(c);
-      }
-    }
-  }
-
-  ret
 }
