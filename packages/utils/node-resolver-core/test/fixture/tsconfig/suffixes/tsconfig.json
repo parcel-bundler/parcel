@@ -1,9 +1,5 @@
 {
   "compilerOptions": {
-    "moduleSuffixes": [
-      ".ios",
-      "-test",
-      ""
-    ]
+    "moduleSuffixes": [".ios", "-test", ""]
   }
 }

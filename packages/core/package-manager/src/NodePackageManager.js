@@ -32,7 +32,12 @@ import {ResolverBase} from '@parcel/node-resolver-core';
 // Package.json fields. Must match package_json.rs.
 const MAIN = 1 << 0;
 const SOURCE = 1 << 2;
-const ENTRIES = MAIN | (process.env.PARCEL_BUILD_ENV !== 'production' || process.env.PARCEL_SELF_BUILD ? SOURCE : 0);
+const ENTRIES =
+  MAIN |
+  (process.env.PARCEL_BUILD_ENV !== 'production' ||
+  process.env.PARCEL_SELF_BUILD
+    ? SOURCE
+    : 0);
 
 // There can be more than one instance of NodePackageManager, but node has only a single module cache.
 // Therefore, the resolution cache and the map of parent to child modules should also be global.
@@ -64,24 +69,30 @@ export class NodePackageManager implements PackageManager {
 
   _createResolver(): any {
     return new ResolverBase(this.projectRoot, {
-      fs: this.fs instanceof NodeFS && process.versions.pnp == null ? undefined : {
-        canonicalize: path => this.fs.realpathSync(path),
-        read: path => this.fs.readFileSync(path),
-        isFile: path => this.fs.statSync(path).isFile(),
-        isDir: path => this.fs.statSync(path).isDirectory()
-      },
+      fs:
+        this.fs instanceof NodeFS && process.versions.pnp == null
+          ? undefined
+          : {
+              canonicalize: path => this.fs.realpathSync(path),
+              read: path => this.fs.readFileSync(path),
+              isFile: path => this.fs.statSync(path).isFile(),
+              isDir: path => this.fs.statSync(path).isDirectory(),
+            },
       mode: 2,
       entries: ENTRIES,
-      moduleDirResolver: process.versions.pnp != null ? (module, from) => {
-        // $FlowFixMe[prop-missing]
-        let pnp = Module.findPnpApi(path.dirname(from));
-        
-        return pnp.resolveToUnqualified(
-          // append slash to force loading builtins from npm
-          module + '/',
-          from,
-        );
-      } : undefined,
+      moduleDirResolver:
+        process.versions.pnp != null
+          ? (module, from) => {
+              // $FlowFixMe[prop-missing]
+              let pnp = Module.findPnpApi(path.dirname(from));
+
+              return pnp.resolveToUnqualified(
+                // append slash to force loading builtins from npm
+                module + '/',
+                from,
+              );
+            }
+          : undefined,
     });
   }
 
@@ -436,7 +447,7 @@ export class NodePackageManager implements PackageManager {
       children.delete(resolved.resolved);
       cache.delete(key);
     };
-    
+
     invalidate(name, from);
     this.resolver = this._createResolver();
   }
@@ -445,7 +456,7 @@ export class NodePackageManager implements PackageManager {
     let res = this.resolver.resolve({
       filename: name,
       specifierType: 'commonjs',
-      parent: from
+      parent: from,
     });
 
     // Invalidate whenever the .pnp.js file changes.
@@ -466,10 +477,16 @@ export class NodePackageManager implements PackageManager {
     switch (res.resolution.type) {
       case 'Path':
         getPkg = () => {
-          let pkgPath = this.fs.findAncestorFile(['package.json'], res.resolution.value, this.projectRoot);
-          return pkgPath ? JSON.parse(this.fs.readFileSync(pkgPath, 'utf8')) : null;
+          let pkgPath = this.fs.findAncestorFile(
+            ['package.json'],
+            res.resolution.value,
+            this.projectRoot,
+          );
+          return pkgPath
+            ? JSON.parse(this.fs.readFileSync(pkgPath, 'utf8'))
+            : null;
         };
-        // fallthrough
+      // fallthrough
       case 'Builtin':
         return {
           resolved: res.resolution.value,
@@ -477,7 +494,7 @@ export class NodePackageManager implements PackageManager {
           invalidateOnFileCreate: res.invalidateOnFileCreate,
           get pkg() {
             return getPkg();
-          }
+          },
         };
       default:
         throw new Error('Unknown resolution type');

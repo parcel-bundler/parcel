@@ -1,5 +1,14 @@
 // @flow
-import type {FilePath, SpecifierType, SemverRange, Environment, SourceLocation, BuildMode, ResolveResult, PluginLogger} from '@parcel/types';
+import type {
+  FilePath,
+  SpecifierType,
+  SemverRange,
+  Environment,
+  SourceLocation,
+  BuildMode,
+  ResolveResult,
+  PluginLogger,
+} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
@@ -62,26 +71,36 @@ export default class NodeResolver {
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
       resolver = new Resolver(this.options.projectRoot, {
-        fs: this.options.fs instanceof NodeFS && process.versions.pnp == null ? undefined : {
-          canonicalize: path => this.options.fs.realpathSync(path),
-          read: path => this.options.fs.readFileSync(path),
-          isFile: path => this.options.fs.statSync(path).isFile(),
-          isDir: path => this.options.fs.statSync(path).isDirectory()
-        },
+        fs:
+          this.options.fs instanceof NodeFS && process.versions.pnp == null
+            ? undefined
+            : {
+                canonicalize: path => this.options.fs.realpathSync(path),
+                read: path => this.options.fs.readFileSync(path),
+                isFile: path => this.options.fs.statSync(path).isFile(),
+                isDir: path => this.options.fs.statSync(path).isDirectory(),
+              },
         mode: 1,
         includeNodeModules: options.env.includeNodeModules,
-        entries: MAIN | MODULE | SOURCE | (options.env.isBrowser() ? BROWSER : 0),
-        conditions: environmentToExportsConditions(options.env, this.options.mode),
-        moduleDirResolver: process.versions.pnp != null ? (module, from) => {
-          // $FlowFixMe[prop-missing]
-          let pnp = _Module.findPnpApi(path.dirname(from));
+        entries:
+          MAIN | MODULE | SOURCE | (options.env.isBrowser() ? BROWSER : 0),
+        conditions: environmentToExportsConditions(
+          options.env,
+          this.options.mode,
+        ),
+        moduleDirResolver:
+          process.versions.pnp != null
+            ? (module, from) => {
+                // $FlowFixMe[prop-missing]
+                let pnp = _Module.findPnpApi(path.dirname(from));
 
-          return pnp.resolveToUnqualified(
-            // append slash to force loading builtins from npm
-            module + '/',
-            from,
-          );
-        } : undefined,
+                return pnp.resolveToUnqualified(
+                  // append slash to force loading builtins from npm
+                  module + '/',
+                  from,
+                );
+              }
+            : undefined,
       });
       this.resolversByEnv.set(options.env.id, resolver);
     }
@@ -90,7 +109,10 @@ export default class NodeResolver {
     if (options.parent == null) {
       options.parent = path.join(this.options.projectRoot, 'index');
       if (path.isAbsolute(options.filename)) {
-        options.filename = relativePath(this.options.projectRoot, options.filename);
+        options.filename = relativePath(
+          this.options.projectRoot,
+          options.filename,
+        );
       }
     }
 
@@ -98,7 +120,11 @@ export default class NodeResolver {
 
     // Invalidate whenever the .pnp.js file changes.
     // TODO: only when we actually resolve a node_modules package?
-    if (process.versions.pnp != null && options.parent && res.invalidateOnFileChange) {
+    if (
+      process.versions.pnp != null &&
+      options.parent &&
+      res.invalidateOnFileChange
+    ) {
       // $FlowFixMe[prop-missing]
       let pnp = _Module.findPnpApi(path.dirname(options.parent));
       res.invalidateOnFileChange.push(pnp.resolveToUnqualified('pnpapi', null));
@@ -109,7 +135,7 @@ export default class NodeResolver {
       return {
         diagnostics: diagnostic ? [diagnostic] : [],
         invalidateOnFileCreate: res.invalidateOnFileCreate,
-        invalidateOnFileChange: res.invalidateOnFileChange
+        invalidateOnFileChange: res.invalidateOnFileChange,
       };
     }
 
@@ -120,22 +146,30 @@ export default class NodeResolver {
           invalidateOnFileCreate: res.invalidateOnFileCreate,
           invalidateOnFileChange: res.invalidateOnFileChange,
           sideEffects: res.sideEffects,
-          query: res.query != null ? new URLSearchParams(res.query) : undefined
+          query: res.query != null ? new URLSearchParams(res.query) : undefined,
         };
       case 'Builtin':
         return this.resolveBuiltin(res.resolution.value, options);
       case 'External': {
-        if (options.sourcePath && options.env.isLibrary && options.specifierType !== 'url') {
-          let diagnostic = await this.checkExcludedDependency(options.sourcePath, options.filename, options);
+        if (
+          options.sourcePath &&
+          options.env.isLibrary &&
+          options.specifierType !== 'url'
+        ) {
+          let diagnostic = await this.checkExcludedDependency(
+            options.sourcePath,
+            options.filename,
+            options,
+          );
           if (diagnostic) {
             return {
               diagnostics: [diagnostic],
               invalidateOnFileCreate: res.invalidateOnFileCreate,
-              invalidateOnFileChange: res.invalidateOnFileChange
+              invalidateOnFileChange: res.invalidateOnFileChange,
             };
           }
         }
-  
+
         // TODO: invalidations?
         return {isExcluded: true};
       }
@@ -143,21 +177,27 @@ export default class NodeResolver {
         return {
           filePath: empty,
           invalidateOnFileCreate: res.invalidateOnFileCreate,
-          invalidateOnFileChange: res.invalidateOnFileChange
+          invalidateOnFileChange: res.invalidateOnFileChange,
         };
       case 'Global':
         return {
-          filePath: path.join(this.options.projectRoot, `${res.resolution.value}.js`),
+          filePath: path.join(
+            this.options.projectRoot,
+            `${res.resolution.value}.js`,
+          ),
           code: `module.exports=${res.resolution.value};`,
           invalidateOnFileCreate: res.invalidateOnFileCreate,
-          invalidateOnFileChange: res.invalidateOnFileChange
+          invalidateOnFileChange: res.invalidateOnFileChange,
         };
       default:
         return null;
     }
   }
 
-  async resolveBuiltin(name: string, options: ResolveOptions): Promise<?ResolveResult> {
+  async resolveBuiltin(
+    name: string,
+    options: ResolveOptions,
+  ): Promise<?ResolveResult> {
     if (options.env.isNode()) {
       return {isExcluded: true};
     }
@@ -178,7 +218,7 @@ export default class NodeResolver {
     let builtin = builtins[name];
     if (!builtin || builtin.name === empty) {
       return {
-        filePath: empty
+        filePath: empty,
       };
     }
 
@@ -198,20 +238,22 @@ export default class NodeResolver {
         if (this.options.shouldAutoInstall && packageManager) {
           this.options.logger?.warn({
             message: md`Auto installing polyfill for Node builtin module "${packageName}"...`,
-            codeFrames: options.loc ? [
-              {
-                filePath: options.loc.filePath,
-                codeHighlights: options.loc
-                  ? [
-                      {
-                        message: 'used here',
-                        start: options.loc.start,
-                        end: options.loc.end,
-                      },
-                    ]
-                  : [],
-              },
-            ] : [],
+            codeFrames: options.loc
+              ? [
+                  {
+                    filePath: options.loc.filePath,
+                    codeHighlights: options.loc
+                      ? [
+                          {
+                            message: 'used here',
+                            start: options.loc.start,
+                            end: options.loc.end,
+                          },
+                        ]
+                      : [],
+                  },
+                ]
+              : [],
             documentationURL:
               'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
           });
@@ -236,18 +278,20 @@ export default class NodeResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`Node builtin polyfill "${packageName}" is not installed, but auto install is disabled.`,
-              codeFrames: options.loc ? [
-                {
-                  filePath: options.loc.filePath,
-                  codeHighlights: [
+              codeFrames: options.loc
+                ? [
                     {
-                      message: 'used here',
-                      start: options.loc.start,
-                      end: options.loc.end,
+                      filePath: options.loc.filePath,
+                      codeHighlights: [
+                        {
+                          message: 'used here',
+                          start: options.loc.start,
+                          end: options.loc.end,
+                        },
+                      ],
                     },
                   ]
-                },
-              ] : [],
+                : [],
               documentationURL:
                 'https://parceljs.org/features/node-emulation/#polyfilling-%26-excluding-builtin-node-modules',
               hints: [
@@ -334,9 +378,11 @@ export default class NodeResolver {
         let alternativeModules = await findAlternativeNodeModules(
           this.options.fs,
           error.module,
-          options.parent ? path.dirname(options.parent) : this.options.projectRoot,
+          options.parent
+            ? path.dirname(options.parent)
+            : this.options.projectRoot,
         );
-  
+
         return {
           message: md`Cannot find module '${error.module}'`,
           hints: alternativeModules.map(r => {
@@ -355,7 +401,10 @@ export default class NodeResolver {
         );
 
         let alternative = alternatives[0];
-        let pkgContent = await this.options.fs.readFile(error.package_path, 'utf8');
+        let pkgContent = await this.options.fs.readFile(
+          error.package_path,
+          'utf8',
+        );
         return {
           message: md`Could not load '${fileSpecifier}' from module '${error.module}' found in package.json#${error.field}`,
           codeFrames: [
@@ -379,7 +428,10 @@ export default class NodeResolver {
       case 'ModuleSubpathNotFound': {
         let dir = path.dirname(error.package_path);
         let relative = relativePath(dir, error.path, false);
-        let pkgContent = await this.options.fs.readFile(error.package_path, 'utf8');
+        let pkgContent = await this.options.fs.readFile(
+          error.package_path,
+          'utf8',
+        );
         let pkg = JSON.parse(pkgContent);
         let potentialFiles = [];
         if (!pkg.exports) {
@@ -388,7 +440,7 @@ export default class NodeResolver {
             relative,
             dir,
             this.options.projectRoot,
-            false
+            false,
           );
         }
 
@@ -406,7 +458,9 @@ export default class NodeResolver {
       case 'JsonError': {
         let pkgContent = await this.options.fs.readFile(error.path, 'utf8');
         return {
-          message: md`Error parsing JSON`,
+          message: md`
+Error parsing JSON
+          `,
           codeFrames: [
             {
               filePath: error.path,
@@ -417,14 +471,14 @@ export default class NodeResolver {
                   message: error.message,
                   start: {
                     line: error.line,
-                    column: error.column
+                    column: error.column,
                   },
                   end: {
                     line: error.line,
-                    column: error.column
-                  }
-                }
-              ]
+                    column: error.column,
+                  },
+                },
+              ],
             },
           ],
         };
@@ -437,11 +491,11 @@ export default class NodeResolver {
             };
           case 'InvalidPackageSpecifier':
             return {
-              message: 'Invalid package specifier'
+              message: 'Invalid package specifier',
             };
           case 'InvalidFileUrl':
             return {
-              message: 'Invalid file url'
+              message: 'Invalid file url',
             };
           case 'UrlError':
             return {
@@ -498,12 +552,14 @@ export default class NodeResolver {
                   filePath: error.path,
                   language: 'json',
                   code: pkgContent,
-                  codeHighlights: parsed.pointers['/imports'] ? generateJSONCodeHighlights(parsed, [
-                    {
-                      key: `/imports`,
-                      type: 'value',
-                    },
-                  ]) : [],
+                  codeHighlights: parsed.pointers['/imports']
+                    ? generateJSONCodeHighlights(parsed, [
+                        {
+                          key: `/imports`,
+                          type: 'value',
+                        },
+                      ])
+                    : [],
                 },
               ],
             };
@@ -516,7 +572,9 @@ export default class NodeResolver {
         return {
           message: md`Cannot find a package.json above '${relativePath(
             this.options.projectRoot,
-            options.parent ? path.dirname(options.parent) : this.options.projectRoot,
+            options.parent
+              ? path.dirname(options.parent)
+              : this.options.projectRoot,
           )}'`,
         };
       }
@@ -542,7 +600,7 @@ export default class NodeResolver {
     if (!res) {
       return;
     }
-    
+
     let pkg = res.config;
     let pkgfile = res.files[0].filePath;
     if (
@@ -617,7 +675,10 @@ export default class NodeResolver {
   }
 }
 
-function environmentToExportsConditions(env: Environment, mode: ?BuildMode): number {
+function environmentToExportsConditions(
+  env: Environment,
+  mode: ?BuildMode,
+): number {
   // These must match the values in package_json.rs.
   const NODE = 1 << 3;
   const BROWSER = 1 << 4;

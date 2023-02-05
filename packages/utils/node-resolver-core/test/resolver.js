@@ -76,13 +76,13 @@ describe('resolver', function () {
     resolver = new NodeResolver({
       fs: overlayFS,
       projectRoot: rootDir,
-      mode: 'development'
+      mode: 'development',
     });
 
     prodResolver = new NodeResolver({
       fs: overlayFS,
       projectRoot: rootDir,
-      mode: 'production'
+      mode: 'production',
     });
 
     configCache.clear();
@@ -91,13 +91,24 @@ describe('resolver', function () {
   function normalize(res) {
     return {
       filePath: res?.filePath,
-      invalidateOnFileCreate: res?.invalidateOnFileCreate?.sort((a, b) => {
-        let ax = a.filePath ?? a.glob ?? (a.aboveFilePath != null && a.fileName != null ? a.aboveFilePath + a.fileName : '');
-        let bx = b.filePath ?? b.glob ?? (b.aboveFilePath != null && b.fileName != null ? b.aboveFilePath + b.fileName : '');
-        return ax < bx ? -1 : 1;
-      }) ?? [],
+      invalidateOnFileCreate:
+        res?.invalidateOnFileCreate?.sort((a, b) => {
+          let ax =
+            a.filePath ??
+            a.glob ??
+            (a.aboveFilePath != null && a.fileName != null
+              ? a.aboveFilePath + a.fileName
+              : '');
+          let bx =
+            b.filePath ??
+            b.glob ??
+            (b.aboveFilePath != null && b.fileName != null
+              ? b.aboveFilePath + b.fileName
+              : '');
+          return ax < bx ? -1 : 1;
+        }) ?? [],
       invalidateOnFileChange: res?.invalidateOnFileChange?.sort() ?? [],
-      sideEffects: res?.sideEffects ?? true
+      sideEffects: res?.sideEffects ?? true,
     };
   }
 
@@ -701,65 +712,65 @@ describe('resolver', function () {
               rootDir,
               'node_modules',
               'package-main-directory',
-              'nested'
-            )
+              'nested',
+            ),
           },
           {
             filePath: path.join(
               rootDir,
               'node_modules',
               'package-main-directory',
-              'nested.js'
-            )
+              'nested.js',
+            ),
           },
           {
             filePath: path.join(
               rootDir,
               'node_modules',
               'package-main-directory',
-              'nested.json'
-            )
+              'nested.json',
+            ),
           },
           {
             filePath: path.join(
               rootDir,
               'node_modules',
               'package-main-directory',
-              'nested.jsx'
-            )
+              'nested.jsx',
+            ),
           },
           {
             filePath: path.join(
               rootDir,
               'node_modules',
               'package-main-directory',
-              'nested.cjs'
-            )
+              'nested.cjs',
+            ),
           },
           {
             filePath: path.join(
               rootDir,
               'node_modules',
               'package-main-directory',
-              'nested.mjs'
-            )
+              'nested.mjs',
+            ),
           },
           {
             filePath: path.join(
               rootDir,
               'node_modules',
               'package-main-directory',
-              'nested.ts'
-            )
+              'nested.ts',
+            ),
           },
           {
             filePath: path.join(
               rootDir,
               'node_modules',
               'package-main-directory',
-              'nested.tsx'
-            )
-          }
+              'nested.tsx',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
@@ -792,12 +803,7 @@ describe('resolver', function () {
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(
-              rootDir,
-              'node_modules',
-              'foo',
-              'nested',
-            ),
+            aboveFilePath: path.join(rootDir, 'node_modules', 'foo', 'nested'),
           },
         ],
         invalidateOnFileChange: [
@@ -1848,9 +1854,7 @@ describe('resolver', function () {
         sideEffects: undefined,
         query: undefined,
         invalidateOnFileCreate: [],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-        ],
+        invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
 
@@ -2061,9 +2065,7 @@ describe('resolver', function () {
             aboveFilePath: path.join(rootDir, 'nested'),
           },
         ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-        ],
+        invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
 
@@ -2185,7 +2187,15 @@ describe('resolver', function () {
             path.join(rootDir, 'package.json'),
             path.join(rootDir, 'tsconfig.json'),
             path.join(rootDir, 'node_modules', 'source-pnpm', 'package.json'),
-            path.join(rootDir, 'node_modules', '.pnpm', 'source-pnpm@1.0.0', 'node_modules', 'source-pnpm', 'package.json'),
+            path.join(
+              rootDir,
+              'node_modules',
+              '.pnpm',
+              'source-pnpm@1.0.0',
+              'node_modules',
+              'source-pnpm',
+              'package.json',
+            ),
           ],
         });
       });
@@ -2237,7 +2247,13 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-import-dev.mjs'));
+      assert.equal(
+        resolved?.filePath,
+        path.join(
+          rootDir,
+          'node_modules/package-conditions/browser-import-dev.mjs',
+        ),
+      );
     });
 
     it('should resolve a browser development require', async function () {
@@ -2247,7 +2263,13 @@ describe('resolver', function () {
         specifierType: 'commonjs',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-require-dev.cjs'));
+      assert.equal(
+        resolved?.filePath,
+        path.join(
+          rootDir,
+          'node_modules/package-conditions/browser-require-dev.cjs',
+        ),
+      );
     });
 
     it('should resolve a browser production import', async function () {
@@ -2257,7 +2279,13 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-import-prod.mjs'));
+      assert.equal(
+        resolved?.filePath,
+        path.join(
+          rootDir,
+          'node_modules/package-conditions/browser-import-prod.mjs',
+        ),
+      );
     });
 
     it('should resolve a browser development require', async function () {
@@ -2267,7 +2295,13 @@ describe('resolver', function () {
         specifierType: 'commonjs',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/browser-require-prod.cjs'));
+      assert.equal(
+        resolved?.filePath,
+        path.join(
+          rootDir,
+          'node_modules/package-conditions/browser-require-prod.cjs',
+        ),
+      );
     });
 
     it('should resolve a node import', async function () {
@@ -2277,7 +2311,10 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/node-import.mjs'));
+      assert.equal(
+        resolved?.filePath,
+        path.join(rootDir, 'node_modules/package-conditions/node-import.mjs'),
+      );
     });
 
     it('should resolve a node require', async function () {
@@ -2287,7 +2324,10 @@ describe('resolver', function () {
         specifierType: 'commonjs',
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(resolved?.filePath, path.join(rootDir, 'node_modules/package-conditions/node-require.cjs'));
+      assert.equal(
+        resolved?.filePath,
+        path.join(rootDir, 'node_modules/package-conditions/node-require.cjs'),
+      );
     });
   });
 
@@ -2353,13 +2393,10 @@ describe('resolver', function () {
         parent: path.join(rootDir, 'foo.js'),
       });
 
-      assert.deepEqual(
-        nullthrows(nullthrows(result).diagnostics)[0],
-        {
-          message: `Cannot find module 'food'`,
-          hints: [`Did you mean '__foo__'?`]
-        },
-      );
+      assert.deepEqual(nullthrows(nullthrows(result).diagnostics)[0], {
+        message: `Cannot find module 'food'`,
+        hints: [`Did you mean '__foo__'?`],
+      });
     });
 
     it('should throw when a subfile of a node_module cannot be resolved', async function () {
@@ -2370,13 +2407,10 @@ describe('resolver', function () {
         parent: path.join(rootDir, 'foo.js'),
       });
 
-      assert.deepEqual(
-        nullthrows(nullthrows(result).diagnostics)[0],
-        {
-          message: `Cannot load file './bark' from module 'foo'`,
-          hints: [`Did you mean '__foo/bar__'?`]
-        },
-      );
+      assert.deepEqual(nullthrows(nullthrows(result).diagnostics)[0], {
+        message: `Cannot load file './bark' from module 'foo'`,
+        hints: [`Did you mean '__foo/bar__'?`],
+      });
     });
 
     it('should error when a library is missing an external dependency', async function () {
@@ -2507,29 +2541,36 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
-      let file = path.join(rootDir, 'node_modules', 'json-error', 'package.json');
+      let file = path.join(
+        rootDir,
+        'node_modules',
+        'json-error',
+        'package.json',
+      );
       assert.deepEqual(result?.diagnostics, [
         {
           message: 'Error parsing JSON',
-          codeFrames: [{
-            language: 'json',
-            filePath: file,
-            code: await overlayFS.readFile(file, 'utf8'),
-            codeHighlights: [
-              {
-                message: 'expected `,` or `}` at line 3 column 3',
-                start: {
-                  line: 3,
-                  column: 3
+          codeFrames: [
+            {
+              language: 'json',
+              filePath: file,
+              code: await overlayFS.readFile(file, 'utf8'),
+              codeHighlights: [
+                {
+                  message: 'expected `,` or `}` at line 3 column 3',
+                  start: {
+                    line: 3,
+                    column: 3,
+                  },
+                  end: {
+                    line: 3,
+                    column: 3,
+                  },
                 },
-                end: {
-                  line: 3,
-                  column: 3
-                }
-              }
-            ]
-          }]
-        }
+              ],
+            },
+          ],
+        },
       ]);
     });
 
@@ -2543,7 +2584,7 @@ describe('resolver', function () {
       assert.deepEqual(result?.diagnostics, [
         {
           message: 'Invalid empty specifier',
-        }
+        },
       ]);
     });
 
@@ -2557,18 +2598,18 @@ describe('resolver', function () {
           filePath: path.join(rootDir, 'foo.js'),
           start: {
             line: 1,
-            column: 1
+            column: 1,
           },
           end: {
             line: 1,
-            column: 10
-          }
-        }
+            column: 10,
+          },
+        },
       });
       assert.deepEqual(result?.diagnostics, [
         {
           message: `Unknown url scheme or pipeline 'http:'`,
-        }
+        },
       ]);
     });
 
@@ -2579,29 +2620,34 @@ describe('resolver', function () {
         specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
-      let file = path.join(rootDir, 'node_modules/package-exports/package.json');
+      let file = path.join(
+        rootDir,
+        'node_modules/package-exports/package.json',
+      );
       assert.deepEqual(result?.diagnostics, [
         {
           message: `Module 'package-exports/internal' is not exported from the 'package-exports' package`,
-          codeFrames: [{
-            language: 'json',
-            filePath: file,
-            code: await overlayFS.readFile(file, 'utf8'),
-            codeHighlights: [
-              {
-                message: undefined,
-                start: {
-                  line: 4,
-                  column: 14
+          codeFrames: [
+            {
+              language: 'json',
+              filePath: file,
+              code: await overlayFS.readFile(file, 'utf8'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 4,
+                    column: 14,
+                  },
+                  end: {
+                    line: 12,
+                    column: 3,
+                  },
                 },
-                end: {
-                  line: 12,
-                  column: 3
-                }
-              }
-            ]
-          }]
-        }
+              ],
+            },
+          ],
+        },
       ]);
     });
 
@@ -2615,8 +2661,8 @@ describe('resolver', function () {
       assert.deepEqual(result?.diagnostics, [
         {
           message: `Cannot load file './missing.mjs' from module 'package-exports'`,
-          hints: []
-        }
+          hints: [],
+        },
       ]);
     });
 
@@ -2631,29 +2677,31 @@ describe('resolver', function () {
       assert.deepEqual(result?.diagnostics, [
         {
           message: `Package import '#foo' is not defined in the 'resolver' package`,
-          codeFrames: [{
-            language: 'json',
-            filePath: file,
-            code: await overlayFS.readFile(file, 'utf8'),
-            codeHighlights: [
-              {
-                message: undefined,
-                start: {
-                  line: 14,
-                  column: 14
+          codeFrames: [
+            {
+              language: 'json',
+              filePath: file,
+              code: await overlayFS.readFile(file, 'utf8'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 14,
+                    column: 14,
+                  },
+                  end: {
+                    line: 16,
+                    column: 3,
+                  },
                 },
-                end: {
-                  line: 16,
-                  column: 3
-                }
-              }
-            ]
-          }]
-        }
+              ],
+            },
+          ],
+        },
       ]);
     });
 
-    it('should error when package.json doesn\'t define imports field', async function () {
+    it("should error when package.json doesn't define imports field", async function () {
       let result = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '#foo',
@@ -2664,27 +2712,34 @@ describe('resolver', function () {
       assert.deepEqual(result?.diagnostics, [
         {
           message: `Package import '#foo' is not defined in the 'foo' package`,
-          codeFrames: [{
-            language: 'json',
-            filePath: file,
-            code: await overlayFS.readFile(file, 'utf8'),
-            codeHighlights: []
-          }]
-        }
+          codeFrames: [
+            {
+              language: 'json',
+              filePath: file,
+              code: await overlayFS.readFile(file, 'utf8'),
+              codeHighlights: [],
+            },
+          ],
+        },
       ]);
     });
 
-    it('should error when a package.json couldn\'t be found', async function () {
+    it("should error when a package.json couldn't be found", async function () {
       let result = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '#foo',
         specifierType: 'esm',
-        parent: path.join(rootDir, 'node_modules', 'tsconfig-not-used', 'foo.js'),
+        parent: path.join(
+          rootDir,
+          'node_modules',
+          'tsconfig-not-used',
+          'foo.js',
+        ),
       });
       assert.deepEqual(result?.diagnostics, [
         {
           message: `Cannot find a package.json above './node\\_modules/tsconfig-not-used'`,
-        }
+        },
       ]);
     });
   });
