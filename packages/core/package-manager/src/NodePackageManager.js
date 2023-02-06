@@ -228,6 +228,7 @@ export class NodePackageManager implements PackageManager {
             saveDev: options?.saveDev ?? true,
           });
 
+          this.invalidate(id, from);
           return this.resolve(id, from, {
             ...options,
             shouldAutoInstall: false,
