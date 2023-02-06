@@ -26,6 +26,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use indexmap::IndexMap;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
@@ -369,7 +370,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       source_map: &source_map,
                       items: &mut global_deps,
                       global_mark,
-                      globals: HashMap::new(),
+                      globals: IndexMap::new(),
                       project_root: Path::new(&config.project_root),
                       filename: Path::new(&config.filename),
                       decls: &mut decls,

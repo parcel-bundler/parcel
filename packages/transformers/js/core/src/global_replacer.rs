@@ -1,5 +1,6 @@
+use indexmap::IndexMap;
 use path_slash::PathBufExt;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::Path;
 
 use swc_atoms::JsWord;
@@ -14,7 +15,7 @@ pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
   pub items: &'a mut Vec<DependencyDescriptor>,
   pub global_mark: Mark,
-  pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
+  pub globals: IndexMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub project_root: &'a Path,
   pub filename: &'a Path,
   pub decls: &'a mut HashSet<Id>,
@@ -138,16 +139,12 @@ impl<'a> Fold for GlobalReplacer<'a> {
   fn fold_module(&mut self, node: ast::Module) -> ast::Module {
     // Insert globals at the top of the program
     let mut node = swc_ecmascript::visit::fold_module(self, node);
-
-    // Sort globals to ensure they are inserted in the same order cross builds
-    let mut sorted_globals: Vec<_> = self.globals.iter().collect();
-    sorted_globals.sort_by_key(|a| a.0);
-
     node.body.splice(
       0..0,
-      sorted_globals
-        .iter()
-        .map(|(_, (_, stmt))| ast::ModuleItem::Stmt(stmt.clone())),
+      self
+        .globals
+        .values()
+        .map(|(_, stmt)| ast::ModuleItem::Stmt(stmt.clone())),
     );
     node
   }

@@ -1205,6 +1205,7 @@ dependencies = [
  "Inflector",
  "data-encoding",
  "dunce",
+ "indexmap",
  "indoc",
  "path-slash",
  "pathdiff",
