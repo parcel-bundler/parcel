@@ -5,7 +5,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   path::{Path, PathBuf},
-  rc::Rc,
+  sync::Arc,
 };
 
 use package_json::{AliasValue, ExportsResolution, PackageJson};
@@ -76,7 +76,7 @@ impl Default for IncludeNodeModules {
   }
 }
 
-type ResolveModuleDir = dyn Fn(&str, &Path) -> Result<PathBuf, ResolverError>;
+type ResolveModuleDir = dyn Fn(&str, &Path) -> Result<PathBuf, ResolverError> + Send + Sync;
 
 pub struct Resolver<'a, Fs> {
   pub project_root: Cow<'a, Path>,
@@ -86,7 +86,7 @@ pub struct Resolver<'a, Fs> {
   pub flags: Flags,
   pub include_node_modules: Cow<'a, IncludeNodeModules>,
   pub conditions: ExportsCondition,
-  pub module_dir_resolver: Option<Rc<ResolveModuleDir>>,
+  pub module_dir_resolver: Option<Arc<ResolveModuleDir>>,
   cache: CacheCow<'a, Fs>,
 }
 
@@ -105,8 +105,8 @@ pub enum Resolution {
   Global(String),
 }
 
-pub struct ResolveResult<'a> {
-  pub result: Result<(Resolution, Option<&'a str>), ResolverError>,
+pub struct ResolveResult {
+  pub result: Result<(Resolution, Option<String>), ResolverError>,
   pub invalidations: Invalidations,
 }
 
@@ -158,7 +158,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     specifier: &'s str,
     from: &Path,
     specifier_type: SpecifierType,
-  ) -> ResolveResult<'s> {
+  ) -> ResolveResult {
     let invalidations = Invalidations::default();
     let (specifier, query) = match Specifier::parse(specifier, specifier_type, self.flags) {
       Ok(s) => s,
@@ -171,7 +171,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     };
     let request = ResolveRequest::new(self, &specifier, specifier_type, from, &invalidations);
     let result = match request.resolve() {
-      Ok(r) => Ok((r, query)),
+      Ok(r) => Ok((r, query.map(|q| q.to_owned()))),
       Err(r) => Err(r),
     };
 
@@ -221,7 +221,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       }
 
       let file = dir.join(filename);
-      if self.cache.fs.is_file(&file) {
+      if self.cache.is_file(&file) {
         invalidations.invalidate_on_file_change(&file);
         return Some(file);
       }
@@ -553,7 +553,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         }
 
         let package_dir = dir.join("node_modules").join(module);
-        if self.resolver.cache.fs.is_dir(&package_dir) {
+        if self.resolver.cache.is_dir(&package_dir) {
           return self.resolve_package(package_dir, module, subpath);
         }
       }
@@ -904,9 +904,9 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   }
 
   fn try_file_without_aliases(&self, path: &Path) -> Result<Option<Resolution>, ResolverError> {
-    if self.resolver.cache.fs.is_file(path) {
+    if self.resolver.cache.is_file(path) {
       Ok(Some(Resolution::Path(
-        self.resolver.cache.fs.canonicalize(path)?,
+        self.resolver.cache.canonicalize(path)?,
       )))
     } else {
       self.invalidations.invalidate_on_file_create(path);
@@ -936,7 +936,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     };
 
     // If no package.json, or no entries, try an index file with all possible extensions.
-    if self.resolver.flags.contains(Flags::DIR_INDEX) && self.resolver.cache.fs.is_dir(dir) {
+    if self.resolver.flags.contains(Flags::DIR_INDEX) && self.resolver.cache.is_dir(dir) {
       return self.load_file(
         &dir.join(self.resolver.index_file),
         package.or(parent_package),
@@ -1052,11 +1052,17 @@ mod tests {
   }
 
   fn test_resolver<'a>() -> Resolver<'a, OsFileSystem> {
-    Resolver::parcel(root().into(), CacheCow::Owned(Cache::default()))
+    Resolver::parcel(
+      root().into(),
+      CacheCow::Owned(Cache::new(OsFileSystem::default())),
+    )
   }
 
   fn node_resolver<'a>() -> Resolver<'a, OsFileSystem> {
-    Resolver::node(root().into(), CacheCow::Owned(Cache::default()))
+    Resolver::node(
+      root().into(),
+      CacheCow::Owned(Cache::new(OsFileSystem::default())),
+    )
   }
 
   #[test]

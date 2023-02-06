@@ -7,5 +7,6 @@ members = [
   "packages/utils/hash",
   "packages/optimizers/image",
   "packages/utils/node-resolver-rs",
-  "packages/utils/node-resolver-core"
+  "packages/utils/node-resolver-core",
+  "packages/utils/dev-dep-resolver"
 ]

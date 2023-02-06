@@ -2,9 +2,11 @@ use std::{
   borrow::Cow,
   ops::Deref,
   path::{Path, PathBuf},
+  sync::Mutex,
 };
 
-use elsa::FrozenMap;
+use dashmap::DashMap;
+use elsa::sync::FrozenMap;
 use typed_arena::Arena;
 
 use crate::{
@@ -14,17 +16,19 @@ use crate::{
   ResolverError,
 };
 
-#[derive(Default)]
 pub struct Cache<Fs = OsFileSystem> {
   pub fs: Fs,
   // This stores file content strings, which are borrowed when parsing package.json and tsconfig.json files.
-  arena: Arena<Box<str>>,
+  arena: Mutex<Arena<Box<str>>>,
   // These map paths to parsed config files. They aren't really 'static, but Rust doens't have a good
   // way to associate a lifetime with owned data stored in the same struct. We only vend temporary references
   // from our public methods so this is ok for now. FrozenMap is an append only map, which doesn't require &mut
   // to insert into. Since each value is in a Box, it won't move and therefore references are stable.
   packages: FrozenMap<PathBuf, Box<Result<PackageJson<'static>, ResolverError>>>,
   tsconfigs: FrozenMap<PathBuf, Box<Result<TsConfigWrapper<'static>, ResolverError>>>,
+  is_file_cache: DashMap<PathBuf, bool>,
+  is_dir_cache: DashMap<PathBuf, bool>,
+  realpath_cache: DashMap<PathBuf, Option<PathBuf>>,
 }
 
 // Special Cow implementation for a Cache that doesn't require Clone.
@@ -67,10 +71,37 @@ impl<Fs: FileSystem> Cache<Fs> {
   pub fn new(fs: Fs) -> Self {
     Self {
       fs,
-      arena: Arena::new(),
+      arena: Mutex::new(Arena::new()),
       packages: FrozenMap::new(),
       tsconfigs: FrozenMap::new(),
+      is_file_cache: DashMap::new(),
+      is_dir_cache: DashMap::new(),
+      realpath_cache: DashMap::new(),
     }
+  }
+
+  pub fn is_file(&self, path: &Path) -> bool {
+    if let Some(is_file) = self.is_file_cache.get(path) {
+      return *is_file;
+    }
+
+    let is_file = self.fs.is_file(path);
+    self.is_file_cache.insert(path.to_path_buf(), is_file);
+    is_file
+  }
+
+  pub fn is_dir(&self, path: &Path) -> bool {
+    if let Some(is_file) = self.is_dir_cache.get(path) {
+      return *is_file;
+    }
+
+    let is_file = self.fs.is_dir(path);
+    self.is_dir_cache.insert(path.to_path_buf(), is_file);
+    is_file
+  }
+
+  pub fn canonicalize(&self, path: &Path) -> Result<PathBuf, ResolverError> {
+    Ok(self.fs.canonicalize(path, &self.realpath_cache)?)
   }
 
   pub fn read_package<'a>(&'a self, path: Cow<Path>) -> Result<&'a PackageJson<'a>, ResolverError> {
@@ -80,7 +111,8 @@ impl<Fs: FileSystem> Cache<Fs> {
 
     fn read_package<Fs: FileSystem>(
       fs: &Fs,
-      arena: &Arena<Box<str>>,
+      realpath_cache: &DashMap<PathBuf, Option<PathBuf>>,
+      arena: &Mutex<Arena<Box<str>>>,
       path: PathBuf,
     ) -> Result<PackageJson<'static>, ResolverError> {
       let data = read(fs, arena, &path)?;
@@ -92,7 +124,7 @@ impl<Fs: FileSystem> Cache<Fs> {
       // Since such package is likely a pre-compiled module
       // installed with package managers, rather than including a source code.
       if !matches!(pkg.source, SourceField::None) {
-        let realpath = fs.canonicalize(&pkg.path)?;
+        let realpath = fs.canonicalize(&pkg.path, realpath_cache)?;
         if realpath == pkg.path
           || realpath
             .components()
@@ -108,7 +140,12 @@ impl<Fs: FileSystem> Cache<Fs> {
     let path = path.into_owned();
     let pkg = self.packages.insert(
       path.clone(),
-      Box::new(read_package(&self.fs, &self.arena, path)),
+      Box::new(read_package(
+        &self.fs,
+        &self.realpath_cache,
+        &self.arena,
+        path,
+      )),
     );
 
     clone_result(pkg)
@@ -129,7 +166,7 @@ impl<Fs: FileSystem> Cache<Fs> {
       F: FnOnce(&mut TsConfigWrapper<'a>) -> Result<(), ResolverError>,
     >(
       fs: &Fs,
-      arena: &Arena<Box<str>>,
+      arena: &Mutex<Arena<Box<str>>>,
       path: &Path,
       process: F,
     ) -> Result<TsConfigWrapper<'static>, ResolverError> {
@@ -153,9 +190,10 @@ impl<Fs: FileSystem> Cache<Fs> {
 
 fn read<F: FileSystem>(
   fs: &F,
-  arena: &Arena<Box<str>>,
+  arena: &Mutex<Arena<Box<str>>>,
   path: &Path,
 ) -> std::io::Result<&'static mut str> {
+  let arena = arena.lock().unwrap();
   let data = arena.alloc(fs.read_to_string(path)?.into_boxed_str());
   // The data lives as long as the arena. In public methods, we only vend temporary references.
   Ok(unsafe { &mut *(&mut **data as *mut str) })

@@ -1,6 +1,7 @@
 use crate::PackageJsonError;
 use crate::{cache::JsonError, specifier::SpecifierError};
-use std::{path::PathBuf, rc::Rc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "type")]
@@ -42,7 +43,7 @@ pub enum ResolverError {
 }
 
 #[derive(Debug, Clone)]
-pub struct IOError(Rc<std::io::Error>);
+pub struct IOError(Arc<std::io::Error>);
 
 impl serde::Serialize for IOError {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -79,7 +80,7 @@ impl From<JsonError> for ResolverError {
 
 impl From<std::io::Error> for ResolverError {
   fn from(e: std::io::Error) -> Self {
-    ResolverError::IOError(IOError(Rc::new(e)))
+    ResolverError::IOError(IOError(Arc::new(e)))
   }
 }
 

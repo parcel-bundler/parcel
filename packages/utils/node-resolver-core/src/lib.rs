@@ -1,10 +1,11 @@
+use dashmap::DashMap;
 use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref, Result};
 use napi_derive::napi;
 use std::{
   borrow::Cow,
   collections::HashMap,
   path::{Path, PathBuf},
-  rc::Rc,
+  sync::Arc,
 };
 
 use parcel_resolver::{
@@ -38,6 +39,10 @@ struct FunctionRef {
   reference: Ref<()>,
 }
 
+// We don't currently call functions from multiple threads, but we'll need to change this when we do.
+unsafe impl Send for FunctionRef {}
+unsafe impl Sync for FunctionRef {}
+
 impl FunctionRef {
   fn new(env: Env, f: JsFunction) -> napi::Result<Self> {
     Ok(Self {
@@ -58,7 +63,6 @@ impl Drop for FunctionRef {
 }
 
 struct JsFileSystem {
-  env: Env,
   canonicalize: FunctionRef,
   read: FunctionRef,
   is_file: FunctionRef,
@@ -66,10 +70,14 @@ struct JsFileSystem {
 }
 
 impl FileSystem for JsFileSystem {
-  fn canonicalize<P: AsRef<Path>>(&self, path: P) -> std::io::Result<std::path::PathBuf> {
+  fn canonicalize<P: AsRef<Path>>(
+    &self,
+    path: P,
+    _cache: &DashMap<PathBuf, Option<PathBuf>>,
+  ) -> std::io::Result<std::path::PathBuf> {
     let canonicalize = || -> napi::Result<_> {
       let path = path.as_ref().to_string_lossy();
-      let path = self.env.create_string(path.as_ref())?;
+      let path = self.canonicalize.env.create_string(path.as_ref())?;
       let res: JsString = self.canonicalize.get()?.call(None, &[path])?.try_into()?;
       let utf8 = res.into_utf8()?;
       Ok(utf8.into_owned()?.into())
@@ -81,7 +89,7 @@ impl FileSystem for JsFileSystem {
   fn read_to_string<P: AsRef<Path>>(&self, path: P) -> std::io::Result<String> {
     let read = || -> napi::Result<_> {
       let path = path.as_ref().to_string_lossy();
-      let path = self.env.create_string(path.as_ref())?;
+      let path = self.read.env.create_string(path.as_ref())?;
       let res: JsBuffer = self.read.get()?.call(None, &[path])?.try_into()?;
       let value = res.into_value()?;
       Ok(unsafe { String::from_utf8_unchecked(value.to_vec()) })
@@ -93,7 +101,7 @@ impl FileSystem for JsFileSystem {
   fn is_file<P: AsRef<Path>>(&self, path: P) -> bool {
     let is_file = || -> napi::Result<_> {
       let path = path.as_ref().to_string_lossy();
-      let p = self.env.create_string(path.as_ref())?;
+      let p = self.is_file.env.create_string(path.as_ref())?;
       let res: JsBoolean = self.is_file.get()?.call(None, &[p])?.try_into()?;
       res.get_value()
     };
@@ -107,7 +115,7 @@ impl FileSystem for JsFileSystem {
   fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
     let is_dir = || -> napi::Result<_> {
       let path = path.as_ref().to_string_lossy();
-      let path = self.env.create_string(path.as_ref())?;
+      let path = self.is_dir.env.create_string(path.as_ref())?;
       let res: JsBoolean = self.is_dir.get()?.call(None, &[path])?.try_into()?;
       res.get_value()
     };
@@ -125,10 +133,14 @@ enum EitherFs<A, B> {
 }
 
 impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
-  fn canonicalize<P: AsRef<Path>>(&self, path: P) -> std::io::Result<std::path::PathBuf> {
+  fn canonicalize<P: AsRef<Path>>(
+    &self,
+    path: P,
+    cache: &DashMap<PathBuf, Option<PathBuf>>,
+  ) -> std::io::Result<std::path::PathBuf> {
     match self {
-      EitherFs::A(a) => a.canonicalize(path),
-      EitherFs::B(b) => b.canonicalize(path),
+      EitherFs::A(a) => a.canonicalize(path, cache),
+      EitherFs::B(b) => b.canonicalize(path, cache),
     }
   }
 
@@ -194,7 +206,6 @@ impl Resolver {
   pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
     let fs = if let Some(fs) = options.fs {
       EitherFs::A(JsFileSystem {
-        env,
         canonicalize: FunctionRef::new(env, fs.canonicalize)?,
         read: FunctionRef::new(env, fs.read)?,
         is_file: FunctionRef::new(env, fs.is_file)?,
@@ -239,8 +250,9 @@ impl Resolver {
 
     if let Some(module_dir_resolver) = options.module_dir_resolver {
       let module_dir_resolver = FunctionRef::new(env, module_dir_resolver)?;
-      resolver.module_dir_resolver = Some(Rc::new(move |module: &str, from: &Path| {
+      resolver.module_dir_resolver = Some(Arc::new(move |module: &str, from: &Path| {
         let call = |module: &str| -> napi::Result<PathBuf> {
+          let env = module_dir_resolver.env;
           let s = env.create_string(module)?;
           let f = env.create_string(from.to_string_lossy().as_ref())?;
           let res: JsString = module_dir_resolver.get()?.call(None, &[s, f])?.try_into()?;
@@ -248,7 +260,8 @@ impl Resolver {
           Ok(utf8.into_owned()?.into())
         };
 
-        call(module).map_err(|_| ResolverError::ModuleNotFound {
+        let r = call(module);
+        r.map_err(|_| ResolverError::ModuleNotFound {
           module: module.to_owned(),
         })
       }));
@@ -295,7 +308,7 @@ impl Resolver {
         invalidate_on_file_change,
         invalidate_on_file_create,
         side_effects,
-        query: query.map(|q| q.to_owned()),
+        query,
         error: env.get_undefined()?.into_unknown(),
       }),
       Err(err) => Ok(ResolveResult {
