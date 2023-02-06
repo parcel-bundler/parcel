@@ -224,11 +224,11 @@ export class NodePackageManager implements PackageManager {
         );
 
         if (conflicts == null) {
+          this.invalidate(id, from);
           await this.install([{name, range: options?.range}], from, {
             saveDev: options?.saveDev ?? true,
           });
 
-          this.invalidate(id, from);
           return this.resolve(id, from, {
             ...options,
             shouldAutoInstall: false,
@@ -269,6 +269,7 @@ export class NodePackageManager implements PackageManager {
           );
 
           if (conflicts == null && options?.shouldAutoInstall === true) {
+            this.invalidate(id, from);
             await this.install([{name, range}], from);
             return this.resolve(id, from, {
               ...options,
