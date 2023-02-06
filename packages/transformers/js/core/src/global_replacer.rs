@@ -138,12 +138,16 @@ impl<'a> Fold for GlobalReplacer<'a> {
   fn fold_module(&mut self, node: ast::Module) -> ast::Module {
     // Insert globals at the top of the program
     let mut node = swc_ecmascript::visit::fold_module(self, node);
+
+    // Sort globals to ensure they are inserted in the same order cross builds
+    let mut sorted_globals: Vec<_> = self.globals.iter().collect();
+    sorted_globals.sort_by_key(|a| a.0);
+
     node.body.splice(
       0..0,
-      self
-        .globals
-        .values()
-        .map(|(_, stmt)| ast::ModuleItem::Stmt(stmt.clone())),
+      sorted_globals
+        .iter()
+        .map(|(_, (_, stmt))| ast::ModuleItem::Stmt(stmt.clone())),
     );
     node
   }
