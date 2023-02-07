@@ -2,7 +2,7 @@ use crate::{builtins::BUILTINS, Flags};
 use percent_encoding::percent_decode_str;
 use std::{
   borrow::Cow,
-  path::{Path, PathBuf},
+  path::{is_separator, Path, PathBuf},
 };
 use url::Url;
 
@@ -70,7 +70,7 @@ impl<'a> Specifier<'a> {
       }
       b'~' => {
         let mut specifier = &specifier[1..];
-        if specifier.starts_with('/') {
+        if !specifier.is_empty() && is_separator(specifier.as_bytes()[0] as char) {
           specifier = &specifier[1..];
         }
         let (path, query) = decode_path(specifier, specifier_type);
@@ -142,6 +142,14 @@ impl<'a> Specifier<'a> {
             if BUILTINS.contains(&specifier.as_ref()) {
               (Specifier::Builtin(Cow::Borrowed(specifier)), None)
             } else {
+              #[cfg(windows)]
+              if !flags.contains(Flags::ABSOLUTE_SPECIFIERS) {
+                let path = Path::new(specifier);
+                if path.is_absolute() {
+                  return Ok((Specifier::Absolute(Cow::Borrowed(path)), None));
+                }
+              }
+
               (parse_package(Cow::Borrowed(specifier))?, None)
             }
           }

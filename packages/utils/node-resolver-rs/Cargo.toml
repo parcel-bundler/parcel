@@ -17,8 +17,14 @@ json_comments = { git = "https://github.com/devongovett/json-comments-rs", branc
 typed-arena = "2.0.2"
 elsa = "1.7.0"
 once_cell = "1.17.0"
-glob-match = "0.2.0"
+glob-match = "0.2.1"
 dashmap = "5.4.0"
 
 [dev-dependencies]
 assert_fs = "1.0"
+
+[target.'cfg(windows)'.dependencies]
+dunce = "1.0.3"
+
+[target.'cfg(windows)'.dev-dependencies]
+is_elevated = "0.1.2"

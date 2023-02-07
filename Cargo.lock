@@ -665,9 +665,9 @@ checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
 
 [[package]]
 name = "glob-match"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5372ad223ecaadcb1fad2a2f04c7edf776ff97ab8e524e0e29df878284873743"
+checksum = "9985c9503b412198aa4197559e9a318524ebc4519c229bfa05a535828c950b9d"
 
 [[package]]
 name = "globset"
@@ -824,6 +824,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "is_elevated"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5299060ff5db63e788015dcb9525ad9b84f4fd9717ed2cbdeba5018cbf42f9b5"
+dependencies = [
+ "winapi",
 ]
 
 [[package]]
@@ -1368,9 +1377,11 @@ dependencies = [
  "assert_fs",
  "bitflags",
  "dashmap",
+ "dunce",
  "elsa",
  "glob-match",
  "indexmap",
+ "is_elevated",
  "itertools",
  "json_comments",
  "once_cell",

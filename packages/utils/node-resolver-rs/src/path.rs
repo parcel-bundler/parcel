@@ -1,7 +1,4 @@
-use std::{
-  collections::VecDeque,
-  path::{Component, Path, PathBuf},
-};
+use std::path::{Component, Path, PathBuf};
 
 use dashmap::DashMap;
 
@@ -60,11 +57,31 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
   ret
 }
 
-// A reimplementation of std::fs::canonicalize with intermediary caching.
 pub fn canonicalize(
   path: &Path,
   cache: &DashMap<PathBuf, Option<PathBuf>>,
 ) -> std::io::Result<PathBuf> {
+  // I cannot be bothered to deal with Windows.
+  #[cfg(windows)]
+  {
+    let _ = cache;
+    return dunce::canonicalize(path);
+  }
+
+  #[cfg(not(windows))]
+  {
+    return canonicalize_cached(path, cache);
+  }
+}
+
+// A reimplementation of std::fs::canonicalize with intermediary caching.
+#[cfg(not(windows))]
+fn canonicalize_cached(
+  path: &Path,
+  cache: &DashMap<PathBuf, Option<PathBuf>>,
+) -> std::io::Result<PathBuf> {
+  use std::collections::VecDeque;
+
   let mut ret = PathBuf::new();
   let mut seen_links = 0;
   let mut queue = VecDeque::new();
@@ -146,16 +163,28 @@ mod test {
 
   #[test]
   fn test_canonicalize() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(windows)]
+    if !is_elevated::is_elevated() {
+      println!("skipping symlink tests due to missing permissions");
+      return Ok(());
+    }
+
     let dir = assert_fs::TempDir::new()?;
     dir.child("foo/bar.js").write_str("")?;
     dir.child("root.js").write_str("")?;
 
-    dir.child("symlink").symlink_to_file("foo/bar.js")?;
-    dir.child("foo/symlink").symlink_to_file("../root.js")?;
+    dir
+      .child("symlink")
+      .symlink_to_file(Path::new("foo").join("bar.js"))?;
+    dir
+      .child("foo/symlink")
+      .symlink_to_file(Path::new("..").join("root.js"))?;
     dir
       .child("absolute")
       .symlink_to_file(dir.child("root.js").path())?;
-    dir.child("recursive").symlink_to_file("foo/symlink")?;
+    dir
+      .child("recursive")
+      .symlink_to_file(Path::new("foo").join("symlink"))?;
     dir.child("cycle").symlink_to_file("cycle1")?;
     dir.child("cycle1").symlink_to_file("cycle")?;
     dir.child("a/b/c").create_dir_all()?;
@@ -170,19 +199,19 @@ mod test {
 
     assert_eq!(
       canonicalize(dir.child("symlink").path(), &cache)?,
-      std::fs::canonicalize(dir.child("foo/bar.js").path())?
+      dunce::canonicalize(dir.child("foo/bar.js").path())?
     );
     assert_eq!(
       canonicalize(dir.child("foo/symlink").path(), &cache)?,
-      std::fs::canonicalize(dir.child("root.js").path())?
+      dunce::canonicalize(dir.child("root.js").path())?
     );
     assert_eq!(
       canonicalize(dir.child("absolute").path(), &cache)?,
-      std::fs::canonicalize(dir.child("root.js").path())?
+      dunce::canonicalize(dir.child("root.js").path())?
     );
     assert_eq!(
       canonicalize(dir.child("recursive").path(), &cache)?,
-      std::fs::canonicalize(dir.child("root.js").path())?
+      dunce::canonicalize(dir.child("root.js").path())?
     );
     assert!(matches!(
       canonicalize(dir.child("cycle").path(), &cache),
@@ -190,11 +219,11 @@ mod test {
     ));
     assert_eq!(
       canonicalize(dir.child("a/b/e/d/a/b/e/d/a").path(), &cache)?,
-      std::fs::canonicalize(dir.child("a").path())?
+      dunce::canonicalize(dir.child("a").path())?
     );
     assert_eq!(
       canonicalize(dir.child("a/link/c/x.txt").path(), &cache)?,
-      std::fs::canonicalize(dir.child("a/b/c/x.txt").path())?
+      dunce::canonicalize(dir.child("a/b/c/x.txt").path())?
     );
 
     Ok(())
