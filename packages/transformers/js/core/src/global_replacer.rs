@@ -1,5 +1,6 @@
+use indexmap::IndexMap;
 use path_slash::PathBufExt;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::Path;
 
 use swc_atoms::JsWord;
@@ -14,7 +15,7 @@ pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
   pub items: &'a mut Vec<DependencyDescriptor>,
   pub global_mark: Mark,
-  pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
+  pub globals: IndexMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub project_root: &'a Path,
   pub filename: &'a Path,
   pub decls: &'a mut HashSet<Id>,
