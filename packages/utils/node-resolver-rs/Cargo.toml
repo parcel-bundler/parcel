@@ -23,8 +23,5 @@ dashmap = "5.4.0"
 [dev-dependencies]
 assert_fs = "1.0"
 
-[target.'cfg(windows)'.dependencies]
-dunce = "1.0.3"
-
 [target.'cfg(windows)'.dev-dependencies]
 is_elevated = "0.1.2"

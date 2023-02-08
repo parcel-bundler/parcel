@@ -1377,7 +1377,6 @@ dependencies = [
  "assert_fs",
  "bitflags",
  "dashmap",
- "dunce",
  "elsa",
  "glob-match",
  "indexmap",
