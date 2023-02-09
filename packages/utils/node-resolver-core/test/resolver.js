@@ -1,5 +1,5 @@
 // @flow strict-local
-// import NodeResolver from '../src/NodeResolver';
+import NodeResolver from '../src/Wrapper';
 import path from 'path';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
@@ -8,8 +8,6 @@ import {loadConfig as configCache} from '@parcel/utils';
 import {createEnvironment} from '@parcel/core/src/Environment';
 import Environment from '@parcel/core/src/public/Environment';
 import {DEFAULT_OPTIONS} from '@parcel/core/test/test-utils';
-
-import NodeResolver from '../src/Wrapper';
 
 const rootDir = path.join(__dirname, 'fixture');
 

@@ -756,7 +756,11 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
     // Try adding the same extension as in the parent file first.
     if let Some(ext) = self.priority_extension {
-      if let Some(res) = self.try_extensions(path, package, &[ext], false)? {
+      // Use try_suffixes here to skip the specifier_type check.
+      // This is reproducing a bug in the old version of the Parcel resolver
+      // where URL dependencies could omit the extension if it was the same as the parent.
+      // TODO: Revert this in the next major version.
+      if let Some(res) = self.try_suffixes(path, ext, package, false)? {
         return Ok(Some(res));
       }
     }
@@ -1834,15 +1838,24 @@ mod tests {
         .0,
       Resolution::Path(root().join("bar.js"))
     );
+    // Reproduce bug for now
+    // assert_eq!(
+    //   test_resolver()
+    //     .resolve("bar", &root().join("foo.js"), SpecifierType::Url)
+    //     .result
+    //     .unwrap_err(),
+    //   ResolverError::FileNotFound {
+    //     relative: "bar".into(),
+    //     from: root().join("foo.js")
+    //   }
+    // );
     assert_eq!(
       test_resolver()
         .resolve("bar", &root().join("foo.js"), SpecifierType::Url)
         .result
-        .unwrap_err(),
-      ResolverError::FileNotFound {
-        relative: "bar".into(),
-        from: root().join("foo.js")
-      }
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("bar.js"))
     );
     assert_eq!(
       test_resolver()

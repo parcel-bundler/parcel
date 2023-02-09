@@ -1,1 +1,1 @@
-new Worker(new URL('./external.js', import.meta.url))
+new Worker(new URL('./external', import.meta.url))
