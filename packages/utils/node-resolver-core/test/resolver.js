@@ -406,6 +406,7 @@ describe('resolver', function () {
           createEnvironment({
             context: 'electron-main',
             isLibrary: true,
+            includeNodeModules: true,
           }),
           DEFAULT_OPTIONS,
         ),
@@ -2739,6 +2740,51 @@ describe('resolver', function () {
       assert.deepEqual(result?.diagnostics, [
         {
           message: `Cannot find a package.json above './node\\_modules/tsconfig-not-used'`,
+        },
+      ]);
+    });
+
+    it("should error when a tsconfig.json extends couldn't be found", async function () {
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './bar',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'tsconfig', 'extends-not-found', 'index.js'),
+      });
+      let file = path.join(
+        rootDir,
+        'tsconfig',
+        'extends-not-found',
+        'tsconfig.json',
+      );
+      assert.deepEqual(result?.diagnostics, [
+        {
+          message: `Could not find extended tsconfig`,
+          codeFrames: [
+            {
+              language: 'json',
+              filePath: file,
+              code: await overlayFS.readFile(file, 'utf8'),
+              codeHighlights: [
+                {
+                  message: undefined,
+                  start: {
+                    line: 2,
+                    column: 14,
+                  },
+                  end: {
+                    line: 2,
+                    column: 26,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          message:
+            "Cannot load file './not-found' in './tsconfig/extends-not-found'.",
+          hints: [],
         },
       ]);
     });

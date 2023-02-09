@@ -28,7 +28,6 @@ pub enum ResolverError {
     path: PathBuf,
     package_path: PathBuf,
   },
-  InvalidAlias,
   JsonError(JsonError),
   IOError(IOError),
   PackageJsonError {
@@ -40,6 +39,10 @@ pub enum ResolverError {
     from: PathBuf,
   },
   InvalidSpecifier(SpecifierError),
+  TsConfigExtendsNotFound {
+    tsconfig: PathBuf,
+    error: Box<ResolverError>,
+  },
 }
 
 #[derive(Debug, Clone)]
@@ -50,7 +53,16 @@ impl serde::Serialize for IOError {
   where
     S: serde::Serializer,
   {
-    self.0.to_string().serialize(serializer)
+    #[derive(serde::Serialize)]
+    struct IOErrorMessage {
+      message: String,
+    }
+
+    let msg = IOErrorMessage {
+      message: self.0.to_string(),
+    };
+
+    msg.serialize(serializer)
   }
 }
 

@@ -43,5 +43,4 @@ export interface ResolveResult {
 export class Resolver {
   constructor(projectRoot: string, options: FileSystem);
   resolve(options: ResolveOptions): ResolveResult;
-  resolveAsync(options: ResolveOptions): Promise<unknown>;
 }

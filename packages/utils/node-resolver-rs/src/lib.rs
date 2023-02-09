@@ -349,7 +349,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           Ok(Some(resolved))
         }
         AliasValue::Bool(false) => Ok(Some(Resolution::Empty)),
-        AliasValue::Bool(true) => Err(ResolverError::InvalidAlias),
+        AliasValue::Bool(true) => Ok(None),
         AliasValue::Global { global } => Ok(Some(Resolution::Global((*global).to_owned()))),
       },
       None => Ok(None),
@@ -993,6 +993,16 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 absolute_path.push("tsconfig.json");
               }
 
+              if !self.resolver.cache.fs.is_file(&absolute_path) {
+                return Err(ResolverError::TsConfigExtendsNotFound {
+                  tsconfig: tsconfig.compiler_options.path.clone(),
+                  error: Box::new(ResolverError::FileNotFound {
+                    relative: path.to_path_buf(),
+                    from: tsconfig.compiler_options.path.clone(),
+                  }),
+                });
+              }
+
               absolute_path
             }
             specifier @ Specifier::Package(..) => {
@@ -1016,10 +1026,20 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 self.invalidations,
               );
 
-              if let Resolution::Path(res) = req.resolve()? {
+              let res = req
+                .resolve()
+                .map_err(|err| ResolverError::TsConfigExtendsNotFound {
+                  tsconfig: tsconfig.compiler_options.path.clone(),
+                  error: Box::new(err),
+                })?;
+
+              if let Resolution::Path(res) = res {
                 res
               } else {
-                return Err(ResolverError::UnknownError);
+                return Err(ResolverError::TsConfigExtendsNotFound {
+                  tsconfig: tsconfig.compiler_options.path.clone(),
+                  error: Box::new(ResolverError::UnknownError),
+                });
               }
             }
             _ => return Ok(()),

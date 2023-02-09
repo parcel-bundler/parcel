@@ -68,6 +68,11 @@ export default class NodeResolver {
   }
 
   async resolve(options: ResolveOptions): Promise<?ResolveResult> {
+    // Special case
+    if (options.env.isElectron() && options.filename === 'electron') {
+      return {isExcluded: true};
+    }
+
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
       resolver = new Resolver(this.options.projectRoot, {
@@ -133,7 +138,11 @@ export default class NodeResolver {
     if (res.error) {
       let diagnostic = await this.handleError(res.error, options);
       return {
-        diagnostics: diagnostic ? [diagnostic] : [],
+        diagnostics: Array.isArray(diagnostic)
+          ? diagnostic
+          : diagnostic
+          ? [diagnostic]
+          : [],
         invalidateOnFileCreate: res.invalidateOnFileCreate,
         invalidateOnFileChange: res.invalidateOnFileChange,
       };
@@ -199,11 +208,6 @@ export default class NodeResolver {
     options: ResolveOptions,
   ): Promise<?ResolveResult> {
     if (options.env.isNode()) {
-      return {isExcluded: true};
-    }
-
-    // TODO
-    if (options.env.isElectron() && name === 'electron') {
       return {isExcluded: true};
     }
 
@@ -345,7 +349,10 @@ export default class NodeResolver {
     }
   }
 
-  async handleError(error: any, options: ResolveOptions): Promise<?Diagnostic> {
+  async handleError(
+    error: any,
+    options: ResolveOptions,
+  ): Promise<?(Diagnostic | Array<Diagnostic>)> {
     switch (error.type) {
       case 'FileNotFound': {
         let dir = path.dirname(error.from);
@@ -506,17 +513,6 @@ export default class NodeResolver {
       case 'UnknownScheme': {
         return {
           message: md`Unknown url scheme or pipeline '${error.scheme}:'`,
-          // codeFrames: options.loc ? [
-          //   {
-          //     filePath: options.loc.filePath,
-          //     codeHighlights: [
-          //       {
-          //         start: options.loc.start,
-          //         end: options.loc.end
-          //       }
-          //     ]
-          //   }
-          // ] : []
         };
       }
       case 'PackageJsonError': {
@@ -562,7 +558,30 @@ export default class NodeResolver {
               ],
             };
           }
-          // TODO: InvalidPackageTarget, InvalidSpecifier
+          case 'InvalidPackageTarget': {
+            return {
+              message: md`Invalid package target in the '${error.module} package. Targets may not refer to files outside the package.`,
+              codeFrames: [
+                {
+                  filePath: error.path,
+                  language: 'json',
+                  code: pkgContent,
+                  codeHighlights: generateJSONCodeHighlights(pkgContent, [
+                    {
+                      // TODO: track exact location.
+                      key: `/exports`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+            };
+          }
+          case 'InvalidSpecifier': {
+            return {
+              message: md`Invalid package import specifier '${options.filename}'.`,
+            };
+          }
         }
         break;
       }
@@ -576,7 +595,37 @@ export default class NodeResolver {
           )}'`,
         };
       }
-      // TODO: UnknownError, IOError, InvalidAlias
+      case 'TsConfigExtendsNotFound': {
+        let tsconfigContent = await this.options.fs.readFile(
+          error.tsconfig,
+          'utf8',
+        );
+        let nested = await this.handleError(error.error, options);
+        return [
+          {
+            message: md`
+Could not find extended tsconfig
+            `,
+            codeFrames: [
+              {
+                filePath: error.tsconfig,
+                language: 'json',
+                code: tsconfigContent,
+                codeHighlights: generateJSONCodeHighlights(tsconfigContent, [
+                  {
+                    key: `/extends`,
+                    type: 'value',
+                  },
+                ]),
+              },
+            ],
+          },
+          ...(Array.isArray(nested) ? nested : nested ? [nested] : []),
+        ];
+      }
+      case 'IOError': {
+        return {message: error.message};
+      }
     }
   }
 
