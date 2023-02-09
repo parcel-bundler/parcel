@@ -603,9 +603,7 @@ export default class NodeResolver {
         let nested = await this.handleError(error.error, options);
         return [
           {
-            message: md`
-Could not find extended tsconfig
-            `,
+            message: 'Could not find extended tsconfig',
             codeFrames: [
               {
                 filePath: error.tsconfig,

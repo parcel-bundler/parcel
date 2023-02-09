@@ -2757,7 +2757,7 @@ describe('resolver', function () {
       );
       assert.deepEqual(result?.diagnostics, [
         {
-          message: `Could not find extended tsconfig`,
+          message: 'Could not find extended tsconfig',
           codeFrames: [
             {
               language: 'json',
