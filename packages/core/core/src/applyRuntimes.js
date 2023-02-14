@@ -130,6 +130,7 @@ export default async function applyRuntimes<TResult>({
 
               bundleGraph.addBundleToBundleGroup(bundle, bundleGroups[0]);
               bundleGraph.createBundleReference(bundle, newBundle);
+              bundle = newBundle;
             }
 
             connections.push({
