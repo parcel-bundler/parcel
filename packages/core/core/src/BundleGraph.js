@@ -483,7 +483,6 @@ export default class BundleGraph {
         name: null,
         displayName: null,
         publicId,
-        name: opts.name,
       },
     };
 

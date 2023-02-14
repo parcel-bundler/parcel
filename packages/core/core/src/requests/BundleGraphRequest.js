@@ -353,7 +353,7 @@ class BundlerRunner {
     if (!previousBundleGraphResult) {
       await this.nameBundles(internalBundleGraph);
 
-      changedRuntimes = await applyRuntimes({
+      let {changedAssets, runtimeBundles} = await applyRuntimes({
         bundleGraph: internalBundleGraph,
         api: this.api,
         config: this.config,
@@ -364,6 +364,13 @@ class BundlerRunner {
         devDepRequests: this.devDepRequests,
         configs: this.configs,
       });
+
+      // If any new bundles were created during runtimes we'll need to name those as well
+      if (runtimeBundles.length > 0) {
+        this.nameBundles(internalBundleGraph, runtimeBundles);
+      }
+
+      changedRuntimes = changedAssets;
 
       // Pre-compute the hashes for each bundle so they are only computed once and shared between workers.
       internalBundleGraph.getBundleGraphHash();
@@ -392,11 +399,15 @@ class BundlerRunner {
     };
   }
 
-  async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
+  async nameBundles(
+    bundleGraph: InternalBundleGraph,
+    targetBundles?: Array<InternalBundle>,
+  ): Promise<void> {
     let namers = await this.config.getNamers();
     // inline bundles must still be named so the PackagerRunner
     // can match them to the correct packager/optimizer plugins.
-    let bundles = bundleGraph.getBundles({includeInline: true});
+    let allBundles = bundleGraph.getBundles({includeInline: true});
+    let bundles = targetBundles ?? allBundles;
     await Promise.all(
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph)),
     );
@@ -414,7 +425,7 @@ class BundlerRunner {
       await this.runDevDepRequest(devDepRequest);
     }
 
-    let bundleNames = bundles.map(b =>
+    let bundleNames = allBundles.map(b =>
       joinProjectPath(b.target.distDir, nullthrows(b.name)),
     );
     assert.deepEqual(

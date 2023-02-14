@@ -59,9 +59,13 @@ export default async function applyRuntimes<TResult>({
   previousDevDeps: Map<string, string>,
   devDepRequests: Map<string, DevDepRequest>,
   configs: Map<string, Config>,
-|}): Promise<Map<string, Asset>> {
+|}): Promise<{|
+  changedAssets: Map<string, Asset>,
+  runtimeBundles: Array<InternalBundle>,
+|}> {
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
+  let runtimeBundles: Array<InternalBundle> = [];
 
   for (let bundle of bundleGraph.getBundles({includeInline: true})) {
     for (let runtime of runtimes) {
@@ -119,9 +123,10 @@ export default async function applyRuntimes<TResult>({
                   target: bundle.target,
                   uniqueKey: bundle.id + 'manifest',
                   shouldContentHash: options.shouldContentHash,
-                  name: bundle.id + 'manifest.js',
                 }),
               );
+
+              runtimeBundles.push(newBundle);
 
               bundleGraph.addBundleToBundleGroup(bundle, bundleGroups[0]);
               bundleGraph.createBundleReference(bundle, newBundle);
@@ -270,7 +275,7 @@ export default async function applyRuntimes<TResult>({
     }
   }
 
-  return changedAssets;
+  return {changedAssets, runtimeBundles};
 }
 
 function reconcileNewRuntimes<TResult>(
