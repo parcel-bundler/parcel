@@ -26,7 +26,7 @@ pub use cache::{Cache, CacheCow};
 pub use error::ResolverError;
 pub use fs::{FileSystem, OsFileSystem};
 pub use invalidations::*;
-pub use package_json::{ExportsCondition, Fields, PackageJsonError};
+pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
 pub use specifier::SpecifierType;
 
 use crate::path::resolve_path;
@@ -160,24 +160,31 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     specifier_type: SpecifierType,
   ) -> ResolveResult {
     let invalidations = Invalidations::default();
-    let (specifier, query) = match Specifier::parse(specifier, specifier_type, self.flags) {
-      Ok(s) => s,
-      Err(e) => {
-        return ResolveResult {
-          result: Err(e.into()),
-          invalidations,
-        }
-      }
-    };
-    let request = ResolveRequest::new(self, &specifier, specifier_type, from, &invalidations);
-    let result = match request.resolve() {
-      Ok(r) => Ok((r, query.map(|q| q.to_owned()))),
-      Err(r) => Err(r),
-    };
+    let result = self.resolve_with_invalidations(specifier, from, specifier_type, &invalidations);
 
     ResolveResult {
       result,
       invalidations,
+    }
+  }
+
+  pub fn resolve_with_invalidations<'s>(
+    &self,
+    specifier: &'s str,
+    from: &Path,
+    specifier_type: SpecifierType,
+    invalidations: &Invalidations,
+  ) -> Result<(Resolution, Option<String>), ResolverError> {
+    let (specifier, query) = match Specifier::parse(specifier, specifier_type, self.flags) {
+      Ok(s) => s,
+      Err(e) => {
+        return Err(e.into());
+      }
+    };
+    let request = ResolveRequest::new(self, &specifier, specifier_type, from, &invalidations);
+    match request.resolve() {
+      Ok(r) => Ok((r, query.map(|q| q.to_owned()))),
+      Err(r) => Err(r),
     }
   }
 
@@ -191,6 +198,34 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     } else {
       Ok(true)
     }
+  }
+
+  pub fn resolve_module_type(
+    &self,
+    path: &Path,
+    invalidations: &Invalidations,
+  ) -> Result<ModuleType, ResolverError> {
+    if let Some(ext) = path.extension() {
+      if ext == "mjs" {
+        return Ok(ModuleType::Module);
+      }
+
+      if ext == "cjs" || ext == "node" {
+        return Ok(ModuleType::CommonJs);
+      }
+
+      if ext == "json" {
+        return Ok(ModuleType::Json);
+      }
+
+      if ext == "js" {
+        if let Some(package) = self.find_package(path.parent().unwrap(), invalidations)? {
+          return Ok(package.module_type);
+        }
+      }
+    }
+
+    Ok(ModuleType::CommonJs)
   }
 
   fn find_package(

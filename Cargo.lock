@@ -577,6 +577,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "es-module-lexer"
+version = "0.1.0"
+dependencies = [
+ "bumpalo",
+ "cc",
+]
+
+[[package]]
 name = "fastrand"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1052,6 +1060,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
+name = "memmap"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6585fd95e7bb50d6cc31e20d4cf9afb4e2ba16c5846fc76793f11218da9c475b"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "memoffset"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1293,6 +1311,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "parcel-dev-dep-resolver"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "es-module-lexer",
+ "memmap",
+ "parcel-resolver",
+ "rayon",
+ "serde_json",
+]
+
+[[package]]
 name = "parcel-fs-search"
 version = "0.1.0"
 dependencies = [
@@ -1395,6 +1425,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "parcel-dev-dep-resolver",
  "parcel-resolver",
 ]
 

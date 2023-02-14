@@ -3793,6 +3793,65 @@ describe('cache', function () {
 
     it('should support adding a deeper node_modules folder', async function () {});
 
+    it.only('should invalidate when updating an ESM parcel transformer plugin', async function () {
+      let workerFarm = createWorkerFarm({
+        maxConcurrentWorkers: 1,
+        useLocalWorker: false,
+      });
+
+      let b;
+      try {
+        b = await testCache({
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.mkdirp(inputDir);
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              inputDir,
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, '.parcelrc'),
+              JSON.stringify({
+                extends: '@parcel/config-default',
+                transformers: {
+                  '*.js': ['parcel-transformer-esm'],
+                },
+              }),
+            );
+          },
+          async update(b) {
+            let output = await inputFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(output.includes('TRANSFORMED CODE'));
+
+            let transformerDir = path.join(
+              inputDir,
+              'node_modules',
+              'parcel-transformer-esm',
+            );
+            await inputFS.writeFile(
+              path.join(transformerDir, 'constants.js'),
+              'export const message = "UPDATED"',
+            );
+            return {
+              workerFarm,
+            };
+          },
+        });
+      } finally {
+        await workerFarm.end();
+      }
+
+      let output = await inputFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(output.includes('UPDATED'));
+    });
+
     it('should support yarn pnp', async function () {
       let Module = require('module');
       // $FlowFixMe[incompatible-type]

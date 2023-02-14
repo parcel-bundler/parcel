@@ -123,7 +123,17 @@ export class NodePackageManager implements PackageManager {
       saveDev?: boolean,
     |},
   ): Promise<any> {
-    let {resolved} = await this.resolve(name, from, opts);
+    let {resolved, type} = await this.resolve(name, from, opts);
+    if (type === 2) {
+      let invalidations = this.resolver.getInvalidations(resolved);
+      let cacheKey = `${name}:${from}`;
+      this.invalidationsCache.set(cacheKey, {
+        invalidateOnFileChange: new Set(invalidations.invalidateOnFileChange),
+        invalidateOnFileCreate: invalidations.invalidateOnFileCreate,
+      });
+      // $FlowFixMe
+      return import(resolved);
+    }
     return this.load(resolved, from);
   }
 
@@ -494,6 +504,7 @@ export class NodePackageManager implements PackageManager {
           resolved: res.resolution.value,
           invalidateOnFileChange: new Set(res.invalidateOnFileChange),
           invalidateOnFileCreate: res.invalidateOnFileCreate,
+          type: res.moduleType,
           get pkg() {
             return getPkg();
           },

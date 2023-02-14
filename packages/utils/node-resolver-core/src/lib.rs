@@ -10,7 +10,7 @@ use std::{
 
 use parcel_resolver::{
   ExportsCondition, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules, Invalidations,
-  OsFileSystem, Resolution, ResolverError, SpecifierType,
+  ModuleType, OsFileSystem, Resolution, ResolverError, SpecifierType,
 };
 
 #[napi(object)]
@@ -193,10 +193,19 @@ pub struct ResolveResult {
   pub query: Option<String>,
   pub side_effects: bool,
   pub error: JsUnknown,
+  pub module_type: u8,
+}
+
+#[napi(object)]
+pub struct JsInvalidations {
+  pub invalidate_on_file_change: Vec<String>,
+  pub invalidate_on_file_create:
+    Vec<napi::Either<FilePathCreateInvalidation, FileNameCreateInvalidation>>,
 }
 
 #[napi]
 pub struct Resolver {
+  mode: u8,
   resolver: parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
 }
 
@@ -262,7 +271,10 @@ impl Resolver {
       }));
     }
 
-    Ok(Self { resolver })
+    Ok(Self {
+      mode: options.mode,
+      resolver,
+    })
   }
 
   #[napi]
@@ -295,6 +307,23 @@ impl Resolver {
       true
     };
 
+    let mut module_type = 0;
+
+    if self.mode == 2 {
+      if let Ok((Resolution::Path(p), _)) = &res.result {
+        module_type = match self.resolver.resolve_module_type(&p, &res.invalidations) {
+          Ok(t) => match t {
+            ModuleType::CommonJs | ModuleType::Json => 1,
+            ModuleType::Module => 2,
+          },
+          Err(err) => {
+            res.result = Err(err);
+            0
+          }
+        }
+      }
+    }
+
     let (invalidate_on_file_change, invalidate_on_file_create) =
       convert_invalidations(res.invalidations);
     match res.result {
@@ -305,6 +334,7 @@ impl Resolver {
         side_effects,
         query,
         error: env.get_undefined()?.into_unknown(),
+        module_type,
       }),
       Err(err) => Ok(ResolveResult {
         resolution: env.get_undefined()?.into_unknown(),
@@ -313,7 +343,30 @@ impl Resolver {
         side_effects: true,
         query: None,
         error: env.to_js_value(&err)?,
+        module_type: 0,
       }),
+    }
+  }
+
+  #[napi]
+  pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidations> {
+    let path = Path::new(&path);
+    match parcel_dev_dep_resolver::build_esm_graph(path, &self.resolver) {
+      Ok(invalidations) => {
+        let (invalidate_on_file_change, invalidate_on_file_create) =
+          convert_invalidations(invalidations);
+        Ok(JsInvalidations {
+          invalidate_on_file_change,
+          invalidate_on_file_create,
+        })
+      }
+      Err(e) => {
+        println!("{:?}", e);
+        Err(napi::Error::new(
+          napi::Status::GenericFailure,
+          "Failed to resolve invalidations".into(),
+        ))
+      }
     }
   }
 }
