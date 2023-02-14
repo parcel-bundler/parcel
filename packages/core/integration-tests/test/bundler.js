@@ -255,4 +255,51 @@ describe('bundler', function () {
         .includes(b.getBundlesWithAsset(findAsset(b, 'c.js'))[0]),
     );
   });
+
+  it.only('should externalise manifest bundle', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/external-manifest-bundle/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        // a and b are shared between only 2 bundles so they are kept in each bundle
+        assets: ['bar.js', 'a.js', 'b.js'],
+      },
+      {
+        assets: ['buzz.js'],
+      },
+      {
+        assets: ['a.js', 'b.js', 'foo.js'],
+      },
+      {
+        // c is shared between 3 different bundles, so it stays
+        assets: ['c.js'],
+      },
+      {
+        assets: ['styles.css'],
+      },
+      {
+        assets: ['local.html'],
+      },
+    ]);
+  });
 });

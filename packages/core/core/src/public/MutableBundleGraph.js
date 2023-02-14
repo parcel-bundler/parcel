@@ -13,18 +13,14 @@ import type {ParcelOptions, BundleGroup as InternalBundleGroup} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {hashString} from '@parcel/hash';
 import BundleGraph from './BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {assetFromValue, assetToAssetValue} from './Asset';
-import {getBundleGroupId, getPublicId} from '../utils';
+import {getBundleGroupId} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
-import {HASH_REF_PREFIX} from '../constants';
-import {fromProjectPathRelative} from '../projectPath';
-import {BundleBehavior} from '../types';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
 
 export default class MutableBundleGraph
@@ -162,81 +158,24 @@ export default class MutableBundleGraph
   }
 
   createBundle(opts: CreateBundleOpts): Bundle {
-    let entryAsset = opts.entryAsset
-      ? assetToAssetValue(opts.entryAsset)
-      : null;
+    let internalOpts = opts.entryAsset
+      ? {
+          ...opts,
+          entryAsset: assetToAssetValue(opts.entryAsset),
+          target: targetToInternalTarget(opts.target),
+          shouldContentHash: this.#options.shouldContentHash,
+          env: environmentToInternalEnvironment(opts.entryAsset.env),
+        }
+      : {
+          ...opts,
+          env: environmentToInternalEnvironment(opts.env),
+          shouldContentHash: this.#options.shouldContentHash,
+          target: targetToInternalTarget(opts.target),
+        };
 
-    let target = targetToInternalTarget(opts.target);
-    let bundleId = hashString(
-      'bundle:' +
-        (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
-        fromProjectPathRelative(target.distDir) +
-        (opts.bundleBehavior ?? ''),
-    );
+    let internalBundle = this.#graph.createBundle(internalOpts);
 
-    let existing = this.#graph._graph.getNodeByContentKey(bundleId);
-    if (existing != null) {
-      invariant(existing.type === 'bundle');
-      return Bundle.get(existing.value, this.#graph, this.#options);
-    }
-
-    let publicId = getPublicId(bundleId, existing =>
-      this.#bundlePublicIds.has(existing),
-    );
-    this.#bundlePublicIds.add(publicId);
-
-    let isPlaceholder = false;
-    if (entryAsset) {
-      let entryAssetNode = this.#graph._graph.getNodeByContentKey(
-        entryAsset.id,
-      );
-      invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
-      isPlaceholder = entryAssetNode.requested === false;
-    }
-
-    let bundleNode = {
-      type: 'bundle',
-      id: bundleId,
-      value: {
-        id: bundleId,
-        hashReference: this.#options.shouldContentHash
-          ? HASH_REF_PREFIX + bundleId
-          : bundleId.slice(-8),
-        type: opts.entryAsset ? opts.entryAsset.type : opts.type,
-        env: opts.env
-          ? environmentToInternalEnvironment(opts.env)
-          : nullthrows(entryAsset).env,
-        entryAssetIds: entryAsset ? [entryAsset.id] : [],
-        mainEntryId: entryAsset?.id,
-        pipeline: opts.entryAsset ? opts.entryAsset.pipeline : opts.pipeline,
-        needsStableName: opts.needsStableName,
-        bundleBehavior:
-          opts.bundleBehavior != null
-            ? BundleBehavior[opts.bundleBehavior]
-            : null,
-        isSplittable: opts.entryAsset
-          ? opts.entryAsset.isBundleSplittable
-          : opts.isSplittable,
-        isPlaceholder,
-        target,
-        name: null,
-        displayName: null,
-        publicId,
-      },
-    };
-
-    let bundleNodeId = this.#graph._graph.addNodeByContentKey(
-      bundleId,
-      bundleNode,
-    );
-
-    if (opts.entryAsset) {
-      this.#graph._graph.addEdge(
-        bundleNodeId,
-        this.#graph._graph.getNodeIdByContentKey(opts.entryAsset.id),
-      );
-    }
-    return Bundle.get(bundleNode.value, this.#graph, this.#options);
+    return Bundle.get(internalBundle, this.#graph, this.#options);
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: IBundleGroup) {

@@ -86,6 +86,7 @@ export default async function applyRuntimes<TResult>({
             filePath,
             isEntry,
             env,
+            isManifest,
           } of runtimeAssets) {
             let sourceName = path.join(
               path.dirname(filePath),
@@ -101,10 +102,35 @@ export default async function applyRuntimes<TResult>({
               isSource: true,
             };
 
+            if (isManifest) {
+              let bundleGroups =
+                bundleGraph.getBundleGroupsContainingBundle(bundle);
+
+              invariant(
+                bundleGroups.length === 1,
+                'Bundle containing manifest should belong to exactly one BundleGroup',
+              );
+
+              let newBundle = nullthrows(
+                bundleGraph.createBundle({
+                  type: 'js',
+                  needsStableName: false,
+                  env: bundle.env,
+                  target: bundle.target,
+                  uniqueKey: bundle.id + 'manifest',
+                  shouldContentHash: options.shouldContentHash,
+                  name: bundle.id + 'manifest.js',
+                }),
+              );
+
+              bundleGraph.addBundleToBundleGroup(bundle, bundleGroups[0]);
+              bundleGraph.createBundleReference(bundle, newBundle);
+            }
+
             connections.push({
               bundle,
               assetGroup,
-              dependency: dependency,
+              dependency,
               isEntry,
             });
           }
