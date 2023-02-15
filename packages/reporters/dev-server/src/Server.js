@@ -400,8 +400,7 @@ export default class Server {
     if (filename === '.proxyrc.js' || filename === '.proxyrc.cjs') {
       if (typeof cfg !== 'function') {
         this.options.logger.warn({
-          message:
-            `Proxy configuration file '${filename}' should export a function. Skipping...`,
+          message: `Proxy configuration file '${filename}' should export a function. Skipping...`,
         });
         return this;
       }
