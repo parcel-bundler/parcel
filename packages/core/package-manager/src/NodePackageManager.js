@@ -125,12 +125,6 @@ export class NodePackageManager implements PackageManager {
   ): Promise<any> {
     let {resolved, type} = await this.resolve(name, from, opts);
     if (type === 2) {
-      let invalidations = this.resolver.getInvalidations(resolved);
-      let cacheKey = `${name}:${from}`;
-      this.invalidationsCache.set(cacheKey, {
-        invalidateOnFileChange: new Set(invalidations.invalidateOnFileChange),
-        invalidateOnFileCreate: invalidations.invalidateOnFileCreate,
-      });
       // $FlowFixMe
       return import(resolved);
     }
@@ -387,42 +381,56 @@ export class NodePackageManager implements PackageManager {
       return cached;
     }
 
+    let basedir = path.dirname(from);
+    let cacheKey = basedir + ':' + name;
+    let resolved = cache.get(cacheKey);
+    if (resolved && path.isAbsolute(resolved.resolved)) {
+      let invalidations = this.resolver.getInvalidations(resolved.resolved);
+      let res = {
+        invalidateOnFileChange: new Set([...invalidations.invalidateOnFileChange, ...resolved.invalidateOnFileChange, resolved.resolved]),
+        invalidateOnFileCreate: [...invalidations.invalidateOnFileCreate, ...resolved.invalidateOnFileCreate],
+      };
+
+      this.invalidationsCache.set(key, res);
+      return res;
+    }
+
     let res = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
     };
 
-    let seen = new Set();
-    let addKey = (name, from) => {
-      let basedir = path.dirname(from);
-      let key = basedir + ':' + name;
-      if (seen.has(key)) {
-        return;
-      }
+    // let seen = new Set();
+    // let addKey = (name, from) => {
+    //   let basedir = path.dirname(from);
+    //   let key = basedir + ':' + name;
+    //   if (seen.has(key)) {
+    //     return;
+    //   }
 
-      seen.add(key);
-      let resolved = cache.get(key);
-      if (!resolved || !path.isAbsolute(resolved.resolved)) {
-        return;
-      }
+    //   seen.add(key);
+    //   let resolved = cache.get(key);
+    //   if (!resolved || !path.isAbsolute(resolved.resolved)) {
+    //     return;
+    //   }
 
-      res.invalidateOnFileCreate.push(...resolved.invalidateOnFileCreate);
-      res.invalidateOnFileChange.add(resolved.resolved);
+    //   res.invalidateOnFileCreate.push(...resolved.invalidateOnFileCreate);
+    //   res.invalidateOnFileChange.add(resolved.resolved);
 
-      for (let file of resolved.invalidateOnFileChange) {
-        res.invalidateOnFileChange.add(file);
-      }
+    //   for (let file of resolved.invalidateOnFileChange) {
+    //     res.invalidateOnFileChange.add(file);
+    //   }
 
-      let moduleChildren = children.get(resolved.resolved);
-      if (moduleChildren) {
-        for (let specifier of moduleChildren) {
-          addKey(specifier, resolved.resolved);
-        }
-      }
-    };
+    //   let moduleChildren = children.get(resolved.resolved);
+    //   if (moduleChildren) {
+    //     for (let specifier of moduleChildren) {
+    //       addKey(specifier, resolved.resolved);
+    //     }
+    //   }
+    // };
 
-    addKey(name, from);
-    this.invalidationsCache.set(key, res);
+    // addKey(name, from);
+    // this.invalidationsCache.set(key, res);
     return res;
   }
 

@@ -52,11 +52,12 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
 
     self.visited.insert(file.to_owned());
 
-    let contents = std::fs::read_to_string(&file)?;
+    // let contents = std::fs::read_to_string(&file)?;
+    let contents = self.resolver.cache.fs.read_to_string(&file)?;
     let module = lex(&contents)?;
     module
       .imports()
-      .par_bridge()
+      // .par_bridge()
       .map(|import| {
         // println!(
         //   "IMPORT {} {:?} {:?}",

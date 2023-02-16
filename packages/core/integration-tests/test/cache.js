@@ -3596,7 +3596,7 @@ describe('cache', function () {
     });
   });
 
-  describe('dev deps', function () {
+  describe.only('dev deps', function () {
     it('should invalidate when updating a parcel transformer plugin', async function () {
       let b = await testCache({
         async setup() {
@@ -3793,7 +3793,7 @@ describe('cache', function () {
 
     it('should support adding a deeper node_modules folder', async function () {});
 
-    it.only('should invalidate when updating an ESM parcel transformer plugin', async function () {
+    it('should invalidate when updating an ESM parcel transformer plugin', async function () {
       let workerFarm = createWorkerFarm({
         maxConcurrentWorkers: 1,
         useLocalWorker: false,
@@ -3836,6 +3836,7 @@ describe('cache', function () {
               path.join(transformerDir, 'constants.js'),
               'export const message = "UPDATED"',
             );
+            await new Promise(resolve => setTimeout(resolve, 20));
             return {
               workerFarm,
             };

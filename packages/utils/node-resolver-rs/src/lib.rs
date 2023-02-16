@@ -87,7 +87,7 @@ pub struct Resolver<'a, Fs> {
   pub include_node_modules: Cow<'a, IncludeNodeModules>,
   pub conditions: ExportsCondition,
   pub module_dir_resolver: Option<Arc<ResolveModuleDir>>,
-  cache: CacheCow<'a, Fs>,
+  pub cache: CacheCow<'a, Fs>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
