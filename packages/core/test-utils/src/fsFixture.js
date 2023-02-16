@@ -79,7 +79,7 @@ export async function toFixture(
       );
     } else if (dirent.isFile()) {
       // TODO: throw for binary files.
-      let content = await fs.readFile(filepath, 'utf8');
+      let content = escapeFixtureContent(await fs.readFile(filepath, 'utf8'));
       fixture.children.push(new FixtureFile(name, content));
     } else if (dirent.isDirectory()) {
       fixture.children.push(
@@ -363,6 +363,13 @@ export class FixtureLink {
   toString(): string {
     return `${this.name} -> ${this.target}`;
   }
+}
+
+export function escapeFixtureContent(content: string): string {
+  return content
+    .replace(/\\/g, '\\\\')
+    .replace(/`/g, '\\`')
+    .replace(/\${/g, '\\${');
 }
 
 export function dedentRaw(
