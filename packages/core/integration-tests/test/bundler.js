@@ -256,9 +256,9 @@ describe('bundler', function () {
     );
   });
 
-  it('should externalise manifest bundle', async function () {
+  it('should split manifest bundle', async function () {
     let b = await bundle(
-      path.join(__dirname, 'integration/external-manifest-bundle/index.html'),
+      path.join(__dirname, 'integration/split-manifest-bundle/index.html'),
       {
         mode: 'production',
         defaultTargetOptions: {
@@ -287,9 +287,9 @@ describe('bundler', function () {
     ]);
   });
 
-  it('should not externalise manifest bundle for stable entries', async function () {
+  it('should not split manifest bundle for stable entries', async function () {
     let b = await bundle(
-      path.join(__dirname, 'integration/external-manifest-bundle/index.js'),
+      path.join(__dirname, 'integration/split-manifest-bundle/index.js'),
       {
         mode: 'production',
         defaultTargetOptions: {
