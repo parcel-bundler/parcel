@@ -289,10 +289,7 @@ describe('bundler', function () {
 
   it('should not externalise manifest bundle for stable entries', async function () {
     let b = await bundle(
-      path.join(
-        __dirname,
-        'integration/external-manifest-bundle-stable/index.js',
-      ),
+      path.join(__dirname, 'integration/external-manifest-bundle/index.js'),
       {
         mode: 'production',
         defaultTargetOptions: {
