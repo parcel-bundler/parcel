@@ -6,6 +6,7 @@ import type {SharedReference} from '@parcel/workers';
 import type {
   Asset,
   AssetGroup,
+  Bundle,
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
@@ -49,6 +50,7 @@ export default async function applyRuntimes<TResult>({
   previousDevDeps,
   devDepRequests,
   configs,
+  nameRuntimeBundle,
 }: {|
   bundleGraph: InternalBundleGraph,
   config: ParcelConfig,
@@ -59,15 +61,17 @@ export default async function applyRuntimes<TResult>({
   previousDevDeps: Map<string, string>,
   devDepRequests: Map<string, DevDepRequest>,
   configs: Map<string, Config>,
-|}): Promise<{|
-  changedAssets: Map<string, Asset>,
-  runtimeBundles: Array<InternalBundle>,
-|}> {
+  nameRuntimeBundle: (bundle: Bundle) => Promise<void>,
+|}): Promise<Map<string, Asset>> {
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
-  let runtimeBundles: Array<InternalBundle> = [];
 
-  for (let bundle of bundleGraph.getBundles({includeInline: true})) {
+  // As manifest bundles may be added during runtimes we process them in reverse order.
+  // This allows bundles to be added to their bundle groups before they are referenced
+  // by other bundle groups by loader runtimes
+  let bundles = bundleGraph.getBundles({includeInline: true}).reverse();
+
+  for (let bundle of bundles) {
     for (let runtime of runtimes) {
       try {
         let applied = await runtime.plugin.apply({
@@ -90,7 +94,7 @@ export default async function applyRuntimes<TResult>({
             filePath,
             isEntry,
             env,
-            isManifest,
+            moveToSeparateBundle,
           } of runtimeAssets) {
             let sourceName = path.join(
               path.dirname(filePath),
@@ -106,35 +110,36 @@ export default async function applyRuntimes<TResult>({
               isSource: true,
             };
 
-            if (isManifest) {
+            let connectionBundle = bundle;
+
+            if (moveToSeparateBundle && bundle.isSplittable) {
               let bundleGroups =
                 bundleGraph.getBundleGroupsContainingBundle(bundle);
 
-              invariant(
-                bundleGroups.length === 1,
-                'Bundle containing manifest should belong to exactly one BundleGroup',
-              );
-
-              let newBundle = nullthrows(
+              connectionBundle = nullthrows(
                 bundleGraph.createBundle({
-                  type: 'js',
+                  type: bundle.type,
                   needsStableName: false,
                   env: bundle.env,
                   target: bundle.target,
-                  uniqueKey: bundle.id + 'manifest',
+                  uniqueKey: 'runtime-manifest:' + bundle.id,
                   shouldContentHash: options.shouldContentHash,
                 }),
               );
 
-              runtimeBundles.push(newBundle);
+              for (let bundleGroup of bundleGroups) {
+                bundleGraph.addBundleToBundleGroup(
+                  connectionBundle,
+                  bundleGroup,
+                );
+              }
+              bundleGraph.createBundleReference(bundle, connectionBundle);
 
-              bundleGraph.addBundleToBundleGroup(bundle, bundleGroups[0]);
-              bundleGraph.createBundleReference(bundle, newBundle);
-              bundle = newBundle;
+              await nameRuntimeBundle(connectionBundle);
             }
 
             connections.push({
-              bundle,
+              bundle: connectionBundle,
               assetGroup,
               dependency,
               isEntry,
@@ -150,6 +155,9 @@ export default async function applyRuntimes<TResult>({
       }
     }
   }
+
+  // Correct connection order after generating runtimes in reverse order
+  connections.reverse();
 
   // Add dev deps for runtime plugins AFTER running them, to account for lazy require().
   for (let runtime of runtimes) {
@@ -276,7 +284,7 @@ export default async function applyRuntimes<TResult>({
     }
   }
 
-  return {changedAssets, runtimeBundles};
+  return changedAssets;
 }
 
 function reconcileNewRuntimes<TResult>(

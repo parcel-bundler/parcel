@@ -20,6 +20,7 @@
     "parcel": "^2.8.3"
   },
   "dependencies": {
+    "@parcel/diagnostic": "2.8.3",
     "@parcel/plugin": "2.8.3",
     "@parcel/utils": "2.8.3",
     "nullthrows": "^1.1.1"

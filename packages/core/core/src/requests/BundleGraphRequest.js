@@ -351,9 +351,17 @@ class BundlerRunner {
 
     let changedRuntimes = new Map();
     if (!previousBundleGraphResult) {
-      await this.nameBundles(internalBundleGraph);
+      let namers = await this.config.getNamers();
+      // inline bundles must still be named so the PackagerRunner
+      // can match them to the correct packager/optimizer plugins.
+      let bundles = internalBundleGraph.getBundles({includeInline: true});
+      await Promise.all(
+        bundles.map(bundle =>
+          this.nameBundle(namers, bundle, internalBundleGraph),
+        ),
+      );
 
-      let {changedAssets, runtimeBundles} = await applyRuntimes({
+      changedRuntimes = await applyRuntimes({
         bundleGraph: internalBundleGraph,
         api: this.api,
         config: this.config,
@@ -363,14 +371,24 @@ class BundlerRunner {
         previousDevDeps: this.previousDevDeps,
         devDepRequests: this.devDepRequests,
         configs: this.configs,
+        nameRuntimeBundle: bundle =>
+          this.nameBundle(namers, bundle, internalBundleGraph),
       });
 
-      // If any new bundles were created during runtimes we'll need to name those as well
-      if (runtimeBundles.length > 0) {
-        this.nameBundles(internalBundleGraph, runtimeBundles);
+      // Add dev deps for namers, AFTER running them to account for lazy require().
+      for (let namer of namers) {
+        let devDepRequest = await createDevDependency(
+          {
+            specifier: namer.name,
+            resolveFrom: namer.resolveFrom,
+          },
+          this.previousDevDeps,
+          this.options,
+        );
+        await this.runDevDepRequest(devDepRequest);
       }
 
-      changedRuntimes = changedAssets;
+      this.validateBundles(internalBundleGraph);
 
       // Pre-compute the hashes for each bundle so they are only computed once and shared between workers.
       internalBundleGraph.getBundleGraphHash();
@@ -399,33 +417,10 @@ class BundlerRunner {
     };
   }
 
-  async nameBundles(
-    bundleGraph: InternalBundleGraph,
-    targetBundles?: Array<InternalBundle>,
-  ): Promise<void> {
-    let namers = await this.config.getNamers();
-    // inline bundles must still be named so the PackagerRunner
-    // can match them to the correct packager/optimizer plugins.
-    let allBundles = bundleGraph.getBundles({includeInline: true});
-    let bundles = targetBundles ?? allBundles;
-    await Promise.all(
-      bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph)),
-    );
+  validateBundles(bundleGraph: InternalBundleGraph): void {
+    let bundles = bundleGraph.getBundles();
 
-    // Add dev deps for namers, AFTER running them to account for lazy require().
-    for (let namer of namers) {
-      let devDepRequest = await createDevDependency(
-        {
-          specifier: namer.name,
-          resolveFrom: namer.resolveFrom,
-        },
-        this.previousDevDeps,
-        this.options,
-      );
-      await this.runDevDepRequest(devDepRequest);
-    }
-
-    let bundleNames = allBundles.map(b =>
+    let bundleNames = bundles.map(b =>
       joinProjectPath(b.target.distDir, nullthrows(b.name)),
     );
     assert.deepEqual(

@@ -256,7 +256,7 @@ describe('bundler', function () {
     );
   });
 
-  it.only('should externalise manifest bundle', async function () {
+  it('should externalise manifest bundle', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/external-manifest-bundle/index.html'),
       {
@@ -269,36 +269,20 @@ describe('bundler', function () {
 
     assertBundles(b, [
       {
-        name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'css-loader.js',
-          'esmodule-helpers.js',
-          'js-loader.js',
-          'bundle-manifest.js',
-        ],
+        name: 'index.html',
+        assets: ['index.html'],
       },
       {
-        // a and b are shared between only 2 bundles so they are kept in each bundle
-        assets: ['bar.js', 'a.js', 'b.js'],
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
-        assets: ['buzz.js'],
+        assets: ['bundle-manifest.js'],
       },
       {
-        assets: ['a.js', 'b.js', 'foo.js'],
+        assets: ['a.js', 'esmodule-helpers.js'],
       },
       {
-        // c is shared between 3 different bundles, so it stays
-        assets: ['c.js'],
-      },
-      {
-        assets: ['styles.css'],
-      },
-      {
-        assets: ['local.html'],
+        assets: ['b.js', 'esmodule-helpers.js'],
       },
     ]);
   });
