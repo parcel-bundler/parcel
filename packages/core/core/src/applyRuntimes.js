@@ -112,7 +112,7 @@ export default async function applyRuntimes<TResult>({
 
             let connectionBundle = bundle;
 
-            if (moveToSeparateBundle && bundle.isSplittable) {
+            if (moveToSeparateBundle && !bundle.needsStableName) {
               let bundleGroups =
                 bundleGraph.getBundleGroupsContainingBundle(bundle);
 

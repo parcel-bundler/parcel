@@ -286,4 +286,37 @@ describe('bundler', function () {
       },
     ]);
   });
+
+  it('should not externalise manifest bundle for stable entries', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/external-manifest-bundle-stable/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['a.js', 'esmodule-helpers.js'],
+      },
+      {
+        assets: ['b.js', 'esmodule-helpers.js'],
+      },
+    ]);
+  });
 });
