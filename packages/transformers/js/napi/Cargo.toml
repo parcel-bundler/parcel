@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = {version =  "2.10.6", default-features = false, features = ["napi4", "compat-mode", "serde-json"]}
+napi = {version =  "2.10.6", features = ["napi4", "compat-mode", "serde-json"]}
 napi-derive = "2.9.4"
 parcel-js-swc-core = { path = "../core" }
 
