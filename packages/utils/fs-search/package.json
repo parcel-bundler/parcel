@@ -2,6 +2,7 @@
   "name": "@parcel/fs-search",
   "version": "2.8.3",
   "license": "MIT",
+  "main": "index.js",
   "publishConfig": {
     "access": "public"
   },
