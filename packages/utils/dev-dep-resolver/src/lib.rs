@@ -59,12 +59,6 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
       .imports()
       // .par_bridge()
       .map(|import| {
-        // println!(
-        //   "IMPORT {} {:?} {:?}",
-        //   import.specifier(),
-        //   import.kind(),
-        //   file
-        // );
         match import.kind() {
           ImportKind::DynamicExpression => {
             println!("DYNAMIC: {} {:?}", import.specifier(), file);
@@ -80,9 +74,16 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
               &self.invalidations,
             ) {
               Ok((Resolution::Path(p), _)) => {
+                println!(
+                  "IMPORT {} {:?} {:?} {:?}",
+                  import.specifier(),
+                  import.kind(),
+                  file,
+                  p
+                );
                 self.invalidations.invalidate_on_file_change(&p);
                 if let Some(ext) = p.extension() {
-                  if ext == ".js" || ext == ".cjs" || ext == ".mjs" {
+                  if ext == "js" || ext == "cjs" || ext == "mjs" {
                     self.build(&p)?;
                   }
                 }

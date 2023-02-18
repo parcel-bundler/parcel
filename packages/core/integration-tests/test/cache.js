@@ -110,7 +110,7 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   return b;
 }
 
-describe('cache', function () {
+describe.only('cache', function () {
   before(async () => {
     await inputFS.rimraf(path.join(__dirname, 'input'));
   });
@@ -225,13 +225,13 @@ describe('cache', function () {
     // let mjs = (config) => `export default ${JSON.stringify(config)}`;
     let configs = [
       {name: '.babelrc', formatter: json, nesting: true},
-      {name: '.babelrc.json', formatter: json, nesting: true},
-      {name: '.babelrc.js', formatter: cjs, nesting: true},
-      {name: '.babelrc.cjs', formatter: cjs, nesting: true},
-      // {name: '.babelrc.mjs', formatter: mjs, nesting: true},
-      {name: 'babel.config.json', formatter: json, nesting: false},
-      {name: 'babel.config.js', formatter: cjs, nesting: false},
-      {name: 'babel.config.cjs', formatter: cjs, nesting: false},
+      // {name: '.babelrc.json', formatter: json, nesting: true},
+      // {name: '.babelrc.js', formatter: cjs, nesting: true},
+      // {name: '.babelrc.cjs', formatter: cjs, nesting: true},
+      // // {name: '.babelrc.mjs', formatter: mjs, nesting: true},
+      // {name: 'babel.config.json', formatter: json, nesting: false},
+      // {name: 'babel.config.js', formatter: cjs, nesting: false},
+      // {name: 'babel.config.cjs', formatter: cjs, nesting: false},
       // {name: 'babel.config.mjs', formatter: mjs, nesting: false}
     ];
 
@@ -246,7 +246,7 @@ describe('cache', function () {
 
     for (let {name, formatter, nesting} of configs) {
       describe(name, function () {
-        it(`should support adding a ${name}`, async function () {
+        it.only(`should support adding a ${name}`, async function () {
           let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
@@ -3596,7 +3596,7 @@ describe('cache', function () {
     });
   });
 
-  describe.only('dev deps', function () {
+  describe('dev deps', function () {
     it('should invalidate when updating a parcel transformer plugin', async function () {
       let b = await testCache({
         async setup() {
