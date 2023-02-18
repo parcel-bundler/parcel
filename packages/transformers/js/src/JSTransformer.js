@@ -897,6 +897,7 @@ async function loadOnMainThreadIfNeeded() {
     process.platform === 'linux' &&
     WorkerFarm.isWorker()
   ) {
+    // $FlowFixMe
     let {glibcVersionRuntime} = process.report.getReport().header;
     if (glibcVersionRuntime && parseFloat(glibcVersionRuntime) <= 2.17) {
       let api = WorkerFarm.getWorkerApi();
