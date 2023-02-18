@@ -2,7 +2,7 @@ use crate::id;
 use crate::utils::{get_undefined_ident, match_export_name, match_export_name_ident};
 use inflector::Inflector;
 use std::collections::{HashMap, HashSet};
-use swc_atoms::JsWord;
+use swc_atoms::{js_word, JsWord};
 use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::preset_env::{Feature, Versions};

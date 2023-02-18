@@ -2016,10 +2016,10 @@
   resolved "https://registry.yarnpkg.com/@msgpackr-extract/msgpackr-extract-win32-x64/-/msgpackr-extract-win32-x64-2.2.0.tgz#016d855b6bc459fd908095811f6826e45dd4ba64"
   integrity sha512-XrC0JzsqQSvOyM3t04FMLO6z5gCuhPE6k4FXuLK5xf52ZbdvcFe1yBmo7meCew9B8G2f0T9iu9t3kfTYRYROgA==
 
-"@napi-rs/cli@^2.6.2":
-  version "2.6.2"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.6.2.tgz#9b6e3e8649c93d138cd8df8072cea8ddcf2ac6e6"
-  integrity sha512-EmH+DQDEBUIoqMim0cc+X96ImtcIZLFjgW5WWORpzYnA9Ug7zNPO7jCLMhIQRd/p5AdWaXrT4SVXc/aip09rKQ==
+"@napi-rs/cli@^2.14.8":
+  version "2.14.8"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.14.8.tgz#06cca37e149ba4ffb3c3a01617d0f104b27e11c0"
+  integrity sha512-IvA3s8BqohMdUbOkFn7+23u1dhIJZCkA8Xps7DD4SLdCMbcbUF6MUuKiqxuqmVHBFTaxU25sU56WdX3efqGgPw==
 
 "@napi-rs/triples@^1.0.3":
   version "1.0.3"

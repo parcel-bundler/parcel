@@ -4,7 +4,7 @@ use std::fmt;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use swc_atoms::JsWord;
+use swc_atoms::{js_word, JsWord};
 use swc_common::{Mark, SourceMap, Span, DUMMY_SP};
 use swc_ecmascript::ast::{self, Callee, Id, MemberProp};
 use swc_ecmascript::visit::{Fold, FoldWith};
