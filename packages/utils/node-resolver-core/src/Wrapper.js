@@ -121,6 +121,7 @@ export default class NodeResolver {
       }
     }
 
+    // $FlowFixMe[incompatible-call] - parent is not null here.
     let res = resolver.resolve(options);
 
     // Invalidate whenever the .pnp.js file changes.
@@ -191,16 +192,15 @@ export default class NodeResolver {
           invalidateOnFileCreate: res.invalidateOnFileCreate,
           invalidateOnFileChange: res.invalidateOnFileChange,
         };
-      case 'Global':
+      case 'Global': {
+        let global = res.resolution.value;
         return {
-          filePath: path.join(
-            this.options.projectRoot,
-            `${res.resolution.value}.js`,
-          ),
-          code: `module.exports=${res.resolution.value};`,
+          filePath: path.join(this.options.projectRoot, `${global}.js`),
+          code: `module.exports=${global};`,
           invalidateOnFileCreate: res.invalidateOnFileCreate,
           invalidateOnFileChange: res.invalidateOnFileChange,
         };
+      }
       default:
         return null;
     }
