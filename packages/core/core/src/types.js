@@ -235,6 +235,7 @@ export type DevDepRequest = {|
   hash: string,
   invalidateOnFileCreate?: Array<InternalFileCreateInvalidation>,
   invalidateOnFileChange?: Set<ProjectPath>,
+  invalidateOnStartup?: boolean,
   additionalInvalidations?: Array<{|
     specifier: DependencySpecifier,
     resolveFrom: ProjectPath,

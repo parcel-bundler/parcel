@@ -43,6 +43,7 @@ const ENTRIES =
 // Therefore, the resolution cache and the map of parent to child modules should also be global.
 const cache = new Map<DependencySpecifier, ResolveResult>();
 const children = new Map<FilePath, Set<DependencySpecifier>>();
+const invalidationsCache = new Map<string, Invalidations>();
 
 // This implements a package manager for Node by monkey patching the Node require
 // algorithm so that it uses the specified FileSystem instead of the native one.
@@ -54,7 +55,6 @@ export class NodePackageManager implements PackageManager {
   projectRoot: FilePath;
   installer: ?PackageInstaller;
   resolver: any;
-  invalidationsCache: Map<string, Invalidations> = new Map();
 
   constructor(
     fs: FileSystem,
@@ -321,7 +321,7 @@ export class NodePackageManager implements PackageManager {
       }
 
       cache.set(key, resolved);
-      this.invalidationsCache.clear();
+      invalidationsCache.delete(key);
 
       // Add the specifier as a child to the parent module.
       // Don't do this if the specifier was an absolute path, as this was likely a dynamically resolved path
@@ -347,7 +347,7 @@ export class NodePackageManager implements PackageManager {
     if (!resolved) {
       resolved = this.resolveInternal(name, from);
       cache.set(key, resolved);
-      this.invalidationsCache.clear();
+      invalidationsCache.delete(key);
 
       if (!path.isAbsolute(name)) {
         let moduleChildren = children.get(from);
@@ -375,29 +375,39 @@ export class NodePackageManager implements PackageManager {
   }
 
   getInvalidations(name: DependencySpecifier, from: FilePath): Invalidations {
-    let key = name + ':' + from;
-    let cached = this.invalidationsCache.get(key);
-    if (cached != null) {
-      return cached;
-    }
-
     let basedir = path.dirname(from);
     let cacheKey = basedir + ':' + name;
     let resolved = cache.get(cacheKey);
+
     if (resolved && path.isAbsolute(resolved.resolved)) {
+      let cached = invalidationsCache.get(resolved.resolved);
+      if (cached != null) {
+        // return cached;
+      }
+
       let invalidations = this.resolver.getInvalidations(resolved.resolved);
       let res = {
-        invalidateOnFileChange: new Set([...invalidations.invalidateOnFileChange, ...resolved.invalidateOnFileChange, resolved.resolved]),
-        invalidateOnFileCreate: [...invalidations.invalidateOnFileCreate, ...resolved.invalidateOnFileCreate],
+        invalidateOnFileChange: new Set([
+          ...invalidations.invalidateOnFileChange,
+          ...resolved.invalidateOnFileChange,
+          resolved.resolved,
+        ]),
+        invalidateOnFileCreate: [
+          ...invalidations.invalidateOnFileCreate,
+          ...resolved.invalidateOnFileCreate,
+        ],
+        invalidateOnStartup:
+          invalidations.invalidateOnStartup && resolved.type === 2,
       };
 
-      this.invalidationsCache.set(key, res);
+      invalidationsCache.set(resolved.resolved, res);
       return res;
     }
 
     let res = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
+      invalidateOnStartup: false,
     };
 
     // let seen = new Set();
@@ -449,6 +459,8 @@ export class NodePackageManager implements PackageManager {
       if (!resolved || !path.isAbsolute(resolved.resolved)) {
         return;
       }
+
+      invalidationsCache.delete(resolved.resolved);
 
       // $FlowFixMe
       let module = Module._cache[resolved.resolved];

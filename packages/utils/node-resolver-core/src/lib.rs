@@ -5,7 +5,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   path::{Path, PathBuf},
-  sync::Arc,
+  sync::{atomic::Ordering, Arc},
 };
 
 use parcel_resolver::{
@@ -185,11 +185,20 @@ pub struct FileNameCreateInvalidation {
 }
 
 #[napi(object)]
+pub struct GlobCreateInvalidation {
+  pub glob: String,
+}
+
+#[napi(object)]
 pub struct ResolveResult {
   pub resolution: JsUnknown,
   pub invalidate_on_file_change: Vec<String>,
-  pub invalidate_on_file_create:
-    Vec<napi::Either<FilePathCreateInvalidation, FileNameCreateInvalidation>>,
+  pub invalidate_on_file_create: Vec<
+    napi::Either<
+      FilePathCreateInvalidation,
+      napi::Either<FileNameCreateInvalidation, GlobCreateInvalidation>,
+    >,
+  >,
   pub query: Option<String>,
   pub side_effects: bool,
   pub error: JsUnknown,
@@ -199,14 +208,20 @@ pub struct ResolveResult {
 #[napi(object)]
 pub struct JsInvalidations {
   pub invalidate_on_file_change: Vec<String>,
-  pub invalidate_on_file_create:
-    Vec<napi::Either<FilePathCreateInvalidation, FileNameCreateInvalidation>>,
+  pub invalidate_on_file_create: Vec<
+    napi::Either<
+      FilePathCreateInvalidation,
+      napi::Either<FileNameCreateInvalidation, GlobCreateInvalidation>,
+    >,
+  >,
+  pub invalidate_on_startup: bool,
 }
 
 #[napi]
 pub struct Resolver {
   mode: u8,
   resolver: parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
+  invalidations_cache: parcel_dev_dep_resolver::Cache,
 }
 
 #[napi]
@@ -274,6 +289,7 @@ impl Resolver {
     Ok(Self {
       mode: options.mode,
       resolver,
+      invalidations_cache: Default::default(),
     })
   }
 
@@ -351,20 +367,23 @@ impl Resolver {
   #[napi]
   pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidations> {
     let path = Path::new(&path);
-    match parcel_dev_dep_resolver::build_esm_graph(path, &self.resolver) {
+    match parcel_dev_dep_resolver::build_esm_graph(path, &self.resolver, &self.invalidations_cache)
+    {
       Ok(invalidations) => {
+        let invalidate_on_startup = invalidations.invalidate_on_startup.load(Ordering::Relaxed);
         let (invalidate_on_file_change, invalidate_on_file_create) =
           convert_invalidations(invalidations);
         Ok(JsInvalidations {
           invalidate_on_file_change,
           invalidate_on_file_create,
+          invalidate_on_startup,
         })
       }
       Err(e) => {
         println!("{:?}", e);
         Err(napi::Error::new(
           napi::Status::GenericFailure,
-          "Failed to resolve invalidations".into(),
+          "Failed to resolve invalidations",
         ))
       }
     }
@@ -375,7 +394,12 @@ fn convert_invalidations(
   invalidations: Invalidations,
 ) -> (
   Vec<String>,
-  Vec<napi::Either<FilePathCreateInvalidation, FileNameCreateInvalidation>>,
+  Vec<
+    napi::Either<
+      FilePathCreateInvalidation,
+      napi::Either<FileNameCreateInvalidation, GlobCreateInvalidation>,
+    >,
+  >,
 ) {
   let invalidate_on_file_change = invalidations
     .invalidate_on_file_change
@@ -394,10 +418,13 @@ fn convert_invalidations(
         file_path: p.to_string_lossy().into_owned(),
       }),
       FileCreateInvalidation::FileName { file_name, above } => {
-        napi::Either::B(FileNameCreateInvalidation {
+        napi::Either::B(napi::Either::A(FileNameCreateInvalidation {
           file_name,
           above_file_path: above.to_string_lossy().into_owned(),
-        })
+        }))
+      }
+      FileCreateInvalidation::Glob(glob) => {
+        napi::Either::B(napi::Either::B(GlobCreateInvalidation { glob }))
       }
     })
     .collect();

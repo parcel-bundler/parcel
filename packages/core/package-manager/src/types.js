@@ -39,6 +39,7 @@ export interface PackageInstaller {
 export type Invalidations = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
+  invalidateOnStartup: boolean,
 |};
 
 export interface PackageManager {
