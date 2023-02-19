@@ -5467,6 +5467,11 @@ describe('javascript', function () {
               },
             ],
           },
+          {
+            message: "Cannot find module 'foo'",
+            origin: '@parcel/resolver-default',
+            hints: [],
+          },
         ],
       },
     );

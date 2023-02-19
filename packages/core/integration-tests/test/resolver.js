@@ -258,7 +258,10 @@ describe('resolver', function () {
     } catch (e) {
       threw = true;
 
-      assert.equal(e.diagnostics[1].message, `Cannot find module @baebal/core`);
+      assert.equal(
+        e.diagnostics[1].message,
+        `Cannot find module '@baebal/core'`,
+      );
 
       assert.equal(
         e.diagnostics[1].hints[0],
