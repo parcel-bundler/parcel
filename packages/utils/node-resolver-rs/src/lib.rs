@@ -43,7 +43,7 @@ bitflags! {
     const ALIASES = 1 << 3;
     /// The settings in tsconfig.json.
     const TSCONFIG = 1 << 4;
-    /// The "exports" field in package.json.
+    /// The "exports" and "imports" fields in package.json.
     const EXPORTS = 1 << 5;
     /// Directory index files, e.g. index.js.
     const DIR_INDEX = 1 << 6;
@@ -532,8 +532,6 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
   }
 
   fn resolve_node_module(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
-    // TODO: check if module == self
-
     // If there is a custom module directory resolver (e.g. Yarn PnP), use that.
     if let Some(module_dir_resolver) = &self.resolver.module_dir_resolver {
       let package_dir = module_dir_resolver(module, self.from)?;
@@ -1989,6 +1987,34 @@ mod tests {
         path: root().join("node_modules/package-exports/package.json"),
         error: PackageJsonError::InvalidPackageTarget
       }
+    );
+  }
+
+  #[test]
+  fn test_self_reference() {
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "package-exports",
+          &root().join("node_modules/package-exports/foo.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/package-exports/main.mjs"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "package-exports/foo",
+          &root().join("node_modules/package-exports/foo.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/package-exports/foo.mjs"))
     );
   }
 

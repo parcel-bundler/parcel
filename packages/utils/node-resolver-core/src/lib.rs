@@ -224,12 +224,7 @@ impl Resolver {
         Cow::Owned(project_root.into()),
         parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
       ),
-      _ => {
-        return Err(napi::Error::new(
-          napi::Status::InvalidArg,
-          "Invalid mode".into(),
-        ))
-      }
+      _ => return Err(napi::Error::new(napi::Status::InvalidArg, "Invalid mode")),
     };
 
     if let Some(include_node_modules) = options.include_node_modules {

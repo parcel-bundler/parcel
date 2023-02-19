@@ -179,8 +179,11 @@ export default class NodeResolver {
           }
         }
 
-        // TODO: invalidations?
-        return {isExcluded: true};
+        return {
+          isExcluded: true,
+          invalidateOnFileCreate: res.invalidateOnFileCreate,
+          invalidateOnFileChange: res.invalidateOnFileChange,
+        };
       }
       case 'Empty':
         return {

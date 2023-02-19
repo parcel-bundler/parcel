@@ -1297,7 +1297,7 @@ name = "parcel-fs-search"
 version = "0.1.0"
 dependencies = [
  "napi",
- "napi-build 1.2.1",
+ "napi-build",
  "napi-derive",
 ]
 
@@ -1306,7 +1306,7 @@ name = "parcel-hash"
 version = "0.1.0"
 dependencies = [
  "napi",
- "napi-build 1.2.1",
+ "napi-build",
  "napi-derive",
  "xxhash-rust",
 ]
@@ -1318,7 +1318,7 @@ dependencies = [
  "libc",
  "mozjpeg-sys",
  "napi",
- "napi-build 1.2.1",
+ "napi-build",
  "napi-derive",
  "oxipng",
 ]
@@ -1349,7 +1349,7 @@ dependencies = [
  "jemallocator",
  "mimalloc",
  "napi",
- "napi-build 1.2.1",
+ "napi-build",
  "napi-derive",
  "parcel-js-swc-core",
 ]
@@ -1393,7 +1393,7 @@ version = "0.1.0"
 dependencies = [
  "dashmap",
  "napi",
- "napi-build 2.0.1",
+ "napi-build",
  "napi-derive",
  "parcel-resolver",
 ]

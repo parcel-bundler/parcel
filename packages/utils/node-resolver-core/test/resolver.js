@@ -2450,7 +2450,11 @@ describe('resolver', function () {
         sourcePath: path.join(rootDir, 'foo.js'),
       });
 
-      assert.deepEqual(result, {isExcluded: true});
+      assert.deepEqual(result, {
+        isExcluded: true,
+        invalidateOnFileChange: [],
+        invalidateOnFileCreate: [],
+      });
     });
 
     it('should not error when external dependencies are declared in peerDependencies', async function () {
@@ -2469,7 +2473,11 @@ describe('resolver', function () {
         sourcePath: path.join(rootDir, 'foo.js'),
       });
 
-      assert.deepEqual(result, {isExcluded: true});
+      assert.deepEqual(result, {
+        isExcluded: true,
+        invalidateOnFileChange: [],
+        invalidateOnFileCreate: [],
+      });
     });
 
     it('should not error on missing dependencies for environment builtins', async function () {
@@ -2488,7 +2496,11 @@ describe('resolver', function () {
         sourcePath: path.join(rootDir, 'env-dep/foo.js'),
       });
 
-      assert.deepEqual(result, {isExcluded: true});
+      assert.deepEqual(result, {
+        isExcluded: true,
+        invalidateOnFileChange: [],
+        invalidateOnFileCreate: [],
+      });
     });
 
     it('should not error on builtin node modules', async function () {
