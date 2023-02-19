@@ -2,7 +2,7 @@
 authors = ["Devon Govett <devongovett@gmail.com>"]
 name = "parcel-js-swc-core"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["rlib"]
@@ -20,3 +20,4 @@ sha-1 = "0.10.0"
 dunce = "1.0.1"
 pathdiff = "0.2.0"
 path-slash = "0.1.4"
+indexmap = "1.9.2"

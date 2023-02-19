@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use crate::id;
 use serde::{Deserialize, Serialize};
-use swc_atoms::JsWord;
+use swc_atoms::{js_word, JsWord};
 use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::{self, Id};
 

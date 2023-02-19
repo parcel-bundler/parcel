@@ -1,16 +1,3 @@
-extern crate swc_common;
-extern crate swc_ecmascript;
-#[macro_use]
-extern crate swc_atoms;
-extern crate data_encoding;
-extern crate dunce;
-extern crate inflector;
-extern crate path_slash;
-extern crate pathdiff;
-extern crate serde;
-extern crate serde_bytes;
-extern crate sha1;
-
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
@@ -26,6 +13,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use indexmap::IndexMap;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
@@ -369,7 +357,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       source_map: &source_map,
                       items: &mut global_deps,
                       global_mark,
-                      globals: HashMap::new(),
+                      globals: IndexMap::new(),
                       project_root: Path::new(&config.project_root),
                       filename: Path::new(&config.filename),
                       decls: &mut decls,

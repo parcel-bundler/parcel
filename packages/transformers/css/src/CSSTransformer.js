@@ -242,7 +242,9 @@ export default (new Transformer({
         js += s;
       };
 
-      for (let key in exports) {
+      // It's possible that the exports can be ordered differently between builds.
+      // Sorting by key is safe as the order is irrelevant but needs to be deterministic.
+      for (let key of Object.keys(exports).sort()) {
         asset.symbols.set(key, exports[key].name);
         add(key);
       }
