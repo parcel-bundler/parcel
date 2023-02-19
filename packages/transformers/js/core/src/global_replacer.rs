@@ -3,7 +3,7 @@ use path_slash::PathBufExt;
 use std::collections::HashSet;
 use std::path::Path;
 
-use swc_atoms::JsWord;
+use swc_atoms::{js_word, JsWord};
 use swc_common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::{self, ComputedPropName, Id};
 use swc_ecmascript::visit::{Fold, FoldWith};
