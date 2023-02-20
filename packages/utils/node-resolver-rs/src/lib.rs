@@ -995,7 +995,24 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 absolute_path.push("tsconfig.json");
               }
 
-              if !self.resolver.cache.fs.is_file(&absolute_path) {
+              let mut exists = self.resolver.cache.fs.is_file(&absolute_path);
+
+              // If the file doesn't exist, and doesn't end with `.json`, try appending the extension.
+              if !exists {
+                let try_extension = match absolute_path.extension() {
+                  None => true,
+                  Some(ext) => ext != "json",
+                };
+
+                if try_extension {
+                  let mut os_str = absolute_path.into_os_string();
+                  os_str.push(".json");
+                  absolute_path = PathBuf::from(os_str);
+                  exists = self.resolver.cache.fs.is_file(&absolute_path)
+                }
+              }
+
+              if !exists {
                 return Err(ResolverError::TsConfigExtendsNotFound {
                   tsconfig: tsconfig.compiler_options.path.clone(),
                   error: Box::new(ResolverError::FileNotFound {
@@ -2123,6 +2140,18 @@ mod tests {
         .unwrap()
         .0,
       Resolution::Path(root().join("node_modules/tsconfig-exports/foo.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "foo",
+          &root().join("tsconfig/extends-extension/index.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("tsconfig/extends-extension/foo.js"))
     );
     assert_eq!(
       test_resolver()
