@@ -26,6 +26,11 @@
   "napi": {
     "name": "parcel-resolver"
   },
+  "files": [
+    "lib",
+    "index.js",
+    "*.node"
+  ],
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
     "@parcel/diagnostic": "2.8.3",
