@@ -285,7 +285,7 @@ export default (new Runtime({
         code: getRegisterCode(bundle, bundleGraph),
         isEntry: true,
         env: {sourceType: 'module'},
-        moveToSeparateBundle: isBundleOverSizeThreshold(
+        priority: getManifestBundlePriority(
           bundleGraph,
           bundle,
           config.splitManifestThreshold,
@@ -679,11 +679,11 @@ function shouldUseRuntimeManifest(
   );
 }
 
-function isBundleOverSizeThreshold(
+function getManifestBundlePriority(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   threshold: number,
-) {
+): $PropertyType<RuntimeAsset, 'priority'> {
   let bundleSize = 0;
 
   bundle.traverseAssets((asset, _, actions) => {
@@ -694,5 +694,5 @@ function isBundleOverSizeThreshold(
     }
   });
 
-  return bundleSize > threshold;
+  return bundleSize > threshold ? 'parallel' : 'sync';
 }

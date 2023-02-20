@@ -1576,6 +1576,8 @@ export type Namer<ConfigType> = {|
   |}): Async<?FilePath>,
 |};
 
+type RuntimeAssetPriority = 'sync' | 'parallel';
+
 /**
  * A "synthetic" asset that will be inserted into the bundle graph.
  * @section runtime
@@ -1586,7 +1588,7 @@ export type RuntimeAsset = {|
   +dependency?: Dependency,
   +isEntry?: boolean,
   +env?: EnvironmentOptions,
-  +moveToSeparateBundle?: boolean,
+  +priority?: RuntimeAssetPriority,
 |};
 
 /**

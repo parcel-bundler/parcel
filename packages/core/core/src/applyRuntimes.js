@@ -94,7 +94,7 @@ export default async function applyRuntimes<TResult>({
             filePath,
             isEntry,
             env,
-            moveToSeparateBundle,
+            priority,
           } of runtimeAssets) {
             let sourceName = path.join(
               path.dirname(filePath),
@@ -112,7 +112,7 @@ export default async function applyRuntimes<TResult>({
 
             let connectionBundle = bundle;
 
-            if (moveToSeparateBundle && !bundle.needsStableName) {
+            if (priority === 'parallel' && !bundle.needsStableName) {
               let bundleGroups =
                 bundleGraph.getBundleGroupsContainingBundle(bundle);
 
