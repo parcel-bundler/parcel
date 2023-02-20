@@ -8,7 +8,11 @@
     "aliasedfolder": "./nested",
     "aliasedabsolute": "/nested",
     "foo/bar": "./bar.js",
-    "glob/*/*": "./nested/$2"
+    "glob/*/*": "./nested/$2",
+    "./baz": "./bar.js"
+  },
+  "imports": {
+    "#test": "./bar.js"
   },
   "dependencies": {
     "foo": "^0.3.4"

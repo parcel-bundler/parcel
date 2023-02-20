@@ -52,7 +52,7 @@ describe('NodePackageManager', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'node_modules/foo',
-            aboveFilePath: path.join(FIXTURES_DIR, 'has-foo/index.js'),
+            aboveFilePath: path.join(FIXTURES_DIR, 'has-foo'),
           },
         ],
       },
@@ -89,7 +89,7 @@ describe('NodePackageManager', function () {
         invalidateOnFileCreate: [
           {
             fileName: 'node_modules/a',
-            aboveFilePath: path.join(FIXTURES_DIR, 'has-foo/index.js'),
+            aboveFilePath: path.join(FIXTURES_DIR, 'has-foo'),
           },
         ],
       },
@@ -244,10 +244,7 @@ describe('NodePackageManager', function () {
           invalidateOnFileCreate: [
             {
               fileName: 'node_modules/foo',
-              aboveFilePath: path.join(
-                FIXTURES_DIR,
-                'has-foo/subpackage/index.js',
-              ),
+              aboveFilePath: path.join(FIXTURES_DIR, 'has-foo/subpackage'),
             },
           ],
         },

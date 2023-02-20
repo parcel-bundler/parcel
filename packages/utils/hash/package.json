@@ -32,11 +32,10 @@
     "build-release": "napi build --platform --release"
   },
   "dependencies": {
-    "detect-libc": "^1.0.3",
     "xxhash-wasm": "^0.4.2"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^2.6.2",
+    "@napi-rs/cli": "^2.14.8",
     "tiny-benchy": "^1.0.2"
   }
 }

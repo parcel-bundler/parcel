@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
-use swc_atoms::JsWord;
+use swc_atoms::{js_word, JsWord};
 use swc_common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, Visit, VisitWith};

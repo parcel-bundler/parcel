@@ -1,16 +1,3 @@
-extern crate swc_common;
-extern crate swc_ecmascript;
-#[macro_use]
-extern crate swc_atoms;
-extern crate data_encoding;
-extern crate dunce;
-extern crate inflector;
-extern crate path_slash;
-extern crate pathdiff;
-extern crate serde;
-extern crate serde_bytes;
-extern crate sha1;
-
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
