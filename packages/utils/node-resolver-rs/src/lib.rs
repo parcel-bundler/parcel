@@ -90,6 +90,12 @@ pub struct Resolver<'a, Fs> {
   cache: CacheCow<'a, Fs>,
 }
 
+#[derive(Default)]
+pub struct ResolveOptions {
+  pub conditions: ExportsCondition,
+  pub custom_conditions: Vec<String>,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum Resolution {
@@ -159,6 +165,16 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     from: &Path,
     specifier_type: SpecifierType,
   ) -> ResolveResult {
+    self.resolve_with_options(specifier, from, specifier_type, Default::default())
+  }
+
+  pub fn resolve_with_options<'s>(
+    &self,
+    specifier: &'s str,
+    from: &Path,
+    specifier_type: SpecifierType,
+    options: ResolveOptions,
+  ) -> ResolveResult {
     let invalidations = Invalidations::default();
     let (specifier, query) = match Specifier::parse(specifier, specifier_type, self.flags) {
       Ok(s) => s,
@@ -169,7 +185,13 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
         }
       }
     };
-    let request = ResolveRequest::new(self, &specifier, specifier_type, from, &invalidations);
+    let mut request = ResolveRequest::new(self, &specifier, specifier_type, from, &invalidations);
+    if !options.conditions.is_empty() || !options.custom_conditions.is_empty() {
+      // If custom conditions are defined, these override the default conditions inferred from the specifier type.
+      request.conditions = self.conditions | options.conditions;
+      request.custom_conditions = options.custom_conditions.as_slice();
+    }
+
     let result = match request.resolve() {
       Ok(r) => Ok((r, query.map(|q| q.to_owned()))),
       Err(r) => Err(r),
@@ -251,6 +273,7 @@ struct ResolveRequest<'a, Fs> {
   root_package: OnceCell<Option<&'a PackageJson<'a>>>,
   invalidations: &'a Invalidations,
   conditions: ExportsCondition,
+  custom_conditions: &'a [String],
   priority_extension: Option<&'a str>,
 }
 
@@ -319,6 +342,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       root_package: OnceCell::new(),
       invalidations,
       conditions,
+      custom_conditions: &[],
       priority_extension,
     }
   }
@@ -345,6 +369,8 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             self.invalidations,
           );
           req.priority_extension = self.priority_extension;
+          req.conditions = self.conditions;
+          req.custom_conditions = self.custom_conditions;
           let resolved = req.resolve()?;
           Ok(Some(resolved))
         }
@@ -406,7 +432,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           let package = self.find_package(&self.from.parent().unwrap())?;
           if let Some(package) = package {
             let res = package
-              .resolve_package_imports(&hash, self.conditions)
+              .resolve_package_imports(&hash, self.conditions, self.custom_conditions)
               .map_err(|e| ResolverError::PackageJsonError {
                 module: package.name.to_owned(),
                 path: package.path.clone(),
@@ -599,7 +625,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     // Otherwise, fall back to classic CJS resolution.
     if self.resolver.flags.contains(Flags::EXPORTS) && package.has_exports() {
       let path = package
-        .resolve_package_exports(subpath, self.conditions)
+        .resolve_package_exports(subpath, self.conditions, self.custom_conditions)
         .map_err(|e| ResolverError::PackageJsonError {
           module: package.name.to_owned(),
           path: package.path.clone(),
