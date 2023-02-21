@@ -1717,13 +1717,19 @@ export type Compressor = {|
 /**
  * @section resolver
  */
-export type Resolver = {|
+export type Resolver<ConfigType> = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Promise<ConfigType> | ConfigType,
   resolve({|
     dependency: Dependency,
     options: PluginOptions,
     logger: PluginLogger,
     specifier: FilePath,
     pipeline: ?string,
+    config: ConfigType,
   |}): Async<?ResolveResult>,
 |};
 
