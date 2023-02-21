@@ -6,6 +6,7 @@ import type {
   Transformer,
   TransformerResult,
   PackageName,
+  ResolveOptions,
   SemverRange,
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
@@ -734,12 +735,17 @@ export default class Transformation {
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
 
-    const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
+    const resolve = async (
+      from: FilePath,
+      to: string,
+      options?: ResolveOptions,
+    ): Promise<FilePath> => {
       let result = await pipeline.resolverRunner.resolve(
         createDependency(this.options.projectRoot, {
           env: asset.value.env,
           specifier: to,
-          specifierType: 'esm', // ???
+          specifierType: options?.specifierType || 'esm',
+          packageConditions: options?.packageConditions,
           sourcePath: from,
         }),
       );

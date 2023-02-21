@@ -171,6 +171,7 @@ pub struct ResolveOptions {
   pub filename: String,
   pub specifier_type: String,
   pub parent: String,
+  pub package_conditions: Option<Vec<String>>,
 }
 
 #[napi(object)]
@@ -267,7 +268,7 @@ impl Resolver {
 
   #[napi]
   pub fn resolve(&self, options: ResolveOptions, env: Env) -> Result<ResolveResult> {
-    let mut res = self.resolver.resolve(
+    let mut res = self.resolver.resolve_with_options(
       &options.filename,
       Path::new(&options.parent),
       match options.specifier_type.as_ref() {
@@ -280,6 +281,11 @@ impl Resolver {
             format!("Invalid specifier type: {}", options.specifier_type),
           ))
         }
+      },
+      if let Some(conditions) = options.package_conditions {
+        get_resolve_options(conditions)
+      } else {
+        Default::default()
       },
     );
 
@@ -349,4 +355,21 @@ fn convert_invalidations(
     })
     .collect();
   (invalidate_on_file_change, invalidate_on_file_create)
+}
+
+fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver::ResolveOptions {
+  let mut conditions = ExportsCondition::empty();
+  custom_conditions.retain(|condition| {
+    if let Ok(cond) = ExportsCondition::try_from(condition.as_ref()) {
+      conditions |= cond;
+      false
+    } else {
+      true
+    }
+  });
+
+  parcel_resolver::ResolveOptions {
+    conditions,
+    custom_conditions,
+  }
 }

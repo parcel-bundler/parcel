@@ -56,6 +56,7 @@ type ResolveOptions = {|
   env: Environment,
   sourcePath?: ?FilePath,
   loc?: ?SourceLocation,
+  packageConditions?: ?Array<string>,
 |};
 
 export default class NodeResolver {

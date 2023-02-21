@@ -172,4 +172,13 @@ describe('stylus', function () {
     assert(css.includes('.foo'));
     assert(css.includes('.bar'));
   });
+
+  it('should support the stylus package exports condition', async function () {
+    await bundle(
+      path.join(__dirname, '/integration/stylus-exports/index.styl'),
+    );
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.a'));
+  });
 });

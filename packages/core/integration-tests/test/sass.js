@@ -269,4 +269,20 @@ describe('sass', function () {
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.included'));
   });
+
+  it('should support package.json exports', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sass-exports/index.sass'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.sass'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.external'));
+  });
 });
