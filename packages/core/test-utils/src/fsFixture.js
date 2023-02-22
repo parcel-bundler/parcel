@@ -45,6 +45,17 @@ declare function toFixture<T>(
   parent: T,
 ): Promise<T>;
 
+const DISALLOWED_FILETYPES = new Set([
+  '.crt',
+  '.gitkeep',
+  '.gif',
+  '.jpeg',
+  '.jpg',
+  '.pem',
+  '.png',
+  '.webp',
+]);
+
 export async function toFixture(
   fs: FileSystem,
   dir: string = fs.cwd(),
@@ -78,7 +89,10 @@ export async function toFixture(
         new FixtureLink(name, await fs.realpath(filepath)),
       );
     } else if (dirent.isFile()) {
-      // TODO: throw for binary files.
+      if (DISALLOWED_FILETYPES.has(path.extname(dirent.name))) {
+        throw new Error(`Disallowed file type: ${name}`);
+      }
+
       let content = escapeFixtureContent(await fs.readFile(filepath, 'utf8'));
       fixture.children.push(new FixtureFile(name, content));
     } else if (dirent.isDirectory()) {
