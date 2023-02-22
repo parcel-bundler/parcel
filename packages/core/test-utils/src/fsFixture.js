@@ -56,6 +56,8 @@ const DISALLOWED_FILETYPES = new Set([
   '.webp',
 ]);
 
+const MAX_FILE_SIZE = 1000;
+
 export async function toFixture(
   fs: FileSystem,
   dir: string = fs.cwd(),
@@ -91,6 +93,11 @@ export async function toFixture(
     } else if (dirent.isFile()) {
       if (DISALLOWED_FILETYPES.has(path.extname(dirent.name))) {
         throw new Error(`Disallowed file type: ${name}`);
+      }
+
+      let size = (await fs.stat(filepath)).size;
+      if (size > MAX_FILE_SIZE) {
+        throw new Error(`File too large: ${name}`);
       }
 
       let content = escapeFixtureContent(await fs.readFile(filepath, 'utf8'));
