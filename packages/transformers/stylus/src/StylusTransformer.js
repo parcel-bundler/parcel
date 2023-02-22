@@ -101,13 +101,21 @@ function attemptResolve(importedPath, filepath, asset, resolve, deps) {
             resolve(
               filepath,
               './' + path.relative(path.dirname(filepath), entry),
+              {
+                packageConditions: ['stylus', 'style'],
+              },
             ),
           ),
         ),
       ),
     );
   } else {
-    deps.set(importedPath, resolve(filepath, importedPath));
+    deps.set(
+      importedPath,
+      resolve(filepath, importedPath, {
+        packageConditions: ['stylus', 'style'],
+      }),
+    );
   }
 }
 

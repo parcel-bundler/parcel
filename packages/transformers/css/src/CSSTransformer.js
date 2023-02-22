@@ -156,6 +156,7 @@ export default (new Transformer({
             specifier: dep.url,
             specifierType: 'url',
             loc,
+            packageConditions: ['style'],
             meta: {
               // For the glob resolver to distinguish between `@import` and other URL dependencies.
               isCSSImport: true,
@@ -225,6 +226,7 @@ export default (new Transformer({
               asset.addDependency({
                 specifier: ref.specifier,
                 specifierType: 'esm',
+                packageConditions: ['style'],
               });
             }
             s += '${' + `${d}[${JSON.stringify(ref.name)}]` + '}';
@@ -268,6 +270,7 @@ export default (new Transformer({
           asset.addDependency({
             specifier: reference.specifier,
             specifierType: 'esm',
+            packageConditions: ['style'],
             symbols: new Map([
               [reference.name, {local: symbol, isWeak: false, loc: null}],
             ]),

@@ -113,6 +113,17 @@ export const Priority = {
   lazy: 2,
 };
 
+// Must match package_json.rs in node-resolver-rs.
+export const ExportsCondition = {
+  import: 1 << 0,
+  require: 1 << 1,
+  module: 1 << 2,
+  style: 1 << 12,
+  sass: 1 << 13,
+  less: 1 << 14,
+  stylus: 1 << 15,
+};
+
 export type Dependency = {|
   id: string,
   specifier: DependencySpecifier,
@@ -124,6 +135,8 @@ export type Dependency = {|
   isOptional: boolean,
   loc: ?InternalSourceLocation,
   env: Environment,
+  packageConditions?: number,
+  customPackageConditions?: Array<string>,
   meta: Meta,
   resolverMeta?: ?Meta,
   target: ?Target,
