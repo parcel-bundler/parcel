@@ -79,6 +79,32 @@ describe('sass', function () {
     assert(css.includes('.bar'));
   });
 
+  it('should support scss imports in html', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/scss-html-import/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+      {
+        name: 'style.css',
+        assets: ['style.scss'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.index'));
+    assert(css.includes('.foo'));
+    assert(css.includes('.bar'));
+  });
+
   it('should support requiring empty scss files', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/scss-empty/index.js'),
