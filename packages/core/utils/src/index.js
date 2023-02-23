@@ -73,3 +73,4 @@ export {
   loadSourceMap,
   remapSourceLocation,
 } from './sourcemap';
+export {BitSet} from './BitSet';
