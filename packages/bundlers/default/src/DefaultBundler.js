@@ -806,13 +806,15 @@ function createIdealGraph(
         ancestorAssets.set(child, currentChildAvailable.clone());
       }
       if (isParallel) {
+        let assetsFromBundleRoot = assetSet.clone();
         for (let reachableNodeId of reachableRoots.getNodeIdsConnectedFrom(
           reachableRoots.getNodeIdByContentKey(child.id),
         )) {
           let asset = nullthrows(reachableRoots.getNode(reachableNodeId));
 
-          parallelAvailability.add(asset);
+          assetsFromBundleRoot.add(asset);
         }
+        parallelAvailability.union(assetsFromBundleRoot);
         parallelAvailability.add(child); //The next sibling should have older sibling available via parallel
       }
     }
@@ -979,12 +981,11 @@ function createIdealGraph(
           let parentBundle = nullthrows(bundleGraph.getNode(p));
           invariant(parentBundle !== 'root');
           if (parentBundle === firstSourceBundle) continue;
-
-          if (parentBundle.internalizedAssets) {
-            sharedInternalizedAssets.intersect(parentBundle.internalizedAssets);
-          } else {
-            sharedInternalizedAssets.clear();
-          }
+          sharedInternalizedAssets.intersect(
+            parentBundle.internalizedAssets
+              ? parentBundle.internalizedAssets.clone()
+              : assetSet.cloneEmpty(),
+          );
         }
         bundle.internalizedAssets = sharedInternalizedAssets;
         bundleId = bundleGraph.addNode(bundle);
