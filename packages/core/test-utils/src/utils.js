@@ -20,7 +20,13 @@ import Parcel, {createWorkerFarm} from '@parcel/core';
 import assert from 'assert';
 import vm from 'vm';
 import v8 from 'v8';
-import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
+import {
+  NodeFS,
+  MemoryFS,
+  OverlayFS,
+  CopyOnWriteToMemoryFS,
+  ncp as _ncp,
+} from '@parcel/fs';
 import path from 'path';
 import url from 'url';
 import WebSocket from 'ws';
@@ -35,7 +41,6 @@ import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 
-export * from './CopyOnWriteToMemoryFS';
 export {fsFixture} from './fsFixture';
 
 export const workerFarm = (createWorkerFarm(): WorkerFarm);

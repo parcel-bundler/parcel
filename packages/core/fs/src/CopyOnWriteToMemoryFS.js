@@ -6,11 +6,14 @@ import type {
   ReaddirOptions,
   FileSystem,
   Dirent,
-} from '@parcel/fs';
+} from './types';
 import type {FilePath} from '@parcel/types';
 import type {Readable, Writable} from 'stream';
 
-import {MemoryFS, OverlayFS} from '@parcel/fs';
+import {registerSerializableClass} from '@parcel/core';
+import packageJSON from '../package.json';
+import {MemoryFS} from './MemoryFS';
+import {OverlayFS} from './OverlayFS';
 import WorkerFarm from '@parcel/workers';
 
 import nullthrows from 'nullthrows';
@@ -23,8 +26,15 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
   // $FlowFixMe[incompatible-extend]
   writable: MemoryFS;
 
-  constructor(workerFarm: WorkerFarm, sourceFS: FileSystem) {
-    super(new MemoryFS(workerFarm), sourceFS);
+  constructor(
+    workerFarmOrMemoryFS: WorkerFarm | MemoryFS,
+    sourceFS: FileSystem,
+  ) {
+    if (workerFarmOrMemoryFS instanceof MemoryFS) {
+      super(workerFarmOrMemoryFS, sourceFS);
+    } else {
+      super(new MemoryFS(workerFarmOrMemoryFS), sourceFS);
+    }
 
     // Because many methods on `OverlayFS` are defined as instance fields
     // (`method = () => { ... }` instead of `method() { ... }`),
@@ -46,6 +56,19 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
 
     this.deleted = new Set();
     this.chdir(sourceFS.cwd());
+  }
+
+  static deserialize(opts: any): CopyOnWriteToMemoryFS {
+    return new CopyOnWriteToMemoryFS(opts.writable, opts.readable);
+  }
+
+  serialize(): {|$$raw: boolean, readable: FileSystem, writable: FileSystem|} {
+    // console.trace('serializing CopyOnWriteToMemoryFS');
+    return {
+      $$raw: false,
+      writable: this.writable,
+      readable: this.readable,
+    };
   }
 
   _deletedThrows(filePath: FilePath): FilePath {
@@ -187,7 +210,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     encoding: ?Encoding,
   ): // $FlowFixMe
   Promise<Buffer | string> {
-    return this.readFileSync(filePath);
+    return this.readFileSync(filePath, encoding);
   }
 
   // $FlowFixMe[method-unbinding]
@@ -315,3 +338,8 @@ class FSError extends Error {
     Error.captureStackTrace?.(this, this.constructor);
   }
 }
+
+registerSerializableClass(
+  `${packageJSON.version}:CopyOnWriteToMemoryFS`,
+  CopyOnWriteToMemoryFS,
+);

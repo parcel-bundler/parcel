@@ -1,8 +1,8 @@
 // @flow
 
 import {CopyOnWriteToMemoryFS} from '../src/CopyOnWriteToMemoryFS';
-import {fsFixture} from '../src/fsFixture';
-import {MemoryFS} from '@parcel/fs';
+import {fsFixture} from '@parcel/test-utils/src/fsFixture';
+import {MemoryFS} from '../src/MemoryFS';
 import WorkerFarm from '@parcel/workers';
 
 import assert from 'assert';
