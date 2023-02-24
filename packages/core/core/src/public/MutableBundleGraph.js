@@ -120,7 +120,17 @@ export default class MutableBundleGraph
       resolvedNodeId,
       bundleGraphEdgeTypes.references,
     );
-    this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
+    if (
+      // This check is needed for multiple targets, when we go over the same nodes twice
+      this.#graph._graph.hasEdge(
+        dependencyNodeId,
+        resolvedNodeId,
+        bundleGraphEdgeTypes.null,
+      )
+    ) {
+      //nullEdgeType
+      this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
+    }
 
     if (dependency.isEntry) {
       this.#graph._graph.addEdge(
