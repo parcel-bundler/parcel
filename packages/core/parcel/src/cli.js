@@ -111,7 +111,7 @@ var hmrOptions = {
     process.env.PORT,
   ],
   '--host <host>':
-    'set the host to listen on, defaults to listening on all interfaces',
+    'set the host to listen on, defaults to listening on localhost',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
