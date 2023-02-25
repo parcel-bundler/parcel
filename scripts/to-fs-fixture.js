@@ -362,17 +362,17 @@ function replaceFixturePaths(fixturePaths, api) {
   }
 }
 
-/** Where to insert the `fixtureFS` argument for various test utils. */
+/** Where to insert the `overlayFS` argument for various test utils. */
 const TEST_UTIL_ARITY = {
   ncp: 3,
   assertESMExports: 5,
 };
 
 /**
- * Where possible, specifies `fixtureFS` as the input fs for the test.
+ * Where possible, specifies `overlayFS` as the input fs for the test.
  *
  * For example, in a test that uses the `bundle` test util, the options
- * to the `bundle` call will be updated to use `fixtureFS` as the input fs,
+ * to the `bundle` call will be updated to use `overlayFS` as the input fs,
  * unless already specified.
  * */
 function replaceInputFS(test, {jscodeshift: j}, {verbose}) {
@@ -397,14 +397,14 @@ function replaceInputFS(test, {jscodeshift: j}, {verbose}) {
               j.property(
                 'init',
                 j.identifier('inputFS'),
-                j.identifier('fixtureFS'),
+                j.identifier('overlayFS'),
               ),
             );
             if (verbose) {
               console.log(
                 chalk.dim(
                   `Adding ${chalk.yellow(
-                    'inputFS: fixtureFS',
+                    'inputFS: overlayFS',
                   )} option to ${chalk.yellow(name)} call at ${printLoc(loc)}`,
                 ),
               );
@@ -424,14 +424,14 @@ function replaceInputFS(test, {jscodeshift: j}, {verbose}) {
             j.property(
               'init',
               j.identifier('inputFS'),
-              j.identifier('fixtureFS'),
+              j.identifier('overlayFS'),
             ),
           ]);
           if (verbose) {
             console.log(
               chalk.dim(
                 `Adding ${chalk.yellow(
-                  'inputFS: fixtureFS',
+                  'inputFS: overlayFS',
                 )} option arg to ${chalk.yellow(name)} call at ${printLoc(
                   loc,
                 )}`,
@@ -448,11 +448,11 @@ function replaceInputFS(test, {jscodeshift: j}, {verbose}) {
           while (args.length < arity - 1) {
             args.push(j.literal(null));
           }
-          args.push(j.identifier('fixtureFS'));
+          args.push(j.identifier('overlayFS'));
           if (verbose) {
             console.log(
               chalk.dim(
-                `Adding ${chalk.yellow('fixtureFS')} argument to ${chalk.yellow(
+                `Adding ${chalk.yellow('overlayFS')} argument to ${chalk.yellow(
                   name,
                 )} call at ${printLoc(loc)}`,
               ),
@@ -479,17 +479,17 @@ function replaceInputFS(test, {jscodeshift: j}, {verbose}) {
         console.log(
           chalk.dim(
             `Replacing ${chalk.yellow('inputFS')} with ${chalk.yellow(
-              'fixtureFS',
+              'overlayFS',
             )} at ${printLoc(path.value.loc)}`,
           ),
         );
       }
-      path.value.name = 'fixtureFS';
+      path.value.name = 'overlayFS';
     });
   }
 }
 
-/** Adds imports for `fsFixture` and `fixtureFS`. */
+/** Adds imports for `fsFixture` and `overlayFS`. */
 function insertFsFixtureImport(root, api) {
   let j = api.jscodeshift;
   // Insert import for fsFixture
@@ -499,7 +499,7 @@ function insertFsFixtureImport(root, api) {
 
   if (testUtils.length === 0) {
     root.find(j.ImportDeclaration).at(-1).insertAfter(`
-        import {fsFixture, fixtureFS} from '@parcel/test-utils';
+        import {fsFixture, overlayFS} from '@parcel/test-utils';
       `);
   } else {
     let specifiers = testUtils.find(j.Specifier);
@@ -508,17 +508,17 @@ function insertFsFixtureImport(root, api) {
         .at(-1)
         .insertAfter(j.importSpecifier(j.identifier('fsFixture')));
     }
-    if (!specifiers.paths().some(p => p.value.imported.name === 'fixtureFS')) {
+    if (!specifiers.paths().some(p => p.value.imported.name === 'overlayFS')) {
       specifiers
         .at(-1)
-        .insertAfter(j.importSpecifier(j.identifier('fixtureFS')));
+        .insertAfter(j.importSpecifier(j.identifier('overlayFS')));
     }
   }
 }
 
 /** Prints the `fsFixture` template string. */
 function printFsFixture(fixtures) {
-  return `await fsFixture(fixtureFS, __dirname)\`\n${[...fixtures.values()]
+  return `await fsFixture(overlayFS, __dirname)\`\n${[...fixtures.values()]
     .map(fixture =>
       fixture
         .toString()
