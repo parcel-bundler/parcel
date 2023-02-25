@@ -48,14 +48,14 @@ export class ParcelLinkConfig {
     this.filename = options.filename ?? this.filename;
   }
 
-  async save(): Promise<void> {
+  save(): Promise<void> {
     return this.fs.writeFile(
       path.join(this.appRoot, this.filename),
       JSON.stringify(this, null, 2),
     );
   }
 
-  async delete(): Promise<void> {
+  delete(): Promise<void> {
     return this.fs.rimraf(path.join(this.appRoot, this.filename));
   }
 

@@ -98,8 +98,7 @@ describe('@parcel/link', () => {
   it('prints help text', async () => {
     let fs = await createFS();
     let cli = createProgram({fs});
-    // $FlowFixMe[prop-missing]
-    await assert.rejects(() => cli('--help'), /\(outputHelp\)/);
+    await assert.throws(() => cli('--help'), /\(outputHelp\)/);
   });
 
   it('links by default', async () => {

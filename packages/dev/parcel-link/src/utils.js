@@ -102,7 +102,6 @@ export function mapNamespacePackageAliases(
 }
 
 export async function cleanupBin(root: string, opts: CmdOptions) {
-  let {fs} = opts;
   let binSymlink = path.join(root, '.bin/parcel');
   try {
     await fsDelete(binSymlink, opts);
