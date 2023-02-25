@@ -33,12 +33,14 @@ declare function toFixture(
   dir?: string,
 ): Promise<FixtureRoot | FixtureDir>;
 
+// eslint-disable-next-line no-redeclare
 declare function toFixture(
   fs: FileSystem,
   dir: string,
   includeDir?: boolean,
 ): Promise<FixtureRoot | FixtureDir>;
 
+// eslint-disable-next-line no-redeclare
 declare function toFixture<T>(
   fs: FileSystem,
   dir: string,
@@ -58,6 +60,7 @@ const DISALLOWED_FILETYPES = new Set([
 
 const MAX_FILE_SIZE = 1000;
 
+// eslint-disable-next-line no-redeclare
 export async function toFixture(
   fs: FileSystem,
   dir: string = fs.cwd(),
@@ -154,11 +157,11 @@ export async function applyFixture(
 // a match for `dirname` can be tokenized as a `dirname` token, etc.
 const TOKEN_TYPES = [
   // `/` in `a/b` or `  ` in `a\n  b`
-  /^(?<nest>\/|  )/,
+  /^(?<nest>\/| {2})/,
   // e.g. `a` or `b` in `a/b/c.txt`
-  /^(?<dirname>[^:>\n\/]+\b)(?:(?=\/)| *\n| *$)/,
+  /^(?<dirname>[^:>\n/]+\b)(?:(?=\/)| *\n| *$)/,
   // e.g. `c.txt` in `a/b/c.txt:` or `a/b/c.txt ->`
-  /^(?<filename>[^:>\n\/]+\b) *(?:->|:) *(?:\n|$)/,
+  /^(?<filename>[^:>\n/]+\b) *(?:->|:) *(?:\n|$)/,
 ];
 
 // Named capture groups that can be directly tokenized,
@@ -167,15 +170,15 @@ const TOKEN_TYPES = [
 const COMPOUND_TYPES = [
   // Matches are captured as `indent` and`path` groups,
   // which can then be matched to `TOKEN_TYPES`.
-  /^(?<indent>(?:  )*)(?<path>[^:>\n]+\b) *(?:\n|$)/,
+  /^(?<indent>(?: {2})*)(?<path>[^:>\n]+\b) *(?:\n|$)/,
   // Matches are captured as `indent`,`path`, and `link` groups.
   // The `indent` and `path` groups can be matched to `TOKEN_TYPES`,
   // and then `link` can be directly tokenized as `link`.
-  /^(?<indent>(?:  )*)(?<path>[^:>\n]+\b *->) *(?<link>[^:>\n]+\b) *(?:\n|$)/,
+  /^(?<indent>(?: {2})*)(?<path>[^:>\n]+\b *->) *(?<link>[^:>\n]+\b) *(?:\n|$)/,
   // Matches are captured as `indent`,`path`, and `content` groups.
   // The `indent` and `path` groups can be matched to `TOKEN_TYPES`,
   // and then `content` can be directly tokenized as `content`.
-  /^(?<indent>(?:  )*)(?<path>[^:>\n]+\b *:)(?<content>.*(?:\n^(?:$|\k<indent>  .*))*) *(?:\n|$)/m,
+  /^(?<indent>(?: {2})*)(?<path>[^:>\n]+\b *:)(?<content>.*(?:\n^(?:$|\k<indent> {2}.*))*) *(?:\n|$)/m,
 ];
 
 const MAX_ITER = 10000;
@@ -412,11 +415,11 @@ export function dedentRaw(
   }
   src = src.trimRight().replace(/^ *\n?/, '');
 
-  let dedent = nullthrows(src.match(/^(?:  )*/))[0].length;
+  let dedent = nullthrows(src.match(/^(?: {2})*/))[0].length;
 
   if (dedent === 0) {
     dedent = Infinity;
-    for (let indent of nullthrows(src.match(/^(?:  )*/gm))) {
+    for (let indent of nullthrows(src.match(/^(?: {2})*/gm))) {
       let len = indent.length - 2;
       if (len >= 0 && len < dedent) dedent = len;
     }
