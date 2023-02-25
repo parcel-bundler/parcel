@@ -73,3 +73,4 @@ export {
   loadSourceMap,
   remapSourceLocation,
 } from './sourcemap';
+export {default as stripAnsi} from 'strip-ansi';

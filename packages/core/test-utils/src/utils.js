@@ -666,7 +666,7 @@ function prepareBrowserContext(
 
   function PatchedError(message) {
     const patchedError = new Error(message);
-    const stackStart = patchedError.stack.indexOf('at new Error');
+    const stackStart = patchedError.stack.match(/at (new )?Error/)?.index;
     const stackEnd = patchedError.stack.includes('at Script.runInContext')
       ? patchedError.stack.indexOf('at Script.runInContext')
       : patchedError.stack.indexOf('at runNextTicks');
