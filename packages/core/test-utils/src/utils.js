@@ -20,13 +20,7 @@ import Parcel, {createWorkerFarm} from '@parcel/core';
 import assert from 'assert';
 import vm from 'vm';
 import v8 from 'v8';
-import {
-  NodeFS,
-  MemoryFS,
-  OverlayFS,
-  CopyOnWriteToMemoryFS,
-  ncp as _ncp,
-} from '@parcel/fs';
+import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
 import path from 'path';
 import url from 'url';
 import WebSocket from 'ws';

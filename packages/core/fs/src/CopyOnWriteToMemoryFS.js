@@ -8,7 +8,6 @@ import type {
   Dirent,
 } from './types';
 import type {FilePath} from '@parcel/types';
-import type {Readable, Writable} from 'stream';
 
 import {registerSerializableClass} from '@parcel/core';
 import packageJSON from '../package.json';
@@ -132,6 +131,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     this.deleted.delete(to);
   }
 
+  // eslint-disable-next-line require-await
   async exists(filePath: FilePath): Promise<boolean> {
     return this.existsSync(filePath);
   }
@@ -166,6 +166,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     }
   }
 
+  // eslint-disable-next-line require-await
   async readdir(
     dir: FilePath,
     opts?: ReaddirOptions,
@@ -204,6 +205,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     return Array.from(entries.values());
   }
 
+  /* eslint-disable require-await */
   // $FlowFixMe[method-unbinding]
   async readFile(
     filePath: FilePath,
@@ -212,6 +214,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
   Promise<Buffer | string> {
     return this.readFileSync(filePath, encoding);
   }
+  /* eslint-enable require-await */
 
   // $FlowFixMe[method-unbinding]
   readFileSync(filePath: FilePath, encoding: ?Encoding): Buffer | string {
@@ -219,10 +222,12 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     return super.readFileSync(filePath, encoding);
   }
 
+  /* eslint-disable require-await */
   // $FlowFixMe[method-unbinding]
   async realpath(filePath: FilePath): Promise<FilePath> {
     return this.realpathSync(filePath);
   }
+  /* eslint-enable require-await */
 
   // $FlowFixMe[method-unbinding]
   realpathSync(filePath: FilePath): FilePath {
@@ -243,11 +248,13 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     }
   }
 
+  /* eslint-disable require-await */
   // $FlowFixMe[method-unbinding]
   async stat(filePath: FilePath): // $FlowFixMe
   Promise<Stats> {
     return this.statSync(filePath);
   }
+  /* eslint-enable require-await */
 
   // $FlowFixMe[method-unbinding]
   statSync(filePath: FilePath): Stats {
