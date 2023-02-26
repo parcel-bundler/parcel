@@ -12,13 +12,13 @@ export function propagateSymbols({
   options,
   assetGraph,
   changedAssets,
-  dependenciesWithRemovedParents,
+  assetGroupsWithRemovedParents,
   previousErrors,
 }: {|
   options: ParcelOptions,
   assetGraph: AssetGraph,
   changedAssets: Map<string, Asset>,
-  dependenciesWithRemovedParents: Set<NodeId>,
+  assetGroupsWithRemovedParents: Set<NodeId>,
   previousErrors?: ?Map<NodeId, Array<Diagnostic>>,
 |}): Map<NodeId, Array<Diagnostic>> {
   // TODO move functions from AssetGraphRequest to here
@@ -38,7 +38,7 @@ export function propagateSymbols({
     options: builder.options,
     assetGraph: builder.assetGraph,
     changedAssets: builder.changedAssets,
-    dependenciesWithRemovedParents: dependenciesWithRemovedParents,
+    assetGroupsWithRemovedParents: assetGroupsWithRemovedParents,
     previousErrors: previousErrors,
   });
 }

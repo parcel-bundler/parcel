@@ -52,7 +52,7 @@ type AssetGraphRequestInput = {|
 type AssetGraphRequestResult = {|
   assetGraph: AssetGraph,
   changedAssets: Map<string, Asset>,
-  dependenciesWithRemovedParents: ?Set<NodeId>,
+  assetGroupsWithRemovedParents: ?Set<NodeId>,
   previousSymbolPropagationErrors: ?Map<NodeId, Array<Diagnostic>>,
   assetRequests: Array<AssetGroup>,
 |};
@@ -116,7 +116,7 @@ export class AssetGraphBuilder {
   shouldBuildLazily: boolean;
   requestedAssetIds: Set<string>;
   isSingleChangeRebuild: boolean;
-  dependenciesWithRemovedParents: Set<NodeId>;
+  assetGroupsWithRemovedParents: Set<NodeId>;
   previousSymbolPropagationErrors: Map<NodeId, Array<Diagnostic>>;
 
   constructor(
@@ -137,8 +137,8 @@ export class AssetGraphBuilder {
       entries,
       assetGroups,
     });
-    this.dependenciesWithRemovedParents =
-      prevResult?.dependenciesWithRemovedParents ?? new Set();
+    this.assetGroupsWithRemovedParents =
+      prevResult?.assetGroupsWithRemovedParents ?? new Set();
     this.previousSymbolPropagationErrors =
       prevResult?.previousSymbolPropagationErrors ?? new Map();
     this.changedAssets = prevResult?.changedAssets ?? new Map();
@@ -159,7 +159,7 @@ export class AssetGraphBuilder {
     this.queue = new PromiseQueue();
 
     assetGraph.onNodeRemoved = nodeId => {
-      this.dependenciesWithRemovedParents.delete(nodeId);
+      this.assetGroupsWithRemovedParents.delete(nodeId);
 
       // This needs to mark all connected nodes that doesn't become orphaned
       // due to replaceNodesConnectedTo to make sure that the symbols of
@@ -173,7 +173,7 @@ export class AssetGraphBuilder {
             childNode.type === 'asset_group' || childNode.type === 'asset',
           );
           childNode.usedSymbolsDownDirty = true;
-          this.dependenciesWithRemovedParents.add(child);
+          this.assetGroupsWithRemovedParents.add(child);
         }
       }
     };
@@ -223,7 +223,7 @@ export class AssetGraphBuilder {
         {
           assetGraph: this.assetGraph,
           changedAssets: this.changedAssets,
-          dependenciesWithRemovedParents: this.dependenciesWithRemovedParents,
+          assetGroupsWithRemovedParents: this.assetGroupsWithRemovedParents,
           previousSymbolPropagationErrors: undefined,
           assetRequests: [],
         },
@@ -244,7 +244,7 @@ export class AssetGraphBuilder {
           options: this.options,
           assetGraph: this.assetGraph,
           changedAssets: this.changedAssets,
-          dependenciesWithRemovedParents: this.dependenciesWithRemovedParents,
+          assetGroupsWithRemovedParents: this.assetGroupsWithRemovedParents,
           previousErrors: this.previousSymbolPropagationErrors,
         });
         if (errors.size > 0) {
@@ -252,8 +252,7 @@ export class AssetGraphBuilder {
             {
               assetGraph: this.assetGraph,
               changedAssets: this.changedAssets,
-              dependenciesWithRemovedParents:
-                this.dependenciesWithRemovedParents,
+              assetGroupsWithRemovedParents: this.assetGroupsWithRemovedParents,
               previousSymbolPropagationErrors: errors,
               assetRequests: [],
             },
@@ -280,7 +279,7 @@ export class AssetGraphBuilder {
       {
         assetGraph: this.assetGraph,
         changedAssets: new Map(),
-        dependenciesWithRemovedParents: undefined,
+        assetGroupsWithRemovedParents: undefined,
         previousSymbolPropagationErrors: undefined,
         assetRequests: [],
       },
@@ -290,7 +289,7 @@ export class AssetGraphBuilder {
     return {
       assetGraph: this.assetGraph,
       changedAssets: this.changedAssets,
-      dependenciesWithRemovedParents: undefined,
+      assetGroupsWithRemovedParents: undefined,
       previousSymbolPropagationErrors: undefined,
       assetRequests: this.assetRequests,
     };
@@ -335,13 +334,13 @@ export class AssetGraphBuilder {
     options,
     assetGraph,
     changedAssets,
-    dependenciesWithRemovedParents,
+    assetGroupsWithRemovedParents,
     previousErrors,
   }: {|
     options: ParcelOptions,
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
-    dependenciesWithRemovedParents: Set<NodeId>,
+    assetGroupsWithRemovedParents: Set<NodeId>,
     previousErrors?: ?Map<NodeId, Array<Diagnostic>>,
   |}): Map<NodeId, Array<Diagnostic>> {
     let changedDeps = new Set<DependencyNode>();
@@ -349,13 +348,13 @@ export class AssetGraphBuilder {
     let changedDepsUsedSymbolsUpDirtyDown = new Set<ContentKey>();
 
     // The nodes with `usedSymbolsDownDirty` set are exactly `changedAssets` or the resolutions of
-    // `dependenciesWithRemovedParents`.
+    // `assetGroupsWithRemovedParents`.
 
     // Propagate the requested symbols down from the root to the leaves
     this.propagateSymbolsDown(
       assetGraph,
       changedAssets,
-      dependenciesWithRemovedParents,
+      assetGroupsWithRemovedParents,
       (assetNode, incomingDeps, outgoingDeps) => {
         if (!assetNode.value.symbols) return;
 
@@ -777,14 +776,14 @@ export class AssetGraphBuilder {
   propagateSymbolsDown(
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
-    dependenciesWithRemovedParents: Set<NodeId>,
+    assetGroupsWithRemovedParents: Set<NodeId>,
     visit: (
       assetNode: AssetNode,
       incoming: $ReadOnlyArray<DependencyNode>,
       outgoing: $ReadOnlyArray<DependencyNode>,
     ) => void,
   ) {
-    if (changedAssets.size === 0 && dependenciesWithRemovedParents.size === 0) {
+    if (changedAssets.size === 0 && assetGroupsWithRemovedParents.size === 0) {
       return;
     }
 
@@ -799,7 +798,7 @@ export class AssetGraphBuilder {
       ...[...changedAssets.keys()].map(id =>
         assetGraph.getNodeIdByContentKey(id),
       ),
-      ...dependenciesWithRemovedParents,
+      ...assetGroupsWithRemovedParents,
     ]);
     let queue = new Set([setPop(unreachedAssets)]);
 

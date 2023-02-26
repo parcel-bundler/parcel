@@ -311,7 +311,7 @@ async function testPropagation(
       options: DEFAULT_OPTIONS,
       assetGraph: graph,
       changedAssets,
-      dependenciesWithRemovedParents: new Set(),
+      assetGroupsWithRemovedParents: new Set(),
       previousErrors: undefined,
     }),
   );
@@ -405,7 +405,7 @@ describe('SymbolPropagation', () => {
       options: DEFAULT_OPTIONS,
       assetGraph: graph,
       changedAssets: new Map(changedAssets),
-      dependenciesWithRemovedParents: new Set(),
+      assetGroupsWithRemovedParents: new Set(),
     });
 
     // prettier-ignore
@@ -449,7 +449,7 @@ describe('SymbolPropagation', () => {
       options: DEFAULT_OPTIONS,
       assetGraph: graph,
       changedAssets: new Map(changedAssets),
-      dependenciesWithRemovedParents: new Set(),
+      assetGroupsWithRemovedParents: new Set(),
     });
 
     // prettier-ignore
