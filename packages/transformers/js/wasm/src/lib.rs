@@ -1,5 +1,3 @@
-extern crate parcel_js_swc_core;
-
 use js_sys::Error;
 use serde::ser::Serialize;
 use serde_wasm_bindgen::{from_value, Serializer};

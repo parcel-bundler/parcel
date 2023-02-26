@@ -675,7 +675,7 @@ export class RequestGraph extends ContentGraph<
           requestGraphEdgeTypes.invalidated_by_create_above,
         ) &&
         isDirectoryInside(
-          path.dirname(fromProjectPathRelative(matchNode.value.filePath)),
+          fromProjectPathRelative(matchNode.value.filePath),
           dirname,
         )
       ) {

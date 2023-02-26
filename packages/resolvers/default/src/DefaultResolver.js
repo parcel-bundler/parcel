@@ -18,13 +18,6 @@ export default (new Resolver({
     const resolver = new NodeResolver({
       fs: options.inputFS,
       projectRoot: options.projectRoot,
-      // Extensions are always required in URL dependencies.
-      extensions:
-        dependency.specifierType === 'commonjs' ||
-        dependency.specifierType === 'esm'
-          ? ['ts', 'tsx', 'mjs', 'js', 'jsx', 'cjs', 'json']
-          : [],
-      mainFields: ['source', 'browser', 'module', 'main'],
       packageManager: options.packageManager,
       shouldAutoInstall: options.shouldAutoInstall,
       logger,
@@ -38,6 +31,7 @@ export default (new Resolver({
       env: dependency.env,
       sourcePath: dependency.sourcePath,
       loc: dependency.loc,
+      packageConditions: dependency.packageConditions,
     });
   },
 }): Resolver);

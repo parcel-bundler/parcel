@@ -303,6 +303,11 @@ function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
 }
 
 function updateLink(link) {
+  var href = link.getAttribute('href');
+
+  if (!href) {
+    return;
+  }
   var newLink = link.cloneNode();
   newLink.onload = function () {
     if (link.parentNode !== null) {
@@ -313,7 +318,7 @@ function updateLink(link) {
   newLink.setAttribute(
     'href',
     // $FlowFixMe
-    link.getAttribute('href').split('?')[0] + '?' + Date.now(),
+    href.split('?')[0] + '?' + Date.now(),
   );
   // $FlowFixMe
   link.parentNode.insertBefore(newLink, link.nextSibling);

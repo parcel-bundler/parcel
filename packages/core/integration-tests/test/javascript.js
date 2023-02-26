@@ -2101,12 +2101,14 @@ describe('javascript', function () {
       {
         assets: [
           'index.js',
-          'bundle-url.js',
           'get-worker-url.js',
-          'bundle-manifest.js',
           'lodash.js',
           'esmodule-helpers.js',
+          'bundle-url.js',
         ],
+      },
+      {
+        assets: ['bundle-manifest.js'],
       },
       {
         assets: ['worker.js', 'lodash.js', 'esmodule-helpers.js'],
@@ -5466,6 +5468,11 @@ describe('javascript', function () {
                 ],
               },
             ],
+          },
+          {
+            message: "Cannot find module 'foo'",
+            origin: '@parcel/resolver-default',
+            hints: [],
           },
         ],
       },
