@@ -82,6 +82,10 @@ export class BitSet<Item> {
     this._value = bitUnion(this._value, v._value);
   }
 
+  clear() {
+    this._value = BIGINT_ZERO;
+  }
+
   cloneEmpty(): BitSet<Item> {
     return new BitSet({
       lookup: this._lookup,
