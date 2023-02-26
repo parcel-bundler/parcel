@@ -88,11 +88,10 @@ export async function toFixture(
     let name = dirent.name;
     let filepath = path.join(dir, name);
     if (dirent.isSymbolicLink()) {
-      fixture.children.push(
-        // FIXME: `realpath` is not the correct behavior here,
-        // but Parcel fs doesn't define `readlink.
-        new FixtureLink(name, await fs.realpath(filepath)),
-      );
+      // FIXME: `realpath` is not the correct behavior here,
+      // but Parcel fs doesn't define `readlink.
+      let target = await fs.realpath(filepath);
+      fixture.children.push(new FixtureLink(name, toPosixPath(target)));
     } else if (dirent.isFile()) {
       if (DISALLOWED_FILETYPES.has(path.extname(dirent.name))) {
         throw new Error(`Disallowed file type: ${name}`);
@@ -157,11 +156,11 @@ export async function applyFixture(
 // a match for `dirname` can be tokenized as a `dirname` token, etc.
 const TOKEN_TYPES = [
   // `/` in `a/b` or `  ` in `a\n  b`
-  /^(?<nest>\/| {2})/,
+  /^(?<nest>[/\\]| {2})/,
   // e.g. `a` or `b` in `a/b/c.txt`
-  /^(?<dirname>[^:>\n/]+\b)(?:(?=\/)| *\n| *$)/,
+  /^(?<dirname>[^:>\n/\\]+\b)(?:(?=[/\\])| *\n| *$)/,
   // e.g. `c.txt` in `a/b/c.txt:` or `a/b/c.txt ->`
-  /^(?<filename>[^:>\n/]+\b) *(?:->|:) *(?:\n|$)/,
+  /^(?<filename>[^:>\n/\\]+\b) *(?:->|:) *(?:\n|$)/,
 ];
 
 // Named capture groups that can be directly tokenized,
@@ -190,6 +189,10 @@ function checkIteration(i, str) {
   return i + 1;
 }
 
+function toPosixPath(str) {
+  return str.replace(/^[A-Z]:\\/, '/').replace(/\\/g, '/');
+}
+
 export class FixtureTokenizer {
   #src: string;
   #tokens: Array<FixtureToken>;
@@ -207,7 +210,10 @@ export class FixtureTokenizer {
           // If the value is multiline, dedent each line.
           let value = groups[type]
             .trim()
-            .replace(new RegExp(`^${indent}  (.*)$`, 'gm'), '$1');
+            .replace(new RegExp(`^${indent} {2}(.*)$`, 'gm'), '$1');
+          if (type === 'nest' || type === 'link') {
+            value = toPosixPath(value);
+          }
           this.#tokens.push({type, value});
         }
 

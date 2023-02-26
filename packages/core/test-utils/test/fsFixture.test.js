@@ -206,6 +206,25 @@ describe('FixtureTokenizer', () => {
       },
     ]);
   });
+
+  it('tokenizes windows paths', () => {
+    let tokens = new FixtureTokenizer(dedentRaw`
+      foo\\bar
+        bat:
+        baz -> foo\\bar\\bat
+    `).tokenize();
+    assert.deepEqual(tokens, [
+      {type: 'dirname', value: 'foo'},
+      {type: 'nest', value: '/'},
+      {type: 'dirname', value: 'bar'},
+      {type: 'nest', value: ''},
+      {type: 'filename', value: 'bat'},
+      {type: 'content', value: ''},
+      {type: 'nest', value: ''},
+      {type: 'filename', value: 'baz'},
+      {type: 'link', value: 'foo/bar/bat'},
+    ]);
+  });
 });
 
 describe('FixtureParser', () => {
@@ -513,6 +532,16 @@ describe('fsFixture', () => {
       fs.readFileSync('/app/bar.js', 'utf8'),
       `import foo from "foo";\n\nexport function bar() {\n  return \`\${foo()} bar\`\n}`,
     );
+  });
+
+  it('applies a fixture with windows paths', async () => {
+    await fsFixture(fs)`
+      foo\\bar
+        bat:
+        baz -> foo\\bar\\bat`;
+
+    assert(fs.existsSync('/foo/bar/bat'));
+    assert.equal(fs.realpathSync('/foo/bar/baz'), '/foo/bar/bat');
   });
 });
 
