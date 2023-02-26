@@ -1,10 +1,23 @@
+// @flow strict-local
 import nullthrows from 'nullthrows';
 
-let bitUnion = (a: BigInt, b: BigInt): BigInt => a | b;
+// As our current version of flow doesn't support BigInt's, these values/types
+// have been hoisted to keep the flow errors to a minimum. This can be removed
+// if we upgrade to a flow version that supports BigInt's
+// $FlowFixMe
+type TmpBigInt = bigint;
+// $FlowFixMe
+const BIGINT_ZERO = BIGINT_ZERO;
+// $FlowFixMe
+const BIGINT_ONE = 1n;
+// $FlowFixMe
+let numberToBigInt = (v: number): TmpBigInt => BigInt(v);
+
+let bitUnion = (a: TmpBigInt, b: TmpBigInt): TmpBigInt => a | b;
 
 export class BitSet<Item> {
-  _value: bigint;
-  _lookup: Map<Item, bigint>;
+  _value: TmpBigInt;
+  _lookup: Map<Item, TmpBigInt>;
   _items: Array<Item>;
 
   constructor({
@@ -14,14 +27,14 @@ export class BitSet<Item> {
   }: {|
     items: Array<Item>,
     lookup: Map<Item, number>,
-    initial?: BitSet<Item> | bigint,
+    initial?: BitSet<Item> | TmpBigInt,
   |}) {
     if (initial instanceof BitSet) {
       this._value = initial?._value;
     } else if (initial) {
       this._value = initial;
     } else {
-      this._value = 0n;
+      this._value = BIGINT_ZERO;
     }
 
     this._items = items;
@@ -29,16 +42,16 @@ export class BitSet<Item> {
   }
 
   static from(items: Array<Item>): BitSet<Item> {
-    let lookup = new Map<Item, bigint>();
+    let lookup: Map<Item, TmpBigInt> = new Map();
     for (let i = 0; i < items.length; i++) {
-      lookup.set(items[i], BigInt(i));
+      lookup.set(items[i], numberToBigInt(i));
     }
 
     return new BitSet({items, lookup});
   }
 
   static union(a: BitSet<Item>, b: BitSet<Item>): BitSet<Item> {
-    return new BitSet<Item>({
+    return new BitSet({
       initial: bitUnion(a._value, b._value),
       lookup: a._lookup,
       items: a._items,
@@ -50,15 +63,15 @@ export class BitSet<Item> {
   }
 
   add(item: Item) {
-    this._value |= 1n << this.#getIndex(item);
+    this._value |= BIGINT_ONE << this.#getIndex(item);
   }
 
   delete(item: Item) {
-    this._value &= ~(1n << this.#getIndex(item));
+    this._value &= ~(BIGINT_ONE << this.#getIndex(item));
   }
 
   has(item: Item): boolean {
-    return Boolean(this._value & (1n << this.#getIndex(item)));
+    return Boolean(this._value & (BIGINT_ONE << this.#getIndex(item)));
   }
 
   intersect(v: BitSet<Item>) {
@@ -70,14 +83,14 @@ export class BitSet<Item> {
   }
 
   cloneEmpty(): BitSet<Item> {
-    return new BitSet<Item>({
+    return new BitSet({
       lookup: this._lookup,
       items: this._items,
     });
   }
 
   clone(): BitSet<Item> {
-    return new BitSet<Item>({
+    return new BitSet({
       lookup: this._lookup,
       items: this._items,
       initial: this._value,
@@ -89,14 +102,14 @@ export class BitSet<Item> {
     let tmpValue = this._value;
     let i;
 
-    while (tmpValue > 0n) {
+    while (tmpValue > BIGINT_ZERO) {
       // Get last set bit
       i = tmpValue.toString(2).length - 1;
 
       values.push(this._items[i]);
 
       // Unset last set bit
-      tmpValue &= ~(1n << BigInt(i));
+      tmpValue &= ~(BIGINT_ONE << numberToBigInt(i));
     }
 
     return values;
