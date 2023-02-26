@@ -173,7 +173,7 @@ const COMPOUND_TYPES = [
   // Matches are captured as `indent`,`path`, and `link` groups.
   // The `indent` and `path` groups can be matched to `TOKEN_TYPES`,
   // and then `link` can be directly tokenized as `link`.
-  /^(?<indent>(?: {2})*)(?<path>[^:>\n]+\b *->) *(?<link>[^:>\n]+\b) *(?:\n|$)/,
+  /^(?<indent>(?: {2})*)(?<path>[^:>\n]+\b *->) *(?<link>.+\b) *(?:\n|$)/,
   // Matches are captured as `indent`,`path`, and `content` groups.
   // The `indent` and `path` groups can be matched to `TOKEN_TYPES`,
   // and then `content` can be directly tokenized as `content`.

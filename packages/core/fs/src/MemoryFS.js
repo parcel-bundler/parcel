@@ -134,7 +134,7 @@ export class MemoryFS implements FileSystem {
   }
 
   _normalizePath(filePath: FilePath, realpath: boolean = true): FilePath {
-    filePath = path.resolve(this.cwd(), filePath);
+    filePath = path.normalize(path.join(this.cwd(), filePath));
 
     // get realpath by following symlinks
     if (realpath) {

@@ -458,7 +458,7 @@ describe('fsFixture', () => {
       foo/bar -> foo/bat
     `;
 
-    assert.equal(fs.realpathSync('foo/bar'), '/foo/bat');
+    assert.equal(fs.realpathSync('foo/bar'), path.resolve('/foo/bat'));
     assert(fs.readFileSync('foo/bat/qux', 'utf8'), 'qux');
     assert(fs.readFileSync('foo/bar/qux', 'utf8'), 'qux');
   });
@@ -538,10 +538,10 @@ describe('fsFixture', () => {
     await fsFixture(fs)`
       foo\\bar
         bat:
-        baz -> foo\\bar\\bat`;
+        baz -> D:\\foo\\bar\\bat`;
 
     assert(fs.existsSync('/foo/bar/bat'));
-    assert.equal(fs.realpathSync('/foo/bar/baz'), '/foo/bar/bat');
+    assert.equal(fs.realpathSync('/foo/bar/baz'), path.resolve('/foo/bar/bat'));
   });
 });
 
