@@ -51,7 +51,10 @@ type AssetGraphRequestInput = {|
 
 type AssetGraphRequestResult = {|
   assetGraph: AssetGraph,
+  /** Assets added/modified since the last successful build. */
   changedAssets: Map<string, Asset>,
+  /** Assets added/modified since the last symbol propagation invocation. */
+  changedAssetsPropagation: Set<string>,
   assetGroupsWithRemovedParents: ?Set<NodeId>,
   previousSymbolPropagationErrors: ?Map<NodeId, Array<Diagnostic>>,
   assetRequests: Array<AssetGroup>,
@@ -108,6 +111,7 @@ export class AssetGraphBuilder {
   assetRequests: Array<AssetGroup> = [];
   queue: PromiseQueue<mixed>;
   changedAssets: Map<string, Asset>;
+  changedAssetsPropagation: Set<string>;
   optionsRef: SharedReference;
   options: ParcelOptions;
   api: RunAPI<AssetGraphRequestResult>;
@@ -142,6 +146,8 @@ export class AssetGraphBuilder {
     this.previousSymbolPropagationErrors =
       prevResult?.previousSymbolPropagationErrors ?? new Map();
     this.changedAssets = prevResult?.changedAssets ?? new Map();
+    this.changedAssetsPropagation =
+      prevResult?.changedAssetsPropagation ?? new Set();
     this.assetGraph = assetGraph;
     this.optionsRef = optionsRef;
     this.options = options;
@@ -223,6 +229,7 @@ export class AssetGraphBuilder {
         {
           assetGraph: this.assetGraph,
           changedAssets: this.changedAssets,
+          changedAssetsPropagation: this.changedAssetsPropagation,
           assetGroupsWithRemovedParents: this.assetGroupsWithRemovedParents,
           previousSymbolPropagationErrors: undefined,
           assetRequests: [],
@@ -243,15 +250,18 @@ export class AssetGraphBuilder {
         let errors = this.propagateSymbols({
           options: this.options,
           assetGraph: this.assetGraph,
-          changedAssets: this.changedAssets,
+          changedAssetsPropagation: this.changedAssetsPropagation,
           assetGroupsWithRemovedParents: this.assetGroupsWithRemovedParents,
           previousErrors: this.previousSymbolPropagationErrors,
         });
+        this.changedAssetsPropagation.clear();
+
         if (errors.size > 0) {
           this.api.storeResult(
             {
               assetGraph: this.assetGraph,
               changedAssets: this.changedAssets,
+              changedAssetsPropagation: this.changedAssetsPropagation,
               assetGroupsWithRemovedParents: this.assetGroupsWithRemovedParents,
               previousSymbolPropagationErrors: errors,
               assetRequests: [],
@@ -279,6 +289,7 @@ export class AssetGraphBuilder {
       {
         assetGraph: this.assetGraph,
         changedAssets: new Map(),
+        changedAssetsPropagation: this.changedAssetsPropagation,
         assetGroupsWithRemovedParents: undefined,
         previousSymbolPropagationErrors: undefined,
         assetRequests: [],
@@ -289,6 +300,7 @@ export class AssetGraphBuilder {
     return {
       assetGraph: this.assetGraph,
       changedAssets: this.changedAssets,
+      changedAssetsPropagation: this.changedAssetsPropagation,
       assetGroupsWithRemovedParents: undefined,
       previousSymbolPropagationErrors: undefined,
       assetRequests: this.assetRequests,
@@ -333,13 +345,13 @@ export class AssetGraphBuilder {
   propagateSymbols({
     options,
     assetGraph,
-    changedAssets,
+    changedAssetsPropagation,
     assetGroupsWithRemovedParents,
     previousErrors,
   }: {|
     options: ParcelOptions,
     assetGraph: AssetGraph,
-    changedAssets: Map<string, Asset>,
+    changedAssetsPropagation: Set<string>,
     assetGroupsWithRemovedParents: Set<NodeId>,
     previousErrors?: ?Map<NodeId, Array<Diagnostic>>,
   |}): Map<NodeId, Array<Diagnostic>> {
@@ -347,13 +359,13 @@ export class AssetGraphBuilder {
 
     let changedDepsUsedSymbolsUpDirtyDown = new Set<ContentKey>();
 
-    // The nodes with `usedSymbolsDownDirty` set are exactly `changedAssets` or the resolutions of
+    // The nodes with `usedSymbolsDownDirty` set are exactly `changedAssetsPropagation` or the resolutions of
     // `assetGroupsWithRemovedParents`.
 
     // Propagate the requested symbols down from the root to the leaves
     this.propagateSymbolsDown(
       assetGraph,
-      changedAssets,
+      changedAssetsPropagation,
       assetGroupsWithRemovedParents,
       (assetNode, incomingDeps, outgoingDeps) => {
         if (!assetNode.value.symbols) return;
@@ -775,7 +787,7 @@ export class AssetGraphBuilder {
 
   propagateSymbolsDown(
     assetGraph: AssetGraph,
-    changedAssets: Map<string, Asset>,
+    changedAssets: Set<string>,
     assetGroupsWithRemovedParents: Set<NodeId>,
     visit: (
       assetNode: AssetNode,
@@ -795,9 +807,7 @@ export class AssetGraphBuilder {
     // don't have to be visited at all.
 
     let unreachedAssets = new Set([
-      ...[...changedAssets.keys()].map(id =>
-        assetGraph.getNodeIdByContentKey(id),
-      ),
+      ...[...changedAssets].map(id => assetGraph.getNodeIdByContentKey(id)),
       ...assetGroupsWithRemovedParents,
     ]);
     let queue = new Set([setPop(unreachedAssets)]);
@@ -1135,6 +1145,7 @@ export class AssetGraphBuilder {
           }
         }
         this.changedAssets.set(asset.id, asset);
+        this.changedAssetsPropagation.add(asset.id);
       }
       this.assetGraph.resolveAssetGroup(input, assets, request.id);
     } else {
