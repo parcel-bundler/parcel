@@ -806,15 +806,13 @@ function createIdealGraph(
         ancestorAssets.set(child, currentChildAvailable.clone());
       }
       if (isParallel) {
-        let assetsFromBundleRoot = assetSet.clone();
         for (let reachableNodeId of reachableRoots.getNodeIdsConnectedFrom(
           reachableRoots.getNodeIdByContentKey(child.id),
         )) {
           let asset = nullthrows(reachableRoots.getNode(reachableNodeId));
 
-          assetsFromBundleRoot.add(asset);
+          parallelAvailability.add(asset);
         }
-        parallelAvailability.union(assetsFromBundleRoot);
         parallelAvailability.add(child); //The next sibling should have older sibling available via parallel
       }
     }
