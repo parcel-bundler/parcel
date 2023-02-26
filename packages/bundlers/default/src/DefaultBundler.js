@@ -979,11 +979,12 @@ function createIdealGraph(
           let parentBundle = nullthrows(bundleGraph.getNode(p));
           invariant(parentBundle !== 'root');
           if (parentBundle === firstSourceBundle) continue;
-          sharedInternalizedAssets.intersect(
-            parentBundle.internalizedAssets
-              ? parentBundle.internalizedAssets.clone()
-              : assetSet.cloneEmpty(),
-          );
+
+          if (parentBundle.internalizedAssets) {
+            sharedInternalizedAssets.intersect(parentBundle.internalizedAssets);
+          } else {
+            sharedInternalizedAssets.clear();
+          }
         }
         bundle.internalizedAssets = sharedInternalizedAssets;
         bundleId = bundleGraph.addNode(bundle);
