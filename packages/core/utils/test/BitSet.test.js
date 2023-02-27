@@ -88,7 +88,7 @@ describe('BitSet', () => {
     assertValues(set1, [1, 3, 5]);
   });
 
-  it('BitSet.union should create a new BitSet with the union', () => {
+  it('Bit.union should create a new BitSet with the union', () => {
     let set1 = BitSet.from([1, 2, 3, 4, 5]);
     set1.add(1);
     set1.add(3);
