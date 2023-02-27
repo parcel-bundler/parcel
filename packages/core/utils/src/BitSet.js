@@ -7,7 +7,7 @@ import nullthrows from 'nullthrows';
 // $FlowFixMe
 type TmpBigInt = bigint;
 // $FlowFixMe
-const BIGINT_ZERO = BIGINT_ZERO;
+const BIGINT_ZERO = 0n;
 // $FlowFixMe
 const BIGINT_ONE = 1n;
 // $FlowFixMe
