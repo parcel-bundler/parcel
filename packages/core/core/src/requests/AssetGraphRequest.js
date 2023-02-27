@@ -971,7 +971,7 @@ export class AssetGraphBuilder {
       walk(rootNodeId);
     }
 
-    let queue = dirtyDeps ? dirtyDeps : changedDepsUsedSymbolsUpDirtyDownAssets;
+    let queue = dirtyDeps ?? changedDepsUsedSymbolsUpDirtyDownAssets;
     while (queue.size > 0) {
       let queuedNodeId = setPop(queue);
       let node = nullthrows(assetGraph.getNode(queuedNodeId));
@@ -983,6 +983,12 @@ export class AssetGraphBuilder {
             invariant(depNode && depNode.type === 'dependency');
             return depNode;
           });
+        for (let dep of incoming) {
+          if (dep.usedSymbolsUpDirtyDown) {
+            dep.usedSymbolsUpDirtyDown = false;
+            node.usedSymbolsUpDirty = true;
+          }
+        }
         let outgoing = assetGraph
           .getNodeIdsConnectedFrom(queuedNodeId)
           .map(depNodeId => {
@@ -1005,12 +1011,6 @@ export class AssetGraphBuilder {
           } else {
             node.usedSymbolsUpDirty = false;
             errors.delete(queuedNodeId);
-          }
-        }
-        for (let dep of incoming) {
-          if (dep.usedSymbolsUpDirtyDown) {
-            dep.usedSymbolsUpDirtyDown = false;
-            node.usedSymbolsUpDirty = true;
           }
         }
 
