@@ -310,7 +310,7 @@ async function testPropagation(
     propagateSymbols({
       options: DEFAULT_OPTIONS,
       assetGraph: graph,
-      changedAssets,
+      changedAssetsPropagation: new Set(changedAssets.keys()),
       assetGroupsWithRemovedParents: new Set(),
       previousErrors: undefined,
     }),
@@ -404,7 +404,7 @@ describe('SymbolPropagation', () => {
     propagateSymbols({
       options: DEFAULT_OPTIONS,
       assetGraph: graph,
-      changedAssets: new Map(changedAssets),
+      changedAssetsPropagation: new Set(new Map(changedAssets).keys()),
       assetGroupsWithRemovedParents: new Set(),
     });
 
@@ -448,7 +448,7 @@ describe('SymbolPropagation', () => {
     propagateSymbols({
       options: DEFAULT_OPTIONS,
       assetGraph: graph,
-      changedAssets: new Map(changedAssets),
+      changedAssetsPropagation: new Set(new Map(changedAssets).keys()),
       assetGroupsWithRemovedParents: new Set(),
     });
 
