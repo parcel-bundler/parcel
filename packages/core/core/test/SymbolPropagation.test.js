@@ -319,7 +319,7 @@ async function testPropagation(
     dependencies.map(([from, to, symbols]) => [from, to, symbols]),
     isLibrary,
   );
-  await dumpGraphToGraphViz(graph, 'test');
+  await dumpGraphToGraphViz(graph, 'test_before');
 
   handlePropagationErrors(
     propagateSymbols({
@@ -331,7 +331,7 @@ async function testPropagation(
     }),
   );
 
-  await dumpGraphToGraphViz(graph, 'test2');
+  await dumpGraphToGraphViz(graph, 'test_after');
 
   assertUsedSymbols(
     graph,
@@ -404,7 +404,7 @@ function changeAsset(
   return [[node.id, node.value]];
 }
 
-process.env.PARCEL_DUMP_GRAPHVIZ = '';
+// process.env.PARCEL_DUMP_GRAPHVIZ = '';
 // process.env.PARCEL_DUMP_GRAPHVIZ = 'symbols';
 
 describe('SymbolPropagation', () => {
@@ -507,6 +507,54 @@ describe('SymbolPropagation', () => {
       ],
     ]);
   });
+
+  // it('basic tree - asset symbol change export and error', async () => {
+  //   // prettier-ignore
+  //   let graph = await testPropagation(
+  //     [
+  //       ['/index.js', [], true, []],
+  //       ['/lib.js', [['f', {local: 'f'}]], true, ['f']],
+  //     ],
+  //     [
+  //       ['/index.js', '/lib.js', [['f', {local: 'f', isWeak: false}]], [['f']]],
+  //     ],
+  //   );
+
+  //   let changedAssets = [
+  //     ...changeAsset(graph, 'lib.js', symbols => {
+  //       symbols.delete('f');
+  //       symbols.set('f2', {
+  //         local: 'f2',
+  //         loc: undefined,
+  //       });
+  //     }),
+  //   ];
+
+  //   console.log('----');
+
+  //   await dumpGraphToGraphViz(graph, '2');
+  //   let errors = propagateSymbols({
+  //     options: DEFAULT_OPTIONS,
+  //     assetGraph: graph,
+  //     changedAssetsPropagation: new Set(new Map(changedAssets).keys()),
+  //     assetGroupsWithRemovedParents: new Set(),
+  //   });
+  //   await dumpGraphToGraphViz(graph, '3');
+
+  //   assertPropagationErrors(graph, errors, [
+  //     [
+  //       'lib.js',
+  //       [
+  //         {
+  //           message: "lib.js does not export 'f2'",
+  //           origin: '@parcel/core',
+  //           codeFrames: undefined,
+  //         },
+  //       ],
+  //     ],
+  //   ]);
+  // });
+
   it('basic tree - dependency symbol change reexport', async () => {
     // prettier-ignore
     let graph = await testPropagation(
