@@ -479,6 +479,7 @@ function createIdealGraph(
           }
           if (
             parentAsset.type !== childAsset.type ||
+            parentAsset.env.context !== childAsset.env.context ||
             dependency.priority === 'parallel' ||
             childAsset.bundleBehavior === 'inline'
           ) {
@@ -536,7 +537,7 @@ function createIdealGraph(
               bundleId = bundleGraph.addNode(bundle);
 
               // Store Type-Change bundles for later since we need to know ALL bundlegroups they are part of to reduce/combine them
-              if (parentAsset.type !== childAsset.type) {
+              if (parentAsset.type !== childAsset.type || parentAsset.env.context !== childAsset.env.context) {
                 typeChangeIds.add(bundleId);
               }
             } else {
@@ -692,8 +693,8 @@ function createIdealGraph(
       }
       //asset node type
       let asset = node.value;
-      if (asset.bundleBehavior != null || root.type !== asset.type) {
-        if (root.type !== asset.type && !bundleRoots.has(asset)) {
+      if (asset.bundleBehavior != null || root.type !== asset.type || root.env.context !== asset.env.context) {
+        if ((root.type !== asset.type || root.env.context !== asset.env.context) && !bundleRoots.has(asset)) {
           // A type may not necessarily be a bundleRoot since we've merged at this point
           // So we must add that asset in as an island at the very least
           reachableRoots.addNodeByContentKeyIfNeeded(node.value.id, node.value);

@@ -602,6 +602,11 @@ export default (new Transformer({
           meta: {
             placeholder: dep.placeholder,
           },
+          env: {
+            context: 'browser',
+            outputFormat: 'esmodule',
+            includeNodeModules: true
+          }
         });
       } else if (dep.kind === 'File') {
         asset.invalidateOnFileChange(dep.specifier);

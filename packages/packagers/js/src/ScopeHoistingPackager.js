@@ -130,7 +130,7 @@ export class ScopeHoistingPackager {
     ) {
       let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
       for (let b of bundles) {
-        this.externals.set(relativeBundlePath(this.bundle, b), new Map());
+        // this.externals.set(relativeBundlePath(this.bundle, b), new Map());
       }
     }
 
