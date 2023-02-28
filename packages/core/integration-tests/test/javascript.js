@@ -6271,6 +6271,7 @@ describe('javascript', function () {
       defaultTargetOptions: {
         shouldScopeHoist,
       },
+      mode: 'production',
     };
     let usesSymbolPropagation = shouldScopeHoist;
     describe(`sideEffects: false with${
@@ -6685,8 +6686,8 @@ describe('javascript', function () {
           );
 
           assert(!contents.includes('$import$'));
-          assert(contents.includes('= 1234;'));
-          assert(!contents.includes('= 5678;'));
+          assert(/=\s*1234/.test(contents));
+          assert(!/=\s*5678/.test(contents));
 
           let output = await run(b);
           assert.deepEqual(output, [1234, {default: 1234}]);

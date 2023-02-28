@@ -160,6 +160,7 @@ export default class BundleGraph {
    */
   static fromAssetGraph(
     assetGraph: AssetGraph,
+    isProduction: boolean,
     publicIdByAssetId: Map<string, string> = new Map(),
     assetPublicIds: Set<string> = new Set(),
   ): BundleGraph {
@@ -201,7 +202,9 @@ export default class BundleGraph {
       if (
         node.type === 'dependency' &&
         node.value.symbols != null &&
-        node.value.env.shouldScopeHoist
+        node.value.env.shouldScopeHoist &&
+        // Disable in dev mode because this feature is at odds with safeToIncrementallyBundle
+        isProduction
       ) {
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(

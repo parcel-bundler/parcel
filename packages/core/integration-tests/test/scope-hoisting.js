@@ -2209,6 +2209,7 @@ describe('scope hoisting', function () {
           __dirname,
           '/integration/scope-hoisting/es6/codesplit-reexports/src/entry.js',
         ),
+        {mode: 'production'},
       );
 
       assertBundles(b, [
@@ -2218,6 +2219,7 @@ describe('scope hoisting', function () {
             'entry.js',
             'foo.js',
             'bar.js',
+            'bundle-manifest.js',
             'bundle-url.js',
             'cacheLoader.js',
             'js-loader.js',
@@ -2835,6 +2837,7 @@ describe('scope hoisting', function () {
         let b = bundler(path.join(testDir, 'index.html'), {
           inputFS: overlayFS,
           outputFS: overlayFS,
+          mode: 'production',
         });
 
         await overlayFS.mkdirp(testDir);

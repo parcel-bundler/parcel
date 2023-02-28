@@ -276,7 +276,10 @@ class BundlerRunner {
           internalBundleGraph.updateAsset(changedAsset);
         }
       } else {
-        internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
+        internalBundleGraph = InternalBundleGraph.fromAssetGraph(
+          graph,
+          this.options.mode === 'production',
+        );
         invariant(internalBundleGraph != null); // ensures the graph was created
 
         await dumpGraphToGraphViz(
