@@ -106,6 +106,11 @@ export class BitSet<Item> {
     let tmpValue = this._value;
     let i;
 
+    // This implementation is optimized for BitSets that contain a very small percentage
+    // of items compared to the total number of potential items. This makes sense for
+    // our bundler use-cases where Sets often contain <1% coverage of the total item count.
+    // In cases where Sets contain a larger percentage of the total items, a regular looping
+    // strategy would be more performant.
     while (tmpValue > BIGINT_ZERO) {
       // Get last set bit
       i = tmpValue.toString(2).length - 1;
