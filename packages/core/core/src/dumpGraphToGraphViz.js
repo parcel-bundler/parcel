@@ -127,6 +127,10 @@ export default async function dumpGraphToGraphViz(
               label +=
                 '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
             }
+            // if (node.usedSymbolsDownDirty) label += '\\nusedSymbolsDownDirty';
+            // if (node.usedSymbolsUpDirtyDown)
+            //   label += '\\nusedSymbolsUpDirtyDown';
+            // if (node.usedSymbolsUpDirtyUp) label += '\\nusedSymbolsUpDirtyUp';
           } else {
             label += '\\nsymbols: cleared';
           }
@@ -149,6 +153,8 @@ export default async function dumpGraphToGraphViz(
           if (node.usedSymbols.size) {
             label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
           }
+          // if (node.usedSymbolsDownDirty) label += '\\nusedSymbolsDownDirty';
+          // if (node.usedSymbolsUpDirty) label += '\\nusedSymbolsUpDirty';
         } else {
           label += '\\nsymbols: cleared';
         }
