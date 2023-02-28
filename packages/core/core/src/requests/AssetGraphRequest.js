@@ -355,17 +355,32 @@ export class AssetGraphBuilder {
     assetGroupsWithRemovedParents: Set<NodeId>,
     previousErrors?: ?Map<NodeId, Array<Diagnostic>>,
   |}): Map<NodeId, Array<Diagnostic>> {
+    let changedAssets = new Set(
+      [...changedAssetsPropagation].map(id =>
+        assetGraph.getNodeIdByContentKey(id),
+      ),
+    );
+
+    // To reorder once at the end
     let changedDeps = new Set<DependencyNode>();
 
-    let changedDepsUsedSymbolsUpDirtyDown = new Set<ContentKey>();
+    // For the down traversal, the nodes with `usedSymbolsDownDirty = true` are exactly
+    // `changedAssetsPropagation` (= asset and therefore potentially dependencies changed) or the
+    // asset children of `assetGroupsWithRemovedParents` (= fewer incoming dependencies causing less
+    // used symbols).
+    //
+    // The up traversal has to consider all nodes that changed in the down traversal
+    // (`useSymbolsUpDirtyDown = true`) which are listed in `changedDepsUsedSymbolsUpDirtyDown`
+    // (more or less requested symbols) and in `changedAssetsPropagation` (changing an asset might
+    // change exports).
 
-    // The nodes with `usedSymbolsDownDirty` set are exactly `changedAssetsPropagation` or the resolutions of
-    // `assetGroupsWithRemovedParents`.
+    // The dependencies that changed in the down traversal causing an update in the up traversal.
+    let changedDepsUsedSymbolsUpDirtyDown = new Set<ContentKey>();
 
     // Propagate the requested symbols down from the root to the leaves
     this.propagateSymbolsDown(
       assetGraph,
-      changedAssetsPropagation,
+      changedAssets,
       assetGroupsWithRemovedParents,
       (assetNode, incomingDeps, outgoingDeps) => {
         if (!assetNode.value.symbols) return;
@@ -539,6 +554,7 @@ export class AssetGraphBuilder {
     // root and remove requested symbols that aren't actually exported
     let errors = this.propagateSymbolsUp(
       assetGraph,
+      changedAssets,
       changedDepsUsedSymbolsUpDirtyDown,
       previousErrors,
       (assetNode, incomingDeps, outgoingDeps) => {
@@ -773,6 +789,7 @@ export class AssetGraphBuilder {
         return errors;
       },
     );
+
     // Sort usedSymbolsUp so they are a consistent order across builds.
     // This ensures a consistent ordering of these symbols when packaging.
     // See https://github.com/parcel-bundler/parcel/pull/8212
@@ -787,7 +804,7 @@ export class AssetGraphBuilder {
 
   propagateSymbolsDown(
     assetGraph: AssetGraph,
-    changedAssets: Set<string>,
+    changedAssets: Set<NodeId>,
     assetGroupsWithRemovedParents: Set<NodeId>,
     visit: (
       assetNode: AssetNode,
@@ -807,7 +824,7 @@ export class AssetGraphBuilder {
     // don't have to be visited at all.
 
     let unreachedAssets = new Set([
-      ...[...changedAssets].map(id => assetGraph.getNodeIdByContentKey(id)),
+      ...changedAssets,
       ...assetGroupsWithRemovedParents,
     ]);
     let queue = new Set([setPop(unreachedAssets)]);
@@ -865,6 +882,7 @@ export class AssetGraphBuilder {
 
   propagateSymbolsUp(
     assetGraph: AssetGraph,
+    changedAssets: Set<NodeId>,
     changedDepsUsedSymbolsUpDirtyDown: Set<ContentKey>,
     previousErrors: ?Map<NodeId, Array<Diagnostic>>,
     visit: (
@@ -891,12 +909,14 @@ export class AssetGraphBuilder {
       ...[...changedDepsUsedSymbolsUpDirtyDown]
         .reverse()
         .flatMap(id => getDependencyResolution(assetGraph, id)),
+      ...changedAssets,
     ]);
 
     // Do a more efficient full traversal (less recomputations) if more than half of the assets
     // changed.
     let runFullPass =
-      // Every asset has ~4 dependencies, and every asset has ~1 asset_group.
+      // If there are n nodes in the graph, then the asset count is approximately
+      // n/6 (for every asset, there are ~4 dependencies and ~1 asset_group).
       assetGraph.nodes.size * (1 / 6) * 0.5 <
       changedDepsUsedSymbolsUpDirtyDownAssets.size;
 

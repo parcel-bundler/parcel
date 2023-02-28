@@ -508,6 +508,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       depNodeIds.push(this.addNode(depNode));
     }
 
+    assetNode.usedSymbolsUpDirty = true;
     assetNode.usedSymbolsDownDirty = true;
     this.replaceNodeIdsConnectedTo(
       this.getNodeIdByContentKey(assetNode.id),
