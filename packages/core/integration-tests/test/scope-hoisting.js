@@ -2426,6 +2426,90 @@ describe('scope hoisting', function () {
     });
 
     describe('correctly updates used symbols on changes', () => {
+      it('throws after removing an export', async function () {
+        let testDir = path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/update-used-symbols-remove-export',
+        );
+
+        let b = bundler(path.join(testDir, 'a.js'), {
+          inputFS: overlayFS,
+          outputFS: overlayFS,
+        });
+
+        await overlayFS.mkdirp(testDir);
+        await overlayFS.copyFile(
+          path.join(testDir, 'b.1.js'),
+          path.join(testDir, 'b.js'),
+        );
+
+        let subscription = await b.watch();
+
+        try {
+          let bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          let output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, 123);
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'b.2.js'),
+            path.join(testDir, 'b.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildFailure');
+          let message = md`${normalizePath(
+            'integration/scope-hoisting/es6/update-used-symbols-remove-export/b.js',
+            false,
+          )} does not export 'foo'`;
+          assert.deepEqual(bundleEvent.diagnostics, [
+            {
+              message,
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  filePath: path.join(testDir, 'a.js'),
+                  language: 'js',
+                  codeHighlights: [
+                    {
+                      start: {
+                        line: 1,
+                        column: 10,
+                      },
+                      end: {
+                        line: 1,
+                        column: 12,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ]);
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'b.1.js'),
+            path.join(testDir, 'b.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, 123);
+
+          assert.deepStrictEqual(
+            new Set(
+              bundleEvent.bundleGraph.getUsedSymbols(
+                findAsset(bundleEvent.bundleGraph, 'b.js'),
+              ),
+            ),
+            new Set(['foo']),
+          );
+        } finally {
+          await subscription.unsubscribe();
+        }
+      });
+
       it('dependency symbols change', async function () {
         let testDir = path.join(
           __dirname,
