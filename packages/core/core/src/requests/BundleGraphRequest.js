@@ -272,8 +272,13 @@ class BundlerRunner {
     try {
       if (previousBundleGraphResult) {
         internalBundleGraph = previousBundleGraphResult.bundleGraph;
-        for (let changedAsset of changedAssets.values()) {
-          internalBundleGraph.updateAsset(changedAsset);
+        for (let changedAssetId of changedAssets.keys()) {
+          // Copy over the whole node to also have correct symbol data
+          let changedAssetNode = nullthrows(
+            graph.getNodeByContentKey(changedAssetId),
+          );
+          invariant(changedAssetNode.type === 'asset');
+          internalBundleGraph.updateAsset(changedAssetNode);
         }
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(

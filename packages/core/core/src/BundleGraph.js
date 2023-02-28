@@ -29,7 +29,6 @@ import type {
 } from './types';
 import type AssetGraph from './AssetGraph';
 import type {ProjectPath} from './projectPath';
-import {nodeFromAsset} from './AssetGraph';
 
 import assert from 'assert';
 import invariant from 'assert';
@@ -2064,12 +2063,9 @@ export default class BundleGraph {
   /**
    * Update the asset in a Bundle Graph and clear the associated Bundle hash.
    */
-  updateAsset(asset: Asset) {
-    this._graph.updateNode(
-      this._graph.getNodeIdByContentKey(asset.id),
-      nodeFromAsset(asset),
-    );
-    let bundles = this.getBundlesWithAsset(asset);
+  updateAsset(asset: AssetNode) {
+    this._graph.updateNode(this._graph.getNodeIdByContentKey(asset.id), asset);
+    let bundles = this.getBundlesWithAsset(asset.value);
     for (let bundle of bundles) {
       // the bundle content will change with a modified asset
       this._bundleContentHashes.delete(bundle.id);
