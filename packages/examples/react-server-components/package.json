@@ -1,0 +1,38 @@
+{
+  "name": "parcel-react-server-components-example",
+  "version": "1.0.0",
+  "private": true,
+  "react-server": "dist/server.js",
+  "react-client": "dist/index.html",
+  "targets": {
+    "react-server": {
+      "context": "node",
+      "outputFormat": "commonjs",
+      "source": "src/server.js",
+      "includeNodeModules": [
+        "@parcel/rsc-manifest"
+      ],
+      "isLibrary": false
+    },
+    "react-client": {
+      "context": "browser",
+      "outputFormat": "esmodule",
+      "source": "src/index.html",
+      "includeNodeModules": true,
+      "isLibrary": false
+    }
+  },
+  "alias": {
+    "react": "./react.js",
+    "react/jsx-runtime": "react/jsx-runtime"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "react": "0.0.0-experimental-4fcc9184a-20230217",
+    "react-dom": "0.0.0-experimental-4fcc9184a-20230217",
+    "react-server-dom-webpack": "^0.0.0-experimental-4fcc9184a-20230217"
+  },
+  "@parcel/bundler-default": {
+    "minBundleSize": 0
+  }
+}
