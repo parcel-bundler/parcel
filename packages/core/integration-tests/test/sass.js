@@ -79,6 +79,34 @@ describe('sass', function () {
     assert(css.includes('.bar'));
   });
 
+  it('should support scss imports in html for >1 target', async function () {
+    //Repro copied from https://github.com/parcel-bundler/parcel/issues/8754
+    let b = await bundle(path.join(__dirname, '/integration/scss-html-import'));
+
+    assertBundles(b, [
+      {
+        name: 'target1.html',
+        assets: ['target1.html'],
+      },
+      {
+        assets: ['style.scss'],
+      },
+      {
+        name: 'target2.html',
+        assets: ['target2.html'],
+      },
+      {
+        assets: ['style.scss'],
+      },
+      {
+        assets: ['fa-regular-400.ttf'],
+      },
+      {
+        assets: ['fa-regular-400.ttf'],
+      },
+    ]);
+  });
+
   it('should support requiring empty scss files', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/scss-empty/index.js'),
