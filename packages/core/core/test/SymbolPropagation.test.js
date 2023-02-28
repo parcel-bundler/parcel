@@ -22,7 +22,13 @@ import {
 import {propagateSymbols} from '../src/SymbolPropagation';
 import dumpGraphToGraphViz from '../src/dumpGraphToGraphViz';
 import {DEFAULT_ENV, DEFAULT_OPTIONS, DEFAULT_TARGETS} from './test-utils';
-import type {Asset, AssetNode, Dependency, DependencyNode} from '../src/types';
+import type {
+  Asset,
+  AssetNode,
+  AssetGraphNode,
+  Dependency,
+  DependencyNode,
+} from '../src/types';
 
 const stats = {size: 0, time: 0};
 
@@ -41,6 +47,15 @@ function toProjectPath(p) {
 function fromProjectPathUnix(p: ProjectPath) {
   // $FlowFixMe
   return '/' + p;
+}
+
+function nullthrowsAssetNode(v: ?AssetGraphNode): AssetNode {
+  invariant(v?.type === 'asset');
+  return v;
+}
+function nullthrowsDependencyNode(v: ?AssetGraphNode): DependencyNode {
+  invariant(v?.type === 'dependency');
+  return v;
 }
 
 function createAssetGraph(
@@ -336,27 +351,57 @@ function handlePropagationErrors(errors: Map<NodeId, Array<Diagnostic>>) {
   }
 }
 
+function assertPropagationErrors(
+  graph: AssetGraph,
+  actual: Map<NodeId, Array<Diagnostic>>,
+  expected: Iterable<[FilePath, Array<Diagnostic>]>,
+) {
+  assert.deepEqual(
+    [...actual].map(([k, v]) => [
+      nullthrowsAssetNode(graph.getNode(k)).value.filePath,
+      v,
+    ]),
+    [...expected],
+  );
+}
+
 function changeDependency(
   graph: AssetGraph,
   from: FilePath,
   to: FilePath,
   cb: ($NonMaybeType<Dependency['symbols']>) => void,
 ): Iterable<[ContentKey, Asset]> {
-  // $FlowFixMe
-  let sourceAssetNode: AssetNode = nullthrows(
+  let sourceAssetNode = nullthrowsAssetNode(
     [...graph.nodes.values()].find(
-      n => n.type === 'asset' && n.value.filePath === 'index.js',
+      n => n.type === 'asset' && n.value.filePath === from,
     ),
   );
   sourceAssetNode.usedSymbolsDownDirty = true;
-  // $FlowFixMe
-  let depNode: DependencyNode = nullthrows(
+  let depNode = nullthrowsDependencyNode(
     [...graph.nodes.values()].find(
-      n => n.type === 'dependency' && n.value.sourcePath === 'index.js',
+      n =>
+        n.type === 'dependency' &&
+        n.value.sourcePath === from &&
+        n.value.specifier === to,
     ),
   );
   cb(nullthrows(depNode.value.symbols));
   return [[sourceAssetNode.id, sourceAssetNode.value]];
+}
+
+function changeAsset(
+  graph: AssetGraph,
+  asset: FilePath,
+  cb: ($NonMaybeType<Asset['symbols']>) => void,
+): Iterable<[ContentKey, Asset]> {
+  let node = nullthrowsAssetNode(
+    [...graph.nodes.values()].find(
+      n => n.type === 'asset' && n.value.filePath === asset,
+    ),
+  );
+  node.usedSymbolsDownDirty = true;
+  cb(nullthrows(node.value.symbols));
+  return [[node.id, node.value]];
 }
 
 process.env.PARCEL_DUMP_GRAPHVIZ = '';
@@ -393,7 +438,7 @@ describe('SymbolPropagation', () => {
     );
 
     let changedAssets = [
-      ...changeDependency(graph, '/index.js', '/lib.js', symbols => {
+      ...changeDependency(graph, 'index.js', '/lib.js', symbols => {
         symbols.set('b', {
           local: 'b',
           isWeak: false,
@@ -420,6 +465,48 @@ describe('SymbolPropagation', () => {
     );
   });
 
+  it('basic tree - dependency symbol change import and error', async () => {
+    // prettier-ignore
+    let graph = await testPropagation(
+      [
+        ['/index.js', [], true, []],
+        ['/lib.js', [['f', {local: 'f'}]], true, ['f']],
+      ],
+      [
+        ['/index.js', '/lib.js', [['f', {local: 'f', isWeak: false}]], [['f']]],
+      ],
+    );
+
+    let changedAssets = [
+      ...changeDependency(graph, 'index.js', '/lib.js', symbols => {
+        symbols.delete('f');
+        symbols.set('f2', {
+          local: 'f2',
+          isWeak: false,
+          loc: undefined,
+        });
+      }),
+    ];
+    let errors = propagateSymbols({
+      options: DEFAULT_OPTIONS,
+      assetGraph: graph,
+      changedAssetsPropagation: new Set(new Map(changedAssets).keys()),
+      assetGroupsWithRemovedParents: new Set(),
+    });
+
+    assertPropagationErrors(graph, errors, [
+      [
+        'lib.js',
+        [
+          {
+            message: "lib.js does not export 'f2'",
+            origin: '@parcel/core',
+            codeFrames: undefined,
+          },
+        ],
+      ],
+    ]);
+  });
   it('basic tree - dependency symbol change reexport', async () => {
     // prettier-ignore
     let graph = await testPropagation(
@@ -437,7 +524,7 @@ describe('SymbolPropagation', () => {
     );
 
     let changedAssets = [
-      ...changeDependency(graph, '/index.js', '/lib.js', symbols => {
+      ...changeDependency(graph, 'index.js', '/lib.js', symbols => {
         symbols.set('b', {
           local: 'b',
           isWeak: false,
