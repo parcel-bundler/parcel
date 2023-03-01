@@ -7385,5 +7385,31 @@ describe('javascript', function () {
         assert.deepEqual(res.output, 'Message 2');
       });
     });
+
+    it(`ignores missing unused import specifiers in source assets ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async function () {
+      let b = await bundle(
+        path.join(__dirname, 'integration/js-unused-import-specifier/a.js'),
+        options,
+      );
+      let res = await run(b, null, {require: false});
+      assert.equal(res.output, 123);
+    });
+
+    it(`ignores missing unused import specifiers in node-modules ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/js-unused-import-specifier-node-modules/a.js',
+        ),
+        options,
+      );
+
+      let res = await run(b, null, {require: false});
+      assert.equal(res.output, 123);
+    });
   }
 });

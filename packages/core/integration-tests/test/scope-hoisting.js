@@ -2944,29 +2944,6 @@ describe('scope hoisting', function () {
       await run(b);
     });
 
-    it('ignores missing import specifiers in source assets', async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          'integration/scope-hoisting/es6/unused-import-specifier/a.js',
-        ),
-      );
-      let output = await run(b);
-      assert.equal(output, 123);
-    });
-
-    it('ignores unused import specifiers in node-modules', async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/unused-import-specifier-node-modules/a.js',
-        ),
-      );
-
-      let output = await run(b);
-      assert.equal(output, 123);
-    });
-
     it('can import urls to raw assets', async () => {
       let b = await bundle(
         path.join(
