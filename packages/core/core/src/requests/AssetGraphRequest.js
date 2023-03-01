@@ -383,24 +383,24 @@ export class AssetGraphBuilder {
       changedAssets,
       assetGroupsWithRemovedParents,
       (assetNode, incomingDeps, outgoingDeps) => {
-        if (!assetNode.value.symbols) return;
-
         // exportSymbol -> identifier
-        let assetSymbols: $ReadOnlyMap<
+        let assetSymbols: ?$ReadOnlyMap<
           Symbol,
           {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
         > = assetNode.value.symbols;
         // identifier -> exportSymbol
         let assetSymbolsInverse;
-        assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
-        for (let [s, {local}] of assetSymbols) {
-          let set = assetSymbolsInverse.get(local);
+        if (assetSymbols) {
+          assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
+          for (let [s, {local}] of assetSymbols) {
+            let set = assetSymbolsInverse.get(local);
 
-          if (!set) {
-            set = new Set();
-            assetSymbolsInverse.set(local, set);
+            if (!set) {
+              set = new Set();
+              assetSymbolsInverse.set(local, set);
+            }
+            set.add(s);
           }
-          set.add(s);
         }
         let hasNamespaceOutgoingDeps = outgoingDeps.some(
           d => d.value.symbols?.get('*')?.local === '*',
@@ -410,6 +410,7 @@ export class AssetGraphBuilder {
         // ----------------------------------------------------------
 
         let isEntry = false;
+        let addAll = false;
 
         // Used symbols that are exported or reexported (symbol will be removed again later) by asset.
         assetNode.usedSymbols = new Set();
@@ -424,7 +425,13 @@ export class AssetGraphBuilder {
         } else {
           for (let incomingDep of incomingDeps) {
             if (incomingDep.value.symbols == null) {
-              isEntry = true;
+              if (incomingDep.value.sourceAssetId == null) {
+                // The root dependency on non-library builds
+                isEntry = true;
+              } else {
+                // A regular dependency with cleared symbols
+                addAll = true;
+              }
               continue;
             }
 
@@ -452,6 +459,13 @@ export class AssetGraphBuilder {
           }
         }
 
+        // Incomding dependency with cleared symbols, add everything
+        if (addAll) {
+          assetSymbols?.forEach((_, exportSymbol) =>
+            assetNode.usedSymbols.add(exportSymbol),
+          );
+        }
+
         // 2) Distribute the symbols to the outgoing dependencies
         // ----------------------------------------------------------
         for (let dep of outgoingDeps) {
@@ -460,6 +474,8 @@ export class AssetGraphBuilder {
           dep.usedSymbolsDown = depUsedSymbolsDown;
           if (
             assetNode.value.sideEffects ||
+            // Incoming dependency with cleared symbols
+            addAll ||
             // For entries, we still need to add dep.value.symbols of the entry (which are "used" but not according to the symbols data)
             isEntry ||
             // If not a single symbol is used, we can say the entire subgraph is not used.
@@ -474,9 +490,13 @@ export class AssetGraphBuilder {
             if (!depSymbols) continue;
 
             if (depSymbols.get('*')?.local === '*') {
-              for (let s of namespaceReexportedSymbols) {
-                // We need to propagate the namespaceReexportedSymbols to all namespace dependencies (= even wrong ones because we don't know yet)
-                depUsedSymbolsDown.add(s);
+              if (addAll) {
+                depUsedSymbolsDown.add('*');
+              } else {
+                for (let s of namespaceReexportedSymbols) {
+                  // We need to propagate the namespaceReexportedSymbols to all namespace dependencies (= even wrong ones because we don't know yet)
+                  depUsedSymbolsDown.add(s);
+                }
               }
             }
 

@@ -640,14 +640,33 @@ describe('SymbolPropagation', () => {
     await testPropagation(
       [
         ['/index.js', [], true, []],
-        ['/lib.js', [['a', {local: 'lib1$foo'}], ['b', {local: 'lib1$b'}]], true, []],
-        ['/lib1.js', [['b', {local: 'v'}]], true, []],
-        ['/lib2.js', [['c', {local: 'v'}]], false, []],
+        ['/lib.js', [['a', {local: 'lib1$foo'}], ['b', {local: 'lib$b'}]], true, ['b']],
+        ['/lib1.js', [['b', {local: 'v'}]], true, ['b']],
+        ['/lib2.js', [['c', {local: 'v'}]], false, ['*']],
       ],
       [
         ['/index.js', '/lib.js', null, []],
-        ['/lib.js', '/lib1.js', [['b', {local: 'lib1$foo', isWeak: true}]], []],
-        ['/lib.js', '/lib2.js', [['*', {local: '*', isWeak: true}]], null],
+        ['/lib.js', '/lib1.js', [['b', {local: 'lib1$foo', isWeak: true}]], [['b']]],
+        ['/lib.js', '/lib2.js', [['*', {local: '*', isWeak: true}]], [['*']]],
+      ],
+    );
+  });
+
+  it('dependency with cleared symbols imports side-effect-free package', async () => {
+    // prettier-ignore
+    await testPropagation(
+      [
+        ['/index.js', [], true, []],
+        ['/lib.js', [['a', {local: 'lib$a'}], ['b', {local: 'lib1$b'}], ['c', {local: 'lib2$c'}]], false, ['a']],
+        ['/lib1.js', [['b', {local: 'v'}]], false, ['b']],
+        ['/lib2.js', [['c', {local: 'v'}]], false, ['c']],
+        ['/lib3.js', [['d', {local: 'v'}]], false, ['*']],
+      ],
+      [
+        ['/index.js', '/lib.js', null, []],
+        ['/lib.js', '/lib1.js', [['b', {local: 'lib1$b', isWeak: true}]], [['b']]],
+        ['/lib.js', '/lib2.js', [['c', {local: 'lib2$c', isWeak: true}]], [['c']]],
+        ['/lib.js', '/lib3.js', [['*', {local: '*', isWeak: true}]], [['*']]],
       ],
     );
   });
