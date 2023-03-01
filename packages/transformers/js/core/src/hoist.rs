@@ -1141,13 +1141,16 @@ pub struct Collect {
   pub has_cjs_exports: bool,
   pub is_esm: bool,
   pub should_wrap: bool,
-  // local name -> descriptor
+  /// local variable binding -> descriptor
   pub imports: HashMap<Id, Import>,
-  // exported name -> descriptor
+  /// exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
-  // local name -> exported name
+  /// local variable binding -> exported name
   pub exports_locals: HashMap<Id, JsWord>,
+  /// source of the export-all --> location
   pub exports_all: HashMap<JsWord, SourceLocation>,
+  /// the keys in `imports` that are actually used (referenced)
+  pub used_imports: HashSet<Id>,
   pub non_static_access: HashMap<Id, Vec<Span>>,
   pub non_const_bindings: HashMap<Id, Vec<Span>>,
   pub non_static_requires: HashSet<JsWord>,
@@ -1214,6 +1217,7 @@ impl Collect {
       exports: HashMap::new(),
       exports_locals: HashMap::new(),
       exports_all: HashMap::new(),
+      used_imports: HashSet::new(),
       non_static_access: HashMap::new(),
       non_const_bindings: HashMap::new(),
       non_static_requires: HashSet::new(),
@@ -1230,6 +1234,31 @@ impl Collect {
 
 impl From<Collect> for CollectResult {
   fn from(collect: Collect) -> CollectResult {
+    let imports = collect
+      .imports
+      .into_iter()
+      .filter(|(local, _)| {
+        collect.used_imports.contains(local) || collect.exports_locals.contains_key(local)
+      })
+      .map(
+        |(
+          local,
+          Import {
+            source,
+            specifier,
+            loc,
+            kind,
+          },
+        )| CollectImportedSymbol {
+          source,
+          local: local.0,
+          imported: specifier,
+          loc,
+          kind,
+        },
+      )
+      .collect();
+
     let mut exports: Vec<CollectExportedSymbol> = collect
       .exports
       .into_iter()
@@ -1266,27 +1295,7 @@ impl From<Collect> for CollectResult {
     }
 
     CollectResult {
-      imports: collect
-        .imports
-        .into_iter()
-        .map(
-          |(
-            local,
-            Import {
-              source,
-              specifier,
-              loc,
-              kind,
-            },
-          )| CollectImportedSymbol {
-            source,
-            local: local.0,
-            imported: specifier,
-            loc,
-            kind,
-          },
-        )
-        .collect(),
+      imports,
       exports,
       exports_all: collect
         .exports_all
@@ -1789,6 +1798,10 @@ impl Visit for Collect {
           .entry(id!(ident))
           .or_default()
           .push(ident.span);
+
+        if self.imports.contains_key(&id!(ident)) {
+          self.used_imports.insert(id!(ident));
+        }
       }
       _ => {
         node.visit_children_with(self);
