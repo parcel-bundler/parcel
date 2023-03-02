@@ -8,12 +8,12 @@ import type {
   Dirent,
 } from './types';
 import type {FilePath} from '@parcel/types';
+import type WorkerFarm from '@parcel/workers';
 
 import {registerSerializableClass} from '@parcel/core';
 import packageJSON from '../package.json';
 import {MemoryFS} from './MemoryFS';
 import {OverlayFS} from './OverlayFS';
-import WorkerFarm from '@parcel/workers';
 
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -62,7 +62,6 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
   }
 
   serialize(): {|$$raw: boolean, readable: FileSystem, writable: FileSystem|} {
-    // console.trace('serializing CopyOnWriteToMemoryFS');
     return {
       $$raw: false,
       writable: this.writable,
@@ -126,7 +125,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
 
   async copyFile(from: FilePath, to: FilePath): Promise<void> {
     from = this._normalizePath(from);
-    to = await this._normalizePath(to);
+    to = this._normalizePath(to);
     await super.copyFile(from, to);
     this.deleted.delete(to);
   }
@@ -156,7 +155,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
 
   // $FlowFixMe[method-unbinding]
   async mkdirp(dir: FilePath): Promise<void> {
-    dir = await this._normalizePath(dir);
+    dir = this._normalizePath(dir);
     await super.mkdirp(dir);
 
     let root = path.parse(dir).root;
@@ -272,14 +271,14 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
   // $FlowFixMe[method-unbinding]
   async symlink(target: FilePath, filePath: FilePath): Promise<void> {
     target = this._normalizePath(target);
-    filePath = await this._normalizePath(filePath);
+    filePath = this._normalizePath(filePath);
     await super.symlink(target, filePath);
     this.deleted.delete(filePath);
   }
 
   // $FlowFixMe[method-unbinding]
   async unlink(filePath: FilePath): Promise<void> {
-    filePath = await this._normalizePath(filePath);
+    filePath = this._normalizePath(filePath);
 
     let toDelete = [filePath];
 
@@ -328,7 +327,7 @@ export class CopyOnWriteToMemoryFS extends OverlayFS {
     contents: string | Buffer,
     options: ?FileOptions,
   ): Promise<void> {
-    filePath = await this._normalizePath(filePath);
+    filePath = this._normalizePath(filePath);
     await super.writeFile(filePath, contents, options);
     this.deleted.delete(filePath);
   }
