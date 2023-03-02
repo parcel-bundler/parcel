@@ -61,7 +61,7 @@ import {createBuildCache} from './buildCache';
 import {getInvalidationId, getInvalidationHash} from './assetUtils';
 import {optionsProxy} from './utils';
 import {invalidateDevDeps} from './requests/DevDepRequest';
-import {applicationProfiler} from '@parcel/profiler';
+import {applicationProfiler, PluginApplicationProfiler} from '@parcel/profiler';
 
 type Opts = {|
   config: ParcelConfig,
@@ -276,6 +276,10 @@ export default class PackagerRunner {
         config: new PublicConfig(config, this.options),
         options: new PluginOptions(this.options),
         logger: new PluginLogger({origin: plugin.name}),
+        applicationProfiler: new PluginApplicationProfiler({
+          origin: plugin.name,
+          category: 'loadConfig',
+        }),
       });
       bundleConfigs.set(plugin.name, config);
     }
@@ -417,6 +421,10 @@ export default class PackagerRunner {
         },
         options: this.pluginOptions,
         logger: new PluginLogger({origin: name}),
+        applicationProfiler: new PluginApplicationProfiler({
+          origin: name,
+          category: 'package',
+        }),
         getInlineBundleContents: async (
           bundle: BundleType,
           bundleGraph: BundleGraphType<NamedBundleType>,
@@ -523,6 +531,10 @@ export default class PackagerRunner {
           },
           options: this.pluginOptions,
           logger: new PluginLogger({origin: optimizer.name}),
+          applicationProfiler: new PluginApplicationProfiler({
+            origin: optimizer.name,
+            category: 'optimize',
+          }),
         });
 
         optimized.type = next.type ?? optimized.type;

@@ -46,7 +46,7 @@ import {
   invalidateDevDeps,
   runDevDepRequest,
 } from './DevDepRequest';
-import {applicationProfiler} from '@parcel/profiler';
+import {applicationProfiler, PluginApplicationProfiler} from '@parcel/profiler';
 
 export type PathRequest = {|
   id: string,
@@ -290,6 +290,10 @@ export class ResolverRunner {
           dependency: dep,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: resolver.name}),
+          applicationProfiler: new PluginApplicationProfiler({
+            origin: resolver.name,
+            category: 'resolver',
+          }),
           config: this.configs.get(resolver.name)?.result,
         });
 

@@ -108,20 +108,38 @@ export default class ApplicationProfiler {
 export const applicationProfiler: ApplicationProfiler =
   new ApplicationProfiler();
 
+type ApplicationProfilerOpts = {|
+  origin: string,
+  category: string,
+|};
 export class PluginApplicationProfiler implements IPluginApplicationProfiler {
+  /** @private */
+  origin: string;
+
+  /** @private */
+  category: string;
+
+  /** @private */
+  constructor(opts: ApplicationProfilerOpts) {
+    this.origin = opts.origin;
+    this.category = opts.category;
+  }
+
   get enabled(): boolean {
     return applicationProfiler.enabled;
   }
 
   createMeasurement(
     name: string,
-    category?: string = 'Plugin',
+    category?: string,
     argumentName?: string,
     otherArgs?: {[key: string]: mixed},
   ): ApplicationProfilerMeasurement | null {
     return applicationProfiler.createMeasurement(
       name,
-      category,
+      `${this.category}:${this.origin}${
+        typeof category === 'string' ? `:${category}` : ''
+      }`,
       argumentName,
       otherArgs,
     );

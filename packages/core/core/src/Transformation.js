@@ -750,7 +750,10 @@ export default class Transformation {
     parcelConfig: ParcelConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
-    const applicationProfiler = new PluginApplicationProfiler();
+    const applicationProfiler = new PluginApplicationProfiler({
+      origin: transformerName,
+      category: 'transform',
+    });
 
     const resolve = async (
       from: FilePath,
@@ -806,6 +809,7 @@ export default class Transformation {
           ast: asset.ast,
           options: pipeline.pluginOptions,
           logger,
+          applicationProfiler,
         })) &&
       asset.generate
     ) {

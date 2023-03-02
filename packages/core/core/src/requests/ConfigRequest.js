@@ -4,6 +4,7 @@ import type {
   Config as IConfig,
   PluginOptions as IPluginOptions,
   PluginLogger as IPluginLogger,
+  PluginApplicationProfiler as IPluginApplicationProfiler,
   NamedBundle as INamedBundle,
   BundleGraph as IBundleGraph,
 } from '@parcel/types';
@@ -24,12 +25,14 @@ import PublicConfig from '../public/Config';
 import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
 import {Hash} from '@parcel/hash';
+import {PluginApplicationProfiler} from '@parcel/profiler';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
     config: IConfig,
     options: IPluginOptions,
     logger: IPluginLogger,
+    applicationProfiler: IPluginApplicationProfiler,
   |}) => Async<mixed>,
   ...
 };
@@ -39,6 +42,7 @@ export type PluginWithBundleConfig = {
     config: IConfig,
     options: IPluginOptions,
     logger: IPluginLogger,
+    applicationProfiler: IPluginApplicationProfiler,
   |}) => Async<mixed>,
   loadBundleConfig?: ({|
     bundle: INamedBundle,
@@ -46,6 +50,7 @@ export type PluginWithBundleConfig = {
     config: IConfig,
     options: IPluginOptions,
     logger: IPluginLogger,
+    applicationProfiler: IPluginApplicationProfiler,
   |}) => Async<mixed>,
   ...
 };
@@ -80,6 +85,10 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
         }),
       ),
       logger: new PluginLogger({origin: loadedPlugin.name}),
+      applicationProfiler: new PluginApplicationProfiler({
+        origin: loadedPlugin.name,
+        category: 'loadConfig',
+      }),
     });
   } catch (e) {
     throw new ThrowableDiagnostic({

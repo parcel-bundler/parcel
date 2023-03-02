@@ -54,7 +54,7 @@ import {
   toProjectPathUnsafe,
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
-import {applicationProfiler} from '@parcel/profiler';
+import {applicationProfiler, PluginApplicationProfiler} from '@parcel/profiler';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<string>,
@@ -272,7 +272,10 @@ class BundlerRunner {
     let internalBundleGraph;
 
     let logger = new PluginLogger({origin: name});
-
+    let applicationProfiler = new PluginApplicationProfiler({
+      origin: name,
+      category: 'bundle',
+    });
     try {
       if (previousBundleGraphResult) {
         internalBundleGraph = previousBundleGraphResult.bundleGraph;
@@ -314,6 +317,7 @@ class BundlerRunner {
           config: this.configs.get(plugin.name)?.result,
           options: this.pluginOptions,
           logger,
+          applicationProfiler,
         });
 
         measurement && measurement.end();
@@ -488,6 +492,10 @@ class BundlerRunner {
           config: this.configs.get(namer.name)?.result,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: namer.name}),
+          applicationProfiler: new PluginApplicationProfiler({
+            origin: namer.name,
+            category: 'namer',
+          }),
         });
 
         if (name != null) {

@@ -89,10 +89,9 @@ export default async function babel7(
         let measurement;
         if (applicationProfiler.enabled) {
           measurement = applicationProfiler.createMeasurement(
-            `babel:${key}`,
-            'transform:babel',
+            key,
+            nodeType,
             path.relative(options.projectRoot, asset.filePath),
-            {nodeType},
           );
         }
         fn.apply(this, arguments);

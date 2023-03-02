@@ -32,6 +32,7 @@ import {mergeEnvironments} from './Environment';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
 import {toProjectPath, fromProjectPathRelative} from './projectPath';
+import {PluginApplicationProfiler} from '@parcel/profiler';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -84,6 +85,10 @@ export default async function applyRuntimes<TResult>({
           config: configs.get(runtime.name)?.result,
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),
+          applicationProfiler: new PluginApplicationProfiler({
+            origin: runtime.name,
+            category: 'runtime',
+          }),
         });
 
         if (applied) {

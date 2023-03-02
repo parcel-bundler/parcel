@@ -21,7 +21,7 @@ import logger, {
 } from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
 import BundleGraph from './BundleGraph';
-import {applicationProfiler} from '@parcel/profiler';
+import {applicationProfiler, PluginApplicationProfiler} from '@parcel/profiler';
 
 type Opts = {|
   config: ParcelConfig,
@@ -100,6 +100,10 @@ export default class ReporterRunner {
             event,
             options: this.pluginOptions,
             logger: new PluginLogger({origin: reporter.name}),
+            applicationProfiler: new PluginApplicationProfiler({
+              origin: reporter.name,
+              category: 'reporter',
+            }),
           });
         } catch (reportError) {
           INTERNAL_ORIGINAL_CONSOLE.error(reportError);

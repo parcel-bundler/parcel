@@ -173,7 +173,10 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     ast,
     options: new PluginOptions(asset.options),
     logger: new PluginLogger({origin: pluginName}),
-    applicationProfiler: new PluginApplicationProfiler(),
+    applicationProfiler: new PluginApplicationProfiler({
+      origin: pluginName,
+      category: 'asset-generate',
+    }),
   });
 
   let mapBuffer = map?.toBuffer();

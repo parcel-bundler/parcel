@@ -1031,6 +1031,7 @@ export type DedicatedThreadValidator = {|
     resolveConfigWithPath: ResolveConfigWithPathFn,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Async<Array<?ValidateResult>>,
 |};
 
@@ -1044,12 +1045,14 @@ export type MultiThreadValidator = {|
     config: ConfigResult | void,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Async<ConfigResult | void>,
 |};
 
@@ -1067,12 +1070,14 @@ export type Transformer<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Promise<ConfigType> | ConfigType,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
     ast: AST,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => boolean,
   /** Parse the contents into an ast */
   parse?: ({|
@@ -1582,12 +1587,14 @@ export type Bundler<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Promise<ConfigType> | ConfigType,
   bundle({|
     bundleGraph: MutableBundleGraph,
     config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
@@ -1605,6 +1612,7 @@ export type Namer<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Promise<ConfigType> | ConfigType,
   /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
   name({|
@@ -1613,6 +1621,7 @@ export type Namer<ConfigType> = {|
     config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}): Async<?FilePath>,
 |};
 
@@ -1639,6 +1648,7 @@ export type Runtime<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Promise<ConfigType> | ConfigType,
   apply({|
     bundle: NamedBundle,
@@ -1646,6 +1656,7 @@ export type Runtime<ConfigType> = {|
     config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
 |};
 
@@ -1657,6 +1668,7 @@ export type Packager<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Async<ConfigType>,
   loadBundleConfig?: ({|
     bundle: NamedBundle,
@@ -1664,12 +1676,14 @@ export type Packager<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Async<BundleConfigType>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
     config: ConfigType,
     bundleConfig: BundleConfigType,
     getInlineBundleContents: (
@@ -1688,6 +1702,7 @@ export type Optimizer<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Async<ConfigType>,
   loadBundleConfig?: ({|
     bundle: NamedBundle,
@@ -1695,6 +1710,7 @@ export type Optimizer<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Async<BundleConfigType>,
   optimize({|
     bundle: NamedBundle,
@@ -1703,6 +1719,7 @@ export type Optimizer<ConfigType, BundleConfigType> = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
     config: ConfigType,
     bundleConfig: BundleConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
@@ -1717,6 +1734,7 @@ export type Compressor = {|
     stream: Readable,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}): Async<?{|
     stream: Readable,
     type?: string,
@@ -1731,11 +1749,13 @@ export type Resolver<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Promise<ConfigType> | ConfigType,
   resolve({|
     dependency: Dependency,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
     specifier: FilePath,
     pipeline: ?string,
     config: ConfigType,
@@ -1941,6 +1961,7 @@ export type Reporter = {|
     event: ReporterEvent,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}): Async<void>,
 |};
 
@@ -1967,14 +1988,14 @@ export interface PluginApplicationProfiler {
    * Creates a new profiling measurement with the specified name. This name should reflect the current plugin or
    * function being executed (for example, the name of a Babel transform). The category will default to the name of your plugin,
    * however it should be set to reflect the type of operation (for example, for a hypothetical operation
-   * to find CSS in an asset within a Compiled plugin you might set this to <code>compiled:find_css<code>).
+   * to find CSS in an asset within a Compiled plugin you might set this to <code>find_css<code>).
    *
    * If this is an operation that executes multiple times on different things - whether that's assets, bundles, or
    * otherwise - specify the name of the context object in <code>argumentName</code>.
    *
    * <code>otherArgs</code> can be used for specifying any other key/value pairs that should be written to the profile.
    *
-   * For example: <code>profiler.createMeasurement('compiled', 'compiled:find_css', fromProjectPathRelative(asset.filePath), { meta: 'data' })</code>
+   * For example: <code>profiler.createMeasurement('compiled', 'find_css', fromProjectPathRelative(asset.filePath), { meta: 'data' })</code>
    */
   createMeasurement(
     name: string,
