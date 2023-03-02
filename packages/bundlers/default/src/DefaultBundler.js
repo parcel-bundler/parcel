@@ -1031,6 +1031,8 @@ function createIdealGraph(
     }
   }
 
+  let modifiedSourceBundles = new Set();
+
   // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
   for (let bundleGroupId of bundleGraph.getNodeIdsConnectedFrom(rootNodeId)) {
     // Find shared bundles in this bundle group.
@@ -1081,6 +1083,7 @@ function createIdealGraph(
         for (let sourceBundleId of sourceBundles) {
           let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
           invariant(sourceBundle !== 'root');
+          modifiedSourceBundles.add(sourceBundle);
           bundleToRemove.sourceBundles.delete(sourceBundleId);
           for (let asset of bundleToRemove.assets) {
             sourceBundle.assets.add(asset);
@@ -1119,6 +1122,23 @@ function createIdealGraph(
       }
     }
   }
+
+  // Fix asset order in source bundles as they are likely now incorrect after shared bundle deletion
+  if (modifiedSourceBundles.size > 0) {
+    let assetOrderMap = new Map(assets.map(a => [a, assets.indexOf(a)]));
+
+    for (let bundle of modifiedSourceBundles) {
+      bundle.assets = new Set(
+        [...bundle.assets].sort((a, b) => {
+          let aIndex = nullthrows(assetOrderMap.get(a));
+          let bIndex = nullthrows(assetOrderMap.get(b));
+
+          return aIndex - bIndex;
+        }),
+      );
+    }
+  }
+
   function deleteBundle(bundleRoot: BundleRoot) {
     bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
     bundleRoots.delete(bundleRoot);
