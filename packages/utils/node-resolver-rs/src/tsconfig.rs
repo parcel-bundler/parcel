@@ -123,10 +123,9 @@ impl<'a> TsConfig<'a> {
         if let Specifier::Package(module, subpath) = key {
           let path = concat_specifier(module.as_ref(), subpath.as_ref());
           if let Some((prefix, suffix)) = path.split_once('*') {
-            if best_key.is_none()
-              || prefix.len() > longest_prefix_length
-                && full_specifier.starts_with(prefix)
-                && full_specifier.ends_with(suffix)
+            if (best_key.is_none() || prefix.len() > longest_prefix_length)
+              && full_specifier.starts_with(prefix)
+              && full_specifier.ends_with(suffix)
             {
               longest_prefix_length = prefix.len();
               longest_suffix_length = suffix.len();
