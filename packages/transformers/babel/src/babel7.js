@@ -1,6 +1,11 @@
 // @flow
 
-import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
+import type {
+  MutableAsset,
+  AST,
+  PluginOptions,
+  PluginApplicationProfiler,
+} from '@parcel/types';
 import typeof * as BabelCore from '@babel/core';
 
 import invariant from 'assert';
@@ -8,7 +13,6 @@ import {relativeUrl} from '@parcel/utils';
 import {remapAstLocations} from './remapAstLocations';
 
 import packageJson from '../package.json';
-import {applicationProfiler} from '@parcel/profiler';
 import path from 'path';
 
 const transformerVersion: mixed = packageJson.version;
@@ -19,12 +23,19 @@ type Babel7TransformOptions = {|
   options: PluginOptions,
   babelOptions: any,
   additionalPlugins?: Array<any>,
+  applicationProfiler: PluginApplicationProfiler,
 |};
 
 export default async function babel7(
   opts: Babel7TransformOptions,
 ): Promise<?AST> {
-  let {asset, options, babelOptions, additionalPlugins = []} = opts;
+  let {
+    asset,
+    options,
+    babelOptions,
+    additionalPlugins = [],
+    applicationProfiler,
+  } = opts;
   const babelCore: BabelCore = await options.packageManager.require(
     '@babel/core',
     asset.filePath,

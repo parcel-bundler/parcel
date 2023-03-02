@@ -1,6 +1,10 @@
 // @flow strict-local
 
-import type {ApplicationProfilerEvent, IDisposable} from '@parcel/types';
+import type {
+  ApplicationProfilerEvent,
+  IDisposable,
+  PluginApplicationProfiler as IPluginApplicationProfiler,
+} from '@parcel/types';
 import type {
   ApplicationProfilerMeasurement,
   ApplicationProfilerMeasurementData,
@@ -77,6 +81,18 @@ export default class ApplicationProfiler {
   }
 }
 
-const applicationProfiler: ApplicationProfiler = new ApplicationProfiler();
+export const applicationProfiler: ApplicationProfiler =
+  new ApplicationProfiler();
 
-export {applicationProfiler};
+export class PluginApplicationProfiler implements IPluginApplicationProfiler {
+  get enabled(): boolean {
+    return applicationProfiler.enabled;
+  }
+
+  createMeasurement(
+    name: string,
+    data?: ApplicationProfilerMeasurementData = {categories: ['Plugin']},
+  ): ApplicationProfilerMeasurement {
+    return applicationProfiler.createMeasurement(name, data);
+  }
+}

@@ -13,6 +13,11 @@ import type {
 import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
+import type {
+  ApplicationProfilerMeasurement,
+  ApplicationProfilerMeasurementData,
+} from '@parcel/profiler';
+import {applicationProfiler} from '../profiler/src/ApplicationProfiler';
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
@@ -1080,6 +1085,7 @@ export type Transformer<ConfigType> = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Async<?AST>,
   /** Transform the asset and/or add new assets */
   transform({|
@@ -1088,6 +1094,7 @@ export type Transformer<ConfigType> = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}): Async<Array<TransformerResult | MutableAsset>>,
   /**
    * Do some processing after the transformation
@@ -1099,6 +1106,7 @@ export type Transformer<ConfigType> = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Async<Array<TransformerResult>>,
   /** Stringify the AST */
   generate?: ({|
@@ -1106,6 +1114,7 @@ export type Transformer<ConfigType> = {|
     ast: AST,
     options: PluginOptions,
     logger: PluginLogger,
+    applicationProfiler: PluginApplicationProfiler,
   |}) => Async<GenerateOutput>,
 |};
 
@@ -1950,3 +1959,11 @@ export interface IDisposable {
 export type AsyncSubscription = {|
   unsubscribe(): Promise<mixed>,
 |};
+
+export interface PluginApplicationProfiler {
+  get enabled(): boolean;
+  createMeasurement(
+    name: string,
+    data?: ApplicationProfilerMeasurementData,
+  ): ApplicationProfilerMeasurement;
+}

@@ -76,7 +76,7 @@ import {
 } from './projectPath';
 import {invalidateOnFileCreateToInternal} from './utils';
 import invariant from 'assert';
-import {applicationProfiler} from '@parcel/profiler';
+import {applicationProfiler, PluginApplicationProfiler} from '@parcel/profiler';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -754,6 +754,7 @@ export default class Transformation {
     parcelConfig: ParcelConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
+    const applicationProfiler = new PluginApplicationProfiler();
 
     const resolve = async (
       from: FilePath,
@@ -829,6 +830,7 @@ export default class Transformation {
         options: pipeline.pluginOptions,
         resolve,
         logger,
+        applicationProfiler,
       });
       if (ast) {
         asset.setAST(ast);
@@ -845,6 +847,7 @@ export default class Transformation {
         options: pipeline.pluginOptions,
         resolve,
         logger,
+        applicationProfiler,
       });
     let results = await normalizeAssets(this.options, transfomerResult);
 
@@ -857,6 +860,7 @@ export default class Transformation {
           ast: asset.ast,
           options: pipeline.pluginOptions,
           logger,
+          applicationProfiler,
         });
         asset.clearAST();
         return Promise.resolve(generated);
@@ -878,6 +882,7 @@ export default class Transformation {
           options: pipeline.pluginOptions,
           resolve,
           logger,
+          applicationProfiler,
         });
 
         return Promise.all(
