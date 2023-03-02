@@ -1957,7 +1957,25 @@ export type AsyncSubscription = {|
 |};
 
 export interface PluginApplicationProfiler {
+  /** Returns whether the application profiler is enabled. Use this to avoid possibly expensive calculations
+   * of arguments to `createMeasurement` - for example if you need to determine the entry of a bundle to pass it
+   * in as the <code>argumentName</code>, you would only do this if the application profiler is enabled.
+   */
   get enabled(): boolean;
+
+  /**
+   * Creates a new profiling measurement with the specified name. This name should reflect the current plugin or
+   * function being executed (for example, the name of a Babel transform). The category will default to the name of your plugin,
+   * however it should be set to reflect the type of operation (for example, for a hypothetical operation
+   * to find CSS in an asset within a Compiled plugin you might set this to <code>compiled:find_css<code>).
+   *
+   * If this is an operation that executes multiple times on different things - whether that's assets, bundles, or
+   * otherwise - specify the name of the context object in <code>argumentName</code>.
+   *
+   * <code>otherArgs</code> can be used for specifying any other key/value pairs that should be written to the profile.
+   *
+   * For example: <code>profiler.createMeasurement('compiled', 'compiled:find_css', fromProjectPathRelative(asset.filePath), { meta: 'data' })</code>
+   */
   createMeasurement(
     name: string,
     category?: string,
