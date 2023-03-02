@@ -32,8 +32,7 @@ import {mergeEnvironments} from './Environment';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
 import {toProjectPath, fromProjectPathRelative} from './projectPath';
-import {PluginApplicationProfiler} from '@parcel/profiler';
-import {applicationProfiler} from '../../profiler/src/ApplicationProfiler';
+import {applicationProfiler, PluginApplicationProfiler} from '@parcel/profiler';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
