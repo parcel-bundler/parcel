@@ -13,11 +13,7 @@ import type {
 import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
-import type {
-  ApplicationProfilerMeasurement,
-  ApplicationProfilerMeasurementData,
-} from '@parcel/profiler';
-import {applicationProfiler} from '../profiler/src/ApplicationProfiler';
+import type {ApplicationProfilerMeasurement} from '@parcel/profiler';
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
@@ -1964,6 +1960,8 @@ export interface PluginApplicationProfiler {
   get enabled(): boolean;
   createMeasurement(
     name: string,
-    data?: ApplicationProfilerMeasurementData,
-  ): ApplicationProfilerMeasurement;
+    category?: string,
+    argumentName?: string,
+    otherArgs?: {[key: string]: mixed},
+  ): ApplicationProfilerMeasurement | null;
 }

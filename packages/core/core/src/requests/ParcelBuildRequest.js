@@ -93,14 +93,14 @@ async function run({input, api, options}) {
     ),
   });
 
-  let packaingMeasurement = applicationProfiler.createMeasurement('packaging');
+  let packagingMeasurement = applicationProfiler.createMeasurement('packaging');
   let writeBundlesRequest = createWriteBundlesRequest({
     bundleGraph,
     optionsRef,
   });
 
   let bundleInfo = await api.runRequest(writeBundlesRequest);
-  packaingMeasurement.end();
+  packagingMeasurement && packagingMeasurement.end();
   assertSignalNotAborted(signal);
 
   return {bundleGraph, bundleInfo, changedAssets, assetRequests};

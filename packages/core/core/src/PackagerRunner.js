@@ -397,13 +397,12 @@ export default class PackagerRunner {
     let {name, resolveFrom, plugin} = packager;
     let measurement;
     try {
-      measurement = applicationProfiler.createMeasurement(name, {
-        categories: ['packaging'],
-        args: {
-          name: bundle.name,
-          type: bundle.type,
-        },
-      });
+      measurement = applicationProfiler.createMeasurement(
+        name,
+        'packaging',
+        bundle.name,
+        {type: bundle.type},
+      );
       return await plugin.package({
         config: configs.get(name)?.result,
         bundleConfig: bundleConfigs.get(name)?.result,
@@ -507,12 +506,11 @@ export default class PackagerRunner {
     for (let optimizer of optimizers) {
       let measurement;
       try {
-        measurement = applicationProfiler.createMeasurement(optimizer.name, {
-          categories: ['optimize'],
-          args: {
-            name: bundle.name,
-          },
-        });
+        measurement = applicationProfiler.createMeasurement(
+          optimizer.name,
+          'optimize',
+          bundle.name,
+        );
         let next = await optimizer.plugin.optimize({
           config: configs.get(optimizer.name)?.result,
           bundleConfig: bundleConfigs.get(optimizer.name)?.result,
@@ -689,9 +687,7 @@ export default class PackagerRunner {
     return devDepHashes;
   }
 
-  async readFromCache(
-    cacheKey: string,
-  ): Promise<?{|
+  async readFromCache(cacheKey: string): Promise<?{|
     contents: Readable,
     map: ?Readable,
   |}> {

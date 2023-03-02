@@ -278,12 +278,12 @@ export class ResolverRunner {
     for (let resolver of resolvers) {
       let measurement;
       try {
-        measurement = applicationProfiler.createMeasurement(resolver.name, {
-          categories: ['resolve'],
-          args: {
-            name: specifier,
-          },
-        });
+        measurement = applicationProfiler.createMeasurement(
+          resolver.name,
+          'resolve',
+
+          specifier,
+        );
         let result = await resolver.plugin.resolve({
           specifier,
           pipeline,
@@ -382,6 +382,8 @@ export class ResolverRunner {
         }
 
         break;
+      } finally {
+        measurement && measurement.end();
       }
     }
 

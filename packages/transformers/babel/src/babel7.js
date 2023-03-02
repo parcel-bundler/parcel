@@ -86,18 +86,17 @@ export default async function babel7(
       fn: Function,
     ) => {
       return function () {
-        const measurement = applicationProfiler.createMeasurement(
-          `babel:${key}`,
-          {
-            categories: ['transform:babel'],
-            args: {
-              name: path.relative(options.projectRoot, asset.filePath),
-              nodeType,
-            },
-          },
-        );
+        let measurement;
+        if (applicationProfiler.enabled) {
+          measurement = applicationProfiler.createMeasurement(
+            `babel:${key}`,
+            'transform:babel',
+            path.relative(options.projectRoot, asset.filePath),
+            {nodeType},
+          );
+        }
         fn.apply(this, arguments);
-        measurement.end();
+        measurement && measurement.end();
       };
     };
   }

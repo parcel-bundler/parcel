@@ -107,7 +107,7 @@ export default function createBundleGraphRequest(
           force: options.shouldBuildLazily && requestedAssetIds.size > 0,
         },
       );
-      measurement.end();
+      measurement && measurement.end();
       assertSignalNotAborted(signal);
 
       // If any subrequests are invalid (e.g. dev dep requests or config requests),
@@ -135,16 +135,15 @@ export default function createBundleGraphRequest(
       let {devDeps, invalidDevDeps} = await getDevDepRequests(input.api);
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
-      let bundlingMeasurement = applicationProfiler.createMeasurement(
-        'bundling',
-      );
+      let bundlingMeasurement =
+        applicationProfiler.createMeasurement('bundling');
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
       let res: BundleGraphResult = await builder.bundle({
         graph: assetGraph,
         changedAssets: changedAssets,
         assetRequests,
       });
-      bundlingMeasurement.end();
+      bundlingMeasurement && bundlingMeasurement.end();
       for (let [id, asset] of changedAssets) {
         res.changedAssets.set(id, asset);
       }
@@ -302,12 +301,11 @@ class BundlerRunner {
             .getEntryAssets()
             .map(asset => fromProjectPathRelative(asset.filePath))
             .join(', ');
-          measurement = applicationProfiler.createMeasurement(plugin.name, {
-            categories: ['bundling:bundle'],
-            args: {
-              name: measurementFilename,
-            },
-          });
+          measurement = applicationProfiler.createMeasurement(
+            plugin.name,
+            'bundling:bundle',
+            measurementFilename,
+          );
         }
 
         // this the normal bundle workflow (bundle, optimizing, run-times, naming)
@@ -326,12 +324,8 @@ class BundlerRunner {
             if (applicationProfiler.enabled) {
               optimizeMeasurement = applicationProfiler.createMeasurement(
                 plugin.name,
-                {
-                  categories: ['bundling:optimize'],
-                  args: {
-                    name: nullthrows(measurementFilename),
-                  },
-                },
+                'bundling:optimize',
+                nullthrows(measurementFilename),
               );
             }
             await bundler.optimize({
@@ -483,12 +477,11 @@ class BundlerRunner {
     for (let namer of namers) {
       let measurement;
       try {
-        measurement = applicationProfiler.createMeasurement(namer.name, {
-          categories: ['namer'],
-          args: {
-            name: bundle.id,
-          },
-        });
+        measurement = applicationProfiler.createMeasurement(
+          namer.name,
+          'namer',
+          bundle.id,
+        );
         let name = await namer.plugin.name({
           bundle,
           bundleGraph,

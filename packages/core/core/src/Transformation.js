@@ -449,12 +449,8 @@ export default class Transformation {
     for (let transformer of pipeline.transformers) {
       let measurement = applicationProfiler.createMeasurement(
         transformer.name,
-        {
-          categories: ['transform'],
-          args: {
-            name: fromProjectPathRelative(initialAsset.value.filePath),
-          },
-        },
+        'transform',
+        fromProjectPathRelative(initialAsset.value.filePath),
       );
 
       resultingAssets = [];

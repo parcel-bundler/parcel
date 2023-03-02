@@ -39,14 +39,38 @@ export default class ApplicationProfiler {
     try {
       await fn();
     } finally {
-      measurement.end();
+      measurement && measurement.end();
     }
   }
 
   createMeasurement(
     name: string,
-    data?: ApplicationProfilerMeasurementData = {categories: ['Core']},
-  ): ApplicationProfilerMeasurement {
+    category?: string = 'Core',
+    argumentName?: string,
+    otherArgs?: {[key: string]: mixed},
+  ): ApplicationProfilerMeasurement | null {
+    if (!this.enabled) return null;
+
+    // We create `args` in a fairly verbose way to avoid object
+    // allocation where not required.
+    let args: {[key: string]: mixed};
+    if (typeof argumentName === 'string') {
+      args = {name: argumentName};
+    }
+    if (typeof otherArgs === 'object') {
+      if (typeof args == 'undefined') {
+        args = {};
+      }
+      for (const [k, v] of Object.entries(otherArgs)) {
+        args[k] = v;
+      }
+    }
+
+    const data: ApplicationProfilerMeasurementData = {
+      categories: [category],
+      args,
+    };
+
     const start = performance.now();
     return {
       end: () => {
@@ -91,8 +115,15 @@ export class PluginApplicationProfiler implements IPluginApplicationProfiler {
 
   createMeasurement(
     name: string,
-    data?: ApplicationProfilerMeasurementData = {categories: ['Plugin']},
-  ): ApplicationProfilerMeasurement {
-    return applicationProfiler.createMeasurement(name, data);
+    category?: string = 'Plugin',
+    argumentName?: string,
+    otherArgs?: {[key: string]: mixed},
+  ): ApplicationProfilerMeasurement | null {
+    return applicationProfiler.createMeasurement(
+      name,
+      category,
+      argumentName,
+      otherArgs,
+    );
   }
 }
