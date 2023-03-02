@@ -1314,7 +1314,17 @@ impl Visit for Collect {
     self.in_module_this = true;
     self.in_top_level = true;
     self.in_function = false;
-    node.visit_children_with(self);
+    // Visit all imports first so that all imports are known when collecting used_imports
+    for n in &node.body {
+      if n.is_module_decl() {
+        n.visit_with(self);
+      }
+    }
+    for n in &node.body {
+      if !n.is_module_decl() {
+        n.visit_with(self);
+      }
+    }
     self.in_module_this = false;
 
     if let Some(bailouts) = &mut self.bailouts {

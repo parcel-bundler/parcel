@@ -1,3 +1,3 @@
-import {used, unused} from "./b.js";
-
 output = used;
+
+import {used, unused} from "./b.js";
