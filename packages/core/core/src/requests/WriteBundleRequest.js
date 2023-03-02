@@ -38,7 +38,7 @@ import {
 } from './DevDepRequest';
 import ParcelConfig from '../ParcelConfig';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {PluginApplicationProfiler} from '@parcel/profiler';
+import {PluginApplicationProfiler, applicationProfiler} from '@parcel/profiler';
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
@@ -244,7 +244,13 @@ async function runCompressor(
   devDeps: Map<string, string>,
   api: RunAPI<PackagedBundleInfo>,
 ) {
+  let measurement;
   try {
+    measurement = applicationProfiler.createMeasurement(
+      compressor.name,
+      'compress',
+      path.relative(options.projectRoot, filePath),
+    );
     let res = await compressor.plugin.compress({
       stream,
       options: new PluginOptions(options),
@@ -277,6 +283,7 @@ async function runCompressor(
       }),
     });
   } finally {
+    measurement && measurement.end();
     // Add dev deps for compressor plugins AFTER running them, to account for lazy require().
     let devDepRequest = await createDevDependency(
       {
