@@ -47,10 +47,10 @@ export default (new Reporter({
         nullthrows(tracer).pipe(nullthrows(writeStream));
         break;
       case 'trace':
-        invariant(
-          tracer instanceof Tracer,
-          'Trace event received without Tracer instantiation',
-        );
+        // Due to potential race conditions at the end of the build, we ignore any trace events that occur
+        // after we've closed the write stream.
+        if (tracer === null) return;
+
         tracer.completeEvent({
           name: event.name,
           cat: event.categories,
