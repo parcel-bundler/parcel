@@ -25,7 +25,7 @@
     "@parcel/optimizer-htmlnano": "2.8.3",
     "@parcel/optimizer-image": "2.8.3",
     "@parcel/optimizer-svgo": "2.8.3",
-    "@parcel/optimizer-terser": "2.8.3",
+    "@parcel/optimizer-swc": "2.8.3",
     "@parcel/packager-css": "2.8.3",
     "@parcel/packager-html": "2.8.3",
     "@parcel/packager-js": "2.8.3",
