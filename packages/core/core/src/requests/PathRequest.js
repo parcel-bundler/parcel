@@ -387,6 +387,17 @@ export class ResolverRunner {
 
         break;
       } finally {
+        // Add dev dependency for the resolver. This must be done AFTER running it due to
+        // the potential for lazy require() that aren't executed until the request runs.
+        let devDepRequest = await createDevDependency(
+          {
+            specifier: resolver.name,
+            resolveFrom: resolver.resolveFrom,
+          },
+          this.previousDevDeps,
+          this.options,
+        );
+        this.runDevDepRequest(devDepRequest);
         measurement && measurement.end();
       }
     }
