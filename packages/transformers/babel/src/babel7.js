@@ -87,13 +87,11 @@ export default async function babel7(
     ) => {
       return function () {
         let measurement;
-        if (applicationProfiler.enabled) {
-          measurement = applicationProfiler.createMeasurement(
-            key,
-            nodeType,
-            path.relative(options.projectRoot, asset.filePath),
-          );
-        }
+        measurement = applicationProfiler.createMeasurement(
+          key,
+          nodeType,
+          path.relative(options.projectRoot, asset.filePath),
+        );
         fn.apply(this, arguments);
         measurement && measurement.end();
       };
