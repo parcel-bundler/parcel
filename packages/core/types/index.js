@@ -1982,7 +1982,7 @@ export interface PluginApplicationProfiler {
    * of arguments to `createMeasurement` - for example if you need to determine the entry of a bundle to pass it
    * in as the <code>argumentName</code>, you would only do this if the application profiler is enabled.
    */
-  get enabled(): boolean;
+  +enabled: boolean;
 
   /**
    * Creates a new profiling measurement with the specified name. This name should reflect the current plugin or
@@ -1995,7 +1995,7 @@ export interface PluginApplicationProfiler {
    *
    * <code>otherArgs</code> can be used for specifying any other key/value pairs that should be written to the profile.
    *
-   * For example: <code>profiler.createMeasurement('compiled', 'find_css', fromProjectPathRelative(asset.filePath), { meta: 'data' })</code>
+   * For example: <code>profiler.createMeasurement('compiled', 'find_css', path.relative(options.projecRoot, asset.filePath), { meta: 'data' })</code>
    */
   createMeasurement(
     name: string,
