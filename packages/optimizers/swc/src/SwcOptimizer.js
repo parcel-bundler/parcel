@@ -66,9 +66,9 @@ export default (new Optimizer({
             .find(line => line.trim().length > 0) || ''
         )
           .trim()
-          .replace(/^×\s*/, ''),
+          .replace(/^(×|x)\s+/, ''),
       );
-      let location = err.message.match(/╭─\[(\d+):(\d+)\]/);
+      let location = err.message.match(/(?:╭─|,-)\[(\d+):(\d+)\]/);
       if (location) {
         let line = Number(location[1]);
         let col = Number(location[1]);
