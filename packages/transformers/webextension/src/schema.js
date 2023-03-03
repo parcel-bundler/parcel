@@ -25,6 +25,7 @@ const icons: SchemaEntity = {
 const actionProps = {
   // FF only
   browser_style: boolean,
+  chrome_style: boolean,
   // You can also have a raw string, but not in Edge, apparently...
   default_icon: {
     oneOf: [icons, string],
@@ -276,6 +277,7 @@ const commonProps = {
     type: 'object',
     properties: {
       browser_style: boolean,
+      chrome_style: boolean,
       open_in_tab: boolean,
       page: string,
     },
