@@ -39,7 +39,8 @@
     "@parcel/logger": "2.8.3",
     "@parcel/markdown-ansi": "2.8.3",
     "@parcel/source-map": "^2.1.1",
-    "chalk": "^4.1.0"
+    "chalk": "^4.1.0",
+    "nullthrows": "^1.1.1"
   },
   "devDependencies": {
     "@iarna/toml": "^2.2.0",
