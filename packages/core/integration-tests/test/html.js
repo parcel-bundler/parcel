@@ -304,6 +304,10 @@ describe('html', function () {
         name: 'logo.svg',
         assets: ['logo.svg'],
       },
+      {
+        name: 'logo.14afa1de.svg',
+        assets: ['logo.svg'],
+      },
     ]);
 
     let html = await outputFS.readFile(
@@ -312,6 +316,11 @@ describe('html', function () {
     );
     assert(html.includes(`<meta name="msapplication-config" content="none">`));
     assert(html.includes(`<meta property="og:image" content="/logo.svg">`));
+    assert(
+      html.includes(
+        `<meta name="msapplication-TileImage" content="/logo.14afa1de.svg">`,
+      ),
+    );
     assert(
       html.includes(
         `<meta name="twitter:image" content="https://parceljs.org/assets/logo.svg">`,
