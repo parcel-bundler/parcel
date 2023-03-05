@@ -86,8 +86,7 @@ export default async function babel7(
       fn: Function,
     ) => {
       return function () {
-        let measurement;
-        measurement = applicationProfiler.createMeasurement(
+        const measurement = applicationProfiler.createMeasurement(
           key,
           nodeType,
           path.relative(options.projectRoot, asset.filePath),
