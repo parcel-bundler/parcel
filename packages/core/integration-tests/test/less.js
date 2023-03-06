@@ -285,4 +285,11 @@ describe('less', function () {
       ),
     );
   });
+
+  it('should support the less package exports condition', async function () {
+    await bundle(path.join(__dirname, '/integration/less-exports/index.less'));
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.a'));
+  });
 });

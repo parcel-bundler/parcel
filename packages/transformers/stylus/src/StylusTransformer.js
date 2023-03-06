@@ -15,12 +15,15 @@ const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
 export default (new Transformer({
   async loadConfig({config}) {
-    let configFile = await config.getConfig(['.stylusrc', '.stylusrc.js'], {
-      packageKey: 'stylus',
-    });
+    let configFile = await config.getConfig(
+      ['.stylusrc', '.stylusrc.js', '.stylusrc.cjs'],
+      {
+        packageKey: 'stylus',
+      },
+    );
 
     if (configFile) {
-      let isJavascript = path.extname(configFile.filePath) === '.js';
+      let isJavascript = path.extname(configFile.filePath).endsWith('js');
       if (isJavascript) {
         config.invalidateOnStartup();
       }
@@ -98,13 +101,21 @@ function attemptResolve(importedPath, filepath, asset, resolve, deps) {
             resolve(
               filepath,
               './' + path.relative(path.dirname(filepath), entry),
+              {
+                packageConditions: ['stylus', 'style'],
+              },
             ),
           ),
         ),
       ),
     );
   } else {
-    deps.set(importedPath, resolve(filepath, importedPath));
+    deps.set(
+      importedPath,
+      resolve(filepath, importedPath, {
+        packageConditions: ['stylus', 'style'],
+      }),
+    );
   }
 }
 

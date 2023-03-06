@@ -722,6 +722,11 @@ export default (new Transformer({
         asset.symbols.set(exported, local, convertLoc(loc));
       }
 
+      // deps is a map of dependencies that are keyed by placeholder or specifier
+      // If a placeholder is present, that is used first since placeholders are
+      // hashed with DependencyKind's.
+      // If not, the specifier is used along with its specifierType appended to
+      // it to separate dependencies with the same specifier.
       let deps = new Map(
         asset
           .getDependencies()
@@ -745,7 +750,6 @@ export default (new Transformer({
       for (let {source, local, imported, loc} of hoist_result.re_exports) {
         let dep = deps.get(source);
         if (!dep) continue;
-
         if (local === '*' && imported === '*') {
           dep.symbols.set('*', '*', convertLoc(loc), true);
         } else {
@@ -893,8 +897,9 @@ async function loadOnMainThreadIfNeeded() {
     process.platform === 'linux' &&
     WorkerFarm.isWorker()
   ) {
-    let {family, version} = require('detect-libc');
-    if (family === 'glibc' && parseFloat(version) <= 2.17) {
+    // $FlowFixMe
+    let {glibcVersionRuntime} = process.report.getReport().header;
+    if (glibcVersionRuntime && parseFloat(glibcVersionRuntime) <= 2.17) {
       let api = WorkerFarm.getWorkerApi();
       await api.callMaster({
         location: __dirname + '/loadNative.js',

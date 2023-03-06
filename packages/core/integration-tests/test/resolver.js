@@ -1,3 +1,4 @@
+// @flow strict-local
 import assert from 'assert';
 import path from 'path';
 import {bundle, run, ncp, overlayFS, outputFS} from '@parcel/test-utils';
@@ -257,7 +258,10 @@ describe('resolver', function () {
     } catch (e) {
       threw = true;
 
-      assert.equal(e.diagnostics[1].message, `Cannot find module @baebal/core`);
+      assert.equal(
+        e.diagnostics[1].message,
+        `Cannot find module '@baebal/core'`,
+      );
 
       assert.equal(
         e.diagnostics[1].hints[0],
@@ -397,5 +401,18 @@ describe('resolver', function () {
     await bundle(path.join(inputDir, 'index.html'), {
       inputFS: overlayFS,
     });
+  });
+
+  it('should support empty dependency specifiers', async function () {
+    // $FlowFixMe[prop-missing];
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(__dirname, '/integration/resolve-empty-specifier/index.js'),
+        ),
+      {
+        message: `Failed to resolve '' from './integration/resolve-empty-specifier/index.js'`,
+      },
+    );
   });
 });

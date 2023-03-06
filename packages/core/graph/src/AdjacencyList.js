@@ -1,7 +1,7 @@
 // @flow
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import {SharedBuffer} from '@parcel/utils';
+import {SharedBuffer} from './shared-buffer';
 import {fromNodeId, toNodeId} from './types';
 import {ALL_EDGE_TYPES, type NullEdgeType, type AllEdgeTypes} from './Graph';
 import type {NodeId} from './types';
@@ -329,10 +329,18 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   hasEdge(
     from: NodeId,
     to: NodeId,
-    type: TEdgeType | NullEdgeType = 1,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): boolean {
-    let hash = this.#edges.hash(from, to, type);
-    return this.#edges.addressOf(hash, from, to, type) !== null;
+    let hasEdge = (type: TEdgeType | NullEdgeType) => {
+      let hash = this.#edges.hash(from, to, type);
+      return this.#edges.addressOf(hash, from, to, type) !== null;
+    };
+
+    if (Array.isArray(type)) {
+      return type.some(hasEdge);
+    }
+
+    return hasEdge(type);
   }
 
   /**

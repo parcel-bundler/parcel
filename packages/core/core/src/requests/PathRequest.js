@@ -1,8 +1,19 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {Async, FileCreateInvalidation, FilePath} from '@parcel/types';
+import type {
+  Async,
+  FileCreateInvalidation,
+  FilePath,
+  Resolver,
+} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
-import type {AssetGroup, Dependency, ParcelOptions} from '../types';
+import type {
+  AssetGroup,
+  Config,
+  Dependency,
+  DevDepRequest,
+  ParcelOptions,
+} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {errorToDiagnostic, md} from '@parcel/diagnostic';
@@ -22,13 +33,24 @@ import {
   fromProjectPath,
   fromProjectPathRelative,
   toProjectPath,
+  toProjectPathUnsafe,
 } from '../projectPath';
 import {Priority} from '../types';
+import {createBuildCache} from '../buildCache';
+import type {LoadedPlugin} from '../ParcelConfig';
+import {createConfig} from '../InternalConfig';
+import {loadPluginConfig, runConfigRequest} from './ConfigRequest';
+import {
+  createDevDependency,
+  getDevDepRequests,
+  invalidateDevDeps,
+  runDevDepRequest,
+} from './DevDepRequest';
 
 export type PathRequest = {|
   id: string,
   +type: 'path_request',
-  run: RunOpts => Async<?AssetGroup>,
+  run: (RunOpts<?AssetGroup>) => Async<?AssetGroup>,
   input: PathRequestInput,
 |};
 
@@ -37,9 +59,9 @@ export type PathRequestInput = {|
   name: string,
 |};
 
-type RunOpts = {|
+type RunOpts<TResult> = {|
   input: PathRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 const type = 'path_request';
@@ -56,14 +78,17 @@ export default function createPathRequest(
   };
 }
 
-async function run({input, api, options}: RunOpts) {
+async function run({input, api, options}) {
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
   let config = getCachedParcelConfig(configResult, options);
+  let {devDeps, invalidDevDeps} = await getDevDepRequests(api);
+  invalidateDevDeps(invalidDevDeps, options, config);
   let resolverRunner = new ResolverRunner({
     options,
     config,
+    previousDevDeps: devDeps,
   });
   let result: ResolverResult = await resolverRunner.resolve(input.dependency);
 
@@ -89,6 +114,14 @@ async function run({input, api, options}: RunOpts) {
     }
   }
 
+  for (let config of resolverRunner.configs.values()) {
+    await runConfigRequest(api, config);
+  }
+
+  for (let devDepRequest of resolverRunner.devDepRequests.values()) {
+    await runDevDepRequest(api, devDepRequest);
+  }
+
   if (result.assetGroup) {
     api.invalidateOnFileDelete(result.assetGroup.filePath);
     return result.assetGroup;
@@ -105,6 +138,7 @@ async function run({input, api, options}: RunOpts) {
 type ResolverRunnerOpts = {|
   config: ParcelConfig,
   options: ParcelOptions,
+  previousDevDeps: Map<string, string>,
 |};
 
 type ResolverResult = {|
@@ -115,15 +149,23 @@ type ResolverResult = {|
   diagnostics?: Array<Diagnostic>,
 |};
 
+const configCache = createBuildCache();
+
 export class ResolverRunner {
   config: ParcelConfig;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
+  previousDevDeps: Map<string, string>;
+  devDepRequests: Map<string, DevDepRequest>;
+  configs: Map<string, Config>;
 
-  constructor({config, options}: ResolverRunnerOpts) {
+  constructor({config, options, previousDevDeps}: ResolverRunnerOpts) {
     this.config = config;
     this.options = options;
     this.pluginOptions = new PluginOptions(this.options);
+    this.previousDevDeps = previousDevDeps;
+    this.devDepRequests = new Map();
+    this.configs = new Map();
   }
 
   async getDiagnostic(
@@ -154,6 +196,44 @@ export class ResolverRunner {
     return diagnostic;
   }
 
+  async loadConfigs(
+    resolvers: Array<LoadedPlugin<Resolver<mixed>>>,
+  ): Promise<void> {
+    for (let plugin of resolvers) {
+      // Only load config for a plugin once per build.
+      let config = configCache.get(plugin.name);
+      if (!config && plugin.plugin.loadConfig != null) {
+        config = createConfig({
+          plugin: plugin.name,
+          searchPath: toProjectPathUnsafe('index'),
+        });
+
+        await loadPluginConfig(plugin, config, this.options);
+        configCache.set(plugin.name, config);
+        this.configs.set(plugin.name, config);
+      }
+
+      if (config) {
+        for (let devDep of config.devDeps) {
+          let devDepRequest = await createDevDependency(
+            devDep,
+            this.previousDevDeps,
+            this.options,
+          );
+          this.runDevDepRequest(devDepRequest);
+        }
+
+        this.configs.set(plugin.name, config);
+      }
+    }
+  }
+
+  runDevDepRequest(devDepRequest: DevDepRequest) {
+    let {specifier, resolveFrom} = devDepRequest;
+    let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
+    this.devDepRequests.set(key, devDepRequest);
+  }
+
   async resolve(dependency: Dependency): Promise<ResolverResult> {
     let dep = new PublicDependency(dependency, this.options);
     report({
@@ -163,6 +243,7 @@ export class ResolverRunner {
     });
 
     let resolvers = await this.config.getResolvers();
+    await this.loadConfigs(resolvers);
 
     let pipeline;
     let specifier;
@@ -201,6 +282,7 @@ export class ResolverRunner {
           dependency: dep,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: resolver.name}),
+          config: this.configs.get(resolver.name)?.result,
         });
 
         if (result) {
@@ -292,6 +374,18 @@ export class ResolverRunner {
         }
 
         break;
+      } finally {
+        // Add dev dependency for the resolver. This must be done AFTER running it due to
+        // the potential for lazy require() that aren't executed until the request runs.
+        let devDepRequest = await createDevDependency(
+          {
+            specifier: resolver.name,
+            resolveFrom: resolver.resolveFrom,
+          },
+          this.previousDevDeps,
+          this.options,
+        );
+        this.runDevDepRequest(devDepRequest);
       }
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/graph-explorer-frontend",
-  "version": "2.6.2",
+  "version": "2.8.3",
   "license": "MIT",
   "source": "index.html",
   "scripts": {
@@ -13,10 +13,10 @@
     }
   },
   "devDependencies": {
-    "parcel": "2.6.2"
+    "parcel": "^2.8.3"
   },
   "dependencies": {
-    "@parcel/graph": "2.6.2",
+    "@parcel/graph": "2.8.3",
     "react": "^17.0.1",
     "react-digraph": "8.0.0-beta.8",
     "react-dom": "^17.0.1",

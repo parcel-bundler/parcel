@@ -1,16 +1,3 @@
-extern crate swc_common;
-extern crate swc_ecmascript;
-#[macro_use]
-extern crate swc_atoms;
-extern crate data_encoding;
-extern crate dunce;
-extern crate inflector;
-extern crate path_slash;
-extern crate pathdiff;
-extern crate serde;
-extern crate serde_bytes;
-extern crate sha1;
-
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
@@ -26,12 +13,13 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use indexmap::IndexMap;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::{Module, ModuleItem, Program};
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
@@ -174,12 +162,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
     }
     Ok((module, comments)) => {
       let mut module = module;
-      result.shebang = match module.shebang {
-        Some(shebang) => {
-          module.shebang = None;
-          Some(shebang.to_string())
-        }
-        None => None,
+      result.shebang = match &mut module {
+        Program::Module(module) => module.shebang.take().map(|s| s.to_string()),
+        Program::Script(script) => script.shebang.take().map(|s| s.to_string()),
       };
 
       let mut global_deps = vec![];
@@ -229,49 +214,57 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
               let global_mark = Mark::fresh(Mark::root());
               let unresolved_mark = Mark::fresh(Mark::root());
-              module = {
-                let mut passes = chain!(
-                  // Decorators can use type information, so must run before the TypeScript pass.
-                  Optional::new(
-                    decorators::decorators(decorators::Config {
-                      legacy: true,
-                      use_define_for_class_fields: config.use_define_for_class_fields,
-                      // Always disabled for now, SWC's implementation doesn't match TSC.
-                      emit_metadata: false,
-                    }),
-                    config.decorators
+              let module = module.fold_with(&mut chain!(
+                // Decorators can use type information, so must run before the TypeScript pass.
+                Optional::new(
+                  decorators::decorators(decorators::Config {
+                    legacy: true,
+                    use_define_for_class_fields: config.use_define_for_class_fields,
+                    // Always disabled for now, SWC's implementation doesn't match TSC.
+                    emit_metadata: false,
+                  }),
+                  config.decorators
+                ),
+                Optional::new(
+                  typescript::strip_with_jsx(
+                    source_map.clone(),
+                    typescript::Config {
+                      pragma: react_options.pragma.clone(),
+                      pragma_frag: react_options.pragma_frag.clone(),
+                      ..Default::default()
+                    },
+                    Some(&comments),
+                    global_mark,
                   ),
-                  Optional::new(
-                    typescript::strip_with_jsx(
-                      source_map.clone(),
-                      typescript::Config {
-                        pragma: react_options.pragma.clone(),
-                        pragma_frag: react_options.pragma_frag.clone(),
-                        ..Default::default()
-                      },
-                      Some(&comments),
-                      global_mark,
-                    ),
-                    config.is_type_script && config.is_jsx
-                  ),
-                  Optional::new(
-                    typescript::strip(global_mark),
-                    config.is_type_script && !config.is_jsx
-                  ),
-                  resolver(unresolved_mark, global_mark, config.is_type_script),
-                  Optional::new(
-                    react::react(
-                      source_map.clone(),
-                      Some(&comments),
-                      react_options,
-                      global_mark
-                    ),
-                    config.is_jsx
-                  ),
-                );
+                  config.is_type_script && config.is_jsx
+                ),
+                Optional::new(
+                  typescript::strip(global_mark),
+                  config.is_type_script && !config.is_jsx
+                ),
+                resolver(unresolved_mark, global_mark, config.is_type_script),
+              ));
 
-                module.fold_with(&mut passes)
+              // If it's a script, convert into module. This needs to happen after
+              // the resolver (which behaves differently for non-/strict mode).
+              let module = match module {
+                Program::Module(module) => module,
+                Program::Script(script) => Module {
+                  span: script.span,
+                  shebang: None,
+                  body: script.body.into_iter().map(ModuleItem::Stmt).collect(),
+                },
               };
+
+              let module = module.fold_with(&mut Optional::new(
+                react::react(
+                  source_map.clone(),
+                  Some(&comments),
+                  react_options,
+                  global_mark,
+                ),
+                config.is_jsx,
+              ));
 
               let mut decls = collect_decls(&module);
 
@@ -364,7 +357,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       source_map: &source_map,
                       items: &mut global_deps,
                       global_mark,
-                      globals: HashMap::new(),
+                      globals: IndexMap::new(),
                       project_root: Path::new(&config.project_root),
                       filename: Path::new(&config.filename),
                       decls: &mut decls,
@@ -379,6 +372,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       Some(&comments),
                       preset_env_config,
                       Default::default(),
+                      &mut Default::default(),
                     ),
                     should_run_preset_env,
                   ),
@@ -478,11 +472,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 result.diagnostics = Some(diagnostics);
               }
 
-              let (buf, mut src_map_buf) =
+              let (buf, src_map_buf) =
                 emit(source_map.clone(), comments, &module, config.source_maps)?;
               if config.source_maps
                 && source_map
-                  .build_source_map(&mut src_map_buf)
+                  .build_source_map(&src_map_buf)
                   .to_writer(&mut map_buf)
                   .is_ok()
               {
@@ -504,7 +498,7 @@ fn parse(
   filename: &str,
   source_map: &Lrc<SourceMap>,
   config: &Config,
-) -> PResult<(Module, SingleThreadedComments)> {
+) -> PResult<(Program, SingleThreadedComments)> {
   // Attempt to convert the path to be relative to the project root.
   // If outside the project root, use an absolute path so that if the project root moves the path still works.
   let filename: PathBuf = if let Ok(relative) = Path::new(filename).strip_prefix(project_root) {
@@ -538,7 +532,7 @@ fn parse(
   );
 
   let mut parser = Parser::new_from(lexer);
-  match parser.parse_module() {
+  match parser.parse_program() {
     Err(err) => Err(err),
     Ok(module) => Ok((module, comments)),
   }
@@ -547,7 +541,7 @@ fn parse(
 fn emit(
   source_map: Lrc<SourceMap>,
   comments: SingleThreadedComments,
-  program: &Module,
+  module: &Module,
   source_maps: bool,
 ) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
   let mut src_map_buf = vec![];
@@ -567,6 +561,7 @@ fn emit(
       minify: false,
       ascii_only: false,
       target: swc_ecmascript::ast::EsVersion::Es5,
+      omit_last_semi: false,
     };
     let mut emitter = swc_ecmascript::codegen::Emitter {
       cfg: config,
@@ -575,7 +570,7 @@ fn emit(
       wr: writer,
     };
 
-    emitter.emit_module(program)?;
+    emitter.emit_module(module)?;
   }
 
   Ok((buf, src_map_buf))

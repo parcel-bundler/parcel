@@ -28,6 +28,7 @@ import {
   hashObject,
   validateSchema,
 } from '@parcel/utils';
+import logger from '@parcel/logger';
 import {createEnvironment} from '../Environment';
 import createParcelConfigRequest, {
   getCachedParcelConfig,
@@ -47,9 +48,9 @@ import {BROWSER_ENVS} from '../public/Environment';
 import {optionsProxy, toInternalSourceLocation} from '../utils';
 import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 
-type RunOpts = {|
+type RunOpts<TResult> = {|
   input: Entry,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 const DEFAULT_DIST_DIRNAME = 'dist';
@@ -88,7 +89,7 @@ const DEFAULT_ENGINES = {
 export type TargetRequest = {|
   id: string,
   +type: 'target_request',
-  run: RunOpts => Async<Array<Target>>,
+  run: (RunOpts<Array<Target>>) => Async<Array<Target>>,
   input: Entry,
 |};
 
@@ -117,7 +118,7 @@ export function skipTarget(
     : targetName !== exclusiveTarget;
 }
 
-async function run({input, api, options}: RunOpts) {
+async function run({input, api, options}) {
   let targetResolver = new TargetResolver(
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
@@ -142,18 +143,54 @@ async function run({input, api, options}: RunOpts) {
     }
   }
 
+  if (options.logLevel === 'verbose') {
+    await debugResolvedTargets(
+      input,
+      targets,
+      targetResolver.targetInfo,
+      options,
+    );
+  }
+
   return targets;
 }
 
+type TargetInfo = {|
+  output: TargetKeyInfo,
+  engines: TargetKeyInfo,
+  context: TargetKeyInfo,
+  includeNodeModules: TargetKeyInfo,
+  outputFormat: TargetKeyInfo,
+  isLibrary: TargetKeyInfo,
+  shouldOptimize: TargetKeyInfo,
+  shouldScopeHoist: TargetKeyInfo,
+|};
+
+type TargetKeyInfo =
+  | {|
+      path: string,
+      type?: 'key' | 'value',
+    |}
+  | {|
+      inferred: string,
+      type?: 'key' | 'value',
+      message: string,
+    |}
+  | {|
+      message: string,
+    |};
+
 export class TargetResolver {
   fs: FileSystem;
-  api: RunAPI;
+  api: RunAPI<Array<Target>>;
   options: ParcelOptions;
+  targetInfo: Map<string, TargetInfo>;
 
-  constructor(api: RunAPI, options: ParcelOptions) {
+  constructor(api: RunAPI<Array<Target>>, options: ParcelOptions) {
     this.api = api;
     this.fs = options.inputFS;
     this.options = options;
+    this.targetInfo = new Map();
   }
 
   async resolve(
@@ -414,6 +451,8 @@ export class TargetResolver {
         '/engines',
         'Invalid engines in package.json',
       ) || {};
+    let browsersLoc = {path: '/engines/browsers'};
+    let nodeLoc = {path: '/engines/node'};
     if (pkgEngines.browsers == null) {
       let env =
         this.options.env.BROWSERSLIST_ENV ??
@@ -431,6 +470,8 @@ export class TargetResolver {
           ...pkgEngines,
           browsers: browserslist,
         };
+
+        browsersLoc = {path: '/browserslist'};
       } else {
         let browserslistConfig = await resolveConfig(
           this.fs,
@@ -453,16 +494,23 @@ export class TargetResolver {
           let contents = await this.fs.readFile(browserslistConfig, 'utf8');
           let config = browserslist.parseConfig(contents);
           let browserslistBrowsers = config[env] || config.defaults;
+          let pp = toProjectPath(this.options.projectRoot, browserslistConfig);
 
           if (browserslistBrowsers?.length > 0) {
             pkgEngines = {
               ...pkgEngines,
               browsers: browserslistBrowsers,
             };
+
+            browsersLoc = {
+              message: `(defined in ${path.relative(
+                process.cwd(),
+                browserslistConfig,
+              )})`,
+            };
           }
 
           // Invalidate whenever browserslist config file or relevant environment variables change
-          let pp = toProjectPath(this.options.projectRoot, browserslistConfig);
           this.api.invalidateOnFileUpdate(pp);
           this.api.invalidateOnFileDelete(pp);
           this.api.invalidateOnEnvChange('BROWSERSLIST_ENV');
@@ -475,15 +523,6 @@ export class TargetResolver {
     let node = pkgEngines.node;
     let browsers = pkgEngines.browsers;
 
-    // If there is a separate `browser` target, or an `engines.node` field but no browser targets, then
-    // the `main` and `module` targets refer to node, otherwise browser.
-    let mainContext =
-      pkg.browser ?? pkgTargets.browser ?? (node != null && browsers == null)
-        ? 'node'
-        : 'browser';
-    let moduleContext =
-      pkg.browser ?? pkgTargets.browser ? 'browser' : mainContext;
-
     let defaultEngines = this.options.defaultTargetOptions.engines;
     let context = browsers ?? node == null ? 'browser' : 'node';
     if (context === 'browser' && pkgEngines.browsers == null) {
@@ -491,12 +530,92 @@ export class TargetResolver {
         ...pkgEngines,
         browsers: defaultEngines?.browsers ?? DEFAULT_ENGINES.browsers,
       };
+      browsersLoc = {message: '(default)'};
     } else if (context === 'node' && pkgEngines.node == null) {
       pkgEngines = {
         ...pkgEngines,
         node: defaultEngines?.node ?? DEFAULT_ENGINES.node,
       };
+      nodeLoc = {message: '(default)'};
     }
+
+    // If there is a separate `browser` target, or an `engines.node` field but no browser targets, then
+    // the `main` and `module` targets refer to node, otherwise browser.
+    let mainContext =
+      pkg.browser ?? pkgTargets.browser ?? (node != null && browsers == null)
+        ? 'node'
+        : 'browser';
+    let mainContextLoc: TargetKeyInfo =
+      pkg.browser != null
+        ? {
+            inferred: '/browser',
+            message: '(because a browser field also exists)',
+            type: 'key',
+          }
+        : pkgTargets.browser
+        ? {
+            inferred: '/targets/browser',
+            message: '(because a browser target also exists)',
+            type: 'key',
+          }
+        : node != null && browsers == null
+        ? nodeLoc.path
+          ? {
+              inferred: nodeLoc.path,
+              message: '(because node engines were defined)',
+              type: 'key',
+            }
+          : nodeLoc
+        : {message: '(default)'};
+    let moduleContext =
+      pkg.browser ?? pkgTargets.browser ? 'browser' : mainContext;
+    let moduleContextLoc: TargetKeyInfo =
+      pkg.browser != null
+        ? {
+            inferred: '/browser',
+            message: '(because a browser field also exists)',
+            type: 'key',
+          }
+        : pkgTargets.browser
+        ? {
+            inferred: '/targets/browser',
+            message: '(becausea browser target also exists)',
+            type: 'key',
+          }
+        : mainContextLoc;
+
+    let getEnginesLoc = (targetName, descriptor): TargetKeyInfo => {
+      let enginesLoc = `/targets/${targetName}/engines`;
+      switch (context) {
+        case 'browser':
+        case 'web-worker':
+        case 'service-worker':
+        case 'worklet': {
+          if (descriptor.engines) {
+            return {path: enginesLoc + '/browsers'};
+          } else {
+            return browsersLoc;
+          }
+        }
+        case 'node': {
+          if (descriptor.engines) {
+            return {path: enginesLoc + '/node'};
+          } else {
+            return nodeLoc;
+          }
+        }
+        case 'electron-main':
+        case 'electron-renderer': {
+          if (descriptor.engines?.electron != null) {
+            return {path: enginesLoc + '/electron'};
+          } else if (pkgEngines?.electron != null) {
+            return {path: '/engines/electron'};
+          }
+        }
+      }
+
+      return {message: '(default)'};
+    };
 
     for (let targetName in COMMON_TARGETS) {
       let _targetDist;
@@ -634,14 +753,15 @@ export class TargetResolver {
           });
         }
 
-        let inferredOutputFormat = this.inferOutputFormat(
-          distEntry,
-          descriptor,
-          targetName,
-          pkg,
-          pkgFilePath,
-          pkgContents,
-        );
+        let [inferredOutputFormat, inferredOutputFormatField] =
+          this.inferOutputFormat(
+            distEntry,
+            descriptor,
+            targetName,
+            pkg,
+            pkgFilePath,
+            pkgContents,
+          );
 
         let outputFormat =
           descriptor.outputFormat ??
@@ -725,6 +845,14 @@ export class TargetResolver {
           });
         }
 
+        let context =
+          descriptor.context ??
+          (targetName === 'browser'
+            ? 'browser'
+            : isModule
+            ? moduleContext
+            : mainContext);
+
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -733,13 +861,7 @@ export class TargetResolver {
             descriptor.publicUrl ?? this.options.defaultTargetOptions.publicUrl,
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
-            context:
-              descriptor.context ??
-              (targetName === 'browser'
-                ? 'browser'
-                : isModule
-                ? moduleContext
-                : mainContext),
+            context,
             includeNodeModules: descriptor.includeNodeModules ?? false,
             outputFormat,
             isLibrary: true,
@@ -750,6 +872,43 @@ export class TargetResolver {
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
           loc: toInternalSourceLocation(this.options.projectRoot, loc),
+        });
+
+        this.targetInfo.set(targetName, {
+          output: {path: pointer},
+          engines: getEnginesLoc(targetName, descriptor),
+          context: descriptor.context
+            ? {path: `/targets/${targetName}/context`}
+            : targetName === 'browser'
+            ? {
+                message: '(inferred from target name)',
+                inferred: pointer,
+                type: 'key',
+              }
+            : isModule
+            ? moduleContextLoc
+            : mainContextLoc,
+          includeNodeModules: descriptor.includeNodeModules
+            ? {path: `/targets/${targetName}/includeNodeModules`, type: 'key'}
+            : {message: '(default)'},
+          outputFormat: descriptor.outputFormat
+            ? {path: `/targets/${targetName}/outputFormat`}
+            : inferredOutputFormatField === '/type'
+            ? {
+                message: `(inferred from package.json#type)`,
+                inferred: inferredOutputFormatField,
+              }
+            : inferredOutputFormatField != null
+            ? {
+                message: `(inferred from file extension)`,
+                inferred: inferredOutputFormatField,
+              }
+            : {message: '(default)'},
+          isLibrary: {message: '(default)'},
+          shouldOptimize: descriptor.optimize
+            ? {path: `/targets/${targetName}/optimize`}
+            : {message: '(default)'},
+          shouldScopeHoist: {message: '(default)'},
         });
       }
     }
@@ -764,6 +923,7 @@ export class TargetResolver {
       let distDir;
       let distEntry;
       let loc;
+      let pointer;
       if (distPath == null) {
         distDir =
           fromProjectPath(
@@ -810,6 +970,7 @@ export class TargetResolver {
           filePath: pkgFilePath,
           ...getJSONSourceLocation(pkgMap.pointers[`/${targetName}`], 'value'),
         };
+        pointer = `/${targetName}`;
       }
 
       if (targetName in pkgTargets) {
@@ -825,14 +986,15 @@ export class TargetResolver {
           continue;
         }
 
-        let inferredOutputFormat = this.inferOutputFormat(
-          distEntry,
-          descriptor,
-          targetName,
-          pkg,
-          pkgFilePath,
-          pkgContents,
-        );
+        let [inferredOutputFormat, inferredOutputFormatField] =
+          this.inferOutputFormat(
+            distEntry,
+            descriptor,
+            targetName,
+            pkg,
+            pkgFilePath,
+            pkgContents,
+          );
 
         if (descriptor.scopeHoist === false && descriptor.isLibrary) {
           let contents: string =
@@ -909,6 +1071,42 @@ export class TargetResolver {
           }),
           loc: toInternalSourceLocation(this.options.projectRoot, loc),
         });
+
+        this.targetInfo.set(targetName, {
+          output: pointer != null ? {path: pointer} : {message: '(default)'},
+          engines: getEnginesLoc(targetName, descriptor),
+          context: descriptor.context
+            ? {path: `/targets/${targetName}/context`}
+            : {message: '(default)'},
+          includeNodeModules: descriptor.includeNodeModules
+            ? {path: `/targets/${targetName}/includeNodeModules`, type: 'key'}
+            : {message: '(default)'},
+          outputFormat: descriptor.outputFormat
+            ? {path: `/targets/${targetName}/outputFormat`}
+            : inferredOutputFormatField === '/type'
+            ? {
+                message: `(inferred from package.json#type)`,
+                inferred: inferredOutputFormatField,
+              }
+            : inferredOutputFormatField != null
+            ? {
+                message: `(inferred from file extension)`,
+                inferred: inferredOutputFormatField,
+              }
+            : {message: '(default)'},
+          isLibrary:
+            descriptor.isLibrary != null
+              ? {path: `/targets/${targetName}/isLibrary`}
+              : {message: '(default)'},
+          shouldOptimize:
+            descriptor.optimize != null
+              ? {path: `/targets/${targetName}/optimize`}
+              : {message: '(default)'},
+          shouldScopeHoist:
+            descriptor.scopeHoist != null
+              ? {path: `/targets/${targetName}/scopeHoist`}
+              : {message: '(default)'},
+        });
       }
     }
 
@@ -952,7 +1150,7 @@ export class TargetResolver {
     pkg: PackageJSON,
     pkgFilePath: ?FilePath,
     pkgContents: ?string,
-  ): ?OutputFormat {
+  ): [?OutputFormat, ?string] {
     // Infer the outputFormat based on package.json properties.
     // If the extension is .mjs it's always a module.
     // If the extension is .cjs, it's always commonjs.
@@ -1036,7 +1234,7 @@ export class TargetResolver {
       });
     }
 
-    return inferredOutputFormat;
+    return [inferredOutputFormat, inferredOutputFormatField];
   }
 }
 
@@ -1261,5 +1459,166 @@ function assertTargetsAreNotEntries(
         },
       });
     }
+  }
+}
+
+async function debugResolvedTargets(input, targets, targetInfo, options) {
+  for (let target of targets) {
+    let info = targetInfo.get(target.name);
+    let loc = target.loc;
+    if (!loc || !info) {
+      continue;
+    }
+
+    let output = fromProjectPath(options.projectRoot, target.distDir);
+    if (target.distEntry != null) {
+      output = path.join(output, target.distEntry);
+    }
+
+    // Resolve relevant engines for context.
+    let engines;
+    switch (target.env.context) {
+      case 'browser':
+      case 'web-worker':
+      case 'service-worker':
+      case 'worklet': {
+        let browsers = target.env.engines.browsers;
+        engines = Array.isArray(browsers) ? browsers.join(', ') : browsers;
+        break;
+      }
+      case 'node':
+        engines = target.env.engines.node;
+        break;
+      case 'electron-main':
+      case 'electron-renderer':
+        engines = target.env.engines.electron;
+        break;
+    }
+
+    let highlights = [];
+    if (input.loc) {
+      highlights.push({
+        start: input.loc.start,
+        end: input.loc.end,
+        message: 'entry defined here',
+      });
+    }
+
+    // Read package.json where target is defined.
+    let targetFilePath = fromProjectPath(options.projectRoot, loc.filePath);
+    let contents = await options.inputFS.readFile(targetFilePath, 'utf8');
+
+    // Builds up map of code highlights for each defined/inferred path in the package.json.
+    let jsonHighlights = new Map();
+    for (let key in info) {
+      let keyInfo = info[key];
+      let path = keyInfo.path || keyInfo.inferred;
+      if (!path) {
+        continue;
+      }
+
+      let type = keyInfo.type || 'value';
+      let highlight = jsonHighlights.get(path);
+      if (!highlight) {
+        highlight = {
+          type: type,
+          defined: '',
+          inferred: [],
+        };
+        jsonHighlights.set(path, highlight);
+      } else if (highlight.type !== type) {
+        highlight.type = null;
+      }
+
+      if (keyInfo.path) {
+        highlight.defined = md`${key} defined here`;
+      }
+
+      if (keyInfo.inferred) {
+        highlight.inferred.push(
+          md`${key} to be ${JSON.stringify(target.env[key])}`,
+        );
+      }
+    }
+
+    // $FlowFixMe
+    let listFormat = new Intl.ListFormat('en-US');
+
+    // Generate human friendly messages for each field.
+    let highlightsWithMessages = [...jsonHighlights].map(([k, v]) => {
+      let message = v.defined;
+      if (v.inferred.length > 0) {
+        message += (message ? ', ' : '') + 'caused ';
+        message += listFormat.format(v.inferred);
+      }
+
+      return {
+        key: k,
+        type: v.type,
+        message,
+      };
+    });
+
+    // Get code highlights from JSON paths.
+    highlights.push(
+      ...generateJSONCodeHighlights(contents, highlightsWithMessages),
+    );
+
+    // Format includeNodeModules to be human readable.
+    let includeNodeModules;
+    if (typeof target.env.includeNodeModules === 'boolean') {
+      includeNodeModules = String(target.env.includeNodeModules);
+    } else if (Array.isArray(target.env.includeNodeModules)) {
+      includeNodeModules =
+        'only ' +
+        listFormat.format(
+          target.env.includeNodeModules.map(m => JSON.stringify(m)),
+        );
+    } else if (
+      target.env.includeNodeModules &&
+      typeof target.env.includeNodeModules === 'object'
+    ) {
+      includeNodeModules =
+        'all except ' +
+        listFormat.format(
+          Object.entries(target.env.includeNodeModules)
+            .filter(([, v]) => v === false)
+            .map(([k]) => JSON.stringify(k)),
+        );
+    }
+
+    let format = v => (v.message != null ? md.italic(v.message) : '');
+    logger.verbose({
+      origin: '@parcel/core',
+      message: md`**Target** "${target.name}"
+
+               **Entry**: ${path.relative(
+                 process.cwd(),
+                 fromProjectPath(options.projectRoot, input.filePath),
+               )}
+              **Output**: ${path.relative(process.cwd(), output)}
+              **Format**: ${target.env.outputFormat} ${format(
+        info.outputFormat,
+      )}
+             **Context**: ${target.env.context} ${format(info.context)}
+             **Engines**: ${engines || ''} ${format(info.engines)}
+        **Library Mode**: ${String(target.env.isLibrary)} ${format(
+        info.isLibrary,
+      )}
+**Include Node Modules**: ${includeNodeModules} ${format(
+        info.includeNodeModules,
+      )}
+            **Optimize**: ${String(target.env.shouldOptimize)} ${format(
+        info.shouldOptimize,
+      )}`,
+      codeFrames: target.loc
+        ? [
+            {
+              filePath: targetFilePath,
+              codeHighlights: highlights,
+            },
+          ]
+        : [],
+    });
   }
 }

@@ -2,6 +2,9 @@ on: pull_request
 
 name: Continuous Integration
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint
@@ -91,12 +94,13 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: Integration tests (${{matrix.os}}, node ${{matrix.node}})
-          path: '**/junit-*.xml'
+          path: "**/junit-*.xml"
 
   test_report:
     name: Test report
     runs-on: ubuntu-latest
-    needs: [unit_tests, integration_tests]
+    needs:
+      [unit_tests, integration_tests]
     if: always()
     steps:
       - name: Create test report

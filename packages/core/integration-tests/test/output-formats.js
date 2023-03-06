@@ -560,6 +560,22 @@ describe('output formats', function () {
 
       assert.deepEqual(out, [1, 2]);
     });
+
+    it('should work with SWC helpers', async function () {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-helpers/index.js'),
+      );
+
+      let out = [];
+      await run(b, {
+        require,
+        output(o) {
+          out.push(o);
+        },
+      });
+
+      assert.deepEqual(out[0].x, new Map());
+    });
   });
 
   describe('esmodule', function () {
@@ -713,6 +729,24 @@ describe('output formats', function () {
     it('should support esmodule output with external modules (re-export)', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-external/re-export.js'),
+      );
+
+      await assertESMExports(
+        b,
+        3,
+        {
+          lodash: () => lodash,
+        },
+        ns => ns.add(1, 2),
+      );
+    });
+
+    it('should support esmodule output with external modules (re-export child)', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-external/re-export-child.js',
+        ),
       );
 
       await assertESMExports(

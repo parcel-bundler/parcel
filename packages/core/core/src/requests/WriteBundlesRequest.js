@@ -9,7 +9,6 @@ import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
 
 import {HASH_REF_PREFIX} from '../constants';
-import {serialize} from '../serializer';
 import {joinProjectPath} from '../projectPath';
 import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/hash';
@@ -21,15 +20,17 @@ type WriteBundlesRequestInput = {|
   optionsRef: SharedReference,
 |};
 
-type RunInput = {|
+type RunInput<TResult> = {|
   input: WriteBundlesRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type WriteBundlesRequest = {|
   id: ContentKey,
   +type: 'write_bundles_request',
-  run: RunInput => Async<Map<string, PackagedBundleInfo>>,
+  run: (
+    RunInput<Map<string, PackagedBundleInfo>>,
+  ) => Async<Map<string, PackagedBundleInfo>>,
   input: WriteBundlesRequestInput,
 |};
 
@@ -47,12 +48,9 @@ export default function createWriteBundlesRequest(
   };
 }
 
-async function run({input, api, farm, options}: RunInput) {
+async function run({input, api, farm, options}) {
   let {bundleGraph, optionsRef} = input;
-  let {ref, dispose} = await farm.createSharedReference(
-    bundleGraph,
-    serialize(bundleGraph),
-  );
+  let {ref, dispose} = await farm.createSharedReference(bundleGraph);
 
   api.invalidateOnOptionChange('shouldContentHash');
 
@@ -83,6 +81,13 @@ async function run({input, api, farm, options}: RunInput) {
     return true;
   });
 
+  // Package on the main thread if there is only one bundle to package.
+  // This avoids the cost of serializing the bundle graph for single file change builds.
+  let useMainThread =
+    bundles.length === 1 ||
+    bundles.filter(b => !api.canSkipSubrequest(bundleGraph.getHash(b)))
+      .length === 1;
+
   try {
     await Promise.all(
       bundles.map(async bundle => {
@@ -91,7 +96,9 @@ async function run({input, api, farm, options}: RunInput) {
           bundleGraph,
           bundleGraphReference: ref,
           optionsRef,
+          useMainThread,
         });
+
         let info = await api.runRequest(request);
 
         bundleInfoMap[bundle.id] = info;
@@ -108,7 +115,10 @@ async function run({input, api, farm, options}: RunInput) {
             hashRefToNameHash,
             bundleGraph,
           });
-          writeEarlyPromises[bundle.id] = api.runRequest(writeBundleRequest);
+          let promise = api.runRequest(writeBundleRequest);
+          // If the promise rejects before we await it (below), we don't want to crash the build.
+          promise.catch(() => {});
+          writeEarlyPromises[bundle.id] = promise;
         }
       }),
     );

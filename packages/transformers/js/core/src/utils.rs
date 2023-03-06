@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use crate::id;
 use serde::{Deserialize, Serialize};
-use swc_atoms::JsWord;
+use swc_atoms::{js_word, JsWord};
 use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::{self, Id};
 
@@ -85,7 +85,7 @@ pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
     Expr::Lit(Lit::Str(s)) => Some((s.value.clone(), s.span)),
     // `string`
     Expr::Tpl(tpl) if tpl.quasis.len() == 1 && tpl.exprs.is_empty() => {
-      Some((tpl.quasis[0].raw.clone(), tpl.span))
+      Some(((*tpl.quasis[0].raw).into(), tpl.span))
     }
     _ => None,
   }
@@ -93,7 +93,7 @@ pub fn match_str(node: &ast::Expr) -> Option<(JsWord, Span)> {
 
 pub fn match_property_name(node: &ast::MemberExpr) -> Option<(JsWord, Span)> {
   match &node.prop {
-    ast::MemberProp::Computed(s) => match_str(&*s.expr),
+    ast::MemberProp::Computed(s) => match_str(&s.expr),
     ast::MemberProp::Ident(id) => Some((id.sym.clone(), id.span)),
     ast::MemberProp::PrivateName(_) => None,
   }
@@ -126,7 +126,7 @@ pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -
             && !is_marked(ident.span, ignore_mark)
           {
             if let Some(arg) = call.args.get(0) {
-              return match_str(&*arg.expr).map(|(name, _)| name);
+              return match_str(&arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -135,7 +135,7 @@ pub fn match_require(node: &ast::Expr, decls: &HashSet<Id>, ignore_mark: Mark) -
         Expr::Member(member) => {
           if match_member_expr(member, vec!["module", "require"], decls) {
             if let Some(arg) = call.args.get(0) {
-              return match_str(&*arg.expr).map(|(name, _)| name);
+              return match_str(&arg.expr).map(|(name, _)| name);
             }
           }
 
@@ -156,7 +156,7 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
     Expr::Call(call) => match &call.callee {
       Callee::Import(ident) if !is_marked(ident.span, ignore_mark) => {
         if let Some(arg) = call.args.get(0) {
-          return match_str(&*arg.expr).map(|(name, _)| name);
+          return match_str(&arg.expr).map(|(name, _)| name);
         }
         None
       }
@@ -177,7 +177,7 @@ pub fn create_global_decl_stmt(
   let span = DUMMY_SP.apply_mark(global_mark);
 
   (
-    ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
+    ast::Stmt::Decl(ast::Decl::Var(Box::new(ast::VarDecl {
       kind: ast::VarDeclKind::Var,
       declare: false,
       span: DUMMY_SP,
@@ -187,7 +187,7 @@ pub fn create_global_decl_stmt(
         definite: false,
         init: Some(Box::new(init)),
       }],
-    })),
+    }))),
     span.ctxt,
   )
 }
@@ -312,7 +312,7 @@ impl BailoutReason {
   fn info(&self) -> (&str, &str) {
     match self {
       BailoutReason::NonTopLevelRequire => (
-        "Conditional or non-top-level `require()` call. This causes the resolved module and all dependendencies to be wrapped.",
+        "Conditional or non-top-level `require()` call. This causes the resolved module and all dependencies to be wrapped.",
         "https://parceljs.org/features/scope-hoisting/#avoid-conditional-require()"
       ),
       BailoutReason::NonStaticDestructuring => (

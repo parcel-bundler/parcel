@@ -4,7 +4,7 @@ use std::fmt;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use swc_atoms::JsWord;
+use swc_atoms::{js_word, JsWord};
 use swc_common::{Mark, SourceMap, Span, DUMMY_SP};
 use swc_ecmascript::ast::{self, Callee, Id, MemberProp};
 use swc_ecmascript::visit::{Fold, FoldWith};
@@ -115,12 +115,12 @@ impl<'a> DependencyCollector<'a> {
       }
     }
 
-    // For normal imports/requires, the specifier will remain unchanged.
+    // For ESM imports, the specifier will remain unchanged.
     // For other types of dependencies, the specifier will be changed to a hash
     // that also contains the dependency kind. This way, multiple kinds of dependencies
     // to the same specifier can be used within the same file.
     let placeholder = match kind {
-      DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => {
+      DependencyKind::Import | DependencyKind::Export => {
         if is_specifier_rewritten {
           Some(specifier.as_ref().to_owned())
         } else {
@@ -231,7 +231,7 @@ impl<'a> DependencyCollector<'a> {
 
 fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
   if let Some(arg) = node.args.get(0) {
-    if let Some((value, _)) = match_str(&*arg.expr) {
+    if let Some((value, _)) = match_str(&arg.expr) {
       if value.starts_with("node:") {
         // create_require will take care of replacing the node: prefix...
         return create_require(value);
@@ -247,7 +247,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     if let Some(decl) = self.import_meta.take() {
       res.body.insert(
         0,
-        ast::ModuleItem::Stmt(ast::Stmt::Decl(ast::Decl::Var(decl))),
+        ast::ModuleItem::Stmt(ast::Stmt::Decl(ast::Decl::Var(Box::new(decl)))),
       );
     }
     res
@@ -288,7 +288,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     );
 
     if let Some(rewritten) = rewritten {
-      node.src.value = rewritten.into();
+      node.src.value = rewritten;
     }
 
     node
@@ -310,7 +310,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       );
 
       if let Some(rewritten) = rewritten {
-        src.value = rewritten.into();
+        src.value = rewritten;
       }
     }
 
@@ -328,7 +328,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     );
 
     if let Some(rewritten) = rewritten {
-      node.src.value = rewritten.into();
+      node.src.value = rewritten;
     }
 
     node
@@ -474,7 +474,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               // Promise.resolve(require('foo'))
               if match_member_expr(member, vec!["Promise", "resolve"], self.decls) {
                 if let Some(expr) = node.args.get(0) {
-                  if match_require(&*expr.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
+                  if match_require(&expr.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
                     self.in_promise = true;
                     let node = node.fold_children_with(self);
                     self.in_promise = was_in_promise;
@@ -495,7 +495,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                     if match_member_expr(m, vec!["Promise", "resolve"], self.decls) &&
                       // Make sure the arglist is empty.
                       // I.e. do not proceed with the below unless Promise.resolve has an empty arglist
-                      // because build_promise_chain() will not work in this case.                   
+                      // because build_promise_chain() will not work in this case.
                       call.args.is_empty()
                     {
                       if let MemberProp::Ident(id) = &member.prop {
@@ -580,7 +580,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         };
         let mut node = node.clone();
 
-        let (specifier, span) = if let Some(s) = self.match_new_url(&*arg.expr, self.decls) {
+        let (specifier, span) = if let Some(s) = self.match_new_url(&arg.expr, self.decls) {
           s
         } else if let Lit(ast::Lit::Str(str_)) = &*arg.expr {
           let (msg, docs) = if kind == DependencyKind::ServiceWorker {
@@ -626,7 +626,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         return node;
       }
 
-      if let Some((specifier, span)) = match_str(&*arg.expr) {
+      if let Some((specifier, span)) = match_str(&arg.expr) {
         // require() calls aren't allowed in scripts, flag as an error.
         if kind == DependencyKind::Require && self.config.source_type == SourceType::Script {
           self.add_script_error(node.span);
@@ -750,7 +750,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     if let Some(args) = &node.args {
       if !args.is_empty() {
-        let (specifier, span) = if let Some(s) = self.match_new_url(&*args[0].expr, self.decls) {
+        let (specifier, span) = if let Some(s) = self.match_new_url(&args[0].expr, self.decls) {
           s
         } else if let Lit(ast::Lit::Str(str_)) = &*args[0].expr {
           let constructor = match &*node.callee {
@@ -916,7 +916,7 @@ impl<'a> DependencyCollector<'a> {
             if let ast::Expr::Ident(id) = &**callee {
               if id.to_id() == resolve_id {
                 if let Some(arg) = call.args.get(0) {
-                  if match_require(&*arg.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
+                  if match_require(&arg.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
                     let was_in_promise = self.in_promise;
                     self.in_promise = true;
                     let node = node.fold_children_with(self);
@@ -1004,7 +1004,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
             args: vec![ast::ExprOrSpread {
               expr: Box::new(ast::Expr::Fn(ast::FnExpr {
                 ident: None,
-                function: ast::Function {
+                function: Box::new(ast::Function {
                   body: Some(ast::BlockStmt {
                     span: DUMMY_SP,
                     stmts: vec![ast::Stmt::Return(ast::ReturnStmt {
@@ -1019,7 +1019,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
                   return_type: None,
                   type_params: None,
                   span: DUMMY_SP,
-                },
+                }),
               })),
               spread: None,
             }],
@@ -1151,13 +1151,13 @@ impl<'a> DependencyCollector<'a> {
 
       if let Some(args) = &new.args {
         let (specifier, span) = if let Some(arg) = args.get(0) {
-          match_str(&*arg.expr)?
+          match_str(&arg.expr)?
         } else {
           return None;
         };
 
         if let Some(arg) = args.get(1) {
-          if self.is_import_meta_url(&*arg.expr) {
+          if self.is_import_meta_url(&arg.expr) {
             return Some((specifier, span));
           }
         }
@@ -1203,7 +1203,7 @@ impl<'a> DependencyCollector<'a> {
         ..
       }) => {
         // Match "file:" + __filename
-        let left = match_str(&*left);
+        let left = match_str(left);
         match (left, &**right) {
           (Some((left, _)), Expr::Ident(Ident { sym: right, .. })) => {
             &left == "file:" && right == "__filename"
@@ -1363,7 +1363,7 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
             _ => return true,
           };
 
-          let v = if let Some((v, _)) = match_str(&*kv.value) {
+          let v = if let Some((v, _)) = match_str(&kv.value) {
             v
           } else {
             return true;

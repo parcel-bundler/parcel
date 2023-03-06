@@ -31,7 +31,7 @@ export default class Worker extends EventEmitter {
   +options: WorkerOpts;
   worker: WorkerImpl;
   id: number = WORKER_ID++;
-  sharedReferences: $ReadOnlyMap<SharedReference, mixed> = new Map();
+  sentSharedReferences: Set<SharedReference> = new Set();
 
   calls: Map<number, WorkerCall> = new Map();
   exitCode: ?number = null;
@@ -53,10 +53,11 @@ export default class Worker extends EventEmitter {
 
     for (let i = 0; i < filteredArgs.length; i++) {
       let arg = filteredArgs[i];
-      if (
-        (arg === '-r' || arg === '--require') &&
-        filteredArgs[i + 1] === '@parcel/register'
-      ) {
+      let isArgWithParam =
+        ((arg === '-r' || arg === '--require') &&
+          filteredArgs[i + 1] === '@parcel/register') ||
+        arg === '--title';
+      if (isArgWithParam) {
         filteredArgs.splice(i, 2);
         i--;
       }
@@ -135,6 +136,7 @@ export default class Worker extends EventEmitter {
   }
 
   sendSharedReference(ref: SharedReference, value: mixed): Promise<any> {
+    this.sentSharedReferences.add(ref);
     return new Promise((resolve, reject) => {
       this.call({
         method: 'createSharedReference',

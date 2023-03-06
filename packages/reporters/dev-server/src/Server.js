@@ -324,11 +324,6 @@ export default class Server {
       return next(req, res);
     }
 
-    if (req.method === 'HEAD') {
-      res.end();
-      return;
-    }
-
     if (fresh(req.headers, {'last-modified': stat.mtime.toUTCString()})) {
       res.statusCode = 304;
       res.end();
@@ -391,7 +386,7 @@ export default class Server {
     const pkg = await loadConfig(
       this.options.inputFS,
       fileInRoot,
-      ['.proxyrc.js', '.proxyrc', '.proxyrc.json'],
+      ['.proxyrc.cjs', '.proxyrc.js', '.proxyrc', '.proxyrc.json'],
       this.options.projectRoot,
     );
 
@@ -402,11 +397,10 @@ export default class Server {
     const cfg = pkg.config;
     const filename = path.basename(pkg.files[0].filePath);
 
-    if (filename === '.proxyrc.js') {
+    if (filename === '.proxyrc.js' || filename === '.proxyrc.cjs') {
       if (typeof cfg !== 'function') {
         this.options.logger.warn({
-          message:
-            "Proxy configuration file '.proxyrc.js' should export a function. Skipping...",
+          message: `Proxy configuration file '${filename}' should export a function. Skipping...`,
         });
         return this;
       }

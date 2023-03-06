@@ -39,16 +39,14 @@ export class DevPackager {
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
     // Load assets
     let queue = new PromiseQueue({maxConcurrent: 32});
-    this.bundle.traverse(node => {
-      if (node.type === 'asset') {
-        queue.add(async () => {
-          let [code, mapBuffer] = await Promise.all([
-            node.value.getCode(),
-            this.bundle.env.sourceMap && node.value.getMapBuffer(),
-          ]);
-          return {code, mapBuffer};
-        });
-      }
+    this.bundle.traverseAssets(asset => {
+      queue.add(async () => {
+        let [code, mapBuffer] = await Promise.all([
+          asset.getCode(),
+          this.bundle.env.sourceMap && asset.getMapBuffer(),
+        ]);
+        return {code, mapBuffer};
+      });
     });
 
     let results = await queue.run();
@@ -108,6 +106,9 @@ export class DevPackager {
           } else if (resolved) {
             deps[getSpecifier(dep)] =
               this.bundleGraph.getAssetPublicId(resolved);
+          } else {
+            // An external module - map placeholder to original specifier.
+            deps[getSpecifier(dep)] = dep.specifier;
           }
         }
 

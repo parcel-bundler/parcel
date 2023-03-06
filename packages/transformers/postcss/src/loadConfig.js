@@ -160,7 +160,14 @@ export async function load({
   }
 
   let configFile: any = await config.getConfig(
-    ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
+    [
+      '.postcssrc',
+      '.postcssrc.json',
+      '.postcssrc.js',
+      '.postcssrc.cjs',
+      'postcss.config.js',
+      'postcss.config.cjs',
+    ],
     {packageKey: 'postcss'},
   );
 
@@ -173,7 +180,8 @@ export async function load({
     });
 
     contents = configFile.contents;
-    let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
+    let isDynamic =
+      configFile && path.extname(configFile.filePath).endsWith('js');
     if (isDynamic) {
       // We have to invalidate on startup in case the config is non-deterministic,
       // e.g. using unknown environment variables, reading from the filesystem, etc.

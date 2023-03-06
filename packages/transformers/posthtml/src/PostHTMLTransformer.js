@@ -18,14 +18,20 @@ export default (new Transformer({
     }
 
     let configFile = await config.getConfig(
-      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+      [
+        '.posthtmlrc',
+        '.posthtmlrc.js',
+        '.posthtmlrc.cjs',
+        'posthtml.config.js',
+        'posthtml.config.cjs',
+      ],
       {
         packageKey: 'posthtml',
       },
     );
 
     if (configFile) {
-      let isJavascript = path.extname(configFile.filePath) === '.js';
+      let isJavascript = path.extname(configFile.filePath).endsWith('js');
       if (isJavascript) {
         // We have to invalidate on startup in case the config is non-deterministic,
         // e.g. using unknown environment variables, reading from the filesystem, etc.

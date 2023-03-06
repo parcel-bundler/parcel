@@ -37,10 +37,14 @@ if (MessageChannel) {
 
       let b,
         root,
-        randoms = {};
+        randoms,
+        subscription,
+        window = {};
 
       beforeEach(async () => {
-        ({b, root, randoms} = await setup(path.join(testDir, 'index.html')));
+        ({b, root, randoms, subscription, window} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
       });
 
       it('retains state in functional components', async function () {
@@ -57,10 +61,14 @@ if (MessageChannel) {
         let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
           /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
         );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(randoms?.indexNum, indexNum);
+        assert.equal(randoms?.appNum, appNum);
+        assert.equal(randoms?.fooNum, fooNum);
         assert.equal(fooText, 'OtherFunctional');
+      });
+
+      afterEach(async () => {
+        await cleanup({subscription, window});
       });
     });
 
@@ -93,9 +101,9 @@ if (MessageChannel) {
         let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
           /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
         );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(randoms?.indexNum, indexNum);
+        assert.equal(randoms?.appNum, appNum);
+        assert.equal(randoms?.fooNum, fooNum);
         assert.equal(fooText, 'OtherFunctional');
       });
 
@@ -114,9 +122,9 @@ if (MessageChannel) {
           root.textContent.match(
             /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
           );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.notEqual(randoms.fooNum, fooNum);
+        assert.equal(randoms?.indexNum, indexNum);
+        assert.equal(randoms?.appNum, appNum);
+        assert.notEqual(randoms?.fooNum, fooNum);
         assert(fooNum2);
         assert.equal(fooText, 'Hooks');
       });
@@ -135,9 +143,9 @@ if (MessageChannel) {
         let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
           /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
         );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.notEqual(randoms.fooNum, fooNum);
+        assert.equal(randoms?.indexNum, indexNum);
+        assert.equal(randoms?.appNum, appNum);
+        assert.notEqual(randoms?.fooNum, fooNum);
         assert.equal(fooText, 'Class');
       });
 
@@ -165,7 +173,7 @@ if (MessageChannel) {
       });
 
       it('retains state in async components on change', async function () {
-        assert.equal(randoms.fooText, 'Async');
+        assert.equal(randoms?.fooText, 'Async');
 
         await fs.mkdirp(testDir);
         await fs.copyFile(
@@ -180,10 +188,59 @@ if (MessageChannel) {
         let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
           /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
         );
-        assert.equal(randoms.indexNum, indexNum);
-        assert.equal(randoms.appNum, appNum);
-        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(randoms?.indexNum, indexNum);
+        assert.equal(randoms?.appNum, appNum);
+        assert.equal(randoms?.fooNum, fooNum);
         assert.equal(fooText, 'OtherAsync');
+      });
+
+      afterEach(async () => {
+        await cleanup({subscription, window});
+      });
+    });
+
+    describe('circular context dependency', () => {
+      const testDir = path.join(
+        __dirname,
+        '/integration/react-refresh-circular',
+      );
+
+      let b,
+        root,
+        subscription,
+        window = {};
+
+      beforeEach(async () => {
+        ({b, root, subscription, window} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
+      });
+
+      it('does not become null when modifying provider', async function () {
+        await fs.mkdirp(testDir);
+        let f = path.join(testDir, 'Provider.js');
+        await fs.writeFile(f, (await fs.readFile(f, 'utf8')).replace('2', '3'));
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await sleep(100);
+
+        assert.equal(root.textContent, '3');
+      });
+
+      it('does not become null when modifying consumer', async function () {
+        await fs.mkdirp(testDir);
+        let f = path.join(testDir, 'Consumer.js');
+        await fs.writeFile(
+          f,
+          (await fs.readFile(f, 'utf8')).replace('tmp', 'foo'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await sleep(100);
+
+        assert.equal(root.textContent, '2');
       });
 
       afterEach(async () => {
@@ -306,15 +363,15 @@ async function setup(entry) {
   ).default();
   await sleep(100);
 
-  let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-    /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-  );
-  assert(indexNum);
-  assert(appNum);
-  assert(fooNum);
+  let m = root.textContent.match(/^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/);
+  if (m) {
+    let [, indexNum, appNum, fooText, fooNum] = m;
+    assert(indexNum);
+    assert(appNum);
+    assert(fooNum);
 
-  randoms = {indexNum, appNum, fooText, fooNum};
-
+    randoms = {indexNum, appNum, fooText, fooNum};
+  }
   return {port, b, window, randoms, subscription, root};
 }
 

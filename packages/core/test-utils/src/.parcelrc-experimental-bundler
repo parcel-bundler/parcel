@@ -1,5 +1,0 @@
-{
-  "extends": "@parcel/config-default",
-  "bundler": "@parcel/bundler-experimental",
-  "reporters": []
-}

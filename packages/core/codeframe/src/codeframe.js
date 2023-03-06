@@ -84,6 +84,7 @@ export default function codeFrame(
   };
 
   // Make columns/lines start at 1
+  let originalHighlights = highlights;
   highlights = highlights.map(h => {
     return {
       start: {
@@ -112,10 +113,17 @@ export default function codeFrame(
   let startLine = firstHighlight.start.line - opts.padding.before;
   startLine = startLine < 0 ? 0 : startLine;
   let endLineIndex = lastHighlight.end.line + opts.padding.after;
-  endLineIndex =
-    endLineIndex - startLine > opts.maxLines
-      ? startLine + opts.maxLines - 1
-      : endLineIndex;
+  let tail;
+  if (endLineIndex - startLine > opts.maxLines) {
+    let maxLine = startLine + opts.maxLines - 1;
+    highlights = highlights.filter(h => h.start.line < maxLine);
+    lastHighlight = highlights[0];
+    endLineIndex = Math.min(
+      maxLine,
+      lastHighlight.end.line + opts.padding.after,
+    );
+    tail = originalHighlights.filter(h => h.start.line > endLineIndex);
+  }
 
   let lineNumberLength = (endLineIndex + 1).toString(10).length;
 
@@ -281,5 +289,11 @@ export default function codeFrame(
     }
   }
 
-  return resultLines.join('\n');
+  let result = resultLines.join('\n');
+
+  if (tail && tail.length > 0) {
+    result += '\n\n' + codeFrame(code, tail, inputOpts);
+  }
+
+  return result;
 }

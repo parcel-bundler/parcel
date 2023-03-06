@@ -1,8 +1,9 @@
+use indexmap::IndexMap;
 use path_slash::PathBufExt;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::Path;
 
-use swc_atoms::JsWord;
+use swc_atoms::{js_word, JsWord};
 use swc_common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::{self, ComputedPropName, Id};
 use swc_ecmascript::visit::{Fold, FoldWith};
@@ -14,7 +15,7 @@ pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
   pub items: &'a mut Vec<DependencyDescriptor>,
   pub global_mark: Mark,
-  pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
+  pub globals: IndexMap<JsWord, (SyntaxContext, ast::Stmt)>,
   pub project_root: &'a Path,
   pub filename: &'a Path,
   pub decls: &'a mut HashSet<Id>,
