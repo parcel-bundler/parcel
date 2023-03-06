@@ -447,12 +447,6 @@ export default class Transformation {
     let resultingAssets = [];
     let finalAssets = [];
     for (let transformer of pipeline.transformers) {
-      let measurement = applicationProfiler.createMeasurement(
-        transformer.name,
-        'transform',
-        fromProjectPathRelative(initialAsset.value.filePath),
-      );
-
       resultingAssets = [];
       for (let asset of inputAssets) {
         if (
@@ -470,6 +464,12 @@ export default class Transformation {
         }
 
         try {
+          const measurement = applicationProfiler.createMeasurement(
+            transformer.name,
+            'transform',
+            fromProjectPathRelative(initialAsset.value.filePath),
+          );
+
           let transformerResults = await this.runTransformer(
             pipeline,
             asset,
@@ -480,9 +480,7 @@ export default class Transformation {
             this.parcelConfig,
           );
 
-          if (measurement) {
-            measurement.end();
-          }
+          measurement && measurement.end();
 
           for (let result of transformerResults) {
             if (result instanceof UncommittedAsset) {
