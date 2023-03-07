@@ -1,6 +1,8 @@
 // @flow
 
-export type ApplicationProfilerMeasurement = {|end: () => void|};
+export interface ApplicationProfilerMeasurement {
+  end(): void;
+}
 
 export type ApplicationProfilerMeasurementData = {|
   +categories: string[],

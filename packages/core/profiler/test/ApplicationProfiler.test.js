@@ -55,6 +55,12 @@ describe('ApplicationProfiler', () => {
       }),
     );
   });
+  it('calling end twice on measurment should be a no-op', () => {
+    const measurement = applicationProfiler.createMeasurement('test');
+    measurement.end();
+    measurement.end();
+    sinon.assert.calledOnce(onTrace);
+  });
 
   describe('PluginApplicationProfiler', () => {
     it('emits events with proper origin/category', () => {

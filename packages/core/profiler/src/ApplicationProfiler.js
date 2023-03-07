@@ -6,7 +6,7 @@ import type {
   PluginApplicationProfiler as IPluginApplicationProfiler,
 } from '@parcel/types';
 import type {
-  ApplicationProfilerMeasurement,
+  ApplicationProfilerMeasurement as IApplicationProfilerMeasurement,
   ApplicationProfilerMeasurementData,
 } from './types';
 import {ValueEmitter} from '@parcel/events';
@@ -23,6 +23,39 @@ try {
 
 const performance: Performance = _performance;
 const pid = process.pid;
+
+class ApplicationProfilerMeasurement
+  implements IApplicationProfilerMeasurement
+{
+  #active /* boolean */ = true;
+  #name /* string */;
+  #pid /* number */;
+  #tid /* number */;
+  #start /* number */;
+  #data /* any */;
+  constructor(applicationProfiler: ApplicationProfiler, name, pid, tid, data) {
+    this.#name = name;
+    this.#pid = pid;
+    this.#tid = tid;
+    this.#start = performance.now();
+    this.#data = data;
+  }
+
+  end() {
+    if (!this.#active) return;
+    const duration = performance.now() - this.#start;
+    applicationProfiler.trace({
+      type: 'trace',
+      name: this.#name,
+      pid: this.#pid,
+      tid: this.#tid,
+      duration,
+      ts: this.#start,
+      ...this.#data,
+    });
+    this.#active = false;
+  }
+}
 
 export default class ApplicationProfiler {
   #traceEmitter /* ValueEmitter<ApplicationProfilerEvent> */ =
@@ -48,7 +81,7 @@ export default class ApplicationProfiler {
     category?: string = 'Core',
     argumentName?: string,
     otherArgs?: {[key: string]: mixed},
-  ): ApplicationProfilerMeasurement | null {
+  ): IApplicationProfilerMeasurement | null {
     if (!this.enabled) return null;
 
     // We create `args` in a fairly verbose way to avoid object
@@ -71,20 +104,7 @@ export default class ApplicationProfiler {
       args,
     };
 
-    const start = performance.now();
-    return {
-      end: () => {
-        this.trace({
-          type: 'trace',
-          name,
-          pid,
-          tid,
-          duration: performance.now() - start,
-          ts: start,
-          ...data,
-        });
-      },
-    };
+    return new ApplicationProfilerMeasurement(this, name, pid, tid, data);
   }
 
   get enabled(): boolean {
@@ -134,7 +154,7 @@ export class PluginApplicationProfiler implements IPluginApplicationProfiler {
     category?: string,
     argumentName?: string,
     otherArgs?: {[key: string]: mixed},
-  ): ApplicationProfilerMeasurement | null {
+  ): IApplicationProfilerMeasurement | null {
     return applicationProfiler.createMeasurement(
       name,
       `${this.category}:${this.origin}${
