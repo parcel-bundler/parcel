@@ -281,7 +281,6 @@ export class ResolverRunner {
         measurement = applicationProfiler.createMeasurement(
           resolver.name,
           'resolve',
-
           specifier,
         );
         let result = await resolver.plugin.resolve({
@@ -296,6 +295,7 @@ export class ResolverRunner {
           }),
           config: this.configs.get(resolver.name)?.result,
         });
+        measurement && measurement.end();
 
         if (result) {
           if (result.meta) {
@@ -387,6 +387,8 @@ export class ResolverRunner {
 
         break;
       } finally {
+        measurement && measurement.end();
+
         // Add dev dependency for the resolver. This must be done AFTER running it due to
         // the potential for lazy require() that aren't executed until the request runs.
         let devDepRequest = await createDevDependency(
@@ -398,7 +400,6 @@ export class ResolverRunner {
           this.options,
         );
         this.runDevDepRequest(devDepRequest);
-        measurement && measurement.end();
       }
     }
 

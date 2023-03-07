@@ -86,8 +86,12 @@ export default async function babel7(
       fn: Function,
     ) => {
       return function () {
+        let pluginKey = key;
+        if (pluginKey.startsWith(options.projectRoot)) {
+          pluginKey = path.relative(options.projectRoot, pluginKey);
+        }
         const measurement = applicationProfiler.createMeasurement(
-          key,
+          pluginKey,
           nodeType,
           path.relative(options.projectRoot, asset.filePath),
         );
