@@ -1,6 +1,7 @@
 // @flow
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import path from 'path';
 import {Reporter} from '@parcel/plugin';
 import {Tracer} from 'chrome-trace-event';
 
@@ -30,6 +31,7 @@ function getTimeId() {
 export default (new Reporter({
   report({event, options, logger}) {
     let filename;
+    let filePath;
     switch (event.type) {
       case 'buildStart':
         invariant(
@@ -38,12 +40,15 @@ export default (new Reporter({
         );
         tracer = new Tracer();
         filename = `parcel-application-profile-${getTimeId()}.json`;
+        filePath = path.join(options.projectRoot, filename);
         invariant(
           writeStream == null,
           'Application profile write stream multiple initialisation',
         );
-        logger.info({message: `Writing application profile to ${filename}`});
-        writeStream = options.outputFS.createWriteStream(filename);
+        logger.info({
+          message: `Writing application profile to ${filename}. See https://parceljs.org/features/profiling/#analysing-application-profiles for more information on working with application profiles.`,
+        });
+        writeStream = options.outputFS.createWriteStream(filePath);
         nullthrows(tracer).pipe(nullthrows(writeStream));
         break;
       case 'trace':
