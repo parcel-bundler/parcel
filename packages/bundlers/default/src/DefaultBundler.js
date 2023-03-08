@@ -19,7 +19,13 @@ import {ContentGraph, Graph} from '@parcel/graph';
 import invariant from 'assert';
 import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
-import {setEqual, validateSchema, DefaultMap, BitSet} from '@parcel/utils';
+import {
+  setEqual,
+  setIntersect,
+  validateSchema,
+  DefaultMap,
+  BitSet,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
@@ -49,6 +55,8 @@ const HTTP_OPTIONS = {
     maxParallelRequests: 25,
   },
 };
+
+const SIMILARITY_THRESHOLD = 0.6;
 
 /* BundleRoot - An asset that is the main entry of a Bundle. */
 type BundleRoot = Asset;
@@ -1060,7 +1068,23 @@ function createIdealGraph(
           invariant(bundle !== 'root');
           return {id, bundle};
         })
-        .sort((a, b) => b.bundle.size - a.bundle.size);
+        .sort((a, b) => b.bundle.size - a.bundle.size); // largest to smallest
+
+      let scores = [];
+      let seen = new Set(); //index
+
+      for (let {bundle: s1, id: s1Id} of sharedBundlesInGroup) {
+        for (let {bundle: s2, id: s2Id} of sharedBundlesInGroup) {
+          if (s1Id === s2Id || seen.has(s2Id)) continue;
+          let overlap = new Set(s1.sourceBundles);
+          setIntersect(overlap, s2.sourceBundles);
+          let score = overlap.size / s1.sourceBundles.size;
+          if (score > SIMILARITY_THRESHOLD) {
+            scores.push({id: s2Id, score});
+          }
+        }
+        seen.add(s1Id);
+      }
 
       // Remove bundles until the bundle group is within the parallel request limit.
       while (
