@@ -16,9 +16,6 @@ import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
 import {Priority} from '@parcel/core/src/types';
 
 import {loadGraphs} from './index.js';
-import * as graphExplorer from './graph-explorer';
-
-const keepAliveSymbol = Symbol('parcel-query-keepalive');
 
 let args = process.argv.slice(2);
 let cacheDir = path.join(process.cwd(), '.parcel-cache');
@@ -583,14 +580,6 @@ function stats(_) {
   }
 }
 
-async function startGraphExplorer(frontend: string) {
-  await graphExplorer.startGraphExplorer(bundleGraph, frontend);
-  return keepAliveSymbol;
-}
-function stopGraphExplorer() {
-  return graphExplorer.stopGraphExplorer();
-}
-
 // -------------------------------------------------------
 
 if (initialCmd != null) {
@@ -611,21 +600,12 @@ if (initialCmd != null) {
     () => {},
   );
 
-  server.on('exit', async () => {
-    await graphExplorer.stopGraphExplorer();
-  });
-
   // $FlowFixMe[prop-missing]
   server.context.bundleGraph = bundleGraph;
   // $FlowFixMe[prop-missing]
   server.context.assetGraph = assetGraph;
   // $FlowFixMe[prop-missing]
   server.context.requestTracker = requestTracker;
-
-  // $FlowFixMe[prop-missing]
-  server.context.startGraphExplorer = startGraphExplorer;
-  // $FlowFixMe[prop-missing]
-  server.context.stopGraphExplorer = stopGraphExplorer;
 
   for (let [name, cmd] of new Map([
     [

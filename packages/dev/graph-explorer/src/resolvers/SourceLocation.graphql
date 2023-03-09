@@ -1,0 +1,15 @@
+type SourcePosition {
+  line: Int!
+  column: Int!
+}
+
+"""
+Source locations are 1-based, meaning lines and columns start at 1
+"""
+type SourceLocation {
+  filePath: String!
+  "inclusive"
+  start: SourcePosition!
+  "exclusive"
+  end: SourcePosition!
+}

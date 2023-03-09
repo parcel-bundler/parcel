@@ -1,0 +1,36 @@
+{
+  "name": "parcel-graph-explorer",
+  "version": "2.8.3",
+  "private": true,
+  "bin": "src/bin.js",
+  "main": "src/GraphExplorer.js",
+  "scripts": {
+    "build": "cd src/frontend && parcel build --no-optimize"
+  },
+  "dependencies": {
+    "@graphql-tools/merge": "^8.4.0",
+    "@graphql-tools/schema": "^9.0.17",
+    "@parcel/events": "2.8.3",
+    "@parcel/graph": "2.8.3",
+    "@parcel/logger": "2.8.3",
+    "chalk": "^4.1.0",
+    "express": "^4.18.1",
+    "get-port": "^4.2.0",
+    "graphql": "^16.6.0",
+    "graphql-type-json": "^0.3.2",
+    "graphql-yoga": "^3.7.2",
+    "nullthrows": "^1.1.1",
+    "parcel-query": "2.8.3",
+    "v8-compile-cache": "^2.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.0",
+    "@parcel/babel-register": "2.8.3",
+    "@parcel/core": "2.8.3",
+    "@parcel/watcher": "^2.0.7",
+    "react": "^18.2.0",
+    "react-digraph": "8.0.0-beta.8",
+    "react-dom": "^18.2.0",
+    "react-json-tree": "^0.13.0"
+  }
+}

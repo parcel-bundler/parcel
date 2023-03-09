@@ -1,0 +1,8 @@
+type Target {
+  distEntry: String
+  distDir: String!
+  env: Environment!
+  name: String!
+  publicUrl: String
+  loc: SourceLocation
+}

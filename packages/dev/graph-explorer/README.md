@@ -40,3 +40,45 @@ starting the REPL):
 ```sh
 $ parcel-query 'findBundleReason("b0696febf20b57ce", "bNAUZ")'
 ```
+
+## Graph Explorer
+
+Run (and optionally `await stopGraphExplorer()`, but this also happens automatically when exiting the REPL)
+
+```sh
+$ parcel-query
+> await startGraphExplorer("/path/to/packages/reporters/graph-explorer/frontend")
+undefined
+>
+```
+
+or non-interactively:
+
+```sh
+$ parcel-query 'startGraphExplorer("path/to/packages/reporters/graph-explorer/frontend")'
+```
+
+You can also run the graph explorer dev server, and proxy to the API:
+
+```sh
+$ parcel-query 'startGraphExplorer()'
+```
+
+The in another session, from the graph-explorer dir,
+add a `.proxyrc` file like:
+
+```json
+{
+  "/api/*": {
+    "target": "http://localhost:${port}"
+  }
+}
+```
+
+(where `${port}` is the port that parcel-query is using)
+
+Then run:
+
+```sh
+$ yarn prepare-serve
+```

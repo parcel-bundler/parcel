@@ -1,0 +1,32 @@
+type Engines {
+  browsers: [String]
+  node: String
+  electron: String
+  parcel: String
+}
+
+type SourceMapOptions {
+  inline: Boolean
+  inlineSources: Boolean
+  sourceRoot: String
+}
+
+type Environment {
+  id: ID!
+  context: String!
+  engines: Engines!
+  includeNodeModules: JSON!
+  outputFormat: String!
+  sourceType: String!
+  isLibrary: Boolean!
+  shouldOptimize: Boolean!
+  shouldScopeHoist: Boolean!
+  sourceMap: SourceMapOptions!
+  loc: SourceLocation
+  isBrowser: Boolean!
+  isNode: Boolean!
+  isElectron: Boolean!
+  isWorker: Boolean!
+  isWorklet: Boolean!
+  isIsolated: Boolean!
+}

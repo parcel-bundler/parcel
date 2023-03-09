@@ -1,11 +1,5 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useState,
-} from 'react';
-import {decode} from './utils';
+/* eslint-env browser */
+import React, {useEffect, useMemo, useReducer, useState} from 'react';
 import {GraphView} from 'react-digraph';
 import path from 'path';
 import JSONTree from 'react-json-tree';
@@ -21,18 +15,20 @@ export default function App() {
       let response;
       try {
         response = await fetch('/api/graph', {signal: abortController.signal});
+        // response = await fetch('/api/bundles', {
+        //   signal: abortController.signal,
+        // });
       } catch (e) {
         if (e.name === 'AbortError') {
           return;
         }
       }
 
-      const buffer = await response.arrayBuffer();
       if (abortController.signal.aborted) {
         return;
       }
 
-      setGraph(await decode(buffer));
+      setGraph(await response.json());
     })();
 
     return () => {

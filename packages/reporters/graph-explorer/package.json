@@ -24,15 +24,21 @@
     "node": ">= 12.0.0",
     "parcel": "^2.8.3"
   },
+  "targets": {
+    "main": {
+      "includeNodeModules": {
+        "@parcel/plugin": false,
+        "nullthrows": false,
+        "parcel-graph-explorer": false
+      }
+    }
+  },
   "dependencies": {
-    "@msgpack/msgpack": "^2.8.0",
     "@parcel/plugin": "2.8.3",
-    "@parcel/types": "2.8.3",
-    "@parcel/utils": "2.8.3",
-    "@parcel/events": "2.8.3",
-    "express": "^4.17.1",
-    "get-port": "^4.2.0",
     "nullthrows": "^1.1.1",
-    "teleport-javascript": "^1.0.0"
+    "parcel-graph-explorer": "2.8.3"
+  },
+  "devDependencies": {
+    "@parcel/graph": "2.8.3"
   }
 }

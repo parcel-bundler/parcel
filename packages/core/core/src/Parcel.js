@@ -282,7 +282,7 @@ export default class Parcel {
         requestGraphEdgeTypes,
       );
 
-      debug(options.instanceId, bundleGraph);
+      debug(options.instanceId, bundleGraph._graph);
 
       let event = {
         type: 'buildSuccess',

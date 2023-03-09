@@ -3,11 +3,6 @@
   "version": "2.8.3",
   "license": "MIT",
   "source": "index.html",
-  "scripts": {
-    "build": "parcel build --no-optimize index.html",
-    "dev": "parcel watch index.html",
-    "serve": "parcel serve index.html"
-  },
   "targets": {
     "default": {
       "distDir": "../../frontend"
@@ -18,9 +13,9 @@
   },
   "dependencies": {
     "@parcel/graph": "2.8.3",
-    "react": "^17.0.1",
+    "react": "^18.2.0",
     "react-digraph": "8.0.0-beta.8",
-    "react-dom": "^17.0.1",
+    "react-dom": "^18.2.0",
     "react-json-tree": "^0.13.0"
   }
 }
