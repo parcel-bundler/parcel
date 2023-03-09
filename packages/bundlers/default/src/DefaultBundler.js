@@ -25,6 +25,7 @@ import {
   validateSchema,
   DefaultMap,
   BitSet,
+  setUnion,
 } from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
@@ -1070,20 +1071,39 @@ function createIdealGraph(
         })
         .sort((a, b) => b.bundle.size - a.bundle.size); // largest to smallest
 
-      let scores = [];
-      let seen = new Set(); //index
+      function getOptimalBundleMerge() {
+        let scoredBundleCombinations = getCombinations(
+          sharedBundlesInGroup,
+        ).map(
+          ([a, b]): {|
+            bundles: [
+              {|id: NodeId, bundle: Bundle|},
+              {|id: NodeId, bundle: Bundle|},
+            ],
+            score: number,
+          |} => {
+            let overlap = new Set(a.bundle.sourceBundles);
+            setIntersect(overlap, b.bundle.sourceBundles);
 
-      for (let {bundle: s1, id: s1Id} of sharedBundlesInGroup) {
-        for (let {bundle: s2, id: s2Id} of sharedBundlesInGroup) {
-          if (s1Id === s2Id || seen.has(s2Id)) continue;
-          let overlap = new Set(s1.sourceBundles);
-          setIntersect(overlap, s2.sourceBundles);
-          let score = overlap.size / s1.sourceBundles.size;
-          if (score > SIMILARITY_THRESHOLD) {
-            scores.push({id: s2Id, score});
+            let score = overlap.size / a.bundle.sourceBundles.size;
+
+            return {
+              bundles: [a, b],
+              score,
+            };
+          },
+        );
+
+        let optimalCombination;
+        let bestScore = SIMILARITY_THRESHOLD;
+
+        for (let bundleCombination of scoredBundleCombinations) {
+          if (bundleCombination.score > bestScore) {
+            optimalCombination = bundleCombination;
           }
         }
-        seen.add(s1Id);
+
+        return optimalCombination?.bundles;
       }
 
       // Remove bundles until the bundle group is within the parallel request limit.
@@ -1091,6 +1111,57 @@ function createIdealGraph(
         sharedBundlesInGroup.length > 0 &&
         numBundlesInGroup > config.maxParallelRequests
       ) {
+        let bundleMerge = getOptimalBundleMerge();
+
+        if (bundleMerge) {
+          let [large, small] = bundleMerge;
+          let largeBundle = large.bundle;
+          let smallBundle = small.bundle;
+
+          // Merge small bundle assets into larger bundle
+          for (let asset of smallBundle.assets) {
+            largeBundle.assets.add(asset);
+            largeBundle.size += asset.stats.size;
+          }
+
+          // Merge source bundles from smaller bundle into larger bundle
+          largeBundle.sourceBundles = setUnion(
+            largeBundle.sourceBundles,
+            smallBundle.sourceBundles,
+          );
+
+          // Re-map source bundles edges of smaller bundle to larger bundle
+          for (const sourceBundle of smallBundle.sourceBundles) {
+            bundleGraph.addEdge(sourceBundle, large.id);
+          }
+
+          // Fix re-used bundles
+          for (let childId of bundleGraph.getNodeIdsConnectedFrom(small.id)) {
+            let child = bundleGraph.getNode(childId);
+            invariant(child !== 'root' && child != null);
+            child.sourceBundles.add(large.id);
+            bundleGraph.addEdge(large.id, childId);
+          }
+
+          // Clean up asset references
+          for (let asset of smallBundle.assets) {
+            assetReference.set(
+              asset,
+              assetReference.get(asset).filter(t => !t.includes(smallBundle)),
+            );
+          }
+
+          // Delete smaller bundle from graph
+          bundleGraph.removeNode(small.id);
+
+          // Filter the deleted bundle from shared bundle list
+          sharedBundlesInGroup = sharedBundlesInGroup.filter(
+            ({id}) => id !== small.id,
+          );
+          numBundlesInGroup--;
+          continue;
+        }
+
         let bundleTuple = sharedBundlesInGroup.pop();
         let bundleToRemove = bundleTuple.bundle;
         let bundleIdToRemove = bundleTuple.id;
@@ -1098,11 +1169,11 @@ function createIdealGraph(
         // but total # bundles still exceeds limit due to non shared bundles
 
         // Add all assets in the shared bundle into the source bundles that are within this bundle group.
-        let sourceBundles = [...bundleToRemove.sourceBundles].filter(b =>
-          bundleIdsInGroup.includes(b),
+        let sourceBundlesWithinGroup = [...bundleToRemove.sourceBundles].filter(
+          b => bundleIdsInGroup.includes(b),
         );
 
-        for (let sourceBundleId of sourceBundles) {
+        for (let sourceBundleId of sourceBundlesWithinGroup) {
           let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
           invariant(sourceBundle !== 'root');
           bundleToRemove.sourceBundles.delete(sourceBundleId);
@@ -1411,4 +1482,16 @@ function canMerge(a, b) {
     a.bundleBehavior == null &&
     b.bundleBehavior == null
   );
+}
+
+function getCombinations<T>(list: Array<T>): Array<[T, T]> {
+  let combinations: Array<[T, T]> = [];
+
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      combinations.push([list[i], list[j]]);
+    }
+  }
+
+  return combinations;
 }

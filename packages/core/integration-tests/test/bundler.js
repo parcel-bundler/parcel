@@ -317,13 +317,14 @@ describe('bundler', function () {
     ]);
   });
 
-  it.only('TEST', async function () {
+  it.only('should merge shared bundles when above the similarity threshold', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/bundle-threshold/index.js'),
       {
         mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: false,
+          shouldOptimize: false,
         },
       },
     );
@@ -335,7 +336,6 @@ describe('bundler', function () {
           'index.js',
           'bundle-url.js',
           'cacheLoader.js',
-          'css-loader.js',
           'esmodule-helpers.js',
           'js-loader.js',
           'bundle-manifest.js',
@@ -352,17 +352,8 @@ describe('bundler', function () {
         assets: ['foo.js'],
       },
       {
-        // c is shared between 3 different bundles, so it stays
-        assets: ['c.js'],
-      },
-      {
-        assets: ['styles.css'],
-      },
-      {
-        assets: ['local.html'],
-      },
-      {
-        assets: ['a.js', 'b.js'],
+        // c and d are merged due to the similiarity threshold
+        assets: ['c.js', 'd.js'],
       },
     ]);
   });
