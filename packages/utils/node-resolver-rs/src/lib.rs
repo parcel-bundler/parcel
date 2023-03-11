@@ -465,7 +465,12 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         // Bare specifier.
         self.resolve_bare(&module, &subpath)
       }
-      Specifier::Builtin(builtin) => Ok(Resolution::Builtin(builtin.as_ref().to_owned())),
+      Specifier::Builtin(builtin) => {
+        if let Some(res) = self.resolve_package_aliases_and_tsconfig_paths(&self.specifier)? {
+          return Ok(res);
+        }
+        Ok(Resolution::Builtin(builtin.as_ref().to_owned()))
+      }
       Specifier::Url(url) => {
         if self.specifier_type == SpecifierType::Url {
           Ok(Resolution::External)
@@ -521,15 +526,24 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       return Ok(Resolution::External);
     }
 
+    // Try aliases and tsconfig paths first.
+    let specifier = Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath));
+    if let Some(res) = self.resolve_package_aliases_and_tsconfig_paths(&specifier)? {
+      return Ok(res);
+    }
+
+    self.resolve_node_module(module, subpath)
+  }
+
+  fn resolve_package_aliases_and_tsconfig_paths(
+    &self,
+    specifier: &Specifier,
+  ) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.flags.contains(Flags::ALIASES) {
       // First, check for an alias in the root package.json.
       if let Some(package) = self.root_package()? {
-        if let Some(res) = self.resolve_aliases(
-          package,
-          &Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath)),
-          Fields::ALIAS,
-        )? {
-          return Ok(res);
+        if let Some(res) = self.resolve_aliases(package, &specifier, Fields::ALIAS)? {
+          return Ok(Some(res));
         }
       }
 
@@ -539,22 +553,14 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         if self.resolver.entries.contains(Fields::BROWSER) {
           fields |= Fields::BROWSER;
         }
-        if let Some(res) = self.resolve_aliases(
-          package,
-          &Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath)),
-          fields,
-        )? {
-          return Ok(res);
+        if let Some(res) = self.resolve_aliases(package, &specifier, fields)? {
+          return Ok(Some(res));
         }
       }
     }
 
     // Next, check tsconfig.json for the paths and baseUrl options.
-    if let Some(res) = self.resolve_tsconfig_paths()? {
-      return Ok(res);
-    }
-
-    self.resolve_node_module(module, subpath)
+    self.resolve_tsconfig_paths()
   }
 
   fn resolve_node_module(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
@@ -1821,6 +1827,14 @@ mod tests {
         .unwrap()
         .0,
       Resolution::Path(root().join("bar.js"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve("url", &root().join("foo.js"), SpecifierType::Esm)
+        .result
+        .unwrap()
+        .0,
+      Resolution::Empty
     );
   }
 

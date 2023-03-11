@@ -1481,6 +1481,7 @@ mod tests {
         "./foo/src/**".into() => AliasValue::Specifier("./foo/lib/$1".into()),
         "/foo/src/**".into() => AliasValue::Specifier("/foo/lib/$1".into()),
         "~/foo/src/**".into() => AliasValue::Specifier("~/foo/lib/$1".into()),
+        "url".into() => AliasValue::Bool(false),
       },
       ..PackageJson::default()
     };
@@ -1528,6 +1529,10 @@ mod tests {
     assert_eq!(
       pkg.resolve_aliases(&"~/foo/src/a/b".into(), Fields::ALIAS),
       Some(Cow::Owned(AliasValue::Specifier("~/foo/lib/a/b".into())))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"url".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Bool(false)))
     );
   }
 
