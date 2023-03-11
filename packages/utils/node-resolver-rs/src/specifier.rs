@@ -163,6 +163,24 @@ impl<'a> Specifier<'a> {
       }
     })
   }
+
+  pub fn to_string(&'a self) -> Cow<'a, str> {
+    match self {
+      Specifier::Relative(path) |
+      Specifier::Absolute(path) |
+      Specifier::Tilde(path) => path.as_os_str().to_string_lossy(),
+      Specifier::Hash(path) => path.clone(),
+      Specifier::Package(module, subpath) => {
+        if subpath.is_empty() {
+          Cow::Borrowed(module)
+        } else {
+          Cow::Owned(format!("{}/{}", module, subpath))
+        }
+      }
+      Specifier::Builtin(builtin) => Cow::Borrowed(&builtin),
+      Specifier::Url(url) => Cow::Borrowed(url)
+    }
+  }
 }
 
 // https://url.spec.whatwg.org/#scheme-state

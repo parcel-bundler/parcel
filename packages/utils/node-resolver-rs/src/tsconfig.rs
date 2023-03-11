@@ -113,10 +113,10 @@ impl<'a> TsConfig<'a> {
       let mut longest_prefix_length = 0;
       let mut longest_suffix_length = 0;
       let mut best_key = None;
-      let full_specifier = concat_specifier(specifier);
+      let full_specifier = specifier.to_string();
 
       for key in paths.keys() {
-        let path = concat_specifier(key);
+        let path = key.to_string();
         if let Some((prefix, suffix)) = path.split_once('*') {
           if (best_key.is_none() || prefix.len() > longest_prefix_length)
             && full_specifier.starts_with(prefix)
@@ -144,20 +144,6 @@ impl<'a> TsConfig<'a> {
 
     // If no paths were found, try relative to the base url.
     Either::Right(base_url_iter)
-  }
-}
-
-fn concat_specifier<'a>(specifier: &'a Specifier) -> Cow<'a, str> {
-  match specifier {
-    Specifier::Package(module, subpath) => {
-      if subpath.is_empty() {
-        Cow::Borrowed(module)
-      } else {
-        Cow::Owned(format!("{}/{}", module, subpath))
-      }
-    }
-    Specifier::Builtin(builtin) => Cow::Borrowed(&builtin),
-    _ => unreachable!(),
   }
 }
 

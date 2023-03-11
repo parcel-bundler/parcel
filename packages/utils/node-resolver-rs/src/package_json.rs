@@ -613,28 +613,32 @@ impl<'a> PackageJson<'a> {
         (Specifier::Relative(glob), Specifier::Relative(path))
         | (Specifier::Absolute(glob), Specifier::Absolute(path))
         | (Specifier::Tilde(glob), Specifier::Tilde(path)) => {
-          (glob.as_os_str().to_str()?, path.as_os_str().to_str()?)
+          (glob.as_os_str().to_string_lossy(), path.as_os_str().to_string_lossy())
         }
         (Specifier::Package(module_a, glob), Specifier::Package(module_b, path))
           if module_a == module_b =>
         {
-          (glob.as_ref(), path.as_ref())
+          (Cow::Borrowed(glob.as_ref()), Cow::Borrowed(path.as_ref()))
+        }
+        (pkg_a @ Specifier::Package(..), pkg_b @ Specifier::Package(..)) => {
+          // Glob could be in the package name, e.g. "@internal/*"
+          (pkg_a.to_string(), pkg_b.to_string())
         }
         _ => continue,
       };
 
-      if let Some(captures) = glob_match_with_captures(glob, path) {
+      if let Some(captures) = glob_match_with_captures(&glob, &path) {
         let res = match value {
           AliasValue::Specifier(specifier) => AliasValue::Specifier(match specifier {
             Specifier::Relative(r) => {
-              Specifier::Relative(replace_path_captures(r, path, &captures)?)
+              Specifier::Relative(replace_path_captures(r, &path, &captures)?)
             }
             Specifier::Absolute(r) => {
-              Specifier::Absolute(replace_path_captures(r, path, &captures)?)
+              Specifier::Absolute(replace_path_captures(r, &path, &captures)?)
             }
-            Specifier::Tilde(r) => Specifier::Tilde(replace_path_captures(r, path, &captures)?),
+            Specifier::Tilde(r) => Specifier::Tilde(replace_path_captures(r, &path, &captures)?),
             Specifier::Package(module, subpath) => {
-              Specifier::Package(module.clone(), replace_captures(subpath, path, &captures))
+              Specifier::Package(module.clone(), replace_captures(subpath, &path, &captures))
             }
             _ => return Some(Cow::Borrowed(value)),
           }),
@@ -1482,6 +1486,8 @@ mod tests {
         "/foo/src/**".into() => AliasValue::Specifier("/foo/lib/$1".into()),
         "~/foo/src/**".into() => AliasValue::Specifier("~/foo/lib/$1".into()),
         "url".into() => AliasValue::Bool(false),
+        "@internal/**".into() => AliasValue::Specifier("./internal/$1".into()),
+        "@foo/*/bar/*".into() => AliasValue::Specifier("./test/$1/$2".into()),
       },
       ..PackageJson::default()
     };
@@ -1533,6 +1539,18 @@ mod tests {
     assert_eq!(
       pkg.resolve_aliases(&"url".into(), Fields::ALIAS),
       Some(Cow::Owned(AliasValue::Bool(false)))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"@internal/foo".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./internal/foo".into())))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"@internal/foo/bar".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./internal/foo/bar".into())))
+    );
+    assert_eq!(
+      pkg.resolve_aliases(&"@foo/a/bar/b".into(), Fields::ALIAS),
+      Some(Cow::Owned(AliasValue::Specifier("./test/a/b".into())))
     );
   }
 
