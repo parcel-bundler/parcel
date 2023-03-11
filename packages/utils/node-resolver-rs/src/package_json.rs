@@ -612,9 +612,10 @@ impl<'a> PackageJson<'a> {
       let (glob, path) = match (key, specifier) {
         (Specifier::Relative(glob), Specifier::Relative(path))
         | (Specifier::Absolute(glob), Specifier::Absolute(path))
-        | (Specifier::Tilde(glob), Specifier::Tilde(path)) => {
-          (glob.as_os_str().to_string_lossy(), path.as_os_str().to_string_lossy())
-        }
+        | (Specifier::Tilde(glob), Specifier::Tilde(path)) => (
+          glob.as_os_str().to_string_lossy(),
+          path.as_os_str().to_string_lossy(),
+        ),
         (Specifier::Package(module_a, glob), Specifier::Package(module_b, path))
           if module_a == module_b =>
         {
@@ -1546,7 +1547,9 @@ mod tests {
     );
     assert_eq!(
       pkg.resolve_aliases(&"@internal/foo/bar".into(), Fields::ALIAS),
-      Some(Cow::Owned(AliasValue::Specifier("./internal/foo/bar".into())))
+      Some(Cow::Owned(AliasValue::Specifier(
+        "./internal/foo/bar".into()
+      )))
     );
     assert_eq!(
       pkg.resolve_aliases(&"@foo/a/bar/b".into(), Fields::ALIAS),

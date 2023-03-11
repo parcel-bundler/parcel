@@ -166,9 +166,9 @@ impl<'a> Specifier<'a> {
 
   pub fn to_string(&'a self) -> Cow<'a, str> {
     match self {
-      Specifier::Relative(path) |
-      Specifier::Absolute(path) |
-      Specifier::Tilde(path) => path.as_os_str().to_string_lossy(),
+      Specifier::Relative(path) | Specifier::Absolute(path) | Specifier::Tilde(path) => {
+        path.as_os_str().to_string_lossy()
+      }
       Specifier::Hash(path) => path.clone(),
       Specifier::Package(module, subpath) => {
         if subpath.is_empty() {
@@ -178,7 +178,7 @@ impl<'a> Specifier<'a> {
         }
       }
       Specifier::Builtin(builtin) => Cow::Borrowed(&builtin),
-      Specifier::Url(url) => Cow::Borrowed(url)
+      Specifier::Url(url) => Cow::Borrowed(url),
     }
   }
 }
