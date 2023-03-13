@@ -1125,7 +1125,7 @@ function createIdealGraph(
 
   // Fix asset order in source bundles as they are likely now incorrect after shared bundle deletion
   if (modifiedSourceBundles.size > 0) {
-    let assetOrderMap = new Map(assets.map(a => [a, assets.indexOf(a)]));
+    let assetOrderMap = new Map(assets.map((a, index) => [a, index]));
 
     for (let bundle of modifiedSourceBundles) {
       bundle.assets = new Set(
