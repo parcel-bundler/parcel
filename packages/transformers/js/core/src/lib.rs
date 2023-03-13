@@ -377,7 +377,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     should_run_preset_env,
                   ),
                   // Inject SWC helpers if needed.
-                  helpers::inject_helpers(),
+                  helpers::inject_helpers(global_mark),
                 );
 
                 module.fold_with(&mut passes)
