@@ -53,13 +53,15 @@ bitflags! {
     const TYPESCRIPT_EXTENSIONS = 1 << 8;
     /// Whether to allow omitting the extension when resolving the same file type.
     const PARENT_EXTENSION = 1 << 9;
+    /// Whether to allow optional extensions in the "exports" field.
+    const EXPORTS_OPTIONAL_EXTENSIONS = 1 << 10;
 
     /// Default Node settings for CommonJS.
     const NODE_CJS = Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits;
     /// Default Node settings for ESM.
     const NODE_ESM = Self::EXPORTS.bits;
     /// Default TypeScript settings.
-    const TYPESCRIPT = Self::TSCONFIG.bits | Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits | Self::TYPESCRIPT_EXTENSIONS.bits;
+    const TYPESCRIPT = Self::TSCONFIG.bits | Self::EXPORTS.bits | Self::DIR_INDEX.bits | Self::OPTIONAL_EXTENSIONS.bits | Self::TYPESCRIPT_EXTENSIONS.bits | Self::EXPORTS_OPTIONAL_EXTENSIONS.bits;
   }
 }
 
@@ -465,7 +467,12 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         // Bare specifier.
         self.resolve_bare(&module, &subpath)
       }
-      Specifier::Builtin(builtin) => Ok(Resolution::Builtin(builtin.as_ref().to_owned())),
+      Specifier::Builtin(builtin) => {
+        if let Some(res) = self.resolve_package_aliases_and_tsconfig_paths(&self.specifier)? {
+          return Ok(res);
+        }
+        Ok(Resolution::Builtin(builtin.as_ref().to_owned()))
+      }
       Specifier::Url(url) => {
         if self.specifier_type == SpecifierType::Url {
           Ok(Resolution::External)
@@ -521,15 +528,24 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       return Ok(Resolution::External);
     }
 
+    // Try aliases and tsconfig paths first.
+    let specifier = Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath));
+    if let Some(res) = self.resolve_package_aliases_and_tsconfig_paths(&specifier)? {
+      return Ok(res);
+    }
+
+    self.resolve_node_module(module, subpath)
+  }
+
+  fn resolve_package_aliases_and_tsconfig_paths(
+    &self,
+    specifier: &Specifier,
+  ) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.flags.contains(Flags::ALIASES) {
       // First, check for an alias in the root package.json.
       if let Some(package) = self.root_package()? {
-        if let Some(res) = self.resolve_aliases(
-          package,
-          &Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath)),
-          Fields::ALIAS,
-        )? {
-          return Ok(res);
+        if let Some(res) = self.resolve_aliases(package, &specifier, Fields::ALIAS)? {
+          return Ok(Some(res));
         }
       }
 
@@ -539,22 +555,14 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         if self.resolver.entries.contains(Fields::BROWSER) {
           fields |= Fields::BROWSER;
         }
-        if let Some(res) = self.resolve_aliases(
-          package,
-          &Specifier::Package(Cow::Borrowed(module), Cow::Borrowed(subpath)),
-          fields,
-        )? {
-          return Ok(res);
+        if let Some(res) = self.resolve_aliases(package, &specifier, fields)? {
+          return Ok(Some(res));
         }
       }
     }
 
     // Next, check tsconfig.json for the paths and baseUrl options.
-    if let Some(res) = self.resolve_tsconfig_paths()? {
-      return Ok(res);
-    }
-
-    self.resolve_node_module(module, subpath)
+    self.resolve_tsconfig_paths()
   }
 
   fn resolve_node_module(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
@@ -632,8 +640,18 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           error: e,
         })?;
 
-      // Extensionless specifiers are not supported in the exports field.
-      if let Some(res) = self.try_file_without_aliases(&path)? {
+      // Extensionless specifiers are not supported in the exports field
+      // according to the Node spec (for both ESM and CJS). However, webpack
+      // didn't follow this, so there are many packages that rely on it (e.g. underscore).
+      if self
+        .resolver
+        .flags
+        .contains(Flags::EXPORTS_OPTIONAL_EXTENSIONS)
+      {
+        if let Some(res) = self.load_file(&path, Some(package))? {
+          return Ok(res);
+        }
+      } else if let Some(res) = self.try_file_without_aliases(&path)? {
         return Ok(res);
       }
 
@@ -1822,6 +1840,14 @@ mod tests {
         .0,
       Resolution::Path(root().join("bar.js"))
     );
+    assert_eq!(
+      test_resolver()
+        .resolve("url", &root().join("foo.js"), SpecifierType::Esm)
+        .result
+        .unwrap()
+        .0,
+      Resolution::Empty
+    );
   }
 
   #[test]
@@ -1947,6 +1973,72 @@ mod tests {
       test_resolver()
         .resolve(
           "package-exports/features/test",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/package-exports/features/test.mjs"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "package-exports/extensionless-features/test",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/package-exports/features/test.mjs"))
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "package-exports/extensionless-features/test.mjs",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/package-exports/features/test.mjs"))
+    );
+    assert_eq!(
+      node_resolver()
+        .resolve(
+          "package-exports/extensionless-features/test",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap_err(),
+      ResolverError::ModuleSubpathNotFound {
+        module: "package-exports".into(),
+        package_path: root().join("node_modules/package-exports/package.json"),
+        path: root().join("node_modules/package-exports/features/test"),
+      },
+    );
+    assert_eq!(
+      node_resolver()
+        .resolve(
+          "package-exports/extensionless-features/test",
+          &root().join("foo.js"),
+          SpecifierType::Cjs
+        )
+        .result
+        .unwrap_err(),
+      ResolverError::ModuleSubpathNotFound {
+        module: "package-exports".into(),
+        package_path: root().join("node_modules/package-exports/package.json"),
+        path: root().join("node_modules/package-exports/features/test"),
+      },
+    );
+    assert_eq!(
+      node_resolver()
+        .resolve(
+          "package-exports/extensionless-features/test.mjs",
           &root().join("foo.js"),
           SpecifierType::Esm
         )
