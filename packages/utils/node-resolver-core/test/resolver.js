@@ -2651,7 +2651,7 @@ describe('resolver', function () {
                     column: 14,
                   },
                   end: {
-                    line: 12,
+                    line: 13,
                     column: 3,
                   },
                 },
@@ -2697,11 +2697,11 @@ describe('resolver', function () {
                 {
                   message: undefined,
                   start: {
-                    line: 14,
+                    line: 15,
                     column: 14,
                   },
                   end: {
-                    line: 16,
+                    line: 17,
                     column: 3,
                   },
                 },
