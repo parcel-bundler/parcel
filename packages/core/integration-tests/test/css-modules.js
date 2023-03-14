@@ -693,7 +693,7 @@ describe('css modules', () => {
     ]);
   });
 
-  it.only('should bundle css modules siblings together and their JS assets', async function () {
+  it('should bundle css modules siblings together and their JS assets', async function () {
     // This issue was first documented here
     // https://github.com/parcel-bundler/parcel/issues/8716
     let b = await bundle(

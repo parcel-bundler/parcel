@@ -947,7 +947,7 @@ function createIdealGraph(
 
     // Add assets to non-splittable bundles.
     for (let entry of reachableEntries) {
-      let entryBundleId = nullthrows(bundles.get(entry.id));
+      let entryBundleId = nullthrows(bundleRoots.get(entry)[0]);
       let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
       invariant(entryBundle !== 'root');
       entryBundle.assets.add(asset);
