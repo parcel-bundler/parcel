@@ -82,7 +82,7 @@ type ResolveModuleDir = dyn Fn(&str, &Path) -> Result<PathBuf, ResolverError> + 
 
 pub struct Resolver<'a, Fs> {
   pub project_root: Cow<'a, Path>,
-  pub extensions: &'a [&'a str],
+  pub extensions: Extensions<'a>,
   pub index_file: &'a str,
   pub entries: Fields,
   pub flags: Flags,
@@ -90,6 +90,20 @@ pub struct Resolver<'a, Fs> {
   pub conditions: ExportsCondition,
   pub module_dir_resolver: Option<Arc<ResolveModuleDir>>,
   cache: CacheCow<'a, Fs>,
+}
+
+pub enum Extensions<'a> {
+  Borrowed(&'a [&'a str]),
+  Owned(Vec<String>),
+}
+
+impl<'a> Extensions<'a> {
+  fn iter(&self) -> impl Iterator<Item = &str> {
+    match self {
+      Extensions::Borrowed(v) => itertools::Either::Left(v.iter().map(|s| *s)),
+      Extensions::Owned(v) => itertools::Either::Right(v.iter().map(|s| s.as_str())),
+    }
+  }
 }
 
 #[derive(Default)]
@@ -122,7 +136,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
   pub fn node(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
     Self {
       project_root,
-      extensions: &["js", "json", "node"],
+      extensions: Extensions::Borrowed(&["js", "json", "node"]),
       index_file: "index",
       entries: Fields::MAIN,
       flags: Flags::NODE_CJS,
@@ -136,7 +150,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
   pub fn node_esm(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
     Self {
       project_root,
-      extensions: &[],
+      extensions: Extensions::Borrowed(&[]),
       index_file: "index",
       entries: Fields::MAIN,
       flags: Flags::NODE_ESM,
@@ -150,7 +164,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
   pub fn parcel(project_root: Cow<'a, Path>, cache: CacheCow<'a, Fs>) -> Self {
     Self {
       project_root,
-      extensions: &["ts", "tsx", "mjs", "js", "jsx", "cjs", "json"],
+      extensions: Extensions::Borrowed(&["ts", "tsx", "mjs", "js", "jsx", "cjs", "json"]),
       index_file: "index",
       entries: Fields::MAIN | Fields::SOURCE | Fields::BROWSER | Fields::MODULE,
       flags: Flags::all(),
@@ -779,13 +793,24 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         // TODO: would be nice if there was a way to do this without cloning
         // but OsStr doesn't let you create a slice.
         let without_extension = &path.with_extension("");
-        let res = if ext == "js" || ext == "jsx" {
+        let extensions: Option<&[&str]> = if ext == "js" || ext == "jsx" {
           // TSC always prioritizes .ts over .tsx, even when the original extension was .jsx.
-          self.try_extensions(&without_extension, package, &["ts", "tsx"], false)?
+          Some(&["ts", "tsx"])
         } else if ext == "mjs" {
-          self.try_extensions(&without_extension, package, &["mts"], false)?
+          Some(&["mts"])
         } else if ext == "cjs" {
-          self.try_extensions(&without_extension, package, &["cts"], false)?
+          Some(&["cts"])
+        } else {
+          None
+        };
+
+        let res = if let Some(extensions) = extensions {
+          self.try_extensions(
+            &without_extension,
+            package,
+            &Extensions::Borrowed(extensions),
+            false,
+          )?
         } else {
           None
         };
@@ -826,18 +851,18 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     &self,
     path: &Path,
     package: Option<&PackageJson>,
-    extensions: &[&str],
+    extensions: &Extensions,
     skip_parent: bool,
   ) -> Result<Option<Resolution>, ResolverError> {
     if self.resolver.flags.contains(Flags::OPTIONAL_EXTENSIONS)
       && self.specifier_type != SpecifierType::Url
     {
       // Try appending each extension.
-      for ext in extensions {
+      for ext in extensions.iter() {
         // Skip parent extension if we already tried it.
         if skip_parent
           && self.resolver.flags.contains(Flags::PARENT_EXTENSION)
-          && matches!(self.from.extension(), Some(e) if e == *ext)
+          && matches!(self.from.extension(), Some(e) if e == ext)
         {
           continue;
         }
@@ -1071,7 +1096,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             specifier @ Specifier::Package(..) => {
               let resolver = Resolver {
                 project_root: Cow::Borrowed(&self.resolver.project_root),
-                extensions: &["json"],
+                extensions: Extensions::Borrowed(&["json"]),
                 index_file: "tsconfig.json",
                 entries: Fields::TSCONFIG,
                 flags: Flags::NODE_CJS,
