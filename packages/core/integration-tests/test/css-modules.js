@@ -692,4 +692,24 @@ describe('css modules', () => {
       ['mainJs', '_1ZEqVW_myClass', 'j1UkRG_myOtherClass'],
     ]);
   });
+
+  it.only('should bundle css modules siblings together and their JS assets', async function () {
+    // This issue was first documented here
+    // https://github.com/parcel-bundler/parcel/issues/8716
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/css-modules-merging-siblings/index.html',
+      ),
+    );
+    let res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'index.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+    assert.deepEqual(res, [['mainJs', 'SX8vmq_container YpGmra_-expand']]);
+  });
 });
