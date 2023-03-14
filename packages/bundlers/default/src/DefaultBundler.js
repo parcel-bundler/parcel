@@ -903,8 +903,8 @@ function createIdealGraph(
     // if a bundle b is a subgraph of another bundle f, reuse it, drawing an edge between the two
     let canReuse: Set<BundleRoot> = new Set();
     for (let candidateSourceBundleRoot of reachable) {
-      let candidateSourceBundleId = bundleRoots.get(
-        candidateSourceBundleRoot,
+      let candidateSourceBundleId = nullthrows(
+        bundleRoots.get(candidateSourceBundleRoot),
       )[0];
       if (candidateSourceBundleRoot.env.isIsolated()) {
         continue;
@@ -947,7 +947,7 @@ function createIdealGraph(
 
     // Add assets to non-splittable bundles.
     for (let entry of reachableEntries) {
-      let entryBundleId = nullthrows(bundleRoots.get(entry)[0]);
+      let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
       let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
       invariant(entryBundle !== 'root');
       entryBundle.assets.add(asset);
@@ -1009,7 +1009,7 @@ function createIdealGraph(
     } else if (reachable.length <= config.minBundles) {
       for (let root of reachable) {
         let bundle = nullthrows(
-          bundleGraph.getNode(nullthrows(bundleRoots.get(root)[0])),
+          bundleGraph.getNode(nullthrows(bundleRoots.get(root))[0]),
         );
         invariant(bundle !== 'root');
         bundle.assets.add(asset);
