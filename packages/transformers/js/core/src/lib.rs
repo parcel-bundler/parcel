@@ -25,12 +25,12 @@ use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
 use swc_ecmascript::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
 use swc_ecmascript::transforms::fixer::paren_remover;
-use swc_ecmascript::transforms::resolver;
 use swc_ecmascript::transforms::{
   compat::reserved_words::reserved_words, fixer, helpers, hygiene,
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
   pass::Optional, proposals::decorators, react, typescript,
 };
+use swc_ecmascript::transforms::{resolver, Assumptions};
 use swc_ecmascript::visit::{FoldWith, VisitWith};
 
 use decl_collector::*;
@@ -219,9 +219,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 Optional::new(
                   decorators::decorators(decorators::Config {
                     legacy: true,
-                    use_define_for_class_fields: config.use_define_for_class_fields,
                     // Always disabled for now, SWC's implementation doesn't match TSC.
                     emit_metadata: false,
+                    // use_define_for_class_fields is ignored here, uses preset-env assumptions instead
+                    ..Default::default()
                   }),
                   config.decorators
                 ),
@@ -285,6 +286,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   preset_env_config.mode = Some(Entry);
                   preset_env_config.bugfixes = true;
                 }
+              }
+
+              let mut assumptions = Assumptions::default();
+              if config.is_type_script && !config.use_define_for_class_fields {
+                assumptions.set_public_class_fields |= true;
               }
 
               let mut diagnostics = vec![];
@@ -371,7 +377,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       global_mark,
                       Some(&comments),
                       preset_env_config,
-                      Default::default(),
+                      assumptions,
                       &mut Default::default(),
                     ),
                     should_run_preset_env,
