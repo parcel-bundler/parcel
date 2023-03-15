@@ -13,7 +13,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {NodeFS} from '@parcel/fs';
-import {Resolver} from '../index';
+import init, {Resolver} from '../wasm';
 import builtins, {empty} from './builtins';
 import path from 'path';
 import {
@@ -79,9 +79,13 @@ export default class NodeResolver {
 
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
+      await init?.();
       resolver = new Resolver(this.options.projectRoot, {
         fs:
-          this.options.fs instanceof NodeFS && process.versions.pnp == null
+          this.options.fs instanceof NodeFS &&
+          process.versions.pnp == null &&
+          // For Wasm builds
+          !init
             ? undefined
             : {
                 canonicalize: path => this.options.fs.realpathSync(path),

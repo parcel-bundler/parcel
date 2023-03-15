@@ -9518,6 +9518,11 @@ napi-build-utils@^1.0.1:
   resolved "https://registry.yarnpkg.com/napi-build-utils/-/napi-build-utils-1.0.2.tgz#b1fddc0b2c46e380a0b7a76f984dd47c41a13806"
   integrity sha512-ONmRUqK7zj7DWX0D9ADe03wbwOBZxNAfF20PlGfCWQcD3+/MakShIHrMqx9YwPTfxDdF1zLeL+RGZiR9kGMLdg==
 
+napi-wasm@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/napi-wasm/-/napi-wasm-1.0.1.tgz#b186b9f9f1a54c321c4a1ea852a31a9691792a24"
+  integrity sha512-70Ks5fMTw5/5iZJg8dtyivwPP9tgyeLRHGa2j4GlFOjz4lWbbTWrDAvSeJlQg+o++cWpX2bSPGI1Hu4W2kbOoA==
+
 natural-compare@^1.4.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/natural-compare/-/natural-compare-1.4.0.tgz#4abebfeed7541f2c27acfb29bdbbd15c8d5ba4f7"

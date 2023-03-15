@@ -21,6 +21,8 @@
   "scripts": {
     "build": "napi build --platform",
     "build-release": "napi build --platform --release",
+    "wasm:build": "cargo build --target wasm32-unknown-unknown && cp ../../../target/wasm32-unknown-unknown/debug/parcel_resolver_node.wasm .",
+    "wasm:build-release": "CARGO_PROFILE_RELEASE_LTO=true cargo build --target wasm32-unknown-unknown --release && wasm-opt --strip-debug -O3 ../../../target/wasm32-unknown-unknown/release/parcel_resolver_node.wasm -o parcel_resolver_node.wasm",
     "test": "mocha test"
   },
   "napi": {
@@ -36,6 +38,7 @@
     "@parcel/diagnostic": "2.8.3",
     "@parcel/fs": "2.8.3",
     "@parcel/utils": "2.8.3",
+    "napi-wasm": "^1.0.1",
     "nullthrows": "^1.1.1",
     "semver": "^5.7.1"
   },

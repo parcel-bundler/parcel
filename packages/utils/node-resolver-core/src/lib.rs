@@ -1,6 +1,14 @@
 use dashmap::DashMap;
-use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref, Result};
+use napi::{CallContext, JsUndefined};
+use napi::{
+  Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown, Property, Ref, Result,
+};
+use napi_derive::js_function;
+#[cfg(not(target_arch = "wasm32"))]
+use napi_derive::module_exports;
 use napi_derive::napi;
+#[cfg(target_arch = "wasm32")]
+use std::alloc::{alloc, Layout};
 use std::{
   borrow::Cow,
   collections::HashMap,
@@ -8,9 +16,11 @@ use std::{
   sync::Arc,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+use parcel_resolver::OsFileSystem;
 use parcel_resolver::{
   ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules,
-  Invalidations, OsFileSystem, Resolution, ResolverError, SpecifierType,
+  Invalidations, Resolution, ResolverError, SpecifierType,
 };
 
 #[napi(object)]
@@ -128,11 +138,14 @@ impl FileSystem for JsFileSystem {
   }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+
 enum EitherFs<A, B> {
   A(A),
   B(B),
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
   fn canonicalize<P: AsRef<Path>>(
     &self,
@@ -197,136 +210,166 @@ pub struct ResolveResult {
   pub error: JsUnknown,
 }
 
-#[napi]
 pub struct Resolver {
+  #[cfg(not(target_arch = "wasm32"))]
   resolver: parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
+  #[cfg(target_arch = "wasm32")]
+  resolver: parcel_resolver::Resolver<'static, JsFileSystem>,
 }
 
-#[napi]
-impl Resolver {
-  #[napi(constructor)]
-  pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
-    let fs = if let Some(fs) = options.fs {
-      EitherFs::A(JsFileSystem {
-        canonicalize: FunctionRef::new(env, fs.canonicalize)?,
-        read: FunctionRef::new(env, fs.read)?,
-        is_file: FunctionRef::new(env, fs.is_file)?,
-        is_dir: FunctionRef::new(env, fs.is_dir)?,
+#[js_function(2)]
+pub fn resolver_new(ctx: CallContext) -> Result<JsUndefined> {
+  let project_root: String = ctx.get(0)?;
+  let options: JsResolverOptions = ctx.get(1)?;
+  let env: Env = *ctx.env;
+
+  #[cfg(not(target_arch = "wasm32"))]
+  let fs = if let Some(fs) = options.fs {
+    EitherFs::A(JsFileSystem {
+      canonicalize: FunctionRef::new(env, fs.canonicalize)?,
+      read: FunctionRef::new(env, fs.read)?,
+      is_file: FunctionRef::new(env, fs.is_file)?,
+      is_dir: FunctionRef::new(env, fs.is_dir)?,
+    })
+  } else {
+    EitherFs::B(OsFileSystem)
+  };
+  #[cfg(target_arch = "wasm32")]
+  let fs = {
+    let fsjs = options.fs.unwrap();
+    JsFileSystem {
+      canonicalize: FunctionRef::new(env, fsjs.canonicalize)?,
+      read: FunctionRef::new(env, fsjs.read)?,
+      is_file: FunctionRef::new(env, fsjs.is_file)?,
+      is_dir: FunctionRef::new(env, fsjs.is_dir)?,
+    }
+  };
+
+  let mut resolver = match options.mode {
+    1 => parcel_resolver::Resolver::parcel(
+      Cow::Owned(project_root.into()),
+      parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
+    ),
+    2 => parcel_resolver::Resolver::node(
+      Cow::Owned(project_root.into()),
+      parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
+    ),
+    _ => return Err(napi::Error::new(napi::Status::InvalidArg, "Invalid mode")),
+  };
+
+  if let Some(include_node_modules) = options.include_node_modules {
+    resolver.include_node_modules = Cow::Owned(match include_node_modules {
+      napi::Either::A(b) => IncludeNodeModules::Bool(b),
+      napi::Either::B(napi::Either::A(v)) => IncludeNodeModules::Array(v),
+      napi::Either::B(napi::Either::B(v)) => IncludeNodeModules::Map(v),
+    });
+  }
+
+  if let Some(conditions) = options.conditions {
+    resolver.conditions = ExportsCondition::from_bits_truncate(conditions);
+  }
+
+  if let Some(entries) = options.entries {
+    resolver.entries = Fields::from_bits_truncate(entries);
+  }
+
+  if let Some(extensions) = options.extensions {
+    resolver.extensions = Extensions::Owned(extensions);
+  }
+
+  if let Some(module_dir_resolver) = options.module_dir_resolver {
+    let module_dir_resolver = FunctionRef::new(env, module_dir_resolver)?;
+    resolver.module_dir_resolver = Some(Arc::new(move |module: &str, from: &Path| {
+      let call = |module: &str| -> napi::Result<PathBuf> {
+        let env = module_dir_resolver.env;
+        let s = env.create_string(module)?;
+        let f = env.create_string(from.to_string_lossy().as_ref())?;
+        let res: JsString = module_dir_resolver.get()?.call(None, &[s, f])?.try_into()?;
+        let utf8 = res.into_utf8()?;
+        Ok(utf8.into_owned()?.into())
+      };
+
+      let r = call(module);
+      r.map_err(|_| ResolverError::ModuleNotFound {
+        module: module.to_owned(),
       })
-    } else {
-      EitherFs::B(OsFileSystem)
-    };
-
-    let mut resolver = match options.mode {
-      1 => parcel_resolver::Resolver::parcel(
-        Cow::Owned(project_root.into()),
-        parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
-      ),
-      2 => parcel_resolver::Resolver::node(
-        Cow::Owned(project_root.into()),
-        parcel_resolver::CacheCow::Owned(parcel_resolver::Cache::new(fs)),
-      ),
-      _ => return Err(napi::Error::new(napi::Status::InvalidArg, "Invalid mode")),
-    };
-
-    if let Some(include_node_modules) = options.include_node_modules {
-      resolver.include_node_modules = Cow::Owned(match include_node_modules {
-        napi::Either::A(b) => IncludeNodeModules::Bool(b),
-        napi::Either::B(napi::Either::A(v)) => IncludeNodeModules::Array(v),
-        napi::Either::B(napi::Either::B(v)) => IncludeNodeModules::Map(v),
-      });
-    }
-
-    if let Some(conditions) = options.conditions {
-      resolver.conditions = ExportsCondition::from_bits_truncate(conditions);
-    }
-
-    if let Some(entries) = options.entries {
-      resolver.entries = Fields::from_bits_truncate(entries);
-    }
-
-    if let Some(extensions) = options.extensions {
-      resolver.extensions = Extensions::Owned(extensions);
-    }
-
-    if let Some(module_dir_resolver) = options.module_dir_resolver {
-      let module_dir_resolver = FunctionRef::new(env, module_dir_resolver)?;
-      resolver.module_dir_resolver = Some(Arc::new(move |module: &str, from: &Path| {
-        let call = |module: &str| -> napi::Result<PathBuf> {
-          let env = module_dir_resolver.env;
-          let s = env.create_string(module)?;
-          let f = env.create_string(from.to_string_lossy().as_ref())?;
-          let res: JsString = module_dir_resolver.get()?.call(None, &[s, f])?.try_into()?;
-          let utf8 = res.into_utf8()?;
-          Ok(utf8.into_owned()?.into())
-        };
-
-        let r = call(module);
-        r.map_err(|_| ResolverError::ModuleNotFound {
-          module: module.to_owned(),
-        })
-      }));
-    }
-
-    Ok(Self { resolver })
+    }));
   }
 
-  #[napi]
-  pub fn resolve(&self, options: ResolveOptions, env: Env) -> Result<ResolveResult> {
-    let mut res = self.resolver.resolve_with_options(
-      &options.filename,
-      Path::new(&options.parent),
-      match options.specifier_type.as_ref() {
-        "esm" => SpecifierType::Esm,
-        "commonjs" => SpecifierType::Cjs,
-        "url" => SpecifierType::Url,
-        _ => {
-          return Err(napi::Error::new(
-            napi::Status::InvalidArg,
-            format!("Invalid specifier type: {}", options.specifier_type),
-          ))
-        }
-      },
-      if let Some(conditions) = options.package_conditions {
-        get_resolve_options(conditions)
-      } else {
-        Default::default()
-      },
-    );
+  ctx
+    .env
+    .wrap(&mut ctx.this_unchecked(), Resolver { resolver })?;
 
-    let side_effects = if let Ok((Resolution::Path(p), _)) = &res.result {
-      match self.resolver.resolve_side_effects(&p, &res.invalidations) {
-        Ok(side_effects) => side_effects,
-        Err(err) => {
-          res.result = Err(err);
-          true
-        }
+  ctx.env.get_undefined()
+}
+
+#[js_function(1)]
+pub fn resolver_resolve(ctx: CallContext) -> Result<JsUnknown> {
+  let this: &Resolver = ctx.env.unwrap(&ctx.this_unchecked())?;
+  let options: ResolveOptions = ctx.get(0)?;
+  let env: Env = *ctx.env;
+
+  let mut res = this.resolver.resolve_with_options(
+    &options.filename,
+    Path::new(&options.parent),
+    match options.specifier_type.as_ref() {
+      "esm" => SpecifierType::Esm,
+      "commonjs" => SpecifierType::Cjs,
+      "url" => SpecifierType::Url,
+      _ => {
+        return Err(napi::Error::new(
+          napi::Status::InvalidArg,
+          format!("Invalid specifier type: {}", options.specifier_type),
+        ))
       }
+    },
+    if let Some(conditions) = options.package_conditions {
+      get_resolve_options(conditions)
     } else {
-      true
-    };
+      Default::default()
+    },
+  );
 
-    let (invalidate_on_file_change, invalidate_on_file_create) =
-      convert_invalidations(res.invalidations);
-    match res.result {
-      Ok((res, query)) => Ok(ResolveResult {
-        resolution: env.to_js_value(&res)?,
-        invalidate_on_file_change,
-        invalidate_on_file_create,
-        side_effects,
-        query,
-        error: env.get_undefined()?.into_unknown(),
-      }),
-      Err(err) => Ok(ResolveResult {
-        resolution: env.get_undefined()?.into_unknown(),
-        invalidate_on_file_change,
-        invalidate_on_file_create,
-        side_effects: true,
-        query: None,
-        error: env.to_js_value(&err)?,
-      }),
+  let side_effects = if let Ok((Resolution::Path(p), _)) = &res.result {
+    match this.resolver.resolve_side_effects(&p, &res.invalidations) {
+      Ok(side_effects) => side_effects,
+      Err(err) => {
+        res.result = Err(err);
+        true
+      }
     }
-  }
+  } else {
+    true
+  };
+
+  let (invalidate_on_file_change, invalidate_on_file_create) =
+    convert_invalidations(res.invalidations);
+  let res = match res.result {
+    Ok((res, query)) => ResolveResult {
+      resolution: env.to_js_value(&res)?,
+      invalidate_on_file_change,
+      invalidate_on_file_create,
+      side_effects,
+      query,
+      error: env.get_undefined()?.into_unknown(),
+    },
+    Err(err) => ResolveResult {
+      resolution: env.get_undefined()?.into_unknown(),
+      invalidate_on_file_change,
+      invalidate_on_file_create,
+      side_effects: true,
+      query: None,
+      error: env.to_js_value(&err)?,
+    },
+  };
+
+  let v: JsUnknown = unsafe {
+    use napi::bindgen_prelude::ToNapiValue;
+    use napi::NapiValue;
+    JsUnknown::from_raw(env.raw(), ResolveResult::to_napi_value(env.raw(), res)?)?
+  };
+
+  Ok(v)
 }
 
 fn convert_invalidations(
@@ -377,4 +420,45 @@ fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver::R
     conditions,
     custom_conditions,
   }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), module_exports)]
+fn init(mut exports: JsObject, env: napi::Env) -> napi::Result<()> {
+  let resolve_method = Property::new("resolve")?.with_method(resolver_resolve);
+  let class = env.define_class("Resolver", resolver_new, &[resolve_method])?;
+  exports.set_named_property("Resolver", class)?;
+  Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub unsafe fn napi_register_wasm_v1(
+  raw_env: napi::sys::napi_env,
+  raw_exports: napi::sys::napi_value,
+) {
+  use napi::NapiValue;
+
+  let env = Env::from_raw(raw_env);
+  let exports = JsObject::from_raw_unchecked(raw_env, raw_exports);
+  init(exports, env);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub extern "C" fn napi_wasm_malloc(size: usize) -> *mut u8 {
+  let align = std::mem::align_of::<usize>();
+  if let Ok(layout) = Layout::from_size_align(size, align) {
+    unsafe {
+      if layout.size() > 0 {
+        let ptr = alloc(layout);
+        if !ptr.is_null() {
+          return ptr;
+        }
+      } else {
+        return align as *mut u8;
+      }
+    }
+  }
+
+  std::process::abort();
 }

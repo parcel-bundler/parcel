@@ -64,7 +64,6 @@ export class NodePackageManager implements PackageManager {
     this.fs = fs;
     this.projectRoot = projectRoot;
     this.installer = installer;
-    this.resolver = this._createResolver();
   }
 
   _createResolver(): any {
@@ -455,6 +454,10 @@ export class NodePackageManager implements PackageManager {
   }
 
   resolveInternal(name: string, from: string): ResolveResult {
+    if (this.resolver == null) {
+      this.resolver = this._createResolver();
+    }
+
     let res = this.resolver.resolve({
       filename: name,
       specifierType: 'commonjs',

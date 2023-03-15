@@ -4,6 +4,7 @@ use std::{
   borrow::Cow,
   path::{is_separator, Path, PathBuf},
 };
+#[cfg(not(target_arch = "wasm32"))]
 use url::Url;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -111,16 +112,22 @@ impl<'a> Specifier<'a> {
                   (Specifier::Builtin(Cow::Borrowed(path)), None)
                 }
                 "file" => {
-                  // Fully parsing file urls is somewhat complex, so use the url crate for this.
-                  let url = Url::parse(specifier)?;
-                  (
-                    Specifier::Absolute(Cow::Owned(
-                      url
-                        .to_file_path()
-                        .map_err(|_| SpecifierError::InvalidFileUrl)?,
-                    )),
-                    query,
-                  )
+                  #[cfg(target_arch = "wasm32")]
+                  panic!("unsupported URL parsing");
+
+                  #[cfg(not(target_arch = "wasm32"))]
+                  {
+                    // Fully parsing file urls is somewhat complex, so use the url crate for this.
+                    let url = Url::parse(specifier)?;
+                    (
+                      Specifier::Absolute(Cow::Owned(
+                        url
+                          .to_file_path()
+                          .map_err(|_| SpecifierError::InvalidFileUrl)?,
+                      )),
+                      query,
+                    )
+                  }
                 }
                 _ => (Specifier::Url(specifier), None),
               }
