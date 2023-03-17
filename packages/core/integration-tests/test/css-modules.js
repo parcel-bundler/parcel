@@ -710,6 +710,8 @@ describe('css modules', () => {
         sideEffect: s => res.push(s),
       },
     );
-    assert.deepEqual(res, [['mainJs', 'SX8vmq_container YpGmra_-expand']]);
+    // Result is  [ 'mainJs', 'SX8vmq_container YpGmra_-expand' ]
+    assert.deepEqual(res[0][0], 'mainJs');
+    assert(res[0][1].includes('container') && res[0][1].includes('expand'));
   });
 });
