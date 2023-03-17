@@ -305,7 +305,7 @@ describe('html', function () {
         assets: ['logo.svg'],
       },
       {
-        name: 'logo.14afa1de.svg',
+        type: 'svg',
         assets: ['logo.svg'],
       },
     ]);
