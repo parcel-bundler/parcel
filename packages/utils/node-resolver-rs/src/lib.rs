@@ -2318,6 +2318,18 @@ mod tests {
         module: "ts-path".into()
       },
     );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "zlib",
+          &root().join("tsconfig/builtins/thing.js"),
+          SpecifierType::Cjs
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Builtin("zlib".into())
+    );
 
     let invalidations = test_resolver()
       .resolve("ts-path", &root().join("foo.js"), SpecifierType::Esm)
