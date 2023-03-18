@@ -1,6 +1,11 @@
 // @flow strict-local
-import type {Diagnostic, DiagnosticWithLevel} from '@parcel/diagnostic';
+import type {
+  Diagnostic,
+  DiagnosticWithLevel,
+  DiagnosticLevel,
+} from '@parcel/diagnostic';
 import type {PluginOptions} from '@parcel/types';
+import type {Color} from 'chalk';
 
 import formatCodeFrame from '@parcel/codeframe';
 import mdAnsi from '@parcel/markdown-ansi';
@@ -25,10 +30,18 @@ export type AnsiDiagnosticResult = {|
   documentation: string,
 |};
 
+const LEVEL_TO_COLOR: {[DiagnosticLevel]: Color} = {
+  info: 'blue',
+  verbose: 'blue',
+  warn: 'yellow',
+  error: 'red',
+};
+
 export default async function prettyDiagnostic(
   diagnostic: Diagnostic | DiagnosticWithLevel,
   options?: PluginOptions,
   terminalWidth?: number,
+  fallbackLevel?: DiagnosticLevel = 'error',
 ): Promise<AnsiDiagnosticResult> {
   let {
     origin,
@@ -38,12 +51,15 @@ export default async function prettyDiagnostic(
     hints,
     skipFormatting,
     documentationURL,
+    level = fallbackLevel,
   } = diagnostic;
 
   let result = {
-    message:
+    // $FlowFixMe[incompatible-use]
+    message: chalk[LEVEL_TO_COLOR[level]](
       mdAnsi(`**${origin ?? 'unknown'}**: `) +
-      (skipFormatting ? message : mdAnsi(message)),
+        (skipFormatting ? message : mdAnsi(message)),
+    ),
     stack: '',
     codeframe: '',
     frames: [],
@@ -74,6 +90,7 @@ export default async function prettyDiagnostic(
             codeFrame.language ||
             (filePath != null ? path.extname(filePath).substr(1) : undefined),
           terminalWidth,
+          baseColor: LEVEL_TO_COLOR[level],
         });
       }
 
