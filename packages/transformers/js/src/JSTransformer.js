@@ -436,7 +436,7 @@ export default (new Transformer({
       supports_module_workers: supportsModuleWorkers,
       is_library: asset.env.isLibrary,
       is_esm_output: asset.env.outputFormat === 'esmodule',
-      trace_bailouts: options.logLevel === 'verbose',
+      trace_bailouts: true, //options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
     });
 
