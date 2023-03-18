@@ -262,6 +262,8 @@ pub enum DiagnosticSeverity {
   Warning,
   /// An error if this is source code in the project, or a warning if in node_modules.
   SourceError,
+  /// Logs a verbose diagnostic
+  Verbose,
 }
 
 #[derive(Serialize, Debug, Deserialize, Eq, PartialEq, Clone, Copy)]
@@ -287,7 +289,7 @@ impl Bailout {
         message: None,
       }]),
       show_environment: false,
-      severity: DiagnosticSeverity::Warning,
+      severity: DiagnosticSeverity::Verbose,
       hints: None,
     }
   }
