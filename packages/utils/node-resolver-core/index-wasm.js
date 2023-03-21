@@ -1,12 +1,11 @@
 /* eslint-disable no-undef */
-import {Environment, napi} from 'napi-wasm';
-import fs from 'fs';
-import path from 'path';
+const {Environment, napi} = require('napi-wasm');
+const fs = require('fs');
+const path = require('path');
 
-export let Resolver;
-
-export default async function init(input) {
-  if (Resolver == null) {
+module.exports.Resolver = undefined;
+module.exports.init = async function init(input) {
+  if (module.exports.Resolver == null) {
     input = input ?? path.join(__dirname, 'parcel_resolver_node.wasm');
     if (
       typeof input === 'string' ||
@@ -27,6 +26,6 @@ export default async function init(input) {
     }
 
     let env = new Environment(instance);
-    Resolver = env.exports.Resolver;
+    module.exports.Resolver = env.exports.Resolver;
   }
-}
+};

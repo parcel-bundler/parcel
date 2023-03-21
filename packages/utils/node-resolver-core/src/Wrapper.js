@@ -13,7 +13,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {NodeFS} from '@parcel/fs';
-import init, {Resolver} from '../wasm';
+import {init, Resolver} from '../index-with-fallback';
 import builtins, {empty} from './builtins';
 import path from 'path';
 import {
