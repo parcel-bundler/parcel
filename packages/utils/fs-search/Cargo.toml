@@ -8,8 +8,8 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = "2.10.6"
-napi-derive = "2.9.4"
+napi = "2.12.0"
+napi-derive = "2.12.0"
 
 [build-dependencies]
 napi-build = "2"
