@@ -20,6 +20,12 @@ export default async function init(input) {
       env: napi,
     });
 
+    for (let key in instance.exports) {
+      if (key.startsWith('__napi_register__')) {
+        instance.exports[key]();
+      }
+    }
+
     let env = new Environment(instance);
     Resolver = env.exports.Resolver;
   }
