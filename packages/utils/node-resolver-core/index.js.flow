@@ -14,7 +14,8 @@ export interface ResolverOptions {
   conditions?: number,
   moduleDirResolver?: (...args: any[]) => any,
   mode: number,
-  entries?: number
+  entries?: number,
+  extensions?: Array<string>
 }
 export interface ResolveOptions {
   filename: string,
