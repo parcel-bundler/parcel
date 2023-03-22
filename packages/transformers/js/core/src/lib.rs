@@ -188,7 +188,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             || {
               let mut react_options = react::Options::default();
               if config.is_jsx {
-                react_options.use_spread = Some(true);
                 if let Some(jsx_pragma) = &config.jsx_pragma {
                   react_options.pragma = Some(jsx_pragma.clone());
                 }
