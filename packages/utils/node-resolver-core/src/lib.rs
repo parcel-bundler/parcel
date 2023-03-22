@@ -9,8 +9,8 @@ use std::{
 };
 
 use parcel_resolver::{
-  ExportsCondition, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules, Invalidations,
-  OsFileSystem, Resolution, ResolverError, SpecifierType,
+  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules,
+  Invalidations, OsFileSystem, Resolution, ResolverError, SpecifierType,
 };
 
 #[napi(object)]
@@ -32,6 +32,7 @@ pub struct JsResolverOptions {
   pub module_dir_resolver: Option<JsFunction>,
   pub mode: u8,
   pub entries: Option<u8>,
+  pub extensions: Option<Vec<String>>,
 }
 
 struct FunctionRef {
@@ -242,6 +243,10 @@ impl Resolver {
 
     if let Some(entries) = options.entries {
       resolver.entries = Fields::from_bits_truncate(entries);
+    }
+
+    if let Some(extensions) = options.extensions {
+      resolver.extensions = Extensions::Owned(extensions);
     }
 
     if let Some(module_dir_resolver) = options.module_dir_resolver {

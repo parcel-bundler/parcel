@@ -9,7 +9,8 @@
     "aliasedabsolute": "/nested",
     "foo/bar": "./bar.js",
     "glob/*/*": "./nested/$2",
-    "./baz": "./bar.js"
+    "./baz": "./bar.js",
+    "url": false
   },
   "imports": {
     "#test": "./bar.js"

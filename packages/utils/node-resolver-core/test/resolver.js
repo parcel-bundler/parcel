@@ -2651,7 +2651,7 @@ describe('resolver', function () {
                     column: 14,
                   },
                   end: {
-                    line: 12,
+                    line: 13,
                     column: 3,
                   },
                 },
@@ -2697,11 +2697,11 @@ describe('resolver', function () {
                 {
                   message: undefined,
                   start: {
-                    line: 14,
+                    line: 15,
                     column: 14,
                   },
                   end: {
-                    line: 16,
+                    line: 17,
                     column: 3,
                   },
                 },
@@ -2829,6 +2829,67 @@ describe('resolver', function () {
         parent: path.join(rootDir, 'foo.js'),
       });
       check(resolved, {isExcluded: true});
+    });
+  });
+
+  describe('options', function () {
+    it('supports custom extensions', async function () {
+      let resolver = new NodeResolver({
+        fs: overlayFS,
+        projectRoot: rootDir,
+        mode: 'development',
+        extensions: ['html'],
+      });
+
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './bar',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.ts'),
+      });
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.join(rootDir, 'bar.html'),
+      );
+
+      resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './foo',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.ts'),
+      });
+      assert.equal(nullthrows(resolved).filePath, null);
+    });
+
+    it('supports custom mainFields', async function () {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-types',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.ts'),
+      });
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.join(rootDir, 'node_modules', 'package-types', 'main.js'),
+      );
+
+      let typesResolver = new NodeResolver({
+        fs: overlayFS,
+        projectRoot: rootDir,
+        mode: 'development',
+        mainFields: ['types', 'main'],
+      });
+
+      resolved = await typesResolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-types',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.ts'),
+      });
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.join(rootDir, 'node_modules', 'package-types', 'types.d.ts'),
+      );
     });
   });
 });
