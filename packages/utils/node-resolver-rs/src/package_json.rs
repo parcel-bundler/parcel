@@ -24,6 +24,7 @@ bitflags! {
     const BROWSER = 1 << 3;
     const ALIAS = 1 << 4;
     const TSCONFIG = 1 << 5;
+    const TYPES = 1 << 6;
   }
 }
 
@@ -36,8 +37,8 @@ pub struct PackageJson<'a> {
   pub name: &'a str,
   main: Option<&'a str>,
   module: Option<&'a str>,
-  #[serde(default)]
   tsconfig: Option<&'a str>,
+  types: Option<&'a str>,
   #[serde(default)]
   pub source: SourceField<'a>,
   #[serde(default)]
@@ -60,6 +61,7 @@ impl<'a> Default for PackageJson<'a> {
       main: None,
       module: None,
       tsconfig: None,
+      types: None,
       source: Default::default(),
       browser: Default::default(),
       alias: Default::default(),
@@ -778,6 +780,13 @@ impl<'a> Iterator for EntryIter<'a> {
           },
           _ => {}
         },
+      }
+    }
+
+    if self.fields.contains(Fields::TYPES) {
+      self.fields.remove(Fields::TYPES);
+      if let Some(types) = self.package.types {
+        return Some((resolve_path(&self.package.path, types), "types"));
       }
     }
 

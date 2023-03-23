@@ -15,8 +15,8 @@ export declare class Transformer<T> {
   constructor(opts: TransformerOpts<T>);
 }
 
-export declare class Resolver {
-  constructor(opts: ResolverOpts);
+export declare class Resolver<T> {
+  constructor(opts: ResolverOpts<T>);
 }
 
 export declare class Bundler<T> {

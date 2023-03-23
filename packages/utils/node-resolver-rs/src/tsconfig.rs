@@ -142,6 +142,11 @@ impl<'a> TsConfig<'a> {
       }
     }
 
+    if matches!(specifier, Specifier::Builtin(..)) {
+      // If specifier is a builtin then there's no match
+      return Either::Right(Either::Right(std::iter::empty()));
+    }
+
     // If no paths were found, try relative to the base url.
     Either::Right(base_url_iter)
   }
