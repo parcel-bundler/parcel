@@ -53,6 +53,7 @@ type AssetGraphRequestResult = {|
   assetGroupsWithRemovedParents: ?Set<NodeId>,
   previousSymbolPropagationErrors: ?Map<NodeId, Array<Diagnostic>>,
   assetRequests: Array<AssetGroup>,
+  targetDiagnostics: Array<InternalDiagnosticWithLevel>,
   diagnostics: Map<ContentKey, Array<InternalDiagnosticWithLevel>>,
 |};
 
@@ -118,6 +119,7 @@ export class AssetGraphBuilder {
   isSingleChangeRebuild: boolean;
   assetGroupsWithRemovedParents: Set<NodeId>;
   previousSymbolPropagationErrors: Map<NodeId, Array<Diagnostic>>;
+  targetDiagnostics: Array<InternalDiagnosticWithLevel> = [];
   diagnostics: Map<ContentKey, Array<InternalDiagnosticWithLevel>>;
 
   constructor(
@@ -236,6 +238,7 @@ export class AssetGraphBuilder {
           previousSymbolPropagationErrors: undefined,
           assetRequests: [],
           diagnostics: this.diagnostics,
+          targetDiagnostics: this.targetDiagnostics,
         },
         this.cacheKey,
       );
@@ -270,6 +273,7 @@ export class AssetGraphBuilder {
               previousSymbolPropagationErrors: errors,
               assetRequests: [],
               diagnostics: this.diagnostics,
+              targetDiagnostics: this.targetDiagnostics,
             },
             this.cacheKey,
           );
@@ -299,6 +303,7 @@ export class AssetGraphBuilder {
         previousSymbolPropagationErrors: undefined,
         assetRequests: [],
         diagnostics: this.diagnostics,
+        targetDiagnostics: this.targetDiagnostics,
       },
       this.cacheKey,
     );
@@ -310,6 +315,7 @@ export class AssetGraphBuilder {
       assetGroupsWithRemovedParents: undefined,
       previousSymbolPropagationErrors: undefined,
       assetRequests: this.assetRequests,
+      targetDiagnostics: this.targetDiagnostics,
       diagnostics: this.diagnostics,
     };
   }
@@ -421,9 +427,17 @@ export class AssetGraphBuilder {
 
   async runTargetRequest(input: Entry) {
     let request = createTargetRequest(input);
-    let targets = await this.api.runRequest<Entry, Array<Target>>(request, {
+    let {targets /* , diagnostics */} = await this.api.runRequest<
+      Entry,
+      {|
+        targets: Array<Target>,
+        diagnostics: Array<InternalDiagnosticWithLevel>,
+      |},
+    >(request, {
       force: true,
     });
+    // TODO this can run multiple times
+    // this.targetDiagnostics = diagnostics;
     this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 

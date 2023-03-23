@@ -102,10 +102,15 @@ export default function createBundleGraphRequest(
         shouldBuildLazily: options.shouldBuildLazily,
         requestedAssetIds,
       });
-      let {assetGraph, changedAssets, assetRequests, diagnostics} =
-        await api.runRequest(request, {
-          force: options.shouldBuildLazily && requestedAssetIds.size > 0,
-        });
+      let {
+        assetGraph,
+        changedAssets,
+        assetRequests,
+        targetDiagnostics,
+        diagnostics,
+      } = await api.runRequest(request, {
+        force: options.shouldBuildLazily && requestedAssetIds.size > 0,
+      });
 
       assertSignalNotAborted(signal);
 
@@ -138,6 +143,7 @@ export default function createBundleGraphRequest(
       let res: BundleGraphResult = await builder.bundle({
         graph: assetGraph,
         changedAssets,
+        targetDiagnostics,
         diagnostics,
         assetRequests,
       });
@@ -239,11 +245,13 @@ class BundlerRunner {
     graph,
     changedAssets,
     assetRequests,
+    targetDiagnostics,
     diagnostics,
   }: {|
     graph: AssetGraph,
     changedAssets: Map<string, Asset>,
     assetRequests: Array<AssetGroup>,
+    targetDiagnostics: Array<InternalDiagnosticWithLevel>,
     diagnostics: Map<ContentKey, Array<InternalDiagnosticWithLevel>>,
   |}): Promise<BundleGraphResult> {
     report({
@@ -414,7 +422,8 @@ class BundlerRunner {
       bundleGraphEdgeTypes,
     );
 
-    let diagnosticsArray = [...diagnostics.values()].flat();
+    let diagnosticsArray: Array<InternalDiagnosticWithLevel> =
+      targetDiagnostics.concat([...diagnostics.values()].flat());
 
     this.api.storeResult(
       {
