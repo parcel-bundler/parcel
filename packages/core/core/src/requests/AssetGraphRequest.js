@@ -57,7 +57,7 @@ type AssetGraphRequestResult = {|
 
 type RunInput = {|
   input: AssetGraphRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<AssetGraphRequestResult>,
 |};
 
 type AssetGraphRequest = {|
@@ -108,7 +108,7 @@ export class AssetGraphBuilder {
   changedAssets: Map<string, Asset> = new Map();
   optionsRef: SharedReference;
   options: ParcelOptions;
-  api: RunAPI;
+  api: RunAPI<AssetGraphRequestResult>;
   name: string;
   cacheKey: string;
   shouldBuildLazily: boolean;

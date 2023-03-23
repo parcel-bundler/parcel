@@ -1,7 +1,8 @@
 {
   "name": "@parcel/fs-search",
-  "version": "2.8.2",
+  "version": "2.8.3",
   "license": "MIT",
+  "main": "index.js",
   "publishConfig": {
     "access": "public"
   },
@@ -27,10 +28,7 @@
     "build": "napi build --platform",
     "build-release": "napi build --platform --release"
   },
-  "dependencies": {
-    "detect-libc": "^1.0.3"
-  },
   "devDependencies": {
-    "@napi-rs/cli": "^2.6.2"
+    "@napi-rs/cli": "^2.14.8"
   }
 }

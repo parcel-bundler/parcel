@@ -4,7 +4,7 @@ use std::fmt;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use swc_atoms::JsWord;
+use swc_atoms::{js_word, JsWord};
 use swc_common::{Mark, SourceMap, Span, DUMMY_SP};
 use swc_ecmascript::ast::{self, Callee, Id, MemberProp};
 use swc_ecmascript::visit::{Fold, FoldWith};
@@ -129,7 +129,12 @@ impl<'a> DependencyCollector<'a> {
       }
       _ => Some(format!(
         "{:x}",
-        hash!(format!("{}:{}:{}", self.config.filename, specifier, kind))
+        hash!(format!(
+          "{}:{}:{}",
+          self.get_project_relative_filename(),
+          specifier,
+          kind
+        ))
       )),
     };
 
@@ -1245,21 +1250,22 @@ impl<'a> DependencyCollector<'a> {
     }
   }
 
-  fn get_import_meta_url(&mut self) -> ast::Expr {
-    use ast::*;
-
-    // Get a relative path from the project root.
-    let filename = if let Some(relative) =
-      pathdiff::diff_paths(&self.config.filename, &self.config.project_root)
-    {
+  fn get_project_relative_filename(&self) -> String {
+    if let Some(relative) = pathdiff::diff_paths(&self.config.filename, &self.config.project_root) {
       relative.to_slash_lossy()
     } else if let Some(filename) = Path::new(&self.config.filename).file_name() {
       String::from(filename.to_string_lossy())
     } else {
       String::from("unknown.js")
-    };
+    }
+  }
 
-    Expr::Lit(Lit::Str(format!("file:///{}", filename).into()))
+  fn get_import_meta_url(&mut self) -> ast::Expr {
+    use ast::*;
+
+    Expr::Lit(Lit::Str(
+      format!("file:///{}", self.get_project_relative_filename()).into(),
+    ))
   }
 
   fn get_import_meta(&mut self) -> ast::Expr {

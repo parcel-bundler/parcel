@@ -156,6 +156,7 @@ export default (new Transformer({
             specifier: dep.url,
             specifierType: 'url',
             loc,
+            packageConditions: ['style'],
             meta: {
               // For the glob resolver to distinguish between `@import` and other URL dependencies.
               isCSSImport: true,
@@ -222,6 +223,11 @@ export default (new Transformer({
                 ref.specifier,
               )};\n`;
               dependencies.set(ref.specifier, d);
+              asset.addDependency({
+                specifier: ref.specifier,
+                specifierType: 'esm',
+                packageConditions: ['style'],
+              });
             }
             s += '${' + `${d}[${JSON.stringify(ref.name)}]` + '}';
           }
@@ -238,7 +244,9 @@ export default (new Transformer({
         js += s;
       };
 
-      for (let key in exports) {
+      // It's possible that the exports can be ordered differently between builds.
+      // Sorting by key is safe as the order is irrelevant but needs to be deterministic.
+      for (let key of Object.keys(exports).sort()) {
         asset.symbols.set(key, exports[key].name);
         add(key);
       }
@@ -262,6 +270,7 @@ export default (new Transformer({
           asset.addDependency({
             specifier: reference.specifier,
             specifierType: 'esm',
+            packageConditions: ['style'],
             symbols: new Map([
               [reference.name, {local: symbol, isWeak: false, loc: null}],
             ]),

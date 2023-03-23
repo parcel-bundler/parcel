@@ -1,10 +1,8 @@
-# parcelforvscode README
+# Parcel
 
-## How to run the extension locally
+This extension shows errors, warnings and other diagnostics inline in VS Code.
 
-- Run `yarn watch` in the `parcel-lsp` dir
-- Run Parcel in a project with --reporter @parcel/reporter-lsp
-- Press F5 in VS Code from the `parcelforvscode` dir
-- A debug window should open up
-  - Progress build phase reports should show up at the bottom
-  - Diagnostics should show up in the `Problems` tab
+## Usage
+
+1. Install this extension
+2. In your project, install `@parcel/reporter-lsp` and run Parcel with that reporter, e.g. `parcel src/index.html --reporter @parcel/reporter-lsp`.

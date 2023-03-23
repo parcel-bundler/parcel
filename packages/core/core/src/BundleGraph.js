@@ -5,6 +5,7 @@ import type {
   FilePath,
   Symbol,
   TraversalActions,
+  BundleBehavior as IBundleBehavior,
 } from '@parcel/types';
 import type {
   ContentKey,
@@ -19,8 +20,10 @@ import type {
   Bundle,
   BundleGraphNode,
   BundleGroup,
+  BundleNode,
   Dependency,
   DependencyNode,
+  Environment,
   InternalSourceLocation,
   Target,
 } from './types';
@@ -38,7 +41,8 @@ import {DefaultMap, objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 import {Priority, BundleBehavior, SpecifierType} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
-import {fromProjectPath} from './projectPath';
+import {fromProjectPath, fromProjectPathRelative} from './projectPath';
+import {HASH_REF_PREFIX} from './constants';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -134,6 +138,7 @@ export default class BundleGraph {
   /** The internal core Graph structure */
   _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
   _symbolPropagationRan /*: boolean*/;
+  _bundlePublicIds /*: Set<string> */ = new Set<string>();
 
   constructor({
     graph,
@@ -402,6 +407,96 @@ export default class BundleGraph {
       publicIdByAssetId: serialized.publicIdByAssetId,
       symbolPropagationRan: serialized.symbolPropagationRan,
     });
+  }
+
+  createBundle(
+    opts:
+      | {|
+          +entryAsset: Asset,
+          +target: Target,
+          +needsStableName?: ?boolean,
+          +bundleBehavior?: ?IBundleBehavior,
+          +shouldContentHash: boolean,
+          +env: Environment,
+        |}
+      | {|
+          +type: string,
+          +env: Environment,
+          +uniqueKey: string,
+          +target: Target,
+          +needsStableName?: ?boolean,
+          +bundleBehavior?: ?IBundleBehavior,
+          +isSplittable?: ?boolean,
+          +pipeline?: ?string,
+          +shouldContentHash: boolean,
+        |},
+  ): Bundle {
+    let {entryAsset, target} = opts;
+    let bundleId = hashString(
+      'bundle:' +
+        (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
+        fromProjectPathRelative(target.distDir) +
+        (opts.bundleBehavior ?? ''),
+    );
+
+    let existing = this._graph.getNodeByContentKey(bundleId);
+    if (existing != null) {
+      invariant(existing.type === 'bundle');
+      return existing.value;
+    }
+
+    let publicId = getPublicId(bundleId, existing =>
+      this._bundlePublicIds.has(existing),
+    );
+    this._bundlePublicIds.add(publicId);
+
+    let isPlaceholder = false;
+    if (entryAsset) {
+      let entryAssetNode = this._graph.getNodeByContentKey(entryAsset.id);
+      invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
+      isPlaceholder = entryAssetNode.requested === false;
+    }
+
+    let bundleNode: BundleNode = {
+      type: 'bundle',
+      id: bundleId,
+      value: {
+        id: bundleId,
+        hashReference: opts.shouldContentHash
+          ? HASH_REF_PREFIX + bundleId
+          : bundleId.slice(-8),
+        type: opts.entryAsset ? opts.entryAsset.type : opts.type,
+        env: opts.env,
+        entryAssetIds: entryAsset ? [entryAsset.id] : [],
+        mainEntryId: entryAsset?.id,
+        pipeline: opts.entryAsset ? opts.entryAsset.pipeline : opts.pipeline,
+        needsStableName: opts.needsStableName,
+        bundleBehavior:
+          opts.bundleBehavior != null
+            ? BundleBehavior[opts.bundleBehavior]
+            : null,
+        isSplittable: opts.entryAsset
+          ? opts.entryAsset.isBundleSplittable
+          : opts.isSplittable,
+        isPlaceholder,
+        target,
+        name: null,
+        displayName: null,
+        publicId,
+      },
+    };
+
+    let bundleNodeId = this._graph.addNodeByContentKey(bundleId, bundleNode);
+
+    if (opts.entryAsset) {
+      this._graph.addEdge(
+        bundleNodeId,
+        this._graph.getNodeIdByContentKey(opts.entryAsset.id),
+      );
+    }
+
+    invariant;
+    return bundleNode.value;
   }
 
   addAssetToBundle(asset: Asset, bundle: Bundle) {
