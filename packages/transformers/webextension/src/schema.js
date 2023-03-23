@@ -453,13 +453,14 @@ export const MV3Schema = ({
       type: 'object',
       properties: {
         service_worker: string,
+        scripts: arrStr,
+        page: string,
         type: {
           type: 'string',
           enum: ['classic', 'module'],
         },
       },
       additionalProperties: false,
-      required: ['service_worker'],
     },
     content_security_policy: {
       type: 'object',
