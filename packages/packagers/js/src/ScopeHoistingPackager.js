@@ -1097,7 +1097,6 @@ ${code}
             let resolved = this.getSymbolResolution(asset, asset, exp);
             let get = this.buildFunctionExpression([], resolved);
             let isEsmExport = !!asset.symbols.get(exp)?.meta?.isEsm;
-
             let set =
               !isEsmExport && asset.meta.hasCJSExports
                 ? ', ' + this.buildFunctionExpression(['v'], `${resolved} = v`)
