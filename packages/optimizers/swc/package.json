@@ -20,10 +20,11 @@
     "parcel": "^2.8.3"
   },
   "dependencies": {
+    "@parcel/diagnostic": "2.8.3",
     "@parcel/plugin": "2.8.3",
     "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.8.3",
-    "@swc/core": "^1.2.106",
+    "@swc/core": "^1.3.36",
     "nullthrows": "^1.1.1"
   }
 }
