@@ -718,8 +718,13 @@ export default (new Transformer({
     asset.meta.id = asset.id;
     if (hoist_result) {
       asset.symbols.ensure();
-      for (let {exported, local, loc} of hoist_result.exported_symbols) {
-        asset.symbols.set(exported, local, convertLoc(loc));
+      for (let {
+        exported,
+        local,
+        loc,
+        is_esm,
+      } of hoist_result.exported_symbols) {
+        asset.symbols.set(exported, local, convertLoc(loc), {isEsm: is_esm});
       }
 
       // deps is a map of dependencies that are keyed by placeholder or specifier
