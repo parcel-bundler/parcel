@@ -1064,7 +1064,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 absolute_path.push("tsconfig.json");
               }
 
-              let mut exists = self.resolver.cache.fs.is_file(&absolute_path);
+              let mut exists = self.resolver.cache.is_file(&absolute_path);
 
               // If the file doesn't exist, and doesn't end with `.json`, try appending the extension.
               if !exists {
@@ -1077,7 +1077,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                   let mut os_str = absolute_path.into_os_string();
                   os_str.push(".json");
                   absolute_path = PathBuf::from(os_str);
-                  exists = self.resolver.cache.fs.is_file(&absolute_path)
+                  exists = self.resolver.cache.is_file(&absolute_path)
                 }
               }
 

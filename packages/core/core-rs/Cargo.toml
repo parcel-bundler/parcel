@@ -1,0 +1,16 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+parcel-js-swc-core = { path = "../../transformers/js/core" }
+parcel-resolver = { path = "../../utils/node-resolver-rs" }
+rayon = "*"
+bitflags = "*"
+dashmap = "*"
+crossbeam-utils = "*"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
