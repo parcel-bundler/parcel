@@ -20,7 +20,6 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/utils": "2.8.3",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {

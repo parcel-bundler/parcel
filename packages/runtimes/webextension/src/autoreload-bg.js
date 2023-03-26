@@ -1,5 +1,4 @@
-// eslint-disable-next-line no-redeclare
-/* global chrome, browser, addEventListener, fetch, Response, HMR_HOST, HMR_PORT */
+/* global chrome, browser, addEventListener, Response, HMR_HOST, HMR_PORT */
 var env = typeof chrome == 'undefined' ? browser : chrome;
 env.runtime.onMessage.addListener(function (msg) {
   if (msg.__parcel_hmr_reload__) {
