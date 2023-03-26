@@ -163,7 +163,9 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
         u = u.slice(1);
       }
       try {
-        const filePath = await resolve(prev, u);
+        const filePath = await resolve(prev, u, {
+          packageConditions: ['sass', 'style'],
+        });
         if (filePath) {
           const contents = await asset.fs.readFile(filePath, 'utf8');
           return {filePath, contents};

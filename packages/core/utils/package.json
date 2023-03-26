@@ -39,7 +39,8 @@
     "@parcel/logger": "2.8.3",
     "@parcel/markdown-ansi": "2.8.3",
     "@parcel/source-map": "^2.1.1",
-    "chalk": "^4.1.0"
+    "chalk": "^4.1.0",
+    "nullthrows": "^1.1.1"
   },
   "devDependencies": {
     "@iarna/toml": "^2.2.0",
@@ -56,6 +57,7 @@
     "nullthrows": "^1.1.1",
     "open": "^7.0.3",
     "random-int": "^1.0.0",
+    "strip-ansi": "^6.0.0",
     "terminal-link": "^2.1.1"
   },
   "browser": {

@@ -3088,6 +3088,256 @@ describe.only('cache', function () {
       assert.equal(await run(b.bundleGraph), 6);
     });
 
+    it('should invalidate when switching to a different resolver plugin', async function () {
+      let b = await testCache({
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            `import "foo";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.js'),
+            `export default "FOO";`,
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!res.includes('FOO'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              resolvers: ['parcel-resolver-test'],
+            }),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(res.includes('FOO'));
+    });
+
+    it('should invalidate when a resolver is updated', async function () {
+      let b = await testCache({
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            `import "foo";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.js'),
+            `export default "FOO";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.ts'),
+            `export default "BAR";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              resolvers: ['parcel-resolver-test'],
+            }),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(res.includes('FOO'));
+          assert(!res.includes('BAR'));
+
+          let resolver = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-resolver-test',
+            'index.js',
+          );
+          await overlayFS.writeFile(
+            resolver,
+            (
+              await overlayFS.readFile(resolver, 'utf8')
+            ).replace(/\.js/g, '.ts'),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!res.includes('FOO'));
+      assert(res.includes('BAR'));
+    });
+
+    it('should invalidate when adding resolver config', async function () {
+      let b = await testCache({
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            `import "foo";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.js'),
+            `export default "FOO";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/bar.js'),
+            `export default "BAR";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              resolvers: ['parcel-resolver-test'],
+            }),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(res.includes('FOO'));
+          assert(!res.includes('BAR'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.resolverrc'),
+            JSON.stringify({foo: 'bar.js'}),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!res.includes('FOO'));
+      assert(res.includes('BAR'));
+    });
+
+    it('should invalidate when updating resolver config', async function () {
+      let b = await testCache({
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            `import "foo";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.js'),
+            `export default "FOO";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/bar.js'),
+            `export default "BAR";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              resolvers: ['parcel-resolver-test'],
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.resolverrc'),
+            JSON.stringify({foo: 'bar.js'}),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!res.includes('FOO'));
+          assert(res.includes('BAR'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.resolverrc'),
+            JSON.stringify({foo: 'foo.js'}),
+          );
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(res.includes('FOO'));
+      assert(!res.includes('BAR'));
+    });
+
+    it('should invalidate when removing resolver config', async function () {
+      let b = await testCache({
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            `import "foo";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/foo.js'),
+            `export default "FOO";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/bar.js'),
+            `export default "BAR";`,
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              resolvers: ['parcel-resolver-test'],
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.resolverrc'),
+            JSON.stringify({foo: 'bar.js'}),
+          );
+        },
+        async update(b) {
+          let res = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!res.includes('FOO'));
+          assert(res.includes('BAR'));
+
+          await overlayFS.unlink(path.join(inputDir, '.resolverrc'));
+        },
+      });
+
+      let res = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(res.includes('FOO'));
+      assert(!res.includes('BAR'));
+    });
+
     describe('pnp', function () {
       it('should invalidate when the .pnp.js file changes', async function () {
         let Module = require('module');

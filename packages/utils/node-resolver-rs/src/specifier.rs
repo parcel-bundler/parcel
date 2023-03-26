@@ -90,19 +90,21 @@ impl<'a> Specifier<'a> {
         // Bare specifier.
         match specifier_type {
           SpecifierType::Url | SpecifierType::Esm => {
-            if BUILTINS.contains(&specifier.as_ref()) {
-              return Ok((Specifier::Builtin(Cow::Borrowed(specifier)), None));
-            }
-
             // Check if there is a scheme first.
             if let Ok((scheme, rest)) = parse_scheme(specifier) {
               let (path, rest) = parse_path(rest);
               let (query, _) = parse_query(rest);
               match scheme.as_ref() {
-                "npm" if flags.contains(Flags::NPM_SCHEME) => (
-                  parse_package(percent_decode_str(path).decode_utf8_lossy())?,
-                  query,
-                ),
+                "npm" if flags.contains(Flags::NPM_SCHEME) => {
+                  if BUILTINS.contains(&path.as_ref()) {
+                    return Ok((Specifier::Builtin(Cow::Borrowed(path)), None));
+                  }
+
+                  (
+                    parse_package(percent_decode_str(path).decode_utf8_lossy())?,
+                    query,
+                  )
+                }
                 "node" => {
                   // Node does not URL decode or support query params here.
                   // See https://github.com/nodejs/node/issues/39710.
@@ -127,6 +129,10 @@ impl<'a> Specifier<'a> {
               // otherwise treat this as a relative path.
               let (path, rest) = parse_path(specifier);
               if specifier_type == SpecifierType::Esm {
+                if BUILTINS.contains(&path.as_ref()) {
+                  return Ok((Specifier::Builtin(Cow::Borrowed(path)), None));
+                }
+
                 let (query, _) = parse_query(rest);
                 (
                   parse_package(percent_decode_str(path).decode_utf8_lossy())?,
@@ -156,6 +162,24 @@ impl<'a> Specifier<'a> {
         }
       }
     })
+  }
+
+  pub fn to_string(&'a self) -> Cow<'a, str> {
+    match self {
+      Specifier::Relative(path) | Specifier::Absolute(path) | Specifier::Tilde(path) => {
+        path.as_os_str().to_string_lossy()
+      }
+      Specifier::Hash(path) => path.clone(),
+      Specifier::Package(module, subpath) => {
+        if subpath.is_empty() {
+          Cow::Borrowed(module)
+        } else {
+          Cow::Owned(format!("{}/{}", module, subpath))
+        }
+      }
+      Specifier::Builtin(builtin) => Cow::Borrowed(&builtin),
+      Specifier::Url(url) => Cow::Borrowed(url),
+    }
   }
 }
 

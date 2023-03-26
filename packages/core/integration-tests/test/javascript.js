@@ -2101,12 +2101,14 @@ describe('javascript', function () {
       {
         assets: [
           'index.js',
-          'bundle-url.js',
           'get-worker-url.js',
-          'bundle-manifest.js',
           'lodash.js',
           'esmodule-helpers.js',
+          'bundle-url.js',
         ],
+      },
+      {
+        assets: ['bundle-manifest.js'],
       },
       {
         assets: ['worker.js', 'lodash.js', 'esmodule-helpers.js'],
@@ -4984,8 +4986,8 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: 'Name expected',
-            origin: '@parcel/optimizer-terser',
+            message: '`let` cannot be used as an identifier in strict mode',
+            origin: '@parcel/optimizer-swc',
             codeFrames: [
               {
                 filePath: undefined,
@@ -4993,20 +4995,18 @@ describe('javascript', function () {
                 code,
                 codeHighlights: [
                   {
-                    message: 'Name expected',
                     start: {
-                      column: 4,
+                      column: 1,
                       line: 1,
                     },
                     end: {
-                      column: 4,
+                      column: 1,
                       line: 1,
                     },
                   },
                 ],
               },
             ],
-            hints: ["It's likely that Terser doesn't support this syntax yet."],
           },
         ],
       },

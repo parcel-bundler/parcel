@@ -38,6 +38,7 @@ const MAIN = 1 << 0;
 const MODULE = 1 << 1;
 const SOURCE = 1 << 2;
 const BROWSER = 1 << 3;
+const TYPES = 1 << 6;
 
 type Options = {|
   fs: FileSystem,
@@ -46,6 +47,8 @@ type Options = {|
   logger?: PluginLogger,
   shouldAutoInstall?: boolean,
   mode?: BuildMode,
+  mainFields?: Array<string>,
+  extensions?: Array<string>,
 |};
 
 type ResolveOptions = {|
@@ -56,6 +59,7 @@ type ResolveOptions = {|
   env: Environment,
   sourcePath?: ?FilePath,
   loc?: ?SourceLocation,
+  packageConditions?: ?Array<string>,
 |};
 
 export default class NodeResolver {
@@ -87,8 +91,10 @@ export default class NodeResolver {
               },
         mode: 1,
         includeNodeModules: options.env.includeNodeModules,
-        entries:
-          MAIN | MODULE | SOURCE | (options.env.isBrowser() ? BROWSER : 0),
+        entries: this.options.mainFields
+          ? mainFieldsToEntries(this.options.mainFields)
+          : MAIN | MODULE | SOURCE | (options.env.isBrowser() ? BROWSER : 0),
+        extensions: this.options.extensions,
         conditions: environmentToExportsConditions(
           options.env,
           this.options.mode,
@@ -274,6 +280,9 @@ export default class NodeResolver {
               range: builtin.range,
             },
           );
+
+          // Need to clear the resolver caches after installing the package
+          this.resolversByEnv.clear();
 
           // Re-resolve
           return this.resolve({
@@ -764,4 +773,31 @@ function environmentToExportsConditions(
   }
 
   return conditions;
+}
+
+function mainFieldsToEntries(mainFields: Array<string>) {
+  let entries = 0;
+  for (let field of mainFields) {
+    switch (field) {
+      case 'main':
+        entries |= MAIN;
+        break;
+      case 'module':
+        entries |= MODULE;
+        break;
+      case 'source':
+        entries |= SOURCE;
+        break;
+      case 'browser':
+        entries |= BROWSER;
+        break;
+      case 'types':
+        entries |= TYPES;
+        break;
+      default:
+        throw new Error(`Unsupported main field "${field}"`);
+    }
+  }
+
+  return entries;
 }

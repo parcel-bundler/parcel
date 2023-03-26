@@ -459,6 +459,19 @@ describe('css', () => {
     ]);
   });
 
+  it('should support the style package exports condition', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-exports/index.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.css', 'foo.css'],
+      },
+    ]);
+  });
+
   it('should support external CSS imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/css-external/a.css'),
