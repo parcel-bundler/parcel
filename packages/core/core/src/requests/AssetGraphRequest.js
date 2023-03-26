@@ -837,11 +837,30 @@ export class AssetGraphBuilder {
     }
 
     // We care about changed assets and their changed dependencies. So start with the first changed
-    // asset or dependency and continue while the symbols change. If the queue becomes empty, continue
-    // with the next unvisited changed asset.
+    // asset or dependency and continue while the symbols change. If the queue becomes empty,
+    // continue with the next unvisited changed asset.
     //
-    // In the end, nodes, which are neither listed in changedAssets nor reached via a dirty flag,
-    // don't have to be visited at all.
+    // In the end, nodes, which are neither listed in changedAssets nor in
+    // assetGroupsWithRemovedParents nor reached via a dirty flag, don't have to be visited at all.
+    //
+    // In the worst case, some nodes have to be revisited because we don't want to sort the assets
+    // into topological order. For example in a diamond graph where the join point is visited twice
+    // via each parent (the numbers signifiying the order of re/visiting, `...` being unvisited).
+    // However, this only continues as long as there are changes in the used symbols that influence
+    // child nodes.
+    //
+    //             |
+    //            ...
+    //          /     \
+    //          1     4
+    //          \     /
+    //            2+5
+    //             |
+    //            3+6
+    //             |
+    //            ...
+    //             |
+    //
 
     let unreachedAssets = new Set([
       ...changedAssets,
