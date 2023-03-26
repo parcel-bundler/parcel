@@ -2,6 +2,8 @@
 
 import type {PackageInstaller, InstallerOptions} from './types';
 
+import path from 'path';
+import fs from 'fs';
 import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
 import logger from '@parcel/logger';
@@ -9,7 +11,7 @@ import split from 'split2';
 import JSONParseStream from './JSONParseStream';
 import promiseFromProcess from './promiseFromProcess';
 import {registerSerializableClass} from '@parcel/core';
-import {npmSpecifierFromModuleRequest} from './utils';
+import {exec, npmSpecifierFromModuleRequest} from './utils';
 
 // $FlowFixMe
 import pkg from '../package.json';
@@ -62,6 +64,8 @@ type PNPMResults = {|
 |};
 
 let hasPnpm: ?boolean;
+let pnpmVersion: ?number;
+
 export class Pnpm implements PackageInstaller {
   static async exists(): Promise<boolean> {
     if (hasPnpm != null) {
@@ -82,9 +86,23 @@ export class Pnpm implements PackageInstaller {
     cwd,
     saveDev = true,
   }: InstallerOptions): Promise<void> {
+    if (pnpmVersion == null) {
+      let version = await exec('pnpm --version');
+      pnpmVersion = parseInt(version.stdout, 10);
+    }
+
     let args = ['add', '--reporter', 'ndjson'];
     if (saveDev) {
-      args.push('-D', '-W');
+      args.push('-D');
+    }
+    if (pnpmVersion >= 7) {
+      if (fs.existsSync(path.join(cwd, 'pnpm-workspace.yaml'))) {
+        // installs in workspace root (regardless of cwd)
+        args.push('-w');
+      }
+    } else {
+      // ignores workspace root check
+      args.push('-W');
     }
     args = args.concat(modules.map(npmSpecifierFromModuleRequest));
 
@@ -148,9 +166,9 @@ export class Pnpm implements PackageInstaller {
       if (addedCount > 0 || removedCount > 0) {
         logger.log({
           origin: '@parcel/package-manager',
-          message: `Added ${addedCount} and ${
-            removedCount > 0 ? `removed ${removedCount}` : ''
-          } packages via pnpm`,
+          message: `Added ${addedCount} ${
+            removedCount > 0 ? `and removed ${removedCount} ` : ''
+          }packages via pnpm`,
         });
       }
 
