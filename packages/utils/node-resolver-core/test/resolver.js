@@ -63,6 +63,10 @@ describe('resolver', function () {
       path.join(rootDir, 'node_modules/source-alias-glob'),
     );
     await outputFS.symlink(
+      path.join(rootDir, 'packages/source-exports'),
+      path.join(rootDir, 'node_modules/source-exports'),
+    );
+    await outputFS.symlink(
       path.join(rootDir, 'bar.js'),
       path.join(rootDir, 'baz.js'),
     );
@@ -2153,6 +2157,42 @@ describe('resolver', function () {
             path.join(rootDir, 'tsconfig.json'),
             path.join(rootDir, 'node_modules', 'source', 'package.json'),
             path.join(rootDir, 'packages', 'source', 'package.json'),
+          ],
+        });
+      });
+
+      it('should prioritize the source field over exports', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'source-exports',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        check(resolved, {
+          filePath: path.join(
+            rootDir,
+            'packages',
+            'source-exports',
+            'source.js',
+          ),
+          sideEffects: undefined,
+          query: undefined,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'node_modules/source-exports',
+              aboveFilePath: rootDir,
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
+            path.join(
+              rootDir,
+              'node_modules',
+              'source-exports',
+              'package.json',
+            ),
+            path.join(rootDir, 'packages', 'source-exports', 'package.json'),
           ],
         });
       });
