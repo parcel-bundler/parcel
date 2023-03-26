@@ -1,13 +1,20 @@
 const fs = require("fs");
 const path = require("path");
 
-module.exports = function (api, { filename }) {
+module.exports = function (api, { filenameMain, filenameFallback }) {
   const { types: t } = api;
 
-  const filepath = path.join(__dirname, filename);
-  const contents = fs.readFileSync(filepath, "utf8");
+  const filepathMain = path.join(__dirname, filenameMain);
+  const filepathFallback = path.join(__dirname, filenameFallback);
+  let contents;
+  api.addExternalDependency(filepathMain);
+  try {
+    contents = fs.readFileSync(filepathMain, "utf8");
+  } catch (e) {
+    api.addExternalDependency(filepathFallback);
+    contents = fs.readFileSync(filepathFallback, "utf8");
+  }
   api.cache.never();
-  api.addExternalDependency(filepath);
 
   return {
     visitor: {
