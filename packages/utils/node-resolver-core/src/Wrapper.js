@@ -281,6 +281,9 @@ export default class NodeResolver {
             },
           );
 
+          // Need to clear the resolver caches after installing the package
+          this.resolversByEnv.clear();
+
           // Re-resolve
           return this.resolve({
             ...options,
