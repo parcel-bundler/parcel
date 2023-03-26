@@ -100,7 +100,11 @@ export default async function babel7(
             ],
           });
         } else {
-          asset.invalidateOnFileChange(f);
+          if (await options.inputFS.exists(f)) {
+            asset.invalidateOnFileChange(f);
+          } else {
+            asset.invalidateOnFileCreate({filePath: f});
+          }
         }
       }
     }
