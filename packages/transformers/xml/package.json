@@ -21,6 +21,6 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.8.3",
-    "@xmldom/xmldom": "^0.7.5"
+    "@xmldom/xmldom": "^0.7.9"
   }
 }
