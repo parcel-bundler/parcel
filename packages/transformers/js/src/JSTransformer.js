@@ -855,6 +855,8 @@ export default (new Transformer({
           dep.symbols.set('*', '*', convertLoc(loc), true);
         }
 
+        // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
+        // This allows accessing symbols that don't exist without errors in symbol propagation.
         if (
           symbol_result.has_cjs_exports ||
           (!symbol_result.is_esm &&
@@ -865,6 +867,8 @@ export default (new Transformer({
           asset.symbols.set('*', `$`);
         }
 
+        // For dynamic imports, mark everything as imported (a more detailed analysis similar to
+        // what scope hoisting does with `const {foo} = await import(...);` isn't hook up yet.)
         for (let d of deps.values()) {
           if (d.priority === 'lazy') {
             d.symbols.ensure();
