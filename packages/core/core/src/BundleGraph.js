@@ -29,7 +29,6 @@ import type {
 } from './types';
 import type AssetGraph from './AssetGraph';
 import type {ProjectPath} from './projectPath';
-import {nodeFromAsset} from './AssetGraph';
 
 import assert from 'assert';
 import invariant from 'assert';
@@ -88,7 +87,6 @@ type BundleGraphOpts = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
-  symbolPropagationRan: boolean,
 |};
 
 type SerializedBundleGraph = {|
@@ -97,7 +95,6 @@ type SerializedBundleGraph = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
-  symbolPropagationRan: boolean,
 |};
 
 function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
@@ -137,7 +134,6 @@ export default class BundleGraph {
   _targetEntryRoots: Map<ProjectPath, FilePath> = new Map();
   /** The internal core Graph structure */
   _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
-  _symbolPropagationRan /*: boolean*/;
   _bundlePublicIds /*: Set<string> */ = new Set<string>();
 
   constructor({
@@ -145,19 +141,16 @@ export default class BundleGraph {
     publicIdByAssetId,
     assetPublicIds,
     bundleContentHashes,
-    symbolPropagationRan,
   }: {|
     graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>,
     publicIdByAssetId: Map<string, string>,
     assetPublicIds: Set<string>,
     bundleContentHashes: Map<string, string>,
-    symbolPropagationRan: boolean,
   |}) {
     this._graph = graph;
     this._assetPublicIds = assetPublicIds;
     this._publicIdByAssetId = publicIdByAssetId;
     this._bundleContentHashes = bundleContentHashes;
-    this._symbolPropagationRan = symbolPropagationRan;
   }
 
   /**
@@ -166,6 +159,7 @@ export default class BundleGraph {
    */
   static fromAssetGraph(
     assetGraph: AssetGraph,
+    isProduction: boolean,
     publicIdByAssetId: Map<string, string> = new Map(),
     assetPublicIds: Set<string> = new Set(),
   ): BundleGraph {
@@ -207,7 +201,9 @@ export default class BundleGraph {
       if (
         node.type === 'dependency' &&
         node.value.symbols != null &&
-        node.value.env.shouldScopeHoist
+        node.value.env.shouldScopeHoist &&
+        // Disable in dev mode because this feature is at odds with safeToIncrementallyBundle
+        isProduction
       ) {
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
@@ -384,7 +380,6 @@ export default class BundleGraph {
       assetPublicIds,
       bundleContentHashes: new Map(),
       publicIdByAssetId,
-      symbolPropagationRan: assetGraph.symbolPropagationRan,
     });
   }
 
@@ -395,7 +390,6 @@ export default class BundleGraph {
       assetPublicIds: this._assetPublicIds,
       bundleContentHashes: this._bundleContentHashes,
       publicIdByAssetId: this._publicIdByAssetId,
-      symbolPropagationRan: this._symbolPropagationRan,
     };
   }
 
@@ -405,7 +399,6 @@ export default class BundleGraph {
       assetPublicIds: serialized.assetPublicIds,
       bundleContentHashes: serialized.bundleContentHashes,
       publicIdByAssetId: serialized.publicIdByAssetId,
-      symbolPropagationRan: serialized.symbolPropagationRan,
     });
   }
 
@@ -1994,7 +1987,7 @@ export default class BundleGraph {
   getUsedSymbolsAsset(asset: Asset): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(asset.id);
     invariant(node && node.type === 'asset');
-    return this._symbolPropagationRan
+    return node.value.symbols
       ? makeReadOnlySet(new Set(node.usedSymbols.keys()))
       : null;
   }
@@ -2002,8 +1995,9 @@ export default class BundleGraph {
   getUsedSymbolsDependency(dep: Dependency): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(dep.id);
     invariant(node && node.type === 'dependency');
-    let result = new Set(node.usedSymbolsUp.keys());
-    return this._symbolPropagationRan ? makeReadOnlySet(result) : null;
+    return node.value.symbols
+      ? makeReadOnlySet(new Set(node.usedSymbolsUp.keys()))
+      : null;
   }
 
   merge(other: BundleGraph) {
@@ -2069,12 +2063,9 @@ export default class BundleGraph {
   /**
    * Update the asset in a Bundle Graph and clear the associated Bundle hash.
    */
-  updateAsset(asset: Asset) {
-    this._graph.updateNode(
-      this._graph.getNodeIdByContentKey(asset.id),
-      nodeFromAsset(asset),
-    );
-    let bundles = this.getBundlesWithAsset(asset);
+  updateAsset(asset: AssetNode) {
+    this._graph.updateNode(this._graph.getNodeIdByContentKey(asset.id), asset);
+    let bundles = this.getBundlesWithAsset(asset.value);
     for (let bundle of bundles) {
       // the bundle content will change with a modified asset
       this._bundleContentHashes.delete(bundle.id);
