@@ -9,7 +9,7 @@ import type {CompilerOptions} from 'typescript';
 import ts from 'typescript';
 import {CompilerHost, loadTSConfig} from '@parcel/ts-utils';
 import {normalizeSeparators} from '@parcel/utils';
-import {escapeMarkdown} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {escapeMarkdown} from '@parcel/diagnostic';
 import {TSModuleGraph} from './TSModuleGraph';
 import nullthrows from 'nullthrows';
 import {collect} from './collect';
@@ -76,67 +76,73 @@ export default (new Transformer({
       .getPreEmitDiagnostics(program)
       .concat(emitResult.diagnostics);
 
-    if (diagnostics.length > 0) {
-      for (let diagnostic of diagnostics) {
-        let filename = asset.filePath;
-        let {file} = diagnostic;
+    let parcelDiagnostics = diagnostics.map(diagnostic => {
+      let filename = asset.filePath;
+      let {file} = diagnostic;
 
-        let diagnosticMessage =
-          typeof diagnostic.messageText === 'string'
-            ? diagnostic.messageText
-            : diagnostic.messageText.messageText;
+      let diagnosticMessage =
+        typeof diagnostic.messageText === 'string'
+          ? diagnostic.messageText
+          : diagnostic.messageText.messageText;
 
-        let codeframe: ?DiagnosticCodeFrame;
-        if (file != null && diagnostic.start != null) {
-          let source = file.text || diagnostic.source;
-          if (file.fileName) {
-            filename = file.fileName;
-          }
-
-          // $FlowFixMe
-          if (source) {
-            let lineChar = file.getLineAndCharacterOfPosition(diagnostic.start);
-            let start = {
-              line: lineChar.line + 1,
-              column: lineChar.character + 1,
-            };
-            let end = {
-              line: start.line,
-              column: start.column + 1,
-            };
-
-            if (
-              typeof diagnostic.start === 'number' &&
-              typeof diagnostic.length === 'number'
-            ) {
-              let endCharPosition = file.getLineAndCharacterOfPosition(
-                diagnostic.start + diagnostic.length,
-              );
-
-              end = {
-                line: endCharPosition.line + 1,
-                column: endCharPosition.character + 1,
-              };
-            }
-
-            codeframe = {
-              filePath: filename,
-              code: source,
-              codeHighlights: [
-                {
-                  start,
-                  end,
-                  message: escapeMarkdown(diagnosticMessage),
-                },
-              ],
-            };
-          }
+      let codeframe: ?DiagnosticCodeFrame;
+      if (file != null && diagnostic.start != null) {
+        let source = file.text || diagnostic.source;
+        if (file.fileName) {
+          filename = file.fileName;
         }
 
-        logger.warn({
-          message: escapeMarkdown(diagnosticMessage),
-          codeFrames: codeframe ? [codeframe] : undefined,
-        });
+        // $FlowFixMe
+        if (source) {
+          let lineChar = file.getLineAndCharacterOfPosition(diagnostic.start);
+          let start = {
+            line: lineChar.line + 1,
+            column: lineChar.character + 1,
+          };
+          let end = {
+            line: start.line,
+            column: start.column + 1,
+          };
+
+          if (
+            typeof diagnostic.start === 'number' &&
+            typeof diagnostic.length === 'number'
+          ) {
+            let endCharPosition = file.getLineAndCharacterOfPosition(
+              diagnostic.start + diagnostic.length,
+            );
+
+            end = {
+              line: endCharPosition.line + 1,
+              column: endCharPosition.character + 1,
+            };
+          }
+
+          codeframe = {
+            filePath: filename,
+            code: source,
+            codeHighlights: [
+              {
+                start,
+                end,
+                message: escapeMarkdown(diagnosticMessage),
+              },
+            ],
+          };
+        }
+      }
+
+      return {
+        message: escapeMarkdown(diagnosticMessage),
+        codeFrames: codeframe ? [codeframe] : undefined,
+      };
+    });
+
+    if (host.outputCode == null) {
+      throw new ThrowableDiagnostic({diagnostic: parcelDiagnostics});
+    } else {
+      for (let d of parcelDiagnostics) {
+        logger.warn(d);
       }
     }
 
