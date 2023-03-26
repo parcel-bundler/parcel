@@ -170,7 +170,11 @@ export default function collectDependencies(
         ? {
             filePath: asset.filePath,
             start: node.location.start,
-            end: node.location.end,
+            end: {
+              line: node.location.end.line,
+              // PostHTML's location is inclusive
+              column: node.location.end.column + 1,
+            },
           }
         : undefined;
 

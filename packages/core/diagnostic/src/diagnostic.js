@@ -277,6 +277,24 @@ export function getJSONSourceLocation(
   }
 }
 
+export function convertSourceLocationToHighlight<
+  Location: {
+    /** 1-based, inclusive */
+    +start: {|
+      +line: number,
+      +column: number,
+    |},
+    /** 1-based, exclusive */
+    +end: {|
+      +line: number,
+      +column: number,
+    |},
+    ...
+  },
+>({start, end}: Location, message?: string): DiagnosticCodeHighlight {
+  return {start, end: {line: end.line, column: end.column - 1}, message};
+}
+
 /** Sanitizes object keys before using them as <code>key</code> in generateJSONCodeHighlights */
 export function encodeJSONKeyComponent(component: string): string {
   return component.replace(/~/g, '~0').replace(/\//g, '~1');

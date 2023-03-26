@@ -25,7 +25,10 @@ import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import logger from '@parcel/logger';
-import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
+  md,
+} from '@parcel/diagnostic';
 import {BundleBehavior, Priority} from '../types';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
@@ -640,12 +643,7 @@ export class AssetGraphBuilder {
                           loc?.filePath,
                         ) ?? undefined,
                       language: incomingDep.value.sourceAssetType ?? undefined,
-                      codeHighlights: [
-                        {
-                          start: loc.start,
-                          end: loc.end,
-                        },
-                      ],
+                      codeHighlights: [convertSourceLocationToHighlight(loc)],
                     },
                   ]
                 : undefined,
