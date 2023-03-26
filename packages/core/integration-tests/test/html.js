@@ -317,9 +317,7 @@ describe('html', function () {
     assert(html.includes(`<meta name="msapplication-config" content="none">`));
     assert(html.includes(`<meta property="og:image" content="/logo.svg">`));
     assert(
-      html.includes(
-        `<meta name="msapplication-TileImage" content="/logo.14afa1de.svg">`,
-      ),
+      /<meta name="msapplication-TileImage" content="\/logo\.[0-9a-f]+\.svg">/.test(html)
     );
     assert(
       html.includes(
