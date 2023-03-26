@@ -6,9 +6,8 @@ edition = "2021"
 
 [dependencies]
 parcel-resolver = { path = "../node-resolver-rs" }
-es-module-lexer = { path = "/Users/devongovett/dev/es-module-lexer" }
-serde_json = "*"
-rayon = "*"
-dashmap = "*"
-memmap = "*"
-glob = "*"
+es-module-lexer = { path = "https://github.com/devongovett/es-module-lexer" }
+serde_json = "1.0.91"
+rayon = "1.7.0"
+dashmap = "5.4.0"
+glob = "0.3.1"
