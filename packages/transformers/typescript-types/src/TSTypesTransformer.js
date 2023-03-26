@@ -115,7 +115,7 @@ export default (new Transformer({
 
               end = {
                 line: endCharPosition.line + 1,
-                column: endCharPosition.character + 1,
+                column: endCharPosition.character,
               };
             }
 

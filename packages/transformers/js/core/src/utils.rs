@@ -217,14 +217,13 @@ impl SourceLocation {
 
     let start = source_map.lookup_char_pos(span.lo);
     let end = source_map.lookup_char_pos(span.hi);
-    // - SWC's columns are exclusive, ours are inclusive (column - 1)
-    // - SWC has 0-based columns, ours are 1-based (column + 1)
-    // = +-0
+    // SWC's columns are exclusive, ours are exclusive
+    // SWC has 0-based columns, ours are 1-based (column + 1)
     SourceLocation {
       start_line: start.line,
       start_col: start.col_display + 1,
       end_line: end.line,
-      end_col: end.col_display,
+      end_col: end.col_display + 1,
     }
   }
 }

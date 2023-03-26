@@ -94,8 +94,8 @@ export function remapSourceLocation(
   } = loc;
   let lineDiff = endLine - startLine;
   let colDiff = endCol - startCol;
-  let start = originalMap.findClosestMapping(startLine, startCol);
-  let end = originalMap.findClosestMapping(endLine, endCol);
+  let start = originalMap.findClosestMapping(startLine, startCol - 1);
+  let end = originalMap.findClosestMapping(endLine, endCol - 1);
 
   if (start?.original) {
     if (start.source) {
@@ -108,7 +108,7 @@ export function remapSourceLocation(
 
   if (end?.original) {
     ({line: endLine, column: endCol} = end.original);
-    endCol++;
+    endCol++; // source map columns are 0-based
 
     if (endLine < startLine) {
       endLine = startLine;

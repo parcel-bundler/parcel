@@ -16,6 +16,7 @@ import type {Entry, ParcelOptions, Target} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
   generateJSONCodeHighlights,
   getJSONSourceLocation,
   encodeJSONKeyComponent,
@@ -1417,21 +1418,16 @@ function assertTargetsAreNotEntries(
         codeFrames.push({
           filePath: fromProjectPath(options.projectRoot, loc.filePath),
           codeHighlights: [
-            {
-              start: loc.start,
-              end: loc.end,
-              message: 'Target defined here',
-            },
+            convertSourceLocationToHighlight(loc, 'Target defined here'),
           ],
         });
 
         let inputLoc = input.loc;
         if (inputLoc) {
-          let highlight = {
-            start: inputLoc.start,
-            end: inputLoc.end,
-            message: 'Entry defined here',
-          };
+          let highlight = convertSourceLocationToHighlight(
+            inputLoc,
+            'Entry defined here',
+          );
 
           if (inputLoc.filePath === loc.filePath) {
             codeFrames[0].codeHighlights.push(highlight);
@@ -1497,11 +1493,9 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
 
     let highlights = [];
     if (input.loc) {
-      highlights.push({
-        start: input.loc.start,
-        end: input.loc.end,
-        message: 'entry defined here',
-      });
+      highlights.push(
+        convertSourceLocationToHighlight(input.loc, 'entry defined here'),
+      );
     }
 
     // Read package.json where target is defined.

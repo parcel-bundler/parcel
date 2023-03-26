@@ -292,7 +292,9 @@ export function convertSourceLocationToHighlight<
     ...
   },
 >({start, end}: Location, message?: string): DiagnosticCodeHighlight {
-  return {start, end: {line: end.line, column: end.column - 1}, message};
+  return message != null
+    ? {start, end: {line: end.line, column: end.column - 1}, message}
+    : {start, end: {line: end.line, column: end.column - 1}};
 }
 
 /** Sanitizes object keys before using them as <code>key</code> in generateJSONCodeHighlights */
