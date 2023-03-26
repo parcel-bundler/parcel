@@ -27,6 +27,8 @@ import fs from 'fs';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createWorkerFarm} from '@parcel/core';
 import resolveOptions from '@parcel/core/src/resolveOptions';
+import logger from '@parcel/logger';
+import sinon from 'sinon';
 
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS, '/');
@@ -110,7 +112,7 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   return b;
 }
 
-describe.only('cache', function () {
+describe('cache', function () {
   before(async () => {
     await inputFS.rimraf(path.join(__dirname, 'input'));
   });
@@ -225,14 +227,14 @@ describe.only('cache', function () {
     // let mjs = (config) => `export default ${JSON.stringify(config)}`;
     let configs = [
       {name: '.babelrc', formatter: json, nesting: true},
-      // {name: '.babelrc.json', formatter: json, nesting: true},
-      // {name: '.babelrc.js', formatter: cjs, nesting: true},
-      // {name: '.babelrc.cjs', formatter: cjs, nesting: true},
-      // // {name: '.babelrc.mjs', formatter: mjs, nesting: true},
-      // {name: 'babel.config.json', formatter: json, nesting: false},
-      // {name: 'babel.config.js', formatter: cjs, nesting: false},
-      // {name: 'babel.config.cjs', formatter: cjs, nesting: false},
-      // {name: 'babel.config.mjs', formatter: mjs, nesting: false}
+      {name: '.babelrc.json', formatter: json, nesting: true},
+      {name: '.babelrc.js', formatter: cjs, nesting: true},
+      {name: '.babelrc.cjs', formatter: cjs, nesting: true},
+      // {name: '.babelrc.mjs', formatter: mjs, nesting: true},
+      {name: 'babel.config.json', formatter: json, nesting: false},
+      {name: 'babel.config.js', formatter: cjs, nesting: false},
+      {name: 'babel.config.cjs', formatter: cjs, nesting: false},
+      // {name: 'babel.config.mjs', formatter: mjs, nesting: false},
     ];
 
     before(async () => {
@@ -246,7 +248,7 @@ describe.only('cache', function () {
 
     for (let {name, formatter, nesting} of configs) {
       describe(name, function () {
-        it.only(`should support adding a ${name}`, async function () {
+        it(`should support adding a ${name}`, async function () {
           let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
@@ -4043,66 +4045,6 @@ describe.only('cache', function () {
 
     it('should support adding a deeper node_modules folder', async function () {});
 
-    it('should invalidate when updating an ESM parcel transformer plugin', async function () {
-      let workerFarm = createWorkerFarm({
-        maxConcurrentWorkers: 1,
-        useLocalWorker: false,
-      });
-
-      let b;
-      try {
-        b = await testCache({
-          inputFS,
-          outputFS: inputFS,
-          async setup() {
-            await inputFS.mkdirp(inputDir);
-            await inputFS.ncp(
-              path.join(__dirname, '/integration/cache'),
-              inputDir,
-            );
-            await inputFS.writeFile(
-              path.join(inputDir, '.parcelrc'),
-              JSON.stringify({
-                extends: '@parcel/config-default',
-                transformers: {
-                  '*.js': ['parcel-transformer-esm'],
-                },
-              }),
-            );
-          },
-          async update(b) {
-            let output = await inputFS.readFile(
-              b.bundleGraph.getBundles()[0].filePath,
-              'utf8',
-            );
-            assert(output.includes('TRANSFORMED CODE'));
-
-            let transformerDir = path.join(
-              inputDir,
-              'node_modules',
-              'parcel-transformer-esm',
-            );
-            await inputFS.writeFile(
-              path.join(transformerDir, 'constants.js'),
-              'export const message = "UPDATED"',
-            );
-            await new Promise(resolve => setTimeout(resolve, 20));
-            return {
-              workerFarm,
-            };
-          },
-        });
-      } finally {
-        await workerFarm.end();
-      }
-
-      let output = await inputFS.readFile(
-        b.bundleGraph.getBundles()[0].filePath,
-        'utf8',
-      );
-      assert(output.includes('UPDATED'));
-    });
-
     it('should support yarn pnp', async function () {
       let Module = require('module');
       // $FlowFixMe[incompatible-type]
@@ -4264,6 +4206,222 @@ describe.only('cache', function () {
         Module._resolveFilename = origModuleResolveFilename;
         await workerFarm.end();
       }
+    });
+
+    describe('esm', function () {
+      async function setup() {
+        await inputFS.mkdirp(inputDir);
+        await inputFS.ncp(path.join(__dirname, '/integration/cache'), inputDir);
+        await inputFS.writeFile(
+          path.join(inputDir, '.parcelrc'),
+          JSON.stringify({
+            extends: '@parcel/config-default',
+            transformers: {
+              '*.js': ['parcel-transformer-esm'],
+            },
+          }),
+        );
+      }
+
+      it('should invalidate when updating an ESM parcel transformer plugin', async function () {
+        // We cannot invalidate an ESM module in node, so for the test, create a separate worker farm.
+        let workerFarm = createWorkerFarm({
+          maxConcurrentWorkers: 1,
+          useLocalWorker: false,
+        });
+
+        let b;
+        try {
+          b = await testCache({
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await setup();
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('TRANSFORMED CODE'));
+
+              let transformerDir = path.join(
+                inputDir,
+                'node_modules',
+                'parcel-transformer-esm',
+              );
+              await inputFS.writeFile(
+                path.join(transformerDir, 'constants.js'),
+                'export const message = "UPDATED"',
+              );
+              await new Promise(resolve => setTimeout(resolve, 20));
+              return {
+                workerFarm,
+              };
+            },
+          });
+        } finally {
+          await workerFarm.end();
+        }
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('UPDATED'));
+      });
+
+      it('should invalidate when updating a CJS dependency in an ESM plugin', async function () {
+        let workerFarm = createWorkerFarm({
+          maxConcurrentWorkers: 1,
+          useLocalWorker: false,
+        });
+
+        let b;
+        try {
+          b = await testCache({
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await setup();
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('TRANSFORMED CODE 2'));
+
+              let dir = path.join(inputDir, 'node_modules', 'foo');
+              await inputFS.writeFile(
+                path.join(dir, 'foo.js'),
+                'module.exports = 3',
+              );
+              await new Promise(resolve => setTimeout(resolve, 20));
+              return {
+                workerFarm,
+              };
+            },
+          });
+        } finally {
+          await workerFarm.end();
+        }
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('TRANSFORMED CODE 3'));
+      });
+
+      it('should invalidate on dynamic imports', async function () {
+        let workerFarm = createWorkerFarm({
+          maxConcurrentWorkers: 1,
+          useLocalWorker: false,
+        });
+
+        let b;
+        try {
+          b = await testCache({
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await setup();
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('console.log("a")'));
+
+              let dir = path.join(
+                inputDir,
+                'node_modules',
+                'parcel-transformer-esm',
+              );
+              await inputFS.writeFile(
+                path.join(dir, 'data/a.js'),
+                'export const value = "updated";',
+              );
+              await new Promise(resolve => setTimeout(resolve, 20));
+              return {
+                workerFarm,
+              };
+            },
+          });
+        } finally {
+          await workerFarm.end();
+        }
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('console.log("updated")'));
+      });
+
+      it('should invalidate on startup for non-static imports', async function () {
+        let spy = sinon.spy(logger, 'warn');
+        let workerFarm = createWorkerFarm({
+          maxConcurrentWorkers: 1,
+          useLocalWorker: false,
+        });
+
+        let b;
+        try {
+          b = await testCache({
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await setup();
+              await inputFS.writeFile(
+                path.join(
+                  inputDir,
+                  'node_modules',
+                  'parcel-transformer-esm',
+                  'dep.cjs',
+                ),
+                'var dep = "foo";exports.value = require(dep);',
+              );
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('TRANSFORMED CODE 2'));
+              assert(
+                spy.calledWith([
+                  {
+                    message:
+                      'node\\_modules/parcel-transformer-esm/index.js contains non-statically analyzable dependencies in its module graph. This causes Parcel to invalidate the cache on startup.',
+                    origin: '@parcel/package-manager',
+                  },
+                ]),
+              );
+
+              await inputFS.writeFile(
+                path.join(inputDir, 'node_modules', 'foo', 'foo.js'),
+                'module.exports = 3',
+              );
+              await new Promise(resolve => setTimeout(resolve, 20));
+              return {
+                workerFarm,
+              };
+            },
+          });
+        } finally {
+          spy.restore();
+          await workerFarm.end();
+        }
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('TRANSFORMED CODE 3'));
+      });
     });
 
     describe('postcss', function () {

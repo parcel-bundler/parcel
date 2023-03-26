@@ -9,7 +9,6 @@ use std::{
 };
 
 use package_json::{AliasValue, ExportsResolution, PackageJson};
-use specifier::Specifier;
 use tsconfig::TsConfig;
 
 mod builtins;
@@ -27,7 +26,7 @@ pub use error::ResolverError;
 pub use fs::{FileSystem, OsFileSystem};
 pub use invalidations::*;
 pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
-pub use specifier::SpecifierType;
+pub use specifier::{Specifier, SpecifierError, SpecifierType};
 
 use crate::path::resolve_path;
 
@@ -1193,6 +1192,8 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 mod tests {
   use std::collections::HashSet;
 
+  use dashmap::DashSet;
+
   use super::cache::Cache;
   use super::*;
 
@@ -1306,11 +1307,17 @@ mod tests {
       .resolve("./bar", &root().join("foo.js"), SpecifierType::Esm)
       .invalidations;
     assert_eq!(
-      *invalidations.invalidate_on_file_create.read().unwrap(),
+      invalidations
+        .invalidate_on_file_create
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::new()
     );
     assert_eq!(
-      *invalidations.invalidate_on_file_change.read().unwrap(),
+      invalidations
+        .invalidate_on_file_change
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([root().join("package.json"), root().join("tsconfig.json")])
     );
   }
@@ -1546,14 +1553,20 @@ mod tests {
       .resolve("foo", &root().join("foo.js"), SpecifierType::Esm)
       .invalidations;
     assert_eq!(
-      *invalidations.invalidate_on_file_create.read().unwrap(),
+      invalidations
+        .invalidate_on_file_create
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([FileCreateInvalidation::FileName {
         file_name: "node_modules/foo".into(),
         above: root()
       },])
     );
     assert_eq!(
-      *invalidations.invalidate_on_file_change.read().unwrap(),
+      invalidations
+        .invalidate_on_file_change
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([
         root().join("node_modules/foo/package.json"),
         root().join("package.json"),
@@ -1687,14 +1700,20 @@ mod tests {
       )
       .invalidations;
     assert_eq!(
-      *invalidations.invalidate_on_file_create.read().unwrap(),
+      invalidations
+        .invalidate_on_file_create
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([FileCreateInvalidation::FileName {
         file_name: "node_modules/package-alias".into(),
         above: root()
       },])
     );
     assert_eq!(
-      *invalidations.invalidate_on_file_change.read().unwrap(),
+      invalidations
+        .invalidate_on_file_change
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([
         root().join("node_modules/package-alias/package.json"),
         root().join("package.json"),
@@ -2379,11 +2398,17 @@ mod tests {
       .resolve("ts-path", &root().join("foo.js"), SpecifierType::Esm)
       .invalidations;
     assert_eq!(
-      *invalidations.invalidate_on_file_create.read().unwrap(),
+      invalidations
+        .invalidate_on_file_create
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::new()
     );
     assert_eq!(
-      *invalidations.invalidate_on_file_change.read().unwrap(),
+      invalidations
+        .invalidate_on_file_change
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([root().join("package.json"), root().join("tsconfig.json")])
     );
   }
@@ -2564,7 +2589,10 @@ mod tests {
       )
       .invalidations;
     assert_eq!(
-      *invalidations.invalidate_on_file_create.read().unwrap(),
+      invalidations
+        .invalidate_on_file_create
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([
         FileCreateInvalidation::Path(root().join("ts-extensions/a.js")),
         FileCreateInvalidation::FileName {
@@ -2578,7 +2606,10 @@ mod tests {
       ])
     );
     assert_eq!(
-      *invalidations.invalidate_on_file_change.read().unwrap(),
+      invalidations
+        .invalidate_on_file_change
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([root().join("package.json"), root().join("tsconfig.json")])
     );
   }

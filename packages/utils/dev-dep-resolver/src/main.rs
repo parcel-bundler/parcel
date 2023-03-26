@@ -12,9 +12,8 @@ fn main() {
 
   let cache = Cache::new(OsFileSystem::default());
   let cjs_resolver = Resolver::node(Cow::Borrowed(&cwd), CacheCow::Borrowed(&cache));
-  let esm_resolver = Resolver::node_esm(Cow::Borrowed(&cwd), CacheCow::Borrowed(&cache));
+  let esm_graph_cache = parcel_dev_dep_resolver::Cache::default();
 
-  // let mut total = 0;
   deps.keys().for_each(|dep| {
     #[cfg(debug_assertions)]
     println!("------------ {} -----------", dep);
@@ -28,9 +27,8 @@ fn main() {
     };
 
     if let Resolution::Path(p) = resolved {
-      match build_esm_graph(&p, &cjs_resolver) {
+      match build_esm_graph(&p, &cwd, &cache, &esm_graph_cache) {
         Ok(res) => {
-          // total += res.len();
           // #[cfg(debug_assertions)]
           // println!("{:?}", res)
         }
@@ -44,7 +42,4 @@ fn main() {
     #[cfg(debug_assertions)]
     println!("");
   });
-
-  // #[cfg(debug_assertions)]
-  // println!("TOTAL {:?}", total);
 }

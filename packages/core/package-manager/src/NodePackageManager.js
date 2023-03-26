@@ -22,6 +22,7 @@ import nativeFS from 'fs';
 import Module from 'module';
 import path from 'path';
 import semver from 'semver';
+import logger from '@parcel/logger';
 
 import {getModuleParts} from '@parcel/utils';
 import {getConflictingLocalDependencies} from './utils';
@@ -125,6 +126,17 @@ export class NodePackageManager implements PackageManager {
   ): Promise<any> {
     let {resolved, type} = await this.resolve(name, from, opts);
     if (type === 2) {
+      logger.warn({
+        message: 'ES module dependencies are experimental.',
+        origin: '@parcel/package-manager',
+        codeFrames: [
+          {
+            filePath: resolved,
+            codeHighlights: [],
+          },
+        ],
+      });
+
       // $FlowFixMe
       return import(resolved);
     }
@@ -382,66 +394,77 @@ export class NodePackageManager implements PackageManager {
     if (resolved && path.isAbsolute(resolved.resolved)) {
       let cached = invalidationsCache.get(resolved.resolved);
       if (cached != null) {
-        // return cached;
+        return cached;
       }
 
-      let invalidations = this.resolver.getInvalidations(resolved.resolved);
       let res = {
-        invalidateOnFileChange: new Set([
-          ...invalidations.invalidateOnFileChange,
-          ...resolved.invalidateOnFileChange,
-          resolved.resolved,
-        ]),
-        invalidateOnFileCreate: [
-          ...invalidations.invalidateOnFileCreate,
-          ...resolved.invalidateOnFileCreate,
-        ],
-        invalidateOnStartup:
-          invalidations.invalidateOnStartup && resolved.type === 2,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: new Set(),
+        invalidateOnStartup: false,
       };
+
+      let seen = new Set();
+      let addKey = (name, from) => {
+        let basedir = path.dirname(from);
+        let key = basedir + ':' + name;
+        if (seen.has(key)) {
+          return;
+        }
+
+        seen.add(key);
+        let resolved = cache.get(key);
+        if (!resolved || !path.isAbsolute(resolved.resolved)) {
+          return;
+        }
+
+        res.invalidateOnFileCreate.push(...resolved.invalidateOnFileCreate);
+        res.invalidateOnFileChange.add(resolved.resolved);
+
+        for (let file of resolved.invalidateOnFileChange) {
+          res.invalidateOnFileChange.add(file);
+        }
+
+        let moduleChildren = children.get(resolved.resolved);
+        if (moduleChildren) {
+          for (let specifier of moduleChildren) {
+            addKey(specifier, resolved.resolved);
+          }
+        }
+      };
+
+      addKey(name, from);
+
+      // If this is an ES module, we won't have any of the dependencies because import statements
+      // cannot be intercepted. Instead, ask the resolver to parse the file and recursively analyze the deps.
+      if (resolved.type === 2) {
+        let invalidations = this.resolver.getInvalidations(resolved.resolved);
+        invalidations.invalidateOnFileChange.forEach(i =>
+          res.invalidateOnFileChange.add(i),
+        );
+        invalidations.invalidateOnFileCreate.forEach(i =>
+          res.invalidateOnFileCreate.push(i),
+        );
+        res.invalidateOnStartup ||= invalidations.invalidateOnStartup;
+        if (res.invalidateOnStartup) {
+          logger.warn({
+            message: md`${path.relative(
+              this.projectRoot,
+              resolved.resolved,
+            )} contains non-statically analyzable dependencies in its module graph. This causes Parcel to invalidate the cache on startup.`,
+            origin: '@parcel/package-manager',
+          });
+        }
+      }
 
       invalidationsCache.set(resolved.resolved, res);
       return res;
     }
 
-    let res = {
+    return {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
       invalidateOnStartup: false,
     };
-
-    // let seen = new Set();
-    // let addKey = (name, from) => {
-    //   let basedir = path.dirname(from);
-    //   let key = basedir + ':' + name;
-    //   if (seen.has(key)) {
-    //     return;
-    //   }
-
-    //   seen.add(key);
-    //   let resolved = cache.get(key);
-    //   if (!resolved || !path.isAbsolute(resolved.resolved)) {
-    //     return;
-    //   }
-
-    //   res.invalidateOnFileCreate.push(...resolved.invalidateOnFileCreate);
-    //   res.invalidateOnFileChange.add(resolved.resolved);
-
-    //   for (let file of resolved.invalidateOnFileChange) {
-    //     res.invalidateOnFileChange.add(file);
-    //   }
-
-    //   let moduleChildren = children.get(resolved.resolved);
-    //   if (moduleChildren) {
-    //     for (let specifier of moduleChildren) {
-    //       addKey(specifier, resolved.resolved);
-    //     }
-    //   }
-    // };
-
-    // addKey(name, from);
-    // this.invalidationsCache.set(key, res);
-    return res;
   }
 
   invalidate(name: DependencySpecifier, from: FilePath) {

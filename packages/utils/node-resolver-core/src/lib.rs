@@ -10,7 +10,7 @@ use std::{
 
 use parcel_resolver::{
   ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules,
-  Invalidations, OsFileSystem, Resolution, ResolverError, SpecifierType,
+  Invalidations, ModuleType, OsFileSystem, Resolution, ResolverError, SpecifierType,
 };
 
 #[napi(object)]
@@ -378,8 +378,12 @@ impl Resolver {
   #[napi]
   pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidations> {
     let path = Path::new(&path);
-    match parcel_dev_dep_resolver::build_esm_graph(path, &self.resolver, &self.invalidations_cache)
-    {
+    match parcel_dev_dep_resolver::build_esm_graph(
+      path,
+      &self.resolver.project_root,
+      &self.resolver.cache,
+      &self.invalidations_cache,
+    ) {
       Ok(invalidations) => {
         let invalidate_on_startup = invalidations.invalidate_on_startup.load(Ordering::Relaxed);
         let (invalidate_on_file_change, invalidate_on_file_create) =
@@ -414,15 +418,11 @@ fn convert_invalidations(
 ) {
   let invalidate_on_file_change = invalidations
     .invalidate_on_file_change
-    .into_inner()
-    .unwrap()
     .into_iter()
     .map(|p| p.to_string_lossy().into_owned())
     .collect();
   let invalidate_on_file_create = invalidations
     .invalidate_on_file_create
-    .into_inner()
-    .unwrap()
     .into_iter()
     .map(|i| match i {
       FileCreateInvalidation::Path(p) => napi::Either::A(FilePathCreateInvalidation {

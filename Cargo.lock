@@ -1316,7 +1316,7 @@ version = "0.1.0"
 dependencies = [
  "dashmap",
  "es-module-lexer",
- "glob-match",
+ "glob",
  "memmap",
  "parcel-resolver",
  "rayon",
