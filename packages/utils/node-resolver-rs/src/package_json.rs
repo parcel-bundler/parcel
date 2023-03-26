@@ -262,6 +262,23 @@ impl<'a> PackageJson<'a> {
     };
   }
 
+  pub fn source(&self) -> Option<PathBuf> {
+    match &self.source {
+      SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => None,
+      SourceField::String(source) => Some(resolve_path(&self.path, source)),
+      SourceField::Map(map) => match map.get(&Specifier::Package(
+        Cow::Borrowed(self.name),
+        Cow::Borrowed(""),
+      )) {
+        Some(AliasValue::Specifier(s)) => match s {
+          Specifier::Relative(s) => Some(resolve_path(&self.path, s)),
+          _ => None,
+        },
+        _ => None,
+      },
+    }
+  }
+
   pub fn has_exports(&self) -> bool {
     self.exports != ExportsField::None
   }
@@ -765,21 +782,8 @@ impl<'a> Iterator for EntryIter<'a> {
   fn next(&mut self) -> Option<Self::Item> {
     if self.fields.contains(Fields::SOURCE) {
       self.fields.remove(Fields::SOURCE);
-      match &self.package.source {
-        SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => {}
-        SourceField::String(source) => {
-          return Some((resolve_path(&self.package.path, source), "source"))
-        }
-        SourceField::Map(map) => match map.get(&Specifier::Package(
-          Cow::Borrowed(self.package.name),
-          Cow::Borrowed(""),
-        )) {
-          Some(AliasValue::Specifier(s)) => match s {
-            Specifier::Relative(s) => return Some((resolve_path(&self.package.path, s), "source")),
-            _ => {}
-          },
-          _ => {}
-        },
+      if let Some(source) = self.package.source() {
+        return Some((source, "source"));
       }
     }
 

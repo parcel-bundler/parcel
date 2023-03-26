@@ -643,6 +643,15 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       Err(err) => return Err(err),
     };
 
+    // Try the "source" field first, if present.
+    if self.resolver.entries.contains(Fields::SOURCE) && subpath.is_empty() {
+      if let Some(source) = package.source() {
+        if let Some(res) = self.load_path(&source, Some(package))? {
+          return Ok(res);
+        }
+      }
+    }
+
     // If the exports field is present, use the Node ESM algorithm.
     // Otherwise, fall back to classic CJS resolution.
     if self.resolver.flags.contains(Flags::EXPORTS) && package.has_exports() {
