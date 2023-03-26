@@ -26,7 +26,6 @@
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
     "@parcel/cache": "2.8.3",
-    "@parcel/config-default": "2.8.3",
     "@parcel/diagnostic": "2.8.3",
     "@parcel/events": "2.8.3",
     "@parcel/fs": "2.8.3",
@@ -51,6 +50,7 @@
     "semver": "^5.7.1"
   },
   "devDependencies": {
+    "@parcel/config-default": "2.8.3",
     "@parcel/test-utils": "2.8.3",
     "graphviz": "^0.0.9",
     "sinon": "^7.3.1",
