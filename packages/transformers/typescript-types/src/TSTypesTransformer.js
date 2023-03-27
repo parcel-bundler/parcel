@@ -76,14 +76,31 @@ export default (new Transformer({
       .getPreEmitDiagnostics(program)
       .concat(emitResult.diagnostics);
 
-    let parcelDiagnostics = diagnostics.map(diagnostic => {
+    let diagnosticIds = new Set();
+    let deduplicatedDiagnostics = [];
+    for (let d of diagnostics) {
+      if (d.start != null && d.length != null && d.messageText != null) {
+        let id = `${d.start}:${d.length}:${ts.flattenDiagnosticMessageText(
+          d.messageText,
+          '\n',
+        )}`;
+        if (!diagnosticIds.has(id)) {
+          deduplicatedDiagnostics.push(d);
+        }
+        diagnosticIds.add(id);
+      } else {
+        deduplicatedDiagnostics.push(d);
+      }
+    }
+
+    let parcelDiagnostics = deduplicatedDiagnostics.map(diagnostic => {
       let filename = asset.filePath;
       let {file} = diagnostic;
 
-      let diagnosticMessage =
-        typeof diagnostic.messageText === 'string'
-          ? diagnostic.messageText
-          : diagnostic.messageText.messageText;
+      let diagnosticMessage = ts.flattenDiagnosticMessageText(
+        diagnostic.messageText,
+        '\n',
+      );
 
       let codeframe: ?DiagnosticCodeFrame;
       if (file != null && diagnostic.start != null) {
