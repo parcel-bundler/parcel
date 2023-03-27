@@ -189,8 +189,8 @@ export default class PublicConfig implements IConfig {
         searchPath,
       );
 
-      // $FlowFixMe
       if (
+        // $FlowFixMe
         Object.prototype.toString.call(config) === '[object Module]' &&
         config.default != null
       ) {
