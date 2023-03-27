@@ -214,6 +214,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               let global_mark = Mark::fresh(Mark::root());
               let unresolved_mark = Mark::fresh(Mark::root());
               let module = module.fold_with(&mut chain!(
+                resolver(unresolved_mark, global_mark, config.is_type_script),
                 // Decorators can use type information, so must run before the TypeScript pass.
                 Optional::new(
                   decorators::decorators(decorators::Config {
@@ -242,7 +243,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   typescript::strip(global_mark),
                   config.is_type_script && !config.is_jsx
                 ),
-                resolver(unresolved_mark, global_mark, config.is_type_script),
               ));
 
               // If it's a script, convert into module. This needs to happen after
