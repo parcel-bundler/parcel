@@ -262,6 +262,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   Some(&comments),
                   react_options,
                   global_mark,
+                  unresolved_mark,
                 ),
                 config.is_jsx,
               ));
