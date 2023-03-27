@@ -1,0 +1,1 @@
+module.exports = 'something\x0000'

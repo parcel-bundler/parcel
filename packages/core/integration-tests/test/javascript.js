@@ -7410,4 +7410,12 @@ describe('javascript', function () {
       assert.equal(res.output, 123);
     });
   }
+
+  it('support strings containing a null byte', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-encoding/index.js'),
+    );
+    let res = await run(b, null);
+    assert.equal(res, 'something\x0000');
+  });
 });
