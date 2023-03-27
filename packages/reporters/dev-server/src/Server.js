@@ -18,7 +18,8 @@ import url from 'url';
 import {
   ansiHtml,
   createHTTPServer,
-  loadConfig,
+  resolveConfig,
+  readConfig,
   prettyDiagnostic,
   relativePath,
 } from '@parcel/utils';
@@ -383,21 +384,32 @@ export default class Server {
     // avoid skipping project root
     const fileInRoot: string = path.join(this.options.projectRoot, '_');
 
-    const pkg = await loadConfig(
+    const configFilePath = await resolveConfig(
       this.options.inputFS,
       fileInRoot,
-      ['.proxyrc.cjs', '.proxyrc.js', '.proxyrc', '.proxyrc.json'],
+      [
+        '.proxyrc.cjs',
+        '.proxyrc.mjs',
+        '.proxyrc.js',
+        '.proxyrc',
+        '.proxyrc.json',
+      ],
       this.options.projectRoot,
     );
 
-    if (!pkg || !pkg.config || !pkg.files) {
+    if (!configFilePath) {
       return this;
     }
 
-    const cfg = pkg.config;
-    const filename = path.basename(pkg.files[0].filePath);
+    const filename = path.basename(configFilePath);
 
-    if (filename === '.proxyrc.js' || filename === '.proxyrc.cjs') {
+    if (
+      filename === '.proxyrc.js' ||
+      filename === '.proxyrc.cjs' ||
+      filename === '.proxyrc.mjs'
+    ) {
+      // $FlowFixMe
+      let cfg = (await import(configFilePath)).default;
       if (typeof cfg !== 'function') {
         this.options.logger.warn({
           message: `Proxy configuration file '${filename}' should export a function. Skipping...`,
@@ -406,6 +418,11 @@ export default class Server {
       }
       cfg(app);
     } else if (filename === '.proxyrc' || filename === '.proxyrc.json') {
+      let conf = await readConfig(this.options.inputFS, configFilePath);
+      if (!conf) {
+        return this;
+      }
+      let cfg = conf.config;
       if (typeof cfg !== 'object') {
         this.options.logger.warn({
           message:

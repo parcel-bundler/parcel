@@ -3772,6 +3772,7 @@ describe('cache', function () {
             },
             async setup() {
               await overlayFS.mkdirp(path.join(inputDir, 'include2'));
+              await overlayFS.rimraf(path.join(inputDir, '.sassrc.js'));
               await overlayFS.writeFile(
                 path.join(inputDir, 'include2/style.sass'),
                 `.test
@@ -4504,6 +4505,120 @@ describe('cache', function () {
           },
           'postcss-js-config-7',
         );
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('background-color: green'));
+      });
+
+      it('should invalidate when a JS postcss config dependency changes', async function () {
+        let b = await testCache(
+          {
+            entries: ['index.css'],
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.mkdirp(path.join(inputDir, 'node_modules'));
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/postcss-autoinstall/npm'),
+                inputDir,
+              );
+              await inputFS.ncp(
+                path.join(
+                  path.join(
+                    __dirname,
+                    'integration',
+                    'postcss-autoinstall',
+                    'postcss-test',
+                  ),
+                ),
+                path.join(inputDir, 'node_modules', 'postcss-test'),
+              );
+
+              await inputFS.rimraf(path.join(inputDir, '.postcssrc'));
+              let config = path.join(inputDir, 'postcss.config.js');
+              await inputFS.writeFile(
+                config,
+                'module.exports = { plugins: [require("postcss-test")] };',
+              );
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('background: green'));
+
+              let plugin = path.join(
+                inputDir,
+                'node_modules',
+                'postcss-test',
+                'index.js',
+              );
+              let pluginContents = await inputFS.readFile(plugin, 'utf8');
+              await inputFS.writeFile(
+                plugin,
+                pluginContents.replace('green', 'red'),
+              );
+
+              await sleep(100);
+            },
+          },
+          'postcss-autoinstall/npm',
+        );
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('background: red'));
+      });
+
+      it('should invalidate when an ESM postcss config changes', async function () {
+        // We cannot invalidate an ESM module in node, so for the test, create a separate worker farm.
+        let workerFarm = createWorkerFarm({
+          maxConcurrentWorkers: 1,
+          useLocalWorker: false,
+        });
+
+        let b;
+        try {
+          b = await testCache(
+            {
+              entries: ['style.css'],
+              inputFS,
+              outputFS: inputFS,
+              async setup() {
+                await inputFS.mkdirp(inputDir);
+                await inputFS.ncp(
+                  path.join(__dirname, '/integration/postcss-esm-config'),
+                  inputDir,
+                );
+              },
+              async update(b) {
+                let output = await inputFS.readFile(
+                  b.bundleGraph.getBundles()[0].filePath,
+                  'utf8',
+                );
+                assert(output.includes('background-color: red;'));
+
+                let config = path.join(inputDir, 'postcss.config.mjs');
+                let configContents = await inputFS.readFile(config, 'utf8');
+                await inputFS.writeFile(
+                  config,
+                  configContents.replace('red', 'green'),
+                );
+                await sleep(100);
+                return {workerFarm};
+              },
+            },
+            'postcss-esm-config',
+          );
+        } finally {
+          await workerFarm.end();
+        }
 
         let output = await inputFS.readFile(
           b.bundleGraph.getBundles()[0].filePath,

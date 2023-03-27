@@ -172,12 +172,15 @@ export class NodePackageManager implements PackageManager {
     };
 
     // Patch `fs.readFileSync` temporarily so that it goes through our file system
-    let readFileSync = nativeFS.readFileSync;
+    let {readFileSync, statSync} = nativeFS;
     // $FlowFixMe
     nativeFS.readFileSync = (filename, encoding) => {
-      // $FlowFixMe
-      nativeFS.readFileSync = readFileSync;
       return this.fs.readFileSync(filename, encoding);
+    };
+
+    // $FlowFixMe
+    nativeFS.statSync = filename => {
+      return this.fs.statSync(filename);
     };
 
     try {
@@ -186,6 +189,11 @@ export class NodePackageManager implements PackageManager {
       // $FlowFixMe[prop-missing]
       delete Module._cache[filePath];
       throw err;
+    } finally {
+      // $FlowFixMe
+      nativeFS.readFileSync = readFileSync;
+      // $FlowFixMe
+      nativeFS.statSync = statSync;
     }
 
     return m.exports;
