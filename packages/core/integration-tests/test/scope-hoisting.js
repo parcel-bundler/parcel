@@ -4183,6 +4183,21 @@ describe('scope hoisting', function () {
       assert.deepEqual(await run(b), 4);
     });
 
+    it('supports mutations of the cjs exports by the importer from a mixed module', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/mutated-exports-mixed-module/index.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), [
+        'CJS mutated',
+        'ESM',
+        {cjs: 'CJS mutated', esm: 'ESM'},
+      ]);
+    });
+
     it.skip('supports require.resolve calls for excluded modules', async function () {
       let b = await bundle(
         path.join(
