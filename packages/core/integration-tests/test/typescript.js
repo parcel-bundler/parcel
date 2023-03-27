@@ -1,6 +1,8 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
 import url from 'url';
+import nullthrows from 'nullthrows';
 import {
   bundle,
   run,
@@ -17,12 +19,12 @@ const tscConfig = path.join(
 describe('typescript', function () {
   // This tests both the SWC transformer implementation of typescript (which
   // powers typescript by default in Parcel) as well as through the Typescript
-  // tsc transformer. Use a null config to indicate the default config, and the
+  // tsc transformer. Use a `undefined` config to indicate the default config, and the
   // tsc config to use the tsc transformer instead.
   //
   // If testing details specific to either implementation, create another suite.
   for (let config of [
-    null /* default config -- testing SWC typescript */,
+    undefined /* default config -- testing SWC typescript */,
     tscConfig,
   ]) {
     it('should produce a ts bundle using ES6 imports', async function () {
@@ -114,7 +116,7 @@ describe('typescript', function () {
       assert(/http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.getRaw()));
       assert(
         await outputFS.exists(
-          path.join(distDir, url.parse(output.getRaw()).pathname),
+          path.join(distDir, nullthrows(url.parse(output.getRaw()).pathname)),
         ),
       );
     });
@@ -232,6 +234,25 @@ describe('typescript', function () {
           a: 'X',
           c: 'Y',
         },
+      });
+    });
+
+    it('should handle simultaneous import type and reexport correctly', async function () {
+      if (config != null) {
+        return;
+      }
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/typescript-import-type-reexport/index.ts',
+        ),
+        {config},
+      );
+
+      let output = await run(b);
+
+      assert.deepEqual(output, {
+        Bar: 123,
       });
     });
   }
