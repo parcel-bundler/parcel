@@ -24,9 +24,12 @@ export const b = 2;
 
 Instead, there are two passes:
 
-- in the first ("down") pass, the incoming used symbols are matched to the correct reexport (if there is one), or to _all_ `export *`. So after this pass, the symbol will be marked as used in too many dependencies.
+- in the first ("down") pass, the incoming used symbols are matched to the correct reexport (if there is one), or to _all_ `export *`. So after this pass, the symbol will be marked as used in all potentially relevant dependencies (one of which will be the correct one).
 
-- in the second ("up") pass, the set of requested symbols (from the down pass) is intersected with the set of actual exports and copied back from the outgoing dependencies to the incoming dependencies. The detection of invalid imports ("x does not export y") also happens in this step.
+- in the second ("up") pass, the set of requested symbols (from the down pass) is intersected with the set of actual exports and copied back from the outgoing dependencies to the incoming dependencies. There are multiple cases that can occur:
+  - There is exactly one dependency that can provide the export.
+  - There is no dependency that can provide the export, which leads to a ["x does not export y" error](https://github.com/parcel-bundler/parcel/blob/f65889ebd768e9b2e146537b47d4d5d82ff177b8/packages/core/core/src/requests/AssetGraphRequest.js#L754-L776).
+  - (For `export *`:) There are multiple dependencies that can provide the export. This can happen with valid ESM (and the first value will be used), or with non-statically analyzable CJS modules where we have to determine at runtime which value to use. [There's a verbose warning in this case](https://github.com/parcel-bundler/parcel/blob/f65889ebd768e9b2e146537b47d4d5d82ff177b8/packages/core/core/src/requests/AssetGraphRequest.js#L560-L569).
 
 <table>
 <tr><th>Data Flow in Down Traversal</th><th>Data Flow in Up Traversal</th></tr>
@@ -122,9 +125,9 @@ export {a as b} from './index.js';
 
 This traversal logic is abstracted away into the `propagateSymbolsDown` and `propagateSymbolsUp` methods in [AssetGraphRequest.js](../packages/core/core/src/requests/AssetGraphRequest.js), while the visitor function that handles the actual symbol data is passed as a visitor callback.
 
-The down pass (`propagateSymbolsDown(...)`) performs a queue-based BFS which will continue re-traversing parts of the graph if they are marked dirty (the flags are described in the next sections).
+The down pass (`propagateSymbolsDown(...)`) performs a queue-based BFS which will continue re-traversing parts of the graph if they are marked dirty (the flags are described in the next sections). The traversal starts with the changed assets and asset groups that had incoming edges removed (which can lead to less used symbols).
 
-The up pass (`propagateSymbolsUp(...)`) is a post-order recursive DFS. Any dependencies that are still dirty after the main traversal are then traversed again until nothing is marked dirty anymore.
+The up pass (`propagateSymbolsUp(...)`) is a post-order recursive DFS if more than half of all assets changed, or a queue-based "reverse" BFS (which covers both incremental updates and circular imports by traversing until nothing is marked dirty anymore).
 
 Another result of having to handle circular imports is error handling. Error cannot be thrown immediately when a missing reexport is encountered, as this situation also occurs when walking dependency cycles (and continuing just a bit longer might cause an outgoing dependency to get updated with the export that was previously missing):
 
@@ -171,6 +174,18 @@ If some incoming dependency was changed by these steps, it's marked as dirty:
 
 - `dep.usedSymbolsUpDirtyUp = true` so that the asset which has `dep` as an outgoing dependency will be revisited.
 
+## [Storing dependency resolution in the used symbols](https://github.com/parcel-bundler/parcel/pull/8432)
+
+For better codesplitting and to hide the fact that symbol propagation runs on the whole project and not per bundle, dependencies are split to have one symbol per dependency and then retargeted to the asset that this symbol is originally exported from.
+
+To compute this information of where a symbol resolves to, the up traversal doesn't work with sets of symbols anymore but with a [map that lists the symbols together with the asset that symbol resolves to](https://github.com/parcel-bundler/parcel/blob/f65889ebd768e9b2e146537b47d4d5d82ff177b8/packages/core/core/src/types.js#L324-L333). The rules are:
+
+- if a symbol is exported directly (not reexported), then this is stored as the map entry value.
+- if a symbol is reexported and the reexporting asset is side-effect free and the symbol unambigously resolves to a single reexport, then the map entry value is just copied over from the outgoing dependency (and still points to the original asset).
+- otherwise if a symbol is reexported, then the map entry value is instead the reexporting asset (which will lead to a correct lookup at runtime, as described [above](#two-passes)).
+
+The rewriting of dependencies then happens in [`BundleGraph.fromAssetGraph`.](https://github.com/parcel-bundler/parcel/blob/6211c79f30e8fe2a1e079339277f11dba4acab2c/packages/core/core/src/BundleGraph.js#L210-L226)
+
 ## (Optional side note: Data Flow Analysis)
 
-In the big picture, there are some parallels here with [Data-flow analysis](https://en.wikipedia.org/wiki/Data-flow_analysis) (which powers unused variable detection or hoisting of common sub-expressions in compilers): a graph is traversed (and parts are revisited) and some local operation is performed for the current node until the node values stabilize (a fix point is reached).
+In the big picture, there are some parallels here with [data-flow analysis](https://en.wikipedia.org/wiki/Data-flow_analysis) (which powers unused variable detection or hoisting of common sub-expressions in compilers): a graph is traversed (and parts are revisited) and some local operation is performed for the current node until the node values stabilize (a fixpoint is reached).
