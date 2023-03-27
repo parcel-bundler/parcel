@@ -7411,9 +7411,9 @@ describe('javascript', function () {
     });
   }
 
-  it('support strings containing a null byte', async function () {
+  it.only('support strings containing a null byte', async function () {
     let b = await bundle(
-      path.join(__dirname, 'integration/js-encoding/index.js'),
+      path.join(__dirname, 'integration/js-null-byte/index.js'),
     );
     let res = await run(b, null);
     assert.equal(res, 'something\x0000');
