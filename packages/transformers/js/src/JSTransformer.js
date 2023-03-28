@@ -141,6 +141,8 @@ type TSConfig = {
     experimentalDecorators?: boolean,
     // https://www.typescriptlang.org/tsconfig#useDefineForClassFields
     useDefineForClassFields?: boolean,
+    // https://www.typescriptlang.org/tsconfig#target
+    target?: string, // 'es3' | 'es5' | 'es6' | 'es2015' | ...  |'es2022' | ... | 'esnext'
     ...
   },
   ...
@@ -236,6 +238,18 @@ export default (new Transformer({
       isJSX = Boolean(compilerOptions?.jsx || pragma);
       decorators = compilerOptions?.experimentalDecorators;
       useDefineForClassFields = compilerOptions?.useDefineForClassFields;
+      if (
+        useDefineForClassFields === undefined &&
+        compilerOptions?.target != null
+      ) {
+        // Default useDefineForClassFields to true if target is ES2022 or higher (including ESNext)
+        let target = compilerOptions.target.slice(2);
+        if (target === 'next') {
+          useDefineForClassFields = true;
+        } else {
+          useDefineForClassFields = Number(target) >= 2022;
+        }
+      }
     }
 
     // Check if we should ignore fs calls

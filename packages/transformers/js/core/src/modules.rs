@@ -189,7 +189,7 @@ impl ESMFold {
           })
         } else {
           Expr::Arrow(ArrowExpr {
-            body: BlockStmtOrExpr::Expr(Box::new(local)),
+            body: Box::new(BlockStmtOrExpr::Expr(Box::new(local))),
             is_async: false,
             is_generator: false,
             params: vec![],

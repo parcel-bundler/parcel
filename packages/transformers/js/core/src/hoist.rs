@@ -534,7 +534,7 @@ impl<'a> Fold for Hoist<'a> {
         return Expr::OptChain(OptChainExpr {
           span: opt.span,
           question_dot_token: opt.question_dot_token,
-          base: match opt.base {
+          base: Box::new(match *opt.base {
             OptChainBase::Call(call) => OptChainBase::Call(call.fold_with(self)),
             OptChainBase::Member(member) => {
               if match_property_name(&member).is_some() {
@@ -548,7 +548,7 @@ impl<'a> Fold for Hoist<'a> {
                 OptChainBase::Member(member.fold_children_with(self))
               }
             }
-          },
+          }),
         });
       }
       Expr::Member(member) => {
