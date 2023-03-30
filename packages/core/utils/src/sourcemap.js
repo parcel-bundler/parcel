@@ -115,6 +115,9 @@ export function remapSourceLocation(
       endCol = startCol;
     } else if (endLine === startLine && endCol < startCol && lineDiff === 0) {
       endCol = startCol + colDiff;
+    } else if (endLine === startLine && startCol === endCol && lineDiff === 0) {
+      // Prevent 0-length ranges
+      endCol = startCol + 1;
     }
   } else {
     endLine = startLine;
