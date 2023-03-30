@@ -16,7 +16,6 @@ import {relativeUrl} from '@parcel/utils';
 import {remapAstLocations} from './remapAstLocations';
 
 import packageJson from '../package.json';
-import path from 'path';
 
 const transformerVersion: mixed = packageJson.version;
 invariant(typeof transformerVersion === 'string');

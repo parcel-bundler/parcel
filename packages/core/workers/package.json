@@ -23,6 +23,7 @@
   "dependencies": {
     "@parcel/diagnostic": "2.8.3",
     "@parcel/logger": "2.8.3",
+    "@parcel/profiler": "2.8.3",
     "@parcel/types": "2.8.3",
     "@parcel/utils": "2.8.3",
     "nullthrows": "^1.1.1"
