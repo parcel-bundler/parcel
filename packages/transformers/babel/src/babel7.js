@@ -5,10 +5,13 @@ import type {
   AST,
   PluginOptions,
   PluginApplicationProfiler,
+  PluginLogger,
 } from '@parcel/types';
 import typeof * as BabelCore from '@babel/core';
 
 import invariant from 'assert';
+import path from 'path';
+import {md} from '@parcel/diagnostic';
 import {relativeUrl} from '@parcel/utils';
 import {remapAstLocations} from './remapAstLocations';
 
@@ -21,6 +24,7 @@ invariant(typeof transformerVersion === 'string');
 type Babel7TransformOptions = {|
   asset: MutableAsset,
   options: PluginOptions,
+  logger: PluginLogger,
   babelOptions: any,
   additionalPlugins?: Array<any>,
   applicationProfiler: PluginApplicationProfiler,
@@ -115,6 +119,24 @@ export default async function babel7(
       let map = await asset.getMap();
       if (map) {
         remapAstLocations(babelCore.types, res.ast, map);
+      }
+    }
+    if (res.externalDependencies) {
+      for (let f of res.externalDependencies) {
+        if (!path.isAbsolute(f)) {
+          opts.logger.warn({
+            message: md`Ignoring non-absolute Babel external dependency: ${f}`,
+            hints: [
+              'Please report this to the corresponding Babel plugin and/or to Parcel.',
+            ],
+          });
+        } else {
+          if (await options.inputFS.exists(f)) {
+            asset.invalidateOnFileChange(f);
+          } else {
+            asset.invalidateOnFileCreate({filePath: f});
+          }
+        }
       }
     }
   }

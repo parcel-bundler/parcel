@@ -279,7 +279,7 @@ export default class Parcel {
 
       this.#requestedAssetIds.clear();
 
-      dumpGraphToGraphViz(
+      await dumpGraphToGraphViz(
         // $FlowFixMe
         this.#requestTracker.graph,
         'RequestGraph',
