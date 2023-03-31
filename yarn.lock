@@ -2073,9 +2073,9 @@
   integrity sha512-XrC0JzsqQSvOyM3t04FMLO6z5gCuhPE6k4FXuLK5xf52ZbdvcFe1yBmo7meCew9B8G2f0T9iu9t3kfTYRYROgA==
 
 "@napi-rs/cli@^2.14.8":
-  version "2.14.8"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.14.8.tgz#06cca37e149ba4ffb3c3a01617d0f104b27e11c0"
-  integrity sha512-IvA3s8BqohMdUbOkFn7+23u1dhIJZCkA8Xps7DD4SLdCMbcbUF6MUuKiqxuqmVHBFTaxU25sU56WdX3efqGgPw==
+  version "2.15.2"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.15.2.tgz#33547b25fcc1bc0dd52d1c7409694b3f62c01c16"
+  integrity sha512-80tBCtCnEhAmFtB9oPM0FL74uW7fAmtpeqjvERH7Q1z/aZzCAs/iNfE7U3ehpwg9Q07Ob2Eh/+1guyCdX/p24w==
 
 "@nodelib/fs.scandir@2.1.3":
   version "2.1.3"
