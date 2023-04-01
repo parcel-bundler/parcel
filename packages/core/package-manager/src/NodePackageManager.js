@@ -347,7 +347,7 @@ export class NodePackageManager implements PackageManager {
       }
 
       cache.set(key, resolved);
-      invalidationsCache.delete(key);
+      invalidationsCache.clear();
 
       // Add the specifier as a child to the parent module.
       // Don't do this if the specifier was an absolute path, as this was likely a dynamically resolved path
@@ -373,7 +373,7 @@ export class NodePackageManager implements PackageManager {
     if (!resolved) {
       resolved = this.resolveInternal(name, from);
       cache.set(key, resolved);
-      invalidationsCache.delete(key);
+      invalidationsCache.clear();
 
       if (!path.isAbsolute(name)) {
         let moduleChildren = children.get(from);
