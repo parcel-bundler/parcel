@@ -29,6 +29,7 @@ import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
 import pkg from '../package.json';
 import {ResolverBase} from '@parcel/node-resolver-core';
+import {pathToFileURL} from 'url';
 
 // Package.json fields. Must match package_json.rs.
 const MAIN = 1 << 0;
@@ -136,6 +137,11 @@ export class NodePackageManager implements PackageManager {
           },
         ],
       });
+
+      // On Windows, Node requires absolute paths to be file URLs.
+      if (process.platform === 'win32' && path.isAbsolute(resolved)) {
+        resolved = pathToFileURL(resolved);
+      }
 
       // $FlowFixMe
       return import(resolved);
