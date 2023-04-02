@@ -116,7 +116,10 @@ export default class ParcelConfig {
     };
   }
 
-  _loadPlugin<T>(node: ParcelPluginNode): Promise<{|
+  _loadPlugin<T>(
+    node: ParcelPluginNode,
+    pluginType: string,
+  ): Promise<{|
     plugin: T,
     version: Semver,
     resolveFrom: ProjectPath,
@@ -129,6 +132,7 @@ export default class ParcelConfig {
 
     plugin = loadPlugin<T>(
       node.packageName,
+      pluginType,
       fromProjectPath(this.options.projectRoot, node.resolveFrom),
       node.keyPath,
       this.options,
@@ -138,8 +142,11 @@ export default class ParcelConfig {
     return plugin;
   }
 
-  async loadPlugin<T>(node: ParcelPluginNode): Promise<LoadedPlugin<T>> {
-    let plugin = await this._loadPlugin(node);
+  async loadPlugin<T>(
+    node: ParcelPluginNode,
+    pluginType: string,
+  ): Promise<LoadedPlugin<T>> {
+    let plugin = await this._loadPlugin(node, pluginType);
     return {
       ...plugin,
       name: node.packageName,
@@ -153,8 +160,9 @@ export default class ParcelConfig {
 
   loadPlugins<T>(
     plugins: PureParcelConfigPipeline,
+    pluginType: string,
   ): Promise<Array<LoadedPlugin<T>>> {
-    return Promise.all(plugins.map(p => this.loadPlugin<T>(p)));
+    return Promise.all(plugins.map(p => this.loadPlugin<T>(p, pluginType)));
   }
 
   async getResolvers(): Promise<Array<LoadedPlugin<Resolver<mixed>>>> {
@@ -166,7 +174,7 @@ export default class ParcelConfig {
       );
     }
 
-    return this.loadPlugins<Resolver<mixed>>(this.resolvers);
+    return this.loadPlugins<Resolver<mixed>>(this.resolvers, 'resolver');
   }
 
   _getValidatorNodes(filePath: ProjectPath): $ReadOnlyArray<ParcelPluginNode> {
@@ -186,7 +194,7 @@ export default class ParcelConfig {
     filePath: ProjectPath,
   ): Promise<Array<LoadedPlugin<Validator>>> {
     let validators = this._getValidatorNodes(filePath);
-    return this.loadPlugins<Validator>(validators);
+    return this.loadPlugins<Validator>(validators, 'validator');
   }
 
   getNamedPipelines(): $ReadOnlyArray<string> {
@@ -216,7 +224,7 @@ export default class ParcelConfig {
       );
     }
 
-    return this.loadPlugins<Transformer<mixed>>(transformers);
+    return this.loadPlugins<Transformer<mixed>>(transformers, 'transformer');
   }
 
   async getBundler(): Promise<LoadedPlugin<Bundler<mixed>>> {
@@ -228,7 +236,7 @@ export default class ParcelConfig {
       );
     }
 
-    return this.loadPlugin<Bundler<mixed>>(this.bundler);
+    return this.loadPlugin<Bundler<mixed>>(this.bundler, 'bundler');
   }
 
   async getNamers(): Promise<Array<LoadedPlugin<Namer<mixed>>>> {
@@ -240,7 +248,7 @@ export default class ParcelConfig {
       );
     }
 
-    return this.loadPlugins<Namer<mixed>>(this.namers);
+    return this.loadPlugins<Namer<mixed>>(this.namers, 'namer');
   }
 
   getRuntimes(): Promise<Array<LoadedPlugin<Runtime<mixed>>>> {
@@ -248,7 +256,7 @@ export default class ParcelConfig {
       return Promise.resolve([]);
     }
 
-    return this.loadPlugins<Runtime<mixed>>(this.runtimes);
+    return this.loadPlugins<Runtime<mixed>>(this.runtimes, 'runtime');
   }
 
   async getPackager(
@@ -265,7 +273,7 @@ export default class ParcelConfig {
         '/packagers',
       );
     }
-    return this.loadPlugin<Packager<mixed, mixed>>(packager);
+    return this.loadPlugin<Packager<mixed, mixed>>(packager, 'packager');
   }
 
   _getOptimizerNodes(
@@ -304,7 +312,7 @@ export default class ParcelConfig {
       return Promise.resolve([]);
     }
 
-    return this.loadPlugins<Optimizer<mixed, mixed>>(optimizers);
+    return this.loadPlugins<Optimizer<mixed, mixed>>(optimizers, 'optimizer');
   }
 
   async getCompressors(
@@ -324,11 +332,11 @@ export default class ParcelConfig {
       );
     }
 
-    return this.loadPlugins<Compressor>(compressors);
+    return this.loadPlugins<Compressor>(compressors, 'compressor');
   }
 
   getReporters(): Promise<Array<LoadedPlugin<Reporter>>> {
-    return this.loadPlugins<Reporter>(this.reporters);
+    return this.loadPlugins<Reporter>(this.reporters, 'reporter');
   }
 
   isGlobMatch(

@@ -17,12 +17,14 @@ import {
 } from '@parcel/utils';
 import {type ProjectPath, toProjectPath} from './projectPath';
 import {version as PARCEL_VERSION} from '../package.json';
+import {validatePackageName} from './ParcelConfig.schema';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const CONFIG = Symbol.for('parcel-plugin-config');
 
 export default async function loadPlugin<T>(
   pluginName: PackageName,
+  pluginType: string,
   configPath: FilePath,
   keyPath?: string,
   options: ParcelOptions,
@@ -35,6 +37,33 @@ export default async function loadPlugin<T>(
   let resolveFrom = configPath;
   let range;
   if (resolveFrom.includes(NODE_MODULES)) {
+    // Config packages can reference plugins, but cannot contain other plugins within them.
+    // This forces every published plugin to be published separately so they can be mixed and matched if needed.
+    if (pluginName.startsWith('.')) {
+      let configContents = await options.inputFS.readFile(configPath, 'utf8');
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: md`Local plugins are not supported in Parcel config packages. Please publish "${pluginName}" as a separate npm package.`,
+          origin: '@parcel/core',
+          codeFrames: keyPath
+            ? [
+                {
+                  filePath: configPath,
+                  language: 'json5',
+                  code: configContents,
+                  codeHighlights: generateJSONCodeHighlights(configContents, [
+                    {
+                      key: keyPath,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ]
+            : undefined,
+        },
+      });
+    }
+
     let configPkg = await loadConfig(
       options.inputFS,
       resolveFrom,
@@ -136,6 +165,76 @@ export default async function loadPlugin<T>(
           : undefined,
       },
     });
+  }
+
+  if (pluginName.startsWith('.')) {
+    // Make sure local plugins are still folders containing a valid package.json file.
+    let expectedPkgPath = path.resolve(
+      path.dirname(resolveFrom),
+      pluginName,
+      'package.json',
+    );
+    if (!pkg || pkg.filePath !== expectedPkgPath) {
+      let configContents = await options.inputFS.readFile(configPath, 'utf8');
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: md`Local Parcel plugin "${pluginName}" exists, but does not contain a package.json.`,
+          origin: '@parcel/core',
+          codeFrames: keyPath
+            ? [
+                {
+                  filePath: configPath,
+                  language: 'json5',
+                  code: configContents,
+                  codeHighlights: generateJSONCodeHighlights(configContents, [
+                    {
+                      key: keyPath,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ]
+            : undefined,
+          hints: [
+            md`Create "${path.relative(process.cwd(), expectedPkgPath)}"`,
+          ],
+          documentationURL:
+            'https://parceljs.org/features/plugins/#local-plugins',
+        },
+      });
+    }
+
+    // We need to validate the package name after we resolved it in the case of local plugins.
+    // The config may point to a local folder with no naming requirement, but the package name
+    // in the actual package.json file in this folder must be correct.
+    try {
+      validatePackageName(pkg.name, pluginType, '');
+    } catch (err) {
+      let pkgContents = await options.inputFS.readFile(pkg.filePath, 'utf8');
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: err.message,
+          origin: '@parcel/core',
+          codeFrames: keyPath
+            ? [
+                {
+                  filePath: pkg.filePath,
+                  language: 'json',
+                  code: pkgContents,
+                  codeHighlights: generateJSONCodeHighlights(pkgContents, [
+                    {
+                      key: '/name',
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ]
+            : undefined,
+          documentationURL:
+            'https://parceljs.org/plugin-system/authoring-plugins/#naming',
+        },
+      });
+    }
   }
 
   // Validate the engines.parcel field in the plugin's package.json

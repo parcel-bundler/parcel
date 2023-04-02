@@ -1,0 +1,7 @@
+{
+  "name": "parcel-transformer-local",
+  "version": "1.0.0",
+  "engines": {
+    "parcel": "2.x"
+  }
+}

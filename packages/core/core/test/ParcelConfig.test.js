@@ -148,11 +148,14 @@ describe('ParcelConfig', () => {
       );
 
       let warnStub = sinon.stub(logger, 'warn');
-      let {plugin} = await config.loadPlugin({
-        packageName: 'parcel-transformer-no-engines',
-        resolveFrom: configFilePath,
-        keyPath: '/transformers/*.js/0',
-      });
+      let {plugin} = await config.loadPlugin(
+        {
+          packageName: 'parcel-transformer-no-engines',
+          resolveFrom: configFilePath,
+          keyPath: '/transformers/*.js/0',
+        },
+        'transformer',
+      );
       assert(plugin);
       assert.equal(typeof plugin.transform, 'function');
       assert(warnStub.calledOnce);
@@ -201,11 +204,14 @@ describe('ParcelConfig', () => {
       // $FlowFixMe
       await assert.rejects(
         () =>
-          config.loadPlugin({
-            packageName: 'parcel-transformer-bad-engines',
-            resolveFrom: configFilePath,
-            keyPath: '/transformers/*.js/0',
-          }),
+          config.loadPlugin(
+            {
+              packageName: 'parcel-transformer-bad-engines',
+              resolveFrom: configFilePath,
+              keyPath: '/transformers/*.js/0',
+            },
+            'transformer',
+          ),
         {
           name: 'Error',
           diagnostics: [
@@ -317,6 +323,199 @@ describe('ParcelConfig', () => {
           ],
         },
       );
+    });
+
+    it('should support loading local plugins', async () => {
+      let projectRoot = path.join(__dirname, 'fixtures', 'plugins');
+      let configFilePath = toProjectPath(
+        projectRoot,
+        path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
+      );
+      let config = new ParcelConfig(
+        {
+          filePath: configFilePath,
+          bundler: undefined,
+          transformers: {
+            '*.js': [
+              {
+                packageName: './local-plugin',
+                resolveFrom: configFilePath,
+                keyPath: '/transformers/*.js/0',
+              },
+            ],
+          },
+        },
+        {...DEFAULT_OPTIONS, projectRoot},
+      );
+
+      let [{plugin}] = await config.getTransformers(
+        toProjectPath('/', '/foo.js'),
+      );
+      assert(plugin);
+      assert.equal(typeof plugin.transform, 'function');
+    });
+
+    it('should error for local plugins without a package.json', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'local-plugin-missing-package',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+      let {config} = await parseAndProcessConfig(
+        configFilePath,
+        code,
+        DEFAULT_OPTIONS,
+      );
+      let parcelConfig = new ParcelConfig(config, DEFAULT_OPTIONS);
+
+      // $FlowFixMe
+      await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
+        name: 'Error',
+        diagnostics: [
+          {
+            message:
+              'Local Parcel plugin "./LocalPlugin" exists, but does not contain a package.json.',
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                filePath: configFilePath,
+                language: 'json5',
+                code: await DEFAULT_OPTIONS.inputFS.readFile(
+                  configFilePath,
+                  'utf8',
+                ),
+                codeHighlights: [
+                  {
+                    start: {line: 5, column: 7},
+                    end: {line: 5, column: 21},
+                    message: undefined,
+                  },
+                ],
+              },
+            ],
+            hints: [
+              'Create "packages/core/core/test/fixtures/local-plugin-missing-package/LocalPlugin/package.json"',
+            ],
+            documentationURL:
+              'https://parceljs.org/features/plugins/#local-plugins',
+          },
+        ],
+      });
+    });
+
+    it('should error on invalid plugin names in local packages', async () => {
+      let projectRoot = path.join(__dirname, 'fixtures', 'plugins');
+      let configFilePath = toProjectPath(
+        projectRoot,
+        path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
+      );
+      let config = new ParcelConfig(
+        {
+          filePath: configFilePath,
+          bundler: undefined,
+          transformers: {
+            '*.js': [
+              {
+                packageName: './local-invalid-name',
+                resolveFrom: configFilePath,
+                keyPath: '/transformers/*.js/0',
+              },
+            ],
+          },
+        },
+        {...DEFAULT_OPTIONS, projectRoot},
+      );
+
+      let pkgPath = path.join(
+        __dirname,
+        'fixtures',
+        'plugins',
+        'local-invalid-name',
+        'package.json',
+      );
+
+      // $FlowFixMe
+      await assert.rejects(() => config.getTransformers('test.js'), {
+        name: 'Error',
+        diagnostics: [
+          {
+            message:
+              'Parcel transformer packages must be named according to "parcel-transformer-{name}"',
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                filePath: pkgPath,
+                language: 'json',
+                code: await DEFAULT_OPTIONS.inputFS.readFile(pkgPath, 'utf8'),
+                codeHighlights: [
+                  {
+                    start: {line: 2, column: 11},
+                    end: {line: 2, column: 30},
+                    message: undefined,
+                  },
+                ],
+              },
+            ],
+            documentationURL:
+              'https://parceljs.org/plugin-system/authoring-plugins/#naming',
+          },
+        ],
+      });
+    });
+
+    it('should error on local plugins inside config packages', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'local-plugin-config-pkg',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+      let {config} = await parseAndProcessConfig(
+        configFilePath,
+        code,
+        DEFAULT_OPTIONS,
+      );
+      let parcelConfig = new ParcelConfig(config, DEFAULT_OPTIONS);
+      let extendedConfigPath = path.join(
+        __dirname,
+        'fixtures',
+        'local-plugin-config-pkg',
+        'node_modules',
+        'parcel-config-local',
+        'index.json',
+      );
+
+      // $FlowFixMe
+      await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
+        name: 'Error',
+        diagnostics: [
+          {
+            message:
+              'Local plugins are not supported in Parcel config packages. Please publish "./local-plugin" as a separate npm package.',
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                filePath: extendedConfigPath,
+                language: 'json5',
+                code: await DEFAULT_OPTIONS.inputFS.readFile(
+                  extendedConfigPath,
+                  'utf8',
+                ),
+                codeHighlights: [
+                  {
+                    start: {line: 5, column: 7},
+                    end: {line: 5, column: 22},
+                    message: undefined,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
     });
   });
 });
