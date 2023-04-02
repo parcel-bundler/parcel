@@ -46,6 +46,7 @@ struct ExportedSymbol {
   local: JsWord,
   exported: JsWord,
   loc: SourceLocation,
+  is_esm: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -275,6 +276,7 @@ impl<'a> Fold for Hoist<'a> {
                         local: id,
                         exported,
                         loc: SourceLocation::from(&self.collect.source_map, named.span),
+                        is_esm: true,
                       });
                     }
                   }
@@ -532,7 +534,7 @@ impl<'a> Fold for Hoist<'a> {
         return Expr::OptChain(OptChainExpr {
           span: opt.span,
           question_dot_token: opt.question_dot_token,
-          base: match opt.base {
+          base: Box::new(match *opt.base {
             OptChainBase::Call(call) => OptChainBase::Call(call.fold_with(self)),
             OptChainBase::Member(member) => {
               if match_property_name(&member).is_some() {
@@ -546,7 +548,7 @@ impl<'a> Fold for Hoist<'a> {
                 OptChainBase::Member(member.fold_children_with(self))
               }
             }
-          },
+          }),
         });
       }
       Expr::Member(member) => {
@@ -825,6 +827,7 @@ impl<'a> Fold for Hoist<'a> {
           local: node.sym.clone(),
           exported: exported.clone(),
           loc: SourceLocation::from(&self.collect.source_map, node.span),
+          is_esm: false,
         });
         return node;
       } else {
@@ -1044,10 +1047,16 @@ impl<'a> Hoist<'a> {
       format!("${}$export${:x}", self.module_id, hash!(exported)).into()
     };
 
+    let is_esm = match self.collect.exports.get(exported) {
+      Some(Export { is_esm: true, .. }) => true,
+      _ => false,
+    };
+
     self.exported_symbols.push(ExportedSymbol {
       local: new_name.clone(),
       exported: exported.clone(),
       loc: SourceLocation::from(&self.collect.source_map, span),
+      is_esm,
     });
 
     let mut span = span;
@@ -1130,6 +1139,7 @@ pub struct Export {
   pub source: Option<JsWord>,
   pub specifier: JsWord,
   pub loc: SourceLocation,
+  pub is_esm: bool,
 }
 
 pub struct Collect {
@@ -1269,6 +1279,7 @@ impl From<Collect> for CollectResult {
             source,
             specifier,
             loc,
+            ..
           },
         )| CollectExportedSymbol {
           source,
@@ -1447,6 +1458,7 @@ impl Visit for Collect {
               specifier: match_export_name_ident(&named.orig).sym.clone(),
               loc: SourceLocation::from(&self.source_map, exported.1),
               source,
+              is_esm: true,
             },
           );
           if node.src.is_none() {
@@ -1463,6 +1475,7 @@ impl Visit for Collect {
               specifier: default.exported.sym.clone(),
               loc: SourceLocation::from(&self.source_map, default.exported.span),
               source,
+              is_esm: true,
             },
           );
           if node.src.is_none() {
@@ -1479,6 +1492,7 @@ impl Visit for Collect {
               specifier: "*".into(),
               loc: SourceLocation::from(&self.source_map, namespace.span),
               source,
+              is_esm: true,
             },
           );
           // Populating exports_locals with * doesn't make any sense at all
@@ -1497,6 +1511,7 @@ impl Visit for Collect {
             specifier: class.ident.sym.clone(),
             loc: SourceLocation::from(&self.source_map, class.ident.span),
             source: None,
+            is_esm: true,
           },
         );
         self
@@ -1511,6 +1526,7 @@ impl Visit for Collect {
             specifier: func.ident.sym.clone(),
             loc: SourceLocation::from(&self.source_map, func.ident.span),
             source: None,
+            is_esm: true,
           },
         );
         self
@@ -1543,6 +1559,7 @@ impl Visit for Collect {
               specifier: ident.sym.clone(),
               loc: SourceLocation::from(&self.source_map, node.span),
               source: None,
+              is_esm: true,
             },
           );
           self
@@ -1556,6 +1573,7 @@ impl Visit for Collect {
               specifier: js_word!("default"),
               loc: SourceLocation::from(&self.source_map, node.span),
               source: None,
+              is_esm: true,
             },
           );
         }
@@ -1568,6 +1586,7 @@ impl Visit for Collect {
               specifier: ident.sym.clone(),
               loc: SourceLocation::from(&self.source_map, node.span),
               source: None,
+              is_esm: true,
             },
           );
           self
@@ -1581,6 +1600,7 @@ impl Visit for Collect {
               specifier: js_word!("default"),
               loc: SourceLocation::from(&self.source_map, node.span),
               source: None,
+              is_esm: true,
             },
           );
         }
@@ -1600,6 +1620,7 @@ impl Visit for Collect {
         specifier: js_word!("default"),
         loc: SourceLocation::from(&self.source_map, node.span),
         source: None,
+        is_esm: true,
       },
     );
 
@@ -1630,6 +1651,7 @@ impl Visit for Collect {
           specifier: node.id.sym.clone(),
           loc: SourceLocation::from(&self.source_map, node.id.span),
           source: None,
+          is_esm: true,
         },
       );
       self
@@ -1655,6 +1677,7 @@ impl Visit for Collect {
           specifier: node.key.sym.clone(),
           loc: SourceLocation::from(&self.source_map, node.key.span),
           source: None,
+          is_esm: true,
         },
       );
       self
@@ -1701,6 +1724,7 @@ impl Visit for Collect {
               specifier: name,
               source: None,
               loc: SourceLocation::from(&self.source_map, span),
+              is_esm: false,
             },
           );
         } else {
@@ -2339,7 +2363,7 @@ mod tests {
     ($m: expr, $match: expr) => {{
       let mut map = HashMap::new();
       for sym in $m {
-        map.insert(sym.exported, sym.local);
+        map.insert(sym.exported, (sym.local, sym.is_esm));
       }
       assert_eq!(map, $match);
     }};
@@ -3325,7 +3349,7 @@ mod tests {
 
   #[test]
   fn fold_export() {
-    let (_collect, code, _hoist) = parse(
+    let (_collect, code, hoist) = parse(
       r#"
     let x = 3;
     let y = 4;
@@ -3343,7 +3367,15 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("x") => (w!("$abc$export$d141bba7fdc215a3"), true),
+        w!("y") => (w!("$abc$export$4a5767248b18ef41"), true)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     export default 3;
     "#,
@@ -3356,7 +3388,14 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("default") => (w!("$abc$export$2e2bcd8739ae039"), true)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     let x = 3;
     export default x;
@@ -3371,7 +3410,14 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("default") => (w!("$abc$export$2e2bcd8739ae039"), true)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     export default function () {}
     "#,
@@ -3384,7 +3430,14 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("default") => (w!("$abc$export$2e2bcd8739ae039"), true)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     export default class {}
     "#,
@@ -3396,6 +3449,13 @@ mod tests {
     class $abc$export$2e2bcd8739ae039 {
     }
     "#}
+    );
+
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("default") => (w!("$abc$export$2e2bcd8739ae039"), true)
+      }
     );
 
     let (_collect, code, hoist) = parse(
@@ -3415,7 +3475,9 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(hoist.exported_symbols, map! {});
+
+    let (_collect, code, hoist) = parse(
       r#"
     export var x = 2, y = 3;
     "#,
@@ -3424,11 +3486,19 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var $abc$export$d141bba7fdc215a3 = 2, $abc$export$4a5767248b18ef41 = 3;
-    "#}
+      var $abc$export$d141bba7fdc215a3 = 2, $abc$export$4a5767248b18ef41 = 3;
+      "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("x") => (w!("$abc$export$d141bba7fdc215a3"), true),
+        w!("y") => (w!("$abc$export$4a5767248b18ef41"), true)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     export var {x, ...y} = something;
     export var [p, ...q] = something;
@@ -3445,7 +3515,18 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("x") => (w!("$abc$export$d141bba7fdc215a3"), true),
+        w!("y") => (w!("$abc$export$4a5767248b18ef41"), true),
+        w!("p") => (w!("$abc$export$ffb5f4729a158638"), true),
+        w!("q") => (w!("$abc$export$9e5f44173e64f162"), true),
+        w!("x") => (w!("$abc$export$d141bba7fdc215a3"), true)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     export function test() {}
     "#,
@@ -3458,7 +3539,14 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("test") => (w!("$abc$export$e0969da9b8fb378d"), true)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     export class Test {}
     "#,
@@ -3472,11 +3560,20 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("Test") => (w!("$abc$export$1b16fc9eb974a84d"), true)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     export {foo} from 'bar';
     "#,
     );
+
+    assert_eq_exported_symbols!(hoist.exported_symbols, map! {});
 
     assert_eq!(
       code,
@@ -3516,7 +3613,7 @@ mod tests {
     assert_eq_exported_symbols!(
       hoist.exported_symbols,
       map! {
-        w!("settings") => w!("$abc$export$a5a6e0b888b2c992")
+        w!("settings") => (w!("$abc$export$a5a6e0b888b2c992"), true)
       }
     );
     assert_eq_imported_symbols!(
@@ -3529,7 +3626,7 @@ mod tests {
 
   #[test]
   fn fold_cjs_export() {
-    let (_collect, code, _hoist) = parse(
+    let (_collect, code, hoist) = parse(
       r#"
     exports.foo = 2;
     "#,
@@ -3543,7 +3640,14 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("foo") => (w!("$abc$export$6a5cdcad01c973fa"), false)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     exports['foo'] = 2;
     "#,
@@ -3557,7 +3661,14 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("foo") => (w!("$abc$export$6a5cdcad01c973fa"), false)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     function init() {
       exports.foo = 2;
@@ -3575,7 +3686,14 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("foo") => (w!("$abc$export$6a5cdcad01c973fa"), false)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     module.exports.foo = 2;
     "#,
@@ -3589,7 +3707,14 @@ mod tests {
     "#}
     );
 
-    let (_collect, code, _hoist) = parse(
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("foo") => (w!("$abc$export$6a5cdcad01c973fa"), false)
+      }
+    );
+
+    let (_collect, code, hoist) = parse(
       r#"
     module.exports['foo'] = 2;
     "#,
@@ -3601,6 +3726,13 @@ mod tests {
     var $abc$export$6a5cdcad01c973fa;
     $abc$export$6a5cdcad01c973fa = 2;
     "#}
+    );
+
+    assert_eq_exported_symbols!(
+      hoist.exported_symbols,
+      map! {
+        w!("foo") => (w!("$abc$export$6a5cdcad01c973fa"), false)
+      }
     );
 
     let (_collect, code, _hoist) = parse(
@@ -3638,7 +3770,7 @@ mod tests {
 
   #[test]
   fn fold_cjs_export_non_static() {
-    let (_collect, code, _hoist) = parse(
+    let (_collect, code, hoist) = parse(
       r#"
     exports[foo] = 2;
     exports.bar = 3;
@@ -4157,7 +4289,8 @@ mod tests {
             start_col: 1,
             end_line: 1,
             end_col: 29
-          }
+          },
+          is_esm: true
         }
       }
     );
@@ -4174,7 +4307,8 @@ mod tests {
             start_col: 1,
             end_line: 1,
             end_col: 34
-          }
+          },
+          is_esm: true
         }
       }
     );
@@ -4191,7 +4325,8 @@ mod tests {
             start_col: 1,
             end_line: 1,
             end_col: 23
-          }
+          },
+          is_esm: true
         }
       }
     );
@@ -4208,7 +4343,8 @@ mod tests {
             start_col: 1,
             end_line: 1,
             end_col: 28
-          }
+          },
+          is_esm: true
         }
       }
     );
@@ -4225,7 +4361,8 @@ mod tests {
             start_col: 1,
             end_line: 1,
             end_col: 19
-          }
+          },
+          is_esm: true
         }
       }
     );
@@ -4242,7 +4379,8 @@ mod tests {
             start_col: 16,
             end_line: 1,
             end_col: 18
-          }
+          },
+          is_esm: false
         }
       }
     );
@@ -4259,7 +4397,8 @@ mod tests {
             start_col: 16,
             end_line: 1,
             end_col: 20
-          }
+          },
+          is_esm: false
         }
       }
     );
@@ -4276,7 +4415,8 @@ mod tests {
             start_col: 16,
             end_line: 1,
             end_col: 20
-          }
+          },
+          is_esm: false
         }
       }
     );
@@ -4293,7 +4433,8 @@ mod tests {
             start_col: 9,
             end_line: 1,
             end_col: 11
-          }
+          },
+          is_esm: false
         }
       }
     );
@@ -4310,7 +4451,8 @@ mod tests {
             start_col: 6,
             end_line: 1,
             end_col: 8
-          }
+          },
+          is_esm: false
         }
       }
     );

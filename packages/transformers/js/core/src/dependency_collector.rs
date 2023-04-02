@@ -902,7 +902,7 @@ impl<'a> DependencyCollector<'a> {
           }
           Arrow(f) => {
             let param = f.params.get(0);
-            let body = match &f.body {
+            let body = match &*f.body {
               ast::BlockStmtOrExpr::Expr(expr) => Some(&**expr),
               ast::BlockStmtOrExpr::BlockStmt(block) => self.match_block_stmt_expr(block),
             };
@@ -1106,7 +1106,7 @@ impl Fold for PromiseTransformer {
   }
 
   fn fold_arrow_expr(&mut self, node: ast::ArrowExpr) -> ast::ArrowExpr {
-    if let ast::BlockStmtOrExpr::Expr(expr) = &node.body {
+    if let ast::BlockStmtOrExpr::Expr(expr) = &*node.body {
       if let ast::Expr::Call(call) = &**expr {
         if let Some(require_node) = &self.require_node {
           if require_node == call {
