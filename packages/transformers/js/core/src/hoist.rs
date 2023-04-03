@@ -1283,7 +1283,7 @@ mod tests {
   }
 
   #[test]
-  fn esm() {
+  fn collect_esm() {
     let (collect, _code, _hoist) = parse(
       r#"
     import {foo as bar} from 'other';
@@ -1294,10 +1294,46 @@ mod tests {
       collect.imports,
       map! { w!("bar") => (w!("other"), w!("foo"), false) }
     );
+    assert_eq!(
+      collect.exports,
+      map! {
+        w!("test") => Export {
+          source: None,
+          specifier: "bar".into(),
+          loc: SourceLocation {
+            start_line: 3,
+            start_col: 20,
+            end_line: 3,
+            end_col: 23
+          },
+          is_esm: true
+        }
+      }
+    );
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+    import { a, b, c, d } from "other";
+
+    log(a);
+    b.x();
+    c();
+    "#,
+    );
+    assert_eq_set!(collect.used_imports, set! { w!("a"), w!("b"), w!("c") });
+    assert_eq_imports!(
+      collect.imports,
+      map! {
+        w!("a") => (w!("other"), w!("a"), false),
+        w!("b") => (w!("other"), w!("b"), false),
+        w!("c") => (w!("other"), w!("c"), false),
+        w!("d") => (w!("other"), w!("d"), false)
+      }
+    );
   }
 
   #[test]
-  fn cjs_namespace() {
+  fn collect_cjs_namespace() {
     let (collect, _code, _hoist) = parse(
       r#"
     const x = require('other');
@@ -1319,7 +1355,7 @@ mod tests {
   }
 
   #[test]
-  fn cjs_namespace_non_static() {
+  fn collect_cjs_namespace_non_static() {
     let (collect, _code, _hoist) = parse(
       r#"
     const x = require('other');
@@ -1346,7 +1382,7 @@ mod tests {
   }
 
   #[test]
-  fn cjs_destructure() {
+  fn collect_cjs_destructure() {
     let (collect, _code, _hoist) = parse(
       r#"
     const {foo: bar} = require('other');
@@ -1361,7 +1397,7 @@ mod tests {
   }
 
   #[test]
-  fn cjs_reassign() {
+  fn collect_cjs_reassign() {
     let (collect, _code, _hoist) = parse(
       r#"
     exports = 2;
@@ -1378,7 +1414,7 @@ mod tests {
   }
 
   #[test]
-  fn should_wrap() {
+  fn collect_should_wrap() {
     let (collect, _code, _hoist) = parse(
       r#"
     eval('');
@@ -1437,7 +1473,7 @@ mod tests {
   }
 
   #[test]
-  fn cjs_non_static_exports() {
+  fn collect_cjs_non_static_exports() {
     let (collect, _code, _hoist) = parse(
       r#"
     exports[test] = 2;
@@ -1540,7 +1576,7 @@ mod tests {
   }
 
   #[test]
-  fn dynamic_import() {
+  fn collect_dynamic_import() {
     let (collect, _code, _hoist) = parse(
       r#"
     async function test() {
