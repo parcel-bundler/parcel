@@ -643,15 +643,18 @@ impl Visit for Collect {
       Expr::Member(member) => {
         if match_member_expr(member, vec!["module", "exports"], &self.decls) {
           handle_export!();
+          return;
         }
-        return;
       }
       Expr::Ident(ident) => {
+        let mut handled = false;
         if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
+          handled = true;
           handle_export!();
         }
 
         if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) {
+          handled = true;
           self.has_cjs_exports = true;
           self.static_cjs_exports = false;
           self.should_wrap = true;
@@ -659,19 +662,22 @@ impl Visit for Collect {
         }
 
         if match_property_name(node).is_none() {
+          handled = true;
           self
             .non_static_access
             .entry(id!(ident))
             .or_default()
             .push(node.span);
         }
-        return;
+        if handled {
+          return;
+        }
       }
       Expr::This(_this) => {
         if self.in_module_this {
           handle_export!();
+          return;
         }
-        return;
       }
       _ => {}
     }
