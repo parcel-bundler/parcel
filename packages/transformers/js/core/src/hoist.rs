@@ -1314,20 +1314,27 @@ mod tests {
     let (collect, _code, _hoist) = parse(
       r#"
     import { a, b, c, d } from "other";
+    import * as x from "other";
+    import * as y from "other";
 
     log(a);
     b.x();
     c();
+    log(x);
+    y.foo();
     "#,
     );
-    assert_eq_set!(collect.used_imports, set! { w!("a"), w!("b"), w!("c") });
+    assert_eq_set!(collect.used_imports, set! { w!("a"), w!("c"), w!("x") });
+    assert_eq_set!(collect.used_import_namespaces, set! { w!("b"), w!("y") });
     assert_eq_imports!(
       collect.imports,
       map! {
         w!("a") => (w!("other"), w!("a"), false),
         w!("b") => (w!("other"), w!("b"), false),
         w!("c") => (w!("other"), w!("c"), false),
-        w!("d") => (w!("other"), w!("d"), false)
+        w!("d") => (w!("other"), w!("d"), false),
+        w!("x") => (w!("other"), w!("*"), false),
+        w!("y") => (w!("other"), w!("*"), false)
       }
     );
   }

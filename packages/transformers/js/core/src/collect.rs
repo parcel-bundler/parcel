@@ -64,8 +64,10 @@ pub struct Collect {
   pub exports_locals: HashMap<Id, JsWord>,
   /// source of the export-all --> location
   pub exports_all: HashMap<JsWord, SourceLocation>,
-  /// the keys in `imports` that are actually used (referenced)
+  /// the keys in `imports` that are actually used (referenced), except namespace imports
   pub used_imports: HashSet<Id>,
+  /// the keys in `imports` that are actually used (referenced), only namespace imports that hoist optimizes away
+  pub used_import_namespaces: HashSet<Id>,
   pub non_static_access: HashMap<Id, Vec<Span>>,
   pub non_const_bindings: HashMap<Id, Vec<Span>>,
   pub non_static_requires: HashSet<JsWord>,
@@ -133,6 +135,7 @@ impl Collect {
       exports_locals: HashMap::new(),
       exports_all: HashMap::new(),
       used_imports: HashSet::new(),
+      used_import_namespaces: HashSet::new(),
       non_static_access: HashMap::new(),
       non_const_bindings: HashMap::new(),
       non_static_requires: HashSet::new(),
@@ -153,7 +156,9 @@ impl From<Collect> for CollectResult {
       .imports
       .into_iter()
       .filter(|(local, _)| {
-        collect.used_imports.contains(local) || collect.exports_locals.contains_key(local)
+        collect.used_imports.contains(local)
+          || collect.used_import_namespaces.contains(local)
+          || collect.exports_locals.contains_key(local)
       })
       .map(
         |(
@@ -643,41 +648,35 @@ impl Visit for Collect {
       Expr::Member(member) => {
         if match_member_expr(member, vec!["module", "exports"], &self.decls) {
           handle_export!();
-          return;
         }
+        return;
       }
       Expr::Ident(ident) => {
-        let mut handled = false;
         if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
-          handled = true;
           handle_export!();
-        }
-
-        if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) {
-          handled = true;
+        } else if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) {
           self.has_cjs_exports = true;
           self.static_cjs_exports = false;
           self.should_wrap = true;
           self.add_bailout(node.span, BailoutReason::FreeModule);
+        } else {
+          if match_property_name(node).is_none() {
+            self
+              .non_static_access
+              .entry(id!(ident))
+              .or_default()
+              .push(node.span);
+          } else if self.imports.contains_key(&id!(ident)) {
+            self.used_import_namespaces.insert(id!(ident));
+          }
         }
-
-        if match_property_name(node).is_none() {
-          handled = true;
-          self
-            .non_static_access
-            .entry(id!(ident))
-            .or_default()
-            .push(node.span);
-        }
-        if handled {
-          return;
-        }
+        return;
       }
       Expr::This(_this) => {
         if self.in_module_this {
           handle_export!();
-          return;
         }
+        return;
       }
       _ => {}
     }
