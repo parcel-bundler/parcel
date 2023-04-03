@@ -874,15 +874,6 @@ export default (new Transformer({
           dep.symbols.set('*', '*', convertLoc(loc), true);
         }
 
-        // For all other imports and requires, mark everything as imported (this covers both dynamic
-        // imports and non-top-level requires.)
-        for (let dep of deps.values()) {
-          if (dep.symbols.isCleared) {
-            dep.symbols.ensure();
-            dep.symbols.set('*', '$');
-          }
-        }
-
         // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
         // This allows accessing symbols that don't exist without errors in symbol propagation.
         if (
@@ -892,7 +883,21 @@ export default (new Transformer({
             symbol_result.exports.length === 0) ||
           (symbol_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
         ) {
-          asset.symbols.set('*', `$`);
+          asset.symbols.ensure();
+          asset.symbols.set('*', `$${asset.id}$exports`);
+        }
+      } else {
+        // If the asset is wrapped, add * as a fallback
+        asset.symbols.ensure();
+        asset.symbols.set('*', `$${asset.id}$exports`);
+      }
+
+      // For all other imports and requires, mark everything as imported (this covers both dynamic
+      // imports and non-top-level requires.)
+      for (let dep of asset.getDependencies()) {
+        if (dep.symbols.isCleared) {
+          dep.symbols.ensure();
+          dep.symbols.set('*', `${dep.id}$`);
         }
       }
 
