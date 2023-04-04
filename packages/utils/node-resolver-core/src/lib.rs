@@ -19,21 +19,21 @@ use parcel_resolver::{
   IncludeNodeModules, Invalidations, ModuleType, Resolution, ResolverError, SpecifierType,
 };
 
+type NapiSideEffectsVariants = napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>;
+
 #[napi(object)]
 pub struct JsFileSystemOptions {
   pub canonicalize: JsFunction,
   pub read: JsFunction,
   pub is_file: JsFunction,
   pub is_dir: JsFunction,
-  pub include_node_modules:
-    Option<napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>>,
+  pub include_node_modules: Option<NapiSideEffectsVariants>,
 }
 
 #[napi(object, js_name = "FileSystem")]
 pub struct JsResolverOptions {
   pub fs: Option<JsFileSystemOptions>,
-  pub include_node_modules:
-    Option<napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>>,
+  pub include_node_modules: Option<NapiSideEffectsVariants>,
   pub conditions: Option<u16>,
   pub module_dir_resolver: Option<JsFunction>,
   pub mode: u8,
