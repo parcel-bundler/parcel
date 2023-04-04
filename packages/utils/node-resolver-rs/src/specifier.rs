@@ -235,7 +235,7 @@ fn parse_query(input: &str) -> (Option<&str>, &str) {
 /// https://url.spec.whatwg.org/#ascii-alpha
 #[inline]
 fn ascii_alpha(ch: char) -> bool {
-  matches!(ch, 'a'..='z' | 'A'..='Z')
+  ch.is_ascii_alphabetic()
 }
 
 fn parse_package(specifier: Cow<'_, str>) -> Result<Specifier, SpecifierError> {
