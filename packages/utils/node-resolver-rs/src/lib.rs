@@ -2637,58 +2637,46 @@ mod tests {
 
   #[test]
   fn test_side_effects() {
-    assert_eq!(
-      resolve_side_effects("side-effects-false/src/index.js", &root().join("foo.js")),
-      false,
-    );
-    assert_eq!(
-      resolve_side_effects("side-effects-false/src/index", &root().join("foo.js")),
-      false,
-    );
-    assert_eq!(
-      resolve_side_effects("side-effects-false/src/", &root().join("foo.js")),
-      false,
-    );
-    assert_eq!(
-      resolve_side_effects("side-effects-false", &root().join("foo.js")),
-      false,
-    );
-    assert_eq!(
-      resolve_side_effects(
-        "side-effects-package-redirect-up/foo/bar",
-        &root().join("foo.js")
-      ),
-      false,
-    );
-    assert_eq!(
-      resolve_side_effects(
-        "side-effects-package-redirect-down/foo/bar",
-        &root().join("foo.js")
-      ),
-      false,
-    );
-    assert_eq!(
-      resolve_side_effects("side-effects-false-glob/a/index", &root().join("foo.js")),
-      true,
-    );
-    assert_eq!(
-      resolve_side_effects("side-effects-false-glob/b/index.js", &root().join("foo.js")),
-      false,
-    );
-    assert_eq!(
-      resolve_side_effects(
-        "side-effects-false-glob/sub/a/index.js",
-        &root().join("foo.js")
-      ),
-      false,
-    );
-    assert_eq!(
-      resolve_side_effects(
-        "side-effects-false-glob/sub/index.json",
-        &root().join("foo.js")
-      ),
-      true,
-    );
+    assert!(!resolve_side_effects(
+      "side-effects-false/src/index.js",
+      &root().join("foo.js")
+    ));
+    assert!(!resolve_side_effects(
+      "side-effects-false/src/index",
+      &root().join("foo.js")
+    ));
+    assert!(!resolve_side_effects(
+      "side-effects-false/src/",
+      &root().join("foo.js")
+    ));
+    assert!(!resolve_side_effects(
+      "side-effects-false",
+      &root().join("foo.js")
+    ));
+    assert!(!resolve_side_effects(
+      "side-effects-package-redirect-up/foo/bar",
+      &root().join("foo.js")
+    ));
+    assert!(!resolve_side_effects(
+      "side-effects-package-redirect-down/foo/bar",
+      &root().join("foo.js")
+    ));
+    assert!(resolve_side_effects(
+      "side-effects-false-glob/a/index",
+      &root().join("foo.js")
+    ));
+    assert!(!resolve_side_effects(
+      "side-effects-false-glob/b/index.js",
+      &root().join("foo.js")
+    ));
+    assert!(!resolve_side_effects(
+      "side-effects-false-glob/sub/a/index.js",
+      &root().join("foo.js")
+    ));
+    assert!(resolve_side_effects(
+      "side-effects-false-glob/sub/index.json",
+      &root().join("foo.js")
+    ));
   }
 
   #[test]
