@@ -64,7 +64,7 @@ pub struct Collect {
   pub exports_locals: HashMap<Id, JsWord>,
   /// source of the export-all --> location
   pub exports_all: HashMap<JsWord, SourceLocation>,
-  /// the keys in `imports` that are actually used (referenced)
+  /// the keys in `imports` that are actually used (referenced), except namespace imports
   pub used_imports: HashSet<Id>,
   pub non_static_access: HashMap<Id, Vec<Span>>,
   pub non_const_bindings: HashMap<Id, Vec<Span>>,
@@ -649,21 +649,21 @@ impl Visit for Collect {
       Expr::Ident(ident) => {
         if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
           handle_export!();
-        }
-
-        if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) {
+        } else if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) {
           self.has_cjs_exports = true;
           self.static_cjs_exports = false;
           self.should_wrap = true;
           self.add_bailout(node.span, BailoutReason::FreeModule);
-        }
-
-        if match_property_name(node).is_none() {
-          self
-            .non_static_access
-            .entry(id!(ident))
-            .or_default()
-            .push(node.span);
+        } else {
+          if match_property_name(node).is_none() {
+            self
+              .non_static_access
+              .entry(id!(ident))
+              .or_default()
+              .push(node.span);
+          } else if self.imports.contains_key(&id!(ident)) {
+            self.used_imports.insert(id!(ident));
+          }
         }
         return;
       }
