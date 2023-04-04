@@ -255,5 +255,29 @@ describe('typescript', function () {
         Bar: 123,
       });
     });
+
+    it('should handle type imports from .d.ts files', async function () {
+      if (config != null) {
+        return;
+      }
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/typescript-import-type-declaration/index.ts',
+        ),
+        {
+          config,
+          defaultTargetOptions: {
+            shouldScopeHoist: false,
+          },
+        },
+      );
+
+      let output = await run(b);
+
+      assert.deepEqual(output, {
+        thing: 'something',
+      });
+    });
   }
 });
