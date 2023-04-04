@@ -5376,6 +5376,25 @@ describe('javascript', function () {
     assert.strictEqual(output, 'a');
   });
 
+  it('should support import and non-top-level require of same asset from different assets', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
+
+  it('should support import and non-top-level require of same asset from different assets with scope hoisting', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
+
   it('should support runtime module deduplication', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
