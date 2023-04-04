@@ -345,7 +345,7 @@ impl Resolver {
     );
 
     let side_effects = if let Ok((Resolution::Path(p), _)) = &res.result {
-      match self.resolver.resolve_side_effects(&p, &res.invalidations) {
+      match self.resolver.resolve_side_effects(p, &res.invalidations) {
         Ok(side_effects) => side_effects,
         Err(err) => {
           res.result = Err(err);
