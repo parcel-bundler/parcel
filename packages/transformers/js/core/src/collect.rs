@@ -152,9 +152,7 @@ impl From<Collect> for CollectResult {
     let imports = collect
       .imports
       .into_iter()
-      .filter(|(local, _)| {
-        collect.used_imports.contains(local) || collect.exports_locals.contains_key(local)
-      })
+      .filter(|(local, _)| collect.used_imports.contains(local))
       .map(
         |(
           local,
@@ -357,10 +355,23 @@ impl Visit for Collect {
             Some(exported) => match_export_name(exported),
             None => match_export_name(&named.orig),
           };
+          let orig = match_export_name_ident(&named.orig);
+          let is_reexport = if source.is_none() {
+            // import {foo} from "xyz";
+            // export {foo};
+            self.imports.get(&id!(orig))
+          } else {
+            None
+          };
+          let (source, specifier) = if let Some(reexport) = is_reexport {
+            (Some(reexport.source.clone()), reexport.specifier.clone())
+          } else {
+            (source, orig.sym.clone())
+          };
           self.exports.insert(
             exported.0.clone(),
             Export {
-              specifier: match_export_name_ident(&named.orig).sym.clone(),
+              specifier,
               loc: SourceLocation::from(&self.source_map, exported.1),
               source,
               is_esm: true,
