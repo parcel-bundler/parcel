@@ -95,7 +95,7 @@ impl<'a> Specifier<'a> {
               let (query, _) = parse_query(rest);
               match scheme.as_ref() {
                 "npm" if flags.contains(Flags::NPM_SCHEME) => {
-                  if BUILTINS.contains(&path.as_ref()) {
+                  if BUILTINS.contains(&path) {
                     return Ok((Specifier::Builtin(Cow::Borrowed(path)), None));
                   }
 
@@ -120,7 +120,7 @@ impl<'a> Specifier<'a> {
               // otherwise treat this as a relative path.
               let (path, rest) = parse_path(specifier);
               if specifier_type == SpecifierType::Esm {
-                if BUILTINS.contains(&path.as_ref()) {
+                if BUILTINS.contains(&path) {
                   return Ok((Specifier::Builtin(Cow::Borrowed(path)), None));
                 }
 
@@ -136,7 +136,7 @@ impl<'a> Specifier<'a> {
             }
           }
           SpecifierType::Cjs => {
-            if BUILTINS.contains(&specifier.as_ref()) {
+            if BUILTINS.contains(&specifier) {
               (Specifier::Builtin(Cow::Borrowed(specifier)), None)
             } else {
               #[cfg(windows)]
