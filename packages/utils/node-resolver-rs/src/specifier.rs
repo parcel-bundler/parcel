@@ -180,9 +180,8 @@ pub fn parse_scheme(input: &str) -> Result<(Cow<'_, str>, &str), ()> {
   if input.is_empty() || !input.starts_with(ascii_alpha) {
     return Err(());
   }
-  let mut i = 0;
   let mut is_lowercase = true;
-  for c in input.chars() {
+  for (i, c) in input.chars().enumerate() {
     match c {
       'A'..='Z' => {
         is_lowercase = false;
@@ -201,7 +200,6 @@ pub fn parse_scheme(input: &str) -> Result<(Cow<'_, str>, &str), ()> {
         return Err(());
       }
     }
-    i += 1;
   }
 
   // EOF before ':'
