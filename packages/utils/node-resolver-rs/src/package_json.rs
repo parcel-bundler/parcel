@@ -777,11 +777,11 @@ fn pattern_key_compare(a: &str, b: &str) -> Ordering {
     return cmp;
   }
 
-  if a_pos == None {
+  if a_pos.is_none() {
     return Ordering::Greater;
   }
 
-  if b_pos == None {
+  if b_pos.is_none() {
     return Ordering::Less;
   }
 
