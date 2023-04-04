@@ -274,7 +274,7 @@ export type ParcelOptions = {|
   logLevel: LogLevel,
   projectRoot: FilePath,
   shouldProfile: boolean,
-  shouldProfileApplication: boolean,
+  shouldTrace: boolean,
   shouldPatchConsole: boolean,
   detailedReport?: ?DetailedReportOptions,
 

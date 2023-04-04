@@ -54,7 +54,7 @@ import {
   toProjectPathUnsafe,
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
-import {applicationProfiler, PluginApplicationProfiler} from '@parcel/profiler';
+import {tracer, PluginTracer} from '@parcel/profiler';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<string>,
@@ -93,7 +93,7 @@ export default function createBundleGraphRequest(
     run: async input => {
       let {options, api, invalidateReason} = input;
       let {optionsRef, requestedAssetIds, signal} = input.input;
-      let measurement = applicationProfiler.createMeasurement('building');
+      let measurement = tracer.createMeasurement('building');
       let request = createAssetGraphRequest({
         name: 'Main',
         entries: options.entries,
@@ -135,8 +135,7 @@ export default function createBundleGraphRequest(
       let {devDeps, invalidDevDeps} = await getDevDepRequests(input.api);
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
-      let bundlingMeasurement =
-        applicationProfiler.createMeasurement('bundling');
+      let bundlingMeasurement = tracer.createMeasurement('bundling');
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
       let res: BundleGraphResult = await builder.bundle({
         graph: assetGraph,
@@ -272,7 +271,7 @@ class BundlerRunner {
     let internalBundleGraph;
 
     let logger = new PluginLogger({origin: name});
-    let applicationProfiler = new PluginApplicationProfiler({
+    let tracer = new PluginTracer({
       origin: name,
       category: 'bundle',
     });
@@ -307,12 +306,12 @@ class BundlerRunner {
 
         let measurement;
         let measurementFilename;
-        if (applicationProfiler.enabled) {
+        if (tracer.enabled) {
           measurementFilename = graph
             .getEntryAssets()
             .map(asset => fromProjectPathRelative(asset.filePath))
             .join(', ');
-          measurement = applicationProfiler.createMeasurement(
+          measurement = tracer.createMeasurement(
             plugin.name,
             'bundling:bundle',
             measurementFilename,
@@ -325,7 +324,7 @@ class BundlerRunner {
           config: this.configs.get(plugin.name)?.result,
           options: this.pluginOptions,
           logger,
-          applicationProfiler,
+          tracer,
         });
 
         measurement && measurement.end();
@@ -333,8 +332,8 @@ class BundlerRunner {
         if (this.pluginOptions.mode === 'production') {
           let optimizeMeasurement;
           try {
-            if (applicationProfiler.enabled) {
-              optimizeMeasurement = applicationProfiler.createMeasurement(
+            if (tracer.enabled) {
+              optimizeMeasurement = tracer.createMeasurement(
                 plugin.name,
                 'bundling:optimize',
                 nullthrows(measurementFilename),
@@ -489,21 +488,14 @@ class BundlerRunner {
     for (let namer of namers) {
       let measurement;
       try {
-        measurement = applicationProfiler.createMeasurement(
-          namer.name,
-          'namer',
-          bundle.id,
-        );
+        measurement = tracer.createMeasurement(namer.name, 'namer', bundle.id);
         let name = await namer.plugin.name({
           bundle,
           bundleGraph,
           config: this.configs.get(namer.name)?.result,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: namer.name}),
-          applicationProfiler: new PluginApplicationProfiler({
-            origin: namer.name,
-            category: 'namer',
-          }),
+          tracer: new PluginTracer({origin: namer.name, category: 'namer'}),
         });
 
         if (name != null) {

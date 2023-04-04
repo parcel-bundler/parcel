@@ -17,7 +17,7 @@ export default (new Transformer({
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async transform({asset, config, logger, options, applicationProfiler}) {
+  async transform({asset, config, logger, options, tracer}) {
     try {
       if (config?.config) {
         if (
@@ -30,7 +30,7 @@ export default (new Transformer({
             logger,
             babelOptions: config,
             additionalPlugins: asset.meta.babelPlugins,
-            applicationProfiler,
+            tracer,
           });
         } else {
           await babel7({
@@ -38,7 +38,7 @@ export default (new Transformer({
             options,
             logger,
             babelOptions: config,
-            applicationProfiler,
+            tracer,
           });
         }
       }

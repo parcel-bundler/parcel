@@ -1,30 +1,27 @@
-import {
-  applicationProfiler,
-  PluginApplicationProfiler,
-} from '../src/ApplicationProfiler';
+import {tracer, PluginTracer} from '../src/Tracer';
 import sinon from 'sinon';
 import assert from 'assert';
 
-describe('ApplicationProfiler', () => {
+describe('Tracer', () => {
   let onTrace;
   let traceDisposable;
   beforeEach(() => {
     onTrace = sinon.spy();
-    traceDisposable = applicationProfiler.onTrace(onTrace);
-    applicationProfiler.enable();
+    traceDisposable = tracer.onTrace(onTrace);
+    tracer.enable();
   });
   afterEach(() => {
     traceDisposable.dispose();
   });
 
   it('returns no measurement when disabled', () => {
-    applicationProfiler.disable();
-    const measurement = applicationProfiler.createMeasurement('test');
+    tracer.disable();
+    const measurement = tracer.createMeasurement('test');
     assert(measurement == null);
     assert(onTrace.notCalled);
   });
   it('emits a basic trace event', () => {
-    const measurement = applicationProfiler.createMeasurement('test');
+    const measurement = tracer.createMeasurement('test');
     measurement.end();
     sinon.assert.calledWith(
       onTrace,
@@ -37,12 +34,9 @@ describe('ApplicationProfiler', () => {
     );
   });
   it('emits a complex trace event', () => {
-    const measurement = applicationProfiler.createMeasurement(
-      'test',
-      'myPlugin',
-      'aaargh',
-      {extra: 'data'},
-    );
+    const measurement = tracer.createMeasurement('test', 'myPlugin', 'aaargh', {
+      extra: 'data',
+    });
     measurement.end();
     sinon.assert.calledWith(
       onTrace,
@@ -56,19 +50,19 @@ describe('ApplicationProfiler', () => {
     );
   });
   it('calling end twice on measurment should be a no-op', () => {
-    const measurement = applicationProfiler.createMeasurement('test');
+    const measurement = tracer.createMeasurement('test');
     measurement.end();
     measurement.end();
     sinon.assert.calledOnce(onTrace);
   });
 
-  describe('PluginApplicationProfiler', () => {
+  describe('PluginTracer', () => {
     it('emits events with proper origin/category', () => {
-      const pluginProfiler = new PluginApplicationProfiler({
+      const pluginTracer = new PluginTracer({
         origin: 'origin',
         category: 'cat',
       });
-      const measurement = pluginProfiler.createMeasurement('test', 'customCat');
+      const measurement = pluginTracer.createMeasurement('test', 'customCat');
       measurement.end();
       sinon.assert.calledWith(
         onTrace,

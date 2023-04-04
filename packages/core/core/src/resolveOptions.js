@@ -151,7 +151,7 @@ export default async function resolveOptions(
       : false,
     shouldDisableCache: initialOptions.shouldDisableCache ?? false,
     shouldProfile: initialOptions.shouldProfile ?? false,
-    shouldProfileApplication: initialOptions.shouldProfileApplication ?? false,
+    shouldTrace: initialOptions.shouldTrace ?? false,
     cacheDir,
     entries: entries.map(e => toProjectPath(projectRoot, e)),
     targets: initialOptions.targets,

@@ -13,7 +13,7 @@ import type {
 import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
-import type {ApplicationProfilerMeasurement} from '@parcel/profiler';
+import type {TraceMeasurement} from '@parcel/profiler';
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
@@ -299,7 +299,7 @@ export type InitialParcelOptions = {|
   +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
   +shouldProfile?: boolean,
-  +shouldProfileApplication?: boolean,
+  +shouldTrace?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
   +shouldBundleIncrementally?: boolean,
@@ -1031,7 +1031,7 @@ export type DedicatedThreadValidator = {|
     resolveConfigWithPath: ResolveConfigWithPathFn,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Async<Array<?ValidateResult>>,
 |};
 
@@ -1045,14 +1045,14 @@ export type MultiThreadValidator = {|
     config: ConfigResult | void,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Async<ConfigResult | void>,
 |};
 
@@ -1070,14 +1070,14 @@ export type Transformer<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Promise<ConfigType> | ConfigType,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
     ast: AST,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => boolean,
   /** Parse the contents into an ast */
   parse?: ({|
@@ -1086,7 +1086,7 @@ export type Transformer<ConfigType> = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Async<?AST>,
   /** Transform the asset and/or add new assets */
   transform({|
@@ -1095,7 +1095,7 @@ export type Transformer<ConfigType> = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}): Async<Array<TransformerResult | MutableAsset>>,
   /**
    * Do some processing after the transformation
@@ -1107,7 +1107,7 @@ export type Transformer<ConfigType> = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Async<Array<TransformerResult>>,
   /** Stringify the AST */
   generate?: ({|
@@ -1115,7 +1115,7 @@ export type Transformer<ConfigType> = {|
     ast: AST,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Async<GenerateOutput>,
 |};
 
@@ -1587,14 +1587,14 @@ export type Bundler<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Promise<ConfigType> | ConfigType,
   bundle({|
     bundleGraph: MutableBundleGraph,
     config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
@@ -1612,7 +1612,7 @@ export type Namer<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Promise<ConfigType> | ConfigType,
   /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
   name({|
@@ -1621,7 +1621,7 @@ export type Namer<ConfigType> = {|
     config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}): Async<?FilePath>,
 |};
 
@@ -1648,7 +1648,7 @@ export type Runtime<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Promise<ConfigType> | ConfigType,
   apply({|
     bundle: NamedBundle,
@@ -1656,7 +1656,7 @@ export type Runtime<ConfigType> = {|
     config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
 |};
 
@@ -1668,7 +1668,7 @@ export type Packager<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Async<ConfigType>,
   loadBundleConfig?: ({|
     bundle: NamedBundle,
@@ -1676,14 +1676,14 @@ export type Packager<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Async<BundleConfigType>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
     config: ConfigType,
     bundleConfig: BundleConfigType,
     getInlineBundleContents: (
@@ -1702,7 +1702,7 @@ export type Optimizer<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Async<ConfigType>,
   loadBundleConfig?: ({|
     bundle: NamedBundle,
@@ -1710,7 +1710,7 @@ export type Optimizer<ConfigType, BundleConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Async<BundleConfigType>,
   optimize({|
     bundle: NamedBundle,
@@ -1719,7 +1719,7 @@ export type Optimizer<ConfigType, BundleConfigType> = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
     config: ConfigType,
     bundleConfig: BundleConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
@@ -1734,7 +1734,7 @@ export type Compressor = {|
     stream: Readable,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}): Async<?{|
     stream: Readable,
     type?: string,
@@ -1749,13 +1749,13 @@ export type Resolver<ConfigType> = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}) => Promise<ConfigType> | ConfigType,
   resolve({|
     dependency: Dependency,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
     specifier: FilePath,
     pipeline: ?string,
     config: ConfigType,
@@ -1923,12 +1923,12 @@ export type ValidationEvent = {|
 |};
 
 /**
- * An application profiling trace event has occured.
+ * A trace event has occured.
  * Loosely modeled on Chrome's Trace Event format: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
  *
  * @section reporter
  */
-export type ApplicationProfilerEvent = {|
+export type TraceEvent = {|
   +type: 'trace',
   +ts: number,
   +duration: number,
@@ -1951,7 +1951,7 @@ export type ReporterEvent =
   | WatchStartEvent
   | WatchEndEvent
   | ValidationEvent
-  | ApplicationProfilerEvent;
+  | TraceEvent;
 
 /**
  * @section reporter
@@ -1961,7 +1961,7 @@ export type Reporter = {|
     event: ReporterEvent,
     options: PluginOptions,
     logger: PluginLogger,
-    applicationProfiler: PluginApplicationProfiler,
+    tracer: PluginTracer,
   |}): Async<void>,
 |};
 
@@ -1977,15 +1977,15 @@ export type AsyncSubscription = {|
   unsubscribe(): Promise<mixed>,
 |};
 
-export interface PluginApplicationProfiler {
-  /** Returns whether the application profiler is enabled. Use this to avoid possibly expensive calculations
+export interface PluginTracer {
+  /** Returns whether the tracer is enabled. Use this to avoid possibly expensive calculations
    * of arguments to `createMeasurement` - for example if you need to determine the entry of a bundle to pass it
-   * in as the <code>argumentName</code>, you would only do this if the application profiler is enabled.
+   * in as the <code>argumentName</code>, you would only do this if the tracer is enabled.
    */
   +enabled: boolean;
 
   /**
-   * Creates a new profiling measurement with the specified name. This name should reflect the current plugin or
+   * Creates a new trace measurement with the specified name. This name should reflect the current plugin or
    * function being executed (for example, the name of a Babel transform). The category will default to the name of your plugin,
    * however it should be set to reflect the type of operation (for example, for a hypothetical operation
    * to find CSS in an asset within a Compiled plugin you might set this to <code>find_css<code>).
@@ -1993,14 +1993,15 @@ export interface PluginApplicationProfiler {
    * If this is an operation that executes multiple times on different things - whether that's assets, bundles, or
    * otherwise - specify the name of the context object in <code>argumentName</code>.
    *
-   * <code>otherArgs</code> can be used for specifying any other key/value pairs that should be written to the profile.
+   * <code>otherArgs</code> can be used for specifying any other key/value pairs
+   * that should be written to the trace.
    *
-   * For example: <code>profiler.createMeasurement('compiled', 'find_css', path.relative(options.projecRoot, asset.filePath), { meta: 'data' })</code>
+   * For example: <code>tracer.createMeasurement('compiled', 'find_css', path.relative(options.projecRoot, asset.filePath), { meta: 'data' })</code>
    */
   createMeasurement(
     name: string,
     category?: string,
     argumentName?: string,
     otherArgs?: {[key: string]: mixed},
-  ): ApplicationProfilerMeasurement | null;
+  ): TraceMeasurement | null;
 }

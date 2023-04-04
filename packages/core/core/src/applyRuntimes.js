@@ -32,7 +32,7 @@ import {mergeEnvironments} from './Environment';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
 import {toProjectPath, fromProjectPathRelative} from './projectPath';
-import {applicationProfiler, PluginApplicationProfiler} from '@parcel/profiler';
+import {tracer, PluginTracer} from '@parcel/profiler';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -77,7 +77,7 @@ export default async function applyRuntimes<TResult>({
       let measurement;
       try {
         const namedBundle = NamedBundle.get(bundle, bundleGraph, options);
-        measurement = applicationProfiler.createMeasurement(
+        measurement = tracer.createMeasurement(
           runtime.name,
           'applyRuntime',
           namedBundle.displayName,
@@ -92,7 +92,7 @@ export default async function applyRuntimes<TResult>({
           config: configs.get(runtime.name)?.result,
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),
-          applicationProfiler: new PluginApplicationProfiler({
+          tracer: new PluginTracer({
             origin: runtime.name,
             category: 'applyRuntime',
           }),

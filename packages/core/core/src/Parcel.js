@@ -41,7 +41,7 @@ import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
 import {init as initHash} from '@parcel/hash';
 import {toProjectPath} from './projectPath';
-import {applicationProfiler} from '@parcel/profiler';
+import {tracer} from '@parcel/profiler';
 
 registerCoreWithSerializer();
 
@@ -105,7 +105,7 @@ export default class Parcel {
     } else {
       this.#farm = createWorkerFarm({
         shouldPatchConsole: resolvedOptions.shouldPatchConsole,
-        shouldProfileApplication: resolvedOptions.shouldProfileApplication,
+        shouldTrace: resolvedOptions.shouldTrace,
       });
     }
 
@@ -259,8 +259,8 @@ export default class Parcel {
       if (options.shouldProfile) {
         await this.startProfiling();
       }
-      if (options.shouldProfileApplication) {
-        applicationProfiler.enable();
+      if (options.shouldTrace) {
+        tracer.enable();
       }
       this.#reporterRunner.report({
         type: 'buildStart',

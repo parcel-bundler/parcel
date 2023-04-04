@@ -16,7 +16,7 @@ import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 import {fromProjectPath, fromProjectPathRelative} from './projectPath';
-import {PluginApplicationProfiler} from '@parcel/profiler';
+import {PluginTracer} from '@parcel/profiler';
 
 export type ValidationOpts = {|
   config: ParcelConfig,
@@ -67,7 +67,7 @@ export default class Validation {
         if (assets) {
           let plugin = this.allValidators[validatorName];
           let validatorLogger = new PluginLogger({origin: validatorName});
-          let validatorApplicationProfiler = new PluginApplicationProfiler({
+          let validatorTracer = new PluginTracer({
             origin: validatorName,
             category: 'validator',
           });
@@ -79,7 +79,7 @@ export default class Validation {
                 assets: assets.map(asset => new Asset(asset)),
                 options: pluginOptions,
                 logger: validatorLogger,
-                applicationProfiler: validatorApplicationProfiler,
+                tracer: validatorTracer,
                 resolveConfigWithPath: (
                   configNames: Array<string>,
                   assetFilePath: string,
@@ -104,7 +104,7 @@ export default class Validation {
                       asset: publicAsset,
                       options: pluginOptions,
                       logger: validatorLogger,
-                      applicationProfiler: validatorApplicationProfiler,
+                      tracer: validatorTracer,
                       resolveConfig: (configNames: Array<string>) =>
                         resolveConfig(
                           this.options.inputFS,
@@ -120,7 +120,7 @@ export default class Validation {
                     options: pluginOptions,
                     config,
                     logger: validatorLogger,
-                    applicationProfiler: validatorApplicationProfiler,
+                    tracer: validatorTracer,
                   });
                   validatorResults.push(validatorResult);
                 }),

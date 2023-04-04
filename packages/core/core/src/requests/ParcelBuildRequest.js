@@ -21,7 +21,7 @@ import IBundleGraph from '../public/BundleGraph';
 import {NamedBundle} from '../public/Bundle';
 import {assetFromValue} from '../public/Asset';
 
-import {applicationProfiler} from '@parcel/profiler';
+import {tracer} from '@parcel/profiler';
 
 type ParcelBuildRequestInput = {|
   optionsRef: SharedReference,
@@ -93,7 +93,7 @@ async function run({input, api, options}) {
     ),
   });
 
-  let packagingMeasurement = applicationProfiler.createMeasurement('packaging');
+  let packagingMeasurement = tracer.createMeasurement('packaging');
   let writeBundlesRequest = createWriteBundlesRequest({
     bundleGraph,
     optionsRef,

@@ -1,13 +1,13 @@
 // @flow strict-local
 
 import type {
-  ApplicationProfilerEvent,
+  TraceEvent,
   IDisposable,
-  PluginApplicationProfiler as IPluginApplicationProfiler,
+  PluginTracer as IPluginTracer,
 } from '@parcel/types';
 import type {
-  ApplicationProfilerMeasurement as IApplicationProfilerMeasurement,
-  ApplicationProfilerMeasurementData,
+  TraceMeasurement as ITraceMeasurement,
+  TraceMeasurementData,
 } from './types';
 import {ValueEmitter} from '@parcel/events';
 
@@ -24,16 +24,14 @@ try {
 const performance: Performance = _performance;
 const pid = process.pid;
 
-class ApplicationProfilerMeasurement
-  implements IApplicationProfilerMeasurement
-{
+class TraceMeasurement implements ITraceMeasurement {
   #active /* boolean */ = true;
   #name /* string */;
   #pid /* number */;
   #tid /* number */;
   #start /* number */;
   #data /* any */;
-  constructor(applicationProfiler: ApplicationProfiler, name, pid, tid, data) {
+  constructor(tracer: Tracer, name, pid, tid, data) {
     this.#name = name;
     this.#pid = pid;
     this.#tid = tid;
@@ -44,7 +42,7 @@ class ApplicationProfilerMeasurement
   end() {
     if (!this.#active) return;
     const duration = performance.now() - this.#start;
-    applicationProfiler.trace({
+    tracer.trace({
       type: 'trace',
       name: this.#name,
       pid: this.#pid,
@@ -57,13 +55,12 @@ class ApplicationProfilerMeasurement
   }
 }
 
-export default class ApplicationProfiler {
-  #traceEmitter /* ValueEmitter<ApplicationProfilerEvent> */ =
-    new ValueEmitter();
+export default class Tracer {
+  #traceEmitter /* ValueEmitter<TraceEvent> */ = new ValueEmitter();
 
   #enabled /* boolean */ = false;
 
-  onTrace(cb: (event: ApplicationProfilerEvent) => mixed): IDisposable {
+  onTrace(cb: (event: TraceEvent) => mixed): IDisposable {
     return this.#traceEmitter.addListener(cb);
   }
 
@@ -81,7 +78,7 @@ export default class ApplicationProfiler {
     category?: string = 'Core',
     argumentName?: string,
     otherArgs?: {[key: string]: mixed},
-  ): IApplicationProfilerMeasurement | null {
+  ): ITraceMeasurement | null {
     if (!this.enabled) return null;
 
     // We create `args` in a fairly verbose way to avoid object
@@ -99,12 +96,12 @@ export default class ApplicationProfiler {
       }
     }
 
-    const data: ApplicationProfilerMeasurementData = {
+    const data: TraceMeasurementData = {
       categories: [category],
       args,
     };
 
-    return new ApplicationProfilerMeasurement(this, name, pid, tid, data);
+    return new TraceMeasurement(this, name, pid, tid, data);
   }
 
   get enabled(): boolean {
@@ -119,20 +116,19 @@ export default class ApplicationProfiler {
     this.#enabled = false;
   }
 
-  trace(event: ApplicationProfilerEvent): void {
+  trace(event: TraceEvent): void {
     if (!this.#enabled) return;
     this.#traceEmitter.emit(event);
   }
 }
 
-export const applicationProfiler: ApplicationProfiler =
-  new ApplicationProfiler();
+export const tracer: Tracer = new Tracer();
 
-type ApplicationProfilerOpts = {|
+type TracerOpts = {|
   origin: string,
   category: string,
 |};
-export class PluginApplicationProfiler implements IPluginApplicationProfiler {
+export class PluginTracer implements IPluginTracer {
   /** @private */
   origin: string;
 
@@ -140,13 +136,13 @@ export class PluginApplicationProfiler implements IPluginApplicationProfiler {
   category: string;
 
   /** @private */
-  constructor(opts: ApplicationProfilerOpts) {
+  constructor(opts: TracerOpts) {
     this.origin = opts.origin;
     this.category = opts.category;
   }
 
   get enabled(): boolean {
-    return applicationProfiler.enabled;
+    return tracer.enabled;
   }
 
   createMeasurement(
@@ -154,8 +150,8 @@ export class PluginApplicationProfiler implements IPluginApplicationProfiler {
     category?: string,
     argumentName?: string,
     otherArgs?: {[key: string]: mixed},
-  ): IApplicationProfilerMeasurement | null {
-    return applicationProfiler.createMeasurement(
+  ): ITraceMeasurement | null {
+    return tracer.createMeasurement(
       name,
       `${this.category}:${this.origin}${
         typeof category === 'string' ? `:${category}` : ''

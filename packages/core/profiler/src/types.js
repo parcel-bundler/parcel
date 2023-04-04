@@ -1,10 +1,10 @@
 // @flow
 
-export interface ApplicationProfilerMeasurement {
+export interface TraceMeasurement {
   end(): void;
 }
 
-export type ApplicationProfilerMeasurementData = {|
+export type TraceMeasurementData = {|
   +categories: string[],
   +args?: {[key: string]: mixed},
 |};

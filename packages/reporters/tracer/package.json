@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/reporter-application-profiler",
+  "name": "@parcel/reporter-tracer",
   "version": "2.8.3",
   "license": "MIT",
   "publishConfig": {
@@ -13,8 +13,8 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/ApplicationProfilerReporter.js",
-  "source": "src/ApplicationProfilerReporter.js",
+  "main": "lib/TracerReporter.js",
+  "source": "src/TracerReporter.js",
   "engines": {
     "node": ">= 12.0.0",
     "parcel": "^2.8.3"

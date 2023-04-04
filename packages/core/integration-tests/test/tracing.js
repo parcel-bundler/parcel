@@ -3,18 +3,18 @@ import assert from 'assert';
 import path from 'path';
 import {distDir, bundle, outputFS} from '@parcel/test-utils';
 
-describe('application profiling', function () {
-  it('should produce an application profile', async function () {
+describe('tracing', function () {
+  it('should produce a trace', async function () {
     await bundle(
       path.join(__dirname, '/integration/typescript-jsx/index.tsx'),
       {
-        shouldProfileApplication: true,
+        shouldTrace: true,
         targets: {
           default: {distDir},
         },
         additionalReporters: [
           {
-            packageName: '@parcel/reporter-application-profiler',
+            packageName: '@parcel/reporter-tracer',
             resolveFrom: __dirname,
           },
         ],
@@ -23,9 +23,7 @@ describe('application profiling', function () {
     );
 
     const files = outputFS.readdirSync(__dirname);
-    const profileFile = files.find(file =>
-      file.startsWith('parcel-application-profile'),
-    );
+    const profileFile = files.find(file => file.startsWith('parcel-trace'));
     assert(profileFile !== null);
     const content = await outputFS.readFile(
       path.join(__dirname, profileFile),

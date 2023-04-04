@@ -31,7 +31,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   env: {},
   shouldDisableCache: false,
   shouldProfile: false,
-  shouldProfileApplication: false,
+  shouldTrace: false,
   inputFS,
   outputFS,
   cache,

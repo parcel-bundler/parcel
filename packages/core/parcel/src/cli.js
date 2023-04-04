@@ -89,7 +89,7 @@ const commonOptions = {
     'output directory to write to when unspecified by targets',
   '--no-autoinstall': 'disable autoinstall',
   '--profile': 'enable sampling build profiling',
-  '--profile-application': 'enable application build profiling',
+  '--trace': 'enable build tracing',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
@@ -465,9 +465,9 @@ async function normalizeOptions(
     })),
   ];
 
-  if (command.profileApplication) {
+  if (command.trace) {
     additionalReporters.unshift({
-      packageName: '@parcel/reporter-application-profiler',
+      packageName: '@parcel/reporter-tracer',
       resolveFrom: __filename,
     });
   }
@@ -485,7 +485,7 @@ async function normalizeOptions(
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
-    shouldProfileApplication: command.profileApplication,
+    shouldTrace: command.trace,
     shouldBuildLazily: command.lazy,
     shouldBundleIncrementally:
       process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,

@@ -38,7 +38,7 @@ import {
 } from './DevDepRequest';
 import ParcelConfig from '../ParcelConfig';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {PluginApplicationProfiler, applicationProfiler} from '@parcel/profiler';
+import {PluginTracer, tracer} from '@parcel/profiler';
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
@@ -246,7 +246,7 @@ async function runCompressor(
 ) {
   let measurement;
   try {
-    measurement = applicationProfiler.createMeasurement(
+    measurement = tracer.createMeasurement(
       compressor.name,
       'compress',
       path.relative(options.projectRoot, filePath),
@@ -255,10 +255,7 @@ async function runCompressor(
       stream,
       options: new PluginOptions(options),
       logger: new PluginLogger({origin: compressor.name}),
-      applicationProfiler: new PluginApplicationProfiler({
-        origin: compressor.name,
-        category: 'compress',
-      }),
+      tracer: new PluginTracer({origin: compressor.name, category: 'compress'}),
     });
 
     if (res != null) {

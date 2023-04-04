@@ -4,7 +4,7 @@ import type {
   MutableAsset,
   AST,
   PluginOptions,
-  PluginApplicationProfiler,
+  PluginTracer,
   PluginLogger,
 } from '@parcel/types';
 import typeof * as BabelCore from '@babel/core';
@@ -26,19 +26,13 @@ type Babel7TransformOptions = {|
   logger: PluginLogger,
   babelOptions: any,
   additionalPlugins?: Array<any>,
-  applicationProfiler: PluginApplicationProfiler,
+  tracer: PluginTracer,
 |};
 
 export default async function babel7(
   opts: Babel7TransformOptions,
 ): Promise<?AST> {
-  let {
-    asset,
-    options,
-    babelOptions,
-    additionalPlugins = [],
-    applicationProfiler,
-  } = opts;
+  let {asset, options, babelOptions, additionalPlugins = [], tracer} = opts;
   const babelCore: BabelCore = await options.packageManager.require(
     '@babel/core',
     asset.filePath,
@@ -82,7 +76,7 @@ export default async function babel7(
     },
   };
 
-  if (applicationProfiler.enabled) {
+  if (tracer.enabled) {
     config.wrapPluginVisitorMethod = (
       key: string,
       nodeType: string,
@@ -93,7 +87,7 @@ export default async function babel7(
         if (pluginKey.startsWith(options.projectRoot)) {
           pluginKey = path.relative(options.projectRoot, pluginKey);
         }
-        const measurement = applicationProfiler.createMeasurement(
+        const measurement = tracer.createMeasurement(
           pluginKey,
           nodeType,
           path.relative(options.projectRoot, asset.filePath),

@@ -61,7 +61,7 @@ import {createBuildCache} from './buildCache';
 import {getInvalidationId, getInvalidationHash} from './assetUtils';
 import {optionsProxy} from './utils';
 import {invalidateDevDeps} from './requests/DevDepRequest';
-import {applicationProfiler, PluginApplicationProfiler} from '@parcel/profiler';
+import {tracer, PluginTracer} from '@parcel/profiler';
 
 type Opts = {|
   config: ParcelConfig,
@@ -276,10 +276,7 @@ export default class PackagerRunner {
         config: new PublicConfig(config, this.options),
         options: new PluginOptions(this.options),
         logger: new PluginLogger({origin: plugin.name}),
-        applicationProfiler: new PluginApplicationProfiler({
-          origin: plugin.name,
-          category: 'loadConfig',
-        }),
+        tracer: new PluginTracer({origin: plugin.name, category: 'loadConfig'}),
       });
       bundleConfigs.set(plugin.name, config);
     }
@@ -401,12 +398,9 @@ export default class PackagerRunner {
     let {name, resolveFrom, plugin} = packager;
     let measurement;
     try {
-      measurement = applicationProfiler.createMeasurement(
-        name,
-        'packaging',
-        bundle.name,
-        {type: bundle.type},
-      );
+      measurement = tracer.createMeasurement(name, 'packaging', bundle.name, {
+        type: bundle.type,
+      });
       return await plugin.package({
         config: configs.get(name)?.result,
         bundleConfig: bundleConfigs.get(name)?.result,
@@ -421,10 +415,7 @@ export default class PackagerRunner {
         },
         options: this.pluginOptions,
         logger: new PluginLogger({origin: name}),
-        applicationProfiler: new PluginApplicationProfiler({
-          origin: name,
-          category: 'package',
-        }),
+        tracer: new PluginTracer({origin: name, category: 'package'}),
         getInlineBundleContents: async (
           bundle: BundleType,
           bundleGraph: BundleGraphType<NamedBundleType>,
@@ -514,7 +505,7 @@ export default class PackagerRunner {
     for (let optimizer of optimizers) {
       let measurement;
       try {
-        measurement = applicationProfiler.createMeasurement(
+        measurement = tracer.createMeasurement(
           optimizer.name,
           'optimize',
           bundle.name,
@@ -531,7 +522,7 @@ export default class PackagerRunner {
           },
           options: this.pluginOptions,
           logger: new PluginLogger({origin: optimizer.name}),
-          applicationProfiler: new PluginApplicationProfiler({
+          tracer: new PluginTracer({
             origin: optimizer.name,
             category: 'optimize',
           }),

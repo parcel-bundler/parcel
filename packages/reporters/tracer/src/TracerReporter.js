@@ -34,19 +34,16 @@ export default (new Reporter({
     let filePath;
     switch (event.type) {
       case 'buildStart':
-        invariant(
-          tracer == null,
-          'Application profiler tracer multiple initialisation',
-        );
+        invariant(tracer == null, 'Tracer multiple initialisation');
         tracer = new Tracer();
-        filename = `parcel-application-profile-${getTimeId()}.json`;
+        filename = `parcel-trace-${getTimeId()}.json`;
         filePath = path.join(options.projectRoot, filename);
         invariant(
           writeStream == null,
-          'Application profile write stream multiple initialisation',
+          'Trace write stream multiple initialisation',
         );
         logger.info({
-          message: `Writing application profile to ${filename}. See https://parceljs.org/features/profiling/#analysing-application-profiles for more information on working with application profiles.`,
+          message: `Writing trace to ${filename}. See https://parceljs.org/features/profiling/#analysing-traces for more information on working with traces.`,
         });
         writeStream = options.outputFS.createWriteStream(filePath);
         nullthrows(tracer).pipe(nullthrows(writeStream));

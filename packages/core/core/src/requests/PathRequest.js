@@ -46,7 +46,7 @@ import {
   invalidateDevDeps,
   runDevDepRequest,
 } from './DevDepRequest';
-import {applicationProfiler, PluginApplicationProfiler} from '@parcel/profiler';
+import {tracer, PluginTracer} from '@parcel/profiler';
 
 export type PathRequest = {|
   id: string,
@@ -278,7 +278,7 @@ export class ResolverRunner {
     for (let resolver of resolvers) {
       let measurement;
       try {
-        measurement = applicationProfiler.createMeasurement(
+        measurement = tracer.createMeasurement(
           resolver.name,
           'resolve',
           specifier,
@@ -289,7 +289,7 @@ export class ResolverRunner {
           dependency: dep,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: resolver.name}),
-          applicationProfiler: new PluginApplicationProfiler({
+          tracer: new PluginTracer({
             origin: resolver.name,
             category: 'resolver',
           }),

@@ -28,7 +28,7 @@
     "@parcel/fs": "2.8.3",
     "@parcel/logger": "2.8.3",
     "@parcel/package-manager": "2.8.3",
-    "@parcel/reporter-application-profiler": "2.8.3",
+    "@parcel/reporter-tracer": "2.8.3",
     "@parcel/reporter-cli": "2.8.3",
     "@parcel/reporter-dev-server": "2.8.3",
     "@parcel/utils": "2.8.3",
