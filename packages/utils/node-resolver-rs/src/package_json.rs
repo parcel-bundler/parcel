@@ -28,7 +28,7 @@ bitflags! {
   }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageJson<'a> {
   #[serde(skip)]
@@ -55,58 +55,29 @@ pub struct PackageJson<'a> {
   side_effects: SideEffects<'a>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ModuleType {
+  #[default]
   CommonJs,
   Module,
   Json,
 }
 
-impl Default for ModuleType {
-  fn default() -> Self {
-    ModuleType::CommonJs
-  }
-}
-
-impl<'a> Default for PackageJson<'a> {
-  fn default() -> Self {
-    PackageJson {
-      path: Default::default(),
-      name: "",
-      module_type: Default::default(),
-      main: None,
-      module: None,
-      tsconfig: None,
-      types: None,
-      source: Default::default(),
-      browser: Default::default(),
-      alias: Default::default(),
-      exports: Default::default(),
-      imports: Default::default(),
-      side_effects: Default::default(),
-    }
-  }
-}
-
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Default)]
 #[serde(untagged)]
 pub enum BrowserField<'a> {
+  #[default]
   None,
   #[serde(borrow)]
   String(&'a str),
   Map(IndexMap<Specifier<'a>, AliasValue<'a>>),
 }
 
-impl<'a> Default for BrowserField<'a> {
-  fn default() -> Self {
-    BrowserField::None
-  }
-}
-
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Default)]
 #[serde(untagged)]
 pub enum SourceField<'a> {
+  #[default]
   None,
   #[serde(borrow)]
   String(&'a str),
@@ -115,26 +86,15 @@ pub enum SourceField<'a> {
   Bool(bool),
 }
 
-impl<'a> Default for SourceField<'a> {
-  fn default() -> Self {
-    SourceField::None
-  }
-}
-
-#[derive(serde::Deserialize, Debug, PartialEq)]
+#[derive(serde::Deserialize, Debug, Default, PartialEq)]
 #[serde(untagged)]
 pub enum ExportsField<'a> {
+  #[default]
   None,
   #[serde(borrow)]
   String(&'a str),
   Array(Vec<ExportsField<'a>>),
   Map(IndexMap<ExportsKey<'a>, ExportsField<'a>>),
-}
-
-impl<'a> Default for ExportsField<'a> {
-  fn default() -> Self {
-    ExportsField::None
-  }
 }
 
 bitflags! {
@@ -234,20 +194,15 @@ pub enum AliasValue<'a> {
   },
 }
 
-#[derive(serde::Deserialize, Clone, PartialEq, Debug)]
+#[derive(serde::Deserialize, Clone, Default, PartialEq, Debug)]
 #[serde(untagged)]
 pub enum SideEffects<'a> {
+  #[default]
   None,
   Boolean(bool),
   #[serde(borrow)]
   String(&'a str),
   Array(Vec<&'a str>),
-}
-
-impl<'a> Default for SideEffects<'a> {
-  fn default() -> Self {
-    SideEffects::None
-  }
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
