@@ -400,7 +400,7 @@ impl<'a> PackageJson<'a> {
             return Err(PackageJsonError::InvalidPackageTarget);
           }
 
-          if pattern_match != "" {
+          if !pattern_match.is_empty() {
             let target = target.replace('*', pattern_match);
             return Ok(ExportsResolution::Package(Cow::Owned(target)));
           }
@@ -408,7 +408,7 @@ impl<'a> PackageJson<'a> {
           return Ok(ExportsResolution::Package(Cow::Borrowed(target)));
         }
 
-        let target = if pattern_match == "" {
+        let target = if pattern_match.is_empty() {
           Cow::Borrowed(*target)
         } else {
           Cow::Owned(target.replace('*', pattern_match))

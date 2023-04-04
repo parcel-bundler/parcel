@@ -937,13 +937,13 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       .map_or([""].as_slice(), |v| v.as_slice());
 
     for suffix in module_suffixes {
-      let mut p = if *suffix != "" {
+      let mut p = if !suffix.is_empty() {
         // The suffix is placed before the _last_ extension. If we will be appending
         // another extension later, then we only need to append the suffix first.
         // Otherwise, we need to remove the original extension so we can add the suffix.
         // TODO: TypeScript only removes certain extensions here...
         let original_ext = path.extension();
-        let mut s = if ext == "" && original_ext.is_some() {
+        let mut s = if ext.is_empty() && original_ext.is_some() {
           path.with_extension("").into_os_string()
         } else {
           path.into()
@@ -953,7 +953,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         s.push(suffix);
 
         // Re-add the original extension if we removed it earlier.
-        if ext == "" {
+        if ext.is_empty() {
           if let Some(original_ext) = original_ext {
             s.push(".");
             s.push(original_ext);
@@ -965,7 +965,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         Cow::Borrowed(path)
       };
 
-      if ext != "" {
+      if !ext.is_empty() {
         // Append the extension.
         let mut s = p.into_owned().into_os_string();
         s.push(".");
