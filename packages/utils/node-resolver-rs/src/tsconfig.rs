@@ -194,12 +194,12 @@ mod tests {
     let mut tsconfig = TsConfig {
       path: "/foo/tsconfig.json".into(),
       paths: Some(indexmap! {
-        "jquery".into() => vec!["node_modules/jquery/dist/jquery".into()],
-        "*".into() => vec!["generated/*".into()],
-        "bar/*".into() => vec!["test/*".into()],
-        "bar/baz/*".into() => vec!["baz/*".into(), "yo/*".into()],
-        "@/components/*".into() => vec!["components/*".into()],
-        "url".into() => vec!["node_modules/my-url".into()],
+        "jquery".into() => vec!["node_modules/jquery/dist/jquery"],
+        "*".into() => vec!["generated/*"],
+        "bar/*".into() => vec!["test/*"],
+        "bar/baz/*".into() => vec!["baz/*", "yo/*"],
+        "@/components/*".into() => vec!["components/*"],
+        "url".into() => vec!["node_modules/my-url"],
       }),
       ..Default::default()
     };
@@ -254,10 +254,10 @@ mod tests {
       path: "/foo/tsconfig.json".into(),
       base_url: Some(Path::new("src").into()),
       paths: Some(indexmap! {
-        "*".into() => vec!["generated/*".into()],
-        "bar/*".into() => vec!["test/*".into()],
-        "bar/baz/*".into() => vec!["baz/*".into(), "yo/*".into()],
-        "@/components/*".into() => vec!["components/*".into()],
+        "*".into() => vec!["generated/*"],
+        "bar/*".into() => vec!["test/*"],
+        "bar/baz/*".into() => vec!["baz/*", "yo/*"],
+        "@/components/*".into() => vec!["components/*"],
       }),
       ..Default::default()
     };
