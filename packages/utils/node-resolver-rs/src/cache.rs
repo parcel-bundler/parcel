@@ -41,7 +41,7 @@ impl<'a, Fs> Deref for CacheCow<'a, Fs> {
 
   fn deref(&self) -> &Self::Target {
     match self {
-      CacheCow::Borrowed(c) => *c,
+      CacheCow::Borrowed(c) => c,
       CacheCow::Owned(c) => c,
     }
   }
