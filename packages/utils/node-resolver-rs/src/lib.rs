@@ -747,9 +747,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         }
       }
 
-      if let Err(e) = res {
-        return Err(e);
-      }
+      res?;
 
       return Err(ResolverError::ModuleSubpathNotFound {
         module: module.to_owned(),
