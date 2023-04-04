@@ -242,10 +242,7 @@ impl<'a> PackageJson<'a> {
         Cow::Borrowed(self.name),
         Cow::Borrowed(""),
       )) {
-        Some(AliasValue::Specifier(s)) => match s {
-          Specifier::Relative(s) => Some(resolve_path(&self.path, s)),
-          _ => None,
-        },
+        Some(AliasValue::Specifier(Specifier::Relative(s))) => Some(resolve_path(&self.path, s)),
         _ => None,
       },
     }
@@ -769,13 +766,11 @@ impl<'a> Iterator for EntryIter<'a> {
           return Some((resolve_path(&self.package.path, browser), "browser"))
         }
         BrowserField::Map(map) => {
-          if let Some(AliasValue::Specifier(s)) = map.get(&Specifier::Package(
+          if let Some(AliasValue::Specifier(Specifier::Relative(s))) = map.get(&Specifier::Package(
             Cow::Borrowed(self.package.name),
             Cow::Borrowed(""),
           )) {
-            if let Specifier::Relative(s) = s {
-              return Some((resolve_path(&self.package.path, s), "browser"));
-            }
+            return Some((resolve_path(&self.package.path, s), "browser"));
           }
         }
       }
