@@ -154,7 +154,7 @@ impl<'a> TsConfig<'a> {
 
 fn join_paths<'a>(
   base_url: &'a Path,
-  paths: &'a Vec<&'a str>,
+  paths: &'a [&'a str],
   replacement: Option<(Cow<'a, str>, usize, usize)>,
 ) -> impl Iterator<Item = PathBuf> + 'a {
   paths
