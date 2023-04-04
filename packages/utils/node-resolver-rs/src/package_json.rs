@@ -489,12 +489,11 @@ impl<'a> PackageJson<'a> {
     fields: Fields,
   ) -> Option<Cow<'_, AliasValue>> {
     if fields.contains(Fields::SOURCE) {
-      match &self.source {
-        SourceField::Map(source) => match self.resolve_alias(source, specifier) {
+      if let SourceField::Map(source) = &self.source {
+        match self.resolve_alias(source, specifier) {
           None => {}
           res => return res,
-        },
-        _ => {}
+        }
       }
     }
 
@@ -506,12 +505,11 @@ impl<'a> PackageJson<'a> {
     }
 
     if fields.contains(Fields::BROWSER) {
-      match &self.browser {
-        BrowserField::Map(browser) => match self.resolve_alias(browser, specifier) {
+      if let BrowserField::Map(browser) = &self.browser {
+        match self.resolve_alias(browser, specifier) {
           None => {}
           res => return res,
-        },
-        _ => {}
+        }
       }
     }
 
@@ -527,63 +525,60 @@ impl<'a> PackageJson<'a> {
       return Some(alias);
     }
 
-    match specifier {
-      Specifier::Package(package, subpath) => {
-        if let Some(alias) =
-          self.lookup_alias(map, &Specifier::Package(package.clone(), Cow::Borrowed("")))
-        {
-          match alias.as_ref() {
-            AliasValue::Specifier(base) => {
-              // Join the subpath back onto the resolved alias.
-              match base {
-                Specifier::Package(base_pkg, base_subpath) => {
-                  let subpath = if !base_subpath.is_empty() && !subpath.is_empty() {
-                    Cow::Owned(format!("{}/{}", base_subpath, subpath))
-                  } else if !subpath.is_empty() {
-                    subpath.clone()
-                  } else {
-                    return Some(alias);
-                  };
-                  return Some(Cow::Owned(AliasValue::Specifier(Specifier::Package(
-                    base_pkg.clone(),
-                    subpath,
+    if let Specifier::Package(package, subpath) = specifier {
+      if let Some(alias) =
+        self.lookup_alias(map, &Specifier::Package(package.clone(), Cow::Borrowed("")))
+      {
+        match alias.as_ref() {
+          AliasValue::Specifier(base) => {
+            // Join the subpath back onto the resolved alias.
+            match base {
+              Specifier::Package(base_pkg, base_subpath) => {
+                let subpath = if !base_subpath.is_empty() && !subpath.is_empty() {
+                  Cow::Owned(format!("{}/{}", base_subpath, subpath))
+                } else if !subpath.is_empty() {
+                  subpath.clone()
+                } else {
+                  return Some(alias);
+                };
+                return Some(Cow::Owned(AliasValue::Specifier(Specifier::Package(
+                  base_pkg.clone(),
+                  subpath,
+                ))));
+              }
+              Specifier::Relative(path) => {
+                if subpath.is_empty() {
+                  return Some(alias);
+                } else {
+                  return Some(Cow::Owned(AliasValue::Specifier(Specifier::Relative(
+                    Cow::Owned(path.join(subpath.as_ref())),
                   ))));
                 }
-                Specifier::Relative(path) => {
-                  if subpath.is_empty() {
-                    return Some(alias);
-                  } else {
-                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Relative(
-                      Cow::Owned(path.join(subpath.as_ref())),
-                    ))));
-                  }
-                }
-                Specifier::Absolute(path) => {
-                  if subpath.is_empty() {
-                    return Some(alias);
-                  } else {
-                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Absolute(
-                      Cow::Owned(path.join(subpath.as_ref())),
-                    ))));
-                  }
-                }
-                Specifier::Tilde(path) => {
-                  if subpath.is_empty() {
-                    return Some(alias);
-                  } else {
-                    return Some(Cow::Owned(AliasValue::Specifier(Specifier::Tilde(
-                      Cow::Owned(path.join(subpath.as_ref())),
-                    ))));
-                  }
-                }
-                _ => return Some(alias),
               }
+              Specifier::Absolute(path) => {
+                if subpath.is_empty() {
+                  return Some(alias);
+                } else {
+                  return Some(Cow::Owned(AliasValue::Specifier(Specifier::Absolute(
+                    Cow::Owned(path.join(subpath.as_ref())),
+                  ))));
+                }
+              }
+              Specifier::Tilde(path) => {
+                if subpath.is_empty() {
+                  return Some(alias);
+                } else {
+                  return Some(Cow::Owned(AliasValue::Specifier(Specifier::Tilde(
+                    Cow::Owned(path.join(subpath.as_ref())),
+                  ))));
+                }
+              }
+              _ => return Some(alias),
             }
-            _ => return Some(alias),
-          };
-        }
+          }
+          _ => return Some(alias),
+        };
       }
-      _ => {}
     }
 
     None
@@ -773,18 +768,16 @@ impl<'a> Iterator for EntryIter<'a> {
         BrowserField::String(browser) => {
           return Some((resolve_path(&self.package.path, browser), "browser"))
         }
-        BrowserField::Map(map) => match map.get(&Specifier::Package(
-          Cow::Borrowed(self.package.name),
-          Cow::Borrowed(""),
-        )) {
-          Some(AliasValue::Specifier(s)) => match s {
-            Specifier::Relative(s) => {
-              return Some((resolve_path(&self.package.path, s), "browser"))
+        BrowserField::Map(map) => {
+          if let Some(AliasValue::Specifier(s)) = map.get(&Specifier::Package(
+            Cow::Borrowed(self.package.name),
+            Cow::Borrowed(""),
+          )) {
+            if let Specifier::Relative(s) = s {
+              return Some((resolve_path(&self.package.path, s), "browser"));
             }
-            _ => {}
-          },
-          _ => {}
-        },
+          }
+        }
       }
     }
 
