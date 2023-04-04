@@ -161,10 +161,10 @@ impl<'a> From<&'a str> for ExportsKey<'a> {
   fn from(key: &'a str) -> Self {
     if key == "." {
       ExportsKey::Main
-    } else if key.starts_with("./") {
-      ExportsKey::Pattern(&key[2..])
-    } else if key.starts_with('#') {
-      ExportsKey::Pattern(&key[1..])
+    } else if let Some(key) = key.strip_prefix("./") {
+      ExportsKey::Pattern(key)
+    } else if let Some(key) = key.strip_prefix('#') {
+      ExportsKey::Pattern(key)
     } else if let Ok(c) = ExportsCondition::try_from(key) {
       ExportsKey::Condition(c)
     } else {
@@ -649,11 +649,7 @@ impl<'a> PackageJson<'a> {
 
     fn side_effects_glob_matches(glob: &str, path: &str) -> bool {
       // Trim leading "./"
-      let glob = if glob.starts_with("./") {
-        &glob[2..]
-      } else {
-        glob
-      };
+      let glob = glob.strip_prefix("./").unwrap_or(glob);
 
       // If the glob does not contain any '/' characters, prefix with "**/" to match webpack.
       let glob = if !glob.contains('/') {
