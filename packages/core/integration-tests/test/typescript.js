@@ -265,18 +265,13 @@ describe('typescript', function () {
           __dirname,
           '/integration/typescript-import-type-declaration/index.ts',
         ),
-        {
-          config,
-          defaultTargetOptions: {
-            shouldScopeHoist: false,
-          },
-        },
+        {config},
       );
 
       let output = await run(b);
 
       assert.deepEqual(output, {
-        thing: 'something',
+        output: 'something',
       });
     });
   }

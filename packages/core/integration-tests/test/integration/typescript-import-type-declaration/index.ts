@@ -1,4 +1,3 @@
-import { something, Thing } from "./Thing";
+import { thing } from "./library";
 
-export const thing = something;
-export { Thing }
+export const output = thing;
