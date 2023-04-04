@@ -716,22 +716,22 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       }
 
       // TODO: track location of resolved field
-      return Err(ResolverError::ModuleSubpathNotFound {
+      Err(ResolverError::ModuleSubpathNotFound {
         module: module.to_owned(),
         path,
         package_path: package.path.clone(),
-      });
+      })
     } else if !subpath.is_empty() {
       package_dir.push(subpath);
       if let Some(res) = self.load_path(&package_dir, Some(package))? {
         return Ok(res);
       }
 
-      return Err(ResolverError::ModuleSubpathNotFound {
+      Err(ResolverError::ModuleSubpathNotFound {
         module: module.to_owned(),
         path: package_dir,
         package_path: package.path.clone(),
-      });
+      })
     } else {
       let res = self.try_package_entries(package);
       if let Ok(Some(res)) = res {
@@ -749,11 +749,11 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
       res?;
 
-      return Err(ResolverError::ModuleSubpathNotFound {
+      Err(ResolverError::ModuleSubpathNotFound {
         module: module.to_owned(),
         path: package_dir.join(self.resolver.index_file),
         package_path: package.path.clone(),
-      });
+      })
     }
   }
 

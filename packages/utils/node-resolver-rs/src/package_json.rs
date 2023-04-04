@@ -228,10 +228,10 @@ impl<'a> PackageJson<'a> {
   }
 
   pub fn entries(&self, fields: Fields) -> EntryIter {
-    return EntryIter {
+    EntryIter {
       package: self,
       fields,
-    };
+    }
   }
 
   pub fn source(&self) -> Option<PathBuf> {
