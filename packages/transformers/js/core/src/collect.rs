@@ -66,8 +66,6 @@ pub struct Collect {
   pub exports_all: HashMap<JsWord, SourceLocation>,
   /// the keys in `imports` that are actually used (referenced), except namespace imports
   pub used_imports: HashSet<Id>,
-  /// the keys in `imports` that are actually used (referenced), only namespace imports that hoist optimizes away
-  pub used_import_namespaces: HashSet<Id>,
   pub non_static_access: HashMap<Id, Vec<Span>>,
   pub non_const_bindings: HashMap<Id, Vec<Span>>,
   pub non_static_requires: HashSet<JsWord>,
@@ -135,7 +133,6 @@ impl Collect {
       exports_locals: HashMap::new(),
       exports_all: HashMap::new(),
       used_imports: HashSet::new(),
-      used_import_namespaces: HashSet::new(),
       non_static_access: HashMap::new(),
       non_const_bindings: HashMap::new(),
       non_static_requires: HashSet::new(),
@@ -156,9 +153,7 @@ impl From<Collect> for CollectResult {
       .imports
       .into_iter()
       .filter(|(local, _)| {
-        collect.used_imports.contains(local)
-          || collect.used_import_namespaces.contains(local)
-          || collect.exports_locals.contains_key(local)
+        collect.used_imports.contains(local) || collect.exports_locals.contains_key(local)
       })
       .map(
         |(
@@ -667,7 +662,7 @@ impl Visit for Collect {
               .or_default()
               .push(node.span);
           } else if self.imports.contains_key(&id!(ident)) {
-            self.used_import_namespaces.insert(id!(ident));
+            self.used_imports.insert(id!(ident));
           }
         }
         return;

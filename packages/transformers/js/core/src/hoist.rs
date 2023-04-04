@@ -1324,8 +1324,10 @@ mod tests {
     y.foo();
     "#,
     );
-    assert_eq_set!(collect.used_imports, set! { w!("a"), w!("c"), w!("x") });
-    assert_eq_set!(collect.used_import_namespaces, set! { w!("b"), w!("y") });
+    assert_eq_set!(
+      collect.used_imports,
+      set! { w!("a"), w!("b"), w!("c"), w!("x"), w!("y") }
+    );
     assert_eq_imports!(
       collect.imports,
       map! {
