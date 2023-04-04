@@ -102,7 +102,7 @@ pub enum Extensions<'a> {
 impl<'a> Extensions<'a> {
   fn iter(&self) -> impl Iterator<Item = &str> {
     match self {
-      Extensions::Borrowed(v) => itertools::Either::Left(v.iter().map(|s| *s)),
+      Extensions::Borrowed(v) => itertools::Either::Left(v.iter().copied()),
       Extensions::Owned(v) => itertools::Either::Right(v.iter().map(|s| s.as_str())),
     }
   }
