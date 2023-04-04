@@ -348,7 +348,7 @@ impl<'a> PackageJson<'a> {
       // All exports must start with "." at this point.
       match self.resolve_package_imports_exports(
         subpath,
-        &exports,
+        exports,
         false,
         conditions,
         custom_conditions,
@@ -705,7 +705,7 @@ impl<'a> PackageJson<'a> {
       let glob = if glob.starts_with("./") {
         &glob[2..]
       } else {
-        &glob
+        glob
       };
 
       // If the glob does not contain any '/' characters, prefix with "**/" to match webpack.
@@ -735,7 +735,7 @@ fn replace_path_captures<'a>(
   captures: &Vec<Range<usize>>,
 ) -> Option<Cow<'a, Path>> {
   Some(
-    match replace_captures(s.as_os_str().to_str()?, path, &captures) {
+    match replace_captures(s.as_os_str().to_str()?, path, captures) {
       Cow::Borrowed(b) => Cow::Borrowed(Path::new(b)),
       Cow::Owned(b) => Cow::Owned(PathBuf::from(b)),
     },

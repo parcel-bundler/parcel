@@ -168,7 +168,7 @@ impl<'a> Specifier<'a> {
           Cow::Owned(format!("{}/{}", module, subpath))
         }
       }
-      Specifier::Builtin(builtin) => Cow::Borrowed(&builtin),
+      Specifier::Builtin(builtin) => Cow::Borrowed(builtin),
       Specifier::Url(url) => Cow::Borrowed(url),
     }
   }

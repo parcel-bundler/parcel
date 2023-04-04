@@ -163,9 +163,9 @@ fn join_paths<'a>(
     .map(move |path| {
       if let Some((replacement, start, end)) = &replacement {
         let path = path.replace('*', &replacement[*start..replacement.len() - *end]);
-        base_url.join(&path)
+        base_url.join(path)
       } else {
-        base_url.join(&path)
+        base_url.join(path)
       }
     })
 }

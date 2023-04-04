@@ -411,11 +411,11 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       return Ok(None);
     }
 
-    match package.resolve_aliases(&specifier, fields) {
+    match package.resolve_aliases(specifier, fields) {
       Some(alias) => match alias.as_ref() {
         AliasValue::Specifier(specifier) => {
           let mut req = ResolveRequest::new(
-            &self.resolver,
+            self.resolver,
             specifier,
             SpecifierType::Cjs,
             &package.path,
@@ -445,13 +445,13 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     match &self.specifier {
       Specifier::Relative(specifier) => {
         // Relative path
-        self.resolve_relative(&specifier, &self.from)
+        self.resolve_relative(specifier, self.from)
       }
       Specifier::Tilde(specifier) if self.resolver.flags.contains(Flags::TILDE_SPECIFIERS) => {
         // Tilde path. Resolve relative to nearest node_modules directory,
         // the nearest directory with package.json or the project root - whichever comes first.
-        if let Some(p) = self.find_ancestor_file(&self.from, "package.json") {
-          return self.resolve_relative(&specifier, &p);
+        if let Some(p) = self.find_ancestor_file(self.from, "package.json") {
+          return self.resolve_relative(specifier, &p);
         }
 
         Err(ResolverError::PackageJsonNotFound {
@@ -465,7 +465,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
             specifier.strip_prefix("/").unwrap(),
             &self.resolver.project_root.join("index"),
           )
-        } else if let Some(res) = self.load_path(&specifier, None)? {
+        } else if let Some(res) = self.load_path(specifier, None)? {
           Ok(res)
         } else {
           Err(ResolverError::FileNotFound {
@@ -482,10 +482,10 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
           && self.resolver.flags.contains(Flags::EXPORTS)
         {
           // An internal package #import specifier.
-          let package = self.find_package(&self.from.parent().unwrap())?;
+          let package = self.find_package(self.from.parent().unwrap())?;
           if let Some(package) = package {
             let res = package
-              .resolve_package_imports(&hash, self.conditions, self.custom_conditions)
+              .resolve_package_imports(hash, self.conditions, self.custom_conditions)
               .map_err(|e| ResolverError::PackageJsonError {
                 module: package.name.to_owned(),
                 path: package.path.clone(),
@@ -516,10 +516,10 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       }
       Specifier::Package(module, subpath) => {
         // Bare specifier.
-        self.resolve_bare(&module, &subpath)
+        self.resolve_bare(module, subpath)
       }
       Specifier::Builtin(builtin) => {
-        if let Some(res) = self.resolve_package_aliases_and_tsconfig_paths(&self.specifier)? {
+        if let Some(res) = self.resolve_package_aliases_and_tsconfig_paths(self.specifier)? {
           return Ok(res);
         }
         Ok(Resolution::Builtin(builtin.as_ref().to_owned()))
@@ -542,18 +542,18 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     let from = from.parent().unwrap();
     self
       .resolver
-      .find_ancestor_file(from, filename, &self.invalidations)
+      .find_ancestor_file(from, filename, self.invalidations)
   }
 
   fn find_package(&self, from: &Path) -> Result<Option<&'a PackageJson<'a>>, ResolverError> {
-    self.resolver.find_package(from, &self.invalidations)
+    self.resolver.find_package(from, self.invalidations)
   }
 
   fn resolve_relative(&self, specifier: &Path, from: &Path) -> Result<Resolution, ResolverError> {
     // Resolve aliases from the nearest package.json.
     let path = resolve_path(from, specifier);
     let package = if self.resolver.flags.contains(Flags::ALIASES) {
-      self.find_package(&path.parent().unwrap())?
+      self.find_package(path.parent().unwrap())?
     } else {
       None
     };
@@ -595,18 +595,18 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     if self.resolver.flags.contains(Flags::ALIASES) {
       // First, check for an alias in the root package.json.
       if let Some(package) = self.root_package()? {
-        if let Some(res) = self.resolve_aliases(package, &specifier, Fields::ALIAS)? {
+        if let Some(res) = self.resolve_aliases(package, specifier, Fields::ALIAS)? {
           return Ok(Some(res));
         }
       }
 
       // Next, try the local package.json.
-      if let Some(package) = self.find_package(&self.from.parent().unwrap())? {
+      if let Some(package) = self.find_package(self.from.parent().unwrap())? {
         let mut fields = Fields::ALIAS;
         if self.resolver.entries.contains(Fields::BROWSER) {
           fields |= Fields::BROWSER;
         }
-        if let Some(res) = self.resolve_aliases(package, &specifier, fields)? {
+        if let Some(res) = self.resolve_aliases(package, specifier, fields)? {
           return Ok(Some(res));
         }
       }
@@ -723,7 +723,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       });
     } else if !subpath.is_empty() {
       package_dir.push(subpath);
-      if let Some(res) = self.load_path(&package_dir, Some(&package))? {
+      if let Some(res) = self.load_path(&package_dir, Some(package))? {
         return Ok(res);
       }
 
@@ -733,7 +733,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
         package_path: package.path.clone(),
       });
     } else {
-      let res = self.try_package_entries(&package);
+      let res = self.try_package_entries(package);
       if let Ok(Some(res)) = res {
         return Ok(res);
       }
@@ -741,7 +741,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       // Node ESM doesn't allow directory imports.
       if self.resolver.flags.contains(Flags::DIR_INDEX) {
         if let Some(res) =
-          self.load_file(&package_dir.join(self.resolver.index_file), Some(&package))?
+          self.load_file(&package_dir.join(self.resolver.index_file), Some(package))?
         {
           return Ok(res);
         }
@@ -852,7 +852,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
         let res = if let Some(extensions) = extensions {
           self.try_extensions(
-            &without_extension,
+            without_extension,
             package,
             &Extensions::Borrowed(extensions),
             false,
@@ -1043,7 +1043,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     let package = if let Ok(package) = self.invalidations.read(&path, || {
       self.resolver.cache.read_package(Cow::Borrowed(&path))
     }) {
-      res = self.try_package_entries(&package);
+      res = self.try_package_entries(package);
       if matches!(res, Ok(Some(_))) {
         return res;
       }
@@ -1065,7 +1065,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
   fn resolve_tsconfig_paths(&self) -> Result<Option<Resolution>, ResolverError> {
     if let Some(tsconfig) = self.tsconfig()? {
-      for path in tsconfig.paths(&self.specifier) {
+      for path in tsconfig.paths(self.specifier) {
         // TODO: should aliases apply to tsconfig paths??
         if let Some(res) = self.load_path(&path, None)? {
           return Ok(Some(res));
@@ -1084,7 +1084,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
       && !self.flags.contains(RequestFlags::IN_NODE_MODULES)
     {
       self.tsconfig.get_or_try_init(|| {
-        if let Some(path) = self.find_ancestor_file(&self.from, "tsconfig.json") {
+        if let Some(path) = self.find_ancestor_file(self.from, "tsconfig.json") {
           let tsconfig = self.read_tsconfig(path)?;
           return Ok(Some(tsconfig));
         }
