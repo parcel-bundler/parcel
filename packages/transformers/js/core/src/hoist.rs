@@ -1298,8 +1298,8 @@ mod tests {
       collect.exports,
       map! {
         w!("test") => Export {
-          source: None,
-          specifier: "bar".into(),
+          source: Some("other".into()),
+          specifier: "foo".into(),
           loc: SourceLocation {
             start_line: 3,
             start_col: 20,
