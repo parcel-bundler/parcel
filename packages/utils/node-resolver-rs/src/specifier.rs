@@ -176,7 +176,7 @@ impl<'a> Specifier<'a> {
 
 // https://url.spec.whatwg.org/#scheme-state
 // https://github.com/servo/rust-url/blob/1c1e406874b3d2aa6f36c5d2f3a5c2ea74af9efb/url/src/parser.rs#L387
-pub fn parse_scheme<'a>(input: &'a str) -> Result<(Cow<'a, str>, &'a str), ()> {
+pub fn parse_scheme(input: &str) -> Result<(Cow<'_, str>, &str), ()> {
   if input.is_empty() || !input.starts_with(ascii_alpha) {
     return Err(());
   }
@@ -209,7 +209,7 @@ pub fn parse_scheme<'a>(input: &'a str) -> Result<(Cow<'a, str>, &'a str), ()> {
 }
 
 // https://url.spec.whatwg.org/#path-state
-fn parse_path<'a>(input: &'a str) -> (&'a str, &'a str) {
+fn parse_path(input: &str) -> (&str, &str) {
   // We don't really want to normalize the path (e.g. replacing ".." and "." segments).
   // That is done later. For now, we just need to find the end of the path.
   if let Some(pos) = input.chars().position(|c| c == '?' || c == '#') {
@@ -220,7 +220,7 @@ fn parse_path<'a>(input: &'a str) -> (&'a str, &'a str) {
 }
 
 // https://url.spec.whatwg.org/#query-state
-fn parse_query<'a>(input: &'a str) -> (Option<&'a str>, &'a str) {
+fn parse_query(input: &str) -> (Option<&str>, &str) {
   if !input.is_empty() && input.as_bytes()[0] == b'?' {
     if let Some(pos) = input.chars().position(|c| c == '#') {
       (Some(&input[0..pos]), &input[pos..])
@@ -238,7 +238,7 @@ fn ascii_alpha(ch: char) -> bool {
   matches!(ch, 'a'..='z' | 'A'..='Z')
 }
 
-fn parse_package<'a>(specifier: Cow<'a, str>) -> Result<Specifier, SpecifierError> {
+fn parse_package(specifier: Cow<'_, str>) -> Result<Specifier, SpecifierError> {
   match specifier {
     Cow::Borrowed(specifier) => {
       let (module, subpath) = parse_package_specifier(specifier)?;
@@ -276,10 +276,10 @@ pub fn parse_package_specifier(specifier: &str) -> Result<(&str, &str), Specifie
   }
 }
 
-pub fn decode_path<'a>(
-  specifier: &'a str,
+pub fn decode_path(
+  specifier: &str,
   specifier_type: SpecifierType,
-) -> (Cow<'a, Path>, Option<&'a str>) {
+) -> (Cow<'_, Path>, Option<&str>) {
   match specifier_type {
     SpecifierType::Url | SpecifierType::Esm => {
       let (path, rest) = parse_path(specifier);

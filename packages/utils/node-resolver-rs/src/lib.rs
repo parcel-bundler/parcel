@@ -177,18 +177,18 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     }
   }
 
-  pub fn resolve<'s>(
+  pub fn resolve(
     &self,
-    specifier: &'s str,
+    specifier: &str,
     from: &Path,
     specifier_type: SpecifierType,
   ) -> ResolveResult {
     self.resolve_with_options(specifier, from, specifier_type, Default::default())
   }
 
-  pub fn resolve_with_options<'s>(
+  pub fn resolve_with_options(
     &self,
-    specifier: &'s str,
+    specifier: &str,
     from: &Path,
     specifier_type: SpecifierType,
     options: ResolveOptions,
