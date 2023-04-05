@@ -5628,7 +5628,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: md`Failed to resolve '${'@swc/helpers/lib/_class_call_check.js'}' from '${normalizePath(
+            message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check'}' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',
@@ -5716,7 +5716,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: md`Failed to resolve '${'@swc/helpers/lib/_class_call_check.js'}' from '${normalizePath(
+            message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check'}' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',
@@ -5741,7 +5741,7 @@ describe('javascript', function () {
           },
           {
             message:
-              'External dependency "@swc/helpers" does not satisfy required semver range "^0.4.12".',
+              'External dependency "@swc/helpers" does not satisfy required semver range "^0.5.0".',
             origin: '@parcel/resolver-default',
             codeFrames: [
               {
@@ -5764,7 +5764,7 @@ describe('javascript', function () {
               },
             ],
             hints: [
-              'Update the dependency on "@swc/helpers" to satisfy "^0.4.12".',
+              'Update the dependency on "@swc/helpers" to satisfy "^0.5.0".',
             ],
           },
         ],
