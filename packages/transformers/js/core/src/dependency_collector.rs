@@ -108,7 +108,7 @@ impl<'a> DependencyCollector<'a> {
     let mut is_specifier_rewritten = false;
     if self.config.is_library && !self.config.is_esm_output {
       if let Some(rest) = specifier.strip_prefix("@swc/helpers/_/") {
-        specifier = format!("@swc/helpers/cjs/{}", rest).into();
+        specifier = format!("@swc/helpers/cjs/{}.cjs", rest).into();
         is_specifier_rewritten = true;
       }
     }
