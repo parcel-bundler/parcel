@@ -1478,7 +1478,7 @@ describe('html', function () {
       'utf8',
     );
     assert(!html.includes('swc/helpers'));
-    assert(html.includes('slicedToArray'));
+    assert(html.includes('sliced_to_array'));
   });
 
   it('should allow imports and requires in inline <script> tags', async function () {
