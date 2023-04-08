@@ -154,7 +154,15 @@ export default class Parcel {
     await this._end();
 
     if (result.type === 'buildFailure') {
-      throw new BuildError(result.diagnostics);
+      // TODO
+      /* eslint-disable no-unused-vars */
+      throw new BuildError(
+        // $FlowFixMe[prop-missing]
+        result.diagnostics.map(({level, ...d}) => ({
+          ...d,
+        })),
+        /* eslint-enable no-unused-vars */
+      );
     }
 
     return result;
@@ -338,7 +346,15 @@ export default class Parcel {
           let results = await this.#watchQueue.run();
           let result = results.filter(Boolean).pop();
           if (result.type === 'buildFailure') {
-            throw new BuildError(result.diagnostics);
+            throw new BuildError(
+              // TODO?
+              /* eslint-disable no-unused-vars */
+              // $FlowFixMe[prop-missing]
+              result.diagnostics.map(({level, ...d}) => ({
+                ...d,
+              })),
+              /* eslint-enable no-unused-vars */
+            );
           }
 
           return result;
