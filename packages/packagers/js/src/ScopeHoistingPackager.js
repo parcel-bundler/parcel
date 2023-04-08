@@ -443,6 +443,7 @@ export class ScopeHoistingPackager {
     }
 
     let [depMap, replacements] = this.buildReplacements(asset, deps);
+    // console.log('ASSET', asset.id, asset.meta.id, depMap, '-', code, '-');
     let [prepend, prependLines, append] = this.buildAssetPrelude(asset, deps);
     if (prependLines > 0) {
       sourceMap?.offsetLines(1, prependLines);
@@ -474,6 +475,7 @@ export class ScopeHoistingPackager {
         // If we matched an import, replace with the source code for the dependency.
         if (d != null) {
           let deps = depMap.get(d);
+          // console.log('match', d, deps);
           if (!deps) {
             return m;
           }

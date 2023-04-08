@@ -518,6 +518,14 @@ export default (new Transformer({
         ),
       ),
     ];
+    // console.log(
+    //   asset.filePath,
+    //   // require('util').inspect(result.main_module, {depth: Infinity}),
+    //   require('util').inspect(
+    //     x.map(v => ({...v, content: v.content?.toString()})),
+    //     {depth: Infinity},
+    //   ),
+    // );
     return x;
   },
 }): Transformer);
