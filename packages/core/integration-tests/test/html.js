@@ -301,10 +301,6 @@ describe('html', function () {
         assets: ['index.html'],
       },
       {
-        name: 'logo.svg',
-        assets: ['logo.svg'],
-      },
-      {
         type: 'svg',
         assets: ['logo.svg'],
       },
@@ -317,7 +313,9 @@ describe('html', function () {
     assert(html.includes(`<meta name="msapplication-config" content="none">`));
     assert(html.includes(`<meta property="og:image" content="/logo.svg">`));
     assert(
-      /<meta name="msapplication-TileImage" content="\/logo\.[0-9a-f]+\.svg">/.test(html)
+      /<meta name="msapplication-TileImage" content="\/logo\.[0-9a-f]+\.svg">/.test(
+        html,
+      ),
     );
     assert(
       html.includes(
