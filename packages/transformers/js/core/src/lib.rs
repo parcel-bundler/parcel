@@ -7,6 +7,7 @@ mod global_replacer;
 mod hoist;
 mod modules;
 mod node_replacer;
+mod split;
 mod typeof_replacer;
 mod utils;
 
@@ -17,10 +18,11 @@ use std::str::FromStr;
 use indexmap::IndexMap;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
+use split::split;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_ecmascript::ast::{Module, ModuleItem, Program};
+use swc_ecmascript::ast::{Id, Module, ModuleItem, Program};
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
@@ -32,9 +34,9 @@ use swc_ecmascript::transforms::{
   pass::Optional, proposals::decorators, react, typescript,
 };
 use swc_ecmascript::transforms::{resolver, Assumptions};
-use swc_ecmascript::visit::{FoldWith, VisitWith};
+use swc_ecmascript::visit::FoldWith;
 
-use collect::{Collect, CollectResult};
+use collect::{collect, CollectResult};
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
@@ -56,6 +58,7 @@ pub struct Config {
   module_id: String,
   project_root: String,
   replace_env: bool,
+  side_effects: bool,
   env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
   inline_fs: bool,
   insert_node_globals: bool,
@@ -81,6 +84,12 @@ pub struct Config {
   is_esm_output: bool,
   trace_bailouts: bool,
   is_swc_helpers: bool,
+}
+
+#[derive(Serialize, Debug, Default)]
+pub struct TransformResultOuter {
+  main_module: TransformResult,
+  modules: Vec<(String, TransformResult)>,
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -137,10 +146,7 @@ impl Emitter for ErrorBuffer {
   }
 }
 
-pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
-  let mut result = TransformResult::default();
-  let mut map_buf = vec![];
-
+pub fn transform(config: Config) -> Result<TransformResultOuter, std::io::Error> {
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let source_map = Lrc::new(SourceMap::default());
   let module = parse(
@@ -157,12 +163,17 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
       let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
       err.into_diagnostic(&handler).emit();
 
-      result.diagnostics = Some(error_buffer_to_diagnostics(&error_buffer, &source_map));
-      Ok(result)
+      Ok(TransformResultOuter {
+        main_module: TransformResult {
+          diagnostics: Some(error_buffer_to_diagnostics(&error_buffer, &source_map)),
+          ..Default::default()
+        },
+        modules: vec![],
+      })
     }
     Ok((module, comments)) => {
       let mut module = module;
-      result.shebang = match &mut module {
+      let shebang = match &mut module {
         Program::Module(module) => module.shebang.take().map(|s| s.to_string()),
         Program::Script(script) => script.shebang.take().map(|s| s.to_string()),
       };
@@ -185,7 +196,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             &helpers::Helpers::new(
               /* external helpers from @swc/helpers */ should_import_swc_helpers,
             ),
-            || {
+            || -> Result<TransformResultOuter, std::io::Error> {
               let mut react_options = react::Options::default();
               if config.is_jsx {
                 if let Some(jsx_pragma) = &config.jsx_pragma {
@@ -293,6 +304,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 assumptions.set_public_class_fields |= true;
               }
 
+              let mut used_env = HashSet::new();
+
               let mut diagnostics = vec![];
               let module = {
                 let mut passes = chain!(
@@ -307,7 +320,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       env: &config.env,
                       is_browser: config.is_browser,
                       decls: &decls,
-                      used_env: &mut result.used_env,
+                      used_env: &mut used_env,
                       source_map: &source_map,
                       diagnostics: &mut diagnostics,
                       unresolved_mark
@@ -337,6 +350,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 module.fold_with(&mut passes)
               };
 
+              let mut has_node_replacements = false;
+
               let module = module.fold_with(
                 // Replace __dirname and __filename with placeholders in Node env
                 &mut Optional::new(
@@ -349,7 +364,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     filename: Path::new(&config.filename),
                     decls: &mut decls,
                     scope_hoist: config.scope_hoist,
-                    has_node_replacements: &mut result.has_node_replacements,
+                    has_node_replacements: &mut has_node_replacements,
                   },
                   config.node_replacer,
                 ),
@@ -406,96 +421,188 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               };
 
               let ignore_mark = Mark::fresh(Mark::root());
-              let module = module.fold_with(
-                // Collect dependencies
-                &mut dependency_collector(
-                  &source_map,
-                  &mut result.dependencies,
-                  &decls,
-                  ignore_mark,
-                  unresolved_mark,
-                  &config,
-                  &mut diagnostics,
-                ),
-              );
-
-              diagnostics.extend(error_buffer_to_diagnostics(&error_buffer, &source_map));
-
-              if diagnostics
-                .iter()
-                .any(|d| d.severity == DiagnosticSeverity::Error)
-              {
-                result.diagnostics = Some(diagnostics);
-                return Ok(result);
-              }
-
-              let mut collect = Collect::new(
+              let collect = collect(
+                &module,
                 source_map.clone(),
                 decls,
                 ignore_mark,
                 global_mark,
                 config.trace_bailouts,
               );
-              module.visit_with(&mut collect);
-              if let Some(bailouts) = &collect.bailouts {
-                diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
-              }
-
-              let module = if config.scope_hoist {
-                let res = hoist(module, config.module_id.as_str(), unresolved_mark, &collect);
-                match res {
-                  Ok((module, hoist_result, hoist_diagnostics)) => {
-                    result.hoist_result = Some(hoist_result);
-                    diagnostics.extend(hoist_diagnostics);
-                    module
-                  }
-                  Err(diagnostics) => {
-                    result.diagnostics = Some(diagnostics);
-                    return Ok(result);
-                  }
-                }
+              let (main_module, modules) = if config.scope_hoist
+                && config.side_effects == false
+                && !collect.should_wrap
+                && !collect.has_cjs_exports
+              {
+                split(&config.module_id, module, &collect)
               } else {
-                // Bail if we could not statically analyze.
-                if collect.static_cjs_exports && !collect.should_wrap {
-                  result.symbol_result = Some(collect.into());
-                }
-
-                let (module, needs_helpers) = esm2cjs(module, unresolved_mark, versions);
-                result.needs_esm_helpers = needs_helpers;
-                module
+                (module, vec![])
               };
 
-              let module = module.fold_with(&mut chain!(
-                reserved_words(),
-                hygiene(),
-                fixer(Some(&comments)),
-              ));
-
-              result.dependencies.extend(global_deps);
-              result.dependencies.extend(fs_deps);
-
-              if !diagnostics.is_empty() {
-                result.diagnostics = Some(diagnostics);
-              }
-
-              let (buf, src_map_buf) =
-                emit(source_map.clone(), comments, &module, config.source_maps)?;
-              if config.source_maps
-                && source_map
-                  .build_source_map(&src_map_buf)
-                  .to_writer(&mut map_buf)
-                  .is_ok()
-              {
-                result.map = Some(String::from_utf8(map_buf).unwrap());
-              }
-              result.code = buf;
-              Ok(result)
+              Ok(TransformResultOuter {
+                main_module: finish_module(
+                  main_module,
+                  TransformResult {
+                    shebang,
+                    used_env: used_env.clone(),
+                    has_node_replacements,
+                    ..Default::default()
+                  },
+                  &source_map,
+                  &collect.decls,
+                  ignore_mark,
+                  global_mark,
+                  unresolved_mark,
+                  &config,
+                  &config.module_id,
+                  diagnostics,
+                  &error_buffer,
+                  versions,
+                  comments.clone(),
+                  global_deps.clone(),
+                  fs_deps.clone(),
+                )?,
+                modules: modules
+                  .into_iter()
+                  .map(
+                    |(i, module)| -> Result<(String, TransformResult), std::io::Error> {
+                      Ok((
+                        i.clone(),
+                        finish_module(
+                          module,
+                          TransformResult {
+                            used_env: used_env.clone(),
+                            has_node_replacements,
+                            ..Default::default()
+                          },
+                          &source_map,
+                          &collect.decls,
+                          ignore_mark,
+                          global_mark,
+                          unresolved_mark,
+                          &config,
+                          &i,
+                          vec![],
+                          &error_buffer,
+                          versions,
+                          comments.clone(),
+                          global_deps.clone(),
+                          fs_deps.clone(),
+                        )?,
+                      ))
+                    },
+                  )
+                  .collect::<Result<Vec<_>, _>>()?,
+              })
             },
           )
         })
       })
     }
   }
+}
+
+fn finish_module(
+  module: Module,
+  mut result: TransformResult,
+  source_map: &Lrc<SourceMap>,
+  decls: &HashSet<Id>,
+  ignore_mark: swc_common::Mark,
+  global_mark: swc_common::Mark,
+  unresolved_mark: swc_common::Mark,
+  config: &Config,
+  module_id: &str,
+  mut diagnostics: Vec<Diagnostic>,
+  error_buffer: &ErrorBuffer,
+  versions: Option<Versions>,
+  comments: SingleThreadedComments,
+  global_deps: Vec<DependencyDescriptor>,
+  fs_deps: Vec<DependencyDescriptor>,
+) -> Result<TransformResult, std::io::Error> {
+  let module = module.fold_with(
+    // Collect dependencies
+    &mut dependency_collector(
+      &source_map,
+      &mut result.dependencies,
+      &decls,
+      ignore_mark,
+      unresolved_mark,
+      &config,
+      &mut diagnostics,
+    ),
+  );
+
+  diagnostics.extend(error_buffer_to_diagnostics(&error_buffer, &source_map));
+
+  if diagnostics
+    .iter()
+    .any(|d| d.severity == DiagnosticSeverity::Error)
+  {
+    result.diagnostics = Some(diagnostics);
+    return Ok(result);
+  }
+
+  let collect = collect(
+    &module,
+    source_map.clone(),
+    decls.clone(),
+    ignore_mark,
+    global_mark,
+    config.trace_bailouts,
+  );
+  if let Some(bailouts) = &collect.bailouts {
+    diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
+  }
+
+  let module = if config.scope_hoist {
+    let res = hoist(module, module_id, unresolved_mark, &collect);
+    match res {
+      Ok((module, hoist_result, hoist_diagnostics)) => {
+        result.hoist_result = Some(hoist_result);
+        diagnostics.extend(hoist_diagnostics);
+        module
+      }
+      Err(diagnostics) => {
+        result.diagnostics = Some(diagnostics);
+        return Ok(result);
+      }
+    }
+  } else {
+    // Bail if we could not statically analyze.
+    if collect.static_cjs_exports && !collect.should_wrap {
+      result.symbol_result = Some(collect.into());
+    }
+
+    let (module, needs_helpers) = esm2cjs(module, unresolved_mark, versions);
+    result.needs_esm_helpers = needs_helpers;
+    module
+  };
+
+  let module = module.fold_with(&mut chain!(
+    reserved_words(),
+    hygiene(),
+    fixer(Some(&comments)),
+  ));
+
+  result.dependencies.extend(global_deps);
+  result.dependencies.extend(fs_deps);
+
+  if !diagnostics.is_empty() {
+    result.diagnostics = Some(diagnostics);
+  }
+
+  let mut map_buf = vec![];
+  let (buf, src_map_buf) = emit(source_map.clone(), comments, &module, config.source_maps)?;
+  if config.source_maps
+    && source_map
+      .build_source_map(&src_map_buf)
+      .to_writer(&mut map_buf)
+      .is_ok()
+  {
+    result.map = Some(String::from_utf8(map_buf).unwrap());
+  }
+  result.code = buf;
+  Ok(result)
 }
 
 fn parse(

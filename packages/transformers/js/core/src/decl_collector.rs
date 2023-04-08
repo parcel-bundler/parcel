@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use swc_ecmascript::ast::{self, Id};
+use swc_ecmascript::ast::{self, ClassExpr, FnExpr, Id};
 use swc_ecmascript::visit::{Visit, VisitWith};
 
 /// This pass collects all declarations in a module into a single HashSet of tuples
@@ -39,6 +39,18 @@ impl Visit for DeclCollector {
     }
 
     node.visit_children_with(self);
+  }
+
+  fn visit_default_decl(&mut self, node: &ast::DefaultDecl) {
+    match node {
+      ast::DefaultDecl::Class(ClassExpr { ident, .. })
+      | ast::DefaultDecl::Fn(FnExpr { ident, .. }) => {
+        if let Some(ident) = ident {
+          self.decls.insert((ident.sym.clone(), ident.span.ctxt()));
+        }
+      }
+      _ => {}
+    }
   }
 
   fn visit_var_declarator(&mut self, node: &ast::VarDeclarator) {

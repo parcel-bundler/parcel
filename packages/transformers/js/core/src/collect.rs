@@ -24,6 +24,19 @@ macro_rules! collect_visit_fn {
   };
 }
 
+pub fn collect(
+  module: &Module,
+  source_map: Lrc<swc_common::SourceMap>,
+  decls: HashSet<Id>,
+  ignore_mark: Mark,
+  global_mark: Mark,
+  trace_bailouts: bool,
+) -> Collect {
+  let mut collect = Collect::new(source_map, decls, ignore_mark, global_mark, trace_bailouts);
+  module.visit_with(&mut collect);
+  collect
+}
+
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone, Copy, Serialize)]
 pub enum ImportKind {
   Require,
