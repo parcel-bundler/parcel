@@ -304,6 +304,10 @@ describe('html', function () {
         type: 'svg',
         assets: ['logo.svg'],
       },
+      {
+        name: 'logo.svg',
+        assets: ['logo.svg'],
+      },
     ]);
 
     let html = await outputFS.readFile(
