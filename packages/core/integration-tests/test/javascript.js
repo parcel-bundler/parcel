@@ -2101,12 +2101,14 @@ describe('javascript', function () {
       {
         assets: [
           'index.js',
-          'bundle-url.js',
           'get-worker-url.js',
-          'bundle-manifest.js',
           'lodash.js',
           'esmodule-helpers.js',
+          'bundle-url.js',
         ],
+      },
+      {
+        assets: ['bundle-manifest.js'],
       },
       {
         assets: ['worker.js', 'lodash.js', 'esmodule-helpers.js'],
@@ -2694,27 +2696,27 @@ describe('javascript', function () {
     let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements")',
+        'resolve(__dirname, "../test/integration/env-node-replacements")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/other")',
+        'resolve(__dirname, "../test/integration/env-node-replacements/other")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
+        'resolve(__dirname, "../test/integration/env-node-replacements", "index.js")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub")',
+        'resolve(__dirname, "../test/integration/env-node-replacements/sub")',
       ),
     );
     assert(
       dist.includes(
-        'require("path").resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
+        'resolve(__dirname, "../test/integration/env-node-replacements/sub", "index.js")',
       ),
     );
     let f = await run(b);
@@ -4998,8 +5000,8 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: 'Name expected',
-            origin: '@parcel/optimizer-terser',
+            message: '`let` cannot be used as an identifier in strict mode',
+            origin: '@parcel/optimizer-swc',
             codeFrames: [
               {
                 filePath: undefined,
@@ -5007,20 +5009,18 @@ describe('javascript', function () {
                 code,
                 codeHighlights: [
                   {
-                    message: 'Name expected',
                     start: {
-                      column: 4,
+                      column: 1,
                       line: 1,
                     },
                     end: {
-                      column: 4,
+                      column: 1,
                       line: 1,
                     },
                   },
                 ],
               },
             ],
-            hints: ["It's likely that Terser doesn't support this syntax yet."],
           },
         ],
       },
@@ -5390,6 +5390,25 @@ describe('javascript', function () {
     assert.strictEqual(output, 'a');
   });
 
+  it('should support import and non-top-level require of same asset from different assets', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
+
+  it('should support import and non-top-level require of same asset from different assets with scope hoisting', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
+
   it('should support runtime module deduplication', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
@@ -5480,6 +5499,11 @@ describe('javascript', function () {
                 ],
               },
             ],
+          },
+          {
+            message: "Cannot find module 'foo'",
+            origin: '@parcel/resolver-default',
+            hints: [],
           },
         ],
       },
@@ -6205,6 +6229,33 @@ describe('javascript', function () {
     assert.strictEqual(output.default, '4returned from bar');
   });
 
+  it('should not affect ESM import order', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
+    );
+
+    await assert.rejects(
+      run(b),
+      new ReferenceError("Cannot access 'foo' before initialization"),
+    );
+  });
+
+  it('should not affect ESM import order with scope hoisting', async function () {
+    const b = await bundle(
+      path.join(__dirname, '/integration/js-import-initialization/a.mjs'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    await assert.rejects(
+      run(b),
+      /^ReferenceError: Cannot access '(.+)' before initialization$/,
+    );
+  });
+
   it('should produce working output with both scope hoisting and non scope hoisting targets', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/re-export-no-scope-hoist'),
@@ -6229,11 +6280,29 @@ describe('javascript', function () {
     assert.deepEqual(o2, ['UIIcon', 'Icon']);
   });
 
+  it('should not deduplicate an asset if it will become unreachable', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/sibling-deduplicate-unreachable/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+    let res = await run(b);
+    assert.equal(await res.default, 'target');
+  });
+
   for (let shouldScopeHoist of [false, true]) {
     let options = {
       defaultTargetOptions: {
         shouldScopeHoist,
       },
+      mode: 'production',
     };
     let usesSymbolPropagation = shouldScopeHoist;
     describe(`sideEffects: false with${
@@ -6335,13 +6404,7 @@ describe('javascript', function () {
             type: 'js',
             assets: usesSymbolPropagation
               ? ['a.js', 'message1.js']
-              : [
-                  'a.js',
-                  'esmodule-helpers.js',
-                  'index.js',
-                  'message1.js',
-                  'message3.js',
-                ],
+              : ['a.js', 'esmodule-helpers.js', 'index.js', 'message1.js'],
           },
         ]);
 
@@ -6363,7 +6426,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['message1'] : ['message1', 'message3', 'index'],
+          shouldScopeHoist ? ['message1'] : ['message1', 'index'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -6411,9 +6474,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist
-            ? ['message2']
-            : ['message1', 'message2', 'message3', 'index'],
+          shouldScopeHoist ? ['message2'] : ['message2', 'index'],
         );
         assert.deepEqual(res.output, 'Message 2');
       });
@@ -6432,13 +6493,7 @@ describe('javascript', function () {
             type: 'js',
             assets: usesSymbolPropagation
               ? ['c.js', 'message3.js']
-              : [
-                  'c.js',
-                  'esmodule-helpers.js',
-                  'index.js',
-                  'message1.js',
-                  'message3.js',
-                ],
+              : ['c.js', 'esmodule-helpers.js', 'index.js', 'message3.js'],
           },
         ]);
 
@@ -6459,7 +6514,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['message3'] : ['message1', 'message3', 'index'],
+          shouldScopeHoist ? ['message3'] : ['message3', 'index'],
         );
         assert.deepEqual(res.output, {default: 'Message 3'});
       });
@@ -6490,10 +6545,7 @@ describe('javascript', function () {
           {require: false},
         );
 
-        assert.deepEqual(
-          calls,
-          shouldScopeHoist ? ['index'] : ['message1', 'message3', 'index'],
-        );
+        assert.deepEqual(calls, ['index']);
         assert.deepEqual(res.output, 'Message 4');
       });
 
@@ -6529,7 +6581,7 @@ describe('javascript', function () {
             assert.deepEqual(calls, ['foo', 'key', 'index']);
           }
         } else {
-          assert.deepEqual(calls, ['key', 'foo', 'bar', 'types', 'index']);
+          assert.deepEqual(calls, ['key', 'foo', 'types', 'index']);
         }
 
         assert.deepEqual(res.output, ['key', 'foo']);
@@ -6665,8 +6717,8 @@ describe('javascript', function () {
           );
 
           assert(!contents.includes('$import$'));
-          assert(contents.includes('= 1234;'));
-          assert(!contents.includes('= 5678;'));
+          assert(/=\s*1234/.test(contents));
+          assert(!/=\s*5678/.test(contents));
 
           let output = await run(b);
           assert.deepEqual(output, [1234, {default: 1234}]);
@@ -6956,16 +7008,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist
-            ? ['message1']
-            : [
-                'message1',
-                'message2',
-                'message',
-                'symbol1',
-                'symbol2',
-                'symbol',
-              ],
+          shouldScopeHoist ? ['message1'] : ['message1', 'message'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -6994,10 +7037,7 @@ describe('javascript', function () {
           {require: false},
         );
 
-        assert.deepEqual(
-          calls,
-          usesSymbolPropagation ? ['index'] : ['other', 'index'],
-        );
+        assert.deepEqual(calls, ['index']);
         assert.deepEqual(res.output, 'Message 1');
       });
 
@@ -7027,7 +7067,7 @@ describe('javascript', function () {
           calls,
           shouldScopeHoist
             ? ['message1']
-            : ['message1', 'message2', 'message', 'index2', 'index'],
+            : ['message1', 'message', 'index2', 'index'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -7066,19 +7106,6 @@ describe('javascript', function () {
         assert.deepEqual(res.output, 'bar');
       });
 
-      it('supports reexports via variable declaration (unused)', async function () {
-        let b = await bundle(
-          path.join(
-            __dirname,
-            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-var-unused/index.js',
-          ),
-          options,
-        );
-
-        let res = await run(b, {}, {require: false});
-        assert.deepEqual((await res.output).foo, 'foo');
-      });
-
       it('supports named and renamed reexports of the same asset (named used)', async function () {
         let b = await bundle(
           path.join(
@@ -7111,6 +7138,32 @@ describe('javascript', function () {
           shouldScopeHoist ? ['other'] : ['other', 'index'],
         );
         assert.deepEqual(res.output, 'bar');
+      });
+
+      it('supports named and renamed reexports of the same asset (namespace used)', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-same/index.js',
+          ),
+          options,
+        );
+
+        let res = await run(b, null, {require: false});
+        assert.deepEqual(res.output, [{value1: 123, value2: 123}, 123, 123]);
+      });
+
+      it('supports reexports via variable declaration (unused)', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-var-unused/index.js',
+          ),
+          options,
+        );
+
+        let res = await run(b, {}, {require: false});
+        assert.deepEqual((await res.output).foo, 'foo');
       });
 
       it('supports named and namespace exports of the same asset (named used)', async function () {
@@ -7242,7 +7295,7 @@ describe('javascript', function () {
 
         let [v, async] = res;
 
-        assert.deepEqual(calls, shouldScopeHoist ? ['b'] : ['a', 'b', 'index']);
+        assert.deepEqual(calls, shouldScopeHoist ? ['b'] : ['b', 'index']);
         assert.deepEqual(v, 2);
 
         v = await async();
@@ -7250,7 +7303,7 @@ describe('javascript', function () {
           calls,
           shouldScopeHoist
             ? ['b', 'a', 'index', 'dynamic']
-            : ['a', 'b', 'index', 'dynamic'],
+            : ['b', 'index', 'a', 'dynamic'],
         );
         assert.deepEqual(v.default, [1, 3]);
       });
@@ -7279,7 +7332,7 @@ describe('javascript', function () {
 
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['esm1'] : ['esm1', 'other', 'esm2', 'index'],
+          shouldScopeHoist ? ['esm1'] : ['esm1', 'index'],
         );
         assert.deepEqual(res.output, 'Message 1');
       });
@@ -7358,10 +7411,36 @@ describe('javascript', function () {
         );
         assert.deepEqual(
           calls,
-          shouldScopeHoist ? ['commonjs'] : ['esm', 'commonjs', 'index'],
+          shouldScopeHoist ? ['commonjs'] : ['commonjs', 'index'],
         );
         assert.deepEqual(res.output, 'Message 2');
       });
+    });
+
+    it(`ignores missing unused import specifiers in source assets ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async function () {
+      let b = await bundle(
+        path.join(__dirname, 'integration/js-unused-import-specifier/a.js'),
+        options,
+      );
+      let res = await run(b, null, {require: false});
+      assert.equal(res.output, 123);
+    });
+
+    it(`ignores missing unused import specifiers in node-modules ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/js-unused-import-specifier-node-modules/a.js',
+        ),
+        options,
+      );
+
+      let res = await run(b, null, {require: false});
+      assert.equal(res.output, 123);
     });
   }
 });

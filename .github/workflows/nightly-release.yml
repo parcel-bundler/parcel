@@ -37,7 +37,7 @@ jobs:
 
   build-linux-gnu-x64:
     name: linux-gnu-x64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container:
       image: docker.io/adrienv1520/nodejs-16-centos7
     steps:
@@ -79,7 +79,7 @@ jobs:
             strip: aarch64-linux-gnu-strip
             cflags: ''
     name: ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v1
       - name: Install Rust
@@ -129,7 +129,7 @@ jobs:
             strip: aarch64-linux-musl-strip
             cflags: ''
     name: ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
       credentials:
@@ -196,7 +196,7 @@ jobs:
         run: ls -l packages/*/*/*.node
 
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: Build and release nightly
     needs:
       - build

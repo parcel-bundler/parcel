@@ -5,5 +5,7 @@ members = [
   "packages/transformers/js/wasm",
   "packages/utils/fs-search",
   "packages/utils/hash",
-  "packages/optimizers/image"
+  "packages/optimizers/image",
+  "packages/utils/node-resolver-rs",
+  "packages/utils/node-resolver-core"
 ]

@@ -1,25 +1,17 @@
-extern crate napi;
-#[macro_use]
-extern crate napi_derive;
-extern crate libc;
-extern crate mozjpeg_sys;
-extern crate oxipng;
-
 use mozjpeg_sys::*;
-use napi::{CallContext, Env, Error, JsBuffer, JsObject, JsString, Result};
+use napi::bindgen_prelude::*;
+use napi::{Env, Error, JsBuffer, Result};
+use napi_derive::napi;
 use oxipng::{optimize_from_memory, Deflaters, Headers, Options};
 use std::mem;
 use std::ptr;
 use std::slice;
 
-#[js_function(2)]
-fn optimize(ctx: CallContext) -> Result<JsBuffer> {
-  let k = ctx.get::<JsString>(0)?.into_utf8()?;
-  let kind = k.as_str()?;
-  let buf = ctx.get::<JsBuffer>(1)?.into_value()?;
+#[napi]
+pub fn optimize(kind: String, buf: Buffer, env: Env) -> Result<JsBuffer> {
   let slice = buf.as_ref();
 
-  match kind {
+  match kind.as_ref() {
     "png" => {
       let options = Options {
         deflate: Deflaters::Libdeflater,
@@ -27,15 +19,14 @@ fn optimize(ctx: CallContext) -> Result<JsBuffer> {
         ..Default::default()
       };
       match optimize_from_memory(slice, &options) {
-        Ok(res) => Ok(ctx.env.create_buffer_with_data(res)?.into_raw()),
+        Ok(res) => Ok(env.create_buffer_with_data(res)?.into_raw()),
         Err(err) => Err(Error::from_reason(format!("{}", err))),
       }
     }
     "jpg" | "jpeg" => unsafe {
       match optimize_jpeg(slice) {
         Ok(res) => Ok(
-          ctx
-            .env
+          env
             .create_buffer_with_borrowed_data(res.as_ptr(), res.len(), res.as_mut_ptr(), finalize)?
             .into_raw(),
         ),
@@ -137,9 +128,3 @@ extern "C" fn unwind_error_exit(cinfo: &mut jpeg_common_struct) {
 }
 
 extern "C" fn silence_message(_cinfo: &mut jpeg_common_struct, _level: c_int) {}
-
-#[module_exports]
-fn init(mut exports: JsObject, _env: Env) -> Result<()> {
-  exports.create_named_method("optimize", optimize)?;
-  Ok(())
-}

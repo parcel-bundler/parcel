@@ -5,6 +5,54 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+# [2.8.3] - 2023-01-18
+
+- Core
+  - filter out title execArgv to workers – [Details](https://github.com/parcel-bundler/parcel/pull/8719)
+- Bundler
+  - Fix CSS order when merging type change bundles – [Details](https://github.com/parcel-bundler/parcel/pull/8766)
+  - Fix assertion error when mixing CSS modules and non-modules – [Details](https://github.com/parcel-bundler/parcel/pull/8762)
+  - Fix set diff – [Details](https://github.com/parcel-bundler/parcel/pull/8699)
+  - Recursively check reachability when removing asset graphs from bundles in deduplication – [Details](https://github.com/parcel-bundler/parcel/pull/6004)
+- JavaScript
+  - Don't retarget dependencies if a symbol is imported multiple times with different local names – [Details](https://github.com/parcel-bundler/parcel/pull/8738)
+  - Fix assigning to `this` in CommonJS – [Details](https://github.com/parcel-bundler/parcel/pull/8737)
+  - Bump SWC to fix dead branch removal bug – [Details](https://github.com/parcel-bundler/parcel/pull/8742
+  - Bump swc to fix sourcemaps with Windows line endings – [Details](https://github.com/parcel-bundler/parcel/pull/8756)
+  - Add test cases for ESM initialization problems – [Details](https://github.com/parcel-bundler/parcel/pull/7350)
+- TypeScript
+  - Fix TSC sourcemaps metadata – [Details](https://github.com/parcel-bundler/parcel/pull/8734)
+- HTML
+  - Fix `srcset` parsing – [Details](https://github.com/parcel-bundler/parcel/pull/8671)
+- Dev server
+  - Apply HMR updates in topological order – [Details](https://github.com/parcel-bundler/parcel/pull/8752)
+  - Fixed the hmr connection with host 0.0.0.0 – [Details](https://github.com/parcel-bundler/parcel/pull/7357)
+
+# [2.8.2] - 2022-12-14
+
+- Core
+  - Ensure maxListeners for process.stdout accounts for workers – [Details](https://github.com/parcel-bundler/parcel/pull/8689)
+- JavaScript
+  - Bump SWC to fix scoping issue with block-less loops – [Details](https://github.com/parcel-bundler/parcel/pull/8686)
+  - Fix requires of external CommonJS SWC helpers – [Details](https://github.com/parcel-bundler/parcel/pull/8693)
+
+## [2.8.1] - 2022-12-07
+
+### Fixed
+
+- Core
+  - fix: remove @parcel/utils dep in @parcel/graph – [Details](https://github.com/parcel-bundler/parcel/pull/8630)
+- JavaScript
+  - Don't retarget dependencies with `*` – [Details](https://github.com/parcel-bundler/parcel/pull/8645)
+  - Fix overriding single export of a `export *` – [Details](https://github.com/parcel-bundler/parcel/pull/8653)
+  - Add mjs and cjs to resolver extensions – [Details](https://github.com/parcel-bundler/parcel/pull/8667)
+- TypeScript
+  - Make ts-types transformer work with TS >= 4.8 – [Details](https://github.com/parcel-bundler/parcel/pull/8661)
+- Web manifest
+  - Parse shortcut icons in web app manifests – [Details](https://github.com/parcel-bundler/parcel/pull/8660)
+- SVG
+  - Fix transformer-svg-react not finding `.svgrrc` – [Details](https://github.com/parcel-bundler/parcel/pull/7741)
+
 ## [2.8.0] - 2022-11-09
 
 ### Added
@@ -166,7 +214,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Fix hoisting for optional chaining member expressions - [Details](https://github.com/parcel-bundler/parcel/pull/8121)
 - Fix issues with web extensions - [Details](https://github.com/parcel-bundler/parcel/pull/8000)
 - Reload the closest package.json to an asset if it's a package entry to fix `sideEffects` - [Details](https://github.com/parcel-bundler/parcel/pull/7909)
-- Only emit non static import bailout warnings for variables which correspond to a * import - [Details](https://github.com/parcel-bundler/parcel/pull/8136)
+- Only emit non static import bailout warnings for variables which correspond to a \* import - [Details](https://github.com/parcel-bundler/parcel/pull/8136)
 
 ## [2.5.0] - 2022-04-21
 

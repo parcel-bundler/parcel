@@ -6,6 +6,7 @@ import type {
   Transformer,
   TransformerResult,
   PackageName,
+  ResolveOptions,
   SemverRange,
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
@@ -109,6 +110,7 @@ export default class Transformation {
   parcelConfig: ParcelConfig;
   invalidations: Map<string, RequestInvalidation>;
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>;
+  resolverRunner: ResolverRunner;
 
   constructor({request, options, config, workerApi}: TransformationOpts) {
     this.configs = new Map();
@@ -120,6 +122,11 @@ export default class Transformation {
     this.invalidateOnFileCreate = [];
     this.devDepRequests = new Map();
     this.pluginDevDeps = [];
+    this.resolverRunner = new ResolverRunner({
+      config,
+      options,
+      previousDevDeps: request.devDeps,
+    });
 
     this.pluginOptions = new PluginOptions(
       optionsProxy(
@@ -194,9 +201,13 @@ export default class Transformation {
       error = e;
     }
 
-    let configRequests = getConfigRequests([...this.configs.values()]);
+    let configRequests = getConfigRequests([
+      ...this.configs.values(),
+      ...this.resolverRunner.configs.values(),
+    ]);
     let devDepRequests = getWorkerDevDepRequests([
       ...this.devDepRequests.values(),
+      ...this.resolverRunner.devDepRequests.values(),
     ]);
 
     // $FlowFixMe because of $$raw
@@ -656,11 +667,6 @@ export default class Transformation {
         plugin: transformer.plugin,
       })),
       options: this.options,
-      resolverRunner: new ResolverRunner({
-        config: this.parcelConfig,
-        options: this.options,
-      }),
-
       pluginOptions: this.pluginOptions,
       workerApi: this.workerApi,
     };
@@ -734,12 +740,17 @@ export default class Transformation {
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
 
-    const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-      let result = await pipeline.resolverRunner.resolve(
+    const resolve = async (
+      from: FilePath,
+      to: string,
+      options?: ResolveOptions,
+    ): Promise<FilePath> => {
+      let result = await this.resolverRunner.resolve(
         createDependency(this.options.projectRoot, {
           env: asset.value.env,
           specifier: to,
-          specifierType: 'esm', // ???
+          specifierType: options?.specifierType || 'esm',
+          packageConditions: options?.packageConditions,
           sourcePath: from,
         }),
       );
@@ -876,7 +887,6 @@ type Pipeline = {|
   transformers: Array<TransformerWithNameAndConfig>,
   options: ParcelOptions,
   pluginOptions: PluginOptions,
-  resolverRunner: ResolverRunner,
   workerApi: WorkerApi,
   postProcess?: PostProcessFunc,
   generate?: GenerateFunc,

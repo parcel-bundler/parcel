@@ -255,4 +255,65 @@ describe('bundler', function () {
         .includes(b.getBundlesWithAsset(findAsset(b, 'c.js'))[0]),
     );
   });
+
+  it('should split manifest bundle', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/split-manifest-bundle/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+      },
+      {
+        assets: ['bundle-manifest.js'],
+      },
+      {
+        assets: ['a.js', 'esmodule-helpers.js'],
+      },
+      {
+        assets: ['b.js', 'esmodule-helpers.js'],
+      },
+    ]);
+  });
+
+  it('should not split manifest bundle for stable entries', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/split-manifest-bundle/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['a.js', 'esmodule-helpers.js'],
+      },
+      {
+        assets: ['b.js', 'esmodule-helpers.js'],
+      },
+    ]);
+  });
 });

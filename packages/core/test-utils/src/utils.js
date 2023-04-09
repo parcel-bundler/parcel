@@ -338,7 +338,7 @@ export async function runBundles(
 
   // A utility to prevent optimizers from removing side-effect-free code needed for testing
   // $FlowFixMe[prop-missing]
-  ctx.sideEffectNoop = () => {};
+  ctx.sideEffectNoop = v => v;
 
   vm.createContext(ctx);
   let esmOutput;
@@ -666,7 +666,7 @@ function prepareBrowserContext(
 
   function PatchedError(message) {
     const patchedError = new Error(message);
-    const stackStart = patchedError.stack.indexOf('at new Error');
+    const stackStart = patchedError.stack.match(/at (new )?Error/)?.index;
     const stackEnd = patchedError.stack.includes('at Script.runInContext')
       ? patchedError.stack.indexOf('at Script.runInContext')
       : patchedError.stack.indexOf('at runNextTicks');

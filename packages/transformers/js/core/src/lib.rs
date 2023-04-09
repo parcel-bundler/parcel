@@ -1,16 +1,4 @@
-extern crate swc_common;
-extern crate swc_ecmascript;
-#[macro_use]
-extern crate swc_atoms;
-extern crate data_encoding;
-extern crate dunce;
-extern crate inflector;
-extern crate path_slash;
-extern crate pathdiff;
-extern crate serde;
-extern crate serde_bytes;
-extern crate sha1;
-
+mod collect;
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
@@ -26,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use indexmap::IndexMap;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
@@ -37,26 +26,25 @@ use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
 use swc_ecmascript::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
 use swc_ecmascript::transforms::fixer::paren_remover;
-use swc_ecmascript::transforms::resolver;
 use swc_ecmascript::transforms::{
   compat::reserved_words::reserved_words, fixer, helpers, hygiene,
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
   pass::Optional, proposals::decorators, react, typescript,
 };
+use swc_ecmascript::transforms::{resolver, Assumptions};
 use swc_ecmascript::visit::{FoldWith, VisitWith};
 
+use collect::{Collect, CollectResult};
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::{hoist, CollectResult, HoistResult};
+use hoist::{hoist, HoistResult};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use typeof_replacer::*;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
-
-use crate::hoist::Collect;
 
 type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
 
@@ -200,7 +188,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             || {
               let mut react_options = react::Options::default();
               if config.is_jsx {
-                react_options.use_spread = Some(true);
                 if let Some(jsx_pragma) = &config.jsx_pragma {
                   react_options.pragma = Some(jsx_pragma.clone());
                 }
@@ -227,13 +214,15 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               let global_mark = Mark::fresh(Mark::root());
               let unresolved_mark = Mark::fresh(Mark::root());
               let module = module.fold_with(&mut chain!(
+                resolver(unresolved_mark, global_mark, config.is_type_script),
                 // Decorators can use type information, so must run before the TypeScript pass.
                 Optional::new(
                   decorators::decorators(decorators::Config {
                     legacy: true,
-                    use_define_for_class_fields: config.use_define_for_class_fields,
                     // Always disabled for now, SWC's implementation doesn't match TSC.
                     emit_metadata: false,
+                    // use_define_for_class_fields is ignored here, uses preset-env assumptions instead
+                    ..Default::default()
                   }),
                   config.decorators
                 ),
@@ -254,7 +243,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   typescript::strip(global_mark),
                   config.is_type_script && !config.is_jsx
                 ),
-                resolver(unresolved_mark, global_mark, config.is_type_script),
               ));
 
               // If it's a script, convert into module. This needs to happen after
@@ -274,6 +262,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   Some(&comments),
                   react_options,
                   global_mark,
+                  unresolved_mark,
                 ),
                 config.is_jsx,
               ));
@@ -297,6 +286,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   preset_env_config.mode = Some(Entry);
                   preset_env_config.bugfixes = true;
                 }
+              }
+
+              let mut assumptions = Assumptions::default();
+              if config.is_type_script && !config.use_define_for_class_fields {
+                assumptions.set_public_class_fields |= true;
               }
 
               let mut diagnostics = vec![];
@@ -369,7 +363,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       source_map: &source_map,
                       items: &mut global_deps,
                       global_mark,
-                      globals: HashMap::new(),
+                      globals: IndexMap::new(),
                       project_root: Path::new(&config.project_root),
                       filename: Path::new(&config.filename),
                       decls: &mut decls,
@@ -383,13 +377,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       global_mark,
                       Some(&comments),
                       preset_env_config,
-                      Default::default(),
+                      assumptions,
                       &mut Default::default(),
                     ),
                     should_run_preset_env,
                   ),
                   // Inject SWC helpers if needed.
-                  helpers::inject_helpers(),
+                  helpers::inject_helpers(global_mark),
                 );
 
                 module.fold_with(&mut passes)
@@ -484,11 +478,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 result.diagnostics = Some(diagnostics);
               }
 
-              let (buf, mut src_map_buf) =
+              let (buf, src_map_buf) =
                 emit(source_map.clone(), comments, &module, config.source_maps)?;
               if config.source_maps
                 && source_map
-                  .build_source_map(&mut src_map_buf)
+                  .build_source_map(&src_map_buf)
                   .to_writer(&mut map_buf)
                   .is_ok()
               {
