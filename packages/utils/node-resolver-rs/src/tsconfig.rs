@@ -91,7 +91,7 @@ impl<'a> TsConfig<'a> {
   }
 
   pub fn paths(&'a self, specifier: &'a Specifier) -> impl Iterator<Item = PathBuf> + 'a {
-    if !matches!(specifier, Specifier::Package(..)) {
+    if !matches!(specifier, Specifier::Package(..) | Specifier::Builtin(..)) {
       return Either::Right(Either::Right(std::iter::empty()));
     }
 
@@ -113,24 +113,18 @@ impl<'a> TsConfig<'a> {
       let mut longest_prefix_length = 0;
       let mut longest_suffix_length = 0;
       let mut best_key = None;
-      let full_specifier = if let Specifier::Package(module, subpath) = specifier {
-        concat_specifier(module, subpath)
-      } else {
-        unreachable!()
-      };
+      let full_specifier = specifier.to_string();
 
       for key in paths.keys() {
-        if let Specifier::Package(module, subpath) = key {
-          let path = concat_specifier(module.as_ref(), subpath.as_ref());
-          if let Some((prefix, suffix)) = path.split_once('*') {
-            if (best_key.is_none() || prefix.len() > longest_prefix_length)
-              && full_specifier.starts_with(prefix)
-              && full_specifier.ends_with(suffix)
-            {
-              longest_prefix_length = prefix.len();
-              longest_suffix_length = suffix.len();
-              best_key = Some(key);
-            }
+        let path = key.to_string();
+        if let Some((prefix, suffix)) = path.split_once('*') {
+          if (best_key.is_none() || prefix.len() > longest_prefix_length)
+            && full_specifier.starts_with(prefix)
+            && full_specifier.ends_with(suffix)
+          {
+            longest_prefix_length = prefix.len();
+            longest_suffix_length = suffix.len();
+            best_key = Some(key);
           }
         }
       }
@@ -148,16 +142,13 @@ impl<'a> TsConfig<'a> {
       }
     }
 
+    if matches!(specifier, Specifier::Builtin(..)) {
+      // If specifier is a builtin then there's no match
+      return Either::Right(Either::Right(std::iter::empty()));
+    }
+
     // If no paths were found, try relative to the base url.
     Either::Right(base_url_iter)
-  }
-}
-
-fn concat_specifier<'a>(module: &'a str, subpath: &'a str) -> Cow<'a, str> {
-  if subpath.is_empty() {
-    Cow::Borrowed(module)
-  } else {
-    Cow::Owned(format!("{}/{}", module, subpath))
   }
 }
 
@@ -208,6 +199,7 @@ mod tests {
         "bar/*".into() => vec!["test/*".into()],
         "bar/baz/*".into() => vec!["baz/*".into(), "yo/*".into()],
         "@/components/*".into() => vec!["components/*".into()],
+        "url".into() => vec!["node_modules/my-url".into()],
       }),
       ..Default::default()
     };
@@ -234,6 +226,7 @@ mod tests {
       vec![PathBuf::from("/foo/components/button")]
     );
     assert_eq!(test("./jquery"), Vec::<PathBuf>::new());
+    assert_eq!(test("url"), vec![PathBuf::from("/foo/node_modules/my-url")]);
   }
 
   #[test]

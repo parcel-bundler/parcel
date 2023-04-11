@@ -904,8 +904,8 @@ function createIdealGraph(
     let canReuse: Set<BundleRoot> = new Set();
     for (let candidateSourceBundleRoot of reachable) {
       let candidateSourceBundleId = nullthrows(
-        bundles.get(candidateSourceBundleRoot.id),
-      );
+        bundleRoots.get(candidateSourceBundleRoot),
+      )[0];
       if (candidateSourceBundleRoot.env.isIsolated()) {
         continue;
       }
@@ -947,7 +947,7 @@ function createIdealGraph(
 
     // Add assets to non-splittable bundles.
     for (let entry of reachableEntries) {
-      let entryBundleId = nullthrows(bundles.get(entry.id));
+      let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
       let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
       invariant(entryBundle !== 'root');
       entryBundle.assets.add(asset);
@@ -1009,7 +1009,7 @@ function createIdealGraph(
     } else if (reachable.length <= config.minBundles) {
       for (let root of reachable) {
         let bundle = nullthrows(
-          bundleGraph.getNode(nullthrows(bundles.get(root.id))),
+          bundleGraph.getNode(nullthrows(bundleRoots.get(root))[0]),
         );
         invariant(bundle !== 'root');
         bundle.assets.add(asset);
@@ -1030,6 +1030,8 @@ function createIdealGraph(
       removeBundle(bundleGraph, bundleNodeId, assetReference);
     }
   }
+
+  let modifiedSourceBundles = new Set();
 
   // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
   for (let bundleGroupId of bundleGraph.getNodeIdsConnectedFrom(rootNodeId)) {
@@ -1081,6 +1083,7 @@ function createIdealGraph(
         for (let sourceBundleId of sourceBundles) {
           let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
           invariant(sourceBundle !== 'root');
+          modifiedSourceBundles.add(sourceBundle);
           bundleToRemove.sourceBundles.delete(sourceBundleId);
           for (let asset of bundleToRemove.assets) {
             sourceBundle.assets.add(asset);
@@ -1119,6 +1122,23 @@ function createIdealGraph(
       }
     }
   }
+
+  // Fix asset order in source bundles as they are likely now incorrect after shared bundle deletion
+  if (modifiedSourceBundles.size > 0) {
+    let assetOrderMap = new Map(assets.map((a, index) => [a, index]));
+
+    for (let bundle of modifiedSourceBundles) {
+      bundle.assets = new Set(
+        [...bundle.assets].sort((a, b) => {
+          let aIndex = nullthrows(assetOrderMap.get(a));
+          let bIndex = nullthrows(assetOrderMap.get(b));
+
+          return aIndex - bIndex;
+        }),
+      );
+    }
+  }
+
   function deleteBundle(bundleRoot: BundleRoot) {
     bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
     bundleRoots.delete(bundleRoot);
@@ -1185,16 +1205,19 @@ function createIdealGraph(
     for (let dependencyTuple of assetReference.get(bundleRootB)) {
       dependencyTuple[1] = a;
     }
-    //add in any lost edges
+    //add in any lost edges, parent or child
     for (let nodeId of bundleGraph.getNodeIdsConnectedTo(otherNodeId)) {
       bundleGraph.addEdge(nodeId, mainNodeId);
     }
+    for (let nodeId of bundleGraph.getNodeIdsConnectedFrom(otherNodeId)) {
+      bundleGraph.addEdge(mainNodeId, nodeId);
+    }
     replaceAssetReference(bundleRootB, b, a);
     deleteBundle(bundleRootB);
+    // We still need to key this bundle via each bundleRoot
     bundleRoots.set(bundleRootB, [mainNodeId, bundleGroupOfMain]);
     bundles.set(bundleRootB.id, mainNodeId);
 
-    bundleRoots.delete(bundleRootB);
     bundles.delete(bundleRootB.id);
   }
   function getBundleFromBundleRoot(bundleRoot: BundleRoot): Bundle {

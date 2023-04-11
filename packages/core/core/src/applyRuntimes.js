@@ -183,6 +183,7 @@ export default async function applyRuntimes<TResult>({
 
   let runtimesGraph = InternalBundleGraph.fromAssetGraph(
     runtimesAssetGraph,
+    options.mode === 'production',
     bundleGraph._publicIdByAssetId,
     bundleGraph._assetPublicIds,
   );

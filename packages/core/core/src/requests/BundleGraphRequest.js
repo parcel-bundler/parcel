@@ -144,7 +144,7 @@ export default function createBundleGraphRequest(
         res.changedAssets.set(id, asset);
       }
 
-      dumpGraphToGraphViz(
+      await dumpGraphToGraphViz(
         // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
         res.bundleGraph._graph,
         'BundleGraph',
@@ -272,11 +272,19 @@ class BundlerRunner {
     try {
       if (previousBundleGraphResult) {
         internalBundleGraph = previousBundleGraphResult.bundleGraph;
-        for (let changedAsset of changedAssets.values()) {
-          internalBundleGraph.updateAsset(changedAsset);
+        for (let changedAssetId of changedAssets.keys()) {
+          // Copy over the whole node to also have correct symbol data
+          let changedAssetNode = nullthrows(
+            graph.getNodeByContentKey(changedAssetId),
+          );
+          invariant(changedAssetNode.type === 'asset');
+          internalBundleGraph.updateAsset(changedAssetNode);
         }
       } else {
-        internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
+        internalBundleGraph = InternalBundleGraph.fromAssetGraph(
+          graph,
+          this.options.mode === 'production',
+        );
         invariant(internalBundleGraph != null); // ensures the graph was created
 
         await dumpGraphToGraphViz(
