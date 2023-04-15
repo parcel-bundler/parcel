@@ -1043,7 +1043,9 @@ function applyResult(
 
       // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
       let isHelper =
+        // TODO
         dep.specifier.startsWith('@swc/helpers') &&
+        !dep.specifier.startsWith('@swc/helpers/src') &&
         dep.is_helper &&
         !(
           dep.specifier.endsWith('/jsx-runtime') ||
