@@ -17,14 +17,12 @@ import {
 } from '@parcel/utils';
 import {type ProjectPath, toProjectPath} from './projectPath';
 import {version as PARCEL_VERSION} from '../package.json';
-import {validatePackageName} from './ParcelConfig.schema';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const CONFIG = Symbol.for('parcel-plugin-config');
 
 export default async function loadPlugin<T>(
   pluginName: PackageName,
-  pluginType: string,
   configPath: FilePath,
   keyPath?: string,
   options: ParcelOptions,
@@ -167,116 +165,48 @@ export default async function loadPlugin<T>(
     });
   }
 
-  if (pluginName.startsWith('.')) {
-    // Make sure local plugins are still folders containing a valid package.json file.
-    let expectedPkgPath = path.resolve(
-      path.dirname(resolveFrom),
-      pluginName,
-      'package.json',
-    );
-    if (!pkg || pkg.filePath !== expectedPkgPath) {
-      let configContents = await options.inputFS.readFile(configPath, 'utf8');
-      throw new ThrowableDiagnostic({
-        diagnostic: {
-          message: md`Local Parcel plugin "${pluginName}" exists, but does not contain a package.json.`,
-          origin: '@parcel/core',
-          codeFrames: keyPath
-            ? [
-                {
-                  filePath: configPath,
-                  language: 'json5',
-                  code: configContents,
-                  codeHighlights: generateJSONCodeHighlights(configContents, [
-                    {
-                      key: keyPath,
-                      type: 'value',
-                    },
-                  ]),
-                },
-              ]
-            : undefined,
-          hints: [
-            md`Create "${path.relative(process.cwd(), expectedPkgPath)}"`,
-          ],
-          documentationURL:
-            'https://parceljs.org/features/plugins/#local-plugins',
-        },
-      });
-    }
-
-    // We need to validate the package name after we resolved it in the case of local plugins.
-    // The config may point to a local folder with no naming requirement, but the package name
-    // in the actual package.json file in this folder must be correct.
-    try {
-      validatePackageName(pkg.name, pluginType, '');
-    } catch (err) {
-      let pkgContents = await options.inputFS.readFile(pkg.filePath, 'utf8');
-      throw new ThrowableDiagnostic({
-        diagnostic: {
-          message: err.message,
-          origin: '@parcel/core',
-          codeFrames: keyPath
-            ? [
-                {
-                  filePath: pkg.filePath,
-                  language: 'json',
-                  code: pkgContents,
-                  codeHighlights: generateJSONCodeHighlights(pkgContents, [
-                    {
-                      key: '/name',
-                      type: 'value',
-                    },
-                  ]),
-                },
-              ]
-            : undefined,
-          documentationURL:
-            'https://parceljs.org/plugin-system/authoring-plugins/#naming',
-        },
-      });
-    }
-  }
-
-  // Validate the engines.parcel field in the plugin's package.json
-  let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
-  if (!parcelVersionRange) {
-    logger.warn({
-      origin: '@parcel/core',
-      message: `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`,
-    });
-  }
-
-  if (
-    parcelVersionRange &&
-    !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
-  ) {
-    let pkgFile = nullthrows(
-      await resolveConfig(
-        options.inputFS,
-        resolved,
-        ['package.json'],
-        options.projectRoot,
-      ),
-    );
-    let pkgContents = await options.inputFS.readFile(pkgFile, 'utf8');
-    throw new ThrowableDiagnostic({
-      diagnostic: {
-        message: md`The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
+  if (!pluginName.startsWith('.')) {
+    // Validate the engines.parcel field in the plugin's package.json
+    let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
+    if (!parcelVersionRange) {
+      logger.warn({
         origin: '@parcel/core',
-        codeFrames: [
-          {
-            filePath: pkgFile,
-            language: 'json5',
-            code: pkgContents,
-            codeHighlights: generateJSONCodeHighlights(pkgContents, [
-              {
-                key: '/engines/parcel',
-              },
-            ]),
-          },
-        ],
-      },
-    });
+        message: `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`,
+      });
+    }
+
+    if (
+      parcelVersionRange &&
+      !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
+    ) {
+      let pkgFile = nullthrows(
+        await resolveConfig(
+          options.inputFS,
+          resolved,
+          ['package.json'],
+          options.projectRoot,
+        ),
+      );
+      let pkgContents = await options.inputFS.readFile(pkgFile, 'utf8');
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: md`The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
+          origin: '@parcel/core',
+          codeFrames: [
+            {
+              filePath: pkgFile,
+              language: 'json5',
+              code: pkgContents,
+              codeHighlights: generateJSONCodeHighlights(pkgContents, [
+                {
+                  key: '/engines/parcel',
+                },
+              ]),
+            },
+          ],
+        },
+      });
+    }
   }
 
   let plugin = await options.packageManager.require(pluginName, resolveFrom, {

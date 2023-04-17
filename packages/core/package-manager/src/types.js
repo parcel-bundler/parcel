@@ -9,11 +9,9 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
-type PackageJSONWithFilePath = PackageJSON & {|filePath: FilePath|};
-
 export type ResolveResult = {|
   resolved: FilePath | DependencySpecifier,
-  pkg?: ?PackageJSONWithFilePath,
+  pkg?: ?PackageJSON,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
 |};

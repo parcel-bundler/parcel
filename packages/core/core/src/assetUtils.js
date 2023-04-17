@@ -155,7 +155,6 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   let pluginName = nullthrows(asset.value.plugin);
   let {plugin} = await loadPlugin<Transformer<mixed>>(
     pluginName,
-    'transformer',
     fromProjectPath(
       asset.options.projectRoot,
       nullthrows(asset.value.configPath),

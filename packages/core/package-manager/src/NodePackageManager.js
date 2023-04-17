@@ -484,12 +484,9 @@ export class NodePackageManager implements PackageManager {
             res.resolution.value,
             this.projectRoot,
           );
-          if (pkgPath) {
-            let pkg = JSON.parse(this.fs.readFileSync(pkgPath, 'utf8'));
-            pkg.filePath = pkgPath;
-            return pkg;
-          }
-          return null;
+          return pkgPath
+            ? JSON.parse(this.fs.readFileSync(pkgPath, 'utf8'))
+            : null;
         };
       // fallthrough
       case 'Builtin':
