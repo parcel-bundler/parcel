@@ -486,38 +486,34 @@ pub fn split(
     }
 
     // Ensure that write edges start and end in the same module
-    for nx in graph.graph.node_indices() {
-      for e in graph
-        .graph
-        .edges_directed(nx, petgraph::Direction::Incoming)
-      {
-        if e.weight() == &ValueGraphEdge::Write {
-          let source_module = graph_assignment.get(&e.source());
-          let target_module = graph_assignment.get(&e.target());
-          if source_module.is_some() && source_module != target_module {
-            let mut traversal = Dfs::new(&graph.graph, e.target());
-            while let Some(nx) = traversal.next(&graph.graph) {
-              if graph.graph.node_weight(nx).unwrap().is_imported_binding() {
-                continue;
-              }
-              graph_assignment.insert(nx, ModuleIndex::common());
+    for ex in graph.graph.edge_indices() {
+      let (e_source, e_target) = graph.graph.edge_endpoints(ex).unwrap();
+      if graph.graph.edge_weight(ex).unwrap() == &ValueGraphEdge::Write {
+        let source_module = graph_assignment.get(&e_source);
+        let target_module = graph_assignment.get(&e_target);
+        if source_module.is_some() && source_module != target_module {
+          let mut traversal = Dfs::new(&graph.graph, e_target);
+          while let Some(nx) = traversal.next(&graph.graph) {
+            if graph.graph.node_weight(nx).unwrap().is_imported_binding() {
+              continue;
             }
+            graph_assignment.insert(nx, ModuleIndex::common());
+          }
 
-            let mut export_nodes_to_rewrite = vec![];
-            let mut traversal = DfsAncestors::new(&graph.graph, e.target());
-            while let Some(nx) = traversal.next(&graph.graph) {
-              if let ValueGraphNode::Export(_) = graph.graph.node_weight(nx).unwrap() {
-                export_nodes_to_rewrite.push(nx);
-              }
+          let mut export_nodes_to_rewrite = vec![];
+          let mut traversal = DfsAncestors::new(&graph.graph, e_target);
+          while let Some(nx) = traversal.next(&graph.graph) {
+            if let ValueGraphNode::Export(_) = graph.graph.node_weight(nx).unwrap() {
+              export_nodes_to_rewrite.push(nx);
             }
+          }
 
-            let mut traversal = Dfs::from_parts(export_nodes_to_rewrite, graph.graph.visit_map());
-            while let Some(nx) = traversal.next(&graph.graph) {
-              if graph.graph.node_weight(nx).unwrap().is_imported_binding() {
-                continue;
-              }
-              graph_assignment.insert(nx, ModuleIndex::common());
+          let mut traversal = Dfs::from_parts(export_nodes_to_rewrite, graph.graph.visit_map());
+          while let Some(nx) = traversal.next(&graph.graph) {
+            if graph.graph.node_weight(nx).unwrap().is_imported_binding() {
+              continue;
             }
+            graph_assignment.insert(nx, ModuleIndex::common());
           }
         }
       }
@@ -586,8 +582,8 @@ pub fn split(
             });
           for exported in exports {
             reexports.push(ModuleItem::ModuleDecl(create_export_named(
-              &name,
-              Some(exported.clone()),
+              ModuleExportName::Ident(name.clone().into()),
+              Some(word_to_export_name(exported.clone())),
               Some(&id_local.as_import_specifier(module_id)),
             )));
           }
@@ -597,8 +593,8 @@ pub fn split(
           body.push(ModuleItem::Stmt(Stmt::Decl(decl)));
           if is_used_externally {
             body.push(ModuleItem::ModuleDecl(create_export_named(
-              &name,
-              Some(name.0.clone()),
+              ModuleExportName::Ident(name.clone().into()),
+              Some(word_to_export_name(name.0.clone())),
               None,
             )));
           }
@@ -622,8 +618,8 @@ pub fn split(
 
           for exported_renamed in graph.get_exports_of_binding(node_local) {
             reexports.push(ModuleItem::ModuleDecl(create_export_named(
-              &("default".into(), SyntaxContext::empty()),
-              Some(exported_renamed.clone()),
+              ModuleExportName::Ident(("default".into(), SyntaxContext::empty()).into()),
+              Some(word_to_export_name(exported_renamed.clone())),
               Some(&id_export.as_import_specifier(module_id)),
             )));
           }
@@ -642,7 +638,7 @@ pub fn split(
           let id_local = *graph_assignment.get(&node_local).unwrap();
 
           reexports.push(ModuleItem::ModuleDecl(create_export_named(
-            &("default".into(), SyntaxContext::empty()),
+            ModuleExportName::Ident(("default".into(), SyntaxContext::empty()).into()),
             None,
             Some(&id_export.as_import_specifier(module_id)),
           )));
@@ -655,10 +651,37 @@ pub fn split(
         ModuleDecl::ExportNamed(NamedExport { src: Some(_), .. }) | ModuleDecl::ExportAll(_) => {
           reexports.push(ModuleItem::ModuleDecl(decl));
         }
+        ModuleDecl::ExportNamed(NamedExport {
+          specifiers,
+          src: None,
+          ..
+        }) => {
+          for spec in specifiers {
+            let exported = match spec {
+              ExportSpecifier::Namespace(_) => continue,
+              ExportSpecifier::Default(_) => "default".into(),
+              ExportSpecifier::Named(spec) => match spec.exported.as_ref().unwrap_or(&spec.orig) {
+                ModuleExportName::Ident(v) => v.sym.clone(),
+                ModuleExportName::Str(v) => v.value.clone(),
+              },
+            };
+            let id_export = graph.get_node(&ValueGraphNode::Export(exported)).unwrap();
+            let id_local = graph
+              .graph
+              .node_weight(graph.get_single_child_node(id_export))
+              .unwrap();
+            if let ValueGraphNode::ImportedBinding((_, source, imported)) = id_local {
+              reexports.push(ModuleItem::ModuleDecl(create_export_named(
+                imported.clone(),
+                Some(imported.clone()),
+                Some(source),
+              )))
+            }
+          }
+        }
         // Handled by locals/ImportedBinding
         ModuleDecl::Import(_) => continue,
         // Handled when visiting the exported declarations themselves
-        ModuleDecl::ExportNamed(_) => continue,
         ModuleDecl::ExportDecl(decl) => {
           for (exported, decl) in split_up_decl(decl.decl) {
             // just put the export where the local ended up. Which means that
@@ -671,8 +694,8 @@ pub fn split(
 
             for exported_renamed in graph.get_exports_of_binding(node_local) {
               reexports.push(ModuleItem::ModuleDecl(create_export_named(
-                &exported,
-                Some(exported_renamed.clone()),
+                ModuleExportName::Ident(exported.clone().into()),
+                Some(word_to_export_name(exported_renamed.clone())),
                 Some(&id_local.as_import_specifier(module_id)),
               )));
             }
@@ -777,19 +800,27 @@ fn create_import(local: &Id, imported: Option<ModuleExportName>, src: &str) -> M
   })
 }
 
-fn create_export_named(local: &Id, exported: Option<JsWord>, src: Option<&str>) -> ModuleDecl {
+fn create_export_named(
+  local: ModuleExportName,
+  exported: Option<ModuleExportName>,
+  src: Option<&str>,
+) -> ModuleDecl {
   ModuleDecl::ExportNamed(NamedExport {
     span: DUMMY_SP,
     specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
       span: DUMMY_SP,
-      orig: ModuleExportName::Ident(Ident::from(local.clone())),
-      exported: exported.map(|v| ModuleExportName::Ident(Ident::new(v, DUMMY_SP))),
+      orig: local,
+      exported,
       is_type_only: false,
     })],
     src: src.map(|src| Box::new(src.into())),
     type_only: false,
     asserts: None,
   })
+}
+
+fn word_to_export_name(v: JsWord) -> ModuleExportName {
+  ModuleExportName::Ident(Ident::new(v, DUMMY_SP))
 }
 
 fn find_referenced_locals<T: for<'a> VisitWith<VisitReferences<'a>>>(
