@@ -148,14 +148,11 @@ describe('ParcelConfig', () => {
       );
 
       let warnStub = sinon.stub(logger, 'warn');
-      let {plugin} = await config.loadPlugin(
-        {
-          packageName: 'parcel-transformer-no-engines',
-          resolveFrom: configFilePath,
-          keyPath: '/transformers/*.js/0',
-        },
-        'transformer',
-      );
+      let {plugin} = await config.loadPlugin({
+        packageName: 'parcel-transformer-no-engines',
+        resolveFrom: configFilePath,
+        keyPath: '/transformers/*.js/0',
+      });
       assert(plugin);
       assert.equal(typeof plugin.transform, 'function');
       assert(warnStub.calledOnce);
@@ -204,14 +201,11 @@ describe('ParcelConfig', () => {
       // $FlowFixMe
       await assert.rejects(
         () =>
-          config.loadPlugin(
-            {
-              packageName: 'parcel-transformer-bad-engines',
-              resolveFrom: configFilePath,
-              keyPath: '/transformers/*.js/0',
-            },
-            'transformer',
-          ),
+          config.loadPlugin({
+            packageName: 'parcel-transformer-bad-engines',
+            resolveFrom: configFilePath,
+            keyPath: '/transformers/*.js/0',
+          }),
         {
           name: 'Error',
           diagnostics: [
