@@ -409,7 +409,18 @@ export default class Server {
       filename === '.proxyrc.mjs'
     ) {
       // $FlowFixMe
-      let cfg = (await import(configFilePath)).default;
+      // let cfg = (await import(configFilePath)).default;
+      let cfg = await this.options.packageManager.require(
+        configFilePath,
+        this.options.projectRoot,
+      );
+      if (
+        // $FlowFixMe
+        Object.prototype.toString.call(cfg) === '[object Module]'
+      ) {
+        cfg = cfg.default;
+      }
+
       if (typeof cfg !== 'function') {
         this.options.logger.warn({
           message: `Proxy configuration file '${filename}' should export a function. Skipping...`,
