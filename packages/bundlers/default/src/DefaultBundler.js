@@ -904,8 +904,8 @@ function createIdealGraph(
     let canReuse: Set<BundleRoot> = new Set();
     for (let candidateSourceBundleRoot of reachable) {
       let candidateSourceBundleId = nullthrows(
-        bundles.get(candidateSourceBundleRoot.id),
-      );
+        bundleRoots.get(candidateSourceBundleRoot),
+      )[0];
       if (candidateSourceBundleRoot.env.isIsolated()) {
         continue;
       }
@@ -947,7 +947,7 @@ function createIdealGraph(
 
     // Add assets to non-splittable bundles.
     for (let entry of reachableEntries) {
-      let entryBundleId = nullthrows(bundles.get(entry.id));
+      let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
       let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
       invariant(entryBundle !== 'root');
       entryBundle.assets.add(asset);
@@ -1009,7 +1009,7 @@ function createIdealGraph(
     } else if (reachable.length <= config.minBundles) {
       for (let root of reachable) {
         let bundle = nullthrows(
-          bundleGraph.getNode(nullthrows(bundles.get(root.id))),
+          bundleGraph.getNode(nullthrows(bundleRoots.get(root))[0]),
         );
         invariant(bundle !== 'root');
         bundle.assets.add(asset);
@@ -1205,16 +1205,19 @@ function createIdealGraph(
     for (let dependencyTuple of assetReference.get(bundleRootB)) {
       dependencyTuple[1] = a;
     }
-    //add in any lost edges
+    //add in any lost edges, parent or child
     for (let nodeId of bundleGraph.getNodeIdsConnectedTo(otherNodeId)) {
       bundleGraph.addEdge(nodeId, mainNodeId);
     }
+    for (let nodeId of bundleGraph.getNodeIdsConnectedFrom(otherNodeId)) {
+      bundleGraph.addEdge(mainNodeId, nodeId);
+    }
     replaceAssetReference(bundleRootB, b, a);
     deleteBundle(bundleRootB);
+    // We still need to key this bundle via each bundleRoot
     bundleRoots.set(bundleRootB, [mainNodeId, bundleGroupOfMain]);
     bundles.set(bundleRootB.id, mainNodeId);
 
-    bundleRoots.delete(bundleRootB);
     bundles.delete(bundleRootB.id);
   }
   function getBundleFromBundleRoot(bundleRoot: BundleRoot): Bundle {

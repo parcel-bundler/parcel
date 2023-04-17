@@ -183,6 +183,7 @@ parcel-transformer-b`,
         defaultTargetOptions: {
           shouldScopeHoist: true,
         },
+        mode: 'production',
       },
     );
 

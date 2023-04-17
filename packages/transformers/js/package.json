@@ -35,7 +35,7 @@
     "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.8.3",
     "@parcel/workers": "2.8.3",
-    "@swc/helpers": "^0.4.12",
+    "@swc/helpers": "^0.5.0",
     "browserslist": "^4.6.6",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",

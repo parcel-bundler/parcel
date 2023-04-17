@@ -107,11 +107,9 @@ impl<'a> DependencyCollector<'a> {
     // Rewrite SWC helpers from ESM to CJS for library output.
     let mut is_specifier_rewritten = false;
     if self.config.is_library && !self.config.is_esm_output {
-      if let Some(suffix) = specifier.strip_prefix("@swc/helpers/src/") {
-        if let Some(prefix) = suffix.strip_suffix(".mjs") {
-          specifier = format!("@swc/helpers/lib/{}.js", prefix).into();
-          is_specifier_rewritten = true;
-        }
+      if let Some(rest) = specifier.strip_prefix("@swc/helpers/_/") {
+        specifier = format!("@swc/helpers/cjs/{}.cjs", rest).into();
+        is_specifier_rewritten = true;
       }
     }
 
@@ -902,7 +900,7 @@ impl<'a> DependencyCollector<'a> {
           }
           Arrow(f) => {
             let param = f.params.get(0);
-            let body = match &f.body {
+            let body = match &*f.body {
               ast::BlockStmtOrExpr::Expr(expr) => Some(&**expr),
               ast::BlockStmtOrExpr::BlockStmt(block) => self.match_block_stmt_expr(block),
             };
@@ -1106,7 +1104,7 @@ impl Fold for PromiseTransformer {
   }
 
   fn fold_arrow_expr(&mut self, node: ast::ArrowExpr) -> ast::ArrowExpr {
-    if let ast::BlockStmtOrExpr::Expr(expr) = &node.body {
+    if let ast::BlockStmtOrExpr::Expr(expr) = &*node.body {
       if let ast::Expr::Call(call) = &**expr {
         if let Some(require_node) = &self.require_node {
           if require_node == call {
