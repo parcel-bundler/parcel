@@ -4395,8 +4395,9 @@ describe('cache', function () {
               assert(
                 spy.calledWith([
                   {
-                    message:
-                      'node\\_modules/parcel-transformer-esm/index.js contains non-statically analyzable dependencies in its module graph. This causes Parcel to invalidate the cache on startup.',
+                    message: md`${path.normalize(
+                      'node_modules/parcel-transformer-esm/index.js',
+                    )} contains non-statically analyzable dependencies in its module graph. This causes Parcel to invalidate the cache on startup.`,
                     origin: '@parcel/package-manager',
                   },
                 ]),
