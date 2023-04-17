@@ -304,6 +304,14 @@ describe('html', function () {
         name: 'logo.svg',
         assets: ['logo.svg'],
       },
+      {
+        type: 'png',
+        assets: ['logo.png'],
+      },
+      {
+        type: 'png',
+        assets: ['logo.png'],
+      },
     ]);
 
     let html = await outputFS.readFile(
@@ -312,6 +320,16 @@ describe('html', function () {
     );
     assert(html.includes(`<meta name="msapplication-config" content="none">`));
     assert(html.includes(`<meta property="og:image" content="/logo.svg">`));
+    assert(
+      /<meta name="msapplication-TileImage" content="\/logo\.[0-9a-f]+\.png">/.test(
+        html,
+      ),
+    );
+    assert(
+      /<meta name="msapplication-square70x70logo" content="\/logo\.[0-9a-f]+\.png">/.test(
+        html,
+      ),
+    );
     assert(
       html.includes(
         `<meta name="twitter:image" content="https://parceljs.org/assets/logo.svg">`,
@@ -1460,7 +1478,7 @@ describe('html', function () {
       'utf8',
     );
     assert(!html.includes('swc/helpers'));
-    assert(html.includes('slicedToArray'));
+    assert(html.includes('sliced_to_array'));
   });
 
   it('should allow imports and requires in inline <script> tags', async function () {
