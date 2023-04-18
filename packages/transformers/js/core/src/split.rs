@@ -735,6 +735,20 @@ pub fn split(
     }
   }
 
+  // If there is a locals module, make sure that is also imported. Otherwise Parcel's asset handling is confused if there are two "root" assets that aren't imported via uniqueKey
+  if modules.contains_key(&ModuleIndex::common()) {
+    reexports.insert(
+      0,
+      ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+        span: DUMMY_SP,
+        specifiers: vec![],
+        src: Box::new(ModuleIndex::common().as_import_specifier(module_id).into()),
+        type_only: false,
+        asserts: None,
+      })),
+    );
+  }
+
   let mut result = Vec::with_capacity(modules.len());
   for (i, body_rest) in modules.into_iter() {
     let mut body: Vec<_> = imports.values().cloned().collect();
