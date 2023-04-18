@@ -18,10 +18,11 @@ use swc_atoms::JsWord;
 use swc_common::{SyntaxContext, DUMMY_SP};
 use swc_ecmascript::{
   ast::{
-    AssignExpr, ClassExpr, Decl, DefaultDecl, ExportDecl, ExportNamedSpecifier, ExportSpecifier,
-    FnExpr, Id, Ident, ImportDecl, ImportDefaultSpecifier, ImportNamedSpecifier, ImportSpecifier,
-    ImportStarAsSpecifier, MemberProp, Module, ModuleDecl, ModuleExportName, ModuleItem,
-    NamedExport, PropName, Stmt, UnaryExpr, UnaryOp, UpdateExpr, VarDecl,
+    AssignExpr, ClassExpr, Decl, DefaultDecl, ExportDecl, ExportNamedSpecifier,
+    ExportNamespaceSpecifier, ExportSpecifier, FnExpr, Id, Ident, ImportDecl,
+    ImportDefaultSpecifier, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier,
+    MemberProp, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, PropName, Stmt,
+    UnaryExpr, UnaryOp, UpdateExpr, VarDecl,
   },
   visit::{Visit, VisitWith},
 };
@@ -239,6 +240,8 @@ pub fn split(
 ) -> (Module, Vec<(String, Module)>) {
   let mut graph = ValueGraph::new();
 
+  let mut imports: IndexMap<JsWord, ModuleItem> = IndexMap::new();
+
   for (i, it) in module.body.iter().enumerate() {
     match it {
       ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => {
@@ -306,6 +309,17 @@ pub fn split(
         // Ignore, no need to include this in the graph
       }
       ModuleItem::ModuleDecl(ModuleDecl::Import(decl)) => {
+        imports.insert(
+          decl.src.value.clone(),
+          ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+            span: decl.span,
+            specifiers: vec![],
+            src: decl.src.clone(),
+            type_only: decl.type_only,
+            asserts: decl.asserts.clone(),
+          })),
+        );
+
         for spec in &decl.specifiers {
           match spec {
             ImportSpecifier::Named(ImportNamedSpecifier {
@@ -581,7 +595,7 @@ pub fn split(
               }
             });
           for exported in exports {
-            reexports.push(ModuleItem::ModuleDecl(create_export_named(
+            reexports.push(ModuleItem::ModuleDecl(create_export(
               ModuleExportName::Ident(name.clone().into()),
               Some(word_to_export_name(exported.clone())),
               Some(&id_local.as_import_specifier(module_id)),
@@ -592,7 +606,7 @@ pub fn split(
             generate_imports(module_id, &graph, &graph_assignment, node_local, id_local);
           body.push(ModuleItem::Stmt(Stmt::Decl(decl)));
           if is_used_externally {
-            body.push(ModuleItem::ModuleDecl(create_export_named(
+            body.push(ModuleItem::ModuleDecl(create_export(
               ModuleExportName::Ident(name.clone().into()),
               Some(word_to_export_name(name.0.clone())),
               None,
@@ -617,7 +631,7 @@ pub fn split(
           let id_local = *graph_assignment.get(&node_local).unwrap();
 
           for exported_renamed in graph.get_exports_of_binding(node_local) {
-            reexports.push(ModuleItem::ModuleDecl(create_export_named(
+            reexports.push(ModuleItem::ModuleDecl(create_export(
               ModuleExportName::Ident(("default".into(), SyntaxContext::empty()).into()),
               Some(word_to_export_name(exported_renamed.clone())),
               Some(&id_export.as_import_specifier(module_id)),
@@ -637,7 +651,7 @@ pub fn split(
           let node_local = graph.get_single_child_node(node_export);
           let id_local = *graph_assignment.get(&node_local).unwrap();
 
-          reexports.push(ModuleItem::ModuleDecl(create_export_named(
+          reexports.push(ModuleItem::ModuleDecl(create_export(
             ModuleExportName::Ident(("default".into(), SyntaxContext::empty()).into()),
             None,
             Some(&id_export.as_import_specifier(module_id)),
@@ -656,32 +670,39 @@ pub fn split(
           src: None,
           ..
         }) => {
+          // Handle
+          // import {foo} from "...";
+          // export {foo};
           for spec in specifiers {
             let exported = match spec {
-              ExportSpecifier::Namespace(_) => continue,
               ExportSpecifier::Default(_) => "default".into(),
               ExportSpecifier::Named(spec) => match spec.exported.as_ref().unwrap_or(&spec.orig) {
                 ModuleExportName::Ident(v) => v.sym.clone(),
                 ModuleExportName::Str(v) => v.value.clone(),
               },
+              ExportSpecifier::Namespace(_) => unreachable!(),
             };
-            let id_export = graph.get_node(&ValueGraphNode::Export(exported)).unwrap();
+            let id_export = graph
+              .get_node(&ValueGraphNode::Export(exported.clone()))
+              .unwrap();
             let id_local = graph
               .graph
               .node_weight(graph.get_single_child_node(id_export))
               .unwrap();
             if let ValueGraphNode::ImportedBinding((_, source, imported)) = id_local {
-              reexports.push(ModuleItem::ModuleDecl(create_export_named(
+              reexports.push(ModuleItem::ModuleDecl(create_export(
                 imported.clone(),
-                Some(imported.clone()),
+                Some(ModuleExportName::Str(exported.into())),
                 Some(source),
               )))
             }
+            // all other (local) exported value Handled when visiting the exported
+            // declarations themselves
           }
         }
-        // Handled by locals/ImportedBinding
+        // Values themselves are handled via locals/ImportedBinding
+        // Sideeffects are collected in `imports`
         ModuleDecl::Import(_) => continue,
-        // Handled when visiting the exported declarations themselves
         ModuleDecl::ExportDecl(decl) => {
           for (exported, decl) in split_up_decl(decl.decl) {
             // just put the export where the local ended up. Which means that
@@ -693,7 +714,7 @@ pub fn split(
             let id_local = *graph_assignment.get(&node_local).unwrap();
 
             for exported_renamed in graph.get_exports_of_binding(node_local) {
-              reexports.push(ModuleItem::ModuleDecl(create_export_named(
+              reexports.push(ModuleItem::ModuleDecl(create_export(
                 ModuleExportName::Ident(exported.clone().into()),
                 Some(word_to_export_name(exported_renamed.clone())),
                 Some(&id_local.as_import_specifier(module_id)),
@@ -715,7 +736,9 @@ pub fn split(
   }
 
   let mut result = Vec::with_capacity(modules.len());
-  for (i, body) in modules.into_iter() {
+  for (i, body_rest) in modules.into_iter() {
+    let mut body: Vec<_> = imports.values().cloned().collect();
+    body.extend(body_rest.into_iter());
     result.push((
       i.as_import_specifier(module_id),
       Module {
@@ -800,19 +823,31 @@ fn create_import(local: &Id, imported: Option<ModuleExportName>, src: &str) -> M
   })
 }
 
-fn create_export_named(
+fn create_export(
   local: ModuleExportName,
   exported: Option<ModuleExportName>,
   src: Option<&str>,
 ) -> ModuleDecl {
+  let is_namespace = match &local {
+    ModuleExportName::Ident(_) => false,
+    ModuleExportName::Str(v) => v.value == *"*",
+  };
+
   ModuleDecl::ExportNamed(NamedExport {
     span: DUMMY_SP,
-    specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
-      span: DUMMY_SP,
-      orig: local,
-      exported,
-      is_type_only: false,
-    })],
+    specifiers: vec![if is_namespace {
+      ExportSpecifier::Namespace(ExportNamespaceSpecifier {
+        name: exported.unwrap(),
+        span: DUMMY_SP,
+      })
+    } else {
+      ExportSpecifier::Named(ExportNamedSpecifier {
+        span: DUMMY_SP,
+        orig: local,
+        exported,
+        is_type_only: false,
+      })
+    }],
     src: src.map(|src| Box::new(src.into())),
     type_only: false,
     asserts: None,
