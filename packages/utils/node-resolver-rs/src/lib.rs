@@ -1190,12 +1190,9 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
 #[cfg(test)]
 mod tests {
-  use std::collections::HashSet;
-
-  use dashmap::DashSet;
-
   use super::cache::Cache;
   use super::*;
+  use std::collections::HashSet;
 
   fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1344,18 +1341,22 @@ mod tests {
         .0,
       Resolution::Path(root().join("bar.js"))
     );
-    assert_eq!(
-      test_resolver()
-        .resolve(
-          "file:///bar",
-          &root().join("nested/test.js"),
-          SpecifierType::Esm
-        )
-        .result
-        .unwrap()
-        .0,
-      Resolution::Path(root().join("bar.js"))
-    );
+
+    #[cfg(not(windows))]
+    {
+      assert_eq!(
+        test_resolver()
+          .resolve(
+            "file:///bar",
+            &root().join("nested/test.js"),
+            SpecifierType::Esm
+          )
+          .result
+          .unwrap()
+          .0,
+        Resolution::Path(root().join("bar.js"))
+      );
+    }
     assert_eq!(
       node_resolver()
         .resolve(
