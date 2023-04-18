@@ -616,9 +616,11 @@ pub fn split(
         }
       }
       ModuleItem::Stmt(_) => {
-        let node_idx = graph.get_node(&ValueGraphNode::Statement(i)).unwrap();
-        let id = *graph_assignment.get(&node_idx).unwrap();
-        modules.entry(id).or_default().push(it);
+        let node = graph.get_node(&ValueGraphNode::Statement(i)).unwrap();
+        let id = *graph_assignment.get(&node).unwrap();
+        let mut body = generate_imports(module_id, &graph, &graph_assignment, node, id);
+        body.push(it);
+        modules.entry(id).or_default().append(&mut body);
         continue;
       }
       ModuleItem::ModuleDecl(decl) => match decl {
