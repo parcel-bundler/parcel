@@ -1120,32 +1120,26 @@ function applyResult(
     for (let {source, local, imported, loc} of hoist_result.imported_symbols) {
       let dep = deps.get(source);
       if (!dep) continue;
-      getDependencySymbols(dep).set(imported, {
-        local,
-        loc: convertLoc(loc),
-        isWeak: false,
-      });
+      setDependencySymbols(dep, imported, local, convertLoc(loc), false);
     }
 
     for (let {source, local, imported, loc} of hoist_result.re_exports) {
       let dep = deps.get(source);
       if (!dep) continue;
       if (local === '*' && imported === '*') {
-        getDependencySymbols(dep).set('*', {
-          local: '*',
-          loc: convertLoc(loc),
-          isWeak: true,
-        });
+        setDependencySymbols(dep, '*', '*', convertLoc(loc), true);
       } else {
         let reExportName =
           getDependencySymbols(dep).get(imported)?.local ??
           `$${baseAsset.id}$re_export$${local}`;
         nullthrows(asset.symbols).set(local, {local: reExportName, loc: null});
-        getDependencySymbols(dep).set(imported, {
-          local: reExportName,
-          loc: convertLoc(loc),
-          isWeak: true,
-        });
+        setDependencySymbols(
+          dep,
+          imported,
+          reExportName,
+          convertLoc(loc),
+          true,
+        );
       }
     }
 
@@ -1223,11 +1217,13 @@ function applyResult(
         });
         if (dep != null) {
           ensureDependencySymbols(dep);
-          getDependencySymbols(dep).set(local, {
-            local: `${dep?.id ?? ''}$${local}`,
-            loc: convertLoc(loc),
-            isWeak: true,
-          });
+          setDependencySymbols(
+            dep,
+            local,
+            `${dep?.id ?? ''}$${local}`,
+            convertLoc(loc),
+            true,
+          );
         }
       }
 
@@ -1235,22 +1231,14 @@ function applyResult(
         let dep = deps.get(source);
         if (!dep) continue;
         ensureDependencySymbols(dep);
-        getDependencySymbols(dep).set(imported, {
-          local: local,
-          loc: convertLoc(loc),
-          isWeak: false,
-        });
+        setDependencySymbols(dep, imported, local, convertLoc(loc), false);
       }
 
       for (let {source, loc} of symbol_result.exports_all) {
         let dep = deps.get(source);
         if (!dep) continue;
         ensureDependencySymbols(dep);
-        getDependencySymbols(dep).set('*', {
-          local: '*',
-          loc: convertLoc(loc),
-          isWeak: true,
-        });
+        setDependencySymbols(dep, '*', '*', convertLoc(loc), true);
       }
 
       // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
@@ -1279,11 +1267,7 @@ function applyResult(
     for (let dep of asset.dependencies) {
       if (dep.symbols == null) {
         ensureDependencySymbols(dep);
-        getDependencySymbols(dep).set('*', {
-          local: `${dep.id}$`,
-          loc: null,
-          isWeak: false,
-        });
+        setDependencySymbols(dep, '*', `${dep.id}$`, null, false);
       }
     }
 
@@ -1368,4 +1352,28 @@ function getDependencySymbols(dep: DependencyOptions): Map<
 > {
   // $FlowFixMe[incompatible-return]
   return nullthrows(dep.symbols);
+}
+
+function setDependencySymbols(
+  dep: DependencyOptions,
+  exportSymbol: Symbol,
+  local: Symbol,
+  loc: ?SourceLocation,
+  isWeak: ?boolean,
+) {
+  let symbols: Map<
+    Symbol,
+    {|
+      isWeak: boolean,
+      loc: ?SourceLocation,
+      local: Symbol,
+      meta?: Meta,
+    |},
+    // $FlowFixMe[incompatible-type]
+  > = nullthrows(dep.symbols);
+  symbols.set(exportSymbol, {
+    local,
+    loc: loc,
+    isWeak: (symbols.get(exportSymbol)?.isWeak ?? true) && (isWeak ?? false),
+  });
 }
