@@ -1,3 +1,4 @@
+mod collect;
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
@@ -33,18 +34,17 @@ use swc_ecmascript::transforms::{
 use swc_ecmascript::transforms::{resolver, Assumptions};
 use swc_ecmascript::visit::{FoldWith, VisitWith};
 
+use collect::{Collect, CollectResult};
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::{hoist, CollectResult, HoistResult};
+use hoist::{hoist, HoistResult};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use typeof_replacer::*;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
-
-use crate::hoist::Collect;
 
 type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
 
