@@ -1356,31 +1356,31 @@ mod tests {
           .0,
         Resolution::Path(root().join("bar.js"))
       );
+      assert_eq!(
+        node_resolver()
+          .resolve(
+            root().join("foo.js").to_str().unwrap(),
+            &root().join("nested/test.js"),
+            SpecifierType::Esm
+          )
+          .result
+          .unwrap()
+          .0,
+        Resolution::Path(root().join("foo.js"))
+      );
+      assert_eq!(
+        node_resolver()
+          .resolve(
+            &format!("file://{}", root().join("foo.js").to_str().unwrap()),
+            &root().join("nested/test.js"),
+            SpecifierType::Esm
+          )
+          .result
+          .unwrap()
+          .0,
+        Resolution::Path(root().join("foo.js"))
+      );
     }
-    assert_eq!(
-      node_resolver()
-        .resolve(
-          root().join("foo.js").to_str().unwrap(),
-          &root().join("nested/test.js"),
-          SpecifierType::Esm
-        )
-        .result
-        .unwrap()
-        .0,
-      Resolution::Path(root().join("foo.js"))
-    );
-    assert_eq!(
-      node_resolver()
-        .resolve(
-          &format!("file://{}", root().join("foo.js").to_str().unwrap()),
-          &root().join("nested/test.js"),
-          SpecifierType::Esm
-        )
-        .result
-        .unwrap()
-        .0,
-      Resolution::Path(root().join("foo.js"))
-    );
   }
 
   #[test]
