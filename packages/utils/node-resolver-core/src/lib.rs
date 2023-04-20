@@ -395,7 +395,6 @@ impl Resolver {
         })
       }
       Err(e) => {
-        println!("{:?}", e);
         Err(napi::Error::new(
           napi::Status::GenericFailure,
           "Failed to resolve invalidations",
