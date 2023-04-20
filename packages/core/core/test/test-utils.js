@@ -41,6 +41,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   packageManager: new NodePackageManager(inputFS, '/'),
   additionalReporters: [],
   instanceId: 'test',
+  isGitWatcher: false,
   defaultTargetOptions: {
     shouldScopeHoist: false,
     shouldOptimize: false,

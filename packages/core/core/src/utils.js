@@ -107,6 +107,7 @@ const ignoreOptions = new Set([
   'shouldPatchConsole',
   'projectRoot',
   'additionalReporters',
+  'isGitWatcher',
 ]);
 
 export function optionsProxy(

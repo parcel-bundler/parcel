@@ -194,6 +194,7 @@ export default async function resolveOptions(
       })) ?? [],
     instanceId: generateInstanceId(entries),
     detailedReport: initialOptions.detailedReport,
+    isGitWatcher: initialOptions.isGitWatcher ?? false,
     defaultTargetOptions: {
       shouldOptimize,
       shouldScopeHoist: initialOptions?.defaultTargetOptions?.shouldScopeHoist,

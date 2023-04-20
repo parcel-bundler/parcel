@@ -313,6 +313,7 @@ export type InitialParcelOptions = {|
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +detailedReport?: ?DetailedReportOptions,
+  +isGitWatcher?: boolean,
 
   +defaultTargetOptions?: {|
     +shouldOptimize?: boolean,

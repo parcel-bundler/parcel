@@ -99,7 +99,9 @@ async function run({input, api, options}) {
     optionsRef,
   });
 
-  let bundleInfo = await api.runRequest(writeBundlesRequest);
+  let bundleInfo = await api.runRequest(writeBundlesRequest, {
+    force: options.isGitWatcher,
+  });
   packagingMeasurement && packagingMeasurement.end();
   assertSignalNotAborted(signal);
 

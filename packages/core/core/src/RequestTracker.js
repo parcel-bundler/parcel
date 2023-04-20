@@ -712,6 +712,7 @@ export class RequestGraph extends ContentGraph<
 
   respondToFSEvents(
     events: Array<{|path: ProjectPath, type: EventType|}>,
+    invalidateOnLockfile: boolean,
   ): boolean {
     let didInvalidate = false;
     for (let {path: _filePath, type} of events) {
@@ -728,6 +729,22 @@ export class RequestGraph extends ContentGraph<
           }
         }
         return true;
+      }
+
+      if (invalidateOnLockfile) {
+        // If the lockfile changed (or a patch for patch-packages), invalidate everything as node_modules isn't watched
+        if (
+          filePath === 'yarn.lock' ||
+          filePath === 'package-lock.json' ||
+          filePath === 'pnpm-lock.yaml' ||
+          filePath.startsWith('patches/')
+        ) {
+          for (let [id, node] of this.nodes.entries()) {
+            if (node && node.type === 'request') {
+              this.invalidNodeIds.add(id);
+            }
+          }
+        }
       }
 
       // sometimes mac os reports update events as create events.
@@ -933,7 +950,7 @@ export default class RequestTracker {
   respondToFSEvents(
     events: Array<{|path: ProjectPath, type: EventType|}>,
   ): boolean {
-    return this.graph.respondToFSEvents(events);
+    return this.graph.respondToFSEvents(events, this.options.isGitWatcher);
   }
 
   hasInvalidRequests(): boolean {
@@ -1138,7 +1155,8 @@ export default class RequestTracker {
 export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
   let vcsDirs = ['.git', '.hg'].map(dir => path.join(options.projectRoot, dir));
   let ignore = [options.cacheDir, ...vcsDirs];
-  return {ignore};
+  // $FlowFixMe[incompatible-return]
+  return options.isGitWatcher ? {ignore, backend: 'git'} : {ignore};
 }
 
 function getCacheKey(options) {
@@ -1173,6 +1191,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
         type: e.type,
         path: toProjectPath(options.projectRoot, e.path),
       })),
+      options.isGitWatcher,
     );
 
     return requestGraph;

@@ -169,6 +169,7 @@ let build = program
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--no-content-hash', 'disable content hashing')
+  .option('--git-watcher', 'use git watcher backend')
   .action(runCommand);
 
 applyOptions(build, commonOptions);
@@ -503,6 +504,7 @@ async function normalizeOptions(
             assetsPerBundle: parseInt(command.detailedReport, 10),
           }
         : null,
+    isGitWatcher: command.gitWatcher ?? false,
     env: {
       NODE_ENV: nodeEnv,
     },

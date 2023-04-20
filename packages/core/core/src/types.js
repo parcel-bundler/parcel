@@ -280,6 +280,7 @@ export type ParcelOptions = {|
   shouldTrace: boolean,
   shouldPatchConsole: boolean,
   detailedReport?: ?DetailedReportOptions,
+  isGitWatcher: boolean,
 
   inputFS: FileSystem,
   outputFS: FileSystem,

@@ -127,7 +127,9 @@ async function run({input, api, farm, options}) {
             hashRefToNameHash,
             bundleGraph,
           });
-          let promise = api.runRequest(writeBundleRequest);
+          let promise = api.runRequest(writeBundleRequest, {
+            force: options.isGitWatcher,
+          });
           // If the promise rejects before we await it (below), we don't want to crash the build.
           promise.catch(() => {});
           writeEarlyPromises[bundle.id] = promise;
@@ -146,6 +148,7 @@ async function run({input, api, farm, options}) {
               hashRefToNameHash,
               bundleGraph,
             }),
+            {force: options.isGitWatcher},
           );
 
         return promise.then(r => res.set(bundle.id, r));
