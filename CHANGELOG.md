@@ -5,6 +5,108 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+# [2.8.3] - 2023-01-18
+
+- Core
+  - filter out title execArgv to workers – [Details](https://github.com/parcel-bundler/parcel/pull/8719)
+- Bundler
+  - Fix CSS order when merging type change bundles – [Details](https://github.com/parcel-bundler/parcel/pull/8766)
+  - Fix assertion error when mixing CSS modules and non-modules – [Details](https://github.com/parcel-bundler/parcel/pull/8762)
+  - Fix set diff – [Details](https://github.com/parcel-bundler/parcel/pull/8699)
+  - Recursively check reachability when removing asset graphs from bundles in deduplication – [Details](https://github.com/parcel-bundler/parcel/pull/6004)
+- JavaScript
+  - Don't retarget dependencies if a symbol is imported multiple times with different local names – [Details](https://github.com/parcel-bundler/parcel/pull/8738)
+  - Fix assigning to `this` in CommonJS – [Details](https://github.com/parcel-bundler/parcel/pull/8737)
+  - Bump SWC to fix dead branch removal bug – [Details](https://github.com/parcel-bundler/parcel/pull/8742
+  - Bump swc to fix sourcemaps with Windows line endings – [Details](https://github.com/parcel-bundler/parcel/pull/8756)
+  - Add test cases for ESM initialization problems – [Details](https://github.com/parcel-bundler/parcel/pull/7350)
+- TypeScript
+  - Fix TSC sourcemaps metadata – [Details](https://github.com/parcel-bundler/parcel/pull/8734)
+- HTML
+  - Fix `srcset` parsing – [Details](https://github.com/parcel-bundler/parcel/pull/8671)
+- Dev server
+  - Apply HMR updates in topological order – [Details](https://github.com/parcel-bundler/parcel/pull/8752)
+  - Fixed the hmr connection with host 0.0.0.0 – [Details](https://github.com/parcel-bundler/parcel/pull/7357)
+
+# [2.8.2] - 2022-12-14
+
+- Core
+  - Ensure maxListeners for process.stdout accounts for workers – [Details](https://github.com/parcel-bundler/parcel/pull/8689)
+- JavaScript
+  - Bump SWC to fix scoping issue with block-less loops – [Details](https://github.com/parcel-bundler/parcel/pull/8686)
+  - Fix requires of external CommonJS SWC helpers – [Details](https://github.com/parcel-bundler/parcel/pull/8693)
+
+## [2.8.1] - 2022-12-07
+
+### Fixed
+
+- Core
+  - fix: remove @parcel/utils dep in @parcel/graph – [Details](https://github.com/parcel-bundler/parcel/pull/8630)
+- JavaScript
+  - Don't retarget dependencies with `*` – [Details](https://github.com/parcel-bundler/parcel/pull/8645)
+  - Fix overriding single export of a `export *` – [Details](https://github.com/parcel-bundler/parcel/pull/8653)
+  - Add mjs and cjs to resolver extensions – [Details](https://github.com/parcel-bundler/parcel/pull/8667)
+- TypeScript
+  - Make ts-types transformer work with TS >= 4.8 – [Details](https://github.com/parcel-bundler/parcel/pull/8661)
+- Web manifest
+  - Parse shortcut icons in web app manifests – [Details](https://github.com/parcel-bundler/parcel/pull/8660)
+- SVG
+  - Fix transformer-svg-react not finding `.svgrrc` – [Details](https://github.com/parcel-bundler/parcel/pull/7741)
+
+## [2.8.0] - 2022-11-09
+
+### Added
+
+- Core
+  - Code splitting across reexports using symbol data by splitting dependencies – [Details](https://github.com/parcel-bundler/parcel/pull/8432)
+  - Update without bundling for non-dependency related changes – [Details](https://github.com/parcel-bundler/parcel/pull/6514)
+  - Improve performance of incremental bundling – [Details](https://github.com/parcel-bundler/parcel/pull/8583)
+  - Only serialize and send shared references to workers that need them – [Details](https://github.com/parcel-bundler/parcel/pull/8589)
+  - Improve performance of HMR by not waiting for packaging – [Details](https://github.com/parcel-bundler/parcel/pull/8582)
+- JavaScript
+  - Verify version when resolving Node builtin polyfills – [Details](https://github.com/parcel-bundler/parcel/pull/8387)
+  - Add `loadBundleConfig` method to Packager plugins – [Details](https://github.com/parcel-bundler/parcel/pull/8370)
+- SVG
+  - Generate typescript for SVGs when using svgr and typescript option – [Details](https://github.com/parcel-bundler/parcel/pull/8411)
+- Bundler
+  - Move experimental bundler to default – [Details](https://github.com/parcel-bundler/parcel/pull/8607)
+
+### Fixed
+
+- Core
+  - Fix verbose warning: reexport all doesn't include default – [Details](https://github.com/parcel-bundler/parcel/pull/8451)
+  - Support multiple edge types in Graph.hasEdge – [Details](https://github.com/parcel-bundler/parcel/pull/8550)
+  - Ensure edge exists before removal in Graph.removeEdge – [Details](https://github.com/parcel-bundler/parcel/pull/8554)
+  - Disable splitting dependencies on symbols for non-scope hoisted bundles – [Details](https://github.com/parcel-bundler/parcel/pull/8565)
+  - Fix TypeScript definitions for Parcel config API – [Details](https://github.com/parcel-bundler/parcel/pull/8362)
+  - Use traverseAssets in packager to improve performance – [Details](https://github.com/parcel-bundler/parcel/pull/8592)
+  - Make uniqueKey undefined by default – [Details](https://github.com/parcel-bundler/parcel/pull/8601)
+  - Catch uncaught promise build abort race – [Details](https://github.com/parcel-bundler/parcel/pull/8600)
+  - Bump parcel dependencies – [Details](https://github.com/parcel-bundler/parcel/pull/8611)
+- JavaScript
+  - Bump SWC - [Details](https://github.com/parcel-bundler/parcel/pull/8390), [Details](https://github.com/parcel-bundler/parcel/pull/8537)
+  - Fix Chrome Android browserslist support check – [Details](https://github.com/parcel-bundler/parcel/pull/8447)
+  - Fix CommonJS symbol collection without scope hoisting – [Details](https://github.com/parcel-bundler/parcel/pull/8555)
+  - Make React Refresh debounce call on the leading edge – [Details](https://github.com/parcel-bundler/parcel/pull/8593)
+  - Retain correct dependency order between imports and reexports without scopehoisting – [Details](https://github.com/parcel-bundler/parcel/pull/8591)
+- Bundler
+  - Consider sibling in available assets to younger sibling for parallel deps – [Details](https://github.com/parcel-bundler/parcel/pull/8414)
+  - Don't merge isolated child assets – [Details](https://github.com/parcel-bundler/parcel/pull/8527)
+  - Do not merge isolated bundles in experimental bundler – [Details](https://github.com/parcel-bundler/parcel/pull/8566)
+  - Implement min bundles configuration – [Details](https://github.com/parcel-bundler/parcel/pull/8599)
+- Dev server
+  - Include `Content-Length` header in HEAD requests – [Details](https://github.com/parcel-bundler/parcel/pull/8416)
+- Vue
+  - Fix errors displaying errors when compiling Vue SFCs – [Details](https://github.com/parcel-bundler/parcel/pull/8497)
+  - Add file path to error code frames – [Details](https://github.com/parcel-bundler/parcel/pull/8499)
+  - Fix location of errors – [Details](https://github.com/parcel-bundler/parcel/pull/8501)
+- Image
+  - Upgrade sharp – [Details](https://github.com/parcel-bundler/parcel/pull/8568)
+- TypeScript
+  - Allow configuring module resolution – [Details](https://github.com/parcel-bundler/parcel/pull/8448)
+- Web extensions
+  - Fix service worker packaging in web extensions – [Details](https://github.com/parcel-bundler/parcel/pull/8424)
+
 ## [2.7.0] - 2022-08-03
 
 ### Added
@@ -112,7 +214,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Fix hoisting for optional chaining member expressions - [Details](https://github.com/parcel-bundler/parcel/pull/8121)
 - Fix issues with web extensions - [Details](https://github.com/parcel-bundler/parcel/pull/8000)
 - Reload the closest package.json to an asset if it's a package entry to fix `sideEffects` - [Details](https://github.com/parcel-bundler/parcel/pull/7909)
-- Only emit non static import bailout warnings for variables which correspond to a * import - [Details](https://github.com/parcel-bundler/parcel/pull/8136)
+- Only emit non static import bailout warnings for variables which correspond to a \* import - [Details](https://github.com/parcel-bundler/parcel/pull/8136)
 
 ## [2.5.0] - 2022-04-21
 

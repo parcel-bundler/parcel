@@ -517,6 +517,13 @@ export type DependencyOptions = {|
   +loc?: SourceLocation,
   /** The environment of the dependency. */
   +env?: EnvironmentOptions,
+  /**
+   * A list of custom conditions to use when resolving package.json "exports" and "imports".
+   * This is combined with the conditions from the environment. However, it overrides the
+   * default "import" and "require" conditions inferred from the specifierType. To include those
+   * in addition to custom conditions, explicitly add them to this list.
+   */
+  +packageConditions?: Array<string>,
   /** Plugin-specific metadata for the dependency. */
   +meta?: Meta,
   /** The pipeline defined in .parcelrc that the dependency should be processed with. */
@@ -589,6 +596,13 @@ export interface Dependency {
   +loc: ?SourceLocation;
   /** The environment of the dependency. */
   +env: Environment;
+  /**
+   * A list of custom conditions to use when resolving package.json "exports" and "imports".
+   * This is combined with the conditions from the environment. However, it overrides the
+   * default "import" and "require" conditions inferred from the specifierType. To include those
+   * in addition to custom conditions, explicitly add them to this list.
+   */
+  +packageConditions: ?Array<string>;
   /** Plugin-specific metadata for the dependency. */
   +meta: Meta;
   /** If this is an entry, this is the target that is associated with that entry. */
@@ -959,7 +973,27 @@ export interface PluginLogger {
 /**
  * @section transformer
  */
-export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
+export type ResolveOptions = {|
+  /**
+   * How the specifier should be interpreted.
+   *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
+   *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
+   *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
+   *   - custom: A custom specifier. Must be handled by a custom resolver plugin.
+   */
+  +specifierType?: SpecifierType,
+  /** A list of custom conditions to use when resolving package.json "exports" and "imports". */
+  +packageConditions?: Array<string>,
+|};
+
+/**
+ * @section transformer
+ */
+export type ResolveFn = (
+  from: FilePath,
+  to: string,
+  options?: ResolveOptions,
+) => Promise<FilePath>;
 
 /**
  * @section validator
@@ -1324,22 +1358,37 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
   addAssetToBundle(Asset, Bundle): void;
+  /**
+   * Adds an asset as an entry to a bundle. Entry assets are executed immediately
+   * when the bundle is loaded.
+   */
   addEntryToBundle(
     Asset,
     Bundle,
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
+  /** Adds the Bundle to the BundleGroup, loading it along with others in the group */
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset, Bundle): void;
   createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
   createBundleGroup(Dependency, Target): BundleGroup;
+  /** @returns all Asset-s attached to the Dependency */
   getDependencyAssets(Dependency): Array<Asset>;
+  /** Get Bundles that load this bundle asynchronously. */
   getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
+  /** @returns the size in bytes of an asset and all assets in its subgraph */
   getTotalSize(Asset): number;
-  /** Remove all "contains" edges from the bundle to the nodes in the asset's subgraph. */
+  /**
+   * Recursively removes an asset and its dependencies from a bundle. Stops at
+   * bundle group boundaries.
+   */
   removeAssetGraphFromBundle(Asset, Bundle): void;
+  /**
+   * Removes a BundleGroup from the graph. If any of the group's Bundle-s no
+   * longer exist in the graph, those are removed as well.
+   */
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
@@ -1561,6 +1610,8 @@ export type Namer<ConfigType> = {|
   |}): Async<?FilePath>,
 |};
 
+type RuntimeAssetPriority = 'sync' | 'parallel';
+
 /**
  * A "synthetic" asset that will be inserted into the bundle graph.
  * @section runtime
@@ -1571,6 +1622,7 @@ export type RuntimeAsset = {|
   +dependency?: Dependency,
   +isEntry?: boolean,
   +env?: EnvironmentOptions,
+  +priority?: RuntimeAssetPriority,
 |};
 
 /**
@@ -1668,13 +1720,19 @@ export type Compressor = {|
 /**
  * @section resolver
  */
-export type Resolver = {|
+export type Resolver<ConfigType> = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Promise<ConfigType> | ConfigType,
   resolve({|
     dependency: Dependency,
     options: PluginOptions,
     logger: PluginLogger,
     specifier: FilePath,
     pipeline: ?string,
+    config: ConfigType,
   |}): Async<?ResolveResult>,
 |};
 
@@ -1765,6 +1823,13 @@ export type BundlingProgressEvent = {|
   +phase: 'bundling',
 |};
 
+export type BundledProgressEvent = {|
+  +type: 'buildProgress',
+  +phase: 'bundled',
+  +bundleGraph: BundleGraph<NamedBundle>,
+  +changedAssets: Map<string, Asset>,
+|};
+
 /**
  * A new Bundle is being packaged.
  * @section reporter
@@ -1792,6 +1857,7 @@ export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
   | BundlingProgressEvent
+  | BundledProgressEvent
   | PackagingProgressEvent
   | OptimizingProgressEvent;
 

@@ -20,15 +20,17 @@ type WriteBundlesRequestInput = {|
   optionsRef: SharedReference,
 |};
 
-type RunInput = {|
+type RunInput<TResult> = {|
   input: WriteBundlesRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type WriteBundlesRequest = {|
   id: ContentKey,
   +type: 'write_bundles_request',
-  run: RunInput => Async<Map<string, PackagedBundleInfo>>,
+  run: (
+    RunInput<Map<string, PackagedBundleInfo>>,
+  ) => Async<Map<string, PackagedBundleInfo>>,
   input: WriteBundlesRequestInput,
 |};
 
@@ -46,7 +48,7 @@ export default function createWriteBundlesRequest(
   };
 }
 
-async function run({input, api, farm, options}: RunInput) {
+async function run({input, api, farm, options}) {
   let {bundleGraph, optionsRef} = input;
   let {ref, dispose} = await farm.createSharedReference(bundleGraph);
 
@@ -113,7 +115,10 @@ async function run({input, api, farm, options}: RunInput) {
             hashRefToNameHash,
             bundleGraph,
           });
-          writeEarlyPromises[bundle.id] = api.runRequest(writeBundleRequest);
+          let promise = api.runRequest(writeBundleRequest);
+          // If the promise rejects before we await it (below), we don't want to crash the build.
+          promise.catch(() => {});
+          writeEarlyPromises[bundle.id] = promise;
         }
       }),
     );

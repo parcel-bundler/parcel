@@ -41,20 +41,12 @@ describe('incremental bundling', function () {
     let Bundler = (
       await packageManager.require('@parcel/bundler-default', __filename)
     ).default;
-    let ExperimentalBundler = (
-      await packageManager.require('@parcel/bundler-experimental', __filename)
-    ).default;
     let CustomBundler = await packageManager.require(
       './integration/incremental-bundling/node_modules/parcel-bundler-test',
       __filename,
     );
 
-    defaultBundlerSpy =
-      process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
-        ? // $FlowFixMe[prop-missing]
-          sinon.spy(ExperimentalBundler[CONFIG], 'bundle')
-        : // $FlowFixMe[prop-missing]
-          sinon.spy(Bundler[CONFIG], 'bundle');
+    defaultBundlerSpy = sinon.spy(Bundler[CONFIG], 'bundle'); // $FlowFixMe[prop-missing]
 
     customBundlerSpy = sinon.spy(CustomBundler[CONFIG], 'bundle');
   });
@@ -491,31 +483,28 @@ console.log(a);`,
         await overlayFS.mkdirp(fixture);
         subscription = await b.watch();
 
-        let event = await getNextBuildSuccess(b);
+        await getNextBuildSuccess(b);
         assertTimesBundled(defaultBundlerSpy.callCount, 1);
 
         await overlayFS.writeFile(
           path.join(fixture, 'index.js'),
-          `import a from './a';
-import b from './b';
+          `import {a} from './a';
+import {b} from './b';
 console.log('index.js', b);
 console.log(a);
 `,
         );
 
-        event = await getNextBuildSuccess(b);
+        let event = await getNextBuildSuccess(b);
         assertChangedAssets(event.changedAssets.size, 2);
         assertTimesBundled(defaultBundlerSpy.callCount, 2);
 
-        let result = await b.run();
         let contents = await overlayFS.readFile(
-          result.bundleGraph.getBundles()[0].filePath,
+          event.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
 
-        assert(
-          contents.includes(`console.log("index.js", (0, _bDefault.default));`),
-        );
+        assert(contents.includes(`console.log("index.js", (0, _b.b));`));
       } finally {
         if (subscription) {
           await subscription.unsubscribe();
@@ -537,34 +526,32 @@ console.log(a);
         await overlayFS.mkdirp(fixture);
         subscription = await b.watch();
 
-        let event = await getNextBuildSuccess(b);
+        await getNextBuildSuccess(b);
         assertTimesBundled(defaultBundlerSpy.callCount, 1);
 
         await overlayFS.writeFile(
           path.join(fixture, 'index.js'),
-          `import a from './a';
+          `import {a} from './a';
 import './a.css';
 console.log(a);
 `,
         );
 
-        event = await getNextBuildSuccess(b);
+        let event = await getNextBuildSuccess(b);
         assertChangedAssets(event.changedAssets.size, 2);
         assertTimesBundled(defaultBundlerSpy.callCount, 2);
 
-        let result = await b.run();
-
         // one CSS and one JS bundle
-        assert.equal(result.bundleGraph.getBundles().length, 2);
+        assert.equal(event.bundleGraph.getBundles().length, 2);
 
         let contents = await overlayFS.readFile(
-          result.bundleGraph.getBundles()[0].filePath,
+          event.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
 
-        assert(contents.includes(`console.log((0, _aDefault.default));`));
+        assert(contents.includes(`console.log((0, _a.a));`));
 
-        let bundleCSS = result.bundleGraph.getBundles()[1];
+        let bundleCSS = event.bundleGraph.getBundles()[1];
         assert.equal(bundleCSS.type, 'css');
 
         let cssContent = await overlayFS.readFile(bundleCSS.filePath, 'utf8');
@@ -590,35 +577,33 @@ console.log(a);
         await overlayFS.mkdirp(fixture);
         subscription = await b.watch();
 
-        let event = await getNextBuildSuccess(b);
+        await getNextBuildSuccess(b);
         assertTimesBundled(defaultBundlerSpy.callCount, 1);
 
         await overlayFS.writeFile(
           path.join(fixture, 'index.js'),
-          `import a from './a';
+          `import {a} from './a';
 const b = import('./b');
-console.log(a);
+console.log(a, b);
 `,
         );
 
-        event = await getNextBuildSuccess(b);
+        let event = await getNextBuildSuccess(b);
         let assets = Array.from(event.changedAssets.values());
         assertChangedAssets(getChangedAssetsBeforeRuntimes(assets).length, 2);
         assertTimesBundled(defaultBundlerSpy.callCount, 2);
 
-        let result = await b.run();
-
         // original bundle and new dynamic import bundle JS bundle
-        assert.equal(result.bundleGraph.getBundles().length, 2);
+        assert.equal(event.bundleGraph.getBundles().length, 2);
 
         let contents = await overlayFS.readFile(
-          result.bundleGraph.getBundles()[0].filePath,
+          event.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
 
-        assert(contents.includes(`console.log((0, _aDefault.default));`));
+        assert(contents.includes(`console.log((0, _a.a), b);`));
 
-        let dynamicBundle = result.bundleGraph.getBundles()[1];
+        let dynamicBundle = event.bundleGraph.getBundles()[1];
         assert.equal(dynamicBundle.type, 'js');
 
         let dynamicContent = await overlayFS.readFile(
@@ -787,10 +772,6 @@ console.log('index.js');`,
         path.join(fixture, '.parcelrc'),
         JSON.stringify({
           extends: '@parcel/config-default',
-          bundler:
-            process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
-              ? '@parcel/bundler-experimental'
-              : undefined,
           namers: ['parcel-namer-test'],
         }),
       );
@@ -835,10 +816,6 @@ console.log('index.js');`,
         path.join(fixture, '.parcelrc'),
         JSON.stringify({
           extends: '@parcel/config-default',
-          bundler:
-            process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER != null
-              ? '@parcel/bundler-experimental'
-              : undefined,
           runtimes: ['parcel-runtime-test'],
         }),
       );

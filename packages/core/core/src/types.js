@@ -113,6 +113,17 @@ export const Priority = {
   lazy: 2,
 };
 
+// Must match package_json.rs in node-resolver-rs.
+export const ExportsCondition = {
+  import: 1 << 0,
+  require: 1 << 1,
+  module: 1 << 2,
+  style: 1 << 12,
+  sass: 1 << 13,
+  less: 1 << 14,
+  stylus: 1 << 15,
+};
+
 export type Dependency = {|
   id: string,
   specifier: DependencySpecifier,
@@ -124,6 +135,8 @@ export type Dependency = {|
   isOptional: boolean,
   loc: ?InternalSourceLocation,
   env: Environment,
+  packageConditions?: number,
+  customPackageConditions?: Array<string>,
   meta: Meta,
   resolverMeta?: ?Meta,
   target: ?Target,
@@ -318,12 +331,21 @@ export type DependencyNode = {|
     Symbol,
     {|asset: ContentKey, symbol: ?Symbol|} | void | null,
   >,
-  /** for the "down" pass, the dependency resolution asset needs to be updated */
+  /*
+   * For the "down" pass, the resolutionAsset needs to be updated.
+   * This is set when the AssetGraphBuilder adds/removes/updates nodes.
+   */
   usedSymbolsDownDirty: boolean,
-  /** for the "up" pass, the parent asset needs to be updated */
-  usedSymbolsUpDirtyUp: boolean,
-  /** for the "up" pass, the dependency resolution asset needs to be updated */
+  /**
+   * In the down pass, `usedSymbolsDown` changed. This needs to be propagated to the resolutionAsset
+   * in the up pass.
+   */
   usedSymbolsUpDirtyDown: boolean,
+  /**
+   * In the up pass, `usedSymbolsUp` changed. This needs to be propagated to the sourceAsset in the
+   * up pass.
+   */
+  usedSymbolsUpDirtyUp: boolean,
   /** dependency was excluded (= no used symbols (globally) & side-effect free) */
   excluded: boolean,
 |};
@@ -529,4 +551,4 @@ export type ValidationOpts = {|
   configCachePath: string,
 |};
 
-export type ReportFn = (event: ReporterEvent) => void;
+export type ReportFn = (event: ReporterEvent) => void | Promise<void>;

@@ -560,6 +560,22 @@ describe('output formats', function () {
 
       assert.deepEqual(out, [1, 2]);
     });
+
+    it('should work with SWC helpers', async function () {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-helpers/index.js'),
+      );
+
+      let out = [];
+      await run(b, {
+        require,
+        output(o) {
+          out.push(o);
+        },
+      });
+
+      assert.deepEqual(out[0].x, new Map());
+    });
   });
 
   describe('esmodule', function () {

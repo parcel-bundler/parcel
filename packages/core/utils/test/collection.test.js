@@ -1,7 +1,11 @@
 // @flow
 
 import assert from 'assert';
-import {objectSortedEntries, objectSortedEntriesDeep} from '../src/collection';
+import {
+  objectSortedEntries,
+  objectSortedEntriesDeep,
+  setDifference,
+} from '../src/collection';
 
 describe('objectSortedEntries', () => {
   it('returns a sorted list of key/value tuples', () => {
@@ -35,6 +39,14 @@ describe('objectSortedEntriesDeep', () => {
         ['baz', ['d', 'c']],
         ['foo', 'foo'],
       ],
+    );
+  });
+});
+describe('setDifference', () => {
+  it('returns a setDifference of two sets of T type', () => {
+    assert.deepEqual(
+      setDifference(new Set([1, 2, 3]), new Set([3, 4, 5])),
+      new Set([1, 2, 4, 5]),
     );
   });
 });

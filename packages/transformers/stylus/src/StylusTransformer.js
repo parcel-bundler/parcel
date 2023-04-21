@@ -23,7 +23,7 @@ export default (new Transformer({
     );
 
     if (configFile) {
-      let isJavascript = path.extname(configFile.filePath) === '.js';
+      let isJavascript = path.extname(configFile.filePath).endsWith('js');
       if (isJavascript) {
         config.invalidateOnStartup();
       }
@@ -101,13 +101,21 @@ function attemptResolve(importedPath, filepath, asset, resolve, deps) {
             resolve(
               filepath,
               './' + path.relative(path.dirname(filepath), entry),
+              {
+                packageConditions: ['stylus', 'style'],
+              },
             ),
           ),
         ),
       ),
     );
   } else {
-    deps.set(importedPath, resolve(filepath, importedPath));
+    deps.set(
+      importedPath,
+      resolve(filepath, importedPath, {
+        packageConditions: ['stylus', 'style'],
+      }),
+    );
   }
 }
 

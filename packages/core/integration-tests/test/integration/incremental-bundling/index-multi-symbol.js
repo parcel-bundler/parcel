@@ -1,4 +1,4 @@
-import {a,b} from './multi-symbol-util.js';
+import {a, b} from './multi-symbol-util.js';
 
 console.log('index.js', b);
 console.log(a);

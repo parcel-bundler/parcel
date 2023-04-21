@@ -141,6 +141,8 @@ type TSConfig = {
     experimentalDecorators?: boolean,
     // https://www.typescriptlang.org/tsconfig#useDefineForClassFields
     useDefineForClassFields?: boolean,
+    // https://www.typescriptlang.org/tsconfig#target
+    target?: string, // 'es3' | 'es5' | 'es6' | 'es2015' | ...  |'es2022' | ... | 'esnext'
     ...
   },
   ...
@@ -236,6 +238,18 @@ export default (new Transformer({
       isJSX = Boolean(compilerOptions?.jsx || pragma);
       decorators = compilerOptions?.experimentalDecorators;
       useDefineForClassFields = compilerOptions?.useDefineForClassFields;
+      if (
+        useDefineForClassFields === undefined &&
+        compilerOptions?.target != null
+      ) {
+        // Default useDefineForClassFields to true if target is ES2022 or higher (including ESNext)
+        let target = compilerOptions.target.slice(2);
+        if (target === 'next') {
+          useDefineForClassFields = true;
+        } else {
+          useDefineForClassFields = Number(target) >= 2022;
+        }
+      }
     }
 
     // Check if we should ignore fs calls
@@ -718,8 +732,13 @@ export default (new Transformer({
     asset.meta.id = asset.id;
     if (hoist_result) {
       asset.symbols.ensure();
-      for (let {exported, local, loc} of hoist_result.exported_symbols) {
-        asset.symbols.set(exported, local, convertLoc(loc));
+      for (let {
+        exported,
+        local,
+        loc,
+        is_esm,
+      } of hoist_result.exported_symbols) {
+        asset.symbols.set(exported, local, convertLoc(loc), {isEsm: is_esm});
       }
 
       // deps is a map of dependencies that are keyed by placeholder or specifier
@@ -730,12 +749,7 @@ export default (new Transformer({
       let deps = new Map(
         asset
           .getDependencies()
-          .map(dep => [
-            dep.meta.placeholder ??
-              dep.specifier +
-                (dep.specifierType === 'esm' ? dep.specifierType : ''),
-            dep,
-          ]),
+          .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();
@@ -746,19 +760,14 @@ export default (new Transformer({
         local,
         imported,
         loc,
-        kind,
       } of hoist_result.imported_symbols) {
-        let specifierType = '';
-        if (kind === 'Import' || kind === 'Export') {
-          specifierType = 'esm';
-        }
-        let dep = deps.get(source + specifierType);
+        let dep = deps.get(source);
         if (!dep) continue;
         dep.symbols.set(imported, local, convertLoc(loc));
       }
 
       for (let {source, local, imported, loc} of hoist_result.re_exports) {
-        let dep = deps.get(source + 'esm');
+        let dep = deps.get(source);
         if (!dep) continue;
         if (local === '*' && imported === '*') {
           dep.symbols.set('*', '*', convertLoc(loc), true);
@@ -829,17 +838,12 @@ export default (new Transformer({
         let deps = new Map(
           asset
             .getDependencies()
-            .map(dep => [
-              dep.meta.placeholder ??
-                dep.specifier +
-                  (dep.specifierType === 'esm' ? dep.specifierType : ''),
-              dep,
-            ]),
+            .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
         );
         asset.symbols.ensure();
 
         for (let {exported, local, loc, source} of symbol_result.exports) {
-          let dep = source ? deps.get(source + 'esm') : undefined;
+          let dep = source ? deps.get(source) : undefined;
           asset.symbols.set(
             exported,
             `${dep?.id ?? ''}$${local}`,
@@ -856,28 +860,44 @@ export default (new Transformer({
           }
         }
 
-        for (let {
-          source,
-          local,
-          imported,
-          kind,
-          loc,
-        } of symbol_result.imports) {
-          let specifierType = '';
-          if (kind === 'Import' || kind === 'Export') {
-            specifierType = 'esm';
-          }
-          let dep = deps.get(source + specifierType);
+        for (let {source, local, imported, loc} of symbol_result.imports) {
+          let dep = deps.get(source);
           if (!dep) continue;
           dep.symbols.ensure();
           dep.symbols.set(imported, local, convertLoc(loc));
         }
 
         for (let {source, loc} of symbol_result.exports_all) {
-          let dep = deps.get(source + 'esm');
+          let dep = deps.get(source);
           if (!dep) continue;
           dep.symbols.ensure();
           dep.symbols.set('*', '*', convertLoc(loc), true);
+        }
+
+        // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
+        // This allows accessing symbols that don't exist without errors in symbol propagation.
+        if (
+          symbol_result.has_cjs_exports ||
+          (!symbol_result.is_esm &&
+            deps.size === 0 &&
+            symbol_result.exports.length === 0) ||
+          (symbol_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
+        ) {
+          asset.symbols.ensure();
+          asset.symbols.set('*', `$${asset.id}$exports`);
+        }
+      } else {
+        // If the asset is wrapped, add * as a fallback
+        asset.symbols.ensure();
+        asset.symbols.set('*', `$${asset.id}$exports`);
+      }
+
+      // For all other imports and requires, mark everything as imported (this covers both dynamic
+      // imports and non-top-level requires.)
+      for (let dep of asset.getDependencies()) {
+        if (dep.symbols.isCleared) {
+          dep.symbols.ensure();
+          dep.symbols.set('*', `${dep.id}$`);
         }
       }
 
@@ -922,8 +942,9 @@ async function loadOnMainThreadIfNeeded() {
     process.platform === 'linux' &&
     WorkerFarm.isWorker()
   ) {
-    let {family, version} = require('detect-libc');
-    if (family === 'glibc' && parseFloat(version) <= 2.17) {
+    // $FlowFixMe
+    let {glibcVersionRuntime} = process.report.getReport().header;
+    if (glibcVersionRuntime && parseFloat(glibcVersionRuntime) <= 2.17) {
       let api = WorkerFarm.getWorkerApi();
       await api.callMaster({
         location: __dirname + '/loadNative.js',

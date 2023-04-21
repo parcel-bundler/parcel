@@ -1,0 +1,3 @@
+// @flow
+declare export function transform(opts: any): any;
+declare export var init: ?Promise<void>;

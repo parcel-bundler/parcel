@@ -107,7 +107,7 @@ type Request<TInput, TResult> = {|
   id: string,
   +type: string,
   input: TInput,
-  run: ({|input: TInput, ...StaticRunOpts|}) => Async<TResult>,
+  run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
 |};
 
 type StoredRequest = {|
@@ -132,7 +132,7 @@ type RequestGraphNode =
   | EnvNode
   | OptionNode;
 
-export type RunAPI = {|
+export type RunAPI<TResult> = {|
   invalidateOnFileCreate: InternalFileCreateInvalidation => void,
   invalidateOnFileDelete: ProjectPath => void,
   invalidateOnFileUpdate: ProjectPath => void,
@@ -141,7 +141,7 @@ export type RunAPI = {|
   invalidateOnEnvChange: string => void,
   invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
-  storeResult: (result: mixed, cacheKey?: string) => void,
+  storeResult(result: TResult, cacheKey?: string): void,
   getRequestResult<T>(contentKey: ContentKey): Async<?T>,
   getPreviousResult<T>(ifMatch?: string): Async<?T>,
   getSubRequests(): Array<StoredRequest>,
@@ -150,17 +150,17 @@ export type RunAPI = {|
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
     opts?: RunRequestOpts,
-  ) => Async<TResult>,
+  ) => Promise<TResult>,
 |};
 
 type RunRequestOpts = {|
   force: boolean,
 |};
 
-export type StaticRunOpts = {|
+export type StaticRunOpts<TResult> = {|
   farm: WorkerFarm,
   options: ParcelOptions,
-  api: RunAPI,
+  api: RunAPI<TResult>,
   invalidateReason: InvalidateReason,
 |};
 
@@ -675,7 +675,7 @@ export class RequestGraph extends ContentGraph<
           requestGraphEdgeTypes.invalidated_by_create_above,
         ) &&
         isDirectoryInside(
-          path.dirname(fromProjectPathRelative(matchNode.value.filePath)),
+          fromProjectPathRelative(matchNode.value.filePath),
           dirname,
         )
       ) {
@@ -885,7 +885,7 @@ export default class RequestTracker {
   async getRequestResult<T>(
     contentKey: ContentKey,
     ifMatch?: string,
-  ): Async<?T> {
+  ): Promise<?T> {
     let node = nullthrows(this.graph.getNodeByContentKey(contentKey));
     invariant(node.type === 'request');
 
@@ -958,7 +958,7 @@ export default class RequestTracker {
   async runRequest<TInput, TResult>(
     request: Request<TInput, TResult>,
     opts?: ?RunRequestOpts,
-  ): Async<TResult> {
+  ): Promise<TResult> {
     let requestId = this.graph.hasContentKey(request.id)
       ? this.graph.getNodeIdByContentKey(request.id)
       : undefined;
@@ -1021,12 +1021,12 @@ export default class RequestTracker {
     }
   }
 
-  createAPI(
+  createAPI<TResult>(
     requestId: NodeId,
     previousInvalidations: Array<RequestInvalidation>,
-  ): {|api: RunAPI, subRequestContentKeys: Set<ContentKey>|} {
+  ): {|api: RunAPI<TResult>, subRequestContentKeys: Set<ContentKey>|} {
     let subRequestContentKeys = new Set<ContentKey>();
-    let api: RunAPI = {
+    let api: RunAPI<TResult> = {
       invalidateOnFileCreate: input =>
         this.graph.invalidateOnFileCreate(requestId, input),
       invalidateOnFileDelete: filePath =>
@@ -1068,7 +1068,7 @@ export default class RequestTracker {
       runRequest: <TInput, TResult>(
         subRequest: Request<TInput, TResult>,
         opts?: RunRequestOpts,
-      ): Async<TResult> => {
+      ): Promise<TResult> => {
         subRequestContentKeys.add(subRequest.id);
         return this.runRequest<TInput, TResult>(subRequest, opts);
       },

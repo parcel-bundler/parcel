@@ -192,11 +192,11 @@ function createDiagnostic(err, filePath) {
         codeHighlights: [
           {
             start: {
-              line: err.loc.start.line + err.loc.start.offset,
+              line: err.loc.start.line,
               column: err.loc.start.column,
             },
             end: {
-              line: err.loc.end.line + err.loc.end.offset,
+              line: err.loc.end.line,
               column: err.loc.end.column,
             },
           },

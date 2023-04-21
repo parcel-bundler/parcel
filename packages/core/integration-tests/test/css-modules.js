@@ -353,6 +353,7 @@ describe('css modules', () => {
     assert(css.includes('height: 100px;'));
     assert(css.includes('height: 300px;'));
     assert(css.indexOf('_test') < css.indexOf('_intermediate'));
+    assert(css.indexOf('_intermediate') < css.indexOf('_composes5'));
   });
 
   it('should support composes imports for multiple selectors', async () => {
@@ -577,77 +578,42 @@ describe('css modules', () => {
 
     assert.deepEqual(res, [['page2', '_4fY2uG_foo _1ZEqVW_foo j1UkRG_foo']]);
 
-    if (process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER) {
-      assertBundles(b, [
-        {
-          name: 'page1.html',
-          assets: ['page1.html'],
-        },
-        {
-          name: 'page2.html',
-          assets: ['page2.html'],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page1.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page2.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'css',
-          assets: ['a.module.css', 'b.module.css'],
-        },
-        {
-          type: 'css',
-          assets: ['index.module.css'],
-        },
-      ]);
-    } else {
-      assertBundles(b, [
-        {
-          name: 'page1.html',
-          assets: ['page1.html'],
-        },
-        {
-          name: 'page2.html',
-          assets: ['page2.html'],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page1.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'js',
-          assets: [
-            'page2.js',
-            'index.module.css',
-            'a.module.css',
-            'b.module.css',
-          ],
-        },
-        {
-          type: 'css',
-          assets: ['index.module.css', 'a.module.css', 'b.module.css'],
-        },
-      ]);
-    }
+    assertBundles(b, [
+      {
+        name: 'page1.html',
+        assets: ['page1.html'],
+      },
+      {
+        name: 'page2.html',
+        assets: ['page2.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page1.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'js',
+        assets: [
+          'page2.js',
+          'index.module.css',
+          'a.module.css',
+          'b.module.css',
+        ],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css', 'b.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['index.module.css'],
+      },
+    ]);
   });
 
   it('should not process inline <style> elements as a CSS module', async function () {
@@ -707,5 +673,45 @@ describe('css modules', () => {
     );
     let res = await run(b);
     assert.deepEqual(res, ['_4fY2uG_foo', '--wGsoEa_from-js']);
+  });
+
+  it('should group together css and css modules into one bundle', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-module-css-siblings/index.html'),
+    );
+
+    let res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'index.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+    assert.deepEqual(res, [
+      ['mainJs', '_1ZEqVW_myClass', 'j1UkRG_myOtherClass'],
+    ]);
+  });
+
+  it('should bundle css modules siblings together and their JS assets', async function () {
+    // This issue was first documented here
+    // https://github.com/parcel-bundler/parcel/issues/8716
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/css-modules-merging-siblings/index.html',
+      ),
+    );
+    let res = [];
+    await runBundle(
+      b,
+      b.getBundles().find(b => b.name === 'index.html'),
+      {
+        sideEffect: s => res.push(s),
+      },
+    );
+    // Result is  [ 'mainJs', 'SX8vmq_container YpGmra_-expand' ]
+    assert.deepEqual(res[0][0], 'mainJs');
+    assert(res[0][1].includes('container') && res[0][1].includes('expand'));
   });
 });
