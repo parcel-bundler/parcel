@@ -80,6 +80,7 @@ export class NodePackageManager implements PackageManager {
             },
       mode: 2,
       entries: ENTRIES,
+      packageExports: true,
       moduleDirResolver:
         process.versions.pnp != null
           ? (module, from) => {

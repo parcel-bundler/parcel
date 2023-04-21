@@ -49,6 +49,7 @@ type Options = {|
   mode?: BuildMode,
   mainFields?: Array<string>,
   extensions?: Array<string>,
+  packageExports?: boolean,
 |};
 
 type ResolveOptions = {|
@@ -99,6 +100,7 @@ export default class NodeResolver {
           options.env,
           this.options.mode,
         ),
+        packageExports: this.options.packageExports ?? false,
         moduleDirResolver:
           process.versions.pnp != null
             ? (module, from) => {

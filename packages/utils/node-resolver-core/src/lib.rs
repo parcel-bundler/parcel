@@ -9,8 +9,8 @@ use std::{
 };
 
 use parcel_resolver::{
-  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules,
-  Invalidations, OsFileSystem, Resolution, ResolverError, SpecifierType,
+  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, Flags,
+  IncludeNodeModules, Invalidations, OsFileSystem, Resolution, ResolverError, SpecifierType,
 };
 
 #[napi(object)]
@@ -33,6 +33,7 @@ pub struct JsResolverOptions {
   pub mode: u8,
   pub entries: Option<u8>,
   pub extensions: Option<Vec<String>>,
+  pub package_exports: bool,
 }
 
 struct FunctionRef {
@@ -248,6 +249,8 @@ impl Resolver {
     if let Some(extensions) = options.extensions {
       resolver.extensions = Extensions::Owned(extensions);
     }
+
+    resolver.flags.set(Flags::EXPORTS, options.package_exports);
 
     if let Some(module_dir_resolver) = options.module_dir_resolver {
       let module_dir_resolver = FunctionRef::new(env, module_dir_resolver)?;

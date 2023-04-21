@@ -79,12 +79,14 @@ describe('resolver', function () {
       fs: overlayFS,
       projectRoot: rootDir,
       mode: 'development',
+      packageExports: true,
     });
 
     prodResolver = new NodeResolver({
       fs: overlayFS,
       projectRoot: rootDir,
       mode: 'production',
+      packageExports: true,
     });
 
     configCache.clear();
