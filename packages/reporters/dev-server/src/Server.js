@@ -45,6 +45,8 @@ export function setHeaders(res: Response) {
   res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
 }
 
+const SLASH_REGEX = /\//g;
+
 export const SOURCES_ENDPOINT = '/__parcel_source_root';
 const EDITOR_ENDPOINT = '/__parcel_launch_editor';
 const TEMPLATE_404 = fs.readFileSync(
@@ -196,18 +198,38 @@ export default class Server {
       if (htmlBundleFilePaths.length === 1) {
         indexFilePath = htmlBundleFilePaths[0];
       } else {
-        indexFilePath = htmlBundleFilePaths
-          .filter(v => {
-            let dir = path.posix.dirname(v);
-            let withoutExtension = path.posix.basename(
-              v,
-              path.posix.extname(v),
-            );
-            return withoutExtension === 'index' && req.url.startsWith(dir);
-          })
-          .sort((a, b) => {
-            return b.length - a.length;
-          })[0];
+        let bestMatch = null;
+        for (let bundle of htmlBundleFilePaths) {
+          let bundleDir = path.posix.dirname(bundle);
+          let bundleDirSubdir = bundleDir === '/' ? bundleDir : bundleDir + '/';
+          let withoutExtension = path.posix.basename(
+            bundle,
+            path.posix.extname(bundle),
+          );
+          let isIndex = withoutExtension === 'index';
+
+          let matchesIsIndex = null;
+          if (isIndex && req.url.startsWith(bundleDirSubdir)) {
+            // bundle is /bar/index.html and something inside of /bar/** was requested
+            matchesIsIndex = true;
+          } else if (req.url == path.posix.join(bundleDir, withoutExtension)) {
+            // bundle is /bar/foo.html and /bar/foo was requested
+            matchesIsIndex = false;
+          }
+          if (matchesIsIndex != null) {
+            let depth = bundle.match(SLASH_REGEX)?.length ?? 0;
+            if (
+              bestMatch == null ||
+              // This one is more specific (deeper)
+              bestMatch.depth < depth ||
+              // This one is just as deep, but the bundle name matches and not just index.html
+              (bestMatch.depth === depth && bestMatch.isIndex)
+            ) {
+              bestMatch = {bundle, depth, isIndex: matchesIsIndex};
+            }
+          }
+        }
+        indexFilePath = bestMatch?.['bundle'] ?? htmlBundleFilePaths[0];
       }
 
       if (indexFilePath) {
