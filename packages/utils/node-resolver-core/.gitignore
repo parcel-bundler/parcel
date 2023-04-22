@@ -2,5 +2,5 @@
 !/test/fixture/node_modules/.pnpm/*/node_modules
 *.node
 *.wasm
-index.d.ts
-index.js
+native.d.ts
+native.js

@@ -19,10 +19,10 @@
     "node": ">= 12.0.0"
   },
   "scripts": {
-    "build": "napi build --platform",
-    "build-release": "napi build --platform --release",
+    "build": "napi build --platform --js native.js --dts native.d.ts",
+    "build-release": "napi build --platform --release --js native.js --dts native.d.ts",
     "wasm:build": "cargo build --target wasm32-unknown-unknown && cp ../../../target/wasm32-unknown-unknown/debug/parcel_resolver_node.wasm .",
-    "wasm:build-release": "CARGO_PROFILE_RELEASE_LTO=true cargo build --target wasm32-unknown-unknown --release && wasm-opt --strip-debug -O3 ../../../target/wasm32-unknown-unknown/release/parcel_resolver_node.wasm -o parcel_resolver_node.wasm",
+    "wasm:build-release": "CARGO_PROFILE_RELEASE_LTO=true cargo build --target wasm32-unknown-unknown --release && wasm-opt --strip-debug -O ../../../target/wasm32-unknown-unknown/release/parcel_resolver_node.wasm -o parcel_resolver_node.wasm",
     "test": "mocha test"
   },
   "napi": {
@@ -67,6 +67,6 @@
     "vm-browserify": "^1.1.2"
   },
   "browser": {
-    "index-with-fallback.js": "index-wasm.js"
+    "native.js": "native-wasm-browser.js"
   }
 }
