@@ -21,6 +21,7 @@ mod package_json;
 mod path;
 mod specifier;
 mod tsconfig;
+mod url_to_path;
 
 pub use cache::{Cache, CacheCow};
 pub use error::ResolverError;
