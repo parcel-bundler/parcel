@@ -36,32 +36,40 @@ describe('html', function () {
         assets: ['index.html'],
       },
       {
+        // index.html
         name: 'index.html',
         assets: ['index.html'],
       },
       {
+        // foo/index.html
         name: 'index.html',
         assets: ['index.html'],
       },
       {
-        type: 'png',
-        assets: ['100x100.png'],
+        // other.html
+        name: 'other.html',
+        assets: ['other.html'],
+      },
+      {
+        // foo/other.html
+        name: 'other.html',
+        assets: ['other.html'],
       },
       {
         type: 'svg',
         assets: ['icons.svg'],
       },
       {
-        type: 'css',
-        assets: ['index.css'],
-      },
-      {
-        type: 'html',
-        assets: ['other.html'],
+        type: 'png',
+        assets: ['100x100.png'],
       },
       {
         type: 'js',
         assets: ['index.js'],
+      },
+      {
+        type: 'css',
+        assets: ['index.css'],
       },
     ]);
 
