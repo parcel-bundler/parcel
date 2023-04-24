@@ -544,7 +544,6 @@ export class NodePackageManager implements PackageManager {
       throw e;
     }
     let getPkg;
-    console.log(res);
     switch (res.resolution.type) {
       case 'Path':
         getPkg = () => {
