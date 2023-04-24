@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use parcel_dev_dep_resolver::build_esm_graph;
 use parcel_resolver::{Cache, CacheCow, OsFileSystem, Resolution, Resolver, SpecifierType};
-use rayon::prelude::*;
 
 fn main() {
   let contents = std::fs::read_to_string("package.json").unwrap();
@@ -28,7 +27,7 @@ fn main() {
 
     if let Resolution::Path(p) = resolved {
       match build_esm_graph(&p, &cwd, &cache, &esm_graph_cache) {
-        Ok(res) => {
+        Ok(_res) => {
           // #[cfg(debug_assertions)]
           // println!("{:?}", res)
         }

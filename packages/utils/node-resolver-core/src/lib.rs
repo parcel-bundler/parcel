@@ -394,12 +394,10 @@ impl Resolver {
           invalidate_on_startup,
         })
       }
-      Err(e) => {
-        Err(napi::Error::new(
-          napi::Status::GenericFailure,
-          "Failed to resolve invalidations",
-        ))
-      }
+      Err(_) => Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Failed to resolve invalidations",
+      )),
     }
   }
 }
