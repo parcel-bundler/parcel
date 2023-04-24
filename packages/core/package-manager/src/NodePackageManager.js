@@ -23,6 +23,7 @@ import Module from 'module';
 import path from 'path';
 import semver from 'semver';
 import logger from '@parcel/logger';
+import nullthrows from 'nullthrows';
 
 import {getModuleParts} from '@parcel/utils';
 import {getConflictingLocalDependencies} from './utils';
@@ -56,7 +57,7 @@ export class NodePackageManager implements PackageManager {
   fs: FileSystem;
   projectRoot: FilePath;
   installer: ?PackageInstaller;
-  resolver: any;
+  resolver: ResolverBase;
 
   constructor(
     fs: FileSystem,
@@ -69,7 +70,7 @@ export class NodePackageManager implements PackageManager {
     this.resolver = this._createResolver();
   }
 
-  _createResolver(): any {
+  _createResolver(): ResolverBase {
     return new ResolverBase(this.projectRoot, {
       fs:
         this.fs instanceof NodeFS && process.versions.pnp == null
@@ -543,12 +544,13 @@ export class NodePackageManager implements PackageManager {
       throw e;
     }
     let getPkg;
+    console.log(res);
     switch (res.resolution.type) {
       case 'Path':
         getPkg = () => {
           let pkgPath = this.fs.findAncestorFile(
             ['package.json'],
-            res.resolution.value,
+            nullthrows(res.resolution.value),
             this.projectRoot,
           );
           return pkgPath
