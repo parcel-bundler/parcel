@@ -877,16 +877,21 @@ export default (new Transformer({
             symbol_result.exports.length === 0) ||
           (symbol_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
         ) {
-          asset.symbols.set('*', `$`);
+          asset.symbols.ensure();
+          asset.symbols.set('*', `$${asset.id}$exports`);
         }
+      } else {
+        // If the asset is wrapped, add * as a fallback
+        asset.symbols.ensure();
+        asset.symbols.set('*', `$${asset.id}$exports`);
+      }
 
-        // For dynamic imports, mark everything as imported (a more detailed analysis similar to
-        // what scope hoisting does with `const {foo} = await import(...);` isn't hook up yet.)
-        for (let d of deps.values()) {
-          if (d.priority === 'lazy') {
-            d.symbols.ensure();
-            d.symbols.set('*', '$');
-          }
+      // For all other imports and requires, mark everything as imported (this covers both dynamic
+      // imports and non-top-level requires.)
+      for (let dep of asset.getDependencies()) {
+        if (dep.symbols.isCleared) {
+          dep.symbols.ensure();
+          dep.symbols.set('*', `${dep.id}$`);
         }
       }
 

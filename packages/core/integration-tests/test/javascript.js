@@ -5376,6 +5376,25 @@ describe('javascript', function () {
     assert.strictEqual(output, 'a');
   });
 
+  it('should support import and non-top-level require of same asset from different assets', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
+
+  it('should support import and non-top-level require of same asset from different assets with scope hoisting', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
+
   it('should support runtime module deduplication', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
@@ -5609,7 +5628,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: md`Failed to resolve '${'@swc/helpers/lib/_class_call_check.js'}' from '${normalizePath(
+            message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',
@@ -5697,7 +5716,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: md`Failed to resolve '${'@swc/helpers/lib/_class_call_check.js'}' from '${normalizePath(
+            message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',
@@ -5722,7 +5741,7 @@ describe('javascript', function () {
           },
           {
             message:
-              'External dependency "@swc/helpers" does not satisfy required semver range "^0.4.12".',
+              'External dependency "@swc/helpers" does not satisfy required semver range "^0.5.0".',
             origin: '@parcel/resolver-default',
             codeFrames: [
               {
@@ -5745,7 +5764,7 @@ describe('javascript', function () {
               },
             ],
             hints: [
-              'Update the dependency on "@swc/helpers" to satisfy "^0.4.12".',
+              'Update the dependency on "@swc/helpers" to satisfy "^0.5.0".',
             ],
           },
         ],

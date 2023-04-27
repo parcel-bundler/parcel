@@ -457,6 +457,49 @@ describe('scope hoisting', function () {
       assert.equal(foo + bar + baz + a + bb, 15);
     });
 
+    it('deduplicates imports when wrapped', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-multiple-wrapped/index.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+
+      let assetB = nullthrows(
+        b.getBundles()[0]?.traverseAssets((a, _, actions) => {
+          if (
+            a.filePath ===
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/import-multiple-wrapped/b.js',
+            )
+          ) {
+            actions.stop();
+            return a;
+          }
+        }),
+      );
+      assert.equal(
+        [
+          ...contents.matchAll(
+            new RegExp(
+              'parcelRequires*\\(s*"' + b.getAssetPublicId(assetB) + '"s*\\)',
+              'g',
+            ),
+          ),
+        ].length,
+        1,
+      );
+
+      let output = await run(b);
+      assert.equal(output, 15);
+    });
+
     it('supports re-exporting all exports from multiple modules deep', async function () {
       let b = await bundle(
         path.join(
@@ -546,6 +589,8 @@ describe('scope hoisting', function () {
         'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
         false,
       )} does not export 'default'`;
+
+      // $FlowFixMe[prop-missing]
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,
@@ -584,6 +629,7 @@ describe('scope hoisting', function () {
         'integration/scope-hoisting/es6/re-export-missing/c.js',
         false,
       )} does not export 'foo'`;
+      // $FlowFixMe[prop-missing]
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,
@@ -653,6 +699,7 @@ describe('scope hoisting', function () {
       };
 
       let source = path.join(__dirname, entry);
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () =>
           bundle(source, {
@@ -662,6 +709,7 @@ describe('scope hoisting', function () {
           }),
         error,
       );
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () =>
           bundle(source, {
@@ -1077,17 +1125,22 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['b', true]);
     });
 
-    it("unused and missing pseudo re-exports doen't fail the build", async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/re-export-pseudo/a.js',
-        ),
-      );
+    for (let shouldScopeHoist of [false, true]) {
+      it(`unused and missing pseudo re-exports doesn't fail the build with${
+        shouldScopeHoist ? '' : 'out'
+      } scope-hoisting`, async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/re-export-pseudo/a.js',
+          ),
+          {defaultTargetOptions: {shouldScopeHoist}},
+        );
 
-      let output = await run(b);
-      assert.deepEqual(output, 'foo');
-    });
+        let {output} = await run(b, null, {require: false});
+        assert.deepEqual(output, 'foo');
+      });
+    }
 
     it('supports requiring a re-exported and renamed ES6 import', async function () {
       let b = await bundle(

@@ -135,7 +135,9 @@ export default function collectDependencies(
         const metaAssetUrl = attrs.content;
         if (metaAssetUrl) {
           attrs.content = asset.addURLDependency(attrs.content, {
-            needsStableName: true,
+            needsStableName: !(
+              attrs.name && attrs.name.includes('msapplication')
+            ),
           });
           isDirty = true;
           asset.setAST(ast);
