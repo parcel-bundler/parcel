@@ -197,6 +197,7 @@ pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+/// Corresponds to the JS SourceLocation type (1-based, end exclusive)
 pub struct SourceLocation {
   pub start_line: usize,
   pub start_col: usize,
