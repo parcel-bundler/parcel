@@ -207,6 +207,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 8,
@@ -304,6 +305,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 8,
@@ -1294,7 +1296,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -1395,7 +1397,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 15,
@@ -1617,7 +1619,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -1732,6 +1734,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   end: {
                     column: 55,
                     line: 1,
@@ -1780,6 +1783,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 8,
@@ -1902,6 +1906,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   end: {
                     column: 33,
                     line: 1,
@@ -2582,6 +2587,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   end: {
                     column: 36,
                     line: 1,
@@ -3168,7 +3174,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -3191,7 +3197,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 2,
                     column: 1,
@@ -3214,7 +3220,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 3,
                     column: 1,
@@ -3237,7 +3243,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 4,
                     column: 1,
@@ -3280,7 +3286,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 8,
@@ -3306,7 +3312,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 8,
@@ -3332,7 +3338,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 3,
                       column: 8,
@@ -5074,7 +5080,7 @@ describe('javascript', function () {
     }
   });
 
-  it('should throw a diagnostic for unkown pipelines', async function () {
+  it('should throw a diagnostic for unknown pipelines', async function () {
     let fixture = path.join(__dirname, 'integration/pipeline-unknown/a.js');
     let code = await inputFS.readFileSync(fixture, 'utf8');
     await assert.rejects(() => bundle(fixture), {
@@ -5089,6 +5095,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     column: 19,
                     line: 1,
@@ -5473,6 +5480,7 @@ describe('javascript', function () {
                 code,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 11,
                       column: 17,
@@ -5563,6 +5571,7 @@ describe('javascript', function () {
                 filePath: fixture,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 19,
@@ -5638,6 +5647,7 @@ describe('javascript', function () {
                 filePath: fixture,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 1,
@@ -5726,6 +5736,7 @@ describe('javascript', function () {
                 filePath: fixture,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 1,

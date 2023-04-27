@@ -1432,6 +1432,7 @@ describe('html', function () {
               ),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 5,
                     column: 7,
@@ -1720,6 +1721,7 @@ describe('html', function () {
               filePath: path.join(__dirname, '/integration/html-js/index.js'),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,

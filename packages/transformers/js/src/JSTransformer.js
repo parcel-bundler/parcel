@@ -490,7 +490,7 @@ export default (new Transformer({
               codeHighlights: diagnostic.code_highlights?.map(highlight =>
                 convertSourceLocationToHighlight(
                   convertLoc(highlight.loc),
-                  highlight.message,
+                  highlight.message ?? undefined,
                 ),
               ),
             },

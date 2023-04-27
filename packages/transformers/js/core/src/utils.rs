@@ -212,7 +212,7 @@ impl SourceLocation {
         start_line: 1,
         start_col: 1,
         end_line: 1,
-        end_col: 1,
+        end_col: 2,
       };
     }
 
