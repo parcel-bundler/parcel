@@ -238,7 +238,7 @@ export function generateJSONCodeHighlights(
   return ids.map(({key, type, message}) => {
     let pos = nullthrows(map.pointers[key]);
     return {
-      ...getJSONSourceLocation(pos, type),
+      ...getJSONHighlightLocation(pos, type),
       message,
     };
   });
@@ -248,7 +248,7 @@ export function generateJSONCodeHighlights(
  * Converts entries in <a href="https://github.com/mischnic/json-sourcemap">@mischnic/json-sourcemap</a>'s
  * <code>result.pointers</code> array.
  */
-export function getJSONSourceLocation(
+export function getJSONHighlightLocation(
   pos: Mapping,
   type?: ?'key' | 'value',
 ): {|
@@ -277,6 +277,24 @@ export function getJSONSourceLocation(
   }
 }
 
+/** Result is 1-based, but end is exclusive */
+export function getJSONSourceLocation(
+  pos: Mapping,
+  type?: ?'key' | 'value',
+): {|
+  start: {|
+    +line: number,
+    +column: number,
+  |},
+  end: {|
+    +line: number,
+    +column: number,
+  |},
+|} {
+  let v = getJSONHighlightLocation(pos, type);
+  return {start: v.start, end: {line: v.end.line, column: v.end.column + 1}};
+}
+
 export function convertSourceLocationToHighlight<
   Location: {
     /** 1-based, inclusive */
@@ -292,9 +310,7 @@ export function convertSourceLocationToHighlight<
     ...
   },
 >({start, end}: Location, message?: string): DiagnosticCodeHighlight {
-  return message != null
-    ? {start, end: {line: end.line, column: end.column - 1}, message}
-    : {start, end: {line: end.line, column: end.column - 1}};
+  return {message, start, end: {line: end.line, column: end.column - 1}};
 }
 
 /** Sanitizes object keys before using them as <code>key</code> in generateJSONCodeHighlights */
