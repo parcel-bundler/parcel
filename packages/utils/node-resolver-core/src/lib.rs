@@ -5,12 +5,12 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   path::{Path, PathBuf},
-  sync::Arc,
+  sync::{atomic::Ordering, Arc},
 };
 
 use parcel_resolver::{
   ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules,
-  Invalidations, OsFileSystem, Resolution, ResolverError, SpecifierType,
+  Invalidations, ModuleType, OsFileSystem, Resolution, ResolverError, SpecifierType,
 };
 
 #[napi(object)]
@@ -187,19 +187,43 @@ pub struct FileNameCreateInvalidation {
 }
 
 #[napi(object)]
+pub struct GlobCreateInvalidation {
+  pub glob: String,
+}
+
+#[napi(object)]
 pub struct ResolveResult {
   pub resolution: JsUnknown,
   pub invalidate_on_file_change: Vec<String>,
-  pub invalidate_on_file_create:
-    Vec<napi::Either<FilePathCreateInvalidation, FileNameCreateInvalidation>>,
+  pub invalidate_on_file_create: Vec<
+    napi::Either<
+      FilePathCreateInvalidation,
+      napi::Either<FileNameCreateInvalidation, GlobCreateInvalidation>,
+    >,
+  >,
   pub query: Option<String>,
   pub side_effects: bool,
   pub error: JsUnknown,
+  pub module_type: u8,
+}
+
+#[napi(object)]
+pub struct JsInvalidations {
+  pub invalidate_on_file_change: Vec<String>,
+  pub invalidate_on_file_create: Vec<
+    napi::Either<
+      FilePathCreateInvalidation,
+      napi::Either<FileNameCreateInvalidation, GlobCreateInvalidation>,
+    >,
+  >,
+  pub invalidate_on_startup: bool,
 }
 
 #[napi]
 pub struct Resolver {
+  mode: u8,
   resolver: parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
+  invalidations_cache: parcel_dev_dep_resolver::Cache,
 }
 
 #[napi]
@@ -268,7 +292,11 @@ impl Resolver {
       }));
     }
 
-    Ok(Self { resolver })
+    Ok(Self {
+      mode: options.mode,
+      resolver,
+      invalidations_cache: Default::default(),
+    })
   }
 
   #[napi]
@@ -306,6 +334,23 @@ impl Resolver {
       true
     };
 
+    let mut module_type = 0;
+
+    if self.mode == 2 {
+      if let Ok((Resolution::Path(p), _)) = &res.result {
+        module_type = match self.resolver.resolve_module_type(&p, &res.invalidations) {
+          Ok(t) => match t {
+            ModuleType::CommonJs | ModuleType::Json => 1,
+            ModuleType::Module => 2,
+          },
+          Err(err) => {
+            res.result = Err(err);
+            0
+          }
+        }
+      }
+    }
+
     let (invalidate_on_file_change, invalidate_on_file_create) =
       convert_invalidations(res.invalidations);
     match res.result {
@@ -316,6 +361,7 @@ impl Resolver {
         side_effects,
         query,
         error: env.get_undefined()?.into_unknown(),
+        module_type,
       }),
       Err(err) => Ok(ResolveResult {
         resolution: env.get_undefined()?.into_unknown(),
@@ -324,7 +370,34 @@ impl Resolver {
         side_effects: true,
         query: None,
         error: env.to_js_value(&err)?,
+        module_type: 0,
       }),
+    }
+  }
+
+  #[napi]
+  pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidations> {
+    let path = Path::new(&path);
+    match parcel_dev_dep_resolver::build_esm_graph(
+      path,
+      &self.resolver.project_root,
+      &self.resolver.cache,
+      &self.invalidations_cache,
+    ) {
+      Ok(invalidations) => {
+        let invalidate_on_startup = invalidations.invalidate_on_startup.load(Ordering::Relaxed);
+        let (invalidate_on_file_change, invalidate_on_file_create) =
+          convert_invalidations(invalidations);
+        Ok(JsInvalidations {
+          invalidate_on_file_change,
+          invalidate_on_file_create,
+          invalidate_on_startup,
+        })
+      }
+      Err(_) => Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "Failed to resolve invalidations",
+      )),
     }
   }
 }
@@ -333,29 +406,33 @@ fn convert_invalidations(
   invalidations: Invalidations,
 ) -> (
   Vec<String>,
-  Vec<napi::Either<FilePathCreateInvalidation, FileNameCreateInvalidation>>,
+  Vec<
+    napi::Either<
+      FilePathCreateInvalidation,
+      napi::Either<FileNameCreateInvalidation, GlobCreateInvalidation>,
+    >,
+  >,
 ) {
   let invalidate_on_file_change = invalidations
     .invalidate_on_file_change
-    .into_inner()
-    .unwrap()
     .into_iter()
     .map(|p| p.to_string_lossy().into_owned())
     .collect();
   let invalidate_on_file_create = invalidations
     .invalidate_on_file_create
-    .into_inner()
-    .unwrap()
     .into_iter()
     .map(|i| match i {
       FileCreateInvalidation::Path(p) => napi::Either::A(FilePathCreateInvalidation {
         file_path: p.to_string_lossy().into_owned(),
       }),
       FileCreateInvalidation::FileName { file_name, above } => {
-        napi::Either::B(FileNameCreateInvalidation {
+        napi::Either::B(napi::Either::A(FileNameCreateInvalidation {
           file_name,
           above_file_path: above.to_string_lossy().into_owned(),
-        })
+        }))
+      }
+      FileCreateInvalidation::Glob(glob) => {
+        napi::Either::B(napi::Either::B(GlobCreateInvalidation { glob }))
       }
     })
     .collect();
