@@ -1,16 +1,22 @@
 use dashmap::DashMap;
 use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref, Result};
 use napi_derive::napi;
+#[cfg(target_arch = "wasm32")]
+use std::alloc::{alloc, Layout};
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::atomic::Ordering;
 use std::{
   borrow::Cow,
   collections::HashMap,
   path::{Path, PathBuf},
-  sync::{atomic::Ordering, Arc},
+  sync::Arc,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+use parcel_resolver::OsFileSystem;
 use parcel_resolver::{
   ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules,
-  Invalidations, ModuleType, OsFileSystem, Resolution, ResolverError, SpecifierType,
+  Invalidations, ModuleType, Resolution, ResolverError, SpecifierType,
 };
 
 #[napi(object)]
@@ -128,11 +134,14 @@ impl FileSystem for JsFileSystem {
   }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+
 enum EitherFs<A, B> {
   A(A),
   B(B),
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<A: FileSystem, B: FileSystem> FileSystem for EitherFs<A, B> {
   fn canonicalize<P: AsRef<Path>>(
     &self,
@@ -222,7 +231,11 @@ pub struct JsInvalidations {
 #[napi]
 pub struct Resolver {
   mode: u8,
+  #[cfg(not(target_arch = "wasm32"))]
   resolver: parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
+  #[cfg(target_arch = "wasm32")]
+  resolver: parcel_resolver::Resolver<'static, JsFileSystem>,
+  #[cfg(not(target_arch = "wasm32"))]
   invalidations_cache: parcel_dev_dep_resolver::Cache,
 }
 
@@ -230,6 +243,7 @@ pub struct Resolver {
 impl Resolver {
   #[napi(constructor)]
   pub fn new(project_root: String, options: JsResolverOptions, env: Env) -> Result<Self> {
+    #[cfg(not(target_arch = "wasm32"))]
     let fs = if let Some(fs) = options.fs {
       EitherFs::A(JsFileSystem {
         canonicalize: FunctionRef::new(env, fs.canonicalize)?,
@@ -239,6 +253,16 @@ impl Resolver {
       })
     } else {
       EitherFs::B(OsFileSystem)
+    };
+    #[cfg(target_arch = "wasm32")]
+    let fs = {
+      let fsjs = options.fs.unwrap();
+      JsFileSystem {
+        canonicalize: FunctionRef::new(env, fsjs.canonicalize)?,
+        read: FunctionRef::new(env, fsjs.read)?,
+        is_file: FunctionRef::new(env, fsjs.is_file)?,
+        is_dir: FunctionRef::new(env, fsjs.is_dir)?,
+      }
     };
 
     let mut resolver = match options.mode {
@@ -295,6 +319,7 @@ impl Resolver {
     Ok(Self {
       mode: options.mode,
       resolver,
+      #[cfg(not(target_arch = "wasm32"))]
       invalidations_cache: Default::default(),
     })
   }
@@ -375,6 +400,13 @@ impl Resolver {
     }
   }
 
+  #[cfg(target_arch = "wasm32")]
+  #[napi]
+  pub fn get_invalidations(&self, _: String) -> napi::Result<JsInvalidations> {
+    panic!("getInvalidations() is not supported in Wasm builds")
+  }
+
+  #[cfg(not(target_arch = "wasm32"))]
   #[napi]
   pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidations> {
     let path = Path::new(&path);
@@ -454,4 +486,24 @@ fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver::R
     conditions,
     custom_conditions,
   }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub extern "C" fn napi_wasm_malloc(size: usize) -> *mut u8 {
+  let align = std::mem::align_of::<usize>();
+  if let Ok(layout) = Layout::from_size_align(size, align) {
+    unsafe {
+      if layout.size() > 0 {
+        let ptr = alloc(layout);
+        if !ptr.is_null() {
+          return ptr;
+        }
+      } else {
+        return align as *mut u8;
+      }
+    }
+  }
+
+  std::process::abort();
 }
