@@ -70,7 +70,7 @@ export default async function resolveOptions(
       inputFS,
       path.join(entryRoot, 'index'),
       [...LOCK_FILE_NAMES, '.git', '.hg'],
-      path.parse(entryRoot).root,
+      path.parse(entryRoot).dir,
     )) || path.join(inputCwd, 'index'); // ? Should this just be rootDir
 
   let projectRoot = path.dirname(projectRootFile);
