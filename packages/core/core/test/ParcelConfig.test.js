@@ -318,5 +318,88 @@ describe('ParcelConfig', () => {
         },
       );
     });
+
+    it('should support loading local plugins', async () => {
+      let projectRoot = path.join(__dirname, 'fixtures', 'plugins');
+      let configFilePath = toProjectPath(
+        projectRoot,
+        path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
+      );
+      let config = new ParcelConfig(
+        {
+          filePath: configFilePath,
+          bundler: undefined,
+          transformers: {
+            '*.js': [
+              {
+                packageName: './local-plugin',
+                resolveFrom: configFilePath,
+                keyPath: '/transformers/*.js/0',
+              },
+            ],
+          },
+        },
+        {...DEFAULT_OPTIONS, projectRoot},
+      );
+
+      let [{plugin}] = await config.getTransformers(
+        toProjectPath('/', '/foo.js'),
+      );
+      assert(plugin);
+      assert.equal(typeof plugin.transform, 'function');
+    });
+
+    it('should error on local plugins inside config packages', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'local-plugin-config-pkg',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+      let {config} = await parseAndProcessConfig(
+        configFilePath,
+        code,
+        DEFAULT_OPTIONS,
+      );
+      let parcelConfig = new ParcelConfig(config, DEFAULT_OPTIONS);
+      let extendedConfigPath = path.join(
+        __dirname,
+        'fixtures',
+        'local-plugin-config-pkg',
+        'node_modules',
+        'parcel-config-local',
+        'index.json',
+      );
+
+      // $FlowFixMe
+      await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
+        name: 'Error',
+        diagnostics: [
+          {
+            message:
+              'Local plugins are not supported in Parcel config packages. Please publish "./local-plugin" as a separate npm package.',
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                filePath: extendedConfigPath,
+                language: 'json5',
+                code: await DEFAULT_OPTIONS.inputFS.readFile(
+                  extendedConfigPath,
+                  'utf8',
+                ),
+                codeHighlights: [
+                  {
+                    start: {line: 5, column: 7},
+                    end: {line: 5, column: 22},
+                    message: undefined,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    });
   });
 });

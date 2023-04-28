@@ -16,18 +16,13 @@ const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 export default (new Transformer({
   async loadConfig({config}) {
     let configFile = await config.getConfig(
-      ['.stylusrc', '.stylusrc.js', '.stylusrc.cjs'],
+      ['.stylusrc', '.stylusrc.js', '.stylusrc.cjs', '.stylusrc.mjs'],
       {
         packageKey: 'stylus',
       },
     );
 
     if (configFile) {
-      let isJavascript = path.extname(configFile.filePath).endsWith('js');
-      if (isJavascript) {
-        config.invalidateOnStartup();
-      }
-
       // Resolve relative paths from config file
       if (configFile.contents.paths) {
         configFile.contents.paths = configFile.contents.paths.map(p =>

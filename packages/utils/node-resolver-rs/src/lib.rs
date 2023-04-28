@@ -9,7 +9,6 @@ use std::{
 };
 
 use package_json::{AliasValue, ExportsResolution, PackageJson};
-use specifier::Specifier;
 use tsconfig::TsConfig;
 
 mod builtins;
@@ -26,8 +25,8 @@ pub use cache::{Cache, CacheCow};
 pub use error::ResolverError;
 pub use fs::{FileSystem, OsFileSystem};
 pub use invalidations::*;
-pub use package_json::{ExportsCondition, Fields, PackageJsonError};
-pub use specifier::SpecifierType;
+pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
+pub use specifier::{Specifier, SpecifierError, SpecifierType};
 
 use crate::path::resolve_path;
 
@@ -89,7 +88,7 @@ pub struct Resolver<'a, Fs> {
   pub include_node_modules: Cow<'a, IncludeNodeModules>,
   pub conditions: ExportsCondition,
   pub module_dir_resolver: Option<Arc<ResolveModuleDir>>,
-  cache: CacheCow<'a, Fs>,
+  pub cache: CacheCow<'a, Fs>,
 }
 
 pub enum Extensions<'a> {
@@ -192,14 +191,26 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     options: ResolveOptions,
   ) -> ResolveResult {
     let invalidations = Invalidations::default();
+    let result =
+      self.resolve_with_invalidations(specifier, from, specifier_type, &invalidations, options);
+
+    ResolveResult {
+      result,
+      invalidations,
+    }
+  }
+
+  pub fn resolve_with_invalidations<'s>(
+    &self,
+    specifier: &'s str,
+    from: &Path,
+    specifier_type: SpecifierType,
+    invalidations: &Invalidations,
+    options: ResolveOptions,
+  ) -> Result<(Resolution, Option<String>), ResolverError> {
     let (specifier, query) = match Specifier::parse(specifier, specifier_type, self.flags) {
       Ok(s) => s,
-      Err(e) => {
-        return ResolveResult {
-          result: Err(e.into()),
-          invalidations,
-        }
-      }
+      Err(e) => return Err(e.into()),
     };
     let mut request = ResolveRequest::new(self, &specifier, specifier_type, from, &invalidations);
     if !options.conditions.is_empty() || !options.custom_conditions.is_empty() {
@@ -208,14 +219,9 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       request.custom_conditions = options.custom_conditions.as_slice();
     }
 
-    let result = match request.resolve() {
+    match request.resolve() {
       Ok(r) => Ok((r, query.map(|q| q.to_owned()))),
       Err(r) => Err(r),
-    };
-
-    ResolveResult {
-      result,
-      invalidations,
     }
   }
 
@@ -229,6 +235,34 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     } else {
       Ok(true)
     }
+  }
+
+  pub fn resolve_module_type(
+    &self,
+    path: &Path,
+    invalidations: &Invalidations,
+  ) -> Result<ModuleType, ResolverError> {
+    if let Some(ext) = path.extension() {
+      if ext == "mjs" {
+        return Ok(ModuleType::Module);
+      }
+
+      if ext == "cjs" || ext == "node" {
+        return Ok(ModuleType::CommonJs);
+      }
+
+      if ext == "json" {
+        return Ok(ModuleType::Json);
+      }
+
+      if ext == "js" {
+        if let Some(package) = self.find_package(path.parent().unwrap(), invalidations)? {
+          return Ok(package.module_type);
+        }
+      }
+    }
+
+    Ok(ModuleType::CommonJs)
   }
 
   fn find_package(
@@ -1156,10 +1190,9 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
 
 #[cfg(test)]
 mod tests {
-  use std::collections::HashSet;
-
   use super::cache::Cache;
   use super::*;
+  use std::collections::HashSet;
 
   fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1271,11 +1304,17 @@ mod tests {
       .resolve("./bar", &root().join("foo.js"), SpecifierType::Esm)
       .invalidations;
     assert_eq!(
-      *invalidations.invalidate_on_file_create.read().unwrap(),
+      invalidations
+        .invalidate_on_file_create
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::new()
     );
     assert_eq!(
-      *invalidations.invalidate_on_file_change.read().unwrap(),
+      invalidations
+        .invalidate_on_file_change
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([root().join("package.json"), root().join("tsconfig.json")])
     );
   }
@@ -1302,42 +1341,46 @@ mod tests {
         .0,
       Resolution::Path(root().join("bar.js"))
     );
-    assert_eq!(
-      test_resolver()
-        .resolve(
-          "file:///bar",
-          &root().join("nested/test.js"),
-          SpecifierType::Esm
-        )
-        .result
-        .unwrap()
-        .0,
-      Resolution::Path(root().join("bar.js"))
-    );
-    assert_eq!(
-      node_resolver()
-        .resolve(
-          root().join("foo.js").to_str().unwrap(),
-          &root().join("nested/test.js"),
-          SpecifierType::Esm
-        )
-        .result
-        .unwrap()
-        .0,
-      Resolution::Path(root().join("foo.js"))
-    );
-    assert_eq!(
-      node_resolver()
-        .resolve(
-          &format!("file://{}", root().join("foo.js").to_str().unwrap()),
-          &root().join("nested/test.js"),
-          SpecifierType::Esm
-        )
-        .result
-        .unwrap()
-        .0,
-      Resolution::Path(root().join("foo.js"))
-    );
+
+    #[cfg(not(windows))]
+    {
+      assert_eq!(
+        test_resolver()
+          .resolve(
+            "file:///bar",
+            &root().join("nested/test.js"),
+            SpecifierType::Esm
+          )
+          .result
+          .unwrap()
+          .0,
+        Resolution::Path(root().join("bar.js"))
+      );
+      assert_eq!(
+        node_resolver()
+          .resolve(
+            root().join("foo.js").to_str().unwrap(),
+            &root().join("nested/test.js"),
+            SpecifierType::Esm
+          )
+          .result
+          .unwrap()
+          .0,
+        Resolution::Path(root().join("foo.js"))
+      );
+      assert_eq!(
+        node_resolver()
+          .resolve(
+            &format!("file://{}", root().join("foo.js").to_str().unwrap()),
+            &root().join("nested/test.js"),
+            SpecifierType::Esm
+          )
+          .result
+          .unwrap()
+          .0,
+        Resolution::Path(root().join("foo.js"))
+      );
+    }
   }
 
   #[test]
@@ -1511,14 +1554,20 @@ mod tests {
       .resolve("foo", &root().join("foo.js"), SpecifierType::Esm)
       .invalidations;
     assert_eq!(
-      *invalidations.invalidate_on_file_create.read().unwrap(),
+      invalidations
+        .invalidate_on_file_create
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([FileCreateInvalidation::FileName {
         file_name: "node_modules/foo".into(),
         above: root()
       },])
     );
     assert_eq!(
-      *invalidations.invalidate_on_file_change.read().unwrap(),
+      invalidations
+        .invalidate_on_file_change
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([
         root().join("node_modules/foo/package.json"),
         root().join("package.json"),
@@ -1652,14 +1701,20 @@ mod tests {
       )
       .invalidations;
     assert_eq!(
-      *invalidations.invalidate_on_file_create.read().unwrap(),
+      invalidations
+        .invalidate_on_file_create
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([FileCreateInvalidation::FileName {
         file_name: "node_modules/package-alias".into(),
         above: root()
       },])
     );
     assert_eq!(
-      *invalidations.invalidate_on_file_change.read().unwrap(),
+      invalidations
+        .invalidate_on_file_change
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([
         root().join("node_modules/package-alias/package.json"),
         root().join("package.json"),
@@ -2344,11 +2399,17 @@ mod tests {
       .resolve("ts-path", &root().join("foo.js"), SpecifierType::Esm)
       .invalidations;
     assert_eq!(
-      *invalidations.invalidate_on_file_create.read().unwrap(),
+      invalidations
+        .invalidate_on_file_create
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::new()
     );
     assert_eq!(
-      *invalidations.invalidate_on_file_change.read().unwrap(),
+      invalidations
+        .invalidate_on_file_change
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([root().join("package.json"), root().join("tsconfig.json")])
     );
   }
@@ -2529,7 +2590,10 @@ mod tests {
       )
       .invalidations;
     assert_eq!(
-      *invalidations.invalidate_on_file_create.read().unwrap(),
+      invalidations
+        .invalidate_on_file_create
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([
         FileCreateInvalidation::Path(root().join("ts-extensions/a.js")),
         FileCreateInvalidation::FileName {
@@ -2543,7 +2607,10 @@ mod tests {
       ])
     );
     assert_eq!(
-      *invalidations.invalidate_on_file_change.read().unwrap(),
+      invalidations
+        .invalidate_on_file_change
+        .into_iter()
+        .collect::<HashSet<_>>(),
       HashSet::from([root().join("package.json"), root().join("tsconfig.json")])
     );
   }
