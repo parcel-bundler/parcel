@@ -9,10 +9,10 @@ module.exports.init = async function init(input) {
       env: napi,
     });
 
+    // input =
+    //   input ?? require('path').join(__dirname, 'parcel_resolver_node.wasm');
     // const {instance} = await WebAssembly.instantiate(
-    //   require('fs').readFileSync(
-    //     input ?? require('path').join(__dirname, 'parcel_resolver_node.wasm'),
-    //   ),
+    //   require('fs').readFileSync(input),
     //   {
     //     env: napi,
     //   },

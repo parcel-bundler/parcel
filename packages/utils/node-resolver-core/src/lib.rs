@@ -3,11 +3,13 @@ use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref, Resul
 use napi_derive::napi;
 #[cfg(target_arch = "wasm32")]
 use std::alloc::{alloc, Layout};
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::atomic::Ordering;
 use std::{
   borrow::Cow,
   collections::HashMap,
   path::{Path, PathBuf},
-  sync::{atomic::Ordering, Arc},
+  sync::Arc,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -233,6 +235,7 @@ pub struct Resolver {
   resolver: parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
   #[cfg(target_arch = "wasm32")]
   resolver: parcel_resolver::Resolver<'static, JsFileSystem>,
+  #[cfg(not(target_arch = "wasm32"))]
   invalidations_cache: parcel_dev_dep_resolver::Cache,
 }
 
@@ -316,6 +319,7 @@ impl Resolver {
     Ok(Self {
       mode: options.mode,
       resolver,
+      #[cfg(not(target_arch = "wasm32"))]
       invalidations_cache: Default::default(),
     })
   }
@@ -396,6 +400,13 @@ impl Resolver {
     }
   }
 
+  #[cfg(target_arch = "wasm32")]
+  #[napi]
+  pub fn get_invalidations(&self, _: String) -> napi::Result<JsInvalidations> {
+    panic!("getInvalidations() is not supported in Wasm builds")
+  }
+
+  #[cfg(not(target_arch = "wasm32"))]
   #[napi]
   pub fn get_invalidations(&self, path: String) -> napi::Result<JsInvalidations> {
     let path = Path::new(&path);
