@@ -29,7 +29,7 @@ export function validatePackageName(
         name === `parcel-${pluginType}`,
       `Scoped parcel ${pluginType} packages must be named according to "${scope}/parcel-${pluginType}[-{name}]"`,
     );
-  } else {
+  } else if (!pkg.startsWith('.')) {
     assert(
       pkg.startsWith(`parcel-${pluginType}-`),
       `Parcel ${pluginType} packages must be named according to "parcel-${pluginType}-{name}"`,

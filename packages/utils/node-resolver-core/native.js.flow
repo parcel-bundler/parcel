@@ -21,6 +21,7 @@ export interface ResolveOptions {
   filename: string;
   specifierType: string;
   parent: string;
+  packageConditions?: Array<string>;
 }
 export interface ResolveResult {
   resolution: Resolution;
@@ -29,16 +30,23 @@ export interface ResolveResult {
   query?: string;
   sideEffects: boolean;
   error: mixed;
+  moduleType: number;
 }
 export type Resolution =
-  | {|type: 'path', value: string|}
-  | {|type: 'builtin', value: string|}
-  | {|type: 'external'|}
-  | {|type: 'empty'|}
-  | {|type: 'global', value: string|};
+  | {|type: 'Path', value: string|}
+  | {|type: 'Builtin', value: string|}
+  | {|type: 'External'|}
+  | {|type: 'Empty'|}
+  | {|type: 'Global', value: string|};
+export interface JsInvalidations {
+  invalidateOnFileChange: Array<string>;
+  invalidateOnFileCreate: Array<FileCreateInvalidation>;
+  invalidateOnStartup: boolean;
+}
 declare export class Resolver {
   constructor(projectRoot: string, options: ResolverOptions): Resolver;
   resolve(options: ResolveOptions): ResolveResult;
+  getInvalidations(path: string): JsInvalidations;
 }
 
 declare export var init: void | (() => void);
