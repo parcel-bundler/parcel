@@ -2,6 +2,7 @@
 import type {FilePath} from '@parcel/types';
 import type {Cache} from './types';
 import type {Readable, Writable} from 'stream';
+import type {Database} from 'lmdb';
 
 import stream from 'stream';
 import path from 'path';
@@ -10,8 +11,7 @@ import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 import {NodeFS} from '@parcel/fs';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
-// $FlowFixMe
-import lmdb from 'lmdb';
+import * as lmdb from 'lmdb';
 
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
   stream.pipeline,
@@ -20,8 +20,8 @@ const pipeline: (Readable, Writable) => Promise<void> = promisify(
 export class LMDBCache implements Cache {
   fs: NodeFS;
   dir: FilePath;
-  // $FlowFixMe
-  store: any;
+  // $FlowFixMe[unclear-type]
+  store: Database<any, string>;
 
   constructor(cacheDir: FilePath) {
     this.fs = new NodeFS();
@@ -34,8 +34,8 @@ export class LMDBCache implements Cache {
     });
   }
 
-  ensure(): Promise<void> {
-    return Promise.resolve();
+  async ensure(): Promise<void> {
+    await this.fs.mkdirp(path.join(this.dir, 'large-blobs'));
   }
 
   serialize(): {|dir: FilePath|} {
@@ -92,15 +92,33 @@ export class LMDBCache implements Cache {
   }
 
   hasLargeBlob(key: string): Promise<boolean> {
-    return this.fs.exists(path.join(this.dir, key));
+    return this.fs.exists(path.join(this.dir, 'large-blobs', key));
   }
 
   getLargeBlob(key: string): Promise<Buffer> {
-    return this.fs.readFile(path.join(this.dir, key));
+    return this.fs.readFile(path.join(this.dir, 'large-blobs', key));
   }
 
   async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
-    await this.fs.writeFile(path.join(this.dir, key), contents);
+    await this.fs.writeFile(path.join(this.dir, 'large-blobs', key), contents);
+  }
+
+  async getKeys(): Promise<{|
+    normal: Iterable<string>,
+    largeBlobs: Iterable<string>,
+  |}> {
+    return {
+      normal: this.store.getKeys(),
+      largeBlobs: await this.fs.readdir(path.join(this.dir, 'large-blobs')),
+    };
+  }
+
+  async remove(key: string): Promise<void> {
+    await this.store.remove(key);
+  }
+
+  async removeLargeBlob(key: string): Promise<void> {
+    await this.store.remove(key);
   }
 }
 
