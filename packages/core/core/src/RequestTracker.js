@@ -1180,7 +1180,13 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     let events = await options.inputFS.getEventsSince(
       options.projectRoot,
       snapshotPath,
-      opts,
+      // $FlowFixMe
+      {
+        ...opts,
+        remoteSnapshot: (await options.cache.has(snapshotKey))
+          ? JSON.parse((await options.cache.get(snapshotKey)).toString())
+          : undefined,
+      },
     );
     requestGraph.invalidateUnpredictableNodes();
     requestGraph.invalidateOnBuildNodes();
