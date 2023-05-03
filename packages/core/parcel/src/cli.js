@@ -1,10 +1,17 @@
 // @flow
 
 import type {InitialParcelOptions} from '@parcel/types';
+import {LMDBCache, LayeredCache, RemoteCache} from '@parcel/cache';
 import {BuildError} from '@parcel/core';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
+import {
+  prettyDiagnostic,
+  openInBrowser,
+  resolveConfig,
+  getRootDir,
+  isGlob,
+} from '@parcel/utils';
 import {Disposable} from '@parcel/events';
 import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
 import chalk from 'chalk';
@@ -170,6 +177,7 @@ let build = program
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--no-content-hash', 'disable content hashing')
   .option('--git-watcher', 'use git watcher backend')
+  .option('--remote-cache <url>', 'remote cache to use')
   .action(runCommand);
 
 applyOptions(build, commonOptions);
@@ -226,11 +234,13 @@ async function run(
     entries = ['.'];
   }
 
-  entries = entries.map(entry => path.resolve(entry));
-
   let Parcel = require('@parcel/core').default;
   let fs = new NodeFS();
-  let options = await normalizeOptions(command, fs);
+  let options = await normalizeOptions(
+    command,
+    fs,
+    entries.map(entry => path.resolve(entry)),
+  );
   let parcel = new Parcel({
     entries,
     defaultConfig: require.resolve('@parcel/config-default', {
@@ -383,6 +393,7 @@ function parseOptionInt(value) {
 async function normalizeOptions(
   command,
   inputFS,
+  entries,
 ): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
@@ -474,6 +485,43 @@ async function normalizeOptions(
     });
   }
 
+  let shouldMakeEntryReferFolder = false;
+  if (entries.length === 1 && !isGlob(entries[0])) {
+    let [entry] = entries;
+    try {
+      shouldMakeEntryReferFolder = (await inputFS.stat(entry)).isDirectory();
+    } catch {
+      // ignore failing stat call
+    }
+  }
+
+  // Default cache directory name
+  const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
+  const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
+
+  // getRootDir treats the input as files, so getRootDir(["/home/user/myproject"]) returns "/home/user".
+  // Instead we need to make the the entry refer to some file inside the specified folders if entries refers to the directory.
+  let entryRoot = getRootDir(
+    shouldMakeEntryReferFolder ? [path.join(entries[0], 'index')] : entries,
+  );
+  let projectRootFile =
+    (await resolveConfig(
+      inputFS,
+      path.join(entryRoot, 'index'),
+      [...LOCK_FILE_NAMES, '.git', '.hg'],
+      path.parse(entryRoot).root,
+    )) || path.join(process.cwd(), 'index'); // ? Should this just be rootDir
+
+  let projectRoot = path.dirname(projectRootFile);
+  let cacheDir =
+    // If a cacheDir is provided, resolve it relative to cwd. Otherwise,
+    // use a default directory resolved relative to the project root.
+    command.cacheDir != null
+      ? path.resolve(process.cwd(), command.cacheDir)
+      : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
+
+  let lmdbCache = new LMDBCache(cacheDir);
+
   let mode = command.name() === 'build' ? 'production' : 'development';
 
   const normalizeIncludeExcludeList = (input?: string): string[] => {
@@ -481,8 +529,13 @@ async function normalizeOptions(
     return input.split(',').map(value => value.trim());
   };
   return {
+    entries,
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
+    cache:
+      command.remoteCache != null
+        ? new LayeredCache(lmdbCache, new RemoteCache(command.remoteCache), 0)
+        : lmdbCache,
     config: command.config,
     mode,
     hmrOptions,
