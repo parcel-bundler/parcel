@@ -1,0 +1,11 @@
+{
+  "name": "cache-server",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.1",
+    "fresh": "^0.5.2",
+    "lmdb": "2.5.2"
+  }
+}
