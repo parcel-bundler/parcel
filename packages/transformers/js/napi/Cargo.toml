@@ -8,8 +8,8 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = {version =  "2.10.6", features = ["napi4", "compat-mode", "serde-json"]}
-napi-derive = "2.9.4"
+napi = {version =  "2.12.0", features = ["napi4", "compat-mode", "serde-json"]}
+napi-derive = "2.12.0"
 parcel-js-swc-core = { path = "../core" }
 
 [target.'cfg(target_os = "macos")'.dependencies]

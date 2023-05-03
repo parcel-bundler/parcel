@@ -20,10 +20,13 @@ mod package_json;
 mod path;
 mod specifier;
 mod tsconfig;
+mod url_to_path;
 
 pub use cache::{Cache, CacheCow};
 pub use error::ResolverError;
-pub use fs::{FileSystem, OsFileSystem};
+pub use fs::FileSystem;
+#[cfg(not(target_arch = "wasm32"))]
+pub use fs::OsFileSystem;
 pub use invalidations::*;
 pub use package_json::{ExportsCondition, Fields, ModuleType, PackageJsonError};
 pub use specifier::{Specifier, SpecifierError, SpecifierType};

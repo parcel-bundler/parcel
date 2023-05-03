@@ -38,7 +38,7 @@
     "@parcel/workers": "2.8.3"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^2.14.8",
+    "@napi-rs/cli": "^2.15.2",
     "tiny-benchy": "^1.0.2"
   }
 }
