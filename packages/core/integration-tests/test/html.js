@@ -2068,11 +2068,9 @@ describe('html', function () {
     }
   });
 
-  it.only('supports multiple dist targets', async function () {
+  it('supports multiple dist targets', async function () {
     let b = await bundle(
-      //Works with the below
       path.join(__dirname, '/integration/html-multi-targets/'),
-      // path.join(__dirname, '/integration/html-multi-targets-repro/'),
       {
         outputFS: inputFS,
         mode: 'production',
@@ -2086,28 +2084,41 @@ describe('html', function () {
     assertBundles(b, [
       {
         name: 'index.html',
+        type: 'html',
         assets: ['index.html'],
       },
-
       {
         type: 'js',
-        assets: ['index.js', 'foo.module.css'],
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+        ],
       },
       {
-        type: 'css',
-        assets: ['foo.module.css'],
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'shared.js'],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'shared.js'],
       },
       {
         name: 'index.html',
+        type: 'html',
         assets: ['index.html'],
       },
       {
         type: 'js',
-        assets: ['index.js', 'foo.module.css'],
-      },
-      {
-        type: 'css',
-        assets: ['foo.module.css'],
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+        ],
       },
     ]);
   });
