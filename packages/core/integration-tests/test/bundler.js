@@ -271,7 +271,7 @@ describe('bundler', function () {
       },
     );
 
-    // There should be two manifest bunldes added, one for a.js, one for b.js
+    // There should be two manifest bundles added, one for a.js, one for b.js
     assertBundles(b, [
       {
         assets: ['a.html'],
