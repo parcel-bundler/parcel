@@ -22,6 +22,7 @@ import {Bundler} from '@parcel/plugin';
 import {setEqual, validateSchema, DefaultMap, BitSet} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
+import dumpGraphToGraphViz from '../../../core/core/src/dumpGraphToGraphViz';
 
 type BundlerConfig = {|
   http?: number,
@@ -215,6 +216,18 @@ function decorateLegacyGraph(
     idealBundleToLegacyBundle.set(idealBundle, bundle);
 
     for (let asset of idealBundle.assets) {
+      if (
+        asset.filePath.includes('main1') &&
+        idealBundle.mainEntryAsset.filePath.includes('main2')
+      ) {
+        debugger;
+      }
+      if (
+        asset.filePath.includes('main2') &&
+        idealBundle.mainEntryAsset.filePath.includes('main1')
+      ) {
+        debugger;
+      }
       bundleGraph.addAssetToBundle(asset, bundle);
     }
   }
@@ -588,7 +601,8 @@ function createIdealGraph(
   });
 
   let assetSet = BitSet.from(assets);
-
+  dumpGraphToGraphViz(dependencyBundleGraph, 'dependencyBundleGraphIdeal');
+  debugger;
   // Step Merge Type Change Bundles: Clean up type change bundles within the exact same bundlegroups
   for (let [nodeIdA, a] of bundleGraph.nodes) {
     //if bundle b bundlegroups ==== bundle a bundlegroups then combine type changes
@@ -1138,6 +1152,7 @@ function createIdealGraph(
       );
     }
   }
+  dumpGraphToGraphViz(bundleGraph, 'idealBundleGraph');
 
   function deleteBundle(bundleRoot: BundleRoot) {
     bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
@@ -1398,6 +1413,7 @@ function getEntryByTarget(
       return node;
     },
   });
+  console.log('TARGETS ARE', targets);
   return targets;
 }
 

@@ -527,6 +527,7 @@ export function assertBundles(
     });
   });
 
+  console.log('ACTUAL BUNDLES ARE', actualBundles);
   for (let bundle of expectedBundles) {
     if (!Array.isArray(bundle.assets)) {
       throw new Error(

@@ -82,6 +82,8 @@ export default async function dumpGraphToGraphViz(
       label = `[${fromNodeId(id)}] ${node.type || 'No Type'}: [${node.id}]: `;
       if (node.type === 'dependency') {
         label += node.value.specifier;
+        label += node.value.sourcePath;
+        label += node.value.loc;
         let parts = [];
         if (node.value.priority !== Priority.sync) {
           parts.push(
