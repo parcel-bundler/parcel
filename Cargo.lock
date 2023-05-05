@@ -506,7 +506,7 @@ dependencies = [
 [[package]]
 name = "es-module-lexer"
 version = "0.1.0"
-source = "git+https://github.com/devongovett/es-module-lexer#849eea75ce2d80007179ec4ad3f0a73a070d9fac"
+source = "git+https://github.com/devongovett/es-module-lexer#b9539c0139107b2cabc34766872e1f530b977259"
 dependencies = [
  "bumpalo",
  "cc",
