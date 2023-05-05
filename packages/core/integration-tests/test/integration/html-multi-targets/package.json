@@ -13,5 +13,8 @@
       "source": "./src/main2/index.html",
       "publicUrl": "./"
     }
+  },
+  "@parcel/bundler-default": {
+    "minBundleSize": 0
   }
 }

@@ -2071,14 +2071,15 @@ describe('html', function () {
   it.only('supports multiple dist targets', async function () {
     let b = await bundle(
       //Works with the below
-      //path.join(__dirname, '/integration/html-multi-targets/'),
-      path.join(__dirname, '/integration/html-multi-targets-repro/'),
+      path.join(__dirname, '/integration/html-multi-targets/'),
+      // path.join(__dirname, '/integration/html-multi-targets-repro/'),
       {
         outputFS: inputFS,
         mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: false,
           shouldOptimize: false,
+          sourceMaps: false,
         },
       },
     );
