@@ -1398,7 +1398,6 @@ function getEntryByTarget(
       return node;
     },
   });
-
   return targets;
 }
 
