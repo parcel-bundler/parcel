@@ -292,7 +292,6 @@ describe('bundler', function () {
           'cacheLoader.js',
           'js-loader.js',
           'esmodule-helpers.js',
-          'bundle-manifest.js',
         ],
       },
       {
