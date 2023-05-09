@@ -22,12 +22,15 @@ import nativeFS from 'fs';
 import Module from 'module';
 import path from 'path';
 import semver from 'semver';
+import logger from '@parcel/logger';
+import nullthrows from 'nullthrows';
 
 import {getModuleParts} from '@parcel/utils';
 import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
 import pkg from '../package.json';
 import {ResolverBase} from '@parcel/node-resolver-core';
+import {pathToFileURL} from 'url';
 
 // Package.json fields. Must match package_json.rs.
 const MAIN = 1 << 0;
@@ -43,6 +46,7 @@ const ENTRIES =
 // Therefore, the resolution cache and the map of parent to child modules should also be global.
 const cache = new Map<DependencySpecifier, ResolveResult>();
 const children = new Map<FilePath, Set<DependencySpecifier>>();
+const invalidationsCache = new Map<string, Invalidations>();
 
 // This implements a package manager for Node by monkey patching the Node require
 // algorithm so that it uses the specified FileSystem instead of the native one.
@@ -53,8 +57,7 @@ export class NodePackageManager implements PackageManager {
   fs: FileSystem;
   projectRoot: FilePath;
   installer: ?PackageInstaller;
-  resolver: any;
-  invalidationsCache: Map<string, Invalidations> = new Map();
+  resolver: ResolverBase;
 
   constructor(
     fs: FileSystem,
@@ -64,10 +67,9 @@ export class NodePackageManager implements PackageManager {
     this.fs = fs;
     this.projectRoot = projectRoot;
     this.installer = installer;
-    this.resolver = this._createResolver();
   }
 
-  _createResolver(): any {
+  _createResolver(): ResolverBase {
     return new ResolverBase(this.projectRoot, {
       fs:
         this.fs instanceof NodeFS && process.versions.pnp == null
@@ -124,7 +126,27 @@ export class NodePackageManager implements PackageManager {
       saveDev?: boolean,
     |},
   ): Promise<any> {
-    let {resolved} = await this.resolve(name, from, opts);
+    let {resolved, type} = await this.resolve(name, from, opts);
+    if (type === 2) {
+      logger.warn({
+        message: 'ES module dependencies are experimental.',
+        origin: '@parcel/package-manager',
+        codeFrames: [
+          {
+            filePath: resolved,
+            codeHighlights: [],
+          },
+        ],
+      });
+
+      // On Windows, Node requires absolute paths to be file URLs.
+      if (process.platform === 'win32' && path.isAbsolute(resolved)) {
+        resolved = pathToFileURL(resolved);
+      }
+
+      // $FlowFixMe
+      return import(resolved);
+    }
     return this.load(resolved, from);
   }
 
@@ -157,12 +179,15 @@ export class NodePackageManager implements PackageManager {
     };
 
     // Patch `fs.readFileSync` temporarily so that it goes through our file system
-    let readFileSync = nativeFS.readFileSync;
+    let {readFileSync, statSync} = nativeFS;
     // $FlowFixMe
     nativeFS.readFileSync = (filename, encoding) => {
-      // $FlowFixMe
-      nativeFS.readFileSync = readFileSync;
       return this.fs.readFileSync(filename, encoding);
+    };
+
+    // $FlowFixMe
+    nativeFS.statSync = filename => {
+      return this.fs.statSync(filename);
     };
 
     try {
@@ -171,6 +196,11 @@ export class NodePackageManager implements PackageManager {
       // $FlowFixMe[prop-missing]
       delete Module._cache[filePath];
       throw err;
+    } finally {
+      // $FlowFixMe
+      nativeFS.readFileSync = readFileSync;
+      // $FlowFixMe
+      nativeFS.statSync = statSync;
     }
 
     return m.exports;
@@ -318,7 +348,7 @@ export class NodePackageManager implements PackageManager {
       }
 
       cache.set(key, resolved);
-      this.invalidationsCache.clear();
+      invalidationsCache.clear();
 
       // Add the specifier as a child to the parent module.
       // Don't do this if the specifier was an absolute path, as this was likely a dynamically resolved path
@@ -344,7 +374,7 @@ export class NodePackageManager implements PackageManager {
     if (!resolved) {
       resolved = this.resolveInternal(name, from);
       cache.set(key, resolved);
-      this.invalidationsCache.clear();
+      invalidationsCache.clear();
 
       if (!path.isAbsolute(name)) {
         let moduleChildren = children.get(from);
@@ -372,49 +402,84 @@ export class NodePackageManager implements PackageManager {
   }
 
   getInvalidations(name: DependencySpecifier, from: FilePath): Invalidations {
-    let key = name + ':' + from;
-    let cached = this.invalidationsCache.get(key);
-    if (cached != null) {
-      return cached;
-    }
+    let basedir = path.dirname(from);
+    let cacheKey = basedir + ':' + name;
+    let resolved = cache.get(cacheKey);
 
-    let res = {
-      invalidateOnFileCreate: [],
-      invalidateOnFileChange: new Set(),
-    };
-
-    let seen = new Set();
-    let addKey = (name, from) => {
-      let basedir = path.dirname(from);
-      let key = basedir + ':' + name;
-      if (seen.has(key)) {
-        return;
+    if (resolved && path.isAbsolute(resolved.resolved)) {
+      let cached = invalidationsCache.get(resolved.resolved);
+      if (cached != null) {
+        return cached;
       }
 
-      seen.add(key);
-      let resolved = cache.get(key);
-      if (!resolved || !path.isAbsolute(resolved.resolved)) {
-        return;
-      }
+      let res = {
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: new Set(),
+        invalidateOnStartup: false,
+      };
 
-      res.invalidateOnFileCreate.push(...resolved.invalidateOnFileCreate);
-      res.invalidateOnFileChange.add(resolved.resolved);
+      let seen = new Set();
+      let addKey = (name, from) => {
+        let basedir = path.dirname(from);
+        let key = basedir + ':' + name;
+        if (seen.has(key)) {
+          return;
+        }
 
-      for (let file of resolved.invalidateOnFileChange) {
-        res.invalidateOnFileChange.add(file);
-      }
+        seen.add(key);
+        let resolved = cache.get(key);
+        if (!resolved || !path.isAbsolute(resolved.resolved)) {
+          return;
+        }
 
-      let moduleChildren = children.get(resolved.resolved);
-      if (moduleChildren) {
-        for (let specifier of moduleChildren) {
-          addKey(specifier, resolved.resolved);
+        res.invalidateOnFileCreate.push(...resolved.invalidateOnFileCreate);
+        res.invalidateOnFileChange.add(resolved.resolved);
+
+        for (let file of resolved.invalidateOnFileChange) {
+          res.invalidateOnFileChange.add(file);
+        }
+
+        let moduleChildren = children.get(resolved.resolved);
+        if (moduleChildren) {
+          for (let specifier of moduleChildren) {
+            addKey(specifier, resolved.resolved);
+          }
+        }
+      };
+
+      addKey(name, from);
+
+      // If this is an ES module, we won't have any of the dependencies because import statements
+      // cannot be intercepted. Instead, ask the resolver to parse the file and recursively analyze the deps.
+      if (resolved.type === 2) {
+        let invalidations = this.resolver.getInvalidations(resolved.resolved);
+        invalidations.invalidateOnFileChange.forEach(i =>
+          res.invalidateOnFileChange.add(i),
+        );
+        invalidations.invalidateOnFileCreate.forEach(i =>
+          res.invalidateOnFileCreate.push(i),
+        );
+        res.invalidateOnStartup ||= invalidations.invalidateOnStartup;
+        if (res.invalidateOnStartup) {
+          logger.warn({
+            message: md`${path.relative(
+              this.projectRoot,
+              resolved.resolved,
+            )} contains non-statically analyzable dependencies in its module graph. This causes Parcel to invalidate the cache on startup.`,
+            origin: '@parcel/package-manager',
+          });
         }
       }
-    };
 
-    addKey(name, from);
-    this.invalidationsCache.set(key, res);
-    return res;
+      invalidationsCache.set(resolved.resolved, res);
+      return res;
+    }
+
+    return {
+      invalidateOnFileCreate: [],
+      invalidateOnFileChange: new Set(),
+      invalidateOnStartup: false,
+    };
   }
 
   invalidate(name: DependencySpecifier, from: FilePath) {
@@ -432,6 +497,8 @@ export class NodePackageManager implements PackageManager {
       if (!resolved || !path.isAbsolute(resolved.resolved)) {
         return;
       }
+
+      invalidationsCache.delete(resolved.resolved);
 
       // $FlowFixMe
       let module = Module._cache[resolved.resolved];
@@ -456,6 +523,10 @@ export class NodePackageManager implements PackageManager {
   }
 
   resolveInternal(name: string, from: string): ResolveResult {
+    if (this.resolver == null) {
+      this.resolver = this._createResolver();
+    }
+
     let res = this.resolver.resolve({
       filename: name,
       specifierType: 'commonjs',
@@ -482,7 +553,7 @@ export class NodePackageManager implements PackageManager {
         getPkg = () => {
           let pkgPath = this.fs.findAncestorFile(
             ['package.json'],
-            res.resolution.value,
+            nullthrows(res.resolution.value),
             this.projectRoot,
           );
           return pkgPath
@@ -495,6 +566,7 @@ export class NodePackageManager implements PackageManager {
           resolved: res.resolution.value,
           invalidateOnFileChange: new Set(res.invalidateOnFileChange),
           invalidateOnFileCreate: res.invalidateOnFileCreate,
+          type: res.moduleType,
           get pkg() {
             return getPkg();
           },

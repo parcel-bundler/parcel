@@ -176,7 +176,10 @@ function decorateLegacyGraph(
       );
 
       bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
-    } else if (idealBundle.sourceBundles.size > 0) {
+    } else if (
+      idealBundle.sourceBundles.size > 0 &&
+      !idealBundle.mainEntryAsset
+    ) {
       bundle = nullthrows(
         bundleGraph.createBundle({
           uniqueKey:
