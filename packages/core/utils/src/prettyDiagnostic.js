@@ -77,10 +77,14 @@ export default async function prettyDiagnostic(
         });
       }
 
-      let location =
-        typeof filePath !== 'string'
-          ? ''
-          : `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}`;
+      let location;
+      if (typeof filePath !== 'string') {
+        location = '';
+      } else if (highlights.length === 0) {
+        location = filePath;
+      } else {
+        location = `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}`;
+      }
       result.codeframe += location ? chalk.gray.underline(location) + '\n' : '';
       result.codeframe += formattedCodeFrame;
       if (codeFrame !== codeFrames[codeFrames.length - 1]) {
