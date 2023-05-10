@@ -5,18 +5,17 @@ use std::{
   sync::Mutex,
 };
 
-use dashmap::DashMap;
-use elsa::sync::FrozenMap;
-use typed_arena::Arena;
-
 use crate::{
-  fs::{FileSystem, OsFileSystem},
+  fs::FileSystem,
   package_json::{PackageJson, SourceField},
   tsconfig::{TsConfig, TsConfigWrapper},
   ResolverError,
 };
+use dashmap::DashMap;
+use elsa::sync::FrozenMap;
+use typed_arena::Arena;
 
-pub struct Cache<Fs = OsFileSystem> {
+pub struct Cache<Fs> {
   pub fs: Fs,
   // This stores file content strings, which are borrowed when parsing package.json and tsconfig.json files.
   arena: Mutex<Arena<Box<str>>>,

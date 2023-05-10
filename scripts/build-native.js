@@ -8,7 +8,7 @@ let release = process.argv.includes('--release');
 build();
 
 async function build() {
-  if (process.platform === 'darwin') {
+  if (process.env.CI && process.platform === 'darwin') {
     setupMacBuild();
   }
 

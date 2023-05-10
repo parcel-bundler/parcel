@@ -35,14 +35,14 @@
     "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.8.3",
     "@parcel/workers": "2.8.3",
-    "@swc/helpers": "^0.4.12",
+    "@swc/helpers": "^0.5.0",
     "browserslist": "^4.6.6",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",
     "semver": "^5.7.1"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^2.14.8"
+    "@napi-rs/cli": "^2.15.2"
   },
   "peerDependencies": {
     "@parcel/core": "^2.8.3"

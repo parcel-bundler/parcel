@@ -67,10 +67,15 @@ export default async function applyRuntimes<TResult>({
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
 
-  // As manifest bundles may be added during runtimes we process them in reverse order.
-  // This allows bundles to be added to their bundle groups before they are referenced
+  // As manifest bundles may be added during runtimes we process them in reverse topological
+  // sort order. This allows bundles to be added to their bundle groups before they are referenced
   // by other bundle groups by loader runtimes
-  let bundles = bundleGraph.getBundles({includeInline: true}).reverse();
+  let bundles = [];
+  bundleGraph.traverseBundles({
+    exit(bundle) {
+      bundles.push(bundle);
+    },
+  });
 
   for (let bundle of bundles) {
     for (let runtime of runtimes) {

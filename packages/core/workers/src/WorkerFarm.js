@@ -192,6 +192,10 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   createHandle(method: string, useMainThread: boolean = false): HandleFunction {
+    if (!this.options.useLocalWorker) {
+      useMainThread = false;
+    }
+
     return async (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.

@@ -2870,6 +2870,21 @@ describe('resolver', function () {
       });
       check(resolved, {isExcluded: true});
     });
+
+    it('should treat file: urls as absolute paths', async function () {
+      // TODO fixme
+      if (process.platform === 'win32') {
+        return;
+      }
+
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'file:///bar.js',
+        specifierType: 'url',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
+    });
   });
 
   describe('options', function () {

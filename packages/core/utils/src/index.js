@@ -40,7 +40,12 @@ export {
   setIntersect,
   setUnion,
 } from './collection';
-export {resolveConfig, resolveConfigSync, loadConfig} from './config';
+export {
+  resolveConfig,
+  resolveConfigSync,
+  loadConfig,
+  readConfig,
+} from './config';
 export {DefaultMap, DefaultWeakMap} from './DefaultMap';
 export {makeDeferredWithPromise} from './Deferred';
 export {getProgressMessage} from './progress-message.js';

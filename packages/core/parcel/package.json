@@ -34,8 +34,7 @@
     "@parcel/utils": "2.8.3",
     "chalk": "^4.1.0",
     "commander": "^7.0.0",
-    "get-port": "^4.2.0",
-    "v8-compile-cache": "^2.0.0"
+    "get-port": "^4.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.0.0",
