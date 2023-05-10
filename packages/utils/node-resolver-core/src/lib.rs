@@ -16,7 +16,7 @@ use std::{
 use parcel_resolver::OsFileSystem;
 use parcel_resolver::{
   ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, Flags,
-  IncludeNodeModules, Invalidations, Resolution, ResolverError, SpecifierType,
+  IncludeNodeModules, Invalidations, ModuleType, Resolution, ResolverError, SpecifierType,
 };
 
 #[napi(object)]
