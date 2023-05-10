@@ -45,7 +45,17 @@ module.exports = {
     '@parcel/no-self-package-imports': 'error',
     'import/first': 'error',
     'import/newline-after-import': 'error',
-    'import/no-extraneous-dependencies': 'error',
+    'import/no-extraneous-dependencies': [
+      'error',
+      {
+        // "includeTypes": true,
+        // "packageDir": require('../../../package.json')
+        //   .workspaces
+        //   .map(workspace => require('glob').sync(workspace, {
+        //     cwd: require('path').join(__dirname, '..', '..', '..')
+        //   })),
+      },
+    ],
     'import/no-self-import': 'error',
     'no-prototype-builtins': 'off',
     'no-console': 'error',
