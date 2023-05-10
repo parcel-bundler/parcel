@@ -128,6 +128,7 @@ async function run({input, api, farm, invalidateReason, options}) {
 
   let {
     assets,
+    cacheKeys,
     configRequests,
     error,
     invalidations,
@@ -181,6 +182,8 @@ async function run({input, api, farm, invalidateReason, options}) {
   if (error != null) {
     throw new ThrowableDiagnostic({diagnostic: error});
   } else {
-    return nullthrows(assets);
+    // Read by cache garbage collection
+    api.storeResult({assets: [], cacheKeys: nullthrows(cacheKeys)});
+    return {assets: nullthrows(assets), cacheKeys: nullthrows(cacheKeys)};
   }
 }

@@ -54,11 +54,10 @@ async function run({input, api, farm, options}) {
 
   api.invalidateOnOptionChange('shouldContentHash');
 
-  let res = new Map();
+  let res = new Map<string, PackagedBundleInfo>();
   let bundleInfoMap: {|
     [string]: BundleInfo,
   |} = {};
-  let writeEarlyPromises = {};
   let hashRefToNameHash = new Map();
   let bundles = bundleGraph.getBundles().filter(bundle => {
     // Do not package and write placeholder bundles to disk. We just
@@ -74,6 +73,7 @@ async function run({input, api, farm, options}) {
           time: 0,
           size: 0,
         },
+        cacheKeys: undefined,
       });
       return false;
     }
@@ -88,6 +88,7 @@ async function run({input, api, farm, options}) {
     bundles.filter(b => !api.canSkipSubrequest(bundleGraph.getHash(b)))
       .length === 1;
 
+  let writeEarlyPromises: {[string]: Promise<PackagedBundleInfo>} = {};
   try {
     await Promise.all(
       bundles.map(async bundle => {

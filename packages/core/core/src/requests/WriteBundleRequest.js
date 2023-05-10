@@ -188,6 +188,7 @@ async function run({input, options, api}) {
       size,
       time: info.time ?? 0,
     },
+    cacheKeys,
   };
 
   api.storeResult(res);

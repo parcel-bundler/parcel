@@ -93,6 +93,7 @@ export type TransformationOpts = {|
 
 export type TransformationResult = {|
   assets?: Array<AssetValue>,
+  cacheKeys?: Array<string>,
   error?: Array<Diagnostic>,
   configRequests: Array<ConfigRequest>,
   invalidations: Array<RequestInvalidation>,
@@ -194,10 +195,11 @@ export default class Transformation {
       asset.value.isSource,
       asset.value.pipeline,
     );
-    let assets, error;
+    let assets, error, cacheKeys;
     try {
       let results = await this.runPipelines(pipeline, asset);
-      assets = results.map(a => a.value);
+      assets = results.assets.map(a => a.value);
+      cacheKeys = results.cacheKeys;
     } catch (e) {
       error = e;
     }
@@ -215,6 +217,7 @@ export default class Transformation {
     return {
       $$raw: true,
       assets,
+      cacheKeys,
       configRequests,
       // When throwing an error, this (de)serialization is done automatically by the WorkerFarm
       error: error ? anyToDiagnostic(error) : undefined,
@@ -280,7 +283,7 @@ export default class Transformation {
   async runPipelines(
     pipeline: Pipeline,
     initialAsset: UncommittedAsset,
-  ): Promise<Array<UncommittedAsset>> {
+  ): Promise<{|assets: Array<UncommittedAsset>, cacheKeys: Array<string>|}> {
     let initialType = initialAsset.value.type;
     let initialPipelineHash = await this.getPipelineHash(pipeline);
     let initialAssetCacheKey = this.getCacheKey(
@@ -308,6 +311,7 @@ export default class Transformation {
       await this.addDevDependency(devDep);
     }
 
+    let cacheKeys: Array<string> = [];
     if (!initialCacheEntry) {
       let pipelineHash = await this.getPipelineHash(pipeline);
       let invalidationCacheKey = await getInvalidationHash(
@@ -325,7 +329,14 @@ export default class Transformation {
         invalidationCacheKey,
         pipelineHash,
       );
+      cacheKeys.push(resultCacheKey);
+      for (let a of assets) {
+        if (a.value.astKey != null) cacheKeys.push(a.value.astKey);
+        if (a.value.mapKey != null) cacheKeys.push(a.value.mapKey);
+        if (a.value.contentKey != null) cacheKeys.push(a.value.contentKey);
+      }
     } else {
+      cacheKeys.push(initialAssetCacheKey);
       // See above TODO, this should be per-pipeline
       for (let i of this.request.invalidations) {
         this.invalidations.set(getInvalidationId(i), i);
@@ -346,7 +357,9 @@ export default class Transformation {
       }
 
       if (nextPipeline) {
-        let nextPipelineAssets = await this.runPipelines(nextPipeline, asset);
+        let {assets: nextPipelineAssets, cacheKeys: nextCacheKeys} =
+          await this.runPipelines(nextPipeline, asset);
+        cacheKeys = cacheKeys.concat(nextCacheKeys);
         finalAssets = finalAssets.concat(nextPipelineAssets);
       } else {
         finalAssets.push(asset);
@@ -354,7 +367,7 @@ export default class Transformation {
     }
 
     if (!pipeline.postProcess) {
-      return finalAssets;
+      return {assets: finalAssets, cacheKeys};
     }
 
     let pipelineHash = await this.getPipelineHash(pipeline);
@@ -362,25 +375,40 @@ export default class Transformation {
       finalAssets.flatMap(asset => asset.getInvalidations()),
       this.options,
     );
-    let processedCacheEntry = await this.readFromCache(
-      this.getCacheKey(finalAssets, invalidationHash, pipelineHash),
+    let processedCacheKey = this.getCacheKey(
+      finalAssets,
+      invalidationHash,
+      pipelineHash,
     );
+    let processedCacheEntry = await this.readFromCache(processedCacheKey);
 
     invariant(pipeline.postProcess != null);
     let processedFinalAssets: Array<UncommittedAsset> =
       processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
 
     if (!processedCacheEntry) {
-      await this.writeToCache(
-        this.getCacheKey(processedFinalAssets, invalidationHash, pipelineHash),
+      let resultCacheKey = this.getCacheKey(
         processedFinalAssets,
-
         invalidationHash,
         pipelineHash,
       );
+      await this.writeToCache(
+        resultCacheKey,
+        processedFinalAssets,
+        invalidationHash,
+        pipelineHash,
+      );
+      cacheKeys.push(resultCacheKey);
+      for (let a of processedFinalAssets) {
+        if (a.value.astKey != null) cacheKeys.push(a.value.astKey);
+        if (a.value.mapKey != null) cacheKeys.push(a.value.mapKey);
+        if (a.value.contentKey != null) cacheKeys.push(a.value.contentKey);
+      }
+    } else {
+      cacheKeys.push(processedCacheKey);
     }
 
-    return processedFinalAssets;
+    return {assets: processedFinalAssets, cacheKeys};
   }
 
   async getPipelineHash(pipeline: Pipeline): Promise<string> {

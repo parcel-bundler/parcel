@@ -88,7 +88,7 @@ export type BundleInfo = {|
   +isLargeBlob: boolean,
 |};
 
-type CacheKeyMap = {|
+export type CacheKeyMap = {|
   content: string,
   map: string,
   info: string,
