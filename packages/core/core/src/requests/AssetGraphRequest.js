@@ -7,6 +7,7 @@ import type {
   Asset,
   AssetGroup,
   AssetRequestInput,
+  AssetRequestResult,
   Dependency,
   Entry,
   ParcelOptions,
@@ -484,11 +485,10 @@ export class AssetGraphBuilder {
       optionsRef: this.optionsRef,
       isSingleChangeRebuild: this.isSingleChangeRebuild,
     });
-
-    let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
-      request,
-      {force: true},
-    );
+    let {assets} = await this.api.runRequest<
+      AssetRequestInput,
+      AssetRequestResult,
+    >(request, {force: true});
 
     if (assets != null) {
       for (let asset of assets) {

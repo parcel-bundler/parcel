@@ -473,10 +473,10 @@ export default class Parcel {
       }),
     });
 
-    let res = await this.#requestTracker.runRequest(request, {
+    let {assets} = await this.#requestTracker.runRequest(request, {
       force: true,
     });
-    return res.map(asset =>
+    return assets.map(asset =>
       assetFromValue(asset, nullthrows(this.#resolvedOptions)),
     );
   }

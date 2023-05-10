@@ -32,6 +32,7 @@ import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
 import type {EventType} from '@parcel/watcher';
+import type {CacheKeyMap} from './PackagerRunner';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -376,7 +377,10 @@ export type AssetRequestInput = {|
   isSingleChangeRebuild?: boolean,
 |};
 
-export type AssetRequestResult = Array<Asset>;
+export type AssetRequestResult = {|
+  assets: Array<Asset>,
+  cacheKeys: Array<string>,
+|};
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = $Rest<
   AssetRequestInput,
@@ -547,6 +551,7 @@ export type PackagedBundleInfo = {|
   filePath: ProjectPath,
   type: string,
   stats: Stats,
+  cacheKeys: ?CacheKeyMap,
 |};
 
 export type TransformationOpts = {|
