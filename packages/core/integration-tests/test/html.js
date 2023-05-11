@@ -2278,7 +2278,36 @@ describe('html', function () {
     let res = await run(b, {output: null}, {require: false});
     assert.deepEqual(await res.output, ['client', 'client', 'viewer']);
   });
-
+  it.only('should work for this case', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/circular-import-bug/index.js'),
+      {
+        outputFS: inputFS,
+        //mode: 'production', occurs in prod mode as well
+        defaultTargetOptions: {
+          shouldScopeHoist: false, // Does not occur with scope-hoisting on
+          shouldOptimize: false,
+          sourceMaps: false,
+        },
+      },
+    );
+    assertBundles(b, [
+      {name: 'index.html', type: 'html', assets: ['index.html']},
+      {
+        type: 'js',
+        assets: [
+          'somethingsomething',
+          'bundle-manifest.js',
+          'client.js',
+          'index.js',
+          'index.js',
+          'index.js',
+          'index.js',
+        ],
+      },
+      {type: 'js', assets: ['viewer.js']},
+    ]);
+  });
   it('should not point to unrelated sibling bundles', async function () {
     await bundle(
       path.join(
