@@ -2279,6 +2279,12 @@ describe('html', function () {
     assert.deepEqual(await res.output, ['client', 'client', 'viewer']);
   });
   it.only('should work for this case', async function () {
+    /*
+     * To reproduce error: run the following test
+     * Add an index.html file with the js file imported
+     * Start up localhost
+     * get "TypeError 0, _themedDefault.default) is not a function"
+     */
     let b = await bundle(
       path.join(__dirname, '/integration/circular-import-bug/index.js'),
       {
