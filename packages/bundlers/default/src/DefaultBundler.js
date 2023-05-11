@@ -19,7 +19,13 @@ import {ContentGraph, Graph} from '@parcel/graph';
 import invariant from 'assert';
 import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
-import {setEqual, validateSchema, DefaultMap, BitSet} from '@parcel/utils';
+import {
+  setEqual,
+  setIntersect,
+  validateSchema,
+  DefaultMap,
+  BitSet,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
@@ -625,6 +631,87 @@ function createIdealGraph(
           }
           if (!shouldMerge) continue;
           mergeBundle(nodeIdA, nodeIdB);
+        } else {
+          let overlap = bundleBbundleGroups;
+          setIntersect(overlap, bundleABundleGroups);
+          if (overlap.size > 0) {
+            // Two bundles are the same type and exist in the same bundle group but cannot be (fully) merged
+            // We must duplicate or create a new bundle in this case
+
+            let shouldCreateNewBundle =
+              overlap.size == bundleBbundleGroups.size ||
+              overlap.size == bundleABundleGroups.size
+                ? false
+                : true;
+            if (shouldCreateNewBundle) {
+              //Generate a new bundle for the overlap
+              //TODO
+            } else {
+              // If the overlap of bundleGroups is a subset, then we should duplicate the bundle
+              // that results in a correct graph
+              let hostBundle =
+                overlap.size == bundleBbundleGroups.size
+                  ? [nodeIdA, a, bundleABundleGroups]
+                  : [nodeIdB, b, bundleBbundleGroups];
+              let duplicatedBundle =
+                overlap.size == bundleBbundleGroups.size
+                  ? [nodeIdB, b, bundleBbundleGroups]
+                  : [nodeIdA, a, bundleABundleGroups];
+
+              for (let asset of duplicatedBundle[1].assets) {
+                hostBundle[1].assets.add(asset);
+                hostBundle[1].size += asset.stats.size;
+              }
+              for (let group of overlap) {
+                let bundleGroup = nullthrows(bundleGraph.getNode(group));
+                invariant(
+                  bundleGroup != null && bundleGroup !== 'root',
+                  'Something went wrong with accessing a bundleGroup',
+                );
+                // Patch up dependency bundleGraph
+                for (let depId of dependencyBundleGraph.getNodeIdsConnectedTo(
+                  dependencyBundleGraph.getNodeIdByContentKey(
+                    String(duplicatedBundle[0]),
+                  ),
+                  ALL_EDGE_TYPES,
+                )) {
+                  let depNode = dependencyBundleGraph.getNode(depId);
+                  if (
+                    depNode &&
+                    depNode.type === 'dependency' &&
+                    depNode.value.sourcePath ==
+                      bundleGroup.mainEntryAsset.filePath
+                  ) {
+                    dependencyBundleGraph.addEdge(
+                      depId,
+                      dependencyBundleGraph.getNodeIdByContentKey(
+                        String(hostBundle[0]),
+                      ),
+                      dependencyPriorityEdges.parallel,
+                    );
+
+                    dependencyBundleGraph.removeEdge(
+                      depId,
+                      dependencyBundleGraph.getNodeIdByContentKey(
+                        String(duplicatedBundle[0]),
+                      ),
+                      dependencyPriorityEdges.parallel,
+                    );
+                    for (let asset of duplicatedBundle[1].assets) {
+                      replaceAssetReference(
+                        asset,
+                        duplicatedBundle[1],
+                        hostBundle[1],
+                        depNode.value,
+                      );
+                    }
+                  }
+                }
+                // This might be a referencing bundle, not necessarily the group
+                bundleGraph.removeEdge(group, duplicatedBundle[0]);
+              }
+            }
+          }
         }
       }
     }
@@ -1230,15 +1317,22 @@ function createIdealGraph(
     invariant(bundle !== 'root' && bundle != null);
     return bundle;
   }
+
   function replaceAssetReference(
     bundleRoot: BundleRoot,
     toReplace: Bundle,
     replaceWith: Bundle,
+    dependency?: Dependency,
   ): void {
     let replaceAssetReference = assetReference.get(bundleRoot).map(entry => {
       let bundle = entry[1];
+      let dep = entry[0];
       if (bundle == toReplace) {
-        return [entry[0], replaceWith];
+        if (dependency && dependency == dep) {
+          return [entry[0], replaceWith];
+        } else if (dependency == null) {
+          return [entry[0], replaceWith];
+        }
       }
       return entry;
     });
