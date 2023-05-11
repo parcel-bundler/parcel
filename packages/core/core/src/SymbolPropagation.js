@@ -426,7 +426,11 @@ export function propagateSymbols({
               assetGraph.getNodeIdByContentKey(incomingDep.id),
             );
             let resolution = nullthrows(assetGraph.getNode(resolutionNodeId));
-            invariant(resolution && resolution.type === 'asset_group');
+            invariant(
+              resolution &&
+                (resolution.type === 'asset_group' ||
+                  resolution.type === 'asset'),
+            );
 
             errors.push({
               message: md`${fromProjectPathRelative(

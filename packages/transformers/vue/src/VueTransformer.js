@@ -29,8 +29,10 @@ export default (new Transformer({
         '.vuerc.json',
         '.vuerc.js',
         '.vuerc.cjs',
+        '.vuerc.mjs',
         'vue.config.js',
         'vue.config.cjs',
+        'vue.config.mjs',
       ],
       {packageKey: 'vue'},
     );

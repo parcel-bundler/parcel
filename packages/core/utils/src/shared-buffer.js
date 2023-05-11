@@ -1,5 +1,4 @@
 // @flow
-/* global MessageChannel:readonly */
 
 export let SharedBuffer: Class<ArrayBuffer> | Class<SharedArrayBuffer>;
 

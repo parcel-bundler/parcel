@@ -35,6 +35,8 @@ pub struct PackageJson<'a> {
   pub path: PathBuf,
   #[serde(default)]
   pub name: &'a str,
+  #[serde(rename = "type", default)]
+  pub module_type: ModuleType,
   main: Option<&'a str>,
   module: Option<&'a str>,
   tsconfig: Option<&'a str>,
@@ -53,11 +55,26 @@ pub struct PackageJson<'a> {
   side_effects: SideEffects<'a>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum ModuleType {
+  CommonJs,
+  Module,
+  Json,
+}
+
+impl Default for ModuleType {
+  fn default() -> Self {
+    ModuleType::CommonJs
+  }
+}
+
 impl<'a> Default for PackageJson<'a> {
   fn default() -> Self {
     PackageJson {
       path: Default::default(),
       name: "",
+      module_type: Default::default(),
       main: None,
       module: None,
       tsconfig: None,

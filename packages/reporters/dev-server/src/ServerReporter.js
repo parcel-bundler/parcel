@@ -33,6 +33,7 @@ export default (new Reporter({
             publicUrl: serveOptions.publicUrl ?? '/',
             inputFS: options.inputFS,
             outputFS: options.outputFS,
+            packageManager: options.packageManager,
             logger,
             hmrOptions,
           };

@@ -13,8 +13,6 @@ import path from 'path';
 import getPort from 'get-port';
 import {version} from '../package.json';
 
-require('v8-compile-cache');
-
 const program = new commander.Command();
 
 // Exit codes in response to signals are traditionally

@@ -417,4 +417,13 @@ describe('resolver', function () {
       },
     );
   });
+
+  it('should support package exports config option', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/resolve-exports/index.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 'hello bar');
+  });
 });

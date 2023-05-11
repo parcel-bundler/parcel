@@ -1,10 +1,9 @@
-use crate::{builtins::BUILTINS, Flags};
+use crate::{builtins::BUILTINS, url_to_path::url_to_path, Flags};
 use percent_encoding::percent_decode_str;
 use std::{
   borrow::Cow,
   path::{is_separator, Path, PathBuf},
 };
-use url::Url;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum SpecifierType {
@@ -110,18 +109,10 @@ impl<'a> Specifier<'a> {
                   // See https://github.com/nodejs/node/issues/39710.
                   (Specifier::Builtin(Cow::Borrowed(path)), None)
                 }
-                "file" => {
-                  // Fully parsing file urls is somewhat complex, so use the url crate for this.
-                  let url = Url::parse(specifier)?;
-                  (
-                    Specifier::Absolute(Cow::Owned(
-                      url
-                        .to_file_path()
-                        .map_err(|_| SpecifierError::InvalidFileUrl)?,
-                    )),
-                    query,
-                  )
-                }
+                "file" => (
+                  Specifier::Absolute(Cow::Owned(url_to_path(specifier)?)),
+                  query,
+                ),
                 _ => (Specifier::Url(specifier), None),
               }
             } else {
