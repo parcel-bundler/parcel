@@ -3,15 +3,15 @@ import {FilePath} from '@parcel/types';
 type BackendType = 'process' | 'threads';
 
 export type FarmOptions = {
-  maxConcurrentWorkers: number,
-  maxConcurrentCallsPerWorker: number,
-  forcedKillTime: number,
-  useLocalWorker: boolean,
-  warmWorkers: boolean,
-  workerPath?: FilePath,
-  backend: BackendType,
-  shouldPatchConsole?: boolean,
-  shouldProfileApplication?: boolean,
+  maxConcurrentWorkers: number;
+  maxConcurrentCallsPerWorker: number;
+  forcedKillTime: number;
+  useLocalWorker: boolean;
+  warmWorkers: boolean;
+  workerPath?: FilePath;
+  backend: BackendType;
+  shouldPatchConsole?: boolean;
+  shouldTrace?: boolean;
 };
 
 declare class WorkerFarm {
@@ -20,4 +20,4 @@ declare class WorkerFarm {
   end(): Promise<void>;
 }
 
-export default WorkerFarm; 
+export default WorkerFarm;

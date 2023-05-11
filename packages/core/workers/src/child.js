@@ -146,7 +146,7 @@ export class Child {
           unpatchConsole();
         }
 
-        if (childOptions.shouldProfileApplication) {
+        if (childOptions.shouldTrace) {
           tracer.enable();
         }
 
