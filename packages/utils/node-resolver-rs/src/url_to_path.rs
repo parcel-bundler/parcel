@@ -16,11 +16,9 @@ pub fn url_to_path(input: &str) -> Result<PathBuf, SpecifierError> {
 
   #[cfg(not(target_arch = "wasm32"))]
   {
-    Ok(
-      url
-        .to_file_path()
-        .map_err(|_| SpecifierError::InvalidFileUrl)?,
-    )
+    url
+      .to_file_path()
+      .map_err(|_| SpecifierError::InvalidFileUrl)
   }
 }
 
