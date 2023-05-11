@@ -1,0 +1,7 @@
+{
+  "extends": "@parcel/config-default",
+  "namers": ["@parcel/namer-magic-comment", "..."],
+  "transformers": {
+    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": ["@parcel/transformer-js-magic-comment", "..."]
+  }
+}
