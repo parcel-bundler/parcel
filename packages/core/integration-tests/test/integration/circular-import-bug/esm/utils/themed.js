@@ -2,8 +2,7 @@
 
 import getTheme from './get-theme';
 
-export default function themed(modesOrVariant, variantModes) {
-  
+export default function themed() {
   return function (props) {
     var a = getTheme(props);
     return a;

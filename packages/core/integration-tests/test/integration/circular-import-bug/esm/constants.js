@@ -1,6 +1,4 @@
-import { skeleton as skeletonColor } from './colors';
-export var CHANNEL = '__ATLASKIT_THEME__';
-export var DEFAULT_THEME_MODE = 'light';
-export var THEME_MODES = ['light', 'dark'];
+import { skeleton as skeletonColor } from './colors'; //bug goes away without this
+export var SOME = 'THING';
 
 export { skeleton as skeletonColor };

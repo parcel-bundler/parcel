@@ -2,12 +2,9 @@
 
 import themed from './utils/themed';
 
-export var background = themed({
-  light: "var(--ds-surface, ".concat('b', ")"),
-  dark: "var(--ds-surface, ".concat('b', ")")
-});
+export var background = themed();
 
 
 export var skeleton = function skeleton() {
-  return "var(--ds-skeleton, ".concat(N20A, ")");
+  return "something";
 };
