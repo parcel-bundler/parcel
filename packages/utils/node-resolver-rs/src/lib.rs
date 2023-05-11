@@ -215,7 +215,7 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
       Ok(s) => s,
       Err(e) => return Err(e.into()),
     };
-    let mut request = ResolveRequest::new(self, &specifier, specifier_type, from, &invalidations);
+    let mut request = ResolveRequest::new(self, &specifier, specifier_type, from, invalidations);
     if !options.conditions.is_empty() || !options.custom_conditions.is_empty() {
       // If custom conditions are defined, these override the default conditions inferred from the specifier type.
       request.conditions = self.conditions | options.conditions;
