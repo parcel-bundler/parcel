@@ -2,6 +2,7 @@
 
 import type {Root} from 'postcss';
 import type {Asset, Dependency} from '@parcel/types';
+import type {DiagnosticWithLevel} from '@parcel/diagnostic';
 import typeof PostCSS from 'postcss';
 
 import path from 'path';
@@ -29,6 +30,7 @@ export default (new Packager({
       maxConcurrent: 32,
     });
     let hoistedImports = [];
+    let diagnostics: Array<DiagnosticWithLevel> = [];
     bundle.traverse({
       exit: node => {
         if (node.type === 'dependency') {
@@ -70,6 +72,7 @@ export default (new Packager({
               bundle,
               asset,
               media,
+              diagnostics,
             );
           } else {
             return Promise.all([
@@ -161,17 +164,20 @@ export default (new Packager({
       getReplacement: escapeString,
     }));
 
-    return replaceInlineReferences({
-      bundle,
-      bundleGraph,
-      contents,
-      getInlineBundleContents,
-      getInlineReplacement: (dep, inlineType, contents) => ({
-        from: getSpecifier(dep),
-        to: escapeString(contents),
-      }),
-      map,
-    });
+    return {
+      ...(await replaceInlineReferences({
+        bundle,
+        bundleGraph,
+        contents,
+        getInlineBundleContents,
+        getInlineReplacement: (dep, inlineType, contents) => ({
+          from: getSpecifier(dep),
+          to: escapeString(contents),
+        }),
+        map,
+      })),
+      diagnostics,
+    };
   },
 }): Packager);
 
@@ -194,6 +200,7 @@ async function processCSSModule(
   bundle,
   asset,
   media,
+  diagnostics,
 ): Promise<[Asset, string, ?Buffer]> {
   let postcss: PostCSS = await options.packageManager.require(
     'postcss',
@@ -219,7 +226,7 @@ async function processCSSModule(
       defaultImport = incoming.find(d => d.symbols.hasExportSymbol('default'));
       if (defaultImport) {
         let loc = defaultImport.symbols.get('default')?.loc;
-        logger.warn({
+        diagnostics.push({
           message:
             'CSS modules cannot be tree shaken when imported with a default specifier',
           ...(loc && {
@@ -234,6 +241,7 @@ async function processCSSModule(
             `Instead do: import * as style from "${defaultImport.specifier}";`,
           ],
           documentationURL: 'https://parceljs.org/languages/css/#tree-shaking',
+          level: 'warn',
         });
       }
     }

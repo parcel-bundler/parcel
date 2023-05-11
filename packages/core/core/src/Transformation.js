@@ -19,6 +19,7 @@ import type {
   ParcelOptions,
   InternalFileCreateInvalidation,
   InternalDevDepOptions,
+  InternalDiagnosticWithLevel,
 } from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
@@ -54,7 +55,7 @@ import {
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION, FILE_CREATE} from './constants';
-import {optionsProxy} from './utils';
+import {optionsProxy, toInternalDiagnosticWithLevel} from './utils';
 import {createConfig} from './InternalConfig';
 import {
   getConfigHash,
@@ -83,6 +84,11 @@ type PostProcessFunc = (
   Array<UncommittedAsset>,
 ) => Promise<Array<UncommittedAsset> | null>;
 
+type TransformationCacheEntry = {|
+  $$raw: true,
+  assets: Array<[AssetValue, Array<InternalDiagnosticWithLevel>]>,
+|};
+
 export type TransformationOpts = {|
   options: ParcelOptions,
   config: ParcelConfig,
@@ -93,6 +99,7 @@ export type TransformationOpts = {|
 export type TransformationResult = {|
   assets?: Array<AssetValue>,
   error?: Array<Diagnostic>,
+  diagnostics?: Map<string, Array<InternalDiagnosticWithLevel>>,
   configRequests: Array<ConfigRequest>,
   invalidations: Array<RequestInvalidation>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
@@ -194,9 +201,25 @@ export default class Transformation {
       asset.value.pipeline,
     );
     let assets, error;
+    let diagnosticsAll = new Set();
+    let diagnosticsByAsset = new Map();
     try {
       let results = await this.runPipelines(pipeline, asset);
+
       assets = results.map(a => a.value);
+      // Deduplicate diagnostics across all assets, as returning multiple dependencies
+      // can lead to duplicates.
+      // TODO give diagnostics an ID as equality might break
+      for (let a of results) {
+        let assetDiagnostics = [];
+        for (let d of a.diagnostics) {
+          if (!diagnosticsAll.has(d)) {
+            assetDiagnostics.push(d);
+            diagnosticsAll.add(d);
+          }
+        }
+        diagnosticsByAsset.set(a.value.id, assetDiagnostics);
+      }
     } catch (e) {
       error = e;
     }
@@ -210,17 +233,19 @@ export default class Transformation {
       ...this.resolverRunner.devDepRequests.values(),
     ]);
 
-    // $FlowFixMe because of $$raw
-    return {
-      $$raw: true,
+    let result = {
       assets,
       configRequests,
       // When throwing an error, this (de)serialization is done automatically by the WorkerFarm
       error: error ? anyToDiagnostic(error) : undefined,
+      diagnostics: diagnosticsByAsset,
       invalidateOnFileCreate: this.invalidateOnFileCreate,
       invalidations: [...this.invalidations.values()],
       devDepRequests,
     };
+    // $FlowFixMe because of $$raw
+    result.$$raw = true;
+    return result;
   }
 
   async loadAsset(): Promise<UncommittedAsset> {
@@ -252,23 +277,26 @@ export default class Transformation {
     if (code != null) {
       idBase += hash;
     }
+
+    let value = createAsset(this.options.projectRoot, {
+      idBase,
+      filePath,
+      isSource,
+      type: path.extname(fromProjectPathRelative(filePath)).slice(1),
+      hash,
+      pipeline,
+      env,
+      query,
+      stats: {
+        time: 0,
+        size,
+      },
+      sideEffects,
+    });
+
     return new UncommittedAsset({
       idBase,
-      value: createAsset(this.options.projectRoot, {
-        idBase,
-        filePath,
-        isSource,
-        type: path.extname(fromProjectPathRelative(filePath)).slice(1),
-        hash,
-        pipeline,
-        env,
-        query,
-        stats: {
-          time: 0,
-          size,
-        },
-        sideEffects,
-      }),
+      value,
       options: this.options,
       content,
       invalidations: this.invalidations,
@@ -463,7 +491,9 @@ export default class Transformation {
         }
 
         try {
-          let transformerResults = await this.runTransformer(
+          let transformerResults: $ReadOnlyArray<
+            TransformerResult | UncommittedAsset,
+          > = await this.runTransformer(
             pipeline,
             asset,
             transformer.plugin,
@@ -474,18 +504,16 @@ export default class Transformation {
           );
 
           for (let result of transformerResults) {
-            if (result instanceof UncommittedAsset) {
-              resultingAssets.push(result);
-              continue;
-            }
-            resultingAssets.push(
-              asset.createChildAsset(
-                result,
-                transformer.name,
-                this.parcelConfig.filePath,
-                transformer.configKeyPath,
-              ),
-            );
+            let resultAsset =
+              result instanceof UncommittedAsset
+                ? result
+                : asset.createChildAsset(
+                    result,
+                    transformer.name,
+                    this.parcelConfig.filePath,
+                    transformer.configKeyPath,
+                  );
+            resultingAssets.push(resultAsset);
           }
         } catch (e) {
           let diagnostic = errorToDiagnostic(e, {
@@ -560,7 +588,7 @@ export default class Transformation {
       return null;
     }
 
-    let cached = await this.options.cache.get<{|assets: Array<AssetValue>|}>(
+    let cached = await this.options.cache.get<TransformationCacheEntry>(
       cacheKey,
     );
     if (!cached) {
@@ -570,7 +598,7 @@ export default class Transformation {
     let cachedAssets = cached.assets;
 
     return Promise.all(
-      cachedAssets.map(async (value: AssetValue) => {
+      cachedAssets.map(async ([value, diagnostics]) => {
         let content =
           value.contentKey != null
             ? value.isLargeBlob
@@ -594,6 +622,7 @@ export default class Transformation {
           content,
           mapBuffer,
           ast,
+          diagnostics,
         });
       }),
     );
@@ -609,10 +638,13 @@ export default class Transformation {
       assets.map(asset => asset.commit(invalidationHash + pipelineHash)),
     );
 
-    this.options.cache.set(cacheKey, {
-      $$raw: true,
-      assets: assets.map(a => a.value),
-    });
+    this.options.cache.set(
+      cacheKey,
+      ({
+        $$raw: true,
+        assets: assets.map(a => [a.value, a.diagnostics]),
+      }: TransformationCacheEntry),
+    );
   }
 
   getCacheKey(
@@ -825,13 +857,18 @@ export default class Transformation {
     let transfomerResult: Array<TransformerResult | MutableAsset> =
       // $FlowFixMe the returned IMutableAsset really is a MutableAsset
       await transformer.transform({
+        // TODO adjust diagnostic origin?
         asset: new MutableAsset(asset),
         config,
         options: pipeline.pluginOptions,
         resolve,
         logger,
       });
-    let results = await normalizeAssets(this.options, transfomerResult);
+    let results = await normalizeAssets(
+      this.options,
+      transfomerResult,
+      transformerName,
+    );
 
     // Create generate and postProcess function that can be called later
     asset.generate = (): Promise<GenerateOutput> => {
@@ -904,12 +941,32 @@ type TransformerWithNameAndConfig = {|
 function normalizeAssets(
   options,
   results: Array<TransformerResult | MutableAsset>,
+  transformerName: string,
 ): Array<TransformerResult | UncommittedAsset> {
   return results.map(result => {
+    let asset;
     if (result instanceof MutableAsset) {
-      return mutableAssetToUncommittedAsset(result);
+      asset = mutableAssetToUncommittedAsset(result);
+      asset.diagnostics = asset.diagnostics.map(d =>
+        d.origin != null
+          ? d
+          : {
+              ...d,
+              origin: transformerName,
+            },
+      );
+    } else {
+      asset = result;
+      // $FlowFixMe[cannot-write]
+      asset.diagnostics = asset.diagnostics?.map(d =>
+        d.origin != null
+          ? d
+          : toInternalDiagnosticWithLevel(options.projectRoot, {
+              ...d,
+              origin: transformerName,
+            }),
+      );
     }
-
-    return result;
+    return asset;
   });
 }

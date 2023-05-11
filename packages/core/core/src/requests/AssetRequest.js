@@ -63,7 +63,13 @@ function getId(input: AssetRequestInput) {
   );
 }
 
-async function run({input, api, farm, invalidateReason, options}) {
+async function run({
+  input,
+  api,
+  farm,
+  invalidateReason,
+  options,
+}): Promise<AssetRequestResult> {
   report({
     type: 'buildProgress',
     phase: 'transforming',
@@ -133,6 +139,7 @@ async function run({input, api, farm, invalidateReason, options}) {
     invalidations,
     invalidateOnFileCreate,
     devDepRequests,
+    diagnostics,
   } = (await farm.createHandle(
     'runTransform',
     input.isSingleChangeRebuild,
@@ -181,6 +188,6 @@ async function run({input, api, farm, invalidateReason, options}) {
   if (error != null) {
     throw new ThrowableDiagnostic({diagnostic: error});
   } else {
-    return nullthrows(assets);
+    return {assets: nullthrows(assets), diagnostics};
   }
 }

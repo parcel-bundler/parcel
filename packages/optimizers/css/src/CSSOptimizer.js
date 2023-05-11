@@ -66,7 +66,6 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
   async optimize({
     bundle,
     bundleGraph,
-    logger,
     contents: prevContents,
     getSourceMapReference,
     map: prevMap,
@@ -79,6 +78,8 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
     let targets = getTargets(bundle.env.engines.browsers);
     let code = await blobToBuffer(prevContents);
 
+    // TODO these warnings will only show in prod
+    let diagnostics = [];
     let unusedSymbols;
     if (bundle.env.shouldScopeHoist) {
       unusedSymbols = [];
@@ -103,7 +104,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
           );
           if (defaultImport) {
             let loc = defaultImport.symbols.get('default')?.loc;
-            logger.warn({
+            diagnostics.push({
               message:
                 'CSS modules cannot be tree shaken when imported with a default specifier',
               ...(loc && {
@@ -121,6 +122,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
               ],
               documentationURL:
                 'https://parceljs.org/languages/css/#tree-shaking',
+              level: 'warn',
             });
           }
         }
@@ -186,6 +188,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
     return {
       contents,
       map,
+      diagnostics,
     };
   },
 }): Optimizer);

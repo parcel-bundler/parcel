@@ -11,9 +11,11 @@ import type {
   Config,
   DevDepRequest,
   ParcelOptions,
+  InternalDiagnosticWithLevel,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import type {ContentKey} from '@parcel/graph';
 
 import invariant from 'assert';
 import assert from 'assert';
@@ -74,6 +76,7 @@ export type BundleGraphResult = {|
   bundleGraph: InternalBundleGraph,
   changedAssets: Map<string, Asset>,
   assetRequests: Array<AssetGroup>,
+  diagnostics: Array<InternalDiagnosticWithLevel>,
 |};
 
 type BundleGraphRequest = {|
@@ -99,12 +102,15 @@ export default function createBundleGraphRequest(
         shouldBuildLazily: options.shouldBuildLazily,
         requestedAssetIds,
       });
-      let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
-        request,
-        {
-          force: options.shouldBuildLazily && requestedAssetIds.size > 0,
-        },
-      );
+      let {
+        assetGraph,
+        changedAssets,
+        assetRequests,
+        targetDiagnostics,
+        diagnostics,
+      } = await api.runRequest(request, {
+        force: options.shouldBuildLazily && requestedAssetIds.size > 0,
+      });
 
       assertSignalNotAborted(signal);
 
@@ -136,7 +142,9 @@ export default function createBundleGraphRequest(
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
       let res: BundleGraphResult = await builder.bundle({
         graph: assetGraph,
-        changedAssets: changedAssets,
+        changedAssets,
+        targetDiagnostics,
+        diagnostics,
         assetRequests,
       });
 
@@ -237,10 +245,14 @@ class BundlerRunner {
     graph,
     changedAssets,
     assetRequests,
+    targetDiagnostics,
+    diagnostics,
   }: {|
     graph: AssetGraph,
     changedAssets: Map<string, Asset>,
     assetRequests: Array<AssetGroup>,
+    targetDiagnostics: Array<InternalDiagnosticWithLevel>,
+    diagnostics: Map<ContentKey, Array<InternalDiagnosticWithLevel>>,
   |}): Promise<BundleGraphResult> {
     report({
       type: 'buildProgress',
@@ -397,6 +409,7 @@ class BundlerRunner {
       }
 
       this.validateBundles(internalBundleGraph);
+      // TODO diagnostics from runtimes
 
       // Pre-compute the hashes for each bundle so they are only computed once and shared between workers.
       internalBundleGraph.getBundleGraphHash();
@@ -409,11 +422,15 @@ class BundlerRunner {
       bundleGraphEdgeTypes,
     );
 
+    let diagnosticsArray: Array<InternalDiagnosticWithLevel> =
+      targetDiagnostics.concat([...diagnostics.values()].flat());
+
     this.api.storeResult(
       {
         bundleGraph: internalBundleGraph,
         changedAssets: new Map(),
         assetRequests: [],
+        diagnostics: diagnosticsArray,
       },
       this.cacheKey,
     );
@@ -422,6 +439,7 @@ class BundlerRunner {
       bundleGraph: internalBundleGraph,
       changedAssets: changedRuntimes,
       assetRequests,
+      diagnostics: diagnosticsArray,
     };
   }
 

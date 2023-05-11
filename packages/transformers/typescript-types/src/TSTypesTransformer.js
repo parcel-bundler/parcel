@@ -159,7 +159,7 @@ export default (new Transformer({
       throw new ThrowableDiagnostic({diagnostic: parcelDiagnostics});
     } else {
       for (let d of parcelDiagnostics) {
-        logger.warn(d);
+        asset.addDiagnostic({...d, level: 'warn'});
       }
     }
 

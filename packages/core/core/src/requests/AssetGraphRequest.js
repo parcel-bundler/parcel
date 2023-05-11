@@ -1,21 +1,23 @@
 // @flow strict-local
 
-import type {NodeId} from '@parcel/graph';
+import type {Diagnostic} from '@parcel/diagnostic';
+import type {ContentKey, NodeId} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {
   Asset,
   AssetGroup,
   AssetRequestInput,
+  AssetRequestResult,
   Dependency,
   Entry,
+  InternalDiagnosticWithLevel,
   ParcelOptions,
   Target,
 } from '../types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
-import type {Diagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -51,6 +53,8 @@ type AssetGraphRequestResult = {|
   assetGroupsWithRemovedParents: ?Set<NodeId>,
   previousSymbolPropagationErrors: ?Map<NodeId, Array<Diagnostic>>,
   assetRequests: Array<AssetGroup>,
+  targetDiagnostics: Array<InternalDiagnosticWithLevel>,
+  diagnostics: Map<ContentKey, Array<InternalDiagnosticWithLevel>>,
 |};
 
 type RunInput = {|
@@ -76,7 +80,7 @@ export default function createAssetGraphRequest(
         await input.api.getPreviousResult<AssetGraphRequestResult>();
 
       let builder = new AssetGraphBuilder(input, prevResult);
-      let assetGraphRequest = await await builder.build();
+      let assetGraphRequest = await builder.build();
 
       // early break for incremental bundling if production or flag is off;
       if (
@@ -115,6 +119,8 @@ export class AssetGraphBuilder {
   isSingleChangeRebuild: boolean;
   assetGroupsWithRemovedParents: Set<NodeId>;
   previousSymbolPropagationErrors: Map<NodeId, Array<Diagnostic>>;
+  targetDiagnostics: Array<InternalDiagnosticWithLevel> = [];
+  diagnostics: Map<ContentKey, Array<InternalDiagnosticWithLevel>>;
 
   constructor(
     {input, api, options}: RunInput,
@@ -151,6 +157,7 @@ export class AssetGraphBuilder {
     this.cacheKey = hashString(
       `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
     );
+    this.diagnostics = prevResult?.diagnostics ?? new Map();
 
     this.isSingleChangeRebuild =
       api.getInvalidSubRequests().filter(req => req.type === 'asset_request')
@@ -174,6 +181,10 @@ export class AssetGraphBuilder {
           childNode.usedSymbolsDownDirty = true;
           this.assetGroupsWithRemovedParents.add(child);
         }
+      }
+
+      if (node.type === 'asset') {
+        this.diagnostics.delete(node.value.id);
       }
     };
   }
@@ -226,6 +237,8 @@ export class AssetGraphBuilder {
           assetGroupsWithRemovedParents: this.assetGroupsWithRemovedParents,
           previousSymbolPropagationErrors: undefined,
           assetRequests: [],
+          diagnostics: this.diagnostics,
+          targetDiagnostics: this.targetDiagnostics,
         },
         this.cacheKey,
       );
@@ -246,6 +259,7 @@ export class AssetGraphBuilder {
           changedAssetsPropagation: this.changedAssetsPropagation,
           assetGroupsWithRemovedParents: this.assetGroupsWithRemovedParents,
           previousErrors: this.previousSymbolPropagationErrors,
+          diagnostics: this.diagnostics,
         });
         this.changedAssetsPropagation.clear();
 
@@ -258,6 +272,8 @@ export class AssetGraphBuilder {
               assetGroupsWithRemovedParents: this.assetGroupsWithRemovedParents,
               previousSymbolPropagationErrors: errors,
               assetRequests: [],
+              diagnostics: this.diagnostics,
+              targetDiagnostics: this.targetDiagnostics,
             },
             this.cacheKey,
           );
@@ -286,6 +302,8 @@ export class AssetGraphBuilder {
         assetGroupsWithRemovedParents: undefined,
         previousSymbolPropagationErrors: undefined,
         assetRequests: [],
+        diagnostics: this.diagnostics,
+        targetDiagnostics: this.targetDiagnostics,
       },
       this.cacheKey,
     );
@@ -297,6 +315,8 @@ export class AssetGraphBuilder {
       assetGroupsWithRemovedParents: undefined,
       previousSymbolPropagationErrors: undefined,
       assetRequests: this.assetRequests,
+      targetDiagnostics: this.targetDiagnostics,
+      diagnostics: this.diagnostics,
     };
   }
 
@@ -407,9 +427,17 @@ export class AssetGraphBuilder {
 
   async runTargetRequest(input: Entry) {
     let request = createTargetRequest(input);
-    let targets = await this.api.runRequest<Entry, Array<Target>>(request, {
+    let {targets /* , diagnostics */} = await this.api.runRequest<
+      Entry,
+      {|
+        targets: Array<Target>,
+        diagnostics: Array<InternalDiagnosticWithLevel>,
+      |},
+    >(request, {
       force: true,
     });
+    // TODO this can run multiple times
+    // this.targetDiagnostics = diagnostics;
     this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 
@@ -430,10 +458,10 @@ export class AssetGraphBuilder {
       optionsRef: this.optionsRef,
       isSingleChangeRebuild: this.isSingleChangeRebuild,
     });
-    let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
-      request,
-      {force: true},
-    );
+    let {assets, diagnostics} = await this.api.runRequest<
+      AssetRequestInput,
+      AssetRequestResult,
+    >(request, {force: true});
 
     if (assets != null) {
       for (let asset of assets) {
@@ -455,6 +483,15 @@ export class AssetGraphBuilder {
       this.assetGraph.resolveAssetGroup(input, assets, request.id);
     } else {
       this.assetGraph.safeToIncrementallyBundle = false;
+    }
+
+    for (let asset of assets) {
+      this.diagnostics.delete(asset.id);
+    }
+    if (diagnostics) {
+      for (let [asset, diagnostic] of diagnostics) {
+        this.diagnostics.set(asset, diagnostic);
+      }
     }
 
     this.isSingleChangeRebuild = false;

@@ -1,5 +1,6 @@
 // @flow
 import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
+import type {Color} from 'chalk';
 
 import chalk from 'chalk';
 import emphasize from 'emphasize';
@@ -20,6 +21,7 @@ type CodeFrameOptions = {|
   padding: CodeFramePadding,
   terminalWidth: number,
   language?: string,
+  baseColor?: Color,
 |};
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
@@ -56,13 +58,15 @@ export default function codeFrame(
       before: 1,
       after: 2,
     },
+    baseColor: inputOpts.baseColor ?? 'red',
   };
 
   // Highlights messages and prefixes when colors are enabled
   const highlighter = (s: string, bold?: boolean) => {
     if (opts.useColor) {
-      let redString = chalk.red(s);
-      return bold ? chalk.bold(redString) : redString;
+      // $FlowFixMe[incompatible-use]
+      let colorString = chalk[opts.baseColor](s);
+      return bold ? chalk.bold(colorString) : colorString;
     }
 
     return s;

@@ -15,6 +15,7 @@ import type {
   Dependency,
   ParcelOptions,
   InternalFileCreateInvalidation,
+  InternalDiagnosticWithLevel,
 } from './types';
 
 import invariant from 'assert';
@@ -40,7 +41,10 @@ import {
   getInvalidationHash,
 } from './assetUtils';
 import {BundleBehaviorNames} from './types';
-import {invalidateOnFileCreateToInternal} from './utils';
+import {
+  invalidateOnFileCreateToInternal,
+  toInternalDiagnosticWithLevel,
+} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
 
 type UncommittedAssetOptions = {|
@@ -53,6 +57,7 @@ type UncommittedAssetOptions = {|
   idBase?: ?string,
   invalidations?: Map<string, RequestInvalidation>,
   fileCreateInvalidations?: Array<InternalFileCreateInvalidation>,
+  diagnostics?: Array<InternalDiagnosticWithLevel>,
 |};
 
 export default class UncommittedAsset {
@@ -68,6 +73,7 @@ export default class UncommittedAsset {
   invalidations: Map<string, RequestInvalidation>;
   fileCreateInvalidations: Array<InternalFileCreateInvalidation>;
   generate: ?() => Promise<GenerateOutput>;
+  diagnostics: Array<InternalDiagnosticWithLevel>;
 
   constructor({
     value,
@@ -79,6 +85,7 @@ export default class UncommittedAsset {
     idBase,
     invalidations,
     fileCreateInvalidations,
+    diagnostics,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
@@ -89,6 +96,7 @@ export default class UncommittedAsset {
     this.idBase = idBase;
     this.invalidations = invalidations || new Map();
     this.fileCreateInvalidations = fileCreateInvalidations || [];
+    this.diagnostics = diagnostics || [];
   }
 
   /*
@@ -429,6 +437,12 @@ export default class UncommittedAsset {
       idBase: this.idBase,
       invalidations: this.invalidations,
       fileCreateInvalidations: this.fileCreateInvalidations,
+      diagnostics: [
+        ...this.diagnostics,
+        ...(result.diagnostics?.map(d =>
+          toInternalDiagnosticWithLevel(this.options.projectRoot, d),
+        ) ?? []),
+      ],
     });
 
     let dependencies = result.dependencies;

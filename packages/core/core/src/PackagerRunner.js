@@ -10,10 +10,12 @@ import type {
   Async,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
+
 import type {
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
+  InternalDiagnosticWithLevel,
   ParcelOptions,
   ReportFn,
   RequestInvalidation,
@@ -59,7 +61,7 @@ import {
 } from './requests/DevDepRequest';
 import {createBuildCache} from './buildCache';
 import {getInvalidationId, getInvalidationHash} from './assetUtils';
-import {optionsProxy} from './utils';
+import {optionsProxy, toInternalDiagnosticWithLevel} from './utils';
 import {invalidateDevDeps} from './requests/DevDepRequest';
 
 type Opts = {|
@@ -85,6 +87,7 @@ export type BundleInfo = {|
   +time?: number,
   +cacheKeys: CacheKeyMap,
   +isLargeBlob: boolean,
+  +diagnostics: Array<InternalDiagnosticWithLevel>,
 |};
 
 type CacheKeyMap = {|
@@ -307,7 +310,7 @@ export default class PackagerRunner {
     configs: Map<string, Config>,
     bundleConfigs: Map<string, Config>,
   ): Promise<BundleInfo> {
-    let {type, contents, map} = await this.getBundleResult(
+    let {type, contents, map, diagnostics} = await this.getBundleResult(
       bundle,
       bundleGraph,
       configs,
@@ -328,7 +331,7 @@ export default class PackagerRunner {
       info: PackagerRunner.getInfoKey(cacheKey),
     };
 
-    return this.writeToCache(cacheKeys, type, contents, map);
+    return this.writeToCache(cacheKeys, type, contents, map, diagnostics);
   }
 
   async getBundleResult(
@@ -340,15 +343,16 @@ export default class PackagerRunner {
     type: string,
     contents: Blob,
     map: ?string,
+    diagnostics: Array<InternalDiagnosticWithLevel>,
   |}> {
-    let packaged = await this.package(
+    let packaged: BundleResult = await this.package(
       bundle,
       bundleGraph,
       configs,
       bundleConfigs,
     );
     let type = packaged.type ?? bundle.type;
-    let res = await this.optimize(
+    let res: BundleResult = await this.optimize(
       bundle,
       bundleGraph,
       type,
@@ -358,12 +362,21 @@ export default class PackagerRunner {
       bundleConfigs,
     );
 
+    let diagnostics = packaged.diagnostics ?? [];
+    if (res.diagnostics) {
+      diagnostics.push(...res.diagnostics);
+    }
+    diagnostics = diagnostics.map(d =>
+      toInternalDiagnosticWithLevel(this.options.projectRoot, d),
+    );
+
     let map =
       res.map != null ? await this.generateSourceMap(bundle, res.map) : null;
     return {
       type: res.type ?? type,
       contents: res.contents,
       map,
+      diagnostics,
     };
   }
 
@@ -395,7 +408,7 @@ export default class PackagerRunner {
     let packager = await this.config.getPackager(bundle.name);
     let {name, resolveFrom, plugin} = packager;
     try {
-      return await plugin.package({
+      let result = await plugin.package({
         config: configs.get(name)?.result,
         bundleConfig: bundleConfigs.get(name)?.result,
         bundle,
@@ -430,6 +443,13 @@ export default class PackagerRunner {
           return {contents: res.contents};
         },
       });
+      return {
+        ...result,
+        diagnostics: result.diagnostics?.map(d => ({
+          ...d,
+          origin: d.origin ?? name,
+        })),
+      };
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
@@ -492,6 +512,7 @@ export default class PackagerRunner {
       type,
       contents,
       map,
+      diagnostics: [],
     };
 
     for (let optimizer of optimizers) {
@@ -513,6 +534,14 @@ export default class PackagerRunner {
         optimized.type = next.type ?? optimized.type;
         optimized.contents = next.contents;
         optimized.map = next.map;
+        if (next.diagnostics) {
+          optimized.diagnostics.push(
+            ...next.diagnostics?.map(d => ({
+              ...d,
+              origin: d.origin ?? optimizer.name,
+            })),
+          );
+        }
       } catch (e) {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
@@ -702,6 +731,7 @@ export default class PackagerRunner {
     type: string,
     contents: Blob,
     map: ?string,
+    diagnostics: Array<InternalDiagnosticWithLevel>,
   ): Promise<BundleInfo> {
     let size = 0;
     let hash;
@@ -751,6 +781,7 @@ export default class PackagerRunner {
       hashReferences,
       cacheKeys,
       isLargeBlob,
+      diagnostics,
     };
     await this.options.cache.set(cacheKeys.info, info);
     return info;

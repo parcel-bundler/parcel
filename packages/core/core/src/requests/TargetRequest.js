@@ -12,7 +12,12 @@ import type {
   OutputFormat,
 } from '@parcel/types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
-import type {Entry, ParcelOptions, Target} from '../types';
+import type {
+  Entry,
+  InternalDiagnosticWithLevel,
+  ParcelOptions,
+  Target,
+} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {
@@ -28,7 +33,6 @@ import {
   hashObject,
   validateSchema,
 } from '@parcel/utils';
-import logger from '@parcel/logger';
 import {createEnvironment} from '../Environment';
 import createParcelConfigRequest, {
   getCachedParcelConfig,
@@ -86,10 +90,15 @@ const DEFAULT_ENGINES = {
   ],
 };
 
+type TargetRequestResult = {|
+  targets: Array<Target>,
+  diagnostics: Array<InternalDiagnosticWithLevel>,
+|};
+
 export type TargetRequest = {|
   id: string,
   +type: 'target_request',
-  run: (RunOpts<Array<Target>>) => Async<Array<Target>>,
+  run: (RunOpts<TargetRequestResult>) => Async<TargetRequestResult>,
   input: Entry,
 |};
 
@@ -143,16 +152,18 @@ async function run({input, api, options}) {
     }
   }
 
+  // TODO
   if (options.logLevel === 'verbose') {
-    await debugResolvedTargets(
+    let diagnostics = await debugResolvedTargets(
       input,
       targets,
       targetResolver.targetInfo,
       options,
     );
+    return {targets, diagnostics};
   }
 
-  return targets;
+  return {targets, diagnostics: []};
 }
 
 type TargetInfo = {|
@@ -182,11 +193,11 @@ type TargetKeyInfo =
 
 export class TargetResolver {
   fs: FileSystem;
-  api: RunAPI<Array<Target>>;
+  api: RunAPI<TargetRequestResult>;
   options: ParcelOptions;
   targetInfo: Map<string, TargetInfo>;
 
-  constructor(api: RunAPI<Array<Target>>, options: ParcelOptions) {
+  constructor(api: RunAPI<TargetRequestResult>, options: ParcelOptions) {
     this.api = api;
     this.fs = options.inputFS;
     this.options = options;
@@ -1462,7 +1473,13 @@ function assertTargetsAreNotEntries(
   }
 }
 
-async function debugResolvedTargets(input, targets, targetInfo, options) {
+async function debugResolvedTargets(
+  input,
+  targets,
+  targetInfo,
+  options,
+): Promise<Array<InternalDiagnosticWithLevel>> {
+  let diagnostics = [];
   for (let target of targets) {
     let info = targetInfo.get(target.name);
     let loc = target.loc;
@@ -1588,7 +1605,8 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
     }
 
     let format = v => (v.message != null ? md.italic(v.message) : '');
-    logger.verbose({
+    diagnostics.push({
+      level: 'verbose',
       origin: '@parcel/core',
       message: md`**Target** "${target.name}"
 
@@ -1614,11 +1632,12 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
       codeFrames: target.loc
         ? [
             {
-              filePath: targetFilePath,
+              filePath: toProjectPath(options.projectRoot, targetFilePath),
               codeHighlights: highlights,
             },
           ]
         : [],
     });
   }
+  return diagnostics;
 }

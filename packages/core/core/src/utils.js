@@ -12,8 +12,10 @@ import type {
   InternalFileCreateInvalidation,
   InternalSourceLocation,
   InternalDevDepOptions,
+  InternalDiagnosticWithLevel,
 } from './types';
 import type {PackageManager} from '@parcel/package-manager';
+import type {DiagnosticWithLevel} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import baseX from 'base-x';
@@ -233,4 +235,47 @@ export function toInternalSymbols<T: {|loc: ?SourceLocation|}>(
       },
     ]),
   );
+}
+
+export function toInternalDiagnosticWithLevel(
+  projectRoot: FilePath,
+  diagnostic: DiagnosticWithLevel,
+): InternalDiagnosticWithLevel {
+  if (diagnostic.codeFrames) {
+    return {
+      ...diagnostic,
+      codeFrames: diagnostic.codeFrames.map(f => {
+        return {
+          ...f,
+          filePath: toProjectPath(projectRoot, f.filePath),
+        };
+      }),
+    };
+  } else
+    return {
+      ...diagnostic,
+      codeFrames: diagnostic.codeFrames,
+    };
+}
+
+export function fromInternalDiagnosticWithLevel(
+  projectRoot: FilePath,
+  diagnostic: InternalDiagnosticWithLevel,
+): DiagnosticWithLevel {
+  if (diagnostic.codeFrames) {
+    return {
+      ...diagnostic,
+      codeFrames: diagnostic.codeFrames.map(({filePath, ...f}) => {
+        if (filePath == null) return {...f};
+        return {
+          ...f,
+          filePath: fromProjectPath(projectRoot, filePath),
+        };
+      }),
+    };
+  } else
+    return {
+      ...diagnostic,
+      codeFrames: diagnostic.codeFrames,
+    };
 }

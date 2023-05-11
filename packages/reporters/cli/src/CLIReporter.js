@@ -1,7 +1,10 @@
 // @flow
 import type {ReporterEvent, PluginOptions} from '@parcel/types';
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {Color} from 'chalk';
+import type {
+  Diagnostic,
+  DiagnosticWithLevel,
+  DiagnosticLevel,
+} from '@parcel/diagnostic';
 
 import {Reporter} from '@parcel/plugin';
 import {
@@ -99,17 +102,23 @@ export async function _report(
       break;
     }
     case 'buildSuccess':
-      if (logLevelFilter < logLevels.info) {
-        break;
+      if (logLevelFilter >= logLevels.info) {
+        persistSpinner(
+          'buildProgress',
+          'success',
+          chalk.green.bold(`Built in ${prettifyTime(event.buildTime)}`),
+        );
       }
 
-      persistSpinner(
-        'buildProgress',
-        'success',
-        chalk.green.bold(`Built in ${prettifyTime(event.buildTime)}`),
-      );
+      if (event.diagnostics.length > 0) {
+        await writeDiagnostic(
+          options,
+          event.diagnostics.filter(d => logLevels[d.level] <= logLevelFilter),
+          'info',
+        );
+      }
 
-      if (options.mode === 'production') {
+      if (logLevelFilter >= logLevels.info && options.mode === 'production') {
         await bundleReport(
           event.bundleGraph,
           options.outputFS,
@@ -127,7 +136,7 @@ export async function _report(
 
       persistSpinner('buildProgress', 'error', chalk.red.bold('Build failed.'));
 
-      await writeDiagnostic(options, event.diagnostics, 'red', true);
+      await writeDiagnostic(options, event.diagnostics, 'error', true);
       break;
     case 'log': {
       if (logLevelFilter < logLevels[event.level]) {
@@ -143,7 +152,7 @@ export async function _report(
           break;
         case 'verbose':
         case 'info':
-          await writeDiagnostic(options, event.diagnostics, 'blue');
+          await writeDiagnostic(options, event.diagnostics, 'info');
           break;
         case 'warn':
           if (
@@ -151,14 +160,14 @@ export async function _report(
               diagnostic => !seenWarnings.has(diagnostic.message),
             )
           ) {
-            await writeDiagnostic(options, event.diagnostics, 'yellow', true);
+            await writeDiagnostic(options, event.diagnostics, 'warn', true);
             for (let diagnostic of event.diagnostics) {
               seenWarnings.add(diagnostic.message);
             }
           }
           break;
         case 'error':
-          await writeDiagnostic(options, event.diagnostics, 'red', true);
+          await writeDiagnostic(options, event.diagnostics, 'error', true);
           break;
         default:
           throw new Error('Unknown log level ' + event.level);
@@ -169,8 +178,8 @@ export async function _report(
 
 async function writeDiagnostic(
   options: PluginOptions,
-  diagnostics: Array<Diagnostic>,
-  color: Color,
+  diagnostics: $ReadOnlyArray<Diagnostic | DiagnosticWithLevel>,
+  fallbackLevel: DiagnosticLevel,
   isError: boolean = false,
 ) {
   let columns = getTerminalWidth().columns;
@@ -178,9 +187,12 @@ async function writeDiagnostic(
   let spaceAfter = isError;
   for (let diagnostic of diagnostics) {
     let {message, stack, codeframe, hints, documentation} =
-      await prettyDiagnostic(diagnostic, options, columns - indent);
-    // $FlowFixMe[incompatible-use]
-    message = chalk[color](message);
+      await prettyDiagnostic(
+        diagnostic,
+        options,
+        columns - indent,
+        fallbackLevel,
+      );
 
     if (spaceAfter) {
       writeOut('');

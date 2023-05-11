@@ -20,7 +20,7 @@ export default (new Transformer({
     });
     return conf?.contents;
   },
-  async transform({asset, config, options, logger}) {
+  async transform({asset, config, options}) {
     // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
     // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
     let env = asset.env;
@@ -106,8 +106,8 @@ export default (new Transformer({
     }
 
     if (res.warnings) {
-      for (let warning of res.warnings) {
-        logger.warn({
+      asset.addDiagnostic(
+        res.warnings.map(warning => ({
           message: warning.message,
           codeFrames: [
             {
@@ -126,8 +126,9 @@ export default (new Transformer({
               ],
             },
           ],
-        });
-      }
+          level: 'warn',
+        })),
+      );
     }
 
     asset.setBuffer(res.code);

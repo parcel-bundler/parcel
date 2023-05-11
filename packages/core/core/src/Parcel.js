@@ -26,7 +26,10 @@ import ReporterRunner from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
-import {registerCoreWithSerializer} from './utils';
+import {
+  registerCoreWithSerializer,
+  fromInternalDiagnosticWithLevel,
+} from './utils';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
@@ -151,7 +154,15 @@ export default class Parcel {
     await this._end();
 
     if (result.type === 'buildFailure') {
-      throw new BuildError(result.diagnostics);
+      // TODO
+      /* eslint-disable no-unused-vars */
+      throw new BuildError(
+        // $FlowFixMe[prop-missing]
+        result.diagnostics.map(({level, ...d}) => ({
+          ...d,
+        })),
+        /* eslint-enable no-unused-vars */
+      );
     }
 
     return result;
@@ -269,7 +280,7 @@ export default class Parcel {
         signal,
       });
 
-      let {bundleGraph, bundleInfo, changedAssets, assetRequests} =
+      let {bundleGraph, bundleInfo, changedAssets, diagnostics, assetRequests} =
         await this.#requestTracker.runRequest(request, {force: true});
 
       this.#requestedAssetIds.clear();
@@ -301,6 +312,9 @@ export default class Parcel {
           options,
         ),
         buildTime: Date.now() - startTime,
+        diagnostics: diagnostics.map(d =>
+          fromInternalDiagnosticWithLevel(options.projectRoot, d),
+        ),
         requestBundle: async bundle => {
           let bundleNode = bundleGraph._graph.getNodeByContentKey(bundle.id);
           invariant(bundleNode?.type === 'bundle', 'Bundle does not exist');
@@ -310,6 +324,7 @@ export default class Parcel {
             return {
               type: 'buildSuccess',
               changedAssets: new Map(),
+              diagnostics: [],
               bundleGraph: event.bundleGraph,
               buildTime: 0,
               requestBundle: event.requestBundle,
@@ -331,7 +346,15 @@ export default class Parcel {
           let results = await this.#watchQueue.run();
           let result = results.filter(Boolean).pop();
           if (result.type === 'buildFailure') {
-            throw new BuildError(result.diagnostics);
+            throw new BuildError(
+              // TODO?
+              /* eslint-disable no-unused-vars */
+              // $FlowFixMe[prop-missing]
+              result.diagnostics.map(({level, ...d}) => ({
+                ...d,
+              })),
+              /* eslint-enable no-unused-vars */
+            );
           }
 
           return result;

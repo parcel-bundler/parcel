@@ -7,6 +7,7 @@ import type {
   AssetNode,
   DependencyNode,
   InternalSourceLocation,
+  InternalDiagnosticWithLevel,
   ParcelOptions,
 } from './types';
 import {type default as AssetGraph} from './AssetGraph';
@@ -14,7 +15,6 @@ import {type default as AssetGraph} from './AssetGraph';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {setEqual} from '@parcel/utils';
-import logger from '@parcel/logger';
 import {md} from '@parcel/diagnostic';
 import {BundleBehavior} from './types';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
@@ -25,12 +25,14 @@ export function propagateSymbols({
   changedAssetsPropagation,
   assetGroupsWithRemovedParents,
   previousErrors,
+  diagnostics,
 }: {|
   options: ParcelOptions,
   assetGraph: AssetGraph,
   changedAssetsPropagation: Set<string>,
   assetGroupsWithRemovedParents: Set<NodeId>,
   previousErrors?: ?Map<NodeId, Array<Diagnostic>>,
+  diagnostics?: Map<ContentKey, Array<InternalDiagnosticWithLevel>>,
 |}): Map<NodeId, Array<Diagnostic>> {
   let changedAssets = new Set(
     [...changedAssetsPropagation].map(id =>
@@ -233,18 +235,50 @@ export function propagateSymbols({
     depNode1,
     depNode2,
   ) => {
-    if (options.logLevel === 'verbose') {
-      logger.warn({
-        message: `${fromProjectPathRelative(
-          assetNode.value.filePath,
-        )} reexports "${symbol}", which could be resolved either to the dependency "${
-          depNode1.value.specifier
-        }" or "${
-          depNode2.value.specifier
-        }" at runtime. Adding a namespace object to fall back on.`,
-        origin: '@parcel/core',
-      });
+    if (!diagnostics) return;
+    let v = diagnostics.get(assetNode.value.id);
+    if (!v) {
+      v = [];
+      diagnostics.set(assetNode.value.id, v);
     }
+
+    let loc1 = depNode1.value.loc;
+    let loc2 = depNode2.value.loc;
+
+    v.push({
+      message: `${fromProjectPathRelative(
+        assetNode.value.filePath,
+      )} reexports "${symbol}", which could be resolved either to the dependency "${
+        depNode1.value.specifier
+      }" or "${
+        depNode2.value.specifier
+      }" at runtime. Adding a namespace object to fall back on.`,
+      origin: '@parcel/core',
+      codeFrames:
+        loc1 && loc2
+          ? loc1.filePath === loc2.filePath
+            ? [
+                {
+                  filePath: loc1.filePath,
+                  codeHighlights: [
+                    {start: loc1.start, end: loc1.end},
+                    {start: loc2.start, end: loc2.end},
+                  ],
+                },
+              ]
+            : [
+                {
+                  filePath: loc1.filePath,
+                  codeHighlights: [{start: loc1.start, end: loc1.end}],
+                },
+                {
+                  filePath: loc2.filePath,
+                  codeHighlights: [{start: loc2.start, end: loc2.end}],
+                },
+              ]
+          : undefined,
+      level: 'verbose',
+    });
   };
 
   // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
