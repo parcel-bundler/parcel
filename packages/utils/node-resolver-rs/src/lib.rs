@@ -203,9 +203,9 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     }
   }
 
-  pub fn resolve_with_invalidations<'s>(
+  pub fn resolve_with_invalidations(
     &self,
-    specifier: &'s str,
+    specifier: &str,
     from: &Path,
     specifier_type: SpecifierType,
     invalidations: &Invalidations,
