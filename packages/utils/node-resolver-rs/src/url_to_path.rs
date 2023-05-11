@@ -98,6 +98,7 @@ pub fn to_file_path(this: &Url) -> Result<PathBuf, ()> {
   Err(())
 }
 
+#[allow(clippy::manual_is_ascii_check)]
 #[cfg(any(target_arch = "wasm32", test))]
 fn file_url_segments_to_pathbuf(
   host: Option<&str>,
