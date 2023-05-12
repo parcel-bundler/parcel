@@ -38,6 +38,7 @@ import {
 } from './DevDepRequest';
 import ParcelConfig from '../ParcelConfig';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import {PluginTracer, tracer} from '@parcel/profiler';
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
@@ -243,11 +244,18 @@ async function runCompressor(
   devDeps: Map<string, string>,
   api: RunAPI<PackagedBundleInfo>,
 ) {
+  let measurement;
   try {
+    measurement = tracer.createMeasurement(
+      compressor.name,
+      'compress',
+      path.relative(options.projectRoot, filePath),
+    );
     let res = await compressor.plugin.compress({
       stream,
       options: new PluginOptions(options),
       logger: new PluginLogger({origin: compressor.name}),
+      tracer: new PluginTracer({origin: compressor.name, category: 'compress'}),
     });
 
     if (res != null) {
@@ -272,6 +280,7 @@ async function runCompressor(
       }),
     });
   } finally {
+    measurement && measurement.end();
     // Add dev deps for compressor plugins AFTER running them, to account for lazy require().
     let devDepRequest = await createDevDependency(
       {

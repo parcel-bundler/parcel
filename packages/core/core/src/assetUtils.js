@@ -38,6 +38,7 @@ import {
 } from './projectPath';
 import {hashString} from '@parcel/hash';
 import {BundleBehavior as BundleBehaviorMap} from './types';
+import {PluginTracer} from '@parcel/profiler';
 
 type AssetOptions = {|
   id?: string,
@@ -172,6 +173,7 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     ast,
     options: new PluginOptions(asset.options),
     logger: new PluginLogger({origin: pluginName}),
+    tracer: new PluginTracer({origin: pluginName, category: 'asset-generate'}),
   });
 
   let mapBuffer = map?.toBuffer();
