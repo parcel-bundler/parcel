@@ -13,7 +13,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {NodeFS} from '@parcel/fs';
-import {Resolver} from '../index';
+import {init, Resolver} from '../native';
 import builtins, {empty} from './builtins';
 import path from 'path';
 import {
@@ -49,6 +49,7 @@ type Options = {|
   mode?: BuildMode,
   mainFields?: Array<string>,
   extensions?: Array<string>,
+  packageExports?: boolean,
 |};
 
 type ResolveOptions = {|
@@ -79,9 +80,13 @@ export default class NodeResolver {
 
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
+      await init?.();
       resolver = new Resolver(this.options.projectRoot, {
         fs:
-          this.options.fs instanceof NodeFS && process.versions.pnp == null
+          this.options.fs instanceof NodeFS &&
+          process.versions.pnp == null &&
+          // For Wasm builds
+          !init
             ? undefined
             : {
                 canonicalize: path => this.options.fs.realpathSync(path),
@@ -99,6 +104,7 @@ export default class NodeResolver {
           options.env,
           this.options.mode,
         ),
+        packageExports: this.options.packageExports ?? false,
         moduleDirResolver:
           process.versions.pnp != null
             ? (module, from) => {
@@ -280,6 +286,9 @@ export default class NodeResolver {
               range: builtin.range,
             },
           );
+
+          // Need to clear the resolver caches after installing the package
+          this.resolversByEnv.clear();
 
           // Re-resolve
           return this.resolve({

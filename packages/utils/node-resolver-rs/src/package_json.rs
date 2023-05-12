@@ -35,6 +35,8 @@ pub struct PackageJson<'a> {
   pub path: PathBuf,
   #[serde(default)]
   pub name: &'a str,
+  #[serde(rename = "type", default)]
+  pub module_type: ModuleType,
   main: Option<&'a str>,
   module: Option<&'a str>,
   tsconfig: Option<&'a str>,
@@ -53,11 +55,26 @@ pub struct PackageJson<'a> {
   side_effects: SideEffects<'a>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum ModuleType {
+  CommonJs,
+  Module,
+  Json,
+}
+
+impl Default for ModuleType {
+  fn default() -> Self {
+    ModuleType::CommonJs
+  }
+}
+
 impl<'a> Default for PackageJson<'a> {
   fn default() -> Self {
     PackageJson {
       path: Default::default(),
       name: "",
+      module_type: Default::default(),
       main: None,
       module: None,
       tsconfig: None,
@@ -260,6 +277,23 @@ impl<'a> PackageJson<'a> {
       package: self,
       fields,
     };
+  }
+
+  pub fn source(&self) -> Option<PathBuf> {
+    match &self.source {
+      SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => None,
+      SourceField::String(source) => Some(resolve_path(&self.path, source)),
+      SourceField::Map(map) => match map.get(&Specifier::Package(
+        Cow::Borrowed(self.name),
+        Cow::Borrowed(""),
+      )) {
+        Some(AliasValue::Specifier(s)) => match s {
+          Specifier::Relative(s) => Some(resolve_path(&self.path, s)),
+          _ => None,
+        },
+        _ => None,
+      },
+    }
   }
 
   pub fn has_exports(&self) -> bool {
@@ -765,21 +799,8 @@ impl<'a> Iterator for EntryIter<'a> {
   fn next(&mut self) -> Option<Self::Item> {
     if self.fields.contains(Fields::SOURCE) {
       self.fields.remove(Fields::SOURCE);
-      match &self.package.source {
-        SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => {}
-        SourceField::String(source) => {
-          return Some((resolve_path(&self.package.path, source), "source"))
-        }
-        SourceField::Map(map) => match map.get(&Specifier::Package(
-          Cow::Borrowed(self.package.name),
-          Cow::Borrowed(""),
-        )) {
-          Some(AliasValue::Specifier(s)) => match s {
-            Specifier::Relative(s) => return Some((resolve_path(&self.package.path, s), "source")),
-            _ => {}
-          },
-          _ => {}
-        },
+      if let Some(source) = self.package.source() {
+        return Some((source, "source"));
       }
     }
 

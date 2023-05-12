@@ -63,6 +63,10 @@ describe('resolver', function () {
       path.join(rootDir, 'node_modules/source-alias-glob'),
     );
     await outputFS.symlink(
+      path.join(rootDir, 'packages/source-exports'),
+      path.join(rootDir, 'node_modules/source-exports'),
+    );
+    await outputFS.symlink(
       path.join(rootDir, 'bar.js'),
       path.join(rootDir, 'baz.js'),
     );
@@ -75,12 +79,14 @@ describe('resolver', function () {
       fs: overlayFS,
       projectRoot: rootDir,
       mode: 'development',
+      packageExports: true,
     });
 
     prodResolver = new NodeResolver({
       fs: overlayFS,
       projectRoot: rootDir,
       mode: 'production',
+      packageExports: true,
     });
 
     configCache.clear();
@@ -2157,6 +2163,42 @@ describe('resolver', function () {
         });
       });
 
+      it('should prioritize the source field over exports', async function () {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'source-exports',
+          specifierType: 'esm',
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        check(resolved, {
+          filePath: path.join(
+            rootDir,
+            'packages',
+            'source-exports',
+            'source.js',
+          ),
+          sideEffects: undefined,
+          query: undefined,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'node_modules/source-exports',
+              aboveFilePath: rootDir,
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(rootDir, 'tsconfig.json'),
+            path.join(
+              rootDir,
+              'node_modules',
+              'source-exports',
+              'package.json',
+            ),
+            path.join(rootDir, 'packages', 'source-exports', 'package.json'),
+          ],
+        });
+      });
+
       it('should not use the source field, when its realpath is under `node_modules`', async function () {
         let resolved = await resolver.resolve({
           env: BROWSER_ENV,
@@ -2829,6 +2871,21 @@ describe('resolver', function () {
         parent: path.join(rootDir, 'foo.js'),
       });
       check(resolved, {isExcluded: true});
+    });
+
+    it('should treat file: urls as absolute paths', async function () {
+      // TODO fixme
+      if (process.platform === 'win32') {
+        return;
+      }
+
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'file:///bar.js',
+        specifierType: 'url',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
   });
 

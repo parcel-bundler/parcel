@@ -183,6 +183,7 @@ parcel-transformer-b`,
         defaultTargetOptions: {
           shouldScopeHoist: true,
         },
+        mode: 'production',
       },
     );
 
@@ -241,6 +242,52 @@ parcel-transformer-b`,
     );
 
     assert.equal(await run(b), 2);
+  });
+
+  it('throws when multiple assets returned by a transformer import a missing symbol', async function () {
+    let source = path.join(
+      __dirname,
+      '/integration/multi-asset-transformer-export/index.js',
+    );
+    let message = `index.js does not export 'foo'`;
+
+    // $FlowFixMe[prop-missing]
+    await assert.rejects(
+      () =>
+        bundle(source, {
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
+        }),
+      {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                filePath: source,
+                language: 'js',
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 9,
+                    },
+                    end: {
+                      line: 1,
+                      column: 11,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    );
   });
 
   it('should allow resolvers to invalidateOnEnvChange', async () => {
