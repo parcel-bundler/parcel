@@ -86,7 +86,8 @@ const commonOptions = {
   '--dist-dir <dir>':
     'output directory to write to when unspecified by targets',
   '--no-autoinstall': 'disable autoinstall',
-  '--profile': 'enable build profiling',
+  '--profile': 'enable sampling build profiling',
+  '--trace': 'enable build tracing',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
@@ -462,6 +463,13 @@ async function normalizeOptions(
     })),
   ];
 
+  if (command.trace) {
+    additionalReporters.unshift({
+      packageName: '@parcel/reporter-tracer',
+      resolveFrom: __filename,
+    });
+  }
+
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
     shouldDisableCache: command.cache === false,
@@ -475,6 +483,7 @@ async function normalizeOptions(
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
+    shouldTrace: command.trace,
     shouldBuildLazily: command.lazy,
     shouldBundleIncrementally:
       process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,
