@@ -29,6 +29,6 @@
     "build-release": "napi build --platform --release"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^2.14.8"
+    "@napi-rs/cli": "^2.15.2"
   }
 }

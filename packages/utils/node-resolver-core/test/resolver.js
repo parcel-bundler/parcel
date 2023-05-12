@@ -79,12 +79,14 @@ describe('resolver', function () {
       fs: overlayFS,
       projectRoot: rootDir,
       mode: 'development',
+      packageExports: true,
     });
 
     prodResolver = new NodeResolver({
       fs: overlayFS,
       projectRoot: rootDir,
       mode: 'production',
+      packageExports: true,
     });
 
     configCache.clear();
@@ -2869,6 +2871,21 @@ describe('resolver', function () {
         parent: path.join(rootDir, 'foo.js'),
       });
       check(resolved, {isExcluded: true});
+    });
+
+    it('should treat file: urls as absolute paths', async function () {
+      // TODO fixme
+      if (process.platform === 'win32') {
+        return;
+      }
+
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'file:///bar.js',
+        specifierType: 'url',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
   });
 

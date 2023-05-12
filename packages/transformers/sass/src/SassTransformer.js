@@ -12,7 +12,7 @@ const NODE_MODULE_ALIAS_RE = /^~[^/\\]/;
 export default (new Transformer({
   async loadConfig({config, options}) {
     let configFile = await config.getConfig(
-      ['.sassrc', '.sassrc.json', '.sassrc.js', '.sassrc.cjs'],
+      ['.sassrc', '.sassrc.json', '.sassrc.js', '.sassrc.cjs', '.sassrc.mjs'],
       {
         packageKey: 'sass',
       },
@@ -25,10 +25,6 @@ export default (new Transformer({
       configResult.includePaths = configResult.includePaths.map(p =>
         path.resolve(path.dirname(configFile.filePath), p),
       );
-    }
-
-    if (configFile && path.extname(configFile.filePath).endsWith('js')) {
-      config.invalidateOnStartup();
     }
 
     if (configResult.importer === undefined) {

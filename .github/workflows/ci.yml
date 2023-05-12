@@ -86,6 +86,7 @@ jobs:
         if: ${{matrix.os == 'ubuntu-latest'}}
       - run: yarn --frozen-lockfile
       - run: yarn build-native-release
+      - run: yarn build
       - run: yarn test:integration-ci
       # Similar to
       # https://github.com/marketplace/actions/publish-unit-test-results#use-with-matrix-strategy

@@ -33,8 +33,10 @@ export default (new Packager({
         '.posthtmlrc',
         '.posthtmlrc.js',
         '.posthtmlrc.cjs',
+        '.posthtmlrc.mjs',
         'posthtml.config.js',
         'posthtml.config.cjs',
+        'posthtml.config.mjs',
       ],
       {
         packageKey: 'posthtml',
