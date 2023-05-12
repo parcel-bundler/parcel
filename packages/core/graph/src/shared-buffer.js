@@ -1,5 +1,4 @@
 // @flow
-/* global MessageChannel:readonly */
 // Copy from @parcel/utils to fix: https://github.com/stackblitz/core/issues/1855
 export let SharedBuffer: Class<ArrayBuffer> | Class<SharedArrayBuffer>;
 
