@@ -1309,7 +1309,7 @@ mod tests {
             start_line: 3,
             start_col: 20,
             end_line: 3,
-            end_col: 23
+            end_col: 24
           },
           is_esm: true
         }
