@@ -10,7 +10,7 @@ import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, matchGlobs} from '@parcel/utils';
+import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 import pkg from '../package.json';
 
@@ -365,7 +365,7 @@ export default (new Transformer({
         env.PARCEL_BUILD_ENV = 'test';
       }
     } else if (Array.isArray(config?.inlineEnvironment)) {
-      for (let match of matchGlobs(
+      for (let match of globMatch(
         Object.keys(options.env),
         config.inlineEnvironment,
       )) {
