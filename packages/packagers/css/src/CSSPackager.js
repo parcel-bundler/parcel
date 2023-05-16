@@ -7,6 +7,7 @@ import typeof PostCSS from 'postcss';
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
+import {convertSourceLocationToHighlight} from '@parcel/diagnostic';
 import {
   PromiseQueue,
   countLines,
@@ -226,7 +227,7 @@ async function processCSSModule(
             codeFrames: [
               {
                 filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
-                codeHighlights: [{start: loc.start, end: loc.end}],
+                codeHighlights: [convertSourceLocationToHighlight(loc)],
               },
             ],
           }),
