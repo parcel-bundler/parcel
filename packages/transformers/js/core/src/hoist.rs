@@ -1053,10 +1053,10 @@ impl<'a> Hoist<'a> {
       format!("${}$export${:x}", self.module_id, hash!(exported)).into()
     };
 
-    let is_esm = match self.collect.exports.get(exported) {
-      Some(Export { is_esm: true, .. }) => true,
-      _ => false,
-    };
+    let is_esm = matches!(
+      self.collect.exports.get(exported),
+      Some(Export { is_esm: true, .. })
+    );
 
     self.exported_symbols.push(ExportedSymbol {
       local: new_name.clone(),

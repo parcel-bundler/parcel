@@ -54,6 +54,7 @@ import {
   toProjectPathUnsafe,
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
+import {tracer, PluginTracer} from '@parcel/profiler';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<string>,
@@ -92,6 +93,7 @@ export default function createBundleGraphRequest(
     run: async input => {
       let {options, api, invalidateReason} = input;
       let {optionsRef, requestedAssetIds, signal} = input.input;
+      let measurement = tracer.createMeasurement('building');
       let request = createAssetGraphRequest({
         name: 'Main',
         entries: options.entries,
@@ -105,7 +107,7 @@ export default function createBundleGraphRequest(
           force: options.shouldBuildLazily && requestedAssetIds.size > 0,
         },
       );
-
+      measurement && measurement.end();
       assertSignalNotAborted(signal);
 
       // If any subrequests are invalid (e.g. dev dep requests or config requests),
@@ -133,13 +135,14 @@ export default function createBundleGraphRequest(
       let {devDeps, invalidDevDeps} = await getDevDepRequests(input.api);
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
+      let bundlingMeasurement = tracer.createMeasurement('bundling');
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
       let res: BundleGraphResult = await builder.bundle({
         graph: assetGraph,
         changedAssets: changedAssets,
         assetRequests,
       });
-
+      bundlingMeasurement && bundlingMeasurement.end();
       for (let [id, asset] of changedAssets) {
         res.changedAssets.set(id, asset);
       }
@@ -268,7 +271,10 @@ class BundlerRunner {
     let internalBundleGraph;
 
     let logger = new PluginLogger({origin: name});
-
+    let tracer = new PluginTracer({
+      origin: name,
+      category: 'bundle',
+    });
     try {
       if (previousBundleGraphResult) {
         internalBundleGraph = previousBundleGraphResult.bundleGraph;
@@ -298,16 +304,41 @@ class BundlerRunner {
           this.options,
         );
 
+        let measurement;
+        let measurementFilename;
+        if (tracer.enabled) {
+          measurementFilename = graph
+            .getEntryAssets()
+            .map(asset => fromProjectPathRelative(asset.filePath))
+            .join(', ');
+          measurement = tracer.createMeasurement(
+            plugin.name,
+            'bundling:bundle',
+            measurementFilename,
+          );
+        }
+
         // this the normal bundle workflow (bundle, optimizing, run-times, naming)
         await bundler.bundle({
           bundleGraph: mutableBundleGraph,
           config: this.configs.get(plugin.name)?.result,
           options: this.pluginOptions,
           logger,
+          tracer,
         });
 
+        measurement && measurement.end();
+
         if (this.pluginOptions.mode === 'production') {
+          let optimizeMeasurement;
           try {
+            if (tracer.enabled) {
+              optimizeMeasurement = tracer.createMeasurement(
+                plugin.name,
+                'bundling:optimize',
+                nullthrows(measurementFilename),
+              );
+            }
             await bundler.optimize({
               bundleGraph: mutableBundleGraph,
               config: this.configs.get(plugin.name)?.result,
@@ -321,6 +352,7 @@ class BundlerRunner {
               }),
             });
           } finally {
+            optimizeMeasurement && optimizeMeasurement.end();
             await dumpGraphToGraphViz(
               // $FlowFixMe[incompatible-call]
               internalBundleGraph._graph,
@@ -454,13 +486,16 @@ class BundlerRunner {
     );
 
     for (let namer of namers) {
+      let measurement;
       try {
+        measurement = tracer.createMeasurement(namer.name, 'namer', bundle.id);
         let name = await namer.plugin.name({
           bundle,
           bundleGraph,
           config: this.configs.get(namer.name)?.result,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: namer.name}),
+          tracer: new PluginTracer({origin: namer.name, category: 'namer'}),
         });
 
         if (name != null) {
@@ -478,6 +513,8 @@ class BundlerRunner {
             origin: namer.name,
           }),
         });
+      } finally {
+        measurement && measurement.end();
       }
     }
 

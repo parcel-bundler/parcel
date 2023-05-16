@@ -76,6 +76,7 @@ import {
 } from './projectPath';
 import {invalidateOnFileCreateToInternal} from './utils';
 import invariant from 'assert';
+import {tracer, PluginTracer} from '@parcel/profiler';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -463,6 +464,12 @@ export default class Transformation {
         }
 
         try {
+          const measurement = tracer.createMeasurement(
+            transformer.name,
+            'transform',
+            fromProjectPathRelative(initialAsset.value.filePath),
+          );
+
           let transformerResults = await this.runTransformer(
             pipeline,
             asset,
@@ -472,6 +479,8 @@ export default class Transformation {
             transformer.configKeyPath,
             this.parcelConfig,
           );
+
+          measurement && measurement.end();
 
           for (let result of transformerResults) {
             if (result instanceof UncommittedAsset) {
@@ -739,6 +748,10 @@ export default class Transformation {
     parcelConfig: ParcelConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
+    const tracer = new PluginTracer({
+      origin: transformerName,
+      category: 'transform',
+    });
 
     const resolve = async (
       from: FilePath,
@@ -794,6 +807,7 @@ export default class Transformation {
           ast: asset.ast,
           options: pipeline.pluginOptions,
           logger,
+          tracer,
         })) &&
       asset.generate
     ) {
@@ -814,6 +828,7 @@ export default class Transformation {
         options: pipeline.pluginOptions,
         resolve,
         logger,
+        tracer,
       });
       if (ast) {
         asset.setAST(ast);
@@ -830,6 +845,7 @@ export default class Transformation {
         options: pipeline.pluginOptions,
         resolve,
         logger,
+        tracer,
       });
     let results = await normalizeAssets(this.options, transfomerResult);
 
@@ -842,6 +858,7 @@ export default class Transformation {
           ast: asset.ast,
           options: pipeline.pluginOptions,
           logger,
+          tracer,
         });
         asset.clearAST();
         return Promise.resolve(generated);
@@ -863,6 +880,7 @@ export default class Transformation {
           options: pipeline.pluginOptions,
           resolve,
           logger,
+          tracer,
         });
 
         return Promise.all(
