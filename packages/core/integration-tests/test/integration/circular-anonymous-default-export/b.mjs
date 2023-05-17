@@ -1,8 +1,9 @@
+debugger;
 import { c } from "./c.mjs"; // imports and calls b1 (circular)
 
 // works fine in the Node native ESM
 // fails in Parcel because we don't hoist it before the imports
-export default function b1() {
+export default function () {
 	return "b1";
 }
 
@@ -20,4 +21,4 @@ export default function b1() {
 // 	return "b1";
 // };
 
-console.log("b: c =", c);
+let str = c + "str";
