@@ -153,9 +153,9 @@ export class EntryResolver {
     this.options = options;
   }
 
-  isTrulyGlob(entry: FilePath): Promise<Boolean> {
+  isTrulyGlob(entry: FilePath): Promise<boolean> {
     if (!isGlob(entry)) {
-      return false;
+      return Promise.resolve(false);
     }
 
     return this.options.inputFS
