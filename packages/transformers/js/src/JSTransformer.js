@@ -1,5 +1,5 @@
 // @flow
-import type {JSONObject, EnvMap} from '@parcel/types';
+import type {JSONObject, EnvMap, SourceLocation} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
@@ -9,7 +9,10 @@ import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  encodeJSONKeyComponent,
+  convertSourceLocationToHighlight,
+} from '@parcel/diagnostic';
 import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 import pkg from '../package.json';
@@ -441,7 +444,7 @@ export default (new Transformer({
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
     });
 
-    let convertLoc = loc => {
+    let convertLoc = (loc): SourceLocation => {
       let location = {
         filePath: asset.filePath,
         start: {
@@ -485,14 +488,12 @@ export default (new Transformer({
           codeFrames: [
             {
               filePath: asset.filePath,
-              codeHighlights: diagnostic.code_highlights?.map(highlight => {
-                let {start, end} = convertLoc(highlight.loc);
-                return {
-                  message: highlight.message,
-                  start,
-                  end,
-                };
-              }),
+              codeHighlights: diagnostic.code_highlights?.map(highlight =>
+                convertSourceLocationToHighlight(
+                  convertLoc(highlight.loc),
+                  highlight.message ?? undefined,
+                ),
+              ),
             },
           ],
           hints: diagnostic.hints,
@@ -507,11 +508,10 @@ export default (new Transformer({
             res.codeFrames?.push({
               filePath: asset.env.loc.filePath,
               codeHighlights: [
-                {
-                  start: asset.env.loc.start,
-                  end: asset.env.loc.end,
-                  message: 'The environment was originally created here',
-                },
+                convertSourceLocationToHighlight(
+                  asset.env.loc,
+                  'The environment was originally created here',
+                ),
               ],
             });
           }
@@ -642,12 +642,7 @@ export default (new Transformer({
               codeFrames: [
                 {
                   filePath: asset.filePath,
-                  codeHighlights: [
-                    {
-                      start: loc.start,
-                      end: loc.end,
-                    },
-                  ],
+                  codeHighlights: [convertSourceLocationToHighlight(loc)],
                 },
               ],
               hints: ['Try using a static `import`.'],
@@ -657,11 +652,10 @@ export default (new Transformer({
               diagnostic.codeFrames.push({
                 filePath: asset.env.loc.filePath,
                 codeHighlights: [
-                  {
-                    start: asset.env.loc.start,
-                    end: asset.env.loc.end,
-                    message: 'The environment was originally created here',
-                  },
+                  convertSourceLocationToHighlight(
+                    asset.env.loc,
+                    'The environment was originally created here',
+                  ),
                 ],
               });
             }

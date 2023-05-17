@@ -24,6 +24,7 @@ import {
   getModuleParts,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
   encodeJSONKeyComponent,
   errorToDiagnostic,
   generateJSONCodeHighlights,
@@ -263,11 +264,10 @@ export default class NodeResolver {
                     filePath: options.loc.filePath,
                     codeHighlights: options.loc
                       ? [
-                          {
-                            message: 'used here',
-                            start: options.loc.start,
-                            end: options.loc.end,
-                          },
+                          convertSourceLocationToHighlight(
+                            options.loc,
+                            'used here',
+                          ),
                         ]
                       : [],
                   },
@@ -305,11 +305,10 @@ export default class NodeResolver {
                     {
                       filePath: options.loc.filePath,
                       codeHighlights: [
-                        {
-                          message: 'used here',
-                          start: options.loc.start,
-                          end: options.loc.end,
-                        },
+                        convertSourceLocationToHighlight(
+                          options.loc,
+                          'used here',
+                        ),
                       ],
                     },
                   ]
@@ -489,6 +488,7 @@ export default class NodeResolver {
               filePath: error.path,
               language: 'json',
               code: pkgContent,
+              // TODO
               codeHighlights: [
                 {
                   message: error.message,

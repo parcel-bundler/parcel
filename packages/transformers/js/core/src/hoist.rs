@@ -1309,7 +1309,7 @@ mod tests {
             start_line: 3,
             start_col: 20,
             end_line: 3,
-            end_col: 23
+            end_col: 24
           },
           is_esm: true
         }
@@ -3241,7 +3241,7 @@ mod tests {
             start_line: 1,
             start_col: 1,
             end_line: 1,
-            end_col: 29
+            end_col: 30
           },
           is_esm: true
         }
@@ -3259,7 +3259,7 @@ mod tests {
             start_line: 1,
             start_col: 1,
             end_line: 1,
-            end_col: 34
+            end_col: 35
           },
           is_esm: true
         }
@@ -3277,7 +3277,7 @@ mod tests {
             start_line: 1,
             start_col: 1,
             end_line: 1,
-            end_col: 23
+            end_col: 24
           },
           is_esm: true
         }
@@ -3295,7 +3295,7 @@ mod tests {
             start_line: 1,
             start_col: 1,
             end_line: 1,
-            end_col: 28
+            end_col: 29
           },
           is_esm: true
         }
@@ -3313,7 +3313,7 @@ mod tests {
             start_line: 1,
             start_col: 1,
             end_line: 1,
-            end_col: 19
+            end_col: 20
           },
           is_esm: true
         }
@@ -3331,7 +3331,7 @@ mod tests {
             start_line: 1,
             start_col: 16,
             end_line: 1,
-            end_col: 18
+            end_col: 19
           },
           is_esm: false
         }
@@ -3349,7 +3349,7 @@ mod tests {
             start_line: 1,
             start_col: 16,
             end_line: 1,
-            end_col: 20
+            end_col: 21
           },
           is_esm: false
         }
@@ -3367,7 +3367,7 @@ mod tests {
             start_line: 1,
             start_col: 16,
             end_line: 1,
-            end_col: 20
+            end_col: 21
           },
           is_esm: false
         }
@@ -3385,7 +3385,7 @@ mod tests {
             start_line: 1,
             start_col: 9,
             end_line: 1,
-            end_col: 11
+            end_col: 12
           },
           is_esm: false
         }
@@ -3403,7 +3403,7 @@ mod tests {
             start_line: 1,
             start_col: 6,
             end_line: 1,
-            end_col: 8
+            end_col: 9
           },
           is_esm: false
         }
