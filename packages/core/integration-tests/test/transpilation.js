@@ -409,7 +409,7 @@ describe('transpilation', function () {
             {
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     column: 1,
                     line: 1,
@@ -432,7 +432,7 @@ describe('transpilation', function () {
             {
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     column: 4,
                     line: 9,

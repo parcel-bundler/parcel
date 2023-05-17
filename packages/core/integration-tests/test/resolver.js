@@ -126,6 +126,7 @@ describe('resolver', function () {
       );
 
       assert.deepEqual(e.diagnostics[0].codeFrames[0].codeHighlights[0], {
+        message: undefined,
         start: {line: 1, column: 8},
         end: {line: 1, column: 25},
       });
@@ -150,6 +151,7 @@ describe('resolver', function () {
       );
 
       assert.deepEqual(e.diagnostics[0].codeFrames[0].codeHighlights[0], {
+        message: undefined,
         start: {line: 1, column: 9},
         end: {line: 1, column: 32},
       });

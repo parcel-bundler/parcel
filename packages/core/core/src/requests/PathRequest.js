@@ -16,7 +16,11 @@ import type {
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
-import ThrowableDiagnostic, {errorToDiagnostic, md} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
+  errorToDiagnostic,
+  md,
+} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -188,7 +192,7 @@ export class ResolverRunner {
           filePath,
           code: await this.options.inputFS.readFile(filePath, 'utf8'),
           codeHighlights: dependency.loc
-            ? [{start: dependency.loc.start, end: dependency.loc.end}]
+            ? [convertSourceLocationToHighlight(dependency.loc)]
             : [],
         },
       ];
