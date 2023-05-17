@@ -1,3 +1,5 @@
+// This repro was taken from https://github.com/parcel-bundler/parcel/issues/8813
+
 // This file needs to import a CSS asset, so that `index.css` will be created.
 import './main.css';
 

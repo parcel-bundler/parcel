@@ -632,7 +632,7 @@ function createIdealGraph(
           if (!shouldMerge) continue;
           mergeBundle(nodeIdA, nodeIdB);
         } else {
-          let overlap = bundleBbundleGroups;
+          let overlap = new Set(bundleBbundleGroups);
           setIntersect(overlap, bundleABundleGroups);
           if (overlap.size > 0) {
             // Two bundles are the same type and exist in the same bundle group but cannot be (fully) merged
@@ -644,20 +644,19 @@ function createIdealGraph(
                 ? false
                 : true;
             if (shouldCreateNewBundle) {
-              //Generate a new bundle for the overlap
-              //TODO
+              // Neither bundle can be the a host since both have unique groups
+              // So we may need to generate a new bundle for the intersection instead
             } else {
               // If the overlap of bundleGroups is a subset, then we should duplicate the bundle
               // that results in a correct graph
               let hostBundle =
                 overlap.size == bundleBbundleGroups.size
-                  ? [nodeIdA, a, bundleABundleGroups]
-                  : [nodeIdB, b, bundleBbundleGroups];
-              let duplicatedBundle =
-                overlap.size == bundleBbundleGroups.size
                   ? [nodeIdB, b, bundleBbundleGroups]
                   : [nodeIdA, a, bundleABundleGroups];
-
+              let duplicatedBundle =
+                overlap.size == bundleBbundleGroups.size
+                  ? [nodeIdA, a, bundleABundleGroups]
+                  : [nodeIdB, b, bundleBbundleGroups];
               for (let asset of duplicatedBundle[1].assets) {
                 hostBundle[1].assets.add(asset);
                 hostBundle[1].size += asset.stats.size;
@@ -707,10 +706,12 @@ function createIdealGraph(
                     }
                   }
                 }
-                // This might be a referencing bundle, not necessarily the group
-                bundleGraph.removeEdge(group, duplicatedBundle[0]);
+                // This might be a referencing bundle, not necessarily the group, so we
+                detachFromBundleGroup(group, duplicatedBundle[0]);
               }
             }
+            //We might've changed the bundleGroups of A, which should be recalculated;
+            bundleABundleGroups = getBundleGroupsForBundle(nodeIdA);
           }
         }
       }
@@ -1228,7 +1229,24 @@ function createIdealGraph(
       );
     }
   }
-
+  function detachFromBundleGroup(groupId: NodeId, bundleId: NodeId) {
+    // This removes a particular bundle from the specfied bundleGroup
+    if (bundleGraph.hasEdge(groupId, bundleId)) {
+      bundleGraph.removeEdge(groupId, bundleId);
+    } else {
+      let referencingBundleId;
+      bundleGraph.traverse(nodeId => {
+        if (bundleGraph.hasEdge(nodeId, bundleId)) {
+          referencingBundleId = nodeId;
+        }
+      }, groupId);
+      invariant(
+        referencingBundleId != null,
+        'Expected to remove bundle from group but could not find it...',
+      );
+      bundleGraph.removeEdge(referencingBundleId, bundleId);
+    }
+  }
   function deleteBundle(bundleRoot: BundleRoot) {
     bundleGraph.removeNode(nullthrows(bundles.get(bundleRoot.id)));
     bundleRoots.delete(bundleRoot);
@@ -1317,7 +1335,6 @@ function createIdealGraph(
     invariant(bundle !== 'root' && bundle != null);
     return bundle;
   }
-
   function replaceAssetReference(
     bundleRoot: BundleRoot,
     toReplace: Bundle,
