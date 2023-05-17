@@ -153,8 +153,19 @@ export class EntryResolver {
     this.options = options;
   }
 
+  isTrulyGlob(entry: FilePath): Promise<boolean> {
+    if (!isGlob(entry)) {
+      return false;
+    }
+
+    return this.options.inputFS
+      .stat(entry)
+      .then(() => false)
+      .catch(() => true);
+  }
+
   async resolveEntry(entry: FilePath): Promise<EntryResult> {
-    if (isGlob(entry)) {
+    if (await this.isTrulyGlob(entry)) {
       let files = await glob(entry, this.options.inputFS, {
         absolute: true,
         onlyFiles: false,
