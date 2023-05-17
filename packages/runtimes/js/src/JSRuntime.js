@@ -347,10 +347,6 @@ function getLoaderRuntime({
   }
 
   let externalBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
-  externalBundles = externalBundles.filter(
-    externalBundle => externalBundle.target == bundle.target,
-  );
-
   let mainBundle = nullthrows(
     externalBundles.find(
       bundle => bundle.getMainEntry()?.id === bundleGroup.entryAssetId,
