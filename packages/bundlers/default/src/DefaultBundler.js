@@ -675,6 +675,7 @@ function createIdealGraph(
                   ALL_EDGE_TYPES,
                 )) {
                   let depNode = dependencyBundleGraph.getNode(depId);
+                  invariant(bundleGroup.mainEntryAsset != null);
                   if (
                     depNode &&
                     depNode.type === 'dependency' &&
