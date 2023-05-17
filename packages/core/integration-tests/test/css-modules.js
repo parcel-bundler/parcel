@@ -410,6 +410,7 @@ describe('css modules', () => {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     end: {
                       column: 45,
                       line: 7,

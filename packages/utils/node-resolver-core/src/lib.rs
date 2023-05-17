@@ -15,9 +15,11 @@ use std::{
 #[cfg(not(target_arch = "wasm32"))]
 use parcel_resolver::OsFileSystem;
 use parcel_resolver::{
-  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, IncludeNodeModules,
-  Invalidations, ModuleType, Resolution, ResolverError, SpecifierType,
+  ExportsCondition, Extensions, Fields, FileCreateInvalidation, FileSystem, Flags,
+  IncludeNodeModules, Invalidations, ModuleType, Resolution, ResolverError, SpecifierType,
 };
+
+type NapiSideEffectsVariants = napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>;
 
 #[napi(object)]
 pub struct JsFileSystemOptions {
@@ -25,20 +27,19 @@ pub struct JsFileSystemOptions {
   pub read: JsFunction,
   pub is_file: JsFunction,
   pub is_dir: JsFunction,
-  pub include_node_modules:
-    Option<napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>>,
+  pub include_node_modules: Option<NapiSideEffectsVariants>,
 }
 
 #[napi(object, js_name = "FileSystem")]
 pub struct JsResolverOptions {
   pub fs: Option<JsFileSystemOptions>,
-  pub include_node_modules:
-    Option<napi::Either<bool, napi::Either<Vec<String>, HashMap<String, bool>>>>,
+  pub include_node_modules: Option<NapiSideEffectsVariants>,
   pub conditions: Option<u16>,
   pub module_dir_resolver: Option<JsFunction>,
   pub mode: u8,
   pub entries: Option<u8>,
   pub extensions: Option<Vec<String>>,
+  pub package_exports: bool,
 }
 
 struct FunctionRef {
@@ -113,10 +114,7 @@ impl FileSystem for JsFileSystem {
       res.get_value()
     };
 
-    match is_file() {
-      Ok(res) => res,
-      Err(_) => false,
-    }
+    is_file().unwrap_or(false)
   }
 
   fn is_dir<P: AsRef<Path>>(&self, path: P) -> bool {
@@ -127,10 +125,7 @@ impl FileSystem for JsFileSystem {
       res.get_value()
     };
 
-    match is_dir() {
-      Ok(res) => res,
-      Err(_) => false,
-    }
+    is_dir().unwrap_or(false)
   }
 }
 
@@ -297,6 +292,8 @@ impl Resolver {
       resolver.extensions = Extensions::Owned(extensions);
     }
 
+    resolver.flags.set(Flags::EXPORTS, options.package_exports);
+
     if let Some(module_dir_resolver) = options.module_dir_resolver {
       let module_dir_resolver = FunctionRef::new(env, module_dir_resolver)?;
       resolver.module_dir_resolver = Some(Arc::new(move |module: &str, from: &Path| {
@@ -348,7 +345,7 @@ impl Resolver {
     );
 
     let side_effects = if let Ok((Resolution::Path(p), _)) = &res.result {
-      match self.resolver.resolve_side_effects(&p, &res.invalidations) {
+      match self.resolver.resolve_side_effects(p, &res.invalidations) {
         Ok(side_effects) => side_effects,
         Err(err) => {
           res.result = Err(err);

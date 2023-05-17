@@ -272,6 +272,7 @@ parcel-transformer-b`,
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 9,

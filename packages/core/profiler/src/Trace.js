@@ -1,5 +1,5 @@
 // @flow
-import type {Profile} from './Profiler';
+import type {Profile} from './SamplingProfiler';
 import type {Writable} from 'stream';
 import {Tracer} from 'chrome-trace-event';
 
