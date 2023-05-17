@@ -149,6 +149,90 @@ type TSConfig = {
 };
 
 export default (new Transformer({
+  async loadGlobalConfig({config, options}) {
+    let result = await config.getConfigFrom<PackageJSONConfig>(
+      path.join(options.projectRoot, 'index'),
+      ['package.json'],
+    );
+    let rootPkg = result?.contents;
+
+    let inlineEnvironment;
+    let inlineFS = true;
+    if (result && rootPkg?.['@parcel/transformer-js']) {
+      validateSchema.diagnostic(
+        CONFIG_SCHEMA,
+        {
+          data: rootPkg['@parcel/transformer-js'],
+          // FIXME
+          source: await options.inputFS.readFile(result.filePath, 'utf8'),
+          filePath: result.filePath,
+          prependKey: `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
+        },
+        // FIXME
+        '@parcel/transformer-js',
+        'Invalid config for @parcel/transformer-js',
+      );
+
+      inlineEnvironment = rootPkg['@parcel/transformer-js']?.inlineEnvironment;
+      inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
+    }
+
+    // Injected into source and external files
+    let publicEnv: EnvMap = {};
+    // Injected into only source files
+    let privateEnv: EnvMap = {};
+
+    let assignAllEnv = (env: EnvMap) => {
+      for (let key in options.env) {
+        if (!key.startsWith('npm_')) {
+          env[key] = String(options.env[key]);
+        }
+      }
+    };
+
+    let assignDefaultEnv = (env: EnvMap) => {
+      if (options.env.NODE_ENV != null) {
+        env.NODE_ENV = options.env.NODE_ENV;
+      }
+
+      if (process.env.PARCEL_BUILD_ENV === 'test') {
+        env.PARCEL_BUILD_ENV = 'test';
+      }
+    };
+
+    if (inlineEnvironment == null) {
+      // Default behaviour
+      // Source files can inject all ENV vars
+      // External files can only inject `NODE_ENV` and `PARCEL_BUILD_ENV`
+      assignDefaultEnv(publicEnv);
+      assignAllEnv(privateEnv);
+    } else if (Array.isArray(inlineEnvironment)) {
+      // inlineEnvironment allowlist
+      // All files can inject ENV vars in allow list
+      for (let match of globMatch(
+        Object.keys(options.env),
+        inlineEnvironment,
+      )) {
+        publicEnv[match] = String(options.env[match]);
+      }
+    } else if (inlineEnvironment === true) {
+      // inlineEnvironment: true
+      // All files can inject all ENV vars
+      assignAllEnv(publicEnv);
+    } else if (inlineEnvironment === false) {
+      // inlineEnvironment: false
+      // All files can only inject `NODE_ENV` and `PARCEL_BUILD_ENV`
+      assignDefaultEnv(publicEnv);
+    }
+
+    let sourceEnv: EnvMap = {...privateEnv, ...publicEnv};
+
+    return {
+      inlineFS,
+      sourceEnv,
+      externalEnv: privateEnv,
+    };
+  },
   async loadConfig({config, options}) {
     let pkg = await config.getPackage();
     let isJSX,
@@ -260,49 +344,19 @@ export default (new Transformer({
       typeof pkg.browser === 'object' &&
       pkg.browser.fs === false;
 
-    let result = await config.getConfigFrom<PackageJSONConfig>(
-      path.join(options.projectRoot, 'index'),
-      ['package.json'],
-    );
-    let rootPkg = result?.contents;
-
-    let inlineEnvironment = config.isSource;
-    let inlineFS = !ignoreFS;
-    if (result && rootPkg?.['@parcel/transformer-js']) {
-      validateSchema.diagnostic(
-        CONFIG_SCHEMA,
-        {
-          data: rootPkg['@parcel/transformer-js'],
-          // FIXME
-          source: await options.inputFS.readFile(result.filePath, 'utf8'),
-          filePath: result.filePath,
-          prependKey: `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
-        },
-        // FIXME
-        '@parcel/transformer-js',
-        'Invalid config for @parcel/transformer-js',
-      );
-
-      inlineEnvironment =
-        rootPkg['@parcel/transformer-js']?.inlineEnvironment ??
-        inlineEnvironment;
-      inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
-    }
-
     return {
       isJSX,
       automaticJSXRuntime,
       jsxImportSource,
       pragma,
       pragmaFrag,
-      inlineEnvironment,
-      inlineFS,
+      ignoreFS,
       reactRefresh,
       decorators,
       useDefineForClassFields,
     };
   },
-  async transform({asset, config, options, logger}) {
+  async transform({asset, config, globalConfig, options, logger}) {
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
@@ -354,31 +408,6 @@ export default (new Transformer({
       targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
     }
 
-    let env: EnvMap = {};
-
-    if (!config?.inlineEnvironment) {
-      if (options.env.NODE_ENV != null) {
-        env.NODE_ENV = options.env.NODE_ENV;
-      }
-
-      if (process.env.PARCEL_BUILD_ENV === 'test') {
-        env.PARCEL_BUILD_ENV = 'test';
-      }
-    } else if (Array.isArray(config?.inlineEnvironment)) {
-      for (let match of globMatch(
-        Object.keys(options.env),
-        config.inlineEnvironment,
-      )) {
-        env[match] = String(options.env[match]);
-      }
-    } else {
-      for (let key in options.env) {
-        if (!key.startsWith('npm_')) {
-          env[key] = String(options.env[key]);
-        }
-      }
-    }
-
     let supportsModuleWorkers =
       asset.env.shouldScopeHoist && asset.env.supports('worker-module', true);
     let isJSX = Boolean(config?.isJSX);
@@ -407,13 +436,16 @@ export default (new Transformer({
       module_id: asset.id,
       project_root: options.projectRoot,
       replace_env: !asset.env.isNode(),
-      inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
+      inline_fs:
+        Boolean(globalConfig?.inlineFS) &&
+        !config?.ignoreFS &&
+        !asset.env.isNode(),
       insert_node_globals:
         !asset.env.isNode() && asset.env.sourceType !== 'script',
       node_replacer: asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
-      env,
+      env: asset.isSource ? globalConfig.sourceEnv : globalConfig.externalEnv,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',
       is_jsx: isJSX,
       jsx_pragma: config?.pragma,

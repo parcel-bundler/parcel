@@ -236,7 +236,12 @@ export default class PackagerRunner {
             searchPath: toProjectPathUnsafe('index'),
           });
 
-          await loadPluginConfig(plugin, config, this.options);
+          await loadPluginConfig(
+            plugin.name,
+            plugin.plugin.loadConfig,
+            config,
+            this.options,
+          );
 
           for (let devDep of config.devDeps) {
             let devDepRequest = await createDevDependency(

@@ -215,7 +215,12 @@ class BundlerRunner {
       searchPath: toProjectPathUnsafe('index'),
     });
 
-    await loadPluginConfig(plugin, config, this.options);
+    await loadPluginConfig(
+      plugin.name,
+      plugin.plugin.loadConfig,
+      config,
+      this.options,
+    );
     await runConfigRequest(this.api, config);
     for (let devDep of config.devDeps) {
       let devDepRequest = await createDevDependency(

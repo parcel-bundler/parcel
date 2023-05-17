@@ -77,6 +77,7 @@ import {
 import {invalidateOnFileCreateToInternal} from './utils';
 import invariant from 'assert';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import {createBuildCache} from './buildCache';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -100,9 +101,14 @@ export type TransformationResult = {|
   devDepRequests: Array<DevDepRequest>,
 |};
 
+// Global configs are not file-specific, so we only need to
+// load them once per build.
+const globalConfigs = createBuildCache();
+
 export default class Transformation {
   request: TransformationRequest;
   configs: Map<string, Config>;
+  globalConfigs: Set<Config>;
   devDepRequests: Map<string, DevDepRequest>;
   pluginDevDeps: Array<InternalDevDepOptions>;
   options: ParcelOptions;
@@ -115,6 +121,7 @@ export default class Transformation {
 
   constructor({request, options, config, workerApi}: TransformationOpts) {
     this.configs = new Map();
+    this.globalConfigs = new Set();
     this.parcelConfig = config;
     this.options = options;
     this.request = request;
@@ -205,6 +212,7 @@ export default class Transformation {
     let configRequests = getConfigRequests([
       ...this.configs.values(),
       ...this.resolverRunner.configs.values(),
+      ...this.globalConfigs.values(),
     ]);
     let devDepRequests = getWorkerDevDepRequests([
       ...this.devDepRequests.values(),
@@ -476,6 +484,7 @@ export default class Transformation {
             transformer.plugin,
             transformer.name,
             transformer.config,
+            transformer.globalConfig,
             transformer.configKeyPath,
             this.parcelConfig,
           );
@@ -672,6 +681,7 @@ export default class Transformation {
         name: transformer.name,
         resolveFrom: transformer.resolveFrom,
         config: this.configs.get(transformer.name)?.result,
+        globalConfig: globalConfigs.get(transformer.name)?.result,
         configKeyPath: transformer.keyPath,
         plugin: transformer.plugin,
       })),
@@ -714,22 +724,52 @@ export default class Transformation {
   }
 
   async loadTransformerConfig(
-    transformer: LoadedPlugin<Transformer<mixed>>,
+    transformer: LoadedPlugin<Transformer<mixed, mixed>>,
     isSource: boolean,
   ): Promise<?Config> {
+    // Only load global config for a transformer once per build.
+    let globalConfig = globalConfigs.get(transformer.name);
+    if (globalConfig == null && transformer.plugin.loadGlobalConfig != null) {
+      globalConfig = createConfig({
+        plugin: transformer.name,
+        searchPath: toProjectPathUnsafe('index'),
+        // Project root should be considered source?
+        isSource: true,
+      });
+
+      await loadPluginConfig(
+        transformer.name,
+        transformer.plugin.loadGlobalConfig,
+        globalConfig,
+        this.options,
+      );
+
+      globalConfigs.set(transformer.name, globalConfig);
+    }
+
+    if (globalConfig) {
+      // I believe this should be done per file?
+      for (let devDep of globalConfig.devDeps) {
+        await this.addDevDependency(devDep);
+      }
+      this.globalConfigs.add(globalConfig);
+    }
+
+    let config;
+
     let loadConfig = transformer.plugin.loadConfig;
     if (!loadConfig) {
       return;
     }
 
-    let config = createConfig({
+    config = createConfig({
       plugin: transformer.name,
       isSource,
       searchPath: this.request.filePath,
       env: this.request.env,
     });
 
-    await loadPluginConfig(transformer, config, this.options);
+    await loadPluginConfig(transformer.name, loadConfig, config, this.options);
 
     for (let devDep of config.devDeps) {
       await this.addDevDependency(devDep);
@@ -741,9 +781,10 @@ export default class Transformation {
   async runTransformer(
     pipeline: Pipeline,
     asset: UncommittedAsset,
-    transformer: Transformer<mixed>,
+    transformer: Transformer<mixed, mixed>,
     transformerName: string,
-    preloadedConfig: ?Config,
+    config: ?Config,
+    globalConfig: ?Config,
     configKeyPath?: string,
     parcelConfig: ParcelConfig,
   ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
@@ -816,15 +857,13 @@ export default class Transformation {
       asset.mapBuffer = output.map?.toBuffer();
     }
 
-    // Load config for the transformer.
-    let config = preloadedConfig;
-
     // Parse if there is no AST available from a previous transform.
     let parse = transformer.parse?.bind(transformer);
     if (!asset.ast && parse) {
       let ast = await parse({
         asset: new Asset(asset),
         config,
+        globalConfig,
         options: pipeline.pluginOptions,
         resolve,
         logger,
@@ -842,6 +881,7 @@ export default class Transformation {
       await transformer.transform({
         asset: new MutableAsset(asset),
         config,
+        globalConfig,
         options: pipeline.pluginOptions,
         resolve,
         logger,
@@ -877,6 +917,7 @@ export default class Transformation {
         let results = await postProcess.call(transformer, {
           assets: assets.map(asset => new MutableAsset(asset)),
           config,
+          globalConfig,
           options: pipeline.pluginOptions,
           resolve,
           logger,
@@ -912,8 +953,9 @@ type Pipeline = {|
 
 type TransformerWithNameAndConfig = {|
   name: PackageName,
-  plugin: Transformer<mixed>,
+  plugin: Transformer<mixed, mixed>,
   config: ?Config,
+  globalConfig: ?Config,
   configKeyPath?: string,
   resolveFrom: ProjectPath,
   range?: ?SemverRange,

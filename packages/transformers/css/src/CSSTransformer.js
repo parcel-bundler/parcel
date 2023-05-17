@@ -14,13 +14,13 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 export default (new Transformer({
-  async loadConfig({config, options}) {
+  async loadGlobalConfig({config, options}) {
     let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
       packageKey: '@parcel/transformer-css',
     });
     return conf?.contents;
   },
-  async transform({asset, config, options, logger}) {
+  async transform({asset, globalConfig, options, logger}) {
     // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
     // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
     let env = asset.env;
@@ -46,7 +46,7 @@ export default (new Transformer({
         res = transformStyleAttribute({
           code,
           analyzeDependencies: true,
-          errorRecovery: config?.errorRecovery || false,
+          errorRecovery: globalConfig?.errorRecovery || false,
           targets,
         });
       } else {
@@ -55,7 +55,7 @@ export default (new Transformer({
           asset.meta.type !== 'tag' &&
           asset.meta.cssModulesCompiled == null
         ) {
-          let cssModulesConfig = config?.cssModules;
+          let cssModulesConfig = globalConfig?.cssModules;
           if (
             (asset.isSource &&
               (typeof cssModulesConfig === 'boolean' ||
@@ -76,9 +76,9 @@ export default (new Transformer({
           cssModules,
           analyzeDependencies: asset.meta.hasDependencies !== false,
           sourceMap: !!asset.env.sourceMap,
-          drafts: config?.drafts,
-          pseudoClasses: config?.pseudoClasses,
-          errorRecovery: config?.errorRecovery || false,
+          drafts: globalConfig?.drafts,
+          pseudoClasses: globalConfig?.pseudoClasses,
+          errorRecovery: globalConfig?.errorRecovery || false,
           targets,
         });
       }
