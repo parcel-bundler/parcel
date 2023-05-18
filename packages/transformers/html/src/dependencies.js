@@ -1,6 +1,6 @@
 // @flow
 
-import type {AST, MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset, FilePath} from '@parcel/types';
 import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
 import {parse, stringify} from 'srcset';
@@ -108,7 +108,11 @@ export default function collectDependencies(
   let isDirty = false;
   let hasModuleScripts = false;
   let seen = new Set();
-  const errors = [];
+  let errors: Array<{|
+    message: string,
+    filePath: FilePath,
+    loc: PostHTMLNode['location'],
+  |}> = [];
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
     if (!attrs || seen.has(node)) {
@@ -172,7 +176,11 @@ export default function collectDependencies(
         ? {
             filePath: asset.filePath,
             start: node.location.start,
-            end: node.location.end,
+            end: {
+              line: node.location.end.line,
+              // PostHTML's location is inclusive
+              column: node.location.end.column + 1,
+            },
           }
         : undefined;
 

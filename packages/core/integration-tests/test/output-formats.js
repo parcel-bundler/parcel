@@ -383,6 +383,7 @@ describe('output formats', function () {
                   language: 'js',
                   codeHighlights: [
                     {
+                      message: undefined,
                       start: {
                         line: 1,
                         column: 10,
@@ -897,6 +898,7 @@ describe('output formats', function () {
                   language: 'js',
                   codeHighlights: [
                     {
+                      message: undefined,
                       start: {
                         line: 1,
                         column: 10,
@@ -1544,6 +1546,7 @@ describe('output formats', function () {
                 filePath: source,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 21,
