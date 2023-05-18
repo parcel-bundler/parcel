@@ -165,23 +165,26 @@ export class EntryResolver {
   }
 
   async resolveEntry(entry: FilePath): Promise<EntryResult> {
-    if (await this.isTrulyGlob(entry)) {
-      let files = await glob(entry, this.options.inputFS, {
-        absolute: true,
-        onlyFiles: false,
-      });
-      let results = await Promise.all(
-        files.map(f => this.resolveEntry(path.normalize(f))),
-      );
-      return results.reduce(
-        (p, res) => ({
-          entries: p.entries.concat(res.entries),
-          files: p.files.concat(res.files),
-        }),
-        {entries: [], files: []},
-      );
+    if (!(await this.isTrulyGlob(entry))) {
+      return this.resolveSingleEntry(entry);
     }
+    let files = await glob(entry, this.options.inputFS, {
+      absolute: true,
+      onlyFiles: false,
+    });
+    let results = await Promise.all(
+      files.map(f => this.resolveSingleEntry(path.normalize(f))),
+    );
+    return results.reduce(
+      (p, res) => ({
+        entries: p.entries.concat(res.entries),
+        files: p.files.concat(res.files),
+      }),
+      {entries: [], files: []},
+    );
+  }
 
+  async resolveSingleEntry(entry: FilePath): Promise<EntryResult> {
     let stat;
     try {
       stat = await this.options.inputFS.stat(entry);
