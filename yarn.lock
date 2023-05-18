@@ -14171,6 +14171,11 @@ w3c-xmlserializer@^3.0.0:
   dependencies:
     xml-name-validator "^4.0.0"
 
+wasm-sourcemap@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/wasm-sourcemap/-/wasm-sourcemap-1.0.0.tgz#c9aa3a2105eb2f15b838687b5aebeac4e0c9a07c"
+  integrity sha512-IiOoUHnsI6bVVbs8Q+JO6cj7KtxwGiiS5nJGDbZXfj6srbIDzjjbZk9WMAusvynTzzlPlMgJhb/4SGz92ZgXsA==
+
 wcwidth@^1.0.0, wcwidth@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/wcwidth/-/wcwidth-1.0.1.tgz#f0b0dcf915bc5ff1528afadb2c0e17b532da2fe8"
