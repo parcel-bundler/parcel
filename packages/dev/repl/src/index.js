@@ -1,10 +1,6 @@
 // @flow
-// @jsx h
-// @jsxFrag Fragment
-/* eslint-disable react/jsx-no-bind */
-// eslint-disable-next-line no-unused-vars
-import {h, render, Fragment} from 'preact';
-import {useEffect, useState, useReducer, useRef} from 'preact/hooks';
+import {Fragment, useEffect, useState, useReducer, useRef} from 'react';
+import {createRoot} from 'react-dom/client';
 
 // $FlowFixMe
 import parcelLogo from 'url:./assets/logo.svg';
@@ -82,7 +78,7 @@ function Status({watching, status, buildProgress, buildOutput}) {
   }
 
   return (
-    <div class="status" style={{backgroundColor: color}}>
+    <div className="status" style={{backgroundColor: color}}>
       {text}
     </div>
   );
@@ -99,10 +95,11 @@ function Output({state, dispatch}: {|state: State, dispatch: Function|}) {
   );
   let watchSubscriptionRef = useRef(null);
 
-  useEffect(async () => {
+  useEffect(() => {
     setBuildState(STATUS_LOADING);
-    await workerReady(state.options.numWorkers);
-    setBuildState(STATUS_IDLING);
+    workerReady(state.options.numWorkers).then(() => {
+      setBuildState(STATUS_IDLING);
+    });
   }, [state.options.numWorkers]);
 
   async function build() {
@@ -189,14 +186,14 @@ function Output({state, dispatch}: {|state: State, dispatch: Function|}) {
   let [clientID] = usePromise(clientIDPromise);
 
   return (
-    <div class="output">
+    <div className="output">
       <Status
         watching={watching}
         status={buildState}
         buildProgress={buildProgress}
         buildOutput={buildOutput}
       />
-      <div class="header">
+      <div className="header">
         <button
           disabled={watching || buildState !== STATUS_IDLING}
           onClick={build}
@@ -207,7 +204,7 @@ function Output({state, dispatch}: {|state: State, dispatch: Function|}) {
           {watching ? 'Stop watching' : 'Watch'}
         </button>
       </div>
-      <div class="files">
+      <div className="files">
         {buildOutput?.type === 'success' && (
           <Tabs
             names={['Output', 'Preview']}
@@ -215,10 +212,10 @@ function Output({state, dispatch}: {|state: State, dispatch: Function|}) {
             setSelected={setOutputTabIndex}
           >
             <div>
-              <div class="list views">
+              <div className="list views">
                 {buildOutput.bundles.map(({name, size, content}) => (
-                  <div key={name} class="view selected">
-                    <div class="name">
+                  <div key={name} className="view selected">
+                    <div className="name">
                       {content.length < 500000 &&
                       buildOutput.sourcemaps?.has(name) ? (
                         <a
@@ -246,7 +243,7 @@ function Output({state, dispatch}: {|state: State, dispatch: Function|}) {
               </div>
               {buildOutput?.graphs && <Graphs graphs={buildOutput.graphs} />}
             </div>
-            <Preview clientID={waitForFS().then(() => clientID)} />
+            <Preview clientID={waitForFS().then(() => nullthrows(clientID))} />
           </Tabs>
         )}
         {buildOutput?.type === 'failure' && (
@@ -260,18 +257,17 @@ function Output({state, dispatch}: {|state: State, dispatch: Function|}) {
 function Editors({state, dispatch}) {
   const views = [...state.views];
   const names = views.map(([name, data]) => (
-    // $FlowFixMe
-    <>
+    <Fragment key={name}>
       <span></span>
       <span>{name}</span>
       <button
-        class={
+        className={
           'close ' +
           (data.value !== state.files.get(name)?.value ? 'modified' : '')
         }
         onClick={() => dispatch({type: 'view.close', name})}
       ></button>
-    </>
+    </Fragment>
   ));
   const children = views.map(([name, data]) => {
     if (data.component) {
@@ -294,7 +290,7 @@ function Editors({state, dispatch}) {
     return (
       <Tabs
         names={names}
-        class="editors views"
+        className="editors views"
         mode="hide"
         selected={state.currentView}
         setSelected={i => dispatch({type: 'view.select', index: i})}
@@ -307,15 +303,14 @@ function Editors({state, dispatch}) {
     let merged = [];
     for (let i = 0; i < views.length; i++) {
       merged.push(
-        // $FlowFixMe
-        <div class="view">
-          <div class="name selected">{names[i]}</div>
-          <div class="content">{children[i]}</div>
+        <div className="view" key={i}>
+          <div className="name selected">{names[i]}</div>
+          <div className="content">{children[i]}</div>
         </div>,
       );
     }
     return (
-      <div class="list editors views">
+      <div className="list editors views">
         {merged}
         {children.length === 0 && <Notes />}
       </div>
@@ -342,7 +337,6 @@ function App() {
   );
 
   return (
-    // $FlowFixMe
     <>
       <main>
         <FileBrowser
@@ -354,19 +348,24 @@ function App() {
           <header>
             <a href="/">
               <img
-                class="parcel"
+                className="parcel"
                 src={parcelText}
                 height="30"
-                style="margin-top: 5px;"
+                style={{marginTop: '5px'}}
                 alt=""
               />
-              <img class="type" src={parcelLogo} style="width: 120px;" alt="" />
-              <span style="font-size: 25px;">REPL</span>
+              <img
+                className="type"
+                src={parcelLogo}
+                style={{width: '120px'}}
+                alt=""
+              />
+              <span style={{fontSize: '25px'}}>REPL</span>
             </a>
           </header>
           <div>
             <PresetSelector dispatch={dispatch} />
-            <div class="options">
+            <div className="options">
               <button
                 onClick={() =>
                   dispatch({
@@ -380,7 +379,7 @@ function App() {
               </button>
               <button
                 title="Toggle view"
-                class={'view ' + (state.useTabs ? 'tabs' : '')}
+                className={'view ' + (state.useTabs ? 'tabs' : '')}
                 onClick={() =>
                   dispatch({
                     type: 'toggleView',
@@ -399,7 +398,8 @@ function App() {
   );
 }
 
-render(<App />, document.getElementById('root'));
+let root = createRoot(document.getElementById('root'));
+root.render(<App />);
 
 if (navigator.serviceWorker) {
   navigator.serviceWorker

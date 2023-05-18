@@ -1,9 +1,5 @@
 // @flow
-// @jsx h
-// eslint-disable-next-line no-unused-vars
-import {h} from 'preact';
-import {useCallback, useMemo} from 'preact/hooks';
-import {memo} from 'preact/compat';
+import {useCallback, useMemo, memo} from 'react';
 import path from 'path';
 
 import {CodemirrorEditor} from '@mischnic/codemirror-preact';

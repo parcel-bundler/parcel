@@ -10,27 +10,19 @@
     "prepare": "node write-commit.js"
   },
   "dependencies": {
-    "@codemirror/autocomplete": "^0.19.9",
-    "@codemirror/closebrackets": "^0.19.0",
-    "@codemirror/commands": "^0.19.6",
-    "@codemirror/comment": "^0.19.0",
-    "@codemirror/fold": "^0.19.2",
-    "@codemirror/gutter": "^0.19.9",
-    "@codemirror/highlight": "^0.19.6",
-    "@codemirror/history": "^0.19.0",
-    "@codemirror/lang-css": "^0.19.3",
-    "@codemirror/lang-html": "^0.19.4",
-    "@codemirror/lang-javascript": "^0.19.3",
-    "@codemirror/lang-json": "^0.19.1",
-    "@codemirror/language": "^0.19.7",
-    "@codemirror/lint": "^0.19.3",
-    "@codemirror/matchbrackets": "^0.19.3",
-    "@codemirror/rectangular-selection": "^0.19.1",
-    "@codemirror/search": "^0.19.5",
-    "@codemirror/state": "^0.19.6",
-    "@codemirror/theme-one-dark": "^0.19.1",
-    "@codemirror/view": "^0.19.35",
-    "@mischnic/codemirror-preact": "^0.2.0",
+    "@codemirror/autocomplete": "^6.7.1",
+    "@codemirror/commands": "^6.2.4",
+    "@codemirror/lang-css": "^6.2.0",
+    "@codemirror/lang-html": "^6.4.3",
+    "@codemirror/lang-javascript": "^6.1.8",
+    "@codemirror/lang-json": "^6.0.1",
+    "@codemirror/language": "^6.6.0",
+    "@codemirror/lint": "^6.2.1",
+    "@codemirror/search": "^6.4.0",
+    "@codemirror/state": "^6.2.0",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.12.0",
+    "@lezer/common": "^1.0.2",
     "@mischnic/dot-svg": "^0.0.0",
     "@mischnic/pako": "^1.0.10",
     "@mischnic/yarn-browser": "^0.0.4",
@@ -44,19 +36,13 @@
     "isomorphic-fetch": "^3.0.0",
     "jszip": "^3.7.1",
     "nullthrows": "^1.1.1",
-    "preact": "^10.5.13",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "semver": "^7.3.5"
-  },
-  "browser": {
-    "react": "preact/compat",
-    "react-dom": "preact/compat",
-    "scheduler": false
   },
   "browserslist": "Chrome 75",
   "devDependencies": {
+    "eslint-config-react-app": "^7.0.1",
     "sharp": "^0.31.1"
-  },
-  "alias": {
-    "preact/jsx-dev-runtime": "preact/jsx-runtime/dist/jsxRuntime.mjs"
   }
 }

@@ -1,14 +1,10 @@
 // @flow
-// @jsx h
-/* eslint-disable react/jsx-no-bind */
 import type {State} from './';
 import type {REPLOptions} from '../utils';
 
 import fs from 'fs';
 import path from 'path';
 
-// eslint-disable-next-line no-unused-vars
-import {h} from 'preact';
 import {getDefaultTargetEnv} from '../utils';
 
 let commit = fs
@@ -37,7 +33,7 @@ export function Options({
   const disablePackageJSON = state.files.has('/package.json');
 
   return (
-    <div class="options">
+    <div className="options">
       <label title="Corresponds to `--no-source-maps`">
         <span>Source Maps</span>
         <input
@@ -154,7 +150,7 @@ export function Options({
         </select>
       </label>
       <hr />
-      <div class="dependencies">
+      <div className="dependencies">
         Dependencies
         <ul>
           {values.dependencies?.map(([name, version], i) => (
@@ -188,7 +184,7 @@ export function Options({
                 disabled={disabled || disablePackageJSON}
               />
               <button
-                class="remove"
+                className="remove"
                 onClick={() =>
                   onChange(
                     'dependencies',
@@ -203,7 +199,7 @@ export function Options({
           ))}
           <li>
             <button
-              class="add"
+              className="add"
               onClick={() =>
                 onChange('dependencies', [...values.dependencies, ['', '']])
               }

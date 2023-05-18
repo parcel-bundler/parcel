@@ -1,13 +1,7 @@
 // @flow
-// @jsx h
-// @jsxFrag Fragment
-/* eslint-disable react/jsx-no-bind */
-// eslint-disable-next-line no-unused-vars
 import type {BundleOutputError} from '../parcel/ParcelWorker';
-import {h} from 'preact';
-import {useCallback, useState, useEffect, useRef} from 'preact/hooks';
-import {memo} from 'preact/compat';
-import {ctrlKey, extractZIP} from '../utils';
+import {useCallback, useState, useEffect, useRef, memo} from 'react';
+import {ctrlKey} from '../utils';
 import renderGraph from '../graphs/index.js';
 import {ASSET_PRESETS} from '../utils';
 import {type FSMap} from '../utils/assets';
@@ -19,16 +13,16 @@ export function ParcelError({
   output: BundleOutputError,
 |}): any {
   return (
-    <div class="build-error">
+    <div className="build-error">
       <span>A build error occured:</span>
-      <div class="content" dangerouslySetInnerHTML={{__html: error}} />
+      <div className="content" dangerouslySetInnerHTML={{__html: error}} />
     </div>
   );
 }
 
 export function Notes(): any {
   return (
-    <div class="help">
+    <div className="help">
       <div>
         <p>{ctrlKey} + B to bundle</p>
         <p>{ctrlKey} + S to save</p>
@@ -57,20 +51,21 @@ export function Notes(): any {
 export const Graphs: any = memo(function Graphs({graphs}) {
   let [rendered, setRendered] = useState();
 
-  useEffect(async () => {
-    let render = await renderGraph();
-    setRendered(
-      await Promise.all(
-        graphs.map(async ({name, content}) => ({
-          name,
-          content: /*toDataURI*/ ('image/svg+xml', await render(content)),
-        })),
-      ),
-    );
+  useEffect(() => {
+    renderGraph().then(async render => {
+      setRendered(
+        await Promise.all(
+          graphs.map(async ({name, content}) => ({
+            name,
+            content: /*toDataURI*/ ('image/svg+xml', await render(content)),
+          })),
+        ),
+      );
+    });
   }, [graphs]);
 
   return (
-    <div class="graphs">
+    <div className="graphs">
       Graphs (will open in a new tab)
       {rendered && (
         <div>
@@ -118,13 +113,13 @@ export function Tabs({
   }, [children, selected, setSelected]);
 
   return (
-    <div {...props} class={'tabs ' + (clazz || '')}>
-      <div class="switcher">
+    <div {...props} className={'tabs ' + (clazz || '')}>
+      <div className="switcher">
         {names.map((n, i) => (
           <div
             onClick={() => setSelected(i)}
             key={i}
-            class={i === selected ? 'selected' : undefined}
+            className={i === selected ? 'selected' : undefined}
             // tabIndex="0"
             // onKeyDown={(e) => e.code === "Enter" && setSelected(i)}
           >
@@ -137,7 +132,7 @@ export function Tabs({
         : children.map((c, i) => (
             <div
               key={i}
-              class="content"
+              className="content"
               style={i !== selected && {display: 'none'}}
             >
               {c}
@@ -230,7 +225,7 @@ export function PresetSelector({dispatch}: any): any {
   );
 
   return (
-    <label class="presets">
+    <label className="presets">
       <span>Preset:</span>
       <select
         onChange={e => {
@@ -313,7 +308,6 @@ export function usePromise<T>(promise: Promise<T>): [?T, any, boolean] {
     );
   }, [promise]);
 
-  // $FlowFixMe
   return [state?.resolved, state?.rejected, state != null];
 }
 

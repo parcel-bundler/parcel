@@ -1,10 +1,4 @@
 // @flow
-// @jsx h
-// @jsxFrag Fragment
-/* eslint-disable react/jsx-no-bind */
-
-// eslint-disable-next-line no-unused-vars
-import {h, render, Fragment} from 'preact';
 import path from 'path';
 import {EditableField} from './helper';
 import {downloadZIP} from '../utils';
@@ -35,7 +29,7 @@ function FileBrowserEntry({
       {...rest}
     >
       <div
-        class={directory ? `dir ${!collapsed ? 'expanded' : ''}` : 'file'}
+        className={directory ? `dir ${!collapsed ? 'expanded' : ''}` : 'file'}
         onClick={() =>
           directory
             ? dispatch({
@@ -50,8 +44,8 @@ function FileBrowserEntry({
         // tabIndex="0"
         // onDblclick={(e) => console.log(e)}
       >
-        <div class="name">
-          <div class="icon" />
+        <div className="name">
+          <div className="icon" />
           <EditableField
             value={name}
             editing={isEditing === p}
@@ -63,13 +57,13 @@ function FileBrowserEntry({
             }
           />
         </div>
-        <div class="controls">
+        <div className="controls">
           {!directory && (
             <input
               title="Entrypoint"
               type="checkbox"
               checked={isEntry}
-              onClick={e => {
+              onChange={e => {
                 dispatch({
                   type: 'file.isEntry',
                   name: p,
@@ -80,7 +74,7 @@ function FileBrowserEntry({
             />
           )}
           <button
-            class="rename"
+            className="rename"
             onClick={e => {
               dispatch({
                 type: 'browser.setEditing',
@@ -90,7 +84,7 @@ function FileBrowserEntry({
             }}
           />
           <button
-            class="delete"
+            className="delete"
             onClick={e => {
               dispatch({
                 type: 'file.delete',
@@ -179,10 +173,10 @@ export function FileBrowser({
   children,
 }: any): any {
   return (
-    <div class="file-browser">
+    <div className="file-browser">
       {children}
       <div>
-        <div class="header">
+        <div className="header">
           {/*<button
           onClick={async () => {
             const dirHandle = await window.showDirectoryPicker();
@@ -215,7 +209,7 @@ export function FileBrowser({
           }}
           onDragOver={e => e.preventDefault()}
         />
-        <div class="download">
+        <div className="download">
           <button
             onClick={() => {
               downloadZIP(files.list());
