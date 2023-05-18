@@ -153,47 +153,32 @@ export class EntryResolver {
     this.options = options;
   }
 
-  isTrulyGlob(entry: FilePath): Promise<boolean> {
-    if (!isGlob(entry)) {
-      return Promise.resolve(false);
-    }
-
-    return this.options.inputFS
-      .stat(entry)
-      .then(() => false)
-      .catch(() => true);
-  }
-
   async resolveEntry(entry: FilePath): Promise<EntryResult> {
-    if (!(await this.isTrulyGlob(entry))) {
-      return this.resolveSingleEntry(entry);
-    }
-    let files = await glob(entry, this.options.inputFS, {
-      absolute: true,
-      onlyFiles: false,
-    });
-    let results = await Promise.all(
-      files.map(f => this.resolveSingleEntry(path.normalize(f))),
-    );
-    return results.reduce(
-      (p, res) => ({
-        entries: p.entries.concat(res.entries),
-        files: p.files.concat(res.files),
-      }),
-      {entries: [], files: []},
-    );
-  }
-
-  async resolveSingleEntry(entry: FilePath): Promise<EntryResult> {
     let stat;
     try {
       stat = await this.options.inputFS.stat(entry);
     } catch (err) {
-      throw new ThrowableDiagnostic({
-        diagnostic: {
-          message: md`Entry ${entry} does not exist`,
-        },
+      if (!isGlob(entry)) {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: md`Entry ${entry} does not exist`,
+          },
+        });
+      }
+      let files = await glob(entry, this.options.inputFS, {
+        absolute: true,
+        onlyFiles: false,
       });
+      let results = await Promise.all(
+        files.map(f => this.resolveEntry(path.normalize(f))),
+      );
+      return results.reduce(
+        (p, res) => ({
+          entries: p.entries.concat(res.entries),
+          files: p.files.concat(res.files),
+        }),
+        {entries: [], files: []},
+      );
     }
 
     if (stat.isDirectory()) {
