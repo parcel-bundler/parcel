@@ -2,28 +2,40 @@
 import {useCallback, useMemo, memo} from 'react';
 import path from 'path';
 
-import {CodemirrorEditor} from '@mischnic/codemirror-preact';
+import {CodemirrorEditor} from '../codemirror';
 
 import {
   EditorView,
-  keymap,
-  highlightSpecialChars,
   drawSelection,
   highlightActiveLine,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+  rectangularSelection,
 } from '@codemirror/view';
 import {EditorState} from '@codemirror/state';
-import {history, historyKeymap} from '@codemirror/history';
-import {foldGutter, foldKeymap} from '@codemirror/fold';
-import {indentOnInput} from '@codemirror/language';
-import {lineNumbers} from '@codemirror/gutter';
-import {defaultKeymap, indentMore, indentLess} from '@codemirror/commands';
-import {bracketMatching} from '@codemirror/matchbrackets';
-import {closeBrackets, closeBracketsKeymap} from '@codemirror/closebrackets';
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  foldGutter,
+  foldKeymap,
+  indentOnInput,
+  syntaxHighlighting,
+} from '@codemirror/language';
+import {
+  defaultKeymap,
+  indentMore,
+  indentLess,
+  history,
+  historyKeymap,
+} from '@codemirror/commands';
 import {searchKeymap, highlightSelectionMatches} from '@codemirror/search';
-import {autocompletion, completionKeymap} from '@codemirror/autocomplete';
-import {commentKeymap} from '@codemirror/comment';
-import {rectangularSelection} from '@codemirror/rectangular-selection';
-import {defaultHighlightStyle} from '@codemirror/highlight';
+import {
+  autocompletion,
+  completionKeymap,
+  closeBrackets,
+  closeBracketsKeymap,
+} from '@codemirror/autocomplete';
 import {lintKeymap} from '@codemirror/lint';
 // import {oneDark} from '@codemirror/theme-one-dark';
 
@@ -63,7 +75,7 @@ const Editor: any = memo(function Editor({
         drawSelection(),
         EditorState.allowMultipleSelections.of(true),
         indentOnInput(),
-        defaultHighlightStyle.fallback,
+        syntaxHighlighting(defaultHighlightStyle),
         bracketMatching(),
         closeBrackets(),
         autocompletion(),
@@ -78,7 +90,6 @@ const Editor: any = memo(function Editor({
           ...searchKeymap,
           ...historyKeymap,
           ...foldKeymap,
-          ...commentKeymap,
           ...completionKeymap,
           ...lintKeymap,
           {
