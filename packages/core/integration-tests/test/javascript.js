@@ -2611,50 +2611,7 @@ describe('javascript', function () {
       ],
     });
   });
-  it('should hoist function default exports to allow circular imports', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/circular-named-default-export/a.mjs'),
-      {
-        outputFS: inputFS,
-        defaultTargetOptions: {
-          shouldScopeHoist: false, // Does not occur with scope-hoisting on
-          shouldOptimize: false,
-          sourceMaps: false,
-        },
-      },
-    );
 
-    let output;
-    function result(v) {
-      output = v;
-    }
-    await run(b, {result});
-    assert.deepEqual(output, 'b1');
-  });
-
-  it('should hoist anonymous function default exports to allow circular imports', async function () {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/circular-anonymous-default-export/a.mjs',
-      ),
-      {
-        outputFS: inputFS,
-        defaultTargetOptions: {
-          shouldScopeHoist: false, // Does not occur with scope-hoisting on
-          shouldOptimize: false,
-          sourceMaps: false,
-        },
-      },
-    );
-
-    let output;
-    function result(v) {
-      output = v;
-    }
-    await run(b, {result});
-    assert.deepEqual(output, 'b1');
-  });
   it('should support importing a URL to a large raw asset', async function () {
     // 6 megabytes, which exceeds the threshold in summarizeRequest for buffering
     // entire contents into memory and should stream content instead
@@ -5276,6 +5233,38 @@ describe('javascript', function () {
     );
     let res = await run(b);
     assert.deepEqual(res, {other: 1});
+  });
+
+  it('should hoist function default exports to allow circular imports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/js-export-default-fn-circular-named/a.mjs',
+      ),
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, 'b1');
+  });
+
+  it('should hoist anonymous function default exports to allow circular imports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/js-export-default-fn-circular-anonymous/a.mjs',
+      ),
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, 'b1');
   });
 
   it('should work with many different types of exports', async function () {
