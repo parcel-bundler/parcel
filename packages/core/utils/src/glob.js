@@ -5,7 +5,7 @@ import type {FileSystem} from '@parcel/fs';
 
 import _isGlob from 'is-glob';
 import fastGlob, {type FastGlobOptions} from 'fast-glob';
-import {isMatch, makeRe, type Options} from 'micromatch';
+import micromatch, {isMatch, makeRe, type Options} from 'micromatch';
 import {normalizeSeparators} from './path';
 
 export function isGlob(p: FilePath): any {
@@ -21,6 +21,18 @@ export function isGlobMatch(
     ? glob.map(normalizeSeparators)
     : normalizeSeparators(glob);
   return isMatch(filePath, glob, opts);
+}
+
+export function globMatch(
+  values: Array<string>,
+  glob: Glob | Array<Glob>,
+  opts?: Options,
+): Array<string> {
+  glob = Array.isArray(glob)
+    ? glob.map(normalizeSeparators)
+    : normalizeSeparators(glob);
+
+  return micromatch(values, glob, opts);
 }
 
 export function globToRegex(glob: Glob, opts?: Options): RegExp {

@@ -41,7 +41,7 @@ impl<'a, Fs> Deref for CacheCow<'a, Fs> {
 
   fn deref(&self) -> &Self::Target {
     match self {
-      CacheCow::Borrowed(c) => *c,
+      CacheCow::Borrowed(c) => c,
       CacheCow::Owned(c) => c,
     }
   }
@@ -169,7 +169,7 @@ impl<Fs: FileSystem> Cache<Fs> {
       path: &Path,
       process: F,
     ) -> Result<TsConfigWrapper<'static>, ResolverError> {
-      let data = read(fs, arena, &path)?;
+      let data = read(fs, arena, path)?;
       let mut tsconfig =
         TsConfig::parse(path.to_owned(), data).map_err(|e| JsonError::new(path.to_owned(), e))?;
       // Convice the borrow checker that 'a will live as long as self and not 'static.

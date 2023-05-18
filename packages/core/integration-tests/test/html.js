@@ -36,32 +36,40 @@ describe('html', function () {
         assets: ['index.html'],
       },
       {
+        // index.html
         name: 'index.html',
         assets: ['index.html'],
       },
       {
+        // foo/index.html
         name: 'index.html',
         assets: ['index.html'],
       },
       {
-        type: 'png',
-        assets: ['100x100.png'],
+        // other.html
+        name: 'other.html',
+        assets: ['other.html'],
+      },
+      {
+        // foo/other.html
+        name: 'other.html',
+        assets: ['other.html'],
       },
       {
         type: 'svg',
         assets: ['icons.svg'],
       },
       {
-        type: 'css',
-        assets: ['index.css'],
-      },
-      {
-        type: 'html',
-        assets: ['other.html'],
+        type: 'png',
+        assets: ['100x100.png'],
       },
       {
         type: 'js',
         assets: ['index.js'],
+      },
+      {
+        type: 'css',
+        assets: ['index.css'],
       },
     ]);
 
@@ -1432,7 +1440,7 @@ describe('html', function () {
               ),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 5,
                     column: 7,
@@ -1721,7 +1729,7 @@ describe('html', function () {
               filePath: path.join(__dirname, '/integration/html-js/index.js'),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,

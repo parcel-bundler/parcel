@@ -15,7 +15,7 @@ pub fn find_ancestor_file(filenames: Vec<String>, from: String, root: String) ->
     }
 
     for name in &filenames {
-      let fullpath = dir.join(&name);
+      let fullpath = dir.join(name);
       if fullpath.is_file() {
         return Some(fullpath.to_string_lossy().into_owned());
       }
