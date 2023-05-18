@@ -9,7 +9,9 @@ import {
 } from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
+} from '@parcel/diagnostic';
 import NodeResolver from '@parcel/node-resolver-core';
 import invariant from 'assert';
 
@@ -21,10 +23,7 @@ function errorToThrowableDiagnostic(error, dependency): ThrowableDiagnostic {
         ? [
             {
               codeHighlights: [
-                {
-                  start: dependency.loc.start,
-                  end: dependency.loc.end,
-                },
+                convertSourceLocationToHighlight(dependency.loc),
               ],
             },
           ]
