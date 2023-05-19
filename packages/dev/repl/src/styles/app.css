@@ -17,42 +17,33 @@ button:hover {
   background: var(--background-dark);
 }
 
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.panel > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.resize-handle {
+  width: 0.3rem;
+  transition: 200ms ease-in-out background-color;
+  background-color: var(--handle-color);
+  outline: none;
+}
+.resize-handle:hover,
+.resize-handle[data-resize-handle-active] {
+  background-color: var(--handle-color-active);
+}
+
 .editor,
 pre {
   background-color: var(--background-editor);
 }
 
-main {
-  display: grid;
-  align-items: stretch;
-  grid-template-columns: 16em minmax(20em, 1.2fr) minmax(10em, 1fr);
-  grid-template-areas: 'browser editor output';
-}
-@media (max-width: 850px) {
-  main {
-    grid-template-rows: min-content auto;
-    grid-template-columns: minmax(20em, 1.2fr) minmax(10em, 1fr);
-    grid-template-areas:
-      'browser browser'
-      'editor output';
-  }
-}
-@media (max-width: 550px) {
-  main {
-    grid-template-rows: min-content auto auto;
-    grid-template-columns: auto;
-    grid-template-areas:
-      'browser'
-      'editor'
-      'output';
-  }
-}
-
-main > div {
-  min-height: 0;
-}
 main > .output {
-  grid-area: output;
   overflow: auto;
 }
 
@@ -61,12 +52,7 @@ main > .output {
   min-height: 25em;
 }
 
-.file-browser {
-  grid-area: browser;
-}
-
 .editors {
-  grid-area: editor;
   background: var(--background-light);
   display: flex;
   flex-direction: column;

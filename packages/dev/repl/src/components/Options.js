@@ -57,7 +57,7 @@ export function Options({
         <span>Output Format</span>
         <select
           onChange={e => onChange('outputFormat', e.target.value || null)}
-          value={values.outputFormat}
+          value={values.outputFormat ?? ''}
           disabled={disabled || disablePackageJSON}
         >
           <option value="" />
@@ -83,8 +83,8 @@ export function Options({
           </select>
           <input
             type="text"
-            value={values.targetEnv}
-            onInput={e => onChange('targetEnv', e.target.value)}
+            value={values.targetEnv ?? ''}
+            onInput={e => onChange('targetEnv', e.target.value || null)}
             placeholder={getDefaultTargetEnv(values.targetType)}
             disabled={disabled || disablePackageJSON}
           />

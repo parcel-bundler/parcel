@@ -1,6 +1,9 @@
 // @flow
 import {Fragment, useEffect, useState, useReducer, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
+// $FlowFixMe
+import {Panel, PanelGroup, PanelResizeHandle} from 'react-resizable-panels';
+import {useMedia} from 'react-use';
 
 // $FlowFixMe
 import parcelLogo from 'url:./assets/logo.svg';
@@ -321,6 +324,8 @@ function Editors({state, dispatch}) {
 function App() {
   let [state, dispatch] = useReducer(reducer, null, getInitialState);
 
+  let isDesktop = useMedia('(min-width: 800px)');
+
   useDebounce(() => saveState(state), 500, [state.files, state.options]);
 
   useKeyboard(
@@ -336,66 +341,105 @@ function App() {
     [dispatch],
   );
 
-  return (
-    <>
-      <main>
-        <FileBrowser
-          files={state.files}
-          collapsed={state.browserCollapsed}
-          dispatch={dispatch}
-          isEditing={state.isEditing}
-        >
-          <header>
-            <a href="/">
-              <img
-                className="parcel"
-                src={parcelText}
-                height="30"
-                style={{marginTop: '5px'}}
-                alt=""
-              />
-              <img
-                className="type"
-                src={parcelLogo}
-                style={{width: '120px'}}
-                alt=""
-              />
-              <span style={{fontSize: '25px'}}>REPL</span>
-            </a>
-          </header>
-          <div>
-            <PresetSelector dispatch={dispatch} />
-            <div className="options">
-              <button
-                onClick={() =>
-                  dispatch({
-                    type: 'view.open',
-                    name: 'Options',
-                    component: Options,
-                  })
-                }
-              >
-                Options
-              </button>
-              <button
-                title="Toggle view"
-                className={'view ' + (state.useTabs ? 'tabs' : '')}
-                onClick={() =>
-                  dispatch({
-                    type: 'toggleView',
-                  })
-                }
-              >
-                <span></span>
-              </button>
-            </div>
-          </div>
-        </FileBrowser>
-        <Editors state={state} dispatch={dispatch} />
-        <Output state={state} dispatch={dispatch} />
-      </main>
-    </>
+  const sidebar = (
+    <FileBrowser
+      files={state.files}
+      collapsed={state.browserCollapsed}
+      dispatch={dispatch}
+      isEditing={state.isEditing}
+    >
+      <header>
+        <a href="/">
+          <img
+            className="parcel"
+            src={parcelText}
+            height="30"
+            style={{marginTop: '5px'}}
+            alt=""
+          />
+          <img
+            className="type"
+            src={parcelLogo}
+            style={{width: '120px'}}
+            alt=""
+          />
+          <span style={{fontSize: '25px'}}>REPL</span>
+        </a>
+      </header>
+      <div>
+        <PresetSelector dispatch={dispatch} />
+        <div className="options">
+          <button
+            onClick={() =>
+              dispatch({
+                type: 'view.open',
+                name: 'Options',
+                component: Options,
+              })
+            }
+          >
+            Options
+          </button>
+          <button
+            title="Toggle view"
+            className={'view ' + (state.useTabs ? 'tabs' : '')}
+            onClick={() =>
+              dispatch({
+                type: 'toggleView',
+              })
+            }
+          >
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </FileBrowser>
   );
+
+  const editors = <Editors state={state} dispatch={dispatch} />;
+  const output = <Output state={state} dispatch={dispatch} />;
+
+  return (
+    <main>
+      {isDesktop ? (
+        <PanelGroup direction="horizontal" autoSaveId="repl-main-panels">
+          <Panel
+            defaultSizePercentage={20}
+            minSizePixels={60}
+            className="panel"
+          >
+            {sidebar}
+          </Panel>
+          <ResizeHandle />
+          <Panel
+            defaultSizePercentage={45}
+            minSizePixels={100}
+            className="panel"
+          >
+            {editors}
+          </Panel>
+          <ResizeHandle />
+          <Panel
+            defaultSizePercentage={35}
+            minSizePixels={200}
+            className="panel"
+          >
+            {output}
+          </Panel>
+        </PanelGroup>
+      ) : (
+        <div style={{display: 'flex', flexDirection: 'column'}}>
+          {sidebar}
+          {editors}
+          {output}
+        </div>
+      )}
+    </main>
+  );
+}
+
+function ResizeHandle() {
+  return <PanelResizeHandle className="resize-handle"></PanelResizeHandle>;
 }
 
 let root = createRoot(document.getElementById('root'));

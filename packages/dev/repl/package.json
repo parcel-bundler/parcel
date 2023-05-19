@@ -38,6 +38,8 @@
     "nullthrows": "^1.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-resizable-panels": "^0.0.61",
+    "react-use": "^17.4.0",
     "semver": "^7.3.5"
   },
   "browserslist": "Chrome 75",

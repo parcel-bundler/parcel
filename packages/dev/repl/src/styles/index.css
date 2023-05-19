@@ -23,6 +23,10 @@ html {
   --gap: 0.5rem;
   --radius: 0.3rem;
 
+  --parcel-color: #e7b37d;
+  --handle-color: rgba(0, 0, 0, 0.1);
+  --handle-color-active: var(--parcel-color);
+
   background-color: var(--background-light);
   color: var(--color);
 }

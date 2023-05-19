@@ -97,7 +97,7 @@ export function Tabs({
   selected,
   setSelected,
   mode = 'remove',
-  class: clazz,
+  className,
   fallback,
   ...props
 }: any): any {
@@ -113,7 +113,7 @@ export function Tabs({
   }, [children, selected, setSelected]);
 
   return (
-    <div {...props} className={'tabs ' + (clazz || '')}>
+    <div {...props} className={'tabs ' + (className || '')}>
       <div className="switcher">
         {names.map((n, i) => (
           <div
@@ -133,7 +133,7 @@ export function Tabs({
             <div
               key={i}
               className="content"
-              style={i !== selected && {display: 'none'}}
+              style={i !== selected ? {display: 'none'} : undefined}
             >
               {c}
             </div>
