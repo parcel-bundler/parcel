@@ -60,6 +60,8 @@ export type WorkerApi = {|
 
 export {Handle};
 
+const DEFAULT_MAX_CONCURRENT_CALLS: number = 30;
+
 /**
  * workerPath should always be defined inside farmOptions
  */
@@ -83,7 +85,9 @@ export default class WorkerFarm extends EventEmitter {
     super();
     this.options = {
       maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
-      maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
+      maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(
+        farmOptions.shouldTrace ? 1 : DEFAULT_MAX_CONCURRENT_CALLS,
+      ),
       forcedKillTime: 500,
       warmWorkers: false,
       useLocalWorker: true, // TODO: setting this to false makes some tests fail, figure out why
@@ -648,8 +652,12 @@ export default class WorkerFarm extends EventEmitter {
     return child.workerApi;
   }
 
-  static getConcurrentCallsPerWorker(): number {
-    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 30;
+  static getConcurrentCallsPerWorker(
+    defaultValue?: number = DEFAULT_MAX_CONCURRENT_CALLS,
+  ): number {
+    return (
+      parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || defaultValue
+    );
   }
 }
 
