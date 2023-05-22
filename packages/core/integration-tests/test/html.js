@@ -2076,6 +2076,59 @@ describe('html', function () {
     }
   });
 
+  it('supports multiple dist targets', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-multi-targets/'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          shouldOptimize: false,
+          sourceMaps: false,
+        },
+      },
+    );
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'shared.js'],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'shared.js'],
+      },
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+    ]);
+  });
   it('should isolate async scripts', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-async-script/index.html'),
