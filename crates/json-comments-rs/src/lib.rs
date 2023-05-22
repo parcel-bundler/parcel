@@ -128,22 +128,51 @@ where
   fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
     let count = self.inner.read(buf)?;
     if count > 0 {
-      for c in buf[..count].iter_mut() {
-        self.state = match self.state {
-          Top => top(c, &self.settings),
-          InString => in_string(*c),
-          StringEscape => InString,
-          InComment => in_comment(c, &self.settings)?,
-          InBlockComment => in_block_comment(c),
-          MaybeCommentEnd => maybe_comment_end(c),
-          InLineComment => in_line_comment(c),
-        }
-      }
+      strip_buf(&mut self.state, &mut buf[..count], &self.settings)?;
     } else if self.state != Top && self.state != InLineComment {
       invalid_data!();
     }
     Ok(count)
   }
+}
+
+fn strip_buf(state: &mut State, buf: &mut [u8], settings: &CommentSettings) -> Result<()> {
+  for c in buf.iter_mut() {
+    *state = match state {
+      Top => top(c, settings),
+      InString => in_string(*c),
+      StringEscape => InString,
+      InComment => in_comment(c, settings)?,
+      InBlockComment => in_block_comment(c),
+      MaybeCommentEnd => maybe_comment_end(c),
+      InLineComment => in_line_comment(c),
+    }
+  }
+
+  Ok(())
+}
+
+/// Strips comments from a string in place, replacing it with whitespaces.
+///
+/// /// ## Example
+/// ```
+/// use json_comments::strip_comments_in_place;
+///
+/// let mut string = String::from(r#"{
+/// // c line comment
+/// "a": "comment in string /* a */",
+/// ## shell line comment
+/// } /** end */"#);
+///
+/// strip_comments_in_place(&mut string, Default::default()).unwrap();
+///
+/// assert_eq!(string, "{
+///                  \n\"a\": \"comment in string /* a */\",
+///                     \n}           ");
+///
+/// ```
+pub fn strip_comments_in_place(s: &mut str, settings: CommentSettings) -> Result<()> {
+  strip_buf(&mut Top, unsafe { s.as_bytes_mut() }, &settings)
 }
 
 /// Settings for `StripComments`
@@ -417,5 +446,12 @@ mod tests {
       .read_to_string(&mut stripped)
       .unwrap_err();
     assert_eq!(err.kind(), ErrorKind::InvalidData);
+  }
+
+  #[test]
+  fn strip_in_place() {
+    let mut json = String::from(r#"{/* Comment */"hi": /** abc */ "bye"}"#);
+    strip_comments_in_place(&mut json, Default::default()).unwrap();
+    assert_eq!(json, r#"{             "hi":            "bye"}"#);
   }
 }
