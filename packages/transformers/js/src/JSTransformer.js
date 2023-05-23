@@ -13,7 +13,7 @@ import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   convertSourceLocationToHighlight,
 } from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, isGlobMatch} from '@parcel/utils';
+import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 import pkg from '../package.json';
 
@@ -368,10 +368,11 @@ export default (new Transformer({
         env.PARCEL_BUILD_ENV = 'test';
       }
     } else if (Array.isArray(config?.inlineEnvironment)) {
-      for (let key in options.env) {
-        if (isGlobMatch(key, config.inlineEnvironment)) {
-          env[key] = String(options.env[key]);
-        }
+      for (let match of globMatch(
+        Object.keys(options.env),
+        config.inlineEnvironment,
+      )) {
+        env[match] = String(options.env[match]);
       }
     } else {
       for (let key in options.env) {
