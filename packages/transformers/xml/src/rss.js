@@ -37,10 +37,9 @@ export function description(
     bundleBehavior: 'inline',
   });
 
-  let child = element.firstChild;
-  while (child) {
+  let child;
+  while ((child = element.firstChild)) {
     element.removeChild(child);
-    child = child.nextSibling;
   }
 
   let el = element.ownerDocument.createElementNS(
