@@ -2492,6 +2492,22 @@ mod tests {
   }
 
   #[test]
+  fn test_tsconfig_parsing() {
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "foo",
+          &root().join("tsconfig/trailing-comma/index.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("tsconfig/trailing-comma/bar.js"))
+    );
+  }
+
+  #[test]
   fn test_ts_extensions() {
     assert_eq!(
       test_resolver()
