@@ -38,7 +38,6 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   - Bump napi-rs to latest – [Details](https://github.com/parcel-bundler/parcel/pull/8838), [Details](https://github.com/parcel-bundler/parcel/pull/8918)
   - Fix pnpm autoinstall – [Details](https://github.com/parcel-bundler/parcel/pull/8788)
   - Fix "does not exports" error for multiple assets returned by transformers – [Details](https://github.com/parcel-bundler/parcel/pull/8947)
-  - Fix missing asset errors in runtime manifest bundles – [Details](https://github.com/parcel-bundler/parcel/pull/8981)
   - Remove v8-compile-cache – [Details](https://github.com/parcel-bundler/parcel/pull/8990)
   - Update fast-glob – [Details](https://github.com/parcel-bundler/parcel/pull/8996)
   - Update lmdb – [Details](https://github.com/parcel-bundler/parcel/pull/8999)
