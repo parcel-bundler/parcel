@@ -831,7 +831,9 @@ dependencies = [
 [[package]]
 name = "json_comments"
 version = "0.2.1"
-source = "git+https://github.com/devongovett/json-comments-rs?branch=strip_in_place#95f35683d806e48e0e95f7b425b88f7b9a77f518"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "lazy_static"
