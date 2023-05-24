@@ -103,6 +103,7 @@ export default class Parcel {
   /** Store the last build (if successful) for eventual garbage collection */
   #lastBuildBundleInfo: ?Map<string, PackagedBundleInfo> = null;
   #gcAbortController: ?AbortController;
+  #isGCRunning = false;
 
   isProfiling: boolean;
 
@@ -559,112 +560,125 @@ export default class Parcel {
     };
   }
 
-  async #runCacheGC(intervalMS: number, signal: ?AbortSignal) {
-    if (this.#resolvedOptions == null || this.#lastBuildBundleInfo == null) {
+  runGarbageCollection(): Promise<void> {
+    return this.#runCacheGC();
+  }
+
+  async #runCacheGC(intervalMS: ?number, signal: ?AbortSignal) {
+    if (
+      this.#resolvedOptions == null ||
+      this.#lastBuildBundleInfo == null ||
+      this.#isGCRunning
+    ) {
       return;
     }
 
-    let options = this.#resolvedOptions;
-    let requestGraph = this.#requestTracker.graph;
-    let bundleInfo = this.#lastBuildBundleInfo;
+    try {
+      let options = this.#resolvedOptions;
+      let requestGraph = this.#requestTracker.graph;
+      let bundleInfo = this.#lastBuildBundleInfo;
 
-    if (
-      // $FlowFixMe[sketchy-null-string] this sketchy check is fine
-      !process.env.PARCEL_FORCE_CACHE_GC
-    ) {
-      let lastGCRun = await options.cache.get<number>(GC_KEY_LAST_RUN);
-      if (lastGCRun == null) {
-        // First run, skip
-        await options.cache.set(GC_KEY_LAST_RUN, Date.now());
-        return;
-      }
-
-      if (Date.now() - lastGCRun < intervalMS) {
-        return;
-      }
-    }
-
-    let used: Set<string> = new Set([
-      GC_KEY_LAST_RUN,
-      getRequestGraphCacheKey(options).requestGraphKey,
-    ]);
-
-    logger.info({
-      origin: '@parcel/core',
-      message: 'Running cache garbage collection...',
-    });
-
-    let start = Date.now();
-
-    for (let node of requestGraph.nodes) {
-      if (!node) continue;
-      if (signal?.aborted) {
-        return;
-      }
-      if (node.type === 'request') {
-        if (node.value.resultCacheKey != null) {
-          used.add(node.value.resultCacheKey);
+      if (
+        intervalMS != null &&
+        // $FlowFixMe[sketchy-null-string] this sketchy check is fine
+        !process.env.PARCEL_FORCE_CACHE_GC
+      ) {
+        let lastGCRun = await options.cache.get<number>(GC_KEY_LAST_RUN);
+        if (lastGCRun == null) {
+          // First run, skip
+          await options.cache.set(GC_KEY_LAST_RUN, Date.now());
+          return;
         }
 
-        if (node.value.type === 'parcel_config_request') {
-          // $FlowFixMe[incompatible-cast]
-          let configValue = (node.value.result: ConfigAndCachePath);
-          used.add(configValue.cachePath);
-        } else if (node.value.type === 'asset_request') {
-          // $FlowFixMe[incompatible-cast]
-          let result = (node.value.result: AssetRequestResult);
-          for (let k of result.cacheKeys) {
-            used.add(k);
+        if (Date.now() - lastGCRun < intervalMS) {
+          return;
+        }
+      }
+
+      let used: Set<string> = new Set([
+        GC_KEY_LAST_RUN,
+        getRequestGraphCacheKey(options).requestGraphKey,
+      ]);
+
+      logger.info({
+        origin: '@parcel/core',
+        message: 'Running cache garbage collection...',
+      });
+
+      let start = Date.now();
+
+      for (let node of requestGraph.nodes) {
+        if (!node) continue;
+        if (signal?.aborted) {
+          return;
+        }
+        if (node.type === 'request') {
+          if (node.value.resultCacheKey != null) {
+            used.add(node.value.resultCacheKey);
+          }
+
+          if (node.value.type === 'parcel_config_request') {
+            // $FlowFixMe[incompatible-cast]
+            let configValue = (node.value.result: ConfigAndCachePath);
+            used.add(configValue.cachePath);
+          } else if (node.value.type === 'asset_request') {
+            // $FlowFixMe[incompatible-cast]
+            let result = (node.value.result: AssetRequestResult);
+            for (let k of result.cacheKeys) {
+              used.add(k);
+            }
           }
         }
       }
-    }
 
-    for (let {cacheKeys} of bundleInfo.values()) {
-      if (signal?.aborted) {
-        return;
+      for (let {cacheKeys} of bundleInfo.values()) {
+        if (signal?.aborted) {
+          return;
+        }
+        if (cacheKeys == null) continue;
+        used.add(cacheKeys.map);
+        used.add(cacheKeys.content);
+        used.add(cacheKeys.info);
       }
-      if (cacheKeys == null) continue;
-      used.add(cacheKeys.map);
-      used.add(cacheKeys.content);
-      used.add(cacheKeys.info);
-    }
 
-    let keys = await options.cache.getKeys();
-    for (let k of keys.normal) {
-      if (signal?.aborted) {
-        return;
+      let keys = await options.cache.getKeys();
+      for (let k of keys.normal) {
+        if (signal?.aborted) {
+          return;
+        }
+        if (!used.has(k)) {
+          // console.log(
+          //   '---------Removing',
+          //   k,
+          //   (await options.cache.getBuffer(k)).toString().slice(0, 100),
+          // );
+          await options.cache.remove(k);
+        }
       }
-      if (!used.has(k)) {
-        // console.log(
-        //   '---------Removing',
-        //   k,
-        //   (await options.cache.getBuffer(k)).toString().slice(0, 100),
-        // );
-        await options.cache.remove(k);
+      for (let k of keys.largeBlobs) {
+        if (signal?.aborted) {
+          return;
+        }
+        if (!used.has(k)) {
+          // console.log(
+          //   '---------Removing large blob',
+          //   k,
+          //   (await options.cache.getLargeBlob(k)).toString().slice(0, 100),
+          // );
+          await options.cache.removeLargeBlob(k);
+        }
       }
-    }
-    for (let k of keys.largeBlobs) {
-      if (signal?.aborted) {
-        return;
-      }
-      if (!used.has(k)) {
-        // console.log(
-        //   '---------Removing large blob',
-        //   k,
-        //   (await options.cache.getLargeBlob(k)).toString().slice(0, 100),
-        // );
-        await options.cache.removeLargeBlob(k);
-      }
-    }
 
-    let end = Date.now();
-    logger.info({
-      origin: '@parcel/core',
-      message: `Cache garbage collection took ${end - start}ms`,
-    });
+      let end = Date.now();
+      logger.info({
+        origin: '@parcel/core',
+        message: `Cache garbage collection took ${end - start}ms`,
+      });
 
-    await options.cache.set(GC_KEY_LAST_RUN, Date.now());
+      await options.cache.set(GC_KEY_LAST_RUN, Date.now());
+    } finally {
+      this.#isGCRunning = false;
+    }
   }
 }
 
