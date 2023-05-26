@@ -481,7 +481,7 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
   ret
 }
 
-pub fn build_esm_graph<'a, Fs: FileSystem>(
+pub fn build_esm_graph<Fs: FileSystem>(
   file: &Path,
   project_root: &Path,
   resolver_cache: &parcel_resolver::Cache<Fs>,
