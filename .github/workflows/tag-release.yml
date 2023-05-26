@@ -205,7 +205,11 @@ jobs:
       - build-apple-silicon
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - uses: bahmutov/npm-install@v1.1.0
+      - name: Build native packages
+        run: yarn build-native-release
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
