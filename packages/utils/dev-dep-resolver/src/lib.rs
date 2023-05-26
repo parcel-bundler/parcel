@@ -360,7 +360,7 @@ fn read_template_string(mut bytes: &[u8]) -> Option<(Cow<'_, str>, &[u8])> {
   None
 }
 
-fn escape_glob<'a>(s: &'a str) -> Cow<'a, str> {
+fn escape_glob(s: &str) -> Cow<'_, str> {
   let mut result = Cow::Borrowed("");
   let mut start = 0;
   for (index, matched) in s.match_indices(&['*', '?', '[', ']', '{', '}', '(', ')', '!', '\\']) {
