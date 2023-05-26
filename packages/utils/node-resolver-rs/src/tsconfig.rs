@@ -54,7 +54,7 @@ pub struct TsConfigWrapper<'a> {
 
 impl<'a> TsConfig<'a> {
   pub fn parse(path: PathBuf, data: &'a mut str) -> serde_json::Result<TsConfigWrapper<'a>> {
-    let _ = strip_comments_in_place(data, Default::default());
+    let _ = strip_comments_in_place(data, Default::default(), true);
     let mut wrapper: TsConfigWrapper = serde_json::from_str(data)?;
     wrapper.compiler_options.path = path;
     wrapper.compiler_options.validate();
