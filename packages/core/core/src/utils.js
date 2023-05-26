@@ -35,7 +35,7 @@ const base62 = baseX(
 );
 
 export function getBundleGroupId(bundleGroup: BundleGroup): string {
-  return 'bundle_group:' + bundleGroup.entryAssetId;
+  return 'bundle_group:' + bundleGroup.target.name + bundleGroup.entryAssetId;
 }
 
 export function assertSignalNotAborted(signal: ?AbortSignal): void {
@@ -103,6 +103,7 @@ const ignoreOptions = new Set([
   'shouldAutoInstall',
   'logLevel',
   'shouldProfile',
+  'shouldTrace',
   'shouldPatchConsole',
   'projectRoot',
   'additionalReporters',

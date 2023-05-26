@@ -32,6 +32,7 @@ import {mergeEnvironments} from './Environment';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
 import {toProjectPath, fromProjectPathRelative} from './projectPath';
+import {tracer, PluginTracer} from '@parcel/profiler';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -78,9 +79,16 @@ export default async function applyRuntimes<TResult>({
 
   for (let bundle of bundles) {
     for (let runtime of runtimes) {
+      let measurement;
       try {
+        const namedBundle = NamedBundle.get(bundle, bundleGraph, options);
+        measurement = tracer.createMeasurement(
+          runtime.name,
+          'applyRuntime',
+          namedBundle.displayName,
+        );
         let applied = await runtime.plugin.apply({
-          bundle: NamedBundle.get(bundle, bundleGraph, options),
+          bundle: namedBundle,
           bundleGraph: new BundleGraph<INamedBundle>(
             bundleGraph,
             NamedBundle.get.bind(NamedBundle),
@@ -89,6 +97,10 @@ export default async function applyRuntimes<TResult>({
           config: configs.get(runtime.name)?.result,
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),
+          tracer: new PluginTracer({
+            origin: runtime.name,
+            category: 'applyRuntime',
+          }),
         });
 
         if (applied) {
@@ -157,6 +169,8 @@ export default async function applyRuntimes<TResult>({
             origin: runtime.name,
           }),
         });
+      } finally {
+        measurement && measurement.end();
       }
     }
   }

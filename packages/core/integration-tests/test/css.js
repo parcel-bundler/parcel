@@ -423,6 +423,7 @@ describe('css', () => {
                 code,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 5,
                       column: 3,

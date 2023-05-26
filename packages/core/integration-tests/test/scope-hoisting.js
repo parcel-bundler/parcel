@@ -604,6 +604,7 @@ describe('scope hoisting', function () {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 8,
@@ -646,6 +647,7 @@ describe('scope hoisting', function () {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 9,
@@ -682,6 +684,7 @@ describe('scope hoisting', function () {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 9,
@@ -1859,6 +1862,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 8,
                           line: 2,
@@ -1906,6 +1910,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 10,
                           line: 3,
@@ -1953,6 +1958,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 38,
                           line: 1,
@@ -2000,6 +2006,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 45,
                           line: 1,
@@ -2527,6 +2534,7 @@ describe('scope hoisting', function () {
                   language: 'js',
                   codeHighlights: [
                     {
+                      message: undefined,
                       start: {
                         line: 1,
                         column: 10,
@@ -3103,7 +3111,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -3151,7 +3159,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -3199,7 +3207,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -3247,7 +3255,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 8,
@@ -3295,7 +3303,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -3306,7 +3314,7 @@ describe('scope hoisting', function () {
                     },
                   },
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 3,
                       column: 1,

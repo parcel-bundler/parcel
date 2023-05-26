@@ -37,7 +37,7 @@ type PositionTickInfo = {|
   ticks: number,
 |};
 
-export default class Profiler {
+export default class SamplingProfiler {
   session: Session;
 
   startProfiling(): Promise<mixed> {
