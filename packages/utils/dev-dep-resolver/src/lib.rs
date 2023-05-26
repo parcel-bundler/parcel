@@ -105,6 +105,7 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
     };
     let contents = resolver.cache.fs.read_to_string(file)?;
     let module = lex(&contents)?;
+    #[allow(clippy::map_collect_result_unit)]
     module
       .imports()
       // .par_bridge()
