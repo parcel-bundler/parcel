@@ -126,6 +126,16 @@ function nameFromContent(
       .join(path.relative(entryRoot, path.dirname(entryFilePath)), name)
       .replace(/\.\.(\/|\\)/g, 'up_$1');
   } else {
+    let facet = bundle.facet;
+    if (facet != null) {
+      if (facet.endsWith('/')) {
+        facet = facet + 'index';
+      }
+      return facet.replace(/^\//, '').replace(/:/g, '_');
+      // return encodeURIComponent(facet.replace(/^\/+/, ''));
+      // return facet.replace(/[/:]/g, '_');
+    }
+
     // If this is an index file or common directory name, use the parent
     // directory name instead, which is probably more descriptive.
     while (COMMON_NAMES.has(name)) {

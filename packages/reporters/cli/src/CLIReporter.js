@@ -9,6 +9,7 @@ import {
   prettifyTime,
   prettyDiagnostic,
   throttle,
+  setDifference,
 } from '@parcel/utils';
 import chalk from 'chalk';
 
@@ -102,6 +103,26 @@ export async function _report(
       if (logLevelFilter < logLevels.info) {
         break;
       }
+
+      await options.outputFS.writeFile(
+        'dist/routes.json',
+        JSON.stringify(
+          event.bundleGraph
+            .getBundles()
+            .filter(b => b.facet != null)
+            .map(b => {
+              return {
+                facet: b.facet,
+                bundles: [
+                  ...event.bundleGraph.getReferencedBundles(b).map(b => b.name),
+                  b.name,
+                ],
+              };
+            }),
+          null,
+          2,
+        ),
+      );
 
       persistSpinner(
         'buildProgress',

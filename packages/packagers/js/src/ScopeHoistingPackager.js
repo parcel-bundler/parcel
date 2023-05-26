@@ -402,7 +402,9 @@ export class ScopeHoistingPackager {
       let lineCount = 0;
       for (let dep of deps) {
         let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
-        let skipped = this.bundleGraph.isDependencySkipped(dep);
+        let skipped =
+          this.bundleGraph.isDependencySkipped(dep) ||
+          !this.bundle.hasDependency(dep);
         if (skipped) {
           continue;
         }
@@ -486,7 +488,9 @@ export class ScopeHoistingPackager {
           // reexports.
           for (let dep of deps) {
             let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
-            let skipped = this.bundleGraph.isDependencySkipped(dep);
+            let skipped =
+              this.bundleGraph.isDependencySkipped(dep) ||
+              !this.bundle.hasDependency(dep);
             if (resolved && !skipped) {
               // Hoist variable declarations for the referenced parcelRequire dependencies
               // after the dependency is declared. This handles the case where the resulting asset
@@ -770,7 +774,9 @@ ${code}
 
     if (
       resolvedAsset.type !== 'js' ||
-      (dep && this.bundleGraph.isDependencySkipped(dep))
+      (dep &&
+        (this.bundleGraph.isDependencySkipped(dep) ||
+          !this.bundle.hasDependency(dep)))
     ) {
       // Graceful fallback for non-js imports or when trying to resolve a symbol
       // that is actually unused but we still need a placeholder value.

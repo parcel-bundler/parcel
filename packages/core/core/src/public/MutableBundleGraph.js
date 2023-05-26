@@ -6,10 +6,15 @@ import type {
   BundleGroup as IBundleGroup,
   CreateBundleOpts,
   Dependency as IDependency,
+  Facet,
   MutableBundleGraph as IMutableBundleGraph,
   Target,
 } from '@parcel/types';
-import type {ParcelOptions, BundleGroup as InternalBundleGroup} from '../types';
+import type {
+  ParcelOptions,
+  BundleGroup as InternalBundleGroup,
+  BundleNode,
+} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -76,7 +81,11 @@ export default class MutableBundleGraph
     );
   }
 
-  createBundleGroup(dependency: IDependency, target: Target): IBundleGroup {
+  createBundleGroup(
+    dependency: IDependency,
+    target: Target,
+    facet: ?Facet,
+  ): IBundleGroup {
     let dependencyNode = this.#graph._graph.getNodeByContentKey(dependency.id);
     if (!dependencyNode) {
       throw new Error('Dependency not found');
@@ -96,6 +105,7 @@ export default class MutableBundleGraph
     let bundleGroup: InternalBundleGroup = {
       target: targetToInternalTarget(target),
       entryAssetId: resolved.id,
+      facet,
     };
 
     let bundleGroupKey = getBundleGroupId(bundleGroup);
@@ -181,7 +191,9 @@ export default class MutableBundleGraph
       'bundle:' +
         (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
         fromProjectPathRelative(target.distDir) +
-        (opts.bundleBehavior ?? ''),
+        (opts.bundleBehavior ?? '') +
+        ':' +
+        (opts.facet ?? ''),
     );
 
     let existing = this.#graph._graph.getNodeByContentKey(bundleId);
@@ -204,7 +216,7 @@ export default class MutableBundleGraph
       isPlaceholder = entryAssetNode.requested === false;
     }
 
-    let bundleNode = {
+    let bundleNode: BundleNode = {
       type: 'bundle',
       id: bundleId,
       value: {
@@ -232,6 +244,7 @@ export default class MutableBundleGraph
         name: null,
         displayName: null,
         publicId,
+        facet: opts.facet,
       },
     };
 
@@ -310,6 +323,22 @@ export default class MutableBundleGraph
     this.#graph.removeAssetGraphFromBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
+    );
+  }
+
+  removeAssetFromBundle(asset: IAsset, bundle: IBundle) {
+    this.#graph.removeAssetFromBundle(
+      assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
+    );
+  }
+  removeDependencyFromBundle(dep: IDependency, bundle: IBundle) {
+    let bundleNodeId = this.#graph._graph.getNodeIdByContentKey(bundle.id);
+    let dependencyNodeId = this.#graph._graph.getNodeIdByContentKey(dep.id);
+    this.#graph._graph.removeEdge(
+      bundleNodeId,
+      dependencyNodeId,
+      bundleGraphEdgeTypes.contains,
     );
   }
 }

@@ -710,6 +710,7 @@ export default (new Transformer({
           range = pkg.dependencies[module];
         }
 
+        let facet = (dep.specifier: string).match(/\?route=(.*)$/)?.[1];
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
@@ -720,6 +721,7 @@ export default (new Transformer({
           resolveFrom: isHelper ? __filename : undefined,
           range,
           env,
+          facet,
         });
       }
     }

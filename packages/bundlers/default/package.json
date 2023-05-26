@@ -14,7 +14,8 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "lib/DefaultBundler.js",
-  "source": "src/DefaultBundler.js",
+  "source": "src/TestBundler.js",
+  "_source": "src/DefaultBundler.js",
   "engines": {
     "node": ">= 12.0.0",
     "parcel": "^2.9.1"

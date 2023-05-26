@@ -2,6 +2,7 @@
 import type {
   Dependency as IDependency,
   Environment as IEnvironment,
+  Facet,
   FilePath,
   Meta,
   MutableDependencySymbols as IMutableDependencySymbols,
@@ -162,5 +163,9 @@ export default class Dependency implements IDependency {
 
   get pipeline(): ?string {
     return this.#dep.pipeline;
+  }
+
+  get facet(): ?Facet {
+    return this.#dep.facet;
   }
 }

@@ -35,7 +35,12 @@ const base62 = baseX(
 );
 
 export function getBundleGroupId(bundleGroup: BundleGroup): string {
-  return 'bundle_group:' + bundleGroup.target.name + bundleGroup.entryAssetId;
+  return (
+    'bundle_group:' +
+    bundleGroup.target.name +
+    bundleGroup.entryAssetId +
+    (bundleGroup.facet ?? '')
+  );
 }
 
 export function assertSignalNotAborted(signal: ?AbortSignal): void {

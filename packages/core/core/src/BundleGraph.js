@@ -476,6 +476,7 @@ export default class BundleGraph {
         name: null,
         displayName: null,
         publicId,
+        facet: undefined,
       },
     };
 
@@ -624,9 +625,10 @@ export default class BundleGraph {
   addEntryToBundle(
     asset: Asset,
     bundle: Bundle,
+    // eslint-disable-next-line no-unused-vars
     shouldSkipDependency?: Dependency => boolean,
   ) {
-    this.addAssetGraphToBundle(asset, bundle, shouldSkipDependency);
+    this.addAssetToBundle(asset, bundle);
     if (!bundle.entryAssetIds.includes(asset.id)) {
       bundle.entryAssetIds.push(asset.id);
     }
@@ -866,6 +868,77 @@ export default class BundleGraph {
         }
       }
     }, assetNodeId);
+
+    // Remove bundle node if it no longer has any entry assets
+    if (this._graph.getNodeIdsConnectedFrom(bundleNodeId).length === 0) {
+      this.removeBundle(bundle);
+    }
+
+    this._bundleContentHashes.delete(bundle.id);
+  }
+
+  removeAssetFromBundle(asset: Asset, bundle: Bundle) {
+    let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
+    let assetNodeId = this._graph.getNodeIdByContentKey(asset.id);
+
+    if (this._graph.hasEdge(bundleNodeId, assetNodeId)) {
+      // Remove the untyped edge from the bundle to the node (it's an entry)
+      this._graph.removeEdge(bundleNodeId, assetNodeId);
+
+      let entryIndex = bundle.entryAssetIds.indexOf(asset.id);
+      if (entryIndex >= 0) {
+        // Shared bundles have untyped edges to their asset graphs but don't
+        // have entry assets. For those that have entry asset ids, remove them.
+        bundle.entryAssetIds.splice(entryIndex, 1);
+      }
+    }
+
+    if (
+      this._graph.hasEdge(
+        bundleNodeId,
+        assetNodeId,
+        bundleGraphEdgeTypes.contains,
+      )
+    ) {
+      this._graph.removeEdge(
+        bundleNodeId,
+        assetNodeId,
+        bundleGraphEdgeTypes.contains,
+      );
+    }
+
+    for (let nodeId of this._graph.getNodeIdsConnectedFrom(assetNodeId)) {
+      let node = nullthrows(this._graph.getNode(nodeId));
+      invariant(node.type === 'dependency');
+      this._removeExternalDependency(bundle, node.value);
+      if (
+        this._graph.hasEdge(
+          bundleNodeId,
+          nodeId,
+          bundleGraphEdgeTypes.references,
+        )
+      ) {
+        this._graph.addEdge(
+          bundleNodeId,
+          nodeId,
+          bundleGraphEdgeTypes.references,
+        );
+        this.markDependencyReferenceable(node.value);
+      }
+      if (
+        this._graph.hasEdge(
+          bundleNodeId,
+          nodeId,
+          bundleGraphEdgeTypes.internal_async,
+        )
+      ) {
+        this._graph.removeEdge(
+          bundleNodeId,
+          nodeId,
+          bundleGraphEdgeTypes.internal_async,
+        );
+      }
+    }
 
     // Remove bundle node if it no longer has any entry assets
     if (this._graph.getNodeIdsConnectedFrom(bundleNodeId).length === 0) {

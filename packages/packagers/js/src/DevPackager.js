@@ -16,7 +16,10 @@ import {replaceScriptDependencies, getSpecifier} from './utils';
 const PRELUDE = fs
   .readFileSync(path.join(__dirname, 'dev-prelude.js'), 'utf8')
   .trim()
-  .replace(/;$/, '');
+  .replace(/;$/, '')
+  .replace(/^\s*\/\/.*$/gm, '')
+  .replace(/\s{2,}/g, ' ')
+  .trim();
 
 export class DevPackager {
   options: PluginOptions;
@@ -101,7 +104,10 @@ export class DevPackager {
         let dependencies = this.bundleGraph.getDependencies(asset);
         for (let dep of dependencies) {
           let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
-          if (this.bundleGraph.isDependencySkipped(dep)) {
+          if (
+            this.bundleGraph.isDependencySkipped(dep) ||
+            !this.bundle.hasDependency(dep)
+          ) {
             deps[getSpecifier(dep)] = false;
           } else if (resolved) {
             deps[getSpecifier(dep)] =

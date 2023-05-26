@@ -38,6 +38,7 @@ export type JSONValue =
 /** A JSON object (as in "map") */
 export type JSONObject = {[key: string]: JSONValue, ...};
 
+export type Facet = string;
 export type PackageName = string;
 export type FilePath = string;
 export type Glob = string;
@@ -542,6 +543,7 @@ export type DependencyOptions = {|
     Symbol,
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: Meta|},
   >,
+  +facet?: Facet,
 |};
 
 /**
@@ -628,6 +630,8 @@ export interface Dependency {
   // TODO make immutable
   /** The symbols within the resolved module that the source file depends on. */
   +symbols: MutableDependencySymbols;
+
+  +facet: ?Facet;
 }
 
 export type File = {|
@@ -1233,6 +1237,7 @@ export type CreateBundleOpts =
       +isSplittable?: ?boolean,
       /** The bundle's pipeline, to be used for optimization. Usually based on the pipeline of the entry asset. */
       +pipeline?: ?string,
+      +facet?: ?Facet,
     |};
 
 /**
@@ -1297,6 +1302,7 @@ export interface Bundle {
    * bundle. Hash references are replaced with a content hash of the bundle after packaging and optimizing.
    */
   +hashReference: string;
+  +facet: ?Facet;
   /**
    * Returns the assets that are executed immediately when the bundle is loaded.
    * Some bundles may not have any entry assets, for example, shared bundles.
@@ -1354,6 +1360,7 @@ export interface BundleGroup {
   +target: Target;
   /** The id of the entry asset in the bundle group, which is executed immediately when the bundle group is loaded. */
   +entryAssetId: string;
+  +facet: ?Facet;
 }
 
 /**
@@ -1384,7 +1391,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
-  createBundleGroup(Dependency, Target): BundleGroup;
+  createBundleGroup(Dependency, Target, ?Facet): BundleGroup;
   /** @returns all Asset-s attached to the Dependency */
   getDependencyAssets(Dependency): Array<Asset>;
   /** Get Bundles that load this bundle asynchronously. */
@@ -1396,6 +1403,8 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
    * bundle group boundaries.
    */
   removeAssetGraphFromBundle(Asset, Bundle): void;
+  removeDependencyFromBundle(Dependency, Bundle): void;
+  removeAssetFromBundle(Asset, Bundle): void;
   /**
    * Removes a BundleGroup from the graph. If any of the group's Bundle-s no
    * longer exist in the graph, those are removed as well.

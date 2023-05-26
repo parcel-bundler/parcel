@@ -43,6 +43,7 @@ type DependencyOpts = {|
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
   >,
   pipeline?: ?string,
+  facet?: ?string,
 |};
 
 export function createDependency(
@@ -60,6 +61,7 @@ export function createDependency(
         opts.specifierType +
         (opts.bundleBehavior ?? '') +
         (opts.priority ?? 'sync') +
+        (opts.facet ?? '') +
         (opts.packageConditions ? JSON.stringify(opts.packageConditions) : ''),
     );
 
@@ -96,6 +98,7 @@ export function createDependency(
         ]),
       ),
     pipeline: opts.pipeline,
+    facet: opts.facet,
   };
 
   if (opts.packageConditions) {

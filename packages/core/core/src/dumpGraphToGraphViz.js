@@ -94,6 +94,7 @@ export default async function dumpGraphToGraphViz(
         if (node.value.specifierType === SpecifierType.url) parts.push('url');
         if (node.hasDeferred) parts.push('deferred');
         if (node.excluded) parts.push('excluded');
+        if (node.value.facet != null) parts.push(`facet:${node.value.facet}`);
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
         let depSymbols = node.value.symbols;
@@ -171,6 +172,7 @@ export default async function dumpGraphToGraphViz(
         if (node.value.needsStableName) parts.push('stable name');
         parts.push(node.value.name);
         parts.push('bb:' + (node.value.bundleBehavior ?? 'null'));
+        if (node.value.facet != null) parts.push(`facet:${node.value.facet}`);
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
       } else if (node.type === 'request') {
@@ -209,16 +211,17 @@ function nodeId(id) {
 }
 
 function getEnvDescription(env: Environment) {
-  let description;
-  if (typeof env.engines.browsers === 'string') {
-    description = `${env.context}: ${env.engines.browsers}`;
-  } else if (Array.isArray(env.engines.browsers)) {
-    description = `${env.context}: ${env.engines.browsers.join(', ')}`;
-  } else if (env.engines.node) {
-    description = `node: ${env.engines.node}`;
-  } else if (env.engines.electron) {
-    description = `electron: ${env.engines.electron}`;
-  }
+  return env.context;
+  // let description;
+  // if (typeof env.engines.browsers === 'string') {
+  //   description = `${env.context}: ${env.engines.browsers}`;
+  // } else if (Array.isArray(env.engines.browsers)) {
+  //   description = `${env.context}: ${env.engines.browsers.join(', ')}`;
+  // } else if (env.engines.node) {
+  //   description = `node: ${env.engines.node}`;
+  // } else if (env.engines.electron) {
+  //   description = `electron: ${env.engines.electron}`;
+  // }
 
-  return description ?? '';
+  // return description ?? '';
 }

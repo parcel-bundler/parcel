@@ -35,6 +35,7 @@ describe('Public Bundle', () => {
         name: '',
         publicUrl: '',
       },
+      facet: undefined,
     };
 
     bundleGraph = new BundleGraph({

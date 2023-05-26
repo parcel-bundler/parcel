@@ -2,6 +2,7 @@
 import type {
   BundleGroup as IBundleGroup,
   Target as ITarget,
+  Facet,
 } from '@parcel/types';
 import type {BundleGroup as InternalBundleGroup, ParcelOptions} from '../types';
 
@@ -48,5 +49,9 @@ export default class BundleGroup implements IBundleGroup {
 
   get entryAssetId(): string {
     return this.#bundleGroup.entryAssetId;
+  }
+
+  get facet(): ?Facet {
+    return this.#bundleGroup.facet;
   }
 }

@@ -11,6 +11,7 @@ import type {
   BundleTraversable,
   Dependency as IDependency,
   Environment as IEnvironment,
+  Facet,
   GraphVisitor,
   NamedBundle as INamedBundle,
   PackagedBundle as IPackagedBundle,
@@ -131,6 +132,10 @@ export class Bundle implements IBundle {
 
   get target(): ITarget {
     return new Target(this.#bundle.target, this.#options);
+  }
+
+  get facet(): ?Facet {
+    return this.#bundle.facet;
   }
 
   hasAsset(asset: IAsset): boolean {

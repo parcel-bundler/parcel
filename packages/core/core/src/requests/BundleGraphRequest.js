@@ -326,8 +326,13 @@ class BundlerRunner {
           logger,
           tracer,
         });
-
         measurement && measurement.end();
+
+        await dumpGraphToGraphViz(
+          // $FlowFixMe[incompatible-call]
+          internalBundleGraph._graph,
+          'after_bundle',
+        );
 
         if (this.pluginOptions.mode === 'production') {
           let optimizeMeasurement;
@@ -353,11 +358,6 @@ class BundlerRunner {
             });
           } finally {
             optimizeMeasurement && optimizeMeasurement.end();
-            await dumpGraphToGraphViz(
-              // $FlowFixMe[incompatible-call]
-              internalBundleGraph._graph,
-              'after_optimize',
-            );
           }
         }
 
@@ -384,7 +384,7 @@ class BundlerRunner {
       await dumpGraphToGraphViz(
         // $FlowFixMe[incompatible-call]
         internalBundleGraph._graph,
-        'after_bundle',
+        'after_optimize',
         bundleGraphEdgeTypes,
       );
     }

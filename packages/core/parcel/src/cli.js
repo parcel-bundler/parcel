@@ -257,7 +257,7 @@ async function run(
     }
 
     disposable.dispose();
-    process.exit(exitCode);
+    // process.exit(exitCode);
   }
 
   const isWatching = command.name() === 'watch' || command.name() === 'serve';

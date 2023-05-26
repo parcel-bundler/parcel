@@ -7,6 +7,7 @@ import type {
   Engines,
   EnvironmentContext,
   EnvMap,
+  Facet,
   FilePath,
   Glob,
   LogLevel,
@@ -155,6 +156,7 @@ export type Dependency = {|
     |},
   >,
   pipeline?: ?string,
+  facet?: ?Facet,
 |};
 
 export const BundleBehavior = {
@@ -516,6 +518,7 @@ export type Bundle = {|
   name: ?string,
   displayName: ?string,
   pipeline: ?string,
+  facet: ?string,
 |};
 
 export type BundleNode = {|
@@ -527,6 +530,7 @@ export type BundleNode = {|
 export type BundleGroup = {|
   target: Target,
   entryAssetId: string,
+  facet: ?Facet,
 |};
 
 export type BundleGroupNode = {|
