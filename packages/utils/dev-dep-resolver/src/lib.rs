@@ -103,7 +103,7 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
       ModuleType::CommonJs | ModuleType::Json => &self.cjs_resolver,
       ModuleType::Module => &self.esm_resolver,
     };
-    let contents = resolver.cache.fs.read_to_string(&file)?;
+    let contents = resolver.cache.fs.read_to_string(file)?;
     let module = lex(&contents)?;
     module
       .imports()
@@ -113,7 +113,7 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
           ImportKind::DynamicExpression => {
             if let Some(glob) = specifier_to_glob(&import.specifier()) {
               // println!("GLOB {:?} {:?}", import.specifier(), glob);
-              self.expand_glob(&glob, file, &resolver, &invalidations)?;
+              self.expand_glob(&glob, file, resolver, &invalidations)?;
             } else {
               // println!("DYNAMIC: {} {:?}", import.specifier(), file);
               invalidations.invalidate_on_startup();
@@ -127,7 +127,7 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
 
             match resolver.resolve_with_invalidations(
               &import.specifier(),
-              &file,
+              file,
               SpecifierType::Esm,
               &invalidations,
               ResolveOptions::default(),
@@ -492,12 +492,12 @@ pub fn build_esm_graph<'a, Fs: FileSystem>(
     visited_globs: DashSet::new(),
     invalidations: Invalidations::default(),
     cjs_resolver: Resolver::node(
-      Cow::Borrowed(&project_root),
-      CacheCow::Borrowed(&resolver_cache),
+      Cow::Borrowed(project_root),
+      CacheCow::Borrowed(resolver_cache),
     ),
     esm_resolver: Resolver::node_esm(
-      Cow::Borrowed(&project_root),
-      CacheCow::Borrowed(&resolver_cache),
+      Cow::Borrowed(project_root),
+      CacheCow::Borrowed(resolver_cache),
     ),
     cache,
   };
