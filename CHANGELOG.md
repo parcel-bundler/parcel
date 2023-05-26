@@ -41,15 +41,20 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   - Remove v8-compile-cache – [Details](https://github.com/parcel-bundler/parcel/pull/8990)
   - Update fast-glob – [Details](https://github.com/parcel-bundler/parcel/pull/8996)
   - Update lmdb – [Details](https://github.com/parcel-bundler/parcel/pull/8999)
+  - Fixup DiagnosticCodeHighlight and SourceLocation columns – [Details](https://github.com/parcel-bundler/parcel/pull/8965)
+  - Bump `fastest-levenshtein` and `xmldom` dependencies – [Details](https://github.com/parcel-bundler/parcel/pull/9017)
 
 - JavaScript
   - Sort global deps before injecting imports to reduce cache invalidations – [Details](https://github.com/parcel-bundler/parcel/pull/8818)
   - Only add export setter for non-ESM exports – [Details](https://github.com/parcel-bundler/parcel/pull/8910)
-  - Bump SWC – [Details](https://github.com/parcel-bundler/parcel/pull/8881), [Details](https://github.com/parcel-bundler/parcel/pull/8933), [Details](https://github.com/parcel-bundler/parcel/pull/8983), [Details](https://github.com/parcel-bundler/parcel/pull/9010)
+  - Bump SWC – [Details](https://github.com/parcel-bundler/parcel/pull/8881), [Details](https://github.com/parcel-bundler/parcel/pull/8933), [Details](https://github.com/parcel-bundler/parcel/pull/8983), [Details](https://github.com/parcel-bundler/parcel/pull/9010),
+  [Details](https://github.com/parcel-bundler/parcel/pull/9034)
   - Deduplicate imports in hoist transformer – [Details](https://github.com/parcel-bundler/parcel/pull/8954)
   - Allow buffer polyfill v5 or v6 – [Details](https://github.com/parcel-bundler/parcel/pull/8959)
   - Fix packaging of synchronous reused bundles – [Details](https://github.com/parcel-bundler/parcel/pull/8934)
   - Support eslint ^7.0.0 in `@parcel/validator-eslint` – [Details](https://github.com/parcel-bundler/parcel/pull/8997)
+  - Improve `inlineEnvironment` performance – [Details](https://github.com/parcel-bundler/parcel/pull/9014)
+  - Hoist exports to allow circular dependencies – [Details](https://github.com/parcel-bundler/parcel/pull/9024)
 
 - TypeScript
   - Throw diagnostics as error on empty emit - [Details](https://github.com/parcel-bundler/parcel/pull/8914)
@@ -61,10 +66,12 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   - Fix missing edge error when using for multiple targets – [Details](https://github.com/parcel-bundler/parcel/pull/8854)
   - Fix non-deterministic builds between project directories – [Details](https://github.com/parcel-bundler/parcel/pull/8869)
   - Fix css-module related build error in bundling – [Details](https://github.com/parcel-bundler/parcel/pull/8885)
+  - Fix multiple entries pointing to wrong bundle in dist – [Details](https://github.com/parcel-bundler/parcel/pull/8991)
 
 - Dev server
   - Don't error during HMR on `<link>` elements without hrefs – [Details](https://github.com/parcel-bundler/parcel/pull/8800)
   - Improve server index file matching – [Details](https://github.com/parcel-bundler/parcel/pull/8957)
+  - Don't send HMR updates before packaging in watch mode – [Details](https://github.com/parcel-bundler/parcel/pull/9026)
 
 - Elm
   - Fix error when formatting build errors – [Details](https://github.com/parcel-bundler/parcel/pull/8882)
