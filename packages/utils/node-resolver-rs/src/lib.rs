@@ -762,7 +762,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
     package: &PackageJson,
   ) -> Result<Option<Resolution>, ResolverError> {
     // Try all entry fields.
-    for (entry, field) in package.entries(self.resolver.entries) {
+    if let Some((entry, field)) = package.entries(self.resolver.entries).next() {
       if let Some(res) = self.load_path(&entry, Some(package))? {
         return Ok(Some(res));
       } else {
