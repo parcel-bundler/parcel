@@ -125,27 +125,25 @@ impl<'a, Fs: FileSystem> EsmGraphBuilder<'a, Fs> {
               return Ok(());
             }
 
-            match resolver.resolve_with_invalidations(
+            if let Ok((Resolution::Path(p), _)) = resolver.resolve_with_invalidations(
               &import.specifier(),
               file,
               SpecifierType::Esm,
               &invalidations,
               ResolveOptions::default(),
             ) {
-              Ok((Resolution::Path(p), _)) => {
-                // println!(
-                //   "IMPORT {} {:?} {:?} {:?}",
-                //   import.specifier(),
-                //   import.kind(),
-                //   file,
-                //   p
-                // );
-                invalidations.invalidate_on_file_change(&p);
-                self.build(&p)?;
-              }
+              // println!(
+              //   "IMPORT {} {:?} {:?} {:?}",
+              //   import.specifier(),
+              //   import.kind(),
+              //   file,
+              //   p
+              // );
+              invalidations.invalidate_on_file_change(&p);
+              self.build(&p)?;
+            } else {
               // Ignore dependencies that don't resolve to anything.
               // The resolver calls invalidate_on_file_create already.
-              _ => {}
             }
           }
           ImportKind::Meta => {}
