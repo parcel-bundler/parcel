@@ -73,7 +73,7 @@ export default (new Optimizer({
                 // Do not minify ids or remove unreferenced elements in
                 // inline SVGs because they could actually be referenced
                 // by a separate inline SVG.
-                cleanupIDs: false,
+                cleanupIds: false,
               },
             },
           },

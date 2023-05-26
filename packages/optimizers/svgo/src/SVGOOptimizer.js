@@ -24,28 +24,42 @@ export default (new Optimizer({
     }
 
     let code = await blobToString(contents);
-    let result = svgo.optimize(code, {
-      plugins: [
-        {
-          name: 'preset-default',
-          params: {
-            overrides: {
-              // Removing ids could break SVG sprites.
-              cleanupIDs: false,
-              // <style> elements and attributes are already minified before they
-              // are re-inserted by the packager.
-              minifyStyles: false,
+    let result;
+    try {
+      result = svgo.optimize(code, {
+        plugins: [
+          {
+            name: 'preset-default',
+            params: {
+              overrides: {
+                // Removing ids could break SVG sprites.
+                cleanupIds: false,
+                // <style> elements and attributes are already minified before they
+                // are re-inserted by the packager.
+                minifyStyles: false,
+              },
             },
           },
-        },
-      ],
-      ...config,
-    });
-
-    if (result.error != null) {
+        ],
+        ...config,
+      });
+    } catch (e) {
+      let {message, line, column} = e;
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: result.error,
+          message,
+          codeFrames: [
+            {
+              code,
+              language: 'svg',
+              codeHighlights: [
+                {
+                  start: {line, column},
+                  end: {line, column},
+                },
+              ],
+            },
+          ],
         },
       });
     }

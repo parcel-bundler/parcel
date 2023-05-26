@@ -2910,7 +2910,11 @@ describe('html', function () {
 
     let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(output.includes('<x-custom stddeviation="0.5"'));
-    assert(output.includes('<svg role="img" viewBox='));
+    assert(
+      output.includes(
+        '<svg role="img" viewBox="1.8 2.4 2 2" preserveAspectRatio="xMinYMin meet">',
+      ),
+    );
     assert(output.includes('<filter'));
     assert(output.includes('<feGaussianBlur in="SourceGraphic" stdDeviation='));
   });
