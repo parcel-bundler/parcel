@@ -1,6 +1,6 @@
 {
   "name": "@parcel/node-resolver-core",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -35,9 +35,9 @@
   ],
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
-    "@parcel/diagnostic": "2.9.0",
-    "@parcel/fs": "2.9.0",
-    "@parcel/utils": "2.9.0",
+    "@parcel/diagnostic": "2.9.1",
+    "@parcel/fs": "2.9.1",
+    "@parcel/utils": "2.9.1",
     "nullthrows": "^1.1.1",
     "semver": "^5.7.1"
   },
