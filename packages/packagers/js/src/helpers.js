@@ -6,7 +6,7 @@ var $parcel$inits = {};
 
 var parcelRequire = $parcel$global[${JSON.stringify(parcelRequireName)}];
 if (parcelRequire == null) {
-  parcelRequire = function(id) {
+  parcelRequire = function(id, isWeak) {
     if (id in $parcel$modules) {
       return $parcel$modules[id].exports;
     }
@@ -18,9 +18,17 @@ if (parcelRequire == null) {
       init.call(module.exports, module, module.exports);
       return module.exports;
     }
+    if (isWeak) {
+      return {};
+    }
+
     var err = new Error("Cannot find module '" + id + "'");
     err.code = 'MODULE_NOT_FOUND';
     throw err;
+  };
+
+  parcelRequire.weak = function register(id) {
+    return parcelRequire(id, true);
   };
 
   parcelRequire.register = function register(id, init) {

@@ -810,7 +810,9 @@ ${code}
 
       hoisted.set(
         resolvedAsset.id,
-        `var $${publicId} = parcelRequire(${JSON.stringify(publicId)});`,
+        `var $${publicId} = parcelRequire${
+          dep?.facet != null ? '.weak' : ''
+        }(${JSON.stringify(publicId)});`,
       );
     }
 

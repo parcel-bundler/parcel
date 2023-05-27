@@ -116,6 +116,9 @@ export class DevPackager {
             // An external module - map placeholder to original specifier.
             deps[getSpecifier(dep)] = dep.specifier;
           }
+          if (dep.facet != null) {
+            deps[getSpecifier(dep)] = '?' + deps[getSpecifier(dep)];
+          }
         }
 
         let {code, mapBuffer} = results[i];

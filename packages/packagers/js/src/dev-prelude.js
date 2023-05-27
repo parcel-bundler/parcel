@@ -32,7 +32,7 @@
     typeof module.require === 'function' &&
     module.require.bind(module);
 
-  function newRequire(name, jumped) {
+  function newRequire(name, jumped, isWeak) {
     if (!cache[name]) {
       if (!modules[name]) {
         // if we cannot find the module within our internal map or
@@ -42,7 +42,7 @@
           typeof globalObject[parcelRequireName] === 'function' &&
           globalObject[parcelRequireName];
         if (!jumped && currentRequire) {
-          return currentRequire(name, true);
+          return currentRequire(name, true, isWeak);
         }
 
         // If there are other bundles on this page the require from the
@@ -50,12 +50,16 @@
         // many times as there are bundles until the module is found or
         // we exhaust the require chain.
         if (previousRequire) {
-          return previousRequire(name, true);
+          return previousRequire(name, true, isWeak);
         }
 
         // Try the node require function if it exists.
         if (nodeRequire && typeof name === 'string') {
           return nodeRequire(name);
+        }
+
+        if (isWeak) {
+          return {};
         }
 
         var err = new Error("Cannot find module '" + name + "'");
@@ -81,7 +85,11 @@
 
     function localRequire(x) {
       var res = localRequire.resolve(x);
-      return res === false ? {} : newRequire(res);
+      if (res && res.startsWith('?')) {
+        return newRequire(res.slice(1), false, true);
+      } else {
+        return res === false ? {} : newRequire(res);
+      }
     }
 
     function resolve(x) {
