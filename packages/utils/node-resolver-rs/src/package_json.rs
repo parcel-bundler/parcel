@@ -55,13 +55,14 @@ pub struct PackageJson<'a> {
   side_effects: SideEffects<'a>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ModuleType {
-  #[default]
-  CommonJs,
   Module,
   Json,
+  #[default]
+  #[serde(other)]
+  CommonJs,
 }
 
 #[derive(serde::Deserialize, Debug, Default)]
@@ -1645,5 +1646,13 @@ mod tests {
     assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
     assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
     assert!(pkg.has_side_effects(Path::new("/index.js")));
+  }
+
+  #[test]
+  fn parsing() {
+    let pkg: PackageJson = serde_json::from_str(r#"{"type":"script"}"#).unwrap();
+    assert_eq!(pkg.module_type, ModuleType::CommonJs);
+    let pkg: PackageJson = serde_json::from_str(r#"{"name":"foo"}"#).unwrap();
+    assert_eq!(pkg.module_type, ModuleType::CommonJs);
   }
 }
