@@ -7,11 +7,7 @@ const routes = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'dist/routes.json'), 'utf8'),
 ).reverse();
 
-const htmlPrelude = `<a href="/">Home</a> <br />
-<a href="/blog/">/blog/</a> <br />
-<a href="/blog/1">/blog/1</a> <br />
-<a href="/blog/2">/blog/2</a> <br />
-<pre id="root"></pre>`;
+const htmlPrelude = `<pre id="root"></pre>`;
 
 const html = scripts =>
   htmlPrelude +
