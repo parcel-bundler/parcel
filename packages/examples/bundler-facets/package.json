@@ -10,7 +10,7 @@
   "scripts": {
     "serve": "nodemon -w dist/routes.json -w _server.js _server.js",
     "build": "PARCEL_WORKERS=0 parcel build --no-cache --no-content-hash --no-source-maps",
-    "build_dev": "rm -rf dist; PARCEL_DUMP_GRAPHVIZ=0 parcel2dev --no-cache --no-scope-hoist --no-content-hash | cat"
+    "build_dev": "rm -rf dist; FORCE_COLOR=3 PARCEL_DUMP_GRAPHVIZ=0 parcel2dev --no-cache --no-scope-hoist --no-content-hash | cat"
   },
   "@parcel/bundler-default": {
     "minBundleSize": 50

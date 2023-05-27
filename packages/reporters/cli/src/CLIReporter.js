@@ -9,7 +9,6 @@ import {
   prettifyTime,
   prettyDiagnostic,
   throttle,
-  setDifference,
 } from '@parcel/utils';
 import chalk from 'chalk';
 

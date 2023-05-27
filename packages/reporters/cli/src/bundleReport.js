@@ -44,8 +44,17 @@ export default async function bundleReport(
 
   for (let bundle of bundles) {
     // Add a row for the bundle
+    let facets = new Set(
+      bundleGraph
+        .getBundleGroupsContainingBundle(
+          nullthrows(bundleList.find(b => b.filePath === bundle.filePath)),
+        )
+        .map(g => g.facet)
+        .sort(),
+    );
     rows.push([
-      formatFilename(bundle.filePath || '', chalk.cyan.bold),
+      formatFilename(bundle.filePath || '', chalk.cyan.bold) +
+        (facets ? chalk.grey(` facets ${[...facets].join(',')}`) : ''),
       chalk.bold(prettifySize(bundle.size, bundle.size > LARGE_BUNDLE_SIZE)),
       chalk.green.bold(prettifyTime(bundle.time)),
     ]);
