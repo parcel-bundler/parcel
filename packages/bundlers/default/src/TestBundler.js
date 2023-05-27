@@ -339,13 +339,13 @@ function optimize({bundleGraph, config}) {
     |},
   > = new Map();
 
-  bundleGraph.traverse((node, ctx, actions) => {
+  bundleGraph.traverse(node => {
     if (
-      node.type !== 'asset' ||
+      node.type !== 'asset' /* ||
       // Don't share assets that have deps with facets. Without this, all assets of every facet
       // bundle just get deduplicated into a shared bundled
       // TODO make more fine grained
-      bundleGraph.getDependencies(node.value).some(d => d.facet != null)
+      bundleGraph.getDependencies(node.value).some(d => d.facet != null) */
     ) {
       return;
     }
@@ -380,7 +380,7 @@ function optimize({bundleGraph, config}) {
         for (let bundle of containingBundles) {
           candidate.sourceBundles.add(bundle);
         }
-        candidate.size += bundleGraph.getTotalSize(asset);
+        candidate.size += asset.stats.size;
       } else {
         candidateBundles.set(id, {
           assets: [asset],
@@ -390,7 +390,7 @@ function optimize({bundleGraph, config}) {
       }
 
       // Skip children from consideration since we added a parent already.
-      actions.skipChildren();
+      // actions.skipChildren();
     }
   });
 
@@ -403,6 +403,13 @@ function optimize({bundleGraph, config}) {
     .filter(bundle => bundle.size >= config.minBundleSize)
     .sort((a, b) => b.size - a.size);
 
+  // console.log(
+  //   sortedCandidates.map(c => ({
+  //     assets: c.assets,
+  //     size: c.size,
+  //     sourceBundles: [...c.sourceBundles].map(b => b.facet),
+  //   })),
+  // );
   for (let {assets, sourceBundles} of sortedCandidates) {
     let eligibleSourceBundles = new Set();
 
@@ -442,12 +449,12 @@ function optimize({bundleGraph, config}) {
     // Remove all of the root assets from each of the original bundles
     // and reference the new shared bundle.
     for (let asset of assets) {
-      bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
+      bundleGraph.addAssetToBundle(asset, sharedBundle);
 
       for (let bundle of eligibleSourceBundles) {
         {
           bundleGraph.createBundleReference(bundle, sharedBundle);
-          bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+          bundleGraph.removeAssetFromBundle(asset, bundle);
         }
       }
     }
@@ -520,13 +527,20 @@ function deduplicate(bundleGraph: MutableBundleGraph) {
       let asset = node.value;
       // Search in reverse order, so bundles that are loaded keep the duplicated asset, not later ones.
       // This ensures that the earlier bundle is able to execute before the later one.
-      let bundles = bundleGraph.getBundlesWithAsset(asset).reverse();
+      let bundles = bundleGraph.getBundlesWithAsset(asset); //.reverse();
       for (let bundle of bundles) {
+        // console.log('dedupe   ', asset, bundle.facet);
         if (
           bundle.hasAsset(asset) &&
           bundleGraph.isAssetReachableFromBundle(asset, bundle)
         ) {
-          bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+          // console.log(
+          //   'dedupe rm',
+          //   asset,
+          //   bundle.facet,
+          //   bundleGraph.getBundlesWithAsset(asset).map(b => b.facet),
+          // );
+          bundleGraph.removeAssetFromBundle(asset, bundle);
         }
       }
     }
