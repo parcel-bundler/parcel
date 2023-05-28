@@ -18,12 +18,19 @@ const app = express();
 
 app.use(express.static('dist'));
 
-routes.forEach(({facet, bundles}) => {
-  app.get(facet, (req, res) => {
+if (routes.length === 0) {
+  app.get('*', (req, res) => {
     res.type('html');
-    res.send(html(bundles));
+    res.send(html(['index.js']));
   });
-});
+} else {
+  routes.forEach(({facet, bundles}) => {
+    app.get(facet, (req, res) => {
+      res.type('html');
+      res.send(html(bundles));
+    });
+  });
+}
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
