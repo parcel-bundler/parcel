@@ -1425,6 +1425,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getAssetPublicId(asset: Asset): string;
   /** Returns a list of bundles in the bundle graph. By default, inline bundles are excluded. */
   getBundles(opts?: {|includeInline: boolean|}): Array<TBundle>;
+  getBundleGroups(): Array<BundleGroup>;
   /** Traverses the assets and dependencies in the bundle graph, in depth first order. */
   traverse<TContext>(
     visit: GraphVisitor<BundleGraphTraversable, TContext>,

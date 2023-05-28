@@ -27,6 +27,7 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {targetToInternalTarget} from './Target';
 import {fromInternalSourceLocation} from '../utils';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
+import {bundleGraphEdgeTypes} from '../BundleGraph';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -198,6 +199,23 @@ export default class BundleGraph<TBundle: IBundle>
     return this.#graph
       .getBundles(opts)
       .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
+  }
+
+  getBundleGroups(): Array<IBundleGroup> {
+    let g = new Set();
+    this.#graph._graph.traverse(
+      nodeId => {
+        let node = nullthrows(this.#graph._graph.getNode(nodeId));
+        if (node.type === 'bundle_group') {
+          g.add(node.value);
+        }
+      },
+      null,
+      [bundleGraphEdgeTypes.bundle, bundleGraphEdgeTypes.references],
+    );
+    return [...g].map(
+      bundleGroup => new BundleGroup(bundleGroup, this.#options),
+    );
   }
 
   isEntryBundleGroup(bundleGroup: IBundleGroup): boolean {

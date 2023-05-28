@@ -107,15 +107,14 @@ export async function _report(
         'dist/routes.json',
         JSON.stringify(
           event.bundleGraph
-            .getBundles()
-            .filter(b => b.facet != null)
-            .map(b => {
+            .getBundleGroups()
+            .filter(g => g.facet != null)
+            .map(g => {
               return {
-                facet: b.facet,
-                bundles: [
-                  ...event.bundleGraph.getReferencedBundles(b).map(b => b.name),
-                  b.name,
-                ],
+                facet: g.facet,
+                bundles: event.bundleGraph
+                  .getBundlesInBundleGroup(g)
+                  .map(b => b.name),
               };
             }),
           null,
