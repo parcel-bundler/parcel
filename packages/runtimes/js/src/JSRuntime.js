@@ -672,6 +672,7 @@ function shouldUseRuntimeManifest(
 ): boolean {
   let env = bundle.env;
   return (
+    false &&
     !env.isLibrary &&
     bundle.bundleBehavior !== 'inline' &&
     env.isBrowser() &&
