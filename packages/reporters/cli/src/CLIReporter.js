@@ -25,6 +25,7 @@ import {
 } from './render';
 import * as emoji from './emoji';
 import wrapAnsi from 'wrap-ansi';
+import nullthrows from 'nullthrows';
 
 const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
@@ -110,11 +111,17 @@ export async function _report(
             .getBundleGroups()
             .filter(g => g.facet != null)
             .map(g => {
+              let bundles = event.bundleGraph.getBundlesInBundleGroup(g);
+              // TODO is this the right condition?
+              let mainBundle = nullthrows(
+                bundles.find(b =>
+                  b.getEntryAssets().some(e => g.entryAssetId === e.id),
+                ),
+              );
+              let otherBundles = bundles.filter(b => b !== mainBundle);
               return {
                 facet: g.facet,
-                bundles: event.bundleGraph
-                  .getBundlesInBundleGroup(g)
-                  .map(b => b.name),
+                bundles: [...otherBundles, mainBundle].map(b => b.name),
               };
             }),
           null,

@@ -50,11 +50,12 @@ export default async function bundleReport(
           nullthrows(bundleList.find(b => b.filePath === bundle.filePath)),
         )
         .map(g => g.facet)
+        .filter(v => v != null)
         .sort(),
     );
     rows.push([
       formatFilename(bundle.filePath || '', chalk.cyan.bold) +
-        (facets ? chalk.grey(` facets ${[...facets].join(',')}`) : ''),
+        (facets.size > 0 ? chalk.grey(` facets ${[...facets].join(',')}`) : ''),
       chalk.bold(prettifySize(bundle.size, bundle.size > LARGE_BUNDLE_SIZE)),
       chalk.green.bold(prettifyTime(bundle.time)),
     ]);
