@@ -3,14 +3,14 @@
   "version": "0.0.0",
   "license": "MIT",
   "private": true,
-  "source": "src/index.js",
   "dependencies": {
     "express": "^4.18.2"
   },
   "scripts": {
     "serve": "nodemon -w dist/routes.json -w _server.js _server.js",
-    "build": "PARCEL_WORKERS=0 parcel build --no-cache --no-content-hash --no-source-maps",
-    "build_dev": "rm -rf dist; FORCE_COLOR=3 PARCEL_DUMP_GRAPHVIZ=0 parcel2dev --no-cache --no-scope-hoist --no-content-hash | cat"
+    "build": "PARCEL_WORKERS=0 parcel build src/index.js --no-cache --no-content-hash --no-source-maps",
+    "build-async": "PARCEL_WORKERS=0 parcel build src-async/index.js --no-cache --no-content-hash --no-source-maps",
+    "build_dev": "rm -rf dist; FORCE_COLOR=3 PARCEL_DUMP_GRAPHVIZ=0 parcel2dev src-async/index.js --no-cache --no-scope-hoist --no-content-hash | cat"
   },
   "@parcel/bundler-default": {
     "minBundleSize": 50

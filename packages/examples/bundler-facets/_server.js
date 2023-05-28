@@ -3,9 +3,12 @@ const path = require('path');
 const fs = require('fs');
 const port = 4000;
 
-const routes = JSON.parse(
-  fs.readFileSync(path.join(__dirname, 'dist/routes.json'), 'utf8'),
-).reverse();
+let routes = [];
+try {
+  routes = JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'dist/routes.json'), 'utf8'),
+  ).reverse();
+} catch (e) {}
 
 const htmlPrelude = `<pre id="root"></pre>`;
 
