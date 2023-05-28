@@ -1204,6 +1204,7 @@ export type CreateBundleOpts =
        *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
        */
       +bundleBehavior?: ?BundleBehavior,
+      +facet?: ?Facet,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.

@@ -62,18 +62,19 @@ export default (new Bundler({
     |}> = [];
     let bundleGroups: Array<{|
       dep: Dependency,
+      target: Target,
       bundles: Set<number>,
       facet: ?Facet,
     |}> = [];
     let assetReferences: Array<[Dependency, Asset, number]> = [];
     let removeDependencyFromBundle: Array<[Dependency, number]> = [];
+    let internalizeAsyncDependency: Array<[number, Dependency]> = [];
     function bundle(
       bundleGraph: MutableBundleGraph,
       target: Target,
       facet: ?Set<Facet>,
       transitiveFacets: ?Map<Dependency, Set<Facet>>,
     ) {
-      // console.log('-----', facet);
       let lastFacet = facet ? last([...facet]) : undefined;
       bundleGraph.traverse((node, ctx, actions) => {
         if (ctx == null) {
@@ -85,91 +86,95 @@ export default (new Bundler({
         }
 
         if (node.type === 'asset') {
-          let asset = node.value;
-          let {dep, target, bundleGroup, bundle: ctxBundle} = nullthrows(ctx);
+          return ctx;
+        } else {
+          let dep = node.value;
+
+          if (bundleGraph.isDependencySkipped(dep)) {
+            // console.log('skip', facet, dep, transitiveFacets?.get(dep));
+            // if (ctx?.bundle != null) {
+            //   removeDependencyFromBundle.push([dep, ctx.bundle]);
+            //   // bundleGraph.removeDependencyFromBundle(dep, ctx.bundle);
+            // }
+            actions.skipChildren();
+            return;
+          }
+
+          let asset = nullthrows(bundleGraph.getResolvedAsset(dep));
+          let target = nullthrows(dep.target ?? ctx?.target);
+          let ctxBundle = ctx?.bundle;
+          let bundleGroup = ctx?.bundleGroup;
+
+          let isSameFacet =
+            dep.facet != null &&
+            facet != null &&
+            transitiveFacets &&
+            transitiveFacets.has(dep) &&
+            isPrefix(nullthrows(transitiveFacets.get(dep)), facet);
+          // !transitiveFacets.get(dep)?.has(facet)
+          // !facet.startsWith(dep.facet)
+
           let bundle;
-          if (
+          if (dep.priority === 'lazy' && isSameFacet) {
+            // internalize
+            bundle = ctxBundle;
+            bundles[nullthrows(bundle)].assets.add(asset); // bundleGraph.addAssetToBundle(asset, bundle);
+            internalizeAsyncDependency.push([nullthrows(bundle), dep]);
+            // console.log('int', lastFacet, dep);
+          } else if (
             ctxBundle == null ||
-            nullthrows(bundles[ctxBundle].opts.type) != asset.type
+            nullthrows(bundles[ctxBundle]?.entry.type) != asset.type ||
+            dep.priority === 'lazy'
           ) {
-            // console.log(
-            //   'new bundle',
-            //   ctxBundle != null && bundles[ctxBundle]?.opts.type,
-            //   asset,
-            // );
+            // console.log('new', lastFacet, dep);
             bundles.push({
               opts: {
-                type: asset.type,
-                env: asset.env,
-                uniqueKey: asset.id,
+                entryAsset: asset,
                 target,
-                facet: lastFacet ?? undefined,
+                facet: bundleGroup == null ? lastFacet : undefined,
                 needsStableName: facet == null ? dep.isEntry : false,
-                bundleBehavior: dep.bundleBehavior,
-                pipeline: asset.pipeline,
-                isSplittable: asset.isBundleSplittable,
+                // type: asset.type,
+                // env: asset.env,
+                // uniqueKey: asset.id,
+                // target,
+                // facet: lastFacet ?? undefined,
+                // needsStableName: facet == null ? dep.isEntry : false,
+                // bundleBehavior: dep.bundleBehavior,
+                // pipeline: asset.pipeline,
+                // isSplittable: asset.isBundleSplittable,
               },
               entry: asset,
               assets: new Set([asset]),
             });
-            // bundleGraph.addEntryToBundle(asset, bundle)
             bundle = bundles.length - 1;
+            // bundleGraph.addEntryToBundle(asset, bundle)
+
+            if (bundleGroup == null || dep.priority === 'lazy') {
+              bundleGroups.push({
+                dep,
+                target,
+                bundles: new Set(),
+                facet: bundleGroup == null ? lastFacet : undefined,
+              });
+              bundleGroup = bundleGroups.length - 1;
+            }
+
+            // If the bundle is in the same bundle group as the parent, create an asset reference
+            // between the dependency, the asset, and the target bundle.
+            // if (bundleGroup === context?.bundleGroup) {
+            // assetReferences.push([dep, asset, bundle]);
+            // }
+
             bundleGroups[bundleGroup].bundles.add(bundle); // bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           } else {
-            // console.log(
-            //   'reu bundle',
-            //   ctxBundle != null && bundles[ctxBundle]?.opts.type,
-            //   asset,
-            // );
+            // console.log('add', lastFacet, dep);
             bundle = ctxBundle;
             bundles[bundle].assets.add(asset); // bundleGraph.addAssetToBundle(asset, bundle);
           }
-          // if (!dep.isEntry) {
-          // assetReferences.push([dep, asset, bundle]);
-          // bundleGraph.createAssetReference(dep, asset, bundle);
-          // }
           return {
-            dep,
             target,
             bundle,
             bundleGroup,
-          };
-        } else {
-          let dep = node.value;
-          if (
-            bundleGraph.isDependencySkipped(dep) ||
-            (dep.facet != null &&
-              facet != null &&
-              transitiveFacets &&
-              transitiveFacets.has(dep) &&
-              !isPrefix(nullthrows(transitiveFacets.get(dep)), facet))
-            // !transitiveFacets.get(dep)?.has(facet)
-            // !facet.startsWith(dep.facet)
-          ) {
-            // console.log('skip', facet, dep, transitiveFacets?.get(dep));
-            if (ctx?.bundle != null) {
-              removeDependencyFromBundle.push([dep, ctx.bundle]);
-              // bundleGraph.removeDependencyFromBundle(dep, ctx.bundle);
-            }
-            actions.skipChildren();
-            return;
-          }
-          let bundleGroup = ctx?.bundleGroup;
-          if (bundleGroup == null) {
-            bundleGroups.push({
-              dep,
-              bundles: new Set(),
-              facet: lastFacet,
-            });
-            bundleGroup = bundleGroups.length - 1;
-          }
-          return {
-            dep,
-            target: nullthrows(dep.target ?? ctx?.target),
-            bundle: ctx?.bundle,
-            bundleGroup /*
-              :ctx?.bundleGroup ??
-              bundleGraph.createBundleGroup(dep, nullthrows(dep.target)), */,
           };
         }
       });
@@ -179,9 +184,8 @@ export default (new Bundler({
       if (facets.size > 0) {
         for (let facet of facets) {
           // TODO how to detect automatically
-          if (last(facet) === '/blog') {
-            continue;
-          }
+          // if (last(facet) === '/blog') continue;
+
           bundle(bundleGraph, target, facet, transitiveFacets);
         }
       } else {
@@ -198,12 +202,8 @@ export default (new Bundler({
         bundleGraph.addAssetToBundle(a, bundle);
       }
     }
-    for (let {dep, bundles, facet} of bundleGroups) {
-      let bundleGroup = bundleGraph.createBundleGroup(
-        dep,
-        nullthrows(dep.target),
-        facet,
-      );
+    for (let {dep, bundles, target, facet} of bundleGroups) {
+      let bundleGroup = bundleGraph.createBundleGroup(dep, target, facet);
       for (let bundle of bundles) {
         bundleGraph.addBundleToBundleGroup(createdBundles[bundle], bundleGroup);
       }
@@ -216,9 +216,13 @@ export default (new Bundler({
         bundleGraph.removeDependencyFromBundle(dep, createdBundles[bundle]);
       }
     }
+    for (let [bundle, dep] of internalizeAsyncDependency) {
+      bundleGraph.internalizeAsyncDependency(createdBundles[bundle], dep);
+    }
   },
   optimize({bundleGraph, config}) {
     optimize({bundleGraph, config});
+    internalizeReachableAsyncDependencies(bundleGraph);
   },
 }): Bundler);
 
@@ -341,11 +345,11 @@ function optimize({bundleGraph, config}) {
 
   bundleGraph.traverse(node => {
     if (
-      node.type !== 'asset' /* ||
+      node.type !== 'asset' ||
       // Don't share assets that have deps with facets. Without this, all assets of every facet
       // bundle just get deduplicated into a shared bundled
       // TODO make more fine grained
-      bundleGraph.getDependencies(node.value).some(d => d.facet != null) */
+      bundleGraph.getDependencies(node.value).some(d => d.facet != null)
     ) {
       return;
     }
@@ -462,7 +466,6 @@ function optimize({bundleGraph, config}) {
 
   // Remove assets that are duplicated between shared bundles.
   deduplicate(bundleGraph);
-  internalizeReachableAsyncDependencies(bundleGraph);
 }
 
 function internalizeReachableAsyncDependencies(
@@ -527,7 +530,7 @@ function deduplicate(bundleGraph: MutableBundleGraph) {
       let asset = node.value;
       // Search in reverse order, so bundles that are loaded keep the duplicated asset, not later ones.
       // This ensures that the earlier bundle is able to execute before the later one.
-      let bundles = bundleGraph.getBundlesWithAsset(asset); //.reverse();
+      let bundles = bundleGraph.getBundlesWithAsset(asset).reverse();
       for (let bundle of bundles) {
         // console.log('dedupe   ', asset, bundle.facet);
         if (
