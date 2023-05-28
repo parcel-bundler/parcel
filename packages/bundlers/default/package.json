@@ -15,6 +15,7 @@
   },
   "main": "lib/DefaultBundler.js",
   "source": "src/TestBundler.js",
+  "_source": "src/OldBundler.js",
   "_source": "src/DefaultBundler.js",
   "engines": {
     "node": ">= 12.0.0",
