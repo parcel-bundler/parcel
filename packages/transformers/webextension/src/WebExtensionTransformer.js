@@ -399,7 +399,7 @@ export default (new Transformer({
         ...asset.env.sourceMap,
         // Inline source maps work most reliably on web extensions but allow users to overwrite
         inline: asset.env.sourceMap.inline ?? true,
-        inlineSources: asset.env.inlineSources ?? true,
+        inlineSources: asset.env.sourceMap.inlineSources ?? true,
       },
       includeNodeModules: asset.env.includeNodeModules,
       sourceType: asset.env.sourceType,
