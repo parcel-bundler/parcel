@@ -210,8 +210,11 @@ export default class Server {
           let isIndex = withoutExtension === 'index';
 
           let matchesIsIndex = null;
-          if (isIndex && req.url.startsWith(bundleDirSubdir)) {
-            // bundle is /bar/index.html and something inside of /bar/** was requested
+          if (
+            isIndex &&
+            (req.url.startsWith(bundleDirSubdir) || req.url === bundleDir)
+          ) {
+            // bundle is /bar/index.html and (/bar or something inside of /bar/** was requested was requested)
             matchesIsIndex = true;
           } else if (req.url == path.posix.join(bundleDir, withoutExtension)) {
             // bundle is /bar/foo.html and /bar/foo was requested
