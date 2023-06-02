@@ -9,6 +9,7 @@ import {
   ncp,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
+import {normalizeSeparators} from '@parcel/utils';
 
 describe('typescript types', function () {
   it('should generate a typescript declaration file', async function () {
@@ -326,9 +327,8 @@ describe('typescript types', function () {
   });
 
   it('should throw a diagnostic on fatal errors', async function () {
-    let message = md`Return type of exported function has or is using name 'Snapshot' from external module "${path.join(
-      __dirname,
-      '/integration/ts-types/error/file2',
+    let message = md`Return type of exported function has or is using name 'Snapshot' from external module "${normalizeSeparators(
+      path.join(__dirname, '/integration/ts-types/error/file2'),
     )}" but cannot be named.`;
     await assert.rejects(
       () =>
@@ -341,9 +341,8 @@ describe('typescript types', function () {
             message,
             codeFrames: [
               {
-                filePath: path.join(
-                  __dirname,
-                  '/integration/ts-types/error/index.ts',
+                filePath: normalizeSeparators(
+                  path.join(__dirname, '/integration/ts-types/error/index.ts'),
                 ),
                 code: await inputFS.readFile(
                   path.join(__dirname, '/integration/ts-types/error/index.ts'),
@@ -352,7 +351,7 @@ describe('typescript types', function () {
                 codeHighlights: [
                   {
                     start: {line: 13, column: 17},
-                    end: {line: 13, column: 32},
+                    end: {line: 13, column: 31},
                     message,
                   },
                 ],

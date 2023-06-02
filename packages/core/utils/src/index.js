@@ -40,11 +40,23 @@ export {
   setIntersect,
   setUnion,
 } from './collection';
-export {resolveConfig, resolveConfigSync, loadConfig} from './config';
+export {
+  resolveConfig,
+  resolveConfigSync,
+  loadConfig,
+  readConfig,
+} from './config';
 export {DefaultMap, DefaultWeakMap} from './DefaultMap';
 export {makeDeferredWithPromise} from './Deferred';
 export {getProgressMessage} from './progress-message.js';
-export {isGlob, isGlobMatch, globSync, glob, globToRegex} from './glob';
+export {
+  isGlob,
+  isGlobMatch,
+  globMatch,
+  globSync,
+  glob,
+  globToRegex,
+} from './glob';
 export {hashStream, hashObject, hashFile} from './hash';
 export {SharedBuffer} from './shared-buffer';
 export {fuzzySearch} from './schema';

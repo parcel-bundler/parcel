@@ -15,7 +15,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {setEqual} from '@parcel/utils';
 import logger from '@parcel/logger';
-import {md} from '@parcel/diagnostic';
+import {md, convertSourceLocationToHighlight} from '@parcel/diagnostic';
 import {BundleBehavior} from './types';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
 
@@ -426,7 +426,11 @@ export function propagateSymbols({
               assetGraph.getNodeIdByContentKey(incomingDep.id),
             );
             let resolution = nullthrows(assetGraph.getNode(resolutionNodeId));
-            invariant(resolution && resolution.type === 'asset_group');
+            invariant(
+              resolution &&
+                (resolution.type === 'asset_group' ||
+                  resolution.type === 'asset'),
+            );
 
             errors.push({
               message: md`${fromProjectPathRelative(
@@ -440,12 +444,7 @@ export function propagateSymbols({
                         fromProjectPath(options.projectRoot, loc?.filePath) ??
                         undefined,
                       language: incomingDep.value.sourceAssetType ?? undefined,
-                      codeHighlights: [
-                        {
-                          start: loc.start,
-                          end: loc.end,
-                        },
-                      ],
+                      codeHighlights: [convertSourceLocationToHighlight(loc)],
                     },
                   ]
                 : undefined,

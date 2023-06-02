@@ -53,8 +53,11 @@ export default (new Packager({
             contents,
             'application/xml',
           );
-          element.parentNode.removeChild(element);
-          element.parentNode.appendChild(parsed.documentElement);
+          if (parsed.documentElement != null) {
+            let parent = element.parentNode;
+            parent.removeChild(element);
+            parent.appendChild(parsed.documentElement);
+          }
         } else {
           element.parentNode.textContent = contents;
         }

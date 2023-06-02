@@ -83,6 +83,7 @@ export async function createDevDependency(
       invalidateOnFileCreateToInternal(options.projectRoot, i),
     ),
     invalidateOnFileChange: new Set(invalidateOnFileChangeProject),
+    invalidateOnStartup: invalidations.invalidateOnStartup,
     additionalInvalidations,
   };
 
@@ -193,6 +194,10 @@ export async function runDevDepRequest<TResult>(
         devDepRequest.invalidateOnFileCreate,
       )) {
         api.invalidateOnFileCreate(invalidation);
+      }
+
+      if (devDepRequest.invalidateOnStartup) {
+        api.invalidateOnStartup();
       }
 
       api.storeResult({

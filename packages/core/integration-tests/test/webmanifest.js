@@ -202,6 +202,7 @@ describe('webmanifest', function () {
                 code: manifest,
                 codeHighlights: [
                   {
+                    message: undefined,
                     end: {
                       column: 23,
                       line: 5,

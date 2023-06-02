@@ -197,6 +197,7 @@ pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+/// Corresponds to the JS SourceLocation type (1-based, end exclusive)
 pub struct SourceLocation {
   pub start_line: usize,
   pub start_col: usize,
@@ -211,20 +212,19 @@ impl SourceLocation {
         start_line: 1,
         start_col: 1,
         end_line: 1,
-        end_col: 1,
+        end_col: 2,
       };
     }
 
     let start = source_map.lookup_char_pos(span.lo);
     let end = source_map.lookup_char_pos(span.hi);
-    // - SWC's columns are exclusive, ours are inclusive (column - 1)
-    // - SWC has 0-based columns, ours are 1-based (column + 1)
-    // = +-0
+    // SWC's columns are exclusive, ours are exclusive
+    // SWC has 0-based columns, ours are 1-based (column + 1)
     SourceLocation {
       start_line: start.line,
       start_col: start.col_display + 1,
       end_line: end.line,
-      end_col: end.col_display,
+      end_col: end.col_display + 1,
     }
   }
 }

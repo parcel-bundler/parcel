@@ -11,7 +11,11 @@ import {blobToBuffer} from '@parcel/utils';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
+import {
+  convertSourceLocationToHighlight,
+  md,
+  generateJSONCodeHighlights,
+} from '@parcel/diagnostic';
 
 export default (new Optimizer({
   async loadConfig({config, logger, options}) {
@@ -112,7 +116,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
                     filePath: nullthrows(
                       loc?.filePath ?? defaultImport.sourcePath,
                     ),
-                    codeHighlights: [{start: loc.start, end: loc.end}],
+                    codeHighlights: [convertSourceLocationToHighlight(loc)],
                   },
                 ],
               }),

@@ -4,6 +4,7 @@ import type {
   Config as IConfig,
   PluginOptions as IPluginOptions,
   PluginLogger as IPluginLogger,
+  PluginTracer as IPluginTracer,
   NamedBundle as INamedBundle,
   BundleGraph as IBundleGraph,
 } from '@parcel/types';
@@ -24,12 +25,14 @@ import PublicConfig from '../public/Config';
 import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
 import {Hash} from '@parcel/hash';
+import {PluginTracer} from '@parcel/profiler';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
     config: IConfig,
     options: IPluginOptions,
     logger: IPluginLogger,
+    tracer: IPluginTracer,
   |}) => Async<mixed>,
   ...
 };
@@ -39,6 +42,7 @@ export type PluginWithBundleConfig = {
     config: IConfig,
     options: IPluginOptions,
     logger: IPluginLogger,
+    tracer: IPluginTracer,
   |}) => Async<mixed>,
   loadBundleConfig?: ({|
     bundle: INamedBundle,
@@ -46,6 +50,7 @@ export type PluginWithBundleConfig = {
     config: IConfig,
     options: IPluginOptions,
     logger: IPluginLogger,
+    tracer: IPluginTracer,
   |}) => Async<mixed>,
   ...
 };
@@ -80,6 +85,10 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
         }),
       ),
       logger: new PluginLogger({origin: loadedPlugin.name}),
+      tracer: new PluginTracer({
+        origin: loadedPlugin.name,
+        category: 'loadConfig',
+      }),
     });
   } catch (e) {
     throw new ThrowableDiagnostic({
