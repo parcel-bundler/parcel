@@ -420,7 +420,7 @@ async function normalizeOptions(
       });
     }
 
-    if (port !== originalPort) {
+    if (port !== originalPort && command.name() !== 'watch') {
       let errorMessage = `Port "${originalPort}" could not be used`;
       if (command.port != null) {
         // Throw the error if the user defined a custom port
