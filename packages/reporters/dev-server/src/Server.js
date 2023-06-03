@@ -404,7 +404,7 @@ export default class Server {
    */
   async applyProxyTable(app: any): Promise<Server> {
     // avoid skipping project root
-    const fileInRoot: string = path.join(this.options.projectRoot, '_');
+    const fileInRoot: string = path.join(this.options.projectRoot, 'index');
 
     const configFilePath = await resolveConfig(
       this.options.inputFS,
@@ -434,7 +434,7 @@ export default class Server {
       // let cfg = (await import(configFilePath)).default;
       let cfg = await this.options.packageManager.require(
         configFilePath,
-        this.options.projectRoot,
+        fileInRoot,
       );
       if (
         // $FlowFixMe
