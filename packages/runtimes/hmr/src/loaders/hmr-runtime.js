@@ -152,7 +152,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       });
 
       if (handled) {
-        // console.clear();
+        console.clear();
 
         // Dispatch custom event so other runtimes (e.g React Refresh) are aware.
         if (

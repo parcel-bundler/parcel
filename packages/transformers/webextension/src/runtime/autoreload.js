@@ -1,7 +1,9 @@
 /* global chrome, browser, addEventListener, location */
 var env = typeof browser == 'undefined' ? chrome : browser;
+var blockReload = true;
 
 addEventListener('beforeunload', function () {
+  if (!blockReload) return;
   try {
     env.runtime.sendMessage({
       __parcel_hmr_reload__: true,
@@ -16,6 +18,7 @@ addEventListener('beforeunload', function () {
 
 env.runtime.onMessage.addListener(function (msg) {
   if (msg.__parcel_hmr_reload__) {
+    blockReload = false;
     setTimeout(function () {
       location.reload();
     }, 400);
