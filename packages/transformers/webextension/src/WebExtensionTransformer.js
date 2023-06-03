@@ -394,8 +394,9 @@ export default (new Transformer({
       },
       sourceMap: asset.env.sourceMap && {
         ...asset.env.sourceMap,
-        inline: true,
-        inlineSources: true,
+        // Inline source maps work most reliably on web extensions but allow users to overwrite
+        inline: asset.env.sourceMap.inline ?? true,
+        inlineSources: asset.env.sourceMap.inlineSources ?? true,
       },
       includeNodeModules: asset.env.includeNodeModules,
       sourceType: asset.env.sourceType,
