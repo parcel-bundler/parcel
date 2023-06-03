@@ -1,4 +1,4 @@
-/* global chrome, browser, addEventListener */
+/* global chrome, browser, addEventListener, location */
 var env = typeof browser == 'undefined' ? chrome : browser;
 
 addEventListener('beforeunload', function () {

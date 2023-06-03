@@ -6,7 +6,7 @@ import {Packager} from '@parcel/plugin';
 import {replaceURLReferences, relativeBundlePath} from '@parcel/utils';
 
 export default (new Packager({
-  async package({bundle, bundleGraph, options}) {
+  async package({bundle, bundleGraph}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
