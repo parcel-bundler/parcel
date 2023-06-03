@@ -80,10 +80,6 @@ export default (new Packager({
       }
     }
 
-    if (manifest.manifest_version == 3 && options.hmrOptions) {
-      war.push({matches: ['<all_urls>'], resources: ['__parcel_hmr_proxy__']});
-    }
-
     const warResult = (manifest.web_accessible_resources || []).concat(
       manifest.manifest_version == 2
         ? [...new Set(war.flatMap(entry => entry.resources))]
