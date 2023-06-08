@@ -813,11 +813,13 @@ export default (new Transformer({
         });
       }
 
-      // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
+      // Add * symbol if there are CJS exports, no imports/exports at all
+      // (and the asset has side effects), or the asset is wrapped.
       // This allows accessing symbols that don't exist without errors in symbol propagation.
       if (
         hoist_result.has_cjs_exports ||
         (!hoist_result.is_esm &&
+          asset.sideEffects &&
           deps.size === 0 &&
           Object.keys(hoist_result.exported_symbols).length === 0) ||
         (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
