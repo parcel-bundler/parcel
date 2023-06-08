@@ -271,6 +271,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset.value.sideEffects = sideEffects;
   }
 
+  get uniqueKey(): ?string {
+    return this.#asset.value.uniqueKey;
+  }
+
+  set uniqueKey(uniqueKey: ?string): void {
+    this.#asset.value.uniqueKey = uniqueKey;
+  }
+
   get symbols(): IMutableAssetSymbols {
     return new MutableAssetSymbols(this.#asset.options, this.#asset.value);
   }

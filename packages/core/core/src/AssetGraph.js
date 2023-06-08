@@ -455,6 +455,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         let dependentAsset = assetsByKey.get(dep.specifier);
         if (dependentAsset) {
           dependentAssets.push(dependentAsset);
+          if (dependentAsset.id === asset.id) {
+            // Don't orphan circular dependencies.
+            isDirect = true;
+          }
         }
       }
       let id = this.addNode(nodeFromAsset(asset));

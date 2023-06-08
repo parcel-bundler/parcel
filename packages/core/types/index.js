@@ -749,6 +749,12 @@ export interface MutableAsset extends BaseAsset {
    * This is initially set by the resolver, but can be overridden by transformers.
    */
   sideEffects: boolean;
+  /**
+   * When a transformer returns multiple assets, it can give them unique keys to identify them.
+   * This can be used to find assets during packaging, or to create dependencies between multiple
+   * assets returned by a transformer by using the unique key as the dependency specifier.
+   */
+  uniqueKey: ?string;
   /** The symbols that the asset exports. */
   +symbols: MutableAssetSymbols;
 

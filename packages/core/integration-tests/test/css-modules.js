@@ -715,4 +715,38 @@ describe('css modules', () => {
     assert.deepEqual(res[0][0], 'mainJs');
     assert(res[0][1].includes('container') && res[0][1].includes('expand'));
   });
+
+  it('should allow css modules to be shared between targets', async function () {
+    let b = await bundle([
+      path.join(__dirname, '/integration/css-module-self-references/a'),
+      path.join(__dirname, '/integration/css-module-self-references/b'),
+    ]);
+
+    assertBundles(b, [
+      {
+        name: 'main.css',
+        assets: ['bar.module.css'],
+      },
+      {
+        name: 'main.css',
+        assets: ['bar.module.css'],
+      },
+      {
+        name: 'main.js',
+        assets: ['index.js', 'bar.module.css'],
+      },
+      {
+        name: 'main.js',
+        assets: ['index.js', 'bar.module.css'],
+      },
+      {
+        name: 'module.js',
+        assets: ['index.js', 'bar.module.css'],
+      },
+      {
+        name: 'module.js',
+        assets: ['index.js', 'bar.module.css'],
+      },
+    ]);
+  });
 });
