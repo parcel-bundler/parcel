@@ -196,7 +196,7 @@ export default (new Transformer({
         locals.set(exports[key].name, key);
       }
 
-      asset.uniqueKey ||= asset.id;
+      asset.uniqueKey ??= asset.id;
 
       let seen = new Set();
       let add = key => {
@@ -213,16 +213,13 @@ export default (new Transformer({
           if (ref.type === 'local') {
             let exported = nullthrows(locals.get(ref.name));
             add(exported);
-            s +=
-              '${' +
-              `module.exports[${JSON.stringify(exported)}]` +
-              '}';
+            s += '${' + `module.exports[${JSON.stringify(exported)}]` + '}';
             asset.addDependency({
-              specifier: asset.uniqueKey,
+              specifier: nullthrows(asset.uniqueKey),
               specifierType: 'esm',
               symbols: new Map([
-                [exported, {local: ref.name, isWeak: false, loc: null}]
-              ])
+                [exported, {local: ref.name, isWeak: false, loc: null}],
+              ]),
             });
           } else if (ref.type === 'global') {
             s += ref.name;
@@ -251,11 +248,11 @@ export default (new Transformer({
         if (e.isReferenced) {
           s += `module.exports[${JSON.stringify(key)}];\n`;
           asset.addDependency({
-            specifier: asset.uniqueKey,
+            specifier: nullthrows(asset.uniqueKey),
             specifierType: 'esm',
             symbols: new Map([
-              [key, {local: exports[key].name, isWeak: false, loc: null}]
-            ])
+              [key, {local: exports[key].name, isWeak: false, loc: null}],
+            ]),
           });
         }
 
