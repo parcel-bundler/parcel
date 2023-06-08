@@ -806,8 +806,14 @@ export default (new Transformer({
           });
         }
 
+        // Use the asset id as a unique key if one has not already been set.
+        // This lets us create a dependency on the asset itself by using it as a specifier.
+        // Using the unique key ensures that the dependency always resolves to the correct asset,
+        // even if it came from a transformer that produced multiple assets (e.g. css modules).
+        // Also avoids needing a resolution request.
+        asset.uniqueKey ||= asset.id;
         asset.addDependency({
-          specifier: `./${path.basename(asset.filePath)}`,
+          specifier: asset.uniqueKey,
           specifierType: 'esm',
           symbols,
         });
