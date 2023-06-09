@@ -1,13 +1,13 @@
 // @flow
 
-import {CopyOnWriteToMemoryFS} from '../src/CopyOnWriteToMemoryFS';
+import {OverlayFS} from '../src/OverlayFS';
 import {fsFixture} from '@parcel/test-utils/src/fsFixture';
 import {MemoryFS} from '../src/MemoryFS';
 import WorkerFarm from '@parcel/workers';
 
 import assert from 'assert';
 
-describe('CopyOnWriteToMemoryFS', () => {
+describe('OverlayFS', () => {
   let underlayFS;
   let fs;
   let workerFarm;
@@ -17,7 +17,7 @@ describe('CopyOnWriteToMemoryFS', () => {
       workerPath: require.resolve('@parcel/core/src/worker.js'),
     });
     underlayFS = new MemoryFS(workerFarm);
-    fs = new CopyOnWriteToMemoryFS(workerFarm, underlayFS);
+    fs = new OverlayFS(workerFarm, underlayFS);
   });
 
   afterEach(async () => {

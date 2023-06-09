@@ -11,7 +11,6 @@ export type * from './types';
 export * from './NodeFS';
 export * from './MemoryFS';
 export * from './OverlayFS';
-export * from './CopyOnWriteToMemoryFS';
 
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
   stream.pipeline,
