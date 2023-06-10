@@ -43,14 +43,24 @@ export default (new Packager({
 
       contentScript.css = [
         ...new Set(
-          (contentScript.css || []).concat(
-            srcBundles
-              .flatMap(b => bundleGraph.getReferencedBundles(b))
-              .filter(b => b.type == 'css')
-              .map(relPath),
-          ),
+          srcBundles
+            .flatMap(b => bundleGraph.getReferencedBundles(b))
+            .filter(b => b.type == 'css')
+            .map(relPath)
+            .concat(contentScript.css || []),
         ),
       ];
+
+      contentScript.js = [
+        ...new Set(
+          srcBundles
+            .flatMap(b => bundleGraph.getReferencedBundles(b))
+            .filter(b => b.type == 'js')
+            .map(relPath)
+            .concat(contentScript.js || []),
+        ),
+      ];
+
       const resources = srcBundles
         .flatMap(b => {
           const children = [];
