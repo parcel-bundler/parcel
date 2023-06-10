@@ -5,7 +5,30 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.9.1] - 2023-05-07
+## [2.9.2] - 2023-06-08
+
+### Fixed
+
+- Core
+  - Fix infinite loop when entries look like globs – [Details](https://github.com/parcel-bundler/parcel/pull/9020)
+  - Fix proxyrc require from path – [Details](https://github.com/parcel-bundler/parcel/pull/9069)
+
+- JavaScript
+  - Treat re-exports of `*` from empty files with `sideEffects: false` as ESM – [Details](https://github.com/parcel-bundler/parcel/pull/9079)
+
+- CSS
+  - Fix self references error in CSS module JS assets causing "Bundle group cannot have more than one entry bundle of the same type" – [Details](https://github.com/parcel-bundler/parcel/pull/9080)
+
+- Dev server
+  - Serve folder's index when requesting folder without slash – [Details](https://github.com/parcel-bundler/parcel/pull/9066)
+
+- Web extensions
+  - Allow source maps files in webextension – [Details](https://github.com/parcel-bundler/parcel/pull/8541)
+
+- Image
+  - Add core as peerdep to image optimizer – [Details](https://github.com/parcel-bundler/parcel/pull/9070)
+
+## [2.9.1] - 2023-06-07
 
 ### Fixed
 

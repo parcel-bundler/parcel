@@ -196,6 +196,8 @@ export default (new Transformer({
         locals.set(exports[key].name, key);
       }
 
+      asset.uniqueKey ??= asset.id;
+
       let seen = new Set();
       let add = key => {
         if (seen.has(key)) {
@@ -209,13 +211,16 @@ export default (new Transformer({
         for (let ref of e.composes) {
           s += ' ';
           if (ref.type === 'local') {
-            add(nullthrows(locals.get(ref.name)));
-            s +=
-              '${' +
-              `module.exports[${JSON.stringify(
-                nullthrows(locals.get(ref.name)),
-              )}]` +
-              '}';
+            let exported = nullthrows(locals.get(ref.name));
+            add(exported);
+            s += '${' + `module.exports[${JSON.stringify(exported)}]` + '}';
+            asset.addDependency({
+              specifier: nullthrows(asset.uniqueKey),
+              specifierType: 'esm',
+              symbols: new Map([
+                [exported, {local: ref.name, isWeak: false, loc: null}],
+              ]),
+            });
           } else if (ref.type === 'global') {
             s += ref.name;
           } else if (ref.type === 'dependency') {
@@ -242,6 +247,13 @@ export default (new Transformer({
         // to the JS so the symbol is retained during tree-shaking.
         if (e.isReferenced) {
           s += `module.exports[${JSON.stringify(key)}];\n`;
+          asset.addDependency({
+            specifier: nullthrows(asset.uniqueKey),
+            specifierType: 'esm',
+            symbols: new Map([
+              [key, {local: exports[key].name, isWeak: false, loc: null}],
+            ]),
+          });
         }
 
         js += s;

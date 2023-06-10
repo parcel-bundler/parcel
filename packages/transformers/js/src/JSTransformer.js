@@ -806,18 +806,26 @@ export default (new Transformer({
           });
         }
 
+        // Use the asset id as a unique key if one has not already been set.
+        // This lets us create a dependency on the asset itself by using it as a specifier.
+        // Using the unique key ensures that the dependency always resolves to the correct asset,
+        // even if it came from a transformer that produced multiple assets (e.g. css modules).
+        // Also avoids needing a resolution request.
+        asset.uniqueKey ||= asset.id;
         asset.addDependency({
-          specifier: `./${path.basename(asset.filePath)}`,
+          specifier: asset.uniqueKey,
           specifierType: 'esm',
           symbols,
         });
       }
 
-      // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
+      // Add * symbol if there are CJS exports, no imports/exports at all
+      // (and the asset has side effects), or the asset is wrapped.
       // This allows accessing symbols that don't exist without errors in symbol propagation.
       if (
         hoist_result.has_cjs_exports ||
         (!hoist_result.is_esm &&
+          asset.sideEffects &&
           deps.size === 0 &&
           Object.keys(hoist_result.exported_symbols).length === 0) ||
         (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
