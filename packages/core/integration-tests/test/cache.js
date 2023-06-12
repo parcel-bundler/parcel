@@ -6067,6 +6067,7 @@ describe('cache', function () {
 
     it('should invalidate when deleting a dist file', async function () {
       let b = await testCache({
+        outputFS: overlayFS,
         async update(b) {
           assert(await overlayFS.exists(path.join(distDir, 'index.js')));
           let res = await run(b.bundleGraph);
@@ -6083,6 +6084,7 @@ describe('cache', function () {
 
     it('should invalidate when deleting a source map', async function () {
       await testCache({
+        outputFS: overlayFS,
         async update() {
           assert(await overlayFS.exists(path.join(distDir, 'index.js.map')));
 
@@ -6095,6 +6097,7 @@ describe('cache', function () {
 
     it('should invalidate when the dist directory', async function () {
       await testCache({
+        outputFS: overlayFS,
         async update() {
           assert(await overlayFS.exists(path.join(distDir, 'index.js')));
           assert(await overlayFS.exists(path.join(distDir, 'index.js.map')));
