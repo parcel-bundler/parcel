@@ -1936,6 +1936,10 @@ export default class BundleGraph {
       bundle.id + bundle.target.publicUrl + this.getContentHash(bundle),
     );
 
+    if (bundle.isPlaceholder) {
+      hash.writeString('placeholder');
+    }
+
     let inlineBundles = this.getInlineBundles(bundle);
     for (let inlineBundle of inlineBundles) {
       hash.writeString(this.getContentHash(inlineBundle));
