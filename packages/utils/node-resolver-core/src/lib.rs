@@ -1,5 +1,8 @@
 use dashmap::DashMap;
-use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref, Result};
+use napi::{
+  bindgen_prelude::AsyncTask, Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown,
+  Ref, Result, JsObject,
+};
 use napi_derive::napi;
 #[cfg(target_arch = "wasm32")]
 use std::alloc::{alloc, Layout};
@@ -429,7 +432,175 @@ impl Resolver {
       )),
     }
   }
+
+  #[napi]
+  pub fn resolve_async(
+    &'static self,
+    options: ResolveOptions,
+    env: Env,
+  ) -> Result<JsObject> {
+    let (deferred, promise) = env.create_deferred()?;
+    let resolver = &self.resolver;
+
+    rayon::spawn(move || {
+      let mut res = resolver.resolve_with_options(
+        &options.filename,
+        Path::new(&options.parent),
+        match options.specifier_type.as_ref() {
+          "esm" => SpecifierType::Esm,
+          "commonjs" => SpecifierType::Cjs,
+          "url" => SpecifierType::Url,
+          _ => {
+            return deferred.reject(napi::Error::new(
+              napi::Status::InvalidArg,
+              format!("Invalid specifier type: {}", options.specifier_type),
+            ));
+          }
+        },
+        if let Some(conditions) = options.package_conditions {
+          get_resolve_options(conditions)
+        } else {
+          Default::default()
+        },
+      );
+
+      let side_effects = if let Ok((Resolution::Path(p), _)) = &res.result {
+        match resolver.resolve_side_effects(&p, &res.invalidations) {
+          Ok(side_effects) => side_effects,
+          Err(err) => {
+            res.result = Err(err);
+            true
+          }
+        }
+      } else {
+        true
+      };
+      
+      let mut module_type = 0;
+
+      if self.mode == 2 {
+        if let Ok((Resolution::Path(p), _)) = &res.result {
+          module_type = match self.resolver.resolve_module_type(&p, &res.invalidations) {
+            Ok(t) => match t {
+              ModuleType::CommonJs | ModuleType::Json => 1,
+              ModuleType::Module => 2,
+            },
+            Err(err) => {
+              res.result = Err(err);
+              0
+            }
+          }
+        }
+      }
+
+      let (invalidate_on_file_change, invalidate_on_file_create) =
+      convert_invalidations(res.invalidations);
+
+      deferred.resolve(move |env| {
+        match res.result {
+          Ok((res, query)) => Ok(ResolveResult {
+            resolution: env.to_js_value(&res)?,
+            invalidate_on_file_change,
+            invalidate_on_file_create,
+            side_effects,
+            query,
+            error: env.get_undefined()?.into_unknown(),
+            module_type,
+          }),
+          Err(err) => Ok(ResolveResult {
+            resolution: env.get_undefined()?.into_unknown(),
+            invalidate_on_file_change,
+            invalidate_on_file_create,
+            side_effects: true,
+            query: None,
+            error: env.to_js_value(&err)?,
+            module_type: 0,
+          }),
+        }
+      })
+    });
+
+    Ok(promise)
+
+    // Ok(AsyncTask::new(AsyncResolve {
+    //   resolver: &self.resolver,
+    //   options,
+    // }))
+  }
 }
+
+// pub struct AsyncResolve {
+//   resolver: &'static parcel_resolver::Resolver<'static, EitherFs<JsFileSystem, OsFileSystem>>,
+//   options: ResolveOptions,
+// }
+
+// impl Task for AsyncResolve {
+//   type Output = (parcel_resolver::ResolveResult, bool);
+//   type JsValue = ResolveResult;
+
+//   fn compute(&mut self) -> Result<Self::Output> {
+//     let resolver = &self.resolver;
+//     let options = &self.options;
+//     let mut res = resolver.resolve_with_options(
+//       &options.filename,
+//       Path::new(&options.parent),
+//       match options.specifier_type.as_ref() {
+//         "esm" => SpecifierType::Esm,
+//         "commonjs" => SpecifierType::Cjs,
+//         "url" => SpecifierType::Url,
+//         _ => {
+//           return Err(napi::Error::new(
+//             napi::Status::InvalidArg,
+//             format!("Invalid specifier type: {}", options.specifier_type),
+//           ));
+//         }
+//       },
+//       if let Some(conditions) = &options.package_conditions {
+//         get_resolve_options(conditions.clone())
+//       } else {
+//         Default::default()
+//       },
+//     );
+
+//     let side_effects = if let Ok((Resolution::Path(p), _)) = &res.result {
+//       match resolver.resolve_side_effects(&p, &res.invalidations) {
+//         Ok(side_effects) => side_effects,
+//         Err(err) => {
+//           res.result = Err(err);
+//           true
+//         }
+//       }
+//     } else {
+//       true
+//     };
+
+//     Ok((res, side_effects))
+//   }
+
+//   fn resolve(&mut self, env: Env, res: Self::Output) -> Result<Self::JsValue> {
+//     let (res, side_effects) = res;
+//     let (invalidate_on_file_change, invalidate_on_file_create) =
+//       convert_invalidations(res.invalidations);
+//     match res.result {
+//       Ok((res, query)) => Ok(ResolveResult {
+//         resolution: env.to_js_value(&res)?,
+//         invalidate_on_file_change,
+//         invalidate_on_file_create,
+//         side_effects,
+//         query,
+//         error: env.get_undefined()?.into_unknown(),
+//       }),
+//       Err(err) => Ok(ResolveResult {
+//         resolution: env.get_undefined()?.into_unknown(),
+//         invalidate_on_file_change,
+//         invalidate_on_file_create,
+//         side_effects: true,
+//         query: None,
+//         error: env.to_js_value(&err)?,
+//       }),
+//     }
+//   }
+// }
 
 fn convert_invalidations(
   invalidations: Invalidations,

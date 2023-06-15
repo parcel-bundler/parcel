@@ -135,7 +135,7 @@ export default class NodeResolver {
     }
 
     // $FlowFixMe[incompatible-call] - parent is not null here.
-    let res = resolver.resolve(options);
+    let res = await resolver.resolveAsync(options);
 
     // Invalidate whenever the .pnp.js file changes.
     // TODO: only when we actually resolve a node_modules package?
