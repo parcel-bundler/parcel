@@ -270,6 +270,8 @@ export type ParcelOptions = {|
   shouldContentHash: boolean,
   serveOptions: ServerOptions | false,
   shouldBuildLazily: boolean,
+  lazyIncludes: string[],
+  lazyExcludes: string[],
   shouldBundleIncrementally: boolean,
   shouldAutoInstall: boolean,
   logLevel: LogLevel,

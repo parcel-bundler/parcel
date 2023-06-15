@@ -142,6 +142,14 @@ let serve = program
     '--lazy',
     'Build async bundles on demand, when requested in the browser',
   )
+  .option(
+    '--lazy-include <includes>',
+    'Comma separated list of globs, where if matching lazy compilation will occur. Defaults to all, if overridden will _only_ match those provided.',
+  )
+  .option(
+    '--lazy-exclude <excludes>',
+    'Comma separated list of globs, where if matching lazy compilation will not occur',
+  )
   .action(runCommand);
 
 applyOptions(serve, hmrOptions);
@@ -471,6 +479,12 @@ async function normalizeOptions(
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
+
+  const normalizeIncludeExcludeList = (input?: string): string[] => {
+    if (!input) return [];
+    return input.split(',').map(value => value.trim());
+  };
+
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
@@ -485,6 +499,8 @@ async function normalizeOptions(
     shouldProfile: command.profile,
     shouldTrace: command.trace,
     shouldBuildLazily: command.lazy,
+    lazyIncludes: normalizeIncludeExcludeList(command.lazyInclude),
+    lazyExcludes: normalizeIncludeExcludeList(command.lazyExclude),
     shouldBundleIncrementally:
       process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,
     detailedReport:

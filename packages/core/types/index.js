@@ -302,6 +302,8 @@ export type InitialParcelOptions = {|
   +shouldTrace?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
+  +lazyIncludes?: string[],
+  +lazyExcludes?: string[],
   +shouldBundleIncrementally?: boolean,
 
   +inputFS?: FileSystem,

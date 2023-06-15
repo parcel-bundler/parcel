@@ -99,6 +99,8 @@ export default function createBundleGraphRequest(
         entries: options.entries,
         optionsRef,
         shouldBuildLazily: options.shouldBuildLazily,
+        lazyIncludes: options.lazyIncludes,
+        lazyExcludes: options.lazyExcludes,
         requestedAssetIds,
       });
       let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
