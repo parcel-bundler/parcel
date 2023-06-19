@@ -7,6 +7,7 @@ import {
   getNextBuild,
   assertBundles,
   removeDistDirectory,
+  run,
 } from '@parcel/test-utils';
 
 const findBundle = (bundleGraph, nameRegex) => {
@@ -83,5 +84,40 @@ describe('lazy compile', function () {
 
     // Ensure the files match the bundle graph - lazy-2 should've been produced as it was requested
     assert(await distDirIncludes(['index.js', /^lazy-1\./, /^lazy-2\./]));
+  });
+
+  it('should lazy compile properly when same module is used sync/async', async () => {
+    const b = await bundler(
+      path.join(__dirname, '/integration/lazy-compile/index-sync-async.js'),
+      {
+        shouldBuildLazily: true,
+        mode: 'development',
+        shouldContentHash: false,
+      },
+    );
+
+    await removeDistDirectory();
+
+    const subscription = await b.watch();
+    let result = await getNextBuild(b);
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^index-sync-async\./),
+    );
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^uses-static-component\./),
+    );
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^uses-static-component-async\./),
+    );
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^static-component\./),
+    );
+
+    let output = await run(result.bundleGraph);
+    assert.deepEqual(await output.default(), [
+      'static component',
+      'static component',
+    ]);
+    subscription.unsubscribe();
   });
 });
