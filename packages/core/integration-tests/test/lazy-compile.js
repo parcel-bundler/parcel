@@ -226,4 +226,39 @@ describe('lazy compile', function () {
 
     subscription.unsubscribe();
   });
+
+  it('should lazy compile properly when same module is used sync/async', async () => {
+    const b = await bundler(
+      path.join(__dirname, '/integration/lazy-compile/index-sync-async.js'),
+      {
+        shouldBuildLazily: true,
+        mode: 'development',
+        shouldContentHash: false,
+      },
+    );
+
+    await removeDistDirectory();
+
+    const subscription = await b.watch();
+    let result = await getNextBuild(b);
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^index-sync-async\./),
+    );
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^uses-static-component\./),
+    );
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^uses-static-component-async\./),
+    );
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^static-component\./),
+    );
+
+    let output = await run(result.bundleGraph);
+    assert.deepEqual(await output.default(), [
+      'static component',
+      'static component',
+    ]);
+    subscription.unsubscribe();
+  });
 });
