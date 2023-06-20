@@ -360,11 +360,7 @@ function getLoaderRuntime({
   // Also do this when building lazily or the runtime itself could get deduplicated and only
   // exist in the parent. This causes errors if an old version of the parent without the runtime
   // is already loaded.
-  if (
-    bundle.env.outputFormat === 'commonjs' ||
-    bundle.env.isLibrary ||
-    options.shouldBuildLazily
-  ) {
+  if (bundle.env.outputFormat === 'commonjs' || bundle.env.isLibrary) {
     externalBundles = [mainBundle];
   } else {
     // Otherwise, load the bundle group entry after the others.
@@ -443,7 +439,7 @@ function getLoaderRuntime({
     loaderModules.push(code);
   }
 
-  if (bundle.env.context === 'browser' && !options.shouldBuildLazily) {
+  if (bundle.env.context === 'browser') {
     loaderModules.push(
       ...externalBundles
         // TODO: Allow css to preload resources as well
