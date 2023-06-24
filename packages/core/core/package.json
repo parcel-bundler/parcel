@@ -48,7 +48,7 @@
     "json5": "^2.2.0",
     "msgpackr": "^1.5.4",
     "nullthrows": "^1.1.1",
-    "semver": "^5.7.1"
+    "semver": "^7.5.2"
   },
   "devDependencies": {
     "graphviz": "^0.0.9",
