@@ -83,6 +83,7 @@ export default (new Resolver({
         packageManager: options.shouldAutoInstall
           ? options.packageManager
           : undefined,
+        mode: options.mode,
         logger,
       });
 
