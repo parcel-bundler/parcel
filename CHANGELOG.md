@@ -5,6 +5,16 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.9.3] – 2023-06-24
+
+### Fixed
+
+- Resolver
+  - Fix the development and production package conditions – [Details](https://github.com/parcel-bundler/parcel/pull/9108)
+
+- JavaScript
+  - Update SWC to fix generics in JSX elements – [Details](https://github.com/parcel-bundler/parcel/pull/9104)
+
 ## [2.9.2] - 2023-06-08
 
 ### Fixed
