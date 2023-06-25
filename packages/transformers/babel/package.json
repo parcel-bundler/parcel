@@ -27,7 +27,7 @@
     "browserslist": "^4.6.6",
     "json5": "^2.2.0",
     "nullthrows": "^1.1.1",
-    "semver": "^5.7.0"
+    "semver": "^7.5.2"
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",

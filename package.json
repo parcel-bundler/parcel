@@ -56,7 +56,7 @@
     "prettier": "2.4.1",
     "punycode": "^1.4.1",
     "rimraf": "^3.0.2",
-    "semver": "^5.7.1",
+    "semver": "^7.5.2",
     "sinon": "^7.3.1"
   },
   "engines": {

@@ -49,7 +49,7 @@
     "@parcel/types": "2.9.2",
     "@parcel/utils": "2.9.2",
     "@parcel/workers": "2.9.2",
-    "semver": "^5.7.1"
+    "semver": "^7.5.2"
   },
   "devDependencies": {
     "command-exists": "^1.2.6",

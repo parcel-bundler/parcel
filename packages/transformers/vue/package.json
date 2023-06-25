@@ -27,7 +27,7 @@
     "@vue/compiler-sfc": "^3.2.27",
     "consolidate": "^0.16.0",
     "nullthrows": "^1.1.1",
-    "semver": "^5.7.1"
+    "semver": "^7.5.2"
   },
   "devDependencies": {
     "vue": "^3.2.27"
