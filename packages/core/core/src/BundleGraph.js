@@ -1122,6 +1122,11 @@ export default class BundleGraph {
   }
 
   isAssetReferenced(bundle: Bundle, asset: Asset): boolean {
+    // If the asset is available in multple bundles, it's referenced.
+    if (this.getBundlesWithAsset(asset).length > 1) {
+      return true;
+    }
+
     let assetNodeId = nullthrows(this._graph.getNodeIdByContentKey(asset.id));
 
     if (
