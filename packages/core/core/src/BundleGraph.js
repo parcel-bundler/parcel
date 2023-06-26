@@ -1122,7 +1122,7 @@ export default class BundleGraph {
   }
 
   isAssetReferenced(bundle: Bundle, asset: Asset): boolean {
-    // If the asset is available in multple bundles, it's referenced.
+    // If the asset is available in multiple bundles, it's referenced.
     if (this.getBundlesWithAsset(asset).length > 1) {
       return true;
     }
