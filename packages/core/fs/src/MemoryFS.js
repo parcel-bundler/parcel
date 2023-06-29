@@ -59,13 +59,13 @@ export class MemoryFS implements FileSystem {
 
   constructor(workerFarm: WorkerFarm) {
     this.farm = workerFarm;
-    this.dirs = new Map([['/', new Directory()]]);
+    this._cwd = path.resolve(path.sep);
+    this.dirs = new Map([[this._cwd, new Directory()]]);
     this.files = new Map();
     this.symlinks = new Map();
     this.watchers = new Map();
     this.events = [];
     this.id = id++;
-    this._cwd = '/';
     this._workerHandles = [];
     this._eventQueue = [];
     instances.set(this.id, this);
@@ -134,7 +134,10 @@ export class MemoryFS implements FileSystem {
   }
 
   _normalizePath(filePath: FilePath, realpath: boolean = true): FilePath {
-    filePath = path.normalize(path.join(this.cwd(), filePath));
+    filePath = path.normalize(filePath);
+    if (!filePath.startsWith(this.cwd())) {
+      filePath = path.resolve(this.cwd(), filePath);
+    }
 
     // get realpath by following symlinks
     if (realpath) {
