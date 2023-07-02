@@ -940,23 +940,23 @@ export default (new Transformer({
 // See https://github.com/rust-lang/rust/issues/91979.
 let isLoadedOnMainThread = false;
 
-// $FlowFixMe
-let {glibcVersionRuntime} = process.report.getReport().header;
-
 async function loadOnMainThreadIfNeeded() {
   if (
     !isLoadedOnMainThread &&
     process.platform === 'linux' &&
     WorkerFarm.isWorker()
   ) {
+    // $FlowFixMe
+    let {glibcVersionRuntime} = process.report.getReport().header;
+
     if (glibcVersionRuntime && parseFloat(glibcVersionRuntime) <= 2.17) {
       let api = WorkerFarm.getWorkerApi();
       await api.callMaster({
         location: __dirname + '/loadNative.js',
         args: [],
       });
-
-      isLoadedOnMainThread = true;
     }
+
+    isLoadedOnMainThread = true;
   }
 }
