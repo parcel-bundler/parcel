@@ -14,4 +14,5 @@ export interface Cache {
   getLargeBlob(key: string): Promise<Buffer>;
   setLargeBlob(key: string, contents: Buffer | string): Promise<void>;
   getBuffer(key: string): Promise<?Buffer>;
+  refresh(): void;
 }

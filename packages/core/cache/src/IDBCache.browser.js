@@ -117,6 +117,10 @@ export class IDBCache implements Cache {
   setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
     return this.setBlob(key, contents);
   }
+
+  refresh(): void {
+    // NOOP
+  }
 }
 
 registerSerializableClass(`${packageJson.version}:IDBCache`, IDBCache);
