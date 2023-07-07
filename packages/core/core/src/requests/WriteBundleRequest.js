@@ -129,16 +129,6 @@ async function run({input, options, api}) {
   if (info.isLargeBlob) {
     contentStream = options.cache.getStream(cacheKeys.content);
   } else {
-    // Force a refresh of the cache to avoid a race condition
-    // between threaded reads and writes that can result in an LMDB cache miss:
-    //   1. Thread A has read some value from cache, necessitating a read transaction.
-    //   2. Concurrently, Thread B finishes a packaging request.
-    //   3. Subsequently, Thread A is tasked with this request, but fails because the read transaction is stale.
-    // This only occurs if the reading thread has a transaction that was created before the writing thread committed,
-    // and the transaction is still live when the reading thread attempts to get the written value.
-    // See https://github.com/parcel-bundler/parcel/issues/9121
-    options.cache.refresh();
-
     contentStream = blobToStream(
       await options.cache.getBlob(cacheKeys.content),
     );
