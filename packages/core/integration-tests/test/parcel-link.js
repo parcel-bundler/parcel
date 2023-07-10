@@ -60,14 +60,14 @@ describe('@parcel/link', () => {
     _cwd = sinon.stub(process, 'cwd').callsFake(() => fs.cwd());
 
     if (Array.isArray(cwdOrStrings)) {
-      let cwd = '/';
+      let cwd = path.resolve(path.sep);
       return fs.mkdirp(cwd).then(async () => {
         fs.chdir(cwd);
         await fsFixture(fs, cwd)(cwdOrStrings, ...exprs);
         return fs;
       });
     } else {
-      let cwd = cwdOrStrings;
+      let cwd = path.resolve(cwdOrStrings);
       let promise = fs.mkdirp(cwd).then(() => {
         fs.chdir(cwd);
         return callableProxy(fs, async (...args) => {
