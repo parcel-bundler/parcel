@@ -6,6 +6,7 @@ import {MemoryFS} from '../src/MemoryFS';
 import WorkerFarm from '@parcel/workers';
 
 import assert from 'assert';
+import path from 'path';
 
 describe('OverlayFS', () => {
   let underlayFS;
@@ -55,7 +56,7 @@ describe('OverlayFS', () => {
 
     assert.equal(fs.readFileSync('bar', 'utf8'), 'foo');
     assert.equal(underlayFS.readFileSync('foo', 'utf8'), 'foo');
-    assert.equal(fs.realpathSync('bar'), '/foo');
+    assert.equal(fs.realpathSync('bar'), path.resolve('/foo'));
     assert(!underlayFS.existsSync('bar'));
   });
 
@@ -65,7 +66,7 @@ describe('OverlayFS', () => {
       baz -> foo`;
 
     assert(fs.existsSync('foo'));
-    assert.equal(fs.realpathSync('baz'), '/foo');
+    assert.equal(fs.realpathSync('baz'), path.resolve('/foo'));
     assert(fs._isSymlink('baz'));
 
     await fs.rimraf('foo');
@@ -83,7 +84,7 @@ describe('OverlayFS', () => {
       baz -> foo`;
 
     assert(fs.existsSync('baz'));
-    assert.equal(fs.realpathSync('baz'), '/foo');
+    assert.equal(fs.realpathSync('baz'), path.resolve('/foo'));
     assert(fs._isSymlink('baz'));
 
     await fs.unlink('baz');
@@ -93,7 +94,7 @@ describe('OverlayFS', () => {
     assert(fs.existsSync('foo'));
     assert(underlayFS.existsSync('foo'));
     assert(underlayFS.existsSync('baz'));
-    assert.equal(underlayFS.realpathSync('baz'), '/foo');
+    assert.equal(underlayFS.realpathSync('baz'), path.resolve('/foo'));
   });
 
   it('tracks nested deletes', async () => {
