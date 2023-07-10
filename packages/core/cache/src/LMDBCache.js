@@ -102,6 +102,7 @@ export class LMDBCache implements Cache {
   async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
     await this.fs.writeFile(path.join(this.dir, key), contents);
   }
+
   refresh(): void {
     // Reset the read transaction for the store. This guarantees that
     // the next read will see the latest changes to the store.
