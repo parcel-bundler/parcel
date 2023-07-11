@@ -1,6 +1,5 @@
 // @flow strict-local
 
-import type {FileSystem} from '@parcel/fs';
 import type {ProgramOptions} from '@parcel/link';
 
 import {createProgram as _createProgram} from '@parcel/link';
@@ -11,7 +10,7 @@ import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 
-function createProgram(opts: {|...ProgramOptions, fs: FileSystem|}) {
+function createProgram(opts: ProgramOptions) {
   let program = _createProgram(opts).exitOverride();
 
   function cli(command: string = ''): Promise<void> {

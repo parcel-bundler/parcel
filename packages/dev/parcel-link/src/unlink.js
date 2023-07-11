@@ -1,8 +1,9 @@
 // @flow strict-local
 
-import type {ParcelLinkConfig} from './ParcelLinkConfig';
 import type {CmdOptions} from './utils';
+import type {FileSystem} from '@parcel/fs';
 
+import {ParcelLinkConfig} from './ParcelLinkConfig';
 import {
   cleanupBin,
   cleanupNodeModules,
@@ -13,6 +14,8 @@ import {
 } from './utils';
 
 import path from 'path';
+import {NodeFS} from '@parcel/fs';
+import commander from 'commander';
 
 export type UnlinkOptions = {|
   dryRun?: boolean,
@@ -20,9 +23,17 @@ export type UnlinkOptions = {|
   log?: (...data: mixed[]) => void,
 |};
 
+export type UnlinkCommandOptions = {|
+  +unlink?: typeof unlink,
+  +fs?: FileSystem,
+  +log?: (...data: mixed[]) => void,
+|};
+
+const NOOP: (...data: mixed[]) => void = () => {};
+
 export async function unlink(
   config: ParcelLinkConfig,
-  {dryRun = false, forceInstall = false, log = () => {}}: UnlinkOptions,
+  {dryRun = false, forceInstall = false, log = NOOP}: UnlinkOptions,
 ) {
   config.validate();
 
@@ -116,4 +127,43 @@ export async function unlink(
   } else {
     log('Run `yarn install --force` (or similar) to restore dependencies');
   }
+}
+
+export function createUnlinkCommand(
+  opts?: UnlinkCommandOptions,
+  // $FlowFixMe[invalid-exported-annotation]
+): commander.Command {
+  let action = opts?.unlink ?? unlink;
+  let log = opts?.log ?? NOOP;
+  let fs = opts?.fs ?? new NodeFS();
+
+  return new commander.Command('unlink')
+    .description('Unlink a dev copy of Parcel from an app')
+    .option('-d, --dry-run', 'Do not write any changes')
+    .option('-f, --force-install', 'Force a reinstall after unlinking')
+    .action(async options => {
+      if (options.dryRun) log('Dry run...');
+      let appRoot = process.cwd();
+
+      let parcelLinkConfig;
+      try {
+        parcelLinkConfig = await ParcelLinkConfig.load(appRoot, {fs});
+      } catch (e) {
+        // boop!
+      }
+
+      if (parcelLinkConfig) {
+        await action(parcelLinkConfig, {
+          dryRun: options.dryRun,
+          forceInstall: options.forceInstall,
+          log,
+        });
+
+        if (!options.dryRun) await parcelLinkConfig.delete();
+      } else {
+        throw new Error('A Parcel link could not be found!');
+      }
+
+      log('🎉 Unlinking successful');
+    });
 }
