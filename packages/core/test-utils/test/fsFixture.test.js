@@ -241,10 +241,7 @@ describe('FixtureParser', () => {
   });
 
   it('errors on invalid nesting', () => {
-    let result = new FixtureParser([{type: 'nest', value: ''}]);
-    assert.throws(() => result.parse(), /Invalid nesting/);
-
-    result = new FixtureParser([
+    let result = new FixtureParser([
       {type: 'filename', value: 'foo'},
       {type: 'content', value: ''},
       {type: 'nest', value: ''},
@@ -428,6 +425,35 @@ describe('FixtureParser', () => {
     bat.children.push(new FixtureFile('qux', 'qux'));
     expected.children.push((foo = new FixtureDir('foo')));
     foo.children.push(new FixtureLink('bar', 'foo/bat'));
+
+    assert.deepEqual(result, expected);
+  });
+
+  it('parses a leading /', () => {
+    // /foo
+    //   bar
+    // /bat
+    //   /baz/qux
+    let result = new FixtureParser([
+      {type: 'nest', value: '/'},
+      {type: 'dirname', value: 'foo'},
+      {type: 'nest', value: ''},
+      {type: 'dirname', value: 'bar'},
+      {type: 'nest', value: '/'},
+      {type: 'dirname', value: 'bat'},
+      {type: 'nest', value: '/'},
+      {type: 'dirname', value: 'baz'},
+      {type: 'nest', value: '/'},
+      {type: 'dirname', value: 'qux'},
+    ]).parse();
+
+    let expected = new FixtureRoot();
+    let foo, bar, bat, baz;
+    expected.children.push((foo = new FixtureDir('foo')));
+    foo.children.push((bar = new FixtureDir('bar')));
+    bar.children.push((bat = new FixtureDir('bat')));
+    bat.children.push((baz = new FixtureDir('baz')));
+    baz.children.push(new FixtureDir('qux'));
 
     assert.deepEqual(result, expected);
   });

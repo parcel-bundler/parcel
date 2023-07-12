@@ -323,6 +323,12 @@ export class FixtureParser {
       this.#cwd = this.#root;
       this.#dirStack = [this.#root];
 
+      // Consume any leading `nest` tokens.
+      // This allows a fixture path to start with '/'.
+      while (this.#peek('nest')) {
+        this.#consume('nest');
+      }
+
       while (this.#tokens.length) {
         this.#parseNest();
         if (this.#peek('dirname')) {
