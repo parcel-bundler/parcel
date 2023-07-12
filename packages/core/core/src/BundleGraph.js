@@ -42,6 +42,7 @@ import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath, fromProjectPathRelative} from './projectPath';
 import {HASH_REF_PREFIX} from './constants';
+import inspect from 'graphql/jsutils/inspect';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -205,6 +206,13 @@ export default class BundleGraph {
         // Disable in dev mode because this feature is at odds with safeToIncrementallyBundle
         isProduction
       ) {
+        let nodeValueSymbols = node.value.symbols;
+
+        let source = nullthrows(
+          graph.getNodeByContentKey(nullthrows(node.value.sourceAssetId)),
+        );
+        invariant(source.type === 'asset');
+
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
           () => new Map(),
@@ -252,35 +260,87 @@ export default class BundleGraph {
             ([, t]) => new Set([...t.values()]).size === t.size,
           )
         ) {
+          console.log(
+            node.value.specifier,
+            [...targets].map(([a, s]) => [
+              assetGraph.getNodeByContentKey(a)?.value.filePath,
+              s,
+            ]),
+          );
+
+          let sourceAssetSymbols = nullthrows(source.value.symbols);
+          let isReexportAll = nodeValueSymbols.get('*')?.local === '*';
+          let reexportAllLoc = isReexportAll
+            ? nullthrows(nodeValueSymbols.get('*')).loc
+            : undefined;
+
           // TODO adjust sourceAssetIdNode.value.dependencies ?
           let deps = [
             // Keep the original dependency
-            {
-              asset: null,
-              dep: graph.addNodeByContentKey(node.id, {
-                ...node,
-                value: {
-                  ...node.value,
-                  symbols: node.value.symbols
-                    ? new Map(
-                        [...node.value.symbols].filter(([k]) =>
-                          externalSymbols.has(k),
-                        ),
-                      )
-                    : undefined,
-                },
-                usedSymbolsUp: new Map(
-                  [...node.usedSymbolsUp].filter(([k]) =>
-                    externalSymbols.has(k),
-                  ),
-                ),
-                usedSymbolsDown: new Set(),
-                excluded: externalSymbols.size === 0,
-              }),
-            },
+            // {
+            //   asset: null,
+            //   dep: graph.addNodeByContentKey(node.id, {
+            //     ...node,
+            //     value: {
+            //       ...node.value,
+            //       symbols: new Map(
+            //         [...nodeValueSymbols].filter(([k]) =>
+            //           externalSymbols.has(k),
+            //         ),
+            //       ),
+            //     },
+            //     usedSymbolsUp: new Map(
+            //       [...node.usedSymbolsUp].filter(([k]) =>
+            //         externalSymbols.has(k),
+            //       ),
+            //     ),
+            //     usedSymbolsDown: new Set(),
+            //     excluded: externalSymbols.size === 0,
+            //   }),
+            // },
             ...[...targets].map(([asset, target]) => {
               let newNodeId = hashString(
                 node.id + [...target.keys()].join(','),
+              );
+
+              let symbols = new Map();
+              console.log(
+                'X',
+                require('util').inspect(nodeValueSymbols, {depth: Infinity}),
+                target,
+                isReexportAll,
+              );
+              for (let [as, from] of target) {
+                let existing = nodeValueSymbols.get(as);
+                if (existing) {
+                  symbols.set(from, existing);
+                } else {
+                  invariant(isReexportAll);
+                  let local = `${node.value.id}$rewrite$${asset}$${from}`;
+                  symbols.set(from, {
+                    isWeak: true,
+                    local,
+                    loc: reexportAllLoc,
+                  });
+                  console.log(
+                    'adding ',
+                    as,
+                    source.value.filePath,
+                    sourceAssetSymbols,
+                  );
+                  // It might already exist with multiple export-alls causing ambiguous resolution
+                  if (!sourceAssetSymbols.has(as)) {
+                    sourceAssetSymbols.set(as, {
+                      loc: reexportAllLoc,
+                      local: local,
+                    });
+                  }
+                }
+              }
+              let usedSymbolsUp = new Map(
+                [...node.usedSymbolsUp]
+                  .filter(([k]) => target.has(k) || k === '*')
+                  .map(([k, v]) => [target.get(k) ?? k, v]),
               );
               return {
                 asset,
@@ -290,24 +350,28 @@ export default class BundleGraph {
                   value: {
                     ...node.value,
                     id: newNodeId,
-                    symbols: node.value.symbols
-                      ? new Map(
-                          [...node.value.symbols]
-                            .filter(([k]) => target.has(k) || k === '*')
-                            .map(([k, v]) => [target.get(k) ?? k, v]),
-                        )
-                      : undefined,
+                    symbols,
                   },
-                  usedSymbolsUp: new Map(
-                    [...node.usedSymbolsUp]
-                      .filter(([k]) => target.has(k) || k === '*')
-                      .map(([k, v]) => [target.get(k) ?? k, v]),
-                  ),
+                  usedSymbolsUp,
+                  // This is only a temporary helper needed during symbol propagation and is never
+                  // read afterwards.
                   usedSymbolsDown: new Set(),
                 }),
               };
             }),
           ];
+          console.log(
+            node.value.specifier,
+            require('util').inspect(
+              deps.map(x => [
+                assetGraph.getNodeByContentKey(x.asset)?.value.filePath,
+                [...graph.getNode(x.dep).usedSymbolsUp],
+                [...graph.getNode(x.dep).value.symbols],
+              ]),
+              {depth: Infinity},
+            ),
+          );
+
           dependencies.set(nodeId, deps);
 
           // Jump to the dependencies that are used in this dependency
@@ -1643,6 +1707,15 @@ export default class BundleGraph {
     symbol: Symbol,
     boundary: ?Bundle,
   ): InternalSymbolResolution {
+    // let isX = String(asset.filePath) === 'lib.js' && symbol === 'Foo';
+    // let isY = String(asset.filePath) === 'libFoo2.js' && symbol === 'Foo';
+    // if (isX) {
+    //   global.X = true;
+    // }
+    // try {
+    if (global.X) {
+      console.log('enter', asset.filePath, symbol);
+    }
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
     let identifier = asset.symbols?.get(symbol)?.local;
@@ -1727,6 +1800,9 @@ export default class BundleGraph {
           continue;
         }
         let result = this.getSymbolResolution(resolved, symbol, boundary);
+        // if (global.X) {
+        //   console.log('recursive', resolved.filePath, symbol, result);
+        // }
 
         // We found the symbol
         if (result.symbol != undefined) {
@@ -1777,6 +1853,11 @@ export default class BundleGraph {
         }
       }
     }
+
+    // if (global.X) {
+    //   console.log(asset.filePath, symbol, potentialResults);
+    // }
+
     // We didn't find the exact symbol...
     if (potentialResults.length == 1) {
       // ..., but if it does exist, it has to be behind this one reexport.
@@ -1810,6 +1891,11 @@ export default class BundleGraph {
         loc: asset.symbols?.get(symbol)?.loc,
       };
     }
+    // } finally {
+    //   if (isX) {
+    //     global.X = false;
+    //   }
+    // }
   }
   getAssetById(contentKey: string): Asset {
     let node = this._graph.getNodeByContentKey(contentKey);

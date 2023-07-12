@@ -856,6 +856,10 @@ ${code}
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
 
+    // if (imported === 'Foo') {
+    //   console.log({resolved, imported}, {resolvedAsset, exportSymbol, symbol});
+    // }
+
     if (
       resolvedAsset.type !== 'js' ||
       (dep && this.bundleGraph.isDependencySkipped(dep))
