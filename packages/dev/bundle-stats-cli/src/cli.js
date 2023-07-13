@@ -66,7 +66,8 @@ function run({cacheDir, outDir}) {
   }
 }
 
-commander
+// $FlowFixMe[signature-verification-failure]
+export const command = new commander.Command()
   .version(version, '-V, --version')
   .description('Generate a stats report for a Parcel build')
   .option('-v, --verbose', 'Print verbose output')
@@ -81,5 +82,3 @@ commander
     'parcel-bundle-reports',
   )
   .action(run);
-
-commander.parse();
