@@ -16,6 +16,7 @@ import {DefaultMap} from '@parcel/utils';
 import {loadGraphs} from 'parcel-query/src/index.js';
 import {getBundleStats} from '@parcel/reporter-bundle-stats/src/BundleStatsReporter';
 import {PackagedBundle as PackagedBundleClass} from '@parcel/core/src/public/Bundle';
+import type {commander$Command} from 'commander';
 
 function run({cacheDir, outDir}) {
   // 1. load bundle graph and info via parcel~query
@@ -66,8 +67,7 @@ function run({cacheDir, outDir}) {
   }
 }
 
-// $FlowFixMe[signature-verification-failure]
-export const command = new commander.Command()
+export const command: commander$Command = new commander.Command()
   .version(version, '-V, --version')
   .description('Generate a stats report for a Parcel build')
   .option('-v, --verbose', 'Print verbose output')
