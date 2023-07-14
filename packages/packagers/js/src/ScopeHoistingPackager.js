@@ -596,16 +596,18 @@ ${code}
     // These will be used to build a regex below.
     let depMap = new DefaultMap<string, Array<Dependency>>(() => []);
     let replacements = new Map();
-    for (let dep of deps) {
+
+    let getDepRequest = (dep: Dependency) => {
       let specifierType =
         dep.specifierType === 'esm' ? `:${dep.specifierType}` : '';
-      depMap
-        .get(
-          `${assetId}:${getSpecifier(dep)}${
-            !dep.meta.placeholder ? specifierType : ''
-          }`,
-        )
-        .push(dep);
+
+      return `${assetId}:${getSpecifier(dep)}${
+        !dep.meta.placeholder ? specifierType : ''
+      }`;
+    };
+
+    for (let dep of deps) {
+      depMap.get(getDepRequest(dep)).push(dep);
 
       let asyncResolution = this.bundleGraph.resolveAsyncDependency(
         dep,
@@ -657,6 +659,17 @@ ${code}
             ? `Promise.resolve(${symbol})`
             : symbol,
         );
+      }
+    }
+
+    // Remove re-export dependencies as they've already been handled earlier via symbol propagation
+    let reExportDeps = asset
+      .getDependencies()
+      .filter(dep => dep.meta.isReExport);
+    for (let reExportDep of reExportDeps) {
+      let depRequest = getDepRequest(reExportDep);
+      if (!depMap.has(depRequest)) {
+        replacements.set(getDepRequest(reExportDep), '');
       }
     }
 

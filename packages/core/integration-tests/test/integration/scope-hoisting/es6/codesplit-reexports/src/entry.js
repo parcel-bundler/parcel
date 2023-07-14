@@ -1,3 +1,3 @@
-import { foo, bar } from "../library";
+import { foo, bar, own } from "../library";
 
-output = import("./async").then(v => [v.default, [foo, bar]])
+output = import("./async").then(v => [v.default, [foo, bar, own]])

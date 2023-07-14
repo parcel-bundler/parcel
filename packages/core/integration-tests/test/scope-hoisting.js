@@ -2305,18 +2305,19 @@ describe('scope hoisting', function () {
             'bundle-url.js',
             'cacheLoader.js',
             'js-loader.js',
+            'index.js',
           ],
         },
         {
           type: 'js',
-          assets: ['async.js', 'foo2.js', 'bar2.js'],
+          assets: ['async.js', 'bar2.js', 'foo2.js'],
         },
       ]);
 
       let output = await run(b);
       assert.deepEqual(output, [
         [20, 30],
-        [2, 3],
+        [2, 3, 4],
       ]);
     });
 

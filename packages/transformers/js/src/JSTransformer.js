@@ -764,6 +764,9 @@ export default (new Transformer({
       for (let {source, local, imported, loc} of hoist_result.re_exports) {
         let dep = deps.get(source);
         if (!dep) continue;
+
+        dep.meta.isReExport = true;
+
         if (local === '*' && imported === '*') {
           dep.symbols.set('*', '*', convertLoc(loc), true);
         } else {

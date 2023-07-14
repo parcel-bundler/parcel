@@ -192,6 +192,7 @@ export default class BundleGraph {
       }
     }
 
+    let reExportNodeIds = new Set();
     let walkVisited = new Set();
     function walk(nodeId) {
       if (walkVisited.has(nodeId)) return;
@@ -205,6 +206,10 @@ export default class BundleGraph {
         // Disable in dev mode because this feature is at odds with safeToIncrementallyBundle
         isProduction
       ) {
+        if (node.value.meta.isReExport === true) {
+          reExportNodeIds.add(nodeId);
+          return;
+        }
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
           () => new Map(),
@@ -356,7 +361,10 @@ export default class BundleGraph {
         }
         continue;
       }
-      if (!assetGraphNodeIdToBundleGraphNodeId.has(edge.from)) {
+      if (
+        !assetGraphNodeIdToBundleGraphNodeId.has(edge.from) ||
+        reExportNodeIds.has(edge.to)
+      ) {
         continue;
       }
 
