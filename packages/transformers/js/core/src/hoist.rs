@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
-use swc_atoms::{js_word, JsWord};
-use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::id;
 use crate::utils::{
@@ -538,7 +538,7 @@ impl<'a> Fold for Hoist<'a> {
       Expr::OptChain(opt) => {
         return Expr::OptChain(OptChainExpr {
           span: opt.span,
-          question_dot_token: opt.question_dot_token,
+          optional: opt.optional,
           base: Box::new(match *opt.base {
             OptChainBase::Call(call) => OptChainBase::Call(call.fold_with(self)),
             OptChainBase::Member(member) => {
@@ -979,7 +979,6 @@ impl<'a> Fold for Hoist<'a> {
             left: Box::new(Pat::Ident(BindingIdent::from(assign.key.fold_with(self)))),
             right: value.fold_with(self),
             span: DUMMY_SP,
-            type_ann: None,
           }),
           None => Pat::Ident(BindingIdent::from(assign.key.fold_with(self))),
         }),
@@ -1117,14 +1116,14 @@ mod tests {
   use crate::collect_decls;
   use crate::utils::BailoutReason;
   use std::iter::FromIterator;
-  use swc_common::chain;
-  use swc_common::comments::SingleThreadedComments;
-  use swc_common::{sync::Lrc, FileName, Globals, Mark, SourceMap};
-  use swc_ecmascript::codegen::text_writer::JsWriter;
-  use swc_ecmascript::parser::lexer::Lexer;
-  use swc_ecmascript::parser::{Parser, StringInput};
-  use swc_ecmascript::transforms::{fixer, hygiene, resolver};
-  use swc_ecmascript::visit::VisitWith;
+  use swc_core::common::chain;
+  use swc_core::common::comments::SingleThreadedComments;
+  use swc_core::common::{sync::Lrc, FileName, Globals, Mark, SourceMap};
+  use swc_core::ecma::codegen::text_writer::JsWriter;
+  use swc_core::ecma::parser::lexer::Lexer;
+  use swc_core::ecma::parser::{Parser, StringInput};
+  use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver};
+  use swc_core::ecma::visit::VisitWith;
   extern crate indoc;
   use self::indoc::indoc;
 
@@ -1142,9 +1141,9 @@ mod tests {
 
     let mut parser = Parser::new_from(lexer);
     match parser.parse_module() {
-      Ok(module) => swc_common::GLOBALS.set(&Globals::new(), || {
-        swc_ecmascript::transforms::helpers::HELPERS.set(
-          &swc_ecmascript::transforms::helpers::Helpers::new(false),
+      Ok(module) => swc_core::common::GLOBALS.set(&Globals::new(), || {
+        swc_core::ecma::transforms::base::helpers::HELPERS.set(
+          &swc_core::ecma::transforms::base::helpers::Helpers::new(false),
           || {
             let unresolved_mark = Mark::fresh(Mark::root());
             let global_mark = Mark::fresh(Mark::root());
@@ -1188,13 +1187,13 @@ mod tests {
         &mut buf,
         Some(&mut src_map_buf),
       ));
-      let config = swc_ecmascript::codegen::Config {
+      let config = swc_core::ecma::codegen::Config {
         minify: false,
         ascii_only: false,
-        target: swc_ecmascript::ast::EsVersion::Es5,
+        target: swc_core::ecma::ast::EsVersion::Es5,
         omit_last_semi: false,
       };
-      let mut emitter = swc_ecmascript::codegen::Emitter {
+      let mut emitter = swc_core::ecma::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
         cm: source_map,
