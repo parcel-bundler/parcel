@@ -1,8 +1,7 @@
 // @flow strict-local
 
 import type {ModuleRequest} from './types';
-import type {FilePath} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {FilePath, FileSystem} from '@parcel/types';
 
 import invariant from 'assert';
 import ThrowableDiagnostic from '@parcel/diagnostic';

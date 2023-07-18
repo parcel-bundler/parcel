@@ -3,14 +3,14 @@ import type {
   BuildMode,
   EnvMap,
   FilePath,
+  FileSystem,
   LogLevel,
+  PackageManager,
   PluginOptions as IPluginOptions,
   ServerOptions,
   HMROptions,
   DetailedReportOptions,
 } from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type {PackageManager} from '@parcel/package-manager';
 import type {ParcelOptions} from '../types';
 
 let parcelOptionsToPluginOptions: WeakMap<ParcelOptions, PluginOptions> =

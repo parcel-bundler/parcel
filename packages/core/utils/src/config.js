@@ -1,7 +1,6 @@
 // @flow
 
-import type {ConfigResult, File, FilePath} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {ConfigResult, File, FileSystem, FilePath} from '@parcel/types';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import path from 'path';
 import clone from 'clone';

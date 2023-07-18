@@ -1,5 +1,4 @@
 // @flow
-export type * from './types';
 export * from './Npm';
 export * from './Pnpm';
 export * from './Yarn';

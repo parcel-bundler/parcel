@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {Cache} from './types';
+import type {Cache} from '@parcel/types';
 
 // $FlowFixMe
 export class IDBCache implements Cache {

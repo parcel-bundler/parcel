@@ -1,13 +1,12 @@
 // @flow
 
-import type {FilePath, PackageJSON} from '@parcel/types';
 import type {
-  ModuleRequest,
+  FilePath,
+  FileSystem,
   PackageManager,
-  PackageInstaller,
-  InstallOptions,
-} from './types';
-import type {FileSystem} from '@parcel/fs';
+  PackageJSON,
+} from '@parcel/types';
+import type {ModuleRequest, PackageInstaller, InstallOptions} from './types';
 
 import invariant from 'assert';
 import path from 'path';

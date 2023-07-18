@@ -16,10 +16,7 @@
     "check-ts": "tsc --noEmit lib/index.d.ts"
   },
   "dependencies": {
-    "@parcel/cache": "2.9.3",
     "@parcel/diagnostic": "2.9.3",
-    "@parcel/fs": "2.9.3",
-    "@parcel/package-manager": "2.9.3",
     "@parcel/source-map": "^2.1.1",
     "@parcel/workers": "2.9.3",
     "utility-types": "^3.10.0"

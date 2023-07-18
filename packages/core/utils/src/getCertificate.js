@@ -1,6 +1,5 @@
 // @flow
-import type {HTTPSOptions} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem, HTTPSOptions} from '@parcel/types';
 
 export default async function getCertificate(
   fs: FileSystem,

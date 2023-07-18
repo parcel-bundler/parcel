@@ -1,6 +1,5 @@
 // @flow
-import type {PackageManager} from '@parcel/package-manager';
-import type {FilePath} from '@parcel/types';
+import type {FilePath, PackageManager} from '@parcel/types';
 
 const SHARP_RANGE = '^0.31.1';
 

@@ -4,14 +4,17 @@ import type {ContentKey} from '@parcel/graph';
 import type {
   ASTGenerator,
   BuildMode,
+  Cache,
   Engines,
   EnvironmentContext,
   EnvMap,
   FilePath,
+  FileSystem,
   Glob,
   LogLevel,
   Meta,
   DependencySpecifier,
+  PackageManager,
   PackageName,
   ReporterEvent,
   SemverRange,
@@ -27,9 +30,6 @@ import type {
   DetailedReportOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
-import type {FileSystem} from '@parcel/fs';
-import type {Cache} from '@parcel/cache';
-import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
 
 export type ParcelPluginNode = {|

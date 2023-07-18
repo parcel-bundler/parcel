@@ -1,11 +1,11 @@
 // @flow strict-local
 
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {FileSystem} from '@parcel/fs';
 import type {
   Async,
   Engines,
   FilePath,
+  FileSystem,
   PackageJSON,
   PackageTargetDescriptor,
   TargetDescriptor,

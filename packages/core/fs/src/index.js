@@ -1,13 +1,11 @@
 // @flow strict-local
-import type {FileSystem} from './types';
-import type {FilePath} from '@parcel/types';
+import type {FilePath, FileSystem} from '@parcel/types';
 import type {Readable, Writable} from 'stream';
 
 import path from 'path';
 import stream from 'stream';
 import {promisify} from 'util';
 
-export type * from './types';
 export * from './NodeFS';
 export * from './MemoryFS';
 export * from './OverlayFS';

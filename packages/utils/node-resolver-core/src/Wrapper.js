@@ -1,16 +1,16 @@
 // @flow
 import type {
   FilePath,
+  FileSystem,
   SpecifierType,
   SemverRange,
   Environment,
   SourceLocation,
   BuildMode,
+  PackageManager,
   ResolveResult,
   PluginLogger,
 } from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {NodeFS} from '@parcel/fs';
 import {init, Resolver} from '../native';

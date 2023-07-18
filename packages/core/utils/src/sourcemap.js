@@ -1,6 +1,5 @@
 // @flow
-import type {SourceLocation} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem, SourceLocation} from '@parcel/types';
 import SourceMap from '@parcel/source-map';
 import path from 'path';
 import {normalizeSeparators, isAbsolute} from './path';

@@ -1,9 +1,8 @@
 // @flow strict-local
 
-import type {Async, FilePath, PackageJSON} from '@parcel/types';
+import type {Async, FilePath, FileSystem, PackageJSON} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, InternalFile, ParcelOptions} from '../types';
-import type {FileSystem} from '@parcel/fs';
 
 import {
   isDirectoryInside,

@@ -1,6 +1,5 @@
 // @flow
-import type {FileSystem} from '@parcel/fs';
-import type {FilePath} from '@parcel/types';
+import type {FileSystem, FilePath} from '@parcel/types';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import path from 'path';
 

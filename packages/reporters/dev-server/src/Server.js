@@ -2,6 +2,7 @@
 
 import type {DevServerOptions, Request, Response} from './types.js.flow';
 import type {
+  FileSystem,
   BuildSuccessEvent,
   BundleGraph,
   FilePath,
@@ -9,7 +10,6 @@ import type {
   PackagedBundle,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {FileSystem} from '@parcel/fs';
 import type {HTTPServer, FormattedCodeFrame} from '@parcel/utils';
 
 import invariant from 'assert';

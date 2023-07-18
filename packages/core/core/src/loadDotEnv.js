@@ -1,7 +1,6 @@
 // @flow strict-local
 
-import type {FileSystem} from '@parcel/fs';
-import type {EnvMap, FilePath} from '@parcel/types';
+import type {EnvMap, FilePath, FileSystem} from '@parcel/types';
 
 import {resolveConfig} from '@parcel/utils';
 import dotenv from 'dotenv';

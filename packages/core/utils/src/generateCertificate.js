@@ -1,5 +1,5 @@
 // @flow
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem} from '@parcel/types';
 import forge from 'node-forge';
 import path from 'path';
 import logger from '@parcel/logger';
