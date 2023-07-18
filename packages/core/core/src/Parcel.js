@@ -6,8 +6,6 @@ import type {
   BuildSuccessEvent,
   InitialParcelOptions,
   PackagedBundle as IPackagedBundle,
-  SharedReference,
-  WorkerFarm as IWorkerFarm,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars

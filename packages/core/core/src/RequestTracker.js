@@ -3,7 +3,6 @@
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {Async, EnvMap, WorkerFarm as IWorkerFarm} from '@parcel/types';
 import type {EventType, Options as WatcherOptions} from '@parcel/watcher';
-import type WorkerFarm from '@parcel/workers';
 import type {
   ContentGraphOpts,
   ContentKey,

@@ -7,6 +7,7 @@ import {setChild} from '../childState';
 import {Child} from '../child';
 import {prepareForSerialization, restoreDeserializedObject} from '@parcel/core';
 import type {WorkerMessage} from '@parcel/types';
+
 export default class ThreadsChild implements ChildImpl {
   onMessage: MessageHandler;
   onExit: ExitHandler;

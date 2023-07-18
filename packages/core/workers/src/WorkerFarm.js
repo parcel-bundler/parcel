@@ -7,6 +7,7 @@ import type {
   ErrorWithCode,
   FilePath,
   HandleFunction,
+  SharedReference,
   WorkerFarm as IWorkerFarm,
   Worker as IWorker,
   WorkerCall,
@@ -17,7 +18,6 @@ import type {
 } from '@parcel/types';
 import {createSharedReference} from '@parcel/types';
 import type {BackendType} from './types';
-import type {} from './Handle';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -37,7 +37,6 @@ import {detectBackend} from './backend';
 import {SamplingProfiler, Trace} from '@parcel/profiler';
 import fs from 'fs';
 import logger from '@parcel/logger';
-import type {SharedReference} from '../../types/worker-farm';
 
 let referenceId = 1;
 

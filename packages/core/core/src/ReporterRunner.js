@@ -6,6 +6,7 @@ import type {
   WorkerFarm as IWorkerFarm,
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
+import {bus} from '@parcel/workers';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
@@ -15,7 +16,6 @@ import {
   bundleToInternalBundleGraph,
   NamedBundle,
 } from './public/Bundle';
-import WorkerFarm, {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
 import logger, {
   patchConsole,
