@@ -2022,7 +2022,6 @@ export type {
   CallRequest,
   WorkerFarm,
   SharedReference,
-  createSharedReference,
   Handle,
   HandleCallRequest,
   HandleOpts,
@@ -2036,3 +2035,4 @@ export type {
   WorkerResponse,
   WorkerRequest,
 } from './worker-farm';
+export {createSharedReference} from './worker-farm';
