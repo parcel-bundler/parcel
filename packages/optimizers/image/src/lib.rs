@@ -2,7 +2,7 @@ use mozjpeg_sys::*;
 use napi::bindgen_prelude::*;
 use napi::{Env, Error, JsBuffer, Result};
 use napi_derive::napi;
-use oxipng::{optimize_from_memory, Deflaters, Headers, Options};
+use oxipng::{optimize_from_memory, Headers, Options};
 use std::mem;
 use std::ptr;
 use std::slice;
@@ -14,7 +14,6 @@ pub fn optimize(kind: String, buf: Buffer, env: Env) -> Result<JsBuffer> {
   match kind.as_ref() {
     "png" => {
       let options = Options {
-        deflate: Deflaters::Libdeflater,
         strip: Headers::Safe,
         ..Default::default()
       };
