@@ -1,15 +1,23 @@
 // @flow
 
-import type {ErrorWithCode, FilePath} from '@parcel/types';
 import type {
   CallRequest,
+  Handle as IHandle,
   HandleCallRequest,
-  WorkerRequest,
+  ErrorWithCode,
+  FilePath,
+  HandleFunction,
+  WorkerFarm as IWorkerFarm,
+  Worker as IWorker,
+  WorkerCall,
   WorkerDataResponse,
   WorkerErrorResponse,
-  BackendType,
-} from './types';
-import type {HandleFunction} from './Handle';
+  WorkerRequest,
+  WorkerAPI,
+} from '@parcel/types';
+import {createSharedReference} from '@parcel/types';
+import type {BackendType} from './types';
+import type {} from './Handle';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -21,7 +29,7 @@ import {
   serialize,
 } from '@parcel/core';
 import ThrowableDiagnostic, {anyToDiagnostic, md} from '@parcel/diagnostic';
-import Worker, {type WorkerCall} from './Worker';
+import Worker from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
 import {child} from './childState';
@@ -29,10 +37,9 @@ import {detectBackend} from './backend';
 import {SamplingProfiler, Trace} from '@parcel/profiler';
 import fs from 'fs';
 import logger from '@parcel/logger';
+import type {SharedReference} from '../../types/worker-farm';
 
 let referenceId = 1;
-
-export opaque type SharedReference = number;
 
 export type FarmOptions = {|
   maxConcurrentWorkers: number,
@@ -52,7 +59,7 @@ type WorkerModule = {|
 
 export type WorkerApi = {|
   callMaster(CallRequest, ?boolean): Promise<mixed>,
-  createReverseHandle(fn: HandleFunction): Handle,
+  createReverseHandle(fn: HandleFunction): IHandle,
   getSharedReference(ref: SharedReference): mixed,
   resolveSharedReference(value: mixed): ?SharedReference,
   callChild?: (childId: number, request: HandleCallRequest) => Promise<mixed>,
@@ -66,7 +73,7 @@ const DEFAULT_MAX_CONCURRENT_CALLS: number = 30;
  * workerPath should always be defined inside farmOptions
  */
 
-export default class WorkerFarm extends EventEmitter {
+export default class WorkerFarm extends EventEmitter implements IWorkerFarm {
   callQueue: Array<WorkerCall> = [];
   ending: boolean = false;
   localWorker: WorkerModule;
@@ -123,17 +130,7 @@ export default class WorkerFarm extends EventEmitter {
     this.startMaxWorkers();
   }
 
-  workerApi: {|
-    callChild: (childId: number, request: HandleCallRequest) => Promise<mixed>,
-    callMaster: (
-      request: CallRequest,
-      awaitResponse?: ?boolean,
-    ) => Promise<mixed>,
-    createReverseHandle: (fn: HandleFunction) => Handle,
-    getSharedReference: (ref: SharedReference) => mixed,
-    resolveSharedReference: (value: mixed) => void | SharedReference,
-    runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
-  |} = {
+  workerApi: WorkerAPI = {
     callMaster: async (
       request: CallRequest,
       awaitResponse: ?boolean = true,
@@ -145,7 +142,7 @@ export default class WorkerFarm extends EventEmitter {
       });
       return deserialize(serialize(result));
     },
-    createReverseHandle: (fn: HandleFunction): Handle =>
+    createReverseHandle: (fn: HandleFunction): IHandle =>
       this.createReverseHandle(fn),
     callChild: (childId: number, request: HandleCallRequest): Promise<mixed> =>
       new Promise((resolve, reject) => {
@@ -156,7 +153,7 @@ export default class WorkerFarm extends EventEmitter {
           retries: 0,
         });
       }),
-    runHandle: (handle: Handle, args: Array<any>): Promise<mixed> =>
+    runHandle: (handle: IHandle, args: Array<any>): Promise<mixed> =>
       this.workerApi.callChild(nullthrows(handle.childId), {
         handle: handle.id,
         args,
@@ -229,7 +226,7 @@ export default class WorkerFarm extends EventEmitter {
     };
   }
 
-  onError(error: ErrorWithCode, worker: Worker): void | Promise<void> {
+  onError(error: ErrorWithCode, worker: IWorker): void | Promise<void> {
     // Handle ipc errors
     if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
       return this.stopWorker(worker);
@@ -260,7 +257,7 @@ export default class WorkerFarm extends EventEmitter {
     this.workers.set(worker.id, worker);
   }
 
-  async stopWorker(worker: Worker): Promise<void> {
+  async stopWorker(worker: IWorker): Promise<void> {
     if (!worker.stopped) {
       this.workers.delete(worker.id);
 
@@ -308,7 +305,7 @@ export default class WorkerFarm extends EventEmitter {
     }
   }
 
-  async callWorker(worker: Worker, call: WorkerCall): Promise<void> {
+  async callWorker(worker: IWorker, call: WorkerCall): Promise<void> {
     for (let ref of this.sharedReferences.keys()) {
       if (!worker.sentSharedReferences.has(ref)) {
         await worker.sendSharedReference(
@@ -325,7 +322,7 @@ export default class WorkerFarm extends EventEmitter {
     data: {|
       location: FilePath,
     |} & $Shape<WorkerRequest>,
-    worker?: Worker,
+    worker?: IWorker,
   ): Promise<?string> {
     let {method, args, location, awaitResponse, idx, handle: handleId} = data;
     let mod;
@@ -437,7 +434,7 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  createReverseHandle(fn: HandleFunction): Handle {
+  createReverseHandle(fn: HandleFunction): IHandle {
     let handle = new Handle({fn});
     this.handles.set(handle.id, handle);
     return handle;
@@ -447,7 +444,7 @@ export default class WorkerFarm extends EventEmitter {
     value: mixed,
     isCacheable: boolean = true,
   ): {|ref: SharedReference, dispose(): Promise<mixed>|} {
-    let ref = referenceId++;
+    let ref: SharedReference = createSharedReference(referenceId++);
     this.sharedReferences.set(ref, value);
     this.sharedReferencesByValue.set(value, ref);
     if (!isCacheable) {
@@ -504,7 +501,7 @@ export default class WorkerFarm extends EventEmitter {
     return buf;
   }
 
-  async startProfile() {
+  async startProfile(): Promise<void> {
     let promises = [];
     for (let worker of this.workers.values()) {
       promises.push(
@@ -527,7 +524,7 @@ export default class WorkerFarm extends EventEmitter {
     await Promise.all(promises);
   }
 
-  async endProfile() {
+  async endProfile(): Promise<void> {
     if (!this.profiler) {
       return;
     }
@@ -571,7 +568,7 @@ export default class WorkerFarm extends EventEmitter {
     });
   }
 
-  async callAllWorkers(method: string, args: Array<any>) {
+  async callAllWorkers(method: string, args: Array<any>): Promise<void> {
     let promises = [];
     for (let worker of this.workers.values()) {
       promises.push(
@@ -591,7 +588,7 @@ export default class WorkerFarm extends EventEmitter {
     await Promise.all(promises);
   }
 
-  async takeHeapSnapshot() {
+  async takeHeapSnapshot(): Promise<void> {
     let snapshotId = getTimeId();
 
     try {
@@ -640,10 +637,10 @@ export default class WorkerFarm extends EventEmitter {
       request: CallRequest,
       awaitResponse?: ?boolean,
     ) => Promise<mixed>,
-    createReverseHandle: (fn: (...args: Array<any>) => mixed) => Handle,
+    createReverseHandle: (fn: (...args: Array<any>) => mixed) => IHandle,
     getSharedReference: (ref: SharedReference) => mixed,
     resolveSharedReference: (value: mixed) => void | SharedReference,
-    runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
+    runHandle: (handle: IHandle, args: Array<any>) => Promise<mixed>,
   |} {
     invariant(
       child != null,

@@ -5,8 +5,8 @@ import type {
   MessageHandler,
   ErrorHandler,
   ExitHandler,
-  WorkerMessage,
 } from '../types';
+import type {WorkerMessage} from '@parcel/types';
 import childProcess, {type ChildProcess} from 'child_process';
 import path from 'path';
 import {serialize, deserialize} from '@parcel/core';

@@ -1,16 +1,18 @@
 // @flow
 
+import type {ChildImpl} from './types';
 import type {
+  Async,
   CallRequest,
+  Handle as IHandle,
+  IDisposable,
+  SharedReference,
   WorkerDataResponse,
   WorkerErrorResponse,
   WorkerMessage,
-  WorkerRequest,
   WorkerResponse,
-  ChildImpl,
-} from './types';
-import type {Async, IDisposable} from '@parcel/types';
-import type {SharedReference} from './WorkerFarm';
+  WorkerRequest,
+} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -68,18 +70,18 @@ export class Child {
       request: CallRequest,
       awaitResponse?: ?boolean,
     ) => Promise<mixed>,
-    createReverseHandle: (fn: (...args: Array<any>) => mixed) => Handle,
+    createReverseHandle: (fn: (...args: Array<any>) => mixed) => IHandle,
     getSharedReference: (ref: SharedReference) => mixed,
     resolveSharedReference: (value: mixed) => void | SharedReference,
-    runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
+    runHandle: (handle: IHandle, args: Array<any>) => Promise<mixed>,
   |} = {
     callMaster: (
       request: CallRequest,
       awaitResponse: ?boolean = true,
     ): Promise<mixed> => this.addCall(request, awaitResponse),
-    createReverseHandle: (fn: (...args: Array<any>) => mixed): Handle =>
+    createReverseHandle: (fn: (...args: Array<any>) => mixed): IHandle =>
       this.createReverseHandle(fn),
-    runHandle: (handle: Handle, args: Array<any>): Promise<mixed> =>
+    runHandle: (handle: IHandle, args: Array<any>): Promise<mixed> =>
       this.workerApi.callMaster({handle: handle.id, args}, true),
     getSharedReference: (ref: SharedReference) =>
       this.sharedReferences.get(ref),

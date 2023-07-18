@@ -19,6 +19,7 @@ import type {
   ReporterEvent,
   SemverRange,
   ServerOptions,
+  SharedReference,
   SourceType,
   Stats,
   Symbol,
@@ -29,7 +30,6 @@ import type {
   HMROptions,
   DetailedReportOptions,
 } from '@parcel/types';
-import type {SharedReference} from '@parcel/workers';
 import type {ProjectPath} from './projectPath';
 
 export type ParcelPluginNode = {|

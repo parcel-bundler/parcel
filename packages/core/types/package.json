@@ -18,7 +18,6 @@
   "dependencies": {
     "@parcel/diagnostic": "2.9.3",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/workers": "2.9.3",
     "utility-types": "^3.10.0"
   }
 }

@@ -3,7 +3,7 @@
 import type {Readable} from 'stream';
 import type SourceMap from '@parcel/source-map';
 import type {FileSystem, FileOptions} from './fs';
-import type WorkerFarm from '@parcel/workers';
+import type {WorkerFarm} from './worker-farm';
 import type {
   PackageManager,
   ResolveResult as PackageManagerResolveResult,
@@ -2018,3 +2018,21 @@ export interface PluginTracer {
 export type {FileSystem, FileOptions};
 export type {Cache};
 export type {PackageManager, PackageManagerResolveResult};
+export type {
+  CallRequest,
+  WorkerFarm,
+  SharedReference,
+  createSharedReference,
+  Handle,
+  HandleCallRequest,
+  HandleOpts,
+  HandleFunction,
+  Worker,
+  WorkerAPI,
+  WorkerCall,
+  WorkerDataResponse,
+  WorkerErrorResponse,
+  WorkerMessage,
+  WorkerResponse,
+  WorkerRequest,
+} from './worker-farm';
