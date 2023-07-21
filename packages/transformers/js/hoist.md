@@ -2,7 +2,7 @@
 
 This document describes how the SWC-based scope hoisting implementation works, in comparison to the previous implementation.
 
-## Overview
+## Overview 
 
 Scope hoisting is the process of combining multiple JavaScript modules together into a single scope. This enables dead code elimination (aka tree shaking) to be more effective, and improves runtime performance by making cross-module references static rather than dynamic property lookups.
 
