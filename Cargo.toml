@@ -11,3 +11,7 @@ members = [
   "packages/utils/node-resolver-core",
   "packages/utils/dev-dep-resolver"
 ]
+
+[patch.crates-io]
+chrono = { git = "https://github.com/devongovett/chrono.git", branch = "0.4.x" }
+browserslist-rs = { git = "https://github.com/devongovett/browserslist-rs.git", branch = "wasm" }

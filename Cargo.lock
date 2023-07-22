@@ -26,6 +26,18 @@ checksum = "fcb51a0695d8f838b1ee009b3fbf66bda078cd64590202a864a8f3e8c4315c47"
 dependencies = [
  "getrandom",
  "once_cell",
+ "version_check",
+]
+
+[[package]]
+name = "ahash"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c99f64d1e06488f620f932677e24bc6e2897582980441ae90a671415bd7ec2f"
+dependencies = [
+ "cfg-if",
+ "getrandom",
+ "once_cell",
  "serde",
  "version_check",
 ]
@@ -38,6 +50,12 @@ checksum = "cc936419f96fa211c1b9166887b38e5e40b19958e5b895be7c1f93adec7071ac"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "android-tzdata"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e999941b234f3131b00bc13c22d06e8c5ff726d1b6318ac7eb276997bbb4fef0"
 
 [[package]]
 name = "android_system_properties"
@@ -148,26 +166,22 @@ dependencies = [
 
 [[package]]
 name = "browserslist-rs"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "421478dde88feb4281328dea29dbf6d2b57bc19a8968214fc3694c8c574bc47f"
+version = "0.12.4"
+source = "git+https://github.com/devongovett/browserslist-rs.git?branch=wasm#c62f0cd25ff7510263ec97281cc3c67965f73fb8"
 dependencies = [
- "ahash",
+ "ahash 0.8.3",
  "anyhow",
  "chrono",
  "either",
  "itertools",
- "js-sys",
  "nom",
  "once_cell",
  "quote",
  "serde",
- "serde-wasm-bindgen 0.4.5",
  "serde_json",
  "string_cache",
  "string_cache_codegen",
  "thiserror",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -215,16 +229,13 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chrono"
-version = "0.4.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16b0a3d9ed01224b22057780a37bb8c5dbfe1be8ba48678e7bf57ec4b385411f"
+version = "0.4.26"
+source = "git+https://github.com/devongovett/chrono.git?branch=0.4.x#19221309d8480e0ecd5650a76263bdf22fcf6957"
 dependencies = [
+ "android-tzdata",
  "iana-time-zone",
- "js-sys",
- "num-integer",
  "num-traits",
  "time",
- "wasm-bindgen",
  "winapi",
 ]
 
@@ -1298,11 +1309,27 @@ dependencies = [
 name = "parcel-js-swc-wasm"
 version = "0.1.0"
 dependencies = [
- "js-sys",
  "parcel-js-swc-core",
- "serde",
- "serde-wasm-bindgen 0.3.1",
- "wasm-bindgen",
+]
+
+[[package]]
+name = "parcel-node-bindings"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "getrandom",
+ "jemallocator",
+ "libc",
+ "mimalloc",
+ "mozjpeg-sys",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "oxipng",
+ "parcel-dev-dep-resolver",
+ "parcel-js-swc-core",
+ "parcel-resolver",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -1525,7 +1552,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b09a48d8ea8b031bde7755cdf6f87f7123a0cbefc36b0cd09cbb2de726594393"
 dependencies = [
- "ahash",
+ "ahash 0.7.6",
  "anyhow",
  "browserslist-rs",
  "dashmap",
@@ -1757,29 +1784,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde-wasm-bindgen"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "618365e8e586c22123d692b72a7d791d5ee697817b65a218cdf12a98870af0f7"
-dependencies = [
- "fnv",
- "js-sys",
- "serde",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "serde-wasm-bindgen"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3b4c031cd0d9014307d82b8abf653c0290fbdaeb4c02d00c63cf52f728628bf"
-dependencies = [
- "js-sys",
- "serde",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "serde_bytes"
 version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1990,7 +1994,7 @@ version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9745d42d167cb60aeb1e85d2ee813ca455c3185bf7417f11fd102d745ae2b9e1"
 dependencies = [
- "ahash",
+ "ahash 0.7.6",
  "anyhow",
  "dashmap",
  "once_cell",
@@ -2004,7 +2008,7 @@ version = "0.31.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19c774005489d2907fb67909cf42af926e72edee1366512777c605ba2ef19c94"
 dependencies = [
- "ahash",
+ "ahash 0.7.6",
  "ast_node",
  "atty",
  "better_scoped_tls",
@@ -2107,7 +2111,7 @@ version = "0.43.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe45f1e5dcc1b005544ff78253b787dea5dfd5e2f712b133964cdc3545c954a4"
 dependencies = [
- "ahash",
+ "ahash 0.7.6",
  "anyhow",
  "dashmap",
  "normpath",
@@ -2146,7 +2150,7 @@ version = "0.195.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7970ebc5766ab24e6a3204afa9520dd55c6951692e9d424c0373a6ed10d04ab1"
 dependencies = [
- "ahash",
+ "ahash 0.7.6",
  "anyhow",
  "dashmap",
  "indexmap",
@@ -2228,7 +2232,7 @@ version = "0.153.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74c0ab56173084aaae93c5e3d58a015cbfe89fb82021ff6eceaef88125f77a7d"
 dependencies = [
- "ahash",
+ "ahash 0.7.6",
  "arrayvec",
  "indexmap",
  "is-macro",
@@ -2268,7 +2272,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "218b43d0a43c7493526e4a096560be0c807c17f7c5432b8973735e1f57819dc0"
 dependencies = [
  "Inflector",
- "ahash",
+ "ahash 0.7.6",
  "anyhow",
  "bitflags 2.1.0",
  "indexmap",
@@ -2295,7 +2299,7 @@ version = "0.187.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73e2259a7a3d6e76e6253d15cd5bb508f4db8867092ebfbc0bdc4218f5e27027"
 dependencies = [
- "ahash",
+ "ahash 0.7.6",
  "dashmap",
  "indexmap",
  "once_cell",
@@ -2340,7 +2344,7 @@ version = "0.173.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "809026654ac6731a38a985333247d0a1c9bcf8d921e3bbff14d53a502ec4c4fd"
 dependencies = [
- "ahash",
+ "ahash 0.7.6",
  "base64",
  "dashmap",
  "indexmap",
