@@ -4,7 +4,7 @@ const {Environment, napi} = require('napi-wasm');
 module.exports.Resolver = undefined;
 module.exports.init = async function init(input) {
   if (module.exports.Resolver == null) {
-    input = input// ?? new URL('parcel_resolver_node.wasm', import.meta.url);
+    // input = input ?? new URL('parcel_resolver_node.wasm', import.meta.url);
     // const {instance} = await WebAssembly.instantiateStreaming(fetch(input), {
     //   env: napi,
     // });

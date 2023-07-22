@@ -21,9 +21,6 @@
   "scripts": {
     "test": "mocha test"
   },
-  "napi": {
-    "name": "parcel-resolver"
-  },
   "files": [
     "lib",
     "native.js",

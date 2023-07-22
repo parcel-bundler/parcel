@@ -24,9 +24,6 @@
     "native.js",
     "*.node"
   ],
-  "napi": {
-    "name": "parcel-image"
-  },
   "dependencies": {
     "@parcel/diagnostic": "2.9.3",
     "@parcel/plugin": "2.9.3",
