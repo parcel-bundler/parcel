@@ -24,7 +24,7 @@
       "includeNodeModules": {
         "@parcel/codeframe": false,
         "@parcel/diagnostic": false,
-        "@parcel/hash": false,
+        "@parcel/rust": false,
         "@parcel/logger": false,
         "@parcel/markdown-ansi": false,
         "@parcel/source-map": false,
@@ -35,7 +35,7 @@
   "dependencies": {
     "@parcel/codeframe": "2.9.3",
     "@parcel/diagnostic": "2.9.3",
-    "@parcel/hash": "2.9.3",
+    "@parcel/rust": "2.9.3",
     "@parcel/logger": "2.9.3",
     "@parcel/markdown-ansi": "2.9.3",
     "@parcel/source-map": "^2.1.1",

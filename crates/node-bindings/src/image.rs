@@ -14,7 +14,6 @@ pub fn optimize_image(kind: String, buf: Buffer, env: Env) -> Result<JsBuffer> {
   match kind.as_ref() {
     "png" => {
       let options = Options {
-        deflate: Deflaters::Libdeflater,
         strip: Headers::Safe,
         ..Default::default()
       };

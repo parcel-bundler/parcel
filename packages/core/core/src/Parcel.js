@@ -39,7 +39,7 @@ import createValidationRequest from './requests/ValidationRequest';
 import createParcelBuildRequest from './requests/ParcelBuildRequest';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initHash} from '@parcel/hash';
+import {init as initRust} from '@parcel/rust';
 import {toProjectPath} from './projectPath';
 import {tracer} from '@parcel/profiler';
 
@@ -88,7 +88,7 @@ export default class Parcel {
     }
 
     await initSourcemaps;
-    await initHash;
+    await initRust?.();
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,

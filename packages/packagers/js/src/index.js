@@ -3,7 +3,7 @@ import type {Async} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
 import {replaceInlineReferences, replaceURLReferences} from '@parcel/utils';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {DevPackager} from './DevPackager';

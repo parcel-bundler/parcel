@@ -23,7 +23,7 @@ import type {
 } from './types';
 
 import invariant from 'assert';
-import {hashString, Hash} from '@parcel/hash';
+import {hashString, Hash} from '@parcel/rust';
 import {hashObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {ContentGraph} from '@parcel/graph';

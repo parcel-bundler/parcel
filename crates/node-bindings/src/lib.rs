@@ -9,13 +9,13 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-mod resolver;
-mod transformer;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs_search;
+mod hash;
 #[cfg(not(target_arch = "wasm32"))]
 mod image;
-mod hash;
+mod resolver;
+mod transformer;
 
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
@@ -38,15 +38,14 @@ pub extern "C" fn napi_wasm_malloc(size: usize) -> *mut u8 {
 }
 
 #[cfg(target_arch = "wasm32")]
-{
+mod wasm {
   use core::num::NonZeroU32;
-  use getrandom::Error;
   use getrandom::register_custom_getrandom;
+  use getrandom::Error;
 
-  // Some application-specific error code
-  const MY_CUSTOM_ERROR_CODE: u32 = Error::CUSTOM_START + 42;
+  // TODO
   pub fn always_fail(buf: &mut [u8]) -> Result<(), Error> {
-    let code = NonZeroU32::new(MY_CUSTOM_ERROR_CODE).unwrap();
+    let code = NonZeroU32::new(Error::CUSTOM_START + 42).unwrap();
     Err(Error::from(code))
   }
 

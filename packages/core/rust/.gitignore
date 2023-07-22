@@ -1,3 +1,4 @@
-native.*
+index.*
 *.node
 *.wasm
+!*.flow
