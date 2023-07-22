@@ -47,15 +47,5 @@
   },
   "peerDependencies": {
     "@parcel/core": "^2.9.3"
-  },
-  "scripts": {
-    "build": "napi build --platform --cargo-cwd napi --js native.js --dts native.d.ts",
-    "build-release": "napi build --platform --release --cargo-cwd napi --js native.js --dts native.d.ts",
-    "build:wasm-base": "wasm-pack build wasm --no-typescript --release",
-    "build:wasm-node": "yarn build:wasm-base --target nodejs --out-dir dist-node",
-    "build:wasm-web": "CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_PANIC=abort CARGO_PROFILE_RELEASE_OPT_LEVEL=z yarn build:wasm-base --target web --out-dir dist-web"
-  },
-  "browser": {
-    "./native.js": "./native-browser.js"
   }
 }

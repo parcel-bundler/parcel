@@ -2,7 +2,7 @@ use mozjpeg_sys::*;
 use napi::bindgen_prelude::*;
 use napi::{Env, Error, JsBuffer, Result};
 use napi_derive::napi;
-use oxipng::{optimize_from_memory, Deflaters, Headers, Options};
+use oxipng::{optimize_from_memory, Headers, Options};
 use std::mem;
 use std::ptr;
 use std::slice;
