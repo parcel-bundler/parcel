@@ -1,5 +1,5 @@
 use dashmap::DashMap;
-use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref, Result};
+use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsObject, JsString, JsUnknown, Ref, Result};
 use napi_derive::napi;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::Ordering;
@@ -319,8 +319,10 @@ impl Resolver {
     })
   }
 
-  #[napi]
-  pub fn resolve(&self, options: ResolveOptions, env: Env) -> Result<ResolveResult> {
+  fn resolve_internal(
+    &self,
+    options: ResolveOptions,
+  ) -> napi::Result<(parcel_resolver::ResolveResult, bool, u8)> {
     let mut res = self.resolver.resolve_with_options(
       &options.filename,
       Path::new(&options.parent),
@@ -371,8 +373,19 @@ impl Resolver {
       }
     }
 
+    Ok((res, side_effects, module_type))
+  }
+
+  fn resolve_result_to_js(
+    &self,
+    env: Env,
+    res: parcel_resolver::ResolveResult,
+    side_effects: bool,
+    module_type: u8,
+  ) -> napi::Result<ResolveResult> {
     let (invalidate_on_file_change, invalidate_on_file_create) =
       convert_invalidations(res.invalidations);
+
     match res.result {
       Ok((res, query)) => Ok(ResolveResult {
         resolution: env.to_js_value(&res)?,
@@ -393,6 +406,43 @@ impl Resolver {
         module_type: 0,
       }),
     }
+  }
+
+  #[napi]
+  pub fn resolve(&self, options: ResolveOptions, env: Env) -> Result<ResolveResult> {
+    let (res, side_effects, module_type) = self.resolve_internal(options)?;
+    self.resolve_result_to_js(env, res, side_effects, module_type)
+  }
+
+  #[cfg(target_arch = "wasm32")]
+  #[napi]
+  pub fn resolve_async(&'static self) -> Result<JsObject> {
+    panic!("resolveAsync() is not supported in Wasm builds")
+  }
+
+  #[cfg(not(target_arch = "wasm32"))]
+  #[napi]
+  pub fn resolve_async(&'static self, options: ResolveOptions, env: Env) -> Result<JsObject> {
+    let (deferred, promise) = env.create_deferred()?;
+    let resolver = &self.resolver;
+
+    if matches!(resolver.cache.fs, EitherFs::A(..)) || resolver.module_dir_resolver.is_some() {
+      return Err(napi::Error::new(
+        napi::Status::GenericFailure,
+        "resolveAsync does not support custom fs or module_dir_resolver",
+      ));
+    }
+
+    rayon::spawn(move || {
+      let (res, side_effects, module_type) = match self.resolve_internal(options) {
+        Ok(r) => r,
+        Err(e) => return deferred.reject(e),
+      };
+
+      deferred.resolve(move |env| self.resolve_result_to_js(env, res, side_effects, module_type));
+    });
+
+    Ok(promise)
   }
 
   #[cfg(target_arch = "wasm32")]

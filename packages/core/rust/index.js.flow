@@ -54,6 +54,7 @@ export interface JsInvalidations {
   invalidateOnStartup: boolean;
 }
 declare export function transform(opts: any): any;
+declare export function transformAsync(opts: any): Promise<any>;
 declare export class Hash {
   writeString(s: string): void;
   writeBuffer(b: Buffer): void;
@@ -71,5 +72,6 @@ export interface ResolverOptions {
 declare export class Resolver {
   constructor(projectRoot: string, options: ResolverOptions): Resolver;
   resolve(options: ResolveOptions): ResolveResult;
+  resolveAsync(options: ResolveOptions): Promise<ResolveResult>;
   getInvalidations(path: string): JsInvalidations;
 }
