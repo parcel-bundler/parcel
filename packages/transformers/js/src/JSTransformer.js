@@ -4,7 +4,7 @@ import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {transform} from '@parcel/rust';
+import {transform, transformAsync} from '@parcel/rust';
 import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
@@ -401,7 +401,7 @@ export default (new Transformer({
       diagnostics,
       used_env,
       has_node_replacements,
-    } = transform({
+    } = await (transformAsync || transform)({
       filename: asset.filePath,
       code,
       module_id: asset.id,
