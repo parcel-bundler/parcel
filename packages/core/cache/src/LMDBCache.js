@@ -102,6 +102,14 @@ export class LMDBCache implements Cache {
   async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
     await this.fs.writeFile(path.join(this.dir, key), contents);
   }
+
+  refresh(): void {
+    // Reset the read transaction for the store. This guarantees that
+    // the next read will see the latest changes to the store.
+    // Useful in scenarios where reads and writes are multi-threaded.
+    // See https://github.com/kriszyp/lmdb-js#resetreadtxn-void
+    this.store.resetReadTxn();
+  }
 }
 
 registerSerializableClass(`${packageJson.version}:LMDBCache`, LMDBCache);
