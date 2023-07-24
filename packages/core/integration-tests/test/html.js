@@ -1778,7 +1778,6 @@ describe('html', function () {
       ),
       {
         mode: 'production',
-        outputFS: inputFS,
         defaultTargetOptions: {
           shouldScopeHoist: true,
           engines: {
