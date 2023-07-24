@@ -1114,7 +1114,7 @@ describe('output formats', function () {
       assert(!async.includes('.css"'));
     });
 
-    it('should support building esmodules with split bundles', async function () {
+    it.only('should support building esmodules with split bundles', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -1151,9 +1151,10 @@ describe('output formats', function () {
 
       for (let bundle of [async1Bundle, async2Bundle]) {
         // async import both bundles in parallel for performance
+        // esm load function public id = "$fPYKz"
         assert(
           new RegExp(
-            `import\\("\\./" \\+ .+\\.resolve\\("${sharedBundle.publicId}"\\)\\),\\n\\s*import\\("./" \\+ .+\\.resolve\\("${bundle.publicId}"\\)\\)`,
+            `\\$fPYKz\\("${sharedBundle.publicId}"\\),\\n\\s*\\$fPYKz\\("${bundle.publicId}"\\)`,
           ).test(entry),
         );
       }

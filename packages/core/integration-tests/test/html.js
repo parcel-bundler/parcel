@@ -1778,6 +1778,7 @@ describe('html', function () {
       ),
       {
         mode: 'production',
+        outputFS: inputFS,
         defaultTargetOptions: {
           shouldScopeHoist: true,
           engines: {
@@ -1802,7 +1803,13 @@ describe('html', function () {
       },
       {
         type: 'js',
-        assets: ['bundle-manifest.js', 'index.js', 'index.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'esm-js-loader.js',
+          'index.js',
+          'index.js',
+          'index.js',
+        ],
       },
       {
         name: 'index.html',
@@ -1883,6 +1890,7 @@ describe('html', function () {
         type: 'js',
         assets: [
           'bundle-manifest.js',
+          'esm-js-loader.js',
           'get-worker-url.js',
           'index.js',
           'lodash.js',
@@ -1944,6 +1952,7 @@ describe('html', function () {
         type: 'js',
         assets: [
           'bundle-manifest.js',
+          'esm-js-loader.js',
           'get-worker-url.js',
           'index.js',
           'lodash.js',
@@ -2183,7 +2192,7 @@ describe('html', function () {
         assets: ['index.html'],
       },
       {
-        assets: ['a.js', 'bundle-manifest.js'],
+        assets: ['a.js', 'bundle-manifest.js', 'esm-js-loader.js'],
       },
       {
         assets: [
@@ -2311,6 +2320,7 @@ describe('html', function () {
           'index.js',
           'client.js',
           'bundle-manifest.js',
+          'esm-js-loader.js',
         ],
       },
       {
