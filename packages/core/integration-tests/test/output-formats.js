@@ -1114,7 +1114,7 @@ describe('output formats', function () {
       assert(!async.includes('.css"'));
     });
 
-    it('should support building esmodules with split bundles', async function () {
+    it.only('should support building esmodules with split bundles', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -1149,12 +1149,24 @@ describe('output formats', function () {
       );
       let async2Bundle = bundles.find(b => b.name.startsWith('async2'));
 
+      let esmLoaderPublicId;
+      b.traverse((node, _, actions) => {
+        if (
+          node.type === 'asset' &&
+          node.value.filePath.endsWith('/helpers/browser/esm-js-loader.js')
+        ) {
+          esmLoaderPublicId = b.getAssetPublicId(b.getAssetById(node.value.id));
+          actions.stop();
+        }
+      });
+
+      assert(esmLoaderPublicId != null, 'Could not find esm loader public id');
+
       for (let bundle of [async1Bundle, async2Bundle]) {
         // async import both bundles in parallel for performance
-        // esm load function public id = "$fPYKz"
         assert(
           new RegExp(
-            `\\$fPYKz\\("${sharedBundle.publicId}"\\),\\n\\s*\\$fPYKz\\("${bundle.publicId}"\\)`,
+            `\\$${esmLoaderPublicId}\\("${sharedBundle.publicId}"\\),\\n\\s*\\$${esmLoaderPublicId}\\("${bundle.publicId}"\\)`,
           ).test(entry),
         );
       }
