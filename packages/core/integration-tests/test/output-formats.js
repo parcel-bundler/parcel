@@ -1155,7 +1155,7 @@ describe('output formats', function () {
           node.type === 'asset' &&
           node.value.filePath.endsWith('/helpers/browser/esm-js-loader.js')
         ) {
-          esmLoaderPublicId = b.getAssetPublicId(b.getAssetById(node.value.id));
+          esmLoaderPublicId = b.getAssetPublicId(node.value);
           actions.stop();
         }
       });
