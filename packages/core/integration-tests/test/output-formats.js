@@ -1114,7 +1114,7 @@ describe('output formats', function () {
       assert(!async.includes('.css"'));
     });
 
-    it.only('should support building esmodules with split bundles', async function () {
+    it('should support building esmodules with split bundles', async function () {
       let b = await bundle(
         path.join(
           __dirname,
