@@ -383,6 +383,11 @@ function getLoaderRuntime({
         return;
       }
 
+      // Don't add loader for inlined bundle
+      if (to.bundleBehavior === 'inline') {
+        return;
+      }
+
       let relativePathExpr = getRelativePathExpr(bundle, to, options);
 
       // Use esmodule loader if possible

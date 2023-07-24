@@ -4385,6 +4385,20 @@ describe('javascript', function () {
     );
   });
 
+  it('should not add invalid module loaders for external inlined bundles', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/asyncTransitive.js'),
+    );
+    // Fails here if the module loader is added (in getBundlesIncludedInHash)
+
+    let res = await run(b);
+    assert.equal(
+      (await res.default).default,
+      `<p>test</p>\n<script>console.log("hi");\n\n</script>\n`,
+      ``,
+    );
+  });
+
   it("should inline a JS bundle's compiled text with `bundle-text` and HMR enabled", async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/bundle-text/javascript.js'),
