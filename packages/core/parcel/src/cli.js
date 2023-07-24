@@ -272,6 +272,13 @@ async function run(
       }
 
       switch (key.name) {
+        case 'z':
+          // Detect the ctrl+z key, and disable raw mode before suspending the parent process.
+          // We need to properly re-enable raw mode when we resume via the 'SIGCONT' signal.
+          process.stdin.setRawMode(false);
+          process.kill(process.ppid, 'SIGTSTP');
+          break;
+
         case 'c':
           // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
           // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
@@ -341,6 +348,9 @@ async function run(
     // a 0 success code is acceptable.
     process.on('SIGINT', exit);
     process.on('SIGTERM', exit);
+
+    // When resuming from a suspend (ctrl+z), ensure we re-enable raw mode.
+    process.on('SIGCONT', () => process.stdin.setRawMode(true));
   } else {
     try {
       await parcel.run();
