@@ -663,7 +663,7 @@ function getRelativeBasePath(relativePath: string) {
   if (relativeBase === '.') {
     return '';
   }
-  return `${JSON.stringify(relativeBase + '/')} + `;
+  return JSON.stringify(relativeBase + '/');
 }
 
 function getRelativePathExpr(
@@ -673,12 +673,15 @@ function getRelativePathExpr(
 ): string {
   let relativePath = relativeBundlePath(from, to, {leadingDotSlash: false});
   if (shouldUseRuntimeManifest(from, options)) {
-    return (
-      getRelativeBasePath(relativePath) +
-      `require('./helpers/bundle-manifest').resolve(${JSON.stringify(
-        to.publicId,
-      )})`
-    );
+    let basePath = getRelativeBasePath(relativePath);
+    let resolvedPath = `require('./helpers/bundle-manifest').resolve(${JSON.stringify(
+      to.publicId,
+    )})`;
+
+    if (basePath) {
+      return `${basePath} + ${resolvedPath}`;
+    }
+    return resolvedPath;
   }
 
   let res = JSON.stringify(relativePath);
