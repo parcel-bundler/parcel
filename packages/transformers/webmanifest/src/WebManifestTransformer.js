@@ -71,7 +71,10 @@ export default (new Transformer({
           res.src = asset.addURLDependency(res.src, {
             loc: {
               filePath: asset.filePath,
-              ...getJSONSourceLocation(pointers[`/${parent}/${i}/src`], 'value'),
+              ...getJSONSourceLocation(
+                pointers[`/${parent}/${i}/src`],
+                'value',
+              ),
             },
           });
         }
@@ -87,8 +90,8 @@ export default (new Transformer({
       const list = data[key];
       invariant(Array.isArray(list));
       for (let i = 0; i < list.length; i++) {
-        const list = list[i].icons;
-        addResourceListToAsset(list, `${key}/${i}/icons`);
+        const iconList = list[i].icons;
+        addResourceListToAsset(iconList, `${key}/${i}/icons`);
       }
     }
 
