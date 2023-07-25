@@ -88,10 +88,12 @@ export default (new Transformer({
 
     for (const key of ['shortcuts', 'file_handlers']) {
       const list = data[key];
-      invariant(Array.isArray(list));
-      for (let i = 0; i < list.length; i++) {
-        const iconList = list[i].icons;
-        addResourceListToAsset(iconList, `${key}/${i}/icons`);
+      if (list) {
+        invariant(Array.isArray(list));
+        for (let i = 0; i < list.length; i++) {
+          const iconList = list[i].icons;
+          addResourceListToAsset(iconList, `${key}/${i}/icons`);
+        }
       }
     }
 
