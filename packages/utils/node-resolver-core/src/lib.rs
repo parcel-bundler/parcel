@@ -399,7 +399,7 @@ impl Resolver {
 
   #[cfg(target_arch = "wasm32")]
   #[napi]
-  pub fn get_invalidations(&self, _: String) -> napi::Result<JsInvalidations> {
+  pub fn get_invalidations(&self, _path: String) -> napi::Result<JsInvalidations> {
     panic!("getInvalidations() is not supported in Wasm builds")
   }
 
