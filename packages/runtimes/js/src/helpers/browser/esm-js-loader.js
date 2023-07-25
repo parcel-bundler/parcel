@@ -1,6 +1,6 @@
 function load(id, base) {
-  const bundleId = require('../bundle-manifest').resolve(id);
-  const request = base ? './' + base + '/' + bundleId : './' + bundleId;
+  let bundleId = require('../bundle-manifest').resolve(id);
+  let request = base ? './' + base + bundleId : './' + bundleId;
 
   // eslint-disable-next-line no-undef
   return __parcel__import__(request);
