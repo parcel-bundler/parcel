@@ -357,9 +357,12 @@ function getLoaderRuntime({
   // Importing of the other bundles will be handled by the bundle group entry.
   // Do the same thing in library mode for ES modules, as we are building for another bundler
   // and the imports for sibling bundles will be in the target bundle.
-  // Also do this when building lazily or the runtime itself could get deduplicated and only
-  // exist in the parent. This causes errors if an old version of the parent without the runtime
-  // is already loaded.
+
+  // Previously we also did this when building lazily, however it seemed to cause issues in some cases.
+  // The original comment as to why is left here, in case a future traveller is trying to fix that issue:
+  // > [...] the runtime itself could get deduplicated and only exist in the parent. This causes errors if an
+  // > old version of the parent without the runtime
+  // > is already loaded.
   if (bundle.env.outputFormat === 'commonjs' || bundle.env.isLibrary) {
     externalBundles = [mainBundle];
   } else {
@@ -439,6 +442,8 @@ function getLoaderRuntime({
     loaderModules.push(code);
   }
 
+  // Similar to the comment above, this also used to be skipped when shouldBuildLazily was true,
+  // however it caused issues where a bundle group contained multiple bundles.
   if (bundle.env.context === 'browser') {
     loaderModules.push(
       ...externalBundles
