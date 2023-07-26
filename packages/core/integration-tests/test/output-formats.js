@@ -1153,7 +1153,7 @@ describe('output formats', function () {
       b.traverse((node, _, actions) => {
         if (
           node.type === 'asset' &&
-          node.value.filePath.endsWith('/helpers/browser/esm-js-loader.js')
+          node.value.filePath.endsWith('esm-js-loader.js')
         ) {
           esmLoaderPublicId = b.getAssetPublicId(node.value);
           actions.stop();
