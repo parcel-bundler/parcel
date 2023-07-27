@@ -376,46 +376,72 @@ function getLoaderRuntime({
   let needsDynamicImportPolyfill =
     !bundle.env.isLibrary && !bundle.env.supports('dynamic-import', true);
 
-  let loaderModules = externalBundles
-    .map(to => {
-      let loader = loaders[to.type];
-      if (!loader) {
-        return;
+  let needsEsmLoadPrelude = false;
+  let loaderModules = [];
+
+  for (let to of externalBundles) {
+    let loader = loaders[to.type];
+    if (!loader) {
+      continue;
+    }
+
+    if (
+      to.type === 'js' &&
+      to.env.outputFormat === 'esmodule' &&
+      !needsDynamicImportPolyfill &&
+      shouldUseRuntimeManifest(bundle, options)
+    ) {
+      let params = [JSON.stringify(to.publicId)];
+
+      let relativeBase = getRelativeBasePath(
+        relativeBundlePath(bundle, to, {leadingDotSlash: false}),
+      );
+
+      if (relativeBase) {
+        params.push(relativeBase);
       }
 
-      let relativePathExpr = getRelativePathExpr(bundle, to, options);
+      loaderModules.push(`load(${params.join(',')})`);
+      needsEsmLoadPrelude = true;
+      continue;
+    }
 
-      // Use esmodule loader if possible
-      if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
-        if (!needsDynamicImportPolyfill) {
-          return `__parcel__import__("./" + ${relativePathExpr})`;
-        }
+    let relativePathExpr = getRelativePathExpr(bundle, to, options);
 
-        loader = nullthrows(
-          loaders.IMPORT_POLYFILL,
-          `No import() polyfill available for context '${bundle.env.context}'`,
-        );
-      } else if (to.type === 'js' && to.env.outputFormat === 'commonjs') {
-        return `Promise.resolve(__parcel__require__("./" + ${relativePathExpr}))`;
+    // Use esmodule loader if possible
+    if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
+      if (!needsDynamicImportPolyfill) {
+        loaderModules.push(`__parcel__import__("./" + ${relativePathExpr})`);
+        continue;
       }
 
-      let code = `require(${JSON.stringify(loader)})(${getAbsoluteUrlExpr(
-        relativePathExpr,
-        bundle,
-      )})`;
+      loader = nullthrows(
+        loaders.IMPORT_POLYFILL,
+        `No import() polyfill available for context '${bundle.env.context}'`,
+      );
+    } else if (to.type === 'js' && to.env.outputFormat === 'commonjs') {
+      loaderModules.push(
+        `Promise.resolve(__parcel__require__("./" + ${relativePathExpr}))`,
+      );
+      continue;
+    }
 
-      // In development, clear the require cache when an error occurs so the
-      // user can try again (e.g. after fixing a build error).
-      if (
-        options.mode === 'development' &&
-        bundle.env.outputFormat === 'global'
-      ) {
-        code +=
-          '.catch(err => {delete module.bundle.cache[module.id]; throw err;})';
-      }
-      return code;
-    })
-    .filter(Boolean);
+    let code = `require(${JSON.stringify(loader)})(${getAbsoluteUrlExpr(
+      relativePathExpr,
+      bundle,
+    )})`;
+
+    // In development, clear the require cache when an error occurs so the
+    // user can try again (e.g. after fixing a build error).
+    if (
+      options.mode === 'development' &&
+      bundle.env.outputFormat === 'global'
+    ) {
+      code +=
+        '.catch(err => {delete module.bundle.cache[module.id]; throw err;})';
+    }
+    loaderModules.push(code);
+  }
 
   if (bundle.env.context === 'browser' && !options.shouldBuildLazily) {
     loaderModules.push(
@@ -465,9 +491,17 @@ function getLoaderRuntime({
     )}'))`;
   }
 
+  let code = [];
+
+  if (needsEsmLoadPrelude) {
+    code.push(`let load = require('./helpers/browser/esm-js-loader');`);
+  }
+
+  code.push(`module.exports = ${loaderCode};`);
+
   return {
     filePath: __filename,
-    code: `module.exports = ${loaderCode};`,
+    code: code.join('\n'),
     dependency,
     env: {sourceType: 'module'},
   };
@@ -623,6 +657,15 @@ function getRegisterCode(
   );
 }
 
+function getRelativeBasePath(relativePath: string) {
+  // Get the relative part of the path. This part is not in the manifest, only the basename is.
+  let relativeBase = path.posix.dirname(relativePath);
+  if (relativeBase === '.') {
+    return '';
+  }
+  return JSON.stringify(relativeBase + '/');
+}
+
 function getRelativePathExpr(
   from: NamedBundle,
   to: NamedBundle,
@@ -630,19 +673,15 @@ function getRelativePathExpr(
 ): string {
   let relativePath = relativeBundlePath(from, to, {leadingDotSlash: false});
   if (shouldUseRuntimeManifest(from, options)) {
-    // Get the relative part of the path. This part is not in the manifest, only the basename is.
-    let relativeBase = path.posix.dirname(relativePath);
-    if (relativeBase === '.') {
-      relativeBase = '';
-    } else {
-      relativeBase = `${JSON.stringify(relativeBase + '/')} + `;
+    let basePath = getRelativeBasePath(relativePath);
+    let resolvedPath = `require('./helpers/bundle-manifest').resolve(${JSON.stringify(
+      to.publicId,
+    )})`;
+
+    if (basePath) {
+      return `${basePath} + ${resolvedPath}`;
     }
-    return (
-      relativeBase +
-      `require('./helpers/bundle-manifest').resolve(${JSON.stringify(
-        to.publicId,
-      )})`
-    );
+    return resolvedPath;
   }
 
   let res = JSON.stringify(relativePath);
