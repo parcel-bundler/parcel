@@ -752,7 +752,7 @@ if (initialCmd != null) {
     [
       'findAsset',
       {
-        help: 'args: <regex>. Lsit assets matching the filepath regex',
+        help: 'args: <regex>. List assets matching the filepath regex',
         action: findAsset,
       },
     ],
