@@ -139,7 +139,13 @@ export class ScopeHoistingPackager {
 
           let usedSymbols = this.bundleGraph.getUsedSymbols(entry) || new Set();
           for (let s of usedSymbols) {
-            symbols.set(s, this.getSymbolResolution(entry, entry, s));
+            // If the referenced bundle is ESM, and we are importing '*', use 'default' instead.
+            // This matches the logic below in buildExportedSymbols.
+            let imported = s;
+            if (imported === '*' && b.env.outputFormat === 'esmodule') {
+              imported = 'default';
+            }
+            symbols.set(imported, this.getSymbolResolution(entry, entry, s));
           }
         }
 
