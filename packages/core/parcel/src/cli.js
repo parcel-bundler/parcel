@@ -338,8 +338,8 @@ async function run(
 
     // In non-tty cases, respond to SIGINT by cleaning up. Since we're watching,
     // a 0 success code is acceptable.
-    process.on('SIGINT', exit);
-    process.on('SIGTERM', exit);
+    process.on('SIGINT', () => exit());
+    process.on('SIGTERM', () => exit());
   } else {
     try {
       await parcel.run();
