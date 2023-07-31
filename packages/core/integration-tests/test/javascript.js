@@ -2191,6 +2191,7 @@ describe('javascript', function () {
       {
         assets: [
           'bundle-manifest.js',
+          'esm-js-loader.js',
           'get-worker-url.js',
           'index.js',
           'large.js',

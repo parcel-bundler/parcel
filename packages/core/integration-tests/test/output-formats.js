@@ -1149,11 +1149,24 @@ describe('output formats', function () {
       );
       let async2Bundle = bundles.find(b => b.name.startsWith('async2'));
 
+      let esmLoaderPublicId;
+      b.traverse((node, _, actions) => {
+        if (
+          node.type === 'asset' &&
+          node.value.filePath.endsWith('esm-js-loader.js')
+        ) {
+          esmLoaderPublicId = b.getAssetPublicId(node.value);
+          actions.stop();
+        }
+      });
+
+      assert(esmLoaderPublicId != null, 'Could not find esm loader public id');
+
       for (let bundle of [async1Bundle, async2Bundle]) {
         // async import both bundles in parallel for performance
         assert(
           new RegExp(
-            `import\\("\\./" \\+ .+\\.resolve\\("${sharedBundle.publicId}"\\)\\),\\n\\s*import\\("./" \\+ .+\\.resolve\\("${bundle.publicId}"\\)\\)`,
+            `\\$${esmLoaderPublicId}\\("${sharedBundle.publicId}"\\),\\n\\s*\\$${esmLoaderPublicId}\\("${bundle.publicId}"\\)`,
           ).test(entry),
         );
       }

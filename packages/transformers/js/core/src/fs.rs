@@ -5,14 +5,14 @@ use crate::utils::SourceLocation;
 use data_encoding::{BASE64, HEXLOWER};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use swc_atoms::JsWord;
-use swc_common::{Mark, Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
+use swc_core::common::{Mark, Span, DUMMY_SP};
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::visit::{Fold, FoldWith, VisitWith};
 
 pub fn inline_fs<'a>(
   filename: &str,
-  source_map: swc_common::sync::Lrc<swc_common::SourceMap>,
+  source_map: swc_core::common::sync::Lrc<swc_core::common::SourceMap>,
   decls: HashSet<Id>,
   global_mark: Mark,
   project_root: &'a str,
