@@ -321,10 +321,6 @@ export default class Parcel {
             };
           }
 
-          // If this bundle was previously a placeholder, it now no longer is as it has
-          // been requested.
-          bundleNode.value.isPlaceholder = false;
-
           for (let assetId of bundleNode.value.entryAssetIds) {
             this.#requestedAssetIds.add(assetId);
           }
