@@ -201,11 +201,8 @@ export default async function dumpGraphToGraphViz(
   }
   let tmp = tempy.file({name: `parcel-${name}.png`});
   await g.output('png', tmp);
-  // let tmpDot = tempy.file({name: `parcel-${name}.dot`});
-  // await g.output('dot', tmpDot);
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);
-  // console.log('Dumped', tmpDot);
 }
 
 function nodeId(id) {
