@@ -9,5 +9,7 @@ if (
   require('@parcel/babel-register');
 }
 
+const run = require('./cli').run;
 require('v8-compile-cache');
-require('./run');
+
+run(process.argv.slice(2));
