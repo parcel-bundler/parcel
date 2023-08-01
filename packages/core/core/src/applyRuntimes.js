@@ -6,7 +6,6 @@ import type {SharedReference} from '@parcel/workers';
 import type {
   Asset,
   AssetGroup,
-  Bundle,
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
@@ -41,6 +40,23 @@ type RuntimeConnection = {|
   isEntry: ?boolean,
 |};
 
+function nameRuntimeBundle(
+  bundle: InternalBundle,
+  siblingBundle: InternalBundle,
+) {
+  // We don't run custom namers on runtime bundles as the runtime assumes that they are
+  // located at the same nesting level as they're owning bundle. Custom naming could
+  // be added in future as long as the custom name is validated.
+  let {hashReference} = bundle;
+
+  let name = siblingBundle.name
+    .replace(`.${bundle.type}`, `.runtime.${hashReference}.${bundle.type}`)
+    .replace(siblingBundle.hashReference, 'sib-hash');
+
+  bundle.name = name;
+  bundle.displayName = name.replace(hashReference, '[hash]');
+}
+
 export default async function applyRuntimes<TResult>({
   bundleGraph,
   config,
@@ -51,7 +67,6 @@ export default async function applyRuntimes<TResult>({
   previousDevDeps,
   devDepRequests,
   configs,
-  nameRuntimeBundle,
 }: {|
   bundleGraph: InternalBundleGraph,
   config: ParcelConfig,
@@ -62,7 +77,6 @@ export default async function applyRuntimes<TResult>({
   previousDevDeps: Map<string, string>,
   devDepRequests: Map<string, DevDepRequest>,
   configs: Map<string, Config>,
-  nameRuntimeBundle: (bundle: Bundle) => Promise<void>,
 |}): Promise<Map<string, Asset>> {
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
@@ -152,7 +166,7 @@ export default async function applyRuntimes<TResult>({
               }
               bundleGraph.createBundleReference(bundle, connectionBundle);
 
-              await nameRuntimeBundle(connectionBundle);
+              nameRuntimeBundle(connectionBundle, bundle);
             }
 
             connections.push({

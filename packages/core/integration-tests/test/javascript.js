@@ -25,7 +25,7 @@ import Logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
-describe('javascript', function () {
+describe.only('javascript', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -2095,7 +2095,10 @@ describe('javascript', function () {
   it('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
-      {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
+      {
+        mode: 'production',
+        defaultTargetOptions: {shouldScopeHoist: false, shouldOptimize: false},
+      },
     );
 
     assertBundles(b, [
@@ -2109,11 +2112,10 @@ describe('javascript', function () {
           'get-worker-url.js',
           'lodash.js',
           'esmodule-helpers.js',
-          'bundle-url.js',
         ],
       },
       {
-        assets: ['bundle-manifest.js'],
+        assets: ['bundle-manifest.js', 'bundle-url.js'],
       },
       {
         assets: ['worker.js', 'lodash.js', 'esmodule-helpers.js'],

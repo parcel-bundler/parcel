@@ -391,17 +391,7 @@ function getLoaderRuntime({
       !needsDynamicImportPolyfill &&
       shouldUseRuntimeManifest(bundle, options)
     ) {
-      let params = [JSON.stringify(to.publicId)];
-
-      let relativeBase = getRelativeBasePath(
-        relativeBundlePath(bundle, to, {leadingDotSlash: false}),
-      );
-
-      if (relativeBase) {
-        params.push(relativeBase);
-      }
-
-      loaderModules.push(`load(${params.join(',')})`);
+      loaderModules.push(`load(${JSON.stringify(to.publicId)})`);
       needsEsmLoadPrelude = true;
       continue;
     }
@@ -426,10 +416,12 @@ function getLoaderRuntime({
       continue;
     }
 
-    let code = `require(${JSON.stringify(loader)})(${getAbsoluteUrlExpr(
-      relativePathExpr,
-      bundle,
-    )})`;
+    let absoluteUrlExpr = shouldUseRuntimeManifest(bundle, options)
+      ? `require('./helpers/bundle-manifest').resolve(${JSON.stringify(
+          to.publicId,
+        )})`
+      : getAbsoluteUrlExpr(relativePathExpr, bundle);
+    let code = `require(${JSON.stringify(loader)})(${absoluteUrlExpr})`;
 
     // In development, clear the require cache when an error occurs so the
     // user can try again (e.g. after fixing a build error).
@@ -631,39 +623,42 @@ function getRegisterCode(
   entryBundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ): string {
-  let idToName = {};
+  let idToName = [];
   bundleGraph.traverseBundles((bundle, _, actions) => {
     if (bundle.bundleBehavior === 'inline') {
       return;
     }
 
-    idToName[bundle.publicId] = path.basename(nullthrows(bundle.name));
+    idToName.push([
+      bundle.publicId,
+      relativeBundlePath(entryBundle, nullthrows(bundle), {
+        leadingDotSlash: false,
+      }),
+    ]);
 
     if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
       for (let referenced of bundleGraph.getReferencedBundles(bundle)) {
-        idToName[referenced.publicId] = path.basename(
-          nullthrows(referenced.name),
-        );
+        idToName.push([
+          referenced.publicId,
+          relativeBundlePath(entryBundle, nullthrows(referenced), {
+            leadingDotSlash: false,
+          }),
+        ]);
       }
       // New contexts have their own manifests, so there's no need to continue.
       actions.skipChildren();
     }
   }, entryBundle);
 
-  return (
-    "require('./helpers/bundle-manifest').register(JSON.parse(" +
-    JSON.stringify(JSON.stringify(idToName)) +
-    '));'
-  );
-}
+  let baseUrl =
+    entryBundle.env.outputFormat === 'esmodule' &&
+    entryBundle.env.supports('import-meta-url')
+      ? 'new __parcel__URL__("").toString()' // <-- this isn't ideal. We should use `import.meta.url` directly but it get's replaced currently
+      : `require('./helpers/bundle-url').getBundleURL('${entryBundle.publicId}')`;
 
-function getRelativeBasePath(relativePath: string) {
-  // Get the relative part of the path. This part is not in the manifest, only the basename is.
-  let relativeBase = path.posix.dirname(relativePath);
-  if (relativeBase === '.') {
-    return '';
-  }
-  return JSON.stringify(relativeBase + '/');
+  return `require('./helpers/bundle-manifest').register(${baseUrl},JSON.parse(${JSON.stringify(
+    JSON.stringify(idToName),
+  )}));`;
 }
 
 function getRelativePathExpr(
@@ -672,18 +667,6 @@ function getRelativePathExpr(
   options: PluginOptions,
 ): string {
   let relativePath = relativeBundlePath(from, to, {leadingDotSlash: false});
-  if (shouldUseRuntimeManifest(from, options)) {
-    let basePath = getRelativeBasePath(relativePath);
-    let resolvedPath = `require('./helpers/bundle-manifest').resolve(${JSON.stringify(
-      to.publicId,
-    )})`;
-
-    if (basePath) {
-      return `${basePath} + ${resolvedPath}`;
-    }
-    return resolvedPath;
-  }
-
   let res = JSON.stringify(relativePath);
   if (options.hmrOptions) {
     res += ' + "?" + Date.now()';
