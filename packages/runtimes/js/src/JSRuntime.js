@@ -654,7 +654,7 @@ function getRegisterCode(
   let baseUrl =
     entryBundle.env.outputFormat === 'esmodule' &&
     entryBundle.env.supports('import-meta-url')
-      ? 'new __parcel__URL__("").toString()' // <-- this isn't ideal. We should use `import.meta.url` directly but it get's replaced currently
+      ? 'new __parcel__URL__("").toString()' // <-- this isn't ideal. We should use `import.meta.url` directly but it gets replaced currently
       : `require('./helpers/bundle-url').getBundleURL('${entryBundle.publicId}')`;
 
   return `require('./helpers/bundle-manifest').register(${baseUrl},JSON.parse(${JSON.stringify(
