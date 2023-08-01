@@ -1476,6 +1476,34 @@ describe('output formats', function () {
     assert.deepEqual(calls, [[['a', 10]]]);
   });
 
+  it('should support external parallel dependencies', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/library-parallel-deps/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'out.js',
+        assets: ['index.js'],
+      },
+      {
+        assets: ['foo.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.equal(res.default, 'foo bar');
+
+    let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(/import [a-z0-9$]+ from "\.\//.test(content));
+  });
+
   describe('global', function () {
     it.skip('should support split bundles between main script and workers', async function () {
       let b = await bundle(
