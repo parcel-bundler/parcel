@@ -45,7 +45,7 @@ function nameRuntimeBundle(
   siblingBundle: InternalBundle,
 ) {
   // We don't run custom namers on runtime bundles as the runtime assumes that they are
-  // located at the same nesting level as they're owning bundle. Custom naming could
+  // located at the same nesting level as their owning bundle. Custom naming could
   // be added in future as long as the custom name is validated.
   let {hashReference} = bundle;
 
