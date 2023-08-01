@@ -25,7 +25,7 @@ import Logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import {md} from '@parcel/diagnostic';
 
-describe.only('javascript', function () {
+describe('javascript', function () {
   beforeEach(async () => {
     await removeDistDirectory();
   });
