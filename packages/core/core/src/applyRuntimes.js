@@ -50,8 +50,11 @@ function nameRuntimeBundle(
   let {hashReference} = bundle;
 
   let name = nullthrows(siblingBundle.name)
-    .replace(`.${bundle.type}`, `.runtime.${hashReference}.${bundle.type}`)
-    .replace(siblingBundle.hashReference, 'sib-hash');
+    // Remove the existing hash from standard file patterns
+    // e.g. 'main.[hash].js' -> 'main.js' or 'main~[hash].js' -> 'main.js'
+    .replace(new RegExp(`[\\.~\\-_]?${siblingBundle.hashReference}`), '')
+    // Ensure the file ends with 'runtime.[hash].js'
+    .replace(`.${bundle.type}`, `.runtime.${hashReference}.${bundle.type}`);
 
   bundle.name = name;
   bundle.displayName = name.replace(hashReference, '[hash]');
