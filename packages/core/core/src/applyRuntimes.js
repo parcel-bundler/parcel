@@ -49,7 +49,7 @@ function nameRuntimeBundle(
   // be added in future as long as the custom name is validated.
   let {hashReference} = bundle;
 
-  let name = siblingBundle.name
+  let name = nullthrows(siblingBundle.name)
     .replace(`.${bundle.type}`, `.runtime.${hashReference}.${bundle.type}`)
     .replace(siblingBundle.hashReference, 'sib-hash');
 
