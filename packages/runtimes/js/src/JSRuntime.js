@@ -624,27 +624,30 @@ function getRegisterCode(
   entryBundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ): string {
-  let idToName = [];
+  let mappings = [];
   bundleGraph.traverseBundles((bundle, _, actions) => {
     if (bundle.bundleBehavior === 'inline') {
       return;
     }
 
-    idToName.push([
+    // To make the manifest as small as possible all bundle key/values are
+    // serialised into a single array e.g. ['id', 'value', 'id2', 'value2'].
+    // `./helpers/bundle-manifest` accounts for this by iterating index by 2
+    mappings.push(
       bundle.publicId,
       relativeBundlePath(entryBundle, nullthrows(bundle), {
         leadingDotSlash: false,
       }),
-    ]);
+    );
 
     if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
       for (let referenced of bundleGraph.getReferencedBundles(bundle)) {
-        idToName.push([
+        mappings.push(
           referenced.publicId,
           relativeBundlePath(entryBundle, nullthrows(referenced), {
             leadingDotSlash: false,
           }),
-        ]);
+        );
       }
       // New contexts have their own manifests, so there's no need to continue.
       actions.skipChildren();
@@ -658,7 +661,7 @@ function getRegisterCode(
       : `require('./helpers/bundle-url').getBundleURL('${entryBundle.publicId}')`;
 
   return `require('./helpers/bundle-manifest').register(${baseUrl},JSON.parse(${JSON.stringify(
-    JSON.stringify(idToName),
+    JSON.stringify(mappings),
   )}));`;
 }
 

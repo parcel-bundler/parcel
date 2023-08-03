@@ -1,8 +1,11 @@
 var mapping = new Map();
 
-function register(baseUrl, pairs) {
-  for (var i = 0; i < pairs.length; i++) {
-    mapping.set(pairs[i][0], {baseUrl, path: pairs[i][1]});
+function register(baseUrl, manifest) {
+  for (var i = 0; i < manifest.length - 1; i += 2) {
+    mapping.set(manifest[i], {
+      baseUrl: baseUrl,
+      path: manifest[i + 1],
+    });
   }
 }
 
