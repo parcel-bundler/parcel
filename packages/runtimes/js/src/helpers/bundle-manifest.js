@@ -1,18 +1,20 @@
-var mapping = {};
+var mapping = new Map();
 
-function register(pairs) {
-  var keys = Object.keys(pairs);
-  for (var i = 0; i < keys.length; i++) {
-    mapping[keys[i]] = pairs[keys[i]];
+function register(baseUrl, manifest) {
+  for (var i = 0; i < manifest.length - 1; i += 2) {
+    mapping.set(manifest[i], {
+      baseUrl: baseUrl,
+      path: manifest[i + 1],
+    });
   }
 }
 
 function resolve(id) {
-  var resolved = mapping[id];
+  var resolved = mapping.get(id);
   if (resolved == null) {
     throw new Error('Could not resolve bundle with id ' + id);
   }
-  return resolved;
+  return new URL(resolved.path, resolved.baseUrl).toString();
 }
 
 module.exports.register = register;

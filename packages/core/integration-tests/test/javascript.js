@@ -2109,11 +2109,10 @@ describe('javascript', function () {
           'get-worker-url.js',
           'lodash.js',
           'esmodule-helpers.js',
-          'bundle-url.js',
         ],
       },
       {
-        assets: ['bundle-manifest.js'],
+        assets: ['bundle-manifest.js', 'bundle-url.js'],
       },
       {
         assets: ['worker.js', 'lodash.js', 'esmodule-helpers.js'],

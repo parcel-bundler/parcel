@@ -280,22 +280,21 @@ describe('bundler', function () {
         assets: ['b.html'],
       },
       {
-        assets: ['a.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+        assets: ['a.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
-        assets: ['bundle-manifest.js'], // manifest bundle
+        assets: ['bundle-manifest.js', 'bundle-url.js'], // manifest bundle
       },
       {
         assets: [
           'b.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'esmodule-helpers.js',
         ],
       },
       {
-        assets: ['bundle-manifest.js'], // manifest bundle
+        assets: ['bundle-manifest.js', 'bundle-url.js'], // manifest bundle
       },
       {
         assets: ['c.js'],
@@ -305,7 +304,7 @@ describe('bundler', function () {
     let aManifestBundle = b
       .getBundles()
       .find(
-        bundle => !bundle.getMainEntry() && /a\.HASH_REF/.test(bundle.name),
+        bundle => !bundle.getMainEntry() && bundle.name.includes('runtime'),
       );
 
     let bBundles = b
