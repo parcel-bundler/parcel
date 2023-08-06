@@ -39,7 +39,6 @@ import {
   toProjectPath,
   toProjectPathUnsafe,
 } from '../projectPath';
-import {Priority} from '../types';
 import {createBuildCache} from '../buildCache';
 import type {LoadedPlugin} from '../ParcelConfig';
 import {createConfig} from '../InternalConfig';
@@ -51,6 +50,7 @@ import {
   runDevDepRequest,
 } from './DevDepRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import {Dependency as DbDependency} from '@parcel/rust';
 
 export type PathRequest = {|
   id: string,
@@ -76,7 +76,7 @@ export default function createPathRequest(
   input: PathRequestInput,
 ): PathRequest {
   return {
-    id: input.dependency.id + ':' + input.name,
+    id: String(input.dependency) + ':' + input.name,
     type,
     run,
     input,
@@ -253,22 +253,22 @@ export class ResolverRunner {
     let pipeline;
     let specifier;
     let validPipelines = new Set(this.config.getNamedPipelines());
-    let match = dependency.specifier.match(PIPELINE_REGEX);
+    let match = dep.specifier.match(PIPELINE_REGEX);
     if (
       match &&
       // Don't consider absolute paths. Absolute paths are only supported for entries,
       // and include e.g. `C:\` on Windows, conflicting with pipelines.
-      !path.isAbsolute(dependency.specifier)
+      !path.isAbsolute(dep.specifier)
     ) {
       [, pipeline, specifier] = match;
       if (!validPipelines.has(pipeline)) {
         // This may be a url protocol or scheme rather than a pipeline, such as
         // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
-        specifier = dependency.specifier;
+        specifier = dep.specifier;
         pipeline = null;
       }
     } else {
-      specifier = dependency.specifier;
+      specifier = dep.specifier;
     }
 
     // Entrypoints, convert ProjectPath in module specifier to absolute path
@@ -302,16 +302,17 @@ export class ResolverRunner {
         measurement && measurement.end();
 
         if (result) {
+          let internalDep = DbDependency.get(dependency);
           if (result.meta) {
-            dependency.resolverMeta = result.meta;
-            dependency.meta = {
-              ...dependency.meta,
+            internalDep.resolverMeta = result.meta;
+            internalDep.meta = {
+              ...internalDep.meta,
               ...result.meta,
             };
           }
 
           if (result.priority != null) {
-            dependency.priority = Priority[result.priority];
+            internalDep.priority = result.priority;
           }
 
           if (result.invalidateOnEnvChange) {
@@ -353,10 +354,10 @@ export class ResolverRunner {
                 query: result.query?.toString(),
                 sideEffects: result.sideEffects,
                 code: result.code,
-                env: dependency.env,
+                env: dependency,
                 pipeline:
                   result.pipeline === undefined
-                    ? pipeline ?? dependency.pipeline
+                    ? pipeline ?? dep.pipeline
                     : result.pipeline,
                 isURL: dep.specifierType === 'url',
               },
@@ -416,7 +417,7 @@ export class ResolverRunner {
       };
     }
 
-    let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
+    let resolveFrom = dep.resolveFrom ?? dep.sourcePath;
     let dir =
       resolveFrom != null
         ? normalizePath(fromProjectPathRelative(resolveFrom))
@@ -424,7 +425,7 @@ export class ResolverRunner {
 
     let diagnostic = await this.getDiagnostic(
       dependency,
-      md`Failed to resolve '${dependency.specifier}' ${
+      md`Failed to resolve '${dep.specifier}' ${
         dir ? `from '${dir}'` : ''
       }`,
     );

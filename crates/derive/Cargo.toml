@@ -1,0 +1,17 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-derive"
+description = "Derive macros for Parcel"
+version = "1.0.0"
+license = "MIT"
+edition = "2021"
+repository = "https://github.com/parcel-bundler/parcel"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "1.0", features = ["extra-traits"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+convert_case = "0.6.0"

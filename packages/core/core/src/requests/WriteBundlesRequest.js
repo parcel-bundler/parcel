@@ -1,6 +1,5 @@
 // @flow strict-local
 
-import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {StaticRunOpts} from '../RequestTracker';
@@ -14,6 +13,7 @@ import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/rust';
 import {createPackageRequest} from './PackageRequest';
 import createWriteBundleRequest from './WriteBundleRequest';
+import {Target as DbTarget} from '@parcel/rust';
 
 type WriteBundlesRequestInput = {|
   bundleGraph: BundleGraph,
@@ -26,7 +26,7 @@ type RunInput<TResult> = {|
 |};
 
 export type WriteBundlesRequest = {|
-  id: ContentKey,
+  id: string,
   +type: 'write_bundles_request',
   run: (
     RunInput<Map<string, PackagedBundleInfo>>,
@@ -68,7 +68,7 @@ async function run({input, api, farm, options}) {
       hashRefToNameHash.set(bundle.hashReference, hash);
       let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
       res.set(bundle.id, {
-        filePath: joinProjectPath(bundle.target.distDir, name),
+        filePath: joinProjectPath(DbTarget.get(bundle.target).distDir, name),
         type: bundle.type, // FIXME: this is wrong if the packager changes the type...
         stats: {
           time: 0,

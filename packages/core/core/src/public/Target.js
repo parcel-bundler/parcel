@@ -11,17 +11,18 @@ import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import {fromProjectPath} from '../projectPath';
 import {fromInternalSourceLocation} from '../utils';
+import { Target as DbTarget } from '@parcel/rust';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const internalTargetToTarget: WeakMap<TargetValue, Target> = new WeakMap();
+const internalTargetToTarget: Map<TargetValue, Target> = new Map();
 const _targetToInternalTarget: WeakMap<ITarget, TargetValue> = new WeakMap();
 export function targetToInternalTarget(target: ITarget): TargetValue {
   return nullthrows(_targetToInternalTarget.get(target));
 }
 
 export default class Target implements ITarget {
-  #target /*: TargetValue */;
+  #target /*: DbTarget */;
   #options /*: ParcelOptions */;
 
   constructor(target: TargetValue, options: ParcelOptions): Target {
@@ -30,7 +31,7 @@ export default class Target implements ITarget {
       return existing;
     }
 
-    this.#target = target;
+    this.#target = DbTarget.get(target);
     this.#options = options;
     _targetToInternalTarget.set(this, target);
     internalTargetToTarget.set(target, this);

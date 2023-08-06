@@ -32,6 +32,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {hashString, hashBuffer, Hash} from '@parcel/rust';
+import { Environment as DbEnvironment, Target as DbTarget } from '@parcel/rust';
 
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import BundleGraph, {
@@ -262,7 +263,7 @@ export default class PackagerRunner {
       let config = createConfig({
         plugin: plugin.name,
         searchPath: joinProjectPath(
-          bundle.target.distDir,
+          DbTarget.get(bundle.target).distDir,
           bundle.name ?? bundle.id,
         ),
       });
@@ -566,7 +567,7 @@ export default class PackagerRunner {
   ): Promise<string> {
     // sourceRoot should be a relative path between outDir and rootDir for node.js targets
     let filePath = joinProjectPath(
-      bundle.target.distDir,
+      DbTarget.get(bundle.target).distDir,
       nullthrows(bundle.name),
     );
     let fullPath = fromProjectPath(this.options.projectRoot, filePath);
@@ -576,32 +577,33 @@ export default class PackagerRunner {
     );
     let inlineSources = false;
 
+    let env = DbEnvironment.get(bundle.env);
     if (bundle.target) {
       if (
-        bundle.env.sourceMap &&
-        bundle.env.sourceMap.sourceRoot !== undefined
+        env.sourceMap &&
+        env.sourceMap.sourceRoot != null
       ) {
-        sourceRoot = bundle.env.sourceMap.sourceRoot;
+        sourceRoot = env.sourceMap.sourceRoot;
       } else if (
         this.options.serveOptions &&
-        bundle.target.env.context === 'browser'
+        env.context === 'browser'
       ) {
         sourceRoot = '/__parcel_source_root';
       }
 
       if (
-        bundle.env.sourceMap &&
-        bundle.env.sourceMap.inlineSources !== undefined
+        env.sourceMap &&
+        env.sourceMap.inlineSources != null
       ) {
-        inlineSources = bundle.env.sourceMap.inlineSources;
-      } else if (bundle.target.env.context !== 'node') {
+        inlineSources = env.sourceMap.inlineSources;
+      } else if (env.context !== 'node') {
         // inlining should only happen in production for browser targets by default
         inlineSources = this.options.mode === 'production';
       }
     }
 
     let mapFilename = fullPath + '.map';
-    let isInlineMap = bundle.env.sourceMap && bundle.env.sourceMap.inline;
+    let isInlineMap = env.sourceMap && env.sourceMap.inline;
 
     let stringified = await map.stringify({
       file: path.basename(mapFilename),
@@ -661,7 +663,7 @@ export default class PackagerRunner {
       PARCEL_VERSION +
         devDepHashes +
         invalidationHash +
-        bundle.target.publicUrl +
+        DbTarget.get(bundle.target).publicUrl +
         bundleGraph.getHash(bundle) +
         JSON.stringify(configResults) +
         JSON.stringify(globalInfoResults) +

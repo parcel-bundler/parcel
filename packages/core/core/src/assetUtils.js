@@ -79,7 +79,7 @@ export function createAssetIdFromOptions(options: AssetOptions): string {
   return hashString(
     idBase +
       options.type +
-      options.env.id +
+      String(options.env) +
       uniqueKey +
       ':' +
       (options.pipeline ?? '') +

@@ -30,7 +30,7 @@ describe('javascript', function () {
     await removeDistDirectory();
   });
 
-  it('should produce a basic JS bundle with CommonJS requires', async function () {
+  it.only('should produce a basic JS bundle with CommonJS requires', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs/index.js'),
     );
@@ -38,6 +38,7 @@ describe('javascript', function () {
     // assert.equal(b.assets.size, 8);
     // assert.equal(b.childBundles.size, 1);
 
+    // console.log(await outputFS.readFile(b.getBundles()[0].filePath, 'utf8'))
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);

@@ -18,6 +18,7 @@ import logger from '@parcel/logger';
 import {md, convertSourceLocationToHighlight} from '@parcel/diagnostic';
 import {BundleBehavior} from './types';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
+import {Dependency as DbDependency} from '@parcel/rust';
 
 export function propagateSymbols({
   options,
@@ -80,7 +81,7 @@ export function propagateSymbols({
         }
       }
       let hasNamespaceOutgoingDeps = outgoingDeps.some(
-        d => d.value.symbols?.get('*')?.local === '*',
+        d => DbDependency.get(d.value).symbols?.find(s => s.exported === '*')?.local === '*',
       );
 
       // 1) Determine what the incomingDeps requests from the asset
@@ -101,8 +102,9 @@ export function propagateSymbols({
         namespaceReexportedSymbols.add('*');
       } else {
         for (let incomingDep of incomingDeps) {
-          if (incomingDep.value.symbols == null) {
-            if (incomingDep.value.sourceAssetId == null) {
+          let dep = DbDependency.get(incomingDep.value);
+          if (dep.symbols == null) {
+            if (dep.sourceAssetId == null) {
               // The root dependency on non-library builds
               isEntry = true;
             } else {
@@ -163,10 +165,10 @@ export function propagateSymbols({
           assetNode.usedSymbols.size > 0 ||
           namespaceReexportedSymbols.size > 0
         ) {
-          let depSymbols = dep.value.symbols;
+          let depSymbols = DbDependency.get(dep.value).symbols;
           if (!depSymbols) continue;
 
-          if (depSymbols.get('*')?.local === '*') {
+          if (depSymbols.find(s => s.exported === '*')?.local === '*') {
             if (addAll) {
               depUsedSymbolsDown.add('*');
             } else {
@@ -177,11 +179,11 @@ export function propagateSymbols({
             }
           }
 
-          for (let [symbol, {local}] of depSymbols) {
+          for (let {exported: symbol, local, isWeak} of depSymbols) {
             // Was already handled above
             if (local === '*') continue;
 
-            if (!assetSymbolsInverse || !depSymbols.get(symbol)?.isWeak) {
+            if (!assetSymbolsInverse || !isWeak) {
               // Bailout or non-weak symbol (= used in the asset itself = not a reexport)
               depUsedSymbolsDown.add(symbol);
             } else {
@@ -238,9 +240,9 @@ export function propagateSymbols({
         message: `${fromProjectPathRelative(
           assetNode.value.filePath,
         )} reexports "${symbol}", which could be resolved either to the dependency "${
-          depNode1.value.specifier
+          DbDependency.get(depNode1.value).specifier
         }" or "${
-          depNode2.value.specifier
+          DbDependency.get(depNode2.value).specifier
         }" at runtime. Adding a namespace object to fall back on.`,
         origin: '@parcel/core',
       });
@@ -283,7 +285,7 @@ export function propagateSymbols({
       // analyzable exports
       let reexportedSymbolsSource = new Map<Symbol, DependencyNode>();
       for (let outgoingDep of outgoingDeps) {
-        let outgoingDepSymbols = outgoingDep.value.symbols;
+        let outgoingDepSymbols = DbDependency.get(outgoingDep.value).symbols;
         if (!outgoingDepSymbols) continue;
 
         let isExcluded =
@@ -297,7 +299,7 @@ export function propagateSymbols({
           );
         }
 
-        if (outgoingDepSymbols.get('*')?.local === '*') {
+        if (outgoingDepSymbols.find(s => s.exported === '*')?.local === '*') {
           outgoingDep.usedSymbolsUp.forEach((sResolved, s) => {
             if (s === 'default') {
               return;
@@ -329,7 +331,7 @@ export function propagateSymbols({
             continue;
           }
 
-          let local = outgoingDepSymbols.get(s)?.local;
+          let local = outgoingDepSymbols.find(sym => sym.exported === s)?.local;
 
           if (local == null) {
             // Caused by '*' => '*', already handled
@@ -381,12 +383,13 @@ export function propagateSymbols({
       }
 
       for (let incomingDep of incomingDeps) {
+        let dep = DbDependency.get(incomingDep.value);
         let incomingDepUsedSymbolsUpOld = incomingDep.usedSymbolsUp;
         incomingDep.usedSymbolsUp = new Map();
-        let incomingDepSymbols = incomingDep.value.symbols;
+        let incomingDepSymbols = dep.symbols;
         if (!incomingDepSymbols) continue;
 
-        let hasNamespaceReexport = incomingDepSymbols.get('*')?.local === '*';
+        let hasNamespaceReexport = incomingDepSymbols.find(s => s.exported === '*')?.local === '*';
         for (let s of incomingDep.usedSymbolsDown) {
           if (
             assetSymbols == null || // Assume everything could be provided if symbols are cleared
@@ -421,7 +424,7 @@ export function propagateSymbols({
               v,
             );
           } else if (!hasNamespaceReexport) {
-            let loc = incomingDep.value.symbols?.get(s)?.loc;
+            let loc = dep.symbols?.find(sym => sym.exported === s)?.loc;
             let [resolutionNodeId] = assetGraph.getNodeIdsConnectedFrom(
               assetGraph.getNodeIdByContentKey(incomingDep.id),
             );
@@ -459,7 +462,7 @@ export function propagateSymbols({
 
         incomingDep.excluded = false;
         if (
-          incomingDep.value.symbols != null &&
+          dep.symbols != null &&
           incomingDep.usedSymbolsUp.size === 0
         ) {
           let assetGroups = assetGraph.getNodeIdsConnectedFrom(
@@ -556,7 +559,7 @@ function propagateSymbolsDown(
       visit(
         node,
         assetGraph.getIncomingDependencies(node.value).map(d => {
-          let dep = assetGraph.getNodeByContentKey(d.id);
+          let dep = assetGraph.getNodeByContentKey(d);
           invariant(dep && dep.type === 'dependency');
           return dep;
         }),
@@ -660,7 +663,7 @@ function propagateSymbolsUp(
 
       if (node.type === 'asset') {
         let incoming = assetGraph.getIncomingDependencies(node.value).map(d => {
-          let n = assetGraph.getNodeByContentKey(d.id);
+          let n = assetGraph.getNodeByContentKey(d);
           invariant(n && n.type === 'dependency');
           return n;
         });
@@ -707,7 +710,7 @@ function propagateSymbolsUp(
     let node = nullthrows(assetGraph.getNode(queuedNodeId));
     if (node.type === 'asset') {
       let incoming = assetGraph.getIncomingDependencies(node.value).map(dep => {
-        let depNode = assetGraph.getNodeByContentKey(dep.id);
+        let depNode = assetGraph.getNodeByContentKey(dep);
         invariant(depNode && depNode.type === 'dependency');
         return depNode;
       });

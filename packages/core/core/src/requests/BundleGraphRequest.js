@@ -14,6 +14,7 @@ import type {
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import type {ContentKey} from '@parcel/graph';
 
 import invariant from 'assert';
 import assert from 'assert';
@@ -55,9 +56,10 @@ import {
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import { Target as DbTarget } from '@parcel/rust';
 
 type BundleGraphRequestInput = {|
-  requestedAssetIds: Set<string>,
+  requestedAssetIds: Set<ContentKey>,
   signal?: AbortSignal,
   optionsRef: SharedReference,
 |};
@@ -461,7 +463,7 @@ class BundlerRunner {
     let bundles = bundleGraph.getBundles();
 
     let bundleNames = bundles.map(b =>
-      joinProjectPath(b.target.distDir, nullthrows(b.name)),
+      joinProjectPath(DbTarget.get(b.target).distDir, nullthrows(b.name)),
     );
     assert.deepEqual(
       bundleNames,

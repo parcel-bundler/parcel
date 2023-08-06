@@ -16,6 +16,10 @@ import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import {fromInternalSourceLocation} from '../utils';
+import {
+  Environment as DbEnvironment,
+  EnvironmentFlags,
+} from "@parcel/rust";
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -126,10 +130,10 @@ const supportData = {
   },
 };
 
-const internalEnvironmentToEnvironment: WeakMap<
+const internalEnvironmentToEnvironment: Map<
   InternalEnvironment,
   Environment,
-> = new WeakMap();
+> = new Map();
 const _environmentToInternalEnvironment: WeakMap<
   IEnvironment,
   InternalEnvironment,
@@ -141,7 +145,7 @@ export function environmentToInternalEnvironment(
 }
 
 export default class Environment implements IEnvironment {
-  #environment /*: InternalEnvironment */;
+  #environment /*: DbEnvironment */;
   #options /*: ParcelOptions */;
 
   constructor(env: InternalEnvironment, options: ParcelOptions): Environment {
@@ -150,7 +154,7 @@ export default class Environment implements IEnvironment {
       return existing;
     }
 
-    this.#environment = env;
+    this.#environment = DbEnvironment.get(env);
     this.#options = options;
     _environmentToInternalEnvironment.set(this, env);
     internalEnvironmentToEnvironment.set(env, this);
@@ -158,7 +162,7 @@ export default class Environment implements IEnvironment {
   }
 
   get id(): string {
-    return this.#environment.id;
+    return this.#environment.addr;
   }
 
   get context(): EnvironmentContext {
@@ -166,14 +170,14 @@ export default class Environment implements IEnvironment {
   }
 
   get engines(): Engines {
-    return this.#environment.engines;
+    return this.#environment.engines || {};
   }
 
   get includeNodeModules():
     | boolean
     | Array<PackageName>
     | {[PackageName]: boolean, ...} {
-    return this.#environment.includeNodeModules;
+    return JSON.parse(this.#environment.includeNodeModules);
   }
 
   get outputFormat(): OutputFormat {
@@ -185,15 +189,15 @@ export default class Environment implements IEnvironment {
   }
 
   get isLibrary(): boolean {
-    return this.#environment.isLibrary;
+    return Boolean(this.#environment.flags & EnvironmentFlags.IS_LIBRARY);
   }
 
   get shouldOptimize(): boolean {
-    return this.#environment.shouldOptimize;
+    return Boolean(this.#environment.flags & EnvironmentFlags.SHOULD_OPTIMIZE);
   }
 
   get shouldScopeHoist(): boolean {
-    return this.#environment.shouldScopeHoist;
+    return Boolean(this.#environment.flags & EnvironmentFlags.SHOULD_SCOPE_HOIST);
   }
 
   get sourceMap(): ?TargetSourceMapOptions {

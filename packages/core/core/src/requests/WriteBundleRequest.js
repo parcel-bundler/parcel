@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import type {FileSystem, FileOptions} from '@parcel/fs';
-import type {ContentKey} from '@parcel/graph';
 import type {Async, FilePath, Compressor} from '@parcel/types';
 
 import type {RunAPI, StaticRunOpts} from '../RequestTracker';
@@ -39,6 +38,7 @@ import {
 import ParcelConfig from '../ParcelConfig';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {PluginTracer, tracer} from '@parcel/profiler';
+import { Environment as DbEnvironment, Target as DbTarget } from '@parcel/rust';
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
@@ -55,7 +55,7 @@ type RunInput<TResult> = {|
 |};
 
 export type WriteBundleRequest = {|
-  id: ContentKey,
+  id: string,
   +type: 'write_bundle_request',
   run: (RunInput<PackagedBundleInfo>) => Async<PackagedBundleInfo>,
   input: WriteBundleRequestInput,
@@ -94,19 +94,21 @@ async function run({input, options, api}) {
     name = name.replace(thisHashReference, thisNameHash);
   }
 
-  let filePath = joinProjectPath(bundle.target.distDir, name);
+  let target = DbTarget.get(bundle.target);
+  let filePath = joinProjectPath(target.distDir, name);
 
   // Watch the bundle and source map for deletion.
   // Also watch the dist dir because invalidateOnFileDelete does not currently
   // invalidate when a parent directory is deleted.
   // TODO: do we want to also watch for file edits?
-  api.invalidateOnFileDelete(bundle.target.distDir);
+  api.invalidateOnFileDelete(target.distDir);
   api.invalidateOnFileDelete(filePath);
 
   let cacheKeys = info.cacheKeys;
   let mapKey = cacheKeys.map;
   let fullPath = fromProjectPath(options.projectRoot, filePath);
-  if (mapKey && bundle.env.sourceMap && !bundle.env.sourceMap.inline) {
+  let env = DbEnvironment.get(bundle.env);
+  if (mapKey && env.sourceMap && !env.sourceMap.inline) {
     api.invalidateOnFileDelete(
       toProjectPath(options.projectRoot, fullPath + '.map'),
     );
@@ -163,8 +165,8 @@ async function run({input, options, api}) {
 
   if (
     mapKey &&
-    bundle.env.sourceMap &&
-    !bundle.env.sourceMap.inline &&
+    env.sourceMap &&
+    !env.sourceMap.inline &&
     (await options.cache.has(mapKey))
   ) {
     await writeFiles(

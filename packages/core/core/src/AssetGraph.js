@@ -29,6 +29,13 @@ import nullthrows from 'nullthrows';
 import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
+import {
+  Environment as DbEnvironment,
+  EnvironmentFlags,
+  Dependency as DbDependency,
+  Target as DbTarget,
+  DependencyFlags,
+} from "@parcel/rust";
 
 type InitOpts = {|
   entries?: Array<ProjectPath>,
@@ -48,7 +55,7 @@ type SerializedAssetGraph = {|
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
   return {
-    id: dep.id,
+    id: dep,
     type: 'dependency',
     value: dep,
     deferred: false,
@@ -65,7 +72,7 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
     id: hashString(
       fromProjectPathRelative(assetGroup.filePath) +
-        assetGroup.env.id +
+        String(assetGroup.env) +
         String(assetGroup.isSource) +
         String(assetGroup.sideEffects) +
         (assetGroup.code ?? '') +
@@ -146,15 +153,15 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
   // Deduplicates Environments by making them referentially equal
   normalizeEnvironment(input: Asset | Dependency | AssetGroup) {
-    let {id, context} = input.env;
-    let idAndContext = `${id}-${context}`;
+    // let {id, context} = input.env;
+    // let idAndContext = `${id}-${context}`;
 
-    let env = this.envCache.get(idAndContext);
-    if (env) {
-      input.env = env;
-    } else {
-      this.envCache.set(idAndContext, input.env);
-    }
+    // let env = this.envCache.get(idAndContext);
+    // if (env) {
+    //   input.env = env;
+    // } else {
+    //   this.envCache.set(idAndContext, input.env);
+    // }
   }
 
   setRootConnections({entries, assetGroups}: InitOpts) {
@@ -219,24 +226,25 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     targets: Array<Target>,
     correspondingRequest: string,
   ) {
-    let depNodes = targets.map(target => {
+    let depNodes = targets.map(targetId => {
+      let target = DbTarget.get(targetId);
       let node = nodeFromDep(
         // The passed project path is ignored in this case, because there is no `loc`
         createDependency('', {
           specifier: fromProjectPathRelative(entry.filePath),
           specifierType: 'esm', // ???
           pipeline: target.pipeline,
-          target: target,
+          target: targetId,
           env: target.env,
           isEntry: true,
           needsStableName: true,
-          symbols: target.env.isLibrary
+          symbols: DbEnvironment.get(target.env).flags & EnvironmentFlags.IS_LIBRARY
             ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
             : undefined,
         }),
       );
 
-      if (node.value.env.isLibrary) {
+      if (DbEnvironment.get(target.env).flags & EnvironmentFlags.IS_LIBRARY) {
         // in library mode, all of the entry's symbols are "used"
         node.usedSymbolsDown.add('*');
         node.usedSymbolsUp.set('*', undefined);
@@ -260,7 +268,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     assetGroup: ?AssetGroup,
     correspondingRequest: string,
   ) {
-    let depNodeId = this.getNodeIdByContentKey(dependency.id);
+    let depNodeId = this.getNodeIdByContentKey(dependency);
     let depNode = nullthrows(this.getNode(depNodeId));
     invariant(depNode.type === 'dependency');
     depNode.correspondingRequest = correspondingRequest;
@@ -278,7 +286,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     }
 
     let assetGroupNodeId = this.addNode(assetGroupNode);
-    this.replaceNodeIdsConnectedTo(this.getNodeIdByContentKey(dependency.id), [
+    this.replaceNodeIdsConnectedTo(this.getNodeIdByContentKey(dependency), [
       assetGroupNodeId,
     ]);
 
@@ -370,40 +378,41 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   // This helps with performance building large libraries like `lodash-es`, which re-exports
   // a huge number of functions since we can avoid even transforming the files that aren't used.
   shouldDeferDependency(
-    dependency: Dependency,
+    dependencyId: Dependency,
     sideEffects: ?boolean,
     canDefer: boolean,
   ): boolean {
     let defer = false;
+    let dependency = DbDependency.get(dependencyId);
     let dependencySymbols = dependency.symbols;
     if (
       dependencySymbols &&
-      [...dependencySymbols].every(([, {isWeak}]) => isWeak) &&
+      [...dependencySymbols].every(({isWeak}) => isWeak) &&
       sideEffects === false &&
       canDefer &&
-      !dependencySymbols.has('*')
+      !dependencySymbols.some(s => s.exported === '*')
     ) {
-      let depNodeId = this.getNodeIdByContentKey(dependency.id);
+      let depNodeId = this.getNodeIdByContentKey(dependencyId);
       let depNode = this.getNode(depNodeId);
       invariant(depNode);
 
       let assets = this.getNodeIdsConnectedTo(depNodeId);
       let symbols = new Map(
-        [...dependencySymbols].map(([key, val]) => [val.local, key]),
+        [...dependencySymbols].map((s) => [s.local, s.exported]),
       );
       invariant(assets.length === 1);
       let firstAsset = nullthrows(this.getNode(assets[0]));
       invariant(firstAsset.type === 'asset');
       let resolvedAsset = firstAsset.value;
-      let deps = this.getIncomingDependencies(resolvedAsset);
+      let deps = this.getIncomingDependencies(resolvedAsset).map(d => DbDependency.get(d));
       defer = deps.every(
         d =>
           d.symbols &&
-          !(d.env.isLibrary && d.isEntry) &&
-          !d.symbols.has('*') &&
-          ![...d.symbols.keys()].some(symbol => {
+          !(DbEnvironment.get(d.env).flags & EnvironmentFlags.IS_LIBRARY && d.flags & DependencyFlags.ENTRY) &&
+          !d.symbols.some(s => s.exported === '*') &&
+          !d.symbols.some(s => {
             if (!resolvedAsset.symbols) return true;
-            let assetSymbol = resolvedAsset.symbols?.get(symbol)?.local;
+            let assetSymbol = resolvedAsset.symbols?.get(s.exported)?.local;
             return assetSymbol != null && symbols.has(assetSymbol);
           }),
       );
@@ -434,7 +443,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
     let dependentAssetKeys = new Set();
     for (let asset of assets) {
-      for (let dep of asset.dependencies.values()) {
+      for (let d of asset.dependencies.values()) {
+        let dep = DbDependency.get(d);
         if (assetsByKey.has(dep.specifier)) {
           dependentAssetKeys.add(dep.specifier);
         }
@@ -451,7 +461,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       let isDirect = !dependentAssetKeys.has(asset.uniqueKey);
 
       let dependentAssets = [];
-      for (let dep of asset.dependencies.values()) {
+      for (let d of asset.dependencies.values()) {
+        let dep = DbDependency.get(d);
         let dependentAsset = assetsByKey.get(dep.specifier);
         if (dependentAsset) {
           dependentAssets.push(dependentAsset);
@@ -488,19 +499,20 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   resolveAsset(assetNode: AssetNode, dependentAssets: Array<Asset>) {
     let depNodeIds: Array<NodeId> = [];
     let depNodesWithAssets = [];
-    for (let dep of assetNode.value.dependencies.values()) {
-      this.normalizeEnvironment(dep);
-      let depNode = nodeFromDep(dep);
-      let existing = this.getNodeByContentKey(depNode.id);
-      if (
-        existing?.type === 'dependency' &&
-        existing.value.resolverMeta != null
-      ) {
-        depNode.value.meta = {
-          ...depNode.value.meta,
-          ...existing.value.resolverMeta,
-        };
-      }
+    for (let d of assetNode.value.dependencies.values()) {
+      let dep = DbDependency.get(d);
+      // this.normalizeEnvironment(dep);
+      let depNode = nodeFromDep(d);
+      // let existing = this.getNodeByContentKey(depNode.id);
+      // if (
+      //   existing?.type === 'dependency' &&
+      //   existing.value.resolverMeta != null
+      // ) {
+      //   depNode.value.meta = {
+      //     ...depNode.value.meta,
+      //     ...existing.value.resolverMeta,
+      //   };
+      // }
       let dependentAsset = dependentAssets.find(
         a => a.uniqueKey === dep.specifier,
       );
@@ -508,7 +520,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         depNode.complete = true;
         depNodesWithAssets.push([depNode, nodeFromAsset(dependentAsset)]);
       }
-      depNode.value.sourceAssetType = assetNode.value.type;
+      DbDependency.get(depNode.value).sourceAssetType = assetNode.value.type;
       depNodeIds.push(this.addNode(depNode));
     }
 
@@ -605,8 +617,11 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       let node = nullthrows(this.getNode(nodeId));
       if (node.type === 'asset') {
         hash.writeString(nullthrows(node.value.outputHash));
-      } else if (node.type === 'dependency' && node.value.target) {
-        hash.writeString(JSON.stringify(node.value.target));
+      } else if (node.type === 'dependency') {
+        let target = DbDependency.get(node.value).target;
+        if (target) {
+          hash.writeString(JSON.stringify(target));
+        }
       }
     });
 

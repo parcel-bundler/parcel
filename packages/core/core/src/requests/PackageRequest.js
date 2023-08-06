@@ -1,6 +1,5 @@
 // @flow strict-local
 
-import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 
@@ -29,7 +28,7 @@ type RunInput<TResult> = {|
 |};
 
 export type PackageRequest = {|
-  id: ContentKey,
+  id: string,
   +type: 'package_request',
   run: (RunInput<BundleInfo>) => Async<BundleInfo>,
   input: PackageRequestInput,

@@ -12,6 +12,8 @@ import type {ParcelOptions} from './types';
 import type {FarmOptions, SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+// eslint-disable-next-line no-unused-vars
+import type {ContentKey} from '@parcel/graph';
 
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
@@ -74,7 +76,7 @@ export default class Parcel {
   > */;
   #watcherSubscription /*: ?AsyncSubscription*/;
   #watcherCount /*: number*/ = 0;
-  #requestedAssetIds /*: Set<string>*/ = new Set();
+  #requestedAssetIds /*: Set<ContentKey>*/ = new Set();
 
   isProfiling /*: boolean */;
 

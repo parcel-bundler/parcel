@@ -11,6 +11,7 @@ import type {Asset, Dependency, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 import {fromInternalSourceLocation, toInternalSourceLocation} from '../utils';
+import {Dependency as DbDependency} from '@parcel/rust';
 
 const EMPTY_ITERABLE = {
   [Symbol.iterator]() {
@@ -191,15 +192,15 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   }
 }
 
-let valueToMutableDependencySymbols: WeakMap<
+let valueToMutableDependencySymbols: Map<
   Dependency,
   MutableDependencySymbols,
-> = new WeakMap();
+> = new Map();
 export class MutableDependencySymbols implements IMutableDependencySymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|}]> { return ({}: any); }
   */
-  #value: Dependency;
+  #value: DbDependency;
   #options: ParcelOptions;
 
   constructor(
@@ -210,7 +211,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     if (existing != null) {
       return existing;
     }
-    this.#value = dep;
+    this.#value = DbDependency.get(dep);
     this.#options = options;
     return this;
   }
@@ -218,12 +219,12 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   // immutable:
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return Boolean(this.#value.symbols?.has(exportSymbol));
+    return Boolean(this.#value.symbols?.some(s => s.exported === exportSymbol));
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
     if (this.#value.symbols) {
-      for (let s of this.#value.symbols.values()) {
+      for (let s of this.#value.symbols) {
         if (local === s.local) return true;
       }
     }
@@ -235,7 +236,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|} {
     return fromInternalDependencySymbol(
       this.#options.projectRoot,
-      nullthrows(this.#value.symbols).get(exportSymbol),
+      nullthrows(this.#value.symbols).find(s => s.exported === exportSymbol),
     );
   }
 
@@ -249,10 +250,13 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 
   // $FlowFixMe
-  [Symbol.iterator]() {
-    return this.#value.symbols
-      ? this.#value.symbols[Symbol.iterator]()
-      : EMPTY_ITERATOR;
+  *[Symbol.iterator]() {
+    let symbols = this.#value.symbols;
+    if (symbols) {
+      for (let sym of symbols) {
+        yield [sym.exported, sym];
+      }
+    }
   }
 
   // $FlowFixMe
@@ -280,16 +284,28 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     loc: ?SourceLocation,
     isWeak: ?boolean,
   ) {
+    isWeak ??= false;
     let symbols = nullthrows(this.#value.symbols);
-    symbols.set(exportSymbol, {
-      local,
-      loc: toInternalSourceLocation(this.#options.projectRoot, loc),
-      isWeak: (symbols.get(exportSymbol)?.isWeak ?? true) && (isWeak ?? false),
-    });
+    let sym = symbols.find(s => s.exported === exportSymbol);
+    if (!sym) {
+      sym = symbols.extend();
+    } else {
+      isWeak = sym.isWeak && isWeak;
+    }
+    sym.local = local;
+    sym.exported = exportSymbol;
+    sym.isWeak = isWeak;
+    // console.log('set symbol', sym, local, exportSymbol);
+    // symbols.set(exportSymbol, {
+    //   local,
+    //   loc: toInternalSourceLocation(this.#options.projectRoot, loc),
+    //   isWeak: (symbols.get(exportSymbol)?.isWeak ?? true) && (isWeak ?? false),
+    // });
   }
 
   delete(exportSymbol: ISymbol) {
-    nullthrows(this.#value.symbols).delete(exportSymbol);
+    // nullthrows(this.#value.symbols).delete(exportSymbol);
+    throw new Error('todo')
   }
 }
 

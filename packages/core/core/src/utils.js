@@ -29,13 +29,14 @@ import Config from './public/Config';
 import {fromProjectPath, toProjectPath} from './projectPath';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
+import {Target as DbTarget} from '@parcel/rust';
 
 const base62 = baseX(
   '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
 );
 
 export function getBundleGroupId(bundleGroup: BundleGroup): string {
-  return 'bundle_group:' + bundleGroup.target.name + bundleGroup.entryAssetId;
+  return 'bundle_group:' + DbTarget.get(bundleGroup.target).name + bundleGroup.entryAssetId;
 }
 
 export function assertSignalNotAborted(signal: ?AbortSignal): void {

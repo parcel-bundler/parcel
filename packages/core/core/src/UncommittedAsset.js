@@ -30,7 +30,11 @@ import {
 } from '@parcel/utils';
 import {hashString} from '@parcel/rust';
 import {serializeRaw} from './serializer';
-import {createDependency, mergeDependencies} from './Dependency';
+import {
+  createDependency,
+  dependencyId,
+  mergeDependencies,
+} from "./Dependency";
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
 import {
@@ -313,10 +317,10 @@ export default class UncommittedAsset {
     );
   }
 
-  addDependency(opts: DependencyOptions): string {
+  addDependency(opts: DependencyOptions): number {
     // eslint-disable-next-line no-unused-vars
     let {env, symbols, ...rest} = opts;
-    let dep = createDependency(this.options.projectRoot, {
+    let options = {
       ...rest,
       // $FlowFixMe "convert" the $ReadOnlyMaps to the interal mutable one
       symbols,
@@ -326,14 +330,18 @@ export default class UncommittedAsset {
         this.options.projectRoot,
         this.value.filePath,
       ),
-    });
-    let existing = this.value.dependencies.get(dep.id);
-    if (existing) {
-      mergeDependencies(existing, dep);
+    };
+
+    let dep;
+    let id = dependencyId(options);
+    let existing = this.value.dependencies.get(id);
+    if (existing != null) {
+      dep = mergeDependencies(existing, options);
     } else {
-      this.value.dependencies.set(dep.id, dep);
+      dep = createDependency(this.options.projectRoot, options);
+      this.value.dependencies.set(id, dep);
     }
-    return dep.id;
+    return dep;
   }
 
   invalidateOnFileChange(filePath: ProjectPath) {

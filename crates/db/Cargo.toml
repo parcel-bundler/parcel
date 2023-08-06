@@ -1,0 +1,15 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-db"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lazy_static = "1.4.0"
+aligned = "0.4.1"
+convert_case = "0.6.0"
+bitflags = "*"
+ctor = "*"
+paste = "1.0.12"
+parcel-derive = { path = "../derive" }
+allocator-api2 = "*"

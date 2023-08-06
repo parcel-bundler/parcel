@@ -1,9 +1,9 @@
 // @flow strict-local
 
-import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import type {ContentKey} from '@parcel/graph';
 
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Asset, AssetGroup, PackagedBundleInfo} from '../types';
@@ -25,7 +25,7 @@ import {tracer} from '@parcel/profiler';
 
 type ParcelBuildRequestInput = {|
   optionsRef: SharedReference,
-  requestedAssetIds: Set<string>,
+  requestedAssetIds: Set<ContentKey>,
   signal?: AbortSignal,
 |};
 
@@ -42,7 +42,7 @@ type RunInput<TResult> = {|
 |};
 
 export type ParcelBuildRequest = {|
-  id: ContentKey,
+  id: string,
   +type: 'parcel_build_request',
   run: (RunInput<ParcelBuildRequestResult>) => Async<ParcelBuildRequestResult>,
   input: ParcelBuildRequestInput,

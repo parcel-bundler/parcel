@@ -58,22 +58,23 @@ export type ProcessedParcelConfig = {|
   resolveFrom?: ProjectPath,
 |};
 
-export type Environment = {|
-  id: string,
-  context: EnvironmentContext,
-  engines: Engines,
-  includeNodeModules:
-    | boolean
-    | Array<PackageName>
-    | {[PackageName]: boolean, ...},
-  outputFormat: OutputFormat,
-  sourceType: SourceType,
-  isLibrary: boolean,
-  shouldOptimize: boolean,
-  shouldScopeHoist: boolean,
-  sourceMap: ?TargetSourceMapOptions,
-  loc: ?InternalSourceLocation,
-|};
+// export type Environment = {|
+//   id: string,
+//   context: EnvironmentContext,
+//   engines: Engines,
+//   includeNodeModules:
+//     | boolean
+//     | Array<PackageName>
+//     | {[PackageName]: boolean, ...},
+//   outputFormat: OutputFormat,
+//   sourceType: SourceType,
+//   isLibrary: boolean,
+//   shouldOptimize: boolean,
+//   shouldScopeHoist: boolean,
+//   sourceMap: ?TargetSourceMapOptions,
+//   loc: ?InternalSourceLocation,
+// |};
+export type Environment = number;
 
 export type InternalSourceLocation = {|
   +filePath: ProjectPath,
@@ -89,7 +90,7 @@ export type InternalSourceLocation = {|
   |},
 |};
 
-export type Target = {|
+export type TargetValue = {|
   distEntry?: ?FilePath,
   distDir: ProjectPath,
   env: Environment,
@@ -99,6 +100,7 @@ export type Target = {|
   pipeline?: string,
   source?: FilePath | Array<FilePath>,
 |};
+export type Target = number;
 
 export const SpecifierType = {
   esm: 0,
@@ -124,38 +126,39 @@ export const ExportsCondition = {
   stylus: 1 << 15,
 };
 
-export type Dependency = {|
-  id: string,
-  specifier: DependencySpecifier,
-  specifierType: $Values<typeof SpecifierType>,
-  priority: $Values<typeof Priority>,
-  needsStableName: boolean,
-  bundleBehavior: ?$Values<typeof BundleBehavior>,
-  isEntry: boolean,
-  isOptional: boolean,
-  loc: ?InternalSourceLocation,
-  env: Environment,
-  packageConditions?: number,
-  customPackageConditions?: Array<string>,
-  meta: Meta,
-  resolverMeta?: ?Meta,
-  target: ?Target,
-  sourceAssetId: ?string,
-  sourcePath: ?ProjectPath,
-  sourceAssetType?: ?string,
-  resolveFrom: ?ProjectPath,
-  range: ?SemverRange,
-  symbols: ?Map<
-    Symbol,
-    {|
-      local: Symbol,
-      loc: ?InternalSourceLocation,
-      isWeak: boolean,
-      meta?: ?Meta,
-    |},
-  >,
-  pipeline?: ?string,
-|};
+// export type Dependency = {|
+//   id: string,
+//   specifier: DependencySpecifier,
+//   specifierType: $Values<typeof SpecifierType>,
+//   priority: $Values<typeof Priority>,
+//   needsStableName: boolean,
+//   bundleBehavior: ?$Values<typeof BundleBehavior>,
+//   isEntry: boolean,
+//   isOptional: boolean,
+//   loc: ?InternalSourceLocation,
+//   env: Environment,
+//   packageConditions?: number,
+//   customPackageConditions?: Array<string>,
+//   meta: Meta,
+//   resolverMeta?: ?Meta,
+//   target: ?Target,
+//   sourceAssetId: ?string,
+//   sourcePath: ?ProjectPath,
+//   sourceAssetType?: ?string,
+//   resolveFrom: ?ProjectPath,
+//   range: ?SemverRange,
+//   symbols: ?Map<
+//     Symbol,
+//     {|
+//       local: Symbol,
+//       loc: ?InternalSourceLocation,
+//       isWeak: boolean,
+//       meta?: ?Meta,
+//     |},
+//   >,
+//   pipeline?: ?string,
+// |};
+export type Dependency = number;
 
 export const BundleBehavior = {
   inline: 0,
@@ -166,7 +169,7 @@ export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
   Object.keys(BundleBehavior);
 
 export type Asset = {|
-  id: ContentKey,
+  id: string,
   committed: boolean,
   hash: ?string,
   filePath: ProjectPath,
@@ -379,7 +382,7 @@ export type AssetGroupNode = {|
   id: ContentKey,
   +type: 'asset_group',
   value: AssetGroup,
-  correspondingRequest?: string,
+  correspondingRequest?: ContentKey,
   /** this node was deferred (= no used symbols (in immediate parents) & side-effect free) */
   deferred?: boolean,
   hasDeferred?: boolean,
@@ -413,7 +416,7 @@ export type EntrySpecifierNode = {|
   id: ContentKey,
   +type: 'entry_specifier',
   value: ProjectPath,
-  correspondingRequest?: string,
+  correspondingRequest?: ContentKey,
 |};
 
 export type Entry = {|
@@ -501,7 +504,7 @@ export type CacheEntry = {|
 |};
 
 export type Bundle = {|
-  id: ContentKey,
+  id: string,
   publicId: ?string,
   hashReference: string,
   type: string,

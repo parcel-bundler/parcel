@@ -642,7 +642,7 @@ export default class Transformation {
     return hashString(
       PARCEL_VERSION +
         assetsKeyInfo +
-        this.request.env.id +
+        String(this.request.env) +
         invalidationHash +
         pipelineHash,
     );

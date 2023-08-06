@@ -41,6 +41,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "aligned"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80a21b9440a626c7fc8573a9e3d3a06b75c7c97754c2949bc7857b90353ca655"
+dependencies = [
+ "as-slice",
+]
+
+[[package]]
+name = "allocator-api2"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
+
+[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -66,6 +81,15 @@ name = "arrayvec"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
+
+[[package]]
+name = "as-slice"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "516b6b4f0e40d50dcda9365d53964ec74560ad4284da2e7fc97122cd83174516"
+dependencies = [
+ "stable_deref_trait",
+]
 
 [[package]]
 name = "assert_fs"
@@ -1249,6 +1273,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "parcel-db"
+version = "0.1.0"
+dependencies = [
+ "aligned",
+ "allocator-api2",
+ "bitflags 2.3.3",
+ "convert_case",
+ "ctor",
+ "lazy_static",
+ "parcel-derive",
+ "paste",
+]
+
+[[package]]
+name = "parcel-derive"
+version = "1.0.0"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.105",
+]
+
+[[package]]
 name = "parcel-dev-dep-resolver"
 version = "0.1.0"
 dependencies = [
@@ -1281,9 +1329,14 @@ dependencies = [
 name = "parcel-node-bindings"
 version = "0.1.0"
 dependencies = [
+ "aligned",
+ "bitflags 2.3.3",
+ "convert_case",
+ "ctor",
  "dashmap",
  "getrandom",
  "jemallocator",
+ "lazy_static",
  "libc",
  "mimalloc",
  "mozjpeg-sys",
@@ -1291,9 +1344,12 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "oxipng",
+ "parcel-db",
+ "parcel-derive",
  "parcel-dev-dep-resolver",
  "parcel-js-swc-core",
  "parcel-resolver",
+ "paste",
  "rayon",
  "xxhash-rust",
 ]
@@ -1342,6 +1398,12 @@ dependencies = [
  "smallvec",
  "windows-sys",
 ]
+
+[[package]]
+name = "paste"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c"
 
 [[package]]
 name = "path-slash"

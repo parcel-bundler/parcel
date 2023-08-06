@@ -9,7 +9,7 @@ export function fromNodeId(x: NodeId): number {
   return x;
 }
 
-export type ContentKey = string;
+export type ContentKey = string | number;
 
 export type Edge<TEdgeType: number> = {|
   from: NodeId,

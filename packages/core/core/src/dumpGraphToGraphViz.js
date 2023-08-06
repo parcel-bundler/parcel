@@ -10,6 +10,7 @@ import path from 'path';
 import {fromNodeId} from '@parcel/graph';
 import {fromProjectPathRelative} from './projectPath';
 import {SpecifierType, Priority} from './types';
+import { Environment as DbEnvironment } from '@parcel/rust';
 
 const COLORS = {
   root: 'gray',
@@ -208,8 +209,9 @@ function nodeId(id) {
   return `node${id}`;
 }
 
-function getEnvDescription(env: Environment) {
+function getEnvDescription(envId: Environment) {
   let description;
+  let env = DbEnvironment.get(envId);
   if (typeof env.engines.browsers === 'string') {
     description = `${env.context}: ${env.engines.browsers}`;
   } else if (Array.isArray(env.engines.browsers)) {

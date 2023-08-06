@@ -12,7 +12,7 @@ import type {
   OutputFormat,
 } from '@parcel/types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
-import type {Entry, ParcelOptions, Target} from '../types';
+import type {Entry, ParcelOptions, Target, TargetValue} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {
@@ -46,6 +46,7 @@ import {
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
+import { Environment as DbEnvironment, Target as DbTarget } from '@parcel/rust';
 import {optionsProxy, toInternalSourceLocation} from '../utils';
 import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 
@@ -119,12 +120,12 @@ export function skipTarget(
     : targetName !== exclusiveTarget;
 }
 
-async function run({input, api, options}) {
+async function run({input, api, options}): Promise<Array<Target>> {
   let targetResolver = new TargetResolver(
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
   );
-  let targets: Array<Target> = await targetResolver.resolve(
+  let targets: Array<TargetValue> = await targetResolver.resolve(
     fromProjectPath(options.projectRoot, input.packagePath),
     input.target,
   );
@@ -153,7 +154,17 @@ async function run({input, api, options}) {
     );
   }
 
-  return targets;
+  return targets.map(t => {
+    let target = new DbTarget();
+    target.env = t.env;
+    target.distDir = t.distDir;
+    target.distEntry = t.distEntry;
+    target.name = t.name;
+    target.publicUrl = t.publicUrl;
+    // target.loc = t.loc;
+    target.pipeline = t.pipeline;
+    return target.addr;
+  });
 }
 
 type TargetInfo = {|
@@ -197,15 +208,15 @@ export class TargetResolver {
   async resolve(
     rootDir: FilePath,
     exclusiveTarget?: string,
-  ): Promise<Array<Target>> {
+  ): Promise<Array<TargetValue>> {
     let optionTargets = this.options.targets;
     if (exclusiveTarget != null && optionTargets == null) {
       optionTargets = [exclusiveTarget];
     }
 
-    let packageTargets: Map<string, Target | null> =
+    let packageTargets: Map<string, TargetValue | null> =
       await this.resolvePackageTargets(rootDir, exclusiveTarget);
-    let targets: Array<Target>;
+    let targets: Array<TargetValue>;
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
         if (optionTargets.length === 0) {
@@ -278,7 +289,7 @@ export class TargetResolver {
                 },
               });
             }
-            let target: Target = {
+            let target: TargetValue = {
               name,
               distDir: toProjectPath(
                 this.options.projectRoot,
@@ -337,7 +348,7 @@ export class TargetResolver {
             },
           });
         }
-        if (!BROWSER_ENVS.has(targets[0].env.context)) {
+        if (!BROWSER_ENVS.has(DbEnvironment.get(targets[0].env).context)) {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Only browser targets are supported in serve mode`,
@@ -397,7 +408,7 @@ export class TargetResolver {
   async resolvePackageTargets(
     rootDir: FilePath,
     exclusiveTarget?: string,
-  ): Promise<Map<string, Target | null>> {
+  ): Promise<Map<string, TargetValue | null>> {
     let rootFile = path.join(rootDir, 'index');
     let conf = await loadConfig(
       this.fs,
@@ -520,7 +531,7 @@ export class TargetResolver {
       }
     }
 
-    let targets: Map<string, Target | null> = new Map();
+    let targets: Map<string, TargetValue | null> = new Map();
     let node = pkgEngines.node;
     let browsers = pkgEngines.browsers;
 
@@ -869,7 +880,7 @@ export class TargetResolver {
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
               descriptor.optimize === true,
-            shouldScopeHoist: true,
+            // shouldScopeHoist: true, // REVERT
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
           loc: toInternalSourceLocation(this.options.projectRoot, loc),
@@ -1399,7 +1410,7 @@ function normalizeSourceMap(options: ParcelOptions, sourceMap) {
 }
 
 function assertTargetsAreNotEntries(
-  targets: Array<Target>,
+  targets: Array<TargetValue>,
   input: Entry,
   options: ParcelOptions,
 ) {
@@ -1473,21 +1484,22 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
 
     // Resolve relevant engines for context.
     let engines;
-    switch (target.env.context) {
+    let env = DbEnvironment.get(target.env);
+    switch (env.context) {
       case 'browser':
       case 'web-worker':
       case 'service-worker':
       case 'worklet': {
-        let browsers = target.env.engines.browsers;
+        let browsers = env.engines.browsers;
         engines = Array.isArray(browsers) ? browsers.join(', ') : browsers;
         break;
       }
       case 'node':
-        engines = target.env.engines.node;
+        engines = env.engines.node;
         break;
       case 'electron-main':
       case 'electron-renderer':
-        engines = target.env.engines.electron;
+        engines = env.engines.electron;
         break;
     }
 
@@ -1530,7 +1542,7 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
 
       if (keyInfo.inferred) {
         highlight.inferred.push(
-          md`${key} to be ${JSON.stringify(target.env[key])}`,
+          md`${key} to be ${JSON.stringify(env[key])}`,
         );
       }
     }
@@ -1560,22 +1572,22 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
 
     // Format includeNodeModules to be human readable.
     let includeNodeModules;
-    if (typeof target.env.includeNodeModules === 'boolean') {
-      includeNodeModules = String(target.env.includeNodeModules);
-    } else if (Array.isArray(target.env.includeNodeModules)) {
+    if (typeof env.includeNodeModules === 'boolean') {
+      includeNodeModules = String(env.includeNodeModules);
+    } else if (Array.isArray(env.includeNodeModules)) {
       includeNodeModules =
         'only ' +
         listFormat.format(
-          target.env.includeNodeModules.map(m => JSON.stringify(m)),
+          env.includeNodeModules.map(m => JSON.stringify(m)),
         );
     } else if (
-      target.env.includeNodeModules &&
-      typeof target.env.includeNodeModules === 'object'
+      env.includeNodeModules &&
+      typeof env.includeNodeModules === 'object'
     ) {
       includeNodeModules =
         'all except ' +
         listFormat.format(
-          Object.entries(target.env.includeNodeModules)
+          Object.entries(env.includeNodeModules)
             .filter(([, v]) => v === false)
             .map(([k]) => JSON.stringify(k)),
         );
@@ -1591,18 +1603,18 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
                  fromProjectPath(options.projectRoot, input.filePath),
                )}
               **Output**: ${path.relative(process.cwd(), output)}
-              **Format**: ${target.env.outputFormat} ${format(
+              **Format**: ${env.outputFormat} ${format(
         info.outputFormat,
       )}
-             **Context**: ${target.env.context} ${format(info.context)}
+             **Context**: ${env.context} ${format(info.context)}
              **Engines**: ${engines || ''} ${format(info.engines)}
-        **Library Mode**: ${String(target.env.isLibrary)} ${format(
+        **Library Mode**: ${String(env.isLibrary)} ${format(
         info.isLibrary,
       )}
 **Include Node Modules**: ${includeNodeModules} ${format(
         info.includeNodeModules,
       )}
-            **Optimize**: ${String(target.env.shouldOptimize)} ${format(
+            **Optimize**: ${String(env.shouldOptimize)} ${format(
         info.shouldOptimize,
       )}`,
       codeFrames: target.loc

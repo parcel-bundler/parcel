@@ -13,8 +13,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "index.js",
+  "main": "lib/index.js",
   "browser": "browser.js",
+  "source": "src/index.js",
   "napi": {
     "name": "parcel-node-bindings"
   },
@@ -34,8 +35,9 @@
     "napi-wasm": "^1.0.1"
   },
   "scripts": {
-    "build": "napi build --platform --cargo-cwd ../../../crates/node-bindings",
-    "build-release": "napi build --platform --release --cargo-cwd ../../../crates/node-bindings",
+    "build": "napi build --platform --cargo-cwd ../../../crates/node-bindings && yarn build-db",
+    "build-release": "napi build --platform --release --cargo-cwd ../../../crates/node-bindings && yarn build-db",
+    "build-db": "cargo run -p parcel-db",
     "wasm:build": "cargo build -p parcel-node-bindings --target wasm32-unknown-unknown && cp ../../../target/wasm32-unknown-unknown/debug/parcel_node_bindings.wasm .",
     "wasm:build-release": "CARGO_PROFILE_RELEASE_LTO=true cargo build --target wasm32-unknown-unknown --release && wasm-opt --strip-debug -O ../../target/wasm32-unknown-unknown/release/parcel_node_bindings.wasm -o ../../packages/core/rust/parcel_node_bindings.wasm"
   }

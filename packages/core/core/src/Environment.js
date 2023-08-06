@@ -9,6 +9,8 @@ import {hashString} from '@parcel/rust';
 import {toInternalSourceLocation} from './utils';
 import PublicEnvironment from './public/Environment';
 import {environmentToInternalEnvironment} from './public/Environment';
+import { Environment as DbEnvironment, EnvironmentFlags } from '@parcel/rust';
+import * as binding from '@parcel/rust';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
@@ -19,6 +21,8 @@ type EnvironmentOpts = {|
   ...EnvironmentOptions,
   loc?: ?InternalSourceLocation,
 |};
+
+let tmp = new DbEnvironment();
 
 export function createEnvironment({
   context,
@@ -94,21 +98,32 @@ export function createEnvironment({
     }
   }
 
-  let res: Environment = {
-    id: '',
-    context,
-    engines,
-    includeNodeModules,
-    outputFormat,
-    sourceType,
-    isLibrary,
-    shouldOptimize,
-    shouldScopeHoist,
-    sourceMap,
-    loc,
-  };
+  // let res: Environment = {
+  //   id: '',
+  //   context,
+  //   engines,
+  //   includeNodeModules,
+  //   outputFormat,
+  //   sourceType,
+  //   isLibrary,
+  //   shouldOptimize,
+  //   shouldScopeHoist,
+  //   sourceMap,
+  //   loc,
+  // };
 
-  res.id = getEnvironmentHash(res);
+  // res.id = getEnvironmentHash(res);
+  tmp.context = context;
+  // tmpEnvironment.engines
+  tmp.outputFormat = outputFormat;
+  tmp.sourceType = sourceType;
+  tmp.flags = (isLibrary ? EnvironmentFlags.IS_LIBRARY : 0) | (shouldOptimize ? EnvironmentFlags.SHOULD_OPTIMIZE : 0) | (shouldScopeHoist ? EnvironmentFlags.SHOULD_SCOPE_HOIST : 0);
+  tmp.includeNodeModules = JSON.stringify(includeNodeModules);
+  // console.log('env', tmp, tmp.context, tmp.outputFormat, tmp.sourceType, tmp.flags);
+
+  let res = binding.createEnvironment(tmp.addr);
+  // console.log(res, tmp.outputFormat, outputFormat)
+
   return res;
 }
 
@@ -126,12 +141,14 @@ export function mergeEnvironments(
     return environmentToInternalEnvironment(b);
   }
 
+  // console.log("MERGE", a, b)
   // $FlowFixMe - ignore the `id` that is already on a
-  return createEnvironment({
-    ...a,
-    ...b,
-    loc: b.loc ? toInternalSourceLocation(projectRoot, b.loc) : a.loc,
-  });
+  // return createEnvironment({
+  //   ...a,
+  //   ...b,
+  //   loc: b.loc ? toInternalSourceLocation(projectRoot, b.loc) : a.loc,
+  // });
+  return a;
 }
 
 function getEnvironmentHash(env: Environment): string {

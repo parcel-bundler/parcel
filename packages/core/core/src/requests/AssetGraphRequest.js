@@ -16,13 +16,13 @@ import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
 import type {Diagnostic} from '@parcel/diagnostic';
+import type {ContentKey} from '@parcel/graph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {PromiseQueue, setEqual} from '@parcel/utils';
-import {hashString} from '@parcel/rust';
+import {hashString, Dependency as DbDependency, DependencyFlags} from '@parcel/rust';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {Priority} from '../types';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
@@ -39,7 +39,7 @@ type AssetGraphRequestInput = {|
   optionsRef: SharedReference,
   name: string,
   shouldBuildLazily?: boolean,
-  requestedAssetIds?: Set<string>,
+  requestedAssetIds?: Set<ContentKey>,
 |};
 
 type AssetGraphRequestResult = {|
@@ -111,7 +111,7 @@ export class AssetGraphBuilder {
   name: string;
   cacheKey: string;
   shouldBuildLazily: boolean;
-  requestedAssetIds: Set<string>;
+  requestedAssetIds: Set<ContentKey>;
   isSingleChangeRebuild: boolean;
   assetGroupsWithRemovedParents: Set<NodeId>;
   previousSymbolPropagationErrors: Map<NodeId, Array<Diagnostic>>;
@@ -311,7 +311,10 @@ export class AssetGraphBuilder {
         } else if (!node.requested) {
           let isAsyncChild = this.assetGraph
             .getIncomingDependencies(node.value)
-            .every(dep => dep.isEntry || dep.priority !== Priority.sync);
+            .every(depId => {
+              let dep = DbDependency.get(depId);
+              return dep.flags & DependencyFlags.ENTRY || dep.priority !== 'sync';
+            });
           if (isAsyncChild) {
             node.requested = false;
           } else {
@@ -478,9 +481,12 @@ export class AssetGraphBuilder {
         return false;
       }
 
+      let depA = DbDependency.get(nullthrows(asset?.dependencies.get(key)));
+      let depB = DbDependency.get(nullthrows(otherAsset?.dependencies.get(key)));
+
       return setEqual(
-        new Set(asset?.dependencies.get(key)?.symbols?.keys()),
-        new Set(otherAsset?.dependencies.get(key)?.symbols?.keys()),
+        new Set([...depA.symbols].map(s => s.exported)),
+        new Set([...depB.symbols].map(s => s.exported)),
       );
     });
   }

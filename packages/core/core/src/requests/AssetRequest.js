@@ -1,6 +1,5 @@
 // @flow strict-local
 
-import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
@@ -27,7 +26,7 @@ type RunInput<TResult> = {|
 |};
 
 export type AssetRequest = {|
-  id: ContentKey,
+  id: string,
   +type: 'asset_request',
   run: (RunInput<AssetRequestResult>) => Async<AssetRequestResult>,
   input: AssetRequestInput,
@@ -52,7 +51,7 @@ function getId(input: AssetRequestInput) {
   return hashString(
     type +
       fromProjectPathRelative(input.filePath) +
-      input.env.id +
+      String(input.env) +
       String(input.isSource) +
       String(input.sideEffects) +
       (input.code ?? '') +
