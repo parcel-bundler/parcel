@@ -7,11 +7,16 @@ import type {
   SourceLocation,
   Meta,
 } from '@parcel/types';
-import type {Asset, Dependency, ParcelOptions} from '../types';
+import type {
+  Asset,
+  CommittedAssetId,
+  Dependency,
+  ParcelOptions,
+} from "../types";
 
 import nullthrows from 'nullthrows';
 import {fromInternalSourceLocation, toInternalSourceLocation} from '../utils';
-import {Dependency as DbDependency} from '@parcel/rust';
+import {Dependency as DbDependency, Asset as DbAsset} from '@parcel/rust';
 
 const EMPTY_ITERABLE = {
   [Symbol.iterator]() {
@@ -27,35 +32,35 @@ const EMPTY_ITERATOR = {
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-let valueToSymbols: WeakMap<Asset, AssetSymbols> = new WeakMap();
+let valueToSymbols: Map<CommittedAssetId, AssetSymbols> = new Map();
 export class AssetSymbols implements IAssetSymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
   */
-  #value: Asset;
+  #value: DbAsset;
   #options: ParcelOptions;
 
-  constructor(options: ParcelOptions, asset: Asset): AssetSymbols {
+  constructor(options: ParcelOptions, asset: CommittedAssetId): AssetSymbols {
     let existing = valueToSymbols.get(asset);
     if (existing != null) {
       return existing;
     }
 
-    this.#value = asset;
+    this.#value = DbAsset.get(asset);
     this.#options = options;
     valueToSymbols.set(asset, this);
     return this;
   }
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return Boolean(this.#value.symbols?.has(exportSymbol));
+    return this.#value.symbols?.some(s => s.exported === exportSymbol);
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
     if (this.#value.symbols == null) {
       return false;
     }
-    for (let s of this.#value.symbols.values()) {
+    for (let s of this.#value.symbols) {
       if (local === s.local) return true;
     }
     return false;
@@ -66,7 +71,7 @@ export class AssetSymbols implements IAssetSymbols {
   ): ?{|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|} {
     return fromInternalAssetSymbol(
       this.#options.projectRoot,
-      this.#value.symbols?.get(exportSymbol),
+      this.#value.symbols?.find(s => s.exported === exportSymbol),
     );
   }
 
@@ -75,13 +80,16 @@ export class AssetSymbols implements IAssetSymbols {
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    return this.#value.symbols?.keys() ?? [];
+    return [...this.#value.symbols].map(s => s.exported);
   }
   // $FlowFixMe
-  [Symbol.iterator]() {
-    return this.#value.symbols
-      ? this.#value.symbols[Symbol.iterator]()
-      : EMPTY_ITERATOR;
+  *[Symbol.iterator]() {
+    // return this.#value.symbols
+    //   ? this.#value.symbols[Symbol.iterator]()
+    //   : EMPTY_ITERATOR;
+    for (let s of this.#value.symbols) {
+      yield [s.exported, s];
+    }
   }
 
   // $FlowFixMe

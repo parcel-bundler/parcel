@@ -4,14 +4,14 @@ import type {ContentKey} from '@parcel/graph';
 import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {
-  Asset,
   AssetGroup,
   Bundle,
   Bundle as InternalBundle,
+  CommittedAssetId,
   Config,
   DevDepRequest,
   ParcelOptions,
-} from './types';
+} from "./types";
 import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
 import type {RunAPI} from './RequestTracker';
@@ -63,7 +63,7 @@ export default async function applyRuntimes<TResult>({
   devDepRequests: Map<string, DevDepRequest>,
   configs: Map<string, Config>,
   nameRuntimeBundle: (bundle: Bundle) => Promise<void>,
-|}): Promise<Map<string, Asset>> {
+|}): Promise<Map<CommittedAssetId, CommittedAssetId>> {
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
 
@@ -252,9 +252,9 @@ export default async function applyRuntimes<TResult>({
       for (let asset of assets) {
         if (
           bundleGraph.isAssetReachableFromBundle(asset, bundle) ||
-          resolution?.id === asset.id
+          resolution === asset
         ) {
-          duplicatedContentKeys.add(asset.id);
+          duplicatedContentKeys.add(asset);
           actions.skipChildren();
         }
       }

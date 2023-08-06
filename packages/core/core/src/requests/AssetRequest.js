@@ -19,6 +19,7 @@ import {runDevDepRequest} from './DevDepRequest';
 import {runConfigRequest} from './ConfigRequest';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {report} from '../ReporterRunner';
+import {Asset as DbAsset} from '@parcel/rust';
 
 type RunInput<TResult> = {|
   input: AssetRequestInput,
@@ -143,8 +144,8 @@ async function run({input, api, farm, invalidateReason, options}) {
 
   let time = Date.now() - start;
   if (assets) {
-    for (let asset of assets) {
-      asset.stats.time = time;
+    for (let {asset} of assets) {
+      DbAsset.get(asset).stats.time = time;
     }
   }
 

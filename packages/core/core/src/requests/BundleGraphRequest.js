@@ -5,13 +5,13 @@ import type {SharedReference} from '@parcel/workers';
 import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {
-  Asset,
   AssetGroup,
   Bundle as InternalBundle,
+  CommittedAssetId,
   Config,
   DevDepRequest,
   ParcelOptions,
-} from '../types';
+} from "../types";
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {ContentKey} from '@parcel/graph';
@@ -56,7 +56,7 @@ import {
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
-import { Target as DbTarget } from '@parcel/rust';
+import { Target as DbTarget, Asset as DbAsset } from '@parcel/rust';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<ContentKey>,
@@ -75,7 +75,7 @@ type RunInput = {|
 
 export type BundleGraphResult = {|
   bundleGraph: InternalBundleGraph,
-  changedAssets: Map<string, Asset>,
+  changedAssets: Map<CommittedAssetId, CommittedAssetId>,
   assetRequests: Array<AssetGroup>,
 |};
 
@@ -244,7 +244,7 @@ class BundlerRunner {
     assetRequests,
   }: {|
     graph: AssetGraph,
-    changedAssets: Map<string, Asset>,
+    changedAssets: Map<CommittedAssetId, CommittedAssetId>,
     assetRequests: Array<AssetGroup>,
   |}): Promise<BundleGraphResult> {
     report({
@@ -311,7 +311,7 @@ class BundlerRunner {
         if (tracer.enabled) {
           measurementFilename = graph
             .getEntryAssets()
-            .map(asset => fromProjectPathRelative(asset.filePath))
+            .map(asset => fromProjectPathRelative(DbAsset.get(asset).filePath))
             .join(', ');
           measurement = tracer.createMeasurement(
             plugin.name,

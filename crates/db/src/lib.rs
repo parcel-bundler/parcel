@@ -70,12 +70,12 @@ impl JsValue for bool {
 
 impl JsValue for String {
   fn js_getter(addr: usize) -> String {
-    format!("binding.readString(this.addr + {addr})", addr = addr)
+    format!("readCachedString(this.addr + {addr})", addr = addr)
   }
 
   fn js_setter(addr: usize, value: &str) -> String {
     format!(
-      "binding.writeString(this.addr + {addr}, {value})",
+      "STRING_CACHE.set(this.addr + {addr}, {value}); binding.writeString(this.addr + {addr}, {value})",
       addr = addr,
       value = value
     )
@@ -360,7 +360,8 @@ pub struct Asset {
   pub content_key: String,
   pub map_key: Option<String>,
   pub output_hash: String,
-  // meta??
+  pub pipeline: Option<String>,
+  pub meta: String,
   pub stats: AssetStats,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
@@ -615,6 +616,15 @@ const HEAP = binding.getHeap();
 const HEAP_BASE = binding.getHeapBase();
 const HEAP_u32 = new Uint32Array(HEAP.buffer);
 const HEAP_u64 = new BigUint64Array(HEAP.buffer);
+const STRING_CACHE = new Map();
+
+function readCachedString(addr) {{
+  let v = STRING_CACHE.get(addr);
+  if (v != null) return v;
+  v = binding.readString(addr);
+  STRING_CACHE.set(addr, v);
+  return v;
+}}
 
 interface TypeAccessor<T> {{
   get(addr: number): T,

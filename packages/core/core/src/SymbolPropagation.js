@@ -5,10 +5,11 @@ import type {Meta, Symbol} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {
   AssetNode,
+  CommittedAssetId,
   DependencyNode,
   InternalSourceLocation,
   ParcelOptions,
-} from './types';
+} from "./types";
 import {type default as AssetGraph} from './AssetGraph';
 
 import invariant from 'assert';
@@ -16,9 +17,8 @@ import nullthrows from 'nullthrows';
 import {setEqual} from '@parcel/utils';
 import logger from '@parcel/logger';
 import {md, convertSourceLocationToHighlight} from '@parcel/diagnostic';
-import {BundleBehavior} from './types';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
-import {Dependency as DbDependency} from '@parcel/rust';
+import {Dependency as DbDependency, Asset as DbAsset, AssetFlags} from '@parcel/rust';
 
 export function propagateSymbols({
   options,
@@ -29,7 +29,7 @@ export function propagateSymbols({
 }: {|
   options: ParcelOptions,
   assetGraph: AssetGraph,
-  changedAssetsPropagation: Set<string>,
+  changedAssetsPropagation: Set<CommittedAssetId>,
   assetGroupsWithRemovedParents: Set<NodeId>,
   previousErrors?: ?Map<NodeId, Array<Diagnostic>>,
 |}): Map<NodeId, Array<Diagnostic>> {
@@ -62,22 +62,20 @@ export function propagateSymbols({
     assetGroupsWithRemovedParents,
     (assetNode, incomingDeps, outgoingDeps) => {
       // exportSymbol -> identifier
-      let assetSymbols: ?$ReadOnlyMap<
-        Symbol,
-        {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
-      > = assetNode.value.symbols;
+      let asset = DbAsset.get(assetNode.value);
+      let assetSymbols = asset.symbols;
       // identifier -> exportSymbol
       let assetSymbolsInverse;
       if (assetSymbols) {
         assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
-        for (let [s, {local}] of assetSymbols) {
-          let set = assetSymbolsInverse.get(local);
+        for (let s of assetSymbols) {
+          let set = assetSymbolsInverse.get(s.local);
 
           if (!set) {
             set = new Set();
-            assetSymbolsInverse.set(local, set);
+            assetSymbolsInverse.set(s.local, set);
           }
-          set.add(s);
+          set.add(s.exported);
         }
       }
       let hasNamespaceOutgoingDeps = outgoingDeps.some(
@@ -121,8 +119,8 @@ export function propagateSymbols({
             }
             if (
               !assetSymbols ||
-              assetSymbols.has(exportSymbol) ||
-              assetSymbols.has('*')
+              assetSymbols.some(s => s.exported === exportSymbol) ||
+              assetSymbols.some(s => s.exported === '*')
             ) {
               // An own symbol or a non-namespace reexport
               assetNode.usedSymbols.add(exportSymbol);
@@ -140,9 +138,9 @@ export function propagateSymbols({
 
       // Incomding dependency with cleared symbols, add everything
       if (addAll) {
-        assetSymbols?.forEach((_, exportSymbol) =>
-          assetNode.usedSymbols.add(exportSymbol),
-        );
+        for (let sym of assetSymbols) {
+          assetNode.usedSymbols.add(sym.exported);
+        }
       }
 
       // 2) Distribute the symbols to the outgoing dependencies
@@ -152,7 +150,7 @@ export function propagateSymbols({
         let depUsedSymbolsDown = new Set();
         dep.usedSymbolsDown = depUsedSymbolsDown;
         if (
-          assetNode.value.sideEffects ||
+          asset.flags & AssetFlags.SIDE_EFFECTS ||
           // Incoming dependency with cleared symbols
           addAll ||
           // For entries, we still need to add dep.value.symbols of the entry (which are "used" but not according to the symbols data)
@@ -238,7 +236,7 @@ export function propagateSymbols({
     if (options.logLevel === 'verbose') {
       logger.warn({
         message: `${fromProjectPathRelative(
-          assetNode.value.filePath,
+          DbAsset.get(assetNode.value).filePath,
         )} reexports "${symbol}", which could be resolved either to the dependency "${
           DbDependency.get(depNode1.value).specifier
         }" or "${
@@ -257,21 +255,19 @@ export function propagateSymbols({
     changedDepsUsedSymbolsUpDirtyDown,
     previousErrors,
     (assetNode, incomingDeps, outgoingDeps) => {
-      let assetSymbols: ?$ReadOnlyMap<
-        Symbol,
-        {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
-      > = assetNode.value.symbols;
+      let asset = DbAsset.get(assetNode.value);
+      let assetSymbols = asset.symbols;
 
       let assetSymbolsInverse = null;
       if (assetSymbols) {
         assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
-        for (let [s, {local}] of assetSymbols) {
-          let set = assetSymbolsInverse.get(local);
+        for (let s of assetSymbols) {
+          let set = assetSymbolsInverse.get(s.local);
           if (!set) {
             set = new Set();
-            assetSymbolsInverse.set(local, set);
+            assetSymbolsInverse.set(s.local, set);
           }
-          set.add(s);
+          set.add(s.exported);
         }
       }
 
@@ -393,8 +389,8 @@ export function propagateSymbols({
         for (let s of incomingDep.usedSymbolsDown) {
           if (
             assetSymbols == null || // Assume everything could be provided if symbols are cleared
-            assetNode.value.bundleBehavior === BundleBehavior.isolated ||
-            assetNode.value.bundleBehavior === BundleBehavior.inline ||
+            asset.bundleBehavior === 'isolated' ||
+            asset.bundleBehavior === 'inline' ||
             s === '*' ||
             assetNode.usedSymbols.has(s)
           ) {
@@ -411,7 +407,7 @@ export function propagateSymbols({
             let reexport = reexportedSymbols.get(s);
             let v =
               // Forward a reexport only if the current asset is side-effect free and not external
-              !assetNode.value.sideEffects && reexport != null
+              !(asset.flags & AssetFlags.SIDE_EFFECTS) && reexport != null
                 ? reexport
                 : {
                     asset: assetNode.id,
@@ -437,7 +433,7 @@ export function propagateSymbols({
 
             errors.push({
               message: md`${fromProjectPathRelative(
-                resolution.value.filePath,
+                (resolution.type === 'asset' ? DbAsset.get(resolution.value) : resolution.value).filePath,
               )} does not export '${s}'`,
               origin: '@parcel/core',
               codeFrames: loc
@@ -446,7 +442,7 @@ export function propagateSymbols({
                       filePath:
                         fromProjectPath(options.projectRoot, loc?.filePath) ??
                         undefined,
-                      language: incomingDep.value.sourceAssetType ?? undefined,
+                      language: DbDependency.get(incomingDep.value).sourceAssetType ?? undefined,
                       codeHighlights: [convertSourceLocationToHighlight(loc)],
                     },
                   ]

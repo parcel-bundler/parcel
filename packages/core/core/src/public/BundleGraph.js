@@ -21,7 +21,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
 import {mapVisitor} from '@parcel/graph';
-import {assetFromValue, assetToAssetValue, Asset} from './Asset';
+import {assetFromValue, assetToAssetValue, CommittedAsset} from './Asset';
 import {bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {targetToInternalTarget} from './Target';
@@ -65,7 +65,7 @@ export default class BundleGraph<TBundle: IBundle>
     _bundleGraphToInternalBundleGraph.set(this, graph);
   }
 
-  getAssetById(id: string): Asset {
+  getAssetById(id: string): CommittedAsset {
     return assetFromValue(this.#graph.getAssetById(id), this.#options);
   }
 
@@ -82,7 +82,7 @@ export default class BundleGraph<TBundle: IBundle>
       dependencyToInternalDependency(dep),
       bundle && bundleToInternalBundle(bundle),
     );
-    if (resolution) {
+    if (resolution != null) {
       return assetFromValue(resolution, this.#options);
     }
   }
@@ -97,7 +97,7 @@ export default class BundleGraph<TBundle: IBundle>
     let asset = this.#graph.getAssetWithDependency(
       dependencyToInternalDependency(dep),
     );
-    if (asset) {
+    if (asset != null) {
       return assetFromValue(asset, this.#options);
     }
   }
@@ -298,7 +298,7 @@ export default class BundleGraph<TBundle: IBundle>
   }
 
   getUsedSymbols(v: IAsset | IDependency): ?$ReadOnlySet<Symbol> {
-    if (v instanceof Asset) {
+    if (v instanceof CommittedAsset) {
       return this.#graph.getUsedSymbolsAsset(assetToAssetValue(v));
     } else {
       invariant(v instanceof Dependency);

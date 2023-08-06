@@ -200,6 +200,8 @@ export type Asset = {|
   isLargeBlob?: boolean,
 |};
 
+export type CommittedAssetId = number;
+
 export type InternalGlob = ProjectPath;
 
 export type InternalFile = {|
@@ -308,7 +310,7 @@ export type ParcelOptions = {|
 export type AssetNode = {|
   id: ContentKey,
   +type: 'asset',
-  value: Asset,
+  value: CommittedAssetId,
   usedSymbols: Set<Symbol>,
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,
@@ -372,7 +374,7 @@ export type AssetRequestInput = {|
   isSingleChangeRebuild?: boolean,
 |};
 
-export type AssetRequestResult = Array<Asset>;
+export type AssetRequestResult = Array<{|asset: CommittedAssetId, dependencies: Map<string, Dependency>|}>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = $Rest<
   AssetRequestInput,
@@ -529,7 +531,7 @@ export type BundleNode = {|
 
 export type BundleGroup = {|
   target: Target,
-  entryAssetId: string,
+  entryAssetId: CommittedAssetId,
 |};
 
 export type BundleGroupNode = {|

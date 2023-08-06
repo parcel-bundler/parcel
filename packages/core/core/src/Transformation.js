@@ -19,7 +19,8 @@ import type {
   ParcelOptions,
   InternalFileCreateInvalidation,
   InternalDevDepOptions,
-} from './types';
+  AssetRequestResult,
+} from "./types";
 import type {LoadedPlugin} from './ParcelConfig';
 
 import path from 'path';
@@ -92,7 +93,7 @@ export type TransformationOpts = {|
 |};
 
 export type TransformationResult = {|
-  assets?: Array<AssetValue>,
+  assets?: AssetRequestResult,
   error?: Array<Diagnostic>,
   configRequests: Array<ConfigRequest>,
   invalidations: Array<RequestInvalidation>,
@@ -197,7 +198,7 @@ export default class Transformation {
     let assets, error;
     try {
       let results = await this.runPipelines(pipeline, asset);
-      assets = results.map(a => a.value);
+      assets = results.map(a => a.saveToDb());
     } catch (e) {
       error = e;
     }

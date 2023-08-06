@@ -354,7 +354,7 @@ export class ResolverRunner {
                 query: result.query?.toString(),
                 sideEffects: result.sideEffects,
                 code: result.code,
-                env: dependency,
+                env: dep.env.id,
                 pipeline:
                   result.pipeline === undefined
                     ? pipeline ?? dep.pipeline

@@ -5,6 +5,15 @@ const HEAP = binding.getHeap();
 const HEAP_BASE = binding.getHeapBase();
 const HEAP_u32 = new Uint32Array(HEAP.buffer);
 const HEAP_u64 = new BigUint64Array(HEAP.buffer);
+const STRING_CACHE = new Map();
+
+function readCachedString(addr) {
+  let v = STRING_CACHE.get(addr);
+  if (v != null) return v;
+  v = binding.readString(addr);
+  STRING_CACHE.set(addr, v);
+  return v;
+}
 
 interface TypeAccessor<T> {
   get(addr: number): T,
@@ -120,39 +129,39 @@ export class Target {
   }
 
   get distDir(): string {
-    return binding.readString(this.addr + 48);
+    return readCachedString(this.addr + 48);
   }
 
   set distDir(value: string): void {
-    binding.writeString(this.addr + 48, value);
+    STRING_CACHE.set(this.addr + 48, value); binding.writeString(this.addr + 48, value);
   }
 
   get distEntry(): ?string {
-    return HEAP_u32[this.addr + 0 >> 2] === 0 && HEAP_u32[(this.addr + 0 >> 2) + 1] === 0 ? null : binding.readString(this.addr + 0);
+    return HEAP_u32[this.addr + 0 >> 2] === 0 && HEAP_u32[(this.addr + 0 >> 2) + 1] === 0 ? null : readCachedString(this.addr + 0);
   }
 
   set distEntry(value: ?string): void {
     if (value == null) {
       HEAP.fill(0, this.addr + 0, this.addr + 0 + 24);
     } else {
-      binding.writeString(this.addr + 0, value);
+      STRING_CACHE.set(this.addr + 0, value); binding.writeString(this.addr + 0, value);
     };
   }
 
   get name(): string {
-    return binding.readString(this.addr + 72);
+    return readCachedString(this.addr + 72);
   }
 
   set name(value: string): void {
-    binding.writeString(this.addr + 72, value);
+    STRING_CACHE.set(this.addr + 72, value); binding.writeString(this.addr + 72, value);
   }
 
   get publicUrl(): string {
-    return binding.readString(this.addr + 96);
+    return readCachedString(this.addr + 96);
   }
 
   set publicUrl(value: string): void {
-    binding.writeString(this.addr + 96, value);
+    STRING_CACHE.set(this.addr + 96, value); binding.writeString(this.addr + 96, value);
   }
 
   get loc(): ?SourceLocation {
@@ -165,14 +174,14 @@ export class Target {
   }
 
   get pipeline(): ?string {
-    return HEAP_u32[this.addr + 24 >> 2] === 0 && HEAP_u32[(this.addr + 24 >> 2) + 1] === 0 ? null : binding.readString(this.addr + 24);
+    return HEAP_u32[this.addr + 24 >> 2] === 0 && HEAP_u32[(this.addr + 24 >> 2) + 1] === 0 ? null : readCachedString(this.addr + 24);
   }
 
   set pipeline(value: ?string): void {
     if (value == null) {
       HEAP.fill(0, this.addr + 24, this.addr + 24 + 24);
     } else {
-      binding.writeString(this.addr + 24, value);
+      STRING_CACHE.set(this.addr + 24, value); binding.writeString(this.addr + 24, value);
     };
   }
 }
@@ -246,11 +255,11 @@ export class Environment {
   }
 
   get includeNodeModules(): string {
-    return binding.readString(this.addr + 32);
+    return readCachedString(this.addr + 32);
   }
 
   set includeNodeModules(value: string): void {
-    binding.writeString(this.addr + 32, value);
+    STRING_CACHE.set(this.addr + 32, value); binding.writeString(this.addr + 32, value);
   }
 }
 
@@ -270,14 +279,14 @@ export class TargetSourceMapOptions {
   }
 
   get sourceRoot(): ?string {
-    return HEAP_u32[this.addr + 0 >> 2] === 0 && HEAP_u32[(this.addr + 0 >> 2) + 1] === 0 ? null : binding.readString(this.addr + 0);
+    return HEAP_u32[this.addr + 0 >> 2] === 0 && HEAP_u32[(this.addr + 0 >> 2) + 1] === 0 ? null : readCachedString(this.addr + 0);
   }
 
   set sourceRoot(value: ?string): void {
     if (value == null) {
       HEAP.fill(0, this.addr + 0, this.addr + 0 + 24);
     } else {
-      binding.writeString(this.addr + 0, value);
+      STRING_CACHE.set(this.addr + 0, value); binding.writeString(this.addr + 0, value);
     };
   }
 
@@ -497,7 +506,7 @@ export class Asset {
   addr: number;
 
   constructor(addr?: number) {
-    this.addr = addr ?? binding.alloc(184);
+    this.addr = addr ?? binding.alloc(232);
   }
 
   static get(addr: number): Asset {
@@ -505,99 +514,119 @@ export class Asset {
   }
 
   static set(addr: number, value: Asset): void {
-    HEAP.set(HEAP.subarray(value.addr, value.addr + 184), addr);
+    HEAP.set(HEAP.subarray(value.addr, value.addr + 232), addr);
   }
 
   get filePath(): string {
-    return binding.readString(this.addr + 80);
+    return readCachedString(this.addr + 104);
   }
 
   set filePath(value: string): void {
-    binding.writeString(this.addr + 80, value);
+    STRING_CACHE.set(this.addr + 104, value); binding.writeString(this.addr + 104, value);
   }
 
   get env(): number {
-    return HEAP_u32[(this.addr + 176) >> 2];
+    return HEAP_u32[(this.addr + 224) >> 2];
   }
 
   set env(value: number): void {
-    HEAP_u32[(this.addr + 176) >> 2] = value;
+    HEAP_u32[(this.addr + 224) >> 2] = value;
   }
 
   get query(): ?string {
-    return HEAP_u32[this.addr + 0 >> 2] === 0 && HEAP_u32[(this.addr + 0 >> 2) + 1] === 0 ? null : binding.readString(this.addr + 0);
+    return HEAP_u32[this.addr + 0 >> 2] === 0 && HEAP_u32[(this.addr + 0 >> 2) + 1] === 0 ? null : readCachedString(this.addr + 0);
   }
 
   set query(value: ?string): void {
     if (value == null) {
       HEAP.fill(0, this.addr + 0, this.addr + 0 + 24);
     } else {
-      binding.writeString(this.addr + 0, value);
+      STRING_CACHE.set(this.addr + 0, value); binding.writeString(this.addr + 0, value);
     };
   }
 
   get assetType(): AssetTypeVariants {
-    return AssetType.get(this.addr + 181);
+    return AssetType.get(this.addr + 229);
   }
 
   set assetType(value: AssetTypeVariants): void {
-    AssetType.set(this.addr + 181, value);
+    AssetType.set(this.addr + 229, value);
   }
 
   get contentKey(): string {
-    return binding.readString(this.addr + 104);
+    return readCachedString(this.addr + 128);
   }
 
   set contentKey(value: string): void {
-    binding.writeString(this.addr + 104, value);
+    STRING_CACHE.set(this.addr + 128, value); binding.writeString(this.addr + 128, value);
   }
 
   get mapKey(): ?string {
-    return HEAP_u32[this.addr + 24 >> 2] === 0 && HEAP_u32[(this.addr + 24 >> 2) + 1] === 0 ? null : binding.readString(this.addr + 24);
+    return HEAP_u32[this.addr + 24 >> 2] === 0 && HEAP_u32[(this.addr + 24 >> 2) + 1] === 0 ? null : readCachedString(this.addr + 24);
   }
 
   set mapKey(value: ?string): void {
     if (value == null) {
       HEAP.fill(0, this.addr + 24, this.addr + 24 + 24);
     } else {
-      binding.writeString(this.addr + 24, value);
+      STRING_CACHE.set(this.addr + 24, value); binding.writeString(this.addr + 24, value);
     };
   }
 
   get outputHash(): string {
-    return binding.readString(this.addr + 128);
+    return readCachedString(this.addr + 152);
   }
 
   set outputHash(value: string): void {
-    binding.writeString(this.addr + 128, value);
+    STRING_CACHE.set(this.addr + 152, value); binding.writeString(this.addr + 152, value);
+  }
+
+  get pipeline(): ?string {
+    return HEAP_u32[this.addr + 48 >> 2] === 0 && HEAP_u32[(this.addr + 48 >> 2) + 1] === 0 ? null : readCachedString(this.addr + 48);
+  }
+
+  set pipeline(value: ?string): void {
+    if (value == null) {
+      HEAP.fill(0, this.addr + 48, this.addr + 48 + 24);
+    } else {
+      STRING_CACHE.set(this.addr + 48, value); binding.writeString(this.addr + 48, value);
+    };
+  }
+
+  get meta(): string {
+    return readCachedString(this.addr + 176);
+  }
+
+  set meta(value: string): void {
+    STRING_CACHE.set(this.addr + 176, value); binding.writeString(this.addr + 176, value);
   }
 
   get stats(): AssetStats {
-    return AssetStats.get(this.addr + 48);
+    return AssetStats.get(this.addr + 72);
   }
 
   set stats(value: AssetStats): void {
-    AssetStats.set(this.addr + 48, value);
+    AssetStats.set(this.addr + 72, value);
   }
 
   get bundleBehavior(): BundleBehaviorVariants {
-    return BundleBehavior.get(this.addr + 182);
+    return BundleBehavior.get(this.addr + 230);
   }
 
   set bundleBehavior(value: BundleBehaviorVariants): void {
-    BundleBehavior.set(this.addr + 182, value);
+    BundleBehavior.set(this.addr + 230, value);
   }
 
   get flags(): number {
-    return HEAP[this.addr + 180];
+    return HEAP[this.addr + 228];
   }
 
   set flags(value: number): void {
-    HEAP[this.addr + 180] = value;
+    HEAP[this.addr + 228] = value;
   }
 
   get symbols(): Vec<Symbol> {
-    return new Vec(this.addr + 152, 80, Symbol);
+    return new Vec(this.addr + 200, 80, Symbol);
   }
 
   set symbols(value: Vec<Symbol>): void {
@@ -605,14 +634,14 @@ export class Asset {
   }
 
   get uniqueKey(): ?string {
-    return HEAP_u32[this.addr + 56 >> 2] === 0 && HEAP_u32[(this.addr + 56 >> 2) + 1] === 0 ? null : binding.readString(this.addr + 56);
+    return HEAP_u32[this.addr + 80 >> 2] === 0 && HEAP_u32[(this.addr + 80 >> 2) + 1] === 0 ? null : readCachedString(this.addr + 80);
   }
 
   set uniqueKey(value: ?string): void {
     if (value == null) {
-      HEAP.fill(0, this.addr + 56, this.addr + 56 + 24);
+      HEAP.fill(0, this.addr + 80, this.addr + 80 + 24);
     } else {
-      binding.writeString(this.addr + 56, value);
+      STRING_CACHE.set(this.addr + 80, value); binding.writeString(this.addr + 80, value);
     };
   }
 }
@@ -762,11 +791,11 @@ export class Dependency {
   }
 
   get specifier(): string {
-    return binding.readString(this.addr + 48);
+    return readCachedString(this.addr + 48);
   }
 
   set specifier(value: string): void {
-    binding.writeString(this.addr + 48, value);
+    STRING_CACHE.set(this.addr + 48, value); binding.writeString(this.addr + 48, value);
   }
 
   get specifierType(): SpecifierTypeVariants {
@@ -778,14 +807,14 @@ export class Dependency {
   }
 
   get resolveFrom(): ?string {
-    return HEAP_u32[this.addr + 0 >> 2] === 0 && HEAP_u32[(this.addr + 0 >> 2) + 1] === 0 ? null : binding.readString(this.addr + 0);
+    return HEAP_u32[this.addr + 0 >> 2] === 0 && HEAP_u32[(this.addr + 0 >> 2) + 1] === 0 ? null : readCachedString(this.addr + 0);
   }
 
   set resolveFrom(value: ?string): void {
     if (value == null) {
       HEAP.fill(0, this.addr + 0, this.addr + 0 + 24);
     } else {
-      binding.writeString(this.addr + 0, value);
+      STRING_CACHE.set(this.addr + 0, value); binding.writeString(this.addr + 0, value);
     };
   }
 
@@ -823,14 +852,14 @@ export class Dependency {
   }
 
   get placeholder(): ?string {
-    return HEAP_u32[this.addr + 24 >> 2] === 0 && HEAP_u32[(this.addr + 24 >> 2) + 1] === 0 ? null : binding.readString(this.addr + 24);
+    return HEAP_u32[this.addr + 24 >> 2] === 0 && HEAP_u32[(this.addr + 24 >> 2) + 1] === 0 ? null : readCachedString(this.addr + 24);
   }
 
   set placeholder(value: ?string): void {
     if (value == null) {
       HEAP.fill(0, this.addr + 24, this.addr + 24 + 24);
     } else {
-      binding.writeString(this.addr + 24, value);
+      STRING_CACHE.set(this.addr + 24, value); binding.writeString(this.addr + 24, value);
     };
   }
 
@@ -946,19 +975,19 @@ export class Symbol {
   }
 
   get exported(): string {
-    return binding.readString(this.addr + 0);
+    return readCachedString(this.addr + 0);
   }
 
   set exported(value: string): void {
-    binding.writeString(this.addr + 0, value);
+    STRING_CACHE.set(this.addr + 0, value); binding.writeString(this.addr + 0, value);
   }
 
   get local(): string {
-    return binding.readString(this.addr + 24);
+    return readCachedString(this.addr + 24);
   }
 
   set local(value: string): void {
-    binding.writeString(this.addr + 24, value);
+    STRING_CACHE.set(this.addr + 24, value); binding.writeString(this.addr + 24, value);
   }
 
   get loc(): ?SourceLocation {

@@ -1,16 +1,16 @@
 // @flow strict-local
 
 import type {AST, Blob} from '@parcel/types';
-import type {Asset, Dependency, ParcelOptions} from './types';
+import type {Dependency, ParcelOptions, CommittedAssetId} from './types';
 
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
 import {generateFromAST} from './assetUtils';
-import {deserializeRaw} from './serializer';
+import {Asset as DbAsset, AssetFlags} from '@parcel/rust';
 
 export default class CommittedAsset {
-  value: Asset;
+  value: DbAsset;
   options: ParcelOptions;
   content: ?Promise<Buffer | string>;
   mapBuffer: ?Promise<?Buffer>;
@@ -19,28 +19,28 @@ export default class CommittedAsset {
   idBase: ?string;
   generatingPromise: ?Promise<void>;
 
-  constructor(value: Asset, options: ParcelOptions) {
-    this.value = value;
+  constructor(id: CommittedAssetId, options: ParcelOptions) {
+    this.value = DbAsset.get(id);
     this.options = options;
   }
 
   getContent(): Blob | Promise<Buffer | string> {
     if (this.content == null) {
       if (this.value.contentKey != null) {
-        if (this.value.isLargeBlob) {
+        if (this.value.flags & AssetFlags.LARGE_BLOB) {
           return this.options.cache.getStream(this.value.contentKey);
         } else {
           return this.options.cache.getBlob(this.value.contentKey);
         }
-      } else if (this.value.astKey != null) {
-        return streamFromPromise(
-          generateFromAST(this).then(({content}) => {
-            if (!(content instanceof Readable)) {
-              this.content = Promise.resolve(content);
-            }
-            return content;
-          }),
-        );
+      // } else if (this.value.astKey != null) {
+      //   return streamFromPromise(
+      //     generateFromAST(this).then(({content}) => {
+      //       if (!(content instanceof Readable)) {
+      //         this.content = Promise.resolve(content);
+      //       }
+      //       return content;
+      //     }),
+      //   );
       } else {
         throw new Error('Asset has no content');
       }
@@ -122,20 +122,21 @@ export default class CommittedAsset {
   }
 
   getAST(): Promise<?AST> {
-    if (this.value.astKey == null) {
-      return Promise.resolve(null);
-    }
+    // if (this.value.astKey == null) {
+    return Promise.resolve(null);
+    // }
 
-    if (this.ast == null) {
-      this.ast = this.options.cache
-        .getBlob(this.value.astKey)
-        .then(serializedAst => deserializeRaw(serializedAst));
-    }
+    // if (this.ast == null) {
+    //   this.ast = this.options.cache
+    //     .getBlob(this.value.astKey)
+    //     .then(serializedAst => deserializeRaw(serializedAst));
+    // }
 
-    return this.ast;
+    // return this.ast;
   }
 
   getDependencies(): Array<Dependency> {
-    return Array.from(this.value.dependencies.values());
+    // return Array.from(this.value.dependencies.values());
+    throw new Error('todo');
   }
 }

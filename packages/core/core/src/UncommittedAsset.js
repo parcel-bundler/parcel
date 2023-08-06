@@ -15,7 +15,8 @@ import type {
   Dependency,
   ParcelOptions,
   InternalFileCreateInvalidation,
-} from './types';
+  CommittedAssetId,
+} from "./types";
 
 import invariant from 'assert';
 import {Readable} from 'stream';
@@ -46,6 +47,8 @@ import {
 import {BundleBehaviorNames} from './types';
 import {invalidateOnFileCreateToInternal} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
+import {Asset as DbAsset, AssetFlags} from '@parcel/rust';
+import nullthrows from "nullthrows";
 
 type UncommittedAssetOptions = {|
   value: Asset,
@@ -452,5 +455,39 @@ export default class UncommittedAsset {
   updateId() {
     // $FlowFixMe - this is fine
     this.value.id = createAssetIdFromOptions(this.value);
+  }
+
+  saveToDb(): {|asset: CommittedAssetId, dependencies: Map<string, Dependency>|} {
+    let asset = new DbAsset();
+    asset.filePath = this.value.filePath;
+    asset.env = this.value.env;
+    asset.query = this.value.query;
+    asset.assetType = this.value.type;
+    asset.contentKey = nullthrows(this.value.contentKey);
+    asset.mapKey = this.value.mapKey;
+    asset.outputHash = nullthrows(this.value.outputHash);
+    asset.uniqueKey = this.value.uniqueKey;
+    asset.pipeline = this.value.pipeline;
+    asset.stats.size = this.value.stats.size;
+    asset.stats.time = this.value.stats.time;
+    asset.bundleBehavior = this.value.bundleBehavior != null ? BundleBehaviorNames[this.value.bundleBehavior] : 'none';
+    asset.flags = (this.value.isSource ? AssetFlags.IS_SOURCE : 0)
+      | (this.value.isBundleSplittable ? AssetFlags.IS_BUNDLE_SPLITTABLE : 0)
+      | (this.value.sideEffects ? AssetFlags.SIDE_EFFECTS : 0)
+      | (this.value.isLargeBlob ? AssetFlags.LARGE_BLOB : 0);
+    asset.meta = JSON.stringify(this.value.meta);
+    
+    if (this.value.symbols) {
+      for (let [exported, {local}] of this.value.symbols) {
+        let sym = asset.symbols.extend();
+        sym.exported = exported;
+        sym.local = local;
+      }
+    }
+
+    return {
+      asset: asset.addr,
+      dependencies: this.value.dependencies
+    };
   }
 }

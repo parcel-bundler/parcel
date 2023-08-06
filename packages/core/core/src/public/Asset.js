@@ -21,14 +21,14 @@ import type {
   AssetSymbols as IAssetSymbols,
   BundleBehavior,
 } from '@parcel/types';
-import type {Asset as AssetValue, ParcelOptions} from '../types';
+import type {Asset as AssetValue, ParcelOptions, CommittedAssetId} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
 import {AssetSymbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
-import CommittedAsset from '../CommittedAsset';
+import InternalCommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
 import {fromProjectPath, toProjectPath} from '../projectPath';
 import {
@@ -36,17 +36,18 @@ import {
   BundleBehaviorNames,
 } from '../types';
 import {toInternalSourceLocation} from '../utils';
+import {AssetFlags} from '@parcel/rust';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 const uncommittedAssetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
-const committedAssetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
+const committedAssetValueToAsset: Map<CommittedAssetId, CommittedAsset> = new Map();
 const assetValueToMutableAsset: WeakMap<AssetValue, MutableAsset> =
   new WeakMap();
 
 const _assetToAssetValue: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
-  AssetValue,
+  CommittedAssetId,
 > = new WeakMap();
 
 const _mutableAssetToUncommittedAsset: WeakMap<
@@ -54,7 +55,7 @@ const _mutableAssetToUncommittedAsset: WeakMap<
   UncommittedAsset,
 > = new WeakMap();
 
-export function assetToAssetValue(asset: IAsset | IMutableAsset): AssetValue {
+export function assetToAssetValue(asset: IAsset | IMutableAsset): CommittedAssetId {
   return nullthrows(_assetToAssetValue.get(asset));
 }
 
@@ -65,26 +66,20 @@ export function mutableAssetToUncommittedAsset(
 }
 
 export function assetFromValue(
-  value: AssetValue,
+  value: CommittedAssetId,
   options: ParcelOptions,
-): Asset {
-  return new Asset(
-    value.committed
-      ? new CommittedAsset(value, options)
-      : new UncommittedAsset({
-          value,
-          options,
-        }),
+): CommittedAsset {
+  return new CommittedAsset(
+    new InternalCommittedAsset(value, options)
   );
 }
 
 class BaseAsset {
-  #asset: CommittedAsset | UncommittedAsset;
+  #asset: UncommittedAsset;
   #query /*: ?URLSearchParams */;
 
-  constructor(asset: CommittedAsset | UncommittedAsset) {
+  constructor(asset: UncommittedAsset) {
     this.#asset = asset;
-    _assetToAssetValue.set(this, asset.value);
   }
 
   // $FlowFixMe[unsupported-syntax]
@@ -191,20 +186,17 @@ class BaseAsset {
 }
 
 export class Asset extends BaseAsset implements IAsset {
-  #asset /*: CommittedAsset | UncommittedAsset */;
+  #asset /*: UncommittedAsset */;
 
-  constructor(asset: CommittedAsset | UncommittedAsset): Asset {
-    let assetValueToAsset = asset.value.committed
-      ? committedAssetValueToAsset
-      : uncommittedAssetValueToAsset;
-    let existing = assetValueToAsset.get(asset.value);
+  constructor(asset: UncommittedAsset): Asset {
+    let existing = uncommittedAssetValueToAsset.get(asset.value);
     if (existing != null) {
       return existing;
     }
 
     super(asset);
     this.#asset = asset;
-    assetValueToAsset.set(asset.value, this);
+    uncommittedAssetValueToAsset.set(asset.value, this);
     return this;
   }
 
@@ -341,5 +333,128 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
       loc: toInternalSourceLocation(this.#asset.options.projectRoot, env.loc),
     });
     this.#asset.updateId();
+  }
+}
+
+export class CommittedAsset implements IAsset {
+  #asset /*: InternalCommittedAsset */;
+  #query /*: ?URLSearchParams */;
+  #meta /*: ?Meta */;
+
+  constructor(asset: InternalCommittedAsset): CommittedAsset {
+    let existing = committedAssetValueToAsset.get(asset.value.addr);
+    if (existing != null) {
+      return existing;
+    }
+
+    this.#asset = asset;
+    committedAssetValueToAsset.set(asset.value.addr, this);
+    _assetToAssetValue.set(this, asset.value.addr);
+    return this;
+  }
+
+  get stats(): Stats {
+    return {
+      time: 0,
+      size: 0,
+    };
+  }
+
+  get id(): string {
+    return this.#asset.value.addr;
+  }
+
+  get type(): string {
+    // return this.#asset.value.type;
+    return 'js'; // TODO
+  }
+
+  get env(): IEnvironment {
+    return new Environment(this.#asset.value.env, this.#asset.options);
+  }
+
+  get fs(): FileSystem {
+    return this.#asset.options.inputFS;
+  }
+
+  get filePath(): FilePath {
+    return fromProjectPath(
+      this.#asset.options.projectRoot,
+      this.#asset.value.filePath,
+    );
+  }
+
+  get query(): URLSearchParams {
+    if (!this.#query) {
+      this.#query = new URLSearchParams(this.#asset.value.query ?? '');
+    }
+    return this.#query;
+  }
+
+  get meta(): Meta {
+    return this.#meta ??= JSON.parse(this.#asset.value.meta);
+  }
+
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#asset.value.bundleBehavior;
+    return bundleBehavior === 'none' ? null : bundleBehavior;
+  }
+
+  get isBundleSplittable(): boolean {
+    return Boolean(this.#asset.value.flags & AssetFlags.IS_BUNDLE_SPLITTABLE);
+  }
+
+  get isSource(): boolean {
+    return Boolean(this.#asset.value.flags & AssetFlags.IS_SOURCE);
+  }
+
+  get sideEffects(): boolean {
+    return Boolean(this.#asset.value.flags & AssetFlags.SIDE_EFFECTS);
+  }
+
+  get symbols(): IAssetSymbols {
+    return new AssetSymbols(this.#asset.options, this.#asset.value.addr);
+  }
+
+  get uniqueKey(): ?string {
+    return this.#asset.value.uniqueKey;
+  }
+
+  get astGenerator(): ?ASTGenerator {
+    return this.#asset.value.astGenerator;
+  }
+
+  get pipeline(): ?string {
+    return this.#asset.value.pipeline;
+  }
+
+  getDependencies(): $ReadOnlyArray<IDependency> {
+    return this.#asset
+      .getDependencies()
+      .map(dep => new Dependency(dep, this.#asset.options));
+  }
+
+  getCode(): Promise<string> {
+    return this.#asset.getCode();
+  }
+
+  getBuffer(): Promise<Buffer> {
+    return this.#asset.getBuffer();
+  }
+
+  getStream(): Readable {
+    return this.#asset.getStream();
+  }
+
+  getMap(): Promise<?SourceMap> {
+    return this.#asset.getMap();
+  }
+
+  getAST(): Promise<?AST> {
+    return this.#asset.getAST();
+  }
+
+  getMapBuffer(): Promise<?Buffer> {
+    return this.#asset.getMapBuffer();
   }
 }
