@@ -12,4 +12,4 @@ bitflags = "*"
 ctor = "*"
 paste = "1.0.12"
 parcel-derive = { path = "../derive" }
-allocator-api2 = "*"
+allocator-api2 = { version = "*", features = ["serde"] }

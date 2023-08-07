@@ -75,6 +75,7 @@ export default class UncommittedAsset {
   invalidations: Map<string, RequestInvalidation>;
   fileCreateInvalidations: Array<InternalFileCreateInvalidation>;
   generate: ?() => Promise<GenerateOutput>;
+  nativeSymbols: ?number;
 
   constructor({
     value,
@@ -347,6 +348,17 @@ export default class UncommittedAsset {
     return dep;
   }
 
+  setNativeDependencies(deps: Array<Dependency>) {
+    this.value.dependencies.clear();
+    for (let d of deps) {
+      this.value.dependencies.set(d, d);
+    }
+  }
+
+  setNativeSymbols(symbols: number) {
+    this.nativeSymbols = symbols;
+  }
+
   invalidateOnFileChange(filePath: ProjectPath) {
     let invalidation: RequestInvalidation = {
       type: 'file',
@@ -457,7 +469,7 @@ export default class UncommittedAsset {
     this.value.id = createAssetIdFromOptions(this.value);
   }
 
-  saveToDb(): {|asset: CommittedAssetId, dependencies: Map<string, Dependency>|} {
+  saveToDb(): {|asset: CommittedAssetId, dependencies: Array<Dependency>|} {
     let asset = new DbAsset();
     asset.filePath = this.value.filePath;
     asset.env = this.value.env;
@@ -483,11 +495,14 @@ export default class UncommittedAsset {
         sym.exported = exported;
         sym.local = local;
       }
+    } else if (this.nativeSymbols != null) {
+      // console.log('native symbols', this.nativeSymbols)
+      asset.symbols = {addr: this.nativeSymbols};
     }
 
     return {
       asset: asset.addr,
-      dependencies: this.value.dependencies
+      dependencies: [...this.value.dependencies.values()]
     };
   }
 }

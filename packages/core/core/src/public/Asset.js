@@ -284,6 +284,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.addDependency(dep);
   }
 
+  setNativeDependencies(deps: Array<number>) {
+    this.#asset.setNativeDependencies(deps);
+  }
+
+  setNativeSymbols(symbols: number) {
+    this.#asset.setNativeSymbols(symbols);
+  }
+
   invalidateOnFileChange(filePath: FilePath): void {
     this.#asset.invalidateOnFileChange(
       toProjectPath(this.#asset.options.projectRoot, filePath),

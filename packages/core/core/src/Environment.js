@@ -119,10 +119,11 @@ export function createEnvironment({
   tmp.sourceType = sourceType;
   tmp.flags = (isLibrary ? EnvironmentFlags.IS_LIBRARY : 0) | (shouldOptimize ? EnvironmentFlags.SHOULD_OPTIMIZE : 0) | (shouldScopeHoist ? EnvironmentFlags.SHOULD_SCOPE_HOIST : 0);
   tmp.includeNodeModules = JSON.stringify(includeNodeModules);
+  tmp.sourceMap = null;
   // console.log('env', tmp, tmp.context, tmp.outputFormat, tmp.sourceType, tmp.flags);
 
   let res = binding.createEnvironment(tmp.addr);
-  // console.log(res, tmp.outputFormat, outputFormat)
+  // console.log(res, tmp.context)
 
   return res;
 }

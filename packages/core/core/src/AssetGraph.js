@@ -426,7 +426,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     assetGroup: AssetGroup,
     assets: Array<{|
       asset: CommittedAssetId,
-      dependencies: Map<string, Dependency>,
+      dependencies: Array<Dependency>,
     |}>,
     correspondingRequest: ContentKey,
   ) {
@@ -459,7 +459,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
     let assetObjects: Array<{|
       assetNodeId: NodeId,
-      dependencies: Map<string, Dependency>,
+      dependencies: Array<Dependency>,
       dependentAssets: Array<CommittedAssetId>,
     |}> = [];
     let assetNodeIds = [];
@@ -505,10 +505,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     }
   }
 
-  resolveAsset(assetNode: AssetNode, dependencies: Map<string, Dependency>, dependentAssets: Array<CommittedAssetId>) {
+  resolveAsset(assetNode: AssetNode, dependencies: Array<Dependency>, dependentAssets: Array<CommittedAssetId>) {
     let depNodeIds: Array<NodeId> = [];
     let depNodesWithAssets = [];
-    for (let d of dependencies.values()) {
+    for (let d of dependencies) {
       let dep = DbDependency.get(d);
       // this.normalizeEnvironment(dep);
       let depNode = nodeFromDep(d);

@@ -392,15 +392,19 @@ export default (new Transformer({
 
     let {
       dependencies,
+      symbols,
       code: compiledCode,
       map,
       shebang,
-      hoist_result,
-      symbol_result,
+      // hoist_result,
+      // symbol_result,
       needs_esm_helpers,
       diagnostics,
       used_env,
       has_node_replacements,
+      has_cjs_exports,
+      static_cjs_exports,
+      should_wrap,
     } = await (transformAsync || transform)({
       filename: asset.filePath,
       code,
@@ -414,6 +418,7 @@ export default (new Transformer({
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
       env,
+      env_id: asset.env.id,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',
       is_jsx: isJSX,
       jsx_pragma: config?.pragma,
@@ -440,6 +445,8 @@ export default (new Transformer({
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
     });
+
+    // console.log(dependencies, symbols);
 
     let convertLoc = (loc): SourceLocation => {
       let location = {
@@ -547,373 +554,380 @@ export default (new Transformer({
       asset.invalidateOnEnvChange(env);
     }
 
-    for (let dep of dependencies) {
-      if (dep.kind === 'WebWorker') {
-        // Use native ES module output if the worker was created with `type: 'module'` and all targets
-        // support native module workers. Only do this if parent asset output format is also esmodule so that
-        // assets can be shared between workers and the main thread in the global output format.
-        let outputFormat;
-        if (
-          asset.env.outputFormat === 'esmodule' &&
-          dep.source_type === 'Module' &&
-          supportsModuleWorkers
-        ) {
-          outputFormat = 'esmodule';
-        } else {
-          outputFormat =
-            asset.env.outputFormat === 'commonjs' ? 'commonjs' : 'global';
-        }
+    asset.setNativeDependencies(dependencies);
+    asset.setNativeSymbols(symbols);
 
-        let loc = convertLoc(dep.loc);
-        asset.addURLDependency(dep.specifier, {
-          loc,
-          env: {
-            context: 'web-worker',
-            sourceType: dep.source_type === 'Module' ? 'module' : 'script',
-            outputFormat,
-            loc,
-          },
-          meta: {
-            webworker: true,
-            placeholder: dep.placeholder,
-          },
-        });
-      } else if (dep.kind === 'ServiceWorker') {
-        let loc = convertLoc(dep.loc);
-        asset.addURLDependency(dep.specifier, {
-          loc,
-          needsStableName: true,
-          env: {
-            context: 'service-worker',
-            sourceType: dep.source_type === 'Module' ? 'module' : 'script',
-            outputFormat: 'global', // TODO: module service worker support
-            loc,
-          },
-          meta: {
-            placeholder: dep.placeholder,
-          },
-        });
-      } else if (dep.kind === 'Worklet') {
-        let loc = convertLoc(dep.loc);
-        asset.addURLDependency(dep.specifier, {
-          loc,
-          env: {
-            context: 'worklet',
-            sourceType: 'module',
-            outputFormat: 'esmodule', // Worklets require ESM
-            loc,
-          },
-          meta: {
-            placeholder: dep.placeholder,
-          },
-        });
-      } else if (dep.kind === 'Url') {
-        asset.addURLDependency(dep.specifier, {
-          bundleBehavior: 'isolated',
-          loc: convertLoc(dep.loc),
-          meta: {
-            placeholder: dep.placeholder,
-          },
-        });
-      } else if (dep.kind === 'File') {
-        asset.invalidateOnFileChange(dep.specifier);
-      } else {
-        let meta: JSONObject = {kind: dep.kind};
-        if (dep.attributes) {
-          meta.importAttributes = dep.attributes;
-        }
+    asset.meta.hasCJSExports = has_cjs_exports;
+    asset.meta.staticExports = static_cjs_exports;
+    asset.meta.shouldWrap = should_wrap;
 
-        if (dep.placeholder) {
-          meta.placeholder = dep.placeholder;
-        }
+    // for (let dep of dependencies) {
+    //   if (dep.kind === 'WebWorker') {
+    //     // Use native ES module output if the worker was created with `type: 'module'` and all targets
+    //     // support native module workers. Only do this if parent asset output format is also esmodule so that
+    //     // assets can be shared between workers and the main thread in the global output format.
+    //     let outputFormat;
+    //     if (
+    //       asset.env.outputFormat === 'esmodule' &&
+    //       dep.source_type === 'Module' &&
+    //       supportsModuleWorkers
+    //     ) {
+    //       outputFormat = 'esmodule';
+    //     } else {
+    //       outputFormat =
+    //         asset.env.outputFormat === 'commonjs' ? 'commonjs' : 'global';
+    //     }
 
-        let env;
-        if (dep.kind === 'DynamicImport') {
-          // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
-          if (asset.env.isWorklet() || asset.env.context === 'service-worker') {
-            let loc = convertLoc(dep.loc);
-            let diagnostic = {
-              message: `import() is not allowed in ${
-                asset.env.isWorklet() ? 'worklets' : 'service workers'
-              }.`,
-              codeFrames: [
-                {
-                  filePath: asset.filePath,
-                  codeHighlights: [convertSourceLocationToHighlight(loc)],
-                },
-              ],
-              hints: ['Try using a static `import`.'],
-            };
+    //     let loc = convertLoc(dep.loc);
+    //     asset.addURLDependency(dep.specifier, {
+    //       loc,
+    //       env: {
+    //         context: 'web-worker',
+    //         sourceType: dep.source_type === 'Module' ? 'module' : 'script',
+    //         outputFormat,
+    //         loc,
+    //       },
+    //       meta: {
+    //         webworker: true,
+    //         placeholder: dep.placeholder,
+    //       },
+    //     });
+    //   } else if (dep.kind === 'ServiceWorker') {
+    //     let loc = convertLoc(dep.loc);
+    //     asset.addURLDependency(dep.specifier, {
+    //       loc,
+    //       needsStableName: true,
+    //       env: {
+    //         context: 'service-worker',
+    //         sourceType: dep.source_type === 'Module' ? 'module' : 'script',
+    //         outputFormat: 'global', // TODO: module service worker support
+    //         loc,
+    //       },
+    //       meta: {
+    //         placeholder: dep.placeholder,
+    //       },
+    //     });
+    //   } else if (dep.kind === 'Worklet') {
+    //     let loc = convertLoc(dep.loc);
+    //     asset.addURLDependency(dep.specifier, {
+    //       loc,
+    //       env: {
+    //         context: 'worklet',
+    //         sourceType: 'module',
+    //         outputFormat: 'esmodule', // Worklets require ESM
+    //         loc,
+    //       },
+    //       meta: {
+    //         placeholder: dep.placeholder,
+    //       },
+    //     });
+    //   } else if (dep.kind === 'Url') {
+    //     asset.addURLDependency(dep.specifier, {
+    //       bundleBehavior: 'isolated',
+    //       loc: convertLoc(dep.loc),
+    //       meta: {
+    //         placeholder: dep.placeholder,
+    //       },
+    //     });
+    //   } else if (dep.kind === 'File') {
+    //     asset.invalidateOnFileChange(dep.specifier);
+    //   } else {
+    //     let meta: JSONObject = {kind: dep.kind};
+    //     if (dep.attributes) {
+    //       meta.importAttributes = dep.attributes;
+    //     }
 
-            if (asset.env.loc) {
-              diagnostic.codeFrames.push({
-                filePath: asset.env.loc.filePath,
-                codeHighlights: [
-                  convertSourceLocationToHighlight(
-                    asset.env.loc,
-                    'The environment was originally created here',
-                  ),
-                ],
-              });
-            }
+    //     if (dep.placeholder) {
+    //       meta.placeholder = dep.placeholder;
+    //     }
 
-            throw new ThrowableDiagnostic({
-              diagnostic,
-            });
-          }
+    //     let env;
+    //     if (dep.kind === 'DynamicImport') {
+    //       // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
+    //       if (asset.env.isWorklet() || asset.env.context === 'service-worker') {
+    //         let loc = convertLoc(dep.loc);
+    //         let diagnostic = {
+    //           message: `import() is not allowed in ${
+    //             asset.env.isWorklet() ? 'worklets' : 'service workers'
+    //           }.`,
+    //           codeFrames: [
+    //             {
+    //               filePath: asset.filePath,
+    //               codeHighlights: [convertSourceLocationToHighlight(loc)],
+    //             },
+    //           ],
+    //           hints: ['Try using a static `import`.'],
+    //         };
 
-          // If all of the target engines support dynamic import natively,
-          // we can output native ESM if scope hoisting is enabled.
-          // Only do this for scripts, rather than modules in the global
-          // output format so that assets can be shared between the bundles.
-          let outputFormat = asset.env.outputFormat;
-          if (
-            asset.env.sourceType === 'script' &&
-            asset.env.shouldScopeHoist &&
-            asset.env.supports('dynamic-import', true)
-          ) {
-            outputFormat = 'esmodule';
-          }
+    //         if (asset.env.loc) {
+    //           diagnostic.codeFrames.push({
+    //             filePath: asset.env.loc.filePath,
+    //             codeHighlights: [
+    //               convertSourceLocationToHighlight(
+    //                 asset.env.loc,
+    //                 'The environment was originally created here',
+    //               ),
+    //             ],
+    //           });
+    //         }
 
-          env = {
-            sourceType: 'module',
-            outputFormat,
-            loc: convertLoc(dep.loc),
-          };
-        }
+    //         throw new ThrowableDiagnostic({
+    //           diagnostic,
+    //         });
+    //       }
 
-        // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
-        let isHelper =
-          dep.is_helper &&
-          !(
-            dep.specifier.endsWith('/jsx-runtime') ||
-            dep.specifier.endsWith('/jsx-dev-runtime')
-          );
-        if (isHelper && !asset.env.isLibrary) {
-          env = {
-            ...env,
-            includeNodeModules: true,
-          };
-        }
+    //       // If all of the target engines support dynamic import natively,
+    //       // we can output native ESM if scope hoisting is enabled.
+    //       // Only do this for scripts, rather than modules in the global
+    //       // output format so that assets can be shared between the bundles.
+    //       let outputFormat = asset.env.outputFormat;
+    //       if (
+    //         asset.env.sourceType === 'script' &&
+    //         asset.env.shouldScopeHoist &&
+    //         asset.env.supports('dynamic-import', true)
+    //       ) {
+    //         outputFormat = 'esmodule';
+    //       }
 
-        // Add required version range for helpers.
-        let range;
-        if (isHelper) {
-          let idx = dep.specifier.indexOf('/');
-          if (dep.specifier[0] === '@') {
-            idx = dep.specifier.indexOf('/', idx + 1);
-          }
-          let module = idx >= 0 ? dep.specifier.slice(0, idx) : dep.specifier;
-          range = pkg.dependencies[module];
-        }
+    //       env = {
+    //         sourceType: 'module',
+    //         outputFormat,
+    //         loc: convertLoc(dep.loc),
+    //       };
+    //     }
 
-        asset.addDependency({
-          specifier: dep.specifier,
-          specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
-          loc: convertLoc(dep.loc),
-          priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
-          isOptional: dep.is_optional,
-          meta,
-          resolveFrom: isHelper ? __filename : undefined,
-          range,
-          env,
-        });
-      }
-    }
+    //     // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
+    //     let isHelper =
+    //       dep.is_helper &&
+    //       !(
+    //         dep.specifier.endsWith('/jsx-runtime') ||
+    //         dep.specifier.endsWith('/jsx-dev-runtime')
+    //       );
+    //     if (isHelper && !asset.env.isLibrary) {
+    //       env = {
+    //         ...env,
+    //         includeNodeModules: true,
+    //       };
+    //     }
+
+    //     // Add required version range for helpers.
+    //     let range;
+    //     if (isHelper) {
+    //       let idx = dep.specifier.indexOf('/');
+    //       if (dep.specifier[0] === '@') {
+    //         idx = dep.specifier.indexOf('/', idx + 1);
+    //       }
+    //       let module = idx >= 0 ? dep.specifier.slice(0, idx) : dep.specifier;
+    //       range = pkg.dependencies[module];
+    //     }
+
+    //     asset.addDependency({
+    //       specifier: dep.specifier,
+    //       specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
+    //       loc: convertLoc(dep.loc),
+    //       priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
+    //       isOptional: dep.is_optional,
+    //       meta,
+    //       resolveFrom: isHelper ? __filename : undefined,
+    //       range,
+    //       env,
+    //     });
+    //   }
+    // }
 
     asset.meta.id = asset.id;
-    if (hoist_result) {
-      asset.symbols.ensure();
-      for (let {
-        exported,
-        local,
-        loc,
-        is_esm,
-      } of hoist_result.exported_symbols) {
-        asset.symbols.set(exported, local, convertLoc(loc), {isEsm: is_esm});
-      }
+    // if (hoist_result) {
+    //   asset.symbols.ensure();
+    //   for (let {
+    //     exported,
+    //     local,
+    //     loc,
+    //     is_esm,
+    //   } of hoist_result.exported_symbols) {
+    //     asset.symbols.set(exported, local, convertLoc(loc), {isEsm: is_esm});
+    //   }
 
-      // deps is a map of dependencies that are keyed by placeholder or specifier
-      // If a placeholder is present, that is used first since placeholders are
-      // hashed with DependencyKind's.
-      // If not, the specifier is used along with its specifierType appended to
-      // it to separate dependencies with the same specifier.
-      let deps = new Map(
-        asset
-          .getDependencies()
-          .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
-      );
-      for (let dep of deps.values()) {
-        dep.symbols.ensure();
-      }
+    //   // deps is a map of dependencies that are keyed by placeholder or specifier
+    //   // If a placeholder is present, that is used first since placeholders are
+    //   // hashed with DependencyKind's.
+    //   // If not, the specifier is used along with its specifierType appended to
+    //   // it to separate dependencies with the same specifier.
+    //   let deps = new Map(
+    //     asset
+    //       .getDependencies()
+    //       .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
+    //   );
+    //   for (let dep of deps.values()) {
+    //     dep.symbols.ensure();
+    //   }
 
-      for (let {
-        source,
-        local,
-        imported,
-        loc,
-      } of hoist_result.imported_symbols) {
-        let dep = deps.get(source);
-        if (!dep) continue;
-        dep.symbols.set(imported, local, convertLoc(loc));
-      }
+    //   for (let {
+    //     source,
+    //     local,
+    //     imported,
+    //     loc,
+    //   } of hoist_result.imported_symbols) {
+    //     let dep = deps.get(source);
+    //     if (!dep) continue;
+    //     dep.symbols.set(imported, local, convertLoc(loc));
+    //   }
 
-      for (let {source, local, imported, loc} of hoist_result.re_exports) {
-        let dep = deps.get(source);
-        if (!dep) continue;
-        if (local === '*' && imported === '*') {
-          dep.symbols.set('*', '*', convertLoc(loc), true);
-        } else {
-          let reExportName =
-            dep.symbols.get(imported)?.local ??
-            `$${asset.id}$re_export$${local}`;
-          asset.symbols.set(local, reExportName);
-          dep.symbols.set(imported, reExportName, convertLoc(loc), true);
-        }
-      }
+    //   for (let {source, local, imported, loc} of hoist_result.re_exports) {
+    //     let dep = deps.get(source);
+    //     if (!dep) continue;
+    //     if (local === '*' && imported === '*') {
+    //       dep.symbols.set('*', '*', convertLoc(loc), true);
+    //     } else {
+    //       let reExportName =
+    //         dep.symbols.get(imported)?.local ??
+    //         `$${asset.id}$re_export$${local}`;
+    //       asset.symbols.set(local, reExportName);
+    //       dep.symbols.set(imported, reExportName, convertLoc(loc), true);
+    //     }
+    //   }
 
-      for (let specifier of hoist_result.wrapped_requires) {
-        let dep = deps.get(specifier);
-        if (!dep) continue;
-        dep.meta.shouldWrap = true;
-      }
+    //   for (let specifier of hoist_result.wrapped_requires) {
+    //     let dep = deps.get(specifier);
+    //     if (!dep) continue;
+    //     dep.meta.shouldWrap = true;
+    //   }
 
-      for (let name in hoist_result.dynamic_imports) {
-        let dep = deps.get(hoist_result.dynamic_imports[name]);
-        if (!dep) continue;
-        dep.meta.promiseSymbol = name;
-      }
+    //   for (let name in hoist_result.dynamic_imports) {
+    //     let dep = deps.get(hoist_result.dynamic_imports[name]);
+    //     if (!dep) continue;
+    //     dep.meta.promiseSymbol = name;
+    //   }
 
-      if (hoist_result.self_references.length > 0) {
-        let symbols = new Map();
-        for (let name of hoist_result.self_references) {
-          // Do not create a self-reference for the `default` symbol unless we have seen an __esModule flag.
-          if (
-            name === 'default' &&
-            !asset.symbols.hasExportSymbol('__esModule')
-          ) {
-            continue;
-          }
+    //   if (hoist_result.self_references.length > 0) {
+    //     let symbols = new Map();
+    //     for (let name of hoist_result.self_references) {
+    //       // Do not create a self-reference for the `default` symbol unless we have seen an __esModule flag.
+    //       if (
+    //         name === 'default' &&
+    //         !asset.symbols.hasExportSymbol('__esModule')
+    //       ) {
+    //         continue;
+    //       }
 
-          let local = nullthrows(asset.symbols.get(name)).local;
-          symbols.set(name, {
-            local,
-            isWeak: false,
-            loc: null,
-          });
-        }
+    //       let local = nullthrows(asset.symbols.get(name)).local;
+    //       symbols.set(name, {
+    //         local,
+    //         isWeak: false,
+    //         loc: null,
+    //       });
+    //     }
 
-        // Use the asset id as a unique key if one has not already been set.
-        // This lets us create a dependency on the asset itself by using it as a specifier.
-        // Using the unique key ensures that the dependency always resolves to the correct asset,
-        // even if it came from a transformer that produced multiple assets (e.g. css modules).
-        // Also avoids needing a resolution request.
-        asset.uniqueKey ||= asset.id;
-        asset.addDependency({
-          specifier: asset.uniqueKey,
-          specifierType: 'esm',
-          symbols,
-        });
-      }
+    //     // Use the asset id as a unique key if one has not already been set.
+    //     // This lets us create a dependency on the asset itself by using it as a specifier.
+    //     // Using the unique key ensures that the dependency always resolves to the correct asset,
+    //     // even if it came from a transformer that produced multiple assets (e.g. css modules).
+    //     // Also avoids needing a resolution request.
+    //     asset.uniqueKey ||= asset.id;
+    //     asset.addDependency({
+    //       specifier: asset.uniqueKey,
+    //       specifierType: 'esm',
+    //       symbols,
+    //     });
+    //   }
 
-      // Add * symbol if there are CJS exports, no imports/exports at all
-      // (and the asset has side effects), or the asset is wrapped.
-      // This allows accessing symbols that don't exist without errors in symbol propagation.
-      if (
-        hoist_result.has_cjs_exports ||
-        (!hoist_result.is_esm &&
-          asset.sideEffects &&
-          deps.size === 0 &&
-          Object.keys(hoist_result.exported_symbols).length === 0) ||
-        (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
-      ) {
-        asset.symbols.set('*', `$${asset.id}$exports`);
-      }
+    //   // Add * symbol if there are CJS exports, no imports/exports at all
+    //   // (and the asset has side effects), or the asset is wrapped.
+    //   // This allows accessing symbols that don't exist without errors in symbol propagation.
+    //   if (
+    //     hoist_result.has_cjs_exports ||
+    //     (!hoist_result.is_esm &&
+    //       asset.sideEffects &&
+    //       deps.size === 0 &&
+    //       Object.keys(hoist_result.exported_symbols).length === 0) ||
+    //     (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
+    //   ) {
+    //     asset.symbols.set('*', `$${asset.id}$exports`);
+    //   }
 
-      asset.meta.hasCJSExports = hoist_result.has_cjs_exports;
-      asset.meta.staticExports = hoist_result.static_cjs_exports;
-      asset.meta.shouldWrap = hoist_result.should_wrap;
-    } else {
-      if (symbol_result) {
-        let deps = new Map(
-          asset
-            .getDependencies()
-            .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
-        );
-        asset.symbols.ensure();
+    //   asset.meta.hasCJSExports = hoist_result.has_cjs_exports;
+    //   asset.meta.staticExports = hoist_result.static_cjs_exports;
+    //   asset.meta.shouldWrap = hoist_result.should_wrap;
+    // } else {
+    //   if (symbol_result) {
+    //     let deps = new Map(
+    //       asset
+    //         .getDependencies()
+    //         .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
+    //     );
+    //     asset.symbols.ensure();
 
-        for (let {exported, local, loc, source} of symbol_result.exports) {
-          let dep = source ? deps.get(source) : undefined;
-          asset.symbols.set(
-            exported,
-            `${dep?.id ?? ''}$${local}`,
-            convertLoc(loc),
-          );
-          if (dep != null) {
-            dep.symbols.ensure();
-            dep.symbols.set(
-              local,
-              `${dep?.id ?? ''}$${local}`,
-              convertLoc(loc),
-              true,
-            );
-          }
-        }
+    //     for (let {exported, local, loc, source} of symbol_result.exports) {
+    //       let dep = source ? deps.get(source) : undefined;
+    //       asset.symbols.set(
+    //         exported,
+    //         `${dep?.id ?? ''}$${local}`,
+    //         convertLoc(loc),
+    //       );
+    //       if (dep != null) {
+    //         dep.symbols.ensure();
+    //         dep.symbols.set(
+    //           local,
+    //           `${dep?.id ?? ''}$${local}`,
+    //           convertLoc(loc),
+    //           true,
+    //         );
+    //       }
+    //     }
 
-        for (let {source, local, imported, loc} of symbol_result.imports) {
-          let dep = deps.get(source);
-          if (!dep) continue;
-          dep.symbols.ensure();
-          dep.symbols.set(imported, local, convertLoc(loc));
-        }
+    //     for (let {source, local, imported, loc} of symbol_result.imports) {
+    //       let dep = deps.get(source);
+    //       if (!dep) continue;
+    //       dep.symbols.ensure();
+    //       dep.symbols.set(imported, local, convertLoc(loc));
+    //     }
 
-        for (let {source, loc} of symbol_result.exports_all) {
-          let dep = deps.get(source);
-          if (!dep) continue;
-          dep.symbols.ensure();
-          dep.symbols.set('*', '*', convertLoc(loc), true);
-        }
+    //     for (let {source, loc} of symbol_result.exports_all) {
+    //       let dep = deps.get(source);
+    //       if (!dep) continue;
+    //       dep.symbols.ensure();
+    //       dep.symbols.set('*', '*', convertLoc(loc), true);
+    //     }
 
-        // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
-        // This allows accessing symbols that don't exist without errors in symbol propagation.
-        if (
-          symbol_result.has_cjs_exports ||
-          (!symbol_result.is_esm &&
-            deps.size === 0 &&
-            symbol_result.exports.length === 0) ||
-          (symbol_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
-        ) {
-          asset.symbols.ensure();
-          asset.symbols.set('*', `$${asset.id}$exports`);
-        }
-      } else {
-        // If the asset is wrapped, add * as a fallback
-        asset.symbols.ensure();
-        asset.symbols.set('*', `$${asset.id}$exports`);
-      }
+    //     // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
+    //     // This allows accessing symbols that don't exist without errors in symbol propagation.
+    //     if (
+    //       symbol_result.has_cjs_exports ||
+    //       (!symbol_result.is_esm &&
+    //         deps.size === 0 &&
+    //         symbol_result.exports.length === 0) ||
+    //       (symbol_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
+    //     ) {
+    //       asset.symbols.ensure();
+    //       asset.symbols.set('*', `$${asset.id}$exports`);
+    //     }
+    //   } else {
+    //     // If the asset is wrapped, add * as a fallback
+    //     asset.symbols.ensure();
+    //     asset.symbols.set('*', `$${asset.id}$exports`);
+    //   }
 
-      // For all other imports and requires, mark everything as imported (this covers both dynamic
-      // imports and non-top-level requires.)
-      for (let dep of asset.getDependencies()) {
-        if (dep.symbols.isCleared) {
-          dep.symbols.ensure();
-          dep.symbols.set('*', `${dep.id}$`);
-        }
-      }
+    //   // For all other imports and requires, mark everything as imported (this covers both dynamic
+    //   // imports and non-top-level requires.)
+    //   for (let dep of asset.getDependencies()) {
+    //     if (dep.symbols.isCleared) {
+    //       dep.symbols.ensure();
+    //       dep.symbols.set('*', `${dep.id}$`);
+    //     }
+    //   }
 
-      if (needs_esm_helpers) {
-        asset.addDependency({
-          specifier: '@parcel/transformer-js/src/esmodule-helpers.js',
-          specifierType: 'esm',
-          resolveFrom: __filename,
-          env: {
-            includeNodeModules: {
-              '@parcel/transformer-js': true,
-            },
-          },
-        });
-      }
-    }
+    //   if (needs_esm_helpers) {
+    //     asset.addDependency({
+    //       specifier: '@parcel/transformer-js/src/esmodule-helpers.js',
+    //       specifierType: 'esm',
+    //       resolveFrom: __filename,
+    //       env: {
+    //         includeNodeModules: {
+    //           '@parcel/transformer-js': true,
+    //         },
+    //       },
+    //     });
+    //   }
+    // }
 
     asset.type = 'js';
     asset.setBuffer(compiledCode);

@@ -374,7 +374,7 @@ export type AssetRequestInput = {|
   isSingleChangeRebuild?: boolean,
 |};
 
-export type AssetRequestResult = Array<{|asset: CommittedAssetId, dependencies: Map<string, Dependency>|}>;
+export type AssetRequestResult = Array<{|asset: CommittedAssetId, dependencies: Array<Dependency>|}>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = $Rest<
   AssetRequestInput,

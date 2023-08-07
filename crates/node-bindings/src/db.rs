@@ -3,7 +3,7 @@ use napi::{Env, NapiValue};
 use napi_derive::napi;
 use parcel_db::{Dependency, ParcelDb};
 
-static DB: ParcelDb = ParcelDb::new();
+pub static DB: ParcelDb = ParcelDb::new();
 
 #[napi]
 pub fn get_heap(env: Env) -> napi::Result<napi::JsBuffer> {

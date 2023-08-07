@@ -22,6 +22,10 @@ convert_case = "0.6.0"
 bitflags = "*"
 ctor = "*"
 paste = "1.0.12"
+serde = "1.0.123"
+serde_bytes = "0.11.5"
+pathdiff = "0.2.0"
+path-slash = "0.1.4"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 napi = {version =  "2.12.6", features = ["serde-json", "napi4", "napi6"]}

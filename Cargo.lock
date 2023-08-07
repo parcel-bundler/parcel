@@ -54,6 +54,9 @@ name = "allocator-api2"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "android-tzdata"
@@ -1350,7 +1353,11 @@ dependencies = [
  "parcel-js-swc-core",
  "parcel-resolver",
  "paste",
+ "path-slash",
+ "pathdiff",
  "rayon",
+ "serde",
+ "serde_bytes",
  "xxhash-rust",
 ]
 

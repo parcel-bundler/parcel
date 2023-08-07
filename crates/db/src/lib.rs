@@ -8,11 +8,10 @@ use std::{
   },
 };
 
-use allocator_api2::{
-  alloc::{AllocError, Allocator, Layout},
-  vec::Vec,
-};
+use allocator_api2::alloc::{AllocError, Allocator, Layout};
 use parcel_derive::{JsValue, ToJs};
+
+pub use allocator_api2::vec::Vec;
 
 static mut WRITE_CALLBACKS: Vec<fn(&mut std::fs::File) -> std::io::Result<()>> = Vec::new();
 
@@ -98,8 +97,14 @@ impl<T: JsValue, A: Allocator> JsValue for Vec<T, A> {
     )
   }
 
-  fn js_setter(_addr: usize, _value: &str) -> String {
-    "throw new Error('Cannot set a Vec')".into()
+  fn js_setter(addr: usize, value: &str) -> String {
+    let size = std::mem::size_of::<Vec<T, A>>();
+    format!(
+      "HEAP.set(HEAP.subarray({value}.addr, {value}.addr + {size}), this.addr + {addr});",
+      addr = addr,
+      size = size,
+      value = value
+    )
   }
 
   fn ty() -> String {
@@ -137,19 +142,70 @@ fn discriminant(size: usize, addr: usize) -> String {
   }
 }
 
+fn option_discriminant<T>(addr: usize, operator: &str) -> Vec<String> {
+  // This infers the byte pattern for None of a given type. Due to discriminant elision,
+  // there may be no separate byte for the discriminant. Instead, the Rust compiler uses
+  // "niche" values of the contained type that would otherwise be invalid.
+  // https://github.com/rust-lang/unsafe-code-guidelines/blob/master/reference/src/layout/enums.md#discriminant-elision-on-option-like-enums
+  // To find the byte pattern, we create a None value, and then try flipping all of the bytes
+  // in the value to see if they have an effect on the Option discriminant.
+  let mut none: Option<T> = None;
+  let slice = unsafe {
+    std::slice::from_raw_parts_mut(
+      &mut none as *mut _ as *mut u8,
+      std::mem::size_of::<Option<T>>(),
+    )
+  };
+  let mut comparisons = Vec::new();
+  let mut zeros = 0;
+  let mut zero_offset = 0;
+  for (i, b) in slice.iter_mut().enumerate() {
+    let v = *b;
+    *b = 123;
+    if !none.is_none() {
+      comparisons.push(format!(
+        "HEAP[this.addr + {:?} + {:?}] {} {:?}",
+        addr, i, operator, v
+      ));
+      if v == 0 {
+        if zeros == 0 {
+          zero_offset = i;
+        }
+        zeros += 1;
+      } else {
+        zeros = 0;
+      }
+    }
+    *b = v;
+  }
+
+  // Optimize subsequent zeros into a single 32 bit access instead of 4 individual byte accesses.
+  if zeros == comparisons.len() {
+    if zeros == 4 || zeros == 8 {
+      comparisons.clear();
+      comparisons.push(format!(
+        "HEAP_u32[this.addr + {:?} + {:?} >> 2] {} 0",
+        addr, zero_offset, operator
+      ));
+      if zeros == 8 {
+        comparisons.push(format!(
+          "HEAP_u32[this.addr + {:?} + {:?} >> 2] {} 0",
+          addr,
+          zero_offset + 4,
+          operator
+        ))
+      }
+    }
+  }
+
+  comparisons
+}
+
 impl<T: JsValue> JsValue for Option<T> {
   fn js_getter(addr: usize) -> String {
     let offset = option_offset::<T>();
     if offset == 0 {
-      let discriminant = if std::mem::size_of::<usize>() == 8 {
-        format!(
-          "HEAP_u32[this.addr + {:?} >> 2] === 0 && HEAP_u32[(this.addr + {:?} >> 2) + 1] === 0",
-          addr, addr,
-        )
-      } else {
-        format!("HEAP_u32[this.addr + {:?} >> 2] === 0", addr)
-      };
-
+      let discriminant = option_discriminant::<T>(addr, "===").join(" && ");
       format!("{} ? null : {}", discriminant, T::js_getter(addr + offset))
     } else {
       format!(
@@ -166,13 +222,12 @@ impl<T: JsValue> JsValue for Option<T> {
     if offset == 0 {
       return format!(
         r#"if (value == null) {{
-      HEAP.fill(0, this.addr + {addr}, this.addr + {addr} + {size});
+      {set_none};
     }} else {{
       {setter};
     }}"#,
-        addr = addr,
-        size = std::mem::size_of::<Option<T>>(),
-        setter = T::js_setter(addr, value)
+        set_none = option_discriminant::<T>(addr, "=").join(";\n      "),
+        setter = T::js_setter(addr, value),
       );
     }
 
@@ -251,7 +306,7 @@ macro_rules! js_bitflags {
 pub struct FileId(u32);
 
 #[derive(PartialEq, Clone, Debug, JsValue)]
-pub struct TargetId(u32);
+pub struct TargetId(pub u32);
 
 #[derive(PartialEq, Debug, ToJs)]
 pub struct Target {
@@ -266,17 +321,17 @@ pub struct Target {
 }
 
 #[derive(PartialEq, Clone, Debug, JsValue)]
-pub struct EnvironmentId(u32);
+pub struct EnvironmentId(pub u32);
 
 #[derive(PartialEq, Clone, Debug, ToJs)]
 pub struct Environment {
-  context: EnvironmentContext,
-  output_format: OutputFormat,
-  source_type: SourceType,
-  flags: EnvironmentFlags,
-  source_map: Option<TargetSourceMapOptions>,
-  loc: Option<SourceLocation>,
-  include_node_modules: String,
+  pub context: EnvironmentContext,
+  pub output_format: OutputFormat,
+  pub source_type: SourceType,
+  pub flags: EnvironmentFlags,
+  pub source_map: Option<TargetSourceMapOptions>,
+  pub loc: Option<SourceLocation>,
+  pub include_node_modules: String,
 }
 
 // pub struct Engines {
@@ -320,7 +375,7 @@ pub struct Location {
 }
 
 js_bitflags! {
-  struct EnvironmentFlags: u8 {
+  pub struct EnvironmentFlags: u8 {
     const IS_LIBRARY = 0b00000001;
     const SHOULD_OPTIMIZE = 0b00000010;
     const SHOULD_SCOPE_HOIST = 0b00000100;
@@ -328,7 +383,7 @@ js_bitflags! {
 }
 
 #[derive(PartialEq, Clone, Copy, Debug, ToJs, JsValue)]
-enum EnvironmentContext {
+pub enum EnvironmentContext {
   Browser,
   WebWorker,
   ServiceWorker,
@@ -339,13 +394,13 @@ enum EnvironmentContext {
 }
 
 #[derive(PartialEq, Clone, Copy, Debug, ToJs, JsValue)]
-enum SourceType {
+pub enum SourceType {
   Module,
   Script,
 }
 
 #[derive(PartialEq, Clone, Copy, Debug, ToJs, JsValue)]
-enum OutputFormat {
+pub enum OutputFormat {
   Global,
   Commonjs,
   Esmodule,
@@ -444,13 +499,13 @@ pub enum Priority {
 
 #[derive(Clone, Debug, ToJs, JsValue)]
 pub struct Symbol {
-  exported: String,
-  local: String,
-  loc: Option<SourceLocation>,
-  is_weak: bool,
+  pub exported: String,
+  pub local: String,
+  pub loc: Option<SourceLocation>,
+  pub is_weak: bool,
 }
 
-static mut HEAP: aligned::Aligned<aligned::A8, [u8; 10485760]> = aligned::Aligned([0; 10485760]);
+static mut HEAP: aligned::Aligned<aligned::A8, [u8; 20971520]> = aligned::Aligned([0; 20971520]);
 static HEAP_PTR: AtomicU32 = AtomicU32::new(0);
 
 fn alloc(size: u32) -> u32 {
@@ -528,6 +583,13 @@ impl ParcelDb {
     alloc(size)
   }
 
+  pub fn alloc_struct<T>(&self) -> &'static mut T {
+    unsafe {
+      let ptr = alloc_struct();
+      &mut *ptr
+    }
+  }
+
   pub fn read_string<'a>(&self, addr: u32) -> &'static String {
     read_heap::<String>(addr)
   }
@@ -537,8 +599,12 @@ impl ParcelDb {
     *ptr = Some(s);
   }
 
-  pub fn read_heap<T>(&self, addr: u32) -> &'static T {
+  pub fn read_heap<T>(&self, addr: u32) -> &'static mut T {
     read_heap(addr)
+  }
+
+  pub fn heap_offset<T>(&self, ptr: *const T) -> u32 {
+    heap_offset(ptr)
   }
 
   pub fn extend_vec(&self, addr: u32, size: u32, count: u32) {
@@ -574,6 +640,12 @@ impl ParcelDb {
     let ptr = alloc_struct::<Environment>();
     unsafe { *ptr = env.clone() };
     self.environments.write().unwrap().push(ptr);
+    heap_offset(ptr)
+  }
+
+  pub fn create_dependency(&self, dep: Dependency) -> u32 {
+    let ptr = alloc_struct::<Dependency>();
+    unsafe { std::ptr::write(ptr, dep) };
     heap_offset(ptr)
   }
 }
