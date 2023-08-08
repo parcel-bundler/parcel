@@ -718,11 +718,11 @@ class Vec<T> {{
   }}
 
   get length(): number {{
-    return Number(HEAP_u64[(this.addr + {len_offset}) >> 3]);
+    return HEAP_u32[(this.addr + {len_offset}) >> 2] + HEAP_u32[(this.addr + {len_offset} + 4) >> 2] * 0x100000000;
   }}
 
   get capacity(): number {{
-    return Number(HEAP_u64[(this.addr + {cap_offset}) >> 3]);
+    return HEAP_u32[(this.addr + {cap_offset}) >> 2] + HEAP_u32[(this.addr + {cap_offset} + 4) >> 2] * 0x100000000;
   }}
 
   get(index: number): T {{
@@ -765,13 +765,16 @@ class Vec<T> {{
 
   // $FlowFixMe
   *[globalThis.Symbol.iterator]() {{
-    for (let i = 0; i < this.length; i++) {{
-      yield this.get(i);
+    let addr = Number(HEAP_u64[this.addr + {buf_offset} >> 3] - HEAP_BASE);
+    for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
+      yield this.accessor.get(addr);
     }}
   }}
 
   find(pred: (value: T) => boolean): ?T {{
-    for (let value of this) {{
+    let addr = Number(HEAP_u64[this.addr + {buf_offset} >> 3] - HEAP_BASE);
+    for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
+      let value = this.accessor.get(addr);
       if (pred(value)) {{
         return value;
       }}
@@ -779,7 +782,9 @@ class Vec<T> {{
   }}
 
   some(pred: (value: T) => boolean): boolean {{
-    for (let value of this) {{
+    let addr = Number(HEAP_u64[this.addr + {buf_offset} >> 3] - HEAP_BASE);
+    for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
+      let value = this.accessor.get(addr);
       if (pred(value)) {{
         return true;
       }}
