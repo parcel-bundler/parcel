@@ -8,7 +8,9 @@ import {
   outputFS,
   inputFS,
 } from '@parcel/test-utils';
+import {MemoryFS, OverlayFS} from '@parcel/fs';
 import nullthrows from 'nullthrows';
+import {workerFarm} from '../../test-utils/src/utils';
 
 describe('glob', function () {
   it('should require a glob of files', async function () {
@@ -247,5 +249,60 @@ describe('glob', function () {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 10);
+  });
+
+  it('should correctly resolve a glob with ~', async function () {
+    const beforeHome = process.env.HOME;
+    try {
+      // This drives `os.homedir` behind the curtains
+      process.env.HOME = '/heart';
+
+      // Create input files in-memory for the fake home directory
+      const inMemoryInputFS = new MemoryFS(workerFarm);
+      inMemoryInputFS.mkdirp('/heart');
+      inMemoryInputFS.writeFile('/heart/a.js', 'module.exports = 1;');
+      inMemoryInputFS.writeFile('/heart/b.js', 'module.exports = 2;');
+
+      let b = await bundle(
+        path.join(__dirname, '/integration/glob-homedir/index.js'),
+        {
+          // Use an overlay so `/heart` is present along with real files on the
+          // host system. Not entirely sure this is the intended use of
+          // OverlayFS but it seems to work properly for this test.
+          inputFS: new OverlayFS(inMemoryInputFS, inputFS),
+        },
+      );
+
+      await assertBundles(b, [
+        {
+          name: 'index.js',
+          assets: ['index.js', '*.js', 'a.js', 'b.js'],
+        },
+      ]);
+    } finally {
+      process.env.HOME = beforeHome;
+    }
+  });
+
+  it('should correctly resolve an absolute glob', async function () {
+    // Create input files in-memory for the fake home directory
+    const inMemoryInputFS = new MemoryFS(workerFarm);
+    inMemoryInputFS.mkdirp('/some-absolute-dir');
+    inMemoryInputFS.writeFile('/some-absolute-dir/a.js', 'module.exports = 1;');
+    inMemoryInputFS.writeFile('/some-absolute-dir/b.js', 'module.exports = 2;');
+
+    let b = await bundle(
+      path.join(__dirname, '/integration/glob-absolute/index.js'),
+      {
+        inputFS: new OverlayFS(inMemoryInputFS, inputFS),
+      },
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', '*.js', 'a.js', 'b.js'],
+      },
+    ]);
   });
 });
