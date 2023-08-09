@@ -597,7 +597,6 @@ export function run(input: string[]) {
     let bg = {
       dependency: 0,
       bundle: 0,
-      asset: 0,
       asset_node_modules: 0,
       asset_source: 0,
     };
@@ -615,11 +614,8 @@ export function run(input: string[]) {
       if (n.type == 'bundle_group') {
         // TODO: Counting priority here seems to work instead of counting on BundleNodes.. Counting DependencyNode priorities themselves
         // gives different counts as well.
-        let priority = _getBundlePriority(bundleGraph, n);
-        if (priority == Priority.lazy) {
+        if (_getBundlePriority(bundleGraph, n) == Priority.lazy) {
           bg_type.async++;
-        } else if (priority == Priority.parallel) {
-          bg_type.parallel++;
         }
       } else if (n.type == 'bundle') {
         bg.bundle++;
@@ -631,6 +627,9 @@ export function run(input: string[]) {
         // $FlowFixMe
         if (n.value.mainEntryId == null) {
           bg_type.shared++;
+          if (_getBundlePriority(bundleGraph, n) == Priority.parallel) {
+            bg_type.parallel++;
+          }
         }
       } else if (n.type == 'asset') {
         if (
