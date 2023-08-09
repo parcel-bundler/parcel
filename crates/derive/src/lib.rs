@@ -22,7 +22,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
     ..
   } = parse_macro_input!(input);
   let register = Ident::new(
-    &format!("register_{}", self_name.to_string()),
+    &format!("register_{}", self_name.to_string().to_case(Case::Snake)),
     Span::call_site(),
   );
 

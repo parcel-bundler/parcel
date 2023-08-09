@@ -138,10 +138,6 @@ class BaseAsset {
     return this.#asset.value.sideEffects;
   }
 
-  get symbols(): IAssetSymbols {
-    return new AssetSymbols(this.#asset.options, this.#asset.value);
-  }
-
   get uniqueKey(): ?string {
     return this.#asset.value.uniqueKey;
   }
@@ -198,6 +194,10 @@ export class Asset extends BaseAsset implements IAsset {
     this.#asset = asset;
     uncommittedAssetValueToAsset.set(asset.value, this);
     return this;
+  }
+
+  get symbols(): IAssetSymbols {
+    return new MutableAssetSymbols(this.#asset.options, this.#asset.value);
   }
 
   get stats(): Stats {

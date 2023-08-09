@@ -8,10 +8,12 @@ const HEAP_u64 = new BigUint64Array(HEAP.buffer);
 const STRING_CACHE = new Map();
 
 function readCachedString(addr) {
-  let v = STRING_CACHE.get(addr);
+  let p = HEAP_u32[addr >> 2];
+  let ptr = HEAP_u32[p >> 2] + HEAP_u32[p + 4 >> 2] * 0x100000000;
+  let v = STRING_CACHE.get(ptr);
   if (v != null) return v;
   v = binding.readString(addr);
-  STRING_CACHE.set(addr, v);
+  STRING_CACHE.set(ptr, v);
   return v;
 }
 
@@ -114,7 +116,7 @@ export class Target {
   addr: number;
 
   constructor(addr?: number) {
-    this.addr = addr ?? binding.alloc(152);
+    this.addr = addr ?? binding.alloc(44);
   }
 
   static get(addr: number): Target {
@@ -122,73 +124,74 @@ export class Target {
   }
 
   static set(addr: number, value: Target): void {
-    HEAP.set(HEAP.subarray(value.addr, value.addr + 152), addr);
+    HEAP.set(HEAP.subarray(value.addr, value.addr + 44), addr);
   }
 
   get env(): number {
-    return HEAP_u32[(this.addr + 144) >> 2];
+    return HEAP_u32[(this.addr + 0) >> 2];
   }
 
   set env(value: number): void {
-    HEAP_u32[(this.addr + 144) >> 2] = value;
+    HEAP_u32[(this.addr + 0) >> 2] = value;
   }
 
   get distDir(): string {
-    return readCachedString(this.addr + 48);
+    return readCachedString(this.addr + 32);
   }
 
   set distDir(value: string): void {
-    STRING_CACHE.set(this.addr + 48, value); binding.writeString(this.addr + 48, value);
+    binding.writeString(this.addr + 32, value);
   }
 
   get distEntry(): ?string {
-    return HEAP_u32[this.addr + 0 + 8 >> 2] === 0 && HEAP_u32[this.addr + 0 + 12 >> 2] === 0 ? null : readCachedString(this.addr + 0);
+    return HEAP_u32[this.addr + 4 + 0 >> 2] === 0 ? null : readCachedString(this.addr + 4);
   }
 
   set distEntry(value: ?string): void {
     if (value == null) {
-      HEAP_u32[this.addr + 0 + 8 >> 2] = 0;
-      HEAP_u32[this.addr + 0 + 12 >> 2] = 0;
+      HEAP_u32[this.addr + 4 + 0 >> 2] = 0;
     } else {
-      STRING_CACHE.set(this.addr + 0, value); binding.writeString(this.addr + 0, value);
+      binding.writeString(this.addr + 4, value);
     };
   }
 
   get name(): string {
-    return readCachedString(this.addr + 72);
+    return readCachedString(this.addr + 36);
   }
 
   set name(value: string): void {
-    STRING_CACHE.set(this.addr + 72, value); binding.writeString(this.addr + 72, value);
+    binding.writeString(this.addr + 36, value);
   }
 
   get publicUrl(): string {
-    return readCachedString(this.addr + 96);
+    return readCachedString(this.addr + 40);
   }
 
   set publicUrl(value: string): void {
-    STRING_CACHE.set(this.addr + 96, value); binding.writeString(this.addr + 96, value);
+    binding.writeString(this.addr + 40, value);
   }
 
   get loc(): ?SourceLocation {
-    return HEAP_u32[(this.addr + 120) >> 2] ? null : SourceLocation.get(this.addr + 124);
+    return HEAP_u32[this.addr + 8 + 16 >> 2] === 0 ? null : SourceLocation.get(this.addr + 8);
   }
 
   set loc(value: ?SourceLocation): void {
-    HEAP_u32[(this.addr + 120) >> 2] = value == null ? 0 : 1;
-    if (value != null) SourceLocation.set(this.addr + 124, value);
+    if (value == null) {
+      HEAP_u32[this.addr + 8 + 16 >> 2] = 0;
+    } else {
+      SourceLocation.set(this.addr + 8, value);
+    };
   }
 
   get pipeline(): ?string {
-    return HEAP_u32[this.addr + 24 + 8 >> 2] === 0 && HEAP_u32[this.addr + 24 + 12 >> 2] === 0 ? null : readCachedString(this.addr + 24);
+    return HEAP_u32[this.addr + 28 + 0 >> 2] === 0 ? null : readCachedString(this.addr + 28);
   }
 
   set pipeline(value: ?string): void {
     if (value == null) {
-      HEAP_u32[this.addr + 24 + 8 >> 2] = 0;
-      HEAP_u32[this.addr + 24 + 12 >> 2] = 0;
+      HEAP_u32[this.addr + 28 + 0 >> 2] = 0;
     } else {
-      STRING_CACHE.set(this.addr + 24, value); binding.writeString(this.addr + 24, value);
+      binding.writeString(this.addr + 28, value);
     };
   }
 }
@@ -197,7 +200,7 @@ export class Environment {
   addr: number;
 
   constructor(addr?: number) {
-    this.addr = addr ?? binding.alloc(88);
+    this.addr = addr ?? binding.alloc(36);
   }
 
   static get(addr: number): Environment {
@@ -205,68 +208,71 @@ export class Environment {
   }
 
   static set(addr: number, value: Environment): void {
-    HEAP.set(HEAP.subarray(value.addr, value.addr + 88), addr);
+    HEAP.set(HEAP.subarray(value.addr, value.addr + 36), addr);
   }
 
   get context(): EnvironmentContextVariants {
-    return EnvironmentContext.get(this.addr + 81);
+    return EnvironmentContext.get(this.addr + 33);
   }
 
   set context(value: EnvironmentContextVariants): void {
-    EnvironmentContext.set(this.addr + 81, value);
+    EnvironmentContext.set(this.addr + 33, value);
   }
 
   get outputFormat(): OutputFormatVariants {
-    return OutputFormat.get(this.addr + 82);
+    return OutputFormat.get(this.addr + 34);
   }
 
   set outputFormat(value: OutputFormatVariants): void {
-    OutputFormat.set(this.addr + 82, value);
+    OutputFormat.set(this.addr + 34, value);
   }
 
   get sourceType(): SourceTypeVariants {
-    return SourceType.get(this.addr + 83);
+    return SourceType.get(this.addr + 35);
   }
 
   set sourceType(value: SourceTypeVariants): void {
-    SourceType.set(this.addr + 83, value);
+    SourceType.set(this.addr + 35, value);
   }
 
   get flags(): number {
-    return HEAP[this.addr + 80];
+    return HEAP[this.addr + 32];
   }
 
   set flags(value: number): void {
-    HEAP[this.addr + 80] = value;
+    HEAP[this.addr + 32] = value;
   }
 
   get sourceMap(): ?TargetSourceMapOptions {
-    return HEAP[this.addr + 0 + 24] === 2 ? null : TargetSourceMapOptions.get(this.addr + 0);
+    return HEAP[this.addr + 0 + 4] === 2 ? null : TargetSourceMapOptions.get(this.addr + 0);
   }
 
   set sourceMap(value: ?TargetSourceMapOptions): void {
     if (value == null) {
-      HEAP[this.addr + 0 + 24] = 2;
+      HEAP[this.addr + 0 + 4] = 2;
     } else {
       TargetSourceMapOptions.set(this.addr + 0, value);
     };
   }
 
   get loc(): ?SourceLocation {
-    return HEAP_u32[(this.addr + 56) >> 2] ? null : SourceLocation.get(this.addr + 60);
+    return HEAP_u32[this.addr + 8 + 16 >> 2] === 0 ? null : SourceLocation.get(this.addr + 8);
   }
 
   set loc(value: ?SourceLocation): void {
-    HEAP_u32[(this.addr + 56) >> 2] = value == null ? 0 : 1;
-    if (value != null) SourceLocation.set(this.addr + 60, value);
+    if (value == null) {
+      HEAP_u32[this.addr + 8 + 16 >> 2] = 0;
+    } else {
+      SourceLocation.set(this.addr + 8, value);
+    };
   }
 
   get includeNodeModules(): string {
-    return readCachedString(this.addr + 32);
+    return readCachedString(this.addr + 28);
   }
 
   set includeNodeModules(value: string): void {
-    STRING_CACHE.set(this.addr + 32, value); binding.writeString(this.addr + 32, value);
+    binding.writeString(this.addr + 28, value);
   }
 }
 
@@ -274,7 +280,7 @@ export class TargetSourceMapOptions {
   addr: number;
 
   constructor(addr?: number) {
-    this.addr = addr ?? binding.alloc(32);
+    this.addr = addr ?? binding.alloc(8);
   }
 
   static get(addr: number): TargetSourceMapOptions {
@@ -282,36 +288,35 @@ export class TargetSourceMapOptions {
   }
 
   static set(addr: number, value: TargetSourceMapOptions): void {
-    HEAP.set(HEAP.subarray(value.addr, value.addr + 32), addr);
+    HEAP.set(HEAP.subarray(value.addr, value.addr + 8), addr);
   }
 
   get sourceRoot(): ?string {
-    return HEAP_u32[this.addr + 0 + 8 >> 2] === 0 && HEAP_u32[this.addr + 0 + 12 >> 2] === 0 ? null : readCachedString(this.addr + 0);
+    return HEAP_u32[this.addr + 0 + 0 >> 2] === 0 ? null : readCachedString(this.addr + 0);
   }
 
   set sourceRoot(value: ?string): void {
     if (value == null) {
-      HEAP_u32[this.addr + 0 + 8 >> 2] = 0;
-      HEAP_u32[this.addr + 0 + 12 >> 2] = 0;
+      HEAP_u32[this.addr + 0 + 0 >> 2] = 0;
     } else {
-      STRING_CACHE.set(this.addr + 0, value); binding.writeString(this.addr + 0, value);
+      binding.writeString(this.addr + 0, value);
     };
   }
 
   get inline(): boolean {
-    return !!HEAP[this.addr + 24];
+    return !!HEAP[this.addr + 4];
   }
 
   set inline(value: boolean): void {
-    HEAP[this.addr + 24] = value ? 1 : 0;
+    HEAP[this.addr + 4] = value ? 1 : 0;
   }
 
   get inlineSources(): boolean {
-    return !!HEAP[this.addr + 25];
+    return !!HEAP[this.addr + 5];
   }
 
   set inlineSources(value: boolean): void {
-    HEAP[this.addr + 25] = value ? 1 : 0;
+    HEAP[this.addr + 5] = value ? 1 : 0;
   }
 }
 
@@ -330,12 +335,12 @@ export class SourceLocation {
     HEAP.set(HEAP.subarray(value.addr, value.addr + 20), addr);
   }
 
-  get fileId(): number {
-    return HEAP_u32[(this.addr + 16) >> 2];
+  get filePath(): string {
+    return readCachedString(this.addr + 16);
   }
 
-  set fileId(value: number): void {
-    HEAP_u32[(this.addr + 16) >> 2] = value;
+  set filePath(value: string): void {
+    binding.writeString(this.addr + 16, value);
   }
 
   get start(): Location {
@@ -514,7 +519,7 @@ export class Asset {
   addr: number;
 
   constructor(addr?: number) {
-    this.addr = addr ?? binding.alloc(232);
+    this.addr = addr ?? binding.alloc(72);
   }
 
   static get(addr: number): Asset {
@@ -522,138 +527,134 @@ export class Asset {
   }
 
   static set(addr: number, value: Asset): void {
-    HEAP.set(HEAP.subarray(value.addr, value.addr + 232), addr);
+    HEAP.set(HEAP.subarray(value.addr, value.addr + 72), addr);
   }
 
   get filePath(): string {
-    return readCachedString(this.addr + 104);
+    return readCachedString(this.addr + 52);
   }
 
   set filePath(value: string): void {
-    STRING_CACHE.set(this.addr + 104, value); binding.writeString(this.addr + 104, value);
+    binding.writeString(this.addr + 52, value);
   }
 
   get env(): number {
-    return HEAP_u32[(this.addr + 224) >> 2];
+    return HEAP_u32[(this.addr + 32) >> 2];
   }
 
   set env(value: number): void {
-    HEAP_u32[(this.addr + 224) >> 2] = value;
+    HEAP_u32[(this.addr + 32) >> 2] = value;
   }
 
   get query(): ?string {
-    return HEAP_u32[this.addr + 0 + 8 >> 2] === 0 && HEAP_u32[this.addr + 0 + 12 >> 2] === 0 ? null : readCachedString(this.addr + 0);
+    return HEAP_u32[this.addr + 36 + 0 >> 2] === 0 ? null : readCachedString(this.addr + 36);
   }
 
   set query(value: ?string): void {
     if (value == null) {
-      HEAP_u32[this.addr + 0 + 8 >> 2] = 0;
-      HEAP_u32[this.addr + 0 + 12 >> 2] = 0;
+      HEAP_u32[this.addr + 36 + 0 >> 2] = 0;
     } else {
-      STRING_CACHE.set(this.addr + 0, value); binding.writeString(this.addr + 0, value);
+      binding.writeString(this.addr + 36, value);
     };
   }
 
   get assetType(): AssetTypeVariants {
-    return AssetType.get(this.addr + 229);
+    return AssetType.get(this.addr + 69);
   }
 
   set assetType(value: AssetTypeVariants): void {
-    AssetType.set(this.addr + 229, value);
+    AssetType.set(this.addr + 69, value);
   }
 
   get contentKey(): string {
-    return readCachedString(this.addr + 128);
+    return readCachedString(this.addr + 56);
   }
 
   set contentKey(value: string): void {
-    STRING_CACHE.set(this.addr + 128, value); binding.writeString(this.addr + 128, value);
+    binding.writeString(this.addr + 56, value);
   }
 
   get mapKey(): ?string {
-    return HEAP_u32[this.addr + 24 + 8 >> 2] === 0 && HEAP_u32[this.addr + 24 + 12 >> 2] === 0 ? null : readCachedString(this.addr + 24);
+    return HEAP_u32[this.addr + 40 + 0 >> 2] === 0 ? null : readCachedString(this.addr + 40);
   }
 
   set mapKey(value: ?string): void {
     if (value == null) {
-      HEAP_u32[this.addr + 24 + 8 >> 2] = 0;
-      HEAP_u32[this.addr + 24 + 12 >> 2] = 0;
+      HEAP_u32[this.addr + 40 + 0 >> 2] = 0;
     } else {
-      STRING_CACHE.set(this.addr + 24, value); binding.writeString(this.addr + 24, value);
+      binding.writeString(this.addr + 40, value);
     };
   }
 
   get outputHash(): string {
-    return readCachedString(this.addr + 152);
+    return readCachedString(this.addr + 60);
   }
 
   set outputHash(value: string): void {
-    STRING_CACHE.set(this.addr + 152, value); binding.writeString(this.addr + 152, value);
+    binding.writeString(this.addr + 60, value);
   }
 
   get pipeline(): ?string {
-    return HEAP_u32[this.addr + 48 + 8 >> 2] === 0 && HEAP_u32[this.addr + 48 + 12 >> 2] === 0 ? null : readCachedString(this.addr + 48);
+    return HEAP_u32[this.addr + 44 + 0 >> 2] === 0 ? null : readCachedString(this.addr + 44);
   }
 
   set pipeline(value: ?string): void {
     if (value == null) {
-      HEAP_u32[this.addr + 48 + 8 >> 2] = 0;
-      HEAP_u32[this.addr + 48 + 12 >> 2] = 0;
+      HEAP_u32[this.addr + 44 + 0 >> 2] = 0;
     } else {
-      STRING_CACHE.set(this.addr + 48, value); binding.writeString(this.addr + 48, value);
+      binding.writeString(this.addr + 44, value);
     };
   }
 
   get meta(): string {
-    return readCachedString(this.addr + 176);
+    return readCachedString(this.addr + 64);
   }
 
   set meta(value: string): void {
-    STRING_CACHE.set(this.addr + 176, value); binding.writeString(this.addr + 176, value);
+    binding.writeString(this.addr + 64, value);
   }
 
   get stats(): AssetStats {
-    return AssetStats.get(this.addr + 72);
+    return AssetStats.get(this.addr + 0);
   }
 
   set stats(value: AssetStats): void {
-    AssetStats.set(this.addr + 72, value);
+    AssetStats.set(this.addr + 0, value);
   }
 
   get bundleBehavior(): BundleBehaviorVariants {
-    return BundleBehavior.get(this.addr + 230);
+    return BundleBehavior.get(this.addr + 70);
   }
 
   set bundleBehavior(value: BundleBehaviorVariants): void {
-    BundleBehavior.set(this.addr + 230, value);
+    BundleBehavior.set(this.addr + 70, value);
   }
 
   get flags(): number {
-    return HEAP[this.addr + 228];
+    return HEAP[this.addr + 68];
   }
 
   set flags(value: number): void {
-    HEAP[this.addr + 228] = value;
+    HEAP[this.addr + 68] = value;
   }
 
   get symbols(): Vec<Symbol> {
-    return new Vec(this.addr + 200, 80, Symbol);
+    return new Vec(this.addr + 8, 32, Symbol);
   }
 
   set symbols(value: Vec<Symbol>): void {
-    HEAP.set(HEAP.subarray(value.addr, value.addr + 24), this.addr + 200);;
+    HEAP.set(HEAP.subarray(value.addr, value.addr + 24), this.addr + 8);;
   }
 
   get uniqueKey(): ?string {
-    return HEAP_u32[this.addr + 80 + 8 >> 2] === 0 && HEAP_u32[this.addr + 80 + 12 >> 2] === 0 ? null : readCachedString(this.addr + 80);
+    return HEAP_u32[this.addr + 48 + 0 >> 2] === 0 ? null : readCachedString(this.addr + 48);
   }
 
   set uniqueKey(value: ?string): void {
     if (value == null) {
-      HEAP_u32[this.addr + 80 + 8 >> 2] = 0;
-      HEAP_u32[this.addr + 80 + 12 >> 2] = 0;
+      HEAP_u32[this.addr + 48 + 0 >> 2] = 0;
     } else {
-      STRING_CACHE.set(this.addr + 80, value); binding.writeString(this.addr + 80, value);
+      binding.writeString(this.addr + 48, value);
     };
   }
 }
@@ -774,7 +775,7 @@ export class Dependency {
   addr: number;
 
   constructor(addr?: number) {
-    this.addr = addr ?? binding.alloc(144);
+    this.addr = addr ?? binding.alloc(80);
   }
 
   static get(addr: number): Dependency {
@@ -782,115 +783,116 @@ export class Dependency {
   }
 
   static set(addr: number, value: Dependency): void {
-    HEAP.set(HEAP.subarray(value.addr, value.addr + 144), addr);
+    HEAP.set(HEAP.subarray(value.addr, value.addr + 80), addr);
   }
 
   get sourceAssetId(): ?number {
-    return HEAP_u32[(this.addr + 96) >> 2] ? null : HEAP_u32[(this.addr + 100) >> 2];
+    return HEAP_u32[(this.addr + 24) >> 2] ? null : HEAP_u32[(this.addr + 28) >> 2];
   }
 
   set sourceAssetId(value: ?number): void {
-    HEAP_u32[(this.addr + 96) >> 2] = value == null ? 0 : 1;
-    if (value != null) HEAP_u32[(this.addr + 100) >> 2] = value;
+    HEAP_u32[(this.addr + 24) >> 2] = value == null ? 0 : 1;
+    if (value != null) HEAP_u32[(this.addr + 28) >> 2] = value;
   }
 
   get env(): number {
-    return HEAP_u32[(this.addr + 128) >> 2];
+    return HEAP_u32[(this.addr + 32) >> 2];
   }
 
   set env(value: number): void {
-    HEAP_u32[(this.addr + 128) >> 2] = value;
+    HEAP_u32[(this.addr + 32) >> 2] = value;
   }
 
   get specifier(): string {
-    return readCachedString(this.addr + 48);
+    return readCachedString(this.addr + 68);
   }
 
   set specifier(value: string): void {
-    STRING_CACHE.set(this.addr + 48, value); binding.writeString(this.addr + 48, value);
+    binding.writeString(this.addr + 68, value);
   }
 
   get specifierType(): SpecifierTypeVariants {
-    return SpecifierType.get(this.addr + 137);
+    return SpecifierType.get(this.addr + 73);
   }
 
   set specifierType(value: SpecifierTypeVariants): void {
-    SpecifierType.set(this.addr + 137, value);
+    SpecifierType.set(this.addr + 73, value);
   }
 
   get resolveFrom(): ?string {
-    return HEAP_u32[this.addr + 0 + 8 >> 2] === 0 && HEAP_u32[this.addr + 0 + 12 >> 2] === 0 ? null : readCachedString(this.addr + 0);
+    return HEAP_u32[this.addr + 36 + 0 >> 2] === 0 ? null : readCachedString(this.addr + 36);
   }
 
   set resolveFrom(value: ?string): void {
     if (value == null) {
-      HEAP_u32[this.addr + 0 + 8 >> 2] = 0;
-      HEAP_u32[this.addr + 0 + 12 >> 2] = 0;
+      HEAP_u32[this.addr + 36 + 0 >> 2] = 0;
     } else {
-      STRING_CACHE.set(this.addr + 0, value); binding.writeString(this.addr + 0, value);
+      binding.writeString(this.addr + 36, value);
     };
   }
 
   get priority(): PriorityVariants {
-    return Priority.get(this.addr + 138);
+    return Priority.get(this.addr + 74);
   }
 
   set priority(value: PriorityVariants): void {
-    Priority.set(this.addr + 138, value);
+    Priority.set(this.addr + 74, value);
   }
 
   get bundleBehavior(): BundleBehaviorVariants {
-    return BundleBehavior.get(this.addr + 139);
+    return BundleBehavior.get(this.addr + 75);
   }
 
   set bundleBehavior(value: BundleBehaviorVariants): void {
-    BundleBehavior.set(this.addr + 139, value);
+    BundleBehavior.set(this.addr + 75, value);
   }
 
   get flags(): number {
-    return HEAP[this.addr + 136];
+    return HEAP[this.addr + 72];
   }
 
   set flags(value: number): void {
-    HEAP[this.addr + 136] = value;
+    HEAP[this.addr + 72] = value;
   }
 
   get loc(): ?SourceLocation {
-    return HEAP_u32[(this.addr + 104) >> 2] ? null : SourceLocation.get(this.addr + 108);
+    return HEAP_u32[this.addr + 40 + 16 >> 2] === 0 ? null : SourceLocation.get(this.addr + 40);
   }
 
   set loc(value: ?SourceLocation): void {
-    HEAP_u32[(this.addr + 104) >> 2] = value == null ? 0 : 1;
-    if (value != null) SourceLocation.set(this.addr + 108, value);
+    if (value == null) {
+      HEAP_u32[this.addr + 40 + 16 >> 2] = 0;
+    } else {
+      SourceLocation.set(this.addr + 40, value);
+    };
   }
 
   get placeholder(): ?string {
-    return HEAP_u32[this.addr + 24 + 8 >> 2] === 0 && HEAP_u32[this.addr + 24 + 12 >> 2] === 0 ? null : readCachedString(this.addr + 24);
+    return HEAP_u32[this.addr + 60 + 0 >> 2] === 0 ? null : readCachedString(this.addr + 60);
   }
 
   set placeholder(value: ?string): void {
     if (value == null) {
-      HEAP_u32[this.addr + 24 + 8 >> 2] = 0;
-      HEAP_u32[this.addr + 24 + 12 >> 2] = 0;
+      HEAP_u32[this.addr + 60 + 0 >> 2] = 0;
     } else {
-      STRING_CACHE.set(this.addr + 24, value); binding.writeString(this.addr + 24, value);
+      binding.writeString(this.addr + 60, value);
     };
   }
 
   get target(): number {
-    return HEAP_u32[(this.addr + 132) >> 2];
+    return HEAP_u32[(this.addr + 64) >> 2];
   }
 
   set target(value: number): void {
-    HEAP_u32[(this.addr + 132) >> 2] = value;
+    HEAP_u32[(this.addr + 64) >> 2] = value;
   }
 
   get symbols(): Vec<Symbol> {
-    return new Vec(this.addr + 72, 80, Symbol);
+    return new Vec(this.addr + 0, 32, Symbol);
   }
 
   set symbols(value: Vec<Symbol>): void {
-    HEAP.set(HEAP.subarray(value.addr, value.addr + 24), this.addr + 72);;
+    HEAP.set(HEAP.subarray(value.addr, value.addr + 24), this.addr + 0);;
   }
 }
 
@@ -977,7 +979,7 @@ export class Symbol {
   addr: number;
 
   constructor(addr?: number) {
-    this.addr = addr ?? binding.alloc(80);
+    this.addr = addr ?? binding.alloc(32);
   }
 
   static get(addr: number): Symbol {
@@ -985,15 +987,15 @@ export class Symbol {
   }
 
   static set(addr: number, value: Symbol): void {
-    HEAP.set(HEAP.subarray(value.addr, value.addr + 80), addr);
+    HEAP.set(HEAP.subarray(value.addr, value.addr + 32), addr);
   }
 
   get exported(): string {
-    return readCachedString(this.addr + 0);
+    return readCachedString(this.addr + 20);
   }
 
   set exported(value: string): void {
-    STRING_CACHE.set(this.addr + 0, value); binding.writeString(this.addr + 0, value);
+    binding.writeString(this.addr + 20, value);
   }
 
   get local(): string {
@@ -1001,24 +1003,27 @@ export class Symbol {
   }
 
   set local(value: string): void {
-    STRING_CACHE.set(this.addr + 24, value); binding.writeString(this.addr + 24, value);
+    binding.writeString(this.addr + 24, value);
   }
 
   get loc(): ?SourceLocation {
-    return HEAP_u32[(this.addr + 48) >> 2] ? null : SourceLocation.get(this.addr + 52);
+    return HEAP_u32[this.addr + 0 + 16 >> 2] === 0 ? null : SourceLocation.get(this.addr + 0);
   }
 
   set loc(value: ?SourceLocation): void {
-    HEAP_u32[(this.addr + 48) >> 2] = value == null ? 0 : 1;
-    if (value != null) SourceLocation.set(this.addr + 52, value);
+    if (value == null) {
+      HEAP_u32[this.addr + 0 + 16 >> 2] = 0;
+    } else {
+      SourceLocation.set(this.addr + 0, value);
+    };
   }
 
   get isWeak(): boolean {
-    return !!HEAP[this.addr + 72];
+    return !!HEAP[this.addr + 28];
   }
 
   set isWeak(value: boolean): void {
-    HEAP[this.addr + 72] = value ? 1 : 0;
+    HEAP[this.addr + 28] = value ? 1 : 0;
   }
 }
 

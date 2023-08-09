@@ -4,7 +4,8 @@ use crate::db::DB;
 use napi::{Env, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
-  Alloc, Dependency, DependencyFlags, EnvironmentId, Priority, SpecifierType, Symbol, TargetId, Vec,
+  Alloc, Dependency, DependencyFlags, EnvironmentId, InternedString, Priority, SpecifierType,
+  Symbol, TargetId, Vec,
 };
 use parcel_js_swc_core::{DependencyKind, Diagnostic, TransformResult};
 use path_slash::PathBufExt;
@@ -97,7 +98,7 @@ fn convert_result(
         let mut flags = DependencyFlags::empty();
         flags.set(DependencyFlags::OPTIONAL, dep.is_optional);
         let d = Dependency {
-          specifier: dep.specifier.to_string(),
+          specifier: dep.specifier.as_ref().into(),
           specifier_type: match dep.kind {
             DependencyKind::Require => SpecifierType::Commonjs,
             _ => SpecifierType::Esm,
@@ -109,9 +110,9 @@ fn convert_result(
           flags,
           bundle_behavior: parcel_db::BundleBehavior::None,
           resolve_from: pathdiff::diff_paths(&config.filename, &config.project_root)
-            .map(|p| p.to_slash_lossy()),
+            .map(|p| p.to_slash_lossy().into()),
           source_asset_id: None,
-          placeholder: dep.placeholder,
+          placeholder: dep.placeholder.map(|s| s.into()),
           symbols: Vec::new_in(parcel_db::Alloc),
           loc: None,
           target: TargetId(0),
@@ -136,8 +137,8 @@ fn convert_result(
     // println!("{:?}", hoist_result);
     for s in hoist_result.exported_symbols {
       let sym = Symbol {
-        exported: s.exported.to_string(),
-        local: s.local.to_string(),
+        exported: s.exported.as_ref().into(),
+        local: s.local.as_ref().into(),
         loc: None,
         is_weak: false,
       };
@@ -145,11 +146,11 @@ fn convert_result(
     }
 
     for s in hoist_result.imported_symbols {
-      if let Some(dep_id) = dep_map.get(&*s.source) {
+      if let Some(dep_id) = InternedString::get(&*s.source).and_then(|s| dep_map.get(&s)) {
         let dep: &mut Dependency = DB.read_heap(*dep_id);
         dep.symbols.push(Symbol {
-          exported: s.imported.to_string(),
-          local: s.local.to_string(),
+          exported: s.imported.as_ref().into(),
+          local: s.local.as_ref().into(),
           loc: None,
           is_weak: false,
         });
@@ -157,12 +158,12 @@ fn convert_result(
     }
 
     for s in hoist_result.re_exports {
-      if let Some(dep_id) = dep_map.get(&*s.source) {
+      if let Some(dep_id) = InternedString::get(&*s.source).and_then(|s| dep_map.get(&s)) {
         let dep: &mut Dependency = DB.read_heap(*dep_id);
         if &*s.local == "*" || &*s.imported == "*" {
           dep.symbols.push(Symbol {
-            exported: "*".to_string(),
-            local: "*".to_string(),
+            exported: "*".into(),
+            local: "*".into(),
             loc: None,
             is_weak: true,
           });
@@ -172,15 +173,15 @@ fn convert_result(
             .iter()
             .find(|sym| sym.exported == &*s.imported)
             .map(|sym| sym.local.clone())
-            .unwrap_or_else(|| format!("${}$re_export${}", config.module_id, s.local));
+            .unwrap_or_else(|| format!("${}$re_export${}", config.module_id, s.local).into());
           dep.symbols.push(Symbol {
-            exported: s.imported.to_string(),
+            exported: s.imported.as_ref().into(),
             local: re_export_name.clone(),
             loc: None,
             is_weak: true,
           });
           symbols.push(Symbol {
-            exported: s.local.to_string(),
+            exported: s.local.as_ref().into(),
             local: re_export_name,
             loc: None,
             is_weak: false,
@@ -190,14 +191,14 @@ fn convert_result(
     }
 
     for specifier in hoist_result.wrapped_requires {
-      if let Some(dep_id) = dep_map.get(&specifier) {
+      if let Some(dep_id) = InternedString::get(&specifier).and_then(|s| dep_map.get(&s)) {
         let dep: &mut Dependency = DB.read_heap(*dep_id);
         // dep.meta.should_wrap = true
       }
     }
 
     for (name, specifier) in hoist_result.dynamic_imports {
-      if let Some(dep_id) = dep_map.get(&*specifier) {
+      if let Some(dep_id) = InternedString::get(&*specifier).and_then(|s| dep_map.get(&s)) {
         let dep: &mut Dependency = DB.read_heap(*dep_id);
         // dep.meta.promise_symbol = name
       }
@@ -215,8 +216,8 @@ fn convert_result(
       || (hoist_result.should_wrap && !symbols.iter().any(|s| s.exported == "*"))
     {
       symbols.push(Symbol {
-        exported: "*".to_string(),
-        local: format!("${}$exports", &config.module_id),
+        exported: "*".into(),
+        local: format!("${}$exports", &config.module_id).into(),
         loc: None,
         is_weak: false,
       });
@@ -228,22 +229,26 @@ fn convert_result(
   } else {
     if let Some(symbol_result) = result.symbol_result {
       for sym in symbol_result.exports {
-        let local = if let Some(dep_id) = sym.source.and_then(|s| dep_map.get(&*s)) {
+        let local = if let Some(dep_id) = sym
+          .source
+          .and_then(|s| InternedString::get(&*s))
+          .and_then(|s| dep_map.get(&s))
+        {
           let dep: &mut Dependency = DB.read_heap(*dep_id);
-          let local = format!("${}${}", *dep_id, sym.local);
+          let local = format!("${}${}", *dep_id, sym.local).into();
           dep.symbols.push(Symbol {
-            exported: sym.local.to_string(),
-            local: local.clone(),
+            exported: sym.local.as_ref().into(),
+            local,
             loc: None,
             is_weak: true,
           });
           local
         } else {
-          format!("${}", sym.local)
+          format!("${}", sym.local).into()
         };
 
         symbols.push(Symbol {
-          exported: sym.exported.to_string(),
+          exported: sym.exported.as_ref().into(),
           local,
           loc: None,
           is_weak: false,
@@ -251,11 +256,11 @@ fn convert_result(
       }
 
       for sym in symbol_result.imports {
-        if let Some(dep_id) = dep_map.get(&*sym.source) {
+        if let Some(dep_id) = InternedString::get(&*sym.source).and_then(|s| dep_map.get(&s)) {
           let dep: &mut Dependency = DB.read_heap(*dep_id);
           dep.symbols.push(Symbol {
-            exported: sym.imported.to_string(),
-            local: sym.local.to_string(),
+            exported: sym.imported.as_ref().into(),
+            local: sym.local.as_ref().into(),
             loc: None,
             is_weak: false,
           });
@@ -263,7 +268,7 @@ fn convert_result(
       }
 
       for sym in symbol_result.exports_all {
-        if let Some(dep_id) = dep_map.get(&*sym.source) {
+        if let Some(dep_id) = InternedString::get(&*sym.source).and_then(|s| dep_map.get(&s)) {
           let dep: &mut Dependency = DB.read_heap(*dep_id);
           dep.symbols.push(Symbol {
             exported: "*".into(),
@@ -281,8 +286,8 @@ fn convert_result(
         || (symbol_result.should_wrap && !symbols.iter().any(|s| s.exported == "*"))
       {
         symbols.push(Symbol {
-          exported: "*".to_string(),
-          local: format!("${}$exports", &config.module_id),
+          exported: "*".into(),
+          local: format!("${}$exports", &config.module_id).into(),
           loc: None,
           is_weak: false,
         });
@@ -290,8 +295,8 @@ fn convert_result(
     } else {
       // If the asset is wrapped, add * as a fallback
       symbols.push(Symbol {
-        exported: "*".to_string(),
-        local: format!("${}$exports", &config.module_id),
+        exported: "*".into(),
+        local: format!("${}$exports", &config.module_id).into(),
         loc: None,
         is_weak: false,
       });

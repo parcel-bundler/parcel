@@ -124,7 +124,9 @@ export function createDependency(
     projectRoot,
     opts.resolveFrom ?? opts.sourcePath,
   );
-  d.placeholder = opts.meta?.placeholder;
+  if (typeof opts.meta?.placeholder === 'string') {
+    d.placeholder = opts.meta?.placeholder;
+  }
   d.target = opts.target || 0;
 
   // if (opts.packageConditions) {

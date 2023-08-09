@@ -76,19 +76,18 @@ export type ProcessedParcelConfig = {|
 // |};
 export type Environment = number;
 
-export type InternalSourceLocation = {|
+export interface InternalSourceLocation {
   +filePath: ProjectPath,
   /** inclusive */
-  +start: {|
-    +line: number,
-    +column: number,
-  |},
+  +start: Location,
   /** exclusive */
-  +end: {|
-    +line: number,
-    +column: number,
-  |},
-|};
+  +end: Location,
+};
+
+interface Location {
+  +line: number,
+  +column: number
+}
 
 export type TargetValue = {|
   distEntry?: ?FilePath,

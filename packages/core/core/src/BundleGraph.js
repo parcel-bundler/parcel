@@ -42,7 +42,7 @@ import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath, fromProjectPathRelative} from './projectPath';
 import {HASH_REF_PREFIX} from './constants';
-import { Environment as DbEnvironment, EnvironmentFlags, Dependency as DbDependency, Target as DbTarget, Asset as DbAsset } from '@parcel/rust';
+import { Environment as DbEnvironment, EnvironmentFlags, Dependency as DbDependency, Target as DbTarget, Asset as DbAsset, AssetFlags } from '@parcel/rust';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -437,7 +437,7 @@ export default class BundleGraph {
     let target = DbTarget.get(targetId);
     let bundleId = hashString(
       'bundle:' +
-        (opts.entryAsset != null ? String(opts.entryAsset) : opts.uniqueKey) +
+        (opts.entryAsset != null ? String(opts.entryAsset) : String(opts.uniqueKey)) +
         fromProjectPathRelative(target.distDir) +
         (opts.bundleBehavior ?? ''),
     );
@@ -454,12 +454,13 @@ export default class BundleGraph {
     this._bundlePublicIds.add(publicId);
 
     let isPlaceholder = false;
-    if (entryAsset) {
-      let entryAssetNode = this._graph.getNodeByContentKey(entryAsset.id);
+    if (entryAsset != null) {
+      let entryAssetNode = this._graph.getNodeByContentKey(entryAsset);
       invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
       isPlaceholder = entryAssetNode.requested === false;
     }
 
+    let asset = opts.entryAsset != null ? DbAsset.get(opts.entryAsset) : null;
     let bundleNode: BundleNode = {
       type: 'bundle',
       id: bundleId,
@@ -468,18 +469,18 @@ export default class BundleGraph {
         hashReference: opts.shouldContentHash
           ? HASH_REF_PREFIX + bundleId
           : bundleId.slice(-8),
-        type: opts.entryAsset ? opts.entryAsset.type : opts.type,
+        type: asset ? asset.assetType : nullthrows(opts.type),
         env: opts.env,
-        entryAssetIds: entryAsset ? [entryAsset.id] : [],
-        mainEntryId: entryAsset?.id,
-        pipeline: opts.entryAsset ? opts.entryAsset.pipeline : opts.pipeline,
+        entryAssetIds: entryAsset != null ? [entryAsset] : [],
+        mainEntryId: entryAsset,
+        pipeline: asset ? asset.pipeline : opts.pipeline,
         needsStableName: opts.needsStableName,
         bundleBehavior:
           opts.bundleBehavior != null
             ? BundleBehavior[opts.bundleBehavior]
             : null,
-        isSplittable: opts.entryAsset
-          ? opts.entryAsset.isBundleSplittable
+        isSplittable: asset
+          ? Boolean(asset.flags & AssetFlags.IS_BUNDLE_SPLITTABLE)
           : opts.isSplittable,
         isPlaceholder,
         target: targetId,
@@ -491,10 +492,10 @@ export default class BundleGraph {
 
     let bundleNodeId = this._graph.addNodeByContentKey(bundleId, bundleNode);
 
-    if (opts.entryAsset) {
+    if (opts.entryAsset != null) {
       this._graph.addEdge(
         bundleNodeId,
-        this._graph.getNodeIdByContentKey(opts.entryAsset.id),
+        this._graph.getNodeIdByContentKey(opts.entryAsset),
       );
     }
 

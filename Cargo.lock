@@ -1284,6 +1284,7 @@ dependencies = [
  "bitflags 2.3.3",
  "convert_case",
  "ctor",
+ "dashmap",
  "lazy_static",
  "parcel-derive",
  "paste",

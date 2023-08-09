@@ -374,16 +374,15 @@ export type HTTPSOptions = {|
 export type SourceLocation = {|
   +filePath: string,
   /** inclusive */
-  +start: {|
-    +line: number,
-    +column: number,
-  |},
+  +start: Location,
   /** exclusive */
-  +end: {|
-    +line: number,
-    +column: number,
-  |},
+  +end: Location,
 |};
+
+interface Location {
+  +line: number,
+  +column: number,
+}
 
 /**
  * An object that plugins can write arbitatry data to.

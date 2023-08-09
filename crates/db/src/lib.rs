@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use std::{
+  num::NonZeroU32,
   ptr::NonNull,
   sync::{
     atomic::{AtomicU32, Ordering},
@@ -9,6 +10,8 @@ use std::{
 };
 
 use allocator_api2::alloc::{AllocError, Allocator, Layout};
+use dashmap::DashMap;
+use lazy_static::lazy_static;
 use parcel_derive::{JsValue, ToJs};
 
 pub use allocator_api2::vec::Vec;
@@ -53,6 +56,20 @@ impl JsValue for u32 {
   }
 }
 
+impl JsValue for NonZeroU32 {
+  fn js_getter(addr: usize) -> String {
+    format!("HEAP_u32[(this.addr + {:?}) >> 2]", addr)
+  }
+
+  fn js_setter(addr: usize, value: &str) -> String {
+    format!("HEAP_u32[(this.addr + {:?}) >> 2] = {}", addr, value)
+  }
+
+  fn ty() -> String {
+    "number".into()
+  }
+}
+
 impl JsValue for bool {
   fn js_getter(addr: usize) -> String {
     format!("!!HEAP[this.addr + {:?}]", addr)
@@ -67,14 +84,15 @@ impl JsValue for bool {
   }
 }
 
-impl JsValue for String {
+impl JsValue for InternedString {
   fn js_getter(addr: usize) -> String {
     format!("readCachedString(this.addr + {addr})", addr = addr)
   }
 
   fn js_setter(addr: usize, value: &str) -> String {
+    // STRING_CACHE.set(this.addr + {addr}, {value});
     format!(
-      "STRING_CACHE.set(this.addr + {addr}, {value}); binding.writeString(this.addr + {addr}, {value})",
+      "binding.writeString(this.addr + {addr}, {value})",
       addr = addr,
       value = value
     )
@@ -302,6 +320,9 @@ macro_rules! js_bitflags {
   }
 }
 
+#[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash, Debug)]
+pub struct InternedString(pub NonZeroU32);
+
 #[derive(PartialEq, Clone, Debug, JsValue)]
 pub struct FileId(u32);
 
@@ -311,12 +332,12 @@ pub struct TargetId(pub u32);
 #[derive(PartialEq, Debug, ToJs)]
 pub struct Target {
   env: EnvironmentId,
-  dist_dir: String,
-  dist_entry: Option<String>,
-  name: String,
-  public_url: String,
+  dist_dir: InternedString,
+  dist_entry: Option<InternedString>,
+  name: InternedString,
+  public_url: InternedString,
   loc: Option<SourceLocation>,
-  pipeline: Option<String>,
+  pipeline: Option<InternedString>,
   // source: Option<u32>
 }
 
@@ -331,7 +352,7 @@ pub struct Environment {
   pub flags: EnvironmentFlags,
   pub source_map: Option<TargetSourceMapOptions>,
   pub loc: Option<SourceLocation>,
-  pub include_node_modules: String,
+  pub include_node_modules: InternedString,
 }
 
 // pub struct Engines {
@@ -356,14 +377,14 @@ pub struct Environment {
 
 #[derive(PartialEq, Clone, Debug, ToJs, JsValue)]
 pub struct TargetSourceMapOptions {
-  source_root: Option<String>,
+  source_root: Option<InternedString>,
   inline: bool,
   inline_sources: bool,
 }
 
 #[derive(PartialEq, Debug, Clone, ToJs, JsValue)]
 pub struct SourceLocation {
-  file_id: FileId,
+  file_path: InternedString,
   start: Location,
   end: Location,
 }
@@ -408,20 +429,20 @@ pub enum OutputFormat {
 
 #[derive(Debug, ToJs, JsValue)]
 pub struct Asset {
-  pub file_path: String,
+  pub file_path: InternedString,
   pub env: EnvironmentId,
-  pub query: Option<String>,
+  pub query: Option<InternedString>,
   pub asset_type: AssetType,
-  pub content_key: String,
-  pub map_key: Option<String>,
-  pub output_hash: String,
-  pub pipeline: Option<String>,
-  pub meta: String,
+  pub content_key: InternedString,
+  pub map_key: Option<InternedString>,
+  pub output_hash: InternedString,
+  pub pipeline: Option<InternedString>,
+  pub meta: InternedString,
   pub stats: AssetStats,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
   pub symbols: Vec<Symbol, Alloc>,
-  pub unique_key: Option<String>,
+  pub unique_key: Option<InternedString>,
 }
 
 #[derive(Debug, ToJs, JsValue)]
@@ -458,9 +479,9 @@ js_bitflags! {
 pub struct Dependency {
   pub source_asset_id: Option<u32>,
   pub env: EnvironmentId,
-  pub specifier: String,
+  pub specifier: InternedString,
   pub specifier_type: SpecifierType,
-  pub resolve_from: Option<String>,
+  pub resolve_from: Option<InternedString>,
   pub priority: Priority,
   pub bundle_behavior: BundleBehavior,
   pub flags: DependencyFlags,
@@ -469,7 +490,7 @@ pub struct Dependency {
   // symbols
   // range
   // pipeline
-  pub placeholder: Option<String>,
+  pub placeholder: Option<InternedString>,
   pub target: TargetId,
   pub symbols: Vec<Symbol, Alloc>,
 }
@@ -499,8 +520,8 @@ pub enum Priority {
 
 #[derive(Clone, Debug, ToJs, JsValue)]
 pub struct Symbol {
-  pub exported: String,
-  pub local: String,
+  pub exported: InternedString,
+  pub local: InternedString,
   pub loc: Option<SourceLocation>,
   pub is_weak: bool,
 }
@@ -510,7 +531,7 @@ static HEAP_PTR: AtomicU32 = AtomicU32::new(0);
 
 fn alloc(size: u32) -> u32 {
   // super dumb allocator.
-  let addr = HEAP_PTR.fetch_add(size, Ordering::SeqCst);
+  let addr = HEAP_PTR.fetch_add((size + 7) & !7, Ordering::SeqCst);
   if addr + size >= unsafe { HEAP.len() } as u32 {
     unreachable!("{:?} {:?}", addr, size);
   }
@@ -561,6 +582,58 @@ unsafe impl Allocator for Alloc {
   unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {}
 }
 
+lazy_static! {
+  static ref STRINGS: DashMap<&'static str, NonZeroU32> = DashMap::new();
+}
+
+impl From<String> for InternedString {
+  fn from(value: String) -> Self {
+    if let Some(v) = STRINGS.get(value.as_str()) {
+      // println!("FOUND EXISTING");
+      return InternedString(*v);
+    }
+
+    // TODO: memory leak
+    let mut bytes = value.into_bytes();
+    bytes.shrink_to_fit();
+    let s = unsafe { std::str::from_utf8_unchecked(bytes.leak()) };
+    let ptr = alloc_struct();
+    unsafe { std::ptr::write(ptr, s) };
+    let offset = unsafe { NonZeroU32::new_unchecked(heap_offset(ptr)) };
+    STRINGS.insert(unsafe { *ptr }, offset);
+    // println!("NEW STRING {:?}", STRINGS.len());
+    InternedString(offset)
+  }
+}
+
+impl From<&str> for InternedString {
+  fn from(value: &str) -> Self {
+    InternedString::from(String::from(value))
+  }
+}
+
+impl InternedString {
+  pub fn get(s: &str) -> Option<InternedString> {
+    STRINGS.get(s).map(|s| InternedString(*s))
+  }
+}
+
+impl<T: AsRef<str>> PartialEq<T> for InternedString {
+  fn eq(&self, other: &T) -> bool {
+    matches!(InternedString::get(other.as_ref()), Some(s) if s == *self)
+  }
+}
+
+impl core::ops::Deref for InternedString {
+  type Target = str;
+
+  fn deref(&self) -> &str {
+    let s = *read_heap::<&str>(self.0.get());
+    // println!("READ {:?} {:?} {:?}", self.0.get(), s.as_ptr(), s.len());
+    s
+  }
+}
+
 #[derive(Default)]
 pub struct ParcelDb {
   environments: RwLock<Vec<*const Environment>>,
@@ -590,13 +663,13 @@ impl ParcelDb {
     }
   }
 
-  pub fn read_string<'a>(&self, addr: u32) -> &'static String {
-    read_heap::<String>(addr)
+  pub fn read_string<'a>(&self, addr: u32) -> &'static str {
+    read_heap::<InternedString>(addr)
   }
 
   pub fn write_string(&self, addr: u32, s: String) {
-    let ptr: &mut Option<String> = read_heap(addr);
-    *ptr = Some(s);
+    let ptr: &mut InternedString = read_heap(addr);
+    *ptr = InternedString::from(s);
   }
 
   pub fn read_heap<T>(&self, addr: u32) -> &'static mut T {
@@ -691,10 +764,15 @@ const HEAP_u64 = new BigUint64Array(HEAP.buffer);
 const STRING_CACHE = new Map();
 
 function readCachedString(addr) {{
-  let v = STRING_CACHE.get(addr);
+  // Address points to an InternedString, which is a u32 heap pointer to a &str.
+  // That &str can be dereferenced and the first 8 bytes is a pointer to the string contents.
+  // Strings are immutable, so it is safe to use this pointer as a key into our cache.
+  let p = HEAP_u32[addr >> 2];
+  let ptr = HEAP_u32[p >> 2] + HEAP_u32[p + 4 >> 2] * 0x100000000;
+  let v = STRING_CACHE.get(ptr);
   if (v != null) return v;
   v = binding.readString(addr);
-  STRING_CACHE.set(addr, v);
+  STRING_CACHE.set(ptr, v);
   return v;
 }}
 

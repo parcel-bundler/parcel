@@ -5,10 +5,10 @@ import nullthrows from 'nullthrows';
 import {parse, type Mapping} from '@mischnic/json-sourcemap';
 
 /** These positions are 1-based (so <code>1</code> is the first line/column) */
-export type DiagnosticHighlightLocation = {|
+export interface DiagnosticHighlightLocation {
   +line: number,
   +column: number,
-|};
+};
 
 export type DiagnosticSeverity = 'error' | 'warn' | 'info';
 
@@ -282,14 +282,8 @@ export function getJSONSourceLocation(
   pos: Mapping,
   type?: ?'key' | 'value',
 ): {|
-  start: {|
-    +line: number,
-    +column: number,
-  |},
-  end: {|
-    +line: number,
-    +column: number,
-  |},
+  start: DiagnosticHighlightLocation,
+  end: DiagnosticHighlightLocation,
 |} {
   let v = getJSONHighlightLocation(pos, type);
   return {start: v.start, end: {line: v.end.line, column: v.end.column + 1}};
@@ -298,15 +292,9 @@ export function getJSONSourceLocation(
 export function convertSourceLocationToHighlight<
   Location: {
     /** 1-based, inclusive */
-    +start: {|
-      +line: number,
-      +column: number,
-    |},
+    +start: DiagnosticHighlightLocation,
     /** 1-based, exclusive */
-    +end: {|
-      +line: number,
-      +column: number,
-    |},
+    +end: DiagnosticHighlightLocation,
     ...
   },
 >({start, end}: Location, message?: string): DiagnosticCodeHighlight {
