@@ -1,12 +1,14 @@
 // @flow
 import {Resolver} from '@parcel/plugin';
 import {
+  isAbsolute,
   isGlob,
   glob,
   globToRegex,
   relativePath,
   normalizeSeparators,
 } from '@parcel/utils';
+import os from 'os';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {
@@ -125,6 +127,11 @@ export default (new Resolver({
       if (result.invalidateOnFileCreate) {
         invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
       }
+    } else if (/^[~]/.test(specifier)) {
+      // Expand `~` (home dir) before running the glob.
+      specifier = specifier.replace(/^~/, os.homedir());
+    } else if (isAbsolute(specifier)) {
+      // Do not modify the specifier. It's already an absolute path.
     } else {
       specifier = path.resolve(path.dirname(sourceFile), specifier);
     }
