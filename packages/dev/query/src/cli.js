@@ -633,8 +633,8 @@ export function run(input: string[]) {
           bg_type.shared++;
         }
       } else if (n.type == 'asset') {
-        // $FlowFixMe
         if (
+          // $FlowFixMe
           fromProjectPathRelative(n.value.filePath).includes('node_modules')
         ) {
           bg.asset_node_modules++;
