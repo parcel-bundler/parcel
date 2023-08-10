@@ -627,9 +627,10 @@ export function run(input: string[]) {
         // $FlowFixMe
         if (n.value.mainEntryId == null) {
           bg_type.shared++;
-          if (_getBundlePriority(bundleGraph, n) == Priority.parallel) {
-            bg_type.parallel++;
-          }
+        }
+
+        if (_getBundlePriority(bundleGraph, n) == Priority.parallel) {
+          bg_type.parallel++;
         }
       } else if (n.type == 'asset') {
         if (
