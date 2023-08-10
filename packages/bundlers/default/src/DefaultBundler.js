@@ -1106,8 +1106,9 @@ function createIdealGraph(
           // Remove the edge from this bundle group to the shared bundle.
           // If there is now only a single bundle group that contains this bundle,
           // merge it into the remaining source bundles. If it is orphaned entirely, remove it.
-          let incomingNodeCount =
-            bundleGraph.getNodeIdsConnectedTo(bundleIdToRemove).length;
+          let incomingNodeCount = bundleGraph.getNodeIdsConnectedTo(
+            bundleIdToRemove,
+          ).length;
 
           if (
             incomingNodeCount <= 2 &&

@@ -554,7 +554,7 @@ export function run(input: string[]) {
   function _getBundlePriority(bundleGraph, bundle) {
     const bundleNodeId = bundleGraph._graph.getNodeIdByContentKey(bundle.id);
     const node = bundleGraph._graph
-      .getNodeIdsConnectedTo(bundleNodeId)
+      .getNodeIdsConnectedTo(bundleNodeId, -1)
       .map(id => nullthrows(bundleGraph._graph.getNode(id)))
       .find(node => node.type === 'dependency');
 
