@@ -61,12 +61,7 @@ export {hashStream, hashObject, hashFile} from './hash';
 export {SharedBuffer} from './shared-buffer';
 export {fuzzySearch} from './schema';
 export {createHTTPServer} from './http-server';
-export {
-  isAbsolute,
-  normalizePath,
-  normalizeSeparators,
-  relativePath,
-} from './path';
+export {normalizePath, normalizeSeparators, relativePath} from './path';
 export {
   replaceURLReferences,
   replaceInlineReferences,
