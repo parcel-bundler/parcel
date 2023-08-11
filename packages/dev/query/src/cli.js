@@ -551,14 +551,25 @@ export function run(input: string[]) {
     }
   }
 
-  function _getBundlePriority(bundleGraph, bundle) {
-    const bundleNodeId = bundleGraph._graph.getNodeIdByContentKey(bundle.id);
-    const node = bundleGraph._graph
-      .getNodeIdsConnectedTo(bundleNodeId, -1)
+  function _getIncomingNodeOfType(bundleGraph, node, type: string) {
+    const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(node.id);
+    return bundleGraph._graph
+      .getNodeIdsConnectedTo(bundleGraphNodeId, -1)
       .map(id => nullthrows(bundleGraph._graph.getNode(id)))
-      .find(node => node.type === 'dependency');
+      .find(node => node.type == type);
+  }
 
-    if (node == null) return null;
+  // We find the priority of a Bundle or BundleGroup by looking at its incoming dependencies.
+  // If a Bundle does not have an incoming dependency, we look for an incoming BundleGroup and its dependency
+  // e.g. Dep(priority = 1) -> BundleGroup -> Bundle means that the Bundle has priority 1.
+  function _getBundlePriority(bundleGraph, bundle) {
+    let node = _getIncomingNodeOfType(bundleGraph, bundle, 'dependency');
+
+    if (node == null) {
+      node = _getIncomingNodeOfType(bundleGraph, bundle, 'bundle_group');
+      if (node == null) return null;
+      node = _getIncomingNodeOfType(bundleGraph, node, 'dependency');
+    }
 
     invariant(node.type === 'dependency', 'Not a dependency');
 
@@ -597,40 +608,62 @@ export function run(input: string[]) {
     let bg = {
       dependency: 0,
       bundle: 0,
+      bundle_group: 0,
       asset_node_modules: 0,
       asset_source: 0,
     };
 
-    let bg_ext = {};
-
     let bg_type = {
       entries: 0,
+      async: 0,
+      sync: 0,
+    };
+
+    let b_type = {
       shared: 0,
       async: 0,
       parallel: 0,
+      sync: 0,
     };
+
+    let b_ext = {};
 
     for (let [, n] of bundleGraph._graph.nodes) {
       if (n.type == 'bundle_group') {
-        // TODO: Counting priority here seems to work instead of counting on BundleNodes.. Counting DependencyNode priorities themselves
-        // gives different counts as well.
-        if (_getBundlePriority(bundleGraph, n) == Priority.lazy) {
+        bg.bundle_group++;
+
+        const priority = _getBundlePriority(bundleGraph, n);
+        const isEntry = bundleGraph.isEntryBundleGroup(n.value);
+
+        if (isEntry) {
+          bg_type.entries++;
+        }
+
+        if (priority == Priority.lazy) {
           bg_type.async++;
+        } else if (priority == Priority.sync && !isEntry) {
+          bg_type.sync++;
         }
       } else if (n.type == 'bundle') {
         bg.bundle++;
 
         // $FlowFixMe
-        bg_ext[n.value.type] = (bg_ext[n.value.type] || 0) + 1;
+        b_ext[n.value.type] = (b_ext[n.value.type] || 0) + 1;
 
-        // In general, !bundle.mainEntryId means that it is shared. Ignores async/shared edge cases.
+        // In general, !bundle.mainEntryId means that it is shared. In the case of an async and shared bundle, only count it as shared.
         // $FlowFixMe
         if (n.value.mainEntryId == null) {
-          bg_type.shared++;
-        }
+          b_type.shared++;
+        } else {
+          const priority = _getBundlePriority(bundleGraph, n);
 
-        if (_getBundlePriority(bundleGraph, n) == Priority.parallel) {
-          bg_type.parallel++;
+          if (priority == Priority.lazy) {
+            b_type.async++;
+          } else if (priority == Priority.parallel) {
+            b_type.parallel++;
+          } else if (priority == Priority.sync) {
+            b_type.sync++;
+          }
         }
       } else if (n.type == 'asset') {
         if (
@@ -643,22 +676,42 @@ export function run(input: string[]) {
         }
       } else if (n.type == 'dependency') {
         bg.dependency++;
-      } else if (n.type == 'entry_file') {
-        bg_type.entries++;
       }
     }
 
-    let sum = 0;
-    for (let k in bg_ext) {
-      sum += bg_ext[k];
-    }
-
-    invariant(bg.bundle == sum);
-
     _printStatsTable('# Asset Graph Node Counts', Object.entries(ag));
     _printStatsTable('# Bundle Graph Node Counts', Object.entries(bg));
-    _printStatsTable('# Bundles By Type', Object.entries(bg_type));
-    _printStatsTable('# Bundles By Extension', Object.entries(bg_ext));
+    _printStatsTable('# Bundle Groups By Type', Object.entries(bg_type));
+    _printStatsTable('# Bundles By Type', Object.entries(b_type));
+    _printStatsTable('# Bundles By Extension', Object.entries(b_ext));
+
+    // Assert that counts for each breakdown are correct
+
+    let sum_bg_type = 0;
+    for (let k in bg_type) {
+      sum_bg_type += bg_type[k];
+    }
+
+    let sum_b_ext = 0;
+    for (let k in b_ext) {
+      sum_b_ext += b_ext[k];
+    }
+
+    const sum_b_type =
+      b_type.async + b_type.parallel + b_type.sync + b_type.shared;
+
+    invariant(
+      bg.bundle_group == sum_bg_type,
+      `Bundle groups by type ${sum_bg_type} does not equal total ${bg.bundle_group}`,
+    );
+    invariant(
+      bg.bundle == sum_b_type,
+      `Bundles by type ${sum_b_type} does not equal total ${bg.bundle}`,
+    );
+    invariant(
+      bg.bundle == sum_b_ext,
+      `Bundles by extension ${sum_b_ext} does not equal total ${bg.bundle}`,
+    );
   }
 
   // -------------------------------------------------------
