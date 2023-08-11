@@ -37,9 +37,8 @@ export function run(input: string[]) {
   }
 
   console.log('Loading graphs...');
-  let {assetGraph, bundleGraph, bundleInfo, requestTracker} = loadGraphs(
-    cacheDir,
-  );
+  let {assetGraph, bundleGraph, bundleInfo, requestTracker} =
+    loadGraphs(cacheDir);
 
   if (requestTracker == null) {
     console.error('Request Graph could not be found');
@@ -576,6 +575,20 @@ export function run(input: string[]) {
     return node.value.priority;
   }
 
+  function _findEntryBundle(bundleGraph, node) {
+    const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(node.id);
+    const entryBundleGroup = bundleGraph._graph
+      .getNodeIdsConnectedTo(bundleGraphNodeId, -1)
+      .map(id => nullthrows(bundleGraph._graph.getNode(id)))
+      .find(
+        node =>
+          node.type == 'bundle_group' &&
+          bundleGraph.isEntryBundleGroup(node.value),
+      );
+
+    return entryBundleGroup;
+  }
+
   function _printStatsTable(header, data) {
     const config = {
       columnDefault: {
@@ -613,13 +626,8 @@ export function run(input: string[]) {
       asset_source: 0,
     };
 
-    let bg_type = {
-      entries: 0,
-      async: 0,
-      sync: 0,
-    };
-
     let b_type = {
+      entry: 0,
       shared: 0,
       async: 0,
       parallel: 0,
@@ -628,31 +636,26 @@ export function run(input: string[]) {
 
     let b_ext = {};
 
+    const entries = new Set();
+
     for (let [, n] of bundleGraph._graph.nodes) {
       if (n.type == 'bundle_group') {
         bg.bundle_group++;
-
-        const priority = _getBundlePriority(bundleGraph, n);
-        const isEntry = bundleGraph.isEntryBundleGroup(n.value);
-
-        if (isEntry) {
-          bg_type.entries++;
-        }
-
-        if (priority == Priority.lazy) {
-          bg_type.async++;
-        } else if (priority == Priority.sync && !isEntry) {
-          bg_type.sync++;
-        }
       } else if (n.type == 'bundle') {
         bg.bundle++;
 
         // $FlowFixMe
         b_ext[n.value.type] = (b_ext[n.value.type] || 0) + 1;
 
-        // In general, !bundle.mainEntryId means that it is shared. In the case of an async and shared bundle, only count it as shared.
+        const entry_group = _findEntryBundle(bundleGraph, n);
+
+        if (entry_group != null && !entries.has(entry_group.id)) {
+          b_type.entry++;
+          entries.add(entry_group.id);
+        }
         // $FlowFixMe
-        if (n.value.mainEntryId == null) {
+        else if (n.value.mainEntryId == null) {
+          // In general, !bundle.mainEntryId means that it is shared. In the case of an async and shared bundle, only count it as shared.
           b_type.shared++;
         } else {
           const priority = _getBundlePriority(bundleGraph, n);
@@ -681,29 +684,21 @@ export function run(input: string[]) {
 
     _printStatsTable('# Asset Graph Node Counts', Object.entries(ag));
     _printStatsTable('# Bundle Graph Node Counts', Object.entries(bg));
-    _printStatsTable('# Bundle Groups By Type', Object.entries(bg_type));
     _printStatsTable('# Bundles By Type', Object.entries(b_type));
     _printStatsTable('# Bundles By Extension', Object.entries(b_ext));
 
     // Assert that counts for each breakdown are correct
-
-    let sum_bg_type = 0;
-    for (let k in bg_type) {
-      sum_bg_type += bg_type[k];
-    }
 
     let sum_b_ext = 0;
     for (let k in b_ext) {
       sum_b_ext += b_ext[k];
     }
 
-    const sum_b_type =
-      b_type.async + b_type.parallel + b_type.sync + b_type.shared;
+    let sum_b_type = 0;
+    for (let k in b_type) {
+      sum_b_type += b_type[k];
+    }
 
-    invariant(
-      bg.bundle_group == sum_bg_type,
-      `Bundle groups by type ${sum_bg_type} does not equal total ${bg.bundle_group}`,
-    );
     invariant(
       bg.bundle == sum_b_type,
       `Bundles by type ${sum_b_type} does not equal total ${bg.bundle}`,
@@ -753,32 +748,28 @@ export function run(input: string[]) {
       [
         'getNodeAssetGraph',
         {
-          help:
-            'args: <content key>. Find node by content key in the asset graph',
+          help: 'args: <content key>. Find node by content key in the asset graph',
           action: getNodeAssetGraph,
         },
       ],
       [
         'getNodeBundleGraph',
         {
-          help:
-            'args: <content key>. Find node by content key in the bundle graph',
+          help: 'args: <content key>. Find node by content key in the bundle graph',
           action: getNodeBundleGraph,
         },
       ],
       [
         'findEntriesAssetGraph',
         {
-          help:
-            'args: <id | public id | filepath>. List paths from an asset to entry points (in asset graph)',
+          help: 'args: <id | public id | filepath>. List paths from an asset to entry points (in asset graph)',
           action: findEntriesAssetGraph,
         },
       ],
       [
         'findEntriesBundleGraph',
         {
-          help:
-            'args: <id | public id | filepath>. List paths from an asset to entry points (in bundle graph)',
+          help: 'args: <id | public id | filepath>. List paths from an asset to entry points (in bundle graph)',
           action: findEntriesBundleGraph,
         },
       ],
@@ -792,8 +783,7 @@ export function run(input: string[]) {
       [
         'getBundlesWithAsset',
         {
-          help:
-            'args: <id | public id | filepath>. Gets bundles containing the asset',
+          help: 'args: <id | public id | filepath>. Gets bundles containing the asset',
           action: getBundlesWithAsset,
         },
       ],
@@ -835,8 +825,7 @@ export function run(input: string[]) {
       [
         'getAssetWithDependency',
         {
-          help:
-            'args: <dependency id>. Show which asset created the dependency',
+          help: 'args: <dependency id>. Show which asset created the dependency',
           action: getAssetWithDependency,
         },
       ],
@@ -899,8 +888,7 @@ export function run(input: string[]) {
       [
         'findAssetWithSymbol',
         {
-          help:
-            'args: <local>. Get the asset that defines the symbol with the given local name',
+          help: 'args: <local>. Get the asset that defines the symbol with the given local name',
           action: findAssetWithSymbol,
         },
       ],
