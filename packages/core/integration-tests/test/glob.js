@@ -8,9 +8,7 @@ import {
   outputFS,
   inputFS,
 } from '@parcel/test-utils';
-import {MemoryFS, OverlayFS} from '@parcel/fs';
 import nullthrows from 'nullthrows';
-import {workerFarm} from '../../test-utils/src/utils';
 
 describe('glob', function () {
   it('should require a glob of files', async function () {
