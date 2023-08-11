@@ -36,32 +36,40 @@ describe('html', function () {
         assets: ['index.html'],
       },
       {
+        // index.html
         name: 'index.html',
         assets: ['index.html'],
       },
       {
+        // foo/index.html
         name: 'index.html',
         assets: ['index.html'],
       },
       {
-        type: 'png',
-        assets: ['100x100.png'],
+        // other.html
+        name: 'other.html',
+        assets: ['other.html'],
+      },
+      {
+        // foo/other.html
+        name: 'other.html',
+        assets: ['other.html'],
       },
       {
         type: 'svg',
         assets: ['icons.svg'],
       },
       {
-        type: 'css',
-        assets: ['index.css'],
-      },
-      {
-        type: 'html',
-        assets: ['other.html'],
+        type: 'png',
+        assets: ['100x100.png'],
       },
       {
         type: 'js',
         assets: ['index.js'],
+      },
+      {
+        type: 'css',
+        assets: ['index.css'],
       },
     ]);
 
@@ -304,6 +312,14 @@ describe('html', function () {
         name: 'logo.svg',
         assets: ['logo.svg'],
       },
+      {
+        type: 'png',
+        assets: ['logo.png'],
+      },
+      {
+        type: 'png',
+        assets: ['logo.png'],
+      },
     ]);
 
     let html = await outputFS.readFile(
@@ -312,6 +328,16 @@ describe('html', function () {
     );
     assert(html.includes(`<meta name="msapplication-config" content="none">`));
     assert(html.includes(`<meta property="og:image" content="/logo.svg">`));
+    assert(
+      /<meta name="msapplication-TileImage" content="\/logo\.[0-9a-f]+\.png">/.test(
+        html,
+      ),
+    );
+    assert(
+      /<meta name="msapplication-square70x70logo" content="\/logo\.[0-9a-f]+\.png">/.test(
+        html,
+      ),
+    );
     assert(
       html.includes(
         `<meta name="twitter:image" content="https://parceljs.org/assets/logo.svg">`,
@@ -1414,7 +1440,7 @@ describe('html', function () {
               ),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 5,
                     column: 7,
@@ -1460,7 +1486,7 @@ describe('html', function () {
       'utf8',
     );
     assert(!html.includes('swc/helpers'));
-    assert(html.includes('slicedToArray'));
+    assert(html.includes('sliced_to_array'));
   });
 
   it('should allow imports and requires in inline <script> tags', async function () {
@@ -1703,7 +1729,7 @@ describe('html', function () {
               filePath: path.join(__dirname, '/integration/html-js/index.js'),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -1776,7 +1802,13 @@ describe('html', function () {
       },
       {
         type: 'js',
-        assets: ['bundle-manifest.js', 'index.js', 'index.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'esm-js-loader.js',
+          'index.js',
+          'index.js',
+          'index.js',
+        ],
       },
       {
         name: 'index.html',
@@ -1857,6 +1889,7 @@ describe('html', function () {
         type: 'js',
         assets: [
           'bundle-manifest.js',
+          'esm-js-loader.js',
           'get-worker-url.js',
           'index.js',
           'lodash.js',
@@ -1918,6 +1951,7 @@ describe('html', function () {
         type: 'js',
         assets: [
           'bundle-manifest.js',
+          'esm-js-loader.js',
           'get-worker-url.js',
           'index.js',
           'lodash.js',
@@ -2050,6 +2084,59 @@ describe('html', function () {
     }
   });
 
+  it('supports multiple dist targets', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-multi-targets/'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          shouldOptimize: false,
+          sourceMaps: false,
+        },
+      },
+    );
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'shared.js'],
+      },
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'shared.js'],
+      },
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+    ]);
+  });
   it('should isolate async scripts', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/html-async-script/index.html'),
@@ -2104,7 +2191,7 @@ describe('html', function () {
         assets: ['index.html'],
       },
       {
-        assets: ['a.js', 'bundle-manifest.js'],
+        assets: ['a.js', 'bundle-manifest.js', 'esm-js-loader.js'],
       },
       {
         assets: [
@@ -2232,6 +2319,7 @@ describe('html', function () {
           'index.js',
           'client.js',
           'bundle-manifest.js',
+          'esm-js-loader.js',
         ],
       },
       {

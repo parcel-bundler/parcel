@@ -8,10 +8,13 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = { version = "2.10.6", features = ["serde-json"] }
-napi-derive = "2.9.4"
+napi = { version = "2.12.6", features = ["serde-json"] }
+napi-derive = "2.12.5"
 parcel-resolver = { path = "../node-resolver-rs" }
 dashmap = "5.4.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+parcel-dev-dep-resolver = { path = "../dev-dep-resolver" }
 
 [build-dependencies]
 napi-build = "2"

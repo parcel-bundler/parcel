@@ -176,7 +176,10 @@ function decorateLegacyGraph(
       );
 
       bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
-    } else if (idealBundle.sourceBundles.size > 0) {
+    } else if (
+      idealBundle.sourceBundles.size > 0 &&
+      !idealBundle.mainEntryAsset
+    ) {
       bundle = nullthrows(
         bundleGraph.createBundle({
           uniqueKey:
@@ -502,6 +505,7 @@ function createIdealGraph(
              */
             let bundleGroupRootAsset = nullthrows(bundleGroup.mainEntryAsset);
             if (
+              parentAsset.type !== childAsset.type &&
               entries.has(bundleGroupRootAsset) &&
               canMerge(bundleGroupRootAsset, childAsset) &&
               dependency.bundleBehavior == null

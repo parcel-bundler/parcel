@@ -54,7 +54,7 @@ pub struct TsConfigWrapper<'a> {
 
 impl<'a> TsConfig<'a> {
   pub fn parse(path: PathBuf, data: &'a mut str) -> serde_json::Result<TsConfigWrapper<'a>> {
-    let _ = strip_comments_in_place(data, Default::default());
+    let _ = strip_comments_in_place(data, Default::default(), true);
     let mut wrapper: TsConfigWrapper = serde_json::from_str(data)?;
     wrapper.compiler_options.path = path;
     wrapper.compiler_options.validate();
@@ -154,7 +154,7 @@ impl<'a> TsConfig<'a> {
 
 fn join_paths<'a>(
   base_url: &'a Path,
-  paths: &'a Vec<&'a str>,
+  paths: &'a [&'a str],
   replacement: Option<(Cow<'a, str>, usize, usize)>,
 ) -> impl Iterator<Item = PathBuf> + 'a {
   paths
@@ -163,9 +163,9 @@ fn join_paths<'a>(
     .map(move |path| {
       if let Some((replacement, start, end)) = &replacement {
         let path = path.replace('*', &replacement[*start..replacement.len() - *end]);
-        base_url.join(&path)
+        base_url.join(path)
       } else {
-        base_url.join(&path)
+        base_url.join(path)
       }
     })
 }
@@ -194,12 +194,12 @@ mod tests {
     let mut tsconfig = TsConfig {
       path: "/foo/tsconfig.json".into(),
       paths: Some(indexmap! {
-        "jquery".into() => vec!["node_modules/jquery/dist/jquery".into()],
-        "*".into() => vec!["generated/*".into()],
-        "bar/*".into() => vec!["test/*".into()],
-        "bar/baz/*".into() => vec!["baz/*".into(), "yo/*".into()],
-        "@/components/*".into() => vec!["components/*".into()],
-        "url".into() => vec!["node_modules/my-url".into()],
+        "jquery".into() => vec!["node_modules/jquery/dist/jquery"],
+        "*".into() => vec!["generated/*"],
+        "bar/*".into() => vec!["test/*"],
+        "bar/baz/*".into() => vec!["baz/*", "yo/*"],
+        "@/components/*".into() => vec!["components/*"],
+        "url".into() => vec!["node_modules/my-url"],
       }),
       ..Default::default()
     };
@@ -254,10 +254,10 @@ mod tests {
       path: "/foo/tsconfig.json".into(),
       base_url: Some(Path::new("src").into()),
       paths: Some(indexmap! {
-        "*".into() => vec!["generated/*".into()],
-        "bar/*".into() => vec!["test/*".into()],
-        "bar/baz/*".into() => vec!["baz/*".into(), "yo/*".into()],
-        "@/components/*".into() => vec!["components/*".into()],
+        "*".into() => vec!["generated/*"],
+        "bar/*".into() => vec!["test/*"],
+        "bar/baz/*".into() => vec!["baz/*", "yo/*"],
+        "@/components/*".into() => vec!["components/*"],
       }),
       ..Default::default()
     };

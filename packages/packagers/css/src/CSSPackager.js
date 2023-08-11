@@ -7,6 +7,7 @@ import typeof PostCSS from 'postcss';
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
+import {convertSourceLocationToHighlight} from '@parcel/diagnostic';
 import {
   PromiseQueue,
   countLines,
@@ -35,6 +36,7 @@ export default (new Packager({
           // Hoist unresolved external dependencies (i.e. http: imports)
           if (
             node.value.priority === 'sync' &&
+            !bundleGraph.isDependencySkipped(node.value) &&
             !bundleGraph.getResolvedAsset(node.value, bundle)
           ) {
             hoistedImports.push(node.value.specifier);
@@ -226,7 +228,7 @@ async function processCSSModule(
             codeFrames: [
               {
                 filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
-                codeHighlights: [{start: loc.start, end: loc.end}],
+                codeHighlights: [convertSourceLocationToHighlight(loc)],
               },
             ],
           }),

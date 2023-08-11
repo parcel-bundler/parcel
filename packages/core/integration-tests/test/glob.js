@@ -135,7 +135,7 @@ describe('glob', function () {
 
   it('should error when an unsupported asset type imports a glob', async function () {
     let filePath = path.join(__dirname, '/integration/glob-error/index.html');
-    // $FlowFixMe
+    // $FlowFixMe[prop-missing]
     await assert.rejects(() => bundle(filePath), {
       name: 'BuildError',
       diagnostics: [
@@ -154,7 +154,7 @@ describe('glob', function () {
 
   it('should error when a URL dependency imports a glob', async function () {
     let filePath = path.join(__dirname, '/integration/glob-error/index.css');
-    // $FlowFixMe
+    // $FlowFixMe[prop-missing]
     await assert.rejects(() => bundle(filePath), {
       name: 'BuildError',
       diagnostics: [
@@ -167,6 +167,7 @@ describe('glob', function () {
               code: await inputFS.readFile(filePath, 'utf8'),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     column: 19,
                     line: 2,
@@ -187,6 +188,7 @@ describe('glob', function () {
             {
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     column: 19,
                     line: 2,

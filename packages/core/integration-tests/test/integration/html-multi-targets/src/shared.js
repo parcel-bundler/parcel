@@ -1,0 +1,1 @@
+export const stuff = () => 'lots and lots of stuff'

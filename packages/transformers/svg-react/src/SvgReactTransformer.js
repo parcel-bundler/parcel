@@ -2,7 +2,6 @@
 
 import {Transformer} from '@parcel/plugin';
 
-import path from 'path';
 import svgoPlugin from '@svgr/plugin-svgo';
 import jsxPlugin from '@svgr/plugin-jsx';
 import {transform} from '@svgr/core';
@@ -14,27 +13,18 @@ export default (new Transformer({
       '.svgrrc.json',
       '.svgrrc.js',
       '.svgrrc.cjs',
+      '.svgrrc.mjs',
       'svgr.config.json',
       'svgr.config.js',
       'svgr.config.cjs',
+      'svgr.config.mjs',
     ]);
     let svgoResult = await config.getConfig([
       'svgo.config.js',
       'svgo.config.cjs',
+      'svgo.config.mjs',
       'svgo.config.json',
     ]);
-    if (svgrResult) {
-      let isJavascript = path.extname(svgrResult.filePath).endsWith('js');
-      if (isJavascript) {
-        config.invalidateOnStartup();
-      }
-    }
-    if (svgoResult) {
-      let isJavascript = path.extname(svgoResult.filePath).endsWith('js');
-      if (isJavascript) {
-        config.invalidateOnStartup();
-      }
-    }
     return {svgr: svgrResult?.contents, svgo: svgoResult?.contents};
   },
 

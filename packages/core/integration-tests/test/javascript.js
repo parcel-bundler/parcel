@@ -207,6 +207,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 8,
@@ -304,6 +305,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 8,
@@ -1294,7 +1296,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -1395,7 +1397,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 15,
@@ -1617,7 +1619,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -1732,6 +1734,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   end: {
                     column: 55,
                     line: 1,
@@ -1780,6 +1783,7 @@ describe('javascript', function () {
               ),
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 8,
@@ -1902,6 +1906,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   end: {
                     column: 33,
                     line: 1,
@@ -2104,11 +2109,10 @@ describe('javascript', function () {
           'get-worker-url.js',
           'lodash.js',
           'esmodule-helpers.js',
-          'bundle-url.js',
         ],
       },
       {
-        assets: ['bundle-manifest.js'],
+        assets: ['bundle-manifest.js', 'bundle-url.js'],
       },
       {
         assets: ['worker.js', 'lodash.js', 'esmodule-helpers.js'],
@@ -2186,6 +2190,7 @@ describe('javascript', function () {
       {
         assets: [
           'bundle-manifest.js',
+          'esm-js-loader.js',
           'get-worker-url.js',
           'index.js',
           'large.js',
@@ -2582,6 +2587,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   end: {
                     column: 36,
                     line: 1,
@@ -3168,7 +3174,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 1,
                     column: 1,
@@ -3191,7 +3197,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 2,
                     column: 1,
@@ -3214,7 +3220,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 3,
                     column: 1,
@@ -3237,7 +3243,7 @@ describe('javascript', function () {
               filePath,
               codeHighlights: [
                 {
-                  message: null,
+                  message: undefined,
                   start: {
                     line: 4,
                     column: 1,
@@ -3280,7 +3286,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 8,
@@ -3306,7 +3312,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 8,
@@ -3332,7 +3338,7 @@ describe('javascript', function () {
                 ),
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 3,
                       column: 8,
@@ -5074,7 +5080,7 @@ describe('javascript', function () {
     }
   });
 
-  it('should throw a diagnostic for unkown pipelines', async function () {
+  it('should throw a diagnostic for unknown pipelines', async function () {
     let fixture = path.join(__dirname, 'integration/pipeline-unknown/a.js');
     let code = await inputFS.readFileSync(fixture, 'utf8');
     await assert.rejects(() => bundle(fixture), {
@@ -5089,6 +5095,7 @@ describe('javascript', function () {
               code,
               codeHighlights: [
                 {
+                  message: undefined,
                   start: {
                     column: 19,
                     line: 1,
@@ -5226,6 +5233,38 @@ describe('javascript', function () {
     );
     let res = await run(b);
     assert.deepEqual(res, {other: 1});
+  });
+
+  it('should hoist function default exports to allow circular imports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/js-export-default-fn-circular-named/a.mjs',
+      ),
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, 'b1');
+  });
+
+  it('should hoist anonymous function default exports to allow circular imports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/js-export-default-fn-circular-anonymous/a.mjs',
+      ),
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, 'b1');
   });
 
   it('should work with many different types of exports', async function () {
@@ -5376,6 +5415,25 @@ describe('javascript', function () {
     assert.strictEqual(output, 'a');
   });
 
+  it('should support import and non-top-level require of same asset from different assets', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
+
+  it('should support import and non-top-level require of same asset from different assets with scope hoisting', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-import-different/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+    let {output} = await run(b, null, {require: false});
+    assert.deepEqual(output, [123, {HooksContext: 123}]);
+  });
+
   it('should support runtime module deduplication', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
@@ -5454,6 +5512,7 @@ describe('javascript', function () {
                 code,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 11,
                       column: 17,
@@ -5544,6 +5603,7 @@ describe('javascript', function () {
                 filePath: fixture,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 19,
@@ -5609,7 +5669,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: md`Failed to resolve '${'@swc/helpers/lib/_class_call_check.js'}' from '${normalizePath(
+            message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',
@@ -5619,6 +5679,7 @@ describe('javascript', function () {
                 filePath: fixture,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 1,
@@ -5697,7 +5758,7 @@ describe('javascript', function () {
         name: 'BuildError',
         diagnostics: [
           {
-            message: md`Failed to resolve '${'@swc/helpers/lib/_class_call_check.js'}' from '${normalizePath(
+            message: md`Failed to resolve '${'@swc/helpers/cjs/_class_call_check.cjs'}' from '${normalizePath(
               require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',
@@ -5707,6 +5768,7 @@ describe('javascript', function () {
                 filePath: fixture,
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 1,
@@ -5722,7 +5784,7 @@ describe('javascript', function () {
           },
           {
             message:
-              'External dependency "@swc/helpers" does not satisfy required semver range "^0.4.12".',
+              'External dependency "@swc/helpers" does not satisfy required semver range "^0.5.0".',
             origin: '@parcel/resolver-default',
             codeFrames: [
               {
@@ -5745,7 +5807,7 @@ describe('javascript', function () {
               },
             ],
             hints: [
-              'Update the dependency on "@swc/helpers" to satisfy "^0.4.12".',
+              'Update the dependency on "@swc/helpers" to satisfy "^0.5.0".',
             ],
           },
         ],
@@ -7408,6 +7470,26 @@ describe('javascript', function () {
 
       let res = await run(b, null, {require: false});
       assert.equal(res.output, 123);
+    });
+
+    it('duplicate assets should share module scope', async function () {
+      let b = await bundle(
+        [
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/multi-entry-duplicates/one.js',
+          ),
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/multi-entry-duplicates/two.js',
+          ),
+        ],
+        options,
+      );
+
+      let result = await runBundle(b, b.getBundles()[0], {}, {require: false});
+
+      assert.equal(await result.output, 2);
     });
   }
 });

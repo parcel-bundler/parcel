@@ -360,6 +360,28 @@ describe('scope hoisting', function () {
       assert.strictEqual(output, '2 4');
     });
 
+    it('supports re-exporting all from an empty module without side effects', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-empty-no-side-effects/index.js',
+        ),
+        {
+          mode: 'production',
+        },
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 'foo bar');
+
+      let contents = await outputFS.readFile(
+        b.getBundles().find(b => b.getMainEntry().filePath.endsWith('index.js'))
+          .filePath,
+        'utf8',
+      );
+      assert.match(contents, /output="foo bar"/);
+    });
+
     it('supports re-exporting all exports from an external module', async function () {
       let b = await bundle(
         path.join(
@@ -457,6 +479,49 @@ describe('scope hoisting', function () {
       assert.equal(foo + bar + baz + a + bb, 15);
     });
 
+    it('deduplicates imports when wrapped', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-multiple-wrapped/index.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+
+      let assetB = nullthrows(
+        b.getBundles()[0]?.traverseAssets((a, _, actions) => {
+          if (
+            a.filePath ===
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/import-multiple-wrapped/b.js',
+            )
+          ) {
+            actions.stop();
+            return a;
+          }
+        }),
+      );
+      assert.equal(
+        [
+          ...contents.matchAll(
+            new RegExp(
+              'parcelRequires*\\(s*"' + b.getAssetPublicId(assetB) + '"s*\\)',
+              'g',
+            ),
+          ),
+        ].length,
+        1,
+      );
+
+      let output = await run(b);
+      assert.equal(output, 15);
+    });
+
     it('supports re-exporting all exports from multiple modules deep', async function () {
       let b = await bundle(
         path.join(
@@ -546,6 +611,8 @@ describe('scope hoisting', function () {
         'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
         false,
       )} does not export 'default'`;
+
+      // $FlowFixMe[prop-missing]
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,
@@ -559,6 +626,7 @@ describe('scope hoisting', function () {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 8,
@@ -584,6 +652,7 @@ describe('scope hoisting', function () {
         'integration/scope-hoisting/es6/re-export-missing/c.js',
         false,
       )} does not export 'foo'`;
+      // $FlowFixMe[prop-missing]
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,
@@ -600,6 +669,7 @@ describe('scope hoisting', function () {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 9,
@@ -636,6 +706,7 @@ describe('scope hoisting', function () {
                 language: 'js',
                 codeHighlights: [
                   {
+                    message: undefined,
                     start: {
                       line: 1,
                       column: 9,
@@ -653,6 +724,7 @@ describe('scope hoisting', function () {
       };
 
       let source = path.join(__dirname, entry);
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () =>
           bundle(source, {
@@ -662,6 +734,7 @@ describe('scope hoisting', function () {
           }),
         error,
       );
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () =>
           bundle(source, {
@@ -1077,17 +1150,22 @@ describe('scope hoisting', function () {
       assert.deepEqual(output, ['b', true]);
     });
 
-    it("unused and missing pseudo re-exports doen't fail the build", async function () {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/re-export-pseudo/a.js',
-        ),
-      );
+    for (let shouldScopeHoist of [false, true]) {
+      it(`unused and missing pseudo re-exports doesn't fail the build with${
+        shouldScopeHoist ? '' : 'out'
+      } scope-hoisting`, async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/re-export-pseudo/a.js',
+          ),
+          {defaultTargetOptions: {shouldScopeHoist}},
+        );
 
-      let output = await run(b);
-      assert.deepEqual(output, 'foo');
-    });
+        let {output} = await run(b, null, {require: false});
+        assert.deepEqual(output, 'foo');
+      });
+    }
 
     it('supports requiring a re-exported and renamed ES6 import', async function () {
       let b = await bundle(
@@ -1806,6 +1884,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 8,
                           line: 2,
@@ -1853,6 +1932,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 10,
                           line: 3,
@@ -1900,6 +1980,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 38,
                           line: 1,
@@ -1947,6 +2028,7 @@ describe('scope hoisting', function () {
                     language: 'js',
                     codeHighlights: [
                       {
+                        message: undefined,
                         start: {
                           column: 45,
                           line: 1,
@@ -2474,6 +2556,7 @@ describe('scope hoisting', function () {
                   language: 'js',
                   codeHighlights: [
                     {
+                      message: undefined,
                       start: {
                         line: 1,
                         column: 10,
@@ -3050,7 +3133,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -3098,7 +3181,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -3146,7 +3229,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -3194,7 +3277,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 8,
@@ -3242,7 +3325,7 @@ describe('scope hoisting', function () {
                 filePath: source,
                 codeHighlights: [
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 2,
                       column: 1,
@@ -3253,7 +3336,7 @@ describe('scope hoisting', function () {
                     },
                   },
                   {
-                    message: null,
+                    message: undefined,
                     start: {
                       line: 3,
                       column: 1,
@@ -4181,6 +4264,21 @@ describe('scope hoisting', function () {
       );
 
       assert.deepEqual(await run(b), 4);
+    });
+
+    it('supports mutations of the cjs exports by the importer from a mixed module', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/mutated-exports-mixed-module/index.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), [
+        'CJS mutated',
+        'ESM',
+        {cjs: 'CJS mutated', esm: 'ESM'},
+      ]);
     });
 
     it.skip('supports require.resolve calls for excluded modules', async function () {

@@ -26,8 +26,7 @@ import cpuCount from './cpuCount';
 import Handle from './Handle';
 import {child} from './childState';
 import {detectBackend} from './backend';
-import Profiler from './Profiler';
-import Trace from './Trace';
+import {SamplingProfiler, Trace} from '@parcel/profiler';
 import fs from 'fs';
 import logger from '@parcel/logger';
 
@@ -44,6 +43,7 @@ export type FarmOptions = {|
   workerPath?: FilePath,
   backend: BackendType,
   shouldPatchConsole?: boolean,
+  shouldTrace?: boolean,
 |};
 
 type WorkerModule = {|
@@ -59,6 +59,8 @@ export type WorkerApi = {|
 |};
 
 export {Handle};
+
+const DEFAULT_MAX_CONCURRENT_CALLS: number = 30;
 
 /**
  * workerPath should always be defined inside farmOptions
@@ -77,13 +79,15 @@ export default class WorkerFarm extends EventEmitter {
   sharedReferences: Map<SharedReference, mixed> = new Map();
   sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
   serializedSharedReferences: Map<SharedReference, ?ArrayBuffer> = new Map();
-  profiler: ?Profiler;
+  profiler: ?SamplingProfiler;
 
   constructor(farmOptions: $Shape<FarmOptions> = {}) {
     super();
     this.options = {
       maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
-      maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
+      maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(
+        farmOptions.shouldTrace ? 1 : DEFAULT_MAX_CONCURRENT_CALLS,
+      ),
       forcedKillTime: 500,
       warmWorkers: false,
       useLocalWorker: true, // TODO: setting this to false makes some tests fail, figure out why
@@ -192,6 +196,10 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   createHandle(method: string, useMainThread: boolean = false): HandleFunction {
+    if (!this.options.useLocalWorker) {
+      useMainThread = false;
+    }
+
     return async (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
@@ -235,6 +243,7 @@ export default class WorkerFarm extends EventEmitter {
       forcedKillTime: this.options.forcedKillTime,
       backend: this.options.backend,
       shouldPatchConsole: this.options.shouldPatchConsole,
+      shouldTrace: this.options.shouldTrace,
       sharedReferences: this.sharedReferences,
     });
 
@@ -512,7 +521,7 @@ export default class WorkerFarm extends EventEmitter {
       );
     }
 
-    this.profiler = new Profiler();
+    this.profiler = new SamplingProfiler();
 
     promises.push(this.profiler.startProfiling());
     await Promise.all(promises);
@@ -643,8 +652,12 @@ export default class WorkerFarm extends EventEmitter {
     return child.workerApi;
   }
 
-  static getConcurrentCallsPerWorker(): number {
-    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 30;
+  static getConcurrentCallsPerWorker(
+    defaultValue?: number = DEFAULT_MAX_CONCURRENT_CALLS,
+  ): number {
+    return (
+      parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || defaultValue
+    );
   }
 }
 

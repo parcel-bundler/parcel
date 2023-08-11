@@ -13,7 +13,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {NodeFS} from '@parcel/fs';
-import {Resolver} from '../index';
+import {init, Resolver} from '../native';
 import builtins, {empty} from './builtins';
 import path from 'path';
 import {
@@ -24,6 +24,7 @@ import {
   getModuleParts,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
   encodeJSONKeyComponent,
   errorToDiagnostic,
   generateJSONCodeHighlights,
@@ -46,9 +47,10 @@ type Options = {|
   packageManager?: PackageManager,
   logger?: PluginLogger,
   shouldAutoInstall?: boolean,
-  mode?: BuildMode,
+  mode: BuildMode,
   mainFields?: Array<string>,
   extensions?: Array<string>,
+  packageExports?: boolean,
 |};
 
 type ResolveOptions = {|
@@ -79,9 +81,13 @@ export default class NodeResolver {
 
     let resolver = this.resolversByEnv.get(options.env.id);
     if (!resolver) {
+      await init?.();
       resolver = new Resolver(this.options.projectRoot, {
         fs:
-          this.options.fs instanceof NodeFS && process.versions.pnp == null
+          this.options.fs instanceof NodeFS &&
+          process.versions.pnp == null &&
+          // For Wasm builds
+          !init
             ? undefined
             : {
                 canonicalize: path => this.options.fs.realpathSync(path),
@@ -99,6 +105,7 @@ export default class NodeResolver {
           options.env,
           this.options.mode,
         ),
+        packageExports: this.options.packageExports ?? false,
         moduleDirResolver:
           process.versions.pnp != null
             ? (module, from) => {
@@ -257,11 +264,10 @@ export default class NodeResolver {
                     filePath: options.loc.filePath,
                     codeHighlights: options.loc
                       ? [
-                          {
-                            message: 'used here',
-                            start: options.loc.start,
-                            end: options.loc.end,
-                          },
+                          convertSourceLocationToHighlight(
+                            options.loc,
+                            'used here',
+                          ),
                         ]
                       : [],
                   },
@@ -299,11 +305,10 @@ export default class NodeResolver {
                     {
                       filePath: options.loc.filePath,
                       codeHighlights: [
-                        {
-                          message: 'used here',
-                          start: options.loc.start,
-                          end: options.loc.end,
-                        },
+                        convertSourceLocationToHighlight(
+                          options.loc,
+                          'used here',
+                        ),
                       ],
                     },
                   ]
@@ -483,6 +488,7 @@ export default class NodeResolver {
               filePath: error.path,
               language: 'json',
               code: pkgContent,
+              // TODO
               codeHighlights: [
                 {
                   message: error.message,

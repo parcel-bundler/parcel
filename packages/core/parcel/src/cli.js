@@ -13,8 +13,6 @@ import path from 'path';
 import getPort from 'get-port';
 import {version} from '../package.json';
 
-require('v8-compile-cache');
-
 const program = new commander.Command();
 
 // Exit codes in response to signals are traditionally
@@ -88,7 +86,8 @@ const commonOptions = {
   '--dist-dir <dir>':
     'output directory to write to when unspecified by targets',
   '--no-autoinstall': 'disable autoinstall',
-  '--profile': 'enable build profiling',
+  '--profile': 'enable sampling build profiling',
+  '--trace': 'enable build tracing',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
@@ -229,11 +228,10 @@ async function run(
   let options = await normalizeOptions(command, fs);
   let parcel = new Parcel({
     entries,
-    // $FlowFixMe[extra-arg] - flow doesn't know about the `paths` option (added in Node v8.9.0)
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
     }),
-    shouldPatchConsole: true,
+    shouldPatchConsole: false,
     ...options,
   });
 
@@ -340,8 +338,8 @@ async function run(
 
     // In non-tty cases, respond to SIGINT by cleaning up. Since we're watching,
     // a 0 success code is acceptable.
-    process.on('SIGINT', exit);
-    process.on('SIGTERM', exit);
+    process.on('SIGINT', () => exit());
+    process.on('SIGTERM', () => exit());
   } else {
     try {
       await parcel.run();
@@ -464,6 +462,13 @@ async function normalizeOptions(
     })),
   ];
 
+  if (command.trace) {
+    additionalReporters.unshift({
+      packageName: '@parcel/reporter-tracer',
+      resolveFrom: __filename,
+    });
+  }
+
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
     shouldDisableCache: command.cache === false,
@@ -477,6 +482,7 @@ async function normalizeOptions(
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
+    shouldTrace: command.trace,
     shouldBuildLazily: command.lazy,
     shouldBundleIncrementally:
       process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,

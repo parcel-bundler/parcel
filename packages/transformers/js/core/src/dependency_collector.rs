@@ -4,10 +4,10 @@ use std::fmt;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use swc_atoms::{js_word, JsWord};
-use swc_common::{Mark, SourceMap, Span, DUMMY_SP};
-use swc_ecmascript::ast::{self, Callee, Id, MemberProp};
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::common::{Mark, SourceMap, Span, DUMMY_SP};
+use swc_core::ecma::ast::{self, Callee, Id, MemberProp};
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::fold_member_expr_skip_prop;
 use crate::utils::*;
@@ -47,8 +47,8 @@ pub struct DependencyDescriptor {
   pub kind: DependencyKind,
   pub loc: SourceLocation,
   /// The text specifier associated with the import/export statement.
-  pub specifier: swc_atoms::JsWord,
-  pub attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
+  pub specifier: swc_core::ecma::atoms::JsWord,
+  pub attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
   pub is_optional: bool,
   pub is_helper: bool,
   pub source_type: Option<SourceType>,
@@ -60,8 +60,8 @@ pub fn dependency_collector<'a>(
   source_map: &'a SourceMap,
   items: &'a mut Vec<DependencyDescriptor>,
   decls: &'a HashSet<Id>,
-  ignore_mark: swc_common::Mark,
-  unresolved_mark: swc_common::Mark,
+  ignore_mark: swc_core::common::Mark,
+  unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
 ) -> impl Fold + 'a {
@@ -87,8 +87,8 @@ struct DependencyCollector<'a> {
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
   decls: &'a HashSet<Id>,
-  ignore_mark: swc_common::Mark,
-  unresolved_mark: swc_common::Mark,
+  ignore_mark: swc_core::common::Mark,
+  unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
@@ -98,20 +98,18 @@ impl<'a> DependencyCollector<'a> {
   fn add_dependency(
     &mut self,
     mut specifier: JsWord,
-    span: swc_common::Span,
+    span: swc_core::common::Span,
     kind: DependencyKind,
-    attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
+    attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
     is_optional: bool,
     source_type: SourceType,
   ) -> Option<JsWord> {
     // Rewrite SWC helpers from ESM to CJS for library output.
     let mut is_specifier_rewritten = false;
     if self.config.is_library && !self.config.is_esm_output {
-      if let Some(suffix) = specifier.strip_prefix("@swc/helpers/src/") {
-        if let Some(prefix) = suffix.strip_suffix(".mjs") {
-          specifier = format!("@swc/helpers/lib/{}.js", prefix).into();
-          is_specifier_rewritten = true;
-        }
+      if let Some(rest) = specifier.strip_prefix("@swc/helpers/_/") {
+        specifier = format!("@swc/helpers/cjs/{}.cjs", rest).into();
+        is_specifier_rewritten = true;
       }
     }
 
@@ -155,7 +153,7 @@ impl<'a> DependencyCollector<'a> {
   fn add_url_dependency(
     &mut self,
     specifier: JsWord,
-    span: swc_common::Span,
+    span: swc_core::common::Span,
     kind: DependencyKind,
     source_type: SourceType,
   ) -> ast::Expr {
@@ -510,7 +508,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                               Fn(_) | Arrow(_) => {
                                 self.in_promise = true;
                                 let node =
-                                  swc_ecmascript::visit::fold_call_expr(self, node.clone());
+                                  swc_core::ecma::visit::fold_call_expr(self, node.clone());
                                 self.in_promise = was_in_promise;
 
                                 // Transform Promise.resolve().then(() => __importStar(require('foo')))
@@ -902,7 +900,7 @@ impl<'a> DependencyCollector<'a> {
           }
           Arrow(f) => {
             let param = f.params.get(0);
-            let body = match &f.body {
+            let body = match &*f.body {
               ast::BlockStmtOrExpr::Expr(expr) => Some(&**expr),
               ast::BlockStmtOrExpr::BlockStmt(block) => self.match_block_stmt_expr(block),
             };
@@ -1102,11 +1100,11 @@ impl Fold for PromiseTransformer {
       }
     }
 
-    swc_ecmascript::visit::fold_return_stmt(self, node)
+    swc_core::ecma::visit::fold_return_stmt(self, node)
   }
 
   fn fold_arrow_expr(&mut self, node: ast::ArrowExpr) -> ast::ArrowExpr {
-    if let ast::BlockStmtOrExpr::Expr(expr) = &node.body {
+    if let ast::BlockStmtOrExpr::Expr(expr) = &*node.body {
       if let ast::Expr::Call(call) = &**expr {
         if let Some(require_node) = &self.require_node {
           if require_node == call {
@@ -1116,11 +1114,11 @@ impl Fold for PromiseTransformer {
       }
     }
 
-    swc_ecmascript::visit::fold_arrow_expr(self, node)
+    swc_core::ecma::visit::fold_arrow_expr(self, node)
   }
 
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
-    let node = swc_ecmascript::visit::fold_expr(self, node);
+    let node = swc_core::ecma::visit::fold_expr(self, node);
 
     // Replace the original require node with a reference to a variable `res`,
     // which will be added as a parameter to the parent function.
@@ -1141,7 +1139,7 @@ impl<'a> DependencyCollector<'a> {
     &mut self,
     expr: &ast::Expr,
     decls: &HashSet<Id>,
-  ) -> Option<(JsWord, swc_common::Span)> {
+  ) -> Option<(JsWord, swc_core::common::Span)> {
     use ast::*;
 
     if let Expr::New(new) = expr {

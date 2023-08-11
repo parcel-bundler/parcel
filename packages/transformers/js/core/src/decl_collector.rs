@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use swc_ecmascript::ast::{self, Id};
-use swc_ecmascript::visit::{Visit, VisitWith};
+use swc_core::ecma::ast::{self, Id};
+use swc_core::ecma::visit::{Visit, VisitWith};
 
 /// This pass collects all declarations in a module into a single HashSet of tuples
 /// containing identifier names and their associated syntax context (scope).
@@ -86,7 +86,7 @@ impl Visit for DeclCollector {
 
   fn visit_import_specifier(&mut self, node: &ast::ImportSpecifier) {
     use ast::ImportSpecifier::*;
-    swc_ecmascript::visit::visit_import_specifier(self, node);
+    swc_core::ecma::visit::visit_import_specifier(self, node);
 
     match node {
       Default(default) => {

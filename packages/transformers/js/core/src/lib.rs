@@ -1,3 +1,4 @@
+mod collect;
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
@@ -16,37 +17,39 @@ use std::str::FromStr;
 use indexmap::IndexMap;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
-use swc_common::comments::SingleThreadedComments;
-use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
-use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
-use swc_ecmascript::ast::{Module, ModuleItem, Program};
-use swc_ecmascript::codegen::text_writer::JsWriter;
-use swc_ecmascript::parser::lexer::Lexer;
-use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
-use swc_ecmascript::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
-use swc_ecmascript::transforms::fixer::paren_remover;
-use swc_ecmascript::transforms::resolver;
-use swc_ecmascript::transforms::{
-  compat::reserved_words::reserved_words, fixer, helpers, hygiene,
-  optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
-  pass::Optional, proposals::decorators, react, typescript,
+use swc_core;
+use swc_core::common::comments::SingleThreadedComments;
+use swc_core::common::errors::{DiagnosticBuilder, Emitter, Handler};
+use swc_core::common::pass::Optional;
+use swc_core::common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
+use swc_core::ecma::ast::{Module, ModuleItem, Program};
+use swc_core::ecma::codegen::text_writer::JsWriter;
+use swc_core::ecma::parser::lexer::Lexer;
+use swc_core::ecma::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
+use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
+use swc_core::ecma::transforms::base::fixer::paren_remover;
+use swc_core::ecma::transforms::base::helpers;
+use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver, Assumptions};
+use swc_core::ecma::transforms::proposal::decorators;
+use swc_core::ecma::transforms::{
+  compat::reserved_words::reserved_words, optimization::simplify::dead_branch_remover,
+  optimization::simplify::expr_simplifier, react, typescript,
 };
-use swc_ecmascript::visit::{FoldWith, VisitWith};
+use swc_core::ecma::visit::{FoldWith, VisitWith};
 
+use collect::{Collect, CollectResult};
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::{hoist, CollectResult, HoistResult};
+use hoist::{hoist, HoistResult};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use typeof_replacer::*;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
-use crate::hoist::Collect;
-
-type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
+type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -56,7 +59,7 @@ pub struct Config {
   module_id: String,
   project_root: String,
   replace_env: bool,
-  env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
+  env: HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
   inline_fs: bool,
   insert_node_globals: bool,
   node_replacer: bool,
@@ -94,7 +97,7 @@ pub struct TransformResult {
   symbol_result: Option<CollectResult>,
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
-  used_env: HashSet<swc_atoms::JsWord>,
+  used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   has_node_replacements: bool,
 }
 
@@ -129,7 +132,7 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_common::errors::Diagnostic>>>);
+pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_core::common::errors::Diagnostic>>>);
 
 impl Emitter for ErrorBuffer {
   fn emit(&mut self, db: &DiagnosticBuilder) {
@@ -177,10 +180,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
         SourceType::Script => false,
       };
 
-      swc_common::GLOBALS.set(&Globals::new(), || {
+      swc_core::common::GLOBALS.set(&Globals::new(), || {
         let error_buffer = ErrorBuffer::default();
         let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
-        swc_common::errors::HANDLER.set(&handler, || {
+        swc_core::common::errors::HANDLER.set(&handler, || {
           helpers::HELPERS.set(
             &helpers::Helpers::new(
               /* external helpers from @swc/helpers */ should_import_swc_helpers,
@@ -188,7 +191,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             || {
               let mut react_options = react::Options::default();
               if config.is_jsx {
-                react_options.use_spread = Some(true);
                 if let Some(jsx_pragma) = &config.jsx_pragma {
                   react_options.pragma = Some(jsx_pragma.clone());
                 }
@@ -215,13 +217,15 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               let global_mark = Mark::fresh(Mark::root());
               let unresolved_mark = Mark::fresh(Mark::root());
               let module = module.fold_with(&mut chain!(
+                resolver(unresolved_mark, global_mark, config.is_type_script),
                 // Decorators can use type information, so must run before the TypeScript pass.
                 Optional::new(
                   decorators::decorators(decorators::Config {
                     legacy: true,
-                    use_define_for_class_fields: config.use_define_for_class_fields,
                     // Always disabled for now, SWC's implementation doesn't match TSC.
                     emit_metadata: false,
+                    // use_define_for_class_fields is ignored here, uses preset-env assumptions instead
+                    ..Default::default()
                   }),
                   config.decorators
                 ),
@@ -242,7 +246,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   typescript::strip(global_mark),
                   config.is_type_script && !config.is_jsx
                 ),
-                resolver(unresolved_mark, global_mark, config.is_type_script),
               ));
 
               // If it's a script, convert into module. This needs to happen after
@@ -262,13 +265,14 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   Some(&comments),
                   react_options,
                   global_mark,
+                  unresolved_mark,
                 ),
                 config.is_jsx,
               ));
 
               let mut decls = collect_decls(&module);
 
-              let mut preset_env_config = swc_ecmascript::preset_env::Config {
+              let mut preset_env_config = swc_core::ecma::preset_env::Config {
                 dynamic_import: true,
                 ..Default::default()
               };
@@ -285,6 +289,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   preset_env_config.mode = Some(Entry);
                   preset_env_config.bugfixes = true;
                 }
+              }
+
+              let mut assumptions = Assumptions::default();
+              if config.is_type_script && !config.use_define_for_class_fields {
+                assumptions.set_public_class_fields |= true;
               }
 
               let mut diagnostics = vec![];
@@ -371,13 +380,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       global_mark,
                       Some(&comments),
                       preset_env_config,
-                      Default::default(),
+                      assumptions,
                       &mut Default::default(),
                     ),
                     should_run_preset_env,
                   ),
                   // Inject SWC helpers if needed.
-                  helpers::inject_helpers(),
+                  helpers::inject_helpers(global_mark),
                 );
 
                 module.fold_with(&mut passes)
@@ -557,13 +566,13 @@ fn emit(
         None
       },
     ));
-    let config = swc_ecmascript::codegen::Config {
+    let config = swc_core::ecma::codegen::Config {
       minify: false,
       ascii_only: false,
-      target: swc_ecmascript::ast::EsVersion::Es5,
+      target: swc_core::ecma::ast::EsVersion::Es5,
       omit_last_semi: false,
     };
-    let mut emitter = swc_ecmascript::codegen::Emitter {
+    let mut emitter = swc_core::ecma::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
       cm: source_map,
