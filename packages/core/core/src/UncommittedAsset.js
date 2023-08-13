@@ -47,7 +47,7 @@ import {
 import {BundleBehaviorNames} from './types';
 import {invalidateOnFileCreateToInternal} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
-import {Asset as DbAsset, AssetFlags} from '@parcel/rust';
+import {Asset as DbAsset, AssetFlags, getStringId} from '@parcel/rust';
 import nullthrows from "nullthrows";
 
 type UncommittedAssetOptions = {|
@@ -492,8 +492,8 @@ export default class UncommittedAsset {
     if (this.value.symbols) {
       for (let [exported, {local}] of this.value.symbols) {
         let sym = asset.symbols.extend();
-        sym.exported = exported;
-        sym.local = local;
+        sym.exported = getStringId(exported);
+        sym.local = getStringId(local);
       }
     } else if (this.nativeSymbols != null) {
       // console.log('native symbols', this.nativeSymbols)

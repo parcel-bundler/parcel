@@ -42,7 +42,9 @@ import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath, fromProjectPathRelative} from './projectPath';
 import {HASH_REF_PREFIX} from './constants';
-import { Environment as DbEnvironment, EnvironmentFlags, Dependency as DbDependency, Target as DbTarget, Asset as DbAsset, AssetFlags } from '@parcel/rust';
+import { Environment as DbEnvironment, EnvironmentFlags, Dependency as DbDependency, Target as DbTarget, Asset as DbAsset, AssetFlags, getStringId, readCachedString } from '@parcel/rust';
+
+let starSymbol, defaultSymbol;
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -73,8 +75,8 @@ export type BundleGraphEdgeType = $Values<typeof bundleGraphEdgeTypes>;
 
 type InternalSymbolResolution = {|
   asset: CommittedAssetId,
-  exportSymbol: string,
-  symbol: ?Symbol | false,
+  exportSymbol: number,
+  symbol: ?number | false,
   loc: ?InternalSourceLocation,
 |};
 
@@ -193,6 +195,7 @@ export default class BundleGraph {
       }
     }
 
+    starSymbol ??= getStringId('*');
     let walkVisited = new Set();
     function walk(nodeId) {
       if (walkVisited.has(nodeId)) return;
@@ -209,10 +212,10 @@ export default class BundleGraph {
         isProduction
       ) {
         // asset -> symbols that should be imported directly from that asset
-        let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
+        let targets = new DefaultMap<ContentKey, Map<number, number>>(
           () => new Map(),
         );
-        let externalSymbols = new Set();
+        let externalSymbols = new Set<number>();
         let hasAmbiguousSymbols = false;
 
         for (let [symbol, resolvedSymbol] of node.usedSymbolsUp) {
@@ -239,7 +242,7 @@ export default class BundleGraph {
           // It doesn't make sense to retarget dependencies where `*` is used, because the
           // retargeting won't enable any benefits in that case (apart from potentially even more
           // code being generated).
-          !node.usedSymbolsUp.has('*') &&
+          !node.usedSymbolsUp.has(starSymbol) &&
           // TODO We currently can't rename imports in async imports, e.g. from
           //      (parcelRequire("...")).then(({ a }) => a);
           // to
@@ -292,7 +295,7 @@ export default class BundleGraph {
               // console.log('clone', clonedDep)
               symbols.clear();
               for (let sym of originalSymbols) {
-                if (target.has(sym.exported) || sym.exported === '*') {
+                if (target.has(sym.exported) || sym.exported === starSymbol) {
                   let s = symbols.extend();
                   s.exported = target.get(sym.exported) ?? sym.exported;
                   s.local = sym.local;
@@ -1650,18 +1653,21 @@ export default class BundleGraph {
 
   getSymbolResolution(
     assetId: CommittedAssetId,
-    symbol: Symbol,
+    symbol: number,
     boundary: ?Bundle,
   ): InternalSymbolResolution {
     let asset = DbAsset.get(assetId);
     let assetOutside = boundary && !this.bundleHasAsset(boundary, assetId);
 
-    let identifier = asset.symbols?.find(s => s.exported === symbol)?.local;
-    if (symbol === '*') {
+    starSymbol ??= getStringId('*');
+    defaultSymbol ??= getStringId('default');
+
+    let foundSymbol = asset.symbols?.find(s => s.exported === symbol);
+    if (symbol === starSymbol) {
       return {
         asset: assetId,
-        exportSymbol: '*',
-        symbol: identifier ?? null,
+        exportSymbol: starSymbol,
+        symbol: foundSymbol?.local ?? null,
         loc: asset.symbols?.find(s => s.exported === symbol)?.loc,
       };
     }
@@ -1680,9 +1686,9 @@ export default class BundleGraph {
       }
       // If this is a re-export, find the original module.
       let symbolLookup = new Map(
-        depSymbols.map((s) => [s.local, s.exported]),
+        depSymbols.map((s) => [s.local, s]),
       );
-      let depSymbol = symbolLookup.get(identifier);
+      let depSymbol = symbolLookup.get(foundSymbol?.local);
       if (depSymbol != null) {
         let resolved = this.getResolvedAsset(depId);
         if (resolved == null || resolved === assetId) {
@@ -1690,7 +1696,7 @@ export default class BundleGraph {
           return {
             asset: assetId,
             exportSymbol: symbol,
-            symbol: identifier,
+            symbol: foundSymbol?.local ?? null,
             loc: asset.symbols?.find(s => s.exported === symbol)?.loc,
           };
         }
@@ -1712,7 +1718,7 @@ export default class BundleGraph {
           symbol: resolvedSymbol,
           exportSymbol,
           loc,
-        } = this.getSymbolResolution(resolved, depSymbol, boundary);
+        } = this.getSymbolResolution(resolved, depSymbol.exported, boundary);
 
         if (!loc) {
           // Remember how we got there
@@ -1730,9 +1736,9 @@ export default class BundleGraph {
       // Default exports are excluded from wildcard exports.
       // Wildcard reexports are never listed in the reexporting asset's symbols.
       if (
-        identifier == null &&
-        depSymbols.find(s => s.exported === '*')?.local === '*' &&
-        symbol !== 'default'
+        foundSymbol == null &&
+        depSymbols.find(s => s.exported === starSymbol)?.local === starSymbol &&
+        symbol !== defaultSymbol
       ) {
         let resolved = this.getResolvedAsset(depId);
         if (resolved == null) {
@@ -1795,7 +1801,7 @@ export default class BundleGraph {
       // ..., but if it does exist, it has to be behind this one reexport.
       return potentialResults[0];
     } else {
-      let result = identifier;
+      let result = foundSymbol?.local ?? null;
       if (skipped) {
         // ... and it was excluded (by symbol propagation) or deferred.
         result = false;
@@ -1806,7 +1812,7 @@ export default class BundleGraph {
           result = null;
         } else if (result === undefined) {
           // If not exported explicitly by the asset (= would have to be in * or a reexport-all) ...
-          if (nonStaticDependency || asset.symbols?.find(s => s.exported === '*')) {
+          if (nonStaticDependency || asset.symbols?.find(s => s.exported === starSymbol)) {
             // ... and if there are non-statically analyzable dependencies or it's a CJS asset,
             // fallback to namespace access.
             result = null;
@@ -1858,23 +1864,24 @@ export default class BundleGraph {
     for (let symbol of asset.symbols) {
       symbols.push({
         ...this.getSymbolResolution(assetId, symbol.exported, boundary),
-        exportAs: symbol.exported,
+        exportAs: readCachedString(symbol.exported),
       });
     }
 
+    starSymbol ??= getStringId('*');
     let deps = this.getDependencies(assetId);
     for (let depId of deps) {
       let dep = DbDependency.get(depId);
       let depSymbols = [...dep.symbols];
       if (!depSymbols) continue;
 
-      if (depSymbols.find(s => s.exported === '*')?.local === '*') {
+      if (depSymbols.find(s => s.exported === starSymbol)?.local === starSymbol) {
         let resolved = this.getResolvedAsset(depId);
         if (resolved == null) continue;
         let exported = this.getExportedSymbols(resolved, boundary)
           .filter(s => s.exportSymbol !== 'default')
           .map(s =>
-            s.exportSymbol !== '*' ? {...s, exportAs: s.exportSymbol} : s,
+            s.exportSymbol !== starSymbol ? {...s, exportAs: s.exportSymbol} : s,
           );
         symbols.push(...exported);
       }
@@ -2010,7 +2017,7 @@ export default class BundleGraph {
     let node = this._graph.getNodeByContentKey(asset);
     invariant(node && node.type === 'asset');
     return DbAsset.get(node.value).symbols
-      ? makeReadOnlySet(new Set(node.usedSymbols.keys()))
+      ? makeReadOnlySet(new Set([...node.usedSymbols.keys()].map(readCachedString)))
       : null;
   }
 
@@ -2019,7 +2026,7 @@ export default class BundleGraph {
     invariant(node && node.type === 'dependency');
     let dep = DbDependency.get(depId);
     return dep.symbols
-      ? makeReadOnlySet(new Set(node.usedSymbolsUp.keys()))
+      ? makeReadOnlySet(new Set([...node.usedSymbolsUp.keys()].map(readCachedString)))
       : null;
   }
 

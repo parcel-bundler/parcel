@@ -417,7 +417,8 @@ export class ResolverRunner {
       };
     }
 
-    let resolveFrom = dep.resolveFrom ?? dep.sourcePath;
+    let internalDep = DbDependency.get(dependency);
+    let resolveFrom = internalDep.resolveFrom// ?? internalDep.sourcePath;
     let dir =
       resolveFrom != null
         ? normalizePath(fromProjectPathRelative(resolveFrom))

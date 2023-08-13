@@ -310,7 +310,7 @@ export type AssetNode = {|
   id: ContentKey,
   +type: 'asset',
   value: CommittedAssetId,
-  usedSymbols: Set<Symbol>,
+  usedSymbols: Set<number>,
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,
   usedSymbolsUpDirty: boolean,
@@ -326,7 +326,7 @@ export type DependencyNode = {|
   deferred: boolean,
   /** dependency was deferred (= no used symbols (in immediate parents) & side-effect free) */
   hasDeferred?: boolean,
-  usedSymbolsDown: Set<Symbol>,
+  usedSymbolsDown: Set<number>,
   /**
    * a requested symbol -> either
    *  - if ambiguous (e.g. dependency to asset group with both CSS modules and JS asset): undefined
@@ -334,8 +334,8 @@ export type DependencyNode = {|
    *  - the asset it resolved to, and the potentially renamed export name
    */
   usedSymbolsUp: Map<
-    Symbol,
-    {|asset: ContentKey, symbol: ?Symbol|} | void | null,
+    number,
+    {|asset: ContentKey, symbol: ?number|} | void | null,
   >,
   /*
    * For the "down" pass, the resolutionAsset needs to be updated.

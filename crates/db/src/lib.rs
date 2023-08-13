@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 #![feature(thread_local)]
 
-use std::mem::MaybeUninit;
 use std::ptr::NonNull;
 use std::{marker::PhantomData, num::NonZeroU32, sync::RwLock};
 
@@ -32,12 +31,8 @@ trait JsValue {
 }
 
 pub trait SlabAllocated {
-  fn alloc(count: u32) -> (u32, *mut Self)
-  where
-    Self: Sized;
-  fn dealloc(addr: u32, count: u32)
-  where
-    Self: Sized;
+  fn alloc(count: u32) -> (u32, *mut Self);
+  fn dealloc(addr: u32, count: u32);
 }
 
 impl JsValue for u8 {
@@ -98,13 +93,13 @@ impl JsValue for bool {
 
 impl JsValue for InternedString {
   fn js_getter(addr: usize) -> String {
-    format!("readCachedString(this.addr + {addr})", addr = addr)
+    format!("readCachedString(readU32(this.addr + {addr}))", addr = addr)
   }
 
   fn js_setter(addr: usize, value: &str) -> String {
     // STRING_CACHE.set(this.addr + {addr}, {value});
     format!(
-      "binding.writeString(this.addr + {addr}, {value})",
+      "writeU32(this.addr + {addr}, binding.getStringId({value}))",
       addr = addr,
       value = value
     )
@@ -682,7 +677,9 @@ pub enum Priority {
 
 #[derive(Clone, Debug, ToJs, JsValue, SlabAllocated)]
 pub struct Symbol {
+  #[js_type(u32)]
   pub exported: InternedString,
+  #[js_type(u32)]
   pub local: InternedString,
   pub loc: Option<SourceLocation>,
   pub is_weak: bool,
@@ -721,6 +718,10 @@ impl From<String> for InternedString {
 
 impl From<&str> for InternedString {
   fn from(value: &str) -> Self {
+    if let Some(v) = STRINGS.get(value) {
+      return InternedString(*v);
+    }
+
     InternedString::from(String::from(value))
   }
 }
@@ -728,6 +729,10 @@ impl From<&str> for InternedString {
 impl InternedString {
   pub fn get(s: &str) -> Option<InternedString> {
     STRINGS.get(s).map(|s| InternedString(*s))
+  }
+
+  pub fn as_str(&self) -> &'static str {
+    unsafe { &*HEAP.get::<&str>(self.0.get()) }
   }
 }
 
@@ -741,9 +746,7 @@ impl core::ops::Deref for InternedString {
   type Target = str;
 
   fn deref(&self) -> &str {
-    let s = unsafe { &*HEAP.get::<&str>(self.0.get()) };
-    // println!("READ {:?} {:?} {:?}", self.0.get(), s.as_ptr(), s.len());
-    s
+    self.as_str()
   }
 }
 
@@ -781,12 +784,7 @@ impl ParcelDb {
   }
 
   pub fn read_string<'a>(&self, addr: u32) -> &'static str {
-    unsafe { &*HEAP.get::<InternedString>(addr) }
-  }
-
-  pub fn write_string(&self, addr: u32, s: String) {
-    let ptr: &mut InternedString = unsafe { &mut *HEAP.get(addr) };
-    *ptr = InternedString::from(s);
+    unsafe { InternedString(NonZeroU32::new_unchecked(addr)).as_str() }
   }
 
   pub fn read_heap<T>(&self, addr: u32) -> &'static mut T {
@@ -890,16 +888,11 @@ function writeU32(addr: number, value: number) {{
   return heapPage[offset >> 2] = value;
 }}
 
-function readCachedString(addr) {{
-  // Address points to an InternedString, which is a u32 heap pointer to a &str.
-  // That &str can be dereferenced and the first 8 bytes is a pointer to the string contents.
-  // Strings are immutable, so it is safe to use this pointer as a key into our cache.
-  let p = readU32(addr);
-  let ptr = readU32(p) + readU32(p + 4) * 0x100000000;
-  let v = STRING_CACHE.get(ptr);
+export function readCachedString(addr: number): string {{
+  let v = STRING_CACHE.get(addr);
   if (v != null) return v;
   v = binding.readString(addr);
-  STRING_CACHE.set(ptr, v);
+  STRING_CACHE.set(addr, v);
   return v;
 }}
 

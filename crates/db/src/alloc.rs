@@ -236,7 +236,6 @@ impl<T> Slab<T> {
         loop {
           let node = &mut *HEAP.get::<FreeNode>(addr);
           if node.slots >= count {
-            let original_addr = addr;
             if count < node.slots {
               node.slots -= count;
               addr += size * node.slots;
@@ -244,8 +243,7 @@ impl<T> Slab<T> {
               *prev = node.next;
             }
             // println!(
-            //   "REUSED {:?} {:?} {} {} {:?}",
-            //   unpack_addr(original_addr),
+            //   "REUSED {:?} {} {} {:?}",
             //   unpack_addr(addr),
             //   count,
             //   node.slots,

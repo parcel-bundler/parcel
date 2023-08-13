@@ -27,6 +27,7 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {targetToInternalTarget} from './Target';
 import {fromInternalSourceLocation} from '../utils';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
+import {getStringId, readCachedString} from '@parcel/rust';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -225,13 +226,13 @@ export default class BundleGraph<TBundle: IBundle>
   ): SymbolResolution {
     let res = this.#graph.getSymbolResolution(
       assetToAssetValue(asset),
-      symbol,
+      getStringId(symbol),
       boundary ? bundleToInternalBundle(boundary) : null,
     );
     return {
       asset: assetFromValue(res.asset, this.#options),
-      exportSymbol: res.exportSymbol,
-      symbol: res.symbol,
+      exportSymbol: readCachedString(res.exportSymbol),
+      symbol: typeof res.symbol === 'number' ? readCachedString(res.symbol) : res.symbol,
       loc: fromInternalSourceLocation(this.#options.projectRoot, res.loc),
     };
   }
@@ -246,8 +247,8 @@ export default class BundleGraph<TBundle: IBundle>
     );
     return res.map(e => ({
       asset: assetFromValue(e.asset, this.#options),
-      exportSymbol: e.exportSymbol,
-      symbol: e.symbol,
+      exportSymbol: readCachedString(e.exportSymbol),
+      symbol: typeof e.symbol === 'number' ? readCachedString(e.symbol) : e.symbol,
       loc: fromInternalSourceLocation(this.#options.projectRoot, e.loc),
       exportAs: e.exportAs,
     }));

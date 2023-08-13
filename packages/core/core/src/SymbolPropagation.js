@@ -18,7 +18,7 @@ import {setEqual} from '@parcel/utils';
 import logger from '@parcel/logger';
 import {md, convertSourceLocationToHighlight} from '@parcel/diagnostic';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
-import {Dependency as DbDependency, Asset as DbAsset, AssetFlags} from '@parcel/rust';
+import {Dependency as DbDependency, Asset as DbAsset, AssetFlags, getStringId, readCachedString} from '@parcel/rust';
 
 export function propagateSymbols({
   options,
@@ -55,6 +55,9 @@ export function propagateSymbols({
   // The dependencies that changed in the down traversal causing an update in the up traversal.
   let changedDepsUsedSymbolsUpDirtyDown = new Set<ContentKey>();
 
+  let starSymbol = getStringId('*');
+  let defaultSymbol = getStringId('default');
+
   // Propagate the requested symbols down from the root to the leaves
   propagateSymbolsDown(
     assetGraph,
@@ -67,7 +70,7 @@ export function propagateSymbols({
       // identifier -> exportSymbol
       let assetSymbolsInverse;
       if (assetSymbols) {
-        assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
+        assetSymbolsInverse = new Map<number, Set<number>>();
         for (let s of assetSymbols) {
           let set = assetSymbolsInverse.get(s.local);
 
@@ -79,7 +82,7 @@ export function propagateSymbols({
         }
       }
       let hasNamespaceOutgoingDeps = outgoingDeps.some(
-        d => DbDependency.get(d.value).symbols?.find(s => s.exported === '*')?.local === '*',
+        d => DbDependency.get(d.value).symbols?.find(s => s.exported === starSymbol)?.local === starSymbol,
       );
 
       // 1) Determine what the incomingDeps requests from the asset
@@ -92,12 +95,12 @@ export function propagateSymbols({
       assetNode.usedSymbols = new Set();
 
       // Symbols that have to be namespace reexported by outgoingDeps.
-      let namespaceReexportedSymbols = new Set<Symbol>();
+      let namespaceReexportedSymbols = new Set<number>();
 
       if (incomingDeps.length === 0) {
         // Root in the runtimes Graph
-        assetNode.usedSymbols.add('*');
-        namespaceReexportedSymbols.add('*');
+        assetNode.usedSymbols.add(starSymbol);
+        namespaceReexportedSymbols.add(starSymbol);
       } else {
         for (let incomingDep of incomingDeps) {
           let dep = DbDependency.get(incomingDep.value);
@@ -113,14 +116,14 @@ export function propagateSymbols({
           }
 
           for (let exportSymbol of incomingDep.usedSymbolsDown) {
-            if (exportSymbol === '*') {
-              assetNode.usedSymbols.add('*');
-              namespaceReexportedSymbols.add('*');
+            if (exportSymbol === starSymbol) {
+              assetNode.usedSymbols.add(starSymbol);
+              namespaceReexportedSymbols.add(starSymbol);
             }
             if (
               !assetSymbols ||
               assetSymbols.some(s => s.exported === exportSymbol) ||
-              assetSymbols.some(s => s.exported === '*')
+              assetSymbols.some(s => s.exported === starSymbol)
             ) {
               // An own symbol or a non-namespace reexport
               assetNode.usedSymbols.add(exportSymbol);
@@ -129,7 +132,7 @@ export function propagateSymbols({
             // (but only if we actually have namespace-exporting outgoing dependencies,
             // This usually happens with a reexporting asset with many namespace exports which means that
             // we cannot match up the correct asset with the used symbol at this level.)
-            else if (hasNamespaceOutgoingDeps && exportSymbol !== 'default') {
+            else if (hasNamespaceOutgoingDeps && exportSymbol !== defaultSymbol) {
               namespaceReexportedSymbols.add(exportSymbol);
             }
           }
@@ -147,7 +150,7 @@ export function propagateSymbols({
       // ----------------------------------------------------------
       for (let dep of outgoingDeps) {
         let depUsedSymbolsDownOld = dep.usedSymbolsDown;
-        let depUsedSymbolsDown = new Set();
+        let depUsedSymbolsDown = new Set<number>();
         dep.usedSymbolsDown = depUsedSymbolsDown;
         if (
           asset.flags & AssetFlags.SIDE_EFFECTS ||
@@ -166,9 +169,9 @@ export function propagateSymbols({
           let depSymbols = DbDependency.get(dep.value).symbols;
           if (!depSymbols) continue;
 
-          if (depSymbols.find(s => s.exported === '*')?.local === '*') {
+          if (depSymbols.find(s => s.exported === starSymbol)?.local === starSymbol) {
             if (addAll) {
-              depUsedSymbolsDown.add('*');
+              depUsedSymbolsDown.add(starSymbol);
             } else {
               for (let s of namespaceReexportedSymbols) {
                 // We need to propagate the namespaceReexportedSymbols to all namespace dependencies (= even wrong ones because we don't know yet)
@@ -179,7 +182,7 @@ export function propagateSymbols({
 
           for (let {exported: symbol, local, isWeak} of depSymbols) {
             // Was already handled above
-            if (local === '*') continue;
+            if (local === starSymbol) continue;
 
             if (!assetSymbolsInverse || !isWeak) {
               // Bailout or non-weak symbol (= used in the asset itself = not a reexport)
@@ -189,7 +192,7 @@ export function propagateSymbols({
               if (reexportedExportSymbols == null) {
                 // not reexported = used in asset itself
                 depUsedSymbolsDown.add(symbol);
-              } else if (assetNode.usedSymbols.has('*')) {
+              } else if (assetNode.usedSymbols.has(starSymbol)) {
                 // we need everything
                 depUsedSymbolsDown.add(symbol);
 
@@ -229,7 +232,7 @@ export function propagateSymbols({
 
   const logFallbackNamespaceInsertion = (
     assetNode,
-    symbol: Symbol,
+    symbol: number,
     depNode1,
     depNode2,
   ) => {
@@ -237,7 +240,7 @@ export function propagateSymbols({
       logger.warn({
         message: `${fromProjectPathRelative(
           DbAsset.get(assetNode.value).filePath,
-        )} reexports "${symbol}", which could be resolved either to the dependency "${
+        )} reexports "${readCachedString(symbol)}", which could be resolved either to the dependency "${
           DbDependency.get(depNode1.value).specifier
         }" or "${
           DbDependency.get(depNode2.value).specifier
@@ -260,7 +263,7 @@ export function propagateSymbols({
 
       let assetSymbolsInverse = null;
       if (assetSymbols) {
-        assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
+        assetSymbolsInverse = new Map<number, Set<number>>();
         for (let s of assetSymbols) {
           let set = assetSymbolsInverse.get(s.local);
           if (!set) {
@@ -273,13 +276,13 @@ export function propagateSymbols({
 
       // the symbols that are reexported (not used in `asset`) -> asset they resolved to
       let reexportedSymbols = new Map<
-        Symbol,
-        ?{|asset: ContentKey, symbol: ?Symbol|},
+        number,
+        ?{|asset: ContentKey, symbol: ?number|},
       >();
       // the symbols that are reexported (not used in `asset`) -> the corresponding outgoingDep(s)
       // To generate the diagnostic when there are multiple dependencies with non-statically
       // analyzable exports
-      let reexportedSymbolsSource = new Map<Symbol, DependencyNode>();
+      let reexportedSymbolsSource = new Map<number, DependencyNode>();
       for (let outgoingDep of outgoingDeps) {
         let outgoingDepSymbols = DbDependency.get(outgoingDep.value).symbols;
         if (!outgoingDepSymbols) continue;
@@ -295,16 +298,16 @@ export function propagateSymbols({
           );
         }
 
-        if (outgoingDepSymbols.find(s => s.exported === '*')?.local === '*') {
+        if (outgoingDepSymbols.find(s => s.exported === starSymbol)?.local === starSymbol) {
           outgoingDep.usedSymbolsUp.forEach((sResolved, s) => {
-            if (s === 'default') {
+            if (s === defaultSymbol) {
               return;
             }
 
             // If the symbol could come from multiple assets at runtime, assetNode's
             // namespace will be needed at runtime to perform the lookup on.
             if (reexportedSymbols.has(s)) {
-              if (!assetNode.usedSymbols.has('*')) {
+              if (!assetNode.usedSymbols.has(starSymbol)) {
                 logFallbackNamespaceInsertion(
                   assetNode,
                   s,
@@ -312,7 +315,7 @@ export function propagateSymbols({
                   outgoingDep,
                 );
               }
-              assetNode.usedSymbols.add('*');
+              assetNode.usedSymbols.add(starSymbol);
               reexportedSymbols.set(s, {asset: assetNode.id, symbol: s});
             } else {
               reexportedSymbols.set(s, sResolved);
@@ -339,7 +342,7 @@ export function propagateSymbols({
             reexported.forEach(s => {
               // see same code above
               if (reexportedSymbols.has(s)) {
-                if (!assetNode.usedSymbols.has('*')) {
+                if (!assetNode.usedSymbols.has(starSymbol)) {
                   logFallbackNamespaceInsertion(
                     assetNode,
                     s,
@@ -347,7 +350,7 @@ export function propagateSymbols({
                     outgoingDep,
                   );
                 }
-                assetNode.usedSymbols.add('*');
+                assetNode.usedSymbols.add(starSymbol);
                 reexportedSymbols.set(s, {asset: assetNode.id, symbol: s});
               } else {
                 reexportedSymbols.set(s, sResolved);
@@ -385,13 +388,13 @@ export function propagateSymbols({
         let incomingDepSymbols = dep.symbols;
         if (!incomingDepSymbols) continue;
 
-        let hasNamespaceReexport = incomingDepSymbols.find(s => s.exported === '*')?.local === '*';
+        let hasNamespaceReexport = incomingDepSymbols.find(s => s.exported === starSymbol)?.local === starSymbol;
         for (let s of incomingDep.usedSymbolsDown) {
           if (
             assetSymbols == null || // Assume everything could be provided if symbols are cleared
             asset.bundleBehavior === 'isolated' ||
             asset.bundleBehavior === 'inline' ||
-            s === '*' ||
+            s === starSymbol ||
             assetNode.usedSymbols.has(s)
           ) {
             usedSymbolsUpAmbiguous(
@@ -487,7 +490,7 @@ export function propagateSymbols({
   // See https://github.com/parcel-bundler/parcel/pull/8212
   for (let dep of changedDeps) {
     dep.usedSymbolsUp = new Map(
-      [...dep.usedSymbolsUp].sort(([a], [b]) => a.localeCompare(b)),
+      [...dep.usedSymbolsUp].sort(([a], [b]) => a - b),
     );
   }
 
@@ -777,8 +780,8 @@ function getDependencyResolution(
 }
 
 function equalMap<K>(
-  a: $ReadOnlyMap<K, ?{|asset: ContentKey, symbol: ?Symbol|}>,
-  b: $ReadOnlyMap<K, ?{|asset: ContentKey, symbol: ?Symbol|}>,
+  a: $ReadOnlyMap<K, ?{|asset: ContentKey, symbol: ?number|}>,
+  b: $ReadOnlyMap<K, ?{|asset: ContentKey, symbol: ?number|}>,
 ) {
   if (a.size !== b.size) return false;
   for (let [k, v] of a) {

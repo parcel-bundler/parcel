@@ -1,20 +1,10 @@
-use proc_macro::{self, TokenStream};
-// use syn_helpers::{
-//   derive_trait,
-//   proc_macro2::Span,
-//   quote,
-//   syn::{parse_quote, DeriveInput, GenericParam, Ident, Stmt},
-//   Constructable, FieldMut, HasAttributes, Trait, TraitItem, TypeOfSelf,
-// };
 use convert_case::{Case, Casing};
+use proc_macro::{self, TokenStream};
 use proc_macro2::Span;
 use quote::quote;
-use syn::{
-  parse_macro_input, parse_quote, Data, DataEnum, DeriveInput, Field, Fields, GenericArgument,
-  Ident,
-};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, Ident, Type};
 
-#[proc_macro_derive(ToJs)]
+#[proc_macro_derive(ToJs, attributes(js_type))]
 pub fn derive_to_js(input: TokenStream) -> TokenStream {
   let DeriveInput {
     ident: self_name,
@@ -33,7 +23,16 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
         Fields::Named(_) => {
           for field in s.fields.iter() {
             let name = field.ident.as_ref().unwrap();
-            let ty = &field.ty;
+            let ty = if let Some(attr) = field
+              .attrs
+              .iter()
+              .find(|attr| attr.path.is_ident("js_type"))
+            {
+              let ty: Type = attr.parse_args().unwrap();
+              ty
+            } else {
+              field.ty.clone()
+            };
 
             js.push(quote! {
               let name = stringify!(#name).to_case(Case::Camel);
@@ -270,7 +269,6 @@ pub fn derive_slab_allocated(input: TokenStream) -> TokenStream {
   let DeriveInput {
     ident: self_name,
     generics,
-    data,
     ..
   } = parse_macro_input!(input);
 

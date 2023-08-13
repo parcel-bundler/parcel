@@ -48,16 +48,11 @@ function writeU32(addr: number, value: number) {
   return heapPage[offset >> 2] = value;
 }
 
-function readCachedString(addr) {
-  // Address points to an InternedString, which is a u32 heap pointer to a &str.
-  // That &str can be dereferenced and the first 8 bytes is a pointer to the string contents.
-  // Strings are immutable, so it is safe to use this pointer as a key into our cache.
-  let p = readU32(addr);
-  let ptr = readU32(p) + readU32(p + 4) * 0x100000000;
-  let v = STRING_CACHE.get(ptr);
+export function readCachedString(addr: number): string {
+  let v = STRING_CACHE.get(addr);
   if (v != null) return v;
   v = binding.readString(addr);
-  STRING_CACHE.set(ptr, v);
+  STRING_CACHE.set(addr, v);
   return v;
 }
 
@@ -178,39 +173,39 @@ export class Target {
   }
 
   get distDir(): string {
-    return readCachedString(this.addr + 32);
+    return readCachedString(readU32(this.addr + 32));
   }
 
   set distDir(value: string): void {
-    binding.writeString(this.addr + 32, value);
+    writeU32(this.addr + 32, binding.getStringId(value));
   }
 
   get distEntry(): ?string {
-    return readU32(this.addr + 4 + 0) === 0 ? null : readCachedString(this.addr + 4);
+    return readU32(this.addr + 4 + 0) === 0 ? null : readCachedString(readU32(this.addr + 4));
   }
 
   set distEntry(value: ?string): void {
     if (value == null) {
       writeU32(this.addr + 4 + 0, 0);
     } else {
-      binding.writeString(this.addr + 4, value);
+      writeU32(this.addr + 4, binding.getStringId(value));
     };
   }
 
   get name(): string {
-    return readCachedString(this.addr + 36);
+    return readCachedString(readU32(this.addr + 36));
   }
 
   set name(value: string): void {
-    binding.writeString(this.addr + 36, value);
+    writeU32(this.addr + 36, binding.getStringId(value));
   }
 
   get publicUrl(): string {
-    return readCachedString(this.addr + 40);
+    return readCachedString(readU32(this.addr + 40));
   }
 
   set publicUrl(value: string): void {
-    binding.writeString(this.addr + 40, value);
+    writeU32(this.addr + 40, binding.getStringId(value));
   }
 
   get loc(): ?SourceLocation {
@@ -226,14 +221,14 @@ export class Target {
   }
 
   get pipeline(): ?string {
-    return readU32(this.addr + 28 + 0) === 0 ? null : readCachedString(this.addr + 28);
+    return readU32(this.addr + 28 + 0) === 0 ? null : readCachedString(readU32(this.addr + 28));
   }
 
   set pipeline(value: ?string): void {
     if (value == null) {
       writeU32(this.addr + 28 + 0, 0);
     } else {
-      binding.writeString(this.addr + 28, value);
+      writeU32(this.addr + 28, binding.getStringId(value));
     };
   }
 }
@@ -310,11 +305,11 @@ export class Environment {
   }
 
   get includeNodeModules(): string {
-    return readCachedString(this.addr + 28);
+    return readCachedString(readU32(this.addr + 28));
   }
 
   set includeNodeModules(value: string): void {
-    binding.writeString(this.addr + 28, value);
+    writeU32(this.addr + 28, binding.getStringId(value));
   }
 }
 
@@ -334,14 +329,14 @@ export class TargetSourceMapOptions {
   }
 
   get sourceRoot(): ?string {
-    return readU32(this.addr + 0 + 0) === 0 ? null : readCachedString(this.addr + 0);
+    return readU32(this.addr + 0 + 0) === 0 ? null : readCachedString(readU32(this.addr + 0));
   }
 
   set sourceRoot(value: ?string): void {
     if (value == null) {
       writeU32(this.addr + 0 + 0, 0);
     } else {
-      binding.writeString(this.addr + 0, value);
+      writeU32(this.addr + 0, binding.getStringId(value));
     };
   }
 
@@ -378,11 +373,11 @@ export class SourceLocation {
   }
 
   get filePath(): string {
-    return readCachedString(this.addr + 16);
+    return readCachedString(readU32(this.addr + 16));
   }
 
   set filePath(value: string): void {
-    binding.writeString(this.addr + 16, value);
+    writeU32(this.addr + 16, binding.getStringId(value));
   }
 
   get start(): Location {
@@ -573,11 +568,11 @@ export class Asset {
   }
 
   get filePath(): string {
-    return readCachedString(this.addr + 40);
+    return readCachedString(readU32(this.addr + 40));
   }
 
   set filePath(value: string): void {
-    binding.writeString(this.addr + 40, value);
+    writeU32(this.addr + 40, binding.getStringId(value));
   }
 
   get env(): number {
@@ -589,14 +584,14 @@ export class Asset {
   }
 
   get query(): ?string {
-    return readU32(this.addr + 12 + 0) === 0 ? null : readCachedString(this.addr + 12);
+    return readU32(this.addr + 12 + 0) === 0 ? null : readCachedString(readU32(this.addr + 12));
   }
 
   set query(value: ?string): void {
     if (value == null) {
       writeU32(this.addr + 12 + 0, 0);
     } else {
-      binding.writeString(this.addr + 12, value);
+      writeU32(this.addr + 12, binding.getStringId(value));
     };
   }
 
@@ -609,51 +604,51 @@ export class Asset {
   }
 
   get contentKey(): string {
-    return readCachedString(this.addr + 44);
+    return readCachedString(readU32(this.addr + 44));
   }
 
   set contentKey(value: string): void {
-    binding.writeString(this.addr + 44, value);
+    writeU32(this.addr + 44, binding.getStringId(value));
   }
 
   get mapKey(): ?string {
-    return readU32(this.addr + 16 + 0) === 0 ? null : readCachedString(this.addr + 16);
+    return readU32(this.addr + 16 + 0) === 0 ? null : readCachedString(readU32(this.addr + 16));
   }
 
   set mapKey(value: ?string): void {
     if (value == null) {
       writeU32(this.addr + 16 + 0, 0);
     } else {
-      binding.writeString(this.addr + 16, value);
+      writeU32(this.addr + 16, binding.getStringId(value));
     };
   }
 
   get outputHash(): string {
-    return readCachedString(this.addr + 48);
+    return readCachedString(readU32(this.addr + 48));
   }
 
   set outputHash(value: string): void {
-    binding.writeString(this.addr + 48, value);
+    writeU32(this.addr + 48, binding.getStringId(value));
   }
 
   get pipeline(): ?string {
-    return readU32(this.addr + 20 + 0) === 0 ? null : readCachedString(this.addr + 20);
+    return readU32(this.addr + 20 + 0) === 0 ? null : readCachedString(readU32(this.addr + 20));
   }
 
   set pipeline(value: ?string): void {
     if (value == null) {
       writeU32(this.addr + 20 + 0, 0);
     } else {
-      binding.writeString(this.addr + 20, value);
+      writeU32(this.addr + 20, binding.getStringId(value));
     };
   }
 
   get meta(): string {
-    return readCachedString(this.addr + 52);
+    return readCachedString(readU32(this.addr + 52));
   }
 
   set meta(value: string): void {
-    binding.writeString(this.addr + 52, value);
+    writeU32(this.addr + 52, binding.getStringId(value));
   }
 
   get stats(): AssetStats {
@@ -689,14 +684,14 @@ export class Asset {
   }
 
   get uniqueKey(): ?string {
-    return readU32(this.addr + 36 + 0) === 0 ? null : readCachedString(this.addr + 36);
+    return readU32(this.addr + 36 + 0) === 0 ? null : readCachedString(readU32(this.addr + 36));
   }
 
   set uniqueKey(value: ?string): void {
     if (value == null) {
       writeU32(this.addr + 36 + 0, 0);
     } else {
-      binding.writeString(this.addr + 36, value);
+      writeU32(this.addr + 36, binding.getStringId(value));
     };
   }
 }
@@ -846,11 +841,11 @@ export class Dependency {
   }
 
   get specifier(): string {
-    return readCachedString(this.addr + 56);
+    return readCachedString(readU32(this.addr + 56));
   }
 
   set specifier(value: string): void {
-    binding.writeString(this.addr + 56, value);
+    writeU32(this.addr + 56, binding.getStringId(value));
   }
 
   get specifierType(): SpecifierTypeVariants {
@@ -862,14 +857,14 @@ export class Dependency {
   }
 
   get resolveFrom(): ?string {
-    return readU32(this.addr + 12 + 0) === 0 ? null : readCachedString(this.addr + 12);
+    return readU32(this.addr + 12 + 0) === 0 ? null : readCachedString(readU32(this.addr + 12));
   }
 
   set resolveFrom(value: ?string): void {
     if (value == null) {
       writeU32(this.addr + 12 + 0, 0);
     } else {
-      binding.writeString(this.addr + 12, value);
+      writeU32(this.addr + 12, binding.getStringId(value));
     };
   }
 
@@ -910,14 +905,14 @@ export class Dependency {
   }
 
   get placeholder(): ?string {
-    return readU32(this.addr + 36 + 0) === 0 ? null : readCachedString(this.addr + 36);
+    return readU32(this.addr + 36 + 0) === 0 ? null : readCachedString(readU32(this.addr + 36));
   }
 
   set placeholder(value: ?string): void {
     if (value == null) {
       writeU32(this.addr + 36 + 0, 0);
     } else {
-      binding.writeString(this.addr + 36, value);
+      writeU32(this.addr + 36, binding.getStringId(value));
     };
   }
 
@@ -1032,20 +1027,20 @@ export class Symbol {
     copy(value.addr, addr, 32);
   }
 
-  get exported(): string {
-    return readCachedString(this.addr + 20);
+  get exported(): number {
+    return readU32(this.addr + 20);
   }
 
-  set exported(value: string): void {
-    binding.writeString(this.addr + 20, value);
+  set exported(value: number): void {
+    writeU32(this.addr + 20, value);
   }
 
-  get local(): string {
-    return readCachedString(this.addr + 24);
+  get local(): number {
+    return readU32(this.addr + 24);
   }
 
-  set local(value: string): void {
-    binding.writeString(this.addr + 24, value);
+  set local(value: number): void {
+    writeU32(this.addr + 24, value);
   }
 
   get loc(): ?SourceLocation {

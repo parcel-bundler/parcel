@@ -16,7 +16,7 @@ import type {
 
 import nullthrows from 'nullthrows';
 import {fromInternalSourceLocation, toInternalSourceLocation} from '../utils';
-import {Dependency as DbDependency, Asset as DbAsset} from '@parcel/rust';
+import {Dependency as DbDependency, Asset as DbAsset, getStringId, readCachedString} from '@parcel/rust';
 
 const EMPTY_ITERABLE = {
   [Symbol.iterator]() {
@@ -53,25 +53,25 @@ export class AssetSymbols implements IAssetSymbols {
   }
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return this.#value.symbols?.some(s => s.exported === exportSymbol);
+    let id = getStringId(exportSymbol);
+    return this.#value.symbols?.some(s => s.exported === id);
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
     if (this.#value.symbols == null) {
       return false;
     }
-    for (let s of this.#value.symbols) {
-      if (local === s.local) return true;
-    }
-    return false;
+    let id = getStringId(local);
+    return this.#value.symbols.some(s => s.local === id);
   }
 
   get(
     exportSymbol: ISymbol,
   ): ?{|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|} {
-    return fromInternalAssetSymbol(
+    let id = getStringId(exportSymbol);
+    return fromInternalAssetSymbolDb(
       this.#options.projectRoot,
-      this.#value.symbols?.find(s => s.exported === exportSymbol),
+      this.#value.symbols?.find(s => s.exported === id),
     );
   }
 
@@ -80,7 +80,7 @@ export class AssetSymbols implements IAssetSymbols {
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    return [...this.#value.symbols].map(s => s.exported);
+    return [...this.#value.symbols].map(s => readCachedString(s.exported));
   }
   // $FlowFixMe
   *[Symbol.iterator]() {
@@ -88,7 +88,7 @@ export class AssetSymbols implements IAssetSymbols {
     //   ? this.#value.symbols[Symbol.iterator]()
     //   : EMPTY_ITERATOR;
     for (let s of this.#value.symbols) {
-      yield [s.exported, s];
+      yield [readCachedString(s.exported), fromInternalAssetSymbolDb(this.#options.projectRoot, s)];
     }
   }
 
@@ -227,14 +227,14 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   // immutable:
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return Boolean(this.#value.symbols?.some(s => s.exported === exportSymbol));
+    let id = getStringId(exportSymbol);
+    return this.#value.symbols?.some(s => s.exported === id);
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
     if (this.#value.symbols) {
-      for (let s of this.#value.symbols) {
-        if (local === s.local) return true;
-      }
+      let id = getStringId(local);
+      return this.#value.symbols?.some(s => s.local === id);
     }
     return false;
   }
@@ -242,9 +242,10 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   get(
     exportSymbol: ISymbol,
   ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|} {
+    let id = getStringId(exportSymbol);
     return fromInternalDependencySymbol(
       this.#options.projectRoot,
-      nullthrows(this.#value.symbols).find(s => s.exported === exportSymbol),
+      nullthrows(this.#value.symbols).find(s => s.exported === id),
     );
   }
 
@@ -253,8 +254,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    // $FlowFixMe
-    return this.#value.symbols ? this.#value.symbols.keys() : EMPTY_ITERABLE;
+    return [...this.#value.symbols].map(s => readCachedString(s.exported));
   }
 
   // $FlowFixMe
@@ -262,7 +262,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     let symbols = this.#value.symbols;
     if (symbols) {
       for (let sym of symbols) {
-        yield [sym.exported, sym];
+        yield [readCachedString(sym.exported), fromInternalDependencySymbol(this.#options.projectRoot, sym)];
       }
     }
   }
@@ -272,7 +272,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     return `MutableDependencySymbols(${
       this.#value.symbols
         ? [...this.#value.symbols]
-            .map(([s, {local, isWeak}]) => `${s}:${local}${isWeak ? '?' : ''}`)
+            .map(([s, {local, isWeak}]) => `${readCachedString(s)}:${readCachedString(local)}${isWeak ? '?' : ''}`)
             .join(', ')
         : null
     })`;
@@ -294,14 +294,15 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   ) {
     isWeak ??= false;
     let symbols = nullthrows(this.#value.symbols);
-    let sym = symbols.find(s => s.exported === exportSymbol);
+    let id = getStringId(exportSymbol);
+    let sym = symbols.find(s => s.exported === id);
     if (!sym) {
       sym = symbols.extend();
     } else {
       isWeak = sym.isWeak && isWeak;
     }
-    sym.local = local;
-    sym.exported = exportSymbol;
+    sym.local = getStringId(local);
+    sym.exported = id;
     sym.isWeak = isWeak;
     // console.log('set symbol', sym, local, exportSymbol);
     // symbols.set(exportSymbol, {
@@ -317,6 +318,16 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 }
 
+function fromInternalAssetSymbolDb(projectRoot: string, value) {
+  return (
+    value && {
+      local: readCachedString(value.local),
+      meta: value.meta,
+      loc: fromInternalSourceLocation(projectRoot, value.loc),
+    }
+  );
+}
+
 function fromInternalAssetSymbol(projectRoot: string, value) {
   return (
     value && {
@@ -330,7 +341,7 @@ function fromInternalAssetSymbol(projectRoot: string, value) {
 function fromInternalDependencySymbol(projectRoot: string, value) {
   return (
     value && {
-      local: value.local,
+      local: readCachedString(value.local),
       meta: value.meta,
       isWeak: value.isWeak,
       loc: fromInternalSourceLocation(projectRoot, value.loc),

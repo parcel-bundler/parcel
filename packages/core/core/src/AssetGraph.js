@@ -37,7 +37,10 @@ import {
   Target as DbTarget,
   DependencyFlags,
   Asset as DbAsset,
+  getStringId,
 } from "@parcel/rust";
+
+let starSymbol;
 
 type InitOpts = {|
   entries?: Array<ProjectPath>,
@@ -248,8 +251,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
       if (DbEnvironment.get(target.env).flags & EnvironmentFlags.IS_LIBRARY) {
         // in library mode, all of the entry's symbols are "used"
-        node.usedSymbolsDown.add('*');
-        node.usedSymbolsUp.set('*', undefined);
+        starSymbol ??= getStringId('*');
+        node.usedSymbolsDown.add(starSymbol);
+        node.usedSymbolsUp.set(starSymbol, undefined);
       }
       return node;
     });
@@ -384,6 +388,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     sideEffects: ?boolean,
     canDefer: boolean,
   ): boolean {
+    starSymbol ??= getStringId('*');
     let defer = false;
     let dependency = DbDependency.get(dependencyId);
     let dependencySymbols = dependency.symbols;
@@ -392,7 +397,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       [...dependencySymbols].every(({isWeak}) => isWeak) &&
       sideEffects === false &&
       canDefer &&
-      !dependencySymbols.some(s => s.exported === '*')
+      !dependencySymbols.some(s => s.exported === starSymbol)
     ) {
       let depNodeId = this.getNodeIdByContentKey(dependencyId);
       let depNode = this.getNode(depNodeId);
@@ -411,7 +416,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         d =>
           d.symbols &&
           !(DbEnvironment.get(d.env).flags & EnvironmentFlags.IS_LIBRARY && d.flags & DependencyFlags.ENTRY) &&
-          !d.symbols.some(s => s.exported === '*') &&
+          !d.symbols.some(s => s.exported === starSymbol) &&
           !d.symbols.some(s => {
             if (!resolvedAsset.symbols) return true;
             let assetSymbol = resolvedAsset.symbols?.find(sym => sym.exported === s.exported)?.local;

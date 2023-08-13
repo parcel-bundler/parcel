@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use napi::{Env, JsBigInt, NapiRaw, NapiValue};
+use napi::{Env, NapiValue};
 use napi_derive::napi;
 use parcel_db::{Dependency, InternedString, ParcelDb, HEAP};
 
@@ -87,8 +87,8 @@ pub fn read_string(addr: u32, env: Env) -> napi::Result<napi::JsString> {
 }
 
 #[napi]
-pub fn write_string(addr: u32, s: String) {
-  DB.write_string(addr, s)
+pub fn get_string_id(s: String) -> u32 {
+  InternedString::from(s).0.into()
 }
 
 #[napi]
