@@ -1,26 +1,20 @@
 use lazy_static::lazy_static;
-use napi::{Env, NapiValue};
+use napi::{Env, JsBigInt, NapiRaw, NapiValue};
 use napi_derive::napi;
-use parcel_db::{Dependency, ParcelDb};
+use parcel_db::{Dependency, InternedString, ParcelDb, HEAP};
 
 pub static DB: ParcelDb = ParcelDb::new();
 
 #[napi]
-pub fn get_heap(env: Env) -> napi::Result<napi::JsBuffer> {
-  let (ptr, len) = DB.heap();
+pub fn get_page(env: Env, page: u32) -> napi::Result<napi::JsBuffer> {
+  let slice = DB.heap_page(page);
   unsafe {
     Ok(
       env
-        .create_buffer_with_borrowed_data(ptr, len, 0, napi::noop_finalize)?
+        .create_buffer_with_borrowed_data(slice.as_mut_ptr(), slice.len(), 0, napi::noop_finalize)?
         .into_raw(),
     )
   }
-}
-
-#[napi]
-pub fn get_heap_base() -> u64 {
-  let (ptr, _) = DB.heap();
-  ptr as u64
 }
 
 #[napi]

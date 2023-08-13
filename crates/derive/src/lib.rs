@@ -86,7 +86,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
   }}
 
   static set(addr: number, value: {name}): void {{
-    HEAP.set(HEAP.subarray(value.addr, value.addr + {size}), addr);
+    copy(value.addr, addr, {size});
   }}
 "#,
               name = stringify!(#self_name),
@@ -131,7 +131,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
           js.push_str(&format!(
         r#"
       case '{}':
-        buf[addr] = {};
+        write(addr, {});
         break;"#,
             name,
             #self_name::#name as usize
@@ -147,9 +147,9 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
             use convert_case::{Case, Casing};
             let size = std::mem::size_of::<#self_name>();
             let heap = match size {
-              1 => "HEAP",
-              2 => "HEAP_u16",
-              4 => "HEAP_u32",
+              1 => "U8",
+              2 => "U16",
+              4 => "U32",
               _ => todo!()
             };
             let mut js = String::new();
@@ -158,7 +158,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
 
 export class {name} {{
   static get(addr: number): {name}Variants {{
-    switch ({heap}[addr]) {{"#,
+    switch (read{heap}(addr)) {{"#,
               name = stringify!(#self_name),
               heap = heap,
               variants = #variants
@@ -168,12 +168,12 @@ export class {name} {{
             js.push_str(&format!(
               r#"
       default:
-        throw new Error(`Unknown {name} value: ${{{heap}[addr]}}`);
+        throw new Error(`Unknown {name} value: ${{read{heap}(addr)}}`);
     }}
   }}
 
   static set(addr: number, value: {name}Variants): void {{
-    let buf = {heap};
+    let write = write{heap};
     switch (value) {{"#,
               name = stringify!(#self_name),
               heap = heap,
@@ -257,6 +257,46 @@ pub fn derive_js_value(input: TokenStream) -> TokenStream {
           fn ty() -> String {
             #ty.into()
           }
+        }
+      }
+    }
+  };
+
+  output.into()
+}
+
+#[proc_macro_derive(SlabAllocated)]
+pub fn derive_slab_allocated(input: TokenStream) -> TokenStream {
+  let DeriveInput {
+    ident: self_name,
+    generics,
+    data,
+    ..
+  } = parse_macro_input!(input);
+
+  let slab_name = Ident::new(
+    &format!("{}_SLAB", self_name.to_string().to_uppercase()),
+    Span::call_site(),
+  );
+
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+  let output = quote! {
+    #[thread_local]
+    static mut #slab_name: Slab<#self_name> = Slab::new();
+
+    #[automatically_derived]
+    impl #impl_generics SlabAllocated for #self_name #ty_generics #where_clause {
+      fn alloc(count: u32) -> (u32, *mut #self_name) {
+        unsafe {
+          let addr = #slab_name.alloc(count);
+          (addr, HEAP.get(addr))
+        }
+      }
+
+      fn dealloc(addr: u32, count: u32) {
+        unsafe {
+          #slab_name.dealloc(addr, count);
         }
       }
     }

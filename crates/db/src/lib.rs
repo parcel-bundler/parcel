@@ -1,19 +1,22 @@
 #![allow(non_snake_case)]
+#![feature(thread_local)]
 
-use std::{
-  num::NonZeroU32,
-  ptr::NonNull,
-  sync::{
-    atomic::{AtomicU32, Ordering},
-    RwLock,
-  },
-};
+use std::mem::MaybeUninit;
+use std::ptr::NonNull;
+use std::{marker::PhantomData, num::NonZeroU32, sync::RwLock};
 
-use allocator_api2::alloc::{AllocError, Allocator, Layout};
+use alloc::Slab;
+use allocator_api2::alloc::Allocator;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
-use parcel_derive::{JsValue, ToJs};
+use parcel_derive::{JsValue, SlabAllocated, ToJs};
 
+mod alloc;
+mod atomics;
+
+pub use alloc::{ARENA, HEAP};
+
+pub use alloc::ArenaAllocator;
 pub use allocator_api2::vec::Vec;
 
 static mut WRITE_CALLBACKS: Vec<fn(&mut std::fs::File) -> std::io::Result<()>> = Vec::new();
@@ -28,13 +31,22 @@ trait JsValue {
   fn ty() -> String;
 }
 
+pub trait SlabAllocated {
+  fn alloc(count: u32) -> (u32, *mut Self)
+  where
+    Self: Sized;
+  fn dealloc(addr: u32, count: u32)
+  where
+    Self: Sized;
+}
+
 impl JsValue for u8 {
   fn js_getter(addr: usize) -> String {
-    format!("HEAP[this.addr + {:?}]", addr)
+    format!("readU8(this.addr + {:?})", addr)
   }
 
   fn js_setter(addr: usize, value: &str) -> String {
-    format!("HEAP[this.addr + {:?}] = {}", addr, value)
+    format!("writeU8(this.addr + {:?}, {})", addr, value)
   }
 
   fn ty() -> String {
@@ -44,11 +56,11 @@ impl JsValue for u8 {
 
 impl JsValue for u32 {
   fn js_getter(addr: usize) -> String {
-    format!("HEAP_u32[(this.addr + {:?}) >> 2]", addr)
+    format!("readU32(this.addr + {:?})", addr)
   }
 
   fn js_setter(addr: usize, value: &str) -> String {
-    format!("HEAP_u32[(this.addr + {:?}) >> 2] = {}", addr, value)
+    format!("writeU32(this.addr + {:?}, {})", addr, value)
   }
 
   fn ty() -> String {
@@ -58,11 +70,11 @@ impl JsValue for u32 {
 
 impl JsValue for NonZeroU32 {
   fn js_getter(addr: usize) -> String {
-    format!("HEAP_u32[(this.addr + {:?}) >> 2]", addr)
+    format!("readU32(this.addr + {:?})", addr)
   }
 
   fn js_setter(addr: usize, value: &str) -> String {
-    format!("HEAP_u32[(this.addr + {:?}) >> 2] = {}", addr, value)
+    format!("writeU32(this.addr + {:?}, {})", addr, value)
   }
 
   fn ty() -> String {
@@ -72,11 +84,11 @@ impl JsValue for NonZeroU32 {
 
 impl JsValue for bool {
   fn js_getter(addr: usize) -> String {
-    format!("!!HEAP[this.addr + {:?}]", addr)
+    format!("!!readU8(this.addr + {:?})", addr)
   }
 
   fn js_setter(addr: usize, value: &str) -> String {
-    format!("HEAP[this.addr + {:?}] = {} ? 1 : 0", addr, value)
+    format!("writeU8(this.addr + {:?}, {} ? 1 : 0)", addr, value)
   }
 
   fn ty() -> String {
@@ -118,7 +130,7 @@ impl<T: JsValue, A: Allocator> JsValue for Vec<T, A> {
   fn js_setter(addr: usize, value: &str) -> String {
     let size = std::mem::size_of::<Vec<T, A>>();
     format!(
-      "HEAP.set(HEAP.subarray({value}.addr, {value}.addr + {size}), this.addr + {addr});",
+      "copy({value}.addr, this.addr + {addr}, {size});",
       addr = addr,
       size = size,
       value = value
@@ -152,14 +164,6 @@ fn option_offset<T>() -> usize {
   offset
 }
 
-fn discriminant(size: usize, addr: usize) -> String {
-  match size {
-    1 => u8::js_getter(addr),
-    4 => u32::js_getter(addr),
-    _ => todo!(),
-  }
-}
-
 fn option_discriminant<T>(addr: usize, operator: &str) -> Vec<String> {
   // This infers the byte pattern for None of a given type. Due to discriminant elision,
   // there may be no separate byte for the discriminant. Instead, the Rust compiler uses
@@ -181,10 +185,14 @@ fn option_discriminant<T>(addr: usize, operator: &str) -> Vec<String> {
     let v = *b;
     *b = 123;
     if !none.is_none() {
-      comparisons.push(format!(
-        "HEAP[this.addr + {:?} + {:?}] {} {:?}",
-        addr, i, operator, v
-      ));
+      comparisons.push(if operator == "===" {
+        format!(
+          "readU8(this.addr + {:?} + {:?}) {} {:?}",
+          addr, i, operator, v
+        )
+      } else {
+        format!("writeU8(this.addr + {:?} + {:?}, {:?})", addr, i, v)
+      });
       if v == 0 {
         if zeros == 0 {
           zero_offset = i;
@@ -201,17 +209,29 @@ fn option_discriminant<T>(addr: usize, operator: &str) -> Vec<String> {
   if zeros == comparisons.len() {
     if zeros == 4 || zeros == 8 {
       comparisons.clear();
-      comparisons.push(format!(
-        "HEAP_u32[this.addr + {:?} + {:?} >> 2] {} 0",
-        addr, zero_offset, operator
-      ));
+      comparisons.push(if operator == "===" {
+        format!(
+          "readU32(this.addr + {:?} + {:?}) {} 0",
+          addr, zero_offset, operator
+        )
+      } else {
+        format!("writeU32(this.addr + {:?} + {:?}, 0)", addr, zero_offset)
+      });
       if zeros == 8 {
-        comparisons.push(format!(
-          "HEAP_u32[this.addr + {:?} + {:?} >> 2] {} 0",
-          addr,
-          zero_offset + 4,
-          operator
-        ))
+        comparisons.push(if operator == "===" {
+          format!(
+            "readU32(this.addr + {:?} + {:?}) {} 0",
+            addr,
+            zero_offset + 4,
+            operator
+          )
+        } else {
+          format!(
+            "writeU32(this.addr + {:?} + {:?}, 0)",
+            addr,
+            zero_offset + 4
+          )
+        })
       }
     }
   }
@@ -228,7 +248,11 @@ impl<T: JsValue> JsValue for Option<T> {
     } else {
       format!(
         "{} ? null : {}",
-        discriminant(offset, addr),
+        match offset {
+          1 => u8::js_getter(addr),
+          4 => u32::js_getter(addr),
+          _ => todo!(),
+        },
         T::js_getter(addr + offset)
       )
     }
@@ -250,9 +274,13 @@ impl<T: JsValue> JsValue for Option<T> {
     }
 
     format!(
-      r#"{} = value == null ? 0 : 1;
+      r#"{};
     if (value != null) {}"#,
-      discriminant(offset, addr),
+      match offset {
+        1 => u8::js_setter(addr, "value == null ? 0 : 1"),
+        4 => u32::js_setter(addr, "value == null ? 0 : 1"),
+        _ => todo!(),
+      },
       T::js_setter(addr + offset, value)
     )
   }
@@ -320,6 +348,140 @@ macro_rules! js_bitflags {
   }
 }
 
+#[derive(Clone)]
+struct SlabAllocator<T> {
+  phantom: PhantomData<T>,
+}
+
+impl<T> SlabAllocator<T> {
+  fn new() -> Self {
+    Self {
+      phantom: PhantomData,
+    }
+  }
+}
+
+unsafe impl<T: SlabAllocated> Allocator for SlabAllocator<T> {
+  fn allocate(
+    &self,
+    layout: std::alloc::Layout,
+  ) -> Result<std::ptr::NonNull<[u8]>, allocator_api2::alloc::AllocError> {
+    let size = std::mem::size_of::<T>();
+    let count = layout.size() / size;
+    let (_, ptr) = T::alloc(count as u32);
+    unsafe {
+      Ok(NonNull::new_unchecked(core::slice::from_raw_parts_mut(
+        ptr as *mut u8,
+        size,
+      )))
+    }
+  }
+
+  unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
+    let size = std::mem::size_of::<T>();
+    let count = layout.size() / size;
+    let addr = HEAP.find_page(ptr.as_ptr()).unwrap();
+    T::dealloc(addr, count as u32);
+  }
+}
+
+#[derive(Debug)]
+pub struct ArenaVec<T> {
+  buf: u32,
+  len: u32,
+  cap: u32,
+  phantom: PhantomData<T>,
+}
+
+impl<T: SlabAllocated + Clone> Clone for ArenaVec<T> {
+  fn clone(&self) -> Self {
+    let vec = unsafe { self.as_vec() }.clone();
+    let mut res = Self::new();
+    unsafe {
+      res.update(vec);
+    }
+    res
+  }
+}
+
+impl<T: SlabAllocated> ArenaVec<T> {
+  pub fn new() -> Self {
+    Self {
+      buf: 0,
+      len: 0,
+      cap: 0,
+      phantom: PhantomData,
+    }
+  }
+
+  unsafe fn as_vec(&self) -> Vec<T, SlabAllocator<T>> {
+    let ptr = HEAP.get(self.buf);
+    Vec::from_raw_parts_in(
+      ptr,
+      self.len as usize,
+      self.cap as usize,
+      SlabAllocator::new(),
+    )
+  }
+
+  unsafe fn update(&mut self, vec: Vec<T, SlabAllocator<T>>) {
+    self.buf = HEAP.find_page(vec.as_ptr() as *const u8).unwrap();
+    self.len = vec.len() as u32;
+    self.cap = vec.capacity() as u32;
+    std::mem::forget(vec)
+  }
+
+  pub fn push(&mut self, value: T) {
+    unsafe {
+      let mut vec = self.as_vec();
+      vec.push(value);
+      self.update(vec);
+    }
+  }
+
+  pub fn as_slice(&self) -> &[T] {
+    unsafe {
+      let ptr = HEAP.get(self.buf);
+      std::slice::from_raw_parts(ptr, self.len as usize)
+    }
+  }
+
+  pub fn reserve(&mut self, count: usize) {
+    unsafe {
+      let mut vec = self.as_vec();
+      vec.reserve(count);
+      self.update(vec)
+    }
+  }
+}
+
+impl<T: JsValue> JsValue for ArenaVec<T> {
+  fn js_getter(addr: usize) -> String {
+    let size = std::mem::size_of::<T>();
+    let ty = <T>::ty();
+    format!(
+      "new Vec(this.addr + {addr}, {size}, {ty})",
+      addr = addr,
+      size = size,
+      ty = ty
+    )
+  }
+
+  fn js_setter(addr: usize, value: &str) -> String {
+    let size = std::mem::size_of::<ArenaVec<T>>();
+    format!(
+      "copy({value}.addr, this.addr + {addr}, {size});",
+      addr = addr,
+      size = size,
+      value = value
+    )
+  }
+
+  fn ty() -> String {
+    format!("Vec<{}>", <T>::ty())
+  }
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash, Debug)]
 pub struct InternedString(pub NonZeroU32);
 
@@ -344,7 +506,7 @@ pub struct Target {
 #[derive(PartialEq, Clone, Debug, JsValue)]
 pub struct EnvironmentId(pub u32);
 
-#[derive(PartialEq, Clone, Debug, ToJs)]
+#[derive(PartialEq, Clone, Debug, ToJs, SlabAllocated)]
 pub struct Environment {
   pub context: EnvironmentContext,
   pub output_format: OutputFormat,
@@ -427,7 +589,7 @@ pub enum OutputFormat {
   Esmodule,
 }
 
-#[derive(Debug, ToJs, JsValue)]
+#[derive(Debug, Clone, ToJs, JsValue, SlabAllocated)]
 pub struct Asset {
   pub file_path: InternedString,
   pub env: EnvironmentId,
@@ -441,11 +603,11 @@ pub struct Asset {
   pub stats: AssetStats,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
-  pub symbols: Vec<Symbol, Alloc>,
+  pub symbols: ArenaVec<Symbol>,
   pub unique_key: Option<InternedString>,
 }
 
-#[derive(Debug, ToJs, JsValue)]
+#[derive(Debug, Clone, ToJs, JsValue)]
 pub enum AssetType {
   Js,
   Css,
@@ -460,7 +622,7 @@ pub enum BundleBehavior {
   Isolated,
 }
 
-#[derive(Debug, Default, ToJs, JsValue)]
+#[derive(Debug, Clone, Default, ToJs, JsValue)]
 pub struct AssetStats {
   size: u32,
   time: u32,
@@ -475,7 +637,7 @@ js_bitflags! {
   }
 }
 
-#[derive(Debug, ToJs, JsValue)]
+#[derive(Debug, Clone, ToJs, JsValue, SlabAllocated)]
 pub struct Dependency {
   pub source_asset_id: Option<u32>,
   pub env: EnvironmentId,
@@ -492,7 +654,7 @@ pub struct Dependency {
   // pipeline
   pub placeholder: Option<InternedString>,
   pub target: TargetId,
-  pub symbols: Vec<Symbol, Alloc>,
+  pub symbols: ArenaVec<Symbol>,
 }
 
 js_bitflags! {
@@ -518,7 +680,7 @@ pub enum Priority {
   Lazy,
 }
 
-#[derive(Clone, Debug, ToJs, JsValue)]
+#[derive(Clone, Debug, ToJs, JsValue, SlabAllocated)]
 pub struct Symbol {
   pub exported: InternedString,
   pub local: InternedString,
@@ -526,60 +688,11 @@ pub struct Symbol {
   pub is_weak: bool,
 }
 
-static mut HEAP: aligned::Aligned<aligned::A8, [u8; 20971520]> = aligned::Aligned([0; 20971520]);
-static HEAP_PTR: AtomicU32 = AtomicU32::new(0);
-
-fn alloc(size: u32) -> u32 {
-  // super dumb allocator.
-  let addr = HEAP_PTR.fetch_add((size + 7) & !7, Ordering::SeqCst);
-  if addr + size >= unsafe { HEAP.len() } as u32 {
-    unreachable!("{:?} {:?}", addr, size);
-  }
-  addr
-}
-
-fn alloc_struct<T>() -> *mut T {
+fn alloc_struct<T>() -> (u32, *mut T) {
   let size = std::mem::size_of::<T>();
-  let offset = alloc(size as u32);
-  unsafe { HEAP.as_mut_ptr().add(offset as usize) as *mut T }
-}
-
-fn heap_offset<T>(ptr: *const T) -> u32 {
-  (ptr as usize - (unsafe { HEAP.as_ptr() } as *const _ as usize)) as u32
-}
-
-fn read_heap<T>(addr: u32) -> &'static mut T {
-  unsafe {
-    let ptr = HEAP.as_mut_ptr().add(addr as usize) as *mut T;
-    &mut *ptr
-  }
-}
-
-fn allocate_layout(layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-  let offset = alloc(layout.size() as u32);
-  let ptr = unsafe { HEAP.as_mut_ptr().add(offset as usize) };
-  unsafe {
-    Ok(NonNull::new_unchecked(core::ptr::slice_from_raw_parts_mut(
-      ptr,
-      layout.size(),
-    )))
-  }
-}
-
-pub struct Alloc;
-
-unsafe impl Allocator for Alloc {
-  #[inline(always)]
-  fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-    allocate_layout(layout)
-  }
-
-  #[inline(always)]
-  fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-    allocate_layout(layout)
-  }
-
-  unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {}
+  let addr = ARENA.alloc(size as u32);
+  let ptr = unsafe { HEAP.get(addr) };
+  (addr, ptr)
 }
 
 lazy_static! {
@@ -597,9 +710,9 @@ impl From<String> for InternedString {
     let mut bytes = value.into_bytes();
     bytes.shrink_to_fit();
     let s = unsafe { std::str::from_utf8_unchecked(bytes.leak()) };
-    let ptr = alloc_struct();
+    let (addr, ptr) = alloc_struct();
     unsafe { std::ptr::write(ptr, s) };
-    let offset = unsafe { NonZeroU32::new_unchecked(heap_offset(ptr)) };
+    let offset = unsafe { NonZeroU32::new_unchecked(addr) };
     STRINGS.insert(unsafe { *ptr }, offset);
     // println!("NEW STRING {:?}", STRINGS.len());
     InternedString(offset)
@@ -628,7 +741,7 @@ impl core::ops::Deref for InternedString {
   type Target = str;
 
   fn deref(&self) -> &str {
-    let s = *read_heap::<&str>(self.0.get());
+    let s = unsafe { &*HEAP.get::<&str>(self.0.get()) };
     // println!("READ {:?} {:?} {:?}", self.0.get(), s.as_ptr(), s.len());
     s
   }
@@ -636,7 +749,7 @@ impl core::ops::Deref for InternedString {
 
 #[derive(Default)]
 pub struct ParcelDb {
-  environments: RwLock<Vec<*const Environment>>,
+  environments: RwLock<Vec<u32>>,
 }
 
 unsafe impl Sync for ParcelDb {}
@@ -648,127 +761,141 @@ impl ParcelDb {
     }
   }
 
-  pub fn heap(&self) -> (*mut u8, usize) {
-    unsafe { (HEAP.as_mut_ptr(), HEAP.len()) }
+  pub fn heap_page(&self, page: u32) -> &'static mut [u8] {
+    unsafe { crate::alloc::HEAP.get_page(page) }
+  }
+
+  pub fn find_page(&self, ptr: *const u8) -> Option<u32> {
+    unsafe { crate::alloc::HEAP.find_page(ptr) }
   }
 
   pub fn alloc(&self, size: u32) -> u32 {
-    alloc(size)
+    ARENA.alloc(size)
   }
 
-  pub fn alloc_struct<T>(&self) -> &'static mut T {
+  pub fn alloc_struct<T>(&self) -> (u32, &'static mut T) {
     unsafe {
-      let ptr = alloc_struct();
-      &mut *ptr
+      let (addr, ptr) = alloc_struct();
+      (addr, &mut *ptr)
     }
   }
 
   pub fn read_string<'a>(&self, addr: u32) -> &'static str {
-    read_heap::<InternedString>(addr)
+    unsafe { &*HEAP.get::<InternedString>(addr) }
   }
 
   pub fn write_string(&self, addr: u32, s: String) {
-    let ptr: &mut InternedString = read_heap(addr);
+    let ptr: &mut InternedString = unsafe { &mut *HEAP.get(addr) };
     *ptr = InternedString::from(s);
   }
 
   pub fn read_heap<T>(&self, addr: u32) -> &'static mut T {
-    read_heap(addr)
-  }
-
-  pub fn heap_offset<T>(&self, ptr: *const T) -> u32 {
-    heap_offset(ptr)
+    unsafe { &mut *HEAP.get(addr) }
   }
 
   pub fn extend_vec(&self, addr: u32, size: u32, count: u32) {
-    // This will cast the vector to a Vec<u8>, extend it by the given number of bytes, and then cast it back to its original type.
-    let vec: &mut Vec<u8, Alloc> = read_heap(addr);
-    set_vec_len(
-      vec,
-      vec.len() * size as usize,
-      vec.capacity() * size as usize,
-    );
-    vec.resize(vec.len() + size as usize * count as usize, 0);
-    set_vec_len(
-      vec,
-      vec.len() / size as usize,
-      vec.capacity() / size as usize,
-    );
+    // TODO: handle different types of vectors...
+    let vec: &mut ArenaVec<Symbol> = unsafe { &mut *HEAP.get(addr) };
+    vec.reserve(count as usize);
   }
 
   pub fn environment_id(&self, addr: u32) -> u32 {
-    let env: &Environment = read_heap(addr);
+    let env: &Environment = unsafe { &*HEAP.get(addr) };
     {
       if let Some(env) = self
         .environments
         .read()
         .unwrap()
         .iter()
-        .find(|e| unsafe { &***e } == env)
+        .find(|e| unsafe { &*HEAP.get::<Environment>(**e) } == env)
       {
-        return heap_offset(*env);
+        return *env;
       }
     }
 
-    let ptr = alloc_struct::<Environment>();
+    let (addr, ptr) = Environment::alloc(1);
     unsafe { *ptr = env.clone() };
-    self.environments.write().unwrap().push(ptr);
-    heap_offset(ptr)
+    self.environments.write().unwrap().push(addr);
+    addr
   }
 
   pub fn create_dependency(&self, dep: Dependency) -> u32 {
-    let ptr = alloc_struct::<Dependency>();
+    let (addr, ptr) = Dependency::alloc(1);
     unsafe { std::ptr::write(ptr, dep) };
-    heap_offset(ptr)
+    addr
   }
-}
-
-struct VecRepr<T, A: Allocator> {
-  pub buf: RawVecRepr<T, A>,
-  pub len: usize,
-}
-
-struct RawVecRepr<T, A: Allocator> {
-  pub ptr: NonNull<T>,
-  pub cap: usize,
-  pub alloc: A,
-}
-
-fn set_vec_len(vec: &mut Vec<u8, Alloc>, len: usize, cap: usize) {
-  let repr = unsafe { &mut *(vec as *mut Vec<u8, Alloc> as *mut VecRepr<u8, Alloc>) };
-  repr.len = len;
-  repr.buf.cap = cap;
 }
 
 pub fn build() -> std::io::Result<()> {
   use std::io::Write;
   let mut file = std::fs::File::create("src/db.js")?;
   let c = std::mem::MaybeUninit::uninit();
-  let p: *const VecRepr<u8, Alloc> = c.as_ptr();
+  let p: *const ArenaVec<u8> = c.as_ptr();
   let u8_ptr = p as *const u8;
   let buf_offset =
-    unsafe { (std::ptr::addr_of!((*p).buf.ptr) as *const u8).offset_from(u8_ptr) as usize };
+    unsafe { (std::ptr::addr_of!((*p).buf) as *const u8).offset_from(u8_ptr) as usize };
   let len_offset =
     unsafe { (std::ptr::addr_of!((*p).len) as *const u8).offset_from(u8_ptr) as usize };
   let cap_offset =
-    unsafe { (std::ptr::addr_of!((*p).buf.cap) as *const u8).offset_from(u8_ptr) as usize };
+    unsafe { (std::ptr::addr_of!((*p).cap) as *const u8).offset_from(u8_ptr) as usize };
   write!(
     file,
     r#"// @flow
 import binding from '../index';
 
-const HEAP = binding.getHeap();
-const HEAP_BASE = binding.getHeapBase();
-const HEAP_u32 = new Uint32Array(HEAP.buffer);
-const HEAP_u64 = new BigUint64Array(HEAP.buffer);
+const HEAP = [];
+const HEAP_u32 = [];
 const STRING_CACHE = new Map();
+
+const PAGE_INDEX_SIZE = 16;
+const PAGE_INDEX_SHIFT = 32 - PAGE_INDEX_SIZE;
+const PAGE_INDEX_MASK = ((1 << PAGE_INDEX_SIZE) - 1) << PAGE_INDEX_SHIFT;
+const PAGE_OFFSET_MASK = (1 << PAGE_INDEX_SHIFT) - 1;
+
+function copy(from: number, to: number, size: number) {{
+  let fromPage = (from & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
+  let fromOffset = from & PAGE_OFFSET_MASK;
+  let fromHeapPage = HEAP[fromPage] ??= binding.getPage(fromPage);
+  let toPage = (to & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
+  let toOffset = to & PAGE_OFFSET_MASK;
+  let toHeapPage = HEAP[toPage] ??= binding.getPage(toPage);
+  toHeapPage.set(fromHeapPage.subarray(fromOffset, fromOffset + size), toOffset);
+}}
+
+function readU8(addr: number): number {{
+  let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
+  let offset = addr & PAGE_OFFSET_MASK;
+  let heapPage = HEAP[page] ??= binding.getPage(page);
+  return heapPage[offset];
+}}
+
+function writeU8(addr: number, value: number) {{
+  let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
+  let offset = addr & PAGE_OFFSET_MASK;
+  let heapPage = HEAP[page] ??= binding.getPage(page);
+  return heapPage[offset] = value;
+}}
+
+function readU32(addr: number): number {{
+  let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
+  let offset = addr & PAGE_OFFSET_MASK;
+  let heapPage = HEAP_u32[page] ??= new Uint32Array((HEAP[page] ??= binding.getPage(page)).buffer);
+  return heapPage[offset >> 2];
+}}
+
+function writeU32(addr: number, value: number) {{
+  let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
+  let offset = addr & PAGE_OFFSET_MASK;
+  let heapPage = HEAP_u32[page] ??= new Uint32Array((HEAP[page] ??= binding.getPage(page)).buffer);
+  return heapPage[offset >> 2] = value;
+}}
 
 function readCachedString(addr) {{
   // Address points to an InternedString, which is a u32 heap pointer to a &str.
   // That &str can be dereferenced and the first 8 bytes is a pointer to the string contents.
   // Strings are immutable, so it is safe to use this pointer as a key into our cache.
-  let p = HEAP_u32[addr >> 2];
-  let ptr = HEAP_u32[p >> 2] + HEAP_u32[p + 4 >> 2] * 0x100000000;
+  let p = readU32(addr);
+  let ptr = readU32(p) + readU32(p + 4) * 0x100000000;
   let v = STRING_CACHE.get(ptr);
   if (v != null) return v;
   v = binding.readString(addr);
@@ -796,15 +923,15 @@ class Vec<T> {{
   }}
 
   get length(): number {{
-    return HEAP_u32[(this.addr + {len_offset}) >> 2] + HEAP_u32[(this.addr + {len_offset} + 4) >> 2] * 0x100000000;
+    return readU32(this.addr + {len_offset});
   }}
 
   get capacity(): number {{
-    return HEAP_u32[(this.addr + {cap_offset}) >> 2] + HEAP_u32[(this.addr + {cap_offset} + 4) >> 2] * 0x100000000;
+    return readU32(this.addr + {cap_offset});
   }}
 
   get(index: number): T {{
-    let bufAddr = Number(HEAP_u64[this.addr + {buf_offset} >> 3] - HEAP_BASE);
+    let bufAddr = readU32(this.addr + {buf_offset});
     return this.accessor.get(bufAddr + index * this.size);
   }}
 
@@ -812,45 +939,43 @@ class Vec<T> {{
     if (index >= this.length) {{
       throw new Error(`Index out of bounds: ${{index}} >= ${{this.length}}`);
     }}
-    let bufAddr = Number(HEAP_u64[this.addr + {buf_offset} >> 3] - HEAP_BASE);
+    let bufAddr = readU32(this.addr + {buf_offset});
     this.accessor.set(bufAddr + index * this.size, value);
   }}
 
   reserve(count: number): void {{
     if (this.length + count > this.capacity) {{
       binding.extendVec(this.addr, this.size, count);
-    }} else {{
-      HEAP_u64[(this.addr + {len_offset}) >> 3] += BigInt(count);
     }}
   }}
 
   push(value: T): void {{
     this.reserve(1);
+    writeU32(this.addr + {len_offset}, readU32(this.addr + {len_offset}) + 1);
     this.set(this.length - 1, value);
   }}
 
   extend(): T {{
     this.reserve(1);
+    writeU32(this.addr + {len_offset}, readU32(this.addr + {len_offset}) + 1);
     return this.get(this.length - 1);
   }}
 
   clear(): void {{
     // TODO: run Rust destructors?
-    HEAP_u64[(this.addr + {len_offset}) >> 3] = 0n;
-    HEAP_u64[(this.addr + {cap_offset}) >> 3] = 0n;
-    HEAP_u64[this.addr + {buf_offset} >> 3] = 1n;
+    writeU32(this.addr + {len_offset}, 0);
   }}
 
   // $FlowFixMe
   *[globalThis.Symbol.iterator]() {{
-    let addr = Number(HEAP_u64[this.addr + {buf_offset} >> 3] - HEAP_BASE);
+    let addr = readU32(this.addr + {buf_offset});
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
       yield this.accessor.get(addr);
     }}
   }}
 
   find(pred: (value: T) => boolean): ?T {{
-    let addr = Number(HEAP_u64[this.addr + {buf_offset} >> 3] - HEAP_BASE);
+    let addr = readU32(this.addr + {buf_offset});
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
       let value = this.accessor.get(addr);
       if (pred(value)) {{
@@ -860,7 +985,7 @@ class Vec<T> {{
   }}
 
   some(pred: (value: T) => boolean): boolean {{
-    let addr = Number(HEAP_u64[this.addr + {buf_offset} >> 3] - HEAP_BASE);
+    let addr = readU32(this.addr + {buf_offset});
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
       let value = this.accessor.get(addr);
       if (pred(value)) {{

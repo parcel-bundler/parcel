@@ -4,8 +4,8 @@ use crate::db::DB;
 use napi::{Env, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
-  Alloc, Dependency, DependencyFlags, EnvironmentId, InternedString, Priority, SpecifierType,
-  Symbol, TargetId, Vec,
+  ArenaAllocator, ArenaVec, Dependency, DependencyFlags, EnvironmentId, InternedString, Priority,
+  SpecifierType, Symbol, TargetId, Vec,
 };
 use parcel_js_swc_core::{DependencyKind, Diagnostic, TransformResult};
 use path_slash::PathBufExt;
@@ -113,7 +113,7 @@ fn convert_result(
             .map(|p| p.to_slash_lossy().into()),
           source_asset_id: None,
           placeholder: dep.placeholder.map(|s| s.into()),
-          symbols: Vec::new_in(parcel_db::Alloc),
+          symbols: ArenaVec::new(),
           loc: None,
           target: TargetId(0),
           env: EnvironmentId(config.env_id),
@@ -131,9 +131,10 @@ fn convert_result(
   let mut static_cjs_exports = false;
   let mut should_wrap = false;
 
-  let symbols: &mut Vec<Symbol, Alloc> = DB.alloc_struct();
-  unsafe { std::ptr::write(symbols, Vec::new_in(Alloc)) };
+  let (symbols_addr, symbols) = DB.alloc_struct::<ArenaVec<Symbol>>();
+  unsafe { std::ptr::write(symbols, ArenaVec::new()) };
   if let Some(hoist_result) = result.hoist_result {
+    symbols.reserve(hoist_result.exported_symbols.len() + hoist_result.re_exports.len() + 1);
     // println!("{:?}", hoist_result);
     for s in hoist_result.exported_symbols {
       let sym = Symbol {
@@ -170,6 +171,7 @@ fn convert_result(
         } else {
           let re_export_name = dep
             .symbols
+            .as_slice()
             .iter()
             .find(|sym| sym.exported == &*s.imported)
             .map(|sym| sym.local.clone())
@@ -213,7 +215,7 @@ fn convert_result(
     // This allows accessing symbols that don't exist without errors in symbol propagation.
     if hoist_result.has_cjs_exports
       // || (!hoist_result.is_esm && config.)
-      || (hoist_result.should_wrap && !symbols.iter().any(|s| s.exported == "*"))
+      || (hoist_result.should_wrap && !symbols.as_slice().iter().any(|s| s.exported == "*"))
     {
       symbols.push(Symbol {
         exported: "*".into(),
@@ -228,6 +230,7 @@ fn convert_result(
     should_wrap = hoist_result.should_wrap;
   } else {
     if let Some(symbol_result) = result.symbol_result {
+      symbols.reserve(symbol_result.exports.len() + 1);
       for sym in symbol_result.exports {
         let local = if let Some(dep_id) = sym
           .source
@@ -283,7 +286,7 @@ fn convert_result(
       // This allows accessing symbols that don't exist without errors in symbol propagation.
       if symbol_result.has_cjs_exports
         // || (!symbol_result.is_esm && )
-        || (symbol_result.should_wrap && !symbols.iter().any(|s| s.exported == "*"))
+        || (symbol_result.should_wrap && !symbols.as_slice().iter().any(|s| s.exported == "*"))
       {
         symbols.push(Symbol {
           exported: "*".into(),
@@ -303,7 +306,7 @@ fn convert_result(
     }
   }
 
-  // println!("{:?}", symbols);
+  // println!("SYMBOLS {:?} {:?}", symbols_addr, symbols);
   // for id in &deps {
   //   let dep: &mut Dependency = DB.read_heap(*id);
   //   println!("{:?}", dep);
@@ -314,7 +317,7 @@ fn convert_result(
     map: result.map,
     shebang: result.shebang,
     dependencies: deps,
-    symbols: DB.heap_offset(symbols),
+    symbols: symbols_addr,
     diagnostics: result.diagnostics,
     needs_esm_helpers: result.needs_esm_helpers,
     used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
