@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "yarn parcel build src/index.html"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "parcel": "2.9.1"
+  }
+}

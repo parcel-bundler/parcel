@@ -69,6 +69,32 @@ describe('css', () => {
     );
   });
 
+  it('should not fail with many css modules', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-bug/src/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'button.module.css',
+          'main.js',
+          'main.module.css',
+          'other.module.css',
+        ],
+      },
+      {
+        type: 'css',
+        assets: ['button.module.css', 'main.module.css', 'other.module.css'],
+      },
+    ]);
+  });
+
   it('should support loading a CSS bundle along side dynamic imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-css/index.js'),
