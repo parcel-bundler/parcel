@@ -3,6 +3,60 @@ import assert from 'assert';
 import {bundle, assertBundles, findAsset} from '@parcel/test-utils';
 
 describe('bundler', function () {
+  it('should not count inline assests towards parallel request limit', async function () {
+    // Shared bundle should not be removed in this case
+    let b = await bundle(
+      path.join(__dirname, 'integration/inlined-assests/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['bar.js'],
+      },
+      {
+        assets: ['foo.js'],
+      },
+      {
+        assets: ['a.js', 'b.js', 'c.js'],
+      },
+      {
+        assets: ['local.html'],
+      },
+      {
+        assets: ['buzz.js'],
+      },
+      {
+        assets: [
+          'inline-module.js',
+          'local.html',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['esmodule-helpers.js'],
+      },
+    ]);
+  });
+
   it('should not create a shared bundle from an asset if that asset is shared by less than minBundles bundles', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/min-bundles/index.js'),
