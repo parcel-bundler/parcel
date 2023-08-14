@@ -577,6 +577,20 @@ export function run(input: string[]) {
     return node.value.priority;
   }
 
+  function _findEntryBundle(bundleGraph, node) {
+    const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(node.id);
+    const entryBundleGroup = bundleGraph._graph
+      .getNodeIdsConnectedTo(bundleGraphNodeId, -1)
+      .map(id => nullthrows(bundleGraph._graph.getNode(id)))
+      .find(
+        node =>
+          node.type === 'bundle_group' &&
+          bundleGraph.isEntryBundleGroup(node.value),
+      );
+
+    return entryBundleGroup;
+  }
+
   function _printStatsTable(header, data) {
     const config = {
       columnDefault: {
@@ -624,17 +638,24 @@ export function run(input: string[]) {
 
     let b_ext = {};
 
+    const entries = new Set();
+
     for (let [, n] of bundleGraph._graph.nodes) {
-      if (n.type == 'bundle_group') {
+      if (n.type === 'bundle_group') {
         bg.bundle_group++;
-      } else if (n.type == 'bundle') {
+      } else if (n.type === 'bundle') {
         bg.bundle++;
 
         // $FlowFixMe
         b_ext[n.value.type] = (b_ext[n.value.type] || 0) + 1;
 
         // $FlowFixMe
-        if (n.value.mainEntryId == null) {
+        const entry_group = _findEntryBundle(bundleGraph, n);
+
+        if (entry_group != null && !entries.has(entry_group.id)) {
+          b_type.entry++;
+          entries.add(entry_group.id);
+        } else if (n.value.mainEntryId == null) {
           // In general, !bundle.mainEntryId means that it is shared. In the case of an async and shared bundle, only count it as shared.
           b_type.shared++;
         } else {
@@ -648,7 +669,7 @@ export function run(input: string[]) {
             b_type.sync++;
           }
         }
-      } else if (n.type == 'asset') {
+      } else if (n.type === 'asset') {
         if (
           // $FlowFixMe
           fromProjectPathRelative(n.value.filePath).includes('node_modules')
@@ -657,15 +678,10 @@ export function run(input: string[]) {
         } else {
           bg.asset_source++;
         }
-      } else if (n.type == 'dependency') {
+      } else if (n.type === 'dependency') {
         bg.dependency++;
-      } else if (n.type == 'entry_file') {
-        b_type.entry++;
       }
     }
-
-    // Account for entries being counted twice
-    b_type.sync -= b_type.entry;
 
     _printStatsTable('# Asset Graph Node Counts', Object.entries(ag));
     _printStatsTable('# Bundle Graph Node Counts', Object.entries(bg));
