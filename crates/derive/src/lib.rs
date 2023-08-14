@@ -37,8 +37,8 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
             js.push(quote! {
               let name = stringify!(#name).to_case(Case::Camel);
               let offset = (std::ptr::addr_of!((*p).#name) as *const u8).offset_from(u8_ptr) as usize;
-              let getter = <#ty>::js_getter(offset);
-              let setter = <#ty>::js_setter(offset, "value");
+              let getter = <#ty>::js_getter("this.addr", offset);
+              let setter = <#ty>::js_setter("this.addr", offset, "value");
               let type_name = <#ty>::ty();
               js.push_str(&format!(
   r#"
@@ -112,55 +112,107 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
       let mut getters: Vec<proc_macro2::TokenStream> = Vec::new();
       let mut setters: Vec<proc_macro2::TokenStream> = Vec::new();
       let mut variants = Vec::new();
+      let mut has_other = false;
       for variant in e.variants.iter() {
         let name = &variant.ident;
-        variants.push(format!("'{}'", name.to_string().to_case(Case::Kebab)));
-        getters.push(quote! {
-          let name = stringify!(#name).to_case(Case::Kebab);
-          js.push_str(&format!(
-        r#"
+
+        if variant.fields.len() == 1 && matches!(variant.fields, Fields::Unnamed(_)) {
+          if has_other {
+            panic!("Only one other variant can be defined");
+          }
+          has_other = true;
+          let ty = variant.fields.iter().next().unwrap().ty.clone();
+          variants.push(quote! {
+            variants.push(<#ty>::ty());
+          });
+          getters.push(quote! {
+            let name = stringify!(#name).to_case(Case::Kebab);
+            let value_offset = enum_value_offset(#self_name::#name, |v| match v {
+              #self_name::#name(ref v) => v,
+              _ => unreachable!()
+            });
+            js.push_str(&format!(
+          r#"
+      case {}:
+        return {};"#,
+              discriminant_value(#self_name::#name(uninit()), offset, size),
+              <#ty>::js_getter("addr", value_offset)
+            ));
+          });
+          setters.push(quote! {
+            let value_offset = enum_value_offset(#self_name::#name, |v| match v {
+              #self_name::#name(ref v) => v,
+              _ => unreachable!()
+            });
+            js.push_str(&format!(
+          r#"
+      default:
+        write(addr + {offset}, {discriminant});
+        {setter};
+        break;"#,
+              offset = offset,
+              discriminant = discriminant_value(#self_name::#name(uninit()), offset, size),
+              setter = <#ty>::js_setter("addr", value_offset, "value")
+            ));
+          });
+        } else if variant.fields.is_empty() {
+          variants.push(quote! {
+            variants.push(format!("'{}'", stringify!(#name).to_case(Case::Kebab)));
+          });
+          getters.push(quote! {
+            let name = stringify!(#name).to_case(Case::Kebab);
+            js.push_str(&format!(
+          r#"
       case {}:
         return '{}';"#,
-            #self_name::#name as usize,
-            name
-          ));
-        });
-        setters.push(quote! {
-          let name = stringify!(#name).to_case(Case::Kebab);
-          js.push_str(&format!(
-        r#"
-      case '{}':
-        write(addr, {});
+              discriminant_value(#self_name::#name, offset, size),
+              name
+            ));
+          });
+          setters.push(quote! {
+            let name = stringify!(#name).to_case(Case::Kebab);
+            js.push_str(&format!(
+          r#"
+      case '{name}':
+        write(addr + {offset}, {value});
         break;"#,
-            name,
-            #self_name::#name as usize
-          ));
-        });
+              name = name,
+              offset = offset,
+              value = discriminant_value(#self_name::#name, offset, size),
+            ));
+          });
+        } else {
+          todo!()
+        }
       }
 
-      let variants = variants.join(" | ");
+      let first_variant = e.variants.iter().next().unwrap().ident.clone();
       quote! {
         #[automatically_derived]
         impl ToJs for #self_name {
           fn to_js() -> String {
             use convert_case::{Case, Casing};
-            let size = std::mem::size_of::<#self_name>();
+            let (offset, size) = discriminant(#self_name::#first_variant, |v| matches!(v, #self_name::#first_variant));
             let heap = match size {
               1 => "U8",
               2 => "U16",
               4 => "U32",
               _ => todo!()
             };
+            let mut variants = Vec::new();
+            #(#variants);*;
+
             let mut js = String::new();
             js.push_str(&format!(
               r#"type {name}Variants = {variants};
 
 export class {name} {{
   static get(addr: number): {name}Variants {{
-    switch (read{heap}(addr)) {{"#,
+    switch (read{heap}(addr + {offset})) {{"#,
               name = stringify!(#self_name),
               heap = heap,
-              variants = #variants
+              offset = offset,
+              variants = variants.join(" | ")
             ));
 
             #(#getters);*;
@@ -179,16 +231,18 @@ export class {name} {{
             ));
 
             #(#setters);*;
-            js.push_str(&format!(
-              r#"
+            if !#has_other {
+              js.push_str(&format!(r#"
       default:
-        throw new Error(`Unknown {} value: ${{value}}`);
-    }}
-  }}
-}}
-"#,
-              stringify!(#self_name)
-            ));
+        throw new Error(`Unknown {} value: ${{value}}`);"#,
+                stringify!(#self_name)
+              ));
+            }
+          js.push_str(r#"
+    }
+  }
+}
+"#);
 
             js
           }
@@ -222,12 +276,12 @@ pub fn derive_js_value(input: TokenStream) -> TokenStream {
       quote! {
         #[automatically_derived]
         impl JsValue for #self_name {
-          fn js_getter(addr: usize) -> String {
-            <#ty>::js_getter(addr)
+          fn js_getter(addr: &str, offset: usize) -> String {
+            <#ty>::js_getter(addr, offset)
           }
 
-          fn js_setter(addr: usize, value: &str) -> String {
-            <#ty>::js_setter(addr, value)
+          fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+            <#ty>::js_setter(addr, offset, value)
           }
 
           fn ty() -> String {
@@ -245,12 +299,12 @@ pub fn derive_js_value(input: TokenStream) -> TokenStream {
       quote! {
         #[automatically_derived]
         impl JsValue for #self_name {
-          fn js_getter(addr: usize) -> String {
-            format!("{}.get(this.addr + {:?})", stringify!(#self_name), addr)
+          fn js_getter(addr: &str, offset: usize) -> String {
+            format!("{}.get({} + {})", stringify!(#self_name), addr, offset)
           }
 
-          fn js_setter(addr: usize, value: &str) -> String {
-            format!("{}.set(this.addr + {:?}, {})", stringify!(#self_name), addr, value)
+          fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+            format!("{}.set({} + {}, {})", stringify!(#self_name), addr, offset, value)
           }
 
           fn ty() -> String {

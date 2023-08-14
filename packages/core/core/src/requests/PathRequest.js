@@ -379,6 +379,7 @@ export class ResolverRunner {
           }
         }
       } catch (e) {
+        console.log(e)
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset
         let errorDiagnostic = errorToDiagnostic(e, {
           origin: resolver.name,
@@ -417,8 +418,7 @@ export class ResolverRunner {
       };
     }
 
-    let internalDep = DbDependency.get(dependency);
-    let resolveFrom = internalDep.resolveFrom// ?? internalDep.sourcePath;
+    let resolveFrom = dep.resolveFrom ?? dep.sourcePath;
     let dir =
       resolveFrom != null
         ? normalizePath(fromProjectPathRelative(resolveFrom))

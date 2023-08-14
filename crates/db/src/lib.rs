@@ -25,8 +25,8 @@ trait ToJs {
 }
 
 trait JsValue {
-  fn js_getter(addr: usize) -> String;
-  fn js_setter(addr: usize, value: &str) -> String;
+  fn js_getter(addr: &str, offset: usize) -> String;
+  fn js_setter(addr: &str, offset: usize, value: &str) -> String;
   fn ty() -> String;
 }
 
@@ -36,12 +36,12 @@ pub trait SlabAllocated {
 }
 
 impl JsValue for u8 {
-  fn js_getter(addr: usize) -> String {
-    format!("readU8(this.addr + {:?})", addr)
+  fn js_getter(addr: &str, offset: usize) -> String {
+    format!("readU8({} + {})", addr, offset)
   }
 
-  fn js_setter(addr: usize, value: &str) -> String {
-    format!("writeU8(this.addr + {:?}, {})", addr, value)
+  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+    format!("writeU8({} + {}, {})", addr, offset, value)
   }
 
   fn ty() -> String {
@@ -50,12 +50,12 @@ impl JsValue for u8 {
 }
 
 impl JsValue for u32 {
-  fn js_getter(addr: usize) -> String {
-    format!("readU32(this.addr + {:?})", addr)
+  fn js_getter(addr: &str, offset: usize) -> String {
+    format!("readU32({} + {})", addr, offset)
   }
 
-  fn js_setter(addr: usize, value: &str) -> String {
-    format!("writeU32(this.addr + {:?}, {})", addr, value)
+  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+    format!("writeU32({} + {}, {})", addr, offset, value)
   }
 
   fn ty() -> String {
@@ -64,12 +64,12 @@ impl JsValue for u32 {
 }
 
 impl JsValue for NonZeroU32 {
-  fn js_getter(addr: usize) -> String {
-    format!("readU32(this.addr + {:?})", addr)
+  fn js_getter(addr: &str, offset: usize) -> String {
+    format!("readU32({} + {})", addr, offset)
   }
 
-  fn js_setter(addr: usize, value: &str) -> String {
-    format!("writeU32(this.addr + {:?}, {})", addr, value)
+  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+    format!("writeU32({} + {}, {})", addr, offset, value)
   }
 
   fn ty() -> String {
@@ -78,12 +78,12 @@ impl JsValue for NonZeroU32 {
 }
 
 impl JsValue for bool {
-  fn js_getter(addr: usize) -> String {
-    format!("!!readU8(this.addr + {:?})", addr)
+  fn js_getter(addr: &str, offset: usize) -> String {
+    format!("!!readU8({} + {})", addr, offset)
   }
 
-  fn js_setter(addr: usize, value: &str) -> String {
-    format!("writeU8(this.addr + {:?}, {} ? 1 : 0)", addr, value)
+  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+    format!("writeU8({} + {}, {} ? 1 : 0)", addr, offset, value)
   }
 
   fn ty() -> String {
@@ -92,16 +92,15 @@ impl JsValue for bool {
 }
 
 impl JsValue for InternedString {
-  fn js_getter(addr: usize) -> String {
-    format!("readCachedString(readU32(this.addr + {addr}))", addr = addr)
+  fn js_getter(addr: &str, offset: usize) -> String {
+    format!("readCachedString(readU32({} + {}))", addr, offset)
   }
 
-  fn js_setter(addr: usize, value: &str) -> String {
+  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
     // STRING_CACHE.set(this.addr + {addr}, {value});
     format!(
-      "writeU32(this.addr + {addr}, binding.getStringId({value}))",
-      addr = addr,
-      value = value
+      "writeU32({} + {}, binding.getStringId({}))",
+      addr, offset, value
     )
   }
 
@@ -111,22 +110,24 @@ impl JsValue for InternedString {
 }
 
 impl<T: JsValue, A: Allocator> JsValue for Vec<T, A> {
-  fn js_getter(addr: usize) -> String {
+  fn js_getter(addr: &str, offset: usize) -> String {
     let size = std::mem::size_of::<T>();
     let ty = <T>::ty();
     format!(
-      "new Vec(this.addr + {addr}, {size}, {ty})",
+      "new Vec({addr} + {offset}, {size}, {ty})",
       addr = addr,
+      offset = offset,
       size = size,
       ty = ty
     )
   }
 
-  fn js_setter(addr: usize, value: &str) -> String {
+  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
     let size = std::mem::size_of::<Vec<T, A>>();
     format!(
-      "copy({value}.addr, this.addr + {addr}, {size});",
+      "copy({value}.addr, {addr} + {offset}, {size});",
       addr = addr,
+      offset = offset,
       size = size,
       value = value
     )
@@ -137,29 +138,67 @@ impl<T: JsValue, A: Allocator> JsValue for Vec<T, A> {
   }
 }
 
-fn option_offset<T>() -> usize {
+fn uninit<T>() -> T {
   let mut v = std::mem::MaybeUninit::<T>::uninit();
-  // let ptr = v.as_mut_ptr() as *mut u8;
-  // unsafe { *ptr = 1 };
   let slice =
     unsafe { std::slice::from_raw_parts_mut(v.as_mut_ptr() as *mut u8, std::mem::size_of::<T>()) };
   for b in slice {
-    *b = 1;
+    *b = 123;
   }
-  // unsafe {
-  //   println!(
-  //     "{:?}",
-  //     std::slice::from_raw_parts(v.as_ptr() as *const u8, std::mem::size_of::<T>())
-  //   );
-  // }
-  let option = Some(unsafe { v.assume_init() });
-  let base = &option as *const _ as usize;
-  let offset = (option.as_ref().unwrap() as *const _ as usize) - base;
-  std::mem::forget(option);
+  unsafe { v.assume_init() }
+}
+
+fn enum_value_offset<T, U, Wrap: Fn(T) -> U, Unwrap: Fn(&U) -> &T>(
+  wrap: Wrap,
+  unwrap: Unwrap,
+) -> usize {
+  let v = wrap(uninit::<T>());
+  let base = &v as *const _ as usize;
+  let offset = (unwrap(&v) as *const _ as usize) - base;
+  std::mem::forget(v);
   offset
 }
 
-fn option_discriminant<T>(addr: usize, operator: &str) -> Vec<String> {
+fn option_offset<T>() -> usize {
+  enum_value_offset::<T, _, _, _>(Some, |v| v.as_ref().unwrap())
+}
+
+fn discriminant<T, F: Fn(&T) -> bool>(v: T, matches: F) -> (usize, usize) {
+  let mut value = v;
+  let slice = unsafe {
+    std::slice::from_raw_parts_mut(&mut value as *mut _ as *mut u8, std::mem::size_of::<T>())
+  };
+
+  let mut offset = 0;
+  let mut size = 0;
+  for (i, b) in slice.iter_mut().enumerate() {
+    let v = *b;
+    *b = 123;
+    if !matches(&value) {
+      if size == 0 {
+        offset = i;
+      }
+      size += 1;
+    }
+    *b = v;
+  }
+
+  (offset, size)
+}
+
+fn discriminant_value<T>(v: T, offset: usize, size: usize) -> usize {
+  unsafe {
+    let ptr = (&v as *const _ as *const u8).add(offset);
+    match size {
+      1 => *ptr as usize,
+      2 => *(ptr as *const u16) as usize,
+      4 => *(ptr as *const u32) as usize,
+      _ => unreachable!(),
+    }
+  }
+}
+
+fn option_discriminant<T>(addr: &str, offset: usize, operator: &str) -> Vec<String> {
   // This infers the byte pattern for None of a given type. Due to discriminant elision,
   // there may be no separate byte for the discriminant. Instead, the Rust compiler uses
   // "niche" values of the contained type that would otherwise be invalid.
@@ -182,11 +221,11 @@ fn option_discriminant<T>(addr: usize, operator: &str) -> Vec<String> {
     if !none.is_none() {
       comparisons.push(if operator == "===" {
         format!(
-          "readU8(this.addr + {:?} + {:?}) {} {:?}",
-          addr, i, operator, v
+          "readU8({} + {} + {:?}) {} {:?}",
+          addr, offset, i, operator, v
         )
       } else {
-        format!("writeU8(this.addr + {:?} + {:?}, {:?})", addr, i, v)
+        format!("writeU8({} + {} + {:?}, {:?})", addr, offset, i, v)
       });
       if v == 0 {
         if zeros == 0 {
@@ -206,26 +245,23 @@ fn option_discriminant<T>(addr: usize, operator: &str) -> Vec<String> {
       comparisons.clear();
       comparisons.push(if operator == "===" {
         format!(
-          "readU32(this.addr + {:?} + {:?}) {} 0",
-          addr, zero_offset, operator
+          "readU32({} + {} + {}) {} 0",
+          addr, offset, zero_offset, operator
         )
       } else {
-        format!("writeU32(this.addr + {:?} + {:?}, 0)", addr, zero_offset)
+        format!("writeU32({} + {} + {}, 0)", addr, offset, zero_offset)
       });
       if zeros == 8 {
         comparisons.push(if operator == "===" {
           format!(
-            "readU32(this.addr + {:?} + {:?}) {} 0",
+            "readU32({} + {} + {:?}) {} 0",
             addr,
+            offset,
             zero_offset + 4,
             operator
           )
         } else {
-          format!(
-            "writeU32(this.addr + {:?} + {:?}, 0)",
-            addr,
-            zero_offset + 4
-          )
+          format!("writeU32({} + {} + {}, 0)", addr, offset, zero_offset + 4)
         })
       }
     }
@@ -235,48 +271,48 @@ fn option_discriminant<T>(addr: usize, operator: &str) -> Vec<String> {
 }
 
 impl<T: JsValue> JsValue for Option<T> {
-  fn js_getter(addr: usize) -> String {
-    let offset = option_offset::<T>();
-    if offset == 0 {
-      let discriminant = option_discriminant::<T>(addr, "===").join(" && ");
-      format!("{} ? null : {}", discriminant, T::js_getter(addr + offset))
+  fn js_getter(addr: &str, offset: usize) -> String {
+    let value_offset = option_offset::<T>();
+    if value_offset == 0 {
+      let discriminant = option_discriminant::<T>(addr, offset, "===").join(" && ");
+      format!("{} ? null : {}", discriminant, T::js_getter(addr, offset))
     } else {
       format!(
         "{} ? null : {}",
-        match offset {
-          1 => u8::js_getter(addr),
-          4 => u32::js_getter(addr),
+        match value_offset {
+          1 => u8::js_getter(addr, offset),
+          4 => u32::js_getter(addr, offset),
           _ => todo!(),
         },
-        T::js_getter(addr + offset)
+        T::js_getter(addr, offset + value_offset)
       )
     }
   }
 
-  fn js_setter(addr: usize, value: &str) -> String {
+  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
     // TODO: run Rust destructors when setting to null...
-    let offset = option_offset::<T>();
-    if offset == 0 {
+    let value_offset = option_offset::<T>();
+    if value_offset == 0 {
       return format!(
         r#"if (value == null) {{
       {set_none};
     }} else {{
       {setter};
     }}"#,
-        set_none = option_discriminant::<T>(addr, "=").join(";\n      "),
-        setter = T::js_setter(addr, value),
+        set_none = option_discriminant::<T>(addr, offset, "=").join(";\n      "),
+        setter = T::js_setter(addr, offset, value),
       );
     }
 
     format!(
       r#"{};
     if (value != null) {}"#,
-      match offset {
-        1 => u8::js_setter(addr, "value == null ? 0 : 1"),
-        4 => u32::js_setter(addr, "value == null ? 0 : 1"),
+      match value_offset {
+        1 => u8::js_setter(addr, offset, "value == null ? 0 : 1"),
+        4 => u32::js_setter(addr, offset, "value == null ? 0 : 1"),
         _ => todo!(),
       },
-      T::js_setter(addr + offset, value)
+      T::js_setter(addr, offset + value_offset, value)
     )
   }
 
@@ -307,12 +343,12 @@ macro_rules! js_bitflags {
     }
 
     impl JsValue for $BitFlags {
-      fn js_getter(addr: usize) -> String {
-        <$T>::js_getter(addr)
+      fn js_getter(addr: &str, offset: usize) -> String {
+        <$T>::js_getter(addr, offset)
       }
 
-      fn js_setter(addr: usize, value: &str) -> String {
-        <$T>::js_setter(addr, value)
+      fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+        <$T>::js_setter(addr, offset, value)
       }
 
       fn ty() -> String {
@@ -451,22 +487,24 @@ impl<T: SlabAllocated> ArenaVec<T> {
 }
 
 impl<T: JsValue> JsValue for ArenaVec<T> {
-  fn js_getter(addr: usize) -> String {
+  fn js_getter(addr: &str, offset: usize) -> String {
     let size = std::mem::size_of::<T>();
     let ty = <T>::ty();
     format!(
-      "new Vec(this.addr + {addr}, {size}, {ty})",
+      "new Vec({addr} + {offset}, {size}, {ty})",
       addr = addr,
+      offset = offset,
       size = size,
       ty = ty
     )
   }
 
-  fn js_setter(addr: usize, value: &str) -> String {
+  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
     let size = std::mem::size_of::<ArenaVec<T>>();
     format!(
-      "copy({value}.addr, this.addr + {addr}, {size});",
+      "copy({value}.addr, {addr} + {offset}, {size});",
       addr = addr,
+      offset = offset,
       size = size,
       value = value
     )
@@ -605,9 +643,12 @@ pub struct Asset {
 #[derive(Debug, Clone, ToJs, JsValue)]
 pub enum AssetType {
   Js,
+  Jsx,
+  Ts,
+  Tsx,
   Css,
   Html,
-  Other,
+  Other(InternedString),
 }
 
 #[derive(Debug, Clone, Copy, ToJs, JsValue)]

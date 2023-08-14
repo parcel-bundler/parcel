@@ -439,7 +439,7 @@ type EnvironmentContextVariants = 'browser' | 'web-worker' | 'service-worker' | 
 
 export class EnvironmentContext {
   static get(addr: number): EnvironmentContextVariants {
-    switch (readU8(addr)) {
+    switch (readU8(addr + 0)) {
       case 0:
         return 'browser';
       case 1:
@@ -463,25 +463,25 @@ export class EnvironmentContext {
     let write = writeU8;
     switch (value) {
       case 'browser':
-        write(addr, 0);
+        write(addr + 0, 0);
         break;
       case 'web-worker':
-        write(addr, 1);
+        write(addr + 0, 1);
         break;
       case 'service-worker':
-        write(addr, 2);
+        write(addr + 0, 2);
         break;
       case 'worklet':
-        write(addr, 3);
+        write(addr + 0, 3);
         break;
       case 'node':
-        write(addr, 4);
+        write(addr + 0, 4);
         break;
       case 'electron-main':
-        write(addr, 5);
+        write(addr + 0, 5);
         break;
       case 'electron-renderer':
-        write(addr, 6);
+        write(addr + 0, 6);
         break;
       default:
         throw new Error(`Unknown EnvironmentContext value: ${value}`);
@@ -493,7 +493,7 @@ type SourceTypeVariants = 'module' | 'script';
 
 export class SourceType {
   static get(addr: number): SourceTypeVariants {
-    switch (readU8(addr)) {
+    switch (readU8(addr + 0)) {
       case 0:
         return 'module';
       case 1:
@@ -507,10 +507,10 @@ export class SourceType {
     let write = writeU8;
     switch (value) {
       case 'module':
-        write(addr, 0);
+        write(addr + 0, 0);
         break;
       case 'script':
-        write(addr, 1);
+        write(addr + 0, 1);
         break;
       default:
         throw new Error(`Unknown SourceType value: ${value}`);
@@ -522,7 +522,7 @@ type OutputFormatVariants = 'global' | 'commonjs' | 'esmodule';
 
 export class OutputFormat {
   static get(addr: number): OutputFormatVariants {
-    switch (readU8(addr)) {
+    switch (readU8(addr + 0)) {
       case 0:
         return 'global';
       case 1:
@@ -538,13 +538,13 @@ export class OutputFormat {
     let write = writeU8;
     switch (value) {
       case 'global':
-        write(addr, 0);
+        write(addr + 0, 0);
         break;
       case 'commonjs':
-        write(addr, 1);
+        write(addr + 0, 1);
         break;
       case 'esmodule':
-        write(addr, 2);
+        write(addr + 0, 2);
         break;
       default:
         throw new Error(`Unknown OutputFormat value: ${value}`);
@@ -556,7 +556,7 @@ export class Asset {
   addr: number;
 
   constructor(addr?: number) {
-    this.addr = addr ?? binding.alloc(60);
+    this.addr = addr ?? binding.alloc(68);
   }
 
   static get(addr: number): Asset {
@@ -564,78 +564,30 @@ export class Asset {
   }
 
   static set(addr: number, value: Asset): void {
-    copy(value.addr, addr, 60);
+    copy(value.addr, addr, 68);
   }
 
   get filePath(): string {
-    return readCachedString(readU32(this.addr + 40));
-  }
-
-  set filePath(value: string): void {
-    writeU32(this.addr + 40, binding.getStringId(value));
-  }
-
-  get env(): number {
-    return readU32(this.addr + 8);
-  }
-
-  set env(value: number): void {
-    writeU32(this.addr + 8, value);
-  }
-
-  get query(): ?string {
-    return readU32(this.addr + 12 + 0) === 0 ? null : readCachedString(readU32(this.addr + 12));
-  }
-
-  set query(value: ?string): void {
-    if (value == null) {
-      writeU32(this.addr + 12 + 0, 0);
-    } else {
-      writeU32(this.addr + 12, binding.getStringId(value));
-    };
-  }
-
-  get assetType(): AssetTypeVariants {
-    return AssetType.get(this.addr + 57);
-  }
-
-  set assetType(value: AssetTypeVariants): void {
-    AssetType.set(this.addr + 57, value);
-  }
-
-  get contentKey(): string {
-    return readCachedString(readU32(this.addr + 44));
-  }
-
-  set contentKey(value: string): void {
-    writeU32(this.addr + 44, binding.getStringId(value));
-  }
-
-  get mapKey(): ?string {
-    return readU32(this.addr + 16 + 0) === 0 ? null : readCachedString(readU32(this.addr + 16));
-  }
-
-  set mapKey(value: ?string): void {
-    if (value == null) {
-      writeU32(this.addr + 16 + 0, 0);
-    } else {
-      writeU32(this.addr + 16, binding.getStringId(value));
-    };
-  }
-
-  get outputHash(): string {
     return readCachedString(readU32(this.addr + 48));
   }
 
-  set outputHash(value: string): void {
+  set filePath(value: string): void {
     writeU32(this.addr + 48, binding.getStringId(value));
   }
 
-  get pipeline(): ?string {
+  get env(): number {
+    return readU32(this.addr + 16);
+  }
+
+  set env(value: number): void {
+    writeU32(this.addr + 16, value);
+  }
+
+  get query(): ?string {
     return readU32(this.addr + 20 + 0) === 0 ? null : readCachedString(readU32(this.addr + 20));
   }
 
-  set pipeline(value: ?string): void {
+  set query(value: ?string): void {
     if (value == null) {
       writeU32(this.addr + 20 + 0, 0);
     } else {
@@ -643,12 +595,60 @@ export class Asset {
     };
   }
 
-  get meta(): string {
+  get assetType(): AssetTypeVariants {
+    return AssetType.get(this.addr + 8);
+  }
+
+  set assetType(value: AssetTypeVariants): void {
+    AssetType.set(this.addr + 8, value);
+  }
+
+  get contentKey(): string {
     return readCachedString(readU32(this.addr + 52));
   }
 
-  set meta(value: string): void {
+  set contentKey(value: string): void {
     writeU32(this.addr + 52, binding.getStringId(value));
+  }
+
+  get mapKey(): ?string {
+    return readU32(this.addr + 24 + 0) === 0 ? null : readCachedString(readU32(this.addr + 24));
+  }
+
+  set mapKey(value: ?string): void {
+    if (value == null) {
+      writeU32(this.addr + 24 + 0, 0);
+    } else {
+      writeU32(this.addr + 24, binding.getStringId(value));
+    };
+  }
+
+  get outputHash(): string {
+    return readCachedString(readU32(this.addr + 56));
+  }
+
+  set outputHash(value: string): void {
+    writeU32(this.addr + 56, binding.getStringId(value));
+  }
+
+  get pipeline(): ?string {
+    return readU32(this.addr + 28 + 0) === 0 ? null : readCachedString(readU32(this.addr + 28));
+  }
+
+  set pipeline(value: ?string): void {
+    if (value == null) {
+      writeU32(this.addr + 28 + 0, 0);
+    } else {
+      writeU32(this.addr + 28, binding.getStringId(value));
+    };
+  }
+
+  get meta(): string {
+    return readCachedString(readU32(this.addr + 60));
+  }
+
+  set meta(value: string): void {
+    writeU32(this.addr + 60, binding.getStringId(value));
   }
 
   get stats(): AssetStats {
@@ -660,77 +660,91 @@ export class Asset {
   }
 
   get bundleBehavior(): BundleBehaviorVariants {
-    return BundleBehavior.get(this.addr + 58);
+    return BundleBehavior.get(this.addr + 65);
   }
 
   set bundleBehavior(value: BundleBehaviorVariants): void {
-    BundleBehavior.set(this.addr + 58, value);
+    BundleBehavior.set(this.addr + 65, value);
   }
 
   get flags(): number {
-    return readU8(this.addr + 56);
+    return readU8(this.addr + 64);
   }
 
   set flags(value: number): void {
-    writeU8(this.addr + 56, value);
+    writeU8(this.addr + 64, value);
   }
 
   get symbols(): Vec<Symbol> {
-    return new Vec(this.addr + 24, 32, Symbol);
+    return new Vec(this.addr + 32, 32, Symbol);
   }
 
   set symbols(value: Vec<Symbol>): void {
-    copy(value.addr, this.addr + 24, 12);;
+    copy(value.addr, this.addr + 32, 12);;
   }
 
   get uniqueKey(): ?string {
-    return readU32(this.addr + 36 + 0) === 0 ? null : readCachedString(readU32(this.addr + 36));
+    return readU32(this.addr + 44 + 0) === 0 ? null : readCachedString(readU32(this.addr + 44));
   }
 
   set uniqueKey(value: ?string): void {
     if (value == null) {
-      writeU32(this.addr + 36 + 0, 0);
+      writeU32(this.addr + 44 + 0, 0);
     } else {
-      writeU32(this.addr + 36, binding.getStringId(value));
+      writeU32(this.addr + 44, binding.getStringId(value));
     };
   }
 }
 
-type AssetTypeVariants = 'js' | 'css' | 'html' | 'other';
+type AssetTypeVariants = 'js' | 'jsx' | 'ts' | 'tsx' | 'css' | 'html' | string;
 
 export class AssetType {
   static get(addr: number): AssetTypeVariants {
-    switch (readU8(addr)) {
+    switch (readU32(addr + 0)) {
       case 0:
         return 'js';
       case 1:
-        return 'css';
+        return 'jsx';
       case 2:
-        return 'html';
+        return 'ts';
       case 3:
-        return 'other';
+        return 'tsx';
+      case 4:
+        return 'css';
+      case 5:
+        return 'html';
+      case 6:
+        return readCachedString(readU32(addr + 4));
       default:
-        throw new Error(`Unknown AssetType value: ${readU8(addr)}`);
+        throw new Error(`Unknown AssetType value: ${readU32(addr)}`);
     }
   }
 
   static set(addr: number, value: AssetTypeVariants): void {
-    let write = writeU8;
+    let write = writeU32;
     switch (value) {
       case 'js':
-        write(addr, 0);
+        write(addr + 0, 0);
+        break;
+      case 'jsx':
+        write(addr + 0, 1);
+        break;
+      case 'ts':
+        write(addr + 0, 2);
+        break;
+      case 'tsx':
+        write(addr + 0, 3);
         break;
       case 'css':
-        write(addr, 1);
+        write(addr + 0, 4);
         break;
       case 'html':
-        write(addr, 2);
-        break;
-      case 'other':
-        write(addr, 3);
+        write(addr + 0, 5);
         break;
       default:
-        throw new Error(`Unknown AssetType value: ${value}`);
+        write(addr + 0, 6);
+        writeU32(addr + 4, binding.getStringId(value));
+        break;
     }
   }
 }
@@ -739,7 +753,7 @@ type BundleBehaviorVariants = 'none' | 'inline' | 'isolated';
 
 export class BundleBehavior {
   static get(addr: number): BundleBehaviorVariants {
-    switch (readU8(addr)) {
+    switch (readU8(addr + 0)) {
       case 0:
         return 'none';
       case 1:
@@ -755,13 +769,13 @@ export class BundleBehavior {
     let write = writeU8;
     switch (value) {
       case 'none':
-        write(addr, 0);
+        write(addr + 0, 0);
         break;
       case 'inline':
-        write(addr, 1);
+        write(addr + 0, 1);
         break;
       case 'isolated':
-        write(addr, 2);
+        write(addr + 0, 2);
         break;
       default:
         throw new Error(`Unknown BundleBehavior value: ${value}`);
@@ -943,7 +957,7 @@ type SpecifierTypeVariants = 'esm' | 'commonjs' | 'url' | 'custom';
 
 export class SpecifierType {
   static get(addr: number): SpecifierTypeVariants {
-    switch (readU8(addr)) {
+    switch (readU8(addr + 0)) {
       case 0:
         return 'esm';
       case 1:
@@ -961,16 +975,16 @@ export class SpecifierType {
     let write = writeU8;
     switch (value) {
       case 'esm':
-        write(addr, 0);
+        write(addr + 0, 0);
         break;
       case 'commonjs':
-        write(addr, 1);
+        write(addr + 0, 1);
         break;
       case 'url':
-        write(addr, 2);
+        write(addr + 0, 2);
         break;
       case 'custom':
-        write(addr, 3);
+        write(addr + 0, 3);
         break;
       default:
         throw new Error(`Unknown SpecifierType value: ${value}`);
@@ -982,7 +996,7 @@ type PriorityVariants = 'sync' | 'parallel' | 'lazy';
 
 export class Priority {
   static get(addr: number): PriorityVariants {
-    switch (readU8(addr)) {
+    switch (readU8(addr + 0)) {
       case 0:
         return 'sync';
       case 1:
@@ -998,13 +1012,13 @@ export class Priority {
     let write = writeU8;
     switch (value) {
       case 'sync':
-        write(addr, 0);
+        write(addr + 0, 0);
         break;
       case 'parallel':
-        write(addr, 1);
+        write(addr + 0, 1);
         break;
       case 'lazy':
-        write(addr, 2);
+        write(addr + 0, 2);
         break;
       default:
         throw new Error(`Unknown Priority value: ${value}`);
