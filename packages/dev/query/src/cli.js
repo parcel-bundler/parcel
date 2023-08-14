@@ -659,10 +659,13 @@ export function run(input: string[]) {
         }
       } else if (n.type == 'dependency') {
         bg.dependency++;
-      } else if (n.type == 'entry_group') {
+      } else if (n.type == 'entry_file') {
         b_type.entry++;
       }
     }
+
+    // Account for entries being counted twice
+    b_type.sync -= b_type.entry;
 
     _printStatsTable('# Asset Graph Node Counts', Object.entries(ag));
     _printStatsTable('# Bundle Graph Node Counts', Object.entries(bg));
