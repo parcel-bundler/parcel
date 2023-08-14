@@ -2,10 +2,10 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::path::Path;
 
-use swc_atoms::JsWord;
-use swc_common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::{self, Id};
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
+use swc_core::ecma::ast::{self, Id};
+use swc_core::ecma::atoms::JsWord;
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::utils::{create_global_decl_stmt, create_require, SourceLocation, SourceType};
@@ -53,8 +53,8 @@ impl<'a> Fold for NodeReplacer<'a> {
 
       match id.sym.to_string().as_str() {
         "__filename" => {
-          let specifier = swc_atoms::JsWord::from("path");
-          let replace_me_value = swc_atoms::JsWord::from("$parcel$filenameReplace");
+          let specifier = swc_core::ecma::atoms::JsWord::from("path");
+          let replace_me_value = swc_core::ecma::atoms::JsWord::from("$parcel$filenameReplace");
 
           let expr = |this: &NodeReplacer| {
             let filename = if let Some(name) = this.filename.file_name() {
@@ -73,7 +73,7 @@ impl<'a> Fold for NodeReplacer<'a> {
                     span: DUMMY_SP,
                     // This also uses __dirname as later in the path.join call the hierarchy is then correct
                     // Otherwise path.join(__filename, '..') would be one level to shallow (due to the /filename.js at the end)
-                    sym: swc_atoms::JsWord::from("__dirname"),
+                    sym: swc_core::ecma::atoms::JsWord::from("__dirname"),
                   })),
                 },
                 ast::ExprOrSpread {
@@ -88,7 +88,7 @@ impl<'a> Fold for NodeReplacer<'a> {
                   spread: None,
                   expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
                     span: DUMMY_SP,
-                    value: swc_atoms::JsWord::from(filename.to_string_lossy()),
+                    value: swc_core::ecma::atoms::JsWord::from(filename.to_string_lossy()),
                     raw: None,
                   }))),
                 },
@@ -116,8 +116,8 @@ impl<'a> Fold for NodeReplacer<'a> {
           }
         }
         "__dirname" => {
-          let specifier = swc_atoms::JsWord::from("path");
-          let replace_me_value = swc_atoms::JsWord::from("$parcel$dirnameReplace");
+          let specifier = swc_core::ecma::atoms::JsWord::from("path");
+          let replace_me_value = swc_core::ecma::atoms::JsWord::from("$parcel$dirnameReplace");
 
           if self.update_binding(id, "$parcel$__dirname".into(), |_| {
             ast::Expr::Call(ast::CallExpr {
@@ -129,7 +129,7 @@ impl<'a> Fold for NodeReplacer<'a> {
                   expr: Box::new(ast::Expr::Ident(ast::Ident {
                     optional: false,
                     span: DUMMY_SP,
-                    sym: swc_atoms::JsWord::from("__dirname"),
+                    sym: swc_core::ecma::atoms::JsWord::from("__dirname"),
                   })),
                 },
                 ast::ExprOrSpread {
@@ -171,7 +171,7 @@ impl<'a> Fold for NodeReplacer<'a> {
 
   fn fold_module(&mut self, node: ast::Module) -> ast::Module {
     // Insert globals at the top of the program
-    let mut node = swc_ecmascript::visit::fold_module(self, node);
+    let mut node = swc_core::ecma::visit::fold_module(self, node);
     node.body.splice(
       0..0,
       self

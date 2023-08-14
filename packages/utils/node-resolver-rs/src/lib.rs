@@ -1228,6 +1228,14 @@ mod tests {
     );
     assert_eq!(
       test_resolver()
+        .resolve(".///bar.js", &root().join("foo.js"), SpecifierType::Esm)
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("bar.js"))
+    );
+    assert_eq!(
+      test_resolver()
         .resolve("./bar", &root().join("foo.js"), SpecifierType::Esm)
         .result
         .unwrap()
@@ -2488,6 +2496,22 @@ mod tests {
         .unwrap()
         .0,
       Resolution::Path(root().join("tsconfig/suffixes/c-test.ts"))
+    );
+  }
+
+  #[test]
+  fn test_tsconfig_parsing() {
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "foo",
+          &root().join("tsconfig/trailing-comma/index.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("tsconfig/trailing-comma/bar.js"))
     );
   }
 

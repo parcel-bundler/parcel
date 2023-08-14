@@ -968,7 +968,10 @@ export async function runESM(
 ): Promise<Array<{|[string]: mixed|}>> {
   let id = instanceId++;
   let cache = new Map();
-  function load(specifier, referrer, code = null) {
+  function load(inputSpecifier, referrer, code = null) {
+    // ESM can request bundles with an absolute URL. Normalize this to the baseDir.
+    let specifier = inputSpecifier.replace('http://localhost', baseDir);
+
     if (path.isAbsolute(specifier) || specifier.startsWith('.')) {
       let extname = path.extname(specifier);
       if (extname && extname !== '.js' && extname !== '.mjs') {

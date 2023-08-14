@@ -59,7 +59,11 @@ impl<'a> Specifier<'a> {
 
     Ok(match specifier.as_bytes()[0] {
       b'.' => {
-        let specifier = specifier.strip_prefix("./").unwrap_or(specifier);
+        let specifier = if let Some(specifier) = specifier.strip_prefix("./") {
+          specifier.trim_start_matches('/')
+        } else {
+          specifier
+        };
         let (path, query) = decode_path(specifier, specifier_type);
         (Specifier::Relative(path), query)
       }

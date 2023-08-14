@@ -34,11 +34,10 @@ export function content(
       break;
     case 'xhtml': {
       let fragment = element.ownerDocument.createDocumentFragment();
-      let child = element.firstChild;
-      while (child) {
+      let child;
+      while ((child = element.firstChild)) {
         element.removeChild(child);
         fragment.appendChild(child.cloneNode(true));
-        child = child.nextSibling;
       }
       contents = new XMLSerializer().serializeToString(fragment);
       break;

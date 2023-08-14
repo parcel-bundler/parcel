@@ -511,6 +511,7 @@ function createIdealGraph(
              */
             let bundleGroupRootAsset = nullthrows(bundleGroup.mainEntryAsset);
             if (
+              parentAsset.type !== childAsset.type &&
               entries.has(bundleGroupRootAsset) &&
               canMerge(bundleGroupRootAsset, childAsset) &&
               dependency.bundleBehavior == null

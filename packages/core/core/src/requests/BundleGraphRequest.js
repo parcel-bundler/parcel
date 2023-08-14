@@ -411,8 +411,6 @@ class BundlerRunner {
         previousDevDeps: this.previousDevDeps,
         devDepRequests: this.devDepRequests,
         configs: this.configs,
-        nameRuntimeBundle: bundle =>
-          this.nameBundle(namers, bundle, internalBundleGraph),
       });
 
       // Add dev deps for namers, AFTER running them to account for lazy require().

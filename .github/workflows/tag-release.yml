@@ -18,7 +18,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           profile: minimal
           override: true
       - uses: bahmutov/npm-install@v1.1.0
@@ -47,7 +47,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           profile: minimal
           override: true
       - uses: bahmutov/npm-install@v1.1.0
@@ -85,7 +85,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           profile: minimal
           override: true
           target: ${{ matrix.target }}
@@ -142,7 +142,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           profile: minimal
           override: true
           target: ${{ matrix.target }}
@@ -173,7 +173,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           profile: minimal
           override: true
           target: aarch64-apple-darwin
@@ -205,7 +205,11 @@ jobs:
       - build-apple-silicon
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - uses: bahmutov/npm-install@v1.1.0
+      - name: Build native packages
+        run: yarn build-native-release
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:

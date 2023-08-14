@@ -2109,11 +2109,10 @@ describe('javascript', function () {
           'get-worker-url.js',
           'lodash.js',
           'esmodule-helpers.js',
-          'bundle-url.js',
         ],
       },
       {
-        assets: ['bundle-manifest.js'],
+        assets: ['bundle-manifest.js', 'bundle-url.js'],
       },
       {
         assets: ['worker.js', 'lodash.js', 'esmodule-helpers.js'],
@@ -2191,6 +2190,7 @@ describe('javascript', function () {
       {
         assets: [
           'bundle-manifest.js',
+          'esm-js-loader.js',
           'get-worker-url.js',
           'index.js',
           'large.js',
@@ -5235,6 +5235,38 @@ describe('javascript', function () {
     assert.deepEqual(res, {other: 1});
   });
 
+  it('should hoist function default exports to allow circular imports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/js-export-default-fn-circular-named/a.mjs',
+      ),
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, 'b1');
+  });
+
+  it('should hoist anonymous function default exports to allow circular imports', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/js-export-default-fn-circular-anonymous/a.mjs',
+      ),
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, 'b1');
+  });
+
   it('should work with many different types of exports', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-many/index.js'),
@@ -7438,6 +7470,26 @@ describe('javascript', function () {
 
       let res = await run(b, null, {require: false});
       assert.equal(res.output, 123);
+    });
+
+    it('duplicate assets should share module scope', async function () {
+      let b = await bundle(
+        [
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/multi-entry-duplicates/one.js',
+          ),
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/multi-entry-duplicates/two.js',
+          ),
+        ],
+        options,
+      );
+
+      let result = await runBundle(b, b.getBundles()[0], {}, {require: false});
+
+      assert.equal(await result.output, 2);
     });
   }
 });
