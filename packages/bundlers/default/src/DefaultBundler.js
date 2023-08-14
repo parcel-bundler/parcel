@@ -12,6 +12,7 @@ import type {
   PluginOptions,
   Target,
 } from '@parcel/types';
+import dumpGraphToGraphViz from '@parcel/core/src/dumpGraphToGraphViz';
 import type {NodeId} from '@parcel/graph';
 import type {SchemaEntity} from '@parcel/utils';
 import {ContentGraph, Graph} from '@parcel/graph';
@@ -1036,7 +1037,7 @@ function createIdealGraph(
   }
 
   let modifiedSourceBundles = new Set();
-
+  dumpGraphToGraphViz(bundleGraph, 'idealBundleGraph_beforePRL');
   // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
   for (let bundleGroupId of bundleGraph.getNodeIdsConnectedFrom(rootNodeId)) {
     // Find shared bundles in this bundle group.
@@ -1044,7 +1045,14 @@ function createIdealGraph(
 
     // We should include "bundle reuse" as shared bundles that may be removed but the bundle itself would have to be retained
     let bundleIdsInGroup = getBundlesForBundleGroup(bundleId); //get all bundlegrups this bundle is an ancestor of
-    if (bundleIdsInGroup.length > config.maxParallelRequests) {
+
+    // Filter out inline assests as they should not contribute to PRL
+    let numBundlesContributingToPLR = bundleIdsInGroup.reduce((count, b) => {
+      let bundle = nullthrows(bundleGraph.getNode(b));
+      return count + (bundle === 'root' || bundle.bundleBehavior !== 'inline');
+    }, 0);
+
+    if (numBundlesContributingToPLR > config.maxParallelRequests) {
       let sharedBundleIdsInBundleGroup = bundleIdsInGroup.filter(b => {
         let bundle = nullthrows(bundleGraph.getNode(b));
         // shared bundles must have source bundles, we could have a bundle
@@ -1054,7 +1062,6 @@ function createIdealGraph(
         );
       });
 
-      let numBundlesInGroup = bundleIdsInGroup.length;
       // Sort the bundles so the smallest ones are removed first.
       let sharedBundlesInGroup = sharedBundleIdsInBundleGroup
         .map(id => ({
@@ -1071,7 +1078,7 @@ function createIdealGraph(
       // Remove bundles until the bundle group is within the parallel request limit.
       while (
         sharedBundlesInGroup.length > 0 &&
-        numBundlesInGroup > config.maxParallelRequests
+        numBundlesContributingToPLR > config.maxParallelRequests
       ) {
         let bundleTuple = sharedBundlesInGroup.pop();
         let bundleToRemove = bundleTuple.bundle;
@@ -1122,11 +1129,11 @@ function createIdealGraph(
             bundleGraph.removeEdge(sourceBundleId, bundleIdToRemove);
           }
         }
-        numBundlesInGroup--;
+        numBundlesContributingToPLR--;
       }
     }
   }
-
+  dumpGraphToGraphViz(bundleGraph, 'idealBundleGraph_afterPRL');
   // Fix asset order in source bundles as they are likely now incorrect after shared bundle deletion
   if (modifiedSourceBundles.size > 0) {
     let assetOrderMap = new Map(assets.map((a, index) => [a, index]));
