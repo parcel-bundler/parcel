@@ -548,6 +548,7 @@ describe('css modules', () => {
     ]);
   });
 
+  // Forked because experimental bundler will not merge bundles of same types if they do not share all their bundlegroups
   it('should handle @import in css modules', async function () {
     let b = await bundle(
       [
@@ -608,7 +609,7 @@ describe('css modules', () => {
       },
       {
         type: 'css',
-        assets: ['a.module.css', 'b.module.css', 'index.module.css'], //We duplicate index.module.css to maintain one css bundle per entry bundleGroup
+        assets: ['a.module.css', 'b.module.css'],
       },
       {
         type: 'css',

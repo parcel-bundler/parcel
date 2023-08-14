@@ -2213,7 +2213,7 @@ describe('html', function () {
       },
       {
         type: 'css',
-        assets: ['shared.css', 'other.css'], //We've duplicated 'other' to maintain 1 css bundle per entry
+        assets: ['shared.css'],
       },
     ]);
 
@@ -2309,7 +2309,7 @@ describe('html', function () {
       2,
     );
 
-    // a.html should reference a.js only, but references a css bundle with BOTH a.css and b.css
+    // a.html should reference a.js only
     assert.equal(html.match(/a\.[a-z0-9]+\.js/g).length, 1);
 
     assert.equal(html.match(/b\.[a-z0-9]+\.js/g), null);
@@ -2319,7 +2319,7 @@ describe('html', function () {
       'utf8',
     );
     assert(css.includes('.a {'));
-    assert(css.includes('.b {'));
+    assert(!css.includes('.b {'));
 
     // b.html should point to a CSS bundle containing only b.css
     // It should not point to the bundle containing a.css from a.html

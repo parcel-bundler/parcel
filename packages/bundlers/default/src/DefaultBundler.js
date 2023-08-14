@@ -631,7 +631,7 @@ function createIdealGraph(
           }
           if (!shouldMerge) continue;
           mergeBundle(nodeIdA, nodeIdB);
-        } else {
+        } else if (a.needsStableName || b.needsStableName) {
           let overlap = new Set(bundleBbundleGroups);
           setIntersect(overlap, bundleABundleGroups);
           if (overlap.size > 0) {
