@@ -580,7 +580,7 @@ export function run(input: string[]) {
   function _printStatsTable(header, data) {
     const config = {
       columnDefault: {
-        width: 15,
+        width: 18,
       },
       header: {
         alignment: 'center',
