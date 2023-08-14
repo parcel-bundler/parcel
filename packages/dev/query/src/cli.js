@@ -570,23 +570,11 @@ export function run(input: string[]) {
       node = _getIncomingNodeOfType(bundleGraph, node, 'dependency');
     }
 
+    if (node == null) return null;
+
     invariant(node.type === 'dependency', 'Not a dependency');
 
     return node.value.priority;
-  }
-
-  function _findEntryBundle(bundleGraph, node) {
-    const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(node.id);
-    const entryBundleGroup = bundleGraph._graph
-      .getNodeIdsConnectedTo(bundleGraphNodeId, -1)
-      .map(id => nullthrows(bundleGraph._graph.getNode(id)))
-      .find(
-        node =>
-          node.type == 'bundle_group' &&
-          bundleGraph.isEntryBundleGroup(node.value),
-      );
-
-    return entryBundleGroup;
   }
 
   function _printStatsTable(header, data) {
@@ -636,8 +624,6 @@ export function run(input: string[]) {
 
     let b_ext = {};
 
-    const entries = new Set();
-
     for (let [, n] of bundleGraph._graph.nodes) {
       if (n.type == 'bundle_group') {
         bg.bundle_group++;
@@ -647,14 +633,8 @@ export function run(input: string[]) {
         // $FlowFixMe
         b_ext[n.value.type] = (b_ext[n.value.type] || 0) + 1;
 
-        const entry_group = _findEntryBundle(bundleGraph, n);
-
-        if (entry_group != null && !entries.has(entry_group.id)) {
-          b_type.entry++;
-          entries.add(entry_group.id);
-        }
         // $FlowFixMe
-        else if (n.value.mainEntryId == null) {
+        if (n.value.mainEntryId == null) {
           // In general, !bundle.mainEntryId means that it is shared. In the case of an async and shared bundle, only count it as shared.
           b_type.shared++;
         } else {
@@ -679,6 +659,8 @@ export function run(input: string[]) {
         }
       } else if (n.type == 'dependency') {
         bg.dependency++;
+      } else if (n.type == 'entry_group') {
+        b_type.entry++;
       }
     }
 
