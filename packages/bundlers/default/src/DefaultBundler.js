@@ -1048,7 +1048,8 @@ function createIdealGraph(
     // Filter out inline assests as they should not contribute to PRL
     let numBundlesContributingToPRL = bundleIdsInGroup.reduce((count, b) => {
       let bundle = nullthrows(bundleGraph.getNode(b));
-      return count + (bundle === 'root' || bundle.bundleBehavior !== 'inline');
+      invariant(bundle !== 'root');
+      return count + (bundle.bundleBehavior !== 'inline');
     }, 0);
 
     if (numBundlesContributingToPRL > config.maxParallelRequests) {
