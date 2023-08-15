@@ -12,7 +12,6 @@ import type {
   PluginOptions,
   Target,
 } from '@parcel/types';
-import dumpGraphToGraphViz from '@parcel/core/src/dumpGraphToGraphViz';
 import type {NodeId} from '@parcel/graph';
 import type {SchemaEntity} from '@parcel/utils';
 import {ContentGraph, Graph} from '@parcel/graph';
@@ -1037,7 +1036,6 @@ function createIdealGraph(
   }
 
   let modifiedSourceBundles = new Set();
-  dumpGraphToGraphViz(bundleGraph, 'idealBundleGraph_beforePRL');
   // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
   for (let bundleGroupId of bundleGraph.getNodeIdsConnectedFrom(rootNodeId)) {
     // Find shared bundles in this bundle group.
@@ -1133,7 +1131,7 @@ function createIdealGraph(
       }
     }
   }
-  dumpGraphToGraphViz(bundleGraph, 'idealBundleGraph_afterPRL');
+
   // Fix asset order in source bundles as they are likely now incorrect after shared bundle deletion
   if (modifiedSourceBundles.size > 0) {
     let assetOrderMap = new Map(assets.map((a, index) => [a, index]));
