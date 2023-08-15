@@ -645,6 +645,28 @@ export type ASTGenerator = {|
 
 export type BundleBehavior = 'inline' | 'isolated';
 
+export type ParcelTransformOptions = {|
+  filePath: FilePath,
+  code?: string,
+  env?: EnvironmentOptions,
+  pipeline?: ?string,
+  query?: ?string,
+|};
+
+export type ParcelResolveOptions = {|
+  specifier: DependencySpecifier,
+  specifierType: SpecifierType,
+  env?: EnvironmentOptions,
+  resolveFrom?: FilePath,
+|};
+
+export type ParcelResolveResult = {|
+  filePath: FilePath,
+  code?: string,
+  query?: ?string,
+  sideEffects?: boolean,
+|};
+
 /**
  * An asset represents a file or part of a file. It may represent any data type, including source code,
  * binary data, etc. Assets may exist in the file system or may be virtual.
