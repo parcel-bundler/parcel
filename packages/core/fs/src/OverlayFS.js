@@ -120,6 +120,15 @@ export class OverlayFS implements FileSystem {
     return false;
   }
 
+  async _copyPathForWrite(filePath: FilePath): Promise<FilePath> {
+    filePath = await this._normalizePath(filePath);
+    let dirPath = path.dirname(filePath);
+    if (this.existsSync(dirPath) && !this.writable.existsSync(dirPath)) {
+      await this.writable.mkdirp(dirPath);
+    }
+    return filePath;
+  }
+
   _normalizePath(filePath: FilePath): FilePath {
     return path.resolve(this.cwd(), filePath);
   }
@@ -134,14 +143,14 @@ export class OverlayFS implements FileSystem {
     contents: string | Buffer,
     options: ?FileOptions,
   ): Promise<void> {
-    filePath = this._normalizePath(filePath);
+    filePath = await this._copyPathForWrite(filePath);
     await this.writable.writeFile(filePath, contents, options);
     this.deleted.delete(filePath);
   }
 
   async copyFile(source: FilePath, destination: FilePath): Promise<void> {
     source = this._normalizePath(source);
-    destination = this._normalizePath(destination);
+    destination = await this._copyPathForWrite(destination);
 
     if (await this.writable.exists(source)) {
       await this.writable.writeFile(

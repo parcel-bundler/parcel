@@ -38,6 +38,44 @@ describe('OverlayFS', () => {
     assert.equal(underlayFS.readFileSync('foo', 'utf8'), 'foo');
   });
 
+  it('copies on write with dir', async () => {
+    await fsFixture(underlayFS)`
+      foo/foo: foo
+    `;
+
+    assert.equal(fs.readFileSync('foo/foo', 'utf8'), 'foo');
+
+    await fs.writeFile('foo/bar', 'bar');
+
+    assert.equal(fs.readFileSync('foo/bar', 'utf8'), 'bar');
+    assert(!underlayFS.existsSync('foo/bar'));
+  });
+
+  it('copies on write when copying', async () => {
+    await fsFixture(underlayFS)`
+      foo: foo
+    `;
+
+    assert.equal(fs.readFileSync('foo', 'utf8'), 'foo');
+
+    await fs.copyFile('foo', 'bar');
+    assert.equal(fs.readFileSync('bar', 'utf8'), 'foo');
+    assert(!underlayFS.existsSync('bar'));
+  });
+
+  it('copies on write when copying with dir', async () => {
+    await fsFixture(underlayFS)`
+      foo/foo: foo
+      bar
+    `;
+
+    assert.equal(fs.readFileSync('foo/foo', 'utf8'), 'foo');
+
+    await fs.copyFile('foo/foo', 'bar/bar');
+    assert.equal(fs.readFileSync('bar/bar', 'utf8'), 'foo');
+    assert(!underlayFS.existsSync('bar/bar'));
+  });
+
   it('writes to memory', async () => {
     await fs.writeFile('foo', 'foo');
 
