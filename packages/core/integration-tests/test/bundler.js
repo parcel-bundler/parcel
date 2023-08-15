@@ -6,7 +6,7 @@ describe('bundler', function () {
   it('should not count inline assests towards parallel request limit', async function () {
     // Shared bundle should not be removed in this case
     let b = await bundle(
-      path.join(__dirname, 'integration/inlined-assests/index.js'),
+      path.join(__dirname, 'integration/inlined-assests/local.html'),
       {
         mode: 'production',
         defaultTargetOptions: {
@@ -16,26 +16,6 @@ describe('bundler', function () {
     );
 
     assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'esmodule-helpers.js',
-          'js-loader.js',
-          'bundle-manifest.js',
-        ],
-      },
-      {
-        assets: ['bar.js'],
-      },
-      {
-        assets: ['foo.js'],
-      },
-      {
-        assets: ['a.js', 'b.js', 'c.js'],
-      },
       {
         assets: ['local.html'],
       },
