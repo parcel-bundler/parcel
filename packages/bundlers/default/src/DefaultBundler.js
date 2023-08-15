@@ -1036,6 +1036,7 @@ function createIdealGraph(
   }
 
   let modifiedSourceBundles = new Set();
+
   // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
   for (let bundleGroupId of bundleGraph.getNodeIdsConnectedFrom(rootNodeId)) {
     // Find shared bundles in this bundle group.
@@ -1045,12 +1046,12 @@ function createIdealGraph(
     let bundleIdsInGroup = getBundlesForBundleGroup(bundleId); //get all bundlegrups this bundle is an ancestor of
 
     // Filter out inline assests as they should not contribute to PRL
-    let numBundlesContributingToPLR = bundleIdsInGroup.reduce((count, b) => {
+    let numBundlesContributingToPRL = bundleIdsInGroup.reduce((count, b) => {
       let bundle = nullthrows(bundleGraph.getNode(b));
       return count + (bundle === 'root' || bundle.bundleBehavior !== 'inline');
     }, 0);
 
-    if (numBundlesContributingToPLR > config.maxParallelRequests) {
+    if (numBundlesContributingToPRL > config.maxParallelRequests) {
       let sharedBundleIdsInBundleGroup = bundleIdsInGroup.filter(b => {
         let bundle = nullthrows(bundleGraph.getNode(b));
         // shared bundles must have source bundles, we could have a bundle
@@ -1076,7 +1077,7 @@ function createIdealGraph(
       // Remove bundles until the bundle group is within the parallel request limit.
       while (
         sharedBundlesInGroup.length > 0 &&
-        numBundlesContributingToPLR > config.maxParallelRequests
+        numBundlesContributingToPRL > config.maxParallelRequests
       ) {
         let bundleTuple = sharedBundlesInGroup.pop();
         let bundleToRemove = bundleTuple.bundle;
@@ -1127,7 +1128,7 @@ function createIdealGraph(
             bundleGraph.removeEdge(sourceBundleId, bundleIdToRemove);
           }
         }
-        numBundlesContributingToPLR--;
+        numBundlesContributingToPRL--;
       }
     }
   }
