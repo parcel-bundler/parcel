@@ -161,4 +161,72 @@ describe('OverlayFS', () => {
     assert(fs.existsSync('foo/baz'));
     assert(!fs.existsSync('foo/baz/bat'));
   });
+
+  it('supports changing to a dir that is only on the readable fs', async () => {
+    await fsFixture(underlayFS)`
+      foo/bar: baz
+    `;
+
+    assert.equal(fs.cwd(), path.resolve('/'));
+    fs.chdir('/foo');
+    assert.equal(fs.cwd(), path.resolve('/foo'));
+  });
+
+  it('supports changing to a dir that is only on the writable fs', async () => {
+    await fsFixture(underlayFS)`
+      foo/bar: bar
+    `;
+
+    await fs.mkdirp('/bar');
+    assert(!underlayFS.existsSync('/bar'));
+
+    assert.equal(fs.cwd(), path.resolve('/'));
+    fs.chdir('/bar');
+    assert.equal(fs.cwd(), path.resolve('/bar'));
+  });
+
+  it('supports changing dir relative to cwd', async () => {
+    await fsFixture(underlayFS)`
+      foo/bar: bar
+    `;
+
+    assert.equal(fs.cwd(), path.resolve('/'));
+    fs.chdir('foo');
+    assert.equal(fs.cwd(), path.resolve('/foo'));
+  });
+
+  it('changes dir without changing underlying fs dir', async () => {
+    await fsFixture(underlayFS)`
+      foo/bar: baz
+      foo/bat/baz: qux
+    `;
+
+    assert.equal(fs.cwd(), path.resolve('/'));
+    assert.equal(underlayFS.cwd(), path.resolve('/'));
+
+    fs.chdir('foo');
+
+    assert.equal(fs.cwd(), path.resolve('/foo'));
+    assert.equal(underlayFS.cwd(), path.resolve('/'));
+  });
+
+  it('errors when changing to a dir that does not exist on either fs', async () => {
+    await fsFixture(underlayFS)`
+      foo/bar: bar
+    `;
+
+    assert.throws(() => fs.chdir('/bar'), /ENOENT/);
+  });
+
+  it('errors when changing to a deleted dir', async () => {
+    await fsFixture(underlayFS)`
+      foo/bar: bar
+    `;
+
+    await fs.rimraf('foo');
+    assert(!fs.existsSync('foo'));
+    assert(underlayFS.existsSync('foo'));
+
+    assert.throws(() => fs.chdir('/foo'), /ENOENT/);
+  });
 });

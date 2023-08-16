@@ -270,15 +270,7 @@ export class OverlayFS implements FileSystem {
   }
 
   chdir(path: FilePath): void {
-    try {
-      this.readable.chdir(path);
-    } catch (e) {
-      if (e.code !== 'ENOENT') {
-        throw e;
-      }
-      this.writable.chdir(path);
-    }
-    this._cwd = path;
+    this._cwd = this._checkExists(path);
   }
 
   // eslint-disable-next-line require-await
