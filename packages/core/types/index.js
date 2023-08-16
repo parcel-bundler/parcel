@@ -649,8 +649,8 @@ export type ParcelTransformOptions = {|
   filePath: FilePath,
   code?: string,
   env?: EnvironmentOptions,
-  pipeline?: ?string,
   query?: ?string,
+  shouldDisableCache?: boolean,
 |};
 
 export type ParcelResolveOptions = {|
@@ -658,6 +658,7 @@ export type ParcelResolveOptions = {|
   specifierType: SpecifierType,
   env?: EnvironmentOptions,
   resolveFrom?: FilePath,
+  shouldDisableCache?: boolean,
 |};
 
 export type ParcelResolveResult = {|

@@ -451,7 +451,10 @@ export default class Parcel {
     return this.#farm.takeHeapSnapshot();
   }
 
-  async transform(options: ParcelTransformOptions): Promise<Array<Asset>> {
+  async transform({
+    shouldDisableCache = false,
+    ...options
+  }: ParcelTransformOptions): Promise<Array<Asset>> {
     if (!this.#initialized) {
       await this._init();
     }
@@ -473,13 +476,18 @@ export default class Parcel {
       }),
     });
 
-    let res = await this.#requestTracker.runRequest(request, {force: true});
+    let res = await this.#requestTracker.runRequest(request, {
+      force: shouldDisableCache,
+    });
     return res.map(asset =>
       assetFromValue(asset, nullthrows(this.#resolvedOptions)),
     );
   }
 
-  async resolve(request: ParcelResolveOptions): Promise<?ParcelResolveResult> {
+  async resolve({
+    shouldDisableCache = false,
+    ...request
+  }: ParcelResolveOptions): Promise<?ParcelResolveResult> {
     if (!this.#initialized) {
       await this._init();
     }
@@ -510,7 +518,9 @@ export default class Parcel {
       name: 'test',
     });
 
-    let res = await this.#requestTracker.runRequest(req, {force: true});
+    let res = await this.#requestTracker.runRequest(req, {
+      force: shouldDisableCache,
+    });
     if (!res) {
       return null;
     }
