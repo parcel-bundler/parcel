@@ -515,7 +515,7 @@ export default class Parcel {
 
     let req = createPathRequest({
       dependency,
-      name: 'test',
+      name: request.specifier,
     });
 
     let res = await this.#requestTracker.runRequest(req, {
