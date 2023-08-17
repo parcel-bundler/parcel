@@ -57,16 +57,7 @@ export const helpers = {
   return a && a.__esModule ? a.default : a;
 }
 `,
-  $parcel$global: `var $parcel$global =
-typeof globalThis !== 'undefined'
-  ? globalThis
-  : typeof self !== 'undefined'
-  ? self
-  : typeof window !== 'undefined'
-  ? window
-  : typeof global !== 'undefined'
-  ? global
-  : {};
+  $parcel$global: `var $parcel$global = globalThis;
 `,
   $parcel$defineInteropFlag: `function $parcel$defineInteropFlag(a) {
   Object.defineProperty(a, '__esModule', {value: true, configurable: true});
