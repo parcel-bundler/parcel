@@ -1170,15 +1170,13 @@ ${code}
     }
 
     for (let helper of this.usedHelpers) {
-      let helperText = undefined;
-      if (typeof helper === 'function') {
-        helperText = helpers[helper](this.bundle.env);
-      } else {
-        helperText = helpers[helper];
+      let currentHelper = helpers[helper];
+      if (typeof currentHelper === 'function') {
+        currentHelper = helpers[helper](this.bundle.env);
       }
-      res += helperText;
+      res += currentHelper;
       if (enableSourceMaps) {
-        lines += countLines(helperText) - 1;
+        lines += countLines(currentHelper) - 1;
       }
     }
 
