@@ -1,8 +1,6 @@
 // @flow strict-local
 import type {Environment} from '@parcel/types';
 
-import {returnStatement} from '@babel/types';
-
 export const prelude = (parcelRequireName: string): string => `
 var $parcel$modules = {};
 var $parcel$inits = {};
