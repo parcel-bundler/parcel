@@ -64,7 +64,7 @@ function $parcel$interopDefault(a) {
 `;
 
 const $parcel$global = (env: Environment): string => {
-  if (env.supports('esmodules')) {
+  if (env.supports('global-this')) {
     return `
       var $parcel$global = globalThis;
     `;
