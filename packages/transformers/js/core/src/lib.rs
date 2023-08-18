@@ -7,6 +7,7 @@ mod global_replacer;
 mod hoist;
 mod modules;
 mod node_replacer;
+mod side_effects;
 mod typeof_replacer;
 mod utils;
 
