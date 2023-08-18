@@ -1170,9 +1170,15 @@ ${code}
     }
 
     for (let helper of this.usedHelpers) {
-      res += helpers[helper];
+      let helperText = undefined;
+      if (typeof helper === 'function') {
+        helperText = helpers[helper](this.bundle.env);
+      } else {
+        helperText = helpers[helper];
+      }
+      res += helperText;
       if (enableSourceMaps) {
-        lines += countLines(helpers[helper]) - 1;
+        lines += countLines(helperText) - 1;
       }
     }
 
