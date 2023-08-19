@@ -20,14 +20,20 @@ use crate::utils::{match_member_expr, match_str};
 pub struct SideEffects {
   pub has_side_effects: bool,
   decls: HashSet<Id>,
+  imports: HashSet<JsWord>,
   comments: SingleThreadedComments,
 }
 
 impl SideEffects {
-  pub fn new(decls: HashSet<Id>, comments: SingleThreadedComments) -> Self {
+  pub fn new(
+    decls: HashSet<Id>,
+    imports: HashSet<JsWord>,
+    comments: SingleThreadedComments,
+  ) -> Self {
     SideEffects {
       has_side_effects: false,
       decls,
+      imports,
       comments,
     }
   }
@@ -67,7 +73,7 @@ impl SideEffects {
 
   fn is_safe_variable_assignment(&self, node: &PatOrExpr) -> bool {
     if let Some(ident) = node.as_ident() {
-      return self.decls.contains(&id!(ident));
+      return self.decls.contains(&id!(ident)) && !self.imports.contains(&ident.sym);
     }
 
     if let Some(expr) = node.as_expr() {
@@ -89,7 +95,7 @@ impl SideEffects {
                 member = Some(&member_expr);
               }
               Expr::Ident(ident) => {
-                is_safe = self.decls.contains(&id!(ident));
+                is_safe = self.decls.contains(&id!(ident)) && !self.imports.contains(&ident.sym);
                 member = None;
               }
               _ => {
@@ -322,7 +328,10 @@ fn barrel_file() {
     export { a, b as c } from './something-else';
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -333,7 +342,10 @@ fn function() {
       }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -344,7 +356,10 @@ fn class() {
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -355,7 +370,10 @@ fn export_function() {
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -366,7 +384,10 @@ fn export_default_function() {
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -377,7 +398,7 @@ fn export_default_local() {
   "#;
 
   assert_eq!(
-    check_side_effects(code, vec!["thing"]).has_side_effects,
+    check_side_effects(code, vec!["thing"], vec![]).has_side_effects,
     false
   );
 }
@@ -390,7 +411,10 @@ fn export_class() {
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -401,7 +425,10 @@ fn export_default_class() {
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -413,7 +440,10 @@ fn export_named() {
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -422,7 +452,10 @@ fn export_const_decalation() {
      export const a = '';
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -431,7 +464,10 @@ fn destructure_array_with_spread() {
     const [a, b, ...{ a: b }] = [];
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -440,7 +476,10 @@ fn destructure_object_with_spread() {
     const {a, b} = {a: '', b: ''};
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -451,7 +490,10 @@ fn computed_obj_key_literal() {
     }
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -462,7 +504,10 @@ fn computed_obj_key_call() {
     }
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, true);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    true
+  );
 }
 
 #[test]
@@ -471,7 +516,10 @@ fn top_level_require_declarator() {
   var one = require('./one');
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -480,7 +528,10 @@ fn top_level_require() {
   require('./one');
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -493,7 +544,10 @@ fn commonjs() {
   module.exports = myOne;
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -504,7 +558,10 @@ fn react_element() {
   const TheButton = <Button />;
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -515,7 +572,10 @@ fn pure_function_call() {
   const myOne = /*#__PURE__*/pureFn();
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, false);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    false
+  );
 }
 
 #[test]
@@ -526,7 +586,10 @@ fn unknown_function_call() {
   const myOne = unknownFn();
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, true);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    true
+  );
 }
 
 #[test]
@@ -540,7 +603,7 @@ fn assignment_to_local() {
   "#;
 
   assert_eq!(
-    check_side_effects(code, vec!["thing"]).has_side_effects,
+    check_side_effects(code, vec!["thing"], vec![]).has_side_effects,
     false
   );
 }
@@ -556,7 +619,7 @@ fn assignment_to_local_member() {
   "#;
 
   assert_eq!(
-    check_side_effects(code, vec!["Thing"]).has_side_effects,
+    check_side_effects(code, vec!["Thing"], vec![]).has_side_effects,
     false
   );
 }
@@ -567,7 +630,10 @@ fn window_set() {
     window._someGlobal = a;
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, true);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    true
+  );
 }
 
 #[test]
@@ -576,7 +642,10 @@ fn set_unknown_var() {
     myGlobal = 'test';
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, true);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    true
+  );
 }
 
 #[test]
@@ -585,11 +654,42 @@ fn top_level_call_expression() {
     doGlobalStuff();
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]).has_side_effects, true);
+  assert_eq!(
+    check_side_effects(code, vec![], vec![]).has_side_effects,
+    true
+  );
+}
+
+#[test]
+fn assign_to_import() {
+  let code = r#"
+  import value from './value';
+
+  value = 'something new';
+  "#;
+
+  assert_eq!(
+    check_side_effects(code, vec!["value"], vec!["value"]).has_side_effects,
+    true
+  );
+}
+
+#[test]
+fn assign_to_import_member() {
+  let code = r#"
+  import value from './value';
+
+  value.nested = 'something new';
+  "#;
+
+  assert_eq!(
+    check_side_effects(code, vec!["value"], vec!["value"]).has_side_effects,
+    true
+  );
 }
 
 #[cfg(test)]
-fn check_side_effects(code: &str, locals: Vec<&str>) -> SideEffects {
+fn check_side_effects(code: &str, locals: Vec<&str>, imports: Vec<&str>) -> SideEffects {
   let source_file = Lrc::new(SourceMap::default())
     .new_source_file(FileName::Real(PathBuf::from("test.js")), code.into());
 
@@ -626,7 +726,13 @@ fn check_side_effects(code: &str, locals: Vec<&str>) -> SideEffects {
     decls.insert((local.into(), module.span.ctxt()));
   }
 
-  let mut side_effects = SideEffects::new(decls, comments);
+  let mut imports_set = HashSet::new();
+
+  for import in imports {
+    imports_set.insert(JsWord::from(import));
+  }
+
+  let mut side_effects = SideEffects::new(decls, imports_set, comments);
 
   module.visit_with(&mut side_effects);
 
