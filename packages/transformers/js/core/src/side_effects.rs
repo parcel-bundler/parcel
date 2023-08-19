@@ -688,6 +688,34 @@ fn assign_to_import_member() {
   );
 }
 
+#[test]
+fn generic_react_file() {
+  let code = r#"
+  import Component from './component';
+
+  const config = {
+    stuff: true
+  };
+
+  const util = (value) => config[value];
+
+  const MyComponent = ({ prop }) => <Component prop={util(prop)} />
+  MyComponent.displayName = 'MyComponent';
+
+  export default MyComponent;
+  "#;
+
+  assert_eq!(
+    check_side_effects(
+      code,
+      vec!["config", "util", "MyComponent"],
+      vec!["Component"]
+    )
+    .has_side_effects,
+    false
+  );
+}
+
 #[cfg(test)]
 fn check_side_effects(code: &str, locals: Vec<&str>, imports: Vec<&str>) -> SideEffects {
   let source_file = Lrc::new(SourceMap::default())
