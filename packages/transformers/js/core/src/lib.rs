@@ -18,6 +18,7 @@ use std::str::FromStr;
 use indexmap::IndexMap;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
+use side_effects::SideEffects;
 use swc_core;
 use swc_core::common::comments::SingleThreadedComments;
 use swc_core::common::errors::{DiagnosticBuilder, Emitter, Handler};
@@ -85,6 +86,7 @@ pub struct Config {
   is_esm_output: bool,
   trace_bailouts: bool,
   is_swc_helpers: bool,
+  has_unknown_side_effects: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -100,6 +102,7 @@ pub struct TransformResult {
   needs_esm_helpers: bool,
   used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   has_node_replacements: bool,
+  has_side_effects: Option<bool>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -435,7 +438,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
               let mut collect = Collect::new(
                 source_map.clone(),
-                decls,
+                // TODO this clone is unnecessary if we get the lifetimes right
+                decls.clone(),
                 ignore_mark,
                 global_mark,
                 config.trace_bailouts,
@@ -449,8 +453,16 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 let res = hoist(module, config.module_id.as_str(), unresolved_mark, &collect);
                 match res {
                   Ok((module, hoist_result, hoist_diagnostics)) => {
+                    if config.has_unknown_side_effects {
+                      let mut side_effects =
+                        SideEffects::new(decls, &hoist_result.imported_symbols, &comments);
+                      module.visit_with(&mut side_effects);
+                      result.has_side_effects = Some(side_effects.has_side_effects);
+                    }
+
                     result.hoist_result = Some(hoist_result);
                     diagnostics.extend(hoist_diagnostics);
+
                     module
                   }
                   Err(diagnostics) => {

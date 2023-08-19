@@ -14,22 +14,29 @@ use swc_core::ecma::parser::lexer::Lexer;
 use swc_core::ecma::parser::{EsConfig, Parser, StringInput, Syntax};
 use swc_core::ecma::visit::{Visit, VisitWith};
 
+use crate::hoist::ImportedSymbol;
 use crate::id;
 use crate::utils::{match_member_expr, match_str};
 
-pub struct SideEffects {
+pub struct SideEffects<'a> {
   pub has_side_effects: bool,
   decls: HashSet<Id>,
   imports: HashSet<JsWord>,
-  comments: SingleThreadedComments,
+  comments: &'a SingleThreadedComments,
 }
 
-impl SideEffects {
+impl<'a> SideEffects<'a> {
   pub fn new(
     decls: HashSet<Id>,
-    imports: HashSet<JsWord>,
-    comments: SingleThreadedComments,
+    imported_symbols: &Vec<ImportedSymbol>,
+    comments: &'a SingleThreadedComments,
   ) -> Self {
+    let imports = HashSet::from_iter(
+      imported_symbols
+        .into_iter()
+        .map(|symbol| symbol.local.clone()),
+    );
+
     SideEffects {
       has_side_effects: false,
       decls,
@@ -114,7 +121,7 @@ impl SideEffects {
   }
 }
 
-impl Visit for SideEffects {
+impl<'a> Visit for SideEffects<'a> {
   fn visit_module(&mut self, node: &Module) {
     node.visit_children_with(self);
   }
@@ -328,10 +335,7 @@ fn barrel_file() {
     export { a, b as c } from './something-else';
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -342,10 +346,7 @@ fn function() {
       }
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -356,10 +357,7 @@ fn class() {
      }
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -370,10 +368,7 @@ fn export_function() {
      }
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -384,10 +379,7 @@ fn export_default_function() {
      }
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -397,10 +389,7 @@ fn export_default_local() {
     export default thing;
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec!["thing"], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -411,10 +400,7 @@ fn export_class() {
      }
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -425,10 +411,7 @@ fn export_default_class() {
      }
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -440,10 +423,7 @@ fn export_named() {
      }
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -452,10 +432,7 @@ fn export_const_decalation() {
      export const a = '';
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -464,10 +441,7 @@ fn destructure_array_with_spread() {
     const [a, b, ...{ a: b }] = [];
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -476,10 +450,7 @@ fn destructure_object_with_spread() {
     const {a, b} = {a: '', b: ''};
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -490,10 +461,7 @@ fn computed_obj_key_literal() {
     }
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -504,10 +472,7 @@ fn computed_obj_key_call() {
     }
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    true
-  );
+  assert_eq!(check_side_effects(code, vec![]), true);
 }
 
 #[test]
@@ -516,10 +481,7 @@ fn top_level_require_declarator() {
   var one = require('./one');
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -528,10 +490,7 @@ fn top_level_require() {
   require('./one');
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -544,10 +503,7 @@ fn commonjs() {
   module.exports = myOne;
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -558,10 +514,7 @@ fn react_element() {
   const TheButton = <Button />;
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -572,10 +525,7 @@ fn pure_function_call() {
   const myOne = /*#__PURE__*/pureFn();
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -586,10 +536,7 @@ fn unknown_function_call() {
   const myOne = unknownFn();
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    true
-  );
+  assert_eq!(check_side_effects(code, vec![]), true);
 }
 
 #[test]
@@ -602,10 +549,7 @@ fn assignment_to_local() {
   export default thing;
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec!["thing"], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -618,10 +562,7 @@ fn assignment_to_local_member() {
   export default Thing;
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec!["Thing"], vec![]).has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec![]), false);
 }
 
 #[test]
@@ -630,10 +571,7 @@ fn window_set() {
     window._someGlobal = a;
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    true
-  );
+  assert_eq!(check_side_effects(code, vec![]), true);
 }
 
 #[test]
@@ -642,10 +580,7 @@ fn set_unknown_var() {
     myGlobal = 'test';
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    true
-  );
+  assert_eq!(check_side_effects(code, vec![]), true);
 }
 
 #[test]
@@ -654,10 +589,7 @@ fn top_level_call_expression() {
     doGlobalStuff();
     "#;
 
-  assert_eq!(
-    check_side_effects(code, vec![], vec![]).has_side_effects,
-    true
-  );
+  assert_eq!(check_side_effects(code, vec![]), true);
 }
 
 #[test]
@@ -668,10 +600,7 @@ fn assign_to_import() {
   value = 'something new';
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec!["value"], vec!["value"]).has_side_effects,
-    true
-  );
+  assert_eq!(check_side_effects(code, vec!["value"]), true);
 }
 
 #[test]
@@ -682,10 +611,7 @@ fn assign_to_import_member() {
   value.nested = 'something new';
   "#;
 
-  assert_eq!(
-    check_side_effects(code, vec!["value"], vec!["value"]).has_side_effects,
-    true
-  );
+  assert_eq!(check_side_effects(code, vec!["value"]), true);
 }
 
 #[test]
@@ -705,19 +631,13 @@ fn generic_react_file() {
   export default MyComponent;
   "#;
 
-  assert_eq!(
-    check_side_effects(
-      code,
-      vec!["config", "util", "MyComponent"],
-      vec!["Component"]
-    )
-    .has_side_effects,
-    false
-  );
+  assert_eq!(check_side_effects(code, vec!["Component"]), false);
 }
 
 #[cfg(test)]
-fn check_side_effects(code: &str, locals: Vec<&str>, imports: Vec<&str>) -> SideEffects {
+fn check_side_effects(code: &str, imports: Vec<&str>) -> bool {
+  use crate::decl_collector::collect_decls;
+
   let source_file = Lrc::new(SourceMap::default())
     .new_source_file(FileName::Real(PathBuf::from("test.js")), code.into());
 
@@ -748,21 +668,20 @@ fn check_side_effects(code: &str, locals: Vec<&str>, imports: Vec<&str>) -> Side
     },
   };
 
-  let mut decls = HashSet::new();
-
-  for local in locals {
-    decls.insert((local.into(), module.span.ctxt()));
-  }
-
   let mut imports_set = HashSet::new();
 
   for import in imports {
     imports_set.insert(JsWord::from(import));
   }
 
-  let mut side_effects = SideEffects::new(decls, imports_set, comments);
+  let mut side_effects = SideEffects {
+    has_side_effects: false,
+    decls: collect_decls(&module),
+    imports: imports_set,
+    comments: &comments,
+  };
 
   module.visit_with(&mut side_effects);
 
-  side_effects
+  side_effects.has_side_effects
 }
