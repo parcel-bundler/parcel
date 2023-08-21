@@ -127,6 +127,7 @@ export function createAsset(
         ]),
       ),
     sideEffects: options.sideEffects ?? true,
+    hasResolvedSideEffects: typeof options.sideEffects === 'boolean',
     uniqueKey: options.uniqueKey,
     plugin: options.plugin,
     configPath: options.configPath,

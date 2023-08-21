@@ -143,6 +143,10 @@ class BaseAsset {
     return this.#asset.value.sideEffects;
   }
 
+  get hasResolvedSideEffects(): boolean {
+    return this.#asset.value.hasResolvedSideEffects;
+  }
+
   get symbols(): IAssetSymbols {
     return new AssetSymbols(this.#asset.options, this.#asset.value);
   }

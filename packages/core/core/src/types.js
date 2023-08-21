@@ -190,6 +190,7 @@ export type Asset = {|
     {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
   >,
   sideEffects: boolean,
+  hasResolvedSideEffects: boolean,
   uniqueKey: ?string,
   configPath?: ProjectPath,
   plugin: ?PackageName,
