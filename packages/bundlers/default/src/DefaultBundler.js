@@ -962,8 +962,10 @@ function createIdealGraph(
       entryBundle.size += asset.stats.size;
     }
 
-    // Create shared bundles for splittable bundles.
-    if (reachable.length > config.minBundles) {
+    if (
+      config.disableSharedBundles === false &&
+      reachable.length > config.minBundles
+    ) {
       let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
       let key = reachable.map(a => a.id).join(',');
       let bundleId = bundles.get(key);
@@ -1014,7 +1016,10 @@ function createIdealGraph(
         value: bundle,
         type: 'bundle',
       });
-    } else if (reachable.length <= config.minBundles) {
+    } else if (
+      config.disableSharedBundles === true ||
+      reachable.length <= config.minBundles
+    ) {
       for (let root of reachable) {
         let bundle = nullthrows(
           bundleGraph.getNode(nullthrows(bundleRoots.get(root))[0]),
@@ -1056,12 +1061,7 @@ function createIdealGraph(
       return count + (bundle.bundleBehavior !== 'inline');
     }, 0);
 
-    let maxParallelRequests = config.maxParallelRequests;
-    if (config.disableSharedBundles === true) {
-      maxParallelRequests = 0;
-    }
-
-    if (numBundlesContributingToPRL > maxParallelRequests) {
+    if (numBundlesContributingToPRL > config.maxParallelRequests) {
       let sharedBundleIdsInBundleGroup = bundleIdsInGroup.filter(b => {
         let bundle = nullthrows(bundleGraph.getNode(b));
         // shared bundles must have source bundles, we could have a bundle
@@ -1087,7 +1087,7 @@ function createIdealGraph(
       // Remove bundles until the bundle group is within the parallel request limit.
       while (
         sharedBundlesInGroup.length > 0 &&
-        numBundlesContributingToPRL > maxParallelRequests
+        numBundlesContributingToPRL > config.maxParallelRequests
       ) {
         let bundleTuple = sharedBundlesInGroup.pop();
         let bundleToRemove = bundleTuple.bundle;
