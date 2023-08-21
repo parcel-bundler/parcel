@@ -28,12 +28,14 @@ type BundlerConfig = {|
   minBundles?: number,
   minBundleSize?: number,
   maxParallelRequests?: number,
+  disableSharedBundles?: boolean,
 |};
 
 type ResolvedBundlerConfig = {|
   minBundles: number,
   minBundleSize: number,
   maxParallelRequests: number,
+  disableSharedBundles: boolean,
 |};
 
 // Default options by http version.
@@ -42,11 +44,13 @@ const HTTP_OPTIONS = {
     minBundles: 1,
     minBundleSize: 30000,
     maxParallelRequests: 6,
+    disableSharedBundles: false,
   },
   '2': {
     minBundles: 1,
     minBundleSize: 20000,
     maxParallelRequests: 25,
+    disableSharedBundles: false,
   },
 };
 
@@ -1052,7 +1056,12 @@ function createIdealGraph(
       return count + (bundle.bundleBehavior !== 'inline');
     }, 0);
 
-    if (numBundlesContributingToPRL > config.maxParallelRequests) {
+    let maxParallelRequests = config.maxParallelRequests;
+    if (config.disableSharedBundles === true) {
+      maxParallelRequests = 0;
+    }
+
+    if (numBundlesContributingToPRL > maxParallelRequests) {
       let sharedBundleIdsInBundleGroup = bundleIdsInGroup.filter(b => {
         let bundle = nullthrows(bundleGraph.getNode(b));
         // shared bundles must have source bundles, we could have a bundle
@@ -1078,7 +1087,7 @@ function createIdealGraph(
       // Remove bundles until the bundle group is within the parallel request limit.
       while (
         sharedBundlesInGroup.length > 0 &&
-        numBundlesContributingToPRL > config.maxParallelRequests
+        numBundlesContributingToPRL > maxParallelRequests
       ) {
         let bundleTuple = sharedBundlesInGroup.pop();
         let bundleToRemove = bundleTuple.bundle;
@@ -1277,6 +1286,9 @@ const CONFIG_SCHEMA: SchemaEntity = {
     maxParallelRequests: {
       type: 'number',
     },
+    disableSharedBundles: {
+      type: 'boolean',
+    },
   },
   additionalProperties: false,
 };
@@ -1377,6 +1389,8 @@ async function loadBundlerConfig(
     minBundleSize: conf.contents.minBundleSize ?? defaults.minBundleSize,
     maxParallelRequests:
       conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
+    disableSharedBundles:
+      conf.contents.disableSharedBundles ?? defaults.disableSharedBundles,
   };
 }
 
