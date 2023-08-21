@@ -1169,6 +1169,8 @@ ${code}
       this.usedHelpers.add('$parcel$global');
     }
 
+    console.log('um', this.bundle.env.supports('global-this'));
+
     for (let helper of this.usedHelpers) {
       let currentHelper = helpers[helper];
       if (typeof currentHelper === 'function') {

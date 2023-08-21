@@ -111,7 +111,7 @@ export function getParcelOptions(
   entries: FilePath | Array<FilePath>,
   opts?: $Shape<InitialParcelOptions>,
 ): InitialParcelOptions {
-  return mergeParcelOptions(
+  const o = mergeParcelOptions(
     {
       entries,
       shouldDisableCache: true,
@@ -133,6 +133,8 @@ export function getParcelOptions(
     },
     opts,
   );
+  console.log(o);
+  return o;
 }
 
 export function bundler(
