@@ -339,190 +339,194 @@ impl<'a> Visit for SideEffects<'a> {
   }
 }
 
-#[test]
-fn empty_filke() {
-  let code = r#""#;
+#[cfg(test)]
+mod tests {
+  use super::*;
 
-  assert_eq!(check_side_effects(code, vec![]), true);
-}
+  #[test]
+  fn empty_file() {
+    let code = r#""#;
 
-#[test]
-fn barrel_file() {
-  let code = r#"
+    assert_eq!(check_side_effects(code, vec![]), true);
+  }
+
+  #[test]
+  fn barrel_file() {
+    let code = r#"
     export * from './something';
     export { a, b as c } from './something-else';
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn function() {
-  let code = r#"
+  #[test]
+  fn function() {
+    let code = r#"
       function a() {
         console.log();
       }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn class() {
-  let code = r#"
+  #[test]
+  fn class() {
+    let code = r#"
      class A {
         constructor() {}
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn export_function() {
-  let code = r#"
+  #[test]
+  fn export_function() {
+    let code = r#"
      export function a() {
         console.log();
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn export_default_function() {
-  let code = r#"
+  #[test]
+  fn export_default_function() {
+    let code = r#"
      export default function a() {
         console.log();
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn export_default_local() {
-  let code = r#"
+  #[test]
+  fn export_default_local() {
+    let code = r#"
     const thing = '';
     export default thing;
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn export_class() {
-  let code = r#"
+  #[test]
+  fn export_class() {
+    let code = r#"
      export class A {
         constructor() {}
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn export_default_class() {
-  let code = r#"
+  #[test]
+  fn export_default_class() {
+    let code = r#"
      export default class A {
         constructor() {}
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn export_named() {
-  let code = r#"
+  #[test]
+  fn export_named() {
+    let code = r#"
      export {
         a,
         b as c
      }
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn export_const_decalation() {
-  let code = r#"
+  #[test]
+  fn export_const_decalation() {
+    let code = r#"
      export const a = '';
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn side_effect_import() {
-  let code = r#"
+  #[test]
+  fn side_effect_import() {
+    let code = r#"
      import './some-file';
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), true);
-}
+    assert_eq!(check_side_effects(code, vec![]), true);
+  }
 
-#[test]
-fn destructure_array_with_spread() {
-  let code = r#"
+  #[test]
+  fn destructure_array_with_spread() {
+    let code = r#"
     const [a, b, ...{ a: b }] = [];
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn destructure_object_with_spread() {
-  let code = r#"
+  #[test]
+  fn destructure_object_with_spread() {
+    let code = r#"
     const {a, b} = {a: '', b: ''};
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn computed_obj_key_literal() {
-  let code = r#"
+  #[test]
+  fn computed_obj_key_literal() {
+    let code = r#"
     const obj = {
       ['safe']: 'phew'
     }
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn computed_obj_key_call() {
-  let code = r#"
+  #[test]
+  fn computed_obj_key_call() {
+    let code = r#"
     const obj = {
       [fn()]: 'ohh oh'
     }
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), true);
-}
+    assert_eq!(check_side_effects(code, vec![]), true);
+  }
 
-#[test]
-fn top_level_require_declarator() {
-  let code = r#"
+  #[test]
+  fn top_level_require_declarator() {
+    let code = r#"
   var one = require('./one');
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn top_level_require() {
-  let code = r#"
+  #[test]
+  fn top_level_require() {
+    let code = r#"
   require('./one');
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn commonjs() {
-  let code = r#"
+  #[test]
+  fn commonjs() {
+    let code = r#"
   const one = require('./one');
 
   const myOne = () => one();
@@ -530,45 +534,45 @@ fn commonjs() {
   module.exports = myOne;
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn react_element() {
-  let code = r#"
+  #[test]
+  fn react_element() {
+    let code = r#"
   import { Button } from './Button';
 
   const TheButton = <Button />;
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn pure_function_call() {
-  let code = r#"
+  #[test]
+  fn pure_function_call() {
+    let code = r#"
   import { pureFn } from './pure';
 
   const myOne = /*#__PURE__*/pureFn();
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn unknown_function_call() {
-  let code = r#"
+  #[test]
+  fn unknown_function_call() {
+    let code = r#"
   import { unknownFn } from './pure';
 
   const myOne = unknownFn();
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), true);
-}
+    assert_eq!(check_side_effects(code, vec![]), true);
+  }
 
-#[test]
-fn assignment_to_local() {
-  let code = r#"
+  #[test]
+  fn assignment_to_local() {
+    let code = r#"
   let thing = '';
 
   thing = 'ThingName';
@@ -576,12 +580,12 @@ fn assignment_to_local() {
   export default thing;
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn assignment_to_local_member() {
-  let code = r#"
+  #[test]
+  fn assignment_to_local_member() {
+    let code = r#"
   const Thing = {};
 
   Thing.name = 'ThingName';
@@ -589,61 +593,61 @@ fn assignment_to_local_member() {
   export default Thing;
   "#;
 
-  assert_eq!(check_side_effects(code, vec![]), false);
-}
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
 
-#[test]
-fn window_set() {
-  let code = r#"
+  #[test]
+  fn window_set() {
+    let code = r#"
     window._someGlobal = a;
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), true);
-}
+    assert_eq!(check_side_effects(code, vec![]), true);
+  }
 
-#[test]
-fn set_unknown_var() {
-  let code = r#"
+  #[test]
+  fn set_unknown_var() {
+    let code = r#"
     myGlobal = 'test';
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), true);
-}
+    assert_eq!(check_side_effects(code, vec![]), true);
+  }
 
-#[test]
-fn top_level_call_expression() {
-  let code = r#"
+  #[test]
+  fn top_level_call_expression() {
+    let code = r#"
     doGlobalStuff();
     "#;
 
-  assert_eq!(check_side_effects(code, vec![]), true);
-}
+    assert_eq!(check_side_effects(code, vec![]), true);
+  }
 
-#[test]
-fn assign_to_import() {
-  let code = r#"
+  #[test]
+  fn assign_to_import() {
+    let code = r#"
   import value from './value';
 
   value = 'something new';
   "#;
 
-  assert_eq!(check_side_effects(code, vec!["value"]), true);
-}
+    assert_eq!(check_side_effects(code, vec!["value"]), true);
+  }
 
-#[test]
-fn assign_to_import_member() {
-  let code = r#"
+  #[test]
+  fn assign_to_import_member() {
+    let code = r#"
   import value from './value';
 
   value.nested = 'something new';
   "#;
 
-  assert_eq!(check_side_effects(code, vec!["value"]), true);
-}
+    assert_eq!(check_side_effects(code, vec!["value"]), true);
+  }
 
-#[test]
-fn generic_react_file() {
-  let code = r#"
+  #[test]
+  fn generic_react_file() {
+    let code = r#"
   import Component from './component';
 
   const config = {
@@ -658,57 +662,57 @@ fn generic_react_file() {
   export default MyComponent;
   "#;
 
-  assert_eq!(check_side_effects(code, vec!["Component"]), false);
-}
-
-#[cfg(test)]
-fn check_side_effects(code: &str, imports: Vec<&str>) -> bool {
-  use crate::decl_collector::collect_decls;
-
-  let source_file = Lrc::new(SourceMap::default())
-    .new_source_file(FileName::Real(PathBuf::from("test.js")), code.into());
-
-  let comments = SingleThreadedComments::default();
-  let lexer = Lexer::new(
-    Syntax::Es(EsConfig {
-      jsx: true,
-      export_default_from: true,
-      decorators: false,
-      ..Default::default()
-    }),
-    Default::default(),
-    StringInput::from(&*source_file),
-    Some(&comments),
-  );
-
-  let mut parser = Parser::new_from(lexer);
-  let module = parser.parse_program().unwrap();
-
-  // If it's a script, convert into module. This needs to happen after
-  // the resolver (which behaves differently for non-/strict mode).
-  let module = match module {
-    Program::Module(module) => module,
-    Program::Script(script) => Module {
-      span: script.span,
-      shebang: None,
-      body: script.body.into_iter().map(ModuleItem::Stmt).collect(),
-    },
-  };
-
-  let mut imports_set = HashSet::new();
-
-  for import in imports {
-    imports_set.insert(JsWord::from(import));
+    assert_eq!(check_side_effects(code, vec!["Component"]), false);
   }
 
-  let mut side_effects = SideEffects {
-    has_side_effects: false,
-    decls: collect_decls(&module),
-    imports: imports_set,
-    comments: &comments,
-  };
+  fn check_side_effects(code: &str, imports: Vec<&str>) -> bool {
+    use crate::decl_collector::collect_decls;
 
-  module.visit_with(&mut side_effects);
+    let source_file = Lrc::new(SourceMap::default())
+      .new_source_file(FileName::Real(PathBuf::from("test.js")), code.into());
 
-  side_effects.has_side_effects
+    let comments = SingleThreadedComments::default();
+    let lexer = Lexer::new(
+      Syntax::Es(EsConfig {
+        jsx: true,
+        export_default_from: true,
+        decorators: false,
+        ..Default::default()
+      }),
+      Default::default(),
+      StringInput::from(&*source_file),
+      Some(&comments),
+    );
+
+    let mut parser = Parser::new_from(lexer);
+    let module = parser.parse_program().unwrap();
+
+    // If it's a script, convert into module. This needs to happen after
+    // the resolver (which behaves differently for non-/strict mode).
+    let module = match module {
+      Program::Module(module) => module,
+      Program::Script(script) => Module {
+        span: script.span,
+        shebang: None,
+        body: script.body.into_iter().map(ModuleItem::Stmt).collect(),
+      },
+    };
+
+    let mut imports_set = HashSet::new();
+
+    for import in imports {
+      imports_set.insert(JsWord::from(import));
+    }
+
+    let mut side_effects = SideEffects {
+      has_side_effects: false,
+      decls: collect_decls(&module),
+      imports: imports_set,
+      comments: &comments,
+    };
+
+    module.visit_with(&mut side_effects);
+
+    side_effects.has_side_effects
+  }
 }
