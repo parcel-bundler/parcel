@@ -1,7 +1,8 @@
 // @flow strict-local
-export const prelude = (
-  parcelRequireName: string,
-): string => `var $parcel$modules = {};
+import type {Environment} from '@parcel/types';
+
+export const prelude = (parcelRequireName: string): string => `
+var $parcel$modules = {};
 var $parcel$inits = {};
 
 var parcelRequire = $parcel$global[${JSON.stringify(parcelRequireName)}];
@@ -31,12 +32,14 @@ if (parcelRequire == null) {
 }
 `;
 
-export const helpers = {
-  $parcel$export: `function $parcel$export(e, n, v, s) {
+const $parcel$export = `
+function $parcel$export(e, n, v, s) {
   Object.defineProperty(e, n, {get: v, set: s, enumerable: true, configurable: true});
 }
-`,
-  $parcel$exportWildcard: `function $parcel$exportWildcard(dest, source) {
+`;
+
+const $parcel$exportWildcard = `
+function $parcel$exportWildcard(dest, source) {
   Object.keys(source).forEach(function(key) {
     if (key === 'default' || key === '__esModule' || dest.hasOwnProperty(key)) {
       return;
@@ -52,24 +55,44 @@ export const helpers = {
 
   return dest;
 }
-`,
-  $parcel$interopDefault: `function $parcel$interopDefault(a) {
+`;
+
+const $parcel$interopDefault = `
+function $parcel$interopDefault(a) {
   return a && a.__esModule ? a.default : a;
 }
-`,
-  $parcel$global: `var $parcel$global =
-typeof globalThis !== 'undefined'
-  ? globalThis
-  : typeof self !== 'undefined'
-  ? self
-  : typeof window !== 'undefined'
-  ? window
-  : typeof global !== 'undefined'
-  ? global
-  : {};
-`,
-  $parcel$defineInteropFlag: `function $parcel$defineInteropFlag(a) {
+`;
+
+const $parcel$global = (env: Environment): string => {
+  if (env.supports('global-this')) {
+    return `
+      var $parcel$global = globalThis;
+    `;
+  }
+  return `
+      var $parcel$global =
+        typeof globalThis !== 'undefined'
+          ? globalThis
+          : typeof self !== 'undefined'
+          ? self
+          : typeof window !== 'undefined'
+          ? window
+          : typeof global !== 'undefined'
+          ? global
+          : {};
+  `;
+};
+
+const $parcel$defineInteropFlag = `
+function $parcel$defineInteropFlag(a) {
   Object.defineProperty(a, '__esModule', {value: true, configurable: true});
 }
-`,
+`;
+
+export const helpers = {
+  $parcel$export,
+  $parcel$exportWildcard,
+  $parcel$interopDefault,
+  $parcel$global,
+  $parcel$defineInteropFlag,
 };

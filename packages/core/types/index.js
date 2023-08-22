@@ -196,7 +196,8 @@ export type EnvironmentFeature =
   | 'worker-module'
   | 'service-worker-module'
   | 'import-meta-url'
-  | 'arrow-functions';
+  | 'arrow-functions'
+  | 'global-this';
 
 /**
  * Defines the environment in for the output bundle
