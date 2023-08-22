@@ -116,6 +116,10 @@ export class FSCache implements Cache {
       logger.error(err, '@parcel/cache');
     }
   }
+
+  refresh(): void {
+    // NOOP
+  }
 }
 
 registerSerializableClass(`${packageJson.version}:FSCache`, FSCache);

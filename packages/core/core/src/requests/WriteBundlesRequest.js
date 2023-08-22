@@ -101,6 +101,18 @@ async function run({input, api, farm, options}) {
 
         let info = await api.runRequest(request);
 
+        if (!useMainThread) {
+          // Force a refresh of the cache to avoid a race condition
+          // between threaded reads and writes that can result in an LMDB cache miss:
+          //   1. The main thread has read some value from cache, necessitating a read transaction.
+          //   2. Concurrently, Thread A finishes a packaging request.
+          //   3. Subsequently, the main thread is tasked with this request, but fails because the read transaction is stale.
+          // This only occurs if the reading thread has a transaction that was created before the writing thread committed,
+          // and the transaction is still live when the reading thread attempts to get the written value.
+          // See https://github.com/parcel-bundler/parcel/issues/9121
+          options.cache.refresh();
+        }
+
         bundleInfoMap[bundle.id] = info;
         if (!info.hashReferences.length) {
           hashRefToNameHash.set(

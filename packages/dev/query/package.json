@@ -8,6 +8,7 @@
     "@parcel/core": "2.9.3",
     "@parcel/graph": "2.9.3",
     "nullthrows": "^1.1.1",
+    "table": "^6.8.1",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {

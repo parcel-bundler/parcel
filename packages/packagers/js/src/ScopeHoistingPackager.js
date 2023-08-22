@@ -94,6 +94,7 @@ export class ScopeHoistingPackager {
   hoistedRequires: Map<string, Map<string, string>> = new Map();
   needsPrelude: boolean = false;
   usedHelpers: Set<string> = new Set();
+  externalAssets: Set<Asset> = new Set();
 
   constructor(
     options: PluginOptions,
@@ -130,9 +131,25 @@ export class ScopeHoistingPackager {
       this.bundle.env.isLibrary ||
       this.bundle.env.outputFormat === 'commonjs'
     ) {
-      let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
-      for (let b of bundles) {
-        this.externals.set(relativeBundlePath(this.bundle, b), new Map());
+      for (let b of this.bundleGraph.getReferencedBundles(this.bundle)) {
+        let entry = b.getMainEntry();
+        let symbols = new Map();
+        if (entry && !this.isAsyncBundle && entry.type === 'js') {
+          this.externalAssets.add(entry);
+
+          let usedSymbols = this.bundleGraph.getUsedSymbols(entry) || new Set();
+          for (let s of usedSymbols) {
+            // If the referenced bundle is ESM, and we are importing '*', use 'default' instead.
+            // This matches the logic below in buildExportedSymbols.
+            let imported = s;
+            if (imported === '*' && b.env.outputFormat === 'esmodule') {
+              imported = 'default';
+            }
+            symbols.set(imported, this.getSymbolResolution(entry, entry, s));
+          }
+        }
+
+        this.externals.set(relativeBundlePath(this.bundle, b), symbols);
       }
     }
 
@@ -756,6 +773,13 @@ ${code}
     }
   }
 
+  isWrapped(resolved: Asset, parentAsset: Asset): boolean {
+    return (
+      (!this.bundle.hasAsset(resolved) && !this.externalAssets.has(resolved)) ||
+      (this.wrappedAssets.has(resolved.id) && resolved !== parentAsset)
+    );
+  }
+
   getSymbolResolution(
     parentAsset: Asset,
     resolved: Asset,
@@ -777,12 +801,17 @@ ${code}
       return '{}';
     }
 
-    let isWrapped =
-      !this.bundle.hasAsset(resolvedAsset) ||
-      (this.wrappedAssets.has(resolvedAsset.id) &&
-        resolvedAsset !== parentAsset);
+    let isWrapped = this.isWrapped(resolvedAsset, parentAsset);
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
+
+    // External CommonJS dependencies need to be accessed as an object property rather than imported
+    // directly to maintain live binding.
+    let isExternalCommonJS =
+      !isWrapped &&
+      this.bundle.env.isLibrary &&
+      this.bundle.env.outputFormat === 'commonjs' &&
+      !this.bundle.hasAsset(resolvedAsset);
 
     // If the resolved asset is wrapped, but imported at the top-level by this asset,
     // then we hoist parcelRequire calls to the top of this asset so side effects run immediately.
@@ -849,7 +878,7 @@ ${code}
         return obj;
       }
     } else if (
-      (!staticExports || isWrapped || !symbol) &&
+      (!staticExports || isWrapped || !symbol || isExternalCommonJS) &&
       resolvedAsset !== parentAsset
     ) {
       // If the resolved asset is wrapped or has non-static exports,
@@ -887,9 +916,7 @@ ${code}
     let hoisted = this.hoistedRequires.get(dep.id);
     let res = '';
     let lineCount = 0;
-    let isWrapped =
-      !this.bundle.hasAsset(resolved) ||
-      (this.wrappedAssets.has(resolved.id) && resolved !== parentAsset);
+    let isWrapped = this.isWrapped(resolved, parentAsset);
 
     // If the resolved asset is wrapped and is imported in the top-level by this asset,
     // we need to run side effects when this asset runs. If the resolved asset is not
@@ -1143,9 +1170,13 @@ ${code}
     }
 
     for (let helper of this.usedHelpers) {
-      res += helpers[helper];
+      let currentHelper = helpers[helper];
+      if (typeof currentHelper === 'function') {
+        currentHelper = helpers[helper](this.bundle.env);
+      }
+      res += currentHelper;
       if (enableSourceMaps) {
-        lines += countLines(helpers[helper]) - 1;
+        lines += countLines(currentHelper) - 1;
       }
     }
 
