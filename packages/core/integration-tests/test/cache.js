@@ -3098,7 +3098,8 @@ describe('cache', function () {
         async setup() {
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
-            `import "foo";`,
+            `import foo from "foo";
+            console.log(foo);`,
           );
           await overlayFS.writeFile(
             path.join(inputDir, 'src/foo.js'),
@@ -3126,6 +3127,7 @@ describe('cache', function () {
         b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
+
       assert(res.includes('FOO'));
     });
 
@@ -3137,7 +3139,8 @@ describe('cache', function () {
         async setup() {
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
-            `import "foo";`,
+            `import foo from "foo";
+            console.log(foo);`,
           );
           await overlayFS.writeFile(
             path.join(inputDir, 'src/foo.js'),
@@ -3194,7 +3197,8 @@ describe('cache', function () {
         async setup() {
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
-            `import "foo";`,
+            `import foo from "foo";
+            console.log(foo)`,
           );
           await overlayFS.writeFile(
             path.join(inputDir, 'src/foo.js'),
@@ -3243,7 +3247,8 @@ describe('cache', function () {
         async setup() {
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
-            `import "foo";`,
+            `import foo from "foo";
+            console.log(foo);`,
           );
           await overlayFS.writeFile(
             path.join(inputDir, 'src/foo.js'),
@@ -3297,7 +3302,8 @@ describe('cache', function () {
         async setup() {
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
-            `import "foo";`,
+            `import foo from "foo";
+            console.log(foo);`,
           );
           await overlayFS.writeFile(
             path.join(inputDir, 'src/foo.js'),

@@ -1398,6 +1398,10 @@ describe('sourcemaps', function () {
           }';`,
       ),
       outputFS.writeFile(path.join(testDir, 'yarn.lock'), ''),
+      outputFS.writeFile(
+        path.join(testDir, 'package.json'),
+        JSON.stringify({sideEffects: true}),
+      ),
     ]);
 
     let b = await bundle(path.join(testDir, 'index.js'), {

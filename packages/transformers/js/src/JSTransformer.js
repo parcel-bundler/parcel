@@ -443,7 +443,6 @@ export default (new Transformer({
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
-      // TODO add unknown side effect state to Asset
       has_unknown_side_effects: !asset.hasResolvedSideEffects,
     });
 

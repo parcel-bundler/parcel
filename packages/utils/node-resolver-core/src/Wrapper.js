@@ -202,6 +202,7 @@ export default class NodeResolver {
       case 'Empty':
         return {
           filePath: empty,
+          sideEffects: true,
           invalidateOnFileCreate: res.invalidateOnFileCreate,
           invalidateOnFileChange: res.invalidateOnFileChange,
         };

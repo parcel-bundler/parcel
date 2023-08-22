@@ -123,6 +123,13 @@ impl<'a> SideEffects<'a> {
 
 impl<'a> Visit for SideEffects<'a> {
   fn visit_module(&mut self, node: &Module) {
+    if node.body.len() == 0 {
+      // We currently mark empty files as having side effects to avoid build errors
+      // This situation mostly occurs from having types stripped from the file
+      self.has_side_effects = true;
+      return;
+    }
+
     node.visit_children_with(self);
   }
 
@@ -145,7 +152,6 @@ impl<'a> Visit for SideEffects<'a> {
       },
       ModuleItem::ModuleDecl(decl) => match decl {
         ModuleDecl::ExportAll(..)
-        | ModuleDecl::Import(..)
         | ModuleDecl::ExportDefaultDecl(..)
         | ModuleDecl::ExportNamed(..) => {}
         ModuleDecl::ExportDecl(export_decl) => {
@@ -153,6 +159,11 @@ impl<'a> Visit for SideEffects<'a> {
         }
         ModuleDecl::ExportDefaultExpr(export_expr) => {
           export_expr.expr.visit_with(self);
+        }
+        ModuleDecl::Import(import) => {
+          if import.specifiers.len() == 0 && !import.type_only {
+            self.has_side_effects = true;
+          }
         }
         _ => {
           self.has_side_effects = true;
@@ -329,6 +340,13 @@ impl<'a> Visit for SideEffects<'a> {
 }
 
 #[test]
+fn empty_filke() {
+  let code = r#""#;
+
+  assert_eq!(check_side_effects(code, vec![]), true);
+}
+
+#[test]
 fn barrel_file() {
   let code = r#"
     export * from './something';
@@ -433,6 +451,15 @@ fn export_const_decalation() {
     "#;
 
   assert_eq!(check_side_effects(code, vec![]), false);
+}
+
+#[test]
+fn side_effect_import() {
+  let code = r#"
+     import './some-file';
+    "#;
+
+  assert_eq!(check_side_effects(code, vec![]), true);
 }
 
 #[test]
