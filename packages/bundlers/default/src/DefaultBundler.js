@@ -19,6 +19,7 @@ import {ContentGraph, Graph} from '@parcel/graph';
 import invariant from 'assert';
 import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
+import logger from '@parcel/logger';
 import {setEqual, validateSchema, DefaultMap, BitSet} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
@@ -1368,6 +1369,17 @@ async function loadBundlerConfig(
   }
 
   invariant(conf?.contents != null);
+
+  // minBundles value will be ignored if shared bundles are disabled
+  if (
+    conf.contents.minBundleSize != null &&
+    conf.contents.disableSharedBundles === true
+  ) {
+    logger.warn({
+      origin: '@parcel/bundler-default',
+      message: `The value of "${conf.contents.minBundleSize}" set for minBundleSize will not be used as shared bundles have been disabled`,
+    });
+  }
 
   validateSchema.diagnostic(
     CONFIG_SCHEMA,
