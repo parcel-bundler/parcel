@@ -1,8 +1,47 @@
 import path from 'path';
 import assert from 'assert';
+import Logger from '@parcel/logger';
 import {bundle, assertBundles, findAsset} from '@parcel/test-utils';
 
 describe('bundler', function () {
+  it('should create shared bundles when disableSharedBundles is not set', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/disable-shared-bundles-default/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['foo.js'],
+      },
+      {
+        assets: ['bar.js'],
+      },
+      {
+        assets: ['a.js', 'b.js'],
+      },
+    ]);
+  });
+
   it('should not create shared bundles when disableSharedBundles is set to true', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/disable-shared-bundles-true/index.js'),
