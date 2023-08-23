@@ -16,7 +16,7 @@ export function isGlobMatch(
   filePath: FilePath,
   glob: Glob | Array<Glob>,
   opts?: Options,
-): any {
+): boolean {
   glob = Array.isArray(glob)
     ? glob.map(normalizeSeparators)
     : normalizeSeparators(glob);
