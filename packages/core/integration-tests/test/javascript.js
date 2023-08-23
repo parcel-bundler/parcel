@@ -6946,6 +6946,46 @@ describe('javascript', function () {
         assert.deepEqual(res.output, 6);
       });
 
+      it('supports detecting side effects when enabled', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-detected/a.js',
+          ),
+          options,
+        );
+
+        if (shouldScopeHoist) {
+          assert.ok(!findAsset(b, 'bar.js'), `Found "bar.js" in the bundle`);
+        } else {
+          assert.ok(findAsset(b, 'bar.js'), `Couldn't find "bar.js" in bundle`);
+        }
+
+        let res = await run(b, null, {require: false});
+
+        assert.deepEqual(res.output, 4);
+      });
+
+      it('supports detecting side effects in files matched by glob', async function () {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-detected-glob/a.js',
+          ),
+          options,
+        );
+
+        if (shouldScopeHoist) {
+          assert.ok(!findAsset(b, 'bar.js'), `Found "bar.js" in the bundle`);
+        } else {
+          assert.ok(findAsset(b, 'bar.js'), `Couldn't find "bar.js" in bundle`);
+        }
+
+        let res = await run(b, null, {require: false});
+
+        assert.deepEqual(res.output, 4);
+      });
+
       it('supports the package.json sideEffects: false flag with shared dependencies and code splitting', async function () {
         let b = await bundle(
           path.join(

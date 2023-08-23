@@ -317,7 +317,7 @@ export default (new Transformer({
         detectSideEffects = true;
       } else if (Array.isArray(pkgDetectSideEffects)) {
         detectSideEffects = isGlobMatch(
-          config.searchPath,
+          config.searchPath.slice(options.projectRoot.length + 1),
           pkgDetectSideEffects,
         );
       }
