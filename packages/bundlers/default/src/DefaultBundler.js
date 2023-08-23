@@ -1049,7 +1049,7 @@ function createIdealGraph(
 
     // Create shared bundles for splittable bundles.
     if (reachable.length > config.minBundles) {
-      let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
+      let sourceBundles = reachable.map(a => nullthrows(bundleRoots.get(a))[0]);
       let key = reachable.map(a => a.id).join(',');
       let bundleId = bundles.get(key);
       let bundle;
@@ -1133,7 +1133,15 @@ function createIdealGraph(
 
     // We should include "bundle reuse" as shared bundles that may be removed but the bundle itself would have to be retained
     let bundleIdsInGroup = getBundlesForBundleGroup(bundleId); //get all bundlegrups this bundle is an ancestor of
-    if (bundleIdsInGroup.length > config.maxParallelRequests) {
+
+    // Filter out inline assests as they should not contribute to PRL
+    let numBundlesContributingToPRL = bundleIdsInGroup.reduce((count, b) => {
+      let bundle = nullthrows(bundleGraph.getNode(b));
+      invariant(bundle !== 'root');
+      return count + (bundle.bundleBehavior !== 'inline');
+    }, 0);
+
+    if (numBundlesContributingToPRL > config.maxParallelRequests) {
       let sharedBundleIdsInBundleGroup = bundleIdsInGroup.filter(b => {
         let bundle = nullthrows(bundleGraph.getNode(b));
         // shared bundles must have source bundles, we could have a bundle
@@ -1143,7 +1151,6 @@ function createIdealGraph(
         );
       });
 
-      let numBundlesInGroup = bundleIdsInGroup.length;
       // Sort the bundles so the smallest ones are removed first.
       let sharedBundlesInGroup = sharedBundleIdsInBundleGroup
         .map(id => ({
@@ -1160,7 +1167,7 @@ function createIdealGraph(
       // Remove bundles until the bundle group is within the parallel request limit.
       while (
         sharedBundlesInGroup.length > 0 &&
-        numBundlesInGroup > config.maxParallelRequests
+        numBundlesContributingToPRL > config.maxParallelRequests
       ) {
         let bundleTuple = sharedBundlesInGroup.pop();
         let bundleToRemove = bundleTuple.bundle;
@@ -1211,7 +1218,7 @@ function createIdealGraph(
             bundleGraph.removeEdge(sourceBundleId, bundleIdToRemove);
           }
         }
-        numBundlesInGroup--;
+        numBundlesContributingToPRL--;
       }
     }
   }
