@@ -23,6 +23,7 @@ pub struct SideEffects<'a> {
   decls: HashSet<Id>,
   imports: HashSet<JsWord>,
   comments: &'a SingleThreadedComments,
+  used_idents: Vec<JsWord>,
 }
 
 impl<'a> SideEffects<'a> {
@@ -42,6 +43,7 @@ impl<'a> SideEffects<'a> {
       decls,
       imports,
       comments,
+      used_idents: vec![],
     }
   }
 
@@ -135,24 +137,13 @@ impl<'a> Visit for SideEffects<'a> {
 
   fn visit_module_item(&mut self, node: &ModuleItem) {
     match node {
-      ModuleItem::Stmt(stmt) => match stmt {
-        Stmt::Decl(decl) => {
-          decl.visit_with(self);
-        }
-        Stmt::Expr(expr) => {
-          if let Some(_source) = self.match_require(&expr.expr) {
-            return;
-          }
-
-          expr.expr.visit_with(self);
-        }
-        _ => {
-          self.has_side_effects = true;
-        }
-      },
+      ModuleItem::Stmt(stmt) => {
+        stmt.visit_with(self);
+      }
       ModuleItem::ModuleDecl(decl) => match decl {
         ModuleDecl::ExportAll(..)
         | ModuleDecl::ExportDefaultDecl(..)
+        | ModuleDecl::Import(..)
         | ModuleDecl::ExportNamed(..) => {}
         ModuleDecl::ExportDecl(export_decl) => {
           export_decl.decl.visit_with(self);
@@ -160,15 +151,36 @@ impl<'a> Visit for SideEffects<'a> {
         ModuleDecl::ExportDefaultExpr(export_expr) => {
           export_expr.expr.visit_with(self);
         }
-        ModuleDecl::Import(import) => {
-          if import.specifiers.len() == 0 && !import.type_only {
-            self.has_side_effects = true;
-          }
-        }
         _ => {
           self.has_side_effects = true;
         }
       },
+    }
+  }
+
+  fn visit_stmt(&mut self, node: &Stmt) {
+    match node {
+      Stmt::Empty(..) => {}
+      Stmt::Block(block_stmt) => {
+        block_stmt.visit_with(self);
+      }
+      Stmt::If(if_stmt) => {
+        if_stmt.test.visit_with(self);
+        if_stmt.cons.visit_with(self);
+      }
+      Stmt::Decl(decl) => {
+        decl.visit_with(self);
+      }
+      Stmt::Expr(expr) => {
+        if let Some(_source) = self.match_require(&expr.expr) {
+          return;
+        }
+
+        expr.expr.visit_with(self);
+      }
+      _ => {
+        self.has_side_effects = true;
+      }
     }
   }
 
@@ -202,7 +214,19 @@ impl<'a> Visit for SideEffects<'a> {
         return;
       }
 
+      self.used_idents.clear();
       init.visit_with(self);
+
+      if self
+        .used_idents
+        .iter()
+        .any(|ident| self.imports.contains(ident))
+      {
+        // While this doesn't necessarily mean there are side effects. It means that an imported value
+        // is referenced within a locally defined value and could get reassigned.
+        // An improvement here could be to track mutation of this value.
+        self.has_side_effects = true;
+      }
     }
   }
 
@@ -249,15 +273,14 @@ impl<'a> Visit for SideEffects<'a> {
 
   fn visit_expr(&mut self, node: &Expr) {
     match node {
-      Expr::Lit(..)
-      | Expr::Ident(..)
-      | Expr::Member(..)
-      | Expr::JSXElement(..)
-      | Expr::JSXFragment(..)
-      | Expr::JSXNamespacedName(..)
-      | Expr::JSXMember(..)
-      | Expr::JSXEmpty(..) => {
+      Expr::Lit(..) => {
         // safe from side effects
+      }
+      Expr::Member(member) => {
+        member.visit_with(self);
+      }
+      Expr::Ident(ident) => {
+        self.used_idents.push(ident.sym.clone());
       }
       Expr::Array(array_lit) => {
         for elem in &array_lit.elems {
@@ -271,20 +294,29 @@ impl<'a> Visit for SideEffects<'a> {
           match prop_or_spread {
             PropOrSpread::Prop(prop) => {
               match prop.as_ref() {
-                Prop::Shorthand(..) => {}
+                Prop::Shorthand(shorthand) => {
+                  shorthand.visit_with(self);
+                }
                 Prop::KeyValue(key_value) => {
                   key_value.key.visit_with(self);
                   key_value.value.visit_with(self);
                 }
+                Prop::Method(method) => {
+                  method.key.visit_with(self);
+                }
                 Prop::Getter(getter) => {
                   getter.key.visit_with(self);
+
+                  // We currenly have to assume this getter is called as we don't track
+                  // their usage through the rest of the file
+                  getter.body.visit_children_with(self);
                 }
                 Prop::Setter(setter) => {
                   setter.key.visit_with(self);
-                  setter.param.visit_with(self);
-                }
-                Prop::Method(method) => {
-                  method.key.visit_with(self);
+
+                  // We currenly have to assume this setter is called as we don't track
+                  // their usage through the rest of the file
+                  setter.body.visit_children_with(self);
                 }
                 Prop::Assign(..) => {
                   // Not sure this can actually occur
@@ -304,7 +336,6 @@ impl<'a> Visit for SideEffects<'a> {
 
         assign_expr.right.visit_with(self);
       }
-
       Expr::Call(call_expr) => {
         let mut is_pure_function = false;
 
@@ -380,6 +411,43 @@ mod tests {
     "#;
 
     assert_eq!(check_side_effects(code, vec![]), false);
+  }
+
+  #[test]
+  fn if_stmt_assignment() {
+    let code = r#"
+     let x = true;
+
+     if (x) {
+      x = false;
+     }
+    "#;
+
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
+
+  #[test]
+  fn if_stmt_effect() {
+    let code = r#"
+     if (!x) {
+      window.something = true;
+     }
+    "#;
+
+    assert_eq!(check_side_effects(code, vec![]), true);
+  }
+
+  #[test]
+  fn while_loop_with_effect() {
+    let code = r#"
+    let i = 5;
+
+    while (i > 0) {
+      console.log(i--);
+    }
+    "#;
+
+    assert_eq!(check_side_effects(code, vec![]), true);
   }
 
   #[test]
@@ -463,7 +531,7 @@ mod tests {
      import './some-file';
     "#;
 
-    assert_eq!(check_side_effects(code, vec![]), true);
+    assert_eq!(check_side_effects(code, vec![]), false);
   }
 
   #[test]
@@ -532,17 +600,6 @@ mod tests {
   const myOne = () => one();
 
   module.exports = myOne;
-  "#;
-
-    assert_eq!(check_side_effects(code, vec![]), false);
-  }
-
-  #[test]
-  fn react_element() {
-    let code = r#"
-  import { Button } from './Button';
-
-  const TheButton = <Button />;
   "#;
 
     assert_eq!(check_side_effects(code, vec![]), false);
@@ -646,6 +703,102 @@ mod tests {
   }
 
   #[test]
+  fn assign_to_reassigned_import_member() {
+    let code = r#"
+  import value from './value';
+
+  let newValue = value;
+
+  newValue.nested = 'something new';
+  "#;
+
+    assert_eq!(check_side_effects(code, vec!["value"]), true);
+  }
+
+  #[test]
+  fn assign_to_nested_reassigned_import_member() {
+    let code = r#"
+    import value from './value';
+
+    let newValue = {
+      something: value
+    };
+  
+    newValue.something.nested = 'something new';
+  "#;
+
+    assert_eq!(check_side_effects(code, vec!["value"]), true);
+  }
+
+  #[test]
+  fn assign_to_nested_reassigned_member() {
+    let code = r#"
+    const value = {nested: 'something'};
+
+    let newValue = {
+      something: value
+    };
+  
+    newValue.something.nested = 'something new';
+  "#;
+
+    assert_eq!(check_side_effects(code, vec![]), false);
+  }
+
+  #[test]
+  fn assign_to_reassigned_import_in_array() {
+    let code = r#"
+    import value from './value';
+
+    let newValue = [value];
+  
+    newValue[0].prop = 'something new';
+  "#;
+
+    assert_eq!(check_side_effects(code, vec!["value"]), true);
+  }
+
+  #[test]
+  fn assign_to_reassigned_import_from_member() {
+    let code = r#"
+    import value from './value';
+
+    let valueFromImport = value.prop;
+    valueFromImport = 'something new';
+  "#;
+
+    assert_eq!(check_side_effects(code, vec!["value"]), true);
+  }
+
+  #[test]
+  fn setter() {
+    let code = r#"
+    let obj = {
+      set value(newValue) {
+        window.value = newValue;
+      }
+    };  
+  "#;
+
+    assert_eq!(check_side_effects(code, vec![]), true);
+  }
+
+  #[test]
+  fn getter() {
+    let code = r#"
+    let obj = {
+      get value() {
+        window.value = 'something';
+
+        return window.value;
+      }
+    };  
+  "#;
+
+    assert_eq!(check_side_effects(code, vec![]), true);
+  }
+
+  #[test]
   fn generic_react_file() {
     let code = r#"
   import Component from './component';
@@ -656,7 +809,9 @@ mod tests {
 
   const util = (value) => config[value];
 
-  const MyComponent = ({ prop }) => <Component prop={util(prop)} />
+  const MyComponent = ({ prop }) => React.createElement(Component, {
+    prop: util(prop)
+  });
   MyComponent.displayName = 'MyComponent';
 
   export default MyComponent;
@@ -709,6 +864,7 @@ mod tests {
       decls: collect_decls(&module),
       imports: imports_set,
       comments: &comments,
+      used_idents: vec![],
     };
 
     module.visit_with(&mut side_effects);
