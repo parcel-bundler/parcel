@@ -547,6 +547,33 @@ describe('css modules', () => {
       },
     ]);
   });
+
+  it('should not fail with many css modules', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-modules-bug/src/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'button.module.css',
+          'main.js',
+          'main.module.css',
+          'other.module.css',
+        ],
+      },
+      {
+        type: 'css',
+        assets: ['button.module.css', 'main.module.css', 'other.module.css'],
+      },
+    ]);
+  });
+
   // Forked because experimental bundler will not merge bundles of same types if they do not share all their bundlegroups
   it('should handle @import in css modules', async function () {
     let b = await bundle(
