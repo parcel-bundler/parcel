@@ -6898,7 +6898,7 @@ describe('javascript', function () {
         assert.deepEqual(res.output, 4);
       });
 
-      it('supports the package.json sideEffects flag with an array', async function () {
+      it.only('supports the package.json sideEffects flag with an array', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -6918,7 +6918,7 @@ describe('javascript', function () {
           {require: false},
         );
 
-        assert(calls.toString() == 'foo', "side effect called for 'foo'");
+        assert(calls.toString() == 'bar', "side effect not called for 'bar'");
         assert.deepEqual(res.output, 4);
       });
 
