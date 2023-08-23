@@ -1170,9 +1170,13 @@ ${code}
     }
 
     for (let helper of this.usedHelpers) {
-      res += helpers[helper];
+      let currentHelper = helpers[helper];
+      if (typeof currentHelper === 'function') {
+        currentHelper = helpers[helper](this.bundle.env);
+      }
+      res += currentHelper;
       if (enableSourceMaps) {
-        lines += countLines(helpers[helper]) - 1;
+        lines += countLines(currentHelper) - 1;
       }
     }
 
