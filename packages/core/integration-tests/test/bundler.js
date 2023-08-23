@@ -4,6 +4,41 @@ import Logger from '@parcel/logger';
 import {bundle, assertBundles, findAsset} from '@parcel/test-utils';
 
 describe('bundler', function () {
+  it('should throw warnings when disabled shared bundles and a min bundle size value is given', async function () {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+
+    await bundle(
+      path.join(
+        __dirname,
+        'integration/disable-shared-bundles-with-min-bundle-size/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+    loggerDisposable.dispose();
+
+    assert.deepEqual(messages, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/bundler-default',
+            message:
+              'The value of "2000" set for minBundleSize will not be used as shared bundles have been disabled',
+          },
+        ],
+      },
+    ]);
+  });
+
   it('should not throw warnings when shared bundles are enabled and a min bundle size value is given', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
