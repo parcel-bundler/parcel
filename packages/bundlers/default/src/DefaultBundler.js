@@ -967,7 +967,7 @@ function createIdealGraph(
       config.disableSharedBundles === false &&
       reachable.length > config.minBundles
     ) {
-      let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
+      let sourceBundles = reachable.map(a => nullthrows(bundleRoots.get(a))[0]);
       let key = reachable.map(a => a.id).join(',');
       let bundleId = bundles.get(key);
       let bundle;
