@@ -50,6 +50,7 @@
     "husky": "^6.0.0",
     "lerna": "^3.22.1",
     "lint-staged": "^10.2.11",
+    "lmdb": "^2.8.5",
     "mocha": "^8.3.0",
     "mocha-junit-reporter": "^2.0.0",
     "mocha-multi-reporters": "^1.5.1",
