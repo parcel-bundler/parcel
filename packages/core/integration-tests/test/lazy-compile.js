@@ -120,4 +120,145 @@ describe('lazy compile', function () {
     ]);
     subscription.unsubscribe();
   });
+
+  it('should support includes for lazy compile', async () => {
+    const b = await bundler(
+      path.join(__dirname, '/integration/lazy-compile/index.js'),
+      {
+        shouldBuildLazily: true,
+        lazyIncludes: ['**/lazy-1*'],
+        mode: 'development',
+        shouldContentHash: false,
+      },
+    );
+
+    await removeDistDirectory();
+
+    const subscription = await b.watch();
+    let result = await getNextBuild(b);
+
+    // Expect the bundle graph to only contain `parallel-lazy-1` but not `lazy-1`s children as we're only including lazy-1 in lazy compilation
+    // `parallel-lazy-1` which wasn't requested.
+    assertBundles(result.bundleGraph, [
+      {
+        name: /^index.*/,
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+      },
+      {
+        // This will be a placeholder, but that info isn't available in the BundleGraph
+        assets: ['lazy-1.js'],
+      },
+      {
+        assets: ['parallel-lazy-1.js', 'esmodule-helpers.js'],
+      },
+      {
+        assets: ['parallel-lazy-2.js'],
+      },
+    ]);
+
+    // ensure parallel-lazy was produced, as it isn't "included" in laziness..
+    assert(
+      await distDirIncludes([
+        'index.js',
+        /^parallel-lazy-1\./,
+        /^parallel-lazy-2\./,
+      ]),
+    );
+
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /lazy-1/),
+    );
+
+    // Since lazy-2 was not included it should've been built when lazy-1 was..
+    assert(
+      await distDirIncludes([
+        'index.js',
+        /^parallel-lazy-1\./,
+        /^parallel-lazy-2\./,
+        /^lazy-1\./,
+        /^lazy-2\./,
+      ]),
+    );
+
+    subscription.unsubscribe();
+  });
+
+  it('should support excludes for lazy compile', async () => {
+    const b = await bundler(
+      path.join(__dirname, '/integration/lazy-compile/index.js'),
+      {
+        shouldBuildLazily: true,
+        lazyExcludes: ['**/lazy-*'],
+        mode: 'development',
+        shouldContentHash: false,
+      },
+    );
+
+    await removeDistDirectory();
+
+    const subscription = await b.watch();
+    let result = await getNextBuild(b);
+
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /index.js/),
+    );
+
+    assertBundles(result.bundleGraph, [
+      {
+        name: /^index.*/,
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+      },
+      {
+        assets: ['lazy-1.js', 'esmodule-helpers.js'],
+      },
+      {
+        assets: ['lazy-2.js'],
+      },
+      {
+        // This will be a placeholder, but that info isn't available in the BundleGraph
+        assets: ['parallel-lazy-1.js'],
+      },
+    ]);
+
+    // lazy-* is _excluded_ from lazy compilation so it should have been built, but parallel-lazy should not have
+
+    assert(await distDirIncludes(['index.js', /^lazy-1\./, /^lazy-2\./]));
+
+    subscription.unsubscribe();
+  });
+
+  it('should lazy compile properly when same module is used sync/async', async () => {
+    const b = await bundler(
+      path.join(__dirname, '/integration/lazy-compile/index-sync-async.js'),
+      {
+        shouldBuildLazily: true,
+        mode: 'development',
+        shouldContentHash: false,
+      },
+    );
+
+    await removeDistDirectory();
+
+    const subscription = await b.watch();
+    let result = await getNextBuild(b);
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^index-sync-async\./),
+    );
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^uses-static-component\./),
+    );
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^uses-static-component-async\./),
+    );
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^static-component\./),
+    );
+
+    let output = await run(result.bundleGraph);
+    assert.deepEqual(await output.default(), [
+      'static component',
+      'static component',
+    ]);
+    subscription.unsubscribe();
+  });
 });

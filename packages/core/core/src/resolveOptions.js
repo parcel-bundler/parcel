@@ -104,6 +104,19 @@ export default async function resolveOptions(
       : undefined;
 
   let shouldBuildLazily = initialOptions.shouldBuildLazily ?? false;
+  let lazyIncludes = initialOptions.lazyIncludes ?? [];
+  if (lazyIncludes.length > 0 && !shouldBuildLazily) {
+    throw new Error(
+      'Lazy includes can only be provided when lazy building is enabled',
+    );
+  }
+  let lazyExcludes = initialOptions.lazyExcludes ?? [];
+  if (lazyExcludes.length > 0 && !shouldBuildLazily) {
+    throw new Error(
+      'Lazy excludes can only be provided when lazy building is enabled',
+    );
+  }
+
   let shouldContentHash =
     initialOptions.shouldContentHash ?? initialOptions.mode === 'production';
   if (shouldBuildLazily && shouldContentHash) {
@@ -140,6 +153,8 @@ export default async function resolveOptions(
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
     hmrOptions: initialOptions.hmrOptions ?? null,
     shouldBuildLazily,
+    lazyIncludes,
+    lazyExcludes,
     shouldBundleIncrementally: initialOptions.shouldBundleIncrementally ?? true,
     shouldContentHash,
     serveOptions: initialOptions.serveOptions
