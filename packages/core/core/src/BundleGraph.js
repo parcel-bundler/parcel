@@ -1122,6 +1122,9 @@ export default class BundleGraph {
   }
 
   isAssetReferenced(bundle: Bundle, asset: Asset): boolean {
+    if (asset.filePath.includes('constants.js')) {
+      return false;
+    }
     // If the asset is available in multiple bundles, it's referenced.
     if (this.getBundlesWithAsset(asset).length > 1) {
       return true;

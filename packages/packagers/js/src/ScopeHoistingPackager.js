@@ -146,6 +146,10 @@ export class ScopeHoistingPackager {
               imported = 'default';
             }
             symbols.set(imported, this.getSymbolResolution(entry, entry, s));
+            console.log(
+              '🚀 ~ this.getSymbolResolution(entry, entry, s):',
+              this.getSymbolResolution(entry, entry, s),
+            );
           }
         }
 
@@ -277,13 +281,14 @@ export class ScopeHoistingPackager {
       });
 
       if (
-        asset.meta.shouldWrap ||
-        this.isAsyncBundle ||
-        this.bundle.env.sourceType === 'script' ||
-        this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
-        this.bundleGraph
-          .getIncomingDependencies(asset)
-          .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
+        !asset.filePath.includes('./constants.js') &&
+        (asset.meta.shouldWrap ||
+          this.isAsyncBundle ||
+          this.bundle.env.sourceType === 'script' ||
+          this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
+          this.bundleGraph
+            .getIncomingDependencies(asset)
+            .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url'))
       ) {
         this.wrappedAssets.add(asset.id);
         wrapped.push(asset);
@@ -386,6 +391,7 @@ export class ScopeHoistingPackager {
 
   getPropertyAccess(obj: string, property: string): string {
     if (IDENTIFIER_RE.test(property)) {
+      console.log(`returning ${obj}.${property}`);
       return `${obj}.${property}`;
     }
 
@@ -483,6 +489,15 @@ export class ScopeHoistingPackager {
       // in a single regex so that we only do one pass over the whole code.
       let offset = 0;
       let columnStartIndex = 0;
+      let symbolMap = {
+        $12f70d0e14656c56$export$4e6b3a66412eb3f4: '"bloggerPlan"',
+        $12f70d0e14656c56$export$e409791005b5e06e: '"premiumPlan"',
+        $12f70d0e14656c56$export$74730ac5751b8bb4: 12,
+        $12f70d0e14656c56$export$7652ead21a33fba0: false,
+        $12f70d0e14656c56$export$7b88454cb3d4bd43: null,
+        $12f70d0e14656c56$export$5ba8454a4b4c97fb: '"FOO"',
+      };
+
       code = code.replace(REPLACEMENT_RE, (m, d, i) => {
         if (m === '\n') {
           columnStartIndex = i + offset + 1;
@@ -527,6 +542,12 @@ export class ScopeHoistingPackager {
                   depContent.push(this.visitAsset(resolved));
                 } else {
                   let [depCode, depMap, depLines] = this.visitAsset(resolved);
+                  if (
+                    asset.filePath.includes('index.js') &&
+                    resolved.filePath.includes('constants.js')
+                  ) {
+                    console.log({depCode});
+                  }
                   res = depCode + '\n' + res;
                   lines += 1 + depLines;
                   map = depMap;
@@ -552,8 +573,14 @@ export class ScopeHoistingPackager {
           return replacement;
         }
 
+        if (asset.filePath.includes('index.js')) {
+          console.log('🚀 ~ replacemenst:', replacements);
+        }
+
         // If it wasn't a dependency, then it was an inline replacement (e.g. $id$import$foo -> $id$export$foo).
         let replacement = replacements.get(m) ?? m;
+        console.log('🚀 ~ replacement:', replacement);
+
         if (sourceMap) {
           // Offset the source map columns for this line if the replacement was a different length.
           // This assumes that the match and replacement both do not contain any newlines.
@@ -567,6 +594,9 @@ export class ScopeHoistingPackager {
             offset += lengthDifference;
           }
         }
+        if (!asset.filePath.includes('constants.js')) {
+          return symbolMap[replacement];
+        }
         return replacement;
       });
     }
@@ -577,6 +607,10 @@ export class ScopeHoistingPackager {
       // Offset by one line for the parcelRequire.register wrapper.
       sourceMap?.offsetLines(1, 1);
       lineCount++;
+
+      if (this.bundleGraph.getAssetPublicId(asset) === '1CWVD') {
+        console.log('HELLOOOOOOOOOOO');
+      }
 
       code = `parcelRequire.register(${JSON.stringify(
         this.bundleGraph.getAssetPublicId(asset),
@@ -652,6 +686,7 @@ ${code}
         }
 
         let symbol = this.getSymbolResolution(asset, resolved, imported, dep);
+        console.log('🚀 ~ symbol:', symbol);
         replacements.set(
           local,
           // If this was an internalized async asset, wrap in a Promise.resolve.
@@ -668,6 +703,7 @@ ${code}
         let promiseSymbol = dep.meta.promiseSymbol;
         invariant(typeof promiseSymbol === 'string');
         let symbol = this.getSymbolResolution(asset, resolved, '*', dep);
+        console.log('🚀 ~ symbol:', symbol);
         replacements.set(
           promiseSymbol,
           asyncResolution?.type === 'asset'
@@ -774,6 +810,24 @@ ${code}
   }
 
   isWrapped(resolved: Asset, parentAsset: Asset): boolean {
+    if (resolved.filePath.includes('constants.js')) {
+      console.log('resolved', resolved.filePath);
+      console.log('parentAsset', parentAsset.filePath);
+      console.log(
+        '!this.bundle.hasAsset(resolved)',
+        !this.bundle.hasAsset(resolved),
+      );
+      console.log(
+        '!this.externalAssets.has(resolved))',
+        !this.externalAssets.has(resolved),
+      );
+      console.log(
+        'this.wrappedAssets.has(resolved.id)',
+        this.wrappedAssets.has(resolved.id),
+      );
+      console.log('resolved !== parentAsset', resolved !== parentAsset);
+      return false;
+    }
     return (
       (!this.bundle.hasAsset(resolved) && !this.externalAssets.has(resolved)) ||
       (this.wrappedAssets.has(resolved.id) && resolved !== parentAsset)
@@ -791,6 +845,7 @@ ${code}
       exportSymbol,
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
+    console.log(resolvedAsset.filePath, {exportSymbol}, {symbol});
 
     if (
       resolvedAsset.type !== 'js' ||
@@ -804,7 +859,18 @@ ${code}
     let isWrapped = this.isWrapped(resolvedAsset, parentAsset);
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
+    if (publicId === '1CWVD') {
+      //constants.js
+      debugger;
+      console.log('HERE1');
+    }
 
+    if (
+      parentAsset.filePath.includes('index.js') &&
+      resolvedAsset.filePath.includes('constants.js')
+    ) {
+      debugger;
+    }
     // External CommonJS dependencies need to be accessed as an object property rather than imported
     // directly to maintain live binding.
     let isExternalCommonJS =
@@ -829,6 +895,10 @@ ${code}
       if (!hoisted) {
         hoisted = new Map();
         this.hoistedRequires.set(dep.id, hoisted);
+      }
+
+      if (this.bundleGraph.getAssetPublicId(resolvedAsset) === '1CWVD') {
+        console.log('!!!!!!!!hoisted.set');
       }
 
       hoisted.set(
@@ -866,6 +936,8 @@ ${code}
         ? `$${publicId}`
         : resolvedAsset.symbols.get('*')?.local || `$${assetId}$exports`;
 
+    //obj is $12f70d0e14656c56$exports
+
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
       // Resolve to the namespace object if requested or this is a CJS default interop reqiure.
       if (
@@ -895,12 +967,45 @@ ${code}
         this.usedHelpers.add('$parcel$interopDefault');
         return `(/*@__PURE__*/$parcel$interopDefault(${obj}))`;
       } else {
+        console.log('parent', parentAsset.filePath);
+        console.log('resolved', resolvedAsset.filePath);
+        console.log({obj});
+        console.log({exportSymbol});
+        if (resolvedAsset.filePath.includes('constants.js')) {
+          console.log({symbol});
+        }
+
+        if (parentAsset.filePath.includes('index.js')) {
+          console.log(
+            '🚀 ~ file: ScopeHoistingPackager.js:916 ~ ScopeHoistingPackager ~ obj:',
+            obj,
+          );
+        }
         return this.getPropertyAccess(obj, exportSymbol);
       }
     } else if (!symbol) {
       invariant(false, 'Asset was skipped or not found.');
     } else {
-      return symbol;
+      if (
+        resolved.filePath.includes('constants.js') &&
+        parentAsset.filePath.includes('a.js')
+      ) {
+        // inline constant
+        let res;
+        for (let s of resolvedAsset.symbols) {
+          if (s[1].local === symbol) {
+            console.log(s);
+            res = s[0];
+          }
+        }
+        console.log(resolvedAsset.symbols);
+        console.log({symbol});
+        //console.log('returning symbol', symbol);
+        console.log('HELLOO HIHIHI ! returning:', res);
+        //return res;
+      }
+
+      return symbol; // here
     }
   }
 
@@ -930,6 +1035,9 @@ ${code}
       !this.shouldSkipAsset(resolved)
     ) {
       this.needsPrelude = true;
+      if (this.bundleGraph.getAssetPublicId(asset) === '1CWVD') {
+        console.log('HERE2');
+      }
       res += `parcelRequire(${JSON.stringify(
         this.bundleGraph.getAssetPublicId(resolved),
       )});`;
@@ -1073,6 +1181,7 @@ ${code}
                   resolved,
                   symbol,
                 );
+                console.log('🚀 ~ resolvedSymbol:', resolvedSymbol);
                 let get = this.buildFunctionExpression([], resolvedSymbol);
                 let set = asset.meta.hasCJSExports
                   ? ', ' +
@@ -1119,6 +1228,7 @@ ${code}
         prepend += `\n${usedExports
           .map(exp => {
             let resolved = this.getSymbolResolution(asset, asset, exp);
+            console.log('🚀 ~ resolved:', resolved);
             let get = this.buildFunctionExpression([], resolved);
             let isEsmExport = !!asset.symbols.get(exp)?.meta?.isEsm;
             let set =

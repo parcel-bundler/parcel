@@ -15,6 +15,7 @@ import {
   mergeParcelOptions,
   outputFS,
   overlayFS,
+  inputFS,
   run,
   runBundle,
 } from '@parcel/test-utils';
@@ -48,7 +49,23 @@ const bundler = (name, opts = {}) => {
     ),
   );
 };
+describe.only('test', function () {
+  // it('iNLINE CONSTANTS TEST', async function () {
+  //   let b = await bundle(
+  //     path.join(__dirname, 'integration/inline-constants/index.js'),
+  //     {mode: 'production', outputFS: inputFS},
+  //   );
+  //   let res = await run(b);
+  // });
 
+  it('iNLINE CONSTANTS TEST', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/inline-constants/index.js'),
+      {outputFS: inputFS, mode: 'production'},
+    );
+    let res = await run(b);
+  });
+});
 describe('scope hoisting', function () {
   describe('es6', function () {
     it('supports default imports and exports of expressions', async function () {
