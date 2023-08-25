@@ -1370,14 +1370,25 @@ async function loadBundlerConfig(
 
   invariant(conf?.contents != null);
 
-  // minBundles value will be ignored if shared bundles are disabled
+  // minBundles will be ignored if shared bundles are disabled
   if (
-    conf.contents.minBundleSize != null &&
+    conf.contents.minBundles != null &&
     conf.contents.disableSharedBundles === true
   ) {
     logger.warn({
       origin: '@parcel/bundler-default',
-      message: `The value of "${conf.contents.minBundleSize}" set for minBundleSize will not be used as shared bundles have been disabled`,
+      message: `The value of "${conf.contents.minBundles}" set for minBundles will not be used as shared bundles have been disabled`,
+    });
+  }
+
+  // maxParallelRequests will be ignored if shared bundles are disabled
+  if (
+    conf.contents.maxParallelRequests != null &&
+    conf.contents.disableSharedBundles === true
+  ) {
+    logger.warn({
+      origin: '@parcel/bundler-default',
+      message: `The value of "${conf.contents.maxParallelRequests}" set for maxParallelRequests will not be used as shared bundles have been disabled`,
     });
   }
 
