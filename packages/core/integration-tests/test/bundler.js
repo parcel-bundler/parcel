@@ -4,16 +4,15 @@ import Logger from '@parcel/logger';
 import {bundle, assertBundles, findAsset} from '@parcel/test-utils';
 
 describe('bundler', function () {
-  it('should throw warnings when disabled shared bundles and a min bundle size value is given', async function () {
+  it('should not create shared bundles and should warn when disableSharedBundles is set to true with maxParallelRequests set', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
       messages.push(message);
     });
-
-    await bundle(
+    let b = await bundle(
       path.join(
         __dirname,
-        'integration/disable-shared-bundles-with-min-bundle-size/index.js',
+        'integration/disable-shared-bundles-true-parallel/index.js',
       ),
       {
         mode: 'production',
@@ -32,169 +31,11 @@ describe('bundler', function () {
           {
             origin: '@parcel/bundler-default',
             message:
-              'The value of "2000" set for minBundleSize will not be used as shared bundles have been disabled',
+              'The value of "100" set for maxParallelRequests will not be used as shared bundles have been disabled',
           },
         ],
       },
     ]);
-  });
-
-  it('should not throw warnings when shared bundles are enabled and a min bundle size value is given', async function () {
-    let messages = [];
-    let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
-    });
-
-    await bundle(
-      path.join(
-        __dirname,
-        'integration/disable-shared-bundles-false-with-min-bundle-size/index.js',
-      ),
-      {
-        mode: 'production',
-        defaultTargetOptions: {
-          shouldScopeHoist: false,
-        },
-      },
-    );
-    loggerDisposable.dispose();
-
-    assert.deepEqual(messages, []);
-  });
-
-  it('should not throw warnings when disableSharedBundles is not set and a min bundle size value is given', async function () {
-    let messages = [];
-    let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
-    });
-
-    await bundle(
-      path.join(
-        __dirname,
-        'integration/no-disable-shared-bundles-with-min-bundle-size/index.js',
-      ),
-      {
-        mode: 'production',
-        defaultTargetOptions: {
-          shouldScopeHoist: false,
-        },
-      },
-    );
-    loggerDisposable.dispose();
-
-    assert.deepEqual(messages, []);
-  });
-
-  it('should not throw warnings when shared bundles are disabled but min bundle size is not set', async function () {
-    let messages = [];
-    let loggerDisposable = Logger.onLog(message => {
-      messages.push(message);
-    });
-
-    await bundle(
-      path.join(
-        __dirname,
-        'integration/disable-shared-bundles-no-min-bundle-size/index.js',
-      ),
-      {
-        mode: 'production',
-        defaultTargetOptions: {
-          shouldScopeHoist: false,
-        },
-      },
-    );
-    loggerDisposable.dispose();
-
-    assert.deepEqual(messages, []);
-  });
-
-  it('should create shared bundles when disableSharedBundles is not set', async function () {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        'integration/disable-shared-bundles-default/index.js',
-      ),
-      {
-        mode: 'production',
-        defaultTargetOptions: {
-          shouldScopeHoist: false,
-        },
-      },
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'esmodule-helpers.js',
-          'js-loader.js',
-          'bundle-manifest.js',
-        ],
-      },
-      {
-        assets: ['foo.js'],
-      },
-      {
-        assets: ['bar.js'],
-      },
-      {
-        assets: ['a.js', 'b.js'],
-      },
-    ]);
-  });
-
-  it('should create shared bundles when disableSharedBundles is not set', async function () {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        'integration/disable-shared-bundles-default/index.js',
-      ),
-      {
-        mode: 'production',
-        defaultTargetOptions: {
-          shouldScopeHoist: false,
-        },
-      },
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'esmodule-helpers.js',
-          'js-loader.js',
-          'bundle-manifest.js',
-        ],
-      },
-      {
-        assets: ['foo.js'],
-      },
-      {
-        assets: ['bar.js'],
-      },
-      {
-        assets: ['a.js', 'b.js'],
-      },
-    ]);
-  });
-
-  it('should not create shared bundles when disableSharedBundles is set to true', async function () {
-    let b = await bundle(
-      path.join(__dirname, 'integration/disable-shared-bundles-true/index.js'),
-      {
-        mode: 'production',
-        defaultTargetOptions: {
-          shouldScopeHoist: false,
-        },
-      },
-    );
-
     assertBundles(b, [
       {
         name: 'index.js',
@@ -216,7 +57,128 @@ describe('bundler', function () {
     ]);
   });
 
-  it('should create shared bundles when disableSharedBundles is set to false', async function () {
+  it('should not create shared bundles and should warn when disableSharedBundles is set to true with minBundles set', async function () {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/disable-shared-bundles-true-min-bundles/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+    loggerDisposable.dispose();
+
+    assert.deepEqual(messages, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/bundler-default',
+            message:
+              'The value of "0" set for minBundles will not be used as shared bundles have been disabled',
+          },
+        ],
+      },
+    ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['foo.js', 'a.js', 'b.js'],
+      },
+      {
+        assets: ['bar.js', 'a.js', 'b.js'],
+      },
+    ]);
+  });
+
+  it('should not create shared bundles and should warn when disableSharedBundles is set to true with minBundles and maxParallelRequests set', async function () {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/disable-shared-bundles-true-min-bundles-parallel/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+    loggerDisposable.dispose();
+
+    assert.deepEqual(messages, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/bundler-default',
+            message:
+              'The value of "0" set for minBundles will not be used as shared bundles have been disabled',
+          },
+        ],
+      },
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/bundler-default',
+            message:
+              'The value of "100" set for maxParallelRequests will not be used as shared bundles have been disabled',
+          },
+        ],
+      },
+    ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['foo.js', 'a.js', 'b.js'],
+      },
+      {
+        assets: ['bar.js', 'a.js', 'b.js'],
+      },
+    ]);
+  });
+
+  it('should create shared bundles and should not throw a warning when disableSharedBundles is set to false', async function () {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
     let b = await bundle(
       path.join(__dirname, 'integration/disable-shared-bundles-false/index.js'),
       {
@@ -226,7 +188,9 @@ describe('bundler', function () {
         },
       },
     );
+    loggerDisposable.dispose();
 
+    assert.deepEqual(messages, []);
     assertBundles(b, [
       {
         name: 'index.js',
