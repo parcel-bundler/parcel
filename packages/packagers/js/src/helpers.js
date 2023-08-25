@@ -6,6 +6,8 @@ var $parcel$modules = {};
 var $parcel$inits = {};
 
 var parcelRequire = $parcel$global[${JSON.stringify(parcelRequireName)}];
+var parcelRegister;
+
 if (parcelRequire == null) {
   parcelRequire = function(id) {
     if (id in $parcel$modules) {
@@ -29,6 +31,9 @@ if (parcelRequire == null) {
   };
 
   $parcel$global[${JSON.stringify(parcelRequireName)}] = parcelRequire;
+  parcelRegister = parcelRequire.register;
+} else {
+  parcelRegister = parcelRequire.register;
 }
 `;
 
