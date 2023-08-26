@@ -595,7 +595,7 @@ export class ScopeHoistingPackager {
           }
         }
         if (!asset.filePath.includes('constants.js')) {
-          return symbolMap[replacement];
+          return symbolMap[replacement] ?? replacement;
         }
         return replacement;
       });
@@ -1001,7 +1001,7 @@ ${code}
         console.log(resolvedAsset.symbols);
         console.log({symbol});
         //console.log('returning symbol', symbol);
-        console.log('HELLOO HIHIHI ! returning:', res);
+        console.log('HELLOO HIHIHI ! res:', res);
         //return res;
       }
 
