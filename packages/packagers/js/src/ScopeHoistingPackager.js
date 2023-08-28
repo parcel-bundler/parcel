@@ -95,6 +95,7 @@ export class ScopeHoistingPackager {
   needsPrelude: boolean = false;
   usedHelpers: Set<string> = new Set();
   externalAssets: Set<Asset> = new Set();
+  constantsMap: Map<string, any> = new Map();
 
   constructor(
     options: PluginOptions,
@@ -116,6 +117,32 @@ export class ScopeHoistingPackager {
       this.bundle.bundleBehavior !== 'isolated';
 
     this.globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
+  }
+
+  _buildConstantsMap(code) {
+    console.log('BUILDING CONSTANTS');
+
+    const regex = /const\s+(.+)\s*=\s*([^;]*);/g;
+    const obj_regex = /{([^}]+)}/;
+
+    let match = regex.exec(code);
+    let k, v;
+
+    while (match != null) {
+      k = match[1].trim();
+      v = match[2];
+      if (obj_regex.exec(v)) v = '(' + v + ')';
+
+      v = eval(v);
+
+      if (typeof v === 'string') {
+        v = '"' + v + '"';
+      }
+
+      this.constantsMap.set(k, v);
+
+      match = regex.exec(code);
+    }
   }
 
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
@@ -223,7 +250,6 @@ export class ScopeHoistingPackager {
         } else {
           res += `\n${parcelRequire}`;
         }
-
         lineCount += 2;
       }
     }
@@ -281,14 +307,13 @@ export class ScopeHoistingPackager {
       });
 
       if (
-        !asset.filePath.includes('./constants.js') &&
-        (asset.meta.shouldWrap ||
-          this.isAsyncBundle ||
-          this.bundle.env.sourceType === 'script' ||
-          this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
-          this.bundleGraph
-            .getIncomingDependencies(asset)
-            .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url'))
+        (!asset.filePath.includes('./constants.js') && asset.meta.shouldWrap) ||
+        this.isAsyncBundle ||
+        this.bundle.env.sourceType === 'script' ||
+        this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
+        this.bundleGraph
+          .getIncomingDependencies(asset)
+          .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
         this.wrappedAssets.add(asset.id);
         wrapped.push(asset);
@@ -489,14 +514,6 @@ export class ScopeHoistingPackager {
       // in a single regex so that we only do one pass over the whole code.
       let offset = 0;
       let columnStartIndex = 0;
-      let symbolMap = {
-        $12f70d0e14656c56$export$4e6b3a66412eb3f4: '"bloggerPlan"',
-        $12f70d0e14656c56$export$e409791005b5e06e: '"premiumPlan"',
-        $12f70d0e14656c56$export$74730ac5751b8bb4: 12,
-        $12f70d0e14656c56$export$7652ead21a33fba0: false,
-        $12f70d0e14656c56$export$7b88454cb3d4bd43: null,
-        $12f70d0e14656c56$export$5ba8454a4b4c97fb: '"FOO"',
-      };
 
       code = code.replace(REPLACEMENT_RE, (m, d, i) => {
         if (m === '\n') {
@@ -547,6 +564,8 @@ export class ScopeHoistingPackager {
                     resolved.filePath.includes('constants.js')
                   ) {
                     console.log({depCode});
+                    this._buildConstantsMap(depCode);
+                    console.log(this.constantsMap);
                   }
                   res = depCode + '\n' + res;
                   lines += 1 + depLines;
@@ -574,7 +593,7 @@ export class ScopeHoistingPackager {
         }
 
         if (asset.filePath.includes('index.js')) {
-          console.log('🚀 ~ replacemenst:', replacements);
+          console.log('🚀 ~ replacements:', replacements);
         }
 
         // If it wasn't a dependency, then it was an inline replacement (e.g. $id$import$foo -> $id$export$foo).
@@ -595,7 +614,7 @@ export class ScopeHoistingPackager {
           }
         }
         if (!asset.filePath.includes('constants.js')) {
-          return symbolMap[replacement] ?? replacement;
+          return this.constantsMap.get(replacement) ?? replacement;
         }
         return replacement;
       });
