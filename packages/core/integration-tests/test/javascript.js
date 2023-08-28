@@ -30,7 +30,7 @@ describe('javascript', function () {
     await removeDistDirectory();
   });
 
-  it.only('should produce a basic JS bundle with CommonJS requires', async function () {
+  it('should produce a basic JS bundle with CommonJS requires', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs/index.js'),
     );
@@ -4663,7 +4663,7 @@ describe('javascript', function () {
       b.getBundles().find(b => b.type === 'js').filePath,
       'utf8',
     );
-    assert(dist.includes('$cPUKg$lodash = require("lodash");'));
+    assert(dist.includes('$lodash = require("lodash");'));
 
     let add = await run(b);
     assert.equal(add(2, 3), 5);
@@ -4681,11 +4681,7 @@ describe('javascript', function () {
       'utf8',
     );
 
-    assert(
-      dist.includes(
-        'const add = require(`lodash/${$8cad8166811e0063$var$fn}`);',
-      ),
-    );
+    assert(/const add = require\(`lodash\/\${\$.*?\$var\$fn\}`\);/.test(dist));
 
     let add = await run(b);
     assert.equal(add(2, 3), 5);

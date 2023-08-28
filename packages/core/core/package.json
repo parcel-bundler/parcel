@@ -51,6 +51,7 @@
     "semver": "^7.5.2"
   },
   "devDependencies": {
+    "@mischnic/dot-svg": "^0.0.0",
     "graphviz": "^0.0.9",
     "tempy": "^0.2.1"
   },

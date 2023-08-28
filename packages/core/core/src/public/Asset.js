@@ -21,7 +21,11 @@ import type {
   AssetSymbols as IAssetSymbols,
   BundleBehavior,
 } from '@parcel/types';
-import type {Asset as AssetValue, ParcelOptions, CommittedAssetId} from '../types';
+import type {
+  Asset as AssetValue,
+  ParcelOptions,
+  CommittedAssetId,
+} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
@@ -37,11 +41,13 @@ import {
 } from '../types';
 import {toInternalSourceLocation} from '../utils';
 import {AssetFlags} from '@parcel/rust';
+import {createBuildCache} from '../buildCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 const uncommittedAssetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
-const committedAssetValueToAsset: Map<CommittedAssetId, CommittedAsset> = new Map();
+const committedAssetValueToAsset: Map<CommittedAssetId, CommittedAsset> =
+  createBuildCache();
 const assetValueToMutableAsset: WeakMap<AssetValue, MutableAsset> =
   new WeakMap();
 
@@ -55,7 +61,9 @@ const _mutableAssetToUncommittedAsset: WeakMap<
   UncommittedAsset,
 > = new WeakMap();
 
-export function assetToAssetValue(asset: IAsset | IMutableAsset): CommittedAssetId {
+export function assetToAssetValue(
+  asset: IAsset | IMutableAsset,
+): CommittedAssetId {
   return nullthrows(_assetToAssetValue.get(asset));
 }
 
@@ -69,9 +77,7 @@ export function assetFromValue(
   value: CommittedAssetId,
   options: ParcelOptions,
 ): CommittedAsset {
-  return new CommittedAsset(
-    new InternalCommittedAsset(value, options)
-  );
+  return new CommittedAsset(new InternalCommittedAsset(value, options));
 }
 
 class BaseAsset {
@@ -362,10 +368,7 @@ export class CommittedAsset implements IAsset {
   }
 
   get stats(): Stats {
-    return {
-      time: 0,
-      size: 0,
-    };
+    return this.#asset.value.stats;
   }
 
   get id(): string {
@@ -373,8 +376,7 @@ export class CommittedAsset implements IAsset {
   }
 
   get type(): string {
-    // return this.#asset.value.type;
-    return 'js'; // TODO
+    return this.#asset.value.assetType;
   }
 
   get env(): IEnvironment {
@@ -400,7 +402,7 @@ export class CommittedAsset implements IAsset {
   }
 
   get meta(): Meta {
-    return this.#meta ??= JSON.parse(this.#asset.value.meta);
+    return (this.#meta ??= JSON.parse(this.#asset.value.meta));
   }
 
   get bundleBehavior(): ?BundleBehavior {

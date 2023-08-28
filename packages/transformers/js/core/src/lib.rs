@@ -47,10 +47,9 @@ use hoist::{hoist, HoistResult};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use typeof_replacer::*;
-use utils::{CodeHighlight, DiagnosticSeverity, SourceLocation};
 
 pub use dependency_collector::{DependencyDescriptor, DependencyKind};
-pub use utils::{Diagnostic, SourceType};
+pub use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
@@ -88,6 +87,9 @@ pub struct Config {
   pub is_esm_output: bool,
   pub trace_bailouts: bool,
   pub is_swc_helpers: bool,
+  pub resolve_helpers_from: String,
+  pub side_effects: bool,
+  pub supports_dynamic_import: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -413,11 +415,12 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
               };
 
               let ignore_mark = Mark::fresh(Mark::root());
+              let mut dependencies = IndexMap::new();
               let module = module.fold_with(
                 // Collect dependencies
                 &mut dependency_collector(
                   &source_map,
-                  &mut result.dependencies,
+                  &mut dependencies,
                   &decls,
                   ignore_mark,
                   unresolved_mark,
@@ -426,6 +429,7 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
                 ),
               );
 
+              result.dependencies.extend(dependencies.into_values());
               diagnostics.extend(error_buffer_to_diagnostics(&error_buffer, &source_map));
 
               if diagnostics

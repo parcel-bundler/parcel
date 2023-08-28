@@ -76,20 +76,19 @@ export type ResolvedParcelConfigFile = {|
 |};
 
 /** Corresponds to <code>pkg#engines</code> */
-export type Engines = {
-  +browsers?: string | Array<string>,
-  +electron?: SemverRange,
-  +node?: SemverRange,
-  +parcel?: SemverRange,
-  ...
-};
+export interface Engines {
+  +browsers?: string | Array<string>;
+  +electron?: SemverRange;
+  +node?: SemverRange;
+  +parcel?: SemverRange;
+}
 
 /** Corresponds to <code>pkg#targets.*.sourceMap</code> */
-export type TargetSourceMapOptions = {|
-  +sourceRoot?: string,
-  +inline?: boolean,
-  +inlineSources?: boolean,
-|};
+export interface TargetSourceMapOptions {
+  +sourceRoot?: string;
+  +inline?: boolean;
+  +inlineSources?: boolean;
+}
 
 /**
  * A parsed version of PackageTargetDescriptor
@@ -380,8 +379,8 @@ export type SourceLocation = {|
 |};
 
 interface Location {
-  +line: number,
-  +column: number,
+  +line: number;
+  +column: number;
 }
 
 /**
@@ -878,10 +877,10 @@ export interface Config {
   getPackage(): Promise<?PackageJSON>;
 }
 
-export type Stats = {|
-  time: number,
-  size: number,
-|};
+export interface Stats {
+  time: number;
+  size: number;
+}
 
 /**
  * @section transformer

@@ -98,7 +98,7 @@ pub fn extend_vec(addr: u32, size: u32, count: u32) {
 
 #[napi]
 pub fn create_environment(addr: u32) -> u32 {
-  DB.environment_id(addr)
+  DB.environment_id(DB.get_environment(addr)).0
 }
 
 #[napi]

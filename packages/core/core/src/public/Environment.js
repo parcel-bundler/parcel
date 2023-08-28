@@ -16,10 +16,8 @@ import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import {fromInternalSourceLocation} from '../utils';
-import {
-  Environment as DbEnvironment,
-  EnvironmentFlags,
-} from "@parcel/rust";
+import {Environment as DbEnvironment, EnvironmentFlags} from '@parcel/rust';
+import {createBuildCache} from '../buildCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -130,10 +128,8 @@ const supportData = {
   },
 };
 
-const internalEnvironmentToEnvironment: Map<
-  InternalEnvironment,
-  Environment,
-> = new Map();
+const internalEnvironmentToEnvironment: Map<InternalEnvironment, Environment> =
+  createBuildCache();
 const _environmentToInternalEnvironment: WeakMap<
   IEnvironment,
   InternalEnvironment,
@@ -147,6 +143,7 @@ export function environmentToInternalEnvironment(
 export default class Environment implements IEnvironment {
   #environment /*: DbEnvironment */;
   #options /*: ParcelOptions */;
+  #engines /*: ?Engines */;
 
   constructor(env: InternalEnvironment, options: ParcelOptions): Environment {
     let existing = internalEnvironmentToEnvironment.get(env);
@@ -170,7 +167,8 @@ export default class Environment implements IEnvironment {
   }
 
   get engines(): Engines {
-    return this.#environment.engines || {};
+    this.#engines ??= JSON.parse(this.#environment.engines);
+    return nullthrows(this.#engines);
   }
 
   get includeNodeModules():
@@ -197,7 +195,9 @@ export default class Environment implements IEnvironment {
   }
 
   get shouldScopeHoist(): boolean {
-    return Boolean(this.#environment.flags & EnvironmentFlags.SHOULD_SCOPE_HOIST);
+    return Boolean(
+      this.#environment.flags & EnvironmentFlags.SHOULD_SCOPE_HOIST,
+    );
   }
 
   get sourceMap(): ?TargetSourceMapOptions {

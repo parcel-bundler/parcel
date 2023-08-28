@@ -9,7 +9,7 @@ import type {
   DependencyNode,
   InternalSourceLocation,
   ParcelOptions,
-} from "./types";
+} from './types';
 import {type default as AssetGraph} from './AssetGraph';
 
 import invariant from 'assert';
@@ -18,7 +18,14 @@ import {setEqual} from '@parcel/utils';
 import logger from '@parcel/logger';
 import {md, convertSourceLocationToHighlight} from '@parcel/diagnostic';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
-import {Dependency as DbDependency, Asset as DbAsset, AssetFlags, getStringId, readCachedString} from '@parcel/rust';
+import {
+  Dependency as DbDependency,
+  Asset as DbAsset,
+  AssetFlags,
+  SymbolFlags,
+  getStringId,
+  readCachedString,
+} from '@parcel/rust';
 
 export function propagateSymbols({
   options,
@@ -82,7 +89,10 @@ export function propagateSymbols({
         }
       }
       let hasNamespaceOutgoingDeps = outgoingDeps.some(
-        d => DbDependency.get(d.value).symbols?.find(s => s.exported === starSymbol)?.local === starSymbol,
+        d =>
+          DbDependency.get(d.value).symbols?.find(
+            s => s.exported === starSymbol,
+          )?.local === starSymbol,
       );
 
       // 1) Determine what the incomingDeps requests from the asset
@@ -132,7 +142,10 @@ export function propagateSymbols({
             // (but only if we actually have namespace-exporting outgoing dependencies,
             // This usually happens with a reexporting asset with many namespace exports which means that
             // we cannot match up the correct asset with the used symbol at this level.)
-            else if (hasNamespaceOutgoingDeps && exportSymbol !== defaultSymbol) {
+            else if (
+              hasNamespaceOutgoingDeps &&
+              exportSymbol !== defaultSymbol
+            ) {
               namespaceReexportedSymbols.add(exportSymbol);
             }
           }
@@ -169,7 +182,10 @@ export function propagateSymbols({
           let depSymbols = DbDependency.get(dep.value).symbols;
           if (!depSymbols) continue;
 
-          if (depSymbols.find(s => s.exported === starSymbol)?.local === starSymbol) {
+          if (
+            depSymbols.find(s => s.exported === starSymbol)?.local ===
+            starSymbol
+          ) {
             if (addAll) {
               depUsedSymbolsDown.add(starSymbol);
             } else {
@@ -180,11 +196,11 @@ export function propagateSymbols({
             }
           }
 
-          for (let {exported: symbol, local, isWeak} of depSymbols) {
+          for (let {exported: symbol, local, flags} of depSymbols) {
             // Was already handled above
             if (local === starSymbol) continue;
 
-            if (!assetSymbolsInverse || !isWeak) {
+            if (!assetSymbolsInverse || !(flags & SymbolFlags.IS_WEAK)) {
               // Bailout or non-weak symbol (= used in the asset itself = not a reexport)
               depUsedSymbolsDown.add(symbol);
             } else {
@@ -240,7 +256,9 @@ export function propagateSymbols({
       logger.warn({
         message: `${fromProjectPathRelative(
           DbAsset.get(assetNode.value).filePath,
-        )} reexports "${readCachedString(symbol)}", which could be resolved either to the dependency "${
+        )} reexports "${readCachedString(
+          symbol,
+        )}", which could be resolved either to the dependency "${
           DbDependency.get(depNode1.value).specifier
         }" or "${
           DbDependency.get(depNode2.value).specifier
@@ -298,7 +316,10 @@ export function propagateSymbols({
           );
         }
 
-        if (outgoingDepSymbols.find(s => s.exported === starSymbol)?.local === starSymbol) {
+        if (
+          outgoingDepSymbols.find(s => s.exported === starSymbol)?.local ===
+          starSymbol
+        ) {
           outgoingDep.usedSymbolsUp.forEach((sResolved, s) => {
             if (s === defaultSymbol) {
               return;
@@ -388,7 +409,9 @@ export function propagateSymbols({
         let incomingDepSymbols = dep.symbols;
         if (!incomingDepSymbols) continue;
 
-        let hasNamespaceReexport = incomingDepSymbols.find(s => s.exported === starSymbol)?.local === starSymbol;
+        let hasNamespaceReexport =
+          incomingDepSymbols.find(s => s.exported === starSymbol)?.local ===
+          starSymbol;
         for (let s of incomingDep.usedSymbolsDown) {
           if (
             assetSymbols == null || // Assume everything could be provided if symbols are cleared
@@ -434,10 +457,18 @@ export function propagateSymbols({
                   resolution.type === 'asset'),
             );
 
+            let incomingDepValue = DbDependency.get(incomingDep.value);
+            let sourceAsset =
+              incomingDepValue.sourceAssetId != null
+                ? DbAsset.get(incomingDepValue.sourceAssetId)
+                : null;
             errors.push({
               message: md`${fromProjectPathRelative(
-                (resolution.type === 'asset' ? DbAsset.get(resolution.value) : resolution.value).filePath,
-              )} does not export '${s}'`,
+                (resolution.type === 'asset'
+                  ? DbAsset.get(resolution.value)
+                  : resolution.value
+                ).filePath,
+              )} does not export '${readCachedString(s)}'`,
               origin: '@parcel/core',
               codeFrames: loc
                 ? [
@@ -445,7 +476,7 @@ export function propagateSymbols({
                       filePath:
                         fromProjectPath(options.projectRoot, loc?.filePath) ??
                         undefined,
-                      language: DbDependency.get(incomingDep.value).sourceAssetType ?? undefined,
+                      language: sourceAsset?.assetType,
                       codeHighlights: [convertSourceLocationToHighlight(loc)],
                     },
                   ]
@@ -460,10 +491,7 @@ export function propagateSymbols({
         }
 
         incomingDep.excluded = false;
-        if (
-          dep.symbols != null &&
-          incomingDep.usedSymbolsUp.size === 0
-        ) {
+        if (dep.symbols != null && incomingDep.usedSymbolsUp.size === 0) {
           let assetGroups = assetGraph.getNodeIdsConnectedFrom(
             assetGraph.getNodeIdByContentKey(incomingDep.id),
           );

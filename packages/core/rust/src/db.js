@@ -13,39 +13,46 @@ const PAGE_OFFSET_MASK = (1 << PAGE_INDEX_SHIFT) - 1;
 function copy(from: number, to: number, size: number) {
   let fromPage = (from & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let fromOffset = from & PAGE_OFFSET_MASK;
-  let fromHeapPage = HEAP[fromPage] ??= binding.getPage(fromPage);
+  let fromHeapPage = (HEAP[fromPage] ??= binding.getPage(fromPage));
   let toPage = (to & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let toOffset = to & PAGE_OFFSET_MASK;
-  let toHeapPage = HEAP[toPage] ??= binding.getPage(toPage);
-  toHeapPage.set(fromHeapPage.subarray(fromOffset, fromOffset + size), toOffset);
+  let toHeapPage = (HEAP[toPage] ??= binding.getPage(toPage));
+  toHeapPage.set(
+    fromHeapPage.subarray(fromOffset, fromOffset + size),
+    toOffset,
+  );
 }
 
 function readU8(addr: number): number {
   let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let offset = addr & PAGE_OFFSET_MASK;
-  let heapPage = HEAP[page] ??= binding.getPage(page);
+  let heapPage = (HEAP[page] ??= binding.getPage(page));
   return heapPage[offset];
 }
 
 function writeU8(addr: number, value: number) {
   let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let offset = addr & PAGE_OFFSET_MASK;
-  let heapPage = HEAP[page] ??= binding.getPage(page);
-  return heapPage[offset] = value;
+  let heapPage = (HEAP[page] ??= binding.getPage(page));
+  return (heapPage[offset] = value);
 }
 
 function readU32(addr: number): number {
   let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let offset = addr & PAGE_OFFSET_MASK;
-  let heapPage = HEAP_u32[page] ??= new Uint32Array((HEAP[page] ??= binding.getPage(page)).buffer);
+  let heapPage = (HEAP_u32[page] ??= new Uint32Array(
+    (HEAP[page] ??= binding.getPage(page)).buffer,
+  ));
   return heapPage[offset >> 2];
 }
 
 function writeU32(addr: number, value: number) {
   let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let offset = addr & PAGE_OFFSET_MASK;
-  let heapPage = HEAP_u32[page] ??= new Uint32Array((HEAP[page] ??= binding.getPage(page)).buffer);
-  return heapPage[offset >> 2] = value;
+  let heapPage = (HEAP_u32[page] ??= new Uint32Array(
+    (HEAP[page] ??= binding.getPage(page)).buffer,
+  ));
+  return (heapPage[offset >> 2] = value);
 }
 
 export function readCachedString(addr: number): string {
@@ -57,8 +64,8 @@ export function readCachedString(addr: number): string {
 }
 
 interface TypeAccessor<T> {
-  get(addr: number): T,
-  set(addr: number, value: T): void
+  get(addr: number): T;
+  set(addr: number, value: T): void;
 }
 
 class Vec<T> {
@@ -119,6 +126,12 @@ class Vec<T> {
     writeU32(this.addr + 4, 0);
   }
 
+  init(): void {
+    writeU32(this.addr + 4, 0);
+    writeU32(this.addr + 8, 0);
+    writeU32(this.addr + 0, 0);
+  }
+
   // $FlowFixMe
   *[globalThis.Symbol.iterator]() {
     let addr = readU32(this.addr + 0);
@@ -127,7 +140,7 @@ class Vec<T> {
     }
   }
 
-  find(pred: (value: T) => boolean): ?T {
+  find(pred: (value: T) => mixed): ?T {
     let addr = readU32(this.addr + 0);
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {
       let value = this.accessor.get(addr);
@@ -137,7 +150,7 @@ class Vec<T> {
     }
   }
 
-  some(pred: (value: T) => boolean): boolean {
+  some(pred: (value: T) => mixed): boolean {
     let addr = readU32(this.addr + 0);
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {
       let value = this.accessor.get(addr);
@@ -146,6 +159,17 @@ class Vec<T> {
       }
     }
     return false;
+  }
+
+  every(pred: (value: T) => mixed): boolean {
+    let addr = readU32(this.addr + 0);
+    for (let i = 0, len = this.length; i < len; i++, addr += this.size) {
+      let value = this.accessor.get(addr);
+      if (!pred(value)) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 
@@ -181,7 +205,9 @@ export class Target {
   }
 
   get distEntry(): ?string {
-    return readU32(this.addr + 4 + 0) === 0 ? null : readCachedString(readU32(this.addr + 4));
+    return readU32(this.addr + 4 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 4));
   }
 
   set distEntry(value: ?string): void {
@@ -189,7 +215,7 @@ export class Target {
       writeU32(this.addr + 4 + 0, 0);
     } else {
       writeU32(this.addr + 4, binding.getStringId(value));
-    };
+    }
   }
 
   get name(): string {
@@ -209,7 +235,9 @@ export class Target {
   }
 
   get loc(): ?SourceLocation {
-    return readU32(this.addr + 8 + 16) === 0 ? null : SourceLocation.get(this.addr + 8);
+    return readU32(this.addr + 8 + 16) === 0
+      ? null
+      : SourceLocation.get(this.addr + 8);
   }
 
   set loc(value: ?SourceLocation): void {
@@ -217,11 +245,13 @@ export class Target {
       writeU32(this.addr + 8 + 16, 0);
     } else {
       SourceLocation.set(this.addr + 8, value);
-    };
+    }
   }
 
   get pipeline(): ?string {
-    return readU32(this.addr + 28 + 0) === 0 ? null : readCachedString(readU32(this.addr + 28));
+    return readU32(this.addr + 28 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 28));
   }
 
   set pipeline(value: ?string): void {
@@ -229,7 +259,7 @@ export class Target {
       writeU32(this.addr + 28 + 0, 0);
     } else {
       writeU32(this.addr + 28, binding.getStringId(value));
-    };
+    }
   }
 }
 
@@ -237,7 +267,7 @@ export class Environment {
   addr: number;
 
   constructor(addr?: number) {
-    this.addr = addr ?? binding.alloc(36);
+    this.addr = addr ?? binding.alloc(40);
   }
 
   static get(addr: number): Environment {
@@ -245,43 +275,45 @@ export class Environment {
   }
 
   static set(addr: number, value: Environment): void {
-    copy(value.addr, addr, 36);
+    copy(value.addr, addr, 40);
   }
 
   get context(): EnvironmentContextVariants {
-    return EnvironmentContext.get(this.addr + 33);
+    return EnvironmentContext.get(this.addr + 37);
   }
 
   set context(value: EnvironmentContextVariants): void {
-    EnvironmentContext.set(this.addr + 33, value);
+    EnvironmentContext.set(this.addr + 37, value);
   }
 
   get outputFormat(): OutputFormatVariants {
-    return OutputFormat.get(this.addr + 34);
+    return OutputFormat.get(this.addr + 38);
   }
 
   set outputFormat(value: OutputFormatVariants): void {
-    OutputFormat.set(this.addr + 34, value);
+    OutputFormat.set(this.addr + 38, value);
   }
 
   get sourceType(): SourceTypeVariants {
-    return SourceType.get(this.addr + 35);
+    return SourceType.get(this.addr + 39);
   }
 
   set sourceType(value: SourceTypeVariants): void {
-    SourceType.set(this.addr + 35, value);
+    SourceType.set(this.addr + 39, value);
   }
 
   get flags(): number {
-    return readU8(this.addr + 32);
+    return readU8(this.addr + 36);
   }
 
   set flags(value: number): void {
-    writeU8(this.addr + 32, value);
+    writeU8(this.addr + 36, value);
   }
 
   get sourceMap(): ?TargetSourceMapOptions {
-    return readU8(this.addr + 0 + 4) === 2 ? null : TargetSourceMapOptions.get(this.addr + 0);
+    return readU8(this.addr + 0 + 4) === 2
+      ? null
+      : TargetSourceMapOptions.get(this.addr + 0);
   }
 
   set sourceMap(value: ?TargetSourceMapOptions): void {
@@ -289,11 +321,13 @@ export class Environment {
       writeU8(this.addr + 0 + 4, 2);
     } else {
       TargetSourceMapOptions.set(this.addr + 0, value);
-    };
+    }
   }
 
   get loc(): ?SourceLocation {
-    return readU32(this.addr + 8 + 16) === 0 ? null : SourceLocation.get(this.addr + 8);
+    return readU32(this.addr + 8 + 16) === 0
+      ? null
+      : SourceLocation.get(this.addr + 8);
   }
 
   set loc(value: ?SourceLocation): void {
@@ -301,7 +335,7 @@ export class Environment {
       writeU32(this.addr + 8 + 16, 0);
     } else {
       SourceLocation.set(this.addr + 8, value);
-    };
+    }
   }
 
   get includeNodeModules(): string {
@@ -310,6 +344,14 @@ export class Environment {
 
   set includeNodeModules(value: string): void {
     writeU32(this.addr + 28, binding.getStringId(value));
+  }
+
+  get engines(): string {
+    return readCachedString(readU32(this.addr + 32));
+  }
+
+  set engines(value: string): void {
+    writeU32(this.addr + 32, binding.getStringId(value));
   }
 }
 
@@ -329,7 +371,9 @@ export class TargetSourceMapOptions {
   }
 
   get sourceRoot(): ?string {
-    return readU32(this.addr + 0 + 0) === 0 ? null : readCachedString(readU32(this.addr + 0));
+    return readU32(this.addr + 0 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 0));
   }
 
   set sourceRoot(value: ?string): void {
@@ -337,7 +381,7 @@ export class TargetSourceMapOptions {
       writeU32(this.addr + 0 + 0, 0);
     } else {
       writeU32(this.addr + 0, binding.getStringId(value));
-    };
+    }
   }
 
   get inline(): boolean {
@@ -435,7 +479,14 @@ export const EnvironmentFlags = {
   SHOULD_SCOPE_HOIST: 0b100,
 };
 
-type EnvironmentContextVariants = 'browser' | 'web-worker' | 'service-worker' | 'worklet' | 'node' | 'electron-main' | 'electron-renderer';
+type EnvironmentContextVariants =
+  | 'browser'
+  | 'web-worker'
+  | 'service-worker'
+  | 'worklet'
+  | 'node'
+  | 'electron-main'
+  | 'electron-renderer';
 
 export class EnvironmentContext {
   static get(addr: number): EnvironmentContextVariants {
@@ -584,7 +635,9 @@ export class Asset {
   }
 
   get query(): ?string {
-    return readU32(this.addr + 20 + 0) === 0 ? null : readCachedString(readU32(this.addr + 20));
+    return readU32(this.addr + 20 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 20));
   }
 
   set query(value: ?string): void {
@@ -592,7 +645,7 @@ export class Asset {
       writeU32(this.addr + 20 + 0, 0);
     } else {
       writeU32(this.addr + 20, binding.getStringId(value));
-    };
+    }
   }
 
   get assetType(): AssetTypeVariants {
@@ -612,7 +665,9 @@ export class Asset {
   }
 
   get mapKey(): ?string {
-    return readU32(this.addr + 24 + 0) === 0 ? null : readCachedString(readU32(this.addr + 24));
+    return readU32(this.addr + 24 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 24));
   }
 
   set mapKey(value: ?string): void {
@@ -620,7 +675,7 @@ export class Asset {
       writeU32(this.addr + 24 + 0, 0);
     } else {
       writeU32(this.addr + 24, binding.getStringId(value));
-    };
+    }
   }
 
   get outputHash(): string {
@@ -632,7 +687,9 @@ export class Asset {
   }
 
   get pipeline(): ?string {
-    return readU32(this.addr + 28 + 0) === 0 ? null : readCachedString(readU32(this.addr + 28));
+    return readU32(this.addr + 28 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 28));
   }
 
   set pipeline(value: ?string): void {
@@ -640,7 +697,7 @@ export class Asset {
       writeU32(this.addr + 28 + 0, 0);
     } else {
       writeU32(this.addr + 28, binding.getStringId(value));
-    };
+    }
   }
 
   get meta(): string {
@@ -680,11 +737,13 @@ export class Asset {
   }
 
   set symbols(value: Vec<Symbol>): void {
-    copy(value.addr, this.addr + 32, 12);;
+    copy(value.addr, this.addr + 32, 12);
   }
 
   get uniqueKey(): ?string {
-    return readU32(this.addr + 44 + 0) === 0 ? null : readCachedString(readU32(this.addr + 44));
+    return readU32(this.addr + 44 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 44));
   }
 
   set uniqueKey(value: ?string): void {
@@ -692,7 +751,7 @@ export class Asset {
       writeU32(this.addr + 44 + 0, 0);
     } else {
       writeU32(this.addr + 44, binding.getStringId(value));
-    };
+    }
   }
 }
 
@@ -826,7 +885,7 @@ export class Dependency {
   addr: number;
 
   constructor(addr?: number) {
-    this.addr = addr ?? binding.alloc(64);
+    this.addr = addr ?? binding.alloc(84);
   }
 
   static get(addr: number): Dependency {
@@ -834,11 +893,11 @@ export class Dependency {
   }
 
   static set(addr: number, value: Dependency): void {
-    copy(value.addr, addr, 64);
+    copy(value.addr, addr, 84);
   }
 
   get sourceAssetId(): ?number {
-    return readU32(this.addr + 0) ? null : readU32(this.addr + 4);
+    return readU32(this.addr + 0) === 0 ? null : readU32(this.addr + 4);
   }
 
   set sourceAssetId(value: ?number): void {
@@ -855,23 +914,25 @@ export class Dependency {
   }
 
   get specifier(): string {
-    return readCachedString(readU32(this.addr + 56));
+    return readCachedString(readU32(this.addr + 76));
   }
 
   set specifier(value: string): void {
-    writeU32(this.addr + 56, binding.getStringId(value));
+    writeU32(this.addr + 76, binding.getStringId(value));
   }
 
   get specifierType(): SpecifierTypeVariants {
-    return SpecifierType.get(this.addr + 61);
+    return SpecifierType.get(this.addr + 81);
   }
 
   set specifierType(value: SpecifierTypeVariants): void {
-    SpecifierType.set(this.addr + 61, value);
+    SpecifierType.set(this.addr + 81, value);
   }
 
   get resolveFrom(): ?string {
-    return readU32(this.addr + 12 + 0) === 0 ? null : readCachedString(readU32(this.addr + 12));
+    return readU32(this.addr + 12 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 12));
   }
 
   set resolveFrom(value: ?string): void {
@@ -879,71 +940,143 @@ export class Dependency {
       writeU32(this.addr + 12 + 0, 0);
     } else {
       writeU32(this.addr + 12, binding.getStringId(value));
-    };
+    }
+  }
+
+  get range(): ?string {
+    return readU32(this.addr + 16 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 16));
+  }
+
+  set range(value: ?string): void {
+    if (value == null) {
+      writeU32(this.addr + 16 + 0, 0);
+    } else {
+      writeU32(this.addr + 16, binding.getStringId(value));
+    }
   }
 
   get priority(): PriorityVariants {
-    return Priority.get(this.addr + 62);
+    return Priority.get(this.addr + 82);
   }
 
   set priority(value: PriorityVariants): void {
-    Priority.set(this.addr + 62, value);
+    Priority.set(this.addr + 82, value);
   }
 
   get bundleBehavior(): BundleBehaviorVariants {
-    return BundleBehavior.get(this.addr + 63);
+    return BundleBehavior.get(this.addr + 83);
   }
 
   set bundleBehavior(value: BundleBehaviorVariants): void {
-    BundleBehavior.set(this.addr + 63, value);
+    BundleBehavior.set(this.addr + 83, value);
   }
 
   get flags(): number {
-    return readU8(this.addr + 60);
+    return readU8(this.addr + 80);
   }
 
   set flags(value: number): void {
-    writeU8(this.addr + 60, value);
+    writeU8(this.addr + 80, value);
   }
 
   get loc(): ?SourceLocation {
-    return readU32(this.addr + 16 + 16) === 0 ? null : SourceLocation.get(this.addr + 16);
+    return readU32(this.addr + 20 + 16) === 0
+      ? null
+      : SourceLocation.get(this.addr + 20);
   }
 
   set loc(value: ?SourceLocation): void {
     if (value == null) {
-      writeU32(this.addr + 16 + 16, 0);
+      writeU32(this.addr + 20 + 16, 0);
     } else {
-      SourceLocation.set(this.addr + 16, value);
-    };
+      SourceLocation.set(this.addr + 20, value);
+    }
   }
 
   get placeholder(): ?string {
-    return readU32(this.addr + 36 + 0) === 0 ? null : readCachedString(readU32(this.addr + 36));
+    return readU32(this.addr + 40 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 40));
   }
 
   set placeholder(value: ?string): void {
     if (value == null) {
-      writeU32(this.addr + 36 + 0, 0);
+      writeU32(this.addr + 40 + 0, 0);
     } else {
-      writeU32(this.addr + 36, binding.getStringId(value));
-    };
+      writeU32(this.addr + 40, binding.getStringId(value));
+    }
   }
 
   get target(): number {
-    return readU32(this.addr + 40);
+    return readU32(this.addr + 44);
   }
 
   set target(value: number): void {
-    writeU32(this.addr + 40, value);
+    writeU32(this.addr + 44, value);
   }
 
   get symbols(): Vec<Symbol> {
-    return new Vec(this.addr + 44, 32, Symbol);
+    return new Vec(this.addr + 48, 32, Symbol);
   }
 
   set symbols(value: Vec<Symbol>): void {
-    copy(value.addr, this.addr + 44, 12);;
+    copy(value.addr, this.addr + 48, 12);
+  }
+
+  get promiseSymbol(): ?string {
+    return readU32(this.addr + 60 + 0) === 0
+      ? null
+      : readCachedString(readU32(this.addr + 60));
+  }
+
+  set promiseSymbol(value: ?string): void {
+    if (value == null) {
+      writeU32(this.addr + 60 + 0, 0);
+    } else {
+      writeU32(this.addr + 60, binding.getStringId(value));
+    }
+  }
+
+  get importAttributes(): Vec<ImportAttribute> {
+    return new Vec(this.addr + 64, 8, ImportAttribute);
+  }
+
+  set importAttributes(value: Vec<ImportAttribute>): void {
+    copy(value.addr, this.addr + 64, 12);
+  }
+}
+
+export class ImportAttribute {
+  addr: number;
+
+  constructor(addr?: number) {
+    this.addr = addr ?? binding.alloc(8);
+  }
+
+  static get(addr: number): ImportAttribute {
+    return new ImportAttribute(addr);
+  }
+
+  static set(addr: number, value: ImportAttribute): void {
+    copy(value.addr, addr, 8);
+  }
+
+  get key(): string {
+    return readCachedString(readU32(this.addr + 0));
+  }
+
+  set key(value: string): void {
+    writeU32(this.addr + 0, binding.getStringId(value));
+  }
+
+  get value(): boolean {
+    return !!readU8(this.addr + 4);
+  }
+
+  set value(value: boolean): void {
+    writeU8(this.addr + 4, value ? 1 : 0);
   }
 }
 
@@ -951,6 +1084,9 @@ export const DependencyFlags = {
   ENTRY: 0b1,
   OPTIONAL: 0b10,
   NEEDS_STABLE_NAME: 0b100,
+  SHOULD_WRAP: 0b1000,
+  IS_ESM: 0b10000,
+  IS_WEBWORKER: 0b100000,
 };
 
 type SpecifierTypeVariants = 'esm' | 'commonjs' | 'url' | 'custom';
@@ -1058,7 +1194,9 @@ export class Symbol {
   }
 
   get loc(): ?SourceLocation {
-    return readU32(this.addr + 0 + 16) === 0 ? null : SourceLocation.get(this.addr + 0);
+    return readU32(this.addr + 0 + 16) === 0
+      ? null
+      : SourceLocation.get(this.addr + 0);
   }
 
   set loc(value: ?SourceLocation): void {
@@ -1066,15 +1204,19 @@ export class Symbol {
       writeU32(this.addr + 0 + 16, 0);
     } else {
       SourceLocation.set(this.addr + 0, value);
-    };
+    }
   }
 
-  get isWeak(): boolean {
-    return !!readU8(this.addr + 28);
+  get flags(): number {
+    return readU8(this.addr + 28);
   }
 
-  set isWeak(value: boolean): void {
-    writeU8(this.addr + 28, value ? 1 : 0);
+  set flags(value: number): void {
+    writeU8(this.addr + 28, value);
   }
 }
 
+export const SymbolFlags = {
+  IS_WEAK: 0b1,
+  IS_ESM: 0b10,
+};

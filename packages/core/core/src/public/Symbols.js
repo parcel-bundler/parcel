@@ -12,11 +12,22 @@ import type {
   CommittedAssetId,
   Dependency,
   ParcelOptions,
-} from "../types";
+} from '../types';
 
 import nullthrows from 'nullthrows';
-import {fromInternalSourceLocation, toInternalSourceLocation} from '../utils';
-import {Dependency as DbDependency, Asset as DbAsset, getStringId, readCachedString} from '@parcel/rust';
+import {
+  fromInternalSourceLocation,
+  toInternalSourceLocation,
+  toDbSourceLocation,
+} from '../utils';
+import {
+  Dependency as DbDependency,
+  Asset as DbAsset,
+  SymbolFlags,
+  getStringId,
+  readCachedString,
+} from '@parcel/rust';
+import {createBuildCache} from '../buildCache';
 
 const EMPTY_ITERABLE = {
   [Symbol.iterator]() {
@@ -32,7 +43,7 @@ const EMPTY_ITERATOR = {
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-let valueToSymbols: Map<CommittedAssetId, AssetSymbols> = new Map();
+let valueToSymbols: Map<CommittedAssetId, AssetSymbols> = createBuildCache();
 export class AssetSymbols implements IAssetSymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
@@ -88,7 +99,10 @@ export class AssetSymbols implements IAssetSymbols {
     //   ? this.#value.symbols[Symbol.iterator]()
     //   : EMPTY_ITERATOR;
     for (let s of this.#value.symbols) {
-      yield [readCachedString(s.exported), fromInternalAssetSymbolDb(this.#options.projectRoot, s)];
+      yield [
+        readCachedString(s.exported),
+        fromInternalAssetSymbolDb(this.#options.projectRoot, s),
+      ];
     }
   }
 
@@ -97,7 +111,10 @@ export class AssetSymbols implements IAssetSymbols {
     return `AssetSymbols(${
       this.#value.symbols
         ? [...this.#value.symbols]
-            .map(([s, {local}]) => `${s}:${local}`)
+            .map(
+              ({exported, local}) =>
+                `${readCachedString(exported)}:${readCachedString(local)}`,
+            )
             .join(', ')
         : null
     })`;
@@ -200,10 +217,8 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   }
 }
 
-let valueToMutableDependencySymbols: Map<
-  Dependency,
-  MutableDependencySymbols,
-> = new Map();
+let valueToMutableDependencySymbols: Map<Dependency, MutableDependencySymbols> =
+  createBuildCache();
 export class MutableDependencySymbols implements IMutableDependencySymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|}]> { return ({}: any); }
@@ -262,7 +277,10 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     let symbols = this.#value.symbols;
     if (symbols) {
       for (let sym of symbols) {
-        yield [readCachedString(sym.exported), fromInternalDependencySymbol(this.#options.projectRoot, sym)];
+        yield [
+          readCachedString(sym.exported),
+          fromInternalDependencySymbol(this.#options.projectRoot, sym),
+        ];
       }
     }
   }
@@ -272,7 +290,12 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     return `MutableDependencySymbols(${
       this.#value.symbols
         ? [...this.#value.symbols]
-            .map(([s, {local, isWeak}]) => `${readCachedString(s)}:${readCachedString(local)}${isWeak ? '?' : ''}`)
+            .map(
+              ({exported, local, flags}) =>
+                `${readCachedString(exported)}:${readCachedString(local)}${
+                  flags & SymbolFlags.IS_WEAK ? '?' : ''
+                }`,
+            )
             .join(', ')
         : null
     })`;
@@ -299,11 +322,12 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     if (!sym) {
       sym = symbols.extend();
     } else {
-      isWeak = sym.isWeak && isWeak;
+      isWeak = !!(sym.flags & SymbolFlags.IS_WEAK) && isWeak;
     }
     sym.local = getStringId(local);
     sym.exported = id;
-    sym.isWeak = isWeak;
+    sym.flags = isWeak ? SymbolFlags.IS_WEAK : 0;
+    sym.loc = toDbSourceLocation(this.#options.projectRoot, loc);
     // console.log('set symbol', sym, local, exportSymbol);
     // symbols.set(exportSymbol, {
     //   local,
@@ -314,7 +338,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
 
   delete(exportSymbol: ISymbol) {
     // nullthrows(this.#value.symbols).delete(exportSymbol);
-    throw new Error('todo')
+    throw new Error('todo');
   }
 }
 
@@ -322,7 +346,9 @@ function fromInternalAssetSymbolDb(projectRoot: string, value) {
   return (
     value && {
       local: readCachedString(value.local),
-      meta: value.meta,
+      meta: {
+        isEsm: !!(value.flags & SymbolFlags.IS_ESM),
+      },
       loc: fromInternalSourceLocation(projectRoot, value.loc),
     }
   );
@@ -342,8 +368,10 @@ function fromInternalDependencySymbol(projectRoot: string, value) {
   return (
     value && {
       local: readCachedString(value.local),
-      meta: value.meta,
-      isWeak: value.isWeak,
+      meta: {
+        isEsm: !!(value.flags & SymbolFlags.IS_ESM),
+      },
+      isWeak: !!(value.flags & SymbolFlags.IS_WEAK),
       loc: fromInternalSourceLocation(projectRoot, value.loc),
     }
   );

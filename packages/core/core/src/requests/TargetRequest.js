@@ -46,8 +46,12 @@ import {
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
-import { Environment as DbEnvironment, Target as DbTarget } from '@parcel/rust';
-import {optionsProxy, toInternalSourceLocation} from '../utils';
+import {Environment as DbEnvironment, Target as DbTarget} from '@parcel/rust';
+import {
+  optionsProxy,
+  toInternalSourceLocation,
+  toDbSourceLocationFromInternal,
+} from '../utils';
 import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 
 type RunOpts<TResult> = {|
@@ -161,7 +165,7 @@ async function run({input, api, options}): Promise<Array<Target>> {
     target.distEntry = t.distEntry;
     target.name = t.name;
     target.publicUrl = t.publicUrl;
-    // target.loc = t.loc;
+    target.loc = toDbSourceLocationFromInternal(t.loc);
     target.pipeline = t.pipeline;
     return target.addr;
   });
@@ -880,7 +884,7 @@ export class TargetResolver {
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
               descriptor.optimize === true,
-            // shouldScopeHoist: true, // REVERT
+            shouldScopeHoist: true,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
           loc: toInternalSourceLocation(this.options.projectRoot, loc),
@@ -1541,9 +1545,7 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
       }
 
       if (keyInfo.inferred) {
-        highlight.inferred.push(
-          md`${key} to be ${JSON.stringify(env[key])}`,
-        );
+        highlight.inferred.push(md`${key} to be ${JSON.stringify(env[key])}`);
       }
     }
 
@@ -1577,9 +1579,7 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
     } else if (Array.isArray(env.includeNodeModules)) {
       includeNodeModules =
         'only ' +
-        listFormat.format(
-          env.includeNodeModules.map(m => JSON.stringify(m)),
-        );
+        listFormat.format(env.includeNodeModules.map(m => JSON.stringify(m)));
     } else if (
       env.includeNodeModules &&
       typeof env.includeNodeModules === 'object'
@@ -1603,14 +1603,10 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
                  fromProjectPath(options.projectRoot, input.filePath),
                )}
               **Output**: ${path.relative(process.cwd(), output)}
-              **Format**: ${env.outputFormat} ${format(
-        info.outputFormat,
-      )}
+              **Format**: ${env.outputFormat} ${format(info.outputFormat)}
              **Context**: ${env.context} ${format(info.context)}
              **Engines**: ${engines || ''} ${format(info.engines)}
-        **Library Mode**: ${String(env.isLibrary)} ${format(
-        info.isLibrary,
-      )}
+        **Library Mode**: ${String(env.isLibrary)} ${format(info.isLibrary)}
 **Include Node Modules**: ${includeNodeModules} ${format(
         info.includeNodeModules,
       )}

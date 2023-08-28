@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use path_slash::PathBufExt;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -58,7 +59,7 @@ pub struct DependencyDescriptor {
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
 pub fn dependency_collector<'a>(
   source_map: &'a SourceMap,
-  items: &'a mut Vec<DependencyDescriptor>,
+  items: &'a mut IndexMap<u64, DependencyDescriptor>,
   decls: &'a HashSet<Id>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
@@ -82,7 +83,7 @@ pub fn dependency_collector<'a>(
 
 struct DependencyCollector<'a> {
   source_map: &'a SourceMap,
-  items: &'a mut Vec<DependencyDescriptor>,
+  items: &'a mut IndexMap<u64, DependencyDescriptor>,
   in_try: bool,
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
@@ -117,35 +118,45 @@ impl<'a> DependencyCollector<'a> {
     // For other types of dependencies, the specifier will be changed to a hash
     // that also contains the dependency kind. This way, multiple kinds of dependencies
     // to the same specifier can be used within the same file.
-    let placeholder = match kind {
-      DependencyKind::Import | DependencyKind::Export => {
-        if is_specifier_rewritten {
-          Some(specifier.as_ref().to_owned())
-        } else {
-          None
-        }
-      }
-      _ => Some(format!(
-        "{:x}",
-        hash!(format!(
-          "{}:{}:{}",
-          self.get_project_relative_filename(),
-          specifier,
-          kind
-        ))
-      )),
-    };
-
-    self.items.push(DependencyDescriptor {
-      kind,
-      loc: SourceLocation::from(self.source_map, span),
+    // let placeholder = match kind {
+    //   DependencyKind::Import | DependencyKind::Export => {
+    //     if is_specifier_rewritten {
+    //       Some(specifier.as_ref().to_owned())
+    //     } else {
+    //       None
+    //     }
+    //   }
+    //   _ => Some(format!(
+    //     "{:x}",
+    //     hash!(format!(
+    //       "{}:{}:{}",
+    //       self.get_project_relative_filename(),
+    //       specifier,
+    //       kind
+    //     ))
+    //   )),
+    // };
+    let hash = hash!(format!(
+      "{}:{}:{}",
+      self.get_project_relative_filename(),
       specifier,
-      attributes,
-      is_optional,
-      is_helper: span.is_dummy(),
-      source_type: Some(source_type),
-      placeholder: placeholder.clone(),
-    });
+      kind
+    ));
+    let placeholder = Some(format!("{:x}", hash));
+
+    self.items.insert(
+      hash,
+      DependencyDescriptor {
+        kind,
+        loc: SourceLocation::from(self.source_map, span),
+        specifier,
+        attributes,
+        is_optional,
+        is_helper: span.is_dummy(),
+        source_type: Some(source_type),
+        placeholder: placeholder.clone(),
+      },
+    );
 
     placeholder.map(|p| p.into())
   }
@@ -172,23 +183,24 @@ impl<'a> DependencyCollector<'a> {
     // For library builds, we need to create something that can be statically analyzed by another bundler,
     // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
     // call with a placeholder for the relative path to be replaced during packaging.
-    let placeholder = format!(
-      "{:x}",
-      hash!(format!(
-        "parcel_url:{}:{}:{}",
-        self.config.filename, specifier, kind
-      ))
+    let hash = hash!(format!(
+      "parcel_url:{}:{}:{}",
+      self.config.filename, specifier, kind
+    ));
+    let placeholder = format!("{:x}", hash);
+    self.items.insert(
+      hash,
+      DependencyDescriptor {
+        kind,
+        loc: SourceLocation::from(self.source_map, span),
+        specifier,
+        attributes: None,
+        is_optional: false,
+        is_helper: span.is_dummy(),
+        source_type: Some(source_type),
+        placeholder: Some(placeholder.clone()),
+      },
     );
-    self.items.push(DependencyDescriptor {
-      kind,
-      loc: SourceLocation::from(self.source_map, span),
-      specifier,
-      attributes: None,
-      is_optional: false,
-      is_helper: span.is_dummy(),
-      source_type: Some(source_type),
-      placeholder: Some(placeholder.clone()),
-    });
 
     create_url_constructor(
       ast::Expr::Lit(ast::Lit::Str(placeholder.into())),

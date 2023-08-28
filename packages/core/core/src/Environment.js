@@ -6,10 +6,13 @@ import type {
 } from '@parcel/types';
 import type {Environment, InternalSourceLocation} from './types';
 import {hashString} from '@parcel/rust';
-import {toInternalSourceLocation} from './utils';
+import {
+  toDbSourceLocationFromInternal,
+  toInternalSourceLocation,
+} from './utils';
 import PublicEnvironment from './public/Environment';
 import {environmentToInternalEnvironment} from './public/Environment';
-import { Environment as DbEnvironment, EnvironmentFlags } from '@parcel/rust';
+import {Environment as DbEnvironment, EnvironmentFlags} from '@parcel/rust';
 import * as binding from '@parcel/rust';
 
 const DEFAULT_ENGINES = {
@@ -17,12 +20,23 @@ const DEFAULT_ENGINES = {
   node: '>= 8.0.0',
 };
 
+const DEFAULT_NODE_ENGINES = {
+  node: DEFAULT_ENGINES.node,
+};
+
+const DEFAULT_BROWSER_ENGINES = {
+  browsers: DEFAULT_ENGINES.browsers,
+};
+
+const EMPTY_ENGINES = {};
+
 type EnvironmentOpts = {|
   ...EnvironmentOptions,
   loc?: ?InternalSourceLocation,
 |};
 
 let tmp = new DbEnvironment();
+let lastEngines = null;
 
 export function createEnvironment({
   context,
@@ -52,20 +66,16 @@ export function createEnvironment({
     switch (context) {
       case 'node':
       case 'electron-main':
-        engines = {
-          node: DEFAULT_ENGINES.node,
-        };
+        engines = DEFAULT_NODE_ENGINES;
         break;
       case 'browser':
       case 'web-worker':
       case 'service-worker':
       case 'electron-renderer':
-        engines = {
-          browsers: DEFAULT_ENGINES.browsers,
-        };
+        engines = DEFAULT_BROWSER_ENGINES;
         break;
       default:
-        engines = {};
+        engines = EMPTY_ENGINES;
     }
   }
 
@@ -114,12 +124,20 @@ export function createEnvironment({
 
   // res.id = getEnvironmentHash(res);
   tmp.context = context;
-  // tmpEnvironment.engines
   tmp.outputFormat = outputFormat;
   tmp.sourceType = sourceType;
-  tmp.flags = (isLibrary ? EnvironmentFlags.IS_LIBRARY : 0) | (shouldOptimize ? EnvironmentFlags.SHOULD_OPTIMIZE : 0) | (shouldScopeHoist ? EnvironmentFlags.SHOULD_SCOPE_HOIST : 0);
+  tmp.flags =
+    (isLibrary ? EnvironmentFlags.IS_LIBRARY : 0) |
+    (shouldOptimize ? EnvironmentFlags.SHOULD_OPTIMIZE : 0) |
+    (shouldScopeHoist ? EnvironmentFlags.SHOULD_SCOPE_HOIST : 0);
   tmp.includeNodeModules = JSON.stringify(includeNodeModules);
+  if (engines !== lastEngines) {
+    tmp.engines = JSON.stringify(engines);
+    lastEngines = engines;
+  }
+  // console.timeEnd('create env')
   tmp.sourceMap = null;
+  tmp.loc = toDbSourceLocationFromInternal(loc);
   // console.log('env', tmp, tmp.context, tmp.outputFormat, tmp.sourceType, tmp.flags);
 
   let res = binding.createEnvironment(tmp.addr);
@@ -142,14 +160,52 @@ export function mergeEnvironments(
     return environmentToInternalEnvironment(b);
   }
 
-  // console.log("MERGE", a, b)
-  // $FlowFixMe - ignore the `id` that is already on a
-  // return createEnvironment({
-  //   ...a,
-  //   ...b,
-  //   loc: b.loc ? toInternalSourceLocation(projectRoot, b.loc) : a.loc,
-  // });
-  return a;
+  let env = DbEnvironment.get(a);
+  DbEnvironment.set(tmp.addr, env);
+
+  if (b.context) {
+    tmp.context = b.context;
+  }
+
+  if (b.outputFormat) {
+    tmp.outputFormat = b.outputFormat;
+  }
+
+  if (b.sourceType) {
+    tmp.sourceType = b.sourceType;
+  }
+
+  tmp.flags =
+    mergeFlag(env.flags, EnvironmentFlags.IS_LIBRARY, b.isLibrary) |
+    mergeFlag(env.flags, EnvironmentFlags.SHOULD_OPTIMIZE, b.shouldOptimize) |
+    mergeFlag(
+      env.flags,
+      EnvironmentFlags.SHOULD_SCOPE_HOIST,
+      b.shouldScopeHoist,
+    );
+
+  if (b.includeNodeModules) {
+    tmp.includeNodeModules = JSON.stringify(b.includeNodeModules);
+  }
+
+  if (b.engines) {
+    if (b.engines !== lastEngines) {
+      tmp.engines = JSON.stringify(b.engines);
+      lastEngines = b.engines;
+    }
+  }
+
+  if (b.loc) {
+    tmp.loc = toDbSourceLocationFromInternal(b.loc);
+  }
+
+  // TODO: sourceMap
+
+  return binding.createEnvironment(tmp.addr);
+}
+
+function mergeFlag(cur: number, flag: number, value: ?boolean) {
+  return value == null ? cur & flag : value ? flag : 0;
 }
 
 function getEnvironmentHash(env: Environment): string {

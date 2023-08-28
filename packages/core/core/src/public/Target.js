@@ -11,11 +11,12 @@ import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import {fromProjectPath} from '../projectPath';
 import {fromInternalSourceLocation} from '../utils';
-import { Target as DbTarget } from '@parcel/rust';
+import {Target as DbTarget} from '@parcel/rust';
+import {createBuildCache} from '../buildCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const internalTargetToTarget: Map<TargetValue, Target> = new Map();
+const internalTargetToTarget: Map<TargetValue, Target> = createBuildCache();
 const _targetToInternalTarget: WeakMap<ITarget, TargetValue> = new WeakMap();
 export function targetToInternalTarget(target: ITarget): TargetValue {
   return nullthrows(_targetToInternalTarget.get(target));

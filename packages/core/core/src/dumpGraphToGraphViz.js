@@ -7,10 +7,17 @@ import {bundleGraphEdgeTypes} from './BundleGraph';
 import {requestGraphEdgeTypes} from './RequestTracker';
 
 import path from 'path';
+import fs from 'fs';
 import {fromNodeId} from '@parcel/graph';
 import {fromProjectPathRelative} from './projectPath';
-import {SpecifierType, Priority} from './types';
-import { Environment as DbEnvironment } from '@parcel/rust';
+import {
+  Environment as DbEnvironment,
+  Asset as DbAsset,
+  Dependency as DbDependency,
+  DependencyFlags,
+  SymbolFlags,
+  readCachedString,
+} from '@parcel/rust';
 
 const COLORS = {
   root: 'gray',
@@ -82,32 +89,34 @@ export default async function dumpGraphToGraphViz(
     } else if (node.type) {
       label = `[${fromNodeId(id)}] ${node.type || 'No Type'}: [${node.id}]: `;
       if (node.type === 'dependency') {
-        label += node.value.specifier;
+        let dep = DbDependency.get(node.value);
+        label += dep.specifier;
         let parts = [];
-        if (node.value.priority !== Priority.sync) {
-          parts.push(
-            Object.entries(Priority).find(
-              ([, v]) => v === node.value.priority,
-            )?.[0],
-          );
+        if (dep.priority !== 'sync') {
+          parts.push(dep.priority);
         }
-        if (node.value.isOptional) parts.push('optional');
-        if (node.value.specifierType === SpecifierType.url) parts.push('url');
+        if (dep.flags & DependencyFlags.OPTIONAL) parts.push('optional');
+        if (dep.specifierType === 'url') parts.push('url');
         if (node.hasDeferred) parts.push('deferred');
         if (node.excluded) parts.push('excluded');
         if (parts.length) label += ' (' + parts.join(', ') + ')';
-        if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-        let depSymbols = node.value.symbols;
+        if (dep.env) label += ` (${getEnvDescription(dep.env)})`;
+        let depSymbols = dep.symbols;
         if (detailedSymbols) {
           if (depSymbols) {
-            if (depSymbols.size) {
+            if (depSymbols.length) {
               label +=
                 '\\nsymbols: ' +
-                [...depSymbols].map(([e, {local}]) => [e, local]).join(';');
+                [...depSymbols]
+                  .map(({exported, local}) => [
+                    readCachedString(exported),
+                    readCachedString(local),
+                  ])
+                  .join(';');
             }
             let weakSymbols = [...depSymbols]
-              .filter(([, {isWeak}]) => isWeak)
-              .map(([s]) => s);
+              .filter(({flags}) => flags & SymbolFlags.IS_WEAK)
+              .map(({exported}) => readCachedString(exported));
             if (weakSymbols.length) {
               label += '\\nweakSymbols: ' + weakSymbols.join(',');
             }
@@ -117,7 +126,11 @@ export default async function dumpGraphToGraphViz(
                 [...node.usedSymbolsUp]
                   .map(([s, sAsset]) =>
                     sAsset
-                      ? `${s}(${sAsset.asset}.${sAsset.symbol ?? ''})`
+                      ? `${s}(${sAsset.asset}.${
+                          sAsset.symbol != null
+                            ? readCachedString(sAsset.symbol)
+                            : ''
+                        })`
                       : sAsset === null
                       ? `${s}(external)`
                       : `${s}(ambiguous)`,
@@ -126,7 +139,8 @@ export default async function dumpGraphToGraphViz(
             }
             if (node.usedSymbolsDown.size > 0) {
               label +=
-                '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
+                '\\nusedSymbolsDown: ' +
+                [...node.usedSymbolsDown].map(readCachedString).join(',');
             }
             // if (node.usedSymbolsDownDirty) label += '\\nusedSymbolsDownDirty';
             // if (node.usedSymbolsUpDirtyDown)
@@ -137,22 +151,28 @@ export default async function dumpGraphToGraphViz(
           }
         }
       } else if (node.type === 'asset') {
+        let asset = DbAsset.get(node.value);
         label +=
-          path.basename(fromProjectPathRelative(node.value.filePath)) +
+          path.basename(fromProjectPathRelative(asset.filePath)) +
           '#' +
-          node.value.type;
+          asset.assetType;
         if (detailedSymbols) {
-          if (!node.value.symbols) {
+          if (!asset.symbols) {
             label += '\\nsymbols: cleared';
-          } else if (node.value.symbols.size) {
+          } else if (asset.symbols.length) {
             label +=
               '\\nsymbols: ' +
-              [...node.value.symbols]
-                .map(([e, {local}]) => [e, local])
+              [...asset.symbols]
+                .map(({exported, local}) => [
+                  readCachedString(exported),
+                  readCachedString(local),
+                ])
                 .join(';');
           }
           if (node.usedSymbols.size) {
-            label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
+            label +=
+              '\\nusedSymbols: ' +
+              [...node.usedSymbols].map(readCachedString).join(',');
           }
           // if (node.usedSymbolsDownDirty) label += '\\nusedSymbolsDownDirty';
           // if (node.usedSymbolsUpDirty) label += '\\nusedSymbolsUpDirty';
@@ -198,8 +218,11 @@ export default async function dumpGraphToGraphViz(
       gEdge.set('color', color);
     }
   }
-  let tmp = tempy.file({name: `parcel-${name}.png`});
-  await g.output('png', tmp);
+  // let tmp = tempy.file({name: `parcel-${name}.svg`});
+  let tmp = `parcel-${name}.svg`;
+  let render = await require('@mischnic/dot-svg')();
+  let svg = render(g.to_dot());
+  fs.writeFileSync(tmp, svg);
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);
 }
@@ -212,14 +235,15 @@ function nodeId(id) {
 function getEnvDescription(envId: Environment) {
   let description;
   let env = DbEnvironment.get(envId);
-  if (typeof env.engines.browsers === 'string') {
-    description = `${env.context}: ${env.engines.browsers}`;
-  } else if (Array.isArray(env.engines.browsers)) {
-    description = `${env.context}: ${env.engines.browsers.join(', ')}`;
-  } else if (env.engines.node) {
-    description = `node: ${env.engines.node}`;
-  } else if (env.engines.electron) {
-    description = `electron: ${env.engines.electron}`;
+  let engines = JSON.parse(env.engines);
+  if (typeof engines.browsers === 'string') {
+    description = `${env.context}: ${engines.browsers}`;
+  } else if (Array.isArray(engines.browsers)) {
+    description = `${env.context}: ${engines.browsers.join(', ')}`;
+  } else if (engines.node) {
+    description = `node: ${engines.node}`;
+  } else if (engines.electron) {
+    description = `electron: ${engines.electron}`;
   }
 
   return description ?? '';

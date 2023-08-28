@@ -176,7 +176,7 @@ impl Arena {
 
 pub struct ArenaAllocator;
 
-static WASTED: AtomicUsize = AtomicUsize::new(0);
+// static WASTED: AtomicUsize = AtomicUsize::new(0);
 
 unsafe impl Allocator for ArenaAllocator {
   #[inline(always)]

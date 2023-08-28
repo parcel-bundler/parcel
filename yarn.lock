@@ -2057,6 +2057,11 @@
   resolved "https://registry.yarnpkg.com/@mdx-js/util/-/util-1.6.22.tgz#219dfd89ae5b97a8801f015323ffa4b62f45718b"
   integrity sha512-H1rQc1ZOHANWBvPcW+JpGwr+juXSxM8Q8YCkm3GhZd8REu1fHR3z99CErO1p9pkcfcxZnMdIZdIsXkOHY0NilA==
 
+"@mischnic/dot-svg@^0.0.0":
+  version "0.0.0"
+  resolved "https://registry.yarnpkg.com/@mischnic/dot-svg/-/dot-svg-0.0.0.tgz#7fc987217e681159358b246be44aa13a8499240d"
+  integrity sha512-PLtR0TPyM+vOaPilp2oLjAM7vXynwrCwQIpW4689+DJJKxUrSo9CM3pdllfy1+jNoZz0dEOzUisblnRYiOUXcQ==
+
 "@mischnic/json-sourcemap@^0.1.0":
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/@mischnic/json-sourcemap/-/json-sourcemap-0.1.0.tgz#38af657be4108140a548638267d02a2ea3336507"

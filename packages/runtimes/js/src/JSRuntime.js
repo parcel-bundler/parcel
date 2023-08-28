@@ -164,7 +164,7 @@ export default (new Runtime({
               `/bundles/${referencedBundle.id}.js`,
             ),
             code: `module.exports = Promise.resolve(${JSON.stringify(
-              dependency.id,
+              dependency.meta.placeholder ?? dependency.id,
             )});`,
             dependency,
             env: {sourceType: 'module'},
@@ -196,7 +196,9 @@ export default (new Runtime({
       if (referencedBundle?.bundleBehavior === 'inline') {
         assets.push({
           filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
-          code: `module.exports = ${JSON.stringify(dependency.id)};`,
+          code: `module.exports = ${JSON.stringify(
+            dependency.meta.placeholder ?? dependency.id,
+          )};`,
           dependency,
           env: {sourceType: 'module'},
         });
@@ -232,7 +234,7 @@ export default (new Runtime({
 
       // Skip URL runtimes for library builds. This is handled in packaging so that
       // the url is inlined and statically analyzable.
-      if (bundle.env.isLibrary && dependency.meta?.placeholder != null) {
+      if (bundle.env.isLibrary && dependency.meta?.isESM !== true) {
         continue;
       }
 

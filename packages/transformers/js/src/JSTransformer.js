@@ -398,7 +398,7 @@ export default (new Transformer({
       shebang,
       // hoist_result,
       // symbol_result,
-      needs_esm_helpers,
+      // needs_esm_helpers,
       diagnostics,
       used_env,
       has_node_replacements,
@@ -444,6 +444,9 @@ export default (new Transformer({
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
+      resolve_helpers_from: __filename,
+      side_effects: asset.sideEffects,
+      supports_dynamic_import: asset.env.supports('dynamic-import', true),
     });
 
     // console.log(dependencies, symbols);
@@ -521,7 +524,8 @@ export default (new Transformer({
           }
 
           let err = SCRIPT_ERRORS[(asset.env.context: string)];
-          if (err) {
+          if (err && !message.startsWith('import() is not allowed in')) {
+            // TODO: hack
             if (!res.hints) {
               res.hints = [err.hint];
             } else {
@@ -557,6 +561,7 @@ export default (new Transformer({
     asset.setNativeDependencies(dependencies);
     asset.setNativeSymbols(symbols);
 
+    asset.uniqueKey ||= asset.id;
     asset.meta.hasCJSExports = has_cjs_exports;
     asset.meta.staticExports = static_cjs_exports;
     asset.meta.shouldWrap = should_wrap;

@@ -7,6 +7,7 @@ use std::{marker::PhantomData, num::NonZeroU32, sync::RwLock};
 use alloc::Slab;
 use allocator_api2::alloc::Allocator;
 use dashmap::DashMap;
+use derivative::Derivative;
 use lazy_static::lazy_static;
 use parcel_derive::{JsValue, SlabAllocated, ToJs};
 
@@ -278,7 +279,7 @@ impl<T: JsValue> JsValue for Option<T> {
       format!("{} ? null : {}", discriminant, T::js_getter(addr, offset))
     } else {
       format!(
-        "{} ? null : {}",
+        "{} === 0 ? null : {}",
         match value_offset {
           1 => u8::js_getter(addr, offset),
           4 => u32::js_getter(addr, offset),
@@ -416,7 +417,6 @@ unsafe impl<T: SlabAllocated> Allocator for SlabAllocator<T> {
   }
 }
 
-#[derive(Debug)]
 pub struct ArenaVec<T> {
   buf: u32,
   len: u32,
@@ -432,6 +432,12 @@ impl<T: SlabAllocated + Clone> Clone for ArenaVec<T> {
       res.update(vec);
     }
     res
+  }
+}
+
+impl<T: PartialEq + SlabAllocated> PartialEq for ArenaVec<T> {
+  fn eq(&self, other: &Self) -> bool {
+    self.as_slice().eq(other.as_slice())
   }
 }
 
@@ -484,6 +490,20 @@ impl<T: SlabAllocated> ArenaVec<T> {
       self.update(vec)
     }
   }
+
+  pub fn len(&self) -> u32 {
+    self.len
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.len == 0
+  }
+}
+
+impl<T: std::fmt::Debug + SlabAllocated + Clone> std::fmt::Debug for ArenaVec<T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    self.as_slice().fmt(f)
+  }
 }
 
 impl<T: JsValue> JsValue for ArenaVec<T> {
@@ -515,7 +535,7 @@ impl<T: JsValue> JsValue for ArenaVec<T> {
   }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
 pub struct InternedString(pub NonZeroU32);
 
 #[derive(PartialEq, Clone, Debug, JsValue)]
@@ -539,22 +559,26 @@ pub struct Target {
 #[derive(PartialEq, Clone, Debug, JsValue)]
 pub struct EnvironmentId(pub u32);
 
-#[derive(PartialEq, Clone, Debug, ToJs, SlabAllocated)]
+#[derive(Derivative, Clone, Debug, ToJs, SlabAllocated)]
+#[derivative(PartialEq)]
 pub struct Environment {
   pub context: EnvironmentContext,
   pub output_format: OutputFormat,
   pub source_type: SourceType,
   pub flags: EnvironmentFlags,
   pub source_map: Option<TargetSourceMapOptions>,
+  #[derivative(PartialEq = "ignore")]
   pub loc: Option<SourceLocation>,
   pub include_node_modules: InternedString,
+  pub engines: InternedString,
 }
 
+// #[derive(PartialEq, Clone, Debug, ToJs, JsValue)]
 // pub struct Engines {
-//   // browsers:
-//   electron: Option<String>,
-//   node: Option<String>,
-//   parcel: Option<String>
+//   browsers: ArenaVec<InternedString>,
+//   electron: Option<InternedString>,
+//   node: Option<InternedString>,
+//   parcel: Option<InternedString>,
 // }
 
 // #[derive(Clone)]
@@ -579,15 +603,15 @@ pub struct TargetSourceMapOptions {
 
 #[derive(PartialEq, Debug, Clone, ToJs, JsValue)]
 pub struct SourceLocation {
-  file_path: InternedString,
-  start: Location,
-  end: Location,
+  pub file_path: InternedString,
+  pub start: Location,
+  pub end: Location,
 }
 
 #[derive(PartialEq, Debug, Clone, ToJs, JsValue)]
 pub struct Location {
-  line: u32,
-  column: u32,
+  pub line: u32,
+  pub column: u32,
 }
 
 js_bitflags! {
@@ -680,24 +704,34 @@ pub struct Dependency {
   pub specifier: InternedString,
   pub specifier_type: SpecifierType,
   pub resolve_from: Option<InternedString>,
+  pub range: Option<InternedString>,
   pub priority: Priority,
   pub bundle_behavior: BundleBehavior,
   pub flags: DependencyFlags,
   pub loc: Option<SourceLocation>,
-  // meta/resolver_meta/target
-  // symbols
-  // range
+  // meta/resolver_meta
   // pipeline
   pub placeholder: Option<InternedString>,
   pub target: TargetId,
   pub symbols: ArenaVec<Symbol>,
+  pub promise_symbol: Option<InternedString>,
+  pub import_attributes: ArenaVec<ImportAttribute>,
+}
+
+#[derive(Debug, Clone, ToJs, JsValue, SlabAllocated)]
+pub struct ImportAttribute {
+  pub key: InternedString,
+  pub value: bool,
 }
 
 js_bitflags! {
   pub struct DependencyFlags: u8 {
-    const ENTRY    = 0b00000001;
-    const OPTIONAL = 0b00000010;
-    const NEEDS_STABLE_NAME = 0b00000100;
+    const ENTRY    = 1 << 0;
+    const OPTIONAL = 1 << 1;
+    const NEEDS_STABLE_NAME = 1 << 2;
+    const SHOULD_WRAP = 1 << 3;
+    const IS_ESM = 1 << 4;
+    const IS_WEBWORKER = 1 << 5;
   }
 }
 
@@ -723,7 +757,14 @@ pub struct Symbol {
   #[js_type(u32)]
   pub local: InternedString,
   pub loc: Option<SourceLocation>,
-  pub is_weak: bool,
+  pub flags: SymbolFlags,
+}
+
+js_bitflags! {
+  pub struct SymbolFlags: u8 {
+    const IS_WEAK = 1 << 0;
+    const IS_ESM = 1 << 1;
+  }
 }
 
 fn alloc_struct<T>() -> (u32, *mut T) {
@@ -791,6 +832,12 @@ impl core::ops::Deref for InternedString {
   }
 }
 
+impl std::fmt::Debug for InternedString {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    self.as_str().fmt(f)
+  }
+}
+
 #[derive(Default)]
 pub struct ParcelDb {
   environments: RwLock<Vec<u32>>,
@@ -838,24 +885,27 @@ impl ParcelDb {
     vec.reserve(count as usize);
   }
 
-  pub fn environment_id(&self, addr: u32) -> u32 {
-    let env: &Environment = unsafe { &*HEAP.get(addr) };
+  pub fn get_environment(&self, addr: u32) -> &Environment {
+    unsafe { &*HEAP.get(addr) }
+  }
+
+  pub fn environment_id(&self, env: &Environment) -> EnvironmentId {
     {
       if let Some(env) = self
         .environments
         .read()
         .unwrap()
         .iter()
-        .find(|e| unsafe { &*HEAP.get::<Environment>(**e) } == env)
+        .find(|e| self.get_environment(**e) == env)
       {
-        return *env;
+        return EnvironmentId(*env);
       }
     }
 
     let (addr, ptr) = Environment::alloc(1);
     unsafe { *ptr = env.clone() };
     self.environments.write().unwrap().push(addr);
-    addr
+    EnvironmentId(addr)
   }
 
   pub fn create_dependency(&self, dep: Dependency) -> u32 {
@@ -1000,6 +1050,12 @@ class Vec<T> {{
     writeU32(this.addr + {len_offset}, 0);
   }}
 
+  init(): void {{
+    writeU32(this.addr + {len_offset}, 0);
+    writeU32(this.addr + {cap_offset}, 0);
+    writeU32(this.addr + {buf_offset}, 0);
+  }}
+
   // $FlowFixMe
   *[globalThis.Symbol.iterator]() {{
     let addr = readU32(this.addr + {buf_offset});
@@ -1008,7 +1064,7 @@ class Vec<T> {{
     }}
   }}
 
-  find(pred: (value: T) => boolean): ?T {{
+  find(pred: (value: T) => mixed): ?T {{
     let addr = readU32(this.addr + {buf_offset});
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
       let value = this.accessor.get(addr);
@@ -1018,7 +1074,7 @@ class Vec<T> {{
     }}
   }}
 
-  some(pred: (value: T) => boolean): boolean {{
+  some(pred: (value: T) => mixed): boolean {{
     let addr = readU32(this.addr + {buf_offset});
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
       let value = this.accessor.get(addr);
@@ -1027,6 +1083,17 @@ class Vec<T> {{
       }}
     }}
     return false;
+  }}
+
+  every(pred: (value: T) => mixed): boolean {{
+    let addr = readU32(this.addr + {buf_offset});
+    for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
+      let value = this.accessor.get(addr);
+      if (!pred(value)) {{
+        return false;
+      }}
+    }}
+    return true;
   }}
 }}
 

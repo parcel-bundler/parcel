@@ -6,9 +6,9 @@ import {parse, type Mapping} from '@mischnic/json-sourcemap';
 
 /** These positions are 1-based (so <code>1</code> is the first line/column) */
 export interface DiagnosticHighlightLocation {
-  +line: number,
-  +column: number,
-};
+  +line: number;
+  +column: number;
+}
 
 export type DiagnosticSeverity = 'error' | 'warn' | 'info';
 
@@ -298,7 +298,11 @@ export function convertSourceLocationToHighlight<
     ...
   },
 >({start, end}: Location, message?: string): DiagnosticCodeHighlight {
-  return {message, start, end: {line: end.line, column: end.column - 1}};
+  return {
+    message,
+    start: {line: start.line, column: start.column},
+    end: {line: end.line, column: end.column - 1},
+  };
 }
 
 /** Sanitizes object keys before using them as <code>key</code> in generateJSONCodeHighlights */

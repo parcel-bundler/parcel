@@ -27,7 +27,9 @@ import {fromInternalSourceLocation} from '../utils';
 import {
   Dependency as DbDependency,
   DependencyFlags,
-} from "@parcel/rust";
+  Asset as DbAsset,
+} from '@parcel/rust';
+import {createBuildCache} from '../buildCache';
 
 const SpecifierTypeNames = Object.keys(SpecifierTypeMap);
 const PriorityNames = Object.keys(Priority);
@@ -35,7 +37,7 @@ const PriorityNames = Object.keys(Priority);
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 const internalDependencyToDependency: Map<InternalDependency, Dependency> =
-  new Map();
+  createBuildCache();
 const _dependencyToInternalDependency: WeakMap<
   IDependency,
   InternalDependency,
@@ -127,7 +129,18 @@ export default class Dependency implements IDependency {
   }
 
   get meta(): Meta {
-    return this.#dep.meta ?? {placeholder: this.#dep.placeholder};
+    return (
+      this.#dep.meta ?? {
+        placeholder: this.#dep.placeholder,
+        shouldWrap: Boolean(this.#dep.flags & DependencyFlags.SHOULD_WRAP),
+        isESM: Boolean(this.#dep.flags & DependencyFlags.IS_ESM),
+        webworker: Boolean(this.#dep.flags & DependencyFlags.IS_WEBWORKER),
+        promiseSymbol: this.#dep.promiseSymbol,
+        importAttributes: Object.fromEntries(
+          [...this.#dep.importAttributes].map(v => [v.key, v.value]),
+        ),
+      }
+    );
   }
 
   get symbols(): IMutableDependencySymbols {
@@ -145,8 +158,11 @@ export default class Dependency implements IDependency {
   }
 
   get sourcePath(): ?FilePath {
-    // TODO: does this need to be public?
-    return fromProjectPath(this.#options.projectRoot, this.#dep.sourcePath);
+    if (this.#dep.sourceAssetId != null) {
+      let asset = DbAsset.get(this.#dep.sourceAssetId);
+      return fromProjectPath(this.#options.projectRoot, asset.filePath);
+    }
+    return null;
   }
 
   get sourceAssetType(): ?string {
@@ -154,10 +170,7 @@ export default class Dependency implements IDependency {
   }
 
   get resolveFrom(): ?string {
-    return fromProjectPath(
-      this.#options.projectRoot,
-      this.#dep.resolveFrom,
-    );
+    return fromProjectPath(this.#options.projectRoot, this.#dep.resolveFrom);
   }
 
   get range(): ?string {

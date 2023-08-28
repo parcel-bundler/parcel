@@ -37,8 +37,9 @@ import {
   Target as DbTarget,
   DependencyFlags,
   Asset as DbAsset,
+  SymbolFlags,
   getStringId,
-} from "@parcel/rust";
+} from '@parcel/rust';
 
 let starSymbol;
 
@@ -160,7 +161,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   normalizeEnvironment(input: Asset | Dependency | AssetGroup) {
     // let {id, context} = input.env;
     // let idAndContext = `${id}-${context}`;
-
     // let env = this.envCache.get(idAndContext);
     // if (env) {
     //   input.env = env;
@@ -243,9 +243,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           env: target.env,
           isEntry: true,
           needsStableName: true,
-          symbols: DbEnvironment.get(target.env).flags & EnvironmentFlags.IS_LIBRARY
-            ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
-            : undefined,
+          symbols:
+            DbEnvironment.get(target.env).flags & EnvironmentFlags.IS_LIBRARY
+              ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
+              : undefined,
         }),
       );
 
@@ -394,7 +395,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let dependencySymbols = dependency.symbols;
     if (
       dependencySymbols &&
-      [...dependencySymbols].every(({isWeak}) => isWeak) &&
+      dependencySymbols.every(({flags}) => flags & SymbolFlags.IS_WEAK) &&
       sideEffects === false &&
       canDefer &&
       !dependencySymbols.some(s => s.exported === starSymbol)
@@ -405,21 +406,28 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
       let assets = this.getNodeIdsConnectedTo(depNodeId);
       let symbols = new Map(
-        [...dependencySymbols].map((s) => [s.local, s.exported]),
+        [...dependencySymbols].map(s => [s.local, s.exported]),
       );
       invariant(assets.length === 1);
       let firstAsset = nullthrows(this.getNode(assets[0]));
       invariant(firstAsset.type === 'asset');
       let resolvedAsset = DbAsset.get(firstAsset.value);
-      let deps = this.getIncomingDependencies(firstAsset.value).map(d => DbDependency.get(d));
+      let deps = this.getIncomingDependencies(firstAsset.value).map(d =>
+        DbDependency.get(d),
+      );
       defer = deps.every(
         d =>
           d.symbols &&
-          !(DbEnvironment.get(d.env).flags & EnvironmentFlags.IS_LIBRARY && d.flags & DependencyFlags.ENTRY) &&
+          !(
+            DbEnvironment.get(d.env).flags & EnvironmentFlags.IS_LIBRARY &&
+            d.flags & DependencyFlags.ENTRY
+          ) &&
           !d.symbols.some(s => s.exported === starSymbol) &&
           !d.symbols.some(s => {
             if (!resolvedAsset.symbols) return true;
-            let assetSymbol = resolvedAsset.symbols?.find(sym => sym.exported === s.exported)?.local;
+            let assetSymbol = resolvedAsset.symbols?.find(
+              sym => sym.exported === s.exported,
+            )?.local;
             return assetSymbol != null && symbols.has(assetSymbol);
           }),
       );
@@ -454,7 +462,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
     let dependentAssetKeys = new Set();
     for (let asset of assets) {
-      for (let d of asset.dependencies.values()) {
+      for (let d of asset.dependencies) {
         let dep = DbDependency.get(d);
         if (assetsByKey.has(dep.specifier)) {
           dependentAssetKeys.add(dep.specifier);
@@ -479,7 +487,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         let dependentAsset = assetsByKey.get(dep.specifier);
         if (dependentAsset != null) {
           dependentAssets.push(dependentAsset);
-          if (dependentAsset === asset) {
+          if (dependentAsset === assetId) {
             // Don't orphan circular dependencies.
             isDirect = true;
           }
@@ -510,7 +518,11 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     }
   }
 
-  resolveAsset(assetNode: AssetNode, dependencies: Array<Dependency>, dependentAssets: Array<CommittedAssetId>) {
+  resolveAsset(
+    assetNode: AssetNode,
+    dependencies: Array<Dependency>,
+    dependentAssets: Array<CommittedAssetId>,
+  ) {
     let depNodeIds: Array<NodeId> = [];
     let depNodesWithAssets = [];
     for (let d of dependencies) {
@@ -534,7 +546,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         depNode.complete = true;
         depNodesWithAssets.push([depNode, nodeFromAsset(dependentAsset)]);
       }
-      DbDependency.get(depNode.value).sourceAssetType = assetNode.value.type;
       depNodeIds.push(this.addNode(depNode));
     }
 

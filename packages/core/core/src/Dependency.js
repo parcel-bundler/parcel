@@ -10,15 +10,16 @@ import type {
 } from '@parcel/types';
 import type {Dependency, Environment, Target} from './types';
 import {hashString} from '@parcel/rust';
-import {
-  SpecifierType,
-  Priority,
-  ExportsCondition,
-} from './types';
+import {SpecifierType, Priority, ExportsCondition} from './types';
 
-import {toInternalSourceLocation} from './utils';
+import {toDbSourceLocation} from './utils';
 import {toProjectPath} from './projectPath';
-import { Dependency as DbDependency, DependencyFlags } from '@parcel/rust';
+import {
+  Dependency as DbDependency,
+  DependencyFlags,
+  SymbolFlags,
+  getStringId,
+} from '@parcel/rust';
 
 type DependencyOpts = {|
   id?: string,
@@ -46,7 +47,8 @@ type DependencyOpts = {|
 |};
 
 export function dependencyId(opts: DependencyOpts): string {
-  return opts.id ||
+  return (
+    opts.id ||
     hashString(
       (opts.sourceAssetId ?? '') +
         opts.specifier +
@@ -57,7 +59,8 @@ export function dependencyId(opts: DependencyOpts): string {
         (opts.bundleBehavior ?? '') +
         (opts.priority ?? 'sync') +
         (opts.packageConditions ? JSON.stringify(opts.packageConditions) : ''),
-    );
+    )
+  );
 }
 
 export function createDependency(
@@ -119,15 +122,40 @@ export function createDependency(
   d.specifierType = opts.specifierType;
   d.priority = opts.priority ?? 'sync';
   d.bundleBehavior = opts.bundleBehavior || 'none';
-  d.flags = (opts.isEntry ? DependencyFlags.ENTRY : 0) | (opts.isOptional ? DependencyFlags.OPTIONAL : 0) | (opts.needsStableName ? DependencyFlags.NEEDS_STABLE_NAME : 0);
+  d.flags =
+    (opts.isEntry ? DependencyFlags.ENTRY : 0) |
+    (opts.isOptional ? DependencyFlags.OPTIONAL : 0) |
+    (opts.needsStableName ? DependencyFlags.NEEDS_STABLE_NAME : 0);
   d.resolveFrom = toProjectPath(
     projectRoot,
     opts.resolveFrom ?? opts.sourcePath,
   );
+  d.range = opts.range;
   if (typeof opts.meta?.placeholder === 'string') {
     d.placeholder = opts.meta?.placeholder;
+  } else {
+    d.placeholder = null;
   }
   d.target = opts.target || 0;
+  d.loc = toDbSourceLocation(projectRoot, opts.loc);
+  d.promiseSymbol = null;
+  d.sourceAssetId = null;
+  d.symbols.init();
+  d.importAttributes.init();
+
+  let symbols = opts.symbols;
+  if (symbols) {
+    d.symbols.reserve(symbols.size);
+    for (let [exported, {local, isWeak, loc, meta}] of symbols) {
+      let sym = d.symbols.extend();
+      sym.exported = getStringId(exported);
+      sym.local = getStringId(local);
+      sym.flags =
+        (isWeak ? SymbolFlags.IS_WEAK : 0) |
+        (meta?.isESM === true ? SymbolFlags.IS_ESM : 0);
+      sym.loc = toDbSourceLocation(projectRoot, loc);
+    }
+  }
 
   // if (opts.packageConditions) {
   //   convertConditions(opts.packageConditions, dep);

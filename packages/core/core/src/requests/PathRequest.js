@@ -50,7 +50,7 @@ import {
   runDevDepRequest,
 } from './DevDepRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
-import {Dependency as DbDependency} from '@parcel/rust';
+import {Dependency as DbDependency, Asset as DbAsset} from '@parcel/rust';
 
 export type PathRequest = {|
   id: string,
@@ -174,7 +174,7 @@ export class ResolverRunner {
   }
 
   async getDiagnostic(
-    dependency: Dependency,
+    dependency: PublicDependency,
     message: string,
   ): Async<Diagnostic> {
     let diagnostic: Diagnostic = {
@@ -183,14 +183,13 @@ export class ResolverRunner {
     };
 
     if (dependency.loc && dependency.sourcePath != null) {
-      let filePath = fromProjectPath(
-        this.options.projectRoot,
-        dependency.sourcePath,
-      );
       diagnostic.codeFrames = [
         {
-          filePath,
-          code: await this.options.inputFS.readFile(filePath, 'utf8'),
+          filePath: dependency.sourcePath,
+          code: await this.options.inputFS.readFile(
+            dependency.sourcePath,
+            'utf8',
+          ),
           codeHighlights: dependency.loc
             ? [convertSourceLocationToHighlight(dependency.loc)]
             : [],
@@ -240,6 +239,7 @@ export class ResolverRunner {
   }
 
   async resolve(dependency: Dependency): Promise<ResolverResult> {
+    let internalDep = DbDependency.get(dependency);
     let dep = new PublicDependency(dependency, this.options);
     report({
       type: 'buildProgress',
@@ -302,7 +302,6 @@ export class ResolverRunner {
         measurement && measurement.end();
 
         if (result) {
-          let internalDep = DbDependency.get(dependency);
           if (result.meta) {
             internalDep.resolverMeta = result.meta;
             internalDep.meta = {
@@ -379,7 +378,7 @@ export class ResolverRunner {
           }
         }
       } catch (e) {
-        console.log(e)
+        console.log(e);
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset
         let errorDiagnostic = errorToDiagnostic(e, {
           origin: resolver.name,
@@ -418,17 +417,19 @@ export class ResolverRunner {
       };
     }
 
-    let resolveFrom = dep.resolveFrom ?? dep.sourcePath;
+    let resolveFrom =
+      internalDep.resolveFrom ??
+      (internalDep.sourceAssetId != null
+        ? DbAsset.get(internalDep.sourceAssetId).filePath
+        : null);
     let dir =
       resolveFrom != null
         ? normalizePath(fromProjectPathRelative(resolveFrom))
         : '';
 
     let diagnostic = await this.getDiagnostic(
-      dependency,
-      md`Failed to resolve '${dep.specifier}' ${
-        dir ? `from '${dir}'` : ''
-      }`,
+      dep,
+      md`Failed to resolve '${dep.specifier}' ${dir ? `from '${dir}'` : ''}`,
     );
 
     diagnostics.unshift(diagnostic);

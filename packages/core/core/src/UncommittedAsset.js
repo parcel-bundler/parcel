@@ -16,7 +16,7 @@ import type {
   ParcelOptions,
   InternalFileCreateInvalidation,
   CommittedAssetId,
-} from "./types";
+} from './types';
 
 import invariant from 'assert';
 import {Readable} from 'stream';
@@ -31,11 +31,7 @@ import {
 } from '@parcel/utils';
 import {hashString} from '@parcel/rust';
 import {serializeRaw} from './serializer';
-import {
-  createDependency,
-  dependencyId,
-  mergeDependencies,
-} from "./Dependency";
+import {createDependency, dependencyId, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
 import {
@@ -45,10 +41,19 @@ import {
   getInvalidationHash,
 } from './assetUtils';
 import {BundleBehaviorNames} from './types';
-import {invalidateOnFileCreateToInternal} from './utils';
+import {
+  invalidateOnFileCreateToInternal,
+  toDbSourceLocationFromInternal,
+} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
-import {Asset as DbAsset, AssetFlags, getStringId} from '@parcel/rust';
-import nullthrows from "nullthrows";
+import {
+  Asset as DbAsset,
+  AssetFlags,
+  Dependency as DbDependency,
+  SymbolFlags,
+  getStringId,
+} from '@parcel/rust';
+import nullthrows from 'nullthrows';
 
 type UncommittedAssetOptions = {|
   value: Asset,
@@ -482,27 +487,39 @@ export default class UncommittedAsset {
     asset.pipeline = this.value.pipeline;
     asset.stats.size = this.value.stats.size;
     asset.stats.time = this.value.stats.time;
-    asset.bundleBehavior = this.value.bundleBehavior != null ? BundleBehaviorNames[this.value.bundleBehavior] : 'none';
-    asset.flags = (this.value.isSource ? AssetFlags.IS_SOURCE : 0)
-      | (this.value.isBundleSplittable ? AssetFlags.IS_BUNDLE_SPLITTABLE : 0)
-      | (this.value.sideEffects ? AssetFlags.SIDE_EFFECTS : 0)
-      | (this.value.isLargeBlob ? AssetFlags.LARGE_BLOB : 0);
+    asset.bundleBehavior =
+      this.value.bundleBehavior != null
+        ? BundleBehaviorNames[this.value.bundleBehavior]
+        : 'none';
+    asset.flags =
+      (this.value.isSource ? AssetFlags.IS_SOURCE : 0) |
+      (this.value.isBundleSplittable ? AssetFlags.IS_BUNDLE_SPLITTABLE : 0) |
+      (this.value.sideEffects ? AssetFlags.SIDE_EFFECTS : 0) |
+      (this.value.isLargeBlob ? AssetFlags.LARGE_BLOB : 0);
     asset.meta = JSON.stringify(this.value.meta);
-    
+    asset.symbols.init();
+
     if (this.value.symbols) {
-      for (let [exported, {local}] of this.value.symbols) {
+      for (let [exported, {local, loc, meta}] of this.value.symbols) {
         let sym = asset.symbols.extend();
         sym.exported = getStringId(exported);
         sym.local = getStringId(local);
+        sym.flags = meta?.isEsm === true ? SymbolFlags.IS_ESM : 0;
+        sym.loc = toDbSourceLocationFromInternal(loc);
       }
     } else if (this.nativeSymbols != null) {
       // console.log('native symbols', this.nativeSymbols)
       asset.symbols = {addr: this.nativeSymbols};
     }
 
+    let dependencies = [...this.value.dependencies.values()];
+    for (let dep of dependencies) {
+      DbDependency.get(dep).sourceAssetId = asset.addr;
+    }
+
     return {
       asset: asset.addr,
-      dependencies: [...this.value.dependencies.values()]
+      dependencies,
     };
   }
 }

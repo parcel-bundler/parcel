@@ -55,12 +55,12 @@ type AssetOptions = {|
   dependencies?: Map<string, Dependency>,
   bundleBehavior?: ?BundleBehavior,
   isBundleSplittable?: ?boolean,
-  isSource: boolean,
+  isSource?: boolean,
   env: Environment,
   meta?: Meta,
   outputHash?: ?string,
   pipeline?: ?string,
-  stats: Stats,
+  stats?: Stats,
   symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
   sideEffects?: boolean,
   uniqueKey?: ?string,
@@ -108,12 +108,15 @@ export function createAsset(
     astKey: options.astKey,
     astGenerator: options.astGenerator,
     dependencies: options.dependencies || new Map(),
-    isSource: options.isSource,
+    isSource: options.isSource ?? true,
     outputHash: options.outputHash,
     pipeline: options.pipeline,
     env: options.env,
     meta: options.meta || {},
-    stats: options.stats,
+    stats: options.stats ?? {
+      time: 0,
+      size: 0,
+    },
     symbols:
       options.symbols &&
       new Map(

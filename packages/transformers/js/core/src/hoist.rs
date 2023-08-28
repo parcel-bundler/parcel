@@ -67,7 +67,7 @@ struct Hoist<'a> {
   export_decls: HashSet<JsWord>,
   hoisted_imports: IndexMap<JsWord, ModuleItem>,
   imported_symbols: Vec<ImportedSymbol>,
-  exported_symbols: Vec<ExportedSymbol>,
+  exported_symbols: IndexMap<JsWord, ExportedSymbol>,
   re_exports: Vec<ImportedSymbol>,
   self_references: HashSet<JsWord>,
   dynamic_imports: HashMap<JsWord, JsWord>,
@@ -99,7 +99,7 @@ impl<'a> Hoist<'a> {
       export_decls: HashSet::new(),
       hoisted_imports: IndexMap::new(),
       imported_symbols: vec![],
-      exported_symbols: vec![],
+      exported_symbols: IndexMap::new(),
       re_exports: vec![],
       self_references: HashSet::new(),
       dynamic_imports: HashMap::new(),
@@ -112,7 +112,7 @@ impl<'a> Hoist<'a> {
   fn get_result(self) -> HoistResult {
     HoistResult {
       imported_symbols: self.imported_symbols,
-      exported_symbols: self.exported_symbols,
+      exported_symbols: self.exported_symbols.into_values().collect(),
       re_exports: self.re_exports,
       self_references: self.self_references,
       dynamic_imports: self.dynamic_imports,
@@ -275,12 +275,15 @@ impl<'a> Fold for Hoist<'a> {
                           .get_export_ident(DUMMY_SP, self.collect.exports_locals.get(&id).unwrap())
                           .sym
                       };
-                      self.exported_symbols.push(ExportedSymbol {
-                        local: id,
-                        exported,
-                        loc: SourceLocation::from(&self.collect.source_map, named.span),
-                        is_esm: true,
-                      });
+                      self.exported_symbols.insert(
+                        exported.clone(),
+                        ExportedSymbol {
+                          local: id,
+                          exported,
+                          loc: SourceLocation::from(&self.collect.source_map, named.span),
+                          is_esm: true,
+                        },
+                      );
                     }
                   }
                 }
@@ -828,12 +831,15 @@ impl<'a> Fold for Hoist<'a> {
       // If wrapped, mark the original symbol as exported.
       // Otherwise replace with an export identifier.
       if self.collect.should_wrap {
-        self.exported_symbols.push(ExportedSymbol {
-          local: node.sym.clone(),
-          exported: exported.clone(),
-          loc: SourceLocation::from(&self.collect.source_map, node.span),
-          is_esm: false,
-        });
+        self.exported_symbols.insert(
+          exported.clone(),
+          ExportedSymbol {
+            local: node.sym.clone(),
+            exported: exported.clone(),
+            loc: SourceLocation::from(&self.collect.source_map, node.span),
+            is_esm: false,
+          },
+        );
         return node;
       } else {
         return self.get_export_ident(node.span, exported);
@@ -1057,12 +1063,15 @@ impl<'a> Hoist<'a> {
       Some(Export { is_esm: true, .. })
     );
 
-    self.exported_symbols.push(ExportedSymbol {
-      local: new_name.clone(),
-      exported: exported.clone(),
-      loc: SourceLocation::from(&self.collect.source_map, span),
-      is_esm,
-    });
+    self.exported_symbols.insert(
+      exported.clone(),
+      ExportedSymbol {
+        local: new_name.clone(),
+        exported: exported.clone(),
+        loc: SourceLocation::from(&self.collect.source_map, span),
+        is_esm,
+      },
+    );
 
     let mut span = span;
     span.ctxt = SyntaxContext::empty();

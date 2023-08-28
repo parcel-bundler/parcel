@@ -4,11 +4,13 @@ use crate::db::DB;
 use napi::{Env, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
-  ArenaAllocator, ArenaVec, Dependency, DependencyFlags, EnvironmentId, InternedString, Priority,
-  SpecifierType, Symbol, TargetId, Vec,
+  ArenaAllocator, ArenaVec, BundleBehavior, Dependency, DependencyFlags, Environment,
+  EnvironmentContext, EnvironmentFlags, EnvironmentId, ImportAttribute, InternedString, Location,
+  OutputFormat, Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags, TargetId,
+  Vec,
 };
-use parcel_js_swc_core::{DependencyKind, Diagnostic, TransformResult};
-use path_slash::PathBufExt;
+use parcel_js_swc_core::{CodeHighlight, DependencyKind, Diagnostic, TransformResult};
+use path_slash::{PathBufExt, PathExt};
 use serde::{Deserialize, Serialize};
 
 #[napi]
@@ -36,32 +38,6 @@ pub fn transform_async(opts: JsObject, env: Env) -> Result<JsObject> {
   Ok(promise)
 }
 
-#[derive(Serialize, Debug, Deserialize)]
-pub struct Config2 {
-  pub filename: String,
-  pub env_id: u32,
-  #[serde(with = "serde_bytes")]
-  pub code: std::vec::Vec<u8>,
-  pub module_id: String,
-  pub project_root: String,
-  pub env: HashMap<String, String>,
-  pub inline_fs: bool,
-  pub is_type_script: bool,
-  pub is_jsx: bool,
-  pub jsx_pragma: Option<String>,
-  pub jsx_pragma_frag: Option<String>,
-  pub automatic_jsx_runtime: bool,
-  pub jsx_import_source: Option<String>,
-  pub decorators: bool,
-  pub use_define_for_class_fields: bool,
-  pub is_development: bool,
-  pub react_refresh: bool,
-  pub targets: Option<HashMap<String, String>>,
-  pub supports_module_workers: bool,
-  pub trace_bailouts: bool,
-  pub is_swc_helpers: bool,
-}
-
 #[derive(Serialize, Debug, Default)]
 pub struct TransformResult2 {
   #[serde(with = "serde_bytes")]
@@ -73,7 +49,6 @@ pub struct TransformResult2 {
   // pub hoist_result: Option<HoistResult>,
   // pub symbol_result: Option<CollectResult>,
   pub diagnostics: Option<std::vec::Vec<Diagnostic>>,
-  pub needs_esm_helpers: bool,
   pub used_env: HashSet<String>,
   pub has_node_replacements: bool,
   pub has_cjs_exports: bool,
@@ -83,20 +58,254 @@ pub struct TransformResult2 {
 
 fn convert_result(
   config: &parcel_js_swc_core::Config,
-  result: TransformResult,
+  mut result: TransformResult,
 ) -> TransformResult2 {
+  let file_path = to_project_path(&config.filename, &config.project_root);
+
   let mut deps = std::vec::Vec::new();
   let mut dep_map = HashMap::new();
   for dep in result.dependencies {
     match dep.kind {
-      DependencyKind::WebWorker => {}
-      DependencyKind::ServiceWorker => {}
-      DependencyKind::Worklet => {}
-      DependencyKind::Url => {}
+      DependencyKind::WebWorker => {
+        let env = DB.get_environment(config.env_id);
+        // Use native ES module output if the worker was created with `type: 'module'` and all targets
+        // support native module workers. Only do this if parent asset output format is also esmodule so that
+        // assets can be shared between workers and the main thread in the global output format.
+        let mut output_format = env.output_format;
+        if output_format == OutputFormat::Esmodule
+          && matches!(
+            dep.source_type,
+            Some(parcel_js_swc_core::SourceType::Module)
+          )
+          && config.supports_module_workers
+        {
+          output_format = OutputFormat::Esmodule;
+        } else if output_format != OutputFormat::Commonjs {
+          output_format = OutputFormat::Global;
+        }
+
+        let d = Dependency {
+          specifier: dep.specifier.as_ref().into(),
+          specifier_type: SpecifierType::Url,
+          priority: Priority::Lazy,
+          flags: DependencyFlags::IS_WEBWORKER,
+          bundle_behavior: BundleBehavior::None,
+          resolve_from: Some(file_path),
+          range: None,
+          source_asset_id: None,
+          placeholder: dep.placeholder.map(|s| s.into()),
+          promise_symbol: None,
+          symbols: ArenaVec::new(),
+          loc: Some(convert_loc(file_path, &dep.loc)),
+          target: TargetId(0),
+          env: DB.environment_id(&Environment {
+            context: EnvironmentContext::WebWorker,
+            source_type: if matches!(
+              dep.source_type,
+              Some(parcel_js_swc_core::SourceType::Module)
+            ) {
+              SourceType::Module
+            } else {
+              SourceType::Script
+            },
+            output_format,
+            loc: Some(convert_loc(file_path, &dep.loc)),
+            ..env.clone()
+          }),
+          import_attributes: ArenaVec::new(),
+        };
+        let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
+        let id = DB.create_dependency(d);
+        deps.push(id);
+        dep_map.insert(placeholder, id);
+      }
+      DependencyKind::ServiceWorker => {
+        let d = Dependency {
+          specifier: dep.specifier.as_ref().into(),
+          specifier_type: SpecifierType::Url,
+          priority: Priority::Lazy,
+          flags: DependencyFlags::NEEDS_STABLE_NAME,
+          bundle_behavior: BundleBehavior::None,
+          resolve_from: Some(file_path),
+          range: None,
+          source_asset_id: None,
+          placeholder: dep.placeholder.map(|s| s.into()),
+          promise_symbol: None,
+          symbols: ArenaVec::new(),
+          loc: Some(convert_loc(file_path, &dep.loc)),
+          target: TargetId(0),
+          env: DB.environment_id(&Environment {
+            context: EnvironmentContext::ServiceWorker,
+            source_type: if matches!(
+              dep.source_type,
+              Some(parcel_js_swc_core::SourceType::Module)
+            ) {
+              SourceType::Module
+            } else {
+              SourceType::Script
+            },
+            output_format: OutputFormat::Global,
+            loc: Some(convert_loc(file_path, &dep.loc)),
+            ..DB.get_environment(config.env_id).clone()
+          }),
+          import_attributes: ArenaVec::new(),
+        };
+        let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
+        let id = DB.create_dependency(d);
+        deps.push(id);
+        dep_map.insert(placeholder, id);
+      }
+      DependencyKind::Worklet => {
+        let d = Dependency {
+          specifier: dep.specifier.as_ref().into(),
+          specifier_type: SpecifierType::Url,
+          priority: Priority::Lazy,
+          flags: DependencyFlags::empty(),
+          bundle_behavior: BundleBehavior::None,
+          resolve_from: Some(file_path),
+          range: None,
+          source_asset_id: None,
+          placeholder: dep.placeholder.map(|s| s.into()),
+          promise_symbol: None,
+          symbols: ArenaVec::new(),
+          loc: Some(convert_loc(file_path, &dep.loc)),
+          target: TargetId(0),
+          env: DB.environment_id(&Environment {
+            context: EnvironmentContext::Worklet,
+            source_type: SourceType::Module,
+            output_format: OutputFormat::Esmodule,
+            loc: Some(convert_loc(file_path, &dep.loc)),
+            ..DB.get_environment(config.env_id).clone()
+          }),
+          import_attributes: ArenaVec::new(),
+        };
+        let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
+        let id = DB.create_dependency(d);
+        deps.push(id);
+        dep_map.insert(placeholder, id);
+      }
+      DependencyKind::Url => {
+        let d = Dependency {
+          specifier: dep.specifier.as_ref().into(),
+          specifier_type: SpecifierType::Url,
+          priority: Priority::Lazy,
+          flags: DependencyFlags::empty(),
+          bundle_behavior: BundleBehavior::Isolated,
+          resolve_from: Some(file_path),
+          range: None,
+          source_asset_id: None,
+          placeholder: dep.placeholder.map(|s| s.into()),
+          promise_symbol: None,
+          symbols: ArenaVec::new(),
+          loc: Some(convert_loc(file_path, &dep.loc)),
+          target: TargetId(0),
+          env: EnvironmentId(config.env_id),
+          import_attributes: ArenaVec::new(),
+        };
+        let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
+        let id = DB.create_dependency(d);
+        deps.push(id);
+        dep_map.insert(placeholder, id);
+      }
       DependencyKind::File => {}
       _ => {
         let mut flags = DependencyFlags::empty();
         flags.set(DependencyFlags::OPTIONAL, dep.is_optional);
+        flags.set(
+          DependencyFlags::IS_ESM,
+          matches!(dep.kind, DependencyKind::Import | DependencyKind::Export),
+        );
+
+        let mut env_id = EnvironmentId(config.env_id);
+        let mut env = DB.get_environment(config.env_id);
+        if dep.kind == DependencyKind::DynamicImport {
+          // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
+          if matches!(
+            env.context,
+            EnvironmentContext::Worklet | EnvironmentContext::ServiceWorker
+          ) {
+            let diagnostic = Diagnostic {
+              message: format!(
+                "import() is not allowed in {}.",
+                match env.context {
+                  EnvironmentContext::Worklet => "worklets",
+                  EnvironmentContext::ServiceWorker => "service workers",
+                  _ => unreachable!(),
+                }
+              ),
+              code_highlights: Some(vec![CodeHighlight {
+                loc: dep.loc.clone(),
+                message: None,
+              }]),
+              hints: Some(vec!["Try using a static `import`.".into()]),
+              show_environment: true,
+              severity: parcel_js_swc_core::DiagnosticSeverity::Error,
+              documentation_url: None,
+            };
+            result.diagnostics.get_or_insert(vec![]).push(diagnostic);
+          }
+
+          // If all of the target engines support dynamic import natively,
+          // we can output native ESM if scope hoisting is enabled.
+          // Only do this for scripts, rather than modules in the global
+          // output format so that assets can be shared between the bundles.
+          let mut output_format = env.output_format;
+          if config.source_type == parcel_js_swc_core::SourceType::Script
+            && config.scope_hoist
+            && config.supports_dynamic_import
+          {
+            output_format = OutputFormat::Esmodule;
+          }
+
+          if env.source_type != SourceType::Module || env.output_format != output_format {
+            env_id = DB.environment_id(&Environment {
+              source_type: SourceType::Module,
+              output_format,
+              loc: Some(convert_loc(file_path, &dep.loc)),
+              ..env.clone()
+            });
+            env = DB.get_environment(env_id.0);
+          }
+        }
+
+        // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
+        let is_helper = dep.is_helper
+          && !(dep.specifier.ends_with("/jsx-runtime")
+            || dep.specifier.ends_with("/jsx-dev-runtime"));
+        if is_helper && !env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+          env_id = DB.environment_id(&Environment {
+            include_node_modules: InternedString::from("true"),
+            ..env.clone()
+          });
+        }
+
+        // Add required version range for helpers.
+        let mut range = None;
+        let mut resolve_from = Some(file_path);
+        if is_helper {
+          // TODO: get versions from package.json? Can we do it at compile time?
+          if dep.specifier.starts_with("@swc/helpers") {
+            range = Some("^0.5.0".into());
+          } else if dep.specifier.starts_with("regenerator-runtime") {
+            range = Some("^0.13.7".into());
+          }
+
+          resolve_from = Some(to_project_path(
+            &config.resolve_helpers_from,
+            &config.project_root,
+          ));
+        }
+
+        let mut import_attributes = ArenaVec::new();
+        if let Some(attrs) = dep.attributes {
+          for (key, value) in attrs {
+            import_attributes.push(ImportAttribute {
+              key: InternedString::from(&*key),
+              value,
+            });
+          }
+        }
+
         let d = Dependency {
           specifier: dep.specifier.as_ref().into(),
           specifier_type: match dep.kind {
@@ -108,15 +317,17 @@ fn convert_result(
             _ => Priority::Sync,
           },
           flags,
-          bundle_behavior: parcel_db::BundleBehavior::None,
-          resolve_from: pathdiff::diff_paths(&config.filename, &config.project_root)
-            .map(|p| p.to_slash_lossy().into()),
+          bundle_behavior: BundleBehavior::None,
+          resolve_from,
+          range,
           source_asset_id: None,
           placeholder: dep.placeholder.map(|s| s.into()),
+          promise_symbol: None,
           symbols: ArenaVec::new(),
-          loc: None,
+          loc: Some(convert_loc(file_path, &dep.loc)),
           target: TargetId(0),
-          env: EnvironmentId(config.env_id),
+          env: env_id,
+          import_attributes,
         };
 
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
@@ -125,6 +336,33 @@ fn convert_result(
         dep_map.insert(placeholder, id);
       }
     }
+  }
+
+  if result.needs_esm_helpers {
+    let d = Dependency {
+      specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+      specifier_type: SpecifierType::Esm,
+      priority: Priority::Sync,
+      flags: DependencyFlags::empty(),
+      bundle_behavior: BundleBehavior::None,
+      resolve_from: Some(to_project_path(
+        &config.resolve_helpers_from,
+        &config.project_root,
+      )),
+      range: None,
+      source_asset_id: None,
+      placeholder: None,
+      promise_symbol: None,
+      symbols: ArenaVec::new(),
+      loc: None,
+      target: TargetId(0),
+      env: DB.environment_id(&Environment {
+        include_node_modules: InternedString::from("{\"@parcel/transformer-js\":true}"),
+        ..DB.get_environment(config.env_id).clone()
+      }),
+      import_attributes: ArenaVec::new(),
+    };
+    deps.push(DB.create_dependency(d));
   }
 
   let mut has_cjs_exports = false;
@@ -136,12 +374,14 @@ fn convert_result(
   if let Some(hoist_result) = result.hoist_result {
     symbols.reserve(hoist_result.exported_symbols.len() + hoist_result.re_exports.len() + 1);
     // println!("{:?}", hoist_result);
-    for s in hoist_result.exported_symbols {
+    for s in &hoist_result.exported_symbols {
+      let mut flags = SymbolFlags::empty();
+      flags.set(SymbolFlags::IS_ESM, s.is_esm);
       let sym = Symbol {
         exported: s.exported.as_ref().into(),
         local: s.local.as_ref().into(),
-        loc: None,
-        is_weak: false,
+        loc: Some(convert_loc(file_path, &s.loc)),
+        flags,
       };
       symbols.push(sym);
     }
@@ -152,8 +392,8 @@ fn convert_result(
         dep.symbols.push(Symbol {
           exported: s.imported.as_ref().into(),
           local: s.local.as_ref().into(),
-          loc: None,
-          is_weak: false,
+          loc: Some(convert_loc(file_path, &s.loc)),
+          flags: SymbolFlags::empty(),
         });
       }
     }
@@ -161,12 +401,12 @@ fn convert_result(
     for s in hoist_result.re_exports {
       if let Some(dep_id) = InternedString::get(&*s.source).and_then(|s| dep_map.get(&s)) {
         let dep: &mut Dependency = DB.read_heap(*dep_id);
-        if &*s.local == "*" || &*s.imported == "*" {
+        if &*s.local == "*" && &*s.imported == "*" {
           dep.symbols.push(Symbol {
             exported: "*".into(),
             local: "*".into(),
-            loc: None,
-            is_weak: true,
+            loc: Some(convert_loc(file_path, &s.loc)),
+            flags: SymbolFlags::IS_WEAK,
           });
         } else {
           let re_export_name = dep
@@ -179,14 +419,14 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: s.imported.as_ref().into(),
             local: re_export_name.clone(),
-            loc: None,
-            is_weak: true,
+            loc: Some(convert_loc(file_path, &s.loc)),
+            flags: SymbolFlags::IS_WEAK,
           });
           symbols.push(Symbol {
             exported: s.local.as_ref().into(),
             local: re_export_name,
-            loc: None,
-            is_weak: false,
+            loc: Some(convert_loc(file_path, &s.loc)),
+            flags: SymbolFlags::empty(),
           });
         }
       }
@@ -195,33 +435,85 @@ fn convert_result(
     for specifier in hoist_result.wrapped_requires {
       if let Some(dep_id) = InternedString::get(&specifier).and_then(|s| dep_map.get(&s)) {
         let dep: &mut Dependency = DB.read_heap(*dep_id);
-        // dep.meta.should_wrap = true
+        dep.flags |= DependencyFlags::SHOULD_WRAP;
       }
     }
 
     for (name, specifier) in hoist_result.dynamic_imports {
       if let Some(dep_id) = InternedString::get(&*specifier).and_then(|s| dep_map.get(&s)) {
         let dep: &mut Dependency = DB.read_heap(*dep_id);
-        // dep.meta.promise_symbol = name
+        dep.promise_symbol = Some((&*name).into());
       }
     }
 
     if !hoist_result.self_references.is_empty() {
-      println!("self references");
+      let mut dep_symbols = ArenaVec::new();
+      for name in hoist_result.self_references {
+        // Do not create a self-reference for the `default` symbol unless we have seen an __esModule flag.
+        if &*name == "default"
+          && !symbols
+            .as_slice()
+            .iter()
+            .any(|s| &*s.exported == "__esModule")
+        {
+          continue;
+        }
+
+        let exported = InternedString::from(&*name);
+        let local = symbols
+          .as_slice()
+          .iter()
+          .find(|s| s.exported == exported)
+          .unwrap()
+          .local;
+        dep_symbols.push(Symbol {
+          exported,
+          local,
+          flags: SymbolFlags::empty(),
+          loc: None,
+        });
+      }
+
+      // Create a dependency on the asset itself by using the unique key as a specifier.
+      // Using the unique key ensures that the dependency always resolves to the correct asset,
+      // even if it came from a transformer that produced multiple assets (e.g. css modules).
+      // Also avoids needing a resolution request.
+      let d = Dependency {
+        specifier: config.module_id.as_str().into(),
+        specifier_type: SpecifierType::Esm,
+        priority: Priority::Sync,
+        flags: DependencyFlags::empty(),
+        bundle_behavior: BundleBehavior::None,
+        resolve_from: None,
+        range: None,
+        source_asset_id: None,
+        placeholder: None,
+        promise_symbol: None,
+        symbols: dep_symbols,
+        loc: None,
+        target: TargetId(0),
+        env: EnvironmentId(config.env_id),
+        import_attributes: ArenaVec::new(),
+      };
+      deps.push(DB.create_dependency(d));
     }
 
     // Add * symbol if there are CJS exports, no imports/exports at all
     // (and the asset has side effects), or the asset is wrapped.
     // This allows accessing symbols that don't exist without errors in symbol propagation.
-    if hoist_result.has_cjs_exports
-      // || (!hoist_result.is_esm && config.)
-      || (hoist_result.should_wrap && !symbols.as_slice().iter().any(|s| s.exported == "*"))
+    if (hoist_result.has_cjs_exports
+      || (!hoist_result.is_esm
+        && config.side_effects
+        && deps.is_empty()
+        && hoist_result.exported_symbols.is_empty())
+      || hoist_result.should_wrap)
+      && !symbols.as_slice().iter().any(|s| s.exported == "*")
     {
       symbols.push(Symbol {
         exported: "*".into(),
         local: format!("${}$exports", &config.module_id).into(),
         loc: None,
-        is_weak: false,
+        flags: SymbolFlags::empty(),
       });
     }
 
@@ -231,9 +523,10 @@ fn convert_result(
   } else {
     if let Some(symbol_result) = result.symbol_result {
       symbols.reserve(symbol_result.exports.len() + 1);
-      for sym in symbol_result.exports {
+      for sym in &symbol_result.exports {
         let local = if let Some(dep_id) = sym
           .source
+          .as_ref()
           .and_then(|s| InternedString::get(&*s))
           .and_then(|s| dep_map.get(&s))
         {
@@ -242,8 +535,8 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: sym.local.as_ref().into(),
             local,
-            loc: None,
-            is_weak: true,
+            loc: Some(convert_loc(file_path, &sym.loc)),
+            flags: SymbolFlags::IS_WEAK,
           });
           local
         } else {
@@ -253,8 +546,8 @@ fn convert_result(
         symbols.push(Symbol {
           exported: sym.exported.as_ref().into(),
           local,
-          loc: None,
-          is_weak: false,
+          loc: Some(convert_loc(file_path, &sym.loc)),
+          flags: SymbolFlags::empty(),
         });
       }
 
@@ -264,8 +557,8 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: sym.imported.as_ref().into(),
             local: sym.local.as_ref().into(),
-            loc: None,
-            is_weak: false,
+            loc: Some(convert_loc(file_path, &sym.loc)),
+            flags: SymbolFlags::empty(),
           });
         }
       }
@@ -276,8 +569,8 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: "*".into(),
             local: "*".into(),
-            loc: None,
-            is_weak: true,
+            loc: Some(convert_loc(file_path, &sym.loc)),
+            flags: SymbolFlags::IS_WEAK,
           });
         }
       }
@@ -285,14 +578,17 @@ fn convert_result(
       // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
       // This allows accessing symbols that don't exist without errors in symbol propagation.
       if symbol_result.has_cjs_exports
-        // || (!symbol_result.is_esm && )
+        || (!symbol_result.is_esm
+          && config.side_effects
+          && deps.is_empty()
+          && symbol_result.exports.is_empty())
         || (symbol_result.should_wrap && !symbols.as_slice().iter().any(|s| s.exported == "*"))
       {
         symbols.push(Symbol {
           exported: "*".into(),
           local: format!("${}$exports", &config.module_id).into(),
           loc: None,
-          is_weak: false,
+          flags: SymbolFlags::empty(),
         });
       }
     } else {
@@ -301,16 +597,38 @@ fn convert_result(
         exported: "*".into(),
         local: format!("${}$exports", &config.module_id).into(),
         loc: None,
-        is_weak: false,
+        flags: SymbolFlags::empty(),
       });
+    }
+
+    // For all other imports and requires, mark everything as imported (this covers both dynamic
+    // imports and non-top-level requires.)
+    for dep_id in &deps {
+      let dep: &mut Dependency = DB.read_heap(*dep_id);
+      if dep.symbols.is_empty() {
+        dep.symbols.push(Symbol {
+          exported: "*".into(),
+          local: format!("${}$", dep_id).into(),
+          flags: SymbolFlags::empty(),
+          loc: None,
+        });
+      }
     }
   }
 
-  // println!("SYMBOLS {:?} {:?}", symbols_addr, symbols);
+  // println!("SYMBOLS {:?} {:?}", config.filename, symbols);
   // for id in &deps {
   //   let dep: &mut Dependency = DB.read_heap(*id);
   //   println!("{:?}", dep);
   // }
+  //
+  // println!(
+  //   "{:?}",
+  //   deps
+  //     .iter()
+  //     .map(|d| DB.read_heap::<Dependency>(*d))
+  //     .collect::<std::vec::Vec<_>>()
+  // );
 
   TransformResult2 {
     code: result.code,
@@ -319,11 +637,44 @@ fn convert_result(
     dependencies: deps,
     symbols: symbols_addr,
     diagnostics: result.diagnostics,
-    needs_esm_helpers: result.needs_esm_helpers,
     used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
     has_node_replacements: result.has_node_replacements,
     has_cjs_exports,
     static_cjs_exports,
     should_wrap,
   }
+}
+
+fn convert_loc(
+  file_path: InternedString,
+  loc: &parcel_js_swc_core::SourceLocation,
+) -> SourceLocation {
+  // TODO: remap original source map
+  SourceLocation {
+    file_path,
+    start: Location {
+      line: loc.start_line as u32, // + (asset.meta.startLine ?? 1) - 1
+      column: loc.start_col as u32,
+    },
+    end: Location {
+      line: loc.end_line as u32,
+      column: loc.end_col as u32,
+    },
+  }
+}
+
+fn to_project_path(path: &str, project_root: &str) -> InternedString {
+  let res = pathdiff::diff_paths(path, project_root)
+    .map(|p| p.to_slash_lossy())
+    .unwrap_or_else(|| path.to_string());
+
+  // If the file is outside the project root, store an absolute path rather
+  // than a relative one. This way if the project root is moved, the file
+  // references still work. Accessing files outside the project root is not
+  // portable anyway.
+  if res.starts_with("..") {
+    return std::path::Path::new(path).to_slash_lossy().into();
+  }
+
+  res.into()
 }

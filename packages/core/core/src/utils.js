@@ -29,14 +29,21 @@ import Config from './public/Config';
 import {fromProjectPath, toProjectPath} from './projectPath';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
-import {Target as DbTarget} from '@parcel/rust';
+import {
+  Target as DbTarget,
+  SourceLocation as DbSourceLocation,
+} from '@parcel/rust';
 
 const base62 = baseX(
   '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
 );
 
 export function getBundleGroupId(bundleGroup: BundleGroup): string {
-  return 'bundle_group:' + DbTarget.get(bundleGroup.target).name + bundleGroup.entryAssetId;
+  return (
+    'bundle_group:' +
+    DbTarget.get(bundleGroup.target).name +
+    bundleGroup.entryAssetId
+  );
 }
 
 export function assertSignalNotAborted(signal: ?AbortSignal): void {
@@ -192,6 +199,13 @@ export function invalidateOnFileCreateToInternal(
   }
 }
 
+function copyLocation(l) {
+  return {
+    line: l.line,
+    column: l.column,
+  };
+}
+
 export function fromInternalSourceLocation(
   projectRoot: FilePath,
   loc: ?InternalSourceLocation,
@@ -200,8 +214,8 @@ export function fromInternalSourceLocation(
 
   return {
     filePath: fromProjectPath(projectRoot, loc.filePath),
-    start: loc.start,
-    end: loc.end,
+    start: copyLocation(loc.start),
+    end: copyLocation(loc.end),
   };
 }
 
@@ -235,4 +249,32 @@ export function toInternalSymbols<T: {|loc: ?SourceLocation|}>(
       },
     ]),
   );
+}
+
+let tmpSourceLocation = new DbSourceLocation();
+export function toDbSourceLocation(
+  projectRoot: FilePath,
+  loc: ?SourceLocation,
+): ?DbSourceLocation {
+  if (!loc) return loc;
+
+  tmpSourceLocation.filePath = toProjectPath(projectRoot, loc.filePath);
+  tmpSourceLocation.start.line = loc.start.line;
+  tmpSourceLocation.start.column = loc.start.column;
+  tmpSourceLocation.end.line = loc.end.line;
+  tmpSourceLocation.end.column = loc.end.column;
+  return tmpSourceLocation;
+}
+
+export function toDbSourceLocationFromInternal(
+  loc: ?InternalSourceLocation,
+): ?DbSourceLocation {
+  if (!loc) return loc;
+
+  tmpSourceLocation.filePath = loc.filePath;
+  tmpSourceLocation.start.line = loc.start.line;
+  tmpSourceLocation.start.column = loc.start.column;
+  tmpSourceLocation.end.line = loc.end.line;
+  tmpSourceLocation.end.column = loc.end.column;
+  return tmpSourceLocation;
 }

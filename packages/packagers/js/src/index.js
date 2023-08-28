@@ -81,7 +81,7 @@ export default (new Packager({
       bundleGraph,
       contents,
       getInlineReplacement: (dependency, inlineType, content) => ({
-        from: `"${dependency.id}"`,
+        from: JSON.stringify(dependency.meta.placeholder ?? dependency.id),
         to: inlineType === 'string' ? JSON.stringify(content) : content,
       }),
       getInlineBundleContents,
