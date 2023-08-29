@@ -22,5 +22,6 @@
   "dependencies": {
     "@parcel/plugin": "2.9.3",
     "@swc/core": "^1.3.36"
-  }
+  },
+  "devDependencies": {}
 }
