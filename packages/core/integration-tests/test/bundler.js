@@ -4,6 +4,41 @@ import Logger from '@parcel/logger';
 import {bundle, assertBundles, findAsset} from '@parcel/test-utils';
 
 describe('bundler', function () {
+  it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/disable-shared-bundle-single-source/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['foo.js', 'a.js', 'b.js'],
+      },
+      {
+        assets: ['a.js', 'b.js', 'foo.js', 'bar.js'],
+      },
+    ]);
+  });
+
   it('should not create shared bundles and should warn when disableSharedBundles is set to true with maxParallelRequests set', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {

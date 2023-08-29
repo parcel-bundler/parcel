@@ -23,6 +23,7 @@ import logger from '@parcel/logger';
 import {setEqual, validateSchema, DefaultMap, BitSet} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
+import dumpGraphToGraphViz from '../../../core/core/src/dumpGraphToGraphViz';
 
 type BundlerConfig = {|
   http?: number,
@@ -919,7 +920,7 @@ function createIdealGraph(
         continue;
       }
       let reuseableBundleId = bundles.get(asset.id);
-      if (reuseableBundleId != null) {
+      if (reuseableBundleId != null && config.disableSharedBundles === false) {
         canReuse.add(candidateSourceBundleRoot);
         bundleGraph.addEdge(candidateSourceBundleId, reuseableBundleId);
 
@@ -935,7 +936,10 @@ function createIdealGraph(
             otherReuseCandidate,
             reachableRoots,
           ).filter(b => !ancestorAssets.get(b)?.has(otherReuseCandidate));
-          if (reusableCandidateReachable.includes(candidateSourceBundleRoot)) {
+          if (
+            reusableCandidateReachable.includes(candidateSourceBundleRoot) &&
+            config.disableSharedBundles === false
+          ) {
             let reusableBundleId = nullthrows(
               bundles.get(otherReuseCandidate.id),
             );
