@@ -1,0 +1,16 @@
+{
+  "name": "@parcel/transformer-inline-exports",
+  "version": "1.0.0",
+  "description": "Adds constant exports to asset meta",
+  "main": "src/index.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.9.3"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.9.3",
+    "@parcel/types": "2.9.3",
+    "@swc/core": "^1.2.239"
+  }
+}
