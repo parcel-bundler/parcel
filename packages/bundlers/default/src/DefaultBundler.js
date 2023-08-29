@@ -23,7 +23,6 @@ import logger from '@parcel/logger';
 import {setEqual, validateSchema, DefaultMap, BitSet} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import dumpGraphToGraphViz from '../../../core/core/src/dumpGraphToGraphViz';
 
 type BundlerConfig = {|
   http?: number,
