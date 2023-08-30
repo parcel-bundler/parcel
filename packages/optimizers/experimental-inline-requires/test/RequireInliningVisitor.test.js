@@ -2,7 +2,6 @@ import {parse, print} from '@swc/core';
 import {RequireInliningVisitor} from '../src/RequireInliningVisitor';
 import assert from 'assert';
 import logger from '@parcel/logger';
-import outdent from 'outdent';
 
 async function testRequireInliningVisitor(src, sideEffectsMap) {
   const ast = await parse(src, {});

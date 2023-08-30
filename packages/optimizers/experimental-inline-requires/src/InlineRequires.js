@@ -1,23 +1,32 @@
+// @flow strict-local
 import {Optimizer} from '@parcel/plugin';
 import {parse, print} from '@swc/core';
 import {RequireInliningVisitor} from './RequireInliningVisitor';
+import type {SideEffectsMap} from './types';
+import nullthrows from 'nullthrows';
 
 let publicIdToAssetSideEffects = null;
 
-module.exports = new Optimizer({
-  loadBundleConfig({bundleGraph, logger}) {
+type BundleConfig = {|
+  publicIdToAssetSideEffects: Map<string, SideEffectsMap>,
+|};
+
+// $FlowFixMe not sure how to anotate the export here to make it work...
+module.exports = new Optimizer<empty, BundleConfig>({
+  loadBundleConfig({bundleGraph, logger}): BundleConfig {
     if (publicIdToAssetSideEffects !== null) {
       return {publicIdToAssetSideEffects};
     }
 
-    publicIdToAssetSideEffects = new Map();
+    publicIdToAssetSideEffects = new Map<string, SideEffectsMap>();
     logger.verbose({
       message: 'Generating publicIdToAssetSideEffects for require optimisation',
     });
     bundleGraph.traverse(node => {
       if (node.type === 'asset') {
         const publicId = bundleGraph.getAssetPublicId(node.value);
-        publicIdToAssetSideEffects.set(publicId, {
+        let sideEffectsMap = nullthrows(publicIdToAssetSideEffects);
+        sideEffectsMap.set(publicId, {
           sideEffects: node.value.sideEffects,
           filePath: node.value.filePath,
         });
@@ -33,7 +42,7 @@ module.exports = new Optimizer({
     }
 
     try {
-      const ast = await parse(contents.toString('utf8'));
+      const ast = await parse(contents.toString());
       const visitor = new RequireInliningVisitor({
         bundle,
         logger,
