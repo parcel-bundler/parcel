@@ -119,32 +119,6 @@ export class ScopeHoistingPackager {
     this.globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
   }
 
-  _buildConstantsMap(code) {
-    console.log('BUILDING CONSTANTS');
-
-    const regex = /const\s+(.+)\s*=\s*([^;]*);/g;
-    const obj_regex = /{([^}]+)}/;
-
-    let match = regex.exec(code);
-    let k, v;
-
-    while (match != null) {
-      k = match[1].trim();
-      v = match[2];
-      if (obj_regex.exec(v)) v = '(' + v + ')';
-
-      v = eval(v);
-
-      if (typeof v === 'string') {
-        v = '"' + v + '"';
-      }
-
-      this.constantsMap.set(k, v);
-
-      match = regex.exec(code);
-    }
-  }
-
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
     let wrappedAssets = await this.loadAssets();
     this.buildExportedSymbols();
@@ -173,10 +147,6 @@ export class ScopeHoistingPackager {
               imported = 'default';
             }
             symbols.set(imported, this.getSymbolResolution(entry, entry, s));
-            console.log(
-              '🚀 ~ this.getSymbolResolution(entry, entry, s):',
-              this.getSymbolResolution(entry, entry, s),
-            );
           }
         }
 
@@ -216,6 +186,7 @@ export class ScopeHoistingPackager {
       }
 
       processAsset(asset);
+
       actions.skipChildren();
     });
 
@@ -287,6 +258,8 @@ export class ScopeHoistingPackager {
         sourceMap.addSourceMap(map, lineCount);
       }
     }
+
+    // console.log("\n\n\n\n-----------------------\n", res);
 
     return {
       contents: res,
@@ -416,11 +389,20 @@ export class ScopeHoistingPackager {
 
   getPropertyAccess(obj: string, property: string): string {
     if (IDENTIFIER_RE.test(property)) {
-      console.log(`returning ${obj}.${property}`);
+      // console.log(`returning ${obj}.${property}`);
       return `${obj}.${property}`;
     }
 
     return `${obj}[${JSON.stringify(property)}]`;
+  }
+
+  _logAsset(asset) {
+    if (asset.filePath.includes('/inline-constants/')) {
+      console.log('BUILDING ASSET: ', asset.filePath);
+      console.log(asset.meta.constantExports);
+      const deps = asset.dependencies;
+      console.log({deps});
+    }
   }
 
   visitAsset(asset: Asset): [string, ?SourceMap, number] {
@@ -428,6 +410,7 @@ export class ScopeHoistingPackager {
     this.seenAssets.add(asset.id);
 
     let {code, map} = nullthrows(this.assetOutputs.get(asset.id));
+
     return this.buildAsset(asset, code, map);
   }
 
@@ -451,6 +434,7 @@ export class ScopeHoistingPackager {
       for (let dep of deps) {
         let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
         let skipped = this.bundleGraph.isDependencySkipped(dep);
+
         if (skipped) {
           continue;
         }
@@ -546,6 +530,7 @@ export class ScopeHoistingPackager {
                 dep,
                 resolved,
               );
+
               let map;
               if (
                 this.bundle.hasAsset(resolved) &&
@@ -559,14 +544,7 @@ export class ScopeHoistingPackager {
                   depContent.push(this.visitAsset(resolved));
                 } else {
                   let [depCode, depMap, depLines] = this.visitAsset(resolved);
-                  if (
-                    asset.filePath.includes('index.js') &&
-                    resolved.filePath.includes('constants.js')
-                  ) {
-                    console.log({depCode});
-                    this._buildConstantsMap(depCode);
-                    console.log(this.constantsMap);
-                  }
+
                   res = depCode + '\n' + res;
                   lines += 1 + depLines;
                   map = depMap;
@@ -592,13 +570,9 @@ export class ScopeHoistingPackager {
           return replacement;
         }
 
-        if (asset.filePath.includes('index.js')) {
-          console.log('🚀 ~ replacements:', replacements);
-        }
-
         // If it wasn't a dependency, then it was an inline replacement (e.g. $id$import$foo -> $id$export$foo).
         let replacement = replacements.get(m) ?? m;
-        console.log('🚀 ~ replacement:', replacement);
+        // console.log('🚀 ~ replacement:', replacement);
 
         if (sourceMap) {
           // Offset the source map columns for this line if the replacement was a different length.
@@ -613,9 +587,9 @@ export class ScopeHoistingPackager {
             offset += lengthDifference;
           }
         }
-        if (!asset.filePath.includes('constants.js')) {
-          return this.constantsMap.get(replacement) ?? replacement;
-        }
+        // if (!asset.filePath.includes('constants.js')) {
+        //   return this.constantsMap.get(replacement) ?? replacement;
+        // }
         return replacement;
       });
     }
@@ -626,10 +600,6 @@ export class ScopeHoistingPackager {
       // Offset by one line for the parcelRequire.register wrapper.
       sourceMap?.offsetLines(1, 1);
       lineCount++;
-
-      if (this.bundleGraph.getAssetPublicId(asset) === '1CWVD') {
-        console.log('HELLOOOOOOOOOOO');
-      }
 
       code = `parcelRequire.register(${JSON.stringify(
         this.bundleGraph.getAssetPublicId(asset),
@@ -687,6 +657,16 @@ ${code}
             // be wrapped in Promise.resolve() later.
             asyncResolution.value
           : this.bundleGraph.getResolvedAsset(dep, this.bundle);
+
+      //If the resolved dependency is a constants file, replace the dependency with the resolved symbols in the constants file
+      // if (resolved && resolved.meta.constantExports && !resolved.meta.constantExports.size > 0) {
+      //   console.log("asset: ", asset.filePath, " resolved: ", resolved);
+      //   console.log("constants: ", resolved.meta.constantExports);
+
+      //   console.log("replacements currently", replacements)
+
+      // }
+
       if (
         !resolved &&
         !dep.isOptional &&
@@ -706,6 +686,20 @@ ${code}
 
         let symbol = this.getSymbolResolution(asset, resolved, imported, dep);
         console.log('🚀 ~ symbol:', symbol);
+
+        if (dep.meta.kind == 'Import' || dep.meta.kind == 'DynamicImport') {
+          if (resolved && resolved.meta.constantExports) {
+            // console.log(dep.symbols)
+            // console.log("constants resolved: ", resolved.meta.constantExports)
+            console.log('imported: ', imported);
+            replacements.set(
+              local,
+              resolved.meta.constantExports.get(imported),
+            );
+          }
+          continue;
+        }
+
         replacements.set(
           local,
           // If this was an internalized async asset, wrap in a Promise.resolve.
@@ -722,7 +716,7 @@ ${code}
         let promiseSymbol = dep.meta.promiseSymbol;
         invariant(typeof promiseSymbol === 'string');
         let symbol = this.getSymbolResolution(asset, resolved, '*', dep);
-        console.log('🚀 ~ symbol:', symbol);
+        // console.log('🚀 ~ symbol:', symbol);
         replacements.set(
           promiseSymbol,
           asyncResolution?.type === 'asset'
@@ -743,6 +737,18 @@ ${code}
       replacements.set(exportsName, 'module.exports');
     }
 
+    if (asset.filePath.includes('/inline-constants/')) {
+      console.log('END OF BUILD REPLACEMENTS');
+      console.log(asset.filePath);
+
+      for (let [k, v] of depMap) {
+        v.forEach(x => {
+          console.log(x.symbols);
+        });
+      }
+      console.log(replacements);
+      console.log('\n-----------------------\n');
+    }
     return [depMap, replacements];
   }
 
@@ -830,21 +836,21 @@ ${code}
 
   isWrapped(resolved: Asset, parentAsset: Asset): boolean {
     if (resolved.filePath.includes('constants.js')) {
-      console.log('resolved', resolved.filePath);
-      console.log('parentAsset', parentAsset.filePath);
-      console.log(
-        '!this.bundle.hasAsset(resolved)',
-        !this.bundle.hasAsset(resolved),
-      );
-      console.log(
-        '!this.externalAssets.has(resolved))',
-        !this.externalAssets.has(resolved),
-      );
-      console.log(
-        'this.wrappedAssets.has(resolved.id)',
-        this.wrappedAssets.has(resolved.id),
-      );
-      console.log('resolved !== parentAsset', resolved !== parentAsset);
+      // console.log('resolved', resolved.filePath);
+      // console.log('parentAsset', parentAsset.filePath);
+      // console.log(
+      //   '!this.bundle.hasAsset(resolved)',
+      //   !this.bundle.hasAsset(resolved),
+      // );
+      // console.log(
+      //   '!this.externalAssets.has(resolved))',
+      //   !this.externalAssets.has(resolved),
+      // );
+      // console.log(
+      //   'this.wrappedAssets.has(resolved.id)',
+      //   this.wrappedAssets.has(resolved.id),
+      // );
+      // console.log('resolved !== parentAsset', resolved !== parentAsset);
       return false;
     }
     return (
@@ -864,7 +870,7 @@ ${code}
       exportSymbol,
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
-    console.log(resolvedAsset.filePath, {exportSymbol}, {symbol});
+    // console.log(resolvedAsset.filePath, {exportSymbol}, {symbol});
 
     if (
       resolvedAsset.type !== 'js' ||
@@ -878,11 +884,6 @@ ${code}
     let isWrapped = this.isWrapped(resolvedAsset, parentAsset);
     let staticExports = resolvedAsset.meta.staticExports !== false;
     let publicId = this.bundleGraph.getAssetPublicId(resolvedAsset);
-    if (publicId === '1CWVD') {
-      //constants.js
-      debugger;
-      console.log('HERE1');
-    }
 
     if (
       parentAsset.filePath.includes('index.js') &&
@@ -914,10 +915,6 @@ ${code}
       if (!hoisted) {
         hoisted = new Map();
         this.hoistedRequires.set(dep.id, hoisted);
-      }
-
-      if (this.bundleGraph.getAssetPublicId(resolvedAsset) === '1CWVD') {
-        console.log('!!!!!!!!hoisted.set');
       }
 
       hoisted.set(
@@ -986,44 +983,11 @@ ${code}
         this.usedHelpers.add('$parcel$interopDefault');
         return `(/*@__PURE__*/$parcel$interopDefault(${obj}))`;
       } else {
-        console.log('parent', parentAsset.filePath);
-        console.log('resolved', resolvedAsset.filePath);
-        console.log({obj});
-        console.log({exportSymbol});
-        if (resolvedAsset.filePath.includes('constants.js')) {
-          console.log({symbol});
-        }
-
-        if (parentAsset.filePath.includes('index.js')) {
-          console.log(
-            '🚀 ~ file: ScopeHoistingPackager.js:916 ~ ScopeHoistingPackager ~ obj:',
-            obj,
-          );
-        }
         return this.getPropertyAccess(obj, exportSymbol);
       }
     } else if (!symbol) {
       invariant(false, 'Asset was skipped or not found.');
     } else {
-      if (
-        resolved.filePath.includes('constants.js') &&
-        parentAsset.filePath.includes('a.js')
-      ) {
-        // inline constant
-        let res;
-        for (let s of resolvedAsset.symbols) {
-          if (s[1].local === symbol) {
-            console.log(s);
-            res = s[0];
-          }
-        }
-        console.log(resolvedAsset.symbols);
-        console.log({symbol});
-        //console.log('returning symbol', symbol);
-        console.log('HELLOO HIHIHI ! res:', res);
-        //return res;
-      }
-
       return symbol; // here
     }
   }
@@ -1054,9 +1018,6 @@ ${code}
       !this.shouldSkipAsset(resolved)
     ) {
       this.needsPrelude = true;
-      if (this.bundleGraph.getAssetPublicId(asset) === '1CWVD') {
-        console.log('HERE2');
-      }
       res += `parcelRequire(${JSON.stringify(
         this.bundleGraph.getAssetPublicId(resolved),
       )});`;
@@ -1200,7 +1161,6 @@ ${code}
                   resolved,
                   symbol,
                 );
-                console.log('🚀 ~ resolvedSymbol:', resolvedSymbol);
                 let get = this.buildFunctionExpression([], resolvedSymbol);
                 let set = asset.meta.hasCJSExports
                   ? ', ' +
@@ -1247,7 +1207,6 @@ ${code}
         prepend += `\n${usedExports
           .map(exp => {
             let resolved = this.getSymbolResolution(asset, asset, exp);
-            console.log('🚀 ~ resolved:', resolved);
             let get = this.buildFunctionExpression([], resolved);
             let isEsmExport = !!asset.symbols.get(exp)?.meta?.isEsm;
             let set =

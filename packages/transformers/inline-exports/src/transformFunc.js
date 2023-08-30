@@ -2,18 +2,17 @@
 const {findConstantExports} = require('./find-constants');
 
 async function transformFunc({asset}) {
+  //TODO: We should add an array of filepaths or regular expressions s.t. only constants from those files will be inlined.
+
   if (!asset.fs.existsSync(asset.filePath)) {
     return [asset];
   }
 
-  const code = await asset.fs.readFile(asset.filePath, 'utf8');
+  let code = await asset.fs.readFile(asset.filePath, 'utf8');
 
   const constantExports = await findConstantExports(code);
 
   asset.meta.constantExports = constantExports;
-
-  console.log(asset.filePath);
-  console.log('🚀 ~ Asset meta', asset.meta);
 
   return [asset];
 }

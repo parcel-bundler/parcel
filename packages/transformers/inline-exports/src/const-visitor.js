@@ -23,7 +23,7 @@ class ConstantVisitor extends Visitor {
   /** @type {number} */
   offset;
 
-  /** @type {Set<ConstantExport>} */
+  /** @type {Map<string, string>} */
   constantExports;
 
   constructor(/** @type {string} */ code) {
@@ -32,7 +32,7 @@ class ConstantVisitor extends Visitor {
     this.modifiedImportCount = 0;
     this.code = code;
     this.offset = 0;
-    this.constantExports = new Set();
+    this.constantExports = new Map();
   }
 
   /** @type {(node: Program) => Program} */
@@ -49,6 +49,18 @@ class ConstantVisitor extends Visitor {
     };
   }
 
+  addConstantExport(specifier, value) {
+    if (typeof value === 'string') {
+      value = `"${value}"`;
+    }
+
+    if (typeof value === 'number') {
+      value = 111111;
+    }
+
+    this.constantExports.set(specifier, value);
+  }
+
   visitExportDeclaration(node) {
     if (
       node.declaration.type === 'VariableDeclaration' &&
@@ -58,7 +70,7 @@ class ConstantVisitor extends Visitor {
         if (declaration.init?.type.endsWith('Literal')) {
           const specifier = declaration.id.value;
           const value = declaration.init.value;
-          this.constantExports.add({specifier, value});
+          this.addConstantExport(specifier, value);
         }
       }
     }
@@ -69,7 +81,7 @@ class ConstantVisitor extends Visitor {
     if (node.expression.type.endsWith('Literal')) {
       const specifier = 'default';
       const value = node.expression.value;
-      this.constantExports.add({specifier, value});
+      this.addConstantExport(specifier, value);
     }
 
     return super.visitExportDefaultExpression(node);
