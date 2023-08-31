@@ -1,4 +1,5 @@
-import('./a');
-import { BLOGGER, PREMIUM } from './constants';
+import {a} from "./a";
+import { BLOGGER, PREMIUM } from "./constants";
 
-console.log( BLOGGER, PREMIUM );
+console.log(a);
+console.log(BLOGGER, PREMIUM);

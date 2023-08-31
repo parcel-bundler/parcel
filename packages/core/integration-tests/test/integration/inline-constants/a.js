@@ -1,3 +1,3 @@
-import { MONTHS_IN_YEAR } from './constants';
+import("./constants").then(v => console.log(v.MONTHS_IN_YEAR));
 
-console.log(MONTHS_IN_YEAR)
+export const a = "adfasdkfjh";

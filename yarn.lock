@@ -2377,50 +2377,118 @@
   resolved "https://registry.yarnpkg.com/@swc/core-darwin-arm64/-/core-darwin-arm64-1.3.36.tgz#37f15d0edda0e78837bdab337d69777d2fecfa40"
   integrity sha512-lsP+C8p9cC/Vd9uAbtxpEnM8GoJI/MMnVuXak7OlxOtDH9/oTwmAcAQTfNGNaH19d2FAIRwf+5RbXCPnxa2Zjw==
 
+"@swc/core-darwin-arm64@1.3.80":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core-darwin-arm64/-/core-darwin-arm64-1.3.80.tgz#18be1879ffc0a871a7397ccccf8a80278a794d60"
+  integrity sha512-rhoFTcQMUGfO7IkfOnopPSF6O0/aVJ58B7KueIKbvrMe6YvSfFj9QfObELFjYCcrJZTvUWBhig0QrsfPIiUphA==
+
 "@swc/core-darwin-x64@1.3.36":
   version "1.3.36"
   resolved "https://registry.yarnpkg.com/@swc/core-darwin-x64/-/core-darwin-x64-1.3.36.tgz#da6327511b62a78c2992749dd9ed813a9345608b"
   integrity sha512-jaLXsozWN5xachl9fPxDMi5nbWq1rRxPAt6ISeiYB6RJk0MQKH1634pOweBBem2pUDDzwDFXFw6f22LTm/cFvA==
+
+"@swc/core-darwin-x64@1.3.80":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core-darwin-x64/-/core-darwin-x64-1.3.80.tgz#83413aed20751e836139be0aa2f6f419850bad41"
+  integrity sha512-0dOLedFpVXe+ugkKHXsqSxMKqvQYfFtibWbrZ7j8wOaErzSGPr0VpyWvepNVb9s046725kPXSw+fsGhqZR8wrw==
 
 "@swc/core-linux-arm-gnueabihf@1.3.36":
   version "1.3.36"
   resolved "https://registry.yarnpkg.com/@swc/core-linux-arm-gnueabihf/-/core-linux-arm-gnueabihf-1.3.36.tgz#4272d94f376e5b90e6453d56f52f2618e2f7b825"
   integrity sha512-vcBdTHjoEpvJDbFlgto+S6VwAHzLA9GyCiuNcTU2v4KNQlFzhbO4A4PMfMCb/Z0RLJEr16tirfHdWIxjU3h8nw==
 
+"@swc/core-linux-arm-gnueabihf@1.3.80":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core-linux-arm-gnueabihf/-/core-linux-arm-gnueabihf-1.3.80.tgz#caa6608103dfce820d071ca59cd52617e0c96804"
+  integrity sha512-QIjwP3PtDeHBDkwF6+ZZqdUsqAhORbMpxrw2jq3mHe4lQrxBttSFTq018vlMRo2mFEorOvXdadzaD9m+NymPrw==
+
 "@swc/core-linux-arm64-gnu@1.3.36":
   version "1.3.36"
   resolved "https://registry.yarnpkg.com/@swc/core-linux-arm64-gnu/-/core-linux-arm64-gnu-1.3.36.tgz#d5c39fa52803ec0891c861588e5c4deb89652f63"
   integrity sha512-o7f5OsvwWppJo+qIZmrGO5+XC6DPt6noecSbRHjF6o1YAcR13ETPC14k1eC9H1YbQwpyCFNVAFXyNcUbCeQyrQ==
+
+"@swc/core-linux-arm64-gnu@1.3.80":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core-linux-arm64-gnu/-/core-linux-arm64-gnu-1.3.80.tgz#0ec3962eb196cc5f99b8540f89fafb75366092ce"
+  integrity sha512-cg8WriIueab58ZwkzXmIACnjSzFLzOBwxlC9k65gPXMNgCjab2YbqEYvAbjBqneuqaao02gW6tad2uhjgYaExw==
 
 "@swc/core-linux-arm64-musl@1.3.36":
   version "1.3.36"
   resolved "https://registry.yarnpkg.com/@swc/core-linux-arm64-musl/-/core-linux-arm64-musl-1.3.36.tgz#2a47ba9b438790f2e32584ca0698ef053cc3ddba"
   integrity sha512-FSHPngMi3c0fuGt9yY2Ubn5UcELi3EiPLJxBSC3X8TF9atI/WHZzK9PE9Gtn0C/LyRh4CoyOugDtSOPzGYmLQg==
 
+"@swc/core-linux-arm64-musl@1.3.80":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core-linux-arm64-musl/-/core-linux-arm64-musl-1.3.80.tgz#4c2f58fb10b6d163bf22ab517a3afacd7016d670"
+  integrity sha512-AhdCQ7QKx5mWrtpaOA1mFRiWWvuiiUtspvo0QSpspDetRKTND1rlf/3UB5+gp0kCeCNUTsVmJWU7fIA9ICZtXA==
+
 "@swc/core-linux-x64-gnu@1.3.36":
   version "1.3.36"
   resolved "https://registry.yarnpkg.com/@swc/core-linux-x64-gnu/-/core-linux-x64-gnu-1.3.36.tgz#5e239123452231092eac7d6bd007949b5a7e38fb"
   integrity sha512-PHSsH2rek5pr3e0K09VgWAbrWK2vJhaI7MW9TPoTjyACYjcs3WwjcjQ30MghXUs2Dc/bXjWAOi9KFTjq/uCyFg==
+
+"@swc/core-linux-x64-gnu@1.3.80":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core-linux-x64-gnu/-/core-linux-x64-gnu-1.3.80.tgz#de94d37953d46ac2321b96c35849beffaed60beb"
+  integrity sha512-+2e5oni1vOrLIjM5Q2/GIzK/uS2YEtuJqnjPvCK8SciRJsSl8OgVsRvyCDbmKeZNtJ2Q+o/O2AQ2w1qpAJG6jg==
 
 "@swc/core-linux-x64-musl@1.3.36":
   version "1.3.36"
   resolved "https://registry.yarnpkg.com/@swc/core-linux-x64-musl/-/core-linux-x64-musl-1.3.36.tgz#ed2a26e32d4d4e6f7cbf9f34d50cd38feb78d8dd"
   integrity sha512-4LfMYQHzozHCKkIcmQy83b+4SpI+mOp6sYNbXqSRz5dYvTVjegKZXe596P1U/87cK2cgR4uYvkgkgBXquaWvwQ==
 
+"@swc/core-linux-x64-musl@1.3.80":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core-linux-x64-musl/-/core-linux-x64-musl-1.3.80.tgz#30e7dd46f30a8027bc6864c10666a98003f715ab"
+  integrity sha512-8OK9IlI1zpWOm7vIp1iXmZSEzLAwFpqhsGSEhxPavpOx2m54kLFdPcw/Uv3n461f6TCtszIxkGq1kSqBUdfUBA==
+
 "@swc/core-win32-arm64-msvc@1.3.36":
   version "1.3.36"
   resolved "https://registry.yarnpkg.com/@swc/core-win32-arm64-msvc/-/core-win32-arm64-msvc-1.3.36.tgz#d8fbba50bfbf5e39aa4826c8c46978c4b1fdfbe7"
   integrity sha512-7y3dDcun79TAjCyk3Iv0eOMw1X/KNQbkVyKOGqnEgq9g22F8F1FoUGKHNTzUqVdzpHeJSsHgW5PlkEkl3c/d9w==
+
+"@swc/core-win32-arm64-msvc@1.3.80":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core-win32-arm64-msvc/-/core-win32-arm64-msvc-1.3.80.tgz#cab6e1140c19b3576204da995f6dd719d6bb7417"
+  integrity sha512-RKhatwiAGlffnF6z2Mm3Ddid0v3KB+uf5m/Gc7N9zO/EUAV0PnHRuYuZSGyqodHmGFC+mK8YrCooFCEmHL9n+w==
 
 "@swc/core-win32-ia32-msvc@1.3.36":
   version "1.3.36"
   resolved "https://registry.yarnpkg.com/@swc/core-win32-ia32-msvc/-/core-win32-ia32-msvc-1.3.36.tgz#108830d0282a80d0f2d77bee7773d2985d389346"
   integrity sha512-zK0VR3B4LX5hzQ+7eD+K+FkxJlJg5Lo36BeahMzQ+/i0IURpnuyFlW88sdkFkMsc2swdU6bpvxLZeIRQ3W4OUg==
 
+"@swc/core-win32-ia32-msvc@1.3.80":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core-win32-ia32-msvc/-/core-win32-ia32-msvc-1.3.80.tgz#3da4715e77c6f1559a3a76cca80fddee9aa100fc"
+  integrity sha512-3jiiZzU/kaw7k4zUp1yMq1QiUe4wJVtCEXIhf+fKuBsIwm7rdvyK/+PIx5KHnZy4TGQnYczKBRhJA5nuBcrUCQ==
+
 "@swc/core-win32-x64-msvc@1.3.36":
   version "1.3.36"
   resolved "https://registry.yarnpkg.com/@swc/core-win32-x64-msvc/-/core-win32-x64-msvc-1.3.36.tgz#96d9b1077a6877f6583f5d7405f8b9380b9364fc"
   integrity sha512-2bIjr9DhAckGiXZEvj6z2z7ECPcTimG+wD0VuQTvr+wkx46uAJKl5Kq+Zk+dd15ErL7JGUtCet1T7bf1k4FwvQ==
+
+"@swc/core-win32-x64-msvc@1.3.80":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core-win32-x64-msvc/-/core-win32-x64-msvc-1.3.80.tgz#2693dd16176b181f440127c822f7006ffba8d3ad"
+  integrity sha512-2eZtIoIWQBWqykfms92Zd37lveYOBWQTZjdooBGlsLHtcoQLkNpf1NXmR6TKY0yy8q6Yl3OhPvY+izjmO08MSg==
+
+"@swc/core@^1.2.239":
+  version "1.3.80"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/core/-/core-1.3.80.tgz#364570b0cd5bba7ff686888558bbfd6423317310"
+  integrity sha512-yX2xV5I/lYswHHR+44TPvzBgq3/Y8N1YWpTQADYuvSiX3Jxyvemk5Jpx3rRtigYb8WBkWAAf2i5d5ZJ2M7hhgw==
+  dependencies:
+    "@swc/types" "^0.1.3"
+  optionalDependencies:
+    "@swc/core-darwin-arm64" "1.3.80"
+    "@swc/core-darwin-x64" "1.3.80"
+    "@swc/core-linux-arm-gnueabihf" "1.3.80"
+    "@swc/core-linux-arm64-gnu" "1.3.80"
+    "@swc/core-linux-arm64-musl" "1.3.80"
+    "@swc/core-linux-x64-gnu" "1.3.80"
+    "@swc/core-linux-x64-musl" "1.3.80"
+    "@swc/core-win32-arm64-msvc" "1.3.80"
+    "@swc/core-win32-ia32-msvc" "1.3.80"
+    "@swc/core-win32-x64-msvc" "1.3.80"
 
 "@swc/core@^1.3.36":
   version "1.3.36"
@@ -2444,6 +2512,11 @@
   integrity sha512-SjY/p4MmECVVEWspzSRpQEM3sjR17sP8PbGxELWrT+YZMBfiUyt1MRUNjMV23zohwlG2HYtCQOsCwsTHguXkyg==
   dependencies:
     tslib "^2.4.0"
+
+"@swc/types@^0.1.3":
+  version "0.1.4"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@swc/types/-/types-0.1.4.tgz#8d647e111dc97a8e2881bf71c2ee2d011698ff10"
+  integrity sha512-z/G02d+59gyyUb7KYhKi9jOhicek6QD2oMaotUyG+lUkybpXoV49dY9bj7Ah5Q+y7knK2jU67UTX9FyfGzaxQg==
 
 "@tootallnate/once@1":
   version "1.1.2"

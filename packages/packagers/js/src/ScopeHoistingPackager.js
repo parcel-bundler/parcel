@@ -737,18 +737,6 @@ ${code}
       replacements.set(exportsName, 'module.exports');
     }
 
-    if (asset.filePath.includes('/inline-constants/')) {
-      console.log('END OF BUILD REPLACEMENTS');
-      console.log(asset.filePath);
-
-      for (let [k, v] of depMap) {
-        v.forEach(x => {
-          console.log(x.symbols);
-        });
-      }
-      console.log(replacements);
-      console.log('\n-----------------------\n');
-    }
     return [depMap, replacements];
   }
 

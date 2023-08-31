@@ -1,0 +1,14 @@
+yarn run v1.22.19
+$ yarn workspace @parcel/integration-tests test
+$ cross-env NODE_OPTIONS=--experimental-vm-modules NODE_ENV=test PARCEL_BUILD_ENV=test mocha
+
+
+  test
+/Users/cperalta/Documents/Repos/parcel/packages/core/integration-tests/test/integration/inline-constants/constants.js { exportSymbol: 'MAP' } { symbol: '$12f70d0e14656c56$export$ce970371e0e850bc' }
+123
+    ✓ iNLINE CONSTANTS TEST (1385ms)
+
+
+  1 passing (1s)
+
+Done in 3.26s.
