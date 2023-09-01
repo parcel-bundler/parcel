@@ -6327,7 +6327,7 @@ describe('javascript', function () {
     assert.equal(await res.default, 'target');
   });
 
-  it.only('should detect shorthand identifier imports', async function () {
+  it('should detect shorthand identifier imports', async function () {
     const dir = path.join(__dirname, 'js-import-shorthand-identifier');
     overlayFS.mkdirp(dir);
 
