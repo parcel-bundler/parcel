@@ -5,10 +5,10 @@ use crate::utils::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use swc_atoms::{js_word, JsWord};
-use swc_common::{sync::Lrc, Mark, Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Visit, VisitWith};
+use swc_core::common::{sync::Lrc, Mark, Span, DUMMY_SP};
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Visit, VisitWith};
 
 macro_rules! collect_visit_fn {
   ($name:ident, $type:ident) => {
@@ -48,7 +48,7 @@ pub struct Export {
 }
 
 pub struct Collect {
-  pub source_map: Lrc<swc_common::SourceMap>,
+  pub source_map: Lrc<swc_core::common::SourceMap>,
   pub decls: HashSet<Id>,
   pub ignore_mark: Mark,
   pub global_mark: Mark,
@@ -113,7 +113,7 @@ pub struct CollectResult {
 
 impl Collect {
   pub fn new(
-    source_map: Lrc<swc_common::SourceMap>,
+    source_map: Lrc<swc_core::common::SourceMap>,
     decls: HashSet<Id>,
     ignore_mark: Mark,
     global_mark: Mark,

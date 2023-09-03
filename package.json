@@ -39,7 +39,7 @@
     "@babel/core": "^7.12.0",
     "@khanacademy/flow-to-ts": "^0.5.2",
     "@napi-rs/cli": "^2.15.2",
-    "@parcel/babel-register": "2.9.2",
+    "@parcel/babel-register": "2.9.3",
     "@types/node": "^15.12.4",
     "cross-env": "^7.0.0",
     "eslint": "^7.20.0",
@@ -56,7 +56,7 @@
     "prettier": "2.4.1",
     "punycode": "^1.4.1",
     "rimraf": "^3.0.2",
-    "semver": "^5.7.1",
+    "semver": "^7.5.2",
     "sinon": "^7.3.1"
   },
   "engines": {

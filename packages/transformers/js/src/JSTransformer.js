@@ -939,6 +939,7 @@ export default (new Transformer({
 // also load the native module on the main thread, so that it is not unloaded until process exit.
 // See https://github.com/rust-lang/rust/issues/91979.
 let isLoadedOnMainThread = false;
+
 async function loadOnMainThreadIfNeeded() {
   if (
     !isLoadedOnMainThread &&
@@ -947,14 +948,15 @@ async function loadOnMainThreadIfNeeded() {
   ) {
     // $FlowFixMe
     let {glibcVersionRuntime} = process.report.getReport().header;
+
     if (glibcVersionRuntime && parseFloat(glibcVersionRuntime) <= 2.17) {
       let api = WorkerFarm.getWorkerApi();
       await api.callMaster({
         location: __dirname + '/loadNative.js',
         args: [],
       });
-
-      isLoadedOnMainThread = true;
     }
+
+    isLoadedOnMainThread = true;
   }
 }

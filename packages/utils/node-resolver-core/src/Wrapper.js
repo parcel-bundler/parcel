@@ -47,7 +47,7 @@ type Options = {|
   packageManager?: PackageManager,
   logger?: PluginLogger,
   shouldAutoInstall?: boolean,
-  mode?: BuildMode,
+  mode: BuildMode,
   mainFields?: Array<string>,
   extensions?: Array<string>,
   packageExports?: boolean,

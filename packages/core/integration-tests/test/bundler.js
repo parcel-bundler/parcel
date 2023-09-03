@@ -3,6 +3,40 @@ import assert from 'assert';
 import {bundle, assertBundles, findAsset} from '@parcel/test-utils';
 
 describe('bundler', function () {
+  it('should not count inline assests towards parallel request limit', async function () {
+    // Shared bundle should not be removed in this case
+    let b = await bundle(
+      path.join(__dirname, 'integration/inlined-assests/local.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['local.html'],
+      },
+      {
+        assets: ['buzz.js'],
+      },
+      {
+        assets: [
+          'inline-module.js',
+          'local.html',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['esmodule-helpers.js'],
+      },
+    ]);
+  });
+
   it('should not create a shared bundle from an asset if that asset is shared by less than minBundles bundles', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/min-bundles/index.js'),
@@ -280,22 +314,21 @@ describe('bundler', function () {
         assets: ['b.html'],
       },
       {
-        assets: ['a.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+        assets: ['a.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
-        assets: ['bundle-manifest.js'], // manifest bundle
+        assets: ['bundle-manifest.js', 'bundle-url.js'], // manifest bundle
       },
       {
         assets: [
           'b.js',
-          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'esmodule-helpers.js',
         ],
       },
       {
-        assets: ['bundle-manifest.js'], // manifest bundle
+        assets: ['bundle-manifest.js', 'bundle-url.js'], // manifest bundle
       },
       {
         assets: ['c.js'],
@@ -305,7 +338,7 @@ describe('bundler', function () {
     let aManifestBundle = b
       .getBundles()
       .find(
-        bundle => !bundle.getMainEntry() && /a\.HASH_REF/.test(bundle.name),
+        bundle => !bundle.getMainEntry() && bundle.name.includes('runtime'),
       );
 
     let bBundles = b

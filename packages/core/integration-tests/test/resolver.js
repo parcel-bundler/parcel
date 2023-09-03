@@ -426,4 +426,22 @@ describe('resolver', function () {
     let output = await run(b);
     assert.strictEqual(output.default, 'hello bar');
   });
+
+  it('should support the development and production import conditions', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/resolve-mode-condition/index.js'),
+      {mode: 'development'},
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 'development');
+
+    b = await bundle(
+      path.join(__dirname, '/integration/resolve-mode-condition/index.js'),
+      {mode: 'production'},
+    );
+
+    output = await run(b);
+    assert.strictEqual(output.default, 'production');
+  });
 });

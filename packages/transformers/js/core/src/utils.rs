@@ -3,9 +3,9 @@ use std::collections::HashSet;
 
 use crate::id;
 use serde::{Deserialize, Serialize};
-use swc_atoms::{js_word, JsWord};
-use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::{self, Id};
+use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_core::ecma::ast::{self, Id};
+use swc_core::ecma::atoms::{js_word, JsWord};
 
 pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &HashSet<Id>) -> bool {
   use ast::{Expr, Ident, Lit, MemberProp, Str};
@@ -42,7 +42,7 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &Hash
   false
 }
 
-pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
+pub fn create_require(specifier: swc_core::ecma::atoms::JsWord) -> ast::CallExpr {
   let mut normalized_specifier = specifier;
   if normalized_specifier.starts_with("node:") {
     normalized_specifier = normalized_specifier.replace("node:", "").into();
@@ -168,7 +168,7 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
 
 // `name` must not be an existing binding.
 pub fn create_global_decl_stmt(
-  name: swc_atoms::JsWord,
+  name: swc_core::ecma::atoms::JsWord,
   init: ast::Expr,
   global_mark: Mark,
 ) -> (ast::Stmt, SyntaxContext) {
@@ -206,7 +206,7 @@ pub struct SourceLocation {
 }
 
 impl SourceLocation {
-  pub fn from(source_map: &swc_common::SourceMap, span: swc_common::Span) -> Self {
+  pub fn from(source_map: &swc_core::common::SourceMap, span: swc_core::common::Span) -> Self {
     if span.lo.is_dummy() || span.hi.is_dummy() {
       return SourceLocation {
         start_line: 1,
@@ -364,11 +364,11 @@ macro_rules! fold_member_expr_skip_prop {
   () => {
     fn fold_member_expr(
       &mut self,
-      mut node: swc_ecmascript::ast::MemberExpr,
-    ) -> swc_ecmascript::ast::MemberExpr {
+      mut node: swc_core::ecma::ast::MemberExpr,
+    ) -> swc_core::ecma::ast::MemberExpr {
       node.obj = node.obj.fold_with(self);
 
-      if let swc_ecmascript::ast::MemberProp::Computed(_) = node.prop {
+      if let swc_core::ecma::ast::MemberProp::Computed(_) = node.prop {
         node.prop = node.prop.fold_with(self);
       }
 
