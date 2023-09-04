@@ -7,7 +7,7 @@
     "start": "parcel src/index.html"
   },
   "devDependencies": {
-    "@babel/core": "^7.0.0",
+    "@babel/core": "^7.22.11",
     "@parcel/babel-register": "2.9.3",
     "@parcel/core": "2.9.3"
   },
