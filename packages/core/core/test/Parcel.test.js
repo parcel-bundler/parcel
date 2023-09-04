@@ -85,10 +85,10 @@ describe('ParcelAPI', function () {
 
   afterEach(() => workerFarm.end());
 
-  describe('parcel.transform()', () => {
+  describe('parcel.unstable_transform()', () => {
     it('should transforms simple file', async () => {
       let parcel = createParcel({workerFarm});
-      let res = await parcel.transform({
+      let res = await parcel.unstable_transform({
         filePath: path.join(__dirname, 'fixtures/parcel/index.js'),
       });
       let code = await res[0].getCode();
@@ -97,7 +97,7 @@ describe('ParcelAPI', function () {
 
     it('should transform with standalone mode', async () => {
       let parcel = createParcel({workerFarm});
-      let res = await parcel.transform({
+      let res = await parcel.unstable_transform({
         filePath: path.join(__dirname, 'fixtures/parcel/other.js'),
         query: 'standalone=true',
       });
@@ -112,7 +112,7 @@ describe('ParcelAPI', function () {
   describe('parcel.resolve()', () => {
     it('should resolve dependencies', async () => {
       let parcel = createParcel({workerFarm});
-      let res = await parcel.resolve({
+      let res = await parcel.unstable_resolve({
         specifier: './other',
         specifierType: 'esm',
         resolveFrom: path.join(__dirname, 'fixtures/parcel/index.js'),

@@ -451,7 +451,7 @@ export default class Parcel {
     return this.#farm.takeHeapSnapshot();
   }
 
-  async transform({
+  async unstable_transform({
     shouldDisableCache = false,
     ...options
   }: ParcelTransformOptions): Promise<Array<Asset>> {
@@ -484,7 +484,7 @@ export default class Parcel {
     );
   }
 
-  async resolve({
+  async unstable_resolve({
     shouldDisableCache = false,
     ...request
   }: ParcelResolveOptions): Promise<?ParcelResolveResult> {
