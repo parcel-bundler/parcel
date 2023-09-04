@@ -78,9 +78,9 @@ if (!$parcel$global.lb) {
             env,
             ['dep'],
             ['return $parcel$global.lb.has(dep);'],
-          )};`,
+          )});`,
         ],
-      )};`,
+      )});`,
       'if (runnableEntry) {',
       `$parcel$global.bq = $parcel$global.bq.filter(${fnExpr(
         env,
