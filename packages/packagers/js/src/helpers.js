@@ -77,10 +77,10 @@ if (!$parcel$global.lb) {
           `return i.d.every(${fnExpr(
             env,
             ['dep'],
-            ['return $parcel$global.lb.has(dep));'],
+            ['return $parcel$global.lb.has(dep);'],
           )};`,
         ],
-      )}`,
+      )};`,
       'if (runnableEntry) {',
       `$parcel$global.bq = $parcel$global.bq.filter(${fnExpr(
         env,
