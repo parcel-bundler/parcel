@@ -55,17 +55,14 @@ if (!$parcel$global.lb) {
   $parcel$global.rlb = ${fnExpr(
     env,
     ['bundle'],
-    ['$parcel$global.lb.add(bundle)', '$parcel$global.pq();'],
+    ['$parcel$global.lb.add(bundle);', '$parcel$global.pq();'],
   )}
 
   // Run when ready
   $parcel$global.rwr = ${fnExpr(
     env,
     ['b', 'r', 'd'],
-    [
-      '$parcel$global.bq.push({b: bundle, r: run, d: deps});',
-      '$parcel$global.pq();',
-    ],
+    ['$parcel$global.bq.push({b, r, d});', '$parcel$global.pq();'],
   )}
 
   // Process queue
@@ -76,7 +73,13 @@ if (!$parcel$global.lb) {
       `var runnableEntry = $parcel$global.bq.find(${fnExpr(
         env,
         ['i'],
-        ['return i.d.every(dep => $parcel$global.lb.has(dep));'],
+        [
+          `return i.d.every(${fnExpr(
+            env,
+            ['dep'],
+            ['return $parcel$global.lb.has(dep));'],
+          )};`,
+        ],
       )}`,
       'if (runnableEntry) {',
       `$parcel$global.bq = $parcel$global.bq.filter(${fnExpr(
