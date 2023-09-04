@@ -639,15 +639,15 @@ ${code}
         lineCount += lines + 1;
       }
 
-      if (
-        !shouldWrap &&
-        this.shouldBundleQueue(this.bundle) &&
-        this.bundle.getEntryAssets().some(entry => entry.id === asset.id)
-      ) {
-        code = this.runWhenReady(this.bundle, code);
-      }
-
       this.needsPrelude = true;
+    }
+
+    if (
+      !shouldWrap &&
+      this.shouldBundleQueue(this.bundle) &&
+      this.bundle.getEntryAssets().some(entry => entry.id === asset.id)
+    ) {
+      code = this.runWhenReady(this.bundle, code);
     }
 
     return [code, sourceMap, lineCount];
