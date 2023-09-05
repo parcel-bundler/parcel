@@ -34,9 +34,10 @@ export default (new Packager({
   async loadConfig({config, options}): Promise<JSPackagerConfig> {
     // Generate a name for the global parcelRequire function that is unique to this project.
     // This allows multiple parcel builds to coexist on the same page.
-    let pkg = await config.getConfigFrom(
-      path.join(options.projectRoot, 'index'),
-      ['package.json'],
+    let pkg = nullthrows(
+      await config.getConfigFrom(path.join(options.projectRoot, 'index'), [
+        'package.json',
+      ]),
     );
 
     let packageKey = '@parcel/packager-js';
