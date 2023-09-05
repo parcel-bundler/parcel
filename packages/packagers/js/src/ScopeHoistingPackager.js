@@ -74,6 +74,7 @@ export class ScopeHoistingPackager {
   bundleGraph: BundleGraph<NamedBundle>;
   bundle: NamedBundle;
   parcelRequireName: string;
+  useAsyncBundleRuntime: boolean;
   outputFormat: OutputFormat;
   isAsyncBundle: boolean;
   globalNames: $ReadOnlySet<string>;
@@ -101,11 +102,13 @@ export class ScopeHoistingPackager {
     bundleGraph: BundleGraph<NamedBundle>,
     bundle: NamedBundle,
     parcelRequireName: string,
+    useAsyncBundleRuntime: boolean,
   ) {
     this.options = options;
     this.bundleGraph = bundleGraph;
     this.bundle = bundle;
     this.parcelRequireName = parcelRequireName;
+    this.useAsyncBundleRuntime = useAsyncBundleRuntime;
 
     let OutputFormat = OUTPUT_FORMATS[this.bundle.env.outputFormat];
     this.outputFormat = new OutputFormat(this);
@@ -277,7 +280,7 @@ export class ScopeHoistingPackager {
 
   shouldBundleQueue(bundle: NamedBundle): boolean {
     return (
-      Boolean(process.env.PARCEL_EXPERIMENTAL_ASYNC_RUNTIME) &&
+      this.useAsyncBundleRuntime &&
       bundle.type === 'js' &&
       bundle.bundleBehavior !== 'inline' &&
       bundle.env.outputFormat === 'esmodule' &&

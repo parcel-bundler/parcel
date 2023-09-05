@@ -16,6 +16,7 @@ import {
   outputFS,
   overlayFS,
   run,
+  inputFS,
   runBundle,
 } from '@parcel/test-utils';
 
@@ -5860,5 +5861,37 @@ describe('scope hoisting', function () {
       let res = await run(b);
       assert.equal(res, 'target');
     });
+  });
+
+  it.only('should add experimental bundle queue runtime for out of order bundle execution', async function () {
+    let b = await bundle(
+      [
+        path.join(__dirname, 'integration/bundle-queue-runtime/index.html'),
+        path.join(__dirname, 'integration/bundle-queue-runtime/a.html'),
+      ],
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+          outputFormat: 'esmodule',
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => /index.*\.js/.test(b.filePath)).filePath,
+      'utf8',
+    );
+    assert(contents.includes('$parcel$global.rwr('));
+
+    let result;
+    await run(b, {
+      result: r => {
+        result = r;
+      },
+    });
+
+    assert.deepEqual(await result, ['a', 'b', 'c']);
   });
 });
