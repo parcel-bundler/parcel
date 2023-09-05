@@ -16,7 +16,6 @@ import {
   outputFS,
   overlayFS,
   run,
-  inputFS,
   runBundle,
 } from '@parcel/test-utils';
 
@@ -5863,7 +5862,7 @@ describe('scope hoisting', function () {
     });
   });
 
-  it.only('should add experimental bundle queue runtime for out of order bundle execution', async function () {
+  it('should add experimental bundle queue runtime for out of order bundle execution', async function () {
     let b = await bundle(
       [
         path.join(__dirname, 'integration/bundle-queue-runtime/index.html'),
