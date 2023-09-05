@@ -41,17 +41,20 @@ export default (new Packager({
     );
 
     let packageKey = '@parcel/packager-js';
-    validateSchema.diagnostic(
-      CONFIG_SCHEMA,
-      {
-        data: pkg?.contents[packageKey],
-        source: await options.inputFS.readFile(pkg.filePath, 'utf8'),
-        filePath: pkg.filePath,
-        prependKey: `/${encodeJSONKeyComponent(packageKey)}`,
-      },
-      packageKey,
-      `Invalid config for ${packageKey}`,
-    );
+
+    if (pkg?.contents[packageKey]) {
+      validateSchema.diagnostic(
+        CONFIG_SCHEMA,
+        {
+          data: pkg?.contents[packageKey],
+          source: await options.inputFS.readFile(pkg.filePath, 'utf8'),
+          filePath: pkg.filePath,
+          prependKey: `/${encodeJSONKeyComponent(packageKey)}`,
+        },
+        packageKey,
+        `Invalid config for ${packageKey}`,
+      );
+    }
 
     let name = pkg?.contents?.name ?? '';
     return {
