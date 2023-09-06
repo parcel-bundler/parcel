@@ -48,7 +48,9 @@ export const fnExpr = (
 
 export const bundleQueuePrelude = (env: Environment): string => `
 if (!$parcel$global.lb) {
+  // Set of loaded bundles
   $parcel$global.lb = new Set();
+  // Queue of bundles to execute once they're dep bundles are loaded
   $parcel$global.bq = [];
 
   // Register loaded bundle
@@ -61,6 +63,9 @@ if (!$parcel$global.lb) {
   // Run when ready
   $parcel$global.rwr = ${fnExpr(
     env,
+    // b = bundle public id
+    // r = run function to execute the bundle entry
+    // d = list of dependent bundles this bundle requires before executing
     ['b', 'r', 'd'],
     ['$parcel$global.bq.push({b, r, d});', '$parcel$global.pq();'],
   )}
