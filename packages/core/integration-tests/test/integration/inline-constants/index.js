@@ -1,5 +1,3 @@
-import {a} from "./a";
-import { BLOGGER, PREMIUM } from "./constants";
+import BIG_MAP from "./constants";
 
-console.log(a);
-console.log(BLOGGER, PREMIUM);
+console.log(BIG_MAP.apple);

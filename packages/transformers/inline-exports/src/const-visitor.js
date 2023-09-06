@@ -4,6 +4,8 @@ const {Visitor} = require('@swc/core/Visitor');
 /** @typedef {import('@swc/core').ExportDeclaration} ExportDeclaration */
 /** @typedef {import('@swc/core').Expression} Expression */
 /** @typedef {import('@swc/core').TsType} TsType */
+/** @typedef {import('@swc/core').Property} Property */
+/** @typedef {import('@swc/core').ObjectExpression} ObjectExpression */
 /** @typedef {{ start: number, end: number }} Span */
 /** @typedef {{ specifier: string, value: any }} ConstantExport */
 
@@ -54,11 +56,19 @@ class ConstantVisitor extends Visitor {
       value = `"${value}"`;
     }
 
-    if (typeof value === 'number') {
-      value = 111111;
-    }
-
     this.constantExports.set(specifier, value);
+  }
+
+  /** @type {(n: ObjectExpression) => ObjectExpression} */
+  addObjectExports(specifier, properties) {
+    for (const property of properties) {
+      const objectSpecifier = `${specifier}.${property.key.value}`;
+      if (property.value.type.endsWith('Literal')) {
+        this.addConstantExport(objectSpecifier, property.value.value);
+      } else if (property.value.type == 'ObjectExpression') {
+        this.addObjectExports(objectSpecifier, property.value.properties);
+      }
+    }
   }
 
   visitExportDeclaration(node) {
@@ -68,9 +78,12 @@ class ConstantVisitor extends Visitor {
     ) {
       for (const declaration of node.declaration.declarations) {
         if (declaration.init?.type.endsWith('Literal')) {
-          const specifier = declaration.id.value;
-          const value = declaration.init.value;
-          this.addConstantExport(specifier, value);
+          this.addConstantExport(declaration.id.value, declaration.init.value);
+        } else if (declaration.init?.type == 'ObjectExpression') {
+          this.addObjectExports(
+            declaration.id.value,
+            declaration.init.properties,
+          );
         }
       }
     }
@@ -79,9 +92,7 @@ class ConstantVisitor extends Visitor {
 
   visitExportDefaultExpression(node) {
     if (node.expression.type.endsWith('Literal')) {
-      const specifier = 'default';
-      const value = node.expression.value;
-      this.addConstantExport(specifier, value);
+      this.addConstantExport('default', node.expression.value);
     }
 
     return super.visitExportDefaultExpression(node);
