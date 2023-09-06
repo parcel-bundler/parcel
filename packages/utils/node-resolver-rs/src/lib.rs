@@ -2763,6 +2763,48 @@ mod tests {
     );
   }
 
+  #[test]
+  fn test_package_mixed() {
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./sub",
+          &root().join("node_modules/package-mixed/main.mjs"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/package-mixed/sub/index.mjs"))
+    );
+
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "./sub",
+          &root().join("node_modules/package-mixed/main.js"),
+          SpecifierType::Cjs
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/package-mixed/sub/index.js"))
+    );
+
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "package-mixed/sub",
+          &root().join("foo.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("node_modules/package-mixed/sub/index.mjs"))
+    );
+  }
+
   // #[test]
   // fn test_visitor() {
   //   let resolved = test_resolver().resolve("unified", &root(), SpecifierType::Esm).unwrap();
