@@ -693,8 +693,14 @@ export interface BaseAsset {
   /**
    * Whether this asset can be omitted if none of its exports are being used.
    * This is initially set by the resolver, but can be overridden by transformers.
+   * @default true
    */
   +sideEffects: boolean;
+  /**
+   * Whether the sideEffects property has been set. If `false`, sideEffects are unknown and
+   * are defaulted to `true`.
+   */
+  +hasResolvedSideEffects: boolean;
   /**
    * When a transformer returns multiple assets, it can give them unique keys to identify them.
    * This can be used to find assets during packaging, or to create dependencies between multiple

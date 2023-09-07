@@ -1,0 +1,7 @@
+{
+    "@parcel/transformer-js": {
+        "detectSideEffects": [
+            "node_modules/bar/**/*"
+        ]
+    }
+}

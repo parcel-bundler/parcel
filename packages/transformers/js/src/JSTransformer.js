@@ -13,7 +13,12 @@ import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   convertSourceLocationToHighlight,
 } from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
+import {
+  validateSchema,
+  remapSourceLocation,
+  globMatch,
+  isGlobMatch,
+} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 import pkg from '../package.json';
 
@@ -102,6 +107,19 @@ const CONFIG_SCHEMA: SchemaEntity = {
         },
       ],
     },
+    detectSideEffects: {
+      oneOf: [
+        {
+          type: 'boolean',
+        },
+        {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+        },
+      ],
+    },
   },
   additionalProperties: false,
 };
@@ -110,6 +128,7 @@ type PackageJSONConfig = {|
   '@parcel/transformer-js'?: {|
     inlineFS?: boolean,
     inlineEnvironment?: boolean | Array<string>,
+    detectSideEffects?: boolean | Array<string>,
   |},
 |};
 
@@ -271,6 +290,7 @@ export default (new Transformer({
 
     let inlineEnvironment = config.isSource;
     let inlineFS = !ignoreFS;
+    let detectSideEffects = false;
     if (result && rootPkg?.['@parcel/transformer-js']) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
@@ -290,6 +310,17 @@ export default (new Transformer({
         rootPkg['@parcel/transformer-js']?.inlineEnvironment ??
         inlineEnvironment;
       inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
+
+      let pkgDetectSideEffects =
+        rootPkg['@parcel/transformer-js']?.detectSideEffects;
+      if (pkgDetectSideEffects === true) {
+        detectSideEffects = true;
+      } else if (Array.isArray(pkgDetectSideEffects)) {
+        detectSideEffects = isGlobMatch(
+          config.searchPath.slice(options.projectRoot.length + 1),
+          pkgDetectSideEffects,
+        );
+      }
     }
 
     return {
@@ -303,6 +334,7 @@ export default (new Transformer({
       reactRefresh,
       decorators,
       useDefineForClassFields,
+      detectSideEffects,
     };
   },
   async transform({asset, config, options, logger}) {
@@ -404,6 +436,7 @@ export default (new Transformer({
       diagnostics,
       used_env,
       has_node_replacements,
+      has_side_effects,
     } = transform({
       filename: asset.filePath,
       code,
@@ -442,7 +475,17 @@ export default (new Transformer({
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
+      should_detect_side_effects:
+        config.detectSideEffects && !asset.hasResolvedSideEffects,
     });
+
+    if (
+      has_side_effects === false &&
+      config.detectSideEffects &&
+      !asset.hasResolvedSideEffects
+    ) {
+      asset.sideEffects = false;
+    }
 
     let convertLoc = (loc): SourceLocation => {
       let location = {

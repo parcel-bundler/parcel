@@ -637,7 +637,7 @@ impl<'a> PackageJson<'a> {
     None
   }
 
-  pub fn has_side_effects(&self, path: &Path) -> bool {
+  pub fn has_side_effects(&self, path: &Path) -> Option<bool> {
     let path = path
       .strip_prefix(self.path.parent().unwrap())
       .ok()
@@ -645,7 +645,7 @@ impl<'a> PackageJson<'a> {
 
     let path = match path {
       Some(p) => p,
-      None => return true,
+      None => return None,
     };
 
     fn side_effects_glob_matches(glob: &str, path: &str) -> bool {
@@ -663,12 +663,14 @@ impl<'a> PackageJson<'a> {
     }
 
     match &self.side_effects {
-      SideEffects::None => true,
-      SideEffects::Boolean(b) => *b,
-      SideEffects::String(glob) => side_effects_glob_matches(glob, path),
-      SideEffects::Array(globs) => globs
-        .iter()
-        .any(|glob| side_effects_glob_matches(glob, path)),
+      SideEffects::None => None,
+      SideEffects::Boolean(b) => Some(*b),
+      SideEffects::String(glob) => Some(side_effects_glob_matches(glob, path)),
+      SideEffects::Array(globs) => Some(
+        globs
+          .iter()
+          .any(|glob| side_effects_glob_matches(glob, path)),
+      ),
     }
   }
 }
@@ -1559,9 +1561,15 @@ mod tests {
       ..PackageJson::default()
     };
 
-    assert!(pkg.has_side_effects(Path::new("/foo/index.js")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/index.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/index.js")),
+      None
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/index.js")),
+      None
+    ));
+    assert!(matches!(pkg.has_side_effects(Path::new("/index.js")), None));
   }
 
   #[test]
@@ -1573,18 +1581,30 @@ mod tests {
       ..PackageJson::default()
     };
 
-    assert!(!pkg.has_side_effects(Path::new("/foo/index.js")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/index.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/index.js")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/index.js")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(pkg.has_side_effects(Path::new("/index.js")), None));
 
-    let pkg = PackageJson {
+    let pkg: PackageJson<'_> = PackageJson {
       side_effects: SideEffects::Boolean(true),
       ..pkg
     };
 
-    assert!(pkg.has_side_effects(Path::new("/foo/index.js")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/index.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/index.js")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/index.js")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(pkg.has_side_effects(Path::new("/index.js")), None));
   }
 
   #[test]
@@ -1596,36 +1616,81 @@ mod tests {
       ..PackageJson::default()
     };
 
-    assert!(pkg.has_side_effects(Path::new("/foo/a.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/a.css")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/baz.css")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/a.js")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/baz.js")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(pkg.has_side_effects(Path::new("/index.js")), None));
 
     let pkg = PackageJson {
       side_effects: SideEffects::String("bar/*.css"),
       ..pkg
     };
 
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/a.css")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/baz.css")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/a.js")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/baz.js")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(pkg.has_side_effects(Path::new("/index.js")), None));
 
     let pkg = PackageJson {
       side_effects: SideEffects::String("./bar/*.css"),
       ..pkg
     };
 
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/a.css")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/baz.css")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/a.js")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/baz.js")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(pkg.has_side_effects(Path::new("/index.js")), None));
   }
 
   #[test]
@@ -1637,15 +1702,39 @@ mod tests {
       ..PackageJson::default()
     };
 
-    assert!(pkg.has_side_effects(Path::new("/foo/a.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/a.html")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.html")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/x/baz.html")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/a.css")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/baz.css")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/a.html")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/baz.html")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/x/baz.html")),
+      Some(x) if x == true
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/a.js")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(
+      pkg.has_side_effects(Path::new("/foo/bar/baz.js")),
+      Some(x) if x == false
+    ));
+    assert!(matches!(pkg.has_side_effects(Path::new("/index.js")), None));
   }
 
   #[test]

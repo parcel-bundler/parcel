@@ -206,7 +206,7 @@ pub struct ResolveResult {
     >,
   >,
   pub query: Option<String>,
-  pub side_effects: bool,
+  pub side_effects: Option<bool>,
   pub error: JsUnknown,
   pub module_type: u8,
 }
@@ -349,11 +349,11 @@ impl Resolver {
         Ok(side_effects) => side_effects,
         Err(err) => {
           res.result = Err(err);
-          true
+          None
         }
       }
     } else {
-      true
+      None
     };
 
     let mut module_type = 0;
@@ -389,7 +389,7 @@ impl Resolver {
         resolution: env.get_undefined()?.into_unknown(),
         invalidate_on_file_change,
         invalidate_on_file_create,
-        side_effects: true,
+        side_effects: None,
         query: None,
         error: env.to_js_value(&err)?,
         module_type: 0,

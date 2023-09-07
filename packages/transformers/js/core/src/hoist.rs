@@ -52,9 +52,9 @@ struct ExportedSymbol {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ImportedSymbol {
+pub struct ImportedSymbol {
+  pub local: JsWord,
   source: JsWord,
-  local: JsWord,
   imported: JsWord,
   loc: SourceLocation,
   kind: ImportKind,
@@ -78,7 +78,7 @@ struct Hoist<'a> {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct HoistResult {
-  imported_symbols: Vec<ImportedSymbol>,
+  pub imported_symbols: Vec<ImportedSymbol>,
   exported_symbols: Vec<ExportedSymbol>,
   re_exports: Vec<ImportedSymbol>,
   self_references: HashSet<JsWord>,

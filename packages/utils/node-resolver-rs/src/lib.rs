@@ -232,11 +232,11 @@ impl<'a, Fs: FileSystem> Resolver<'a, Fs> {
     &self,
     path: &Path,
     invalidations: &Invalidations,
-  ) -> Result<bool, ResolverError> {
+  ) -> Result<Option<bool>, ResolverError> {
     if let Some(package) = self.find_package(path.parent().unwrap(), invalidations)? {
       Ok(package.has_side_effects(path))
     } else {
-      Ok(true)
+      Ok(None)
     }
   }
 
@@ -2640,7 +2640,7 @@ mod tests {
     );
   }
 
-  fn resolve_side_effects(specifier: &str, from: &Path) -> bool {
+  fn resolve_side_effects(specifier: &str, from: &Path) -> Option<bool> {
     let resolver = test_resolver();
     let resolved = resolver
       .resolve(specifier, from, SpecifierType::Esm)
@@ -2659,45 +2659,57 @@ mod tests {
 
   #[test]
   fn test_side_effects() {
-    assert!(!resolve_side_effects(
-      "side-effects-false/src/index.js",
-      &root().join("foo.js")
+    assert!(matches!(
+      resolve_side_effects("side-effects-false/src/index.js", &root().join("foo.js")),
+      Some(false)
     ));
-    assert!(!resolve_side_effects(
-      "side-effects-false/src/index",
-      &root().join("foo.js")
+    assert!(matches!(
+      resolve_side_effects("side-effects-false/src/index", &root().join("foo.js")),
+      Some(false)
     ));
-    assert!(!resolve_side_effects(
-      "side-effects-false/src/",
-      &root().join("foo.js")
+    assert!(matches!(
+      resolve_side_effects("side-effects-false/src/", &root().join("foo.js")),
+      Some(false)
     ));
-    assert!(!resolve_side_effects(
-      "side-effects-false",
-      &root().join("foo.js")
+    assert!(matches!(
+      resolve_side_effects("side-effects-false", &root().join("foo.js")),
+      Some(false)
     ));
-    assert!(!resolve_side_effects(
-      "side-effects-package-redirect-up/foo/bar",
-      &root().join("foo.js")
+    assert!(matches!(
+      resolve_side_effects(
+        "side-effects-package-redirect-up/foo/bar",
+        &root().join("foo.js")
+      ),
+      Some(false)
     ));
-    assert!(!resolve_side_effects(
-      "side-effects-package-redirect-down/foo/bar",
-      &root().join("foo.js")
+    assert!(matches!(
+      resolve_side_effects(
+        "side-effects-package-redirect-down/foo/bar",
+        &root().join("foo.js")
+      ),
+      Some(false)
     ));
-    assert!(resolve_side_effects(
-      "side-effects-false-glob/a/index",
-      &root().join("foo.js")
+    assert!(matches!(
+      resolve_side_effects("side-effects-false-glob/a/index", &root().join("foo.js")),
+      Some(true)
     ));
-    assert!(!resolve_side_effects(
-      "side-effects-false-glob/b/index.js",
-      &root().join("foo.js")
+    assert!(matches!(
+      resolve_side_effects("side-effects-false-glob/b/index.js", &root().join("foo.js")),
+      Some(false)
     ));
-    assert!(!resolve_side_effects(
-      "side-effects-false-glob/sub/a/index.js",
-      &root().join("foo.js")
+    assert!(matches!(
+      resolve_side_effects(
+        "side-effects-false-glob/sub/a/index.js",
+        &root().join("foo.js")
+      ),
+      Some(false)
     ));
-    assert!(resolve_side_effects(
-      "side-effects-false-glob/sub/index.json",
-      &root().join("foo.js")
+    assert!(matches!(
+      resolve_side_effects(
+        "side-effects-false-glob/sub/index.json",
+        &root().join("foo.js")
+      ),
+      Some(true)
     ));
   }
 
