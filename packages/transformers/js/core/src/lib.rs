@@ -84,6 +84,7 @@ pub struct Config {
   is_esm_output: bool,
   trace_bailouts: bool,
   is_swc_helpers: bool,
+  standalone: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
