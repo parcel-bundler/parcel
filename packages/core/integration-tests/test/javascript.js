@@ -18,6 +18,7 @@ import {
   distDir,
   outputFS,
   inputFS,
+  fsFixture,
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
@@ -6256,6 +6257,30 @@ describe('javascript', function () {
     });
 
     assert.strictEqual(output.default, '4returned from bar');
+  });
+
+  it('supports ESM re-exports and mixed property shorthand with sideEffects: false', async function () {
+    await fsFixture(overlayFS, __dirname)`
+        src/main.js:
+          import test from 'test';
+          export default test;
+        node_modules/test
+          package.json: {"sideEffects": false}
+          index.js:
+            import {foo, bar} from './foo';
+            export default {foo: foo, bar};
+          foo.js:
+            export const foo = 'foo';
+            export {bar} from './bar';
+          bar.js: export const bar = 'bar';
+      `;
+
+    let b = await bundle(path.join(__dirname, 'src/main.js'), {
+      inputFS: overlayFS,
+    });
+
+    let output = (await run(b)).default;
+    assert.deepEqual(output, {foo: 'foo', bar: 'bar'});
   });
 
   it('should not affect ESM import order', async function () {
