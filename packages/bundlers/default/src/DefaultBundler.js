@@ -1384,6 +1384,17 @@ async function loadBundlerConfig(
     });
   }
 
+  // minBundleSize will be ignored if shared bundles are disabled
+  if (
+    conf.contents.minBundleSize != null &&
+    conf.contents.disableSharedBundles === true
+  ) {
+    logger.warn({
+      origin: '@parcel/bundler-default',
+      message: `The value of "${conf.contents.minBundleSize}" set for minBundleSize will not be used as shared bundles have been disabled`,
+    });
+  }
+
   // maxParallelRequests will be ignored if shared bundles are disabled
   if (
     conf.contents.maxParallelRequests != null &&
