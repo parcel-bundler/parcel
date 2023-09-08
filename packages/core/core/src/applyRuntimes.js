@@ -1,8 +1,11 @@
 // @flow strict-local
 
 import type {ContentKey} from '@parcel/graph';
-import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
-import type {SharedReference} from '@parcel/workers';
+import type {
+  Dependency,
+  NamedBundle as INamedBundle,
+  SharedReference,
+} from '@parcel/types';
 import type {
   Asset,
   AssetGroup,

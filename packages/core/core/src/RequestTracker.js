@@ -1,9 +1,8 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {Async, EnvMap} from '@parcel/types';
+import type {Async, EnvMap, WorkerFarm as IWorkerFarm} from '@parcel/types';
 import type {EventType, Options as WatcherOptions} from '@parcel/watcher';
-import type WorkerFarm from '@parcel/workers';
 import type {
   ContentGraphOpts,
   ContentKey,
@@ -158,7 +157,7 @@ type RunRequestOpts = {|
 |};
 
 export type StaticRunOpts<TResult> = {|
-  farm: WorkerFarm,
+  farm: IWorkerFarm,
   options: ParcelOptions,
   api: RunAPI<TResult>,
   invalidateReason: InvalidateReason,
@@ -818,7 +817,7 @@ export class RequestGraph extends ContentGraph<
 
 export default class RequestTracker {
   graph: RequestGraph;
-  farm: WorkerFarm;
+  farm: IWorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
 
@@ -828,7 +827,7 @@ export default class RequestTracker {
     options,
   }: {|
     graph?: RequestGraph,
-    farm: WorkerFarm,
+    farm: IWorkerFarm,
     options: ParcelOptions,
   |}) {
     this.graph = graph || new RequestGraph();
@@ -1125,7 +1124,7 @@ export default class RequestTracker {
     farm,
     options,
   }: {|
-    farm: WorkerFarm,
+    farm: IWorkerFarm,
     options: ParcelOptions,
   |}): Async<RequestTracker> {
     let graph = await loadRequestGraph(options);

@@ -11,8 +11,7 @@ import type {
   ServerResponse as HTTPSResponse,
 } from 'https';
 import type {Socket} from 'net';
-import type {FilePath, HTTPSOptions} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem, FilePath, HTTPSOptions} from '@parcel/types';
 
 import http from 'http';
 import https from 'https';

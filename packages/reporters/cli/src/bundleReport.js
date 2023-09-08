@@ -1,6 +1,10 @@
 // @flow
-import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {
+  FileSystem,
+  BundleGraph,
+  FilePath,
+  PackagedBundle,
+} from '@parcel/types';
 
 import {generateBuildMetrics, prettifyTime} from '@parcel/utils';
 import filesize from 'filesize';

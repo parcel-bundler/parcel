@@ -1,8 +1,6 @@
 // @flow
-import type {ServerOptions, PluginLogger, HMROptions} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem, ServerOptions, PackageManager, PluginLogger, HMROptions} from '@parcel/types';
 import type {HTTPServer} from '@parcel/utils';
-import type {PackageManager} from '@parcel/package-manager';
 import {
   IncomingMessage as HTTPIncomingMessage,
   ServerResponse as HTTPServerResponse,

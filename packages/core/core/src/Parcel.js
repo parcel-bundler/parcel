@@ -14,7 +14,7 @@ import type {
 import path from 'path';
 import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
-import type {FarmOptions, SharedReference} from '@parcel/workers';
+import type {FarmOptions} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
@@ -64,7 +64,7 @@ export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 export default class Parcel {
   #requestTracker /*: RequestTracker*/;
   #config /*: ParcelConfig*/;
-  #farm /*: WorkerFarm*/;
+  #farm /*: IWorkerFarm */;
   #initialized /*: boolean*/ = false;
   #disposable /*: Disposable */;
   #initialOptions /*: InitialParcelOptions*/;

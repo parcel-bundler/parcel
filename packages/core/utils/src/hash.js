@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {Readable} from 'stream';
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem} from '@parcel/types';
 
 import {objectSortedEntriesDeep} from './collection';
 import {hashString, Hash} from '@parcel/hash';

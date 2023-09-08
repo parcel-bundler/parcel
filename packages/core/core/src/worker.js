@@ -6,7 +6,8 @@ import type {
   ProcessedParcelConfig,
   RequestInvalidation,
 } from './types';
-import type {SharedReference, WorkerApi} from '@parcel/workers';
+import type {SharedReference} from '@parcel/types';
+import type {WorkerApi} from '@parcel/workers';
 import {loadConfig as configCache} from '@parcel/utils';
 import type {DevDepSpecifier} from './requests/DevDepRequest';
 

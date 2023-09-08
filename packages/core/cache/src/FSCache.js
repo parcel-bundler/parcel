@@ -1,9 +1,8 @@
 // @flow strict-local
 
 import type {Readable, Writable} from 'stream';
-import type {FilePath} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type {Cache} from './types';
+import type {FilePath, FileSystem} from '@parcel/types';
+import type {Cache} from '@parcel/types';
 
 import stream from 'stream';
 import path from 'path';

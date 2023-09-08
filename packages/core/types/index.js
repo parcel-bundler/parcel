@@ -2,15 +2,18 @@
 
 import type {Readable} from 'stream';
 import type SourceMap from '@parcel/source-map';
-import type {FileSystem} from '@parcel/fs';
-import type WorkerFarm from '@parcel/workers';
-import type {PackageManager} from '@parcel/package-manager';
+import type {FileSystem, FileOptions} from './fs';
+import type {WorkerFarm} from './worker-farm';
+import type {
+  PackageManager,
+  ResolveResult as PackageManagerResolveResult,
+} from './package-manager';
 import type {
   Diagnostic,
   Diagnostifiable,
   DiagnosticWithoutOrigin,
 } from '@parcel/diagnostic';
-import type {Cache} from '@parcel/cache';
+import type {Cache} from './cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 import type {TraceMeasurement} from '@parcel/profiler';
@@ -2035,3 +2038,25 @@ export interface PluginTracer {
     otherArgs?: {[key: string]: mixed},
   ): TraceMeasurement | null;
 }
+
+export type {FileSystem, FileOptions};
+export type {Cache};
+export type {PackageManager, PackageManagerResolveResult};
+export type {
+  CallRequest,
+  WorkerFarm,
+  SharedReference,
+  Handle,
+  HandleCallRequest,
+  HandleOpts,
+  HandleFunction,
+  Worker,
+  WorkerAPI,
+  WorkerCall,
+  WorkerDataResponse,
+  WorkerErrorResponse,
+  WorkerMessage,
+  WorkerResponse,
+  WorkerRequest,
+} from './worker-farm';
+export {createSharedReference} from './worker-farm';

@@ -1,14 +1,18 @@
 // @flow
-import type {FilePath, DependencySpecifier, SemverRange} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {
+  FilePath,
+  FileSystem,
+  DependencySpecifier,
+  PackageManager,
+  PackageManagerResolveResult as ResolveResult,
+  SemverRange,
+} from '@parcel/types';
 import type {
   ModuleRequest,
-  PackageManager,
   PackageInstaller,
   InstallOptions,
   Invalidations,
 } from './types';
-import type {ResolveResult} from './types';
 
 import {registerSerializableClass} from '@parcel/core';
 import ThrowableDiagnostic, {

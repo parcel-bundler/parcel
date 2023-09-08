@@ -1,7 +1,11 @@
 // @flow strict-local
 
-import type {Async, Bundle as IBundle, Namer} from '@parcel/types';
-import type {SharedReference} from '@parcel/workers';
+import type {
+  Async,
+  Bundle as IBundle,
+  Namer,
+  SharedReference,
+} from '@parcel/types';
 import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {

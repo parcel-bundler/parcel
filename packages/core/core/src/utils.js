@@ -4,6 +4,7 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {
   FilePath,
   FileCreateInvalidation,
+  PackageManager,
   SourceLocation,
 } from '@parcel/types';
 import type {
@@ -13,7 +14,6 @@ import type {
   InternalSourceLocation,
   InternalDevDepOptions,
 } from './types';
-import type {PackageManager} from '@parcel/package-manager';
 
 import invariant from 'assert';
 import baseX from 'base-x';

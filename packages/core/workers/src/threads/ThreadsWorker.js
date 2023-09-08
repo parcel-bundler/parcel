@@ -5,8 +5,8 @@ import type {
   MessageHandler,
   ErrorHandler,
   ExitHandler,
-  WorkerMessage,
 } from '../types';
+import type {WorkerMessage} from '@parcel/types';
 import {Worker} from 'worker_threads';
 import path from 'path';
 import {prepareForSerialization, restoreDeserializedObject} from '@parcel/core';

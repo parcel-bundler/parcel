@@ -40,4 +40,4 @@ if (!WorkerFarm.isWorker()) {
 export default WorkerFarm;
 export {bus};
 export {Handle} from './WorkerFarm';
-export type {WorkerApi, FarmOptions, SharedReference} from './WorkerFarm';
+export type {WorkerApi, FarmOptions} from './WorkerFarm';

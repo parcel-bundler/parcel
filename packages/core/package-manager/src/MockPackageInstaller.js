@@ -1,8 +1,7 @@
 // @flow
 
 import type {ModuleRequest, PackageInstaller, InstallerOptions} from './types';
-import type {FileSystem} from '@parcel/fs';
-import type {FilePath} from '@parcel/types';
+import type {FileSystem, FilePath} from '@parcel/types';
 
 import path from 'path';
 import {ncp} from '@parcel/fs';

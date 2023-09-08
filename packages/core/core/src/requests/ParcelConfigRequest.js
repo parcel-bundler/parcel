@@ -2,11 +2,11 @@
 import type {
   Async,
   FilePath,
+  FileSystem,
   PackageName,
   RawParcelConfig,
   ResolvedParcelConfigFile,
 } from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
   ExtendableParcelConfigPipeline,

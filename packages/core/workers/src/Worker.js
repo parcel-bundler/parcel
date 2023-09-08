@@ -1,23 +1,18 @@
 // @flow
 
-import type {FilePath} from '@parcel/types';
-import type {BackendType, WorkerImpl, WorkerMessage} from './types';
-import type {SharedReference} from './WorkerFarm';
+import type {
+  FilePath,
+  SharedReference,
+  WorkerCall,
+  Worker as IWorker,
+  WorkerMessage,
+} from '@parcel/types';
+import type {BackendType, WorkerImpl} from './types';
 
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {getWorkerBackend} from './backend';
-
-export type WorkerCall = {|
-  method?: string,
-  handle?: number,
-  args: $ReadOnlyArray<any>,
-  retries: number,
-  skipReadyCheck?: boolean,
-  resolve: (result: Promise<any> | any) => void,
-  reject: (error: any) => void,
-|};
 
 type WorkerOpts = {|
   forcedKillTime: number,
@@ -28,7 +23,7 @@ type WorkerOpts = {|
 |};
 
 let WORKER_ID = 0;
-export default class Worker extends EventEmitter {
+export default class Worker extends EventEmitter implements IWorker {
   +options: WorkerOpts;
   worker: WorkerImpl;
   id: number = WORKER_ID++;

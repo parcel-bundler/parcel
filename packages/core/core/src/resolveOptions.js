@@ -2,11 +2,11 @@
 
 import type {
   FilePath,
+  FileSystem,
   InitialParcelOptions,
   DependencySpecifier,
   InitialServerOptions,
 } from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
 
 import path from 'path';

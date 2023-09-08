@@ -1,8 +1,7 @@
 // @flow strict-local
 
 import type {ContentKey} from '@parcel/graph';
-import type {Async} from '@parcel/types';
-import type {SharedReference} from '@parcel/workers';
+import type {Async, SharedReference} from '@parcel/types';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import type {StaticRunOpts} from '../RequestTracker';

@@ -1,21 +1,18 @@
 // @flow strict-local
 import {registerSerializableClass} from '@parcel/core';
+import type {
+  Handle as IHandle,
+  HandleOpts,
+  HandleFunction,
+} from '@parcel/types';
+
 // $FlowFixMe
 import packageJson from '../package.json';
 
 let HANDLE_ID = 0;
-// $FlowFixMe
-export type HandleFunction = (...args: Array<any>) => any;
+const handleById: Map<number, IHandle> = new Map();
 
-type HandleOpts = {|
-  fn?: HandleFunction,
-  childId?: ?number,
-  id?: number,
-|};
-
-const handleById: Map<number, Handle> = new Map();
-
-export default class Handle {
+export default class Handle implements IHandle {
   id: number;
   childId: ?number;
   fn: ?HandleFunction;

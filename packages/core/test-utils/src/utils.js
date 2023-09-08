@@ -10,7 +10,7 @@ import type {
   InitialParcelOptions,
   PackagedBundle,
 } from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem} from '@parcel/types';
 import type WorkerFarm from '@parcel/workers';
 import type {IncomingMessage} from 'http';
 

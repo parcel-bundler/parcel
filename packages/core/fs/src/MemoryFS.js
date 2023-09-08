@@ -1,7 +1,11 @@
 // @flow
 
 import type {FileSystem, FileOptions, ReaddirOptions, Encoding} from './types';
-import type {FilePath} from '@parcel/types';
+import type {
+  FilePath,
+  WorkerFarm as IWorkerFarm,
+  Handle as IHandle,
+} from '@parcel/types';
 import type {
   Event,
   Options as WatcherOptions,
@@ -47,8 +51,8 @@ export class MemoryFS implements FileSystem {
   watchers: Map<FilePath, Set<Watcher>>;
   events: Array<Event>;
   id: number;
-  handle: Handle;
-  farm: WorkerFarm;
+  handle: IHandle;
+  farm: IWorkerFarm;
   _cwd: FilePath;
   _eventQueue: Array<Event>;
   _watcherTimer: TimeoutID;

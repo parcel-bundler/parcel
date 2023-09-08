@@ -1,7 +1,12 @@
 // @flow strict-local
 
-import type {ReporterEvent, Reporter} from '@parcel/types';
+import type {
+  ReporterEvent,
+  Reporter,
+  WorkerFarm as IWorkerFarm,
+} from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
+import {bus} from '@parcel/workers';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
@@ -11,7 +16,6 @@ import {
   bundleToInternalBundleGraph,
   NamedBundle,
 } from './public/Bundle';
-import WorkerFarm, {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
 import logger, {
   patchConsole,
@@ -26,13 +30,13 @@ import {tracer, PluginTracer} from '@parcel/profiler';
 type Opts = {|
   config: ParcelConfig,
   options: ParcelOptions,
-  workerFarm: WorkerFarm,
+  workerFarm: IWorkerFarm,
 |};
 
 const instances: Set<ReporterRunner> = new Set();
 
 export default class ReporterRunner {
-  workerFarm: WorkerFarm;
+  workerFarm: IWorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
   pluginOptions: PluginOptions;

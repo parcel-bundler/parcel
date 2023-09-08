@@ -2,7 +2,6 @@
 
 import type SourceMap from '@parcel/source-map';
 import type {Readable} from 'stream';
-import type {FileSystem} from '@parcel/fs';
 
 import type {
   Asset as IAsset,
@@ -14,6 +13,7 @@ import type {
   EnvironmentOptions,
   FileCreateInvalidation,
   FilePath,
+  FileSystem,
   Meta,
   MutableAsset as IMutableAsset,
   Stats,

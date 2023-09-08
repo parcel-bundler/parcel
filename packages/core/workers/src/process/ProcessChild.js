@@ -1,11 +1,7 @@
 // @flow
 
-import type {
-  ChildImpl,
-  MessageHandler,
-  ExitHandler,
-  WorkerMessage,
-} from '../types';
+import type {ChildImpl, MessageHandler, ExitHandler} from '../types';
+import type {WorkerMessage} from '@parcel/types';
 import nullthrows from 'nullthrows';
 import {setChild} from '../childState';
 import {Child} from '../child';

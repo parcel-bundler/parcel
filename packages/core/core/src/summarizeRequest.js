@@ -1,6 +1,5 @@
 // @flow strict-local
-import type {Blob, FilePath} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {Blob, FileSystem, FilePath} from '@parcel/types';
 
 import {hashStream} from '@parcel/utils';
 import path from 'path';
