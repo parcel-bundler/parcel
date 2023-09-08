@@ -391,4 +391,150 @@ describe('bundler', function () {
       },
     ]);
   });
+
+  // The following tests exercise UNSTABLE Manual Shared bundle option, which allows users
+  // to specify globs of assets for shared bundles and name them
+  it('should support manual shared bundles via glob config option for different types', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/manual-bundle-typeglob/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['foo.js'],
+      },
+      {
+        assets: ['a.js'],
+      },
+      {
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'esmodule-helpers.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['a.css'], //our manual sharedbundle
+      },
+    ]);
+  });
+  it('should support manual shared bundles via glob config option for sync and async assets', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/manual-bundle/index.js'),
+    );
+    assertBundles(b, [
+      {
+        assets: ['foo.js', 'a.js', 'b.js'],
+      },
+      {
+        assets: [
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+    ]);
+  });
+  it('should support manual shared bundles via parent glob config option', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/manual-bundle-parent/index.js'),
+    );
+    //assert that a,b,c are in one bundle, causeing foo and bar to overfetch, due to MSB config
+    assertBundles(b, [
+      {
+        assets: ['foo.js'],
+      },
+      {
+        assets: ['bar.js'],
+      },
+      {
+        assets: ['c.js', 'a.js', 'b.js'],
+      },
+
+      {
+        assets: [
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+    ]);
+  });
+  it('should support manual shared bundles for specific bundles, duplicated the assets for others', async function () {
+    // In this case we want to allow for manual shared bundles to only deduplicate for specific
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/manual-bundle-duplication-option/index.js',
+      ),
+    );
+    //assert that foo has a in bundlegroup
+    assertBundles(b, [
+      {
+        assets: ['foo.js'],
+      },
+      {
+        assets: ['a.js', 'b.js'],
+      },
+      {
+        assets: ['bar.js', 'b.js'], // b is duplicated because 'bar' is not an 'Active' for this MSB
+      },
+      {
+        assets: [
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+    ]);
+  });
+  it('should support consistently splitting manual shared bundles', async function () {
+    // In this case we want to allow for manual shared bundles to only deduplicate for specific
+    let b = await bundle(
+      path.join(__dirname, 'integration/manual-bundle-split/index.js'),
+    );
+    //assert that foo has a in bundlegroup
+    assertBundles(b, [
+      {
+        assets: ['foo.js'],
+      },
+      {
+        assets: ['d.js', 'e.js'],
+      },
+      {
+        assets: ['f.js', 'c.js', 'b.js'],
+      },
+      {
+        assets: ['g.js'],
+      },
+      {
+        assets: ['bar.js'], // b is duplicated because 'bar' is not an 'Active' for this MSB
+      },
+      {
+        assets: [
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'index.js',
+          'js-loader.js',
+        ],
+      },
+    ]);
+  });
 });

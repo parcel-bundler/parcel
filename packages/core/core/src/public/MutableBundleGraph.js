@@ -76,6 +76,12 @@ export default class MutableBundleGraph
     );
   }
 
+  getResolvedAsset(dependency) {
+    return this.#graph.getResolvedAsset(
+      dependencyToInternalDependency(dependency),
+    );
+  }
+
   createBundleGroup(dependency: IDependency, target: Target): IBundleGroup {
     let dependencyNode = this.#graph._graph.getNodeByContentKey(dependency.id);
     if (!dependencyNode) {
@@ -232,6 +238,7 @@ export default class MutableBundleGraph
         name: null,
         displayName: null,
         publicId,
+        manualSharedBundle: opts.manualSharedBundle,
       },
     };
 

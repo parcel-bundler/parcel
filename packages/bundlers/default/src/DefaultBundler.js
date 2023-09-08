@@ -19,18 +19,33 @@ import {ContentGraph, Graph} from '@parcel/graph';
 import invariant from 'assert';
 import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
-import {setEqual, validateSchema, DefaultMap, BitSet} from '@parcel/utils';
+import {
+  setEqual,
+  validateSchema,
+  DefaultMap,
+  BitSet,
+  isGlobMatch,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
+import path from 'path';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
+
+type ManualSharedBundlesType = Array<{|
+  name: string,
+  assets: Array<string>, //this is an array of globs
+|}>;
 
 type BundlerConfig = {|
   http?: number,
   minBundles?: number,
   minBundleSize?: number,
   maxParallelRequests?: number,
+  manualSharedBundles: ManualSharedBundlesType,
 |};
 
 type ResolvedBundlerConfig = {|
+  projectPath: string,
+  manualSharedBundles: ManualSharedBundlesType,
   minBundles: number,
   minBundleSize: number,
   maxParallelRequests: number,
@@ -40,11 +55,13 @@ type ResolvedBundlerConfig = {|
 const HTTP_OPTIONS = {
   '1': {
     minBundles: 1,
+    manualSharedBundles: [],
     minBundleSize: 30000,
     maxParallelRequests: 6,
   },
   '2': {
     minBundles: 1,
+    manualSharedBundles: [],
     minBundleSize: 20000,
     maxParallelRequests: 25,
   },
@@ -64,6 +81,7 @@ export type Bundle = {|
   target: Target,
   env: Environment,
   type: string,
+  manualSharedBundle: string, // for naming purposes
 |};
 
 const dependencyPriorityEdges = {
@@ -91,6 +109,7 @@ type IdealGraph = {|
   bundleGraph: Graph<Bundle | 'root'>,
   bundleGroupBundleIds: Set<NodeId>,
   assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
+  manualAssetToBundle: Map<Asset, NodeId>,
 |};
 
 /**
@@ -137,12 +156,14 @@ function decorateLegacyGraph(
     bundleGraph: idealBundleGraph,
     dependencyBundleGraph,
     bundleGroupBundleIds,
+    manualAssetToBundle,
   } = idealGraph;
   let entryBundleToBundleGroup: Map<NodeId, BundleGroup> = new Map();
   // Step Create Bundles: Create bundle groups, bundles, and shared bundles and add assets to them
   for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes) {
     if (idealBundle === 'root') continue;
     let entryAsset = idealBundle.mainEntryAsset;
+    let bundleGroups = [];
     let bundleGroup;
     let bundle;
 
@@ -158,10 +179,15 @@ function decorateLegacyGraph(
           return dependency.value;
         });
       for (let dependency of dependencies) {
-        bundleGroup = bundleGraph.createBundleGroup(
-          dependency,
-          idealBundle.target,
-        );
+        if (bundleGraph.getResolvedAsset(dependency).id === entryAsset.id) {
+          bundleGroup = bundleGraph.createBundleGroup(
+            dependency,
+            idealBundle.target,
+          );
+          bundleGroups.push(bundleGroup);
+        } else {
+          //Warning?
+        }
       }
       invariant(bundleGroup);
       entryBundleToBundleGroup.set(bundleNodeId, bundleGroup);
@@ -172,6 +198,7 @@ function decorateLegacyGraph(
           needsStableName: idealBundle.needsStableName,
           bundleBehavior: idealBundle.bundleBehavior,
           target: idealBundle.target,
+          manualSharedBundle: idealBundle.manualSharedBundle,
         }),
       );
 
@@ -190,6 +217,7 @@ function decorateLegacyGraph(
           type: idealBundle.type,
           target: idealBundle.target,
           env: idealBundle.env,
+          manualSharedBundle: idealBundle.manualSharedBundle,
         }),
       );
     } else if (idealBundle.uniqueKey != null) {
@@ -201,6 +229,7 @@ function decorateLegacyGraph(
           type: idealBundle.type,
           target: idealBundle.target,
           env: idealBundle.env,
+          manualSharedBundle: idealBundle.manualSharedBundle,
         }),
       );
     } else {
@@ -211,6 +240,7 @@ function decorateLegacyGraph(
           needsStableName: idealBundle.needsStableName,
           bundleBehavior: idealBundle.bundleBehavior,
           target: idealBundle.target,
+          manualSharedBundle: idealBundle.manualSharedBundle,
         }),
       );
     }
@@ -236,6 +266,23 @@ function decorateLegacyGraph(
           ) {
             bundleGraph.internalizeAsyncDependency(bundle, incomingDep);
           }
+        }
+      }
+    }
+  }
+  // Unstable Manual Shared Bundles
+  // NOTE: This only works under the assumption that manual shared bundles would have
+  // always already been loaded before the bundle that requires internalization.
+  for (let manualSharedAsset of manualAssetToBundle.keys()) {
+    let incomingDeps = bundleGraph.getIncomingDependencies(manualSharedAsset);
+    for (let incomingDep of incomingDeps) {
+      if (
+        incomingDep.priority === 'lazy' &&
+        incomingDep.specifierType !== 'url'
+      ) {
+        let bundles = bundleGraph.getBundlesWithDependency(incomingDep);
+        for (let bundle of bundles) {
+          bundleGraph.internalizeAsyncDependency(bundle, incomingDep);
         }
       }
     }
@@ -368,6 +415,82 @@ function createIdealGraph(
   let assets = [];
 
   let typeChangeIds = new Set();
+  function makeManualAssetToConfigLookup() {
+    if (config.manualSharedBundles.length == 0) {
+      return new Map();
+    }
+    let parentsToConfig = new DefaultMap(() => []);
+    let activeToConfig = new DefaultMap(() => []);
+    for (let c of config.manualSharedBundles) {
+      if (c.parent) {
+        parentsToConfig.get(path.join(config.projectRoot, c.parent)).push(c);
+      }
+      if (c.active) {
+        for (let a of c.active) {
+          activeToConfig.get(path.join(config.projectRoot, a)).push(c);
+        }
+      }
+    }
+    let numParentsToFind = parentsToConfig.size;
+    let numActivesToFind = activeToConfig.size;
+    assetGraph.traverse((node, _, actions) => {
+      if (
+        node.type === 'asset' &&
+        (parentsToConfig.has(node.value.filePath) ||
+          activeToConfig.has(node.value.filePath))
+      ) {
+        for (let c of parentsToConfig.get(node.value.filePath)) {
+          c.parentAsset = node.value;
+          numParentsToFind--;
+        }
+        for (let c of activeToConfig.get(node.value.filePath)) {
+          if (!c.actives) {
+            c.actives = [];
+          }
+          c.actives.push(node.value);
+          numActivesToFind--;
+        }
+        if (numParentsToFind === 0 && numActivesToFind < 1) {
+          // If we've found all parents we can stop traversal
+          actions.stop();
+        }
+      }
+    });
+    let manualAssetToConfig = new Map();
+    // Process in reverse order so earlier configs take precedence
+    for (let c of config.manualSharedBundles
+      .filter(c => !c.parent || c.parentAsset)
+      .reverse()) {
+      assetGraph.traverse((node, _, actions) => {
+        if (
+          node.type === 'asset' &&
+          (!Array.isArray(c.types) || c.types.includes(node.value.type)) &&
+          isGlobMatch(
+            node.value.filePath.slice(config.projectRoot.length),
+            c.assets,
+          )
+        ) {
+          manualAssetToConfig.set(node.value, c);
+          return;
+        }
+        if (node.type === 'dependency' && node.value.priority === 'lazy') {
+          // Don't walk past the bundle group assets
+          actions.skipChildren();
+        }
+      }, c.parentAsset);
+    }
+    return manualAssetToConfig;
+  }
+  //Manual is a map of the user-given name to the bundle node Id that corresponds to ALL the assets that match any glob in that user-specified array
+  let manualSharedMap: Map<string, NodeId> = new Map();
+  // May need a map to be able to look up NON- bundle root assets which need special case instructions
+  // Use this when placing assets into bundles, to avoid duplication
+  let manualAssetToBundle: Map<Asset, NodeId> = new Map();
+  let manualAssetToConfig = makeManualAssetToConfigLookup();
+  let manualBundleToInternalizedAsset: Map<
+    NodeId,
+    Array<BundleRoot>,
+  > = new DefaultMap(() => []);
   /**
    * Step Create Bundles: Traverse the assetGraph (aka MutableBundleGraph) and create bundles
    * for asset type changes, parallel, inline, and async or lazy dependencies,
@@ -1258,6 +1381,7 @@ function createIdealGraph(
     dependencyBundleGraph,
     bundleGroupBundleIds,
     assetReference,
+    manualAssetToBundle,
   };
 }
 
@@ -1267,6 +1391,23 @@ const CONFIG_SCHEMA: SchemaEntity = {
     http: {
       type: 'number',
       enum: Object.keys(HTTP_OPTIONS).map(k => Number(k)),
+    },
+    manualSharedBundles: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+          },
+          assets: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+          },
+        },
+      },
     },
     minBundles: {
       type: 'number',
@@ -1289,6 +1430,7 @@ function createBundle(opts: {|
   type?: string,
   needsStableName?: boolean,
   bundleBehavior?: ?BundleBehavior,
+  manualSharedBundle?: string,
 |}): Bundle {
   if (opts.asset == null) {
     return {
@@ -1302,6 +1444,7 @@ function createBundle(opts: {|
       env: nullthrows(opts.env),
       needsStableName: Boolean(opts.needsStableName),
       bundleBehavior: opts.bundleBehavior,
+      manualSharedBundle: opts.manualSharedBundle,
     };
   }
 
@@ -1317,6 +1460,7 @@ function createBundle(opts: {|
     env: opts.env ?? asset.env,
     needsStableName: Boolean(opts.needsStableName),
     bundleBehavior: opts.bundleBehavior ?? asset.bundleBehavior,
+    manualSharedBundle: opts.manualSharedBundle,
   };
 }
 
@@ -1373,6 +1517,9 @@ async function loadBundlerConfig(
   let defaults = HTTP_OPTIONS[http];
 
   return {
+    projectRoot: options.projectRoot,
+    manualSharedBundles:
+      conf.contents.manualSharedBundles ?? defaults.manualSharedBundles,
     minBundles: conf.contents.minBundles ?? defaults.minBundles,
     minBundleSize: conf.contents.minBundleSize ?? defaults.minBundleSize,
     maxParallelRequests:

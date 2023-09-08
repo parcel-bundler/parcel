@@ -1,0 +1,22 @@
+{
+  "source": "./index.js",
+    "@parcel/bundler-default": {
+      "maxParallelRequests": 10,
+      "minBundleSize": 0,
+      "manualSharedBundles": [
+      {
+        "name": "a",
+        "types": [
+            "js",
+            "css"
+        ],
+        "parent": "a.js",
+        "assets": [
+            "**"
+        ],
+        "split": 3
+    }
+  ]
+    }
+  }
+  
