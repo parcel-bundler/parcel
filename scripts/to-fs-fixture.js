@@ -408,38 +408,64 @@ function replaceInputFS(test, {jscodeshift: j}, {verbose}) {
       case 'bundler': {
         let options = args[1];
         if (options) {
-          if (options.type !== 'ObjectExpression') {
-            throw new Error(`Expected options to be an object`);
-          }
-          let inputFS = options.properties.find(
-            prop => prop.key.name === 'inputFS',
-          );
-          if (!inputFS) {
-            shouldReplace = true;
-            options.properties.push(
+          if (options.type === 'Identifier') {
+            args[1] = j.objectExpression([
               j.property(
                 'init',
                 j.identifier('inputFS'),
                 j.identifier('overlayFS'),
               ),
-            );
+              j.spreadElement(options),
+            ]);
             if (verbose) {
               console.log(
                 chalk.dim(
                   `Adding ${chalk.yellow(
                     'inputFS: overlayFS',
-                  )} option to ${chalk.yellow(name)} call at ${printLoc(loc)}`,
+                  )} option arg to ${chalk.yellow(name)} call at ${printLoc(
+                    loc,
+                  )}`,
                 ),
               );
             }
-          } else if (verbose) {
-            console.log(
-              chalk.yellow(
-                `Skipping ${name} call at ${printLoc(
-                  loc,
-                )} because it already had an inputFS option.`,
-              ),
+          } else {
+            if (options.type !== 'ObjectExpression') {
+              throw new Error(
+                `Expected options to be an object, but saw ${options.type}`,
+              );
+            }
+            let inputFS = options.properties.find(
+              prop => prop.key.name === 'inputFS',
             );
+            if (!inputFS) {
+              shouldReplace = true;
+              options.properties.push(
+                j.property(
+                  'init',
+                  j.identifier('inputFS'),
+                  j.identifier('overlayFS'),
+                ),
+              );
+              if (verbose) {
+                console.log(
+                  chalk.dim(
+                    `Adding ${chalk.yellow(
+                      'inputFS: overlayFS',
+                    )} option to ${chalk.yellow(name)} call at ${printLoc(
+                      loc,
+                    )}`,
+                  ),
+                );
+              }
+            } else if (verbose) {
+              console.log(
+                chalk.yellow(
+                  `Skipping ${name} call at ${printLoc(
+                    loc,
+                  )} because it already had an inputFS option.`,
+                ),
+              );
+            }
           }
         } else {
           shouldReplace = true;
