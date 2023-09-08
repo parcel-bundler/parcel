@@ -653,7 +653,6 @@ export type ParcelTransformOptions = {|
   code?: string,
   env?: EnvironmentOptions,
   query?: ?string,
-  shouldDisableCache?: boolean,
 |};
 
 export type ParcelResolveOptions = {|
@@ -661,7 +660,6 @@ export type ParcelResolveOptions = {|
   specifierType: SpecifierType,
   env?: EnvironmentOptions,
   resolveFrom?: FilePath,
-  shouldDisableCache?: boolean,
 |};
 
 export type ParcelResolveResult = {|
