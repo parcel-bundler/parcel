@@ -911,45 +911,46 @@ function createIdealGraph(
 
     // if a bundle b is a subgraph of another bundle f, reuse it, drawing an edge between the two
     let canReuse: Set<BundleRoot> = new Set();
-    for (let candidateSourceBundleRoot of reachable) {
-      let candidateSourceBundleId = nullthrows(
-        bundleRoots.get(candidateSourceBundleRoot),
-      )[0];
-      if (candidateSourceBundleRoot.env.isIsolated()) {
-        continue;
-      }
-      let reuseableBundleId = bundles.get(asset.id);
-      if (reuseableBundleId != null && config.disableSharedBundles === false) {
-        canReuse.add(candidateSourceBundleRoot);
-        bundleGraph.addEdge(candidateSourceBundleId, reuseableBundleId);
+    if (config.disableSharedBundles === false) {
+      for (let candidateSourceBundleRoot of reachable) {
+        let candidateSourceBundleId = nullthrows(
+          bundleRoots.get(candidateSourceBundleRoot),
+        )[0];
+        if (candidateSourceBundleRoot.env.isIsolated()) {
+          continue;
+        }
+        let reuseableBundleId = bundles.get(asset.id);
+        if (reuseableBundleId != null) {
+          canReuse.add(candidateSourceBundleRoot);
+          bundleGraph.addEdge(candidateSourceBundleId, reuseableBundleId);
 
-        let reusableBundle = bundleGraph.getNode(reuseableBundleId);
-        invariant(reusableBundle !== 'root' && reusableBundle != null);
-        reusableBundle.sourceBundles.add(candidateSourceBundleId);
-      } else {
-        // Asset is not a bundleRoot, but if its ancestor bundle (in the asset's reachable) can be
-        // reused as a subgraph of another bundleRoot in its reachable, reuse it
-        for (let otherReuseCandidate of reachable) {
-          if (candidateSourceBundleRoot === otherReuseCandidate) continue;
-          let reusableCandidateReachable = getReachableBundleRoots(
-            otherReuseCandidate,
-            reachableRoots,
-          ).filter(b => !ancestorAssets.get(b)?.has(otherReuseCandidate));
-          if (
-            reusableCandidateReachable.includes(candidateSourceBundleRoot) &&
-            config.disableSharedBundles === false
-          ) {
-            let reusableBundleId = nullthrows(
-              bundles.get(otherReuseCandidate.id),
-            );
-            canReuse.add(candidateSourceBundleRoot);
-            bundleGraph.addEdge(
-              nullthrows(bundles.get(candidateSourceBundleRoot.id)),
-              reusableBundleId,
-            );
-            let reusableBundle = bundleGraph.getNode(reusableBundleId);
-            invariant(reusableBundle !== 'root' && reusableBundle != null);
-            reusableBundle.sourceBundles.add(candidateSourceBundleId);
+          let reusableBundle = bundleGraph.getNode(reuseableBundleId);
+          invariant(reusableBundle !== 'root' && reusableBundle != null);
+          reusableBundle.sourceBundles.add(candidateSourceBundleId);
+        } else {
+          // Asset is not a bundleRoot, but if its ancestor bundle (in the asset's reachable) can be
+          // reused as a subgraph of another bundleRoot in its reachable, reuse it
+          for (let otherReuseCandidate of reachable) {
+            if (candidateSourceBundleRoot === otherReuseCandidate) continue;
+            let reusableCandidateReachable = getReachableBundleRoots(
+              otherReuseCandidate,
+              reachableRoots,
+            ).filter(b => !ancestorAssets.get(b)?.has(otherReuseCandidate));
+            if (
+              reusableCandidateReachable.includes(candidateSourceBundleRoot)
+            ) {
+              let reusableBundleId = nullthrows(
+                bundles.get(otherReuseCandidate.id),
+              );
+              canReuse.add(candidateSourceBundleRoot);
+              bundleGraph.addEdge(
+                nullthrows(bundles.get(candidateSourceBundleRoot.id)),
+                reusableBundleId,
+              );
+              let reusableBundle = bundleGraph.getNode(reusableBundleId);
+              invariant(reusableBundle !== 'root' && reusableBundle != null);
+              reusableBundle.sourceBundles.add(candidateSourceBundleId);
+            }
           }
         }
       }

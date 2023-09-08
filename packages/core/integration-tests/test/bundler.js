@@ -92,6 +92,59 @@ describe('bundler', function () {
     ]);
   });
 
+  it('should not create shared bundles and should warn when disableSharedBundles is set to true with minBundleSize set', async function () {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/disable-shared-bundles-true-min-bundleSize/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+    loggerDisposable.dispose();
+
+    assert.deepEqual(messages, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/bundler-default',
+            message:
+              'The value of "200" set for minBundleSize will not be used as shared bundles have been disabled',
+          },
+        ],
+      },
+    ]);
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['foo.js', 'a.js', 'b.js'],
+      },
+      {
+        assets: ['bar.js', 'a.js', 'b.js'],
+      },
+    ]);
+  });
+
   it('should not create shared bundles and should warn when disableSharedBundles is set to true with minBundles set', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
@@ -145,7 +198,7 @@ describe('bundler', function () {
     ]);
   });
 
-  it('should not create shared bundles and should warn when disableSharedBundles is set to true with minBundles and maxParallelRequests set', async function () {
+  it('should not create shared bundles and should warn when disableSharedBundles is set to true with minBundles, minBundleSize and maxParallelRequests set', async function () {
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
       messages.push(message);
@@ -173,6 +226,17 @@ describe('bundler', function () {
             origin: '@parcel/bundler-default',
             message:
               'The value of "0" set for minBundles will not be used as shared bundles have been disabled',
+          },
+        ],
+      },
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/bundler-default',
+            message:
+              'The value of "200" set for minBundleSize will not be used as shared bundles have been disabled',
           },
         ],
       },
