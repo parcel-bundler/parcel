@@ -1052,98 +1052,100 @@ function createIdealGraph(
   let modifiedSourceBundles = new Set();
 
   // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
-  for (let bundleGroupId of bundleGraph.getNodeIdsConnectedFrom(rootNodeId)) {
-    // Find shared bundles in this bundle group.
-    let bundleId = bundleGroupId;
+  if (config.disableSharedBundles === false) {
+    for (let bundleGroupId of bundleGraph.getNodeIdsConnectedFrom(rootNodeId)) {
+      // Find shared bundles in this bundle group.
+      let bundleId = bundleGroupId;
 
-    // We should include "bundle reuse" as shared bundles that may be removed but the bundle itself would have to be retained
-    let bundleIdsInGroup = getBundlesForBundleGroup(bundleId); //get all bundlegrups this bundle is an ancestor of
+      // We should include "bundle reuse" as shared bundles that may be removed but the bundle itself would have to be retained
+      let bundleIdsInGroup = getBundlesForBundleGroup(bundleId); //get all bundlegrups this bundle is an ancestor of
 
-    // Filter out inline assests as they should not contribute to PRL
-    let numBundlesContributingToPRL = bundleIdsInGroup.reduce((count, b) => {
-      let bundle = nullthrows(bundleGraph.getNode(b));
-      invariant(bundle !== 'root');
-      return count + (bundle.bundleBehavior !== 'inline');
-    }, 0);
-
-    if (numBundlesContributingToPRL > config.maxParallelRequests) {
-      let sharedBundleIdsInBundleGroup = bundleIdsInGroup.filter(b => {
+      // Filter out inline assests as they should not contribute to PRL
+      let numBundlesContributingToPRL = bundleIdsInGroup.reduce((count, b) => {
         let bundle = nullthrows(bundleGraph.getNode(b));
-        // shared bundles must have source bundles, we could have a bundle
-        // connected to another bundle that isnt a shared bundle, so check
-        return (
-          bundle !== 'root' && bundle.sourceBundles.size > 0 && bundleId != b
-        );
-      });
+        invariant(bundle !== 'root');
+        return count + (bundle.bundleBehavior !== 'inline');
+      }, 0);
 
-      // Sort the bundles so the smallest ones are removed first.
-      let sharedBundlesInGroup = sharedBundleIdsInBundleGroup
-        .map(id => ({
-          id,
-          bundle: nullthrows(bundleGraph.getNode(id)),
-        }))
-        .map(({id, bundle}) => {
-          // For Flow
-          invariant(bundle !== 'root');
-          return {id, bundle};
-        })
-        .sort((a, b) => b.bundle.size - a.bundle.size);
+      if (numBundlesContributingToPRL > config.maxParallelRequests) {
+        let sharedBundleIdsInBundleGroup = bundleIdsInGroup.filter(b => {
+          let bundle = nullthrows(bundleGraph.getNode(b));
+          // shared bundles must have source bundles, we could have a bundle
+          // connected to another bundle that isnt a shared bundle, so check
+          return (
+            bundle !== 'root' && bundle.sourceBundles.size > 0 && bundleId != b
+          );
+        });
 
-      // Remove bundles until the bundle group is within the parallel request limit.
-      while (
-        sharedBundlesInGroup.length > 0 &&
-        numBundlesContributingToPRL > config.maxParallelRequests
-      ) {
-        let bundleTuple = sharedBundlesInGroup.pop();
-        let bundleToRemove = bundleTuple.bundle;
-        let bundleIdToRemove = bundleTuple.id;
-        //TODO add integration test where bundles in bunlde group > max parallel request limit & only remove a couple shared bundles
-        // but total # bundles still exceeds limit due to non shared bundles
+        // Sort the bundles so the smallest ones are removed first.
+        let sharedBundlesInGroup = sharedBundleIdsInBundleGroup
+          .map(id => ({
+            id,
+            bundle: nullthrows(bundleGraph.getNode(id)),
+          }))
+          .map(({id, bundle}) => {
+            // For Flow
+            invariant(bundle !== 'root');
+            return {id, bundle};
+          })
+          .sort((a, b) => b.bundle.size - a.bundle.size);
 
-        // Add all assets in the shared bundle into the source bundles that are within this bundle group.
-        let sourceBundles = [...bundleToRemove.sourceBundles].filter(b =>
-          bundleIdsInGroup.includes(b),
-        );
+        // Remove bundles until the bundle group is within the parallel request limit.
+        while (
+          sharedBundlesInGroup.length > 0 &&
+          numBundlesContributingToPRL > config.maxParallelRequests
+        ) {
+          let bundleTuple = sharedBundlesInGroup.pop();
+          let bundleToRemove = bundleTuple.bundle;
+          let bundleIdToRemove = bundleTuple.id;
+          //TODO add integration test where bundles in bunlde group > max parallel request limit & only remove a couple shared bundles
+          // but total # bundles still exceeds limit due to non shared bundles
 
-        for (let sourceBundleId of sourceBundles) {
-          let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
-          invariant(sourceBundle !== 'root');
-          modifiedSourceBundles.add(sourceBundle);
-          bundleToRemove.sourceBundles.delete(sourceBundleId);
-          for (let asset of bundleToRemove.assets) {
-            sourceBundle.assets.add(asset);
-            sourceBundle.size += asset.stats.size;
+          // Add all assets in the shared bundle into the source bundles that are within this bundle group.
+          let sourceBundles = [...bundleToRemove.sourceBundles].filter(b =>
+            bundleIdsInGroup.includes(b),
+          );
+
+          for (let sourceBundleId of sourceBundles) {
+            let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
+            invariant(sourceBundle !== 'root');
+            modifiedSourceBundles.add(sourceBundle);
+            bundleToRemove.sourceBundles.delete(sourceBundleId);
+            for (let asset of bundleToRemove.assets) {
+              sourceBundle.assets.add(asset);
+              sourceBundle.size += asset.stats.size;
+            }
+            //This case is specific to reused bundles, which can have shared bundles attached to it
+            for (let childId of bundleGraph.getNodeIdsConnectedFrom(
+              bundleIdToRemove,
+            )) {
+              let child = bundleGraph.getNode(childId);
+              invariant(child !== 'root' && child != null);
+              child.sourceBundles.add(sourceBundleId);
+              bundleGraph.addEdge(sourceBundleId, childId);
+            }
+            // needs to add test case where shared bundle is removed from ONE bundlegroup but not from the whole graph!
+            // Remove the edge from this bundle group to the shared bundle.
+            // If there is now only a single bundle group that contains this bundle,
+            // merge it into the remaining source bundles. If it is orphaned entirely, remove it.
+            let incomingNodeCount =
+              bundleGraph.getNodeIdsConnectedTo(bundleIdToRemove).length;
+
+            if (
+              incomingNodeCount <= 2 &&
+              //Never fully remove reused bundles
+              bundleToRemove.mainEntryAsset == null
+            ) {
+              // If one bundle group removes a shared bundle, but the other *can* keep it, still remove because that shared bundle is pointless (only one source bundle)
+              removeBundle(bundleGraph, bundleIdToRemove, assetReference);
+              // Stop iterating through bundleToRemove's sourceBundles as the bundle has been removed.
+              break;
+            } else {
+              bundleGraph.removeEdge(sourceBundleId, bundleIdToRemove);
+            }
           }
-          //This case is specific to reused bundles, which can have shared bundles attached to it
-          for (let childId of bundleGraph.getNodeIdsConnectedFrom(
-            bundleIdToRemove,
-          )) {
-            let child = bundleGraph.getNode(childId);
-            invariant(child !== 'root' && child != null);
-            child.sourceBundles.add(sourceBundleId);
-            bundleGraph.addEdge(sourceBundleId, childId);
-          }
-          // needs to add test case where shared bundle is removed from ONE bundlegroup but not from the whole graph!
-          // Remove the edge from this bundle group to the shared bundle.
-          // If there is now only a single bundle group that contains this bundle,
-          // merge it into the remaining source bundles. If it is orphaned entirely, remove it.
-          let incomingNodeCount =
-            bundleGraph.getNodeIdsConnectedTo(bundleIdToRemove).length;
-
-          if (
-            incomingNodeCount <= 2 &&
-            //Never fully remove reused bundles
-            bundleToRemove.mainEntryAsset == null
-          ) {
-            // If one bundle group removes a shared bundle, but the other *can* keep it, still remove because that shared bundle is pointless (only one source bundle)
-            removeBundle(bundleGraph, bundleIdToRemove, assetReference);
-            // Stop iterating through bundleToRemove's sourceBundles as the bundle has been removed.
-            break;
-          } else {
-            bundleGraph.removeEdge(sourceBundleId, bundleIdToRemove);
-          }
+          numBundlesContributingToPRL--;
         }
-        numBundlesContributingToPRL--;
       }
     }
   }
