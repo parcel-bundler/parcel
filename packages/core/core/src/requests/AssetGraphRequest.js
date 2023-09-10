@@ -19,7 +19,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {PromiseQueue, setEqual} from '@parcel/utils';
+import {PromiseQueue, setEqual, isGlobMatch} from '@parcel/utils';
 import {hashString} from '@parcel/rust';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {Priority} from '../types';
@@ -29,7 +29,7 @@ import createEntryRequest from './EntryRequest';
 import createTargetRequest from './TargetRequest';
 import createAssetRequest from './AssetRequest';
 import createPathRequest from './PathRequest';
-import {type ProjectPath} from '../projectPath';
+import {type ProjectPath, fromProjectPathRelative} from '../projectPath';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 import {propagateSymbols} from '../SymbolPropagation';
 
@@ -39,6 +39,8 @@ type AssetGraphRequestInput = {|
   optionsRef: SharedReference,
   name: string,
   shouldBuildLazily?: boolean,
+  lazyIncludes?: string[],
+  lazyExcludes?: string[],
   requestedAssetIds?: Set<string>,
 |};
 
@@ -111,6 +113,8 @@ export class AssetGraphBuilder {
   name: string;
   cacheKey: string;
   shouldBuildLazily: boolean;
+  lazyIncludes: string[];
+  lazyExcludes: string[];
   requestedAssetIds: Set<string>;
   isSingleChangeRebuild: boolean;
   assetGroupsWithRemovedParents: Set<NodeId>;
@@ -127,6 +131,8 @@ export class AssetGraphBuilder {
       name,
       requestedAssetIds,
       shouldBuildLazily,
+      lazyIncludes,
+      lazyExcludes,
     } = input;
     let assetGraph = prevResult?.assetGraph ?? new AssetGraph();
     assetGraph.safeToIncrementallyBundle = true;
@@ -148,6 +154,8 @@ export class AssetGraphBuilder {
     this.name = name;
     this.requestedAssetIds = requestedAssetIds ?? new Set();
     this.shouldBuildLazily = shouldBuildLazily ?? false;
+    this.lazyIncludes = lazyIncludes ?? [];
+    this.lazyExcludes = lazyExcludes ?? [];
     this.cacheKey = hashString(
       `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
     );
@@ -306,14 +314,43 @@ export class AssetGraphBuilder {
       let childNode = nullthrows(this.assetGraph.getNode(childNodeId));
 
       if (node.type === 'asset' && childNode.type === 'dependency') {
-        if (this.requestedAssetIds.has(node.value.id)) {
+        // This logic will set `node.requested` to `true` if the node is in the list of requested asset ids
+        // (i.e. this is an entry of a (probably) placeholder bundle that wasn't previously requested)
+        //
+        // Otherwise, if this node either is explicitly not requested, or has had it's requested attribute deleted,
+        // it will determine whether this node is an "async child" - that is, is it a (probably)
+        // dynamic import(). If so, it will explicitly have it's `node.requested` set to `false`
+        //
+        // If it's not requested, but it's not an async child then it's `node.requested` is deleted (undefined)
+
+        // by default with lazy compilation all nodes are lazy
+        let isNodeLazy = true;
+
+        // For conditional lazy building - if this node matches the `lazyInclude` globs that means we want
+        // only those nodes to be treated as lazy - that means if this node does _NOT_ match that glob, then we
+        // also consider it not lazy (so it gets marked as requested).
+        if (this.lazyIncludes.length > 0) {
+          isNodeLazy = isGlobMatch(
+            fromProjectPathRelative(node.value.filePath),
+            this.lazyIncludes,
+          );
+        }
+        // Excludes override includes, so a node is _not_ lazy if it is included in the exclude list.
+        if (this.lazyExcludes.length > 0 && isNodeLazy) {
+          isNodeLazy = !isGlobMatch(
+            fromProjectPathRelative(node.value.filePath),
+            this.lazyExcludes,
+          );
+        }
+
+        if (this.requestedAssetIds.has(node.value.id) || !isNodeLazy) {
           node.requested = true;
         } else if (!node.requested) {
           let isAsyncChild = this.assetGraph
             .getIncomingDependencies(node.value)
             .every(dep => dep.isEntry || dep.priority !== Priority.sync);
           if (isAsyncChild) {
-            node.requested = false;
+            node.requested = !isNodeLazy;
           } else {
             delete node.requested;
           }
@@ -322,12 +359,21 @@ export class AssetGraphBuilder {
         let previouslyDeferred = childNode.deferred;
         childNode.deferred = node.requested === false;
 
+        // The child dependency node we're now evaluating should not be deferred if it's parent
+        // is explicitly not requested (requested = false, but not requested = undefined)
+        //
+        // if we weren't previously deferred but we are now, then this dependency node's parents should also
+        // be marked as deferred
+        //
+        // if we were previously deferred but we not longer are, then then all parents should no longer be
+        // deferred either
         if (!previouslyDeferred && childNode.deferred) {
           this.assetGraph.markParentsWithHasDeferred(childNodeId);
         } else if (previouslyDeferred && !childNode.deferred) {
           this.assetGraph.unmarkParentsWithHasDeferred(childNodeId);
         }
 
+        // We `shouldVisitChild` if the childNode is not deferred
         return !childNode.deferred;
       }
     }

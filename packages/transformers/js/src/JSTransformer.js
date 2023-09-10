@@ -439,6 +439,7 @@ export default (new Transformer({
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
+      standalone: asset.query.has('standalone'),
     });
 
     let convertLoc = (loc): SourceLocation => {
