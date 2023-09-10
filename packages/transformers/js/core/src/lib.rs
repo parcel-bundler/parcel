@@ -17,7 +17,6 @@ use std::str::FromStr;
 use indexmap::IndexMap;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
-use swc_core;
 use swc_core::common::comments::SingleThreadedComments;
 use swc_core::common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_core::common::pass::Optional;
@@ -567,12 +566,8 @@ fn emit(
         None
       },
     ));
-    let config = swc_core::ecma::codegen::Config {
-      minify: false,
-      ascii_only: false,
-      target: swc_core::ecma::ast::EsVersion::Es5,
-      omit_last_semi: false,
-    };
+    let config =
+      swc_core::ecma::codegen::Config::default().with_target(swc_core::ecma::ast::EsVersion::Es5);
     let mut emitter = swc_core::ecma::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
