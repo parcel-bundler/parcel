@@ -1,10 +1,12 @@
 #![allow(non_snake_case)]
 #![feature(thread_local)]
 
+use std::cell::UnsafeCell;
 use std::ptr::NonNull;
+use std::sync::atomic::AtomicU32;
 use std::{marker::PhantomData, num::NonZeroU32, sync::RwLock};
 
-use alloc::Slab;
+use alloc::{current_arena, current_heap, Arena, PageAllocator, Slab, ARENA, HEAP};
 use allocator_api2::alloc::Allocator;
 use dashmap::DashMap;
 use derivative::Derivative;
@@ -14,10 +16,10 @@ use parcel_derive::{JsValue, SlabAllocated, ToJs};
 mod alloc;
 mod atomics;
 
-pub use alloc::{ARENA, HEAP};
+// pub use alloc::{ARENA, HEAP};
 
-pub use alloc::ArenaAllocator;
 pub use allocator_api2::vec::Vec;
+use thread_local::ThreadLocal;
 
 static mut WRITE_CALLBACKS: Vec<fn(&mut std::fs::File) -> std::io::Result<()>> = Vec::new();
 
@@ -26,8 +28,8 @@ trait ToJs {
 }
 
 trait JsValue {
-  fn js_getter(addr: &str, offset: usize) -> String;
-  fn js_setter(addr: &str, offset: usize, value: &str) -> String;
+  fn js_getter(db: &str, addr: &str, offset: usize) -> String;
+  fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String;
   fn ty() -> String;
 }
 
@@ -37,12 +39,12 @@ pub trait SlabAllocated {
 }
 
 impl JsValue for u8 {
-  fn js_getter(addr: &str, offset: usize) -> String {
-    format!("readU8({} + {})", addr, offset)
+  fn js_getter(db: &str, addr: &str, offset: usize) -> String {
+    format!("readU8({}, {} + {})", db, addr, offset)
   }
 
-  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
-    format!("writeU8({} + {}, {})", addr, offset, value)
+  fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
+    format!("writeU8({}, {} + {}, {})", db, addr, offset, value)
   }
 
   fn ty() -> String {
@@ -51,12 +53,12 @@ impl JsValue for u8 {
 }
 
 impl JsValue for u32 {
-  fn js_getter(addr: &str, offset: usize) -> String {
-    format!("readU32({} + {})", addr, offset)
+  fn js_getter(db: &str, addr: &str, offset: usize) -> String {
+    format!("readU32({}, {} + {})", db, addr, offset)
   }
 
-  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
-    format!("writeU32({} + {}, {})", addr, offset, value)
+  fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
+    format!("writeU32({}, {} + {}, {})", db, addr, offset, value)
   }
 
   fn ty() -> String {
@@ -65,12 +67,12 @@ impl JsValue for u32 {
 }
 
 impl JsValue for NonZeroU32 {
-  fn js_getter(addr: &str, offset: usize) -> String {
-    format!("readU32({} + {})", addr, offset)
+  fn js_getter(db: &str, addr: &str, offset: usize) -> String {
+    format!("readU32({}, {} + {})", db, addr, offset)
   }
 
-  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
-    format!("writeU32({} + {}, {})", addr, offset, value)
+  fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
+    format!("writeU32({}, {} + {}, {})", db, addr, offset, value)
   }
 
   fn ty() -> String {
@@ -79,12 +81,12 @@ impl JsValue for NonZeroU32 {
 }
 
 impl JsValue for bool {
-  fn js_getter(addr: &str, offset: usize) -> String {
-    format!("!!readU8({} + {})", addr, offset)
+  fn js_getter(db: &str, addr: &str, offset: usize) -> String {
+    format!("!!readU8({}, {} + {})", db, addr, offset)
   }
 
-  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
-    format!("writeU8({} + {}, {} ? 1 : 0)", addr, offset, value)
+  fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
+    format!("writeU8({}, {} + {}, {} ? 1 : 0)", db, addr, offset, value)
   }
 
   fn ty() -> String {
@@ -93,15 +95,18 @@ impl JsValue for bool {
 }
 
 impl JsValue for InternedString {
-  fn js_getter(addr: &str, offset: usize) -> String {
-    format!("readCachedString(readU32({} + {}))", addr, offset)
+  fn js_getter(db: &str, addr: &str, offset: usize) -> String {
+    format!(
+      "readCachedString({}, readU32({}, {} + {}))",
+      db, db, addr, offset
+    )
   }
 
-  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+  fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
     // STRING_CACHE.set(this.addr + {addr}, {value});
     format!(
-      "writeU32({} + {}, binding.getStringId({}))",
-      addr, offset, value
+      "writeU32({}, {} + {}, {}.getStringId({}))",
+      db, addr, offset, db, value
     )
   }
 
@@ -111,11 +116,12 @@ impl JsValue for InternedString {
 }
 
 impl<T: JsValue, A: Allocator> JsValue for Vec<T, A> {
-  fn js_getter(addr: &str, offset: usize) -> String {
+  fn js_getter(db: &str, addr: &str, offset: usize) -> String {
     let size = std::mem::size_of::<T>();
     let ty = <T>::ty();
     format!(
-      "new Vec({addr} + {offset}, {size}, {ty})",
+      "new Vec({db}, {addr} + {offset}, {size}, {ty})",
+      db = db,
       addr = addr,
       offset = offset,
       size = size,
@@ -123,10 +129,11 @@ impl<T: JsValue, A: Allocator> JsValue for Vec<T, A> {
     )
   }
 
-  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+  fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
     let size = std::mem::size_of::<Vec<T, A>>();
     format!(
-      "copy({value}.addr, {addr} + {offset}, {size});",
+      "copy({db}, {value}.addr, {addr} + {offset}, {size});",
+      db = db,
       addr = addr,
       offset = offset,
       size = size,
@@ -199,7 +206,7 @@ fn discriminant_value<T>(v: T, offset: usize, size: usize) -> usize {
   }
 }
 
-fn option_discriminant<T>(addr: &str, offset: usize, operator: &str) -> Vec<String> {
+fn option_discriminant<T>(db: &str, addr: &str, offset: usize, operator: &str) -> Vec<String> {
   // This infers the byte pattern for None of a given type. Due to discriminant elision,
   // there may be no separate byte for the discriminant. Instead, the Rust compiler uses
   // "niche" values of the contained type that would otherwise be invalid.
@@ -222,11 +229,11 @@ fn option_discriminant<T>(addr: &str, offset: usize, operator: &str) -> Vec<Stri
     if !none.is_none() {
       comparisons.push(if operator == "===" {
         format!(
-          "readU8({} + {} + {:?}) {} {:?}",
-          addr, offset, i, operator, v
+          "readU8({}, {} + {} + {:?}) {} {:?}",
+          db, addr, offset, i, operator, v
         )
       } else {
-        format!("writeU8({} + {} + {:?}, {:?})", addr, offset, i, v)
+        format!("writeU8({}, {} + {} + {:?}, {:?})", db, addr, offset, i, v)
       });
       if v == 0 {
         if zeros == 0 {
@@ -246,23 +253,33 @@ fn option_discriminant<T>(addr: &str, offset: usize, operator: &str) -> Vec<Stri
       comparisons.clear();
       comparisons.push(if operator == "===" {
         format!(
-          "readU32({} + {} + {}) {} 0",
-          addr, offset, zero_offset, operator
+          "readU32({}, {} + {} + {}) {} 0",
+          db, addr, offset, zero_offset, operator
         )
       } else {
-        format!("writeU32({} + {} + {}, 0)", addr, offset, zero_offset)
+        format!(
+          "writeU32({}, {} + {} + {}, 0)",
+          db, addr, offset, zero_offset
+        )
       });
       if zeros == 8 {
         comparisons.push(if operator == "===" {
           format!(
-            "readU32({} + {} + {:?}) {} 0",
+            "readU32({}, {} + {} + {:?}) {} 0",
+            db,
             addr,
             offset,
             zero_offset + 4,
             operator
           )
         } else {
-          format!("writeU32({} + {} + {}, 0)", addr, offset, zero_offset + 4)
+          format!(
+            "writeU32({}, {} + {} + {}, 0)",
+            db,
+            addr,
+            offset,
+            zero_offset + 4
+          )
         })
       }
     }
@@ -272,25 +289,29 @@ fn option_discriminant<T>(addr: &str, offset: usize, operator: &str) -> Vec<Stri
 }
 
 impl<T: JsValue> JsValue for Option<T> {
-  fn js_getter(addr: &str, offset: usize) -> String {
+  fn js_getter(db: &str, addr: &str, offset: usize) -> String {
     let value_offset = option_offset::<T>();
     if value_offset == 0 {
-      let discriminant = option_discriminant::<T>(addr, offset, "===").join(" && ");
-      format!("{} ? null : {}", discriminant, T::js_getter(addr, offset))
+      let discriminant = option_discriminant::<T>(db, addr, offset, "===").join(" && ");
+      format!(
+        "{} ? null : {}",
+        discriminant,
+        T::js_getter(db, addr, offset)
+      )
     } else {
       format!(
         "{} === 0 ? null : {}",
         match value_offset {
-          1 => u8::js_getter(addr, offset),
-          4 => u32::js_getter(addr, offset),
+          1 => u8::js_getter(db, addr, offset),
+          4 => u32::js_getter(db, addr, offset),
           _ => todo!(),
         },
-        T::js_getter(addr, offset + value_offset)
+        T::js_getter(db, addr, offset + value_offset)
       )
     }
   }
 
-  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+  fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
     // TODO: run Rust destructors when setting to null...
     let value_offset = option_offset::<T>();
     if value_offset == 0 {
@@ -300,8 +321,8 @@ impl<T: JsValue> JsValue for Option<T> {
     }} else {{
       {setter};
     }}"#,
-        set_none = option_discriminant::<T>(addr, offset, "=").join(";\n      "),
-        setter = T::js_setter(addr, offset, value),
+        set_none = option_discriminant::<T>(db, addr, offset, "=").join(";\n      "),
+        setter = T::js_setter(db, addr, offset, value),
       );
     }
 
@@ -309,11 +330,11 @@ impl<T: JsValue> JsValue for Option<T> {
       r#"{};
     if (value != null) {}"#,
       match value_offset {
-        1 => u8::js_setter(addr, offset, "value == null ? 0 : 1"),
-        4 => u32::js_setter(addr, offset, "value == null ? 0 : 1"),
+        1 => u8::js_setter(db, addr, offset, "value == null ? 0 : 1"),
+        4 => u32::js_setter(db, addr, offset, "value == null ? 0 : 1"),
         _ => todo!(),
       },
-      T::js_setter(addr, offset + value_offset, value)
+      T::js_setter(db, addr, offset + value_offset, value)
     )
   }
 
@@ -344,12 +365,12 @@ macro_rules! js_bitflags {
     }
 
     impl JsValue for $BitFlags {
-      fn js_getter(addr: &str, offset: usize) -> String {
-        <$T>::js_getter(addr, offset)
+      fn js_getter(db: &str, addr: &str, offset: usize) -> String {
+        <$T>::js_getter(db, addr, offset)
       }
 
-      fn js_setter(addr: &str, offset: usize, value: &str) -> String {
-        <$T>::js_setter(addr, offset, value)
+      fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
+        <$T>::js_setter(db, addr, offset, value)
       }
 
       fn ty() -> String {
@@ -412,7 +433,7 @@ unsafe impl<T: SlabAllocated> Allocator for SlabAllocator<T> {
   unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
     let size = std::mem::size_of::<T>();
     let count = layout.size() / size;
-    let addr = HEAP.find_page(ptr.as_ptr()).unwrap();
+    let addr = current_heap().find_page(ptr.as_ptr()).unwrap();
     T::dealloc(addr, count as u32);
   }
 }
@@ -452,7 +473,7 @@ impl<T: SlabAllocated> ArenaVec<T> {
   }
 
   unsafe fn as_vec(&self) -> Vec<T, SlabAllocator<T>> {
-    let ptr = HEAP.get(self.buf);
+    let ptr = current_heap().get(self.buf);
     Vec::from_raw_parts_in(
       ptr,
       self.len as usize,
@@ -462,7 +483,7 @@ impl<T: SlabAllocated> ArenaVec<T> {
   }
 
   unsafe fn update(&mut self, vec: Vec<T, SlabAllocator<T>>) {
-    self.buf = HEAP.find_page(vec.as_ptr() as *const u8).unwrap();
+    self.buf = current_heap().find_page(vec.as_ptr() as *const u8).unwrap();
     self.len = vec.len() as u32;
     self.cap = vec.capacity() as u32;
     std::mem::forget(vec)
@@ -478,7 +499,7 @@ impl<T: SlabAllocated> ArenaVec<T> {
 
   pub fn as_slice(&self) -> &[T] {
     unsafe {
-      let ptr = HEAP.get(self.buf);
+      let ptr = current_heap().get(self.buf);
       std::slice::from_raw_parts(ptr, self.len as usize)
     }
   }
@@ -507,11 +528,12 @@ impl<T: std::fmt::Debug + SlabAllocated + Clone> std::fmt::Debug for ArenaVec<T>
 }
 
 impl<T: JsValue> JsValue for ArenaVec<T> {
-  fn js_getter(addr: &str, offset: usize) -> String {
+  fn js_getter(db: &str, addr: &str, offset: usize) -> String {
     let size = std::mem::size_of::<T>();
     let ty = <T>::ty();
     format!(
-      "new Vec({addr} + {offset}, {size}, {ty})",
+      "new Vec({db}, {addr} + {offset}, {size}, {ty})",
+      db = db,
       addr = addr,
       offset = offset,
       size = size,
@@ -519,10 +541,11 @@ impl<T: JsValue> JsValue for ArenaVec<T> {
     )
   }
 
-  fn js_setter(addr: &str, offset: usize, value: &str) -> String {
+  fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
     let size = std::mem::size_of::<ArenaVec<T>>();
     format!(
-      "copy({value}.addr, {addr} + {offset}, {size});",
+      "copy({db}, {value}.addr, {addr} + {offset}, {size});",
+      db = db,
       addr = addr,
       offset = offset,
       size = size,
@@ -769,18 +792,14 @@ js_bitflags! {
 
 fn alloc_struct<T>() -> (u32, *mut T) {
   let size = std::mem::size_of::<T>();
-  let addr = ARENA.alloc(size as u32);
-  let ptr = unsafe { HEAP.get(addr) };
+  let addr = current_arena().alloc(size as u32);
+  let ptr = unsafe { current_heap().get(addr) };
   (addr, ptr)
-}
-
-lazy_static! {
-  static ref STRINGS: DashMap<&'static str, NonZeroU32> = DashMap::new();
 }
 
 impl From<String> for InternedString {
   fn from(value: String) -> Self {
-    if let Some(v) = STRINGS.get(value.as_str()) {
+    if let Some(v) = current_strings().get(value.as_str()) {
       // println!("FOUND EXISTING");
       return InternedString(*v);
     }
@@ -792,7 +811,7 @@ impl From<String> for InternedString {
     let (addr, ptr) = alloc_struct();
     unsafe { std::ptr::write(ptr, s) };
     let offset = unsafe { NonZeroU32::new_unchecked(addr) };
-    STRINGS.insert(unsafe { *ptr }, offset);
+    current_strings().insert(unsafe { *ptr }, offset);
     // println!("NEW STRING {:?}", STRINGS.len());
     InternedString(offset)
   }
@@ -800,7 +819,7 @@ impl From<String> for InternedString {
 
 impl From<&str> for InternedString {
   fn from(value: &str) -> Self {
-    if let Some(v) = STRINGS.get(value) {
+    if let Some(v) = current_strings().get(value) {
       return InternedString(*v);
     }
 
@@ -810,11 +829,11 @@ impl From<&str> for InternedString {
 
 impl InternedString {
   pub fn get(s: &str) -> Option<InternedString> {
-    STRINGS.get(s).map(|s| InternedString(*s))
+    current_strings().get(s).map(|s| InternedString(*s))
   }
 
   pub fn as_str(&self) -> &'static str {
-    unsafe { &*HEAP.get::<&str>(self.0.get()) }
+    unsafe { &*current_heap().get::<&str>(self.0.get()) }
   }
 }
 
@@ -838,30 +857,89 @@ impl std::fmt::Debug for InternedString {
   }
 }
 
+#[thread_local]
+static mut SLABS: Option<&'static mut Slabs> = None;
+#[thread_local]
+static mut STRINGS: Option<&'static DashMap<&'static str, NonZeroU32>> = None;
+
+pub fn current_strings<'a>() -> &'a DashMap<&'static str, NonZeroU32> {
+  unsafe { STRINGS.unwrap_unchecked() }
+}
+
 #[derive(Default)]
+struct Slabs {
+  arena: Arena,
+  environment_slab: Slab<Environment>,
+  dependency_slab: Slab<Dependency>,
+  asset_slab: Slab<Asset>,
+  symbol_slab: Slab<Symbol>,
+  import_attribute_slab: Slab<ImportAttribute>,
+}
+
+pub struct ParcelDbWrapper {
+  inner: ParcelDb,
+}
+
+impl Drop for ParcelDbWrapper {
+  fn drop(&mut self) {
+    let count = DB_COUNT.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    println!("Drop native {}", count);
+  }
+}
+
+impl ParcelDbWrapper {
+  pub fn with<T, F: FnOnce(&ParcelDb) -> T>(&self, f: F) -> T {
+    unsafe {
+      debug_assert!(HEAP.is_none());
+      HEAP = Some(std::mem::transmute(&self.inner.heap));
+      STRINGS = Some(std::mem::transmute(&self.inner.strings));
+      let slabs = &mut *self.inner.slabs.get_or_default().get();
+      ARENA = Some(std::mem::transmute(&slabs.arena));
+      SLABS = Some(std::mem::transmute(slabs));
+      let res = f(&self.inner);
+      HEAP = None;
+      STRINGS = None;
+      ARENA = None;
+      SLABS = None;
+      res
+    }
+  }
+}
+
+static DB_COUNT: AtomicU32 = AtomicU32::new(0);
+
 pub struct ParcelDb {
   environments: RwLock<Vec<u32>>,
+  heap: PageAllocator,
+  strings: DashMap<&'static str, NonZeroU32>,
+  slabs: ThreadLocal<UnsafeCell<Slabs>>,
 }
 
 unsafe impl Sync for ParcelDb {}
 
 impl ParcelDb {
-  pub const fn new() -> ParcelDb {
-    ParcelDb {
-      environments: RwLock::new(Vec::new()),
+  pub fn new() -> ParcelDbWrapper {
+    DB_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    ParcelDbWrapper {
+      inner: ParcelDb {
+        environments: RwLock::new(Vec::new()),
+        heap: PageAllocator::new(),
+        strings: DashMap::new(),
+        slabs: ThreadLocal::new(),
+      },
     }
   }
 
-  pub fn heap_page(&self, page: u32) -> &'static mut [u8] {
-    unsafe { crate::alloc::HEAP.get_page(page) }
+  pub fn heap_page(&self, page: u32) -> &mut [u8] {
+    unsafe { self.heap.get_page(page) }
   }
 
   pub fn find_page(&self, ptr: *const u8) -> Option<u32> {
-    unsafe { crate::alloc::HEAP.find_page(ptr) }
+    unsafe { self.heap.find_page(ptr) }
   }
 
   pub fn alloc(&self, size: u32) -> u32 {
-    ARENA.alloc(size)
+    current_arena().alloc(size)
   }
 
   pub fn alloc_struct<T>(&self) -> (u32, &'static mut T) {
@@ -876,17 +954,17 @@ impl ParcelDb {
   }
 
   pub fn read_heap<T>(&self, addr: u32) -> &'static mut T {
-    unsafe { &mut *HEAP.get(addr) }
+    unsafe { &mut *self.heap.get(addr) }
   }
 
   pub fn extend_vec(&self, addr: u32, size: u32, count: u32) {
     // TODO: handle different types of vectors...
-    let vec: &mut ArenaVec<Symbol> = unsafe { &mut *HEAP.get(addr) };
+    let vec: &mut ArenaVec<Symbol> = unsafe { &mut *self.heap.get(addr) };
     vec.reserve(count as usize);
   }
 
   pub fn get_environment(&self, addr: u32) -> &Environment {
-    unsafe { &*HEAP.get(addr) }
+    unsafe { &*self.heap.get(addr) }
   }
 
   pub fn environment_id(&self, env: &Environment) -> EnvironmentId {
@@ -930,69 +1008,98 @@ pub fn build() -> std::io::Result<()> {
   write!(
     file,
     r#"// @flow
-import binding from '../index';
+import {{ParcelDb}} from '../index';
 
-const HEAP = [];
-const HEAP_u32 = [];
-const STRING_CACHE = new Map();
+let heapSymbol = global.Symbol('heap');
+let heapU32Symbol = global.Symbol('heapU32');
+let stringCacheSymbol = global.Symbol('stringCache');
+
+ParcelDb.deserialize = (serialized) => {{
+  let res = ParcelDb.deserializeNative(serialized);
+  init(res);
+  return res;
+}};
+
+export function createParcelDb(): ParcelDb {{
+  let db = new ParcelDb();
+  init(db);
+  return db;
+}}
+
+function init(db: ParcelDb) {{
+  db[heapSymbol] = [];
+  db[heapU32Symbol] = [];
+  db[stringCacheSymbol] = new Map();
+  db.starSymbol = db.getStringId('*');
+  db.defaultSymbol = db.getStringId('default');
+}}
 
 const PAGE_INDEX_SIZE = 16;
 const PAGE_INDEX_SHIFT = 32 - PAGE_INDEX_SIZE;
 const PAGE_INDEX_MASK = ((1 << PAGE_INDEX_SIZE) - 1) << PAGE_INDEX_SHIFT;
 const PAGE_OFFSET_MASK = (1 << PAGE_INDEX_SHIFT) - 1;
 
-function copy(from: number, to: number, size: number) {{
+function copy(db: ParcelDb, from: number, to: number, size: number) {{
   let fromPage = (from & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let fromOffset = from & PAGE_OFFSET_MASK;
-  let fromHeapPage = HEAP[fromPage] ??= binding.getPage(fromPage);
+  let heap = db[heapSymbol];
+  let fromHeapPage = heap[fromPage] ??= db.getPage(fromPage);
   let toPage = (to & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let toOffset = to & PAGE_OFFSET_MASK;
-  let toHeapPage = HEAP[toPage] ??= binding.getPage(toPage);
+  let toHeapPage = heap[toPage] ??= db.getPage(toPage);
   toHeapPage.set(fromHeapPage.subarray(fromOffset, fromOffset + size), toOffset);
 }}
 
-function readU8(addr: number): number {{
+function readU8(db: ParcelDb, addr: number): number {{
   let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let offset = addr & PAGE_OFFSET_MASK;
-  let heapPage = HEAP[page] ??= binding.getPage(page);
+  let heap = db[heapSymbol];
+  let heapPage = heap[page] ??= db.getPage(page);
   return heapPage[offset];
 }}
 
-function writeU8(addr: number, value: number) {{
+function writeU8(db: ParcelDb, addr: number, value: number) {{
   let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let offset = addr & PAGE_OFFSET_MASK;
-  let heapPage = HEAP[page] ??= binding.getPage(page);
+  let heap = db[heapSymbol];
+  let heapPage = heap[page] ??= db.getPage(page);
   return heapPage[offset] = value;
 }}
 
-function readU32(addr: number): number {{
+function readU32(db: ParcelDb, addr: number): number {{
   let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let offset = addr & PAGE_OFFSET_MASK;
-  let heapPage = HEAP_u32[page] ??= new Uint32Array((HEAP[page] ??= binding.getPage(page)).buffer);
+  let heap = db[heapSymbol];
+  let heap_u32 = db[heapU32Symbol];
+  let heapPage = heap_u32[page] ??= new Uint32Array((heap[page] ??= db.getPage(page)).buffer);
   return heapPage[offset >> 2];
 }}
 
-function writeU32(addr: number, value: number) {{
+function writeU32(db: ParcelDb, addr: number, value: number) {{
   let page = (addr & PAGE_INDEX_MASK) >> PAGE_INDEX_SHIFT;
   let offset = addr & PAGE_OFFSET_MASK;
-  let heapPage = HEAP_u32[page] ??= new Uint32Array((HEAP[page] ??= binding.getPage(page)).buffer);
+  let heap = db[heapSymbol];
+  let heap_u32 = db[heapU32Symbol];
+  let heapPage = heap_u32[page] ??= new Uint32Array((heap[page] ??= db.getPage(page)).buffer);
   return heapPage[offset >> 2] = value;
 }}
 
-export function readCachedString(addr: number): string {{
-  let v = STRING_CACHE.get(addr);
+export function readCachedString(db: ParcelDb, addr: number): string {{
+  let stringCache = db[stringCacheSymbol];
+  let v = stringCache.get(addr);
   if (v != null) return v;
-  v = binding.readString(addr);
-  STRING_CACHE.set(addr, v);
+  v = db.readString(addr);
+  stringCache.set(addr, v);
   return v;
 }}
 
 interface TypeAccessor<T> {{
-  get(addr: number): T,
-  set(addr: number, value: T): void
+  get(db: ParcelDb, addr: number): T,
+  set(db: ParcelDb, addr: number, value: T): void
 }}
 
 class Vec<T> {{
+  db: ParcelDb;
   addr: number;
   size: number;
   accessor: TypeAccessor<T>;
@@ -1000,74 +1107,75 @@ class Vec<T> {{
   @@iterator(): Iterator<T> {{ return ({{}}: any); }}
   */
 
-  constructor(addr: number, size: number, accessor: TypeAccessor<T>) {{
+  constructor(db: ParcelDb, addr: number, size: number, accessor: TypeAccessor<T>) {{
+    this.db = db;
     this.addr = addr;
     this.size = size;
     this.accessor = accessor;
   }}
 
   get length(): number {{
-    return readU32(this.addr + {len_offset});
+    return readU32(this.db, this.addr + {len_offset});
   }}
 
   get capacity(): number {{
-    return readU32(this.addr + {cap_offset});
+    return readU32(this.db, this.addr + {cap_offset});
   }}
 
   get(index: number): T {{
-    let bufAddr = readU32(this.addr + {buf_offset});
-    return this.accessor.get(bufAddr + index * this.size);
+    let bufAddr = readU32(this.db, this.addr + {buf_offset});
+    return this.accessor.get(this.db, bufAddr + index * this.size);
   }}
 
   set(index: number, value: T): void {{
     if (index >= this.length) {{
       throw new Error(`Index out of bounds: ${{index}} >= ${{this.length}}`);
     }}
-    let bufAddr = readU32(this.addr + {buf_offset});
-    this.accessor.set(bufAddr + index * this.size, value);
+    let bufAddr = readU32(this.db, this.addr + {buf_offset});
+    this.accessor.set(this.db, bufAddr + index * this.size, value);
   }}
 
   reserve(count: number): void {{
     if (this.length + count > this.capacity) {{
-      binding.extendVec(this.addr, this.size, count);
+      this.db.extendVec(this.addr, this.size, count);
     }}
   }}
 
   push(value: T): void {{
     this.reserve(1);
-    writeU32(this.addr + {len_offset}, readU32(this.addr + {len_offset}) + 1);
+    writeU32(this.db, this.addr + {len_offset}, readU32(this.db, this.addr + {len_offset}) + 1);
     this.set(this.length - 1, value);
   }}
 
   extend(): T {{
     this.reserve(1);
-    writeU32(this.addr + {len_offset}, readU32(this.addr + {len_offset}) + 1);
+    writeU32(this.db, this.addr + {len_offset}, readU32(this.db, this.addr + {len_offset}) + 1);
     return this.get(this.length - 1);
   }}
 
   clear(): void {{
     // TODO: run Rust destructors?
-    writeU32(this.addr + {len_offset}, 0);
+    writeU32(this.db, this.addr + {len_offset}, 0);
   }}
 
   init(): void {{
-    writeU32(this.addr + {len_offset}, 0);
-    writeU32(this.addr + {cap_offset}, 0);
-    writeU32(this.addr + {buf_offset}, 0);
+    writeU32(this.db, this.addr + {len_offset}, 0);
+    writeU32(this.db, this.addr + {cap_offset}, 0);
+    writeU32(this.db, this.addr + {buf_offset}, 0);
   }}
 
   // $FlowFixMe
   *[globalThis.Symbol.iterator]() {{
-    let addr = readU32(this.addr + {buf_offset});
+    let addr = readU32(this.db, this.addr + {buf_offset});
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
-      yield this.accessor.get(addr);
+      yield this.accessor.get(this.db, addr);
     }}
   }}
 
   find(pred: (value: T) => mixed): ?T {{
-    let addr = readU32(this.addr + {buf_offset});
+    let addr = readU32(this.db, this.addr + {buf_offset});
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
-      let value = this.accessor.get(addr);
+      let value = this.accessor.get(this.db, addr);
       if (pred(value)) {{
         return value;
       }}
@@ -1075,9 +1183,9 @@ class Vec<T> {{
   }}
 
   some(pred: (value: T) => mixed): boolean {{
-    let addr = readU32(this.addr + {buf_offset});
+    let addr = readU32(this.db, this.addr + {buf_offset});
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
-      let value = this.accessor.get(addr);
+      let value = this.accessor.get(this.db, addr);
       if (pred(value)) {{
         return true;
       }}
@@ -1086,9 +1194,9 @@ class Vec<T> {{
   }}
 
   every(pred: (value: T) => mixed): boolean {{
-    let addr = readU32(this.addr + {buf_offset});
+    let addr = readU32(this.db, this.addr + {buf_offset});
     for (let i = 0, len = this.length; i < len; i++, addr += this.size) {{
-      let value = this.accessor.get(addr);
+      let value = this.accessor.get(this.db, addr);
       if (!pred(value)) {{
         return false;
       }}

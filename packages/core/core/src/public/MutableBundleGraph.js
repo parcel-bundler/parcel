@@ -99,7 +99,7 @@ export default class MutableBundleGraph
       entryAssetId: resolved,
     };
 
-    let bundleGroupKey = getBundleGroupId(bundleGroup);
+    let bundleGroupKey = getBundleGroupId(this.#options.db, bundleGroup);
     let bundleGroupNodeId = this.#graph._graph.hasContentKey(bundleGroupKey)
       ? this.#graph._graph.getNodeIdByContentKey(bundleGroupKey)
       : this.#graph._graph.addNodeByContentKey(bundleGroupKey, {
@@ -177,7 +177,7 @@ export default class MutableBundleGraph
       ? assetToAssetValue(opts.entryAsset)
       : null;
 
-    let target = DbTarget.get(targetToInternalTarget(opts.target));
+    let target = DbTarget.get(this.#options.db, targetToInternalTarget(opts.target));
     let bundleId = hashString(
       'bundle:' +
         (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
@@ -216,7 +216,7 @@ export default class MutableBundleGraph
         type: opts.entryAsset ? opts.entryAsset.type : opts.type,
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)
-          : DbAsset.get(nullthrows(entryAsset)).env,
+          : DbAsset.get(this.#options.db, nullthrows(entryAsset)).env,
         entryAssetIds: entryAsset != null ? [entryAsset] : [],
         mainEntryId: entryAsset,
         pipeline: opts.entryAsset ? opts.entryAsset.pipeline : opts.pipeline,

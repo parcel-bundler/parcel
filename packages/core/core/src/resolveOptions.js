@@ -10,7 +10,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
 
 import path from 'path';
-import {hashString} from '@parcel/rust';
+import {hashString, createParcelDb} from '@parcel/rust';
 import {NodeFS} from '@parcel/fs';
 import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -161,6 +161,7 @@ export default async function resolveOptions(
     outputFS,
     cache,
     packageManager,
+    db: createParcelDb(),
     additionalReporters:
       initialOptions.additionalReporters?.map(({packageName, resolveFrom}) => ({
         packageName,

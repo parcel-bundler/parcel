@@ -51,7 +51,6 @@ import {
   AssetFlags,
   Dependency as DbDependency,
   SymbolFlags,
-  getStringId,
 } from '@parcel/rust';
 import nullthrows from 'nullthrows';
 
@@ -333,7 +332,7 @@ export default class UncommittedAsset {
       ...rest,
       // $FlowFixMe "convert" the $ReadOnlyMaps to the interal mutable one
       symbols,
-      env: mergeEnvironments(this.options.projectRoot, this.value.env, env),
+      env: mergeEnvironments(this.options.db, this.options.projectRoot, this.value.env, env),
       sourceAssetId: this.value.id,
       sourcePath: fromProjectPath(
         this.options.projectRoot,
@@ -347,7 +346,7 @@ export default class UncommittedAsset {
     if (existing != null) {
       dep = mergeDependencies(existing, options);
     } else {
-      dep = createDependency(this.options.projectRoot, options);
+      dep = createDependency(this.options.db, this.options.projectRoot, options);
       this.value.dependencies.set(id, dep);
     }
     return dep;
@@ -419,6 +418,7 @@ export default class UncommittedAsset {
           result.isBundleSplittable ?? this.value.isBundleSplittable,
         isSource: this.value.isSource,
         env: mergeEnvironments(
+          this.options.db,
           this.options.projectRoot,
           this.value.env,
           result.env,
@@ -475,7 +475,7 @@ export default class UncommittedAsset {
   }
 
   saveToDb(): {|asset: CommittedAssetId, dependencies: Array<Dependency>|} {
-    let asset = new DbAsset();
+    let asset = new DbAsset(this.options.db);
     asset.filePath = this.value.filePath;
     asset.env = this.value.env;
     asset.query = this.value.query;
@@ -502,10 +502,10 @@ export default class UncommittedAsset {
     if (this.value.symbols) {
       for (let [exported, {local, loc, meta}] of this.value.symbols) {
         let sym = asset.symbols.extend();
-        sym.exported = getStringId(exported);
-        sym.local = getStringId(local);
+        sym.exported = this.options.db.getStringId(exported);
+        sym.local = this.options.db.getStringId(local);
         sym.flags = meta?.isEsm === true ? SymbolFlags.IS_ESM : 0;
-        sym.loc = toDbSourceLocationFromInternal(loc);
+        sym.loc = toDbSourceLocationFromInternal(this.options.db, loc);
       }
     } else if (this.nativeSymbols != null) {
       // console.log('native symbols', this.nativeSymbols)
@@ -514,7 +514,7 @@ export default class UncommittedAsset {
 
     let dependencies = [...this.value.dependencies.values()];
     for (let dep of dependencies) {
-      DbDependency.get(dep).sourceAssetId = asset.addr;
+      DbDependency.get(this.options.db, dep).sourceAssetId = asset.addr;
     }
 
     return {

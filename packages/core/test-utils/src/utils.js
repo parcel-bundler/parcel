@@ -276,6 +276,8 @@ export function shallowEqual(
 
 type RunOpts = {require?: boolean, strict?: boolean, ...};
 
+let sideEffectNoop = v => v;
+
 export async function runBundles(
   bundleGraph: BundleGraph<PackagedBundle>,
   parent: PackagedBundle,
@@ -296,7 +298,7 @@ export async function runBundles(
   let ctx, promises;
   switch (target) {
     case 'browser': {
-      let prepared = prepareBrowserContext(parent, globals);
+      let prepared = prepareBrowserContext(parent.filePath, parent.target.distDir, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
       break;
@@ -311,7 +313,7 @@ export async function runBundles(
       break;
     case 'electron-renderer': {
       nodeCache.clear();
-      let prepared = prepareBrowserContext(parent, globals);
+      let prepared = prepareBrowserContext(parent.filePath, parent.target.distDir, globals);
       prepareNodeContext(
         outputFormat === 'commonjs' && parent.filePath,
         globals,
@@ -338,7 +340,7 @@ export async function runBundles(
 
   // A utility to prevent optimizers from removing side-effect-free code needed for testing
   // $FlowFixMe[prop-missing]
-  ctx.sideEffectNoop = v => v;
+  ctx.sideEffectNoop = sideEffectNoop;
 
   vm.createContext(ctx);
   let esmOutput;
@@ -592,7 +594,8 @@ export function normaliseNewlines(text: string): string {
 }
 
 function prepareBrowserContext(
-  bundle: PackagedBundle,
+  filePath: string,
+  distDir: string,
   globals: mixed,
 ): {|
   ctx: vm$Context,
@@ -613,7 +616,7 @@ function prepareBrowserContext(
         promises.push(promise);
         setTimeout(function () {
           let pathname = url.parse(el.src).pathname;
-          let file = path.join(bundle.target.distDir, pathname);
+          let file = path.join(distDir, pathname);
 
           new vm.Script(
             // '"use strict";\n' +
@@ -717,14 +720,14 @@ function prepareBrowserContext(
         return Promise.resolve({
           async arrayBuffer() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(bundle.target.distDir), url),
+              path.join(path.dirname(distDir), url),
             );
             promises.push(readFilePromise);
             return new Uint8Array(await readFilePromise).buffer;
           },
           text() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(bundle.target.distDir), url),
+              path.join(path.dirname(distDir), url),
               'utf8',
             );
             promises.push(readFilePromise);
@@ -739,7 +742,7 @@ function prepareBrowserContext(
         return Buffer.from(str, 'binary').toString('base64');
       },
       URL,
-      Worker: createWorkerClass(bundle.filePath),
+      Worker: createWorkerClass(filePath),
       addEventListener() {},
       removeEventListener() {},
     },

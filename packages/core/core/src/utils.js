@@ -32,16 +32,17 @@ import packageJson from '../package.json';
 import {
   Target as DbTarget,
   SourceLocation as DbSourceLocation,
+  ParcelDb,
 } from '@parcel/rust';
 
 const base62 = baseX(
   '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
 );
 
-export function getBundleGroupId(bundleGroup: BundleGroup): string {
+export function getBundleGroupId(db: ParcelDb, bundleGroup: BundleGroup): string {
   return (
     'bundle_group:' +
-    DbTarget.get(bundleGroup.target).name +
+    DbTarget.get(db, bundleGroup.target).name +
     bundleGroup.entryAssetId
   );
 }
@@ -69,6 +70,7 @@ export function registerCoreWithSerializer() {
 
   // $FlowFixMe[incompatible-cast]
   for (let [name, ctor] of (Object.entries({
+    ParcelDb,
     AssetGraph,
     Config,
     BundleGraph,
@@ -251,13 +253,16 @@ export function toInternalSymbols<T: {|loc: ?SourceLocation|}>(
   );
 }
 
-let tmpSourceLocation = new DbSourceLocation();
+let tmpSymbol = Symbol('tmpSourceLocation');
 export function toDbSourceLocation(
+  db: ParcelDb,
   projectRoot: FilePath,
   loc: ?SourceLocation,
 ): ?DbSourceLocation {
   if (!loc) return loc;
 
+  db[tmpSymbol] ??= new DbSourceLocation(db);
+  let tmpSourceLocation = db[tmpSymbol];
   tmpSourceLocation.filePath = toProjectPath(projectRoot, loc.filePath);
   tmpSourceLocation.start.line = loc.start.line;
   tmpSourceLocation.start.column = loc.start.column;
@@ -267,10 +272,13 @@ export function toDbSourceLocation(
 }
 
 export function toDbSourceLocationFromInternal(
+  db: ParcelDb,
   loc: ?InternalSourceLocation,
 ): ?DbSourceLocation {
   if (!loc) return loc;
 
+  db[tmpSymbol] ??= new DbSourceLocation(db);
+  let tmpSourceLocation = db[tmpSymbol];
   tmpSourceLocation.filePath = loc.filePath;
   tmpSourceLocation.start.line = loc.start.line;
   tmpSourceLocation.start.column = loc.start.column;

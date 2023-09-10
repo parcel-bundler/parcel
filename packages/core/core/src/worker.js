@@ -22,7 +22,7 @@ import PackagerRunner, {type PackageRequestResult} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
-import {clearBuildCaches} from './buildCache';
+import { clearBuildCaches, createBuildCache } from "./buildCache";
 import {init as initSourcemaps} from '@parcel/source-map';
 import {init as initRust} from '@parcel/rust';
 import WorkerFarm from '@parcel/workers';
@@ -47,7 +47,7 @@ type WorkerValidationOpts = {|
 |};
 
 // TODO: this should eventually be replaced by an in memory cache layer
-let parcelConfigCache = new Map();
+let parcelConfigCache = createBuildCache();
 
 function loadOptions(ref, workerApi) {
   return nullthrows(

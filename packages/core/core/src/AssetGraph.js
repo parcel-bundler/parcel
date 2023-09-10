@@ -31,6 +31,7 @@ import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 import {
+  type SerializedParcelDb,
   Environment as DbEnvironment,
   EnvironmentFlags,
   Dependency as DbDependency,
@@ -38,10 +39,8 @@ import {
   DependencyFlags,
   Asset as DbAsset,
   SymbolFlags,
-  getStringId,
+  ParcelDb,
 } from '@parcel/rust';
-
-let starSymbol;
 
 type InitOpts = {|
   entries?: Array<ProjectPath>,
@@ -57,6 +56,7 @@ type AssetGraphOpts = {|
 type SerializedAssetGraph = {|
   ...SerializedContentGraph<AssetGraphNode>,
   hash?: ?string,
+  db: SerializedParcelDb
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
@@ -125,8 +125,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   hash: ?string;
   envCache: Map<string, Environment>;
   safeToIncrementallyBundle: boolean = true;
+  db: ParcelDb;
 
-  constructor(opts: ?AssetGraphOpts) {
+  constructor(db: ParcelDb, opts: ?AssetGraphOpts) {
     if (opts) {
       let {hash, ...rest} = opts;
       super(rest);
@@ -142,11 +143,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       );
     }
     this.envCache = new Map();
+    this.db = db;
   }
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: AssetGraphOpts): AssetGraph {
-    return new AssetGraph(opts);
+  static deserialize(opts: SerializedAssetGraph): AssetGraph {
+    // $FlowFixMe
+    return new AssetGraph(ParcelDb.deserialize(opts.db), opts);
   }
 
   // $FlowFixMe[prop-missing]
@@ -154,6 +157,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     return {
       ...super.serialize(),
       hash: this.hash,
+      db: this.db.serialize()
     };
   }
 
@@ -232,10 +236,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     correspondingRequest: string,
   ) {
     let depNodes = targets.map(targetId => {
-      let target = DbTarget.get(targetId);
+      let target = DbTarget.get(this.db, targetId);
       let node = nodeFromDep(
         // The passed project path is ignored in this case, because there is no `loc`
-        createDependency('', {
+        createDependency(this.db, '', {
           specifier: fromProjectPathRelative(entry.filePath),
           specifierType: 'esm', // ???
           pipeline: target.pipeline,
@@ -244,17 +248,16 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           isEntry: true,
           needsStableName: true,
           symbols:
-            DbEnvironment.get(target.env).flags & EnvironmentFlags.IS_LIBRARY
+            DbEnvironment.get(this.db, target.env).flags & EnvironmentFlags.IS_LIBRARY
               ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
               : undefined,
         }),
       );
 
-      if (DbEnvironment.get(target.env).flags & EnvironmentFlags.IS_LIBRARY) {
+      if (DbEnvironment.get(this.db, target.env).flags & EnvironmentFlags.IS_LIBRARY) {
         // in library mode, all of the entry's symbols are "used"
-        starSymbol ??= getStringId('*');
-        node.usedSymbolsDown.add(starSymbol);
-        node.usedSymbolsUp.set(starSymbol, undefined);
+        node.usedSymbolsDown.add(this.db.starSymbol);
+        node.usedSymbolsUp.set(this.db.starSymbol, undefined);
       }
       return node;
     });
@@ -389,16 +392,15 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     sideEffects: ?boolean,
     canDefer: boolean,
   ): boolean {
-    starSymbol ??= getStringId('*');
     let defer = false;
-    let dependency = DbDependency.get(dependencyId);
+    let dependency = DbDependency.get(this.db, dependencyId);
     let dependencySymbols = dependency.symbols;
     if (
       dependencySymbols &&
       dependencySymbols.every(({flags}) => flags & SymbolFlags.IS_WEAK) &&
       sideEffects === false &&
       canDefer &&
-      !dependencySymbols.some(s => s.exported === starSymbol)
+      !dependencySymbols.some(s => s.exported === this.db.starSymbol)
     ) {
       let depNodeId = this.getNodeIdByContentKey(dependencyId);
       let depNode = this.getNode(depNodeId);
@@ -411,18 +413,18 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       invariant(assets.length === 1);
       let firstAsset = nullthrows(this.getNode(assets[0]));
       invariant(firstAsset.type === 'asset');
-      let resolvedAsset = DbAsset.get(firstAsset.value);
+      let resolvedAsset = DbAsset.get(this.db, firstAsset.value);
       let deps = this.getIncomingDependencies(firstAsset.value).map(d =>
-        DbDependency.get(d),
+        DbDependency.get(this.db, d),
       );
       defer = deps.every(
         d =>
           d.symbols &&
           !(
-            DbEnvironment.get(d.env).flags & EnvironmentFlags.IS_LIBRARY &&
+            DbEnvironment.get(this.db, d.env).flags & EnvironmentFlags.IS_LIBRARY &&
             d.flags & DependencyFlags.ENTRY
           ) &&
-          !d.symbols.some(s => s.exported === starSymbol) &&
+          !d.symbols.some(s => s.exported === this.db.starSymbol) &&
           !d.symbols.some(s => {
             if (!resolvedAsset.symbols) return true;
             let assetSymbol = resolvedAsset.symbols?.find(
@@ -454,7 +456,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
     let assetsByKey = new Map();
     for (let {asset: assetId} of assets) {
-      let asset = DbAsset.get(assetId);
+      let asset = DbAsset.get(this.db, assetId);
       if (asset.uniqueKey != null) {
         assetsByKey.set(asset.uniqueKey, assetId);
       }
@@ -463,7 +465,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let dependentAssetKeys = new Set();
     for (let asset of assets) {
       for (let d of asset.dependencies) {
-        let dep = DbDependency.get(d);
+        let dep = DbDependency.get(this.db, d);
         if (assetsByKey.has(dep.specifier)) {
           dependentAssetKeys.add(dep.specifier);
         }
@@ -478,12 +480,12 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let assetNodeIds = [];
     for (let {asset: assetId, dependencies} of assets) {
       // this.normalizeEnvironment(asset);
-      let asset = DbAsset.get(assetId);
+      let asset = DbAsset.get(this.db, assetId);
       let isDirect = !dependentAssetKeys.has(asset.uniqueKey);
 
       let dependentAssets = [];
       for (let d of dependencies.values()) {
-        let dep = DbDependency.get(d);
+        let dep = DbDependency.get(this.db, d);
         let dependentAsset = assetsByKey.get(dep.specifier);
         if (dependentAsset != null) {
           dependentAssets.push(dependentAsset);
@@ -526,7 +528,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let depNodeIds: Array<NodeId> = [];
     let depNodesWithAssets = [];
     for (let d of dependencies) {
-      let dep = DbDependency.get(d);
+      let dep = DbDependency.get(this.db, d);
       // this.normalizeEnvironment(dep);
       let depNode = nodeFromDep(d);
       // let existing = this.getNodeByContentKey(depNode.id);
@@ -540,7 +542,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       //   };
       // }
       let dependentAsset = dependentAssets.find(
-        a => DbAsset.get(a).uniqueKey === dep.specifier,
+        a => DbAsset.get(this.db, a).uniqueKey === dep.specifier,
       );
       if (dependentAsset != null) {
         depNode.complete = true;
@@ -641,9 +643,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     this.traverse(nodeId => {
       let node = nullthrows(this.getNode(nodeId));
       if (node.type === 'asset') {
-        hash.writeString(nullthrows(DbAsset.get(node.value).outputHash));
+        hash.writeString(nullthrows(DbAsset.get(this.db, node.value).outputHash));
       } else if (node.type === 'dependency') {
-        let target = DbDependency.get(node.value).target;
+        let target = DbDependency.get(this.db, node.value).target;
         if (target) {
           hash.writeString(JSON.stringify(target));
         }

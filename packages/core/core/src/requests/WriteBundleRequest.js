@@ -94,7 +94,7 @@ async function run({input, options, api}) {
     name = name.replace(thisHashReference, thisNameHash);
   }
 
-  let target = DbTarget.get(bundle.target);
+  let target = DbTarget.get(options.db, bundle.target);
   let filePath = joinProjectPath(target.distDir, name);
 
   // Watch the bundle and source map for deletion.
@@ -107,7 +107,7 @@ async function run({input, options, api}) {
   let cacheKeys = info.cacheKeys;
   let mapKey = cacheKeys.map;
   let fullPath = fromProjectPath(options.projectRoot, filePath);
-  let env = DbEnvironment.get(bundle.env);
+  let env = DbEnvironment.get(options.db, bundle.env);
   if (mapKey && env.sourceMap && !env.sourceMap.inline) {
     api.invalidateOnFileDelete(
       toProjectPath(options.projectRoot, fullPath + '.map'),

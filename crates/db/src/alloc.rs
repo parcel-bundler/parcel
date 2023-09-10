@@ -28,9 +28,19 @@ pub struct PageAllocator {
   pages: AtomicVec<Page>,
 }
 
+unsafe impl Send for PageAllocator {}
+
 struct Page {
   ptr: *mut u8,
   len: usize,
+}
+
+impl Drop for Page {
+  fn drop(&mut self) {
+    println!("DROP PAGE");
+    let layout = unsafe { Layout::from_size_align_unchecked(self.len, 8) };
+    unsafe { std::alloc::dealloc(self.ptr.cast(), layout) };
+  }
 }
 
 impl PageAllocator {
@@ -118,14 +128,18 @@ unsafe impl Allocator for PageAllocator {
 }
 
 pub struct Arena {
-  alloc: &'static PageAllocator,
   addr: UnsafeCell<u32>,
 }
 
+impl Default for Arena {
+  fn default() -> Self {
+    Arena::new()
+  }
+}
+
 impl Arena {
-  pub const fn new(alloc: &'static PageAllocator) -> Self {
+  pub const fn new() -> Self {
     Self {
-      alloc,
       addr: UnsafeCell::new(1),
     }
   }
@@ -136,15 +150,15 @@ impl Arena {
       let ptr = self.addr.get();
       let addr = *ptr;
       if addr == 1 {
-        let page_index = self.alloc.alloc_page(size as usize, false);
+        let page_index = current_heap().alloc_page(size as usize, false);
         *ptr = pack_addr(page_index, size);
         return pack_addr(page_index, 0);
       }
 
       let (page_index, offset) = unpack_addr(addr);
-      let page = self.alloc.get_page(page_index);
+      let page = current_heap().get_page(page_index);
       if (offset + size) as usize >= page.len() {
-        let page_index = self.alloc.alloc_page(size as usize, false);
+        let page_index = current_heap().alloc_page(size as usize, false);
         *ptr = pack_addr(page_index, size);
         pack_addr(page_index, 0)
       } else {
@@ -164,7 +178,7 @@ impl Arena {
       return;
     }
 
-    let page = self.alloc.get_page(page_index);
+    let page = current_heap().get_page(page_index);
     let cur_ptr = (page.as_ptr() as usize) + offset as usize;
     let end_ptr = (ptr.as_ptr() as usize) + ((layout.size() + 7) & !7);
     if cur_ptr == end_ptr {
@@ -174,43 +188,49 @@ impl Arena {
   }
 }
 
-pub struct ArenaAllocator;
+// pub struct ArenaAllocator;
 
-// static WASTED: AtomicUsize = AtomicUsize::new(0);
+// // static WASTED: AtomicUsize = AtomicUsize::new(0);
 
-unsafe impl Allocator for ArenaAllocator {
-  #[inline(always)]
-  fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-    let addr = ARENA.alloc(layout.size() as u32);
-    unsafe {
-      Ok(NonNull::new_unchecked(
-        ARENA.alloc.get_slice(addr, layout.size()),
-      ))
-    }
-  }
+// unsafe impl Allocator for ArenaAllocator {
+//   #[inline(always)]
+//   fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+//     let addr = ARENA.alloc(layout.size() as u32);
+//     unsafe {
+//       Ok(NonNull::new_unchecked(
+//         ARENA.alloc.get_slice(addr, layout.size()),
+//       ))
+//     }
+//   }
 
-  // #[inline(always)]
-  // fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-  //   unsafe { Ok(self.alloc_page(layout.size(), true)) }
-  // }
+//   // #[inline(always)]
+//   // fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+//   //   unsafe { Ok(self.alloc_page(layout.size(), true)) }
+//   // }
 
-  unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-    // use std::backtrace::Backtrace;
-    // WASTED.fetch_add(layout.size(), std::sync::atomic::Ordering::SeqCst);
-    // println!(
-    //   "DEALLOC ARENA {:p} {} {:?} {}",
-    //   ptr,
-    //   layout.size(),
-    //   WASTED,
-    //   Backtrace::force_capture()
-    // );
-    // ARENA.dealloc(ptr, layout)
-  }
-}
+//   unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+//     // use std::backtrace::Backtrace;
+//     // WASTED.fetch_add(layout.size(), std::sync::atomic::Ordering::SeqCst);
+//     // println!(
+//     //   "DEALLOC ARENA {:p} {} {:?} {}",
+//     //   ptr,
+//     //   layout.size(),
+//     //   WASTED,
+//     //   Backtrace::force_capture()
+//     // );
+//     // ARENA.dealloc(ptr, layout)
+//   }
+// }
 
 pub struct Slab<T> {
   free_head: u32,
   phantom: PhantomData<T>,
+}
+
+impl<T> Default for Slab<T> {
+  fn default() -> Self {
+    Slab::new()
+  }
 }
 
 #[derive(Debug)]
@@ -234,7 +254,7 @@ impl<T> Slab<T> {
         let mut addr = self.free_head;
         let mut prev: *mut u32 = &mut self.free_head;
         loop {
-          let node = &mut *HEAP.get::<FreeNode>(addr);
+          let node = &mut *current_heap().get::<FreeNode>(addr);
           if node.slots >= count {
             if count < node.slots {
               node.slots -= count;
@@ -260,7 +280,7 @@ impl<T> Slab<T> {
         }
       }
 
-      ARENA.alloc(size * count)
+      current_arena().alloc(size * count)
     }
   }
 
@@ -279,7 +299,7 @@ impl<T> Slab<T> {
       //   }
       // }
 
-      let node = &mut *HEAP.get::<FreeNode>(addr);
+      let node = &mut *current_heap().get::<FreeNode>(addr);
       node.slots = count;
       node.next = self.free_head;
       self.free_head = addr;
@@ -291,7 +311,7 @@ impl<T> Slab<T> {
     let mut addr = self.free_head;
     let mut free = 0;
     while addr != 1 {
-      let node = unsafe { &*HEAP.get::<FreeNode>(addr) };
+      let node = unsafe { &*current_heap().get::<FreeNode>(addr) };
       println!("{} {:?}", addr, node);
       free += node.slots;
       addr = node.next;
@@ -300,9 +320,18 @@ impl<T> Slab<T> {
   }
 }
 
-pub static HEAP: PageAllocator = PageAllocator::new();
 #[thread_local]
-pub static ARENA: Arena = Arena::new(&HEAP);
+pub static mut HEAP: Option<&'static PageAllocator> = None;
+#[thread_local]
+pub static mut ARENA: Option<&'static Arena> = None;
+
+pub fn current_heap<'a>() -> &'a PageAllocator {
+  unsafe { HEAP.unwrap_unchecked() }
+}
+
+pub fn current_arena<'a>() -> &'a Arena {
+  unsafe { ARENA.unwrap_unchecked() }
+}
 
 #[cfg(test)]
 mod test {

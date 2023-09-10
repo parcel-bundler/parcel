@@ -44,7 +44,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   }
 
   static deserialize(
-    opts: GraphOpts<TNode, TEdgeType>,
+    opts: SerializedGraph<TNode, TEdgeType>,
   ): Graph<TNode, TEdgeType> {
     return new this({
       nodes: opts.nodes,

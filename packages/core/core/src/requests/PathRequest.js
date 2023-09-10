@@ -208,6 +208,7 @@ export class ResolverRunner {
       let config = configCache.get(plugin.name);
       if (!config && plugin.plugin.loadConfig != null) {
         config = createConfig({
+          db: this.options.db,
           plugin: plugin.name,
           searchPath: toProjectPathUnsafe('index'),
         });
@@ -239,7 +240,7 @@ export class ResolverRunner {
   }
 
   async resolve(dependency: Dependency): Promise<ResolverResult> {
-    let internalDep = DbDependency.get(dependency);
+    let internalDep = DbDependency.get(this.options.db, dependency);
     let dep = new PublicDependency(dependency, this.options);
     report({
       type: 'buildProgress',
@@ -420,7 +421,7 @@ export class ResolverRunner {
     let resolveFrom =
       internalDep.resolveFrom ??
       (internalDep.sourceAssetId != null
-        ? DbAsset.get(internalDep.sourceAssetId).filePath
+        ? DbAsset.get(this.options.db, internalDep.sourceAssetId).filePath
         : null);
     let dir =
       resolveFrom != null

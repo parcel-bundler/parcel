@@ -9,6 +9,7 @@ import type {
   SemverRange,
 } from '@parcel/types';
 import type {Dependency, Environment, Target} from './types';
+import type {ParcelDb} from '@parcel/rust';
 import {hashString} from '@parcel/rust';
 import {SpecifierType, Priority, ExportsCondition} from './types';
 
@@ -18,7 +19,6 @@ import {
   Dependency as DbDependency,
   DependencyFlags,
   SymbolFlags,
-  getStringId,
 } from '@parcel/rust';
 
 type DependencyOpts = {|
@@ -64,6 +64,7 @@ export function dependencyId(opts: DependencyOpts): string {
 }
 
 export function createDependency(
+  db: ParcelDb,
   projectRoot: FilePath,
   opts: DependencyOpts,
 ): Dependency {
@@ -116,7 +117,7 @@ export function createDependency(
   //   pipeline: opts.pipeline,
   // };
 
-  let d = new DbDependency();
+  let d = new DbDependency(db);
   d.env = opts.env;
   d.specifier = opts.specifier;
   d.specifierType = opts.specifierType;
@@ -137,7 +138,7 @@ export function createDependency(
     d.placeholder = null;
   }
   d.target = opts.target || 0;
-  d.loc = toDbSourceLocation(projectRoot, opts.loc);
+  d.loc = toDbSourceLocation(db, projectRoot, opts.loc);
   d.promiseSymbol = null;
   d.sourceAssetId = null;
   d.symbols.init();
@@ -148,12 +149,12 @@ export function createDependency(
     d.symbols.reserve(symbols.size);
     for (let [exported, {local, isWeak, loc, meta}] of symbols) {
       let sym = d.symbols.extend();
-      sym.exported = getStringId(exported);
-      sym.local = getStringId(local);
+      sym.exported = db.getStringId(exported);
+      sym.local = db.getStringId(local);
       sym.flags =
         (isWeak ? SymbolFlags.IS_WEAK : 0) |
         (meta?.isESM === true ? SymbolFlags.IS_ESM : 0);
-      sym.loc = toDbSourceLocation(projectRoot, loc);
+      sym.loc = toDbSourceLocation(db, projectRoot, loc);
     }
   }
 

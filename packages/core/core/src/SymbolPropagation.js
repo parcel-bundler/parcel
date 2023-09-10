@@ -23,7 +23,6 @@ import {
   Asset as DbAsset,
   AssetFlags,
   SymbolFlags,
-  getStringId,
   readCachedString,
 } from '@parcel/rust';
 
@@ -40,6 +39,7 @@ export function propagateSymbols({
   assetGroupsWithRemovedParents: Set<NodeId>,
   previousErrors?: ?Map<NodeId, Array<Diagnostic>>,
 |}): Map<NodeId, Array<Diagnostic>> {
+  let db = options.db;
   let changedAssets = new Set(
     [...changedAssetsPropagation].map(id =>
       assetGraph.getNodeIdByContentKey(id),
@@ -62,8 +62,8 @@ export function propagateSymbols({
   // The dependencies that changed in the down traversal causing an update in the up traversal.
   let changedDepsUsedSymbolsUpDirtyDown = new Set<ContentKey>();
 
-  let starSymbol = getStringId('*');
-  let defaultSymbol = getStringId('default');
+  let starSymbol = db.starSymbol;
+  let defaultSymbol = db.defaultSymbol;
 
   // Propagate the requested symbols down from the root to the leaves
   propagateSymbolsDown(
@@ -72,7 +72,7 @@ export function propagateSymbols({
     assetGroupsWithRemovedParents,
     (assetNode, incomingDeps, outgoingDeps) => {
       // exportSymbol -> identifier
-      let asset = DbAsset.get(assetNode.value);
+      let asset = DbAsset.get(db, assetNode.value);
       let assetSymbols = asset.symbols;
       // identifier -> exportSymbol
       let assetSymbolsInverse;
@@ -90,7 +90,7 @@ export function propagateSymbols({
       }
       let hasNamespaceOutgoingDeps = outgoingDeps.some(
         d =>
-          DbDependency.get(d.value).symbols?.find(
+          DbDependency.get(db, d.value).symbols?.find(
             s => s.exported === starSymbol,
           )?.local === starSymbol,
       );
@@ -113,7 +113,7 @@ export function propagateSymbols({
         namespaceReexportedSymbols.add(starSymbol);
       } else {
         for (let incomingDep of incomingDeps) {
-          let dep = DbDependency.get(incomingDep.value);
+          let dep = DbDependency.get(db, incomingDep.value);
           if (dep.symbols == null) {
             if (dep.sourceAssetId == null) {
               // The root dependency on non-library builds
@@ -179,7 +179,7 @@ export function propagateSymbols({
           assetNode.usedSymbols.size > 0 ||
           namespaceReexportedSymbols.size > 0
         ) {
-          let depSymbols = DbDependency.get(dep.value).symbols;
+          let depSymbols = DbDependency.get(db, dep.value).symbols;
           if (!depSymbols) continue;
 
           if (
@@ -255,13 +255,13 @@ export function propagateSymbols({
     if (options.logLevel === 'verbose') {
       logger.warn({
         message: `${fromProjectPathRelative(
-          DbAsset.get(assetNode.value).filePath,
-        )} reexports "${readCachedString(
+          DbAsset.get(db, assetNode.value).filePath,
+        )} reexports "${readCachedString(db,
           symbol,
         )}", which could be resolved either to the dependency "${
-          DbDependency.get(depNode1.value).specifier
+          DbDependency.get(db, depNode1.value).specifier
         }" or "${
-          DbDependency.get(depNode2.value).specifier
+          DbDependency.get(db, depNode2.value).specifier
         }" at runtime. Adding a namespace object to fall back on.`,
         origin: '@parcel/core',
       });
@@ -276,7 +276,7 @@ export function propagateSymbols({
     changedDepsUsedSymbolsUpDirtyDown,
     previousErrors,
     (assetNode, incomingDeps, outgoingDeps) => {
-      let asset = DbAsset.get(assetNode.value);
+      let asset = DbAsset.get(db, assetNode.value);
       let assetSymbols = asset.symbols;
 
       let assetSymbolsInverse = null;
@@ -302,7 +302,7 @@ export function propagateSymbols({
       // analyzable exports
       let reexportedSymbolsSource = new Map<number, DependencyNode>();
       for (let outgoingDep of outgoingDeps) {
-        let outgoingDepSymbols = DbDependency.get(outgoingDep.value).symbols;
+        let outgoingDepSymbols = DbDependency.get(db, outgoingDep.value).symbols;
         if (!outgoingDepSymbols) continue;
 
         let isExcluded =
@@ -403,7 +403,7 @@ export function propagateSymbols({
       }
 
       for (let incomingDep of incomingDeps) {
-        let dep = DbDependency.get(incomingDep.value);
+        let dep = DbDependency.get(db, incomingDep.value);
         let incomingDepUsedSymbolsUpOld = incomingDep.usedSymbolsUp;
         incomingDep.usedSymbolsUp = new Map();
         let incomingDepSymbols = dep.symbols;
@@ -457,18 +457,18 @@ export function propagateSymbols({
                   resolution.type === 'asset'),
             );
 
-            let incomingDepValue = DbDependency.get(incomingDep.value);
+            let incomingDepValue = DbDependency.get(db, incomingDep.value);
             let sourceAsset =
               incomingDepValue.sourceAssetId != null
-                ? DbAsset.get(incomingDepValue.sourceAssetId)
+                ? DbAsset.get(db, incomingDepValue.sourceAssetId)
                 : null;
             errors.push({
               message: md`${fromProjectPathRelative(
                 (resolution.type === 'asset'
-                  ? DbAsset.get(resolution.value)
+                  ? DbAsset.get(db, resolution.value)
                   : resolution.value
                 ).filePath,
-              )} does not export '${readCachedString(s)}'`,
+              )} does not export '${readCachedString(db, s)}'`,
               origin: '@parcel/core',
               codeFrames: loc
                 ? [

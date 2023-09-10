@@ -121,7 +121,7 @@ export default async function applyRuntimes<TResult>({
             let assetGroup = {
               code,
               filePath: toProjectPath(options.projectRoot, sourceName),
-              env: mergeEnvironments(options.projectRoot, bundle.env, env),
+              env: mergeEnvironments(options.db, options.projectRoot, bundle.env, env),
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,
@@ -201,6 +201,7 @@ export default async function applyRuntimes<TResult>({
     await reconcileNewRuntimes(api, connections, optionsRef);
 
   let runtimesGraph = InternalBundleGraph.fromAssetGraph(
+    options.db,
     runtimesAssetGraph,
     options.mode === 'production',
     bundleGraph._publicIdByAssetId,

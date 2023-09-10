@@ -233,6 +233,7 @@ export default class PackagerRunner {
       } else {
         if (plugin.plugin.loadConfig != null) {
           let config = createConfig({
+            db: this.options.db,
             plugin: plugin.name,
             searchPath: toProjectPathUnsafe('index'),
           });
@@ -261,9 +262,10 @@ export default class PackagerRunner {
     let loadBundleConfig = plugin.plugin.loadBundleConfig;
     if (!bundleConfigs.has(plugin.name) && loadBundleConfig != null) {
       let config = createConfig({
+        db: this.options.db,
         plugin: plugin.name,
         searchPath: joinProjectPath(
-          DbTarget.get(bundle.target).distDir,
+          DbTarget.get(this.options.db, bundle.target).distDir,
           bundle.name ?? bundle.id,
         ),
       });
@@ -567,7 +569,7 @@ export default class PackagerRunner {
   ): Promise<string> {
     // sourceRoot should be a relative path between outDir and rootDir for node.js targets
     let filePath = joinProjectPath(
-      DbTarget.get(bundle.target).distDir,
+      DbTarget.get(this.options.db, bundle.target).distDir,
       nullthrows(bundle.name),
     );
     let fullPath = fromProjectPath(this.options.projectRoot, filePath);
@@ -577,7 +579,7 @@ export default class PackagerRunner {
     );
     let inlineSources = false;
 
-    let env = DbEnvironment.get(bundle.env);
+    let env = DbEnvironment.get(this.options.db, bundle.env);
     if (bundle.target) {
       if (
         env.sourceMap &&
@@ -663,7 +665,7 @@ export default class PackagerRunner {
       PARCEL_VERSION +
         devDepHashes +
         invalidationHash +
-        DbTarget.get(bundle.target).publicUrl +
+        DbTarget.get(this.options.db, bundle.target).publicUrl +
         bundleGraph.getHash(bundle) +
         JSON.stringify(configResults) +
         JSON.stringify(globalInfoResults) +

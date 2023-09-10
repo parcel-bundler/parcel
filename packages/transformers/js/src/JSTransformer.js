@@ -405,7 +405,7 @@ export default (new Transformer({
       has_cjs_exports,
       static_cjs_exports,
       should_wrap,
-    } = await (transformAsync || transform)({
+    } = await (transformAsync || transform)(options.db, {
       filename: asset.filePath,
       code,
       module_id: asset.id,

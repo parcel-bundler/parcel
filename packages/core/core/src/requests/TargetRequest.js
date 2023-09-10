@@ -46,7 +46,7 @@ import {
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
-import {Environment as DbEnvironment, Target as DbTarget} from '@parcel/rust';
+import {Environment as DbEnvironment, EnvironmentFlags, Target as DbTarget} from '@parcel/rust';
 import {
   optionsProxy,
   toInternalSourceLocation,
@@ -159,13 +159,13 @@ async function run({input, api, options}): Promise<Array<Target>> {
   }
 
   return targets.map(t => {
-    let target = new DbTarget();
+    let target = new DbTarget(options.db);
     target.env = t.env;
     target.distDir = t.distDir;
     target.distEntry = t.distEntry;
     target.name = t.name;
     target.publicUrl = t.publicUrl;
-    target.loc = toDbSourceLocationFromInternal(t.loc);
+    target.loc = toDbSourceLocationFromInternal(options.db, t.loc);
     target.pipeline = t.pipeline;
     return target.addr;
   });
@@ -302,7 +302,7 @@ export class TargetResolver {
               publicUrl:
                 descriptor.publicUrl ??
                 this.options.defaultTargetOptions.publicUrl,
-              env: createEnvironment({
+              env: createEnvironment(this.options.db, {
                 engines: descriptor.engines,
                 context: descriptor.context,
                 isLibrary:
@@ -352,7 +352,7 @@ export class TargetResolver {
             },
           });
         }
-        if (!BROWSER_ENVS.has(DbEnvironment.get(targets[0].env).context)) {
+        if (!BROWSER_ENVS.has(DbEnvironment.get(this.options.db, targets[0].env).context)) {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Only browser targets are supported in serve mode`,
@@ -379,7 +379,7 @@ export class TargetResolver {
               this.options.serveOptions.distDir,
             ),
             publicUrl: this.options.defaultTargetOptions.publicUrl ?? '/',
-            env: createEnvironment({
+            env: createEnvironment(this.options.db, {
               context: 'browser',
               engines: {
                 browsers: DEFAULT_ENGINES.browsers,
@@ -875,7 +875,7 @@ export class TargetResolver {
           distEntry,
           publicUrl:
             descriptor.publicUrl ?? this.options.defaultTargetOptions.publicUrl,
-          env: createEnvironment({
+          env: createEnvironment(this.options.db, {
             engines: descriptor.engines ?? pkgEngines,
             context,
             includeNodeModules: descriptor.includeNodeModules ?? false,
@@ -1065,7 +1065,7 @@ export class TargetResolver {
           distEntry,
           publicUrl:
             descriptor.publicUrl ?? this.options.defaultTargetOptions.publicUrl,
-          env: createEnvironment({
+          env: createEnvironment(this.options.db, {
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules,
@@ -1137,7 +1137,7 @@ export class TargetResolver {
             path.join(pkgDir, DEFAULT_DIST_DIRNAME),
           ),
         publicUrl: this.options.defaultTargetOptions.publicUrl,
-        env: createEnvironment({
+        env: createEnvironment(this.options.db, {
           engines: pkgEngines,
           context,
           outputFormat: this.options.defaultTargetOptions.outputFormat,
@@ -1488,22 +1488,23 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
 
     // Resolve relevant engines for context.
     let engines;
-    let env = DbEnvironment.get(target.env);
+    let env = DbEnvironment.get(options.db, target.env);
+    let envEngines = JSON.parse(env.engines);
     switch (env.context) {
       case 'browser':
       case 'web-worker':
       case 'service-worker':
       case 'worklet': {
-        let browsers = env.engines.browsers;
+        let browsers = envEngines.browsers;
         engines = Array.isArray(browsers) ? browsers.join(', ') : browsers;
         break;
       }
       case 'node':
-        engines = env.engines.node;
+        engines = envEngines.node;
         break;
       case 'electron-main':
       case 'electron-renderer':
-        engines = env.engines.electron;
+        engines = envEngines.electron;
         break;
     }
 
@@ -1606,11 +1607,11 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
               **Format**: ${env.outputFormat} ${format(info.outputFormat)}
              **Context**: ${env.context} ${format(info.context)}
              **Engines**: ${engines || ''} ${format(info.engines)}
-        **Library Mode**: ${String(env.isLibrary)} ${format(info.isLibrary)}
+        **Library Mode**: ${String(!!(env.flags & EnvironmentFlags.IS_LIBRARY))} ${format(info.isLibrary)}
 **Include Node Modules**: ${includeNodeModules} ${format(
         info.includeNodeModules,
       )}
-            **Optimize**: ${String(env.shouldOptimize)} ${format(
+            **Optimize**: ${String(!!(env.flags & EnvironmentFlags.SHOULD_OPTIMIZE))} ${format(
         info.shouldOptimize,
       )}`,
       codeFrames: target.loc

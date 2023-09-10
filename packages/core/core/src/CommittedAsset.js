@@ -20,7 +20,7 @@ export default class CommittedAsset {
   generatingPromise: ?Promise<void>;
 
   constructor(id: CommittedAssetId, options: ParcelOptions) {
-    this.value = DbAsset.get(id);
+    this.value = DbAsset.get(options.db, id);
     this.options = options;
   }
 

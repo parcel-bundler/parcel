@@ -150,6 +150,7 @@ export default function createBundleGraphRequest(
       }
 
       await dumpGraphToGraphViz(
+        options.db,
         // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
         res.bundleGraph._graph,
         'BundleGraph',
@@ -213,6 +214,7 @@ class BundlerRunner {
 
   async loadConfig<T: PluginWithLoadConfig>(plugin: LoadedPlugin<T>) {
     let config = createConfig({
+      db: this.options.db,
       plugin: plugin.name,
       searchPath: toProjectPathUnsafe('index'),
     });
@@ -290,12 +292,14 @@ class BundlerRunner {
         }
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(
+          this.options.db,
           graph,
           this.options.mode === 'production',
         );
         invariant(internalBundleGraph != null); // ensures the graph was created
 
         await dumpGraphToGraphViz(
+          this.options.db,
           // $FlowFixMe
           internalBundleGraph._graph,
           'before_bundle',
@@ -311,7 +315,7 @@ class BundlerRunner {
         if (tracer.enabled) {
           measurementFilename = graph
             .getEntryAssets()
-            .map(asset => fromProjectPathRelative(DbAsset.get(asset).filePath))
+            .map(asset => fromProjectPathRelative(DbAsset.get(this.options.db, asset).filePath))
             .join(', ');
           measurement = tracer.createMeasurement(
             plugin.name,
@@ -356,6 +360,7 @@ class BundlerRunner {
           } finally {
             optimizeMeasurement && optimizeMeasurement.end();
             await dumpGraphToGraphViz(
+              this.options.db,
               // $FlowFixMe[incompatible-call]
               internalBundleGraph._graph,
               'after_optimize',
@@ -376,6 +381,7 @@ class BundlerRunner {
         await this.runDevDepRequest(devDepRequest);
       }
     } catch (e) {
+      console.log(e)
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
           origin: name,
@@ -384,6 +390,7 @@ class BundlerRunner {
     } finally {
       invariant(internalBundleGraph != null); // ensures the graph was created
       await dumpGraphToGraphViz(
+        this.options.db,
         // $FlowFixMe[incompatible-call]
         internalBundleGraph._graph,
         'after_bundle',
@@ -437,6 +444,7 @@ class BundlerRunner {
     }
 
     await dumpGraphToGraphViz(
+      this.options.db,
       // $FlowFixMe
       internalBundleGraph._graph,
       'after_runtimes',
@@ -463,7 +471,7 @@ class BundlerRunner {
     let bundles = bundleGraph.getBundles();
 
     let bundleNames = bundles.map(b =>
-      joinProjectPath(DbTarget.get(b.target).distDir, nullthrows(b.name)),
+      joinProjectPath(DbTarget.get(this.options.db, b.target).distDir, nullthrows(b.name)),
     );
     assert.deepEqual(
       bundleNames,

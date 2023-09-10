@@ -5,6 +5,7 @@ import type {
   FilePath,
 } from '@parcel/types';
 import type {Environment, InternalSourceLocation} from './types';
+import type {ParcelDb} from '@parcel/rust';
 import {hashString} from '@parcel/rust';
 import {
   toDbSourceLocationFromInternal,
@@ -13,7 +14,6 @@ import {
 import PublicEnvironment from './public/Environment';
 import {environmentToInternalEnvironment} from './public/Environment';
 import {Environment as DbEnvironment, EnvironmentFlags} from '@parcel/rust';
-import * as binding from '@parcel/rust';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
@@ -35,10 +35,10 @@ type EnvironmentOpts = {|
   loc?: ?InternalSourceLocation,
 |};
 
-let tmp = new DbEnvironment();
+let tmpSymbol = Symbol('tmpEnvironment');
 let lastEngines = null;
 
-export function createEnvironment({
+export function createEnvironment(db: ParcelDb, {
   context,
   engines,
   includeNodeModules,
@@ -123,6 +123,8 @@ export function createEnvironment({
   // };
 
   // res.id = getEnvironmentHash(res);
+  db[tmpSymbol] ??= new DbEnvironment(db);
+  let tmp = db[tmpSymbol];
   tmp.context = context;
   tmp.outputFormat = outputFormat;
   tmp.sourceType = sourceType;
@@ -131,22 +133,23 @@ export function createEnvironment({
     (shouldOptimize ? EnvironmentFlags.SHOULD_OPTIMIZE : 0) |
     (shouldScopeHoist ? EnvironmentFlags.SHOULD_SCOPE_HOIST : 0);
   tmp.includeNodeModules = JSON.stringify(includeNodeModules);
-  if (engines !== lastEngines) {
+  // if (engines !== lastEngines) {
     tmp.engines = JSON.stringify(engines);
-    lastEngines = engines;
-  }
+    // lastEngines = engines;
+  // }
   // console.timeEnd('create env')
   tmp.sourceMap = null;
-  tmp.loc = toDbSourceLocationFromInternal(loc);
+  tmp.loc = toDbSourceLocationFromInternal(db, loc);
   // console.log('env', tmp, tmp.context, tmp.outputFormat, tmp.sourceType, tmp.flags);
 
-  let res = binding.createEnvironment(tmp.addr);
+  let res = db.createEnvironment(tmp.addr);
   // console.log(res, tmp.context)
 
   return res;
 }
 
 export function mergeEnvironments(
+  db: ParcelDb,
   projectRoot: FilePath,
   a: Environment,
   b: ?(EnvironmentOptions | IEnvironment),
@@ -160,8 +163,11 @@ export function mergeEnvironments(
     return environmentToInternalEnvironment(b);
   }
 
-  let env = DbEnvironment.get(a);
-  DbEnvironment.set(tmp.addr, env);
+  db[tmpSymbol] ??= new DbEnvironment(db);
+  let tmp = db[tmpSymbol];
+
+  let env = DbEnvironment.get(db, a);
+  DbEnvironment.set(db, tmp.addr, env);
 
   if (b.context) {
     tmp.context = b.context;
@@ -189,19 +195,19 @@ export function mergeEnvironments(
   }
 
   if (b.engines) {
-    if (b.engines !== lastEngines) {
+    // if (b.engines !== lastEngines) {
       tmp.engines = JSON.stringify(b.engines);
-      lastEngines = b.engines;
-    }
+      // lastEngines = b.engines;
+    // }
   }
 
   if (b.loc) {
-    tmp.loc = toDbSourceLocationFromInternal(b.loc);
+    tmp.loc = toDbSourceLocationFromInternal(db, b.loc);
   }
 
   // TODO: sourceMap
 
-  return binding.createEnvironment(tmp.addr);
+  return db.createEnvironment(tmp.addr);
 }
 
 function mergeFlag(cur: number, flag: number, value: ?boolean) {

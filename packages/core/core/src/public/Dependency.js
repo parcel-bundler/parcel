@@ -58,7 +58,7 @@ export default class Dependency implements IDependency {
       return existing;
     }
 
-    this.#dep = DbDependency.get(dep);
+    this.#dep = DbDependency.get(options.db, dep);
     this.#options = options;
     _dependencyToInternalDependency.set(this, dep);
     internalDependencyToDependency.set(dep, this);
@@ -159,7 +159,7 @@ export default class Dependency implements IDependency {
 
   get sourcePath(): ?FilePath {
     if (this.#dep.sourceAssetId != null) {
-      let asset = DbAsset.get(this.#dep.sourceAssetId);
+      let asset = DbAsset.get(this.#options.db, this.#dep.sourceAssetId);
       return fromProjectPath(this.#options.projectRoot, asset.filePath);
     }
     return null;

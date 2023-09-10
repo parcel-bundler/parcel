@@ -724,6 +724,7 @@ export default class Transformation {
     }
 
     let config = createConfig({
+      db: this.options.db,
       plugin: transformer.name,
       isSource,
       searchPath: this.request.filePath,
@@ -760,7 +761,7 @@ export default class Transformation {
       options?: ResolveOptions,
     ): Promise<FilePath> => {
       let result = await this.resolverRunner.resolve(
-        createDependency(this.options.projectRoot, {
+        createDependency(this.options.db, this.options.projectRoot, {
           env: asset.value.env,
           specifier: to,
           specifierType: options?.specifierType || 'esm',

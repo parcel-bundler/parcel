@@ -37,8 +37,8 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
             js.push(quote! {
               let name = stringify!(#name).to_case(Case::Camel);
               let offset = (std::ptr::addr_of!((*p).#name) as *const u8).offset_from(u8_ptr) as usize;
-              let getter = <#ty>::js_getter("this.addr", offset);
-              let setter = <#ty>::js_setter("this.addr", offset, "value");
+              let getter = <#ty>::js_getter("this.db", "this.addr", offset);
+              let setter = <#ty>::js_setter("this.db", "this.addr", offset, "value");
               let type_name = <#ty>::ty();
               js.push_str(&format!(
   r#"
@@ -74,18 +74,20 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
 
             js.push_str(&format!(
       r#"export class {name} {{
+  db: ParcelDb;
   addr: number;
 
-  constructor(addr?: number) {{
-    this.addr = addr ?? binding.alloc({size});
+  constructor(db: ParcelDb, addr?: number) {{
+    this.db = db;
+    this.addr = addr ?? db.alloc({size});
   }}
 
-  static get(addr: number): {name} {{
-    return new {name}(addr);
+  static get(db: ParcelDb, addr: number): {name} {{
+    return new {name}(db, addr);
   }}
 
-  static set(addr: number, value: {name}): void {{
-    copy(value.addr, addr, {size});
+  static set(db: ParcelDb, addr: number, value: {name}): void {{
+    copy(db, value.addr, addr, {size});
   }}
 "#,
               name = stringify!(#self_name),
@@ -136,7 +138,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
       case {}:
         return {};"#,
               discriminant_value(#self_name::#name(uninit()), offset, size),
-              <#ty>::js_getter("addr", value_offset)
+              <#ty>::js_getter("db", "addr", value_offset)
             ));
           });
           setters.push(quote! {
@@ -147,12 +149,12 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
             js.push_str(&format!(
           r#"
       default:
-        write(addr + {offset}, {discriminant});
+        write(db, addr + {offset}, {discriminant});
         {setter};
         break;"#,
               offset = offset,
               discriminant = discriminant_value(#self_name::#name(uninit()), offset, size),
-              setter = <#ty>::js_setter("addr", value_offset, "value")
+              setter = <#ty>::js_setter("db", "addr", value_offset, "value")
             ));
           });
         } else if variant.fields.is_empty() {
@@ -174,7 +176,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
             js.push_str(&format!(
           r#"
       case '{name}':
-        write(addr + {offset}, {value});
+        write(db, addr + {offset}, {value});
         break;"#,
               name = name,
               offset = offset,
@@ -207,8 +209,8 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
               r#"type {name}Variants = {variants};
 
 export class {name} {{
-  static get(addr: number): {name}Variants {{
-    switch (read{heap}(addr + {offset})) {{"#,
+  static get(db: ParcelDb, addr: number): {name}Variants {{
+    switch (read{heap}(db, addr + {offset})) {{"#,
               name = stringify!(#self_name),
               heap = heap,
               offset = offset,
@@ -219,11 +221,11 @@ export class {name} {{
             js.push_str(&format!(
               r#"
       default:
-        throw new Error(`Unknown {name} value: ${{read{heap}(addr)}}`);
+        throw new Error(`Unknown {name} value: ${{read{heap}(db, addr)}}`);
     }}
   }}
 
-  static set(addr: number, value: {name}Variants): void {{
+  static set(db: ParcelDb, addr: number, value: {name}Variants): void {{
     let write = write{heap};
     switch (value) {{"#,
               name = stringify!(#self_name),
@@ -276,12 +278,12 @@ pub fn derive_js_value(input: TokenStream) -> TokenStream {
       quote! {
         #[automatically_derived]
         impl JsValue for #self_name {
-          fn js_getter(addr: &str, offset: usize) -> String {
-            <#ty>::js_getter(addr, offset)
+          fn js_getter(db: &str, addr: &str, offset: usize) -> String {
+            <#ty>::js_getter(db, addr, offset)
           }
 
-          fn js_setter(addr: &str, offset: usize, value: &str) -> String {
-            <#ty>::js_setter(addr, offset, value)
+          fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
+            <#ty>::js_setter(db, addr, offset, value)
           }
 
           fn ty() -> String {
@@ -299,12 +301,12 @@ pub fn derive_js_value(input: TokenStream) -> TokenStream {
       quote! {
         #[automatically_derived]
         impl JsValue for #self_name {
-          fn js_getter(addr: &str, offset: usize) -> String {
-            format!("{}.get({} + {})", stringify!(#self_name), addr, offset)
+          fn js_getter(db: &str, addr: &str, offset: usize) -> String {
+            format!("{}.get({}, {} + {})", stringify!(#self_name), db, addr, offset)
           }
 
-          fn js_setter(addr: &str, offset: usize, value: &str) -> String {
-            format!("{}.set({} + {}, {})", stringify!(#self_name), addr, offset, value)
+          fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String {
+            format!("{}.set({}, {} + {}, {})", stringify!(#self_name), db, addr, offset, value)
           }
 
           fn ty() -> String {
@@ -327,28 +329,26 @@ pub fn derive_slab_allocated(input: TokenStream) -> TokenStream {
   } = parse_macro_input!(input);
 
   let slab_name = Ident::new(
-    &format!("{}_SLAB", self_name.to_string().to_uppercase()),
+    &format!("{}_slab", self_name.to_string().to_case(Case::Snake)),
     Span::call_site(),
   );
 
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
   let output = quote! {
-    #[thread_local]
-    static mut #slab_name: Slab<#self_name> = Slab::new();
 
     #[automatically_derived]
     impl #impl_generics SlabAllocated for #self_name #ty_generics #where_clause {
       fn alloc(count: u32) -> (u32, *mut #self_name) {
         unsafe {
-          let addr = #slab_name.alloc(count);
-          (addr, HEAP.get(addr))
+          let addr = SLABS.as_mut().unwrap_unchecked().#slab_name.alloc(count);
+          (addr, current_heap().get(addr))
         }
       }
 
       fn dealloc(addr: u32, count: u32) {
         unsafe {
-          #slab_name.dealloc(addr, count);
+          SLABS.as_mut().unwrap_unchecked().#slab_name.dealloc(addr, count);
         }
       }
     }

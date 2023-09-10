@@ -8,12 +8,14 @@ import type {
   InternalDevDepOptions,
 } from './types';
 import type {ProjectPath} from './projectPath';
+import type {ParcelDb} from '@parcel/rust';
 
 import {fromProjectPathRelative} from './projectPath';
 import {createEnvironment} from './Environment';
 import {hashString} from '@parcel/rust';
 
 type ConfigOpts = {|
+  db: ParcelDb,
   plugin: PackageName,
   searchPath: ProjectPath,
   isSource?: boolean,
@@ -29,6 +31,7 @@ type ConfigOpts = {|
 |};
 
 export function createConfig({
+  db,
   plugin,
   isSource,
   searchPath,
@@ -42,7 +45,7 @@ export function createConfig({
   invalidateOnStartup,
   invalidateOnBuild,
 }: ConfigOpts): Config {
-  let environment = env ?? createEnvironment();
+  let environment = env ?? createEnvironment(db);
   return {
     id: hashString(
       plugin +

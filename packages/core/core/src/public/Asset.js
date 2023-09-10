@@ -342,7 +342,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   setEnvironment(env: EnvironmentOptions): void {
-    this.#asset.value.env = createEnvironment({
+    this.#asset.value.env = createEnvironment(this.#asset.options.db, {
       ...env,
       loc: toInternalSourceLocation(this.#asset.options.projectRoot, env.loc),
     });

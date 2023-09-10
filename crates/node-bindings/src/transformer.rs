@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::db::DB;
+use crate::db::JsParcelDb;
 use napi::{Env, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
-  ArenaAllocator, ArenaVec, BundleBehavior, Dependency, DependencyFlags, Environment,
-  EnvironmentContext, EnvironmentFlags, EnvironmentId, ImportAttribute, InternedString, Location,
-  OutputFormat, Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags, TargetId,
+  ArenaVec, BundleBehavior, Dependency, DependencyFlags, Environment, EnvironmentContext,
+  EnvironmentFlags, EnvironmentId, ImportAttribute, InternedString, Location, OutputFormat,
+  ParcelDb, Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags, TargetId,
   Vec,
 };
 use parcel_js_swc_core::{CodeHighlight, DependencyKind, Diagnostic, TransformResult};
@@ -14,23 +14,27 @@ use path_slash::{PathBufExt, PathExt};
 use serde::{Deserialize, Serialize};
 
 #[napi]
-pub fn transform(opts: JsObject, env: Env) -> Result<JsUnknown> {
+pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown> {
   let config: parcel_js_swc_core::Config = env.from_js_value(opts)?;
 
-  let result = convert_result(&config, parcel_js_swc_core::transform(&config)?);
-  env.to_js_value(&result)
+  db.with(|db| {
+    let result = convert_result(db, &config, parcel_js_swc_core::transform(&config)?);
+    env.to_js_value(&result)
+  })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[napi]
-pub fn transform_async(opts: JsObject, env: Env) -> Result<JsObject> {
+pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsObject> {
   let config: parcel_js_swc_core::Config = env.from_js_value(opts)?;
   let (deferred, promise) = env.create_deferred()?;
+  let db = db.db();
 
   rayon::spawn(move || {
     let res = parcel_js_swc_core::transform(&config);
     match res {
-      Ok(result) => deferred.resolve(move |env| env.to_js_value(&convert_result(&config, result))),
+      Ok(result) => deferred
+        .resolve(move |env| db.with(|db| env.to_js_value(&convert_result(db, &config, result)))),
       Err(err) => deferred.reject(err.into()),
     }
   });
@@ -57,6 +61,7 @@ pub struct TransformResult2 {
 }
 
 fn convert_result(
+  db: &ParcelDb,
   config: &parcel_js_swc_core::Config,
   mut result: TransformResult,
 ) -> TransformResult2 {
@@ -67,7 +72,7 @@ fn convert_result(
   for dep in result.dependencies {
     match dep.kind {
       DependencyKind::WebWorker => {
-        let env = DB.get_environment(config.env_id);
+        let env = db.get_environment(config.env_id);
         // Use native ES module output if the worker was created with `type: 'module'` and all targets
         // support native module workers. Only do this if parent asset output format is also esmodule so that
         // assets can be shared between workers and the main thread in the global output format.
@@ -98,7 +103,7 @@ fn convert_result(
           symbols: ArenaVec::new(),
           loc: Some(convert_loc(file_path, &dep.loc)),
           target: TargetId(0),
-          env: DB.environment_id(&Environment {
+          env: db.environment_id(&Environment {
             context: EnvironmentContext::WebWorker,
             source_type: if matches!(
               dep.source_type,
@@ -115,7 +120,7 @@ fn convert_result(
           import_attributes: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = DB.create_dependency(d);
+        let id = db.create_dependency(d);
         deps.push(id);
         dep_map.insert(placeholder, id);
       }
@@ -134,7 +139,7 @@ fn convert_result(
           symbols: ArenaVec::new(),
           loc: Some(convert_loc(file_path, &dep.loc)),
           target: TargetId(0),
-          env: DB.environment_id(&Environment {
+          env: db.environment_id(&Environment {
             context: EnvironmentContext::ServiceWorker,
             source_type: if matches!(
               dep.source_type,
@@ -146,12 +151,12 @@ fn convert_result(
             },
             output_format: OutputFormat::Global,
             loc: Some(convert_loc(file_path, &dep.loc)),
-            ..DB.get_environment(config.env_id).clone()
+            ..db.get_environment(config.env_id).clone()
           }),
           import_attributes: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = DB.create_dependency(d);
+        let id = db.create_dependency(d);
         deps.push(id);
         dep_map.insert(placeholder, id);
       }
@@ -170,17 +175,17 @@ fn convert_result(
           symbols: ArenaVec::new(),
           loc: Some(convert_loc(file_path, &dep.loc)),
           target: TargetId(0),
-          env: DB.environment_id(&Environment {
+          env: db.environment_id(&Environment {
             context: EnvironmentContext::Worklet,
             source_type: SourceType::Module,
             output_format: OutputFormat::Esmodule,
             loc: Some(convert_loc(file_path, &dep.loc)),
-            ..DB.get_environment(config.env_id).clone()
+            ..db.get_environment(config.env_id).clone()
           }),
           import_attributes: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = DB.create_dependency(d);
+        let id = db.create_dependency(d);
         deps.push(id);
         dep_map.insert(placeholder, id);
       }
@@ -203,7 +208,7 @@ fn convert_result(
           import_attributes: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = DB.create_dependency(d);
+        let id = db.create_dependency(d);
         deps.push(id);
         dep_map.insert(placeholder, id);
       }
@@ -217,7 +222,7 @@ fn convert_result(
         );
 
         let mut env_id = EnvironmentId(config.env_id);
-        let mut env = DB.get_environment(config.env_id);
+        let mut env = db.get_environment(config.env_id);
         if dep.kind == DependencyKind::DynamicImport {
           // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
           if matches!(
@@ -258,13 +263,13 @@ fn convert_result(
           }
 
           if env.source_type != SourceType::Module || env.output_format != output_format {
-            env_id = DB.environment_id(&Environment {
+            env_id = db.environment_id(&Environment {
               source_type: SourceType::Module,
               output_format,
               loc: Some(convert_loc(file_path, &dep.loc)),
               ..env.clone()
             });
-            env = DB.get_environment(env_id.0);
+            env = db.get_environment(env_id.0);
           }
         }
 
@@ -273,7 +278,7 @@ fn convert_result(
           && !(dep.specifier.ends_with("/jsx-runtime")
             || dep.specifier.ends_with("/jsx-dev-runtime"));
         if is_helper && !env.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-          env_id = DB.environment_id(&Environment {
+          env_id = db.environment_id(&Environment {
             include_node_modules: InternedString::from("true"),
             ..env.clone()
           });
@@ -331,7 +336,7 @@ fn convert_result(
         };
 
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = DB.create_dependency(d);
+        let id = db.create_dependency(d);
         deps.push(id);
         dep_map.insert(placeholder, id);
       }
@@ -356,20 +361,20 @@ fn convert_result(
       symbols: ArenaVec::new(),
       loc: None,
       target: TargetId(0),
-      env: DB.environment_id(&Environment {
+      env: db.environment_id(&Environment {
         include_node_modules: InternedString::from("{\"@parcel/transformer-js\":true}"),
-        ..DB.get_environment(config.env_id).clone()
+        ..db.get_environment(config.env_id).clone()
       }),
       import_attributes: ArenaVec::new(),
     };
-    deps.push(DB.create_dependency(d));
+    deps.push(db.create_dependency(d));
   }
 
   let mut has_cjs_exports = false;
   let mut static_cjs_exports = false;
   let mut should_wrap = false;
 
-  let (symbols_addr, symbols) = DB.alloc_struct::<ArenaVec<Symbol>>();
+  let (symbols_addr, symbols) = db.alloc_struct::<ArenaVec<Symbol>>();
   unsafe { std::ptr::write(symbols, ArenaVec::new()) };
   if let Some(hoist_result) = result.hoist_result {
     symbols.reserve(hoist_result.exported_symbols.len() + hoist_result.re_exports.len() + 1);
@@ -388,7 +393,7 @@ fn convert_result(
 
     for s in hoist_result.imported_symbols {
       if let Some(dep_id) = InternedString::get(&*s.source).and_then(|s| dep_map.get(&s)) {
-        let dep: &mut Dependency = DB.read_heap(*dep_id);
+        let dep: &mut Dependency = db.read_heap(*dep_id);
         dep.symbols.push(Symbol {
           exported: s.imported.as_ref().into(),
           local: s.local.as_ref().into(),
@@ -400,7 +405,7 @@ fn convert_result(
 
     for s in hoist_result.re_exports {
       if let Some(dep_id) = InternedString::get(&*s.source).and_then(|s| dep_map.get(&s)) {
-        let dep: &mut Dependency = DB.read_heap(*dep_id);
+        let dep: &mut Dependency = db.read_heap(*dep_id);
         if &*s.local == "*" && &*s.imported == "*" {
           dep.symbols.push(Symbol {
             exported: "*".into(),
@@ -434,14 +439,14 @@ fn convert_result(
 
     for specifier in hoist_result.wrapped_requires {
       if let Some(dep_id) = InternedString::get(&specifier).and_then(|s| dep_map.get(&s)) {
-        let dep: &mut Dependency = DB.read_heap(*dep_id);
+        let dep: &mut Dependency = db.read_heap(*dep_id);
         dep.flags |= DependencyFlags::SHOULD_WRAP;
       }
     }
 
     for (name, specifier) in hoist_result.dynamic_imports {
       if let Some(dep_id) = InternedString::get(&*specifier).and_then(|s| dep_map.get(&s)) {
-        let dep: &mut Dependency = DB.read_heap(*dep_id);
+        let dep: &mut Dependency = db.read_heap(*dep_id);
         dep.promise_symbol = Some((&*name).into());
       }
     }
@@ -495,7 +500,7 @@ fn convert_result(
         env: EnvironmentId(config.env_id),
         import_attributes: ArenaVec::new(),
       };
-      deps.push(DB.create_dependency(d));
+      deps.push(db.create_dependency(d));
     }
 
     // Add * symbol if there are CJS exports, no imports/exports at all
@@ -530,7 +535,7 @@ fn convert_result(
           .and_then(|s| InternedString::get(&*s))
           .and_then(|s| dep_map.get(&s))
         {
-          let dep: &mut Dependency = DB.read_heap(*dep_id);
+          let dep: &mut Dependency = db.read_heap(*dep_id);
           let local = format!("${}${}", *dep_id, sym.local).into();
           dep.symbols.push(Symbol {
             exported: sym.local.as_ref().into(),
@@ -553,7 +558,7 @@ fn convert_result(
 
       for sym in symbol_result.imports {
         if let Some(dep_id) = InternedString::get(&*sym.source).and_then(|s| dep_map.get(&s)) {
-          let dep: &mut Dependency = DB.read_heap(*dep_id);
+          let dep: &mut Dependency = db.read_heap(*dep_id);
           dep.symbols.push(Symbol {
             exported: sym.imported.as_ref().into(),
             local: sym.local.as_ref().into(),
@@ -565,7 +570,7 @@ fn convert_result(
 
       for sym in symbol_result.exports_all {
         if let Some(dep_id) = InternedString::get(&*sym.source).and_then(|s| dep_map.get(&s)) {
-          let dep: &mut Dependency = DB.read_heap(*dep_id);
+          let dep: &mut Dependency = db.read_heap(*dep_id);
           dep.symbols.push(Symbol {
             exported: "*".into(),
             local: "*".into(),
@@ -604,7 +609,7 @@ fn convert_result(
     // For all other imports and requires, mark everything as imported (this covers both dynamic
     // imports and non-top-level requires.)
     for dep_id in &deps {
-      let dep: &mut Dependency = DB.read_heap(*dep_id);
+      let dep: &mut Dependency = db.read_heap(*dep_id);
       if dep.symbols.is_empty() {
         dep.symbols.push(Symbol {
           exported: "*".into(),
@@ -618,7 +623,7 @@ fn convert_result(
 
   // println!("SYMBOLS {:?} {:?}", config.filename, symbols);
   // for id in &deps {
-  //   let dep: &mut Dependency = DB.read_heap(*id);
+  //   let dep: &mut Dependency = db.read_heap(*id);
   //   println!("{:?}", dep);
   // }
   //
@@ -626,7 +631,7 @@ fn convert_result(
   //   "{:?}",
   //   deps
   //     .iter()
-  //     .map(|d| DB.read_heap::<Dependency>(*d))
+  //     .map(|d| db.read_heap::<Dependency>(*d))
   //     .collect::<std::vec::Vec<_>>()
   // );
 

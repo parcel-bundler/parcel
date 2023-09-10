@@ -255,6 +255,8 @@ export default class Parcel {
   |} = {
     /*::...null*/
   }): Promise<BuildEvent> {
+    await this.#farm.callAllWorkers('clearConfigCache', []);
+
     this.#requestTracker.setSignal(signal);
     let options = nullthrows(this.#resolvedOptions);
     try {

@@ -145,7 +145,7 @@ async function run({input, api, farm, invalidateReason, options}) {
   let time = Date.now() - start;
   if (assets) {
     for (let {asset} of assets) {
-      DbAsset.get(asset).stats.time = time;
+      DbAsset.get(options.db, asset).stats.time = time;
     }
   }
 

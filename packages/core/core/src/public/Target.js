@@ -32,7 +32,7 @@ export default class Target implements ITarget {
       return existing;
     }
 
-    this.#target = DbTarget.get(target);
+    this.#target = DbTarget.get(options.db, target);
     this.#options = options;
     _targetToInternalTarget.set(this, target);
     internalTargetToTarget.set(target, this);

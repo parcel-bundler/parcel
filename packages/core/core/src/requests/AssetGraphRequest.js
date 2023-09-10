@@ -129,7 +129,7 @@ export class AssetGraphBuilder {
       requestedAssetIds,
       shouldBuildLazily,
     } = input;
-    let assetGraph = prevResult?.assetGraph ?? new AssetGraph();
+    let assetGraph = prevResult?.assetGraph ?? new AssetGraph(options.db);
     assetGraph.safeToIncrementallyBundle = true;
     assetGraph.setRootConnections({
       entries,
@@ -237,6 +237,7 @@ export class AssetGraphBuilder {
 
     if (this.assetGraph.nodes.size > 1) {
       await dumpGraphToGraphViz(
+        this.options.db,
         this.assetGraph,
         'AssetGraph_' + this.name + '_before_prop',
       );
@@ -271,13 +272,14 @@ export class AssetGraphBuilder {
         }
       } catch (e) {
         await dumpGraphToGraphViz(
+          this.options.db,
           this.assetGraph,
           'AssetGraph_' + this.name + '_failed',
         );
         throw e;
       }
     }
-    await dumpGraphToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
+    await dumpGraphToGraphViz(this.options.db,this.assetGraph, 'AssetGraph_' + this.name);
 
     this.api.storeResult(
       {
@@ -313,7 +315,7 @@ export class AssetGraphBuilder {
           let isAsyncChild = this.assetGraph
             .getIncomingDependencies(node.value)
             .every(depId => {
-              let dep = DbDependency.get(depId);
+              let dep = DbDependency.get(this.options.db, depId);
               return dep.flags & DependencyFlags.ENTRY || dep.priority !== 'sync';
             });
           if (isAsyncChild) {

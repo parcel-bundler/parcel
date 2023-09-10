@@ -53,12 +53,31 @@ export interface JsInvalidations {
   invalidateOnFileCreate: Array<FileCreateInvalidation>;
   invalidateOnStartup: boolean;
 }
-declare export function transform(opts: any): any;
-declare export function transformAsync(opts: any): Promise<any>;
+declare export function transform(db: ParcelDb, opts: any): any;
+declare export function transformAsync(db: ParcelDb, opts: any): Promise<any>;
 declare export class Hash {
   writeString(s: string): void;
   writeBuffer(b: Buffer): void;
   finish(): string;
+}
+// $FlowFixMe
+type TmpBigInt = bigint;
+export type SerializedParcelDb = {|
+  id: TmpBigInt
+|};
+declare export class ParcelDb {
+  constructor(): ParcelDb;
+  serialize(): SerializedParcelDb;
+  static deserialize(value: SerializedParcelDb): ParcelDb;
+  getPage(page: number): Buffer;
+  alloc(size: number): number;
+  readString(addr: number): string;
+  getStringId(s: string): number;
+  extendVec(addr: number, size: number, count: number): void;
+  createEnvironment(addr: number): number;
+
+  starSymbol: number;
+  defaultSymbol: number;
 }
 export interface ResolverOptions {
   fs?: JsFileSystemOptions;

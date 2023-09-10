@@ -31,6 +31,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
+import type {ParcelDb} from '@parcel/rust';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -287,6 +288,7 @@ export type ParcelOptions = {|
   outputFS: FileSystem,
   cache: Cache,
   packageManager: PackageManager,
+  db: ParcelDb,
   additionalReporters: Array<{|
     packageName: DependencySpecifier,
     resolveFrom: ProjectPath,

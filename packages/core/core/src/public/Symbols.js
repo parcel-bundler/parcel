@@ -24,7 +24,6 @@ import {
   Dependency as DbDependency,
   Asset as DbAsset,
   SymbolFlags,
-  getStringId,
   readCachedString,
 } from '@parcel/rust';
 import {createBuildCache} from '../buildCache';
@@ -57,14 +56,14 @@ export class AssetSymbols implements IAssetSymbols {
       return existing;
     }
 
-    this.#value = DbAsset.get(asset);
+    this.#value = DbAsset.get(options.db, asset);
     this.#options = options;
     valueToSymbols.set(asset, this);
     return this;
   }
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    let id = getStringId(exportSymbol);
+    let id = this.#options.db.getStringId(exportSymbol);
     return this.#value.symbols?.some(s => s.exported === id);
   }
 
@@ -72,15 +71,16 @@ export class AssetSymbols implements IAssetSymbols {
     if (this.#value.symbols == null) {
       return false;
     }
-    let id = getStringId(local);
+    let id = this.#options.db.getStringId(local);
     return this.#value.symbols.some(s => s.local === id);
   }
 
   get(
     exportSymbol: ISymbol,
   ): ?{|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|} {
-    let id = getStringId(exportSymbol);
+    let id = this.#options.db.getStringId(exportSymbol);
     return fromInternalAssetSymbolDb(
+      this.#options.db,
       this.#options.projectRoot,
       this.#value.symbols?.find(s => s.exported === id),
     );
@@ -91,7 +91,7 @@ export class AssetSymbols implements IAssetSymbols {
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    return [...this.#value.symbols].map(s => readCachedString(s.exported));
+    return [...this.#value.symbols].map(s => readCachedString(this.#options.db, s.exported));
   }
   // $FlowFixMe
   *[Symbol.iterator]() {
@@ -100,8 +100,8 @@ export class AssetSymbols implements IAssetSymbols {
     //   : EMPTY_ITERATOR;
     for (let s of this.#value.symbols) {
       yield [
-        readCachedString(s.exported),
-        fromInternalAssetSymbolDb(this.#options.projectRoot, s),
+        readCachedString(this.#options.db, s.exported),
+        fromInternalAssetSymbolDb(this.#options.db, this.#options.projectRoot, s),
       ];
     }
   }
@@ -113,7 +113,7 @@ export class AssetSymbols implements IAssetSymbols {
         ? [...this.#value.symbols]
             .map(
               ({exported, local}) =>
-                `${readCachedString(exported)}:${readCachedString(local)}`,
+                `${readCachedString(this.#options.db, exported)}:${readCachedString(this.#options.db, local)}`,
             )
             .join(', ')
         : null
@@ -234,7 +234,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     if (existing != null) {
       return existing;
     }
-    this.#value = DbDependency.get(dep);
+    this.#value = DbDependency.get(options.db, dep);
     this.#options = options;
     return this;
   }
@@ -242,13 +242,13 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   // immutable:
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    let id = getStringId(exportSymbol);
+    let id = this.#options.db.getStringId(exportSymbol);
     return this.#value.symbols?.some(s => s.exported === id);
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
     if (this.#value.symbols) {
-      let id = getStringId(local);
+      let id = this.#options.db.getStringId(local);
       return this.#value.symbols?.some(s => s.local === id);
     }
     return false;
@@ -257,8 +257,9 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   get(
     exportSymbol: ISymbol,
   ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|} {
-    let id = getStringId(exportSymbol);
+    let id = this.#options.db.getStringId(exportSymbol);
     return fromInternalDependencySymbol(
+      this.#options.db,
       this.#options.projectRoot,
       nullthrows(this.#value.symbols).find(s => s.exported === id),
     );
@@ -269,7 +270,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    return [...this.#value.symbols].map(s => readCachedString(s.exported));
+    return [...this.#value.symbols].map(s => readCachedString(this.#options.db, s.exported));
   }
 
   // $FlowFixMe
@@ -278,8 +279,8 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     if (symbols) {
       for (let sym of symbols) {
         yield [
-          readCachedString(sym.exported),
-          fromInternalDependencySymbol(this.#options.projectRoot, sym),
+          readCachedString(this.#options.db, sym.exported),
+          fromInternalDependencySymbol(this.#options.db, this.#options.projectRoot, sym),
         ];
       }
     }
@@ -292,7 +293,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
         ? [...this.#value.symbols]
             .map(
               ({exported, local, flags}) =>
-                `${readCachedString(exported)}:${readCachedString(local)}${
+                `${readCachedString(this.#options.db, exported)}:${readCachedString(this.#options.db, local)}${
                   flags & SymbolFlags.IS_WEAK ? '?' : ''
                 }`,
             )
@@ -317,17 +318,17 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   ) {
     isWeak ??= false;
     let symbols = nullthrows(this.#value.symbols);
-    let id = getStringId(exportSymbol);
+    let id = this.#options.db.getStringId(exportSymbol);
     let sym = symbols.find(s => s.exported === id);
     if (!sym) {
       sym = symbols.extend();
     } else {
       isWeak = !!(sym.flags & SymbolFlags.IS_WEAK) && isWeak;
     }
-    sym.local = getStringId(local);
+    sym.local = this.#options.db.getStringId(local);
     sym.exported = id;
     sym.flags = isWeak ? SymbolFlags.IS_WEAK : 0;
-    sym.loc = toDbSourceLocation(this.#options.projectRoot, loc);
+    sym.loc = toDbSourceLocation(this.#options.db, this.#options.projectRoot, loc);
     // console.log('set symbol', sym, local, exportSymbol);
     // symbols.set(exportSymbol, {
     //   local,
@@ -342,10 +343,10 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 }
 
-function fromInternalAssetSymbolDb(projectRoot: string, value) {
+function fromInternalAssetSymbolDb(db, projectRoot: string, value) {
   return (
     value && {
-      local: readCachedString(value.local),
+      local: readCachedString(db, value.local),
       meta: {
         isEsm: !!(value.flags & SymbolFlags.IS_ESM),
       },
@@ -364,10 +365,10 @@ function fromInternalAssetSymbol(projectRoot: string, value) {
   );
 }
 
-function fromInternalDependencySymbol(projectRoot: string, value) {
+function fromInternalDependencySymbol(db, projectRoot: string, value) {
   return (
     value && {
-      local: readCachedString(value.local),
+      local: readCachedString(db, value.local),
       meta: {
         isEsm: !!(value.flags & SymbolFlags.IS_ESM),
       },

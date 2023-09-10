@@ -22,6 +22,7 @@ import logger, {
 import PluginOptions from './public/PluginOptions';
 import BundleGraph from './BundleGraph';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import {Disposable} from '@parcel/events';
 
 type Opts = {|
   config: ParcelConfig,
@@ -37,15 +38,17 @@ export default class ReporterRunner {
   options: ParcelOptions;
   pluginOptions: PluginOptions;
   reporters: Array<LoadedPlugin<Reporter>>;
+  disposable: Disposable;
 
   constructor(opts: Opts) {
     this.config = opts.config;
     this.options = opts.options;
     this.workerFarm = opts.workerFarm;
     this.pluginOptions = new PluginOptions(this.options);
+    this.disposable = new Disposable();
 
-    logger.onLog(event => this.report(event));
-    tracer.onTrace(event => this.report(event));
+    this.disposable.add(logger.onLog(event => this.report(event)));
+    this.disposable.add(tracer.onTrace(event => this.report(event)));
 
     bus.on('reporterEvent', this.eventHandler);
     instances.add(this);
@@ -125,6 +128,10 @@ export default class ReporterRunner {
   dispose() {
     bus.off('reporterEvent', this.eventHandler);
     instances.delete(this);
+    this.disposable.dispose();
+    if (this.options.shouldPatchConsole) {
+      unpatchConsole();
+    }
   }
 }
 

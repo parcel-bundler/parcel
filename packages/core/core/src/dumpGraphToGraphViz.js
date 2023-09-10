@@ -2,6 +2,7 @@
 
 import type {Asset, BundleBehavior} from '@parcel/types';
 import type {Graph} from '@parcel/graph';
+import type {ParcelDb} from '@parcel/rust';
 import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
 import {bundleGraphEdgeTypes} from './BundleGraph';
 import {requestGraphEdgeTypes} from './RequestTracker';
@@ -44,6 +45,7 @@ const TYPE_COLORS = {
 };
 
 export default async function dumpGraphToGraphViz(
+  db: ParcelDb,
   graph:
     | Graph<AssetGraphNode>
     | Graph<{|
@@ -89,7 +91,7 @@ export default async function dumpGraphToGraphViz(
     } else if (node.type) {
       label = `[${fromNodeId(id)}] ${node.type || 'No Type'}: [${node.id}]: `;
       if (node.type === 'dependency') {
-        let dep = DbDependency.get(node.value);
+        let dep = DbDependency.get(db, node.value);
         label += dep.specifier;
         let parts = [];
         if (dep.priority !== 'sync') {
@@ -100,7 +102,7 @@ export default async function dumpGraphToGraphViz(
         if (node.hasDeferred) parts.push('deferred');
         if (node.excluded) parts.push('excluded');
         if (parts.length) label += ' (' + parts.join(', ') + ')';
-        if (dep.env) label += ` (${getEnvDescription(dep.env)})`;
+        if (dep.env) label += ` (${getEnvDescription(db, dep.env)})`;
         let depSymbols = dep.symbols;
         if (detailedSymbols) {
           if (depSymbols) {
@@ -109,14 +111,14 @@ export default async function dumpGraphToGraphViz(
                 '\\nsymbols: ' +
                 [...depSymbols]
                   .map(({exported, local}) => [
-                    readCachedString(exported),
-                    readCachedString(local),
+                    readCachedString(db, exported),
+                    readCachedString(db, local),
                   ])
                   .join(';');
             }
             let weakSymbols = [...depSymbols]
               .filter(({flags}) => flags & SymbolFlags.IS_WEAK)
-              .map(({exported}) => readCachedString(exported));
+              .map(({exported}) => readCachedString(db, exported));
             if (weakSymbols.length) {
               label += '\\nweakSymbols: ' + weakSymbols.join(',');
             }
@@ -128,7 +130,7 @@ export default async function dumpGraphToGraphViz(
                     sAsset
                       ? `${s}(${sAsset.asset}.${
                           sAsset.symbol != null
-                            ? readCachedString(sAsset.symbol)
+                            ? readCachedString(db, sAsset.symbol)
                             : ''
                         })`
                       : sAsset === null
@@ -140,7 +142,7 @@ export default async function dumpGraphToGraphViz(
             if (node.usedSymbolsDown.size > 0) {
               label +=
                 '\\nusedSymbolsDown: ' +
-                [...node.usedSymbolsDown].map(readCachedString).join(',');
+                [...node.usedSymbolsDown].map(s => readCachedString(db, s)).join(',');
             }
             // if (node.usedSymbolsDownDirty) label += '\\nusedSymbolsDownDirty';
             // if (node.usedSymbolsUpDirtyDown)
@@ -151,7 +153,7 @@ export default async function dumpGraphToGraphViz(
           }
         }
       } else if (node.type === 'asset') {
-        let asset = DbAsset.get(node.value);
+        let asset = DbAsset.get(db, node.value);
         label +=
           path.basename(fromProjectPathRelative(asset.filePath)) +
           '#' +
@@ -164,15 +166,15 @@ export default async function dumpGraphToGraphViz(
               '\\nsymbols: ' +
               [...asset.symbols]
                 .map(({exported, local}) => [
-                  readCachedString(exported),
-                  readCachedString(local),
+                  readCachedString(db, exported),
+                  readCachedString(db, local),
                 ])
                 .join(';');
           }
           if (node.usedSymbols.size) {
             label +=
               '\\nusedSymbols: ' +
-              [...node.usedSymbols].map(readCachedString).join(',');
+              [...node.usedSymbols].map(s => readCachedString(db, s)).join(',');
           }
           // if (node.usedSymbolsDownDirty) label += '\\nusedSymbolsDownDirty';
           // if (node.usedSymbolsUpDirty) label += '\\nusedSymbolsUpDirty';
@@ -186,14 +188,14 @@ export default async function dumpGraphToGraphViz(
       } else if (node.type === 'transformer_request') {
         label +=
           path.basename(node.value.filePath) +
-          ` (${getEnvDescription(node.value.env)})`;
+          ` (${getEnvDescription(db, node.value.env)})`;
       } else if (node.type === 'bundle') {
         let parts = [];
         if (node.value.needsStableName) parts.push('stable name');
         parts.push(node.value.name);
         parts.push('bb:' + (node.value.bundleBehavior ?? 'null'));
         if (parts.length) label += ' (' + parts.join(', ') + ')';
-        if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
+        if (node.value.env) label += ` (${getEnvDescription(db, node.value.env)})`;
       } else if (node.type === 'request') {
         label = node.value.type + ':' + node.id;
       }
@@ -232,9 +234,9 @@ function nodeId(id) {
   return `node${id}`;
 }
 
-function getEnvDescription(envId: Environment) {
+function getEnvDescription(db: ParcelDb, envId: Environment) {
   let description;
-  let env = DbEnvironment.get(envId);
+  let env = DbEnvironment.get(db, envId);
   let engines = JSON.parse(env.engines);
   if (typeof engines.browsers === 'string') {
     description = `${env.context}: ${engines.browsers}`;

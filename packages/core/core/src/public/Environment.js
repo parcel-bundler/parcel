@@ -151,7 +151,7 @@ export default class Environment implements IEnvironment {
       return existing;
     }
 
-    this.#environment = DbEnvironment.get(env);
+    this.#environment = DbEnvironment.get(options.db, env);
     this.#options = options;
     _environmentToInternalEnvironment.set(this, env);
     internalEnvironmentToEnvironment.set(env, this);

@@ -12,6 +12,7 @@ export type ContentGraphOpts<TNode, TEdgeType: number = 1> = {|
 export type SerializedContentGraph<TNode, TEdgeType: number = 1> = {|
   ...SerializedGraph<TNode, TEdgeType>,
   _contentKeyToNodeId: Map<ContentKey, NodeId>,
+  _nodeIdToContentKey: Map<NodeId, ContentKey>,
 |};
 
 export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
@@ -36,14 +37,14 @@ export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
 
   // $FlowFixMe[prop-missing]
   static deserialize(
-    opts: ContentGraphOpts<TNode, TEdgeType>,
+    opts: SerializedContentGraph<TNode, TEdgeType>,
   ): ContentGraph<TNode, TEdgeType> {
+    // $FlowFixMe
     return new ContentGraph(opts);
   }
 
   // $FlowFixMe[prop-missing]
   serialize(): SerializedContentGraph<TNode, TEdgeType> {
-    // $FlowFixMe[prop-missing]
     return {
       ...super.serialize(),
       _contentKeyToNodeId: this._contentKeyToNodeId,

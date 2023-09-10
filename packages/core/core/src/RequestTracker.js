@@ -62,17 +62,6 @@ export const requestGraphEdgeTypes = {
 
 export type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;
 
-type RequestGraphOpts = {|
-  ...ContentGraphOpts<RequestGraphNode, RequestGraphEdgeType>,
-  invalidNodeIds: Set<NodeId>,
-  incompleteNodeIds: Set<NodeId>,
-  globNodeIds: Set<NodeId>,
-  envNodeIds: Set<NodeId>,
-  optionNodeIds: Set<NodeId>,
-  unpredicatableNodeIds: Set<NodeId>,
-  invalidateOnBuildNodeIds: Set<NodeId>,
-|};
-
 type SerializedRequestGraph = {|
   ...SerializedContentGraph<RequestGraphNode, RequestGraphEdgeType>,
   invalidNodeIds: Set<NodeId>,
@@ -223,8 +212,8 @@ export class RequestGraph extends ContentGraph<
   invalidateOnBuildNodeIds: Set<NodeId> = new Set();
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: RequestGraphOpts): RequestGraph {
-    // $FlowFixMe[prop-missing]
+  static deserialize(opts: SerializedRequestGraph): RequestGraph {
+    // $FlowFixMe
     let deserialized = new RequestGraph(opts);
     deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.incompleteNodeIds = opts.incompleteNodeIds;
