@@ -11,7 +11,7 @@ import type {ProjectPath} from './projectPath';
 
 import {fromProjectPathRelative} from './projectPath';
 import {createEnvironment} from './Environment';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 
 type ConfigOpts = {|
   plugin: PackageName,

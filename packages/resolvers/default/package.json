@@ -24,6 +24,6 @@
     "@parcel/plugin": "2.9.3"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.2"
+    "@babel/core": "^7.22.11"
   }
 }

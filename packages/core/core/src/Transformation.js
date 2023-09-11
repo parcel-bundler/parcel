@@ -34,7 +34,7 @@ import ThrowableDiagnostic, {
   type Diagnostic,
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';

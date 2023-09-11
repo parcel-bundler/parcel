@@ -20,7 +20,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {PromiseQueue, setEqual, isGlobMatch} from '@parcel/utils';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {Priority} from '../types';
 import AssetGraph from '../AssetGraph';

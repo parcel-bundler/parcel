@@ -48,7 +48,7 @@ import {createEnvironment} from './Environment';
 import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initHash} from '@parcel/hash';
+import {init as initRust} from '@parcel/rust';
 import {
   fromProjectPath,
   toProjectPath,
@@ -101,7 +101,7 @@ export default class Parcel {
     }
 
     await initSourcemaps;
-    await initHash;
+    await initRust?.();
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
