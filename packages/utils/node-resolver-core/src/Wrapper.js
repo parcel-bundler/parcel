@@ -134,8 +134,17 @@ export default class NodeResolver {
       }
     }
 
-    // $FlowFixMe[incompatible-call] - parent is not null here.
-    let res = resolver.resolve(options);
+    // Async resolver is only supported in non-WASM environments, and does not support JS callbacks (e.g. FS, PnP).
+    let canResolveAsync =
+      !init &&
+      this.options.fs instanceof NodeFS &&
+      process.versions.pnp == null;
+
+    let res = canResolveAsync
+      ? // $FlowFixMe[incompatible-call] - parent is not null here.
+        await resolver.resolveAsync(options)
+      : // $FlowFixMe[incompatible-call] - parent is not null here.
+        resolver.resolve(options);
 
     // Invalidate whenever the .pnp.js file changes.
     // TODO: only when we actually resolve a node_modules package?

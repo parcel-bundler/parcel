@@ -1198,6 +1198,7 @@ dependencies = [
  "parcel-dev-dep-resolver",
  "parcel-js-swc-core",
  "parcel-resolver",
+ "rayon",
  "xxhash-rust",
 ]
 
