@@ -1,8 +1,6 @@
 use dashmap::DashMap;
 use napi::{Env, JsBoolean, JsBuffer, JsFunction, JsString, JsUnknown, Ref, Result};
 use napi_derive::napi;
-#[cfg(target_arch = "wasm32")]
-use std::alloc::{alloc, Layout};
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::Ordering;
 use std::{
@@ -483,24 +481,4 @@ fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver::R
     conditions,
     custom_conditions,
   }
-}
-
-#[cfg(target_arch = "wasm32")]
-#[no_mangle]
-pub extern "C" fn napi_wasm_malloc(size: usize) -> *mut u8 {
-  let align = std::mem::align_of::<usize>();
-  if let Ok(layout) = Layout::from_size_align(size, align) {
-    unsafe {
-      if layout.size() > 0 {
-        let ptr = alloc(layout);
-        if !ptr.is_null() {
-          return ptr;
-        }
-      } else {
-        return align as *mut u8;
-      }
-    }
-  }
-
-  std::process::abort();
 }

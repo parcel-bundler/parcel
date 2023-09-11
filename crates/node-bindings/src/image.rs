@@ -8,7 +8,7 @@ use std::ptr;
 use std::slice;
 
 #[napi]
-pub fn optimize(kind: String, buf: Buffer, env: Env) -> Result<JsBuffer> {
+pub fn optimize_image(kind: String, buf: Buffer, env: Env) -> Result<JsBuffer> {
   let slice = buf.as_ref();
 
   match kind.as_ref() {

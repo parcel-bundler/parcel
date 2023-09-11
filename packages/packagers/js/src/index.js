@@ -9,7 +9,7 @@ import {
   type SchemaEntity,
 } from '@parcel/utils';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {DevPackager} from './DevPackager';
