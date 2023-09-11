@@ -1,6 +1,6 @@
-# Inline requires plugin
+# EXPERIMENTAL inline requires plugin
 
-This plugin is currently **experimental**, however that said it has been used in a very large web application with great success in reducing runtime startup time of the application.
+This plugin is currently **experimental** / unstable, however that said it has been used in a very large web application with great success in reducing runtime startup time of the application.
 
 ## Quick usage
 
@@ -10,7 +10,7 @@ Add this optimizer to run _first_ (before minification), for JS bundles.
 {
     "optimizers": {
         "*.js": {
-            "parcel-optimizer-experimental-inline-requires",
+            "parcel-optimizer-inline-requires",
             "..."
         }
     }

@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/optimizer-experimental-inline-requires",
+  "name": "@parcel/optimizer-inline-requires",
   "version": "2.9.3",
   "license": "MIT",
   "publishConfig": {
