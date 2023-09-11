@@ -1,0 +1,77 @@
+// @flow
+import type {FileCreateInvalidation} from '@parcel/types';
+
+declare export var init: void | (() => void);
+
+declare export function findAncestorFile(filenames: Array<string>, from: string, root: string): string | null
+declare export function findFirstFile(names: Array<string>): string | null
+declare export function findNodeModule(module: string, from: string): string | null
+declare export function hashString(s: string): string
+declare export function hashBuffer(buf: Buffer): string
+declare export function optimizeImage(kind: string, buf: Buffer): Buffer
+export interface JsFileSystemOptions {
+  canonicalize: string => string;
+  read: string => Buffer;
+  isFile: string => boolean;
+  isDir: string => boolean;
+  includeNodeModules?: boolean | Array<string> | {|[string]: boolean|};
+}
+export interface FileSystem {
+  fs?: JsFileSystemOptions,
+  includeNodeModules?: boolean | Array<string> | {|[string]: boolean|};
+  conditions?: number,
+  moduleDirResolver?: (...args: any[]) => any,
+  mode: number,
+  entries?: number,
+  extensions?: Array<string>,
+  packageExports: boolean
+}
+export interface ResolveOptions {
+  filename: string;
+  specifierType: string;
+  parent: string;
+  packageConditions?: Array<string>;
+}
+export type Resolution =
+  | {|type: 'Path', value: string|}
+  | {|type: 'Builtin', value: string|}
+  | {|type: 'External'|}
+  | {|type: 'Empty'|}
+  | {|type: 'Global', value: string|};
+
+export interface ResolveResult {
+  resolution: Resolution;
+  invalidateOnFileChange: Array<string>;
+  invalidateOnFileCreate: Array<FileCreateInvalidation>;
+  query?: string;
+  sideEffects: boolean;
+  error: mixed;
+  moduleType: number;
+}
+export interface JsInvalidations {
+  invalidateOnFileChange: Array<string>;
+  invalidateOnFileCreate: Array<FileCreateInvalidation>;
+  invalidateOnStartup: boolean;
+}
+declare export function transform(opts: any): any;
+declare export function transformAsync(opts: any): Promise<any>;
+declare export class Hash {
+  writeString(s: string): void;
+  writeBuffer(b: Buffer): void;
+  finish(): string;
+}
+export interface ResolverOptions {
+  fs?: JsFileSystemOptions;
+  includeNodeModules?: boolean | Array<string> | {|[string]: boolean|};
+  conditions?: number;
+  moduleDirResolver?: (...args: any[]) => any;
+  mode: number;
+  entries?: number;
+  extensions?: Array<string>;
+}
+declare export class Resolver {
+  constructor(projectRoot: string, options: ResolverOptions): Resolver;
+  resolve(options: ResolveOptions): ResolveResult;
+  resolveAsync(options: ResolveOptions): Promise<ResolveResult>;
+  getInvalidations(path: string): JsInvalidations;
+}

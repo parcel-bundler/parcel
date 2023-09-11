@@ -19,14 +19,7 @@
     "node": ">= 12.0.0"
   },
   "scripts": {
-    "build": "napi build --platform --js native.js --dts native.d.ts",
-    "build-release": "napi build --platform --release --js native.js --dts native.d.ts",
-    "wasm:build": "cargo build --target wasm32-unknown-unknown && cp ../../../target/wasm32-unknown-unknown/debug/parcel_resolver_node.wasm .",
-    "wasm:build-release": "CARGO_PROFILE_RELEASE_LTO=true cargo build --target wasm32-unknown-unknown --release && wasm-opt --strip-debug -O ../../../target/wasm32-unknown-unknown/release/parcel_resolver_node.wasm -o parcel_resolver_node.wasm",
     "test": "mocha test"
-  },
-  "napi": {
-    "name": "parcel-resolver"
   },
   "files": [
     "lib",
@@ -37,6 +30,7 @@
     "@mischnic/json-sourcemap": "^0.1.0",
     "@parcel/diagnostic": "2.9.3",
     "@parcel/fs": "2.9.3",
+    "@parcel/rust": "2.9.3",
     "@parcel/utils": "2.9.3",
     "nullthrows": "^1.1.1",
     "semver": "^7.5.2"

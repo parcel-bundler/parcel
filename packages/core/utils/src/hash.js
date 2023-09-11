@@ -4,7 +4,7 @@ import type {Readable} from 'stream';
 import type {FileSystem} from '@parcel/fs';
 
 import {objectSortedEntriesDeep} from './collection';
-import {hashString, Hash} from '@parcel/hash';
+import {hashString, Hash} from '@parcel/rust';
 
 export function hashStream(stream: Readable): Promise<string> {
   let hash = new Hash();

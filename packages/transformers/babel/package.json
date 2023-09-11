@@ -30,9 +30,9 @@
     "semver": "^7.5.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.0",
-    "@babel/preset-env": "^7.0.0",
-    "@babel/types": "^7.12.0",
+    "@babel/core": "^7.22.11",
+    "@babel/preset-env": "^7.22.14",
+    "@babel/types": "^7.22.11",
     "@parcel/types": "2.9.3"
   }
 }
