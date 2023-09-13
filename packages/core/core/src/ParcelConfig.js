@@ -199,7 +199,7 @@ export default class ParcelConfig {
     filePath: ProjectPath,
     pipeline?: ?string,
     allowEmpty?: boolean,
-  ): Promise<Array<LoadedPlugin<Transformer<mixed>>>> {
+  ): Promise<Array<LoadedPlugin<Transformer<mixed, mixed>>>> {
     let transformers: PureParcelConfigPipeline | null =
       this.matchGlobMapPipelines(filePath, this.transformers, pipeline);
     if (!transformers || transformers.length === 0) {
@@ -216,7 +216,7 @@ export default class ParcelConfig {
       );
     }
 
-    return this.loadPlugins<Transformer<mixed>>(transformers);
+    return this.loadPlugins<Transformer<mixed, mixed>>(transformers);
   }
 
   async getBundler(): Promise<LoadedPlugin<Bundler<mixed>>> {

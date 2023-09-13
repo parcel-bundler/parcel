@@ -213,7 +213,12 @@ export class ResolverRunner {
           searchPath: toProjectPathUnsafe('index'),
         });
 
-        await loadPluginConfig(plugin, config, this.options);
+        await loadPluginConfig(
+          plugin.name,
+          plugin.plugin.loadConfig,
+          config,
+          this.options,
+        );
         configCache.set(plugin.name, config);
         this.configs.set(plugin.name, config);
       }

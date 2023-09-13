@@ -1095,7 +1095,13 @@ export type Validator = DedicatedThreadValidator | MultiThreadValidator;
  * The methods for a transformer plugin.
  * @section transformer
  */
-export type Transformer<ConfigType> = {|
+export type Transformer<ConfigType, GlobalConfigType> = {|
+  loadGlobalConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+    tracer: PluginTracer,
+  |}) => Promise<GlobalConfigType> | GlobalConfigType,
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
@@ -1113,6 +1119,7 @@ export type Transformer<ConfigType> = {|
   parse?: ({|
     asset: Asset,
     config: ConfigType,
+    globalConfig: GlobalConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
@@ -1122,6 +1129,7 @@ export type Transformer<ConfigType> = {|
   transform({|
     asset: MutableAsset,
     config: ConfigType,
+    globalConfig: GlobalConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
@@ -1134,6 +1142,7 @@ export type Transformer<ConfigType> = {|
   postProcess?: ({|
     assets: Array<MutableAsset>,
     config: ConfigType,
+    globalConfig: GlobalConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,

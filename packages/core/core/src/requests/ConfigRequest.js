@@ -13,7 +13,6 @@ import type {
   ParcelOptions,
   InternalFileCreateInvalidation,
 } from '../types';
-import type {LoadedPlugin} from '../ParcelConfig';
 import type {RunAPI} from '../RequestTracker';
 import type {ProjectPath} from '../projectPath';
 
@@ -27,13 +26,15 @@ import {getInvalidationHash} from '../assetUtils';
 import {Hash} from '@parcel/rust';
 import {PluginTracer} from '@parcel/profiler';
 
+type LoadConfig = ({|
+  config: IConfig,
+  options: IPluginOptions,
+  logger: IPluginLogger,
+  tracer: IPluginTracer,
+|}) => Async<mixed>;
+
 export type PluginWithLoadConfig = {
-  loadConfig?: ({|
-    config: IConfig,
-    options: IPluginOptions,
-    logger: IPluginLogger,
-    tracer: IPluginTracer,
-  |}) => Async<mixed>,
+  loadConfig?: LoadConfig,
   ...
 };
 
@@ -66,12 +67,12 @@ export type ConfigRequest = {
   ...
 };
 
-export async function loadPluginConfig<T: PluginWithLoadConfig>(
-  loadedPlugin: LoadedPlugin<T>,
+export async function loadPluginConfig(
+  pluginName: string,
+  loadConfig: ?LoadConfig,
   config: Config,
   options: ParcelOptions,
 ): Promise<void> {
-  let loadConfig = loadedPlugin.plugin.loadConfig;
   if (!loadConfig) {
     return;
   }
@@ -84,16 +85,16 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
           config.invalidateOnOptionChange.add(option);
         }),
       ),
-      logger: new PluginLogger({origin: loadedPlugin.name}),
+      logger: new PluginLogger({origin: pluginName}),
       tracer: new PluginTracer({
-        origin: loadedPlugin.name,
+        origin: pluginName,
         category: 'loadConfig',
       }),
     });
   } catch (e) {
     throw new ThrowableDiagnostic({
       diagnostic: errorToDiagnostic(e, {
-        origin: loadedPlugin.name,
+        origin: pluginName,
       }),
     });
   }

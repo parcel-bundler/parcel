@@ -16,7 +16,7 @@ import type {
 const CONFIG = Symbol.for('parcel-plugin-config');
 
 export class Transformer {
-  constructor<T>(opts: TransformerOpts<T>) {
+  constructor<T, U>(opts: TransformerOpts<T, U>) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }
