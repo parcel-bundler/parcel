@@ -566,8 +566,9 @@ fn emit(
         None
       },
     ));
-    let config =
-      swc_core::ecma::codegen::Config::default().with_target(swc_core::ecma::ast::EsVersion::Es5);
+    let config = swc_core::ecma::codegen::Config::default()
+      .with_target(swc_core::ecma::ast::EsVersion::Es5)
+      .with_ascii_only(true);
     let mut emitter = swc_core::ecma::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
