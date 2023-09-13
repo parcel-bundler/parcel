@@ -19,6 +19,7 @@ function showHelp() {
   console.log(`Usage: parcel-graph-explorer [options]
 
 Options:
+  --print-schema      print the GraphQL schema and exit
   --cache <filepath>  path to the parcel cache (default: .parcel_cache)
   --verbose           show verbose logs
   -h, --help          show help`);
@@ -61,6 +62,11 @@ if (args.includes('--help') || args.includes('-h')) {
   process.exit(0);
 }
 
+if (args.includes('--print-schema')) {
+  console.log(GraphExplorer.printSchema());
+  process.exit(0);
+}
+
 if (args.includes('--verbose')) {
   verbose = true;
   args = args.filter(arg => arg !== '--verbose');
@@ -97,7 +103,10 @@ try {
   process.exit(1);
 }
 
-logger.info({message: 'Loading graphs...'});
+logger.info({
+  origin: 'parcel-graph-explorer',
+  message: 'Loading graphs...',
+});
 let {assetGraph, bundleGraph, requestTracker, bundleInfo} =
   loadGraphs(cacheDir);
 
@@ -140,7 +149,7 @@ async function shutdown(cause) {
   try {
     explorer = new GraphExplorer(
       {assetGraph, bundleGraph, requestTracker, bundleInfo},
-      new PluginLogger({origin: 'GraphExplorer'}),
+      new PluginLogger({origin: 'parcel-graph-explorer'}),
       {verbose, dev},
     );
     await explorer.start();

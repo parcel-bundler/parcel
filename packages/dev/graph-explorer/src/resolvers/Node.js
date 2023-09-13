@@ -18,7 +18,7 @@ import invariant from 'assert';
 
 const nodeTypes: Map<string, typeof Node> = new Map();
 
-export const typeDefs: string = /* GraphQL */ `
+export const typeDefs: string = `#graphql
   interface Node {
     "The unique id of this node."
     id: ID!

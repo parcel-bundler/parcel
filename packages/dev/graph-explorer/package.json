@@ -5,7 +5,28 @@
   "bin": "src/bin.js",
   "main": "src/GraphExplorer.js",
   "scripts": {
-    "build": "cd src/frontend && parcel build --no-optimize"
+    "build": "yarn print-schema && yarn build-relay && yarn build-parcel",
+    "build-parcel": "parcel build",
+    "build-relay": "relay-compiler",
+    "print-schema": "node ./src/bin.js --print-schema > ./schema.graphql",
+    "clean": "yarn clean-cli && yarn clean-frontend",
+    "clean-frontend": "rm -rf ./src/frontend/dist && rm -rf ./src/frontend/.parcel-cache && rm -rf ./src/frontend/**/__generated__",
+    "clean-cli": "rm -rf ./dist && rm -rf ./frontend && rm -rf ./.parcel-cache"
+  },
+  "targets": {
+    "frontend": {
+      "source": "./src/frontend/index.html",
+      "distDir": "./frontend"
+    }
+  },
+  "relay": {
+    "src": "./src/frontend",
+    "schema": "./schema.graphql",
+    "language": "flow",
+    "exclude": [
+      "**/node_modules/**",
+      "**/__generated__/**"
+    ]
   },
   "dependencies": {
     "@graphql-tools/merge": "^8.4.0",
@@ -21,16 +42,23 @@
     "graphql-yoga": "^3.7.2",
     "nullthrows": "^1.1.1",
     "parcel-query": "2.8.3",
+    "react": "^18.2.0",
+    "react-digraph": "8.0.0-beta.8",
+    "react-dom": "^18.2.0",
+    "react-json-tree": "^0.13.0",
+    "react-relay": "^15.0.0",
+    "relay-runtime": "^15.0.0",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.0.0",
+    "@parcel/babel-preset": "2.8.3",
     "@parcel/babel-register": "2.8.3",
     "@parcel/core": "2.8.3",
+    "@parcel/eslint-config": "2.8.3",
     "@parcel/watcher": "^2.0.7",
-    "react": "^18.2.0",
-    "react-digraph": "8.0.0-beta.8",
-    "react-dom": "^18.2.0",
-    "react-json-tree": "^0.13.0"
+    "babel-plugin-relay": "^15.0.0",
+    "eslint-plugin-relay": "^1.8.3",
+    "relay-compiler": "^15.0.0"
   }
 }

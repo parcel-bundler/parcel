@@ -17,7 +17,7 @@ import {
   registerNodeType,
 } from './Node';
 
-export const typeDefs: string = /* GraphQL */ `
+export const typeDefs: string = `#graphql
   type Entry implements Node {
     id: ID!
     contentKey: ID!

@@ -26,6 +26,8 @@ untyped-type-import=error
 [options]
 module.system.node.main_field=source
 module.system.node.main_field=main
+relay_integration=true
+relay_integration.module_prefix=./__generated__/
 
 [strict]
 nonstrict-import

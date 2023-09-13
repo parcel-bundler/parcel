@@ -1,0 +1,10 @@
+{
+  "extends": ["@parcel/eslint-config", "plugin:relay/recommended"],
+  "plugins": ["relay"],
+  "rules": {
+    "relay/generated-flow-types": "off"
+  },
+  "env": {
+    "browser": true
+  }
+}

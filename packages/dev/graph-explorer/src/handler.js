@@ -11,17 +11,22 @@ import {makeExecutableSchema} from '@graphql-tools/schema';
 // $FlowFixMe[untyped-import]
 import {createYoga} from 'graphql-yoga';
 
+// $FlowFixMe[unclear-type]
+export function createSchema(): any {
+  // Using require here to make resolvers hot-reloadable.
+  let {resolvers, typeDefs} = require('./resolvers');
+
+  return makeExecutableSchema({
+    typeDefs: mergeTypeDefs(typeDefs),
+    resolvers: mergeResolvers(resolvers),
+  });
+}
+
 export function createHandler(
   context: GraphContext,
   logger?: ?PluginLogger,
 ): (req: $Request, res: $Response, next: NextFunction) => mixed {
-  // Using require here to make resolvers hot-reloadable.
-  let {resolvers, typeDefs} = require('./resolvers');
-
-  let schema = makeExecutableSchema({
-    typeDefs: mergeTypeDefs(typeDefs),
-    resolvers: mergeResolvers(resolvers),
-  });
+  let schema = createSchema();
 
   let logging;
   if (logger) {

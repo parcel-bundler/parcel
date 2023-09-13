@@ -15,7 +15,7 @@ import {Bundle} from './Bundle';
 import {Dependency} from './Dependency';
 import {BundleBehaviorNames} from '../types';
 
-export const typeDefs: string = /* GraphQL */ `
+export const typeDefs: string = `#graphql
   type Asset implements Node {
     id: ID!
     contentKey: ID!

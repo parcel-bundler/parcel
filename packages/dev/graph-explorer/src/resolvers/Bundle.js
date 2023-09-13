@@ -16,7 +16,7 @@ import {
 } from './Node';
 import {Asset} from './Asset';
 
-export const typeDefs: string = /* GraphQL */ `
+export const typeDefs: string = `#graphql
   enum BundleBehavior {
     inline
     isolated

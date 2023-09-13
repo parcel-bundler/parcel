@@ -5,7 +5,7 @@ import type {ContentGraph} from '@parcel/graph';
 
 import {Node, registerNodeType} from './Node';
 
-export const typeDefs: string = /* GraphQL */ `
+export const typeDefs: string = `#graphql
   type Root implements Node {
     id: ID!
     contentKey: ID!

@@ -10,7 +10,7 @@ import type {
 import invariant from 'assert';
 import {Node, getAssetGraphNode, registerNodeType} from './Node';
 
-export const typeDefs: string = /* GraphQL */ `
+export const typeDefs: string = `#graphql
   enum DepenencyPriority {
     sync
     parallel

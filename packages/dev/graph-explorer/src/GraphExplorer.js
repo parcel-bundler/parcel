@@ -16,6 +16,8 @@ import getPort from 'get-port';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {spawn} from 'child_process';
+// $FlowFixMe[untyped-import]
+import {printSchema} from 'graphql';
 
 type GraphExplorerOptions = {|
   dev?: boolean,
@@ -39,6 +41,10 @@ export class GraphExplorer implements IDisposable {
     this.#context = context;
     this.#logger = logger;
     this.#opts = opts;
+  }
+
+  static printSchema(): string {
+    return printSchema(require('./handler').createSchema());
   }
 
   get port(): number {
@@ -74,9 +80,13 @@ export class GraphExplorer implements IDisposable {
     this.#app.all('/graphql', (...args) => handler(...args));
 
     if (this.#opts?.dev) {
+      let schemaPath = path.resolve(__dirname, '../schema.graphql');
+      writeSchema(schemaPath, this.#logger);
+
       // Hot reload the GraphQL handler when files change.
       this.#disposable.add(
         await createHotHandler(() => {
+          writeSchema(schemaPath, this.#logger);
           handler = require('./handler').createHandler(
             this.#context,
             this.#logger,
@@ -85,6 +95,12 @@ export class GraphExplorer implements IDisposable {
             message: 'Reloaded GraphQL handler',
           });
         }, this.#logger),
+      );
+
+      this.#disposable.add(await createHotHandler(() => {}));
+
+      this.#disposable.add(
+        await createRelayWatcher(this.#opts?.verbose, this.#logger),
       );
 
       this.#disposable.add(
@@ -167,7 +183,7 @@ async function createHotHandler(cb: () => void, logger: ?PluginLogger) {
       cb();
     },
     {
-      ignore: ['frontend', 'node_modules'],
+      ignore: ['dist', 'frontend', 'node_modules'],
     },
   );
   return () => subscription.unsubscribe();
@@ -223,7 +239,7 @@ async function createProxyrc(
   port: number,
   logger: ?PluginLogger,
 ): Promise<Disposable> {
-  const proxyrc = path.resolve(__dirname, 'frontend/.proxyrc');
+  const proxyrc = path.resolve(__dirname, '../.proxyrc');
   logger?.verbose({
     message: `Creating ${proxyrc}`,
   });
@@ -239,13 +255,78 @@ async function createProxyrc(
   });
 }
 
+function writeSchema(schemaPath: string, logger: ?PluginLogger): void {
+  fs.writeFileSync(
+    schemaPath,
+    printSchema(require('./handler').createSchema()),
+  );
+  logger?.verbose({
+    message: `Wrote GraphQL schema to ${schemaPath}`,
+  });
+}
+
+function createRelayWatcher(
+  verbose?: boolean,
+  logger: ?PluginLogger,
+): Promise<Disposable> {
+  let cmd = require.resolve('.bin/relay-compiler');
+  let cwd = path.resolve(__dirname, '..');
+
+  let args = ['--watch'];
+  if (!verbose) {
+    args.push('--output', 'quiet-with-errors');
+  }
+
+  return new Promise((resolve, reject) => {
+    logger?.verbose({
+      message: `$ ${cmd} ${args.join(' ')}`,
+    });
+
+    let relay = spawn(cmd, args, {cwd, stdio: 'inherit'});
+
+    function handleClose(code) {
+      if (code != null && code !== 0) {
+        reject(new Error(`Relay exited with code ${code}`));
+      }
+    }
+
+    relay.once('close', handleClose);
+
+    relay.once('spawn', () => {
+      relay.off('close', handleClose);
+
+      logger?.info({
+        message: 'Watching for changes to GraphQL queries...',
+      });
+
+      resolve(
+        new Disposable(() => {
+          logger?.verbose({
+            message: 'Stopping Relay watcher...',
+          });
+          return new Promise((resolve, reject) => {
+            relay.on('close', code => {
+              if (code != null && code !== 0) {
+                reject(new Error(`Relay exited with code ${code}`));
+              } else {
+                resolve();
+              }
+            });
+            relay.kill();
+          });
+        }),
+      );
+    });
+  });
+}
+
 function createParcelServer(
   port: number,
   verbose: ?boolean,
   logger: ?PluginLogger,
 ): Promise<Disposable> {
   let cmd = require.resolve('parcel/src/bin.js');
-  let cwd = path.resolve(__dirname, 'frontend');
+  let cwd = path.resolve(__dirname, '..');
 
   let args = ['--port', port.toString(10)];
   if (verbose) {
@@ -278,7 +359,6 @@ function createParcelServer(
       resolve(
         new Disposable(() => {
           logger?.verbose({
-            origin: 'parcel-graph-explorer',
             message: `Stopping Parcel server on port ${port}...`,
           });
           return new Promise((resolve, reject) => {

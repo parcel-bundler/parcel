@@ -10,7 +10,7 @@ import type {
 import invariant from 'assert';
 import {Node, getBundleGraphNode, registerNodeType} from './Node';
 
-export const typeDefs: string = /* GraphQL */ `
+export const typeDefs: string = `#graphql
   type BundleGroup implements Node {
     id: ID!
     contentKey: ID!

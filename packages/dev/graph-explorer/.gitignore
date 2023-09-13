@@ -1,1 +1,4 @@
 /frontend/
+/__generated__/
+.proxyrc
+schema.graphql
