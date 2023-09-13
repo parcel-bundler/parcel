@@ -225,7 +225,8 @@ export class NodePackageManager implements PackageManager {
       } catch (e) {
         if (
           e.code !== 'MODULE_NOT_FOUND' ||
-          options?.shouldAutoInstall !== true
+          options?.shouldAutoInstall !== true ||
+          id.startsWith('.') // a local file, don't autoinstall
         ) {
           if (
             e.code === 'MODULE_NOT_FOUND' &&
