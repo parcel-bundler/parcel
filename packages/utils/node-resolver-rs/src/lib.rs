@@ -2297,6 +2297,18 @@ mod tests {
         .0,
       Resolution::Builtin("zlib".into())
     );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "node:fs/promises",
+          &root().join("foo.js"),
+          SpecifierType::Cjs
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Builtin("fs/promises".into())
+    );
   }
 
   #[test]
