@@ -9,7 +9,7 @@ fn main() {
   let deps = pkg.get("dependencies").unwrap().as_object().unwrap();
   let cwd = std::env::current_dir().unwrap();
 
-  let cache = Cache::new(OsFileSystem::default());
+  let cache = Cache::new(OsFileSystem);
   let cjs_resolver = Resolver::node(Cow::Borrowed(&cwd), CacheCow::Borrowed(&cache));
   let esm_graph_cache = parcel_dev_dep_resolver::Cache::default();
 
