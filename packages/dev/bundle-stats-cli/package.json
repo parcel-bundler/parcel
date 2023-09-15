@@ -17,6 +17,7 @@
     "@parcel/reporter-bundle-analyzer": "^2.9.3",
     "@parcel/reporter-bundle-buddy": "^2.9.3",
     "@parcel/reporter-bundle-stats": "^2.9.3",
+    "@parcel/reporter-sourcemap-visualiser": "^2.9.3",
     "@parcel/utils": "^2.9.3",
     "commander": "^7.0.0",
     "parcel-query": "^2.9.3"

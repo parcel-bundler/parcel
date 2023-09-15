@@ -1,61 +1,27 @@
 // @flow
+import type {PackagedBundle, PluginOptions, PluginLogger} from '@parcel/types';
+
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {Reporter} from '@parcel/plugin';
 import {relativePath} from '@parcel/utils';
 
+export type SourceMapInfo = {|
+  name: string,
+  mappings: string,
+  names: string,
+  sources: Array<{|name: string, content: string|}>,
+  content: string,
+|};
+
 export default (new Reporter({
   async report({event, options, logger}) {
     if (event.type === 'buildSuccess') {
-      let bundles = [];
-      for (let bundle of event.bundleGraph.getBundles()) {
-        let p = bundle.filePath;
-        if (p) {
-          let mapFilePath = p + '.map';
-          let hasMap = await options.outputFS.exists(mapFilePath);
-          if (hasMap) {
-            let map = JSON.parse(
-              await options.outputFS.readFile(mapFilePath, 'utf-8'),
-            );
-
-            let mappedSources = await Promise.all(
-              map.sources.map(async (sourceName, index) => {
-                let sourceContent = map.sourcesContent?.[index];
-                if (sourceContent != null) {
-                  try {
-                    sourceContent = await options.inputFS.readFile(
-                      path.resolve(options.projectRoot, sourceName),
-                      'utf-8',
-                    );
-                  } catch (e) {
-                    logger.warn({
-                      message: `Error while loading content of ${sourceName}, ${e.message}`,
-                    });
-                  }
-                }
-
-                return {
-                  name: sourceName,
-                  content: sourceContent ?? '',
-                };
-              }),
-            );
-
-            let fileName = relativePath(options.projectRoot, p);
-            bundles.push({
-              name: fileName,
-              mappings: map.mappings,
-              names: map.names,
-              sources: mappedSources,
-              content: await options.outputFS.readFile(
-                nullthrows(bundle.filePath),
-                'utf-8',
-              ),
-            });
-          }
-        }
-      }
-
+      let bundles = getSourceMapInfo(
+        event.bundleGraph.getBundles(),
+        options,
+        logger,
+      );
       await options.outputFS.writeFile(
         path.join(options.projectRoot, 'sourcemap-info.json'),
         JSON.stringify(bundles),
@@ -67,3 +33,59 @@ export default (new Reporter({
     }
   },
 }): Reporter);
+
+export async function getSourceMapInfo(
+  bundles: Array<PackagedBundle>,
+  options: PluginOptions,
+  logger: PluginLogger,
+): Promise<Array<SourceMapInfo>> {
+  let result = [];
+  for (let bundle of bundles) {
+    let p = bundle.filePath;
+    if (p) {
+      let mapFilePath = p + '.map';
+      let hasMap = await options.outputFS.exists(mapFilePath);
+      if (hasMap) {
+        let map = JSON.parse(
+          await options.outputFS.readFile(mapFilePath, 'utf-8'),
+        );
+
+        let mappedSources = await Promise.all(
+          map.sources.map(async (sourceName, index) => {
+            let sourceContent = map.sourcesContent?.[index];
+            if (sourceContent != null) {
+              try {
+                sourceContent = await options.inputFS.readFile(
+                  path.resolve(options.projectRoot, sourceName),
+                  'utf-8',
+                );
+              } catch (e) {
+                logger.warn({
+                  message: `Error while loading content of ${sourceName}, ${e.message}`,
+                });
+              }
+            }
+
+            return {
+              name: sourceName,
+              content: sourceContent ?? '',
+            };
+          }),
+        );
+
+        let fileName = relativePath(options.projectRoot, p);
+        result.push({
+          name: fileName,
+          mappings: map.mappings,
+          names: map.names,
+          sources: mappedSources,
+          content: await options.outputFS.readFile(
+            nullthrows(bundle.filePath),
+            'utf-8',
+          ),
+        });
+      }
+    }
+  }
+  return result;
+}

@@ -17,6 +17,7 @@ import {loadGraphs} from 'parcel-query/src/index.js';
 import {getBundleStats} from '@parcel/reporter-bundle-stats/src/BundleStatsReporter';
 import {getBundleBuddyReport} from '@parcel/reporter-bundle-buddy/src/BundleBuddyReporter';
 import {getBundleAnalyzerReport} from '@parcel/reporter-bundle-analyzer/src/BundleAnalyzerReporter';
+import {getSourceMapInfo} from '@parcel/reporter-sourcemap-visualiser/src/SourceMapVisualiser';
 import {PackagedBundle as PackagedBundleClass} from '@parcel/core/src/public/Bundle';
 import {NodeFS} from '@parcel/fs';
 
@@ -68,7 +69,14 @@ class Logger implements PluginLogger {
   }
 }
 
-async function run({cacheDir, outDir, verbose, bundleBuddy, analyze}) {
+async function run({
+  cacheDir,
+  outDir,
+  verbose,
+  bundleBuddy,
+  sourceMap,
+  analyze,
+}) {
   let logger = new Logger(verbose);
   let fs = new NodeFS();
 
@@ -142,6 +150,20 @@ async function run({cacheDir, outDir, verbose, bundleBuddy, analyze}) {
       logger.info(`Open ${filename} in your browser to view the report`);
     }
 
+    if (sourceMap) {
+      logger.info(`generating sourcemap info for ${targetName} target`);
+      let filename = path.join(outDir, `${targetName}-sourcemap-info.json`);
+      await fs.writeFile(
+        filename,
+        JSON.stringify(await getSourceMapInfo(bundles, parcelOptions, logger)),
+      );
+
+      logger.info(`Wrote ${sourceMap}`);
+      logger.info(
+        `Goto https://sourcemap-visualiser.now.sh/ and upload the generated sourcemap-info.json file to visualise and debug the sourcemaps.`,
+      );
+    }
+
     if (bundleBuddy) {
       logger.info(`generating bundle buddy report for ${targetName} target`);
       // $FlowFixMe
@@ -172,5 +194,6 @@ export const command: commander$Command = new commander.Command()
     'parcel-bundle-reports',
   )
   .option('-b, --bundle-buddy', 'Generate a bundle buddy report')
+  .option('-s, --source-map', 'Generate a source map explorer report')
   .option('-a, --analyze', 'Generate an analyze report')
   .action(run);
