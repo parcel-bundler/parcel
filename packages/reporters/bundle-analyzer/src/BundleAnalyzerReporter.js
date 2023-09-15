@@ -8,6 +8,17 @@ import {DefaultMap, generateBuildMetrics} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
+type BundleData = {|
+  groups: Array<Group>,
+|};
+
+type File = {|
+  basename: string,
+  size: number,
+|};
+type DirMapValue = File | DirMap;
+type DirMap = DefaultMap<FilePath, DirMapValue>;
+
 export default (new Reporter({
   async report({event, options}) {
     if (event.type !== 'buildSuccess') {
@@ -29,70 +40,89 @@ export default (new Reporter({
       [...bundlesByTarget.entries()].map(async ([targetName, bundles]) => {
         return options.outputFS.writeFile(
           path.join(reportsDir, `${targetName}.html`),
-          `
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <title>📦Parcel Bundle Analyzer | ${targetName}</title>
-              <style>
-                body {
-                  margin: 0;
-                }
-
-                .tooltip {
-                  background-color: rgba(255, 255, 255, 0.7);
-                  left: 0;
-                  padding: 20px;
-                  pointer-events: none;
-                  position: absolute;
-                  top: 0;
-                  transform: translate3d(0, 0, 0);
-                }
-
-                .tooltip-content {
-                  font-family: monospace;
-                }
-
-                .tooltip-content dl div {
-                  display: flex;
-                }
-
-                .tooltip-title {
-                  font-size: 18px;
-                }
-              </style>
-              <script>
-                ${await options.inputFS.readFile(
-                  path.resolve(
-                    __dirname,
-                    '../client/vendor/foamtree/carrotsearch.foamtree.js',
-                  ),
-                  'utf8',
-                )}
-              </script>
-              <script id="bundle-data" type="application/json">
-                ${JSON.stringify(await getBundleData(bundles, options))}
-              </script>
-            </head>
-            <body>
-              <script>
-                ${await options.inputFS.readFile(
-                  path.resolve(__dirname, '../client/index.js'),
-                  'utf8',
-                )}
-              </script>
-            </body>
-          </html>
-        `,
+          await getBundleAnalyzerReport(targetName, bundles, options),
         );
       }),
     );
   },
 }): Reporter);
 
-type BundleData = {|
-  groups: Array<Group>,
-|};
+export async function getBundleAnalyzerReport(
+  targetName: string,
+  bundles: Array<PackagedBundle>,
+  options: PluginOptions,
+): Promise<string> {
+  let foamtreePath = path.resolve(
+    __dirname,
+    '../client/vendor/foamtree/carrotsearch.foamtree.js',
+  );
+  let clientPath = path.resolve(__dirname, '../client/index.js');
+  console.time(foamtreePath);
+  console.time(clientPath);
+  console.time('bundleData');
+
+  let [foamtree, client, data] = await Promise.all([
+    options.inputFS.readFile(foamtreePath, 'utf8').then(r => {
+      console.timeEnd(foamtreePath);
+      return r;
+    }),
+    options.inputFS.readFile(clientPath, 'utf8').then(r => {
+      console.timeEnd(clientPath);
+      return r;
+    }),
+    getBundleData(bundles, options).then(r => {
+      console.timeEnd('bundleData');
+      return JSON.stringify(r);
+    }),
+  ]);
+
+  return `
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>📦Parcel Bundle Analyzer | ${targetName}</title>
+        <style>
+          body {
+            margin: 0;
+          }
+
+          .tooltip {
+            background-color: rgba(255, 255, 255, 0.7);
+            left: 0;
+            padding: 20px;
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            transform: translate3d(0, 0, 0);
+          }
+
+          .tooltip-content {
+            font-family: monospace;
+          }
+
+          .tooltip-content dl div {
+            display: flex;
+          }
+
+          .tooltip-title {
+            font-size: 18px;
+          }
+        </style>
+        <script>
+          ${foamtree}
+        </script>
+        <script id="bundle-data" type="application/json">
+          ${data}
+        </script>
+      </head>
+      <body>
+        <script>
+          ${client}
+        </script>
+      </body>
+    </html>
+  `;
+}
 
 async function getBundleData(
   bundles: Array<PackagedBundle>,
@@ -106,12 +136,6 @@ async function getBundleData(
   };
 }
 
-type File = {|
-  basename: string,
-  size: number,
-|};
-type DirMapValue = File | DirMap;
-type DirMap = DefaultMap<FilePath, DirMapValue>;
 let createMap: () => DirMap = () => new DefaultMap(() => createMap());
 
 async function getBundleNode(bundle: PackagedBundle, options: PluginOptions) {

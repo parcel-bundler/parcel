@@ -16,6 +16,7 @@ import {DefaultMap} from '@parcel/utils';
 import {loadGraphs} from 'parcel-query/src/index.js';
 import {getBundleStats} from '@parcel/reporter-bundle-stats/src/BundleStatsReporter';
 import {getBundleBuddyReport} from '@parcel/reporter-bundle-buddy/src/BundleBuddyReporter';
+import {getBundleAnalyzerReport} from '@parcel/reporter-bundle-analyzer/src/BundleAnalyzerReporter';
 import {PackagedBundle as PackagedBundleClass} from '@parcel/core/src/public/Bundle';
 import {NodeFS} from '@parcel/fs';
 
@@ -67,7 +68,7 @@ class Logger implements PluginLogger {
   }
 }
 
-async function run({cacheDir, outDir, verbose, bundleBuddy}) {
+async function run({cacheDir, outDir, verbose, bundleBuddy, analyze}) {
   let logger = new Logger(verbose);
   let fs = new NodeFS();
 
@@ -130,6 +131,17 @@ async function run({cacheDir, outDir, verbose, bundleBuddy}) {
       logger.info(`Wrote ${filename}`);
     }
 
+    if (analyze) {
+      logger.info(`generating bundle analyzer report for ${targetName} target`);
+      let filename = path.join(outDir, `${targetName}.html`);
+      await fs.writeFile(
+        filename,
+        await getBundleAnalyzerReport(targetName, bundles, parcelOptions),
+      );
+      logger.info(`Wrote ${filename}`);
+      logger.info(`Open ${filename} in your browser to view the report`);
+    }
+
     if (bundleBuddy) {
       logger.info(`generating bundle buddy report for ${targetName} target`);
       // $FlowFixMe
@@ -160,4 +172,5 @@ export const command: commander$Command = new commander.Command()
     'parcel-bundle-reports',
   )
   .option('-b, --bundle-buddy', 'Generate a bundle buddy report')
+  .option('-a, --analyze', 'Generate an analyze report')
   .action(run);
