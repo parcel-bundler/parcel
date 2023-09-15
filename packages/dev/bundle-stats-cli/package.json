@@ -12,8 +12,9 @@
     "parcel": "^2.9.3"
   },
   "dependencies": {
-    "@parcel/reporter-bundle-stats": "^2.9.3",
     "@parcel/core": "^2.9.3",
+    "@parcel/fs": "^2.9.3",
+    "@parcel/reporter-bundle-stats": "^2.9.3",
     "@parcel/utils": "^2.9.3",
     "commander": "^7.0.0",
     "parcel-query": "^2.9.3"
