@@ -15,6 +15,7 @@ import {DefaultMap} from '@parcel/utils';
 
 import {loadGraphs} from 'parcel-query/src/index.js';
 import {getBundleStats} from '@parcel/reporter-bundle-stats/src/BundleStatsReporter';
+import {getBundleBuddyReport} from '@parcel/reporter-bundle-buddy/src/BundleBuddyReporter';
 import {PackagedBundle as PackagedBundleClass} from '@parcel/core/src/public/Bundle';
 import {NodeFS} from '@parcel/fs';
 
@@ -66,7 +67,7 @@ class Logger implements PluginLogger {
   }
 }
 
-async function run({cacheDir, outDir, verbose}) {
+async function run({cacheDir, outDir, verbose, bundleBuddy}) {
   let logger = new Logger(verbose);
   let fs = new NodeFS();
 
@@ -128,6 +129,19 @@ async function run({cacheDir, outDir, verbose}) {
       );
       logger.info(`Wrote ${filename}`);
     }
+
+    if (bundleBuddy) {
+      logger.info(`generating bundle buddy report for ${targetName} target`);
+      // $FlowFixMe
+      let out = getBundleBuddyReport(bundleGraph, bundles, parcelOptions);
+      let targetDir = bundles[0].target.distDir;
+      let filename = path.join(targetDir, 'bundle-buddy.json');
+      await fs.writeFile(filename, JSON.stringify(out));
+      logger.info(`Wrote report to ${filename}`);
+      logger.info(
+        `Goto https://bundle-buddy.com/ and upload the bundle-buddy.json and sourcemaps in ${targetDir}.`,
+      );
+    }
   }
 }
 
@@ -145,4 +159,5 @@ export const command: commander$Command = new commander.Command()
     'Directory to write the stats to',
     'parcel-bundle-reports',
   )
+  .option('-b, --bundle-buddy', 'Generate a bundle buddy report')
   .action(run);

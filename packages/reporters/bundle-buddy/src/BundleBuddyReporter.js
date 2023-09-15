@@ -1,7 +1,14 @@
 // @flow strict-local
-import type {PackagedBundle} from '@parcel/types';
+import type {
+  BundleGraph,
+  Bundle,
+  PackagedBundle,
+  PluginOptions,
+} from '@parcel/types';
 import {Reporter} from '@parcel/plugin';
 import path from 'path';
+
+export type BundleBuddyReport = Array<{|source: string, target: string|}>;
 
 export default (new Reporter({
   async report({event, options, logger}) {
@@ -21,24 +28,7 @@ export default (new Reporter({
     }
 
     for (let [targetDir, bundles] of bundlesByTarget) {
-      let out = [];
-
-      for (let bundle of bundles) {
-        bundle.traverseAssets(asset => {
-          let deps = event.bundleGraph.getDependencies(asset);
-          for (let dep of deps) {
-            let resolved = event.bundleGraph.getResolvedAsset(dep);
-            if (!resolved) {
-              continue;
-            }
-
-            out.push({
-              source: path.relative(options.projectRoot, asset.filePath),
-              target: path.relative(options.projectRoot, resolved.filePath),
-            });
-          }
-        });
-      }
+      let out = getBundleBuddyReport(event.bundleGraph, bundles, options);
 
       await options.outputFS.writeFile(
         path.join(targetDir, 'bundle-buddy.json'),
@@ -53,3 +43,30 @@ export default (new Reporter({
     }
   },
 }): Reporter);
+
+export function getBundleBuddyReport<TBundle: Bundle>(
+  bundleGraph: BundleGraph<TBundle>,
+  bundles: Array<TBundle>,
+  {projectRoot}: PluginOptions,
+): BundleBuddyReport {
+  let out = [];
+
+  for (let bundle of bundles) {
+    bundle.traverseAssets(asset => {
+      let deps = bundleGraph.getDependencies(asset);
+      for (let dep of deps) {
+        let resolved = bundleGraph.getResolvedAsset(dep);
+        if (!resolved) {
+          continue;
+        }
+
+        out.push({
+          source: path.relative(projectRoot, asset.filePath),
+          target: path.relative(projectRoot, resolved.filePath),
+        });
+      }
+    });
+  }
+
+  return out;
+}
