@@ -6366,6 +6366,7 @@ describe('javascript', function () {
   });
 
   it('should retain unicode escape sequences', async function () {
+    // See issue #8877
     await fsFixture(overlayFS, __dirname)`
         src/index.js:
           export default ['\\u0085', '\\u200b', '\\ufffe'];
