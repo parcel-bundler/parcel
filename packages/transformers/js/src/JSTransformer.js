@@ -101,6 +101,9 @@ const CONFIG_SCHEMA: SchemaEntity = {
         },
       ],
     },
+    unstable_inlineConstants: {
+      type: 'boolean',
+    },
   },
   additionalProperties: false,
 };
@@ -109,6 +112,7 @@ type PackageJSONConfig = {|
   '@parcel/transformer-js'?: {|
     inlineFS?: boolean,
     inlineEnvironment?: boolean | Array<string>,
+    unstable_inlineConstants?: boolean,
   |},
 |};
 
@@ -270,6 +274,7 @@ export default (new Transformer({
 
     let inlineEnvironment = config.isSource;
     let inlineFS = !ignoreFS;
+    let inlineConstants = false;
     if (result && rootPkg?.['@parcel/transformer-js']) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
@@ -289,6 +294,9 @@ export default (new Transformer({
         rootPkg['@parcel/transformer-js']?.inlineEnvironment ??
         inlineEnvironment;
       inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
+      inlineConstants =
+        rootPkg['@parcel/transformer-js']?.unstable_inlineConstants ??
+        inlineConstants;
     }
 
     return {
@@ -299,6 +307,7 @@ export default (new Transformer({
       pragmaFrag,
       inlineEnvironment,
       inlineFS,
+      inlineConstants,
       reactRefresh,
       decorators,
       useDefineForClassFields,
@@ -401,6 +410,7 @@ export default (new Transformer({
       diagnostics,
       used_env,
       has_node_replacements,
+      is_constant_module,
     } = await (transformAsync || transform)({
       filename: asset.filePath,
       code,
@@ -440,7 +450,12 @@ export default (new Transformer({
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
       standalone: asset.query.has('standalone'),
+      inline_constants: config.inlineConstants,
     });
+
+    if (is_constant_module) {
+      asset.meta.isConstantModule = true;
+    }
 
     let convertLoc = (loc): SourceLocation => {
       let location = {
