@@ -757,6 +757,16 @@ impl Visit for Collect {
     }
   }
 
+  fn visit_ident(&mut self, node: &Ident) {
+    // This visitor helps us identify used imports in cases like:
+    //
+    //   import { foo } from "bar";
+    //   const baz = { foo };
+    if self.imports.contains_key(&id!(node)) {
+      self.used_imports.insert(id!(node));
+    }
+  }
+
   fn visit_this_expr(&mut self, node: &ThisExpr) {
     if self.in_module_this {
       self.has_cjs_exports = true;
