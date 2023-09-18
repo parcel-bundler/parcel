@@ -44,11 +44,11 @@ type BundlerConfig = {|
 |};
 
 type ResolvedBundlerConfig = {|
-  projectPath: string,
   manualSharedBundles: ManualSharedBundlesType,
   minBundles: number,
   minBundleSize: number,
   maxParallelRequests: number,
+  projectRoot: string,
 |};
 
 // Default options by http version.
@@ -178,8 +178,15 @@ function decorateLegacyGraph(
           invariant(dependency.type === 'dependency');
           return dependency.value;
         });
+      invariant(
+        entryAsset != null,
+        'Processing a bundleGroup with no entry asset',
+      );
       for (let dependency of dependencies) {
-        if (bundleGraph.getResolvedAsset(dependency).id === entryAsset.id) {
+        if (
+          nullthrows(bundleGraph.getResolvedAsset(dependency)).id ===
+          entryAsset.id
+        ) {
           bundleGroup = bundleGraph.createBundleGroup(
             dependency,
             idealBundle.target,
@@ -1093,7 +1100,6 @@ function createIdealGraph(
     let reachableEntries = [];
     let reachableNonEntries = [];
 
-
     let manualSharedObject = manualAssetToConfig.get(asset);
 
     if (asset.meta.isConstantModule === true) {
@@ -1324,6 +1330,7 @@ function createIdealGraph(
     invariant(firstSourceBundle !== 'root');
     let firstAsset = [...manualBundle.assets][0];
     let manualSharedObject = manualAssetToConfig.get(firstAsset);
+    invariant(manualSharedObject != null);
     let modNum = manualAssetToConfig.get(firstAsset).split;
     if (modNum != null) {
       for (let a of [...manualBundle.assets]) {
@@ -1720,7 +1727,11 @@ async function loadBundlerConfig(
   });
 
   if (!conf) {
-    return HTTP_OPTIONS['2'];
+    const modDefault = {
+      ...HTTP_OPTIONS['2'],
+      projectRoot: options.projectRoot,
+    };
+    return modDefault;
   }
 
   invariant(conf?.contents != null);
@@ -1741,13 +1752,13 @@ async function loadBundlerConfig(
   let defaults = HTTP_OPTIONS[http];
 
   return {
-    projectRoot: options.projectRoot,
     manualSharedBundles:
       conf.contents.manualSharedBundles ?? defaults.manualSharedBundles,
     minBundles: conf.contents.minBundles ?? defaults.minBundles,
     minBundleSize: conf.contents.minBundleSize ?? defaults.minBundleSize,
     maxParallelRequests:
       conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
+    projectRoot: options.projectRoot,
   };
 }
 
