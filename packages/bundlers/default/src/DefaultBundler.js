@@ -1297,6 +1297,54 @@ function createIdealGraph(
       }
     }
   }
+
+  let manualSharedBundleIds = new Set([...manualSharedMap.values()]);
+  // Step split manual shared bundles for those that have the "split" property set
+  let remainderMap = new DefaultMap(() => []);
+  for (let [manualName, id] of manualSharedMap) {
+    let manualBundle = bundleGraph.getNode(id);
+    invariant(manualBundle !== 'root' && manualBundle != null);
+    let firstSourceBundle = nullthrows(
+      bundleGraph.getNode([...manualBundle.sourceBundles][0]),
+    );
+    invariant(firstSourceBundle !== 'root');
+    let firstAsset = [...manualBundle.assets][0];
+    let manualSharedObject = manualAssetToConfig.get(firstAsset);
+    let modNum = manualAssetToConfig.get(firstAsset).split;
+    if (modNum != null) {
+      for (let a of [...manualBundle.assets]) {
+        let numRep = getBigIntFromContentKey(a.id);
+        let r = Number(BigInt(numRep) % BigInt(modNum));
+
+        remainderMap.get(r).push(a);
+      }
+
+      for (let i = 1; i < [...remainderMap.keys()].length; i++) {
+        let bundle = createBundle({
+          target: firstSourceBundle.target,
+          type: firstSourceBundle.type,
+          env: firstSourceBundle.env,
+          manualSharedBundle: manualSharedObject.name,
+        });
+        bundle.sourceBundles = manualBundle.sourceBundles;
+        bundle.internalizedAssets = manualBundle.internalizedAssets;
+        let bundleId = bundleGraph.addNode(bundle);
+        manualSharedBundleIds.add(bundleId);
+        for (let sourceBundleId of manualBundle.sourceBundles) {
+          if (bundleId !== sourceBundleId) {
+            bundleGraph.addEdge(sourceBundleId, bundleId);
+          }
+        }
+        for (let sp of remainderMap.get(i)) {
+          bundle.assets.add(sp);
+          bundle.size += sp.stats.size;
+          manualBundle.assets.delete(sp);
+          manualBundle.size -= sp.stats.size;
+        }
+      }
+    }
+  }
+
   // Step Merge Share Bundles: Merge any shared bundles under the minimum bundle size back into
   // their source bundles, and remove the bundle.
   // We should include "bundle reuse" as shared bundles that may be removed but the bundle itself would have to be retained
@@ -1305,7 +1353,8 @@ function createIdealGraph(
     if (
       bundle.sourceBundles.size > 0 &&
       bundle.mainEntryAsset == null &&
-      bundle.size < config.minBundleSize
+      bundle.size < config.minBundleSize &&
+      !manualSharedBundleIds.has(bundleNodeId)
     ) {
       removeBundle(bundleGraph, bundleNodeId, assetReference);
     }
@@ -1334,7 +1383,10 @@ function createIdealGraph(
         // shared bundles must have source bundles, we could have a bundle
         // connected to another bundle that isnt a shared bundle, so check
         return (
-          bundle !== 'root' && bundle.sourceBundles.size > 0 && bundleId != b
+          bundle !== 'root' &&
+          bundle.sourceBundles.size > 0 &&
+          bundleId != b &&
+          !manualSharedBundleIds.has(b)
         );
       });
 
@@ -1410,6 +1462,11 @@ function createIdealGraph(
     }
   }
 
+  function getBigIntFromContentKey(contentKey) {
+    let b = Buffer.alloc(64);
+    b.write(contentKey);
+    return b.readBigInt64BE();
+  }
   // Fix asset order in source bundles as they are likely now incorrect after shared bundle deletion
   if (modifiedSourceBundles.size > 0) {
     let assetOrderMap = new Map(assets.map((a, index) => [a, index]));

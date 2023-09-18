@@ -504,7 +504,7 @@ describe('bundler', function () {
       },
     ]);
   });
-  it.skip('should support consistently splitting manual shared bundles', async function () {
+  it('should support consistently splitting manual shared bundles', async function () {
     // In this case we want to allow for manual shared bundles to only deduplicate for specific
     let b = await bundle(
       path.join(__dirname, 'integration/manual-bundle-split/index.js'),
@@ -515,13 +515,13 @@ describe('bundler', function () {
         assets: ['foo.js'],
       },
       {
-        assets: ['d.js', 'e.js'],
+        assets: ['a.js', 'e.js', 'b.js'],
       },
       {
-        assets: ['f.js', 'c.js', 'b.js'],
+        assets: ['d.js', 'c.js', 'f.js', 'g.js'],
       },
       {
-        assets: ['g.js'],
+        assets: ['h.js'],
       },
       {
         assets: ['bar.js'], // b is duplicated because 'bar' is not an 'Active' for this MSB
