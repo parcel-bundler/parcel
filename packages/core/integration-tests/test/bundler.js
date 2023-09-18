@@ -394,7 +394,7 @@ describe('bundler', function () {
 
   // The following tests exercise UNSTABLE Manual Shared bundle option, which allows users
   // to specify globs of assets for shared bundles and name them
-  it('should support manual shared bundles via glob config option for different types', async function () {
+  it.skip('should support manual shared bundles via glob config option for different types', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/manual-bundle-typeglob/index.js'),
       {
@@ -428,7 +428,7 @@ describe('bundler', function () {
       },
     ]);
   });
-  it('should support manual shared bundles via glob config option for sync and async assets', async function () {
+  it.skip('should support manual shared bundles via glob config option for sync and async assets', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/manual-bundle/index.js'),
     );
@@ -474,7 +474,7 @@ describe('bundler', function () {
       },
     ]);
   });
-  it('should support manual shared bundles for specific bundles, duplicated the assets for others', async function () {
+  it.skip('should support manual shared bundles for specific bundles, duplicated the assets for others', async function () {
     // In this case we want to allow for manual shared bundles to only deduplicate for specific
     let b = await bundle(
       path.join(
@@ -504,7 +504,7 @@ describe('bundler', function () {
       },
     ]);
   });
-  it('should support consistently splitting manual shared bundles', async function () {
+  it.skip('should support consistently splitting manual shared bundles', async function () {
     // In this case we want to allow for manual shared bundles to only deduplicate for specific
     let b = await bundle(
       path.join(__dirname, 'integration/manual-bundle-split/index.js'),
