@@ -136,9 +136,12 @@ impl<'a> Specifier<'a> {
             }
           }
           SpecifierType::Cjs => {
-            let builtin = specifier.strip_prefix("node:").unwrap_or(specifier);
-            if BUILTINS.contains(&builtin) {
-              (Specifier::Builtin(Cow::Borrowed(builtin)), None)
+            if let Some(node_prefixed) = specifier.strip_prefix("node:") {
+              return Ok((Specifier::Builtin(Cow::Borrowed(node_prefixed)), None));
+            }
+
+            if BUILTINS.contains(&specifier) {
+              (Specifier::Builtin(Cow::Borrowed(specifier)), None)
             } else {
               #[cfg(windows)]
               if !flags.contains(Flags::ABSOLUTE_SPECIFIERS) {
