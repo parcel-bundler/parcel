@@ -2670,6 +2670,31 @@ describe('javascript', function () {
     assert(!js.includes('local.a'));
   });
 
+  it.only('should bundle nested node modules properly minimal', async function () {
+    // Issue we've been experiencing. package.json for the @atlaskit/packages needs to be
+    // altered to have  "module": "dist/es2019/index.js",
+    // This isn't a repro yet, in the original problem, "media" is undefined within index.js, and
+    // The dependency(Primary -> @atlaskit/primitives/responsive) does not contain media symbol, in this
+    // test case it does.
+    let b = await bundle(
+      path.join(__dirname, '/integration/xcss-bug/src/entry.js'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: false,
+          shouldScopeHoist: false,
+        },
+        outputFS: inputFS,
+      },
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+
+    let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!js.includes('local.a'));
+  });
+
   it('should use terser config', async function () {
     await bundle(path.join(__dirname, '/integration/terser-config/index.js'), {
       defaultTargetOptions: {

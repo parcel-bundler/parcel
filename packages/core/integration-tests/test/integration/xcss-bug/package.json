@@ -1,0 +1,10 @@
+{
+    "name": "xcss",
+    "private": true,
+    "main": "dist/cjs/index.js",
+    "module": "dist/es2019/index.js",
+    "module:es2019": "dist/es2019/index.js",
+    "dependencies": {
+    "@atlaskit/primitives": "^1.0.0"
+}
+}
