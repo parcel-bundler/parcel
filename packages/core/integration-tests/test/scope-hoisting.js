@@ -3496,6 +3496,69 @@ describe('scope hoisting', function () {
       let res = await run(b);
       assert.deepEqual(res, {foo: 2});
     });
+
+    it('supports constant inlining', async function () {
+      let b = await bundle(
+        path.join(__dirname, 'integration/inline-constants/index.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            sourceMaps: false,
+          },
+        },
+      );
+
+      let constants = ['BLOGGER', 'PREMIUM', 'MONTHS_IN_YEAR'];
+
+      for (let bundle of b.getBundles()) {
+        let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+
+        // Check constant export names are NOT present in the bundles
+        assert(
+          constants.every(constant => !contents.includes(constant)),
+          `Bundle didn't inline constant values`,
+        );
+      }
+
+      // Run the bundle to make sure it's valid
+      await run(b);
+    });
+
+    it('supports constant inlining with shared bundles', async function () {
+      let b = await bundle(
+        [
+          path.join(
+            __dirname,
+            'integration/inline-constants-shared-bundles/a.html',
+          ),
+          path.join(
+            __dirname,
+            'integration/inline-constants-shared-bundles/b.html',
+          ),
+        ],
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            sourceMaps: false,
+          },
+        },
+      );
+
+      let constants = ['BLOGGER', 'PREMIUM', 'MONTHS_IN_YEAR'];
+
+      for (let bundle of b.getBundles()) {
+        let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+
+        // Check constant export names are NOT present in the bundles
+        assert(
+          constants.every(constant => !contents.includes(constant)),
+          `Bundle didn't inline constant values`,
+        );
+      }
+
+      // Run the bundle to make sure it's valid
+      await run(b);
+    });
   });
 
   describe('commonjs', function () {
