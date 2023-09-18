@@ -24,16 +24,10 @@
     "native.js",
     "*.node"
   ],
-  "napi": {
-    "name": "parcel-image"
-  },
-  "scripts": {
-    "build": "napi build --platform --js native.js --dts native.d.ts",
-    "build-release": "napi build --platform --release --js native.js --dts native.d.ts"
-  },
   "dependencies": {
     "@parcel/diagnostic": "2.9.3",
     "@parcel/plugin": "2.9.3",
+    "@parcel/rust": "2.9.3",
     "@parcel/utils": "2.9.3",
     "@parcel/workers": "2.9.3"
   },

@@ -36,7 +36,7 @@ import {
   fromProjectPath,
   fromProjectPathRelative,
 } from './projectPath';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {BundleBehavior as BundleBehaviorMap} from './types';
 import {PluginTracer} from '@parcel/profiler';
 

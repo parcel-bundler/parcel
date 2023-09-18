@@ -964,6 +964,19 @@ function createIdealGraph(
     let reachableEntries = [];
     let reachableNonEntries = [];
 
+    if (asset.meta.isConstantModule === true) {
+      // Add assets to non-splittable bundles.
+      for (let entry of reachable) {
+        let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
+        let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
+        invariant(entryBundle !== 'root');
+        entryBundle.assets.add(asset);
+        entryBundle.size += asset.stats.size;
+      }
+
+      continue;
+    }
+
     // Filter out entries, since they can't have shared bundles.
     // Neither can non-splittable, isolated, or needing of stable name bundles.
     // Reserve those filtered out bundles since we add the asset back into them.
