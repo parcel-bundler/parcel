@@ -277,6 +277,10 @@ function createClient(metafilepath: string) {
 // Take realpath because to have consistent cache keys on macOS (/var -> /private/var)
 const BASEDIR = path.join(fs.realpathSync(os.tmpdir()), 'parcel-lsp');
 fs.mkdirSync(BASEDIR, {recursive: true});
+
+// TODO: clean this up when server stops
+fs.writeFileSync(path.join(BASEDIR, `lsp-server`), 'omg plz work');
+
 // Search for currently running Parcel processes in the parcel-lsp dir.
 // Create an IPC client connection for each running process.
 for (let filename of fs.readdirSync(BASEDIR)) {
