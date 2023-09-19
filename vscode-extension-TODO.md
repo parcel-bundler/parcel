@@ -21,3 +21,12 @@ TODO:
 - [ ] cleanup the lsp reporter's server detection (make async, maybe use file watcher)
 - [ ] make @parcel/reporter-lsp part of default config or otherwise always installed
       (or, move the reporter's behavior into core)
+
+Ideas:
+
+- a `parcel lsp` cli command to replace/subsume the standalone `@parcel/lsp` server
+  - this could take on the complexities of decision making like automatically
+    starting a Parcel build if one isn’t running, or sharing an LSP server
+    for the same parcel project with multiple workspaces/instances, etc.
+- integrating the behavior of `@parcel/reporter-lsp` into core
+  or otherwise having the reporter be 'always on' or part of default config
