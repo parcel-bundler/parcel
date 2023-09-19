@@ -1,3 +1,10 @@
+Packages:
+
+- [@parcel/reporter-lsp](./packages/reporters/lsp-reporter/)
+- [parcel-for-vscode](./packages/utils/parcelforvscode/)
+- [@parcel/lsp](./packages/utils/parcel-lsp/)
+- [@parcel/lsp-protocol](./packages/utils/parcel-lsp-protocol)
+
 TODO:
 
 - [x] need to not wait for connections
@@ -9,3 +16,8 @@ TODO:
 - [ ] only connect to parcels that match the workspace
 - [ ] show parcel diagnostic hints
 - [ ] implement quick fixes (requires Parcel changes?)
+- [ ] cleanup LSP server sentinel when server shuts down
+- [ ] support multiple LSP servers (make sure a workspace only sees errors from its server)
+- [ ] cleanup the lsp reporter's server detection (make async, maybe use file watcher)
+- [ ] make @parcel/reporter-lsp part of default config or otherwise always installed
+      (or, move the reporter's behavior into core)
