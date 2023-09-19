@@ -331,8 +331,10 @@ export class ScopeHoistingPackager {
           .getIncomingDependencies(asset)
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
-        this.wrappedAssets.add(asset.id);
-        wrapped.push(asset);
+        if (!asset.meta.isConstantModule) {
+          this.wrappedAssets.add(asset.id);
+          wrapped.push(asset);
+        }
       }
     });
 
@@ -346,9 +348,10 @@ export class ScopeHoistingPackager {
           actions.skipChildren();
           return;
         }
-
-        this.wrappedAssets.add(asset.id);
-        wrapped.push(asset);
+        if (!asset.meta.isConstantModule) {
+          this.wrappedAssets.add(asset.id);
+          wrapped.push(asset);
+        }
       }, wrappedAssetRoot);
     }
 
@@ -828,6 +831,13 @@ ${code}
   }
 
   isWrapped(resolved: Asset, parentAsset: Asset): boolean {
+    if (resolved.meta.isConstantModule) {
+      invariant(
+        this.bundle.hasAsset(resolved),
+        'Constant module not found in bundle',
+      );
+      return false;
+    }
     return (
       (!this.bundle.hasAsset(resolved) && !this.externalAssets.has(resolved)) ||
       (this.wrappedAssets.has(resolved.id) && resolved !== parentAsset)

@@ -18,6 +18,7 @@ import {
   distDir,
   outputFS,
   inputFS,
+  fsFixture,
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
@@ -6324,6 +6325,44 @@ describe('javascript', function () {
     );
     let res = await run(b);
     assert.equal(await res.default, 'target');
+  });
+
+  it('should detect shorthand identifier imports', async function () {
+    const dir = path.join(__dirname, 'js-import-shorthand-identifier');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      package.json:
+        {
+          "name": "app",
+          "private": true,
+          "sideEffects": false
+        }
+
+      index.js:
+        import { tokens, mode } from "./tokens.js";
+
+        export default tokens;
+
+      tokens.js:
+        import { color } from "./color.js";
+
+        export const tokens = {
+          color,
+        };
+
+        export { mode } from "./color.js";
+
+      color.js:
+        export const color = "blue";
+        export const mode = "dark";`;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    let output = await run(b);
+    assert.deepEqual(output.default, {color: 'blue'});
   });
 
   for (let shouldScopeHoist of [false, true]) {
