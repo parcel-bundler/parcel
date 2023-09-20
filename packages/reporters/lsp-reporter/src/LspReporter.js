@@ -228,6 +228,14 @@ function updateDiagnostics(
           continue;
         }
 
+        let message = highlight.message ?? diagnostic.message;
+        // console.log(diagnostic.hints);
+        if (diagnostic.hints?.length) {
+          for (let hint of diagnostic.hints) {
+            message += '\n' + hint;
+          }
+        }
+        console.log(message);
         relatedInformation.push({
           location: {
             uri: `file://${normalizeFilePath(filePath, projectRoot)}`,
@@ -242,7 +250,7 @@ function updateDiagnostics(
               },
             },
           },
-          message: highlight.message ?? diagnostic.message,
+          message,
         });
       }
     }
