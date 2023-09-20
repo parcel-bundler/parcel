@@ -5,3 +5,4 @@ console.log('async');
 
 class Foo {}
 new Foo();
+``;

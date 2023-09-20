@@ -4,7 +4,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel build src/index.html"
+    "demo": "parcel build src/index.html",
+    "lsp": "parcel serve src/index.html --reporter @parcel/reporter-lsp"
   },
   "browserslist": [
     "last 2 versions",
