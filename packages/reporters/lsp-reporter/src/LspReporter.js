@@ -37,7 +37,6 @@ import {
   parcelSeverityToLspSeverity,
 } from './utils';
 import type {FSWatcher} from 'fs';
-import EventEmitter from 'events';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
@@ -69,16 +68,12 @@ let bundleGraphDeferrable =
 let bundleGraph: Promise<?BundleGraph<PackagedBundle>> =
   bundleGraphDeferrable.promise;
 
-async function watchLspActive(eventEmitter: EventEmitter): FSWatcher {
+let watchStarted = false;
+let lspStarted = false;
+let watchStartPromise;
+
+async function watchLspActive(): FSWatcher {
   const lspFileName = 'lsp-server';
-
-  eventEmitter.on('lsp started', () => {
-    lspStarted = true;
-  });
-
-  eventEmitter.on('lsp stopped', () => {
-    lspStarted = false;
-  });
 
   // Check for lsp-server when reporter is first started
   try {
@@ -86,7 +81,7 @@ async function watchLspActive(eventEmitter: EventEmitter): FSWatcher {
       path.join(BASEDIR, 'lsp-server'),
       fs.constants.F_OK,
     );
-    eventEmitter.emit('lsp started');
+    lspStarted = true;
   } catch {
     //
   }
@@ -100,9 +95,9 @@ async function watchLspActive(eventEmitter: EventEmitter): FSWatcher {
             fs.constants.F_OK,
             err => {
               if (err) {
-                eventEmitter.emit('lsp stopped');
+                lspStarted = false;
               } else {
-                eventEmitter.emit('lsp started');
+                lspStarted = true;
               }
             },
           );
@@ -110,11 +105,6 @@ async function watchLspActive(eventEmitter: EventEmitter): FSWatcher {
     }
   });
 }
-
-let watchStartedEmitter = new EventEmitter();
-let watchStarted = false;
-let lspStarted = false;
-let watchStartPromise;
 
 async function doWatchStart(projectRoot) {
   await fs.promises.mkdir(BASEDIR, {recursive: true});
@@ -164,7 +154,7 @@ async function doWatchStart(projectRoot) {
   );
 }
 
-watchLspActive(watchStartedEmitter);
+watchLspActive();
 
 export default (new Reporter({
   async report({event, options}) {
