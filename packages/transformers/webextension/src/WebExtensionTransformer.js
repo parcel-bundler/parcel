@@ -29,6 +29,7 @@ const DEP_LOCS = [
   ['sandbox', 'pages'],
   ['sidebar_action', 'default_icon'],
   ['sidebar_action', 'default_panel'],
+  ['side_panel', 'default_path'],
   ['storage', 'managed_schema'],
   ['theme', 'images', 'theme_frame'],
   ['theme', 'images', 'additional_backgrounds'],
