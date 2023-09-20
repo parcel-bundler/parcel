@@ -68,7 +68,6 @@ let bundleGraph: Promise<?BundleGraph<PackagedBundle>> =
   bundleGraphDeferrable.promise;
 
 async function lspActive(logger): Promise<boolean> {
-  // logger.warn({message: 'checking if lsp is active...'});
   return fs.existsSync(path.join(BASEDIR, 'lsp-server'));
   // try {
   //   await fs.promises.access(
@@ -135,14 +134,13 @@ async function doWatchStart(projectRoot) {
 export default (new Reporter({
   async report({event, options, logger}) {
     if (event.type === 'watchStart') {
+      console.log({message: path.join(os.tmpdir(), 'parcel-lsp').toString()});
       watchStarted = true;
     }
 
     if (!(await lspActive(logger))) {
-      //   logger.warn({message: 'LSP NOT ACTIVE!!!'});
       return;
     }
-    // logger.warn({message: 'LSP ACTIVE!!!'});
 
     if (watchStarted) {
       if (!watchStartPromise) {

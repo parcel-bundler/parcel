@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as vscode from 'vscode';
 import {
   createConnection,
   DiagnosticRefreshRequest,
@@ -279,7 +280,7 @@ const BASEDIR = path.join(fs.realpathSync(os.tmpdir()), 'parcel-lsp');
 fs.mkdirSync(BASEDIR, {recursive: true});
 
 // TODO: clean this up when server stops
-fs.writeFileSync(path.join(BASEDIR, `lsp-server`), 'omg plz work');
+fs.writeFileSync(path.join(BASEDIR, `lsp-server`), 'help');
 
 // Search for currently running Parcel processes in the parcel-lsp dir.
 // Create an IPC client connection for each running process.
@@ -287,7 +288,7 @@ for (let filename of fs.readdirSync(BASEDIR)) {
   if (!filename.endsWith('.json')) continue;
   let filepath = path.join(BASEDIR, filename);
   createClient(filepath);
-  // console.log('connected initial', filepath);
+  console.log('connected initial', filepath);
 }
 
 // Watch for new Parcel processes in the parcel-lsp dir, and disconnect the
@@ -300,14 +301,14 @@ watcher.subscribe(BASEDIR, async (err, events) => {
   for (let event of events) {
     if (event.type === 'create' && event.path.endsWith('.json')) {
       createClient(event.path);
-      // console.log('connected watched', event.path);
+      console.log('connected watched', event.path);
     } else if (event.type === 'delete' && event.path.endsWith('.json')) {
       let existing = clients.get(event.path);
-      // console.log('existing', event.path, existing);
+      console.log('existing', event.path, existing);
       if (existing) {
         clients.delete(event.path);
         existing.connection.end();
-        // console.log('disconnected watched', event.path);
+        console.log('disconnected watched', event.path);
       }
     }
   }
