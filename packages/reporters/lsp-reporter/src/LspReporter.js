@@ -36,6 +36,8 @@ import {
   normalizeFilePath,
   parcelSeverityToLspSeverity,
 } from './utils';
+import type {FSWatcher} from 'fs';
+import EventEmitter from 'events';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
@@ -67,20 +69,24 @@ let bundleGraphDeferrable =
 let bundleGraph: Promise<?BundleGraph<PackagedBundle>> =
   bundleGraphDeferrable.promise;
 
-async function lspActive(logger): Promise<boolean> {
-  // logger.warn({message: 'checking if lsp is active...'});
-  return fs.existsSync(path.join(BASEDIR, 'lsp-server'));
-  // try {
-  //   await fs.promises.access(
-  //     path.join(BASEDIR, 'lsp-server'),
-  //     fs.constants.F_OK,
-  //   );
-  // } catch {
-  //   return false;
-  // }
-  // return true;
+function watchLspActive(eventEmitter: EventEmitter): FSWatcher {
+  const lspFileName = 'lsp-server';
+  let created = false;
+
+  return fs.watch(BASEDIR, (eventType: string, filename: string) => {
+    switch (eventType) {
+      case 'rename':
+        if (filename === lspFileName && !created) {
+          created = true;
+          eventEmitter.emit('lsp started');
+        } else {
+          created = false;
+        }
+    }
+  });
 }
 
+let watchStartedEmitter = new EventEmitter();
 let watchStarted = false;
 let watchStartPromise;
 
@@ -134,22 +140,20 @@ async function doWatchStart(projectRoot) {
 
 export default (new Reporter({
   async report({event, options, logger}) {
+    watchLspActive(watchStartedEmitter);
+
     if (event.type === 'watchStart') {
       watchStarted = true;
     }
 
-    if (!(await lspActive(logger))) {
-      //   logger.warn({message: 'LSP NOT ACTIVE!!!'});
-      return;
-    }
-    // logger.warn({message: 'LSP ACTIVE!!!'});
-
-    if (watchStarted) {
-      if (!watchStartPromise) {
-        watchStartPromise = doWatchStart(options.projectRoot);
+    watchStartedEmitter.once('lsp started', async () => {
+      if (watchStarted) {
+        if (!watchStartPromise) {
+          watchStartPromise = doWatchStart(options.projectRoot);
+        }
       }
       await watchStartPromise;
-    }
+    });
 
     switch (event.type) {
       case 'watchStart': {
