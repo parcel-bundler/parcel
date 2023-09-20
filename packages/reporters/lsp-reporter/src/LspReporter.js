@@ -69,8 +69,27 @@ let bundleGraphDeferrable =
 let bundleGraph: Promise<?BundleGraph<PackagedBundle>> =
   bundleGraphDeferrable.promise;
 
-function watchLspActive(eventEmitter: EventEmitter): FSWatcher {
+async function watchLspActive(eventEmitter: EventEmitter): FSWatcher {
   const lspFileName = 'lsp-server';
+
+  eventEmitter.on('lsp started', () => {
+    lspStarted = true;
+  });
+
+  eventEmitter.on('lsp stopped', () => {
+    lspStarted = false;
+  });
+
+  // Check for lsp-server when reporter is first started
+  try {
+    await fs.promises.access(
+      path.join(BASEDIR, 'lsp-server'),
+      fs.constants.F_OK,
+    );
+    eventEmitter.emit('lsp started');
+  } catch {
+    //
+  }
 
   return fs.watch(BASEDIR, (eventType: string, filename: string) => {
     switch (eventType) {
@@ -146,15 +165,6 @@ async function doWatchStart(projectRoot) {
 }
 
 watchLspActive(watchStartedEmitter);
-watchStartedEmitter.on('lsp started', () => {
-  console.log('LSP STARTED');
-  lspStarted = true;
-});
-
-watchStartedEmitter.on('lsp stopped', () => {
-  console.log('LSP STOPPED');
-  lspStarted = false;
-});
 
 export default (new Reporter({
   async report({event, options}) {
@@ -162,8 +172,6 @@ export default (new Reporter({
       console.log({message: path.join(os.tmpdir(), 'parcel-lsp').toString()});
       watchStarted = true;
     }
-
-    console.log(watchStarted, lspStarted);
 
     if (watchStarted && lspStarted) {
       if (!watchStartPromise) {
