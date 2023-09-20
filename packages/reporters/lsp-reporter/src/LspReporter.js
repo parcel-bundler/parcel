@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
+import {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
 import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
@@ -36,6 +36,8 @@ import {
   normalizeFilePath,
   parcelSeverityToLspSeverity,
 } from './utils';
+import type {FSWatcher} from 'fs';
+import EventEmitter from 'events';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
@@ -67,20 +69,32 @@ let bundleGraphDeferrable =
 let bundleGraph: Promise<?BundleGraph<PackagedBundle>> =
   bundleGraphDeferrable.promise;
 
-async function lspActive(logger): Promise<boolean> {
-  return fs.existsSync(path.join(BASEDIR, 'lsp-server'));
-  // try {
-  //   await fs.promises.access(
-  //     path.join(BASEDIR, 'lsp-server'),
-  //     fs.constants.F_OK,
-  //   );
-  // } catch {
-  //   return false;
-  // }
-  // return true;
+function watchLspActive(eventEmitter: EventEmitter): FSWatcher {
+  const lspFileName = 'lsp-server';
+
+  return fs.watch(BASEDIR, (eventType: string, filename: string) => {
+    switch (eventType) {
+      case 'rename':
+        if (filename === lspFileName) {
+          fs.access(
+            path.join(BASEDIR, 'lsp-server'),
+            fs.constants.F_OK,
+            err => {
+              if (err) {
+                eventEmitter.emit('lsp stopped');
+              } else {
+                eventEmitter.emit('lsp started');
+              }
+            },
+          );
+        }
+    }
+  });
 }
 
+let watchStartedEmitter = new EventEmitter();
 let watchStarted = false;
+let lspStarted = false;
 let watchStartPromise;
 
 async function doWatchStart(projectRoot) {
@@ -131,18 +145,27 @@ async function doWatchStart(projectRoot) {
   );
 }
 
+watchLspActive(watchStartedEmitter);
+watchStartedEmitter.on('lsp started', () => {
+  console.log('LSP STARTED');
+  lspStarted = true;
+});
+
+watchStartedEmitter.on('lsp stopped', () => {
+  console.log('LSP STOPPED');
+  lspStarted = false;
+});
+
 export default (new Reporter({
-  async report({event, options, logger}) {
+  async report({event, options}) {
     if (event.type === 'watchStart') {
       console.log({message: path.join(os.tmpdir(), 'parcel-lsp').toString()});
       watchStarted = true;
     }
 
-    if (!(await lspActive(logger))) {
-      return;
-    }
+    console.log(watchStarted, lspStarted);
 
-    if (watchStarted) {
+    if (watchStarted && lspStarted) {
       if (!watchStartPromise) {
         watchStartPromise = doWatchStart(options.projectRoot);
       }
