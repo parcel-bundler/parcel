@@ -654,8 +654,10 @@ impl Visit for Collect {
       Expr::Member(member) => {
         if match_member_expr(member, vec!["module", "exports"], &self.decls) {
           handle_export!();
+          return;
+        } else {
+          member.visit_with(self);
         }
-        return;
       }
       Expr::Ident(ident) => {
         if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
