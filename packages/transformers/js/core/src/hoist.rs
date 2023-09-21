@@ -1322,7 +1322,7 @@ mod tests {
     c();
     log(x);
     y.foo();
-    c(e.foo.bar);
+    e.foo.bar();
     "#,
     );
     assert_eq_set!(
