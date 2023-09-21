@@ -3,9 +3,12 @@
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
+import {CodeAction, CodeActionKind} from 'vscode-languageserver';
 import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
 import type {ParcelSeverity} from './utils';
+
+console.log('CodeAction', CodeAction, 'CodeActionKind: ', CodeActionKind);
 
 import {
   DefaultMap,
@@ -28,6 +31,7 @@ import {
   NotificationWorkspaceDiagnostics,
   RequestDocumentDiagnostics,
   RequestImporters,
+  NotificationCodeActions,
 } from '@parcel/lsp-protocol';
 
 import {
@@ -58,6 +62,14 @@ let workspaceDiagnostics: DefaultMap<
 
 const getWorkspaceDiagnostics = (): Array<PublishDiagnostic> =>
   [...workspaceDiagnostics].map(([uri, diagnostics]) => ({uri, diagnostics}));
+
+let workspaceCodeActions: DefaultMap<
+  string,
+  Array<CodeAction>,
+> = new DefaultMap(() => []);
+
+const getCodeActions = (): Array<PublishCodeActions> =>
+  [...workspaceCodeActions].map(([uri, codeActions]) => ({uri, codeActions}));
 
 let server;
 let connections: Array<MessageConnection> = [];
@@ -109,6 +121,7 @@ export default (new Reporter({
           });
 
           sendDiagnostics();
+          sendCodeActions();
         });
         await fs.promises.writeFile(
           META_FILE,
@@ -133,12 +146,14 @@ export default (new Reporter({
         bundleGraphDeferrable.deferred.resolve(event.bundleGraph);
         updateBuildState('end');
         sendDiagnostics();
+        sendCodeActions();
         break;
       case 'buildFailure': {
         bundleGraphDeferrable.deferred.resolve(undefined);
         updateDiagnostics(event.diagnostics, 'error', options.projectRoot);
         updateBuildState('end');
         sendDiagnostics();
+        sendCodeActions();
         break;
       }
       case 'log':
@@ -194,6 +209,13 @@ function sendDiagnostics() {
   );
 }
 
+function sendCodeActions() {
+  // console.log('send', getWorkspaceDiagnostics());
+  connections.forEach(c =>
+    c.sendNotification(NotificationCodeActions, getCodeActions()),
+  );
+}
+
 function updateDiagnostics(
   parcelDiagnostics: Array<ParcelDiagnostic>,
   parcelSeverity: ParcelSeverity,
@@ -233,6 +255,10 @@ function updateDiagnostics(
         if (diagnostic.hints?.length) {
           for (let hint of diagnostic.hints) {
             message += '\n' + hint;
+
+            workspaceCodeActions
+              .get(`file://${normalizeFilePath(filePath, projectRoot)}`)
+              .push(new CodeAction.create(hint, CodeActionKind.Empty));
           }
         }
         console.log(message);
