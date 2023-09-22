@@ -8,8 +8,6 @@ import {
   RequestImporters,
 } from '@parcel/lsp-protocol';
 
-const COMMAND = 'code-actions-sample.command';
-
 export class ParcelCodeAction implements vscode.CodeActionProvider {
   public static readonly providedCodeActionKinds = [
     vscode.CodeActionKind.QuickFix,
@@ -22,33 +20,27 @@ export class ParcelCodeAction implements vscode.CodeActionProvider {
     token: vscode.CancellationToken,
   ): vscode.CodeAction[] {
     // for each diagnostic entry that has the matching `code`, create a code action command
-    //debugger;
     return context.diagnostics
       .filter(diagnostic => diagnostic.relatedInformation?.length)
-      .map(diagnostic =>
-        diagnostic.relatedInformation?.map(hint =>
-          this.createCommandCodeAction(hint, diagnostic),
+      .flatMap(diagnostic =>
+        diagnostic.relatedInformation?.map(diagnosticInfo =>
+          this.createCommandCodeAction(diagnosticInfo, diagnostic),
         ),
       );
   }
 
   private createCommandCodeAction(
-    hint: vscode.DiagnosticRelatedInformation,
+    diagnosticInfo: vscode.DiagnosticRelatedInformation,
     diagnostic: vscode.Diagnostic,
   ): vscode.CodeAction {
     const action = new vscode.CodeAction(
-      hint.message,
+      diagnosticInfo.message,
       vscode.CodeActionKind.QuickFix,
     );
-    action.title = hint.message;
-    action.command = {
-      command: COMMAND,
-      title: 'Learn more about emojis',
-      tooltip: 'This will open the unicode emoji page.',
-    };
-    action.diagnostics = [diagnostic];
-    // action.isPreferred = true;
-    //debugger;
+
+    let diagnostics = action.diagnostics;
+    diagnostics?.push(diagnostic);
+    action.diagnostics = diagnostics;
     return action;
   }
 }
