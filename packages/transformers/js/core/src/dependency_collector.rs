@@ -99,8 +99,8 @@ impl<'a> DependencyCollector<'a> {
   fn add_dependency(
     &mut self,
     mut specifier: JsWord,
-    span: swc_common::Span,
-    specifier_span: swc_common::Span,
+    span: swc_core::common::Span,
+    specifier_span: swc_core::common::Span,
     kind: DependencyKind,
     attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
     is_optional: bool,
@@ -157,8 +157,8 @@ impl<'a> DependencyCollector<'a> {
   fn add_url_dependency(
     &mut self,
     specifier: JsWord,
-    span: swc_common::Span,
-    specifier_span: swc_common::Span,
+    span: swc_core::common::Span,
+    specifier_span: swc_core::common::Span,
     kind: DependencyKind,
     source_type: SourceType,
   ) -> ast::Expr {
