@@ -31,7 +31,6 @@ import {
   NotificationWorkspaceDiagnostics,
   RequestDocumentDiagnostics,
   RequestImporters,
-  NotificationCodeActions,
 } from '@parcel/lsp-protocol';
 
 import {
@@ -62,14 +61,6 @@ let workspaceDiagnostics: DefaultMap<
 
 const getWorkspaceDiagnostics = (): Array<PublishDiagnostic> =>
   [...workspaceDiagnostics].map(([uri, diagnostics]) => ({uri, diagnostics}));
-
-let workspaceCodeActions: DefaultMap<
-  string,
-  Array<CodeAction>,
-> = new DefaultMap(() => []);
-
-const getCodeActions = (): Array<PublishCodeActions> =>
-  [...workspaceCodeActions].map(([uri, codeActions]) => ({uri, codeActions}));
 
 let server;
 let connections: Array<MessageConnection> = [];
@@ -121,7 +112,6 @@ export default (new Reporter({
           });
 
           sendDiagnostics();
-          sendCodeActions();
         });
         await fs.promises.writeFile(
           META_FILE,
@@ -146,14 +136,12 @@ export default (new Reporter({
         bundleGraphDeferrable.deferred.resolve(event.bundleGraph);
         updateBuildState('end');
         sendDiagnostics();
-        sendCodeActions();
         break;
       case 'buildFailure': {
         bundleGraphDeferrable.deferred.resolve(undefined);
         updateDiagnostics(event.diagnostics, 'error', options.projectRoot);
         updateBuildState('end');
         sendDiagnostics();
-        sendCodeActions();
         break;
       }
       case 'log':
@@ -206,13 +194,6 @@ function sendDiagnostics() {
       NotificationWorkspaceDiagnostics,
       getWorkspaceDiagnostics(),
     ),
-  );
-}
-
-function sendCodeActions() {
-  // console.log('send', getWorkspaceDiagnostics());
-  connections.forEach(c =>
-    c.sendNotification(NotificationCodeActions, getCodeActions()),
   );
 }
 
