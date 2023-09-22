@@ -251,33 +251,27 @@ function updateDiagnostics(
         }
 
         let message = highlight.message ?? diagnostic.message;
-        // console.log(diagnostic.hints);
         if (diagnostic.hints?.length) {
           for (let hint of diagnostic.hints) {
             message += '\n' + hint;
-
-            workspaceCodeActions
-              .get(`file://${normalizeFilePath(filePath, projectRoot)}`)
-              .push(new CodeAction.create(hint, CodeActionKind.Empty));
+            relatedInformation.push({
+              location: {
+                uri: `file://${normalizeFilePath(filePath, projectRoot)}`,
+                range: {
+                  start: {
+                    line: highlight.start.line - 1,
+                    character: highlight.start.column - 1,
+                  },
+                  end: {
+                    line: highlight.end.line - 1,
+                    character: highlight.end.column,
+                  },
+                },
+              },
+              message: hint,
+            });
           }
         }
-        console.log(message);
-        relatedInformation.push({
-          location: {
-            uri: `file://${normalizeFilePath(filePath, projectRoot)}`,
-            range: {
-              start: {
-                line: highlight.start.line - 1,
-                character: highlight.start.column - 1,
-              },
-              end: {
-                line: highlight.end.line - 1,
-                character: highlight.end.column,
-              },
-            },
-          },
-          message,
-        });
       }
     }
 
