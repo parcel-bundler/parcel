@@ -16,9 +16,9 @@ TODO:
 - [ ] only connect to parcels that match the workspace
 - [ ] show parcel diagnostic hints
 - [ ] implement quick fixes (requires Parcel changes?)
-- [ ] cleanup LSP server sentinel when server shuts down
+- [x] cleanup LSP server sentinel when server shuts down
 - [ ] support multiple LSP servers (make sure a workspace only sees errors from its server)
-- [ ] cleanup the lsp reporter's server detection (make async, maybe use file watcher)
+- [x] cleanup the lsp reporter's server detection (make async, maybe use file watcher)
 - [ ] make @parcel/reporter-lsp part of default config or otherwise always installed
       (or, move the reporter's behavior into core)
 

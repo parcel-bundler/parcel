@@ -40,6 +40,5 @@ This extension shows errors, warnings and other diagnostics inline in VS Code.
 
 ## Packaging
 
-1. Copy [parcel-lsp](../parcel-lsp/) into the [extension directory](./).
-2. Run `yarn package`. The output is a `.vsix` file.
-3. Run `code --install-extension parcel-for-vscode-<version>.vsix`
+1. Run `yarn package`. The output is a `.vsix` file.
+2. Run `code --install-extension parcel-for-vscode-<version>.vsix`

@@ -106,7 +106,7 @@ async function watchLspActive(): Promise<FSWatcher> {
   });
 }
 
-async function doWatchStart(projectRoot) {
+async function doWatchStart() {
   await fs.promises.mkdir(BASEDIR, {recursive: true});
 
   // For each existing file, check if the pid matches a running process.
@@ -147,7 +147,7 @@ async function doWatchStart(projectRoot) {
   await fs.promises.writeFile(
     META_FILE,
     JSON.stringify({
-      projectRoot,
+      projectRoot: process.cwd(),
       pid: process.pid,
       argv: process.argv,
     }),
@@ -164,7 +164,7 @@ export default (new Reporter({
 
     if (watchStarted && lspStarted) {
       if (!watchStartPromise) {
-        watchStartPromise = doWatchStart(options.projectRoot);
+        watchStartPromise = doWatchStart();
       }
       await watchStartPromise;
     }

@@ -37,7 +37,14 @@ import {
   RequestImporters,
 } from '@parcel/lsp-protocol';
 
+type Metafile = {
+  projectRoot: string;
+  pid: typeof process['pid'];
+  argv: typeof process['argv'];
+};
+
 const connection = createConnection(ProposedFeatures.all);
+const WORKSPACE_ROOT = process.cwd();
 
 // Create a simple text document manager.
 // const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
@@ -221,9 +228,12 @@ function findClient(document: DocumentUri): Client | undefined {
   return bestClient;
 }
 
-function createClient(metafilepath: string) {
-  let metafile = JSON.parse(fs.readFileSync(metafilepath, 'utf8'));
+function parseMetafile(filepath: string) {
+  const file = fs.readFileSync(filepath, 'utf-8');
+  return JSON.parse(file);
+}
 
+function createClient(metafilepath: string, metafile: Metafile) {
   let socketfilepath = metafilepath.slice(0, -5);
   let [reader, writer] = createServerPipeTransport(socketfilepath);
   let client = createMessageConnection(reader, writer);
@@ -264,7 +274,7 @@ function createClient(metafilepath: string) {
   });
 
   client.onClose(() => {
-    clients.delete(metafile);
+    clients.delete(JSON.stringify(metafile));
     sendDiagnosticsRefresh();
     return Promise.all(
       [...uris].map(uri => connection.sendDiagnostics({uri, diagnostics: []})),
@@ -272,14 +282,13 @@ function createClient(metafilepath: string) {
   });
 
   sendDiagnosticsRefresh();
-  clients.set(metafile, result);
+  clients.set(JSON.stringify(metafile), result);
 }
 
 // Take realpath because to have consistent cache keys on macOS (/var -> /private/var)
 const BASEDIR = path.join(fs.realpathSync(os.tmpdir()), 'parcel-lsp');
 fs.mkdirSync(BASEDIR, {recursive: true});
 
-// TODO: clean this up when server stops
 fs.writeFileSync(path.join(BASEDIR, `lsp-server`), 'help');
 
 // Search for currently running Parcel processes in the parcel-lsp dir.
@@ -287,7 +296,12 @@ fs.writeFileSync(path.join(BASEDIR, `lsp-server`), 'help');
 for (let filename of fs.readdirSync(BASEDIR)) {
   if (!filename.endsWith('.json')) continue;
   let filepath = path.join(BASEDIR, filename);
-  createClient(filepath);
+  const contents = parseMetafile(filepath);
+  const {projectRoot} = contents;
+
+  if (WORKSPACE_ROOT === projectRoot) {
+    createClient(filepath, projectRoot);
+  }
   console.log('connected initial', filepath);
 }
 
@@ -300,7 +314,13 @@ watcher.subscribe(BASEDIR, async (err, events) => {
 
   for (let event of events) {
     if (event.type === 'create' && event.path.endsWith('.json')) {
-      createClient(event.path);
+      const file = fs.readFileSync(event.path, 'utf-8');
+      const contents = parseMetafile(file);
+      const {projectRoot} = contents;
+
+      if (WORKSPACE_ROOT === projectRoot) {
+        createClient(event.path, contents);
+      }
       console.log('connected watched', event.path);
     } else if (event.type === 'delete' && event.path.endsWith('.json')) {
       let existing = clients.get(event.path);
