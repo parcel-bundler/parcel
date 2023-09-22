@@ -46,6 +46,7 @@ impl fmt::Display for DependencyKind {
 pub struct DependencyDescriptor {
   pub kind: DependencyKind,
   pub loc: SourceLocation,
+  pub specifier_loc: SourceLocation,
   /// The text specifier associated with the import/export statement.
   pub specifier: swc_core::ecma::atoms::JsWord,
   pub attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
@@ -98,7 +99,8 @@ impl<'a> DependencyCollector<'a> {
   fn add_dependency(
     &mut self,
     mut specifier: JsWord,
-    span: swc_core::common::Span,
+    span: swc_common::Span,
+    specifier_span: swc_common::Span,
     kind: DependencyKind,
     attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
     is_optional: bool,
@@ -140,6 +142,7 @@ impl<'a> DependencyCollector<'a> {
     self.items.push(DependencyDescriptor {
       kind,
       loc: SourceLocation::from(self.source_map, span),
+      specifier_loc: SourceLocation::from(self.source_map, specifier_span),
       specifier,
       attributes,
       is_optional,
@@ -154,14 +157,22 @@ impl<'a> DependencyCollector<'a> {
   fn add_url_dependency(
     &mut self,
     specifier: JsWord,
-    span: swc_core::common::Span,
+    span: swc_common::Span,
+    specifier_span: swc_common::Span,
     kind: DependencyKind,
     source_type: SourceType,
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
-    if !self.config.is_library && !self.config.standalone {
-      let placeholder =
-        self.add_dependency(specifier.clone(), span, kind, None, false, source_type);
+    if !self.config.is_library {
+      let placeholder = self.add_dependency(
+        specifier.clone(),
+        span,
+        specifier_span,
+        kind,
+        None,
+        false,
+        source_type,
+      );
       let specifier = if let Some(placeholder) = placeholder {
         placeholder
       } else {
@@ -187,6 +198,7 @@ impl<'a> DependencyCollector<'a> {
     self.items.push(DependencyDescriptor {
       kind,
       loc: SourceLocation::from(self.source_map, span),
+      specifier_loc: SourceLocation::from(self.source_map, specifier_span),
       specifier,
       attributes: None,
       is_optional: false,
@@ -288,6 +300,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     let rewritten = self.add_dependency(
       node.src.value.clone(),
+      node.span,
       node.src.span,
       DependencyKind::Import,
       None,
@@ -310,6 +323,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
       let rewritten = self.add_dependency(
         src.value.clone(),
+        node.span,
         src.span,
         DependencyKind::Export,
         None,
@@ -328,6 +342,7 @@ impl<'a> Fold for DependencyCollector<'a> {
   fn fold_export_all(&mut self, mut node: ast::ExportAll) -> ast::ExportAll {
     let rewritten = self.add_dependency(
       node.src.value.clone(),
+      node.span,
       node.src.span,
       DependencyKind::Export,
       None,
@@ -621,7 +636,8 @@ impl<'a> Fold for DependencyCollector<'a> {
           return node;
         };
 
-        node.args[0].expr = Box::new(self.add_url_dependency(specifier, span, kind, source_type));
+        node.args[0].expr =
+          Box::new(self.add_url_dependency(specifier, node.span, span, kind, source_type));
 
         match opts {
           Some(opts) => {
@@ -643,6 +659,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
         let placeholder = self.add_dependency(
           specifier,
+          node.span,
           span,
           kind.clone(),
           attributes,
@@ -790,8 +807,13 @@ impl<'a> Fold for DependencyCollector<'a> {
         };
 
         let (source_type, opts) = match_worker_type(args.get(1));
-        let placeholder =
-          self.add_url_dependency(specifier, span, DependencyKind::WebWorker, source_type);
+        let placeholder = self.add_url_dependency(
+          specifier,
+          node.span,
+          span,
+          DependencyKind::WebWorker,
+          source_type,
+        );
 
         // Replace argument with a require call to resolve the URL at runtime.
         let mut node = node.clone();
@@ -836,6 +858,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     if let Some((specifier, span)) = self.match_new_url(&node, self.decls) {
       let url = self.add_url_dependency(
         specifier,
+        span,
         span,
         DependencyKind::Url,
         self.config.source_type,
