@@ -231,31 +231,36 @@ function updateDiagnostics(
           continue;
         }
 
-        let message = highlight.message ?? diagnostic.message;
-        if (diagnostic.hints?.length) {
-          for (let hint of diagnostic.hints) {
-            message += '\n' + hint;
+        // let message = highlight.message ?? diagnostic.message;
+      }
+    }
+
+    let code;
+    if (diagnostic.fixes?.length) {
+      for (let fix of diagnostic.fixes) {
+        if (fix.type === 'patch' && fix.edits) {
+          code = fix.message;
+          for (let edit of fix.edits) {
             relatedInformation.push({
               location: {
                 uri: `file://${normalizeFilePath(filePath, projectRoot)}`,
                 range: {
                   start: {
-                    line: highlight.start.line - 1,
-                    character: highlight.start.column - 1,
+                    line: edit.range.start.line - 1,
+                    character: edit.range.start.column - 1,
                   },
                   end: {
-                    line: highlight.end.line - 1,
-                    character: highlight.end.column,
+                    line: edit.range.end.line - 1,
+                    character: edit.range.end.column,
                   },
                 },
               },
-              message: hint,
+              message: edit.replacement,
             });
           }
         }
       }
     }
-
     workspaceDiagnostics
       .get(`file://${normalizeFilePath(filePath, projectRoot)}`)
       .push({
@@ -269,6 +274,10 @@ function updateDiagnostics(
             character: firstFrameHighlight.end.column,
           },
         },
+        // code: the title of the 'hint'
+        // DiagnosticRelatedInformation.message: the code of the 'fix'
+        // should maybe be the other way around?
+        code,
         source: diagnostic.origin,
         severity: parcelSeverityToLspSeverity(parcelSeverity),
         message:
