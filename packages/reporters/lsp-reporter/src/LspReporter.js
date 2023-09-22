@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
+import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
 import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
@@ -72,7 +72,7 @@ let watchStarted = false;
 let lspStarted = false;
 let watchStartPromise;
 
-async function watchLspActive(): FSWatcher {
+async function watchLspActive(): Promise<FSWatcher> {
   const lspFileName = 'lsp-server';
 
   // Check for lsp-server when reporter is first started
@@ -159,7 +159,6 @@ watchLspActive();
 export default (new Reporter({
   async report({event, options}) {
     if (event.type === 'watchStart') {
-      console.log({message: path.join(os.tmpdir(), 'parcel-lsp').toString()});
       watchStarted = true;
     }
 
