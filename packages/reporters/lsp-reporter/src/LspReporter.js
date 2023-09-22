@@ -36,6 +36,7 @@ import {
   normalizeFilePath,
   parcelSeverityToLspSeverity,
 } from './utils';
+import type {FSWatcher} from 'fs';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
@@ -67,24 +68,45 @@ let bundleGraphDeferrable =
 let bundleGraph: Promise<?BundleGraph<PackagedBundle>> =
   bundleGraphDeferrable.promise;
 
-async function lspActive(logger): Promise<boolean> {
-  // logger.warn({message: 'checking if lsp is active...'});
-  return fs.existsSync(path.join(BASEDIR, 'lsp-server'));
-  // try {
-  //   await fs.promises.access(
-  //     path.join(BASEDIR, 'lsp-server'),
-  //     fs.constants.F_OK,
-  //   );
-  // } catch {
-  //   return false;
-  // }
-  // return true;
-}
-
 let watchStarted = false;
+let lspStarted = false;
 let watchStartPromise;
 
-async function doWatchStart(projectRoot) {
+async function watchLspActive(): Promise<FSWatcher> {
+  const lspFileName = 'lsp-server';
+
+  // Check for lsp-server when reporter is first started
+  try {
+    await fs.promises.access(
+      path.join(BASEDIR, 'lsp-server'),
+      fs.constants.F_OK,
+    );
+    lspStarted = true;
+  } catch {
+    //
+  }
+
+  return fs.watch(BASEDIR, (eventType: string, filename: string) => {
+    switch (eventType) {
+      case 'rename':
+        if (filename === lspFileName) {
+          fs.access(
+            path.join(BASEDIR, 'lsp-server'),
+            fs.constants.F_OK,
+            err => {
+              if (err) {
+                lspStarted = false;
+              } else {
+                lspStarted = true;
+              }
+            },
+          );
+        }
+    }
+  });
+}
+
+async function doWatchStart() {
   await fs.promises.mkdir(BASEDIR, {recursive: true});
 
   // For each existing file, check if the pid matches a running process.
@@ -125,28 +147,24 @@ async function doWatchStart(projectRoot) {
   await fs.promises.writeFile(
     META_FILE,
     JSON.stringify({
-      projectRoot,
+      projectRoot: process.cwd(),
       pid: process.pid,
       argv: process.argv,
     }),
   );
 }
 
+watchLspActive();
+
 export default (new Reporter({
-  async report({event, options, logger}) {
+  async report({event, options}) {
     if (event.type === 'watchStart') {
       watchStarted = true;
     }
 
-    if (!(await lspActive(logger))) {
-      //   logger.warn({message: 'LSP NOT ACTIVE!!!'});
-      return;
-    }
-    // logger.warn({message: 'LSP ACTIVE!!!'});
-
-    if (watchStarted) {
+    if (watchStarted && lspStarted) {
       if (!watchStartPromise) {
-        watchStartPromise = doWatchStart(options.projectRoot);
+        watchStartPromise = doWatchStart();
       }
       await watchStartPromise;
     }
