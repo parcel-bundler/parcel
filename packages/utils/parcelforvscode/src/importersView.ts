@@ -1,7 +1,72 @@
 import * as vscode from 'vscode';
 
 import {LanguageClient, DocumentUri} from 'vscode-languageclient/node';
-import {NotificationBuild, RequestImporters} from '@parcel/lsp-protocol';
+import {
+  NotificationBuild,
+  NotificationCodeActions,
+  RequestCodeActions,
+  RequestImporters,
+} from '@parcel/lsp-protocol';
+
+const COMMAND = 'code-actions-sample.command';
+
+export class ParcelCodeAction implements vscode.CodeActionProvider {
+  public static readonly providedCodeActionKinds = [
+    vscode.CodeActionKind.QuickFix,
+  ];
+
+  provideCodeActions(
+    document: vscode.TextDocument,
+    range: vscode.Range | vscode.Selection,
+    context: vscode.CodeActionContext,
+    token: vscode.CancellationToken,
+  ): vscode.CodeAction[] {
+    // for each diagnostic entry that has the matching `code`, create a code action command
+    //debugger;
+    return context.diagnostics
+      .filter(diagnostic => diagnostic.relatedInformation?.length)
+      .map(diagnostic =>
+        diagnostic.relatedInformation?.map(hint =>
+          this.createCommandCodeAction(hint, diagnostic),
+        ),
+      );
+  }
+
+  private createCommandCodeAction(
+    hint: vscode.DiagnosticRelatedInformation,
+    diagnostic: vscode.Diagnostic,
+  ): vscode.CodeAction {
+    const action = new vscode.CodeAction(
+      hint.message,
+      vscode.CodeActionKind.QuickFix,
+    );
+    action.title = hint.message;
+    action.command = {
+      command: COMMAND,
+      title: 'Learn more about emojis',
+      tooltip: 'This will open the unicode emoji page.',
+    };
+    action.diagnostics = [diagnostic];
+    // action.isPreferred = true;
+    //debugger;
+    return action;
+  }
+}
+
+export function addCodeActions(
+  context: vscode.ExtensionContext,
+  client: LanguageClient,
+) {
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider(
+      {scheme: 'file'},
+      new ParcelCodeAction(),
+      {
+        providedCodeActionKinds: ParcelCodeAction.providedCodeActionKinds,
+      },
+    ),
+  );
+}
 
 export function addImportersView(
   context: vscode.ExtensionContext,

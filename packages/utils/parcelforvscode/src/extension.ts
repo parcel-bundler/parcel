@@ -9,7 +9,7 @@ import {
   ServerOptions,
   TransportKind,
 } from 'vscode-languageclient/node';
-import {addImportersView} from './importersView';
+import {addImportersView, addCodeActions} from './importersView';
 
 let client: LanguageClient;
 
@@ -42,6 +42,7 @@ export function activate(context: vscode.ExtensionContext) {
   client.start();
 
   addImportersView(context, client);
+  addCodeActions(context, client);
 }
 
 export function deactivate(): Thenable<void> | undefined {
