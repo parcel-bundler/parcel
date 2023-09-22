@@ -11,38 +11,24 @@ import {
   throttle,
 } from '@parcel/utils';
 import chalk from 'chalk';
-import {applyDiagnosticFix} from '@parcel/diagnostic';
 
-import {getProgressMessage, wrapWithIndent, indentString} from './utils';
+import {getTerminalWidth} from './utils';
 import logLevels from './logLevels';
 import bundleReport from './bundleReport';
 import {
-  init,
-  exit,
   writeOut,
   updateSpinner,
   persistSpinner,
   isTTY,
   resetWindow,
   persistMessage,
-  getLocation,
-  moveBy,
-  scrollTo,
-  getPageHeight,
-  scrollIfNeeded,
-  addFooterLine,
-  updateFooterLine,
-  terminalSize,
 } from './render';
-import {initFixes, resetFixes, renderFix, renderFooter} from './fix';
 import * as emoji from './emoji';
 import wrapAnsi from 'wrap-ansi';
 
 const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
 const seenPhases = new Set();
-
-let isWatching = false;
 
 let statusThrottle = throttle((message: string) => {
   updateSpinner(message);
@@ -56,11 +42,15 @@ export async function _report(
   let logLevelFilter = logLevels[options.logLevel || 'info'];
 
   switch (event.type) {
-    case 'watchStart':
-      isWatching = true;
+    case 'buildStart': {
+      seenWarnings.clear();
+      seenPhases.clear();
+      if (logLevelFilter < logLevels.info) {
+        break;
+      }
 
-      init();
-      initFixes();
+      // Clear any previous output
+      resetWindow();
 
       if (options.serveOptions) {
         persistMessage(
@@ -73,23 +63,6 @@ export async function _report(
           ),
         );
       }
-
-      break;
-
-    case 'watchEnd':
-      exit();
-      break;
-
-    case 'buildStart': {
-      seenWarnings.clear();
-      seenPhases.clear();
-      if (logLevelFilter < logLevels.info) {
-        break;
-      }
-
-      // Clear any previous output
-      resetWindow();
-      resetFixes();
 
       break;
     }
@@ -151,7 +124,6 @@ export async function _report(
       }
 
       resetWindow();
-      resetFixes();
 
       persistSpinner('buildProgress', 'error', chalk.red.bold('Build failed.'));
 
@@ -201,17 +173,17 @@ async function writeDiagnostic(
   color: Color,
   isError: boolean = false,
 ) {
-  let columns = terminalSize.columns;
+  let columns = getTerminalWidth().columns;
   let indent = 2;
   let spaceAfter = isError;
   for (let diagnostic of diagnostics) {
-    let {message, stack, codeframe, hints, fixes, documentation} =
+    let {message, stack, codeframe, hints, documentation} =
       await prettyDiagnostic(diagnostic, options, columns - indent);
     // $FlowFixMe[incompatible-use]
     message = chalk[color](message);
 
-    if (isError) {
-      writeOut('', isError);
+    if (spaceAfter) {
+      writeOut('');
     }
 
     if (message) {
@@ -219,7 +191,7 @@ async function writeDiagnostic(
     }
 
     if (stack || codeframe) {
-      writeOut('', isError);
+      writeOut('');
     }
 
     if (stack) {
@@ -230,11 +202,8 @@ async function writeDiagnostic(
       writeOut(indentString(codeframe, indent), isError);
     }
 
-    if (
-      (stack || codeframe) &&
-      (hints.length > 0 || fixes.length > 0 || documentation)
-    ) {
-      writeOut('', isError);
+    if ((stack || codeframe) && (hints.length > 0 || documentation)) {
+      writeOut('');
     }
 
     // Write hints
@@ -246,18 +215,7 @@ async function writeDiagnostic(
           hintIndent + 3,
           hintIndent,
         ),
-        isError,
       );
-    }
-
-    if (Array.isArray(diagnostic.fixes) && diagnostic.fixes.length) {
-      for (let fix of diagnostic.fixes) {
-        await renderFix(fix, options);
-      }
-
-      if (documentation) {
-        writeOut('', isError);
-      }
     }
 
     if (documentation) {
@@ -267,17 +225,30 @@ async function writeDiagnostic(
           hintIndent + 3,
           hintIndent,
         ),
-        isError,
       );
     }
 
     spaceAfter = stack || codeframe || hints.length > 0 || documentation;
   }
 
-  let hasFooter = renderFooter(options);
-  if (!hasFooter && isError) {
-    writeOut('', isError);
+  if (spaceAfter) {
+    writeOut('');
   }
+}
+
+function wrapWithIndent(string, indent = 0, initialIndent = indent) {
+  let width = getTerminalWidth().columns;
+  return indentString(
+    wrapAnsi(string.trimEnd(), width - indent, {trim: false}),
+    indent,
+    initialIndent,
+  );
+}
+
+function indentString(string, indent = 0, initialIndent = indent) {
+  return (
+    ' '.repeat(initialIndent) + string.replace(/\n/g, '\n' + ' '.repeat(indent))
+  );
 }
 
 export default (new Reporter({

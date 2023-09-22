@@ -22,11 +22,12 @@ export class ParcelCodeAction implements vscode.CodeActionProvider {
     // for each diagnostic entry that has the matching `code`, create a code action command
     return context.diagnostics
       .filter(diagnostic => diagnostic.relatedInformation?.length)
-      .flatMap(diagnostic =>
-        diagnostic.relatedInformation?.map(diagnosticInfo =>
+      .flatMap(diagnostic => {
+        console.log('related info: ', diagnostic.relatedInformation);
+        return diagnostic.relatedInformation?.map(diagnosticInfo =>
           this.createCommandCodeAction(diagnosticInfo, diagnostic),
-        ),
-      );
+        );
+      });
   }
 
   private createCommandCodeAction(

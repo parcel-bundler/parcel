@@ -7,6 +7,10 @@ import stripAnsi from 'strip-ansi';
 import wrapAnsi from 'wrap-ansi';
 import {terminalSize} from './render';
 
+export function getTerminalWidth(): any {
+  return terminalSize;
+}
+
 export type PadAlign = 'left' | 'right';
 
 export function getProgressMessage(event: BuildProgressEvent): ?string {

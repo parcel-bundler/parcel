@@ -7,8 +7,9 @@ import {CodeAction, CodeActionKind} from 'vscode-languageserver';
 import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
 import type {ParcelSeverity} from './utils';
+import Logger from '@parcel/logger';
 
-console.log('CodeAction', CodeAction, 'CodeActionKind: ', CodeActionKind);
+// console.log('CodeAction', CodeAction, 'CodeActionKind: ', CodeActionKind);
 
 import {
   DefaultMap,
@@ -232,26 +233,37 @@ function updateDiagnostics(
         }
 
         let message = highlight.message ?? diagnostic.message;
-        if (diagnostic.hints?.length) {
-          for (let hint of diagnostic.hints) {
-            message += '\n' + hint;
-            relatedInformation.push({
-              location: {
-                uri: `file://${normalizeFilePath(filePath, projectRoot)}`,
-                range: {
-                  start: {
-                    line: highlight.start.line - 1,
-                    character: highlight.start.column - 1,
+        if (diagnostic.fixes) {
+          // process.stdout.write("fixes: ", diagnostic.fixes);
+          // process.stdout.write("map");
+          // diagnostic.fixes.map(fix => fix.edits.map(edit => process.stdout.write(edit)));
+        }
+
+        if (diagnostic.fixes?.length) {
+          for (let fix of diagnostic.fixes) {
+            if (fix.type == 'patch') {
+              for (let edit of fix.edits) {
+                // message += '\n' + fix;
+                relatedInformation.push({
+                  location: {
+                    uri: `file://${normalizeFilePath(filePath, projectRoot)}`,
+                    range: {
+                      start: {
+                        line: edit.range.start.line - 1,
+                        character: edit.range.start.column - 1,
+                      },
+                      end: {
+                        line: edit.range.end.line - 1,
+                        character: edit.range.end.column,
+                      },
+                    },
                   },
-                  end: {
-                    line: highlight.end.line - 1,
-                    character: highlight.end.column,
-                  },
-                },
-              },
-              message: hint,
-            });
+                  message: edit.message,
+                });
+              }
+            }
           }
+          Logger.log('test');
         }
       }
     }
