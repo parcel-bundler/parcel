@@ -3,6 +3,7 @@
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {parse, type Mapping} from '@mischnic/json-sourcemap';
+import type {FileSystem} from '@parcel/fs';
 
 /** These positions are 1-based (so <code>1</code> is the first line/column) */
 export type DiagnosticHighlightLocation = {|
@@ -46,6 +47,44 @@ export type DiagnosticCodeFrame = {|
   codeHighlights: Array<DiagnosticCodeHighlight>,
 |};
 
+export type DiagnosticFixGroup = {|
+  type: 'group',
+  options: Array<DiagnosticFix>,
+|};
+
+export type DiagnosticFixPatch = {|
+  type: 'patch',
+  filePath: string,
+  hash: string,
+  message: string,
+  edits: Array<TextEdit>,
+|};
+
+export type TextEdit = {|
+  range: {|
+    start: DiagnosticHighlightLocation,
+    end: DiagnosticHighlightLocation,
+  |},
+  replacement: string,
+|};
+
+export type DiagnosticFixCreate = {|
+  type: 'create',
+  filePath: string,
+  contents: string,
+|};
+
+export type DiagnosticFixDelete = {|
+  type: 'delete',
+  filePath: string,
+|};
+
+export type DiagnosticFix =
+  | DiagnosticFixPatch
+  | DiagnosticFixCreate
+  | DiagnosticFixDelete
+  | DiagnosticFixGroup;
+
 /**
  * A style agnostic way of emitting errors, warnings and info.
  * Reporters are responsible for rendering the message, codeframes, hints, ...
@@ -66,6 +105,8 @@ export type Diagnostic = {|
 
   /** An optional list of strings that suggest ways to resolve this issue */
   hints?: Array<string>,
+
+  fixes?: Array<DiagnosticFix>,
 
   /** @private */
   skipFormatting?: boolean,
@@ -374,3 +415,121 @@ md.strikethrough = function (s: TemplateInput): TemplateInput {
   // $FlowFixMe[invalid-computed-prop]
   return {[mdVerbatim]: '~~' + escapeMarkdown(`${s}`) + '~~'};
 };
+
+export function deleteJSONKeyPatch(json: string, pos: Mapping): TextEdit {
+  invariant(pos.key != null);
+  let p = pos.key.pos - 1;
+  let start = {line: pos.key.line + 1, column: pos.key.column + 1};
+  let end = {line: pos.valueEnd.line + 1, column: pos.valueEnd.column};
+
+  // Skip leading and trailing trivia.
+  for (; p >= 0; p--) {
+    if (/[\r\s]/.test(json[p]) && start.column > 1) {
+      start.column--;
+    } else {
+      break;
+    }
+  }
+
+  let hadTrailingComma = false;
+  for (let p = pos.valueEnd.pos; p < json.length; p++) {
+    if (/[,\r\s]/.test(json[p])) {
+      end.column++;
+      hadTrailingComma = hadTrailingComma || json[p] === ',';
+    } else if (json[p] === '\n') {
+      break;
+    } else {
+      break;
+    }
+  }
+
+  if (!hadTrailingComma && pos.key) {
+    let s = {...start};
+    for (; p >= 0; p--) {
+      if (json[p] === '\n') {
+        s.line--;
+        s.column = Math.max(1, p - json.lastIndexOf('\n', p - 1));
+      } else if (/[\r\s]/.test(json[p])) {
+        s.column--;
+      } else if (json[p] === ',') {
+        s.column--;
+        start = s;
+        break;
+      } else {
+        break;
+      }
+    }
+  }
+
+  return {
+    range: {
+      start,
+      end,
+    },
+    replacement: '',
+  };
+}
+
+export function updateJSONValuePatch(
+  pos: Mapping,
+  replacement: mixed,
+): TextEdit {
+  let range = getJSONSourceLocation(pos, 'value');
+  return {
+    range,
+    replacement: nullthrows(JSON.stringify(replacement)),
+  };
+}
+
+export function addJSONKeyPatch(
+  before: Mapping,
+  key: string,
+  value: mixed,
+): TextEdit {
+  let range = getJSONSourceLocation(before, 'key');
+  let indent = ' '.repeat(nullthrows(before.key).column);
+  return {
+    range: {
+      start: {
+        line: range.start.line,
+        column: range.start.column,
+      },
+      end: {
+        line: range.start.line,
+        column: range.start.column - 1,
+      },
+    },
+    replacement:
+      `"${key}": ` + nullthrows(JSON.stringify(value)) + ',\n' + indent,
+  };
+}
+
+export async function applyDiagnosticFix(fix: DiagnosticFix, fs: FileSystem) {
+  switch (fix.type) {
+    case 'patch': {
+      await applyPatch(fix, fs);
+      break;
+    }
+  }
+}
+
+async function applyPatch(fix: DiagnosticFixPatch, fs: FileSystem) {
+  let contents = await fs.readFile(fix.filePath, 'utf8');
+  // TODO: check hash
+
+  let lines = contents.split('\n');
+
+  for (let edit of fix.edits) {
+    let startLine = lines[edit.range.start.line - 1];
+    if (edit.range.start.line === edit.range.end.line) {
+      lines[edit.range.start.line - 1] =
+        startLine.slice(0, edit.range.start.column - 1) +
+        edit.replacement +
+        startLine.slice(edit.range.end.column);
+    } else {
+      // TODO
+    }
+  }
+
+  await fs.writeFile(fix.filePath, lines.join('\n'));
+}
