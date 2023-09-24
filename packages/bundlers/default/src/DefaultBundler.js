@@ -20,7 +20,13 @@ import invariant from 'assert';
 import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
 import logger from '@parcel/logger';
-import {setEqual, validateSchema, DefaultMap, BitSet} from '@parcel/utils';
+import {
+  setEqual,
+  validateSchema,
+  DefaultMap,
+  BitSet,
+  RawBitSet,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
@@ -333,9 +339,6 @@ function createIdealGraph(
 
   let bundleGroupBundleIds: Set<NodeId> = new Set();
 
-  // Models bundleRoots and the assets that require it synchronously
-  let reachableRoots: ContentGraph<Asset> = new ContentGraph();
-
   let rootNodeId = nullthrows(bundleRootGraph.addNode('root'));
   let bundleGraphRootNodeId = nullthrows(bundleGraph.addNode('root'));
   bundleRootGraph.setRootNodeId(rootNodeId);
@@ -371,6 +374,7 @@ function createIdealGraph(
   }
 
   let assets = [];
+  let assetToIndex = new Map<Asset, number>();
 
   let typeChangeIds = new Set();
   /**
@@ -378,191 +382,85 @@ function createIdealGraph(
    * for asset type changes, parallel, inline, and async or lazy dependencies,
    * adding only that asset to each bundle, not its entire subgraph.
    */
-  assetGraph.traverse({
-    enter(node, context, actions) {
-      if (node.type === 'asset') {
-        if (
-          context?.type === 'dependency' &&
-          context?.value.isEntry &&
-          !entries.has(node.value)
-        ) {
-          // Skip whole subtrees of other targets by skipping those entries
-          actions.skipChildren();
-          return node;
-        }
-        assets.push(node.value);
-
-        let bundleIdTuple = bundleRoots.get(node.value);
-        if (bundleIdTuple && bundleIdTuple[0] === bundleIdTuple[1]) {
-          // Push to the stack (only) when a new bundle is created
-          stack.push([node.value, bundleIdTuple[0]]);
-        } else if (bundleIdTuple) {
-          // Otherwise, push on the last bundle that marks the start of a BundleGroup
-          stack.push([node.value, stack[stack.length - 1][1]]);
-        }
-      } else if (node.type === 'dependency') {
-        if (context == null) {
-          return node;
-        }
-        let dependency = node.value;
-
-        if (assetGraph.isDependencySkipped(dependency)) {
-          actions.skipChildren();
-          return node;
-        }
-
-        invariant(context?.type === 'asset');
-        let parentAsset = context.value;
-
-        let assets = assetGraph.getDependencyAssets(dependency);
-        if (assets.length === 0) {
-          return node;
-        }
-
-        for (let childAsset of assets) {
+  assetGraph.traverse(
+    {
+      enter(node, context, actions) {
+        if (node.type === 'asset') {
           if (
-            dependency.priority === 'lazy' ||
-            childAsset.bundleBehavior === 'isolated' // An isolated Dependency, or Bundle must contain all assets it needs to load.
+            context?.type === 'dependency' &&
+            context?.value.isEntry &&
+            !entries.has(node.value)
           ) {
-            let bundleId = bundles.get(childAsset.id);
-            let bundle;
-            if (bundleId == null) {
-              let firstBundleGroup = nullthrows(
-                bundleGraph.getNode(stack[0][1]),
-              );
-              invariant(firstBundleGroup !== 'root');
-              bundle = createBundle({
-                asset: childAsset,
-                target: firstBundleGroup.target,
-                needsStableName:
-                  dependency.bundleBehavior === 'inline' ||
-                  childAsset.bundleBehavior === 'inline'
-                    ? false
-                    : dependency.isEntry || dependency.needsStableName,
-                bundleBehavior:
-                  dependency.bundleBehavior ?? childAsset.bundleBehavior,
-              });
-              bundleId = bundleGraph.addNode(bundle);
-              bundles.set(childAsset.id, bundleId);
-              bundleRoots.set(childAsset, [bundleId, bundleId]);
-              bundleGroupBundleIds.add(bundleId);
-              bundleGraph.addEdge(bundleGraphRootNodeId, bundleId);
-            } else {
-              bundle = nullthrows(bundleGraph.getNode(bundleId));
-              invariant(bundle !== 'root');
-
-              if (
-                // If this dependency requests isolated, but the bundle is not,
-                // make the bundle isolated for all uses.
-                dependency.bundleBehavior === 'isolated' &&
-                bundle.bundleBehavior == null
-              ) {
-                bundle.bundleBehavior = dependency.bundleBehavior;
-              }
-            }
-
-            dependencyBundleGraph.addEdge(
-              dependencyBundleGraph.addNodeByContentKeyIfNeeded(dependency.id, {
-                value: dependency,
-                type: 'dependency',
-              }),
-              dependencyBundleGraph.addNodeByContentKeyIfNeeded(
-                String(bundleId),
-                {
-                  value: bundle,
-                  type: 'bundle',
-                },
-              ),
-              dependencyPriorityEdges[dependency.priority],
-            );
-            continue;
+            // Skip whole subtrees of other targets by skipping those entries
+            actions.skipChildren();
+            return node;
           }
-          if (
-            parentAsset.type !== childAsset.type ||
-            dependency.priority === 'parallel' ||
-            childAsset.bundleBehavior === 'inline'
-          ) {
-            // The referencing bundleRoot is the root of a Bundle that first brings in another bundle (essentially the FIRST parent of a bundle, this may or may not be a bundleGroup)
-            let [referencingBundleRoot, bundleGroupNodeId] = nullthrows(
-              stack[stack.length - 1],
-            );
-            let bundleGroup = nullthrows(
-              bundleGraph.getNode(bundleGroupNodeId),
-            );
-            invariant(bundleGroup !== 'root');
+          assetToIndex.set(node.value, assets.length);
+          assets.push(node.value);
 
-            let bundleId;
-            let referencingBundleId = nullthrows(
-              bundleRoots.get(referencingBundleRoot),
-            )[0];
-            let referencingBundle = nullthrows(
-              bundleGraph.getNode(referencingBundleId),
-            );
-            invariant(referencingBundle !== 'root');
-            let bundle;
-            bundleId = bundles.get(childAsset.id);
+          let bundleIdTuple = bundleRoots.get(node.value);
+          if (bundleIdTuple && bundleIdTuple[0] === bundleIdTuple[1]) {
+            // Push to the stack (only) when a new bundle is created
+            stack.push([node.value, bundleIdTuple[0]]);
+          } else if (bundleIdTuple) {
+            // Otherwise, push on the last bundle that marks the start of a BundleGroup
+            stack.push([node.value, stack[stack.length - 1][1]]);
+          }
+        } else if (node.type === 'dependency') {
+          if (context == null) {
+            return node;
+          }
+          let dependency = node.value;
+          invariant(context?.type === 'asset');
+          let parentAsset = context.value;
 
-            /**
-             * If this is an entry bundlegroup, we only allow one bundle per type in those groups
-             * So attempt to add the asset to the entry bundle if it's of the same type.
-             * This asset will be created by other dependency if it's in another bundlegroup
-             * and bundles of other types should be merged in the next step
-             */
-            let bundleGroupRootAsset = nullthrows(bundleGroup.mainEntryAsset);
+          let assets = assetGraph.getDependencyAssets(dependency);
+          if (assets.length === 0) {
+            return node;
+          }
+
+          for (let childAsset of assets) {
             if (
-              parentAsset.type !== childAsset.type &&
-              entries.has(bundleGroupRootAsset) &&
-              canMerge(bundleGroupRootAsset, childAsset) &&
-              dependency.bundleBehavior == null
+              dependency.priority === 'lazy' ||
+              childAsset.bundleBehavior === 'isolated' // An isolated Dependency, or Bundle must contain all assets it needs to load.
             ) {
-              bundleId = bundleGroupNodeId;
-            }
-            if (bundleId == null) {
-              bundle = createBundle({
-                // Bundles created from type changes shouldn't have an entry asset.
-                asset: childAsset,
-                type: childAsset.type,
-                env: childAsset.env,
-                bundleBehavior:
-                  dependency.bundleBehavior ?? childAsset.bundleBehavior,
-                target: referencingBundle.target,
-                needsStableName:
-                  childAsset.bundleBehavior === 'inline' ||
-                  dependency.bundleBehavior === 'inline' ||
-                  (dependency.priority === 'parallel' &&
-                    !dependency.needsStableName)
-                    ? false
-                    : referencingBundle.needsStableName,
-              });
-              bundleId = bundleGraph.addNode(bundle);
+              let bundleId = bundles.get(childAsset.id);
+              let bundle;
+              if (bundleId == null) {
+                let firstBundleGroup = nullthrows(
+                  bundleGraph.getNode(stack[0][1]),
+                );
+                invariant(firstBundleGroup !== 'root');
+                bundle = createBundle({
+                  asset: childAsset,
+                  target: firstBundleGroup.target,
+                  needsStableName:
+                    dependency.bundleBehavior === 'inline' ||
+                    childAsset.bundleBehavior === 'inline'
+                      ? false
+                      : dependency.isEntry || dependency.needsStableName,
+                  bundleBehavior:
+                    dependency.bundleBehavior ?? childAsset.bundleBehavior,
+                });
+                bundleId = bundleGraph.addNode(bundle);
+                bundles.set(childAsset.id, bundleId);
+                bundleRoots.set(childAsset, [bundleId, bundleId]);
+                bundleGroupBundleIds.add(bundleId);
+                bundleGraph.addEdge(bundleGraphRootNodeId, bundleId);
+              } else {
+                bundle = nullthrows(bundleGraph.getNode(bundleId));
+                invariant(bundle !== 'root');
 
-              // Store Type-Change bundles for later since we need to know ALL bundlegroups they are part of to reduce/combine them
-              if (parentAsset.type !== childAsset.type) {
-                typeChangeIds.add(bundleId);
+                if (
+                  // If this dependency requests isolated, but the bundle is not,
+                  // make the bundle isolated for all uses.
+                  dependency.bundleBehavior === 'isolated' &&
+                  bundle.bundleBehavior == null
+                ) {
+                  bundle.bundleBehavior = dependency.bundleBehavior;
+                }
               }
-            } else {
-              bundle = bundleGraph.getNode(bundleId);
-              invariant(bundle != null && bundle !== 'root');
 
-              if (
-                // If this dependency requests isolated, but the bundle is not,
-                // make the bundle isolated for all uses.
-                dependency.bundleBehavior === 'isolated' &&
-                bundle.bundleBehavior == null
-              ) {
-                bundle.bundleBehavior = dependency.bundleBehavior;
-              }
-            }
-
-            bundles.set(childAsset.id, bundleId);
-
-            // A bundle can belong to multiple bundlegroups, all the bundle groups of it's
-            // ancestors, and all async and entry bundles before it are "bundle groups"
-            // TODO: We may need to track bundles to all bundleGroups it belongs to in the future.
-            bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
-            bundleGraph.addEdge(referencingBundleId, bundleId);
-
-            if (bundleId != bundleGroupNodeId) {
               dependencyBundleGraph.addEdge(
                 dependencyBundleGraph.addNodeByContentKeyIfNeeded(
                   dependency.id,
@@ -578,23 +476,131 @@ function createIdealGraph(
                     type: 'bundle',
                   },
                 ),
-                dependencyPriorityEdges.parallel,
+                dependencyPriorityEdges[dependency.priority],
               );
+              continue;
             }
+            if (
+              parentAsset.type !== childAsset.type ||
+              dependency.priority === 'parallel' ||
+              childAsset.bundleBehavior === 'inline'
+            ) {
+              // The referencing bundleRoot is the root of a Bundle that first brings in another bundle (essentially the FIRST parent of a bundle, this may or may not be a bundleGroup)
+              let [referencingBundleRoot, bundleGroupNodeId] = nullthrows(
+                stack[stack.length - 1],
+              );
+              let bundleGroup = nullthrows(
+                bundleGraph.getNode(bundleGroupNodeId),
+              );
+              invariant(bundleGroup !== 'root');
 
-            assetReference.get(childAsset).push([dependency, bundle]);
-            continue;
+              let bundleId;
+              let referencingBundleId = nullthrows(
+                bundleRoots.get(referencingBundleRoot),
+              )[0];
+              let referencingBundle = nullthrows(
+                bundleGraph.getNode(referencingBundleId),
+              );
+              invariant(referencingBundle !== 'root');
+              let bundle;
+              bundleId = bundles.get(childAsset.id);
+
+              /**
+               * If this is an entry bundlegroup, we only allow one bundle per type in those groups
+               * So attempt to add the asset to the entry bundle if it's of the same type.
+               * This asset will be created by other dependency if it's in another bundlegroup
+               * and bundles of other types should be merged in the next step
+               */
+              let bundleGroupRootAsset = nullthrows(bundleGroup.mainEntryAsset);
+              if (
+                parentAsset.type !== childAsset.type &&
+                entries.has(bundleGroupRootAsset) &&
+                canMerge(bundleGroupRootAsset, childAsset) &&
+                dependency.bundleBehavior == null
+              ) {
+                bundleId = bundleGroupNodeId;
+              }
+              if (bundleId == null) {
+                bundle = createBundle({
+                  // Bundles created from type changes shouldn't have an entry asset.
+                  asset: childAsset,
+                  type: childAsset.type,
+                  env: childAsset.env,
+                  bundleBehavior:
+                    dependency.bundleBehavior ?? childAsset.bundleBehavior,
+                  target: referencingBundle.target,
+                  needsStableName:
+                    childAsset.bundleBehavior === 'inline' ||
+                    dependency.bundleBehavior === 'inline' ||
+                    (dependency.priority === 'parallel' &&
+                      !dependency.needsStableName)
+                      ? false
+                      : referencingBundle.needsStableName,
+                });
+                bundleId = bundleGraph.addNode(bundle);
+
+                // Store Type-Change bundles for later since we need to know ALL bundlegroups they are part of to reduce/combine them
+                if (parentAsset.type !== childAsset.type) {
+                  typeChangeIds.add(bundleId);
+                }
+              } else {
+                bundle = bundleGraph.getNode(bundleId);
+                invariant(bundle != null && bundle !== 'root');
+
+                if (
+                  // If this dependency requests isolated, but the bundle is not,
+                  // make the bundle isolated for all uses.
+                  dependency.bundleBehavior === 'isolated' &&
+                  bundle.bundleBehavior == null
+                ) {
+                  bundle.bundleBehavior = dependency.bundleBehavior;
+                }
+              }
+
+              bundles.set(childAsset.id, bundleId);
+
+              // A bundle can belong to multiple bundlegroups, all the bundle groups of it's
+              // ancestors, and all async and entry bundles before it are "bundle groups"
+              // TODO: We may need to track bundles to all bundleGroups it belongs to in the future.
+              bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
+              bundleGraph.addEdge(referencingBundleId, bundleId);
+
+              if (bundleId != bundleGroupNodeId) {
+                dependencyBundleGraph.addEdge(
+                  dependencyBundleGraph.addNodeByContentKeyIfNeeded(
+                    dependency.id,
+                    {
+                      value: dependency,
+                      type: 'dependency',
+                    },
+                  ),
+                  dependencyBundleGraph.addNodeByContentKeyIfNeeded(
+                    String(bundleId),
+                    {
+                      value: bundle,
+                      type: 'bundle',
+                    },
+                  ),
+                  dependencyPriorityEdges.parallel,
+                );
+              }
+
+              assetReference.get(childAsset).push([dependency, bundle]);
+              continue;
+            }
           }
         }
-      }
-      return node;
+        return node;
+      },
+      exit(node) {
+        if (stack[stack.length - 1]?.[0] === node.value) {
+          stack.pop();
+        }
+      },
     },
-    exit(node) {
-      if (stack[stack.length - 1]?.[0] === node.value) {
-        stack.pop();
-      }
-    },
-  });
+    null,
+    {skipUnusedDependencies: true},
+  );
 
   let assetSet = BitSet.from(assets);
 
@@ -650,24 +656,31 @@ function createIdealGraph(
       bundleRootGraph.addNodeByContentKey(root.id, root); // Add in all bundleRoots to BundleRootGraph
     }
   }
-  // ReachableRoots is a Graph of Asset Nodes which represents a BundleRoot, to all assets (non-bundleroot assets
+
+  // ReachableRoots maps bundle roots to all assets (non-bundleroot assets
   // available to it synchronously (directly) built by traversing the assetgraph once.
+  let reachableRoots = [];
+  let reachableAssets = [];
+  for (let i = 0; i < assets.length; i++) {
+    reachableRoots[i] = new RawBitSet(assets.length);
+    reachableAssets[i] = new RawBitSet(assets.length);
+  }
+
   for (let [root] of bundleRoots) {
     // Add sync relationships to ReachableRoots
-    let rootNodeId = reachableRoots.addNodeByContentKeyIfNeeded(root.id, root);
-    assetGraph.traverse((node, _, actions) => {
-      if (node.value === root) {
-        return;
-      }
-      if (node.type === 'dependency') {
-        let dependency = node.value;
-
-        if (assetGraph.isDependencySkipped(dependency)) {
-          actions.skipChildren();
+    let rootNodeId = nullthrows(assetToIndex.get(root));
+    assetGraph.traverse(
+      (node, _, actions) => {
+        if (node.value === root) {
+          return;
         }
+        if (node.type === 'dependency') {
+          let dependency = node.value;
 
-        if (dependencyBundleGraph.hasContentKey(dependency.id)) {
-          if (dependency.priority !== 'sync') {
+          if (
+            dependency.priority !== 'sync' &&
+            dependencyBundleGraph.hasContentKey(dependency.id)
+          ) {
             let assets = assetGraph.getDependencyAssets(dependency);
             if (assets.length === 0) {
               return;
@@ -692,30 +705,25 @@ function createIdealGraph(
               );
             }
           }
-        }
 
-        if (dependency.priority !== 'sync') {
+          if (dependency.priority !== 'sync') {
+            actions.skipChildren();
+          }
+          return;
+        }
+        //asset node type
+        let asset = node.value;
+        if (asset.bundleBehavior != null || root.type !== asset.type) {
           actions.skipChildren();
+          return;
         }
-        return;
-      }
-      //asset node type
-      let asset = node.value;
-      if (asset.bundleBehavior != null || root.type !== asset.type) {
-        if (root.type !== asset.type && !bundleRoots.has(asset)) {
-          // A type may not necessarily be a bundleRoot since we've merged at this point
-          // So we must add that asset in as an island at the very least
-          reachableRoots.addNodeByContentKeyIfNeeded(node.value.id, node.value);
-        }
-        actions.skipChildren();
-        return;
-      }
-      let nodeId = reachableRoots.addNodeByContentKeyIfNeeded(
-        node.value.id,
-        node.value,
-      );
-      reachableRoots.addEdge(rootNodeId, nodeId);
-    }, root);
+        let nodeId = nullthrows(assetToIndex.get(node.value));
+        reachableAssets[rootNodeId].add(nodeId);
+        reachableRoots[nodeId].add(rootNodeId);
+      },
+      root,
+      {skipUnusedDependencies: true},
+    );
   }
   // Maps a given bundleRoot to the assets reachable from it,
   // and the bundleRoots reachable from each of these assets
@@ -765,15 +773,10 @@ function createIdealGraph(
 
         for (let bundleRoot of bundleInGroup.assets) {
           // Assets directly connected to current bundleRoot
-          let assetsFromBundleRoot = reachableRoots
-            .getNodeIdsConnectedFrom(
-              reachableRoots.getNodeIdByContentKey(bundleRoot.id),
-            )
-            .map(id => nullthrows(reachableRoots.getNode(id)));
-
-          for (let asset of [bundleRoot, ...assetsFromBundleRoot]) {
-            available.add(asset);
-          }
+          available.add(bundleRoot);
+          available.unionRaw(
+            reachableAssets[nullthrows(assetToIndex.get(bundleRoot))],
+          );
         }
       }
     }
@@ -816,13 +819,9 @@ function createIdealGraph(
         ancestorAssets.set(child, currentChildAvailable.clone());
       }
       if (isParallel) {
-        for (let reachableNodeId of reachableRoots.getNodeIdsConnectedFrom(
-          reachableRoots.getNodeIdByContentKey(child.id),
-        )) {
-          let asset = nullthrows(reachableRoots.getNode(reachableNodeId));
-
-          parallelAvailability.add(asset);
-        }
+        parallelAvailability.unionRaw(
+          reachableAssets[nullthrows(assetToIndex.get(child))],
+        );
         parallelAvailability.add(child); //The next sibling should have older sibling available via parallel
       }
     }
@@ -845,9 +844,8 @@ function createIdealGraph(
         continue;
       }
       if (
-        reachableRoots.hasEdge(
-          reachableRoots.getNodeIdByContentKey(parent.id),
-          reachableRoots.getNodeIdByContentKey(bundleRoot.id),
+        reachableAssets[nullthrows(assetToIndex.get(parent))].has(
+          nullthrows(assetToIndex.get(bundleRoot)),
         ) ||
         ancestorAssets.get(parent)?.has(bundleRoot)
       ) {
@@ -868,36 +866,37 @@ function createIdealGraph(
       deleteBundle(bundleRoot);
     }
   }
+
   // Step Insert Or Share: Place all assets into bundles or create shared bundles. Each asset
   // is placed into a single bundle based on the bundle entries it is reachable from.
   // This creates a maximally code split bundle graph with no duplication.
-  for (let asset of assets) {
-    // Unreliable bundleRoot assets which need to pulled in by shared bundles or other means
-    let reachable: Array<BundleRoot> = getReachableBundleRoots(
-      asset,
-      reachableRoots,
-    ).reverse();
-
-    let reachableEntries = [];
-    let reachableNonEntries = [];
+  let reachable = new RawBitSet(assets.length);
+  let reachableNonEntries = new RawBitSet(assets.length);
+  let reachableIntersection = new RawBitSet(assets.length);
+  for (let i = 0; i < assets.length; i++) {
+    let asset = assets[i];
 
     if (asset.meta.isConstantModule === true) {
       // Add assets to non-splittable bundles.
-      for (let entry of reachable) {
+      reachableRoots[i].forEach(nodeId => {
+        let entry = assets[nodeId];
         let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
         let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
         invariant(entryBundle !== 'root');
         entryBundle.assets.add(asset);
         entryBundle.size += asset.stats.size;
-      }
+      });
 
       continue;
     }
 
+    // Unreliable bundleRoot assets which need to pulled in by shared bundles or other means.
     // Filter out entries, since they can't have shared bundles.
     // Neither can non-splittable, isolated, or needing of stable name bundles.
     // Reserve those filtered out bundles since we add the asset back into them.
-    for (let a of reachable) {
+    reachableNonEntries.clear();
+    reachableRoots[i].forEach(nodeId => {
+      let a = assets[nodeId];
       if (
         entries.has(a) ||
         !a.isBundleSplittable ||
@@ -905,16 +904,18 @@ function createIdealGraph(
           (getBundleFromBundleRoot(a).needsStableName ||
             getBundleFromBundleRoot(a).bundleBehavior === 'isolated'))
       ) {
-        reachableEntries.push(a);
-      } else {
-        reachableNonEntries.push(a);
+        // Add asset to non-splittable bundles.
+        let entryBundleId = nullthrows(bundleRoots.get(a))[0];
+        let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
+        invariant(entryBundle !== 'root');
+        entryBundle.assets.add(asset);
+        entryBundle.size += asset.stats.size;
+      } else if (!ancestorAssets.get(a)?.has(asset)) {
+        // Filter out bundles from this asset's reachable array if
+        // bundle does not contain the asset in its ancestry
+        reachableNonEntries.add(nodeId);
       }
-    }
-    reachable = reachableNonEntries;
-
-    // Filter out bundles from this asset's reachable array if
-    // bundle does not contain the asset in its ancestry
-    reachable = reachable.filter(b => !ancestorAssets.get(b)?.has(asset));
+    });
 
     // Finally, filter out bundleRoots (bundles) from this assets
     // reachable if they are subgraphs, and reuse that subgraph bundle
@@ -924,18 +925,19 @@ function createIdealGraph(
     // a bundle represents the exact set of assets a set of bundles would share
 
     // if a bundle b is a subgraph of another bundle f, reuse it, drawing an edge between the two
-    let canReuse: Set<BundleRoot> = new Set();
+    reachable.bits.set(reachableNonEntries.bits);
     if (config.disableSharedBundles === false) {
-      for (let candidateSourceBundleRoot of reachable) {
+      reachableNonEntries.forEach(candidateId => {
+        let candidateSourceBundleRoot = assets[candidateId];
         let candidateSourceBundleId = nullthrows(
           bundleRoots.get(candidateSourceBundleRoot),
         )[0];
         if (candidateSourceBundleRoot.env.isIsolated()) {
-          continue;
+          return;
         }
         let reuseableBundleId = bundles.get(asset.id);
         if (reuseableBundleId != null) {
-          canReuse.add(candidateSourceBundleRoot);
+          reachable.delete(candidateId);
           bundleGraph.addEdge(candidateSourceBundleId, reuseableBundleId);
 
           let reusableBundle = bundleGraph.getNode(reuseableBundleId);
@@ -944,49 +946,41 @@ function createIdealGraph(
         } else {
           // Asset is not a bundleRoot, but if its ancestor bundle (in the asset's reachable) can be
           // reused as a subgraph of another bundleRoot in its reachable, reuse it
-          for (let otherReuseCandidate of reachable) {
-            if (candidateSourceBundleRoot === otherReuseCandidate) continue;
-            let reusableCandidateReachable = getReachableBundleRoots(
-              otherReuseCandidate,
-              reachableRoots,
-            ).filter(b => !ancestorAssets.get(b)?.has(otherReuseCandidate));
-            if (
-              reusableCandidateReachable.includes(candidateSourceBundleRoot)
-            ) {
-              let reusableBundleId = nullthrows(
-                bundles.get(otherReuseCandidate.id),
-              );
-              canReuse.add(candidateSourceBundleRoot);
-              bundleGraph.addEdge(
-                nullthrows(bundles.get(candidateSourceBundleRoot.id)),
-                reusableBundleId,
-              );
-              let reusableBundle = bundleGraph.getNode(reusableBundleId);
-              invariant(reusableBundle !== 'root' && reusableBundle != null);
-              reusableBundle.sourceBundles.add(candidateSourceBundleId);
-            }
-          }
+          reachableIntersection.bits.set(reachableNonEntries.bits);
+          reachableIntersection.intersect(reachableAssets[candidateId]);
+          reachableIntersection.forEach(otherCandidateId => {
+            let otherReuseCandidate = assets[otherCandidateId];
+            if (candidateSourceBundleRoot === otherReuseCandidate) return;
+            let reusableBundleId = nullthrows(
+              bundles.get(otherReuseCandidate.id),
+            );
+            reachable.delete(candidateId);
+            bundleGraph.addEdge(
+              nullthrows(bundles.get(candidateSourceBundleRoot.id)),
+              reusableBundleId,
+            );
+            let reusableBundle = bundleGraph.getNode(reusableBundleId);
+            invariant(reusableBundle !== 'root' && reusableBundle != null);
+            reusableBundle.sourceBundles.add(candidateSourceBundleId);
+          });
         }
-      }
-    }
-    //Bundles that are reused should not be considered for shared bundles, so filter them out
-    reachable = reachable.filter(b => !canReuse.has(b));
-
-    // Add assets to non-splittable bundles.
-    for (let entry of reachableEntries) {
-      let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
-      let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
-      invariant(entryBundle !== 'root');
-      entryBundle.assets.add(asset);
-      entryBundle.size += asset.stats.size;
+      });
     }
 
+    let reachableArray = [];
+    reachable.forEach(id => {
+      reachableArray.push(assets[id]);
+    });
+
+    // Create shared bundles for splittable bundles.
     if (
       config.disableSharedBundles === false &&
-      reachable.length > config.minBundles
+      reachableArray.length > config.minBundles
     ) {
-      let sourceBundles = reachable.map(a => nullthrows(bundleRoots.get(a))[0]);
-      let key = reachable.map(a => a.id).join(',');
+      let sourceBundles = reachableArray.map(
+        a => nullthrows(bundleRoots.get(a))[0],
+      );
+      let key = reachableArray.map(a => a.id).join(',');
       let bundleId = bundles.get(key);
       let bundle;
       if (bundleId == null) {
@@ -1037,9 +1031,9 @@ function createIdealGraph(
       });
     } else if (
       config.disableSharedBundles === true ||
-      reachable.length <= config.minBundles
+      reachableArray.length <= config.minBundles
     ) {
-      for (let root of reachable) {
+      for (let root of reachableArray) {
         let bundle = nullthrows(
           bundleGraph.getNode(nullthrows(bundleRoots.get(root))[0]),
         );
@@ -1446,12 +1440,6 @@ async function loadBundlerConfig(
     disableSharedBundles:
       conf.contents.disableSharedBundles ?? defaults.disableSharedBundles,
   };
-}
-
-function getReachableBundleRoots(asset, graph): Array<BundleRoot> {
-  return graph
-    .getNodeIdsConnectedTo(graph.getNodeIdByContentKey(asset.id))
-    .map(nodeId => nullthrows(graph.getNode(nodeId)));
 }
 
 function getEntryByTarget(
