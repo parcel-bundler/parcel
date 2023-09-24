@@ -3,7 +3,12 @@
 import {fromNodeId} from './types';
 import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
 import type {Edge, NodeId} from './types';
-import type {TraversalActions, GraphVisitor} from '@parcel/types';
+import type {
+  TraversalActions,
+  GraphVisitor,
+  GraphTraversalCallback,
+} from '@parcel/types';
+import {RawBitSet} from '@parcel/utils';
 
 import nullthrows from 'nullthrows';
 
@@ -27,6 +32,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   nodes: Array<TNode | null>;
   adjacencyList: AdjacencyList<TEdgeType>;
   rootNodeId: ?NodeId;
+  _visited: ?RawBitSet;
 
   constructor(opts: ?GraphOpts<TNode, TEdgeType>) {
     this.nodes = opts?.nodes || [];
@@ -275,11 +281,20 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       | Array<TEdgeType | NullEdgeType>
       | AllEdgeTypes = 1,
   ): ?TContext {
-    return this.dfs({
-      visit,
-      startNodeId,
-      getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
-    });
+    let enter = typeof visit === 'function' ? visit : visit.enter;
+    if (
+      type === ALL_EDGE_TYPES &&
+      enter &&
+      (typeof visit === 'function' || !visit.exit)
+    ) {
+      return this.dfsFast(enter, startNodeId);
+    } else {
+      return this.dfs({
+        visit,
+        startNodeId,
+        getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
+      });
+    }
   }
 
   filteredTraverse<TValue, TContext>(
@@ -307,6 +322,72 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     });
   }
 
+  dfsFast<TContext>(
+    visit: GraphTraversalCallback<NodeId, TContext>,
+    startNodeId: ?NodeId,
+  ): ?TContext {
+    let traversalStartNode = nullthrows(
+      startNodeId ?? this.rootNodeId,
+      'A start node is required to traverse',
+    );
+    this._assertHasNodeId(traversalStartNode);
+
+    let visited;
+    if (!this._visited || this._visited.capacity < this.nodes.length) {
+      this._visited = new RawBitSet(this.nodes.length);
+      visited = this._visited;
+    } else {
+      visited = this._visited;
+      visited.clear();
+    }
+    // Take shared instance to avoid re-entrancy issues.
+    this._visited = null;
+
+    let stopped = false;
+    let skipped = false;
+    let actions: TraversalActions = {
+      skipChildren() {
+        skipped = true;
+      },
+      stop() {
+        stopped = true;
+      },
+    };
+
+    let queue = [{nodeId: traversalStartNode, context: null}];
+    while (queue.length !== 0) {
+      let {nodeId, context} = queue.pop();
+      if (!this.hasNode(nodeId) || visited.has(nodeId)) continue;
+      visited.add(nodeId);
+
+      skipped = false;
+      let newContext = visit(nodeId, context, actions);
+      if (typeof newContext !== 'undefined') {
+        // $FlowFixMe[reassign-const]
+        context = newContext;
+      }
+
+      if (skipped) {
+        continue;
+      }
+
+      if (stopped) {
+        this._visited = visited;
+        return context;
+      }
+
+      this.adjacencyList.forEachNodeIdConnectedFromReverse(nodeId, child => {
+        if (!visited.has(child)) {
+          queue.push({nodeId: child, context});
+        }
+        return false;
+      });
+    }
+
+    this._visited = visited;
+    return null;
+  }
+
   dfs<TContext>({
     visit,
     startNodeId,
@@ -322,7 +403,17 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     );
     this._assertHasNodeId(traversalStartNode);
 
-    let visited = new Set<NodeId>();
+    let visited;
+    if (!this._visited || this._visited.capacity < this.nodes.length) {
+      this._visited = new RawBitSet(this.nodes.length);
+      visited = this._visited;
+    } else {
+      visited = this._visited;
+      visited.clear();
+    }
+    // Take shared instance to avoid re-entrancy issues.
+    this._visited = null;
+
     let stopped = false;
     let skipped = false;
     let actions: TraversalActions = {
@@ -390,7 +481,9 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       }
     };
 
-    return walk(traversalStartNode);
+    let result = walk(traversalStartNode);
+    this._visited = visited;
+    return result;
   }
 
   bfs(visit: (nodeId: NodeId) => ?boolean): ?NodeId {
