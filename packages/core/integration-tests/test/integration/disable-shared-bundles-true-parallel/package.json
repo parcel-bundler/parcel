@@ -1,0 +1,6 @@
+{
+  "@parcel/bundler-default": {
+    "maxParallelRequests": 100,
+    "disableSharedBundles": true
+  }
+}
