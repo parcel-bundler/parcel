@@ -27,7 +27,10 @@ import {DefaultWeakMap} from '@parcel/utils';
 import {assetToAssetValue, assetFromValue} from './Asset';
 import {mapVisitor} from '@parcel/graph';
 import Environment from './Environment';
-import Dependency, {dependencyToInternalDependency} from './Dependency';
+import {
+  dependencyToInternalDependency,
+  getPublicDependency,
+} from './Dependency';
 import Target from './Target';
 import {BundleBehaviorNames} from '../types';
 import {fromProjectPath} from '../projectPath';
@@ -179,7 +182,7 @@ export class Bundle implements IBundle {
         } else if (node.type === 'dependency') {
           return {
             type: 'dependency',
-            value: new Dependency(node.value, this.#options),
+            value: getPublicDependency(node.value, this.#options),
           };
         }
       }, visit),

@@ -23,7 +23,10 @@ import nullthrows from 'nullthrows';
 import {mapVisitor} from '@parcel/graph';
 import {assetFromValue, assetToAssetValue, Asset} from './Asset';
 import {bundleToInternalBundle} from './Bundle';
-import Dependency, {dependencyToInternalDependency} from './Dependency';
+import Dependency, {
+  dependencyToInternalDependency,
+  getPublicDependency,
+} from './Dependency';
 import {targetToInternalTarget} from './Target';
 import {fromInternalSourceLocation} from '../utils';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
@@ -90,7 +93,7 @@ export default class BundleGraph<TBundle: IBundle>
   getIncomingDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getIncomingDependencies(assetToAssetValue(asset))
-      .map(dep => new Dependency(dep, this.#options));
+      .map(dep => getPublicDependency(dep, this.#options));
   }
 
   getAssetWithDependency(dep: IDependency): ?IAsset {
@@ -158,7 +161,7 @@ export default class BundleGraph<TBundle: IBundle>
   getDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getDependencies(assetToAssetValue(asset))
-      .map(dep => new Dependency(dep, this.#options));
+      .map(dep => getPublicDependency(dep, this.#options));
   }
 
   isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
