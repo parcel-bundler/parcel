@@ -145,8 +145,8 @@ function decorateLegacyGraph(
   } = idealGraph;
   let entryBundleToBundleGroup: Map<NodeId, BundleGroup> = new Map();
   // Step Create Bundles: Create bundle groups, bundles, and shared bundles and add assets to them
-  for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes) {
-    if (idealBundle === 'root') continue;
+  for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes.entries()) {
+    if (!idealBundle || idealBundle === 'root') continue;
     let entryAsset = idealBundle.mainEntryAsset;
     let bundleGroup;
     let bundle;
@@ -227,8 +227,8 @@ function decorateLegacyGraph(
     }
   }
   // Step Internalization: Internalize dependencies for bundles
-  for (let [, idealBundle] of idealBundleGraph.nodes) {
-    if (idealBundle === 'root') continue;
+  for (let idealBundle of idealBundleGraph.nodes) {
+    if (!idealBundle || idealBundle === 'root') continue;
     let bundle = nullthrows(idealBundleToLegacyBundle.get(idealBundle));
     if (idealBundle.internalizedAssets) {
       for (let internalized of idealBundle.internalizedAssets.values()) {
@@ -599,12 +599,13 @@ function createIdealGraph(
   let assetSet = BitSet.from(assets);
 
   // Step Merge Type Change Bundles: Clean up type change bundles within the exact same bundlegroups
-  for (let [nodeIdA, a] of bundleGraph.nodes) {
+  for (let [nodeIdA, a] of bundleGraph.nodes.entries()) {
     //if bundle b bundlegroups ==== bundle a bundlegroups then combine type changes
-    if (!typeChangeIds.has(nodeIdA) || a === 'root') continue;
+    if (!a || !typeChangeIds.has(nodeIdA) || a === 'root') continue;
     let bundleABundleGroups = getBundleGroupsForBundle(nodeIdA);
-    for (let [nodeIdB, b] of bundleGraph.nodes) {
+    for (let [nodeIdB, b] of bundleGraph.nodes.entries()) {
       if (
+        b &&
         a !== 'root' &&
         b !== 'root' &&
         a !== b &&
@@ -830,8 +831,8 @@ function createIdealGraph(
   // the bundle is synchronously available elsewhere.
   // We can query sync assets available via reachableRoots. If the parent has
   // the bundleRoot by reachableRoots AND ancestorAssets, internalize it.
-  for (let [id, bundleRoot] of bundleRootGraph.nodes) {
-    if (bundleRoot === 'root') continue;
+  for (let [id, bundleRoot] of bundleRootGraph.nodes.entries()) {
+    if (!bundleRoot || bundleRoot === 'root') continue;
     let parentRoots = bundleRootGraph
       .getNodeIdsConnectedTo(id, ALL_EDGE_TYPES)
       .map(id => nullthrows(bundleRootGraph.getNode(id)));
@@ -1051,8 +1052,8 @@ function createIdealGraph(
   // Step Merge Share Bundles: Merge any shared bundles under the minimum bundle size back into
   // their source bundles, and remove the bundle.
   // We should include "bundle reuse" as shared bundles that may be removed but the bundle itself would have to be retained
-  for (let [bundleNodeId, bundle] of bundleGraph.nodes) {
-    if (bundle === 'root') continue;
+  for (let [bundleNodeId, bundle] of bundleGraph.nodes.entries()) {
+    if (!bundle || bundle === 'root') continue;
     if (
       bundle.sourceBundles.size > 0 &&
       bundle.mainEntryAsset == null &&

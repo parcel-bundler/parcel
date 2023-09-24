@@ -5,18 +5,17 @@ import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
 import type {Edge, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 
-import assert from 'assert';
 import nullthrows from 'nullthrows';
 
 export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
-  nodes?: Map<NodeId, TNode>,
+  nodes?: Array<TNode | null>,
   adjacencyList?: SerializedAdjacencyList<TEdgeType>,
   rootNodeId?: ?NodeId,
 |};
 
 export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
-  nodes: Map<NodeId, TNode>,
+  nodes: Array<TNode | null>,
   adjacencyList: SerializedAdjacencyList<TEdgeType>,
   rootNodeId: ?NodeId,
 |};
@@ -25,12 +24,12 @@ export type AllEdgeTypes = -1;
 export const ALL_EDGE_TYPES: AllEdgeTypes = -1;
 
 export default class Graph<TNode, TEdgeType: number = 1> {
-  nodes: Map<NodeId, TNode>;
+  nodes: Array<TNode | null>;
   adjacencyList: AdjacencyList<TEdgeType>;
   rootNodeId: ?NodeId;
 
   constructor(opts: ?GraphOpts<TNode, TEdgeType>) {
-    this.nodes = opts?.nodes || new Map();
+    this.nodes = opts?.nodes || [];
     this.setRootNodeId(opts?.rootNodeId);
 
     let adjacencyList = opts?.adjacencyList;
@@ -69,16 +68,16 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
   addNode(node: TNode): NodeId {
     let id = this.adjacencyList.addNode();
-    this.nodes.set(id, node);
+    this.nodes.push(node);
     return id;
   }
 
   hasNode(id: NodeId): boolean {
-    return this.nodes.has(id);
+    return this.nodes[id] != null;
   }
 
   getNode(id: NodeId): ?TNode {
-    return this.nodes.get(id);
+    return this.nodes[id];
   }
 
   addEdge(
@@ -156,8 +155,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       this._removeEdge(nodeId, to, type);
     }
 
-    let wasRemoved = this.nodes.delete(nodeId);
-    assert(wasRemoved);
+    this.nodes[nodeId] = null;
   }
 
   removeEdges(nodeId: NodeId, type: TEdgeType | NullEdgeType = 1) {
@@ -237,7 +235,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
   updateNode(nodeId: NodeId, node: TNode): void {
     this._assertHasNodeId(nodeId);
-    this.nodes.set(nodeId, node);
+    this.nodes[nodeId] = node;
   }
 
   // Update a node's downstream nodes making sure to prune any orphaned branches

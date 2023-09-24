@@ -724,8 +724,8 @@ export class RequestGraph extends ContentGraph<
       // this means the project root was moved and we need to
       // re-run all requests.
       if (type === 'create' && filePath === '') {
-        for (let [id, node] of this.nodes) {
-          if (node.type === 'request') {
+        for (let [id, node] of this.nodes.entries()) {
+          if (node?.type === 'request') {
             this.invalidNodeIds.add(id);
           }
         }
@@ -1087,8 +1087,8 @@ export default class RequestTracker {
     }
 
     let promises = [];
-    for (let [, node] of this.graph.nodes) {
-      if (node.type !== 'request') {
+    for (let node of this.graph.nodes) {
+      if (!node || node.type !== 'request') {
         continue;
       }
 

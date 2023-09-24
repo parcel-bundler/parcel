@@ -17,7 +17,7 @@ describe('Graph', () => {
     let graph = new Graph();
     let node = {};
     let id = graph.addNode(node);
-    assert.equal(graph.nodes.get(id), node);
+    assert.equal(graph.getNode(id), node);
   });
 
   it('errors when traversing a graph with no root', () => {
@@ -117,10 +117,10 @@ describe('Graph', () => {
     graph.addEdge(nodeB, nodeD);
 
     graph.removeEdge(nodeA, nodeB);
-    assert(graph.nodes.has(nodeA));
-    assert(graph.nodes.has(nodeD));
-    assert(!graph.nodes.has(nodeB));
-    assert(!graph.nodes.has(nodeC));
+    assert(graph.hasNode(nodeA));
+    assert(graph.hasNode(nodeD));
+    assert(!graph.hasNode(nodeB));
+    assert(!graph.hasNode(nodeC));
     assert.deepEqual(
       [...graph.getAllEdges()],
       [{from: nodeA, to: nodeD, type: 1}],
@@ -337,7 +337,7 @@ describe('Graph', () => {
 
     graph.removeNode(node1);
 
-    assert.strictEqual(graph.nodes.size, 1);
+    assert.strictEqual(graph.nodes.length, 1);
     assert.deepStrictEqual(Array.from(graph.getAllEdges()), []);
   });
 });

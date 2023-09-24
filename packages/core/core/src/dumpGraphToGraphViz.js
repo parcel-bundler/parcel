@@ -60,7 +60,9 @@ export default async function dumpGraphToGraphViz(
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
-  for (let [id, node] of graph.nodes) {
+  // $FlowFixMe
+  for (let [id, node] of graph.nodes.entries()) {
+    if (node == null) continue;
     let n = g.addNode(nodeId(id));
     // $FlowFixMe default is fine. Not every type needs to be in the map.
     n.set('color', COLORS[node.type || 'default']);
