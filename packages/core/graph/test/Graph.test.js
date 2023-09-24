@@ -9,7 +9,7 @@ import {toNodeId} from '../src/types';
 describe('Graph', () => {
   it('constructor should initialize an empty graph', () => {
     let graph = new Graph();
-    assert.deepEqual(graph.nodes, new Map());
+    assert.deepEqual(graph.nodes, []);
     assert.deepEqual([...graph.getAllEdges()], []);
   });
 
@@ -164,7 +164,7 @@ describe('Graph', () => {
 
     graph.removeNode(nodeB);
 
-    assert.deepEqual([...graph.nodes.keys()], [nodeA, nodeC, nodeF]);
+    assert.deepEqual(graph.nodes.filter(Boolean), ['a', 'c', 'f']);
     assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: nodeA, to: nodeC, type: 1},
       {from: nodeC, to: nodeF, type: 1},
@@ -209,7 +209,7 @@ describe('Graph', () => {
 
     graph.removeNode(nodeB);
 
-    assert.deepEqual([...graph.nodes.keys()], [nodeA, nodeC, nodeF]);
+    assert.deepEqual(graph.nodes.filter(Boolean), ['a', 'c', 'f']);
     assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: nodeA, to: nodeC, type: 1},
       {from: nodeC, to: nodeF, type: 1},
@@ -337,7 +337,7 @@ describe('Graph', () => {
 
     graph.removeNode(node1);
 
-    assert.strictEqual(graph.nodes.length, 1);
+    assert.deepEqual(graph.nodes.filter(Boolean), ['root']);
     assert.deepStrictEqual(Array.from(graph.getAllEdges()), []);
   });
 });
