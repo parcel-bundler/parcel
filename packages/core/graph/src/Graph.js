@@ -95,11 +95,11 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       throw new Error(`Edge type "${type}" not allowed`);
     }
 
-    if (!this.getNode(from)) {
+    if (this.getNode(from) == null) {
       throw new Error(`"from" node '${fromNodeId(from)}' not found`);
     }
 
-    if (!this.getNode(to)) {
+    if (this.getNode(to) == null) {
       throw new Error(`"to" node '${fromNodeId(to)}' not found`);
     }
 
