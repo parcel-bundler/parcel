@@ -243,7 +243,7 @@ function updateDiagnostics(
           for (let edit of fix.edits) {
             relatedInformation.push({
               location: {
-                uri: `file://${normalizeFilePath(filePath, projectRoot)}`,
+                uri: `file://${normalizeFilePath(fix.filePath, projectRoot)}`,
                 range: {
                   start: {
                     line: edit.range.start.line - 1,
