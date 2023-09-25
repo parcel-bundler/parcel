@@ -5956,4 +5956,34 @@ describe('scope hoisting', function () {
 
     assert.deepEqual(await result, ['a', 'b', 'c']);
   });
+
+  it('should not add experimental bundle queue runtime to empty bundles', async function () {
+    let b = await bundle(
+      [path.join(__dirname, 'integration/bundle-queue-runtime/empty.js')],
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+          outputFormat: 'esmodule',
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => /empty.*\.js/.test(b.filePath)).filePath,
+      'utf8',
+    );
+
+    assert(
+      !contents.includes('$parcel$global.rlb('),
+      "Empty bundle should not include 'runLoadedBundle' code",
+    );
+
+    try {
+      await run(b);
+    } catch (e) {
+      assert.fail('Expected the empty bundle to still run');
+    }
+  });
 });
