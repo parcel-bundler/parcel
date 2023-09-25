@@ -9,7 +9,8 @@ import {
   ServerOptions,
   TransportKind,
 } from 'vscode-languageclient/node';
-import {addImportersView, addCodeActions} from './importersView';
+import {addImportersView} from './importersView';
+import {addCodeActions} from './codeActionsView';
 
 let client: LanguageClient;
 

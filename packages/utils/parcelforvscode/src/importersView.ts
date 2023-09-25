@@ -1,64 +1,7 @@
 import * as vscode from 'vscode';
 
 import {LanguageClient, DocumentUri} from 'vscode-languageclient/node';
-import {
-  NotificationBuild,
-  NotificationCodeActions,
-  RequestCodeActions,
-  RequestImporters,
-} from '@parcel/lsp-protocol';
-
-export class ParcelCodeAction implements vscode.CodeActionProvider {
-  public static readonly providedCodeActionKinds = [
-    vscode.CodeActionKind.QuickFix,
-  ];
-
-  provideCodeActions(
-    document: vscode.TextDocument,
-    range: vscode.Range | vscode.Selection,
-    context: vscode.CodeActionContext,
-    token: vscode.CancellationToken,
-  ): vscode.CodeAction[] {
-    // for each diagnostic entry that has the matching `code`, create a code action command
-    return context.diagnostics
-      .filter(diagnostic => diagnostic.relatedInformation?.length)
-      .flatMap(diagnostic =>
-        diagnostic.relatedInformation?.map(diagnosticInfo =>
-          this.createCommandCodeAction(diagnosticInfo, diagnostic),
-        ),
-      );
-  }
-
-  private createCommandCodeAction(
-    diagnosticInfo: vscode.DiagnosticRelatedInformation,
-    diagnostic: vscode.Diagnostic,
-  ): vscode.CodeAction {
-    const action = new vscode.CodeAction(
-      diagnosticInfo.message,
-      vscode.CodeActionKind.QuickFix,
-    );
-
-    let diagnostics = action.diagnostics;
-    diagnostics?.push(diagnostic);
-    action.diagnostics = diagnostics;
-    return action;
-  }
-}
-
-export function addCodeActions(
-  context: vscode.ExtensionContext,
-  client: LanguageClient,
-) {
-  context.subscriptions.push(
-    vscode.languages.registerCodeActionsProvider(
-      {scheme: 'file'},
-      new ParcelCodeAction(),
-      {
-        providedCodeActionKinds: ParcelCodeAction.providedCodeActionKinds,
-      },
-    ),
-  );
-}
+import {NotificationBuild, RequestImporters} from '@parcel/lsp-protocol';
 
 export function addImportersView(
   context: vscode.ExtensionContext,
