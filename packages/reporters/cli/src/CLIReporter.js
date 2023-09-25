@@ -208,10 +208,10 @@ async function writeDiagnostic(
 
     // Write hints
     let hintIndent = stack || codeframe ? indent : 0;
-    for (let hint of hints) {
+    for (let fix of diagnostic.fixes) {
       writeOut(
         wrapWithIndent(
-          `${emoji.hint} ${chalk.blue.bold(hint)}`,
+          `${emoji.hint} ${chalk.blue.bold(fix.message)}`,
           hintIndent + 3,
           hintIndent,
         ),
