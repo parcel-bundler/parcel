@@ -325,22 +325,21 @@ describe('sass', function () {
         import './main.css';
 
       main.css:
-        @import 'npm:edge/main.scss'
+        @import './edge/main.scss'
 
-      node_modules
-        edge
-          package.json:
-            {
-              "name": "edge",
-              "sass": "main.scss"
-            }
+      edge
+        package.json:
+          {
+            "name": "edge",
+            "sass": "main.scss"
+          }
 
-          main.scss:
-            .foo {
-              .bar {
-                color: green;
-              }
+        main.scss:
+          .foo {
+            .bar {
+              color: green;
             }
+          }
         `;
 
     let b = await bundle(path.join(dir, '/index.js'), {
