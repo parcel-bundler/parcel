@@ -534,23 +534,49 @@ export default (new Transformer({
             let loc = asset.env.loc;
             if (!res.hints && loc) {
               // res.hints = [err.hint];
-              res.fixes = [
-                {
-                  type: 'patch',
-                  message: err.hint,
-                  filePath: loc.filePath,
-                  hash: '',
-                  edits: [
-                    {
-                      range: {
-                        start: loc.end,
-                        end: loc.end,
+              if (loc.filePath.endsWith('js')) {
+                res.fixes = [
+                  {
+                    type: 'patch',
+                    message: err.hint,
+                    filePath: loc.filePath,
+                    hash: '',
+                    edits: [
+                      {
+                        range: {
+                          start: {
+                            line: loc.end.line,
+                            column: loc.end.column - 1,
+                          },
+                          end: loc.end,
+                        },
+                        replacement: ", {type: 'module'}",
                       },
-                      replacement: ", {type: 'module'})",
-                    },
-                  ],
-                },
-              ];
+                    ],
+                  },
+                ];
+              } else if (loc.filePath.endsWith('html')) {
+                res.fixes = [
+                  {
+                    type: 'patch',
+                    message: err.hint,
+                    filePath: loc.filePath,
+                    hash: '',
+                    edits: [
+                      {
+                        range: {
+                          start: {
+                            line: loc.start.line,
+                            column: loc.start.column + '<script '.length,
+                          },
+                          end: loc.end,
+                        },
+                        replacement: `type="module" `,
+                      },
+                    ],
+                  },
+                ];
+              }
             } else {
               res.hints.push(err.hint);
             }

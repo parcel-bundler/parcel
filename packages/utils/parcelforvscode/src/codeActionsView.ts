@@ -35,7 +35,20 @@ export class ParcelCodeAction implements vscode.CodeActionProvider {
       `${diagnostic.code}`,
       vscode.CodeActionKind.QuickFix,
     );
-    // TODO: action.command
+    action.edit = new vscode.WorkspaceEdit();
+    action.edit.insert(
+      diagnosticInfo.location.uri,
+      new vscode.Position(
+        diagnosticInfo.location.range.start.line,
+        diagnosticInfo.location.range.start.character,
+      ),
+      diagnosticInfo.message,
+    );
+    // action.edit.replace(
+    //   diagnosticInfo.location.uri,
+    //   diagnosticInfo.location.range,
+    //   diagnosticInfo.message,
+    // );
 
     let diagnostics = action.diagnostics;
     diagnostics?.push(diagnostic);
