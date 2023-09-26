@@ -44,11 +44,25 @@ export const RequestDocumentDiagnostics /*: RequestType<DocumentUri, Array<Diagn
   new RequestType('parcel/request-document-diagnostics');
 
 /**
+ * @type {RequestType<DocumentUri, Array<CodeAction> | undefined, void>}
+ */
+// Request: LSP Server -> Reporter
+export const RequestCodeActions /*: RequestType<DocumentUri, Array<Diagnostic> | void, void> */ =
+  new RequestType('parcel/request-codeActions');
+
+/**
  * @type {NotificationType<Array<PublishDiagnostic>>}
  */
 // Notification: Reporter -> LSP Server
 export const NotificationWorkspaceDiagnostics /*: NotificationType<Array<PublishDiagnostic>> */ =
   new NotificationType('parcel/notification-workspace-diagnostics');
+
+/**
+ * @type {NotificationType<Array<PublishCodeActions>>}
+ */
+// Notification: Reporter -> LSP Server
+export const NotificationCodeActions /*: NotificationType<Array<PublishDiagnostic>> */ =
+  new NotificationType('parcel/notification-codeActions');
 
 /**
  * @type {NotificationType2<'start' | 'progress' | 'end', string | void>}

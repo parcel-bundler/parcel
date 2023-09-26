@@ -21,6 +21,9 @@ import ThrowableDiagnostic, {
   getJSONSourceLocation,
   encodeJSONKeyComponent,
   md,
+  deleteJSONKeyPatch,
+  updateJSONValuePatch,
+  addJSONKeyPatch,
 } from '@parcel/diagnostic';
 import path from 'path';
 import {
@@ -636,8 +639,8 @@ export class TargetResolver {
       }
 
       // For Flow
-      let targetDist = _targetDist;
-      if (typeof targetDist === 'string' || pkgTargets[targetName]) {
+      let targetDist = typeof _targetDist === 'string' ? _targetDist : null;
+      if (targetDist != null || pkgTargets[targetName]) {
         let distDir;
         let distEntry;
         let loc;
@@ -645,7 +648,7 @@ export class TargetResolver {
         invariant(pkgMap != null);
 
         let _descriptor: mixed = pkgTargets[targetName] ?? {};
-        if (typeof targetDist === 'string') {
+        if (targetDist != null) {
           distDir = toProjectPath(
             this.options.projectRoot,
             path.resolve(pkgDir, path.dirname(targetDist)),
@@ -679,6 +682,18 @@ export class TargetResolver {
           targets.set(targetName, null);
           continue;
         }
+
+        let inferredOutputFormat =
+          targetDist != null
+            ? this.inferOutputFormat(
+                targetDist,
+                descriptor,
+                targetName,
+                pkg,
+                pkgFilePath,
+                pkgContents,
+              )
+            : null;
 
         if (
           distEntry != null &&
@@ -722,15 +737,19 @@ export class TargetResolver {
           });
         }
 
-        if (descriptor.outputFormat === 'global') {
+        if (descriptor.outputFormat === 'global' && pkgFilePath != null) {
           let contents: string =
             typeof pkgContents === 'string'
               ? pkgContents
               : // $FlowFixMe
                 JSON.stringify(pkgContents, null, '\t');
+          let map = parse(contents, undefined, {dialect: 'JSON5', tabWidth: 1});
+          let replacementOutputFormat =
+            inferredOutputFormat ??
+            (targetName === 'module' ? 'esmodule' : 'commonjs');
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: md`The "global" output format is not supported in the "${targetName}" target.`,
+              message: md`The "global" output format is not supported in the "${targetName}" target, which is meant for libraries.`,
               origin: '@parcel/core',
               codeFrames: [
                 {
@@ -745,24 +764,42 @@ export class TargetResolver {
                   ]),
                 },
               ],
-              hints: [
-                `The "${targetName}" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.`,
+              fixes: [
+                {
+                  type: 'group',
+                  options: [
+                    {
+                      type: 'patch',
+                      filePath: pkgFilePath,
+                      hash: '',
+                      message: `Remove the declared outputFormat.`,
+                      edits: [
+                        deleteJSONKeyPatch(
+                          contents,
+                          map.pointers[`/targets/${targetName}/outputFormat`],
+                        ),
+                      ],
+                    },
+                    {
+                      type: 'patch',
+                      filePath: pkgFilePath,
+                      hash: '',
+                      message: `Change the outputFormat to "${replacementOutputFormat}"`,
+                      edits: [
+                        updateJSONValuePatch(
+                          map.pointers[`/targets/${targetName}/outputFormat`],
+                          replacementOutputFormat,
+                        ),
+                      ],
+                    },
+                  ],
+                },
               ],
               documentationURL:
                 'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
-
-        let [inferredOutputFormat, inferredOutputFormatField] =
-          this.inferOutputFormat(
-            distEntry,
-            descriptor,
-            targetName,
-            pkg,
-            pkgFilePath,
-            pkgContents,
-          );
 
         let outputFormat =
           descriptor.outputFormat ??
@@ -774,13 +811,54 @@ export class TargetResolver {
         if (
           targetName === 'main' &&
           outputFormat === 'esmodule' &&
-          inferredOutputFormat !== 'esmodule'
+          inferredOutputFormat !== 'esmodule' &&
+          pkgFilePath != null
         ) {
           let contents: string =
             typeof pkgContents === 'string'
               ? pkgContents
               : // $FlowFixMe
                 JSON.stringify(pkgContents, null, '\t');
+          let map = parse(contents, undefined, {dialect: 'JSON5', tabWidth: 1});
+          let fixes = [];
+
+          if (targetDist != null) {
+            fixes.push({
+              type: 'patch',
+              filePath: pkgFilePath,
+              hash: '',
+              message: `Change the output file extension to .mjs`,
+              edits: [
+                updateJSONValuePatch(
+                  map.pointers[pointer],
+                  targetDist.slice(0, -path.extname(targetDist).length) +
+                    '.mjs',
+                ),
+              ],
+            });
+          }
+
+          fixes.push({
+            type: 'patch',
+            filePath: pkgFilePath,
+            hash: '',
+            message: `Add "type": "module"`,
+            edits: [addJSONKeyPatch(map.pointers[pointer], 'type', 'module')],
+          });
+
+          fixes.push({
+            type: 'patch',
+            filePath: pkgFilePath,
+            hash: '',
+            message: `Remove the declared outputFormat`,
+            edits: [
+              deleteJSONKeyPatch(
+                contents,
+                map.pointers[`/targets/${targetName}/outputFormat`],
+              ),
+            ],
+          });
+
           throw new ThrowableDiagnostic({
             diagnostic: {
               // prettier-ignore
@@ -805,21 +883,27 @@ export class TargetResolver {
                   ]),
                 },
               ],
-              hints: [
-                `Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.`,
-              ],
+              fixes: fixes.length
+                ? [
+                    {
+                      type: 'group',
+                      options: fixes,
+                    },
+                  ]
+                : [],
               documentationURL:
                 'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
 
-        if (descriptor.scopeHoist === false) {
+        if (descriptor.scopeHoist === false && pkgFilePath != null) {
           let contents: string =
             typeof pkgContents === 'string'
               ? pkgContents
               : // $FlowFixMe
                 JSON.stringify(pkgContents, null, '\t');
+          let map = parse(contents, undefined, {dialect: 'JSON5', tabWidth: 1});
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: 'Scope hoisting cannot be disabled for library targets.',
@@ -837,8 +921,19 @@ export class TargetResolver {
                   ]),
                 },
               ],
-              hints: [
-                `The "${targetName}" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.`,
+              fixes: [
+                {
+                  type: 'patch',
+                  filePath: pkgFilePath,
+                  hash: '',
+                  message: `The "${targetName}" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.`,
+                  edits: [
+                    deleteJSONKeyPatch(
+                      contents,
+                      map.pointers[`/targets/${targetName}/scopeHoist`],
+                    ),
+                  ],
+                },
               ],
               documentationURL:
                 'https://parceljs.org/features/targets/#library-targets',
@@ -920,7 +1015,7 @@ export class TargetResolver {
 
     // Custom targets
     for (let targetName of customTargets) {
-      let distPath: mixed = pkg[targetName];
+      let distPath: string = pkg[targetName];
       let distDir;
       let distEntry;
       let loc;
@@ -987,22 +1082,26 @@ export class TargetResolver {
           continue;
         }
 
-        let [inferredOutputFormat, inferredOutputFormatField] =
-          this.inferOutputFormat(
-            distEntry,
-            descriptor,
-            targetName,
-            pkg,
-            pkgFilePath,
-            pkgContents,
-          );
+        let inferredOutputFormat = this.inferOutputFormat(
+          distPath,
+          descriptor,
+          targetName,
+          pkg,
+          pkgFilePath,
+          pkgContents,
+        );
 
-        if (descriptor.scopeHoist === false && descriptor.isLibrary) {
+        if (
+          descriptor.scopeHoist === false &&
+          descriptor.isLibrary &&
+          pkgFilePath != null
+        ) {
           let contents: string =
             typeof pkgContents === 'string'
               ? pkgContents
               : // $FlowFixMe
                 JSON.stringify(pkgContents, null, '\t');
+          let map = parse(contents, undefined, {dialect: 'JSON5', tabWidth: 1});
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: 'Scope hoisting cannot be disabled for library targets.',
@@ -1024,7 +1123,37 @@ export class TargetResolver {
                   ]),
                 },
               ],
-              hints: [`Either remove the "scopeHoist" or "isLibrary" option.`],
+              fixes: [
+                {
+                  type: 'group',
+                  options: [
+                    {
+                      type: 'patch',
+                      filePath: pkgFilePath,
+                      hash: '',
+                      message: `Remove the "scopeHoist" option.`,
+                      edits: [
+                        deleteJSONKeyPatch(
+                          contents,
+                          map.pointers[`/targets/${targetName}/scopeHoist`],
+                        ),
+                      ],
+                    },
+                    {
+                      type: 'patch',
+                      filePath: pkgFilePath,
+                      hash: '',
+                      message: `Remove the "isLibrary" option.`,
+                      edits: [
+                        deleteJSONKeyPatch(
+                          contents,
+                          map.pointers[`/targets/${targetName}/isLibrary`],
+                        ),
+                      ],
+                    },
+                  ],
+                },
+              ],
               documentationURL:
                 'https://parceljs.org/features/targets/#library-targets',
             },
@@ -1145,7 +1274,7 @@ export class TargetResolver {
   }
 
   inferOutputFormat(
-    distEntry: ?FilePath,
+    targetDist: string,
     descriptor: PackageTargetDescriptor,
     targetName: string,
     pkg: PackageJSON,
@@ -1156,7 +1285,7 @@ export class TargetResolver {
     // If the extension is .mjs it's always a module.
     // If the extension is .cjs, it's always commonjs.
     // If the "type" field is set to "module" and the extension is .js, it's a module.
-    let ext = distEntry != null ? path.extname(distEntry) : null;
+    let ext = targetDist != null ? path.extname(targetDist) : null;
     let inferredOutputFormat, inferredOutputFormatField;
     switch (ext) {
       case '.mjs':
@@ -1178,27 +1307,89 @@ export class TargetResolver {
     if (
       descriptor.outputFormat &&
       inferredOutputFormat &&
-      descriptor.outputFormat !== inferredOutputFormat
+      descriptor.outputFormat !== inferredOutputFormat &&
+      inferredOutputFormatField != null
     ) {
       let contents: string =
         typeof pkgContents === 'string'
           ? pkgContents
           : // $FlowFixMe
             JSON.stringify(pkgContents, null, '\t');
-      let expectedExtensions;
+      let expectedExtensions = [];
       switch (descriptor.outputFormat) {
         case 'esmodule':
-          expectedExtensions = ['.mjs', '.js'];
+          expectedExtensions = ['.mjs'];
+          if (pkg.type === 'module') {
+            expectedExtensions.push('.js');
+          }
           break;
         case 'commonjs':
-          expectedExtensions = ['.cjs', '.js'];
+          expectedExtensions = ['.cjs'];
+          if (pkg.type !== 'module') {
+            expectedExtensions.push('.js');
+          }
           break;
         case 'global':
           expectedExtensions = ['.js'];
           break;
       }
-      // $FlowFixMe
-      let listFormat = new Intl.ListFormat('en-US', {type: 'disjunction'});
+
+      let map = parse(contents, undefined, {dialect: 'JSON5', tabWidth: 1});
+      let codeHighlights = generateJSONCodeHighlights(map, [
+        {
+          key: `/targets/${targetName}/outputFormat`,
+          type: 'value',
+          message: 'Declared output format defined here',
+        },
+        {
+          key: nullthrows(inferredOutputFormatField),
+          type: 'value',
+          message: 'Inferred output format defined here',
+        },
+      ]);
+
+      let fixes = [];
+      if (pkgFilePath != null) {
+        fixes.push({
+          type: 'patch',
+          filePath: pkgFilePath,
+          hash: '',
+          message: 'Remove the target\'s declared "outputFormat"',
+          edits: [
+            deleteJSONKeyPatch(
+              contents,
+              map.pointers[`/targets/${targetName}/outputFormat`],
+            ),
+          ],
+        });
+
+        if (ext === '.js' && pkg.type == 'module') {
+          fixes.push({
+            type: 'patch',
+            filePath: pkgFilePath,
+            hash: '',
+            message: 'Remove the "type" field',
+            edits: [deleteJSONKeyPatch(contents, map.pointers[`/type`])],
+          });
+        }
+
+        for (let suggestedExtension of expectedExtensions) {
+          fixes.push({
+            type: 'patch',
+            filePath: pkgFilePath,
+            hash: '',
+            message: `Change the extension to ${suggestedExtension}`,
+            edits: [
+              updateJSONValuePatch(
+                map.pointers[`/${targetName}`],
+                targetDist.slice(0, -nullthrows(ext).length) +
+                  suggestedExtension,
+              ),
+            ],
+          });
+        }
+      }
+
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: md`Declared output format "${descriptor.outputFormat}" does not match expected output format "${inferredOutputFormat}".`,
@@ -1208,27 +1399,17 @@ export class TargetResolver {
               language: 'json',
               filePath: pkgFilePath ?? undefined,
               code: contents,
-              codeHighlights: generateJSONCodeHighlights(contents, [
-                {
-                  key: `/targets/${targetName}/outputFormat`,
-                  type: 'value',
-                  message: 'Declared output format defined here',
-                },
-                {
-                  key: nullthrows(inferredOutputFormatField),
-                  type: 'value',
-                  message: 'Inferred output format defined here',
-                },
-              ]),
+              codeHighlights,
             },
           ],
-          hints: [
-            inferredOutputFormatField === '/type'
-              ? 'Either remove the target\'s declared "outputFormat" or remove the "type" field.'
-              : `Either remove the target's declared "outputFormat" or change the extension to ${listFormat.format(
-                  expectedExtensions,
-                )}.`,
-          ],
+          fixes: fixes.length
+            ? [
+                {
+                  type: 'group',
+                  options: fixes,
+                },
+              ]
+            : [],
           documentationURL:
             'https://parceljs.org/features/targets/#library-targets',
         },

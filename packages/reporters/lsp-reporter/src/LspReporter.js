@@ -38,6 +38,8 @@ import {
 } from './utils';
 import type {FSWatcher} from 'fs';
 
+// console.log("IN REPORTER");
+
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
 const ignoreFail = func => {
@@ -139,7 +141,11 @@ async function doWatchStart() {
       let graph = await bundleGraph;
       if (!graph) return null;
 
-      return getImporters(graph, params);
+      // console.log("in requestimporters")
+      let ret = getImporters(graph, params);
+      // console.log("ret", ret);
+
+      return ret;
     });
 
     sendDiagnostics();
@@ -157,7 +163,7 @@ async function doWatchStart() {
 watchLspActive();
 
 export default (new Reporter({
-  async report({event, options}) {
+  async report({event}) {
     if (event.type === 'watchStart') {
       watchStarted = true;
     }
@@ -188,7 +194,7 @@ export default (new Reporter({
         break;
       case 'buildFailure': {
         bundleGraphDeferrable.deferred.resolve(undefined);
-        updateDiagnostics(event.diagnostics, 'error', options.projectRoot);
+        updateDiagnostics(event.diagnostics, 'error', process.cwd());
         updateBuildState('end');
         sendDiagnostics();
         break;
@@ -201,11 +207,7 @@ export default (new Reporter({
             event.level === 'info' ||
             event.level === 'verbose')
         ) {
-          updateDiagnostics(
-            event.diagnostics,
-            event.level,
-            options.projectRoot,
-          );
+          updateDiagnostics(event.diagnostics, event.level, process.cwd());
         }
         break;
       case 'buildProgress': {
@@ -280,25 +282,36 @@ function updateDiagnostics(
           continue;
         }
 
-        relatedInformation.push({
-          location: {
-            uri: `file://${normalizeFilePath(filePath, projectRoot)}`,
-            range: {
-              start: {
-                line: highlight.start.line - 1,
-                character: highlight.start.column - 1,
-              },
-              end: {
-                line: highlight.end.line - 1,
-                character: highlight.end.column,
-              },
-            },
-          },
-          message: highlight.message ?? diagnostic.message,
-        });
+        // let message = highlight.message ?? diagnostic.message;
       }
     }
 
+    let code;
+    if (diagnostic.fixes?.length) {
+      for (let fix of diagnostic.fixes) {
+        if (fix.type === 'patch' && fix.edits) {
+          code = fix.message;
+          for (let edit of fix.edits) {
+            relatedInformation.push({
+              location: {
+                uri: `file://${normalizeFilePath(fix.filePath, projectRoot)}`,
+                range: {
+                  start: {
+                    line: edit.range.start.line - 1,
+                    character: edit.range.start.column - 1,
+                  },
+                  end: {
+                    line: edit.range.end.line - 1,
+                    character: edit.range.end.column,
+                  },
+                },
+              },
+              message: edit.replacement,
+            });
+          }
+        }
+      }
+    }
     workspaceDiagnostics
       .get(`file://${normalizeFilePath(filePath, projectRoot)}`)
       .push({
@@ -312,6 +325,10 @@ function updateDiagnostics(
             character: firstFrameHighlight.end.column,
           },
         },
+        // code: the title of the 'hint'
+        // DiagnosticRelatedInformation.message: the code of the 'fix'
+        // should maybe be the other way around?
+        code,
         source: diagnostic.origin,
         severity: parcelSeverityToLspSeverity(parcelSeverity),
         message:
@@ -442,6 +459,7 @@ function getImporters(
   bundleGraph: BundleGraph<PackagedBundle>,
   document: string,
 ): Array<DocumentUri> | null {
+  // console.log("IN GET IMPORTERS");
   let filename = url.fileURLToPath(document);
 
   let asset = bundleGraph.traverse((node, context, actions) => {
@@ -453,9 +471,10 @@ function getImporters(
 
   if (asset) {
     let incoming = bundleGraph.getIncomingDependencies(asset);
-    return incoming
+    let ret = incoming
       .filter(dep => dep.sourcePath != null)
       .map(dep => `file://${nullthrows(dep.sourcePath)}`);
+    return ret;
   }
   return null;
 }
