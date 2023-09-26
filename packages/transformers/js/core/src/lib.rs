@@ -234,20 +234,20 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   config.decorators
                 ),
                 Optional::new(
-                  typescript::strip_with_jsx(
+                  typescript::tsx(
                     source_map.clone(),
-                    typescript::Config {
+                    Default::default(),
+                    typescript::TsxConfig {
                       pragma: react_options.pragma.clone(),
                       pragma_frag: react_options.pragma_frag.clone(),
-                      ..Default::default()
                     },
                     Some(&comments),
-                    global_mark,
+                    unresolved_mark,
                   ),
                   config.is_type_script && config.is_jsx
                 ),
                 Optional::new(
-                  typescript::strip(global_mark),
+                  typescript::strip(unresolved_mark),
                   config.is_type_script && !config.is_jsx
                 ),
               ));
