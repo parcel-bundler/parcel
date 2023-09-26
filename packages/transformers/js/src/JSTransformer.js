@@ -1,7 +1,6 @@
 // @flow
 import type {JSONObject, EnvMap, SourceLocation} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
-import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {transform, transformAsync} from '@parcel/rust';
@@ -15,6 +14,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
 import pkg from '../package.json';
+import {convertDiagnostic} from '@parcel/diagnostic/fixes/JSTransformer';
 
 const JSX_EXTENSIONS = {
   jsx: true,
@@ -115,23 +115,6 @@ type PackageJSONConfig = {|
     unstable_inlineConstants?: boolean,
   |},
 |};
-
-const SCRIPT_ERRORS = {
-  browser: {
-    message: 'Browser scripts cannot have imports or exports.',
-    hint: 'Add the type="module" attribute to the <script> tag.',
-  },
-  'web-worker': {
-    message:
-      'Web workers cannot have imports or exports without the `type: "module"` option.',
-    hint: "Add {type: 'module'} as a second argument to the Worker constructor.",
-  },
-  'service-worker': {
-    message:
-      'Service workers cannot have imports or exports without the `type: "module"` option.',
-    hint: "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
-  },
-};
 
 type TSConfig = {
   compilerOptions?: {
@@ -489,110 +472,18 @@ export default (new Transformer({
           d.severity === 'Warning' ||
           (d.severity === 'SourceError' && !asset.isSource),
       );
-      let convertDiagnostic = diagnostic => {
-        let message = diagnostic.message;
-        if (message === 'SCRIPT_ERROR') {
-          let err = SCRIPT_ERRORS[(asset.env.context: string)];
-          message = err?.message || SCRIPT_ERRORS.browser.message;
-        }
-
-        let res: Diagnostic = {
-          message,
-          codeFrames: [
-            {
-              filePath: asset.filePath,
-              codeHighlights: diagnostic.code_highlights?.map(highlight =>
-                convertSourceLocationToHighlight(
-                  convertLoc(highlight.loc),
-                  highlight.message ?? undefined,
-                ),
-              ),
-            },
-          ],
-          hints: diagnostic.hints,
-        };
-
-        if (diagnostic.documentation_url) {
-          res.documentationURL = diagnostic.documentation_url;
-        }
-
-        if (diagnostic.show_environment) {
-          if (asset.env.loc && asset.env.loc.filePath !== asset.filePath) {
-            res.codeFrames?.push({
-              filePath: asset.env.loc.filePath,
-              codeHighlights: [
-                convertSourceLocationToHighlight(
-                  asset.env.loc,
-                  'The environment was originally created here',
-                ),
-              ],
-            });
-          }
-
-          let err = SCRIPT_ERRORS[(asset.env.context: string)];
-          if (err) {
-            let loc = asset.env.loc;
-            if (!res.hints && loc) {
-              // res.hints = [err.hint];
-              if (loc.filePath.endsWith('js')) {
-                res.fixes = [
-                  {
-                    type: 'patch',
-                    message: err.hint,
-                    filePath: loc.filePath,
-                    hash: '',
-                    edits: [
-                      {
-                        range: {
-                          start: {
-                            line: loc.end.line,
-                            column: loc.end.column - 1,
-                          },
-                          end: loc.end,
-                        },
-                        replacement: ", {type: 'module'}",
-                      },
-                    ],
-                  },
-                ];
-              } else if (loc.filePath.endsWith('html')) {
-                res.fixes = [
-                  {
-                    type: 'patch',
-                    message: err.hint,
-                    filePath: loc.filePath,
-                    hash: '',
-                    edits: [
-                      {
-                        range: {
-                          start: {
-                            line: loc.start.line,
-                            column: loc.start.column + '<script '.length,
-                          },
-                          end: loc.end,
-                        },
-                        replacement: `type="module" `,
-                      },
-                    ],
-                  },
-                ];
-              }
-            } else {
-              res.hints.push(err.hint);
-            }
-          }
-        }
-
-        return res;
-      };
 
       if (errors.length > 0) {
         throw new ThrowableDiagnostic({
-          diagnostic: errors.map(convertDiagnostic),
+          diagnostic: errors.map(e =>
+            convertDiagnostic({...e, asset, originalMap}),
+          ),
         });
       }
 
-      logger.warn(warnings.map(convertDiagnostic));
+      logger.warn(
+        warnings.map(e => convertDiagnostic({...e, asset, originalMap})),
+      );
     }
 
     if (shebang) {

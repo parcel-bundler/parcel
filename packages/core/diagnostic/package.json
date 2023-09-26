@@ -16,6 +16,10 @@
   "main": "lib/diagnostic.js",
   "source": "src/diagnostic.js",
   "types": "lib/diagnostic.d.ts",
+  "files": [
+    "fixes",
+    "lib"
+  ],
   "engines": {
     "node": ">= 12.0.0"
   },
@@ -25,6 +29,7 @@
   },
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
+    "@parcel/types": "2.9.3",
     "nullthrows": "^1.1.1"
   }
 }

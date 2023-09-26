@@ -115,6 +115,11 @@ export type Diagnostic = {|
   documentationURL?: string,
 |};
 
+export interface AssetDiagnostic extends Diagnostic {
+  asset: Asset;
+  originalMap?: SourceMap;
+}
+
 // This type should represent all error formats Parcel can encounter...
 export interface PrintableError extends Error {
   fileName?: string;
