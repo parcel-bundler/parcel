@@ -163,7 +163,7 @@ async function doWatchStart() {
 watchLspActive();
 
 export default (new Reporter({
-  async report({event, options}) {
+  async report({event}) {
     if (event.type === 'watchStart') {
       watchStarted = true;
     }
