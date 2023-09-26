@@ -3,12 +3,9 @@
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
-import {CodeAction, CodeActionKind} from 'vscode-languageserver';
 import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
 import type {ParcelSeverity} from './utils';
-
-console.log('CodeAction', CodeAction, 'CodeActionKind: ', CodeActionKind);
 
 import {
   DefaultMap,
@@ -40,6 +37,8 @@ import {
   parcelSeverityToLspSeverity,
 } from './utils';
 import type {FSWatcher} from 'fs';
+
+// console.log("IN REPORTER");
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
@@ -142,7 +141,11 @@ async function doWatchStart() {
       let graph = await bundleGraph;
       if (!graph) return null;
 
-      return getImporters(graph, params);
+      // console.log("in requestimporters")
+      let ret = getImporters(graph, params);
+      // console.log("ret", ret);
+
+      return ret;
     });
 
     sendDiagnostics();
@@ -191,7 +194,7 @@ export default (new Reporter({
         break;
       case 'buildFailure': {
         bundleGraphDeferrable.deferred.resolve(undefined);
-        updateDiagnostics(event.diagnostics, 'error', options.projectRoot);
+        updateDiagnostics(event.diagnostics, 'error', process.cwd());
         updateBuildState('end');
         sendDiagnostics();
         break;
@@ -204,11 +207,7 @@ export default (new Reporter({
             event.level === 'info' ||
             event.level === 'verbose')
         ) {
-          updateDiagnostics(
-            event.diagnostics,
-            event.level,
-            options.projectRoot,
-          );
+          updateDiagnostics(event.diagnostics, event.level, process.cwd());
         }
         break;
       case 'buildProgress': {
@@ -460,6 +459,7 @@ function getImporters(
   bundleGraph: BundleGraph<PackagedBundle>,
   document: string,
 ): Array<DocumentUri> | null {
+  // console.log("IN GET IMPORTERS");
   let filename = url.fileURLToPath(document);
 
   let asset = bundleGraph.traverse((node, context, actions) => {
@@ -471,9 +471,10 @@ function getImporters(
 
   if (asset) {
     let incoming = bundleGraph.getIncomingDependencies(asset);
-    return incoming
+    let ret = incoming
       .filter(dep => dep.sourcePath != null)
       .map(dep => `file://${nullthrows(dep.sourcePath)}`);
+    return ret;
   }
   return null;
 }
