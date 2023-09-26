@@ -1,0 +1,14 @@
+{
+  "name": "source-map-repro",
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "react": "16.14.0",
+    "react-dom": "16.14.0",
+    "@types/react": "16.9.19",
+    "parcel": "2.9.3"
+  },
+  "scripts": {
+    "build": "parcel build index.tsx"
+  }
+}
