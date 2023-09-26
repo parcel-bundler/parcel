@@ -227,7 +227,7 @@ function findClient(document: DocumentUri): Client | undefined {
   return bestClient;
 }
 
-function parseMetafile(filepath: string) {
+function parseMetafile(filepath: string): Metafile {
   const file = fs.readFileSync(filepath, 'utf-8');
   return JSON.parse(file);
 }
