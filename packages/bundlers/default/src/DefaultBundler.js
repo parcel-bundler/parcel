@@ -26,13 +26,14 @@ import {
   BitSet,
   isGlobMatch,
 } from '@parcel/utils';
+import logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
 type ManualSharedBundlesType = Array<{|
   name: string,
-  assets: Array<string>, //this is an array of globs
+  assets: Array<string>, // this is an array of globs
 |}>;
 
 type BundlerConfig = {|
@@ -41,6 +42,7 @@ type BundlerConfig = {|
   minBundleSize?: number,
   maxParallelRequests?: number,
   manualSharedBundles: ManualSharedBundlesType,
+  disableSharedBundles?: boolean,
 |};
 
 type ResolvedBundlerConfig = {|
@@ -49,6 +51,7 @@ type ResolvedBundlerConfig = {|
   minBundleSize: number,
   maxParallelRequests: number,
   projectRoot: string,
+  disableSharedBundles: boolean,
 |};
 
 // Default options by http version.
@@ -58,12 +61,14 @@ const HTTP_OPTIONS = {
     manualSharedBundles: [],
     minBundleSize: 30000,
     maxParallelRequests: 6,
+    disableSharedBundles: false,
   },
   '2': {
     minBundles: 1,
     manualSharedBundles: [],
     minBundleSize: 20000,
     maxParallelRequests: 25,
+    disableSharedBundles: false,
   },
 };
 
@@ -1202,42 +1207,46 @@ function createIdealGraph(
 
     // if a bundle b is a subgraph of another bundle f, reuse it, drawing an edge between the two
     let canReuse: Set<BundleRoot> = new Set();
-    for (let candidateSourceBundleRoot of reachable) {
-      let candidateSourceBundleId = nullthrows(
-        bundleRoots.get(candidateSourceBundleRoot),
-      )[0];
-      if (candidateSourceBundleRoot.env.isIsolated()) {
-        continue;
-      }
-      let reuseableBundleId = bundles.get(asset.id);
-      if (reuseableBundleId != null) {
-        canReuse.add(candidateSourceBundleRoot);
-        bundleGraph.addEdge(candidateSourceBundleId, reuseableBundleId);
+    if (config.disableSharedBundles === false) {
+      for (let candidateSourceBundleRoot of reachable) {
+        let candidateSourceBundleId = nullthrows(
+          bundleRoots.get(candidateSourceBundleRoot),
+        )[0];
+        if (candidateSourceBundleRoot.env.isIsolated()) {
+          continue;
+        }
+        let reuseableBundleId = bundles.get(asset.id);
+        if (reuseableBundleId != null) {
+          canReuse.add(candidateSourceBundleRoot);
+          bundleGraph.addEdge(candidateSourceBundleId, reuseableBundleId);
 
-        let reusableBundle = bundleGraph.getNode(reuseableBundleId);
-        invariant(reusableBundle !== 'root' && reusableBundle != null);
-        reusableBundle.sourceBundles.add(candidateSourceBundleId);
-      } else {
-        // Asset is not a bundleRoot, but if its ancestor bundle (in the asset's reachable) can be
-        // reused as a subgraph of another bundleRoot in its reachable, reuse it
-        for (let otherReuseCandidate of reachable) {
-          if (candidateSourceBundleRoot === otherReuseCandidate) continue;
-          let reusableCandidateReachable = getReachableBundleRoots(
-            otherReuseCandidate,
-            reachableRoots,
-          ).filter(b => !ancestorAssets.get(b)?.has(otherReuseCandidate));
-          if (reusableCandidateReachable.includes(candidateSourceBundleRoot)) {
-            let reusableBundleId = nullthrows(
-              bundles.get(otherReuseCandidate.id),
-            );
-            canReuse.add(candidateSourceBundleRoot);
-            bundleGraph.addEdge(
-              nullthrows(bundles.get(candidateSourceBundleRoot.id)),
-              reusableBundleId,
-            );
-            let reusableBundle = bundleGraph.getNode(reusableBundleId);
-            invariant(reusableBundle !== 'root' && reusableBundle != null);
-            reusableBundle.sourceBundles.add(candidateSourceBundleId);
+          let reusableBundle = bundleGraph.getNode(reuseableBundleId);
+          invariant(reusableBundle !== 'root' && reusableBundle != null);
+          reusableBundle.sourceBundles.add(candidateSourceBundleId);
+        } else {
+          // Asset is not a bundleRoot, but if its ancestor bundle (in the asset's reachable) can be
+          // reused as a subgraph of another bundleRoot in its reachable, reuse it
+          for (let otherReuseCandidate of reachable) {
+            if (candidateSourceBundleRoot === otherReuseCandidate) continue;
+            let reusableCandidateReachable = getReachableBundleRoots(
+              otherReuseCandidate,
+              reachableRoots,
+            ).filter(b => !ancestorAssets.get(b)?.has(otherReuseCandidate));
+            if (
+              reusableCandidateReachable.includes(candidateSourceBundleRoot)
+            ) {
+              let reusableBundleId = nullthrows(
+                bundles.get(otherReuseCandidate.id),
+              );
+              canReuse.add(candidateSourceBundleRoot);
+              bundleGraph.addEdge(
+                nullthrows(bundles.get(candidateSourceBundleRoot.id)),
+                reusableBundleId,
+              );
+              let reusableBundle = bundleGraph.getNode(reusableBundleId);
+              invariant(reusableBundle !== 'root' && reusableBundle != null);
+              reusableBundle.sourceBundles.add(candidateSourceBundleId);
+            }
           }
         }
       }
@@ -1254,8 +1263,10 @@ function createIdealGraph(
       entryBundle.size += asset.stats.size;
     }
 
-    // Create shared bundles for splittable bundles.
-    if (reachable.length > config.minBundles) {
+    if (
+      config.disableSharedBundles === false &&
+      reachable.length > config.minBundles
+    ) {
       let sourceBundles = reachable.map(a => nullthrows(bundleRoots.get(a))[0]);
       let key = reachable.map(a => a.id).join(',');
       let bundleId = bundles.get(key);
@@ -1306,7 +1317,10 @@ function createIdealGraph(
         value: bundle,
         type: 'bundle',
       });
-    } else if (reachable.length <= config.minBundles) {
+    } else if (
+      config.disableSharedBundles === true ||
+      reachable.length <= config.minBundles
+    ) {
       for (let root of reachable) {
         let bundle = nullthrows(
           bundleGraph.getNode(nullthrows(bundleRoots.get(root))[0]),
@@ -1384,101 +1398,103 @@ function createIdealGraph(
   let modifiedSourceBundles = new Set();
 
   // Step Remove Shared Bundles: Remove shared bundles from bundle groups that hit the parallel request limit.
-  for (let bundleGroupId of bundleGraph.getNodeIdsConnectedFrom(rootNodeId)) {
-    // Find shared bundles in this bundle group.
-    let bundleId = bundleGroupId;
+  if (config.disableSharedBundles === false) {
+    for (let bundleGroupId of bundleGraph.getNodeIdsConnectedFrom(rootNodeId)) {
+      // Find shared bundles in this bundle group.
+      let bundleId = bundleGroupId;
 
-    // We should include "bundle reuse" as shared bundles that may be removed but the bundle itself would have to be retained
-    let bundleIdsInGroup = getBundlesForBundleGroup(bundleId); //get all bundlegrups this bundle is an ancestor of
+      // We should include "bundle reuse" as shared bundles that may be removed but the bundle itself would have to be retained
+      let bundleIdsInGroup = getBundlesForBundleGroup(bundleId); //get all bundlegrups this bundle is an ancestor of
 
-    // Filter out inline assests as they should not contribute to PRL
-    let numBundlesContributingToPRL = bundleIdsInGroup.reduce((count, b) => {
-      let bundle = nullthrows(bundleGraph.getNode(b));
-      invariant(bundle !== 'root');
-      return count + (bundle.bundleBehavior !== 'inline');
-    }, 0);
-
-    if (numBundlesContributingToPRL > config.maxParallelRequests) {
-      let sharedBundleIdsInBundleGroup = bundleIdsInGroup.filter(b => {
+      // Filter out inline assests as they should not contribute to PRL
+      let numBundlesContributingToPRL = bundleIdsInGroup.reduce((count, b) => {
         let bundle = nullthrows(bundleGraph.getNode(b));
-        // shared bundles must have source bundles, we could have a bundle
-        // connected to another bundle that isnt a shared bundle, so check
-        return (
-          bundle !== 'root' &&
-          bundle.sourceBundles.size > 0 &&
-          bundleId != b &&
-          !manualSharedBundleIds.has(b)
-        );
-      });
+        invariant(bundle !== 'root');
+        return count + (bundle.bundleBehavior !== 'inline');
+      }, 0);
 
-      // Sort the bundles so the smallest ones are removed first.
-      let sharedBundlesInGroup = sharedBundleIdsInBundleGroup
-        .map(id => ({
-          id,
-          bundle: nullthrows(bundleGraph.getNode(id)),
-        }))
-        .map(({id, bundle}) => {
-          // For Flow
-          invariant(bundle !== 'root');
-          return {id, bundle};
-        })
-        .sort((a, b) => b.bundle.size - a.bundle.size);
+      if (numBundlesContributingToPRL > config.maxParallelRequests) {
+        let sharedBundleIdsInBundleGroup = bundleIdsInGroup.filter(b => {
+          let bundle = nullthrows(bundleGraph.getNode(b));
+          // shared bundles must have source bundles, we could have a bundle
+          // connected to another bundle that isnt a shared bundle, so check
+          return (
+            bundle !== 'root' &&
+            bundle.sourceBundles.size > 0 &&
+            bundleId != b &&
+            !manualSharedBundleIds.has(b)
+          );
+        });
 
-      // Remove bundles until the bundle group is within the parallel request limit.
-      while (
-        sharedBundlesInGroup.length > 0 &&
-        numBundlesContributingToPRL > config.maxParallelRequests
-      ) {
-        let bundleTuple = sharedBundlesInGroup.pop();
-        let bundleToRemove = bundleTuple.bundle;
-        let bundleIdToRemove = bundleTuple.id;
-        //TODO add integration test where bundles in bunlde group > max parallel request limit & only remove a couple shared bundles
-        // but total # bundles still exceeds limit due to non shared bundles
+        // Sort the bundles so the smallest ones are removed first.
+        let sharedBundlesInGroup = sharedBundleIdsInBundleGroup
+          .map(id => ({
+            id,
+            bundle: nullthrows(bundleGraph.getNode(id)),
+          }))
+          .map(({id, bundle}) => {
+            // For Flow
+            invariant(bundle !== 'root');
+            return {id, bundle};
+          })
+          .sort((a, b) => b.bundle.size - a.bundle.size);
 
-        // Add all assets in the shared bundle into the source bundles that are within this bundle group.
-        let sourceBundles = [...bundleToRemove.sourceBundles].filter(b =>
-          bundleIdsInGroup.includes(b),
-        );
+        // Remove bundles until the bundle group is within the parallel request limit.
+        while (
+          sharedBundlesInGroup.length > 0 &&
+          numBundlesContributingToPRL > config.maxParallelRequests
+        ) {
+          let bundleTuple = sharedBundlesInGroup.pop();
+          let bundleToRemove = bundleTuple.bundle;
+          let bundleIdToRemove = bundleTuple.id;
+          //TODO add integration test where bundles in bunlde group > max parallel request limit & only remove a couple shared bundles
+          // but total # bundles still exceeds limit due to non shared bundles
 
-        for (let sourceBundleId of sourceBundles) {
-          let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
-          invariant(sourceBundle !== 'root');
-          modifiedSourceBundles.add(sourceBundle);
-          bundleToRemove.sourceBundles.delete(sourceBundleId);
-          for (let asset of bundleToRemove.assets) {
-            sourceBundle.assets.add(asset);
-            sourceBundle.size += asset.stats.size;
+          // Add all assets in the shared bundle into the source bundles that are within this bundle group.
+          let sourceBundles = [...bundleToRemove.sourceBundles].filter(b =>
+            bundleIdsInGroup.includes(b),
+          );
+
+          for (let sourceBundleId of sourceBundles) {
+            let sourceBundle = nullthrows(bundleGraph.getNode(sourceBundleId));
+            invariant(sourceBundle !== 'root');
+            modifiedSourceBundles.add(sourceBundle);
+            bundleToRemove.sourceBundles.delete(sourceBundleId);
+            for (let asset of bundleToRemove.assets) {
+              sourceBundle.assets.add(asset);
+              sourceBundle.size += asset.stats.size;
+            }
+            //This case is specific to reused bundles, which can have shared bundles attached to it
+            for (let childId of bundleGraph.getNodeIdsConnectedFrom(
+              bundleIdToRemove,
+            )) {
+              let child = bundleGraph.getNode(childId);
+              invariant(child !== 'root' && child != null);
+              child.sourceBundles.add(sourceBundleId);
+              bundleGraph.addEdge(sourceBundleId, childId);
+            }
+            // needs to add test case where shared bundle is removed from ONE bundlegroup but not from the whole graph!
+            // Remove the edge from this bundle group to the shared bundle.
+            // If there is now only a single bundle group that contains this bundle,
+            // merge it into the remaining source bundles. If it is orphaned entirely, remove it.
+            let incomingNodeCount =
+              bundleGraph.getNodeIdsConnectedTo(bundleIdToRemove).length;
+
+            if (
+              incomingNodeCount <= 2 &&
+              //Never fully remove reused bundles
+              bundleToRemove.mainEntryAsset == null
+            ) {
+              // If one bundle group removes a shared bundle, but the other *can* keep it, still remove because that shared bundle is pointless (only one source bundle)
+              removeBundle(bundleGraph, bundleIdToRemove, assetReference);
+              // Stop iterating through bundleToRemove's sourceBundles as the bundle has been removed.
+              break;
+            } else {
+              bundleGraph.removeEdge(sourceBundleId, bundleIdToRemove);
+            }
           }
-          //This case is specific to reused bundles, which can have shared bundles attached to it
-          for (let childId of bundleGraph.getNodeIdsConnectedFrom(
-            bundleIdToRemove,
-          )) {
-            let child = bundleGraph.getNode(childId);
-            invariant(child !== 'root' && child != null);
-            child.sourceBundles.add(sourceBundleId);
-            bundleGraph.addEdge(sourceBundleId, childId);
-          }
-          // needs to add test case where shared bundle is removed from ONE bundlegroup but not from the whole graph!
-          // Remove the edge from this bundle group to the shared bundle.
-          // If there is now only a single bundle group that contains this bundle,
-          // merge it into the remaining source bundles. If it is orphaned entirely, remove it.
-          let incomingNodeCount =
-            bundleGraph.getNodeIdsConnectedTo(bundleIdToRemove).length;
-
-          if (
-            incomingNodeCount <= 2 &&
-            //Never fully remove reused bundles
-            bundleToRemove.mainEntryAsset == null
-          ) {
-            // If one bundle group removes a shared bundle, but the other *can* keep it, still remove because that shared bundle is pointless (only one source bundle)
-            removeBundle(bundleGraph, bundleIdToRemove, assetReference);
-            // Stop iterating through bundleToRemove's sourceBundles as the bundle has been removed.
-            break;
-          } else {
-            bundleGraph.removeEdge(sourceBundleId, bundleIdToRemove);
-          }
+          numBundlesContributingToPRL--;
         }
-        numBundlesContributingToPRL--;
       }
     }
   }
@@ -1649,6 +1665,9 @@ const CONFIG_SCHEMA: SchemaEntity = {
     maxParallelRequests: {
       type: 'number',
     },
+    disableSharedBundles: {
+      type: 'boolean',
+    },
   },
   additionalProperties: false,
 };
@@ -1736,6 +1755,39 @@ async function loadBundlerConfig(
 
   invariant(conf?.contents != null);
 
+  // minBundles will be ignored if shared bundles are disabled
+  if (
+    conf.contents.minBundles != null &&
+    conf.contents.disableSharedBundles === true
+  ) {
+    logger.warn({
+      origin: '@parcel/bundler-default',
+      message: `The value of "${conf.contents.minBundles}" set for minBundles will not be used as shared bundles have been disabled`,
+    });
+  }
+
+  // minBundleSize will be ignored if shared bundles are disabled
+  if (
+    conf.contents.minBundleSize != null &&
+    conf.contents.disableSharedBundles === true
+  ) {
+    logger.warn({
+      origin: '@parcel/bundler-default',
+      message: `The value of "${conf.contents.minBundleSize}" set for minBundleSize will not be used as shared bundles have been disabled`,
+    });
+  }
+
+  // maxParallelRequests will be ignored if shared bundles are disabled
+  if (
+    conf.contents.maxParallelRequests != null &&
+    conf.contents.disableSharedBundles === true
+  ) {
+    logger.warn({
+      origin: '@parcel/bundler-default',
+      message: `The value of "${conf.contents.maxParallelRequests}" set for maxParallelRequests will not be used as shared bundles have been disabled`,
+    });
+  }
+
   validateSchema.diagnostic(
     CONFIG_SCHEMA,
     {
@@ -1759,6 +1811,8 @@ async function loadBundlerConfig(
     maxParallelRequests:
       conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
     projectRoot: options.projectRoot,
+    disableSharedBundles:
+      conf.contents.disableSharedBundles ?? defaults.disableSharedBundles,
   };
 }
 
