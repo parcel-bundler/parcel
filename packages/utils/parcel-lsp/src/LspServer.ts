@@ -299,7 +299,7 @@ for (let filename of fs.readdirSync(BASEDIR)) {
   const {projectRoot} = contents;
 
   if (WORKSPACE_ROOT === projectRoot) {
-    createClient(filepath, projectRoot);
+    createClient(filepath, contents);
   }
   console.log('connected initial', filepath);
 }

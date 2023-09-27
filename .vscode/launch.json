@@ -6,7 +6,6 @@
   "configurations": [
     {
       "args": [
-        "${workspaceFolder}/packages/examples/kitchen-sink",
         "--extensionDevelopmentPath=${workspaceFolder}/packages/utils/parcelforvscode"
       ],
       "name": "Launch Parcel for VSCode Extension",
