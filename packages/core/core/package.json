@@ -30,7 +30,7 @@
     "@parcel/events": "2.9.3",
     "@parcel/fs": "2.9.3",
     "@parcel/graph": "2.9.3",
-    "@parcel/hash": "2.9.3",
+    "@parcel/rust": "2.9.3",
     "@parcel/logger": "2.9.3",
     "@parcel/package-manager": "2.9.3",
     "@parcel/plugin": "2.9.3",

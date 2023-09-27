@@ -21,9 +21,10 @@
   },
   "dependencies": {
     "@parcel/diagnostic": "2.9.3",
-    "@parcel/hash": "2.9.3",
+    "@parcel/rust": "2.9.3",
     "@parcel/plugin": "2.9.3",
     "@parcel/source-map": "^2.1.1",
+    "@parcel/types": "2.9.3",
     "@parcel/utils": "2.9.3",
     "globals": "^13.2.0",
     "nullthrows": "^1.1.1"

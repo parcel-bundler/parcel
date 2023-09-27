@@ -34,7 +34,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {ContentGraph, ALL_EDGE_TYPES, mapVisitor} from '@parcel/graph';
-import {Hash, hashString} from '@parcel/hash';
+import {Hash, hashString} from '@parcel/rust';
 import {DefaultMap, objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 
 import {Priority, BundleBehavior, SpecifierType} from './types';
@@ -1122,6 +1122,11 @@ export default class BundleGraph {
   }
 
   isAssetReferenced(bundle: Bundle, asset: Asset): boolean {
+    // If the asset is available in multiple bundles, it's referenced.
+    if (this.getBundlesWithAsset(asset).length > 1) {
+      return true;
+    }
+
     let assetNodeId = nullthrows(this._graph.getNodeIdByContentKey(asset.id));
 
     if (
@@ -1930,6 +1935,10 @@ export default class BundleGraph {
     hash.writeString(
       bundle.id + bundle.target.publicUrl + this.getContentHash(bundle),
     );
+
+    if (bundle.isPlaceholder) {
+      hash.writeString('placeholder');
+    }
 
     let inlineBundles = this.getInlineBundles(bundle);
     for (let inlineBundle of inlineBundles) {
