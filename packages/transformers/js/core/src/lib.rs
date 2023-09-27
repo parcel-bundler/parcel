@@ -242,12 +242,12 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       pragma_frag: react_options.pragma_frag.clone(),
                     },
                     Some(&comments),
-                    unresolved_mark,
+                    global_mark,
                   ),
                   config.is_type_script && config.is_jsx
                 ),
                 Optional::new(
-                  typescript::strip(unresolved_mark),
+                  typescript::strip(global_mark),
                   config.is_type_script && !config.is_jsx
                 ),
               ));
