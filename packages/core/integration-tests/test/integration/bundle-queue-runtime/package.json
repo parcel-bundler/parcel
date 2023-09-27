@@ -1,0 +1,8 @@
+{
+    "@parcel/bundler-default": {
+        "minBundleSize": 0
+    },
+    "@parcel/packager-js": {
+        "unstable_asyncBundleRuntime": true
+    }
+}

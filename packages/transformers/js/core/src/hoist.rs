@@ -149,7 +149,7 @@ impl<'a> Fold for Hoist<'a> {
                 import.src.value.clone(),
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
-                  asserts: None,
+                  with: None,
                   span: DUMMY_SP,
                   src: Box::new(
                     format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
@@ -196,7 +196,7 @@ impl<'a> Fold for Hoist<'a> {
                   src.value.clone(),
                   ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     specifiers: vec![],
-                    asserts: None,
+                    with: None,
                     span: DUMMY_SP,
                     src: Box::new(Str {
                       value: format!("{}:{}:{}", self.module_id, src.value, "esm").into(),
@@ -291,7 +291,7 @@ impl<'a> Fold for Hoist<'a> {
                 export.src.value.clone(),
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
-                  asserts: None,
+                  with: None,
                   span: DUMMY_SP,
                   src: Box::new(
                     format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
@@ -397,7 +397,7 @@ impl<'a> Fold for Hoist<'a> {
                             .module_items
                             .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                               specifiers: vec![],
-                              asserts: None,
+                              with: None,
                               span: DUMMY_SP,
                               src: Box::new(Str {
                                 value: format!("{}:{}", self.module_id, source).into(),
@@ -438,7 +438,7 @@ impl<'a> Fold for Hoist<'a> {
                               .module_items
                               .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                                 specifiers: vec![],
-                                asserts: None,
+                                with: None,
                                 span: DUMMY_SP,
                                 src: Box::new(Str {
                                   value: format!("{}:{}", self.module_id, source,).into(),
@@ -998,7 +998,7 @@ impl<'a> Hoist<'a> {
       .module_items
       .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         specifiers: vec![],
-        asserts: None,
+        with: None,
         span: DUMMY_SP,
         src: Box::new(src.into()),
         type_only: false,
@@ -1187,12 +1187,8 @@ mod tests {
         &mut buf,
         Some(&mut src_map_buf),
       ));
-      let config = swc_core::ecma::codegen::Config {
-        minify: false,
-        ascii_only: false,
-        target: swc_core::ecma::ast::EsVersion::Es5,
-        omit_last_semi: false,
-      };
+      let config =
+        swc_core::ecma::codegen::Config::default().with_target(swc_core::ecma::ast::EsVersion::Es5);
       let mut emitter = swc_core::ecma::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
@@ -1317,7 +1313,7 @@ mod tests {
 
     let (collect, _code, _hoist) = parse(
       r#"
-    import { a, b, c, d } from "other";
+    import { a, b, c, d, e } from "other";
     import * as x from "other";
     import * as y from "other";
 
@@ -1326,11 +1322,12 @@ mod tests {
     c();
     log(x);
     y.foo();
+    e.foo.bar();
     "#,
     );
     assert_eq_set!(
       collect.used_imports,
-      set! { w!("a"), w!("b"), w!("c"), w!("x"), w!("y") }
+      set! { w!("a"), w!("b"), w!("c"), w!("e"), w!("x"), w!("y") }
     );
     assert_eq_imports!(
       collect.imports,
@@ -1339,6 +1336,7 @@ mod tests {
         w!("b") => (w!("other"), w!("b"), false),
         w!("c") => (w!("other"), w!("c"), false),
         w!("d") => (w!("other"), w!("d"), false),
+        w!("e") => (w!("other"), w!("e"), false),
         w!("x") => (w!("other"), w!("*"), false),
         w!("y") => (w!("other"), w!("*"), false)
       }

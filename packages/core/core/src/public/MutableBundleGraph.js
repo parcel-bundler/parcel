@@ -13,7 +13,7 @@ import type {ParcelOptions, BundleGroup as InternalBundleGroup} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import BundleGraph from './BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';

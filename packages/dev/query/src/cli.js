@@ -11,6 +11,9 @@ import os from 'os';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 
+// $FlowFixMe
+import {table} from 'table';
+
 import {fromProjectPathRelative} from '@parcel/core/src/projectPath';
 import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
 import {Priority} from '@parcel/core/src/types';
@@ -547,6 +550,61 @@ export function run(input: string[]) {
     }
   }
 
+  function _getIncomingNodeOfType(bundleGraph, node, type: string) {
+    const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(node.id);
+    return bundleGraph._graph
+      .getNodeIdsConnectedTo(bundleGraphNodeId, -1)
+      .map(id => nullthrows(bundleGraph._graph.getNode(id)))
+      .find(node => node.type == type);
+  }
+
+  // We find the priority of a Bundle or BundleGroup by looking at its incoming dependencies.
+  // If a Bundle does not have an incoming dependency, we look for an incoming BundleGroup and its dependency
+  // e.g. Dep(priority = 1) -> BundleGroup -> Bundle means that the Bundle has priority 1.
+  function _getBundlePriority(bundleGraph, bundle) {
+    let node = _getIncomingNodeOfType(bundleGraph, bundle, 'dependency');
+
+    if (node == null) {
+      node = _getIncomingNodeOfType(bundleGraph, bundle, 'bundle_group');
+      if (node == null) return null;
+      node = _getIncomingNodeOfType(bundleGraph, node, 'dependency');
+    }
+
+    if (node == null) return null;
+
+    invariant(node.type === 'dependency', 'Not a dependency');
+
+    return node.value.priority;
+  }
+
+  function _findEntryBundle(bundleGraph, node) {
+    const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(node.id);
+    const entryBundleGroup = bundleGraph._graph
+      .getNodeIdsConnectedTo(bundleGraphNodeId, -1)
+      .map(id => nullthrows(bundleGraph._graph.getNode(id)))
+      .find(
+        node =>
+          node.type === 'bundle_group' &&
+          bundleGraph.isEntryBundleGroup(node.value),
+      );
+
+    return entryBundleGroup;
+  }
+
+  function _printStatsTable(header, data) {
+    const config = {
+      columnDefault: {
+        width: 18,
+      },
+      header: {
+        alignment: 'center',
+        content: header,
+      },
+    };
+
+    console.log(table(data, config));
+  }
+
   // eslint-disable-next-line no-unused-vars
   function stats(_) {
     let ag = {
@@ -565,36 +623,91 @@ export function run(input: string[]) {
     let bg = {
       dependency: 0,
       bundle: 0,
-      asset: 0,
+      bundle_group: 0,
       asset_node_modules: 0,
       asset_source: 0,
     };
+
+    let b_type = {
+      entry: 0,
+      shared: 0,
+      async: 0,
+      parallel: 0,
+      sync: 0,
+    };
+
+    let b_ext = {};
+
+    const entries = new Set();
+
     for (let [, n] of bundleGraph._graph.nodes) {
-      if (n.type in bg) {
+      if (n.type === 'bundle_group') {
+        bg.bundle_group++;
+      } else if (n.type === 'bundle') {
+        bg.bundle++;
+
         // $FlowFixMe
-        bg[n.type]++;
-      }
-      if (n.type === 'asset') {
+        b_ext[n.value.type] = (b_ext[n.value.type] || 0) + 1;
+
+        // $FlowFixMe
+        const entry_group = _findEntryBundle(bundleGraph, n);
+
+        if (entry_group != null && !entries.has(entry_group.id)) {
+          b_type.entry++;
+          entries.add(entry_group.id);
+        } else if (n.value.mainEntryId == null) {
+          // In general, !bundle.mainEntryId means that it is shared. In the case of an async and shared bundle, only count it as shared.
+          b_type.shared++;
+        } else {
+          const priority = _getBundlePriority(bundleGraph, n);
+
+          if (priority == Priority.lazy) {
+            b_type.async++;
+          } else if (priority == Priority.parallel) {
+            b_type.parallel++;
+          } else if (priority == Priority.sync) {
+            b_type.sync++;
+          }
+        }
+      } else if (n.type === 'asset') {
         if (
+          // $FlowFixMe
           fromProjectPathRelative(n.value.filePath).includes('node_modules')
         ) {
           bg.asset_node_modules++;
         } else {
           bg.asset_source++;
         }
+      } else if (n.type === 'dependency') {
+        bg.dependency++;
       }
     }
 
-    console.log('# Asset Graph Node Counts');
-    for (let k in ag) {
-      console.log(k, ag[k]);
-    }
-    console.log();
+    _printStatsTable('# Asset Graph Node Counts', Object.entries(ag));
+    _printStatsTable('# Bundle Graph Node Counts', Object.entries(bg));
+    _printStatsTable('# Bundles By Type', Object.entries(b_type));
+    _printStatsTable('# Bundles By Extension', Object.entries(b_ext));
 
-    console.log('# Bundle Graph Node Counts');
-    for (let k in bg) {
-      console.log(k, bg[k]);
+    // Assert that counts for each breakdown are correct
+
+    let sum_b_ext = 0;
+    for (let k in b_ext) {
+      sum_b_ext += b_ext[k];
     }
+
+    let sum_b_type = 0;
+    for (let k in b_type) {
+      sum_b_type += b_type[k];
+    }
+
+    invariant(
+      bg.bundle == sum_b_type,
+      `Bundles by type ${sum_b_type} does not equal total ${bg.bundle}`,
+    );
+    invariant(
+      bg.bundle == sum_b_ext,
+      `Bundles by extension ${sum_b_ext} does not equal total ${bg.bundle}`,
+    );
   }
 
   // -------------------------------------------------------

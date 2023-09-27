@@ -4,7 +4,7 @@ import type {FileSystem} from '@parcel/fs';
 
 import {hashStream} from '@parcel/utils';
 import path from 'path';
-import {hashString, hashBuffer} from '@parcel/hash';
+import {hashString, hashBuffer} from '@parcel/rust';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 

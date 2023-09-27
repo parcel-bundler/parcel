@@ -19,11 +19,7 @@ dist
 /test/dist
 /test/input
 *.min.js
-packages/optimizers/image/native.js
-packages/transformers/js/native.js
-packages/utils/fs-search/index.js
-packages/utils/hash/index.js
-packages/utils/node-resolver-core/index.js
+packages/core/rust/index.js
 
 coverage
 node_modules
