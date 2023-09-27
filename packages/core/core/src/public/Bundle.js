@@ -129,7 +129,7 @@ export class Bundle implements IBundle {
     return this.#bundle.isSplittable;
   }
 
-  get manualSharedBundle() {
+  get manualSharedBundle(): ?string {
     return this.#bundle.manualSharedBundle;
   }
 

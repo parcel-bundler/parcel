@@ -9,7 +9,11 @@ import type {
   MutableBundleGraph as IMutableBundleGraph,
   Target,
 } from '@parcel/types';
-import type {ParcelOptions, BundleGroup as InternalBundleGroup} from '../types';
+import type {
+  ParcelOptions,
+  BundleGroup as InternalBundleGroup,
+  BundleNode,
+} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -76,10 +80,14 @@ export default class MutableBundleGraph
     );
   }
 
-  getResolvedAsset(dependency) {
-    return this.#graph.getResolvedAsset(
+  getResolvedAsset(dependency: IDependency): ?IAsset {
+    let internalAsset = this.#graph.getResolvedAsset(
       dependencyToInternalDependency(dependency),
     );
+
+    if (internalAsset) {
+      return assetFromValue(internalAsset, this.#options);
+    }
   }
 
   createBundleGroup(dependency: IDependency, target: Target): IBundleGroup {
@@ -210,7 +218,7 @@ export default class MutableBundleGraph
       isPlaceholder = entryAssetNode.requested === false;
     }
 
-    let bundleNode = {
+    let bundleNode: BundleNode = {
       type: 'bundle',
       id: bundleId,
       value: {

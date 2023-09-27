@@ -31,9 +31,14 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
-type ManualSharedBundlesType = Array<{|
+type Glob = string;
+
+type ManualSharedBundles = Array<{|
   name: string,
-  assets: Array<string>, // this is an array of globs
+  assets: Array<Glob>,
+  types?: Array<string>,
+  parent?: string,
+  split?: number,
 |}>;
 
 type BundlerConfig = {|
@@ -41,17 +46,17 @@ type BundlerConfig = {|
   minBundles?: number,
   minBundleSize?: number,
   maxParallelRequests?: number,
-  manualSharedBundles: ManualSharedBundlesType,
   disableSharedBundles?: boolean,
+  manualSharedBundles?: ManualSharedBundles,
 |};
 
 type ResolvedBundlerConfig = {|
-  manualSharedBundles: ManualSharedBundlesType,
   minBundles: number,
   minBundleSize: number,
   maxParallelRequests: number,
   projectRoot: string,
   disableSharedBundles: boolean,
+  manualSharedBundles: ManualSharedBundles,
 |};
 
 // Default options by http version.
@@ -86,7 +91,7 @@ export type Bundle = {|
   target: Target,
   env: Environment,
   type: string,
-  manualSharedBundle: string, // for naming purposes
+  manualSharedBundle: ?string, // for naming purposes
 |};
 
 const dependencyPriorityEdges = {
@@ -431,16 +436,17 @@ function createIdealGraph(
     let parentsToConfig = new DefaultMap(() => []);
 
     for (let c of config.manualSharedBundles) {
-      if (c.parent) {
+      if (c.parent != null) {
         parentsToConfig.get(path.join(config.projectRoot, c.parent)).push(c);
       }
     }
     let numParentsToFind = parentsToConfig.size;
+    let configToParentAsset = new Map();
 
     assetGraph.traverse((node, _, actions) => {
       if (node.type === 'asset' && parentsToConfig.has(node.value.filePath)) {
         for (let c of parentsToConfig.get(node.value.filePath)) {
-          c.parentAsset = node.value;
+          configToParentAsset.set(c, node.value);
         }
 
         numParentsToFind--;
@@ -453,11 +459,15 @@ function createIdealGraph(
     });
 
     let manualAssetToConfig = new Map();
+    let constantModuleToMSB = new DefaultMap(() => []);
 
     // Process in reverse order so earlier configs take precedence
-    for (let c of config.manualSharedBundles
-      .filter(c => !c.parent || c.parentAsset)
-      .reverse()) {
+    for (let c of config.manualSharedBundles.reverse()) {
+      invariant(
+        c.parent == null || configToParentAsset.has(c),
+        'Invalid manual shared bundle. Could not find parent asset.',
+      );
+
       assetGraph.traverse((node, _, actions) => {
         if (
           node.type === 'asset' &&
@@ -467,6 +477,11 @@ function createIdealGraph(
             c.assets,
           )
         ) {
+          // We track all matching MSB's for constant modules as they are never duplicated
+          // and need to be assigned to all matching bundles
+          if (node.value.meta.isConstantModule === true) {
+            constantModuleToMSB.get(node.value).push(c);
+          }
           manualAssetToConfig.set(node.value, c);
           return;
         }
@@ -475,10 +490,10 @@ function createIdealGraph(
           // Don't walk past the bundle group assets
           actions.skipChildren();
         }
-      }, c.parentAsset);
+      }, configToParentAsset.get(c));
     }
 
-    return manualAssetToConfig;
+    return {manualAssetToConfig, constantModuleToMSB};
   }
 
   //Manual is a map of the user-given name to the bundle node Id that corresponds to ALL the assets that match any glob in that user-specified array
@@ -486,7 +501,8 @@ function createIdealGraph(
   // May need a map to be able to look up NON- bundle root assets which need special case instructions
   // Use this when placing assets into bundles, to avoid duplication
   let manualAssetToBundle: Map<Asset, NodeId> = new Map();
-  let manualAssetToConfig = makeManualAssetToConfigLookup();
+  let {manualAssetToConfig, constantModuleToMSB} =
+    makeManualAssetToConfigLookup();
   let manualBundleToInternalizedAsset: Map<
     NodeId,
     Array<BundleRoot>,
@@ -626,9 +642,9 @@ function createIdealGraph(
                 if (!bundle.mainEntryAsset) {
                   bundle.mainEntryAsset = childAsset;
                 } else {
-                  manualBundleToInternalizedAsset
-                    .get(bundleId)
-                    .push(childAsset);
+                  nullthrows(
+                    manualBundleToInternalizedAsset.get(bundleId),
+                  ).push(childAsset);
                 }
                 invariant(manualSharedBundleKey != null);
                 if (!manualSharedMap.has(manualSharedBundleKey)) {
@@ -812,17 +828,23 @@ function createIdealGraph(
   let assetSet = BitSet.from(assets);
 
   // Strip MSBs of entries
-  for (let nodeId of manualBundleToInternalizedAsset.keys()) {
+  for (let [
+    nodeId,
+    internalizedAssets,
+  ] of manualBundleToInternalizedAsset.entries()) {
     let bundle = bundleGraph.getNode(nodeId);
+    invariant(bundle != null && bundle !== 'root');
+
     if (!bundle.internalizedAssets) {
       bundle.internalizedAssets = assetSet.cloneEmpty();
     }
-    for (let asset of manualBundleToInternalizedAsset.get(nodeId)) {
+    for (let asset of internalizedAssets) {
       bundle.internalizedAssets.add(asset);
     }
     bundle.mainEntryAsset = null;
     bundleGroupBundleIds.delete(nodeId); // manual bundles can now act as shared, non-bundle group, should they be non-bundleRoots as well?
   }
+
   // Step Merge Type Change Bundles: Clean up type change bundles within the exact same bundlegroups
   for (let [nodeIdA, a] of bundleGraph.nodes) {
     //if bundle b bundlegroups ==== bundle a bundlegroups then combine type changes
@@ -1157,9 +1179,7 @@ function createIdealGraph(
           target: firstSourceBundle.target,
           type: firstSourceBundle.type,
           env: firstSourceBundle.env,
-          manualSharedBundle: manualSharedObject
-            ? manualSharedObject.name
-            : null,
+          manualSharedBundle: manualSharedObject?.name,
         });
         bundle.sourceBundles = new Set(sourceBundles);
         bundle.assets.add(asset);
@@ -1169,7 +1189,7 @@ function createIdealGraph(
         bundleId = nullthrows(manualSharedMap.get(manualSharedBundleKey));
         bundle = nullthrows(bundleGraph.getNode(bundleId));
         invariant(
-          bundle != null && bundle != 'root',
+          bundle != null && bundle !== 'root',
           'We tried to use the root incorrectly',
         );
 
@@ -1345,11 +1365,12 @@ function createIdealGraph(
     let firstAsset = [...manualBundle.assets][0];
     let manualSharedObject = manualAssetToConfig.get(firstAsset);
     invariant(manualSharedObject != null);
-    let modNum = manualAssetToConfig.get(firstAsset).split;
+    let modNum = manualAssetToConfig.get(firstAsset)?.split;
     if (modNum != null) {
       for (let a of [...manualBundle.assets]) {
         let numRep = getBigIntFromContentKey(a.id);
-        let r = Number(BigInt(numRep) % BigInt(modNum));
+        // $FlowFixMe Flow doesn't know about BigInt
+        let r = Number(numRep % BigInt(modNum));
 
         remainderMap.get(r).push(a);
       }
@@ -1376,6 +1397,27 @@ function createIdealGraph(
           manualBundle.assets.delete(sp);
           manualBundle.size -= sp.stats.size;
         }
+      }
+    }
+  }
+
+  // Step insert constant modules into manual shared bundles.
+  // We have to do this separately as they're the only case where a single asset can
+  // match multiple MSB's
+  for (let [asset, msbs] of constantModuleToMSB.entries()) {
+    for (let manualSharedObject of msbs) {
+      let bundleId = nullthrows(
+        manualSharedMap.get(manualSharedObject.name + ',js'),
+      );
+      let bundle = nullthrows(bundleGraph.getNode(bundleId));
+      invariant(
+        bundle != null && bundle !== 'root',
+        'We tried to use the root incorrectly',
+      );
+
+      if (!bundle.assets.has(asset)) {
+        bundle.assets.add(asset);
+        bundle.size += asset.stats.size;
       }
     }
   }
@@ -1502,6 +1544,7 @@ function createIdealGraph(
   function getBigIntFromContentKey(contentKey) {
     let b = Buffer.alloc(64);
     b.write(contentKey);
+    // $FlowFixMe Flow doesn't have BigInt types in this version
     return b.readBigInt64BE();
   }
   // Fix asset order in source bundles as they are likely now incorrect after shared bundle deletion
@@ -1680,7 +1723,7 @@ function createBundle(opts: {|
   type?: string,
   needsStableName?: boolean,
   bundleBehavior?: ?BundleBehavior,
-  manualSharedBundle?: string,
+  manualSharedBundle?: ?string,
 |}): Bundle {
   if (opts.asset == null) {
     return {
@@ -1804,8 +1847,6 @@ async function loadBundlerConfig(
   let defaults = HTTP_OPTIONS[http];
 
   return {
-    manualSharedBundles:
-      conf.contents.manualSharedBundles ?? defaults.manualSharedBundles,
     minBundles: conf.contents.minBundles ?? defaults.minBundles,
     minBundleSize: conf.contents.minBundleSize ?? defaults.minBundleSize,
     maxParallelRequests:
@@ -1813,6 +1854,8 @@ async function loadBundlerConfig(
     projectRoot: options.projectRoot,
     disableSharedBundles:
       conf.contents.disableSharedBundles ?? defaults.disableSharedBundles,
+    manualSharedBundles:
+      conf.contents.manualSharedBundles ?? defaults.manualSharedBundles,
   };
 }
 
