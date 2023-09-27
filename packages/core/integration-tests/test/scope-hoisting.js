@@ -1130,7 +1130,7 @@ describe('scope hoisting', function () {
         'utf8',
       );
       assert.strictEqual(
-        contents.match(/parcelRequire.register\(/g).length,
+        contents.match(/parcelRegister\(/g).length,
         2 /* once for parent asset, once for child wrapped asset */,
       );
 
@@ -3495,6 +3495,69 @@ describe('scope hoisting', function () {
 
       let res = await run(b);
       assert.deepEqual(res, {foo: 2});
+    });
+
+    it('supports constant inlining', async function () {
+      let b = await bundle(
+        path.join(__dirname, 'integration/inline-constants/index.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            sourceMaps: false,
+          },
+        },
+      );
+
+      let constants = ['BLOGGER', 'PREMIUM', 'MONTHS_IN_YEAR'];
+
+      for (let bundle of b.getBundles()) {
+        let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+
+        // Check constant export names are NOT present in the bundles
+        assert(
+          constants.every(constant => !contents.includes(constant)),
+          `Bundle didn't inline constant values`,
+        );
+      }
+
+      // Run the bundle to make sure it's valid
+      await run(b);
+    });
+
+    it('supports constant inlining with shared bundles', async function () {
+      let b = await bundle(
+        [
+          path.join(
+            __dirname,
+            'integration/inline-constants-shared-bundles/a.html',
+          ),
+          path.join(
+            __dirname,
+            'integration/inline-constants-shared-bundles/b.html',
+          ),
+        ],
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            sourceMaps: false,
+          },
+        },
+      );
+
+      let constants = ['BLOGGER', 'PREMIUM', 'MONTHS_IN_YEAR'];
+
+      for (let bundle of b.getBundles()) {
+        let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+
+        // Check constant export names are NOT present in the bundles
+        assert(
+          constants.every(constant => !contents.includes(constant)),
+          `Bundle didn't inline constant values`,
+        );
+      }
+
+      // Run the bundle to make sure it's valid
+      await run(b);
     });
   });
 
@@ -5892,5 +5955,35 @@ describe('scope hoisting', function () {
     });
 
     assert.deepEqual(await result, ['a', 'b', 'c']);
+  });
+
+  it('should not add experimental bundle queue runtime to empty bundles', async function () {
+    let b = await bundle(
+      [path.join(__dirname, 'integration/bundle-queue-runtime/empty.js')],
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+          outputFormat: 'esmodule',
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => /empty.*\.js/.test(b.filePath)).filePath,
+      'utf8',
+    );
+
+    assert(
+      !contents.includes('$parcel$global.rlb('),
+      "Empty bundle should not include 'runLoadedBundle' code",
+    );
+
+    try {
+      await run(b);
+    } catch (e) {
+      assert.fail('Expected the empty bundle to still run');
+    }
   });
 });

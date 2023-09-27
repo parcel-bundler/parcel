@@ -331,8 +331,10 @@ export class ScopeHoistingPackager {
           .getIncomingDependencies(asset)
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
-        this.wrappedAssets.add(asset.id);
-        wrapped.push(asset);
+        if (!asset.meta.isConstantModule) {
+          this.wrappedAssets.add(asset.id);
+          wrapped.push(asset);
+        }
       }
     });
 
@@ -346,9 +348,10 @@ export class ScopeHoistingPackager {
           actions.skipChildren();
           return;
         }
-
-        this.wrappedAssets.add(asset.id);
-        wrapped.push(asset);
+        if (!asset.meta.isConstantModule) {
+          this.wrappedAssets.add(asset.id);
+          wrapped.push(asset);
+        }
       }, wrappedAssetRoot);
     }
 
@@ -624,7 +627,7 @@ export class ScopeHoistingPackager {
       sourceMap?.offsetLines(1, 1);
       lineCount++;
 
-      code = `parcelRequire.register(${JSON.stringify(
+      code = `parcelRegister(${JSON.stringify(
         this.bundleGraph.getAssetPublicId(asset),
       )}, function(module, exports) {
 ${code}
@@ -828,6 +831,13 @@ ${code}
   }
 
   isWrapped(resolved: Asset, parentAsset: Asset): boolean {
+    if (resolved.meta.isConstantModule) {
+      invariant(
+        this.bundle.hasAsset(resolved),
+        'Constant module not found in bundle',
+      );
+      return false;
+    }
     return (
       (!this.bundle.hasAsset(resolved) && !this.externalAssets.has(resolved)) ||
       (this.wrappedAssets.has(resolved.id) && resolved !== parentAsset)
@@ -1263,9 +1273,10 @@ ${code}
         }
       } else {
         // Otherwise, get the current parcelRequire global.
-        res += `var parcelRequire = $parcel$global[${JSON.stringify(
-          this.parcelRequireName,
-        )}];\n`;
+        const escaped = JSON.stringify(this.parcelRequireName);
+        res += `var parcelRequire = $parcel$global[${escaped}];\n`;
+        lines++;
+        res += `var parcelRegister = parcelRequire.register;\n`;
         lines++;
       }
     }

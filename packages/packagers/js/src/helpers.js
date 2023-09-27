@@ -6,6 +6,7 @@ var $parcel$modules = {};
 var $parcel$inits = {};
 
 var parcelRequire = $parcel$global[${JSON.stringify(parcelRequireName)}];
+
 if (parcelRequire == null) {
   parcelRequire = function(id) {
     if (id in $parcel$modules) {
@@ -30,6 +31,8 @@ if (parcelRequire == null) {
 
   $parcel$global[${JSON.stringify(parcelRequireName)}] = parcelRequire;
 }
+
+var parcelRegister = parcelRequire.register;
 `;
 
 export const fnExpr = (

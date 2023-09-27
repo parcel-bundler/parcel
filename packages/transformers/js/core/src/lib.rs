@@ -1,4 +1,5 @@
 mod collect;
+mod constant_module;
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
@@ -14,6 +15,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use constant_module::ConstantModule;
 use indexmap::IndexMap;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
@@ -84,6 +86,7 @@ pub struct Config {
   trace_bailouts: bool,
   is_swc_helpers: bool,
   standalone: bool,
+  inline_constants: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -99,6 +102,7 @@ pub struct TransformResult {
   needs_esm_helpers: bool,
   used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   has_node_replacements: bool,
+  is_constant_module: bool,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -294,6 +298,12 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               let mut assumptions = Assumptions::default();
               if config.is_type_script && !config.use_define_for_class_fields {
                 assumptions.set_public_class_fields |= true;
+              }
+
+              if config.scope_hoist && config.inline_constants {
+                let mut constant_module = ConstantModule::new();
+                module.visit_with(&mut constant_module);
+                result.is_constant_module = constant_module.is_constant_module;
               }
 
               let mut diagnostics = vec![];
