@@ -11,6 +11,7 @@ import type {
   MutableBundleGraph,
   PluginOptions,
   Target,
+  BuildMode,
 } from '@parcel/types';
 import type {NodeId} from '@parcel/graph';
 import type {SchemaEntity} from '@parcel/utils';
@@ -41,7 +42,7 @@ type ManualSharedBundles = Array<{|
   split?: number,
 |}>;
 
-type BundlerConfig = {|
+type BaseBundlerConfig = {|
   http?: number,
   minBundles?: number,
   minBundleSize?: number,
@@ -49,6 +50,10 @@ type BundlerConfig = {|
   disableSharedBundles?: boolean,
   manualSharedBundles?: ManualSharedBundles,
 |};
+
+type BundlerConfig = {|
+  [mode: BuildMode]: BaseBundlerConfig,
+|} & BaseBundlerConfig;
 
 type ResolvedBundlerConfig = {|
   minBundles: number,
@@ -1790,6 +1795,34 @@ function removeBundle(
   bundleGraph.removeNode(bundleId);
 }
 
+function resolveEnvironmentConfig(
+  config: BundlerConfig,
+  mode: BuildMode,
+): BaseBundlerConfig {
+  // $FlowFixMe Not sure how to convince flow here...
+  let knownKeys: Array<$Keys<BaseBundlerConfig>> = Object.keys(
+    nullthrows(CONFIG_SCHEMA.properties),
+  );
+  let resolvedConfig = {};
+
+  for (const knownKey of knownKeys) {
+    if (knownKey in config) {
+      resolvedConfig[knownKey] = config[knownKey];
+    }
+  }
+
+  if (config[mode] != null) {
+    for (const knownKey of knownKeys) {
+      if (knownKey in config[mode]) {
+        resolvedConfig[knownKey] = config[mode][knownKey];
+      }
+    }
+  }
+
+  // $FlowFixMe Not sure how to convince flow here...
+  return resolvedConfig;
+}
+
 async function loadBundlerConfig(
   config: Config,
   options: PluginOptions,
@@ -1808,43 +1841,42 @@ async function loadBundlerConfig(
 
   invariant(conf?.contents != null);
 
+  let envConfig = resolveEnvironmentConfig(conf.contents, options.mode);
+
   // minBundles will be ignored if shared bundles are disabled
-  if (
-    conf.contents.minBundles != null &&
-    conf.contents.disableSharedBundles === true
-  ) {
+  if (envConfig.minBundles != null && envConfig.disableSharedBundles === true) {
     logger.warn({
       origin: '@parcel/bundler-default',
-      message: `The value of "${conf.contents.minBundles}" set for minBundles will not be used as shared bundles have been disabled`,
+      message: `The value of "${envConfig.minBundles}" set for minBundles will not be used as shared bundles have been disabled`,
     });
   }
 
   // minBundleSize will be ignored if shared bundles are disabled
   if (
-    conf.contents.minBundleSize != null &&
-    conf.contents.disableSharedBundles === true
+    envConfig.minBundleSize != null &&
+    envConfig.disableSharedBundles === true
   ) {
     logger.warn({
       origin: '@parcel/bundler-default',
-      message: `The value of "${conf.contents.minBundleSize}" set for minBundleSize will not be used as shared bundles have been disabled`,
+      message: `The value of "${envConfig.minBundleSize}" set for minBundleSize will not be used as shared bundles have been disabled`,
     });
   }
 
   // maxParallelRequests will be ignored if shared bundles are disabled
   if (
-    conf.contents.maxParallelRequests != null &&
-    conf.contents.disableSharedBundles === true
+    envConfig.maxParallelRequests != null &&
+    envConfig.disableSharedBundles === true
   ) {
     logger.warn({
       origin: '@parcel/bundler-default',
-      message: `The value of "${conf.contents.maxParallelRequests}" set for maxParallelRequests will not be used as shared bundles have been disabled`,
+      message: `The value of "${envConfig.maxParallelRequests}" set for maxParallelRequests will not be used as shared bundles have been disabled`,
     });
   }
 
   validateSchema.diagnostic(
     CONFIG_SCHEMA,
     {
-      data: conf?.contents,
+      data: envConfig,
       source: await options.inputFS.readFile(conf.filePath, 'utf8'),
       filePath: conf.filePath,
       prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
@@ -1853,19 +1885,19 @@ async function loadBundlerConfig(
     'Invalid config for @parcel/bundler-default',
   );
 
-  let http = conf.contents.http ?? 2;
+  let http = envConfig.http ?? 2;
   let defaults = HTTP_OPTIONS[http];
 
   return {
-    minBundles: conf.contents.minBundles ?? defaults.minBundles,
-    minBundleSize: conf.contents.minBundleSize ?? defaults.minBundleSize,
+    minBundles: envConfig.minBundles ?? defaults.minBundles,
+    minBundleSize: envConfig.minBundleSize ?? defaults.minBundleSize,
     maxParallelRequests:
-      conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
+      envConfig.maxParallelRequests ?? defaults.maxParallelRequests,
     projectRoot: options.projectRoot,
     disableSharedBundles:
-      conf.contents.disableSharedBundles ?? defaults.disableSharedBundles,
+      envConfig.disableSharedBundles ?? defaults.disableSharedBundles,
     manualSharedBundles:
-      conf.contents.manualSharedBundles ?? defaults.manualSharedBundles,
+      envConfig.manualSharedBundles ?? defaults.manualSharedBundles,
   };
 }
 

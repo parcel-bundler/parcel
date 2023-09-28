@@ -1,6 +1,0 @@
-{
-  "@parcel/bundler-default": {
-    "minBundles": 0,
-    "disableSharedBundles": true
-  }
-}

@@ -9,18 +9,52 @@ import {
   fsFixture,
 } from '@parcel/test-utils';
 
-describe('bundler', function () {
+describe.only('bundler', function () {
   it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      disable-shared-bundle-single-source
+        a.js:
+          import foo from './foo';
+          
+          export default 5;
+        b.js:
+          export default 4;
+        bar.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 3;
+        foo.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 2;
+        index.js:
+          import('./foo');
+          import('./bar');
+          
+          export default 1;
+          
+        package.json:
+          {
+            "@parcel/bundler-default": {
+              "minBundles": 0,
+              "minBundleSize": 200,
+              "maxParallelRequests": 100,
+              "disableSharedBundles": true
+            }
+          }
+          
+        yarn.lock:`;
+
     let b = await bundle(
-      path.join(
-        __dirname,
-        'integration/disable-shared-bundle-single-source/index.js',
-      ),
+      path.join(__dirname, 'disable-shared-bundle-single-source/index.js'),
       {
         mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: false,
         },
+        inputFS: overlayFS,
       },
     );
 
@@ -46,20 +80,50 @@ describe('bundler', function () {
   });
 
   it('should not create shared bundles and should warn when disableSharedBundles is set to true with maxParallelRequests set', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      disable-shared-bundles-true-parallel
+        a.js:
+          export default 5;
+        b.js:
+          export default 4;
+        bar.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 3;
+        foo.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 2;
+        index.js:
+          import('./foo');
+          import('./bar');
+          
+          export default 1;
+          
+        package.json:
+          {
+            "@parcel/bundler-default": {
+              "maxParallelRequests": 100,
+              "disableSharedBundles": true
+            }
+          }
+          
+        yarn.lock:`;
+
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
       messages.push(message);
     });
     let b = await bundle(
-      path.join(
-        __dirname,
-        'integration/disable-shared-bundles-true-parallel/index.js',
-      ),
+      path.join(__dirname, 'disable-shared-bundles-true-parallel/index.js'),
       {
         mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: false,
         },
+        inputFS: overlayFS,
       },
     );
     loggerDisposable.dispose();
@@ -99,6 +163,38 @@ describe('bundler', function () {
   });
 
   it('should not create shared bundles and should warn when disableSharedBundles is set to true with minBundleSize set', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      disable-shared-bundles-true-min-bundleSize
+        a.js:
+          export default 5;
+        b.js:
+          export default 4;
+        bar.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 3;
+        foo.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 2;
+        index.js:
+          import('./foo');
+          import('./bar');
+          
+          export default 1;
+          
+        package.json:
+          {
+            "@parcel/bundler-default": {
+              "minBundleSize": 200,
+              "disableSharedBundles": true
+            }
+          }
+          
+        yarn.lock:`;
+
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
       messages.push(message);
@@ -106,13 +202,14 @@ describe('bundler', function () {
     let b = await bundle(
       path.join(
         __dirname,
-        'integration/disable-shared-bundles-true-min-bundleSize/index.js',
+        'disable-shared-bundles-true-min-bundleSize/index.js',
       ),
       {
         mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: false,
         },
+        inputFS: overlayFS,
       },
     );
     loggerDisposable.dispose();
@@ -152,20 +249,50 @@ describe('bundler', function () {
   });
 
   it('should not create shared bundles and should warn when disableSharedBundles is set to true with minBundles set', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      disable-shared-bundles-true-min-bundles
+        a.js:
+          export default 5;
+        b.js:
+          export default 4;
+        bar.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 3;
+        foo.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 2;
+        index.js:
+          import('./foo');
+          import('./bar');
+          
+          export default 1;
+          
+        package.json:
+          {
+            "@parcel/bundler-default": {
+              "minBundles": 0,
+              "disableSharedBundles": true
+            }
+          }
+          
+        yarn.lock:`;
+
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
       messages.push(message);
     });
     let b = await bundle(
-      path.join(
-        __dirname,
-        'integration/disable-shared-bundles-true-min-bundles/index.js',
-      ),
+      path.join(__dirname, 'disable-shared-bundles-true-min-bundles/index.js'),
       {
         mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: false,
         },
+        inputFS: overlayFS,
       },
     );
     loggerDisposable.dispose();
@@ -205,6 +332,40 @@ describe('bundler', function () {
   });
 
   it('should not create shared bundles and should warn when disableSharedBundles is set to true with minBundles, minBundleSize and maxParallelRequests set', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      disable-shared-bundles-true-min-bundles-parallel
+        a.js:
+          export default 5;
+        b.js:
+          export default 4;
+        bar.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 3;
+        foo.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 2;
+        index.js:
+          import('./foo');
+          import('./bar');
+          
+          export default 1;
+          
+        package.json:
+          {
+            "@parcel/bundler-default": {
+              "minBundles": 0,
+              "minBundleSize": 200,
+              "maxParallelRequests": 100,
+              "disableSharedBundles": true
+            }
+          }
+          
+        yarn.lock:`;
+
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
       messages.push(message);
@@ -212,13 +373,14 @@ describe('bundler', function () {
     let b = await bundle(
       path.join(
         __dirname,
-        'integration/disable-shared-bundles-true-min-bundles-parallel/index.js',
+        'disable-shared-bundles-true-min-bundles-parallel/index.js',
       ),
       {
         mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: false,
         },
+        inputFS: overlayFS,
       },
     );
     loggerDisposable.dispose();
@@ -280,17 +442,52 @@ describe('bundler', function () {
   });
 
   it('should create shared bundles and should not throw a warning when disableSharedBundles is set to false', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      disable-shared-bundles-false
+        a.js:
+          export default 5;
+        b.js:
+          export default 4;
+        bar.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 3;
+        foo.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 2;
+        index.js:
+          import('./foo');
+          import('./bar');
+          
+          export default 1;
+          
+        package.json:
+          {
+            "@parcel/bundler-default": {
+              "minBundles": 0,
+              "minBundleSize": 200,
+              "maxParallelRequests": 100,
+              "disableSharedBundles": false
+            }
+          }
+          
+        yarn.lock:`;
+
     let messages = [];
     let loggerDisposable = Logger.onLog(message => {
       messages.push(message);
     });
     let b = await bundle(
-      path.join(__dirname, 'integration/disable-shared-bundles-false/index.js'),
+      path.join(__dirname, 'disable-shared-bundles-false/index.js'),
       {
         mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: false,
         },
+        inputFS: overlayFS,
       },
     );
     loggerDisposable.dispose();
@@ -321,16 +518,43 @@ describe('bundler', function () {
   });
 
   it('should not count inline assests towards parallel request limit', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      inlined-assests
+        buzz.js:
+          export default 7;
+        inline-module.js:
+          import('./buzz');
+          
+          export default 10;
+        local.html:
+          <!doctype html>
+          <html>
+            <body>
+              <script type="module">
+                import './inline-module';
+              </script>
+            </body>
+          </html>
+          
+        package.json:
+          {
+            "@parcel/bundler-default": {
+              "minBundles": 1,
+              "minBundleSize": 200,
+              "maxParallelRequests": 2
+            }
+          }
+          
+        yarn.lock:`;
+
     // Shared bundle should not be removed in this case
-    let b = await bundle(
-      path.join(__dirname, 'integration/inlined-assests/local.html'),
-      {
-        mode: 'production',
-        defaultTargetOptions: {
-          shouldScopeHoist: false,
-        },
+    let b = await bundle(path.join(__dirname, 'inlined-assests/local.html'), {
+      mode: 'production',
+      defaultTargetOptions: {
+        shouldScopeHoist: false,
       },
-    );
+      inputFS: overlayFS,
+    });
 
     assertBundles(b, [
       {
@@ -705,6 +929,77 @@ describe('bundler', function () {
       },
       {
         assets: ['c.js'],
+      },
+    ]);
+  });
+
+  it('should respect mode specific config', async function () {
+    await fsFixture(overlayFS, __dirname)`
+      mode-specific-bundler-config
+        a.js:
+          import foo from './foo';
+          
+          export default 5;
+        b.js:
+          export default 4;
+        bar.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 3;
+        foo.js:
+          import a from './a';
+          import b from './b';
+          
+          export default 2;
+        index.js:
+          import('./foo');
+          import('./bar');
+          
+          export default 1;
+          
+        package.json:
+          {
+            "@parcel/bundler-default": {
+              "minBundles": 0,
+              "minBundleSize": 200,
+              "production": {
+                "maxParallelRequests": 100,
+                "disableSharedBundles": true
+              }
+            }
+          }
+          
+        yarn.lock:`;
+
+    let b = await bundle(
+      path.join(__dirname, 'mode-specific-bundler-config/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+        inputFS: overlayFS,
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+        ],
+      },
+      {
+        assets: ['foo.js', 'a.js', 'b.js'],
+      },
+      {
+        assets: ['a.js', 'b.js', 'foo.js', 'bar.js'],
       },
     ]);
   });
