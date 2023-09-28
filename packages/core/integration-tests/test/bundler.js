@@ -9,7 +9,7 @@ import {
   fsFixture,
 } from '@parcel/test-utils';
 
-describe.only('bundler', function () {
+describe('bundler', function () {
   it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
     await fsFixture(overlayFS, __dirname)`
       disable-shared-bundle-single-source
@@ -1023,7 +1023,7 @@ describe.only('bundler', function () {
         {
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "manualSharedBundles": [{
+            "unstable_manualSharedBundles": [{
               "name": "vendor",
               "assets": ["vendor*.*"]
             }]
@@ -1105,7 +1105,7 @@ describe.only('bundler', function () {
         {
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "manualSharedBundles": [{
+            "unstable_manualSharedBundles": [{
               "name": "vendor",
               "assets": ["vendor*.*"],
               "types": ["js"]
@@ -1190,7 +1190,7 @@ describe.only('bundler', function () {
         {
           "@parcel/bundler-default": {
             "minBundleSize": 0,
-            "manualSharedBundles": [{
+            "unstable_manualSharedBundles": [{
               "name": "vendor",
               "parent": "math/math.js",
               "assets": ["math/!(divide).js"]
@@ -1251,7 +1251,7 @@ describe.only('bundler', function () {
           {
             "@parcel/bundler-default": {
               "minBundleSize": 0,
-              "manualSharedBundles": [{
+              "unstable_manualSharedBundles": [{
                 "name": "vendor",
                 "parent": "vendor.js",
                 "assets": ["**/*"],

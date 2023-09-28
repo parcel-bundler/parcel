@@ -48,7 +48,7 @@ type BaseBundlerConfig = {|
   minBundleSize?: number,
   maxParallelRequests?: number,
   disableSharedBundles?: boolean,
-  manualSharedBundles?: ManualSharedBundles,
+  unstable_manualSharedBundles?: ManualSharedBundles,
 |};
 
 type BundlerConfig = {|
@@ -1697,7 +1697,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
       type: 'number',
       enum: Object.keys(HTTP_OPTIONS).map(k => Number(k)),
     },
-    manualSharedBundles: {
+    unstable_manualSharedBundles: {
       type: 'array',
       items: {
         type: 'object',
@@ -1711,7 +1711,21 @@ const CONFIG_SCHEMA: SchemaEntity = {
               type: 'string',
             },
           },
+          types: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+          },
+          parent: {
+            type: 'string',
+          },
+          split: {
+            type: 'number',
+          },
         },
+        required: ['name', 'assets'],
+        additionalProperties: false,
       },
     },
     minBundles: {
@@ -1795,7 +1809,7 @@ function removeBundle(
   bundleGraph.removeNode(bundleId);
 }
 
-function resolveEnvironmentConfig(
+function resolveModeConfig(
   config: BundlerConfig,
   mode: BuildMode,
 ): BaseBundlerConfig {
@@ -1841,42 +1855,45 @@ async function loadBundlerConfig(
 
   invariant(conf?.contents != null);
 
-  let envConfig = resolveEnvironmentConfig(conf.contents, options.mode);
+  let modeConfig = resolveModeConfig(conf.contents, options.mode);
 
   // minBundles will be ignored if shared bundles are disabled
-  if (envConfig.minBundles != null && envConfig.disableSharedBundles === true) {
+  if (
+    modeConfig.minBundles != null &&
+    modeConfig.disableSharedBundles === true
+  ) {
     logger.warn({
       origin: '@parcel/bundler-default',
-      message: `The value of "${envConfig.minBundles}" set for minBundles will not be used as shared bundles have been disabled`,
+      message: `The value of "${modeConfig.minBundles}" set for minBundles will not be used as shared bundles have been disabled`,
     });
   }
 
   // minBundleSize will be ignored if shared bundles are disabled
   if (
-    envConfig.minBundleSize != null &&
-    envConfig.disableSharedBundles === true
+    modeConfig.minBundleSize != null &&
+    modeConfig.disableSharedBundles === true
   ) {
     logger.warn({
       origin: '@parcel/bundler-default',
-      message: `The value of "${envConfig.minBundleSize}" set for minBundleSize will not be used as shared bundles have been disabled`,
+      message: `The value of "${modeConfig.minBundleSize}" set for minBundleSize will not be used as shared bundles have been disabled`,
     });
   }
 
   // maxParallelRequests will be ignored if shared bundles are disabled
   if (
-    envConfig.maxParallelRequests != null &&
-    envConfig.disableSharedBundles === true
+    modeConfig.maxParallelRequests != null &&
+    modeConfig.disableSharedBundles === true
   ) {
     logger.warn({
       origin: '@parcel/bundler-default',
-      message: `The value of "${envConfig.maxParallelRequests}" set for maxParallelRequests will not be used as shared bundles have been disabled`,
+      message: `The value of "${modeConfig.maxParallelRequests}" set for maxParallelRequests will not be used as shared bundles have been disabled`,
     });
   }
 
   validateSchema.diagnostic(
     CONFIG_SCHEMA,
     {
-      data: envConfig,
+      data: modeConfig,
       source: await options.inputFS.readFile(conf.filePath, 'utf8'),
       filePath: conf.filePath,
       prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
@@ -1885,19 +1902,19 @@ async function loadBundlerConfig(
     'Invalid config for @parcel/bundler-default',
   );
 
-  let http = envConfig.http ?? 2;
+  let http = modeConfig.http ?? 2;
   let defaults = HTTP_OPTIONS[http];
 
   return {
-    minBundles: envConfig.minBundles ?? defaults.minBundles,
-    minBundleSize: envConfig.minBundleSize ?? defaults.minBundleSize,
+    minBundles: modeConfig.minBundles ?? defaults.minBundles,
+    minBundleSize: modeConfig.minBundleSize ?? defaults.minBundleSize,
     maxParallelRequests:
-      envConfig.maxParallelRequests ?? defaults.maxParallelRequests,
+      modeConfig.maxParallelRequests ?? defaults.maxParallelRequests,
     projectRoot: options.projectRoot,
     disableSharedBundles:
-      envConfig.disableSharedBundles ?? defaults.disableSharedBundles,
+      modeConfig.disableSharedBundles ?? defaults.disableSharedBundles,
     manualSharedBundles:
-      envConfig.manualSharedBundles ?? defaults.manualSharedBundles,
+      modeConfig.unstable_manualSharedBundles ?? defaults.manualSharedBundles,
   };
 }
 
