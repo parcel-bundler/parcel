@@ -1,7 +1,13 @@
 import path from 'path';
 import assert from 'assert';
 import Logger from '@parcel/logger';
-import {bundle, assertBundles, findAsset} from '@parcel/test-utils';
+import {
+  bundle,
+  assertBundles,
+  findAsset,
+  overlayFS,
+  fsFixture,
+} from '@parcel/test-utils';
 
 describe('bundler', function () {
   it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
@@ -703,149 +709,329 @@ describe('bundler', function () {
     ]);
   });
 
-  // The following tests exercise UNSTABLE Manual Shared bundle option, which allows users
-  // to specify globs of assets for shared bundles and name them
-  it.skip('should support manual shared bundles via glob config option for different types', async function () {
-    let b = await bundle(
-      path.join(__dirname, 'integration/manual-bundle-typeglob/index.js'),
-      {
+  describe.only('manual shared bundles', () => {
+    const dir = path.join(__dirname, 'manual-bundle');
+
+    beforeEach(() => {
+      overlayFS.mkdirp(dir);
+    });
+
+    afterEach(() => {
+      overlayFS.rimraf(dir);
+    });
+
+    it('should support manual shared bundles via glob config option for different types', async function () {
+      await fsFixture(overlayFS, dir)`
+      yarn.lock:
+        // Required for config loading
+      package.json:
+        {
+          "@parcel/bundler-default": {
+            "minBundleSize": 0,
+            "manualSharedBundles": [{
+              "name": "vendor",
+              "assets": ["vendor*.*"]
+            }]
+          }
+        }
+      
+      index.html:
+        <script type="module" src="./index.js"></script>
+
+      index.js:
+        import './vendor.css';
+        import './vendor.js';
+        import('./async');
+
+      async.js:
+        import './vendor-async.css';
+        import './vendor-async.js';
+
+      vendor.js:
+        export default 'vendor.js';
+      
+      vendor-async.js:
+        export default 'vendor-async.js';
+
+      vendor.css:
+        body {
+          background: blue;
+        }
+      
+      vendor-async.css:
+        body {
+          color: blue;
+        }
+        `;
+
+      let b = await bundle(path.join(dir, 'index.html'), {
         mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: false,
+          sourceMaps: false,
         },
-      },
-    );
+        inputFS: overlayFS,
+      });
 
-    assertBundles(b, [
-      {
-        assets: ['foo.js'],
-      },
-      {
-        assets: ['a.js'],
-      },
-      {
-        assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'css-loader.js',
-          'esmodule-helpers.js',
-          'index.js',
-          'js-loader.js',
-        ],
-      },
-      {
-        assets: ['a.css'], //our manual sharedbundle
-      },
-    ]);
-  });
-  it.skip('should support manual shared bundles via glob config option for sync and async assets', async function () {
-    let b = await bundle(
-      path.join(__dirname, 'integration/manual-bundle/index.js'),
-    );
-    assertBundles(b, [
-      {
-        assets: ['foo.js', 'a.js', 'b.js'],
-      },
-      {
-        assets: [
-          'bundle-url.js',
-          'cacheLoader.js',
-          'esmodule-helpers.js',
-          'index.js',
-          'js-loader.js',
-        ],
-      },
-    ]);
-  });
-  it('should support manual shared bundles via parent glob config option', async function () {
-    let b = await bundle(
-      path.join(__dirname, 'integration/manual-bundle-parent/index.js'),
-    );
-    //assert that a,b,c are in one bundle, causeing foo and bar to overfetch, due to MSB config
-    assertBundles(b, [
-      {
-        assets: ['foo.js'],
-      },
-      {
-        assets: ['bar.js'],
-      },
-      {
-        assets: ['c.js', 'a.js', 'b.js'],
-      },
+      assertBundles(b, [
+        {
+          assets: ['index.html'],
+        },
+        {
+          assets: [
+            'bundle-manifest.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'css-loader.js',
+            'esmodule-helpers.js',
+            'index.js',
+            'js-loader.js',
+          ],
+        },
+        {
+          assets: ['async.js'],
+        },
+        {
+          // Vendor MSB for CSS
+          assets: ['vendor.css', 'vendor-async.css'],
+        },
+        {
+          // Vendor MSB for JS
+          assets: ['vendor.js', 'vendor-async.js'],
+        },
+      ]);
+    });
 
-      {
-        assets: [
-          'bundle-url.js',
-          'cacheLoader.js',
-          'esmodule-helpers.js',
-          'index.js',
-          'js-loader.js',
-        ],
-      },
-    ]);
-  });
-  it.skip('should support manual shared bundles for specific bundles, duplicated the assets for others', async function () {
-    // In this case we want to allow for manual shared bundles to only deduplicate for specific
-    let b = await bundle(
-      path.join(
-        __dirname,
-        'integration/manual-bundle-duplication-option/index.js',
-      ),
-    );
-    //assert that foo has a in bundlegroup
-    assertBundles(b, [
-      {
-        assets: ['foo.js'],
-      },
-      {
-        assets: ['a.js', 'b.js'],
-      },
-      {
-        assets: ['bar.js', 'b.js'], // b is duplicated because 'bar' is not an 'Active' for this MSB
-      },
-      {
-        assets: [
-          'bundle-url.js',
-          'cacheLoader.js',
-          'esmodule-helpers.js',
-          'index.js',
-          'js-loader.js',
-        ],
-      },
-    ]);
-  });
-  it('should support consistently splitting manual shared bundles', async function () {
-    // In this case we want to allow for manual shared bundles to only deduplicate for specific
-    let b = await bundle(
-      path.join(__dirname, 'integration/manual-bundle-split/index.js'),
-    );
-    //assert that foo has a in bundlegroup
-    assertBundles(b, [
-      {
-        assets: ['foo.js'],
-      },
-      {
-        assets: ['a.js', 'e.js', 'b.js'],
-      },
-      {
-        assets: ['d.js', 'c.js', 'f.js', 'g.js'],
-      },
-      {
-        assets: ['h.js'],
-      },
-      {
-        assets: ['bar.js'], // b is duplicated because 'bar' is not an 'Active' for this MSB
-      },
-      {
-        assets: [
-          'bundle-url.js',
-          'cacheLoader.js',
-          'esmodule-helpers.js',
-          'index.js',
-          'js-loader.js',
-        ],
-      },
-    ]);
+    it('should support manual shared bundles via glob config option for configured types', async function () {
+      await fsFixture(overlayFS, dir)`
+      yarn.lock:
+        // Required for config loading
+      package.json:
+        {
+          "@parcel/bundler-default": {
+            "minBundleSize": 0,
+            "manualSharedBundles": [{
+              "name": "vendor",
+              "assets": ["vendor*.*"],
+              "types": ["js"]
+            }]
+          }
+        }
+      
+      index.html:
+        <script type="module" src="./index.js"></script>
+
+      index.js:
+        import './vendor.css';
+        import './vendor.js';
+        import('./async');
+
+      async.js:
+        import './vendor-async.css';
+        import './vendor-async.js';
+
+      vendor.js:
+        export default 'vendor.js';
+      
+      vendor-async.js:
+        export default 'vendor-async.js';
+
+      vendor.css:
+        body {
+          background: blue;
+        }
+      
+      vendor-async.css:
+        body {
+          color: blue;
+        }
+        `;
+
+      let b = await bundle(path.join(dir, 'index.html'), {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          sourceMaps: false,
+        },
+        inputFS: overlayFS,
+      });
+
+      assertBundles(b, [
+        {
+          assets: ['index.html'],
+        },
+        {
+          assets: [
+            'bundle-manifest.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'css-loader.js',
+            'esmodule-helpers.js',
+            'index.js',
+            'js-loader.js',
+          ],
+        },
+        {
+          assets: ['async.js'],
+        },
+        {
+          assets: ['vendor.css'],
+        },
+        {
+          assets: ['vendor-async.css'],
+        },
+        {
+          // Vendor MSB for JS
+          assets: ['vendor.js', 'vendor-async.js'],
+        },
+      ]);
+    });
+
+    it('should support manual shared bundles via parent config option', async function () {
+      await fsFixture(overlayFS, dir)`
+      yarn.lock:
+        // Required for config loading
+      package.json:
+        {
+          "@parcel/bundler-default": {
+            "minBundleSize": 0,
+            "manualSharedBundles": [{
+              "name": "vendor",
+              "parent": "math/math.js",
+              "assets": ["math/!(divide).js"]
+            }]
+          }
+        }
+
+      index.html:
+        <script type="module" src="./index.js"></script>
+
+      index.js:
+        import {add, subtract, divide} from './math/math';
+        sideEffectNoop(divide(subtract(add(1, 2), 3), 4));
+
+      math
+        math.js:
+          export * from './add';
+          export * from './subtract';  
+          export * from './divide';  
+
+        add.js:
+          export const add = (a, b) => a + b;
+
+        subtract.js:
+          export const subtract = (a, b) => a - b;
+
+        divide.js:
+          export const divide = (a, b) => a / b;
+      `;
+
+      let b = await bundle(path.join(dir, 'index.html'), {
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          sourceMaps: false,
+        },
+        inputFS: overlayFS,
+      });
+      //assert that a,b,c are in one bundle, causeing foo and bar to overfetch, due to MSB config
+      assertBundles(b, [
+        {
+          assets: ['index.html'],
+        },
+        {
+          assets: ['esmodule-helpers.js', 'index.js', 'divide.js'],
+        },
+        {
+          // Manual shared bundle
+          assets: ['math.js', 'add.js', 'subtract.js'],
+        },
+      ]);
+    });
+
+    it('should support consistently splitting manual shared bundles', async function () {
+      await fsFixture(overlayFS, dir)`
+        yarn.lock:
+          // Required for config loading
+        package.json:
+          {
+            "@parcel/bundler-default": {
+              "minBundleSize": 0,
+              "manualSharedBundles": [{
+                "name": "vendor",
+                "parent": "vendor.js",
+                "assets": ["**/*"],
+                "split": 3
+              }]
+            }
+          }
+
+        index.html:
+          <script type="module" src="./index.js"></script>
+
+        index.js:
+          import * as vendor from './vendor';
+          sideEffectNoop(vendor);
+
+        vendor.js:
+          export * from './a';
+          export * from './b';  
+          export * from './c';
+          export * from './d';  
+          export * from './e';
+          export * from './f';
+          export * from './g';
+          export * from './h';
+          export * from './i';
+          export * from './j';   
+
+        a.js:
+          export const a = 'a';
+        b.js:
+          export const b = 'b';
+        c.js:
+          export const c = 'c';
+        d.js:
+          export const d = 'd';
+        e.js:
+          export const e = 'e';
+        f.js:
+          export const f = 'f';
+        g.js:
+          export const g = 'g';
+        h.js:
+          export const h = 'h';
+        i.js:
+          export const i = 'i';
+        j.js:
+          export const j = 'j';
+      `;
+
+      let b = await bundle(path.join(dir, 'index.html'), {
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          shouldOptimize: false,
+          sourceMaps: false,
+        },
+        inputFS: overlayFS,
+      });
+
+      assertBundles(b, [
+        {
+          assets: ['index.html'],
+        },
+        {
+          assets: ['a.js', 'i.js'],
+        },
+        {
+          assets: ['vendor.js', 'b.js', 'j.js'],
+        },
+        {
+          assets: ['c.js', 'd.js', 'e.js', 'f.js', 'g.js', 'h.js'],
+        },
+        {
+          assets: ['esmodule-helpers.js', 'index.js'],
+        },
+      ]);
+    });
   });
 });

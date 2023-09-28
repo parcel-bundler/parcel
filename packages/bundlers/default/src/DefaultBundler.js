@@ -468,12 +468,15 @@ function createIdealGraph(
         'Invalid manual shared bundle. Could not find parent asset.',
       );
 
+      let parentAsset = configToParentAsset.get(c);
+
       assetGraph.traverse((node, _, actions) => {
         if (
           node.type === 'asset' &&
           (!Array.isArray(c.types) || c.types.includes(node.value.type)) &&
           isGlobMatch(
-            node.value.filePath.slice(config.projectRoot.length),
+            // +1 accounts for the leading slash
+            node.value.filePath.slice(config.projectRoot.length + 1),
             c.assets,
           )
         ) {
@@ -486,11 +489,15 @@ function createIdealGraph(
           return;
         }
 
-        if (node.type === 'dependency' && node.value.priority === 'lazy') {
+        if (
+          node.type === 'dependency' &&
+          node.value.priority === 'lazy' &&
+          parentAsset
+        ) {
           // Don't walk past the bundle group assets
           actions.skipChildren();
         }
-      }, configToParentAsset.get(c));
+      }, parentAsset);
     }
 
     return {manualAssetToConfig, constantModuleToMSB};
@@ -1358,44 +1365,47 @@ function createIdealGraph(
   for (let [manualName, id] of manualSharedMap) {
     let manualBundle = bundleGraph.getNode(id);
     invariant(manualBundle !== 'root' && manualBundle != null);
-    let firstSourceBundle = nullthrows(
-      bundleGraph.getNode([...manualBundle.sourceBundles][0]),
-    );
-    invariant(firstSourceBundle !== 'root');
-    let firstAsset = [...manualBundle.assets][0];
-    let manualSharedObject = manualAssetToConfig.get(firstAsset);
-    invariant(manualSharedObject != null);
-    let modNum = manualAssetToConfig.get(firstAsset)?.split;
-    if (modNum != null) {
-      for (let a of [...manualBundle.assets]) {
-        let numRep = getBigIntFromContentKey(a.id);
-        // $FlowFixMe Flow doesn't know about BigInt
-        let r = Number(numRep % BigInt(modNum));
 
-        remainderMap.get(r).push(a);
-      }
+    if (manualBundle.sourceBundles.size > 0) {
+      let firstSourceBundle = nullthrows(
+        bundleGraph.getNode([...manualBundle.sourceBundles][0]),
+      );
+      invariant(firstSourceBundle !== 'root');
+      let firstAsset = [...manualBundle.assets][0];
+      let manualSharedObject = manualAssetToConfig.get(firstAsset);
+      invariant(manualSharedObject != null);
+      let modNum = manualAssetToConfig.get(firstAsset)?.split;
+      if (modNum != null) {
+        for (let a of [...manualBundle.assets]) {
+          let numRep = getBigIntFromContentKey(a.id);
+          // $FlowFixMe Flow doesn't know about BigInt
+          let r = Number(numRep % BigInt(modNum));
 
-      for (let i = 1; i < [...remainderMap.keys()].length; i++) {
-        let bundle = createBundle({
-          target: firstSourceBundle.target,
-          type: firstSourceBundle.type,
-          env: firstSourceBundle.env,
-          manualSharedBundle: manualSharedObject.name,
-        });
-        bundle.sourceBundles = manualBundle.sourceBundles;
-        bundle.internalizedAssets = manualBundle.internalizedAssets;
-        let bundleId = bundleGraph.addNode(bundle);
-        manualSharedBundleIds.add(bundleId);
-        for (let sourceBundleId of manualBundle.sourceBundles) {
-          if (bundleId !== sourceBundleId) {
-            bundleGraph.addEdge(sourceBundleId, bundleId);
-          }
+          remainderMap.get(r).push(a);
         }
-        for (let sp of remainderMap.get(i)) {
-          bundle.assets.add(sp);
-          bundle.size += sp.stats.size;
-          manualBundle.assets.delete(sp);
-          manualBundle.size -= sp.stats.size;
+
+        for (let i = 1; i < [...remainderMap.keys()].length; i++) {
+          let bundle = createBundle({
+            target: firstSourceBundle.target,
+            type: firstSourceBundle.type,
+            env: firstSourceBundle.env,
+            manualSharedBundle: manualSharedObject.name,
+          });
+          bundle.sourceBundles = manualBundle.sourceBundles;
+          bundle.internalizedAssets = manualBundle.internalizedAssets;
+          let bundleId = bundleGraph.addNode(bundle);
+          manualSharedBundleIds.add(bundleId);
+          for (let sourceBundleId of manualBundle.sourceBundles) {
+            if (bundleId !== sourceBundleId) {
+              bundleGraph.addEdge(sourceBundleId, bundleId);
+            }
+          }
+          for (let sp of remainderMap.get(i)) {
+            bundle.assets.add(sp);
+            bundle.size += sp.stats.size;
+            manualBundle.assets.delete(sp);
+            manualBundle.size -= sp.stats.size;
+          }
         }
       }
     }
