@@ -709,7 +709,7 @@ describe('bundler', function () {
     ]);
   });
 
-  describe.only('manual shared bundles', () => {
+  describe('manual shared bundles', () => {
     const dir = path.join(__dirname, 'manual-bundle');
 
     beforeEach(() => {
