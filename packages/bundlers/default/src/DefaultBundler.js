@@ -183,6 +183,10 @@ function decorateLegacyGraph(
     let bundle;
 
     if (bundleGroupBundleIds.has(bundleNodeId)) {
+      invariant(
+        idealBundle.manualSharedBundle == null,
+        'Unstable Manual Shared Bundle feature is processing a manualSharedBundle as a BundleGroup',
+      );
       let dependencies = dependencyBundleGraph
         .getNodeIdsConnectedTo(
           dependencyBundleGraph.getNodeIdByContentKey(String(bundleNodeId)),
@@ -198,18 +202,11 @@ function decorateLegacyGraph(
         'Processing a bundleGroup with no entry asset',
       );
       for (let dependency of dependencies) {
-        if (
-          nullthrows(bundleGraph.getResolvedAsset(dependency)).id ===
-          entryAsset.id
-        ) {
-          bundleGroup = bundleGraph.createBundleGroup(
-            dependency,
-            idealBundle.target,
-          );
-          bundleGroups.push(bundleGroup);
-        } else {
-          //Warning?
-        }
+        bundleGroup = bundleGraph.createBundleGroup(
+          dependency,
+          idealBundle.target,
+        );
+        bundleGroups.push(bundleGroup);
       }
       invariant(bundleGroup);
       entryBundleToBundleGroup.set(bundleNodeId, bundleGroup);
