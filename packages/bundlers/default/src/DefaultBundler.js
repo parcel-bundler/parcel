@@ -1813,28 +1813,24 @@ function resolveModeConfig(
   config: BundlerConfig,
   mode: BuildMode,
 ): BaseBundlerConfig {
-  // $FlowFixMe Not sure how to convince flow here...
-  let knownKeys: Array<$Keys<BaseBundlerConfig>> = Object.keys(
-    nullthrows(CONFIG_SCHEMA.properties),
-  );
-  let resolvedConfig = {};
+  let generalConfig = {};
+  let modeConfig = {};
 
-  for (const knownKey of knownKeys) {
-    if (knownKey in config) {
-      resolvedConfig[knownKey] = config[knownKey];
-    }
-  }
-
-  if (config[mode] != null) {
-    for (const knownKey of knownKeys) {
-      if (knownKey in config[mode]) {
-        resolvedConfig[knownKey] = config[mode][knownKey];
+  for (const key of Object.keys(config)) {
+    if (key === 'development' || key === 'production') {
+      if (key === mode) {
+        modeConfig = config[key];
       }
+    } else {
+      generalConfig[key] = config[key];
     }
   }
 
   // $FlowFixMe Not sure how to convince flow here...
-  return resolvedConfig;
+  return {
+    ...generalConfig,
+    ...modeConfig,
+  };
 }
 
 async function loadBundlerConfig(
