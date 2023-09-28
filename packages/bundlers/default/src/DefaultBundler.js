@@ -25,7 +25,7 @@ import {
   validateSchema,
   DefaultMap,
   BitSet,
-  isGlobMatch,
+  globToRegex,
 } from '@parcel/utils';
 import logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
@@ -474,17 +474,21 @@ function createIdealGraph(
       );
 
       let parentAsset = configToParentAsset.get(c);
+      let assetRegexes = c.assets.map(glob => globToRegex(glob));
 
       assetGraph.traverse((node, _, actions) => {
         if (
           node.type === 'asset' &&
-          (!Array.isArray(c.types) || c.types.includes(node.value.type)) &&
-          isGlobMatch(
-            // +1 accounts for the leading slash
-            node.value.filePath.slice(config.projectRoot.length + 1),
-            c.assets,
-          )
+          (!Array.isArray(c.types) || c.types.includes(node.value.type))
         ) {
+          // +1 accounts for leading slash
+          let projectRelativePath = node.value.filePath.slice(
+            config.projectRoot.length + 1,
+          );
+          if (!assetRegexes.some(regex => regex.test(projectRelativePath))) {
+            return;
+          }
+
           // We track all matching MSB's for constant modules as they are never duplicated
           // and need to be assigned to all matching bundles
           if (node.value.meta.isConstantModule === true) {
