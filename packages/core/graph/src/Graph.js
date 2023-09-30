@@ -8,7 +8,7 @@ import type {
   GraphVisitor,
   GraphTraversalCallback,
 } from '@parcel/types';
-import {RawBitSet} from '@parcel/utils';
+import {BitSet} from './BitSet';
 
 import nullthrows from 'nullthrows';
 
@@ -32,7 +32,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   nodes: Array<TNode | null>;
   adjacencyList: AdjacencyList<TEdgeType>;
   rootNodeId: ?NodeId;
-  _visited: ?RawBitSet;
+  _visited: ?BitSet;
 
   constructor(opts: ?GraphOpts<TNode, TEdgeType>) {
     this.nodes = opts?.nodes || [];
@@ -334,7 +334,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
     let visited;
     if (!this._visited || this._visited.capacity < this.nodes.length) {
-      this._visited = new RawBitSet(this.nodes.length);
+      this._visited = new BitSet(this.nodes.length);
       visited = this._visited;
     } else {
       visited = this._visited;
@@ -405,7 +405,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
     let visited;
     if (!this._visited || this._visited.capacity < this.nodes.length) {
-      this._visited = new RawBitSet(this.nodes.length);
+      this._visited = new BitSet(this.nodes.length);
       visited = this._visited;
     } else {
       visited = this._visited;
