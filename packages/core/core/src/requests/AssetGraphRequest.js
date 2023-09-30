@@ -242,7 +242,7 @@ export class AssetGraphBuilder {
       throw errors[0];
     }
 
-    if (this.assetGraph.nodes.size > 1) {
+    if (this.assetGraph.nodes.length > 1) {
       await dumpGraphToGraphViz(
         this.assetGraph,
         'AssetGraph_' + this.name + '_before_prop',
