@@ -39,6 +39,15 @@ const MANIFEST_SCHEMA: SchemaEntity = {
         },
       },
     },
+    file_handlers: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          icons: RESOURCES_SCHEMA,
+        },
+      },
+    },
   },
 };
 
@@ -54,8 +63,7 @@ export default (new Transformer({
       'Invalid webmanifest',
     );
 
-    for (const key of ['icons', 'screenshots']) {
-      const list = data[key];
+    function addResourceListToAsset(list, parent) {
       if (list) {
         invariant(Array.isArray(list));
         for (let i = 0; i < list.length; i++) {
@@ -63,31 +71,28 @@ export default (new Transformer({
           res.src = asset.addURLDependency(res.src, {
             loc: {
               filePath: asset.filePath,
-              ...getJSONSourceLocation(pointers[`/${key}/${i}/src`], 'value'),
+              ...getJSONSourceLocation(
+                pointers[`/${parent}/${i}/src`],
+                'value',
+              ),
             },
           });
         }
       }
     }
 
-    if (data.shortcuts) {
-      invariant(Array.isArray(data.shortcuts));
-      for (let i = 0; i < data.shortcuts.length; i++) {
-        const list = data.shortcuts[i].icons;
-        if (list) {
-          invariant(Array.isArray(list));
-          for (let j = 0; j < list.length; j++) {
-            const res = list[j];
-            res.src = asset.addURLDependency(res.src, {
-              loc: {
-                filePath: asset.filePath,
-                ...getJSONSourceLocation(
-                  pointers[`/shortcuts/${i}/icons/${j}/src`],
-                  'value',
-                ),
-              },
-            });
-          }
+    for (const key of ['icons', 'screenshots']) {
+      const list = data[key];
+      addResourceListToAsset(list, key);
+    }
+
+    for (const key of ['shortcuts', 'file_handlers']) {
+      const list = data[key];
+      if (list) {
+        invariant(Array.isArray(list));
+        for (let i = 0; i < list.length; i++) {
+          const iconList = list[i].icons;
+          addResourceListToAsset(iconList, `${key}/${i}/icons`);
         }
       }
     }
