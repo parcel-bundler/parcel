@@ -10,7 +10,7 @@ import type {
   Config,
   DevDepRequest,
   ParcelOptions,
-} from "./types";
+} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
 import type {RunAPI} from './RequestTracker';
@@ -138,7 +138,12 @@ export default async function applyRuntimes<TResult>({
             let assetGroup = {
               code,
               filePath: toProjectPath(options.projectRoot, sourceName),
-              env: mergeEnvironments(options.db, options.projectRoot, bundle.env, env),
+              env: mergeEnvironments(
+                options.db,
+                options.projectRoot,
+                bundle.env,
+                env,
+              ),
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,

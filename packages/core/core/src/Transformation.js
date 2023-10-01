@@ -20,7 +20,7 @@ import type {
   InternalFileCreateInvalidation,
   InternalDevDepOptions,
   AssetRequestResult,
-} from "./types";
+} from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
 import path from 'path';

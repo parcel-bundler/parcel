@@ -1,4 +1,4 @@
-use std::{cell::UnsafeCell, marker::PhantomData, ptr::NonNull, sync::atomic::AtomicUsize};
+use std::{cell::UnsafeCell, marker::PhantomData, ptr::NonNull};
 
 use allocator_api2::alloc::{AllocError, Allocator, Layout};
 

@@ -32,7 +32,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {hashString, hashBuffer, Hash} from '@parcel/rust';
-import { Environment as DbEnvironment, Target as DbTarget } from '@parcel/rust';
+import {Environment as DbEnvironment, Target as DbTarget} from '@parcel/rust';
 
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import BundleGraph, {
@@ -581,22 +581,13 @@ export default class PackagerRunner {
 
     let env = DbEnvironment.get(this.options.db, bundle.env);
     if (bundle.target) {
-      if (
-        env.sourceMap &&
-        env.sourceMap.sourceRoot != null
-      ) {
+      if (env.sourceMap && env.sourceMap.sourceRoot != null) {
         sourceRoot = env.sourceMap.sourceRoot;
-      } else if (
-        this.options.serveOptions &&
-        env.context === 'browser'
-      ) {
+      } else if (this.options.serveOptions && env.context === 'browser') {
         sourceRoot = '/__parcel_source_root';
       }
 
-      if (
-        env.sourceMap &&
-        env.sourceMap.inlineSources != null
-      ) {
+      if (env.sourceMap && env.sourceMap.inlineSources != null) {
         inlineSources = env.sourceMap.inlineSources;
       } else if (env.context !== 'node') {
         // inlining should only happen in production for browser targets by default

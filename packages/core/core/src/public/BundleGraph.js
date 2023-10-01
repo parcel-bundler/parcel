@@ -235,7 +235,10 @@ export default class BundleGraph<TBundle: IBundle>
     return {
       asset: assetFromValue(res.asset, this.#options),
       exportSymbol: readCachedString(this.#options.db, res.exportSymbol),
-      symbol: typeof res.symbol === 'number' ? readCachedString(this.#options.db, res.symbol) : res.symbol,
+      symbol:
+        typeof res.symbol === 'number'
+          ? readCachedString(this.#options.db, res.symbol)
+          : res.symbol,
       loc: fromInternalSourceLocation(this.#options.projectRoot, res.loc),
     };
   }
@@ -251,7 +254,10 @@ export default class BundleGraph<TBundle: IBundle>
     return res.map(e => ({
       asset: assetFromValue(e.asset, this.#options),
       exportSymbol: readCachedString(this.#options.db, e.exportSymbol),
-      symbol: typeof e.symbol === 'number' ? readCachedString(this.#options.db, e.symbol) : e.symbol,
+      symbol:
+        typeof e.symbol === 'number'
+          ? readCachedString(this.#options.db, e.symbol)
+          : e.symbol,
       loc: fromInternalSourceLocation(this.#options.projectRoot, e.loc),
       exportAs: e.exportAs,
     }));

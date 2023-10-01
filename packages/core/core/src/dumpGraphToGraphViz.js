@@ -145,7 +145,9 @@ export default async function dumpGraphToGraphViz(
             if (node.usedSymbolsDown.size > 0) {
               label +=
                 '\\nusedSymbolsDown: ' +
-                [...node.usedSymbolsDown].map(s => readCachedString(db, s)).join(',');
+                [...node.usedSymbolsDown]
+                  .map(s => readCachedString(db, s))
+                  .join(',');
             }
             // if (node.usedSymbolsDownDirty) label += '\\nusedSymbolsDownDirty';
             // if (node.usedSymbolsUpDirtyDown)
@@ -199,7 +201,8 @@ export default async function dumpGraphToGraphViz(
         parts.push('bb:' + (node.value.bundleBehavior ?? 'null'));
         if (node.value.isPlaceholder) parts.push('placeholder');
         if (parts.length) label += ' (' + parts.join(', ') + ')';
-        if (node.value.env) label += ` (${getEnvDescription(db, node.value.env)})`;
+        if (node.value.env)
+          label += ` (${getEnvDescription(db, node.value.env)})`;
       } else if (node.type === 'request') {
         label = node.value.type + ':' + node.id;
       }

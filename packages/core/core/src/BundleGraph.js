@@ -7,11 +7,7 @@ import type {
   TraversalActions,
   BundleBehavior as IBundleBehavior,
 } from '@parcel/types';
-import type {
-  ContentKey,
-  NodeId,
-  SerializedContentGraph,
-} from '@parcel/graph';
+import type {ContentKey, NodeId, SerializedContentGraph} from '@parcel/graph';
 import type {SerializedParcelDb} from '@parcel/rust';
 
 import type {
@@ -100,7 +96,7 @@ type SerializedBundleGraph = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<number, string>,
-  db: SerializedParcelDb
+  db: SerializedParcelDb,
 |};
 
 function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
@@ -143,17 +139,20 @@ export default class BundleGraph {
   _bundlePublicIds /*: Set<string> */ = new Set<string>();
   db: ParcelDb;
 
-  constructor(db: ParcelDb, {
-    graph,
-    publicIdByAssetId,
-    assetPublicIds,
-    bundleContentHashes,
-  }: {|
-    graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>,
-    publicIdByAssetId: Map<number, string>,
-    assetPublicIds: Set<string>,
-    bundleContentHashes: Map<string, string>,
-  |}) {
+  constructor(
+    db: ParcelDb,
+    {
+      graph,
+      publicIdByAssetId,
+      assetPublicIds,
+      bundleContentHashes,
+    }: {|
+      graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>,
+      publicIdByAssetId: Map<number, string>,
+      assetPublicIds: Set<string>,
+      bundleContentHashes: Map<string, string>,
+    |},
+  ) {
     this.db = db;
     this._graph = graph;
     this._assetPublicIds = assetPublicIds;
@@ -311,7 +310,10 @@ export default class BundleGraph {
               let symbols = clonedDep.symbols;
               symbols.init();
               for (let sym of dep.symbols) {
-                if (target.has(sym.exported) || sym.exported === db.starSymbol) {
+                if (
+                  target.has(sym.exported) ||
+                  sym.exported === db.starSymbol
+                ) {
                   let s = symbols.extend();
                   s.exported = target.get(sym.exported) ?? sym.exported;
                   s.local = sym.local;
@@ -418,7 +420,7 @@ export default class BundleGraph {
       assetPublicIds: this._assetPublicIds,
       bundleContentHashes: this._bundleContentHashes,
       publicIdByAssetId: this._publicIdByAssetId,
-      db: this.db.serialize()
+      db: this.db.serialize(),
     };
   }
 
@@ -482,7 +484,8 @@ export default class BundleGraph {
       isPlaceholder = entryAssetNode.requested === false;
     }
 
-    let asset = opts.entryAsset != null ? DbAsset.get(this.db, opts.entryAsset) : null;
+    let asset =
+      opts.entryAsset != null ? DbAsset.get(this.db, opts.entryAsset) : null;
     let bundleNode: BundleNode = {
       type: 'bundle',
       id: bundleId,
@@ -709,7 +712,9 @@ export default class BundleGraph {
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
     return this._graph
       .getNodeIdsConnectedTo(
-        this._graph.getNodeIdByContentKey(getBundleGroupId(this.db, bundleGroup)),
+        this._graph.getNodeIdByContentKey(
+          getBundleGroupId(this.db, bundleGroup),
+        ),
         bundleGraphEdgeTypes.bundle,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
@@ -1289,7 +1294,9 @@ export default class BundleGraph {
 
       // Get a list of parent bundle nodes pointing to the bundle group
       let parentBundleNodes = this._graph.getNodeIdsConnectedTo(
-        this._graph.getNodeIdByContentKey(getBundleGroupId(this.db, bundleGroup)),
+        this._graph.getNodeIdByContentKey(
+          getBundleGroupId(this.db, bundleGroup),
+        ),
         bundleGraphEdgeTypes.bundle,
       );
 
@@ -1754,7 +1761,8 @@ export default class BundleGraph {
       // Wildcard reexports are never listed in the reexporting asset's symbols.
       if (
         foundSymbol == null &&
-        depSymbols.find(s => s.exported === this.db.starSymbol)?.local === this.db.starSymbol &&
+        depSymbols.find(s => s.exported === this.db.starSymbol)?.local ===
+          this.db.starSymbol &&
         symbol !== this.db.defaultSymbol
       ) {
         let resolved = this.getResolvedAsset(depId);
@@ -1896,7 +1904,8 @@ export default class BundleGraph {
       if (!depSymbols) continue;
 
       if (
-        depSymbols.find(s => s.exported === this.db.starSymbol)?.local === this.db.starSymbol
+        depSymbols.find(s => s.exported === this.db.starSymbol)?.local ===
+        this.db.starSymbol
       ) {
         let resolved = this.getResolvedAsset(depId);
         if (resolved == null) continue;
@@ -2046,7 +2055,9 @@ export default class BundleGraph {
     invariant(node && node.type === 'asset');
     return DbAsset.get(this.db, node.value).symbols
       ? makeReadOnlySet(
-          new Set([...node.usedSymbols.keys()].map(s => readCachedString(this.db, s))),
+          new Set(
+            [...node.usedSymbols.keys()].map(s => readCachedString(this.db, s)),
+          ),
         )
       : null;
   }
@@ -2057,7 +2068,11 @@ export default class BundleGraph {
     let dep = DbDependency.get(this.db, depId);
     return dep.symbols
       ? makeReadOnlySet(
-          new Set([...node.usedSymbolsUp.keys()].map(s => readCachedString(this.db, s))),
+          new Set(
+            [...node.usedSymbolsUp.keys()].map(s =>
+              readCachedString(this.db, s),
+            ),
+          ),
         )
       : null;
   }
@@ -2115,7 +2130,9 @@ export default class BundleGraph {
     return this._graph
       .getNodeIdsConnectedTo(
         nullthrows(
-          this._graph.getNodeIdByContentKey(getBundleGroupId(this.db, bundleGroup)),
+          this._graph.getNodeIdByContentKey(
+            getBundleGroupId(this.db, bundleGroup),
+          ),
         ),
         bundleGraphEdgeTypes.bundle,
       )

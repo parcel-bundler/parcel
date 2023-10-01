@@ -68,7 +68,10 @@ async function run({input, api, farm, options}) {
       hashRefToNameHash.set(bundle.hashReference, hash);
       let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
       res.set(bundle.id, {
-        filePath: joinProjectPath(DbTarget.get(options.db, bundle.target).distDir, name),
+        filePath: joinProjectPath(
+          DbTarget.get(options.db, bundle.target).distDir,
+          name,
+        ),
         type: bundle.type, // FIXME: this is wrong if the packager changes the type...
         stats: {
           time: 0,

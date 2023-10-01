@@ -300,7 +300,11 @@ export async function runBundles(
   let ctx, promises;
   switch (target) {
     case 'browser': {
-      let prepared = prepareBrowserContext(parent.filePath, parent.target.distDir, globals);
+      let prepared = prepareBrowserContext(
+        parent.filePath,
+        parent.target.distDir,
+        globals,
+      );
       ctx = prepared.ctx;
       promises = prepared.promises;
       break;
@@ -315,7 +319,11 @@ export async function runBundles(
       break;
     case 'electron-renderer': {
       nodeCache.clear();
-      let prepared = prepareBrowserContext(parent.filePath, parent.target.distDir, globals);
+      let prepared = prepareBrowserContext(
+        parent.filePath,
+        parent.target.distDir,
+        globals,
+      );
       prepareNodeContext(
         outputFormat === 'commonjs' && parent.filePath,
         globals,

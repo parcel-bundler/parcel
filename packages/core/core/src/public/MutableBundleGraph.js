@@ -26,7 +26,7 @@ import {HASH_REF_PREFIX} from '../constants';
 import {fromProjectPathRelative} from '../projectPath';
 import {BundleBehavior} from '../types';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
-import { Target as DbTarget, Asset as DbAsset } from '@parcel/rust';
+import {Target as DbTarget, Asset as DbAsset} from '@parcel/rust';
 
 export default class MutableBundleGraph
   extends BundleGraph<IBundle>
@@ -177,7 +177,10 @@ export default class MutableBundleGraph
       ? assetToAssetValue(opts.entryAsset)
       : null;
 
-    let target = DbTarget.get(this.#options.db, targetToInternalTarget(opts.target));
+    let target = DbTarget.get(
+      this.#options.db,
+      targetToInternalTarget(opts.target),
+    );
     let bundleId = hashString(
       'bundle:' +
         (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
@@ -198,9 +201,7 @@ export default class MutableBundleGraph
 
     let isPlaceholder = false;
     if (entryAsset != null) {
-      let entryAssetNode = this.#graph._graph.getNodeByContentKey(
-        entryAsset,
-      );
+      let entryAssetNode = this.#graph._graph.getNodeByContentKey(entryAsset);
       invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
       isPlaceholder = entryAssetNode.requested === false;
     }

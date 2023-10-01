@@ -38,7 +38,7 @@ import {
 import ParcelConfig from '../ParcelConfig';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {PluginTracer, tracer} from '@parcel/profiler';
-import { Environment as DbEnvironment, Target as DbTarget } from '@parcel/rust';
+import {Environment as DbEnvironment, Target as DbTarget} from '@parcel/rust';
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
