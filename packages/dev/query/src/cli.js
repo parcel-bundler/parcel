@@ -87,7 +87,7 @@ export function run(input: string[]) {
       let assetRegex = new RegExp(v);
       for (let node of assetGraph.nodes.values()) {
         if (
-          node.type === 'asset' &&
+          node?.type === 'asset' &&
           assetRegex.test(fromProjectPathRelative(node.value.filePath))
         ) {
           id = node.id;
@@ -129,7 +129,7 @@ export function run(input: string[]) {
     let assetRegex = new RegExp(v);
     for (let node of assetGraph.nodes.values()) {
       if (
-        node.type === 'asset' &&
+        node?.type === 'asset' &&
         assetRegex.test(fromProjectPathRelative(node.value.filePath))
       ) {
         return node;
@@ -162,7 +162,7 @@ export function run(input: string[]) {
     // Search against the id used by the JSTransformer and ScopeHoistingPackager,
     // not the final asset id, as it may have changed with further transformation.
     for (let node of assetGraph.nodes.values()) {
-      if (node.type === 'asset' && node.value.meta.id === assetId) {
+      if (node?.type === 'asset' && node.value.meta.id === assetId) {
         asset = node;
         break;
       }
@@ -172,7 +172,7 @@ export function run(input: string[]) {
     // search for the local name in asset used symbols.
     if (asset == null) {
       outer: for (let node of assetGraph.nodes.values()) {
-        if (node.type === 'asset' && node.value.symbols) {
+        if (node?.type === 'asset' && node.value.symbols) {
           for (let symbol of node.value.symbols.values()) {
             if (symbol.local === local) {
               asset = node;
@@ -613,8 +613,8 @@ export function run(input: string[]) {
       asset_group: 0,
     };
 
-    for (let [, n] of assetGraph.nodes) {
-      if (n.type in ag) {
+    for (let n of assetGraph.nodes) {
+      if (n && n.type in ag) {
         // $FlowFixMe
         ag[n.type]++;
       }
@@ -640,10 +640,10 @@ export function run(input: string[]) {
 
     const entries = new Set();
 
-    for (let [, n] of bundleGraph._graph.nodes) {
-      if (n.type === 'bundle_group') {
+    for (let n of bundleGraph._graph.nodes) {
+      if (n?.type === 'bundle_group') {
         bg.bundle_group++;
-      } else if (n.type === 'bundle') {
+      } else if (n?.type === 'bundle') {
         bg.bundle++;
 
         // $FlowFixMe
@@ -669,7 +669,7 @@ export function run(input: string[]) {
             b_type.sync++;
           }
         }
-      } else if (n.type === 'asset') {
+      } else if (n?.type === 'asset') {
         if (
           // $FlowFixMe
           fromProjectPathRelative(n.value.filePath).includes('node_modules')
@@ -678,7 +678,7 @@ export function run(input: string[]) {
         } else {
           bg.asset_source++;
         }
-      } else if (n.type === 'dependency') {
+      } else if (n?.type === 'dependency') {
         bg.dependency++;
       }
     }

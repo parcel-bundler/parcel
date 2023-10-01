@@ -3,8 +3,11 @@
 import assert from 'assert';
 import {BitSet} from '../src/BitSet';
 
-function assertValues<Item>(set: BitSet<Item>, values: Array<Item>) {
-  let setValues = set.values();
+function assertValues(set: BitSet, values: Array<number>) {
+  let setValues = [];
+  set.forEach(bit => {
+    setValues.push(bit);
+  });
 
   for (let value of values) {
     assert(set.has(value), 'Set.has returned false');
@@ -21,18 +24,8 @@ function assertValues<Item>(set: BitSet<Item>, values: Array<Item>) {
 }
 
 describe('BitSet', () => {
-  it('cloneEmpty should return an empty set', () => {
-    let set1 = BitSet.from([1, 2, 3, 4, 5]);
-    set1.add(1);
-    set1.add(3);
-
-    let set2 = set1.cloneEmpty();
-
-    assertValues(set2, []);
-  });
-
   it('clone should return a set with the same values', () => {
-    let set1 = BitSet.from([1, 2, 3, 4, 5]);
+    let set1 = new BitSet(5);
     set1.add(1);
     set1.add(3);
 
@@ -42,7 +35,7 @@ describe('BitSet', () => {
   });
 
   it('clear should remove all values from the set', () => {
-    let set1 = BitSet.from([1, 2, 3, 4, 5]);
+    let set1 = new BitSet(5);
     set1.add(1);
     set1.add(3);
 
@@ -52,7 +45,7 @@ describe('BitSet', () => {
   });
 
   it('delete should remove values from the set', () => {
-    let set1 = BitSet.from([1, 2, 3, 4, 5]);
+    let set1 = new BitSet(5);
     set1.add(1);
     set1.add(3);
     set1.add(5);
@@ -63,11 +56,11 @@ describe('BitSet', () => {
   });
 
   it('should intersect with another BitSet', () => {
-    let set1 = BitSet.from([1, 2, 3, 4, 5]);
+    let set1 = new BitSet(5);
     set1.add(1);
     set1.add(3);
 
-    let set2 = set1.cloneEmpty();
+    let set2 = new BitSet(5);
     set2.add(3);
     set2.add(5);
 
@@ -76,11 +69,11 @@ describe('BitSet', () => {
   });
 
   it('should union with another BitSet', () => {
-    let set1 = BitSet.from([1, 2, 3, 4, 5]);
+    let set1 = new BitSet(5);
     set1.add(1);
     set1.add(3);
 
-    let set2 = set1.cloneEmpty();
+    let set2 = new BitSet(5);
     set2.add(3);
     set2.add(5);
 
@@ -89,11 +82,11 @@ describe('BitSet', () => {
   });
 
   it('BitSet.union should create a new BitSet with the union', () => {
-    let set1 = BitSet.from([1, 2, 3, 4, 5]);
+    let set1 = new BitSet(5);
     set1.add(1);
     set1.add(3);
 
-    let set2 = set1.cloneEmpty();
+    let set2 = new BitSet(5);
     set2.add(3);
     set2.add(5);
 
@@ -101,19 +94,5 @@ describe('BitSet', () => {
     assertValues(set1, [1, 3]);
     assertValues(set2, [3, 5]);
     assertValues(set3, [1, 3, 5]);
-  });
-
-  it('returns an array of all values', () => {
-    let set = BitSet.from([1, 2, 3, 4]);
-    set.add(1);
-    set.add(3);
-
-    assertValues(set, [3, 1]);
-  });
-
-  it('should return an error if a new item is added', () => {
-    let set = BitSet.from([1, 2, 3, 4]);
-
-    assert.throws(() => set.add(5), /Item is missing from BitSet/);
   });
 });
