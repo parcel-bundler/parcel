@@ -226,7 +226,7 @@ export class Target {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(44);
+    this.addr = addr ?? db.alloc(0);
   }
 
   static get(db: ParcelDb, addr: number): Target {
@@ -235,6 +235,10 @@ export class Target {
 
   static set(db: ParcelDb, addr: number, value: Target): void {
     copy(db, value.addr, addr, 44);
+  }
+
+  dealloc() {
+    this.db.dealloc(0, this.addr);
   }
 
   get env(): number {
@@ -318,7 +322,7 @@ export class Environment {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(40);
+    this.addr = addr ?? db.alloc(1);
   }
 
   static get(db: ParcelDb, addr: number): Environment {
@@ -327,6 +331,10 @@ export class Environment {
 
   static set(db: ParcelDb, addr: number, value: Environment): void {
     copy(db, value.addr, addr, 40);
+  }
+
+  dealloc() {
+    this.db.dealloc(1, this.addr);
   }
 
   get context(): EnvironmentContextVariants {
@@ -412,7 +420,7 @@ export class TargetSourceMapOptions {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(8);
+    this.addr = addr ?? db.alloc(2);
   }
 
   static get(db: ParcelDb, addr: number): TargetSourceMapOptions {
@@ -421,6 +429,10 @@ export class TargetSourceMapOptions {
 
   static set(db: ParcelDb, addr: number, value: TargetSourceMapOptions): void {
     copy(db, value.addr, addr, 8);
+  }
+
+  dealloc() {
+    this.db.dealloc(2, this.addr);
   }
 
   get sourceRoot(): ?string {
@@ -460,7 +472,7 @@ export class SourceLocation {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(20);
+    this.addr = addr ?? db.alloc(3);
   }
 
   static get(db: ParcelDb, addr: number): SourceLocation {
@@ -469,6 +481,10 @@ export class SourceLocation {
 
   static set(db: ParcelDb, addr: number, value: SourceLocation): void {
     copy(db, value.addr, addr, 20);
+  }
+
+  dealloc() {
+    this.db.dealloc(3, this.addr);
   }
 
   get filePath(): string {
@@ -502,7 +518,7 @@ export class Location {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(8);
+    this.addr = addr ?? db.alloc(4);
   }
 
   static get(db: ParcelDb, addr: number): Location {
@@ -511,6 +527,10 @@ export class Location {
 
   static set(db: ParcelDb, addr: number, value: Location): void {
     copy(db, value.addr, addr, 8);
+  }
+
+  dealloc() {
+    this.db.dealloc(4, this.addr);
   }
 
   get line(): number {
@@ -672,7 +692,7 @@ export class Asset {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(92);
+    this.addr = addr ?? db.alloc(5);
   }
 
   static get(db: ParcelDb, addr: number): Asset {
@@ -681,6 +701,10 @@ export class Asset {
 
   static set(db: ParcelDb, addr: number, value: Asset): void {
     copy(db, value.addr, addr, 92);
+  }
+
+  dealloc() {
+    this.db.dealloc(5, this.addr);
   }
 
   get filePath(): string {
@@ -840,7 +864,7 @@ export class AssetAst {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(24);
+    this.addr = addr ?? db.alloc(6);
   }
 
   static get(db: ParcelDb, addr: number): AssetAst {
@@ -849,6 +873,10 @@ export class AssetAst {
 
   static set(db: ParcelDb, addr: number, value: AssetAst): void {
     copy(db, value.addr, addr, 24);
+  }
+
+  dealloc() {
+    this.db.dealloc(6, this.addr);
   }
 
   get key(): string {
@@ -999,7 +1027,7 @@ export class AssetStats {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(8);
+    this.addr = addr ?? db.alloc(7);
   }
 
   static get(db: ParcelDb, addr: number): AssetStats {
@@ -1008,6 +1036,10 @@ export class AssetStats {
 
   static set(db: ParcelDb, addr: number, value: AssetStats): void {
     copy(db, value.addr, addr, 8);
+  }
+
+  dealloc() {
+    this.db.dealloc(7, this.addr);
   }
 
   get size(): number {
@@ -1050,7 +1082,7 @@ export class Dependency {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(112);
+    this.addr = addr ?? db.alloc(8);
   }
 
   static get(db: ParcelDb, addr: number): Dependency {
@@ -1059,6 +1091,10 @@ export class Dependency {
 
   static set(db: ParcelDb, addr: number, value: Dependency): void {
     copy(db, value.addr, addr, 112);
+  }
+
+  dealloc() {
+    this.db.dealloc(8, this.addr);
   }
 
   get sourceAssetId(): ?number {
@@ -1279,7 +1315,7 @@ export class ImportAttribute {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(8);
+    this.addr = addr ?? db.alloc(9);
   }
 
   static get(db: ParcelDb, addr: number): ImportAttribute {
@@ -1288,6 +1324,10 @@ export class ImportAttribute {
 
   static set(db: ParcelDb, addr: number, value: ImportAttribute): void {
     copy(db, value.addr, addr, 8);
+  }
+
+  dealloc() {
+    this.db.dealloc(9, this.addr);
   }
 
   get key(): string {
@@ -1396,7 +1436,7 @@ export class Symbol {
 
   constructor(db: ParcelDb, addr?: number) {
     this.db = db;
-    this.addr = addr ?? db.alloc(32);
+    this.addr = addr ?? db.alloc(10);
   }
 
   static get(db: ParcelDb, addr: number): Symbol {
@@ -1405,6 +1445,10 @@ export class Symbol {
 
   static set(db: ParcelDb, addr: number, value: Symbol): void {
     copy(db, value.addr, addr, 32);
+  }
+
+  dealloc() {
+    this.db.dealloc(10, this.addr);
   }
 
   get exported(): number {

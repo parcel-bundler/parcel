@@ -71,6 +71,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
             let u8_ptr = p as *const u8;
             let mut js = String::new();
             let size = std::mem::size_of::<#self_name>();
+            let id = unsafe { TYPES.iter().position(|t| *t == std::any::TypeId::of::<#self_name>()).unwrap() };
 
             js.push_str(&format!(
       r#"export class {name} {{
@@ -79,7 +80,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
 
   constructor(db: ParcelDb, addr?: number) {{
     this.db = db;
-    this.addr = addr ?? db.alloc({size});
+    this.addr = addr ?? db.alloc({id});
   }}
 
   static get(db: ParcelDb, addr: number): {name} {{
@@ -89,8 +90,13 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
   static set(db: ParcelDb, addr: number, value: {name}): void {{
     copy(db, value.addr, addr, {size});
   }}
+
+  dealloc() {{
+    this.db.dealloc({id}, this.addr);
+  }}
 "#,
               name = stringify!(#self_name),
+              id = id,
               size = size,
             ));
 
@@ -106,7 +112,12 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
         #[ctor::ctor]
         unsafe fn #register() {
           use std::io::Write;
-          WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()))
+          WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()));
+          TYPES.push(std::any::TypeId::of::<#self_name>());
+          FACTORIES.push(Factory {
+            alloc: #self_name::alloc_ptr,
+            dealloc: #self_name::dealloc_ptr
+          });
         }
       }
     }
@@ -352,6 +363,23 @@ pub fn derive_slab_allocated(input: TokenStream) -> TokenStream {
         }
       }
     }
+  };
+
+  output.into()
+}
+
+#[proc_macro_derive(ArenaAllocated)]
+pub fn derive_arena_allocated(input: TokenStream) -> TokenStream {
+  let DeriveInput {
+    ident: self_name,
+    generics,
+    ..
+  } = parse_macro_input!(input);
+
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+  let output = quote! {
+    #[automatically_derived]
+    impl #impl_generics ArenaAllocated for #self_name #ty_generics #where_clause {}
   };
 
   output.into()

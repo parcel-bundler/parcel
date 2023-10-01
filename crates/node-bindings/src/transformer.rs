@@ -4,10 +4,10 @@ use crate::db::JsParcelDb;
 use napi::{Env, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
-  ArenaVec, BundleBehavior, Dependency, DependencyFlags, Environment, EnvironmentContext,
-  EnvironmentFlags, EnvironmentId, ExportsCondition, ImportAttribute, InternedString, Location,
-  OutputFormat, ParcelDb, Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
-  TargetId, Vec,
+  ArenaAllocated, ArenaVec, BundleBehavior, Dependency, DependencyFlags, Environment,
+  EnvironmentContext, EnvironmentFlags, EnvironmentId, ExportsCondition, ImportAttribute,
+  InternedString, Location, OutputFormat, ParcelDb, Priority, SourceLocation, SourceType,
+  SpecifierType, Symbol, SymbolFlags, TargetId, Vec,
 };
 use parcel_js_swc_core::{CodeHighlight, DependencyKind, Diagnostic, TransformResult};
 use path_slash::{PathBufExt, PathExt};
@@ -132,7 +132,7 @@ fn convert_result(
           custom_package_conditions: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = db.create_dependency(d);
+        let id = d.commit();
         deps.push(id);
         dep_map.insert(placeholder, id);
       }
@@ -173,7 +173,7 @@ fn convert_result(
           custom_package_conditions: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = db.create_dependency(d);
+        let id = d.commit();
         deps.push(id);
         dep_map.insert(placeholder, id);
       }
@@ -207,7 +207,7 @@ fn convert_result(
           custom_package_conditions: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = db.create_dependency(d);
+        let id = d.commit();
         deps.push(id);
         dep_map.insert(placeholder, id);
       }
@@ -235,7 +235,7 @@ fn convert_result(
           custom_package_conditions: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = db.create_dependency(d);
+        let id = d.commit();
         deps.push(id);
         dep_map.insert(placeholder, id);
       }
@@ -368,7 +368,7 @@ fn convert_result(
         };
 
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = db.create_dependency(d);
+        let id = d.commit();
         deps.push(id);
         dep_map.insert(placeholder, id);
       }
@@ -404,7 +404,7 @@ fn convert_result(
       package_conditions: ExportsCondition::empty(),
       custom_package_conditions: ArenaVec::new(),
     };
-    deps.push(db.create_dependency(d));
+    deps.push(d.commit());
   }
 
   let mut has_cjs_exports = false;
@@ -542,7 +542,7 @@ fn convert_result(
         package_conditions: ExportsCondition::empty(),
         custom_package_conditions: ArenaVec::new(),
       };
-      deps.push(db.create_dependency(d));
+      deps.push(d.commit());
     }
 
     // Add * symbol if there are CJS exports, no imports/exports at all

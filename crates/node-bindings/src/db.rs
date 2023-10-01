@@ -83,8 +83,13 @@ impl JsParcelDb {
   }
 
   #[napi]
-  pub fn alloc(&self, size: u32) -> u32 {
-    self.db.with(|db| db.alloc(size))
+  pub fn alloc(&self, type_id: u32) -> u32 {
+    self.db.with(|db| db.alloc(type_id))
+  }
+
+  #[napi]
+  pub fn dealloc(&self, type_id: u32, addr: u32) {
+    self.db.with(|db| db.dealloc(type_id, addr))
   }
 
   #[napi]

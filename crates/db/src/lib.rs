@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 #![feature(thread_local)]
 
+use std::any::TypeId;
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
 use std::{marker::PhantomData, num::NonZeroU32, sync::RwLock};
@@ -9,17 +10,22 @@ use alloc::{current_arena, current_heap, Arena, PageAllocator, Slab, ARENA, HEAP
 use allocator_api2::alloc::Allocator;
 use dashmap::DashMap;
 use derivative::Derivative;
-use parcel_derive::{JsValue, SlabAllocated, ToJs};
+use parcel_derive::{ArenaAllocated, JsValue, SlabAllocated, ToJs};
 
 mod alloc;
 mod atomics;
-
-// pub use alloc::{ARENA, HEAP};
 
 pub use allocator_api2::vec::Vec;
 use thread_local::ThreadLocal;
 
 static mut WRITE_CALLBACKS: Vec<fn(&mut std::fs::File) -> std::io::Result<()>> = Vec::new();
+static mut FACTORIES: Vec<Factory> = Vec::new();
+static mut TYPES: Vec<TypeId> = Vec::new();
+
+struct Factory {
+  alloc: fn() -> u32,
+  dealloc: fn(u32),
+}
 
 trait ToJs {
   fn to_js() -> String;
@@ -31,6 +37,41 @@ trait JsValue {
   fn ty() -> String;
   fn accessor() -> String {
     Self::ty()
+  }
+}
+
+pub trait ArenaAllocated: Sized {
+  fn alloc_ptr() -> u32 {
+    current_arena().alloc(std::mem::size_of::<Self>() as u32)
+  }
+
+  fn dealloc_ptr(addr: u32) {
+    unsafe {
+      current_arena().dealloc(
+        NonNull::new_unchecked(addr as usize as *mut u8),
+        std::alloc::Layout::from_size_align_unchecked(
+          std::mem::size_of::<Self>(),
+          std::mem::align_of::<Self>(),
+        ),
+      )
+    }
+  }
+
+  fn commit(self) -> u32 {
+    let addr = Self::alloc_ptr();
+    let ptr = unsafe { current_heap().get(addr) };
+    unsafe { std::ptr::write(ptr, self) };
+    addr
+  }
+}
+
+impl<T: SlabAllocated + Sized> ArenaAllocated for T {
+  fn alloc_ptr() -> u32 {
+    T::alloc(1).0
+  }
+
+  fn dealloc_ptr(addr: u32) {
+    T::dealloc(addr, 1)
   }
 }
 
@@ -572,7 +613,7 @@ pub struct FileId(u32);
 #[derive(PartialEq, Clone, Debug, JsValue)]
 pub struct TargetId(pub u32);
 
-#[derive(PartialEq, Debug, ToJs)]
+#[derive(PartialEq, Debug, ToJs, ArenaAllocated)]
 pub struct Target {
   env: EnvironmentId,
   dist_dir: InternedString,
@@ -622,21 +663,21 @@ pub struct Environment {
 //   }
 // }
 
-#[derive(PartialEq, Clone, Debug, ToJs, JsValue)]
+#[derive(PartialEq, Clone, Debug, ToJs, JsValue, ArenaAllocated)]
 pub struct TargetSourceMapOptions {
   source_root: Option<InternedString>,
   inline: bool,
   inline_sources: bool,
 }
 
-#[derive(PartialEq, Debug, Clone, ToJs, JsValue)]
+#[derive(PartialEq, Debug, Clone, ToJs, JsValue, ArenaAllocated)]
 pub struct SourceLocation {
   pub file_path: InternedString,
   pub start: Location,
   pub end: Location,
 }
 
-#[derive(PartialEq, Debug, Clone, ToJs, JsValue)]
+#[derive(PartialEq, Debug, Clone, ToJs, JsValue, ArenaAllocated)]
 pub struct Location {
   pub line: u32,
   pub column: u32,
@@ -650,7 +691,7 @@ js_bitflags! {
   }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, ToJs, JsValue)]
+#[derive(PartialEq, Clone, Copy, Debug, ToJs, JsValue, ArenaAllocated)]
 pub enum EnvironmentContext {
   Browser,
   WebWorker,
@@ -694,7 +735,7 @@ pub struct Asset {
   pub ast: Option<AssetAst>,
 }
 
-#[derive(Debug, Clone, ToJs, JsValue)]
+#[derive(Debug, Clone, ToJs, JsValue, ArenaAllocated)]
 pub struct AssetAst {
   pub key: InternedString,
   pub plugin: InternedString,
@@ -722,7 +763,7 @@ pub enum BundleBehavior {
   Isolated,
 }
 
-#[derive(Debug, Clone, Default, ToJs, JsValue)]
+#[derive(Debug, Clone, Default, ToJs, JsValue, ArenaAllocated)]
 pub struct AssetStats {
   size: u32,
   time: u32,
@@ -973,8 +1014,16 @@ impl ParcelDb {
     unsafe { self.heap.find_page(ptr) }
   }
 
-  pub fn alloc(&self, size: u32) -> u32 {
-    current_arena().alloc(size)
+  pub fn alloc(&self, type_id: u32) -> u32 {
+    // SAFETY: FACTORIES is not mutated after initial registration.
+    let factory = unsafe { &FACTORIES[type_id as usize] };
+    (factory.alloc)()
+  }
+
+  pub fn dealloc(&self, type_id: u32, addr: u32) {
+    // SAFETY: FACTORIES is not mutated after initial registration.
+    let factory = unsafe { &FACTORIES[type_id as usize] };
+    (factory.dealloc)(addr);
   }
 
   pub fn alloc_struct<T>(&self) -> (u32, &'static mut T) {
@@ -1015,16 +1064,9 @@ impl ParcelDb {
       }
     }
 
-    let (addr, ptr) = Environment::alloc(1);
-    unsafe { *ptr = env.clone() };
+    let addr = env.clone().commit();
     self.environments.write().unwrap().push(addr);
     EnvironmentId(addr)
-  }
-
-  pub fn create_dependency(&self, dep: Dependency) -> u32 {
-    let (addr, ptr) = Dependency::alloc(1);
-    unsafe { std::ptr::write(ptr, dep) };
-    addr
   }
 }
 
