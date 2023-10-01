@@ -46,6 +46,7 @@ import {
   Environment as DbEnvironment,
   EnvironmentFlags,
   Dependency as DbDependency,
+  DependencyFlags,
   Target as DbTarget,
   Asset as DbAsset,
   AssetFlags,
@@ -182,8 +183,8 @@ export default class BundleGraph {
         : null;
     invariant(assetGraphRootNode != null && assetGraphRootNode.type === 'root');
 
-    for (let [nodeId, node] of assetGraph.nodes) {
-      if (node.type === 'asset') {
+    for (let [nodeId, node] of assetGraph.nodes.entries()) {
+      if (node != null && node.type === 'asset') {
         let assetId = node.value;
         // Generate a new, short public id for this asset to use.
         // If one already exists, use it.
@@ -202,7 +203,7 @@ export default class BundleGraph {
           publicIdByAssetId.set(assetId, publicId);
           assetPublicIds.add(publicId);
         }
-      } else if (node.type === 'asset_group') {
+      } else if (node != null && node.type === 'asset_group') {
         assetGroupIds.set(nodeId, assetGraph.getNodeIdsConnectedFrom(nodeId));
       }
     }
@@ -217,7 +218,7 @@ export default class BundleGraph {
       if (
         node.type === 'dependency' &&
         (dep = DbDependency.get(db, node.value)) &&
-        dep.symbols != null &&
+        dep.flags & DependencyFlags.HAS_SYMBOLS &&
         DbEnvironment.get(db, dep.env).flags &
           EnvironmentFlags.SHOULD_SCOPE_HOIST &&
         // Disable in dev mode because this feature is at odds with safeToIncrementallyBundle
@@ -1152,6 +1153,11 @@ export default class BundleGraph {
   }
 
   isAssetReferenced(bundle: Bundle, asset: CommittedAssetId): boolean {
+    // If the asset is available in multiple bundles, it's referenced.
+    if (this.getBundlesWithAsset(asset).length > 1) {
+      return true;
+    }
+
     let assetNodeId = nullthrows(this._graph.getNodeIdByContentKey(asset));
 
     if (
@@ -1978,6 +1984,10 @@ export default class BundleGraph {
       bundle.id + target.publicUrl + this.getContentHash(bundle),
     );
 
+    if (bundle.isPlaceholder) {
+      hash.writeString('placeholder');
+    }
+
     let inlineBundles = this.getInlineBundles(bundle);
     for (let inlineBundle of inlineBundles) {
       hash.writeString(this.getContentHash(inlineBundle));
@@ -2054,7 +2064,8 @@ export default class BundleGraph {
 
   merge(other: BundleGraph) {
     let otherGraphIdToThisNodeId = new Map<NodeId, NodeId>();
-    for (let [otherNodeId, otherNode] of other._graph.nodes) {
+    for (let [otherNodeId, otherNode] of other._graph.nodes.entries()) {
+      if (!otherNode) continue;
       if (this._graph.hasContentKey(otherNode.id)) {
         let existingNodeId = this._graph.getNodeIdByContentKey(otherNode.id);
         otherGraphIdToThisNodeId.set(otherNodeId, existingNodeId);

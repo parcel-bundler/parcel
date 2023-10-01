@@ -355,7 +355,7 @@ macro_rules! js_bitflags {
   ) => {
     bitflags::bitflags! {
       $(#[$outer])*
-      #[derive(Debug, PartialEq, Clone)]
+      #[derive(Debug, PartialEq, Clone, Copy)]
       $vis struct $BitFlags: $T {
         $(
           $(#[$inner $($args)*])*
@@ -755,6 +755,7 @@ js_bitflags! {
     const SHOULD_WRAP = 1 << 3;
     const IS_ESM = 1 << 4;
     const IS_WEBWORKER = 1 << 5;
+    const HAS_SYMBOLS = 1 << 6;
   }
 }
 

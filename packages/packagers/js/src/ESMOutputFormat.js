@@ -106,6 +106,17 @@ export class ESMOutputFormat implements OutputFormat {
       lines++;
     }
 
+    if (
+      this.packager.needsPrelude &&
+      this.packager.shouldBundleQueue(this.packager.bundle)
+    ) {
+      // Should be last thing the bundle executes on intial eval
+      res += `\n$parcel$global.rlb(${JSON.stringify(
+        this.packager.bundle.publicId,
+      )})`;
+      lines++;
+    }
+
     return [res, lines];
   }
 }

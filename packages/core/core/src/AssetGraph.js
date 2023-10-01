@@ -371,10 +371,12 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         nodeId !== traversedNodeId
       ) {
         if (!ctx?.hasDeferred) {
+          this.safeToIncrementallyBundle = false;
           delete traversedNode.hasDeferred;
         }
         actions.skipChildren();
       } else if (traversedNode.type === 'dependency') {
+        this.safeToIncrementallyBundle = false;
         traversedNode.hasDeferred = false;
       } else if (nodeId !== traversedNodeId) {
         actions.skipChildren();
@@ -396,7 +398,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let dependency = DbDependency.get(this.db, dependencyId);
     let dependencySymbols = dependency.symbols;
     if (
-      dependencySymbols &&
+      dependency.flags & DependencyFlags.HAS_SYMBOLS &&
       dependencySymbols.every(({flags}) => flags & SymbolFlags.IS_WEAK) &&
       sideEffects === false &&
       canDefer &&

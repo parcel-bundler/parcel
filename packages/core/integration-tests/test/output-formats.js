@@ -1149,11 +1149,24 @@ describe('output formats', function () {
       );
       let async2Bundle = bundles.find(b => b.name.startsWith('async2'));
 
+      let esmLoaderPublicId;
+      b.traverse((node, _, actions) => {
+        if (
+          node.type === 'asset' &&
+          node.value.filePath.endsWith('esm-js-loader.js')
+        ) {
+          esmLoaderPublicId = b.getAssetPublicId(node.value);
+          actions.stop();
+        }
+      });
+
+      assert(esmLoaderPublicId != null, 'Could not find esm loader public id');
+
       for (let bundle of [async1Bundle, async2Bundle]) {
         // async import both bundles in parallel for performance
         assert(
           new RegExp(
-            `import\\("\\./" \\+ .+\\.resolve\\("${sharedBundle.publicId}"\\)\\),\\n\\s*import\\("./" \\+ .+\\.resolve\\("${bundle.publicId}"\\)\\)`,
+            `\\$${esmLoaderPublicId}\\("${sharedBundle.publicId}"\\),\\n\\s*\\$${esmLoaderPublicId}\\("${bundle.publicId}"\\)`,
           ).test(entry),
         );
       }
@@ -1461,6 +1474,34 @@ describe('output formats', function () {
       {Map: 2},
     );
     assert.deepEqual(calls, [[['a', 10]]]);
+  });
+
+  it('should support external parallel dependencies', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/library-parallel-deps/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'out.js',
+        assets: ['index.js'],
+      },
+      {
+        assets: ['foo.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.equal(res.default, 'foo bar');
+
+    let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(/import [a-z0-9$]+ from "\.\//.test(content));
   });
 
   describe('global', function () {

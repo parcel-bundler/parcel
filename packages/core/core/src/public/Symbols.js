@@ -22,6 +22,7 @@ import {
 } from '../utils';
 import {
   Dependency as DbDependency,
+  DependencyFlags,
   Asset as DbAsset,
   SymbolFlags,
   readCachedString,
@@ -266,7 +267,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 
   get isCleared(): boolean {
-    return this.#value.symbols == null;
+    return !(this.#value.flags & DependencyFlags.HAS_SYMBOLS);
   }
 
   exportSymbols(): Iterable<ISymbol> {
@@ -305,9 +306,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   // mutating:
 
   ensure(): void {
-    if (this.#value.symbols == null) {
-      this.#value.symbols = new Map();
-    }
+    this.#value.flags |= DependencyFlags.HAS_SYMBOLS;
   }
 
   set(

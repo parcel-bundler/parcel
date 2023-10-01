@@ -70,7 +70,9 @@ export default async function dumpGraphToGraphViz(
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
-  for (let [id, node] of graph.nodes) {
+  // $FlowFixMe
+  for (let [id, node] of graph.nodes.entries()) {
+    if (node == null) continue;
     let n = g.addNode(nodeId(id));
     // $FlowFixMe default is fine. Not every type needs to be in the map.
     n.set('color', COLORS[node.type || 'default']);
@@ -100,6 +102,7 @@ export default async function dumpGraphToGraphViz(
         if (dep.flags & DependencyFlags.OPTIONAL) parts.push('optional');
         if (dep.specifierType === 'url') parts.push('url');
         if (node.hasDeferred) parts.push('deferred');
+        if (node.deferred) parts.push('deferred');
         if (node.excluded) parts.push('excluded');
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (dep.env) label += ` (${getEnvDescription(db, dep.env)})`;
@@ -194,6 +197,7 @@ export default async function dumpGraphToGraphViz(
         if (node.value.needsStableName) parts.push('stable name');
         parts.push(node.value.name);
         parts.push('bb:' + (node.value.bundleBehavior ?? 'null'));
+        if (node.value.isPlaceholder) parts.push('placeholder');
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(db, node.value.env)})`;
       } else if (node.type === 'request') {

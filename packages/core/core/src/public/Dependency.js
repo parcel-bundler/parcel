@@ -48,16 +48,23 @@ export function dependencyToInternalDependency(
   return nullthrows(_dependencyToInternalDependency.get(dependency));
 }
 
+export function getPublicDependency(
+  dep: InternalDependency,
+  options: ParcelOptions,
+): Dependency {
+  let existing = internalDependencyToDependency.get(dep);
+  if (existing != null) {
+    return existing;
+  }
+
+  return new Dependency(dep, options);
+}
+
 export default class Dependency implements IDependency {
   #dep /*: DbDependency */;
   #options /*: ParcelOptions */;
 
   constructor(dep: InternalDependency, options: ParcelOptions): Dependency {
-    let existing = internalDependencyToDependency.get(dep);
-    if (existing != null) {
-      return existing;
-    }
-
     this.#dep = DbDependency.get(options.db, dep);
     this.#options = options;
     _dependencyToInternalDependency.set(this, dep);

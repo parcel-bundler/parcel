@@ -29,7 +29,7 @@ import type {
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
-import Dependency from './Dependency';
+import {getPublicDependency} from './Dependency';
 import {AssetSymbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import InternalCommittedAsset from '../CommittedAsset';
@@ -159,7 +159,7 @@ class BaseAsset {
   getDependencies(): $ReadOnlyArray<IDependency> {
     return this.#asset
       .getDependencies()
-      .map(dep => new Dependency(dep, this.#asset.options));
+      .map(dep => getPublicDependency(dep, this.#asset.options));
   }
 
   getCode(): Promise<string> {
@@ -189,6 +189,7 @@ class BaseAsset {
 
 export class Asset extends BaseAsset implements IAsset {
   #asset /*: UncommittedAsset */;
+  #env /*: ?Environment */;
 
   constructor(asset: UncommittedAsset): Asset {
     let existing = uncommittedAssetValueToAsset.get(asset.value);
@@ -200,6 +201,11 @@ export class Asset extends BaseAsset implements IAsset {
     this.#asset = asset;
     uncommittedAssetValueToAsset.set(asset.value, this);
     return this;
+  }
+
+  get env(): IEnvironment {
+    this.#env ??= new Environment(this.#asset.value.env, this.#asset.options);
+    return this.#env;
   }
 
   get symbols(): IAssetSymbols {

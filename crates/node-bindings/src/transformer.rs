@@ -55,6 +55,7 @@ pub struct TransformResult2 {
   pub diagnostics: Option<std::vec::Vec<Diagnostic>>,
   pub used_env: HashSet<String>,
   pub has_node_replacements: bool,
+  pub is_constant_module: bool,
   pub has_cjs_exports: bool,
   pub static_cjs_exports: bool,
   pub should_wrap: bool,
@@ -69,6 +70,9 @@ fn convert_result(
 
   let mut deps = std::vec::Vec::new();
   let mut dep_map = HashMap::new();
+  let mut dep_flags = DependencyFlags::empty();
+  dep_flags.set(DependencyFlags::HAS_SYMBOLS, result.hoist_result.is_some() || result.symbol_result.is_some());
+
   for dep in result.dependencies {
     match dep.kind {
       DependencyKind::WebWorker => {
@@ -93,7 +97,7 @@ fn convert_result(
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           priority: Priority::Lazy,
-          flags: DependencyFlags::IS_WEBWORKER,
+          flags: dep_flags | DependencyFlags::IS_WEBWORKER,
           bundle_behavior: BundleBehavior::None,
           resolve_from: Some(file_path),
           range: None,
@@ -129,7 +133,7 @@ fn convert_result(
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           priority: Priority::Lazy,
-          flags: DependencyFlags::NEEDS_STABLE_NAME,
+          flags: dep_flags | DependencyFlags::NEEDS_STABLE_NAME,
           bundle_behavior: BundleBehavior::None,
           resolve_from: Some(file_path),
           range: None,
@@ -165,7 +169,7 @@ fn convert_result(
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           priority: Priority::Lazy,
-          flags: DependencyFlags::empty(),
+          flags: dep_flags,
           bundle_behavior: BundleBehavior::None,
           resolve_from: Some(file_path),
           range: None,
@@ -194,7 +198,7 @@ fn convert_result(
           specifier: dep.specifier.as_ref().into(),
           specifier_type: SpecifierType::Url,
           priority: Priority::Lazy,
-          flags: DependencyFlags::empty(),
+          flags: dep_flags,
           bundle_behavior: BundleBehavior::Isolated,
           resolve_from: Some(file_path),
           range: None,
@@ -214,7 +218,7 @@ fn convert_result(
       }
       DependencyKind::File => {}
       _ => {
-        let mut flags = DependencyFlags::empty();
+        let mut flags = dep_flags;
         flags.set(DependencyFlags::OPTIONAL, dep.is_optional);
         flags.set(
           DependencyFlags::IS_ESM,
@@ -348,7 +352,7 @@ fn convert_result(
       specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
       specifier_type: SpecifierType::Esm,
       priority: Priority::Sync,
-      flags: DependencyFlags::empty(),
+      flags: dep_flags,
       bundle_behavior: BundleBehavior::None,
       resolve_from: Some(to_project_path(
         &config.resolve_helpers_from,
@@ -487,7 +491,7 @@ fn convert_result(
         specifier: config.module_id.as_str().into(),
         specifier_type: SpecifierType::Esm,
         priority: Priority::Sync,
-        flags: DependencyFlags::empty(),
+        flags: dep_flags,
         bundle_behavior: BundleBehavior::None,
         resolve_from: None,
         range: None,
@@ -644,6 +648,7 @@ fn convert_result(
     diagnostics: result.diagnostics,
     used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
     has_node_replacements: result.has_node_replacements,
+    is_constant_module: result.is_constant_module,
     has_cjs_exports,
     static_cjs_exports,
     should_wrap,

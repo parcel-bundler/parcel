@@ -101,6 +101,8 @@ export default function createBundleGraphRequest(
         entries: options.entries,
         optionsRef,
         shouldBuildLazily: options.shouldBuildLazily,
+        lazyIncludes: options.lazyIncludes,
+        lazyExcludes: options.lazyExcludes,
         requestedAssetIds,
       });
       let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
@@ -420,8 +422,6 @@ class BundlerRunner {
         previousDevDeps: this.previousDevDeps,
         devDepRequests: this.devDepRequests,
         configs: this.configs,
-        nameRuntimeBundle: bundle =>
-          this.nameBundle(namers, bundle, internalBundleGraph),
       });
 
       // Add dev deps for namers, AFTER running them to account for lazy require().

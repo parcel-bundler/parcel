@@ -142,7 +142,11 @@ impl<'a> DependencyCollector<'a> {
       specifier,
       kind
     ));
-    let placeholder = Some(format!("{:x}", hash));
+    let placeholder = if !self.config.standalone {
+      Some(format!("{:x}", hash))
+    } else {
+      None
+    };
 
     self.items.insert(
       hash,
@@ -169,7 +173,7 @@ impl<'a> DependencyCollector<'a> {
     source_type: SourceType,
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
-    if !self.config.is_library {
+    if !self.config.is_library && !self.config.standalone {
       let placeholder =
         self.add_dependency(specifier.clone(), span, kind, None, false, source_type);
       let specifier = if let Some(placeholder) = placeholder {
@@ -187,7 +191,11 @@ impl<'a> DependencyCollector<'a> {
       "parcel_url:{}:{}:{}",
       self.config.filename, specifier, kind
     ));
-    let placeholder = format!("{:x}", hash);
+    let placeholder = if self.config.standalone {
+      specifier.as_ref().to_owned()
+    } else {
+      format!("{:x}", hash)
+    };
     self.items.insert(
       hash,
       DependencyDescriptor {
@@ -678,7 +686,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
       let mut call = node;
-      if !self.config.scope_hoist {
+      if !self.config.scope_hoist && !self.config.standalone {
         let name = match &self.config.source_type {
           SourceType::Module => "require",
           SourceType::Script => "__parcel__require__",
@@ -850,7 +858,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
       // If this is a library, we will already have a URL object. Otherwise, we need to
       // construct one from the string returned by the JSRuntime.
-      if !self.config.is_library {
+      if !self.config.is_library && !self.config.standalone {
         return Expr::New(NewExpr {
           span: DUMMY_SP,
           callee: Box::new(Expr::Ident(Ident::new(js_word!("URL"), DUMMY_SP))),

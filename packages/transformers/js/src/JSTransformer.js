@@ -101,6 +101,9 @@ const CONFIG_SCHEMA: SchemaEntity = {
         },
       ],
     },
+    unstable_inlineConstants: {
+      type: 'boolean',
+    },
   },
   additionalProperties: false,
 };
@@ -109,6 +112,7 @@ type PackageJSONConfig = {|
   '@parcel/transformer-js'?: {|
     inlineFS?: boolean,
     inlineEnvironment?: boolean | Array<string>,
+    unstable_inlineConstants?: boolean,
   |},
 |};
 
@@ -270,6 +274,7 @@ export default (new Transformer({
 
     let inlineEnvironment = config.isSource;
     let inlineFS = !ignoreFS;
+    let inlineConstants = false;
     if (result && rootPkg?.['@parcel/transformer-js']) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
@@ -289,6 +294,9 @@ export default (new Transformer({
         rootPkg['@parcel/transformer-js']?.inlineEnvironment ??
         inlineEnvironment;
       inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
+      inlineConstants =
+        rootPkg['@parcel/transformer-js']?.unstable_inlineConstants ??
+        inlineConstants;
     }
 
     return {
@@ -299,6 +307,7 @@ export default (new Transformer({
       pragmaFrag,
       inlineEnvironment,
       inlineFS,
+      inlineConstants,
       reactRefresh,
       decorators,
       useDefineForClassFields,
@@ -402,6 +411,7 @@ export default (new Transformer({
       diagnostics,
       used_env,
       has_node_replacements,
+      is_constant_module,
       has_cjs_exports,
       static_cjs_exports,
       should_wrap,
@@ -444,12 +454,16 @@ export default (new Transformer({
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
+      standalone: asset.query.has('standalone'),
+      inline_constants: config.inlineConstants,
       resolve_helpers_from: __filename,
       side_effects: asset.sideEffects,
       supports_dynamic_import: asset.env.supports('dynamic-import', true),
     });
 
-    // console.log(dependencies, symbols);
+    if (is_constant_module) {
+      asset.meta.isConstantModule = true;
+    }
 
     let convertLoc = (loc): SourceLocation => {
       let location = {

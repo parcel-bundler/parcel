@@ -20,6 +20,7 @@ import {md, convertSourceLocationToHighlight} from '@parcel/diagnostic';
 import {fromProjectPathRelative, fromProjectPath} from './projectPath';
 import {
   Dependency as DbDependency,
+  DependencyFlags,
   Asset as DbAsset,
   AssetFlags,
   SymbolFlags,
@@ -114,7 +115,7 @@ export function propagateSymbols({
       } else {
         for (let incomingDep of incomingDeps) {
           let dep = DbDependency.get(db, incomingDep.value);
-          if (dep.symbols == null) {
+          if (!(dep.flags & DependencyFlags.HAS_SYMBOLS)) {
             if (dep.sourceAssetId == null) {
               // The root dependency on non-library builds
               isEntry = true;
@@ -491,7 +492,7 @@ export function propagateSymbols({
         }
 
         incomingDep.excluded = false;
-        if (dep.symbols != null && incomingDep.usedSymbolsUp.size === 0) {
+        if (dep.flags & DependencyFlags.HAS_SYMBOLS && incomingDep.usedSymbolsUp.size === 0) {
           let assetGroups = assetGraph.getNodeIdsConnectedFrom(
             assetGraph.getNodeIdByContentKey(incomingDep.id),
           );
@@ -659,7 +660,7 @@ function propagateSymbolsUp(
   let runFullPass =
     // If there are n nodes in the graph, then the asset count is approximately
     // n/6 (for every asset, there are ~4 dependencies and ~1 asset_group).
-    assetGraph.nodes.size * (1 / 6) * 0.5 <
+    assetGraph.nodes.length * (1 / 6) * 0.5 <
     changedDepsUsedSymbolsUpDirtyDownAssets.size;
 
   let dirtyDeps;

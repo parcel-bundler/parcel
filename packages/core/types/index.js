@@ -195,7 +195,8 @@ export type EnvironmentFeature =
   | 'worker-module'
   | 'service-worker-module'
   | 'import-meta-url'
-  | 'arrow-functions';
+  | 'arrow-functions'
+  | 'global-this';
 
 /**
  * Defines the environment in for the output bundle
@@ -301,6 +302,8 @@ export type InitialParcelOptions = {|
   +shouldTrace?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
+  +lazyIncludes?: string[],
+  +lazyExcludes?: string[],
   +shouldBundleIncrementally?: boolean,
 
   +inputFS?: FileSystem,
@@ -642,6 +645,27 @@ export type ASTGenerator = {|
 |};
 
 export type BundleBehavior = 'inline' | 'isolated';
+
+export type ParcelTransformOptions = {|
+  filePath: FilePath,
+  code?: string,
+  env?: EnvironmentOptions,
+  query?: ?string,
+|};
+
+export type ParcelResolveOptions = {|
+  specifier: DependencySpecifier,
+  specifierType: SpecifierType,
+  env?: EnvironmentOptions,
+  resolveFrom?: FilePath,
+|};
+
+export type ParcelResolveResult = {|
+  filePath: FilePath,
+  code?: string,
+  query?: ?string,
+  sideEffects?: boolean,
+|};
 
 /**
  * An asset represents a file or part of a file. It may represent any data type, including source code,
@@ -1424,6 +1448,7 @@ export interface BundleGraph<TBundle: Bundle> {
   traverse<TContext>(
     visit: GraphVisitor<BundleGraphTraversable, TContext>,
     startAsset: ?Asset,
+    options?: {|skipUnusedDependencies?: boolean|},
   ): ?TContext;
   /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
   traverseBundles<TContext>(

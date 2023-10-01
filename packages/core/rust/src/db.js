@@ -1091,6 +1091,7 @@ export const DependencyFlags = {
   SHOULD_WRAP: 0b1000,
   IS_ESM: 0b10000,
   IS_WEBWORKER: 0b100000,
+  HAS_SYMBOLS: 0b1000000,
 };
 
 type SpecifierTypeVariants = 'esm' | 'commonjs' | 'url' | 'custom';

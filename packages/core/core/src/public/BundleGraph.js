@@ -23,7 +23,10 @@ import nullthrows from 'nullthrows';
 import {mapVisitor} from '@parcel/graph';
 import {assetFromValue, assetToAssetValue, CommittedAsset} from './Asset';
 import {bundleToInternalBundle} from './Bundle';
-import Dependency, {dependencyToInternalDependency} from './Dependency';
+import Dependency, {
+  dependencyToInternalDependency,
+  getPublicDependency,
+} from './Dependency';
 import {targetToInternalTarget} from './Target';
 import {fromInternalSourceLocation} from '../utils';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
@@ -91,7 +94,7 @@ export default class BundleGraph<TBundle: IBundle>
   getIncomingDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getIncomingDependencies(assetToAssetValue(asset))
-      .map(dep => new Dependency(dep, this.#options));
+      .map(dep => getPublicDependency(dep, this.#options));
   }
 
   getAssetWithDependency(dep: IDependency): ?IAsset {
@@ -159,7 +162,7 @@ export default class BundleGraph<TBundle: IBundle>
   getDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getDependencies(assetToAssetValue(asset))
-      .map(dep => new Dependency(dep, this.#options));
+      .map(dep => getPublicDependency(dep, this.#options));
   }
 
   isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
@@ -257,18 +260,27 @@ export default class BundleGraph<TBundle: IBundle>
   traverse<TContext>(
     visit: GraphVisitor<BundleGraphTraversable, TContext>,
     start?: ?IAsset,
+    opts?: ?{|skipUnusedDependencies?: boolean|},
   ): ?TContext {
     return this.#graph.traverse(
-      mapVisitor(
-        node =>
-          node.type === 'asset'
-            ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
-            : {
-                type: 'dependency',
-                value: new Dependency(node.value, this.#options),
-              },
-        visit,
-      ),
+      mapVisitor((node, actions) => {
+        // Skipping unused dependencies here is faster than doing an isDependencySkipped check inside the visitor
+        // because the node needs to be re-looked up by id from the hashmap.
+        if (
+          opts?.skipUnusedDependencies &&
+          node.type === 'dependency' &&
+          (node.hasDeferred || node.excluded)
+        ) {
+          actions.skipChildren();
+          return null;
+        }
+        return node.type === 'asset'
+          ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
+          : {
+              type: 'dependency',
+              value: getPublicDependency(node.value, this.#options),
+            };
+      }, visit),
       start ? assetToAssetValue(start) : undefined,
     );
   }

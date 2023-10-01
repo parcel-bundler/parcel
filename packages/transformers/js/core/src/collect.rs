@@ -654,8 +654,10 @@ impl Visit for Collect {
       Expr::Member(member) => {
         if match_member_expr(member, vec!["module", "exports"], &self.decls) {
           handle_export!();
+          return;
+        } else {
+          member.visit_with(self);
         }
-        return;
       }
       Expr::Ident(ident) => {
         if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
@@ -754,6 +756,16 @@ impl Visit for Collect {
       _ => {
         node.visit_children_with(self);
       }
+    }
+  }
+
+  fn visit_ident(&mut self, node: &Ident) {
+    // This visitor helps us identify used imports in cases like:
+    //
+    //   import { foo } from "bar";
+    //   const baz = { foo };
+    if self.imports.contains_key(&id!(node)) {
+      self.used_imports.insert(id!(node));
     }
   }
 
