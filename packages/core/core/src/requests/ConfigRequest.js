@@ -4,6 +4,9 @@ import type {
   Config as IConfig,
   PluginOptions as IPluginOptions,
   PluginLogger as IPluginLogger,
+  PluginTracer as IPluginTracer,
+  NamedBundle as INamedBundle,
+  BundleGraph as IBundleGraph,
 } from '@parcel/types';
 import type {
   Config,
@@ -21,13 +24,33 @@ import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import PublicConfig from '../public/Config';
 import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
-import {Hash} from '@parcel/hash';
+import {Hash} from '@parcel/rust';
+import {PluginTracer} from '@parcel/profiler';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
     config: IConfig,
     options: IPluginOptions,
     logger: IPluginLogger,
+    tracer: IPluginTracer,
+  |}) => Async<mixed>,
+  ...
+};
+
+export type PluginWithBundleConfig = {
+  loadConfig?: ({|
+    config: IConfig,
+    options: IPluginOptions,
+    logger: IPluginLogger,
+    tracer: IPluginTracer,
+  |}) => Async<mixed>,
+  loadBundleConfig?: ({|
+    bundle: INamedBundle,
+    bundleGraph: IBundleGraph<INamedBundle>,
+    config: IConfig,
+    options: IPluginOptions,
+    logger: IPluginLogger,
+    tracer: IPluginTracer,
   |}) => Async<mixed>,
   ...
 };
@@ -39,6 +62,7 @@ export type ConfigRequest = {
   invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,
   invalidateOnStartup: boolean,
+  invalidateOnBuild: boolean,
   ...
 };
 
@@ -61,6 +85,10 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
         }),
       ),
       logger: new PluginLogger({origin: loadedPlugin.name}),
+      tracer: new PluginTracer({
+        origin: loadedPlugin.name,
+        category: 'loadConfig',
+      }),
     });
   } catch (e) {
     throw new ThrowableDiagnostic({
@@ -71,8 +99,8 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
   }
 }
 
-export async function runConfigRequest(
-  api: RunAPI,
+export async function runConfigRequest<TResult>(
+  api: RunAPI<TResult>,
   configRequest: ConfigRequest,
 ) {
   let {
@@ -81,6 +109,7 @@ export async function runConfigRequest(
     invalidateOnEnvChange,
     invalidateOnOptionChange,
     invalidateOnStartup,
+    invalidateOnBuild,
   } = configRequest;
 
   // If there are no invalidations, then no need to create a node.
@@ -88,7 +117,8 @@ export async function runConfigRequest(
     invalidateOnFileChange.size === 0 &&
     invalidateOnFileCreate.length === 0 &&
     invalidateOnOptionChange.size === 0 &&
-    !invalidateOnStartup
+    !invalidateOnStartup &&
+    !invalidateOnBuild
   ) {
     return;
   }
@@ -116,6 +146,10 @@ export async function runConfigRequest(
 
       if (invalidateOnStartup) {
         api.invalidateOnStartup();
+      }
+
+      if (invalidateOnBuild) {
+        api.invalidateOnBuild();
       }
     },
     input: null,
@@ -178,7 +212,8 @@ export function getConfigRequests(
         config.invalidateOnFileCreate.length > 0 ||
         config.invalidateOnEnvChange.size > 0 ||
         config.invalidateOnOptionChange.size > 0 ||
-        config.invalidateOnStartup
+        config.invalidateOnStartup ||
+        config.invalidateOnBuild
       );
     })
     .map(config => ({
@@ -188,5 +223,6 @@ export function getConfigRequests(
       invalidateOnEnvChange: config.invalidateOnEnvChange,
       invalidateOnOptionChange: config.invalidateOnOptionChange,
       invalidateOnStartup: config.invalidateOnStartup,
+      invalidateOnBuild: config.invalidateOnBuild,
     }));
 }

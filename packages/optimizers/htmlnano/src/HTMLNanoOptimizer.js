@@ -16,20 +16,15 @@ export default (new Optimizer({
         '.htmlnanorc.json',
         '.htmlnanorc.js',
         '.htmlnanorc.cjs',
+        '.htmlnanorc.mjs',
         'htmlnano.config.js',
         'htmlnano.config.cjs',
+        'htmlnano.config.mjs',
       ],
       {
         packageKey: 'htmlnano',
       },
     );
-
-    if (userConfig) {
-      let isJavascript = path.extname(userConfig.filePath) === '.js';
-      if (isJavascript) {
-        config.invalidateOnStartup();
-      }
-    }
 
     return userConfig?.contents;
   },

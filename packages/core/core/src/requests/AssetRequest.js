@@ -14,22 +14,22 @@ import type {TransformationResult} from '../Transformation';
 
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
 import {runConfigRequest} from './ConfigRequest';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {report} from '../ReporterRunner';
 
-type RunInput = {|
+type RunInput<TResult> = {|
   input: AssetRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type AssetRequest = {|
   id: ContentKey,
   +type: 'asset_request',
-  run: RunInput => Async<AssetRequestResult>,
+  run: (RunInput<AssetRequestResult>) => Async<AssetRequestResult>,
   input: AssetRequestInput,
 |};
 
@@ -63,7 +63,7 @@ function getId(input: AssetRequestInput) {
   );
 }
 
-async function run({input, api, farm, invalidateReason, options}: RunInput) {
+async function run({input, api, farm, invalidateReason, options}) {
   report({
     type: 'buildProgress',
     phase: 'transforming',
@@ -133,7 +133,10 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
     invalidations,
     invalidateOnFileCreate,
     devDepRequests,
-  } = (await farm.createHandle('runTransform')({
+  } = (await farm.createHandle(
+    'runTransform',
+    input.isSingleChangeRebuild,
+  )({
     configCachePath: cachePath,
     optionsRef,
     request,

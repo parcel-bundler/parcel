@@ -21,12 +21,15 @@ import logger, {
 } from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
 import BundleGraph from './BundleGraph';
+import {tracer, PluginTracer} from '@parcel/profiler';
 
 type Opts = {|
   config: ParcelConfig,
   options: ParcelOptions,
   workerFarm: WorkerFarm,
 |};
+
+const instances: Set<ReporterRunner> = new Set();
 
 export default class ReporterRunner {
   workerFarm: WorkerFarm;
@@ -42,8 +45,10 @@ export default class ReporterRunner {
     this.pluginOptions = new PluginOptions(this.options);
 
     logger.onLog(event => this.report(event));
+    tracer.onTrace(event => this.report(event));
 
     bus.on('reporterEvent', this.eventHandler);
+    instances.add(this);
 
     if (this.options.shouldPatchConsole) {
       patchConsole();
@@ -90,14 +95,26 @@ export default class ReporterRunner {
       }
 
       for (let reporter of this.reporters) {
+        let measurement;
         try {
+          // To avoid an infinite loop we don't measure trace events, as they'll
+          // result in another trace!
+          if (event.type !== 'trace') {
+            measurement = tracer.createMeasurement(reporter.name, 'reporter');
+          }
           await reporter.plugin.report({
             event,
             options: this.pluginOptions,
             logger: new PluginLogger({origin: reporter.name}),
+            tracer: new PluginTracer({
+              origin: reporter.name,
+              category: 'reporter',
+            }),
           });
         } catch (reportError) {
           INTERNAL_ORIGINAL_CONSOLE.error(reportError);
+        } finally {
+          measurement && measurement.end();
         }
       }
     } catch (err) {
@@ -107,6 +124,7 @@ export default class ReporterRunner {
 
   dispose() {
     bus.off('reporterEvent', this.eventHandler);
+    instances.delete(this);
   }
 }
 
@@ -130,6 +148,6 @@ export function reportWorker(workerApi: WorkerApi, event: ReporterEvent) {
   bus.emit('reporterEvent', event);
 }
 
-export function report(event: ReporterEvent) {
-  bus.emit('reporterEvent', event);
+export async function report(event: ReporterEvent): Promise<void> {
+  await Promise.all([...instances].map(instance => instance.report(event)));
 }

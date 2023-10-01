@@ -7,6 +7,7 @@ import {parse} from '@mischnic/json-sourcemap';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {
+  getJSONHighlightLocation,
   getJSONSourceLocation,
   md,
 } from '@parcel/diagnostic';
@@ -26,6 +27,7 @@ const DEP_LOCS = [
   ['devtools_page'],
   ['options_ui', 'page'],
   ['sandbox', 'pages'],
+  ['side_panel', 'default_path'],
   ['sidebar_action', 'default_icon'],
   ['sidebar_action', 'default_panel'],
   ['storage', 'managed_schema'],
@@ -66,7 +68,7 @@ async function collectDependencies(
                 filePath,
                 codeHighlights: [
                   {
-                    ...getJSONSourceLocation(ptrs['/default_locale'], err),
+                    ...getJSONHighlightLocation(ptrs['/default_locale'], err),
                     message: md`Localization ${
                       err == 'value'
                         ? 'file for ' + program.default_locale
@@ -123,14 +125,6 @@ async function collectDependencies(
   }
   if (program.dictionaries) {
     for (const dict in program.dictionaries) {
-      const sourceLoc = getJSONSourceLocation(
-        ptrs[`/dictionaries/${dict}`],
-        'value',
-      );
-      const loc = {
-        filePath,
-        ...sourceLoc,
-      };
       const dictFile = program.dictionaries[dict];
       if (path.extname(dictFile) != '.dic') {
         throw new ThrowableDiagnostic({
@@ -143,7 +137,10 @@ async function collectDependencies(
                   filePath,
                   codeHighlights: [
                     {
-                      ...sourceLoc,
+                      ...getJSONHighlightLocation(
+                        ptrs[`/dictionaries/${dict}`],
+                        'value',
+                      ),
                       message: 'Dictionaries must be .dic files',
                     },
                   ],
@@ -153,6 +150,10 @@ async function collectDependencies(
           ],
         });
       }
+      const loc = {
+        filePath,
+        ...getJSONSourceLocation(ptrs[`/dictionaries/${dict}`], 'value'),
+      };
       program.dictionaries[dict] = asset.addURLDependency(dictFile, {
         needsStableName: true,
         loc,
@@ -397,8 +398,9 @@ export default (new Transformer({
       },
       sourceMap: asset.env.sourceMap && {
         ...asset.env.sourceMap,
-        inline: true,
-        inlineSources: true,
+        // Inline source maps work most reliably on web extensions but allow users to overwrite
+        inline: asset.env.sourceMap.inline ?? true,
+        inlineSources: asset.env.sourceMap.inlineSources ?? true,
       },
       includeNodeModules: asset.env.includeNodeModules,
       sourceType: asset.env.sourceType,

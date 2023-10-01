@@ -1,3 +1,4 @@
 import foo from './foo';
+import './bar';
 
-console.log(foo());
+console.log(foo(122222222));

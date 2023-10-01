@@ -11,7 +11,7 @@ import type {ProjectPath} from './projectPath';
 
 import {fromProjectPathRelative} from './projectPath';
 import {createEnvironment} from './Environment';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 
 type ConfigOpts = {|
   plugin: PackageName,
@@ -25,6 +25,7 @@ type ConfigOpts = {|
   invalidateOnOptionChange?: Set<string>,
   devDeps?: Array<InternalDevDepOptions>,
   invalidateOnStartup?: boolean,
+  invalidateOnBuild?: boolean,
 |};
 
 export function createConfig({
@@ -39,6 +40,7 @@ export function createConfig({
   invalidateOnOptionChange,
   devDeps,
   invalidateOnStartup,
+  invalidateOnBuild,
 }: ConfigOpts): Config {
   let environment = env ?? createEnvironment();
   return {
@@ -59,5 +61,6 @@ export function createConfig({
     invalidateOnOptionChange: invalidateOnOptionChange ?? new Set(),
     devDeps: devDeps ?? [],
     invalidateOnStartup: invalidateOnStartup ?? false,
+    invalidateOnBuild: invalidateOnBuild ?? false,
   };
 }

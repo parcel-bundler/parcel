@@ -30,6 +30,24 @@ const MANIFEST_SCHEMA: SchemaEntity = {
   properties: {
     icons: RESOURCES_SCHEMA,
     screenshots: RESOURCES_SCHEMA,
+    shortcuts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          icons: RESOURCES_SCHEMA,
+        },
+      },
+    },
+    file_handlers: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          icons: RESOURCES_SCHEMA,
+        },
+      },
+    },
   },
 };
 
@@ -45,8 +63,7 @@ export default (new Transformer({
       'Invalid webmanifest',
     );
 
-    for (const key of ['icons', 'screenshots']) {
-      const list = data[key];
+    function addResourceListToAsset(list, parent) {
       if (list) {
         invariant(Array.isArray(list));
         for (let i = 0; i < list.length; i++) {
@@ -54,9 +71,28 @@ export default (new Transformer({
           res.src = asset.addURLDependency(res.src, {
             loc: {
               filePath: asset.filePath,
-              ...getJSONSourceLocation(pointers[`/${key}/${i}/src`], 'value'),
+              ...getJSONSourceLocation(
+                pointers[`/${parent}/${i}/src`],
+                'value',
+              ),
             },
           });
+        }
+      }
+    }
+
+    for (const key of ['icons', 'screenshots']) {
+      const list = data[key];
+      addResourceListToAsset(list, key);
+    }
+
+    for (const key of ['shortcuts', 'file_handlers']) {
+      const list = data[key];
+      if (list) {
+        invariant(Array.isArray(list));
+        for (let i = 0; i < list.length; i++) {
+          const iconList = list[i].icons;
+          addResourceListToAsset(iconList, `${key}/${i}/icons`);
         }
       }
     }

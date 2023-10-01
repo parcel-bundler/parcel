@@ -77,6 +77,7 @@ describe('TargetResolver', () => {
     invalidateOnEnvChange() {},
     invalidateOnOptionChange() {},
     invalidateOnStartup() {},
+    invalidateOnBuild() {},
     getInvalidations() {
       return [];
     },
@@ -90,6 +91,9 @@ describe('TargetResolver', () => {
     getPreviousResult() {},
     getRequestResult() {},
     getSubRequests() {
+      return [];
+    },
+    getInvalidSubRequests() {
       return [];
     },
   };
@@ -195,7 +199,7 @@ describe('TargetResolver', () => {
               line: 2,
             },
             end: {
-              column: 30,
+              column: 31,
               line: 2,
             },
           },
@@ -231,7 +235,7 @@ describe('TargetResolver', () => {
               line: 3,
             },
             end: {
-              column: 34,
+              column: 35,
               line: 3,
             },
           },
@@ -265,7 +269,7 @@ describe('TargetResolver', () => {
               line: 4,
             },
             end: {
-              column: 36,
+              column: 37,
               line: 4,
             },
           },
@@ -311,7 +315,7 @@ describe('TargetResolver', () => {
               line: 3,
             },
             end: {
-              column: 24,
+              column: 25,
               line: 3,
             },
           },
@@ -354,7 +358,7 @@ describe('TargetResolver', () => {
               line: 2,
             },
             end: {
-              column: 30,
+              column: 31,
               line: 2,
             },
           },
@@ -388,7 +392,7 @@ describe('TargetResolver', () => {
               line: 3,
             },
             end: {
-              column: 48,
+              column: 49,
               line: 3,
             },
           },
@@ -422,7 +426,7 @@ describe('TargetResolver', () => {
               line: 4,
             },
             end: {
-              column: 48,
+              column: 49,
               line: 4,
             },
           },
@@ -473,7 +477,7 @@ describe('TargetResolver', () => {
               line: 2,
             },
             end: {
-              column: 30,
+              column: 31,
               line: 2,
             },
           },
@@ -507,7 +511,7 @@ describe('TargetResolver', () => {
               line: 3,
             },
             end: {
-              column: 48,
+              column: 49,
               line: 3,
             },
           },
@@ -541,7 +545,7 @@ describe('TargetResolver', () => {
               line: 4,
             },
             end: {
-              column: 48,
+              column: 49,
               line: 4,
             },
           },
@@ -701,7 +705,7 @@ describe('TargetResolver', () => {
             line: 2,
           },
           end: {
-            column: 30,
+            column: 31,
             line: 2,
           },
         },
@@ -1079,7 +1083,7 @@ describe('TargetResolver', () => {
             line: 2,
           },
           end: {
-            column: 26,
+            column: 27,
             line: 2,
           },
         },
@@ -1124,7 +1128,7 @@ describe('TargetResolver', () => {
             line: 3,
           },
           end: {
-            column: 25,
+            column: 26,
             line: 3,
           },
         },
@@ -1170,7 +1174,7 @@ describe('TargetResolver', () => {
               line: 2,
             },
             end: {
-              column: 30,
+              column: 31,
               line: 2,
             },
           },
@@ -1204,7 +1208,7 @@ describe('TargetResolver', () => {
               line: 4,
             },
             end: {
-              column: 36,
+              column: 37,
               line: 4,
             },
           },

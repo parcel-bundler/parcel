@@ -1,5 +1,7 @@
 // @flow strict-local
 
+import type {SourceLocation} from '@parcel/types';
+
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
@@ -7,7 +9,8 @@ import {
   transform,
   transformStyleAttribute,
   browserslistToTargets,
-} from '@parcel/css';
+  type SourceLocation as LightningSourceLocation,
+} from 'lightningcss';
 import {remapSourceLocation, relativePath} from '@parcel/utils';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
@@ -116,11 +119,11 @@ export default (new Transformer({
                 {
                   start: {
                     line: warning.loc.line,
-                    column: warning.loc.column,
+                    column: warning.loc.column + 1,
                   },
                   end: {
                     line: warning.loc.line,
-                    column: warning.loc.column,
+                    column: warning.loc.column + 1,
                   },
                 },
               ],
@@ -146,7 +149,7 @@ export default (new Transformer({
 
     if (res.dependencies) {
       for (let dep of res.dependencies) {
-        let loc = dep.loc;
+        let loc = convertLoc(dep.loc);
         if (originalMap) {
           loc = remapSourceLocation(loc, originalMap);
         }
@@ -156,6 +159,7 @@ export default (new Transformer({
             specifier: dep.url,
             specifierType: 'url',
             loc,
+            packageConditions: ['style'],
             meta: {
               // For the glob resolver to distinguish between `@import` and other URL dependencies.
               isCSSImport: true,
@@ -192,6 +196,8 @@ export default (new Transformer({
         locals.set(exports[key].name, key);
       }
 
+      asset.uniqueKey ??= asset.id;
+
       let seen = new Set();
       let add = key => {
         if (seen.has(key)) {
@@ -205,13 +211,16 @@ export default (new Transformer({
         for (let ref of e.composes) {
           s += ' ';
           if (ref.type === 'local') {
-            add(nullthrows(locals.get(ref.name)));
-            s +=
-              '${' +
-              `module.exports[${JSON.stringify(
-                nullthrows(locals.get(ref.name)),
-              )}]` +
-              '}';
+            let exported = nullthrows(locals.get(ref.name));
+            add(exported);
+            s += '${' + `module.exports[${JSON.stringify(exported)}]` + '}';
+            asset.addDependency({
+              specifier: nullthrows(asset.uniqueKey),
+              specifierType: 'esm',
+              symbols: new Map([
+                [exported, {local: ref.name, isWeak: false, loc: null}],
+              ]),
+            });
           } else if (ref.type === 'global') {
             s += ref.name;
           } else if (ref.type === 'dependency') {
@@ -222,6 +231,11 @@ export default (new Transformer({
                 ref.specifier,
               )};\n`;
               dependencies.set(ref.specifier, d);
+              asset.addDependency({
+                specifier: ref.specifier,
+                specifierType: 'esm',
+                packageConditions: ['style'],
+              });
             }
             s += '${' + `${d}[${JSON.stringify(ref.name)}]` + '}';
           }
@@ -233,12 +247,21 @@ export default (new Transformer({
         // to the JS so the symbol is retained during tree-shaking.
         if (e.isReferenced) {
           s += `module.exports[${JSON.stringify(key)}];\n`;
+          asset.addDependency({
+            specifier: nullthrows(asset.uniqueKey),
+            specifierType: 'esm',
+            symbols: new Map([
+              [key, {local: exports[key].name, isWeak: false, loc: null}],
+            ]),
+          });
         }
 
         js += s;
       };
 
-      for (let key in exports) {
+      // It's possible that the exports can be ordered differently between builds.
+      // Sorting by key is safe as the order is irrelevant but needs to be deterministic.
+      for (let key of Object.keys(exports).sort()) {
         asset.symbols.set(key, exports[key].name);
         add(key);
       }
@@ -262,6 +285,7 @@ export default (new Transformer({
           asset.addDependency({
             specifier: reference.specifier,
             specifierType: 'esm',
+            packageConditions: ['style'],
             symbols: new Map([
               [reference.name, {local: symbol, isWeak: false, loc: null}],
             ]),
@@ -299,4 +323,12 @@ function getTargets(browsers) {
 
   cache.set(browsers, targets);
   return targets;
+}
+
+function convertLoc(loc: LightningSourceLocation): SourceLocation {
+  return {
+    filePath: loc.filePath,
+    start: {line: loc.start.line, column: loc.start.column},
+    end: {line: loc.end.line, column: loc.end.column + 1},
+  };
 }

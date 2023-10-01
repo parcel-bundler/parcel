@@ -6,7 +6,6 @@ import formatCodeFrame from '@parcel/codeframe';
 import mdAnsi from '@parcel/markdown-ansi';
 import chalk from 'chalk';
 import path from 'path';
-import nullthrows from 'nullthrows';
 // $FlowFixMe
 import terminalLink from 'terminal-link';
 
@@ -60,10 +59,10 @@ export default async function prettyDiagnostic(
       }
 
       let highlights = codeFrame.codeHighlights;
-      let code =
-        codeFrame.code ??
-        (options &&
-          (await options.inputFS.readFile(nullthrows(filePath), 'utf8')));
+      let code = codeFrame.code;
+      if (code == null && options && filePath != null) {
+        code = await options.inputFS.readFile(filePath, 'utf8');
+      }
 
       let formattedCodeFrame = '';
       if (code != null) {
@@ -78,10 +77,14 @@ export default async function prettyDiagnostic(
         });
       }
 
-      let location =
-        typeof filePath !== 'string'
-          ? ''
-          : `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}`;
+      let location;
+      if (typeof filePath !== 'string') {
+        location = '';
+      } else if (highlights.length === 0) {
+        location = filePath;
+      } else {
+        location = `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}`;
+      }
       result.codeframe += location ? chalk.gray.underline(location) + '\n' : '';
       result.codeframe += formattedCodeFrame;
       if (codeFrame !== codeFrames[codeFrames.length - 1]) {

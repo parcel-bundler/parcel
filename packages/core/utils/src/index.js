@@ -11,6 +11,7 @@ export {default as countLines} from './countLines';
 export {default as generateBuildMetrics} from './generateBuildMetrics';
 export {default as generateCertificate} from './generateCertificate';
 export {default as getCertificate} from './getCertificate';
+export {default as getModuleParts} from './getModuleParts';
 export {default as getRootDir} from './getRootDir';
 export {default as isDirectoryInside} from './isDirectoryInside';
 export {default as isURL} from './is-url';
@@ -39,11 +40,23 @@ export {
   setIntersect,
   setUnion,
 } from './collection';
-export {resolveConfig, resolveConfigSync, loadConfig} from './config';
+export {
+  resolveConfig,
+  resolveConfigSync,
+  loadConfig,
+  readConfig,
+} from './config';
 export {DefaultMap, DefaultWeakMap} from './DefaultMap';
 export {makeDeferredWithPromise} from './Deferred';
 export {getProgressMessage} from './progress-message.js';
-export {isGlob, isGlobMatch, globSync, glob, globToRegex} from './glob';
+export {
+  isGlob,
+  isGlobMatch,
+  globMatch,
+  globSync,
+  glob,
+  globToRegex,
+} from './glob';
 export {hashStream, hashObject, hashFile} from './hash';
 export {SharedBuffer} from './shared-buffer';
 export {fuzzySearch} from './schema';
@@ -72,3 +85,4 @@ export {
   loadSourceMap,
   remapSourceLocation,
 } from './sourcemap';
+export {default as stripAnsi} from 'strip-ansi';

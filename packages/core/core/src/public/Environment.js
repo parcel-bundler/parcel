@@ -52,6 +52,7 @@ const ALL_BROWSERS = [
   'kaios',
 ];
 
+// See require("caniuse-api").getSupport(<feature name>)
 const supportData = {
   esmodules: {
     edge: '16',
@@ -119,8 +120,21 @@ const supportData = {
     qq: '10.4',
     baidu: '7.12',
     kaios: '2.5',
+    and_chr: '50',
     and_qq: '12.12',
     op_mob: '64',
+  },
+  'global-this': {
+    chrome: '75',
+    edge: '79',
+    safari: '12.1',
+    firefox: '65',
+    opera: '58',
+    node: '12',
+    and_chr: '71',
+    ios: '12.2',
+    android: '71',
+    samsung: '10.1',
   },
 };
 

@@ -18,7 +18,7 @@ import {hashFile} from '@parcel/utils';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
-import * as searchNative from '@parcel/fs-search';
+import * as searchNative from '@parcel/rust';
 import * as searchJS from './find';
 
 // Most of this can go away once we only support Node 10+, which includes

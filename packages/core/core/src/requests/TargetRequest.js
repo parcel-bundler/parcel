@@ -16,6 +16,7 @@ import type {Entry, ParcelOptions, Target} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {
+  convertSourceLocationToHighlight,
   generateJSONCodeHighlights,
   getJSONSourceLocation,
   encodeJSONKeyComponent,
@@ -48,9 +49,9 @@ import {BROWSER_ENVS} from '../public/Environment';
 import {optionsProxy, toInternalSourceLocation} from '../utils';
 import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 
-type RunOpts = {|
+type RunOpts<TResult> = {|
   input: Entry,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 const DEFAULT_DIST_DIRNAME = 'dist';
@@ -89,7 +90,7 @@ const DEFAULT_ENGINES = {
 export type TargetRequest = {|
   id: string,
   +type: 'target_request',
-  run: RunOpts => Async<Array<Target>>,
+  run: (RunOpts<Array<Target>>) => Async<Array<Target>>,
   input: Entry,
 |};
 
@@ -118,7 +119,7 @@ export function skipTarget(
     : targetName !== exclusiveTarget;
 }
 
-async function run({input, api, options}: RunOpts) {
+async function run({input, api, options}) {
   let targetResolver = new TargetResolver(
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
@@ -182,11 +183,11 @@ type TargetKeyInfo =
 
 export class TargetResolver {
   fs: FileSystem;
-  api: RunAPI;
+  api: RunAPI<Array<Target>>;
   options: ParcelOptions;
   targetInfo: Map<string, TargetInfo>;
 
-  constructor(api: RunAPI, options: ParcelOptions) {
+  constructor(api: RunAPI<Array<Target>>, options: ParcelOptions) {
     this.api = api;
     this.fs = options.inputFS;
     this.options = options;
@@ -1417,21 +1418,16 @@ function assertTargetsAreNotEntries(
         codeFrames.push({
           filePath: fromProjectPath(options.projectRoot, loc.filePath),
           codeHighlights: [
-            {
-              start: loc.start,
-              end: loc.end,
-              message: 'Target defined here',
-            },
+            convertSourceLocationToHighlight(loc, 'Target defined here'),
           ],
         });
 
         let inputLoc = input.loc;
         if (inputLoc) {
-          let highlight = {
-            start: inputLoc.start,
-            end: inputLoc.end,
-            message: 'Entry defined here',
-          };
+          let highlight = convertSourceLocationToHighlight(
+            inputLoc,
+            'Entry defined here',
+          );
 
           if (inputLoc.filePath === loc.filePath) {
             codeFrames[0].codeHighlights.push(highlight);
@@ -1497,11 +1493,9 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
 
     let highlights = [];
     if (input.loc) {
-      highlights.push({
-        start: input.loc.start,
-        end: input.loc.end,
-        message: 'entry defined here',
-      });
+      highlights.push(
+        convertSourceLocationToHighlight(input.loc, 'entry defined here'),
+      );
     }
 
     // Read package.json where target is defined.
@@ -1591,7 +1585,7 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
     logger.verbose({
       origin: '@parcel/core',
       message: md`**Target** "${target.name}"
-      
+
                **Entry**: ${path.relative(
                  process.cwd(),
                  fromProjectPath(options.projectRoot, input.filePath),

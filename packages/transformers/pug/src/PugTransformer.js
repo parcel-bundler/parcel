@@ -10,18 +10,13 @@ export default (new Transformer({
       '.pugrc',
       '.pugrc.js',
       '.pugrc.cjs',
+      '.pugrc.mjs',
       'pug.config.js',
       'pug.config.cjs',
+      'pug.config.mjs',
     ]);
 
-    if (configFile) {
-      let isJavascript = path.extname(configFile.filePath) === '.js';
-      if (isJavascript) {
-        config.invalidateOnStartup();
-      }
-
-      return configFile.contents;
-    }
+    return configFile?.contents;
   },
 
   async transform({asset, config}) {

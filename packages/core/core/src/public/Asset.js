@@ -25,7 +25,7 @@ import type {Asset as AssetValue, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
-import Dependency from './Dependency';
+import {getPublicDependency} from './Dependency';
 import {AssetSymbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
@@ -162,7 +162,7 @@ class BaseAsset {
   getDependencies(): $ReadOnlyArray<IDependency> {
     return this.#asset
       .getDependencies()
-      .map(dep => new Dependency(dep, this.#asset.options));
+      .map(dep => getPublicDependency(dep, this.#asset.options));
   }
 
   getCode(): Promise<string> {
@@ -192,6 +192,7 @@ class BaseAsset {
 
 export class Asset extends BaseAsset implements IAsset {
   #asset /*: CommittedAsset | UncommittedAsset */;
+  #env /*: ?Environment */;
 
   constructor(asset: CommittedAsset | UncommittedAsset): Asset {
     let assetValueToAsset = asset.value.committed
@@ -206,6 +207,11 @@ export class Asset extends BaseAsset implements IAsset {
     this.#asset = asset;
     assetValueToAsset.set(asset.value, this);
     return this;
+  }
+
+  get env(): IEnvironment {
+    this.#env ??= new Environment(this.#asset.value.env, this.#asset.options);
+    return this.#env;
   }
 
   get stats(): Stats {
@@ -269,6 +275,19 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   set sideEffects(sideEffects: boolean): void {
     this.#asset.value.sideEffects = sideEffects;
+  }
+
+  get uniqueKey(): ?string {
+    return this.#asset.value.uniqueKey;
+  }
+
+  set uniqueKey(uniqueKey: ?string): void {
+    if (this.#asset.value.uniqueKey != null) {
+      throw new Error(
+        "Cannot change an asset's uniqueKey after it has been set.",
+      );
+    }
+    this.#asset.value.uniqueKey = uniqueKey;
   }
 
   get symbols(): IMutableAssetSymbols {

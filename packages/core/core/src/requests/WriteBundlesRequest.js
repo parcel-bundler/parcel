@@ -9,10 +9,9 @@ import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
 
 import {HASH_REF_PREFIX} from '../constants';
-import {serialize} from '../serializer';
 import {joinProjectPath} from '../projectPath';
 import nullthrows from 'nullthrows';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {createPackageRequest} from './PackageRequest';
 import createWriteBundleRequest from './WriteBundleRequest';
 
@@ -21,15 +20,17 @@ type WriteBundlesRequestInput = {|
   optionsRef: SharedReference,
 |};
 
-type RunInput = {|
+type RunInput<TResult> = {|
   input: WriteBundlesRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TResult>,
 |};
 
 export type WriteBundlesRequest = {|
   id: ContentKey,
   +type: 'write_bundles_request',
-  run: RunInput => Async<Map<string, PackagedBundleInfo>>,
+  run: (
+    RunInput<Map<string, PackagedBundleInfo>>,
+  ) => Async<Map<string, PackagedBundleInfo>>,
   input: WriteBundlesRequestInput,
 |};
 
@@ -47,12 +48,9 @@ export default function createWriteBundlesRequest(
   };
 }
 
-async function run({input, api, farm, options}: RunInput) {
+async function run({input, api, farm, options}) {
   let {bundleGraph, optionsRef} = input;
-  let {ref, dispose} = await farm.createSharedReference(
-    bundleGraph,
-    serialize(bundleGraph),
-  );
+  let {ref, dispose} = await farm.createSharedReference(bundleGraph);
 
   api.invalidateOnOptionChange('shouldContentHash');
 
@@ -83,6 +81,13 @@ async function run({input, api, farm, options}: RunInput) {
     return true;
   });
 
+  // Package on the main thread if there is only one bundle to package.
+  // This avoids the cost of serializing the bundle graph for single file change builds.
+  let useMainThread =
+    bundles.length === 1 ||
+    bundles.filter(b => !api.canSkipSubrequest(bundleGraph.getHash(b)))
+      .length === 1;
+
   try {
     await Promise.all(
       bundles.map(async bundle => {
@@ -91,8 +96,22 @@ async function run({input, api, farm, options}: RunInput) {
           bundleGraph,
           bundleGraphReference: ref,
           optionsRef,
+          useMainThread,
         });
+
         let info = await api.runRequest(request);
+
+        if (!useMainThread) {
+          // Force a refresh of the cache to avoid a race condition
+          // between threaded reads and writes that can result in an LMDB cache miss:
+          //   1. The main thread has read some value from cache, necessitating a read transaction.
+          //   2. Concurrently, Thread A finishes a packaging request.
+          //   3. Subsequently, the main thread is tasked with this request, but fails because the read transaction is stale.
+          // This only occurs if the reading thread has a transaction that was created before the writing thread committed,
+          // and the transaction is still live when the reading thread attempts to get the written value.
+          // See https://github.com/parcel-bundler/parcel/issues/9121
+          options.cache.refresh();
+        }
 
         bundleInfoMap[bundle.id] = info;
         if (!info.hashReferences.length) {
@@ -108,7 +127,10 @@ async function run({input, api, farm, options}: RunInput) {
             hashRefToNameHash,
             bundleGraph,
           });
-          writeEarlyPromises[bundle.id] = api.runRequest(writeBundleRequest);
+          let promise = api.runRequest(writeBundleRequest);
+          // If the promise rejects before we await it (below), we don't want to crash the build.
+          promise.catch(() => {});
+          writeEarlyPromises[bundle.id] = promise;
         }
       }),
     );

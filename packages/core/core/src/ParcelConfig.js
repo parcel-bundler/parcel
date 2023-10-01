@@ -157,7 +157,7 @@ export default class ParcelConfig {
     return Promise.all(plugins.map(p => this.loadPlugin<T>(p)));
   }
 
-  async getResolvers(): Promise<Array<LoadedPlugin<Resolver>>> {
+  async getResolvers(): Promise<Array<LoadedPlugin<Resolver<mixed>>>> {
     if (this.resolvers.length === 0) {
       throw await this.missingPluginError(
         this.resolvers,
@@ -166,7 +166,7 @@ export default class ParcelConfig {
       );
     }
 
-    return this.loadPlugins<Resolver>(this.resolvers);
+    return this.loadPlugins<Resolver<mixed>>(this.resolvers);
   }
 
   _getValidatorNodes(filePath: ProjectPath): $ReadOnlyArray<ParcelPluginNode> {
@@ -253,7 +253,7 @@ export default class ParcelConfig {
 
   async getPackager(
     filePath: FilePath,
-  ): Promise<LoadedPlugin<Packager<mixed>>> {
+  ): Promise<LoadedPlugin<Packager<mixed, mixed>>> {
     let packager = this.matchGlobMap(
       toProjectPathUnsafe(filePath),
       this.packagers,
@@ -265,7 +265,7 @@ export default class ParcelConfig {
         '/packagers',
       );
     }
-    return this.loadPlugin<Packager<mixed>>(packager);
+    return this.loadPlugin<Packager<mixed, mixed>>(packager);
   }
 
   _getOptimizerNodes(
@@ -298,13 +298,13 @@ export default class ParcelConfig {
   getOptimizers(
     filePath: FilePath,
     pipeline: ?string,
-  ): Promise<Array<LoadedPlugin<Optimizer<mixed>>>> {
+  ): Promise<Array<LoadedPlugin<Optimizer<mixed, mixed>>>> {
     let optimizers = this._getOptimizerNodes(filePath, pipeline);
     if (optimizers.length === 0) {
       return Promise.resolve([]);
     }
 
-    return this.loadPlugins<Optimizer<mixed>>(optimizers);
+    return this.loadPlugins<Optimizer<mixed, mixed>>(optimizers);
   }
 
   async getCompressors(

@@ -3,7 +3,7 @@ import path from 'path';
 import chalk from 'chalk';
 import stringWidth from 'string-width';
 import termSize from 'term-size';
-import stripAnsi from 'strip-ansi';
+import {stripAnsi} from '@parcel/utils';
 
 export type PadAlign = 'left' | 'right';
 let terminalSize = termSize();

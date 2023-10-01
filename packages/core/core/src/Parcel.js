@@ -1,12 +1,17 @@
 // @flow strict-local
 
 import type {
+  Asset,
   AsyncSubscription,
   BuildEvent,
   BuildSuccessEvent,
   InitialParcelOptions,
   PackagedBundle as IPackagedBundle,
+  ParcelTransformOptions,
+  ParcelResolveOptions,
+  ParcelResolveResult,
 } from '@parcel/types';
+import path from 'path';
 import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
 import type {FarmOptions, SharedReference} from '@parcel/workers';
@@ -37,10 +42,19 @@ import RequestTracker, {
 } from './RequestTracker';
 import createValidationRequest from './requests/ValidationRequest';
 import createParcelBuildRequest from './requests/ParcelBuildRequest';
+import createAssetRequest from './requests/AssetRequest';
+import createPathRequest from './requests/PathRequest';
+import {createEnvironment} from './Environment';
+import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initHash} from '@parcel/hash';
-import {toProjectPath} from './projectPath';
+import {init as initRust} from '@parcel/rust';
+import {
+  fromProjectPath,
+  toProjectPath,
+  fromProjectPathRelative,
+} from './projectPath';
+import {tracer} from '@parcel/profiler';
 
 registerCoreWithSerializer();
 
@@ -87,7 +101,7 @@ export default class Parcel {
     }
 
     await initSourcemaps;
-    await initHash;
+    await initRust?.();
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
@@ -104,13 +118,14 @@ export default class Parcel {
     } else {
       this.#farm = createWorkerFarm({
         shouldPatchConsole: resolvedOptions.shouldPatchConsole,
+        shouldTrace: resolvedOptions.shouldTrace,
       });
     }
 
     await resolvedOptions.cache.ensure();
 
     let {dispose: disposeOptions, ref: optionsRef} =
-      await this.#farm.createSharedReference(resolvedOptions);
+      await this.#farm.createSharedReference(resolvedOptions, false);
     this.#optionsRef = optionsRef;
 
     this.#disposable = new Disposable();
@@ -257,9 +272,14 @@ export default class Parcel {
       if (options.shouldProfile) {
         await this.startProfiling();
       }
+      if (options.shouldTrace) {
+        tracer.enable();
+      }
       this.#reporterRunner.report({
         type: 'buildStart',
       });
+
+      this.#requestTracker.graph.invalidateOnBuildNodes();
 
       let request = createParcelBuildRequest({
         optionsRef: this.#optionsRef,
@@ -272,7 +292,7 @@ export default class Parcel {
 
       this.#requestedAssetIds.clear();
 
-      dumpGraphToGraphViz(
+      await dumpGraphToGraphViz(
         // $FlowFixMe
         this.#requestTracker.graph,
         'RequestGraph',
@@ -429,6 +449,86 @@ export default class Parcel {
   takeHeapSnapshot(): Promise<void> {
     logger.info({origin: '@parcel/core', message: 'Taking heap snapshot...'});
     return this.#farm.takeHeapSnapshot();
+  }
+
+  async unstable_transform(
+    options: ParcelTransformOptions,
+  ): Promise<Array<Asset>> {
+    if (!this.#initialized) {
+      await this._init();
+    }
+
+    let projectRoot = nullthrows(this.#resolvedOptions).projectRoot;
+    let request = createAssetRequest({
+      ...options,
+      filePath: toProjectPath(projectRoot, options.filePath),
+      optionsRef: this.#optionsRef,
+      env: createEnvironment({
+        ...options.env,
+        loc:
+          options.env?.loc != null
+            ? {
+                ...options.env.loc,
+                filePath: toProjectPath(projectRoot, options.env.loc.filePath),
+              }
+            : undefined,
+      }),
+    });
+
+    let res = await this.#requestTracker.runRequest(request, {
+      force: true,
+    });
+    return res.map(asset =>
+      assetFromValue(asset, nullthrows(this.#resolvedOptions)),
+    );
+  }
+
+  async unstable_resolve(
+    request: ParcelResolveOptions,
+  ): Promise<?ParcelResolveResult> {
+    if (!this.#initialized) {
+      await this._init();
+    }
+
+    let projectRoot = nullthrows(this.#resolvedOptions).projectRoot;
+    if (request.resolveFrom == null && path.isAbsolute(request.specifier)) {
+      request.specifier = fromProjectPathRelative(
+        toProjectPath(projectRoot, request.specifier),
+      );
+    }
+
+    let dependency = createDependency(projectRoot, {
+      ...request,
+      env: createEnvironment({
+        ...request.env,
+        loc:
+          request.env?.loc != null
+            ? {
+                ...request.env.loc,
+                filePath: toProjectPath(projectRoot, request.env.loc.filePath),
+              }
+            : undefined,
+      }),
+    });
+
+    let req = createPathRequest({
+      dependency,
+      name: request.specifier,
+    });
+
+    let res = await this.#requestTracker.runRequest(req, {
+      force: true,
+    });
+    if (!res) {
+      return null;
+    }
+
+    return {
+      filePath: fromProjectPath(projectRoot, res.filePath),
+      code: res.code,
+      query: res.query,
+      sideEffects: res.sideEffects,
+    };
   }
 }
 

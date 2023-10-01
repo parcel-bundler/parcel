@@ -16,6 +16,7 @@ import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 import {fromProjectPath, fromProjectPathRelative} from './projectPath';
+import {PluginTracer} from '@parcel/profiler';
 
 export type ValidationOpts = {|
   config: ParcelConfig,
@@ -66,6 +67,10 @@ export default class Validation {
         if (assets) {
           let plugin = this.allValidators[validatorName];
           let validatorLogger = new PluginLogger({origin: validatorName});
+          let validatorTracer = new PluginTracer({
+            origin: validatorName,
+            category: 'validator',
+          });
           let validatorResults: Array<?ValidateResult> = [];
           try {
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
@@ -74,6 +79,7 @@ export default class Validation {
                 assets: assets.map(asset => new Asset(asset)),
                 options: pluginOptions,
                 logger: validatorLogger,
+                tracer: validatorTracer,
                 resolveConfigWithPath: (
                   configNames: Array<string>,
                   assetFilePath: string,
@@ -98,6 +104,7 @@ export default class Validation {
                       asset: publicAsset,
                       options: pluginOptions,
                       logger: validatorLogger,
+                      tracer: validatorTracer,
                       resolveConfig: (configNames: Array<string>) =>
                         resolveConfig(
                           this.options.inputFS,
@@ -113,6 +120,7 @@ export default class Validation {
                     options: pluginOptions,
                     config,
                     logger: validatorLogger,
+                    tracer: validatorTracer,
                   });
                   validatorResults.push(validatorResult);
                 }),

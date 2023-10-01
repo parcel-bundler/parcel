@@ -12,5 +12,25 @@
     },
     {}
   ],
-  "screenshots": {}
+  "screenshots": {},
+  "shortcuts": [
+    {
+      "icons": {}
+    },
+    {
+      "icons": [
+        {
+          "src": "icon.png",
+          "sizes": "100x100",
+          "type": "image/png"
+        },
+        {
+          "sizes": "100x100",
+          "type": "image/png"
+        },
+        {}
+      ]
+    }
+  ],
+  "file_handlers": {}
 }

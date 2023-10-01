@@ -1,3 +1,3 @@
 const b = require('./b');
 
-output = b.foo;
+output = [b.foo, b.bar];
