@@ -70,7 +70,8 @@ declare export class ParcelDb {
   serialize(): SerializedParcelDb;
   static deserialize(value: SerializedParcelDb): ParcelDb;
   getPage(page: number): Buffer;
-  alloc(size: number): number;
+  alloc(typeId: number): number;
+  dealloc(typeId: number, addr: number): void;
   readString(addr: number): string;
   getStringId(s: string): number;
   extendVec(addr: number, size: number, count: number): void;

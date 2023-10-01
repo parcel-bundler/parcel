@@ -47,6 +47,10 @@ pub trait ArenaAllocated: Sized {
 
   fn dealloc_ptr(addr: u32) {
     unsafe {
+      // Call destructors.
+      let ptr: *mut Self = current_heap().get(addr);
+      std::ptr::drop_in_place(ptr);
+
       current_arena().dealloc(
         NonNull::new_unchecked(addr as usize as *mut u8),
         std::alloc::Layout::from_size_align_unchecked(
@@ -71,6 +75,12 @@ impl<T: SlabAllocated + Sized> ArenaAllocated for T {
   }
 
   fn dealloc_ptr(addr: u32) {
+    // Call destructors.
+    unsafe {
+      let ptr: *mut Self = current_heap().get(addr);
+      std::ptr::drop_in_place(ptr);
+    }
+
     T::dealloc(addr, 1)
   }
 }
@@ -691,7 +701,7 @@ js_bitflags! {
   }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, ToJs, JsValue, ArenaAllocated)]
+#[derive(PartialEq, Clone, Copy, Debug, ToJs, JsValue)]
 pub enum EnvironmentContext {
   Browser,
   WebWorker,
