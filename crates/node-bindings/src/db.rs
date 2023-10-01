@@ -10,12 +10,12 @@ pub struct JsParcelDb {
   db: Arc<ParcelDbWrapper>,
 }
 
-impl Drop for JsParcelDb {
-  fn drop(&mut self) {
-    let x = &*self.db;
-    println!("Drop JS {:p} {}", x, Arc::strong_count(&self.db));
-  }
-}
+// impl Drop for JsParcelDb {
+//   fn drop(&mut self) {
+//     let x = &*self.db;
+//     println!("Drop JS {:p} {}", x, Arc::strong_count(&self.db));
+//   }
+// }
 
 #[napi(object)]
 pub struct SerializedParcelDb {
@@ -34,7 +34,7 @@ impl JsParcelDb {
 
   #[napi]
   pub fn serialize(&self) -> SerializedParcelDb {
-    println!("serialize");
+    // println!("serialize");
     SerializedParcelDb {
       id: BigInt::from(Arc::as_ptr(&self.db) as u64),
     }
@@ -47,11 +47,11 @@ impl JsParcelDb {
       Arc::increment_strong_count(ptr);
       Arc::from_raw(ptr)
     };
-    println!(
-      "deserialize {:?} {:?}",
-      value.id.words[0],
-      Arc::strong_count(&db)
-    );
+    // println!(
+    //   "deserialize {:?} {:?}",
+    //   value.id.words[0],
+    //   Arc::strong_count(&db)
+    // );
     Self { db }
   }
 

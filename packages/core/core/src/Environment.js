@@ -6,14 +6,14 @@ import type {
 } from '@parcel/types';
 import type {Environment, InternalSourceLocation} from './types';
 import type {ParcelDb} from '@parcel/rust';
-import {hashString} from '@parcel/rust';
-import {
-  toDbSourceLocationFromInternal,
-  toInternalSourceLocation,
-} from './utils';
+import {toDbSourceLocationFromInternal} from './utils';
 import PublicEnvironment from './public/Environment';
 import {environmentToInternalEnvironment} from './public/Environment';
-import {Environment as DbEnvironment, EnvironmentFlags} from '@parcel/rust';
+import {
+  Environment as DbEnvironment,
+  EnvironmentFlags,
+  TargetSourceMapOptions,
+} from '@parcel/rust';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
@@ -35,23 +35,27 @@ type EnvironmentOpts = {|
   loc?: ?InternalSourceLocation,
 |};
 
-let tmpSymbol = Symbol('tmpEnvironment');
-let lastEngines = null;
+let tmpEnvironment = Symbol('tmpEnvironment');
+let tmpSourceMap = Symbol('tmpSourceMapOptions');
+// let lastEngines = null;
 
-export function createEnvironment(db: ParcelDb, {
-  context,
-  engines,
-  includeNodeModules,
-  outputFormat,
-  sourceType = 'module',
-  shouldOptimize = false,
-  isLibrary = false,
-  shouldScopeHoist = false,
-  sourceMap,
-  loc,
-}: EnvironmentOpts = {
-  /*::...null*/
-}): Environment {
+export function createEnvironment(
+  db: ParcelDb,
+  {
+    context,
+    engines,
+    includeNodeModules,
+    outputFormat,
+    sourceType = 'module',
+    shouldOptimize = false,
+    isLibrary = false,
+    shouldScopeHoist = false,
+    sourceMap,
+    loc,
+  }: EnvironmentOpts = {
+    /*::...null*/
+  },
+): Environment {
   if (context == null) {
     if (engines?.node) {
       context = 'node';
@@ -123,8 +127,8 @@ export function createEnvironment(db: ParcelDb, {
   // };
 
   // res.id = getEnvironmentHash(res);
-  db[tmpSymbol] ??= new DbEnvironment(db);
-  let tmp = db[tmpSymbol];
+  db[tmpEnvironment] ??= new DbEnvironment(db);
+  let tmp: DbEnvironment = db[tmpEnvironment];
   tmp.context = context;
   tmp.outputFormat = outputFormat;
   tmp.sourceType = sourceType;
@@ -134,11 +138,21 @@ export function createEnvironment(db: ParcelDb, {
     (shouldScopeHoist ? EnvironmentFlags.SHOULD_SCOPE_HOIST : 0);
   tmp.includeNodeModules = JSON.stringify(includeNodeModules);
   // if (engines !== lastEngines) {
-    tmp.engines = JSON.stringify(engines);
-    // lastEngines = engines;
+  tmp.engines = JSON.stringify(engines);
+  // lastEngines = engines;
   // }
   // console.timeEnd('create env')
-  tmp.sourceMap = null;
+  if (sourceMap) {
+    db[tmpSourceMap] ??= new TargetSourceMapOptions(db);
+    let s: TargetSourceMapOptions = db[tmpSourceMap];
+    s.sourceRoot = sourceMap.sourceRoot;
+    s.inline = !!sourceMap.inline;
+    s.inlineSources = !!sourceMap.inlineSources;
+    tmp.sourceMap = s;
+  } else {
+    tmp.sourceMap = null;
+  }
+
   tmp.loc = toDbSourceLocationFromInternal(db, loc);
   // console.log('env', tmp, tmp.context, tmp.outputFormat, tmp.sourceType, tmp.flags);
 
@@ -163,8 +177,8 @@ export function mergeEnvironments(
     return environmentToInternalEnvironment(b);
   }
 
-  db[tmpSymbol] ??= new DbEnvironment(db);
-  let tmp = db[tmpSymbol];
+  db[tmpEnvironment] ??= new DbEnvironment(db);
+  let tmp = db[tmpEnvironment];
 
   let env = DbEnvironment.get(db, a);
   DbEnvironment.set(db, tmp.addr, env);
@@ -196,8 +210,8 @@ export function mergeEnvironments(
 
   if (b.engines) {
     // if (b.engines !== lastEngines) {
-      tmp.engines = JSON.stringify(b.engines);
-      // lastEngines = b.engines;
+    tmp.engines = JSON.stringify(b.engines);
+    // lastEngines = b.engines;
     // }
   }
 
@@ -214,18 +228,18 @@ function mergeFlag(cur: number, flag: number, value: ?boolean) {
   return value == null ? cur & flag : value ? flag : 0;
 }
 
-function getEnvironmentHash(env: Environment): string {
-  return hashString(
-    JSON.stringify([
-      env.context,
-      env.engines,
-      env.includeNodeModules,
-      env.outputFormat,
-      env.sourceType,
-      env.isLibrary,
-      env.shouldOptimize,
-      env.shouldScopeHoist,
-      env.sourceMap,
-    ]),
-  );
-}
+// function getEnvironmentHash(env: Environment): string {
+//   return hashString(
+//     JSON.stringify([
+//       env.context,
+//       env.engines,
+//       env.includeNodeModules,
+//       env.outputFormat,
+//       env.sourceType,
+//       env.isLibrary,
+//       env.shouldOptimize,
+//       env.shouldScopeHoist,
+//       env.sourceMap,
+//     ]),
+//   );
+// }

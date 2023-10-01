@@ -11,17 +11,12 @@ import type {
   BundleBehavior,
 } from '@parcel/types';
 import type {Dependency as InternalDependency, ParcelOptions} from '../types';
-import {BundleBehaviorNames} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Target from './Target';
 import {MutableDependencySymbols} from './Symbols';
-import {
-  SpecifierType as SpecifierTypeMap,
-  Priority,
-  ExportsCondition,
-} from '../types';
+import {ExportsCondition} from '../types';
 import {fromProjectPath} from '../projectPath';
 import {fromInternalSourceLocation} from '../utils';
 import {
@@ -30,9 +25,6 @@ import {
   Asset as DbAsset,
 } from '@parcel/rust';
 import {createBuildCache} from '../buildCache';
-
-const SpecifierTypeNames = Object.keys(SpecifierTypeMap);
-const PriorityNames = Object.keys(Priority);
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -123,8 +115,8 @@ export default class Dependency implements IDependency {
     // Order is not important because exports conditions are resolved
     // in the order they are declared in the package.json.
     let conditions = this.#dep.customPackageConditions;
+    conditions = conditions.length ? [...conditions] : [];
     if (this.#dep.packageConditions) {
-      conditions = conditions ? [...conditions] : [];
       for (let key in ExportsCondition) {
         if (this.#dep.packageConditions & ExportsCondition[key]) {
           conditions.push(key);
@@ -136,18 +128,20 @@ export default class Dependency implements IDependency {
   }
 
   get meta(): Meta {
-    return (
-      this.#dep.meta ?? {
-        placeholder: this.#dep.placeholder,
-        shouldWrap: Boolean(this.#dep.flags & DependencyFlags.SHOULD_WRAP),
-        isESM: Boolean(this.#dep.flags & DependencyFlags.IS_ESM),
-        webworker: Boolean(this.#dep.flags & DependencyFlags.IS_WEBWORKER),
-        promiseSymbol: this.#dep.promiseSymbol,
-        importAttributes: Object.fromEntries(
-          [...this.#dep.importAttributes].map(v => [v.key, v.value]),
-        ),
-      }
-    );
+    let meta = {
+      placeholder: this.#dep.placeholder,
+      shouldWrap: Boolean(this.#dep.flags & DependencyFlags.SHOULD_WRAP),
+      isESM: Boolean(this.#dep.flags & DependencyFlags.IS_ESM),
+      webworker: Boolean(this.#dep.flags & DependencyFlags.IS_WEBWORKER),
+      promiseSymbol: this.#dep.promiseSymbol,
+      importAttributes: Object.fromEntries(
+        [...this.#dep.importAttributes].map(v => [v.key, v.value]),
+      ),
+    };
+    if (this.#dep.meta != null) {
+      Object.assign(meta, JSON.parse(this.#dep.meta));
+    }
+    return meta;
   }
 
   get symbols(): IMutableDependencySymbols {
@@ -173,7 +167,11 @@ export default class Dependency implements IDependency {
   }
 
   get sourceAssetType(): ?string {
-    return this.#dep.sourceAssetType;
+    if (this.#dep.sourceAssetId != null) {
+      let asset = DbAsset.get(this.#options.db, this.#dep.sourceAssetId);
+      return asset.assetType;
+    }
+    return null;
   }
 
   get resolveFrom(): ?string {

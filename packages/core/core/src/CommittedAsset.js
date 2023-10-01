@@ -8,6 +8,7 @@ import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
 import {generateFromAST} from './assetUtils';
 import {Asset as DbAsset, AssetFlags} from '@parcel/rust';
+import {deserializeRaw} from './serializer';
 
 export default class CommittedAsset {
   value: DbAsset;
@@ -32,15 +33,15 @@ export default class CommittedAsset {
         } else {
           return this.options.cache.getBlob(this.value.contentKey);
         }
-      // } else if (this.value.astKey != null) {
-      //   return streamFromPromise(
-      //     generateFromAST(this).then(({content}) => {
-      //       if (!(content instanceof Readable)) {
-      //         this.content = Promise.resolve(content);
-      //       }
-      //       return content;
-      //     }),
-      //   );
+        // } else if (this.value.astKey != null) {
+        //   return streamFromPromise(
+        //     generateFromAST(this).then(({content}) => {
+        //       if (!(content instanceof Readable)) {
+        //         this.content = Promise.resolve(content);
+        //       }
+        //       return content;
+        //     }),
+        //   );
       } else {
         throw new Error('Asset has no content');
       }
@@ -95,7 +96,7 @@ export default class CommittedAsset {
         try {
           return await this.options.cache.getBlob(mapKey);
         } catch (err) {
-          if (err.code === 'ENOENT' && this.value.astKey != null) {
+          if (err.code === 'ENOENT' && this.value.ast != null) {
             return (await generateFromAST(this)).map?.toBuffer();
           } else {
             throw err;
@@ -122,17 +123,17 @@ export default class CommittedAsset {
   }
 
   getAST(): Promise<?AST> {
-    // if (this.value.astKey == null) {
-    return Promise.resolve(null);
-    // }
+    if (this.value.ast == null) {
+      return Promise.resolve(null);
+    }
 
-    // if (this.ast == null) {
-    //   this.ast = this.options.cache
-    //     .getBlob(this.value.astKey)
-    //     .then(serializedAst => deserializeRaw(serializedAst));
-    // }
+    if (this.ast == null) {
+      this.ast = this.options.cache
+        .getBlob(this.value.ast.key)
+        .then(serializedAst => deserializeRaw(serializedAst));
+    }
 
-    // return this.ast;
+    return this.ast;
   }
 
   getDependencies(): Array<Dependency> {

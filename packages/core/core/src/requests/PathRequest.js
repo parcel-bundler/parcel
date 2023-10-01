@@ -26,7 +26,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import {normalizePath} from '@parcel/utils';
 import {report} from '../ReporterRunner';
-import {getPublicDependency} from '../public/Dependency';
+import PublicDependency, {getPublicDependency} from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
 import ParcelConfig from '../ParcelConfig';
 import createParcelConfigRequest, {
@@ -304,11 +304,13 @@ export class ResolverRunner {
 
         if (result) {
           if (result.meta) {
-            internalDep.resolverMeta = result.meta;
-            internalDep.meta = {
-              ...internalDep.meta,
+            internalDep.resolverMeta = JSON.stringify(result.meta);
+            internalDep.meta = JSON.stringify({
+              ...(internalDep.meta != null
+                ? JSON.parse(internalDep.meta)
+                : null),
               ...result.meta,
-            };
+            });
           }
 
           if (result.priority != null) {
@@ -379,7 +381,6 @@ export class ResolverRunner {
           }
         }
       } catch (e) {
-        console.log(e);
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset
         let errorDiagnostic = errorToDiagnostic(e, {
           origin: resolver.name,

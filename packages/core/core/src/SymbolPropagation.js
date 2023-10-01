@@ -1,13 +1,11 @@
 // @flow
 
 import type {ContentKey, NodeId} from '@parcel/graph';
-import type {Meta, Symbol} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {
   AssetNode,
   CommittedAssetId,
   DependencyNode,
-  InternalSourceLocation,
   ParcelOptions,
 } from './types';
 import {type default as AssetGraph} from './AssetGraph';
@@ -257,7 +255,8 @@ export function propagateSymbols({
       logger.warn({
         message: `${fromProjectPathRelative(
           DbAsset.get(db, assetNode.value).filePath,
-        )} reexports "${readCachedString(db,
+        )} reexports "${readCachedString(
+          db,
           symbol,
         )}", which could be resolved either to the dependency "${
           DbDependency.get(db, depNode1.value).specifier
@@ -303,7 +302,10 @@ export function propagateSymbols({
       // analyzable exports
       let reexportedSymbolsSource = new Map<number, DependencyNode>();
       for (let outgoingDep of outgoingDeps) {
-        let outgoingDepSymbols = DbDependency.get(db, outgoingDep.value).symbols;
+        let outgoingDepSymbols = DbDependency.get(
+          db,
+          outgoingDep.value,
+        ).symbols;
         if (!outgoingDepSymbols) continue;
 
         let isExcluded =
@@ -492,7 +494,10 @@ export function propagateSymbols({
         }
 
         incomingDep.excluded = false;
-        if (dep.flags & DependencyFlags.HAS_SYMBOLS && incomingDep.usedSymbolsUp.size === 0) {
+        if (
+          dep.flags & DependencyFlags.HAS_SYMBOLS &&
+          incomingDep.usedSymbolsUp.size === 0
+        ) {
           let assetGroups = assetGraph.getNodeIdsConnectedFrom(
             assetGraph.getNodeIdByContentKey(incomingDep.id),
           );

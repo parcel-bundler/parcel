@@ -14,6 +14,7 @@ import type {
 } from '@parcel/types';
 import type {
   Asset,
+  CommittedAssetId,
   RequestInvalidation,
   Dependency,
   Environment,
@@ -24,9 +25,8 @@ import {Readable} from 'stream';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import CommittedAsset from './CommittedAsset';
-import UncommittedAsset from './UncommittedAsset';
 import loadPlugin from './loadParcelPlugin';
-import {Asset as PublicAsset} from './public/Asset';
+import {CommittedAsset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import {blobToStream, hashFile} from '@parcel/utils';
 import {hashFromOption, toInternalSourceLocation} from './utils';
@@ -137,33 +137,34 @@ export function createAsset(
   };
 }
 
-const generateResults: WeakMap<Asset, Promise<GenerateOutput>> = new WeakMap();
+const generateResults: Map<
+  CommittedAssetId,
+  Promise<GenerateOutput>,
+> = createBuildCache();
 
 export function generateFromAST(
-  asset: CommittedAsset | UncommittedAsset,
+  asset: CommittedAsset,
 ): Promise<GenerateOutput> {
-  let output = generateResults.get(asset.value);
+  let output = generateResults.get(asset.value.addr);
   if (output == null) {
     output = _generateFromAST(asset);
-    generateResults.set(asset.value, output);
+    generateResults.set(asset.value.addr, output);
   }
   return output;
 }
 
-async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
+async function _generateFromAST(asset: CommittedAsset) {
   let ast = await asset.getAST();
   if (ast == null) {
     throw new Error('Asset has no AST');
   }
 
-  let pluginName = nullthrows(asset.value.plugin);
+  let info = nullthrows(asset.value.ast);
+  let pluginName = nullthrows(info.plugin);
   let {plugin} = await loadPlugin<Transformer<mixed>>(
     pluginName,
-    fromProjectPath(
-      asset.options.projectRoot,
-      nullthrows(asset.value.configPath),
-    ),
-    nullthrows(asset.value.configKeyPath),
+    fromProjectPath(asset.options.projectRoot, nullthrows(info.configPath)),
+    nullthrows(info.configKeyPath),
     asset.options,
   );
   let generate = plugin.generate?.bind(plugin);

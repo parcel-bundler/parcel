@@ -5,9 +5,9 @@ use napi::{Env, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
   ArenaVec, BundleBehavior, Dependency, DependencyFlags, Environment, EnvironmentContext,
-  EnvironmentFlags, EnvironmentId, ImportAttribute, InternedString, Location, OutputFormat,
-  ParcelDb, Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags, TargetId,
-  Vec,
+  EnvironmentFlags, EnvironmentId, ExportsCondition, ImportAttribute, InternedString, Location,
+  OutputFormat, ParcelDb, Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
+  TargetId, Vec,
 };
 use parcel_js_swc_core::{CodeHighlight, DependencyKind, Diagnostic, TransformResult};
 use path_slash::{PathBufExt, PathExt};
@@ -71,7 +71,10 @@ fn convert_result(
   let mut deps = std::vec::Vec::new();
   let mut dep_map = HashMap::new();
   let mut dep_flags = DependencyFlags::empty();
-  dep_flags.set(DependencyFlags::HAS_SYMBOLS, result.hoist_result.is_some() || result.symbol_result.is_some());
+  dep_flags.set(
+    DependencyFlags::HAS_SYMBOLS,
+    result.hoist_result.is_some() || result.symbol_result.is_some(),
+  );
 
   for dep in result.dependencies {
     match dep.kind {
@@ -122,6 +125,11 @@ fn convert_result(
             ..env.clone()
           }),
           import_attributes: ArenaVec::new(),
+          pipeline: None,
+          meta: None,
+          resolver_meta: None,
+          package_conditions: ExportsCondition::empty(),
+          custom_package_conditions: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
         let id = db.create_dependency(d);
@@ -158,6 +166,11 @@ fn convert_result(
             ..db.get_environment(config.env_id).clone()
           }),
           import_attributes: ArenaVec::new(),
+          pipeline: None,
+          meta: None,
+          resolver_meta: None,
+          package_conditions: ExportsCondition::empty(),
+          custom_package_conditions: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
         let id = db.create_dependency(d);
@@ -187,6 +200,11 @@ fn convert_result(
             ..db.get_environment(config.env_id).clone()
           }),
           import_attributes: ArenaVec::new(),
+          pipeline: None,
+          meta: None,
+          resolver_meta: None,
+          package_conditions: ExportsCondition::empty(),
+          custom_package_conditions: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
         let id = db.create_dependency(d);
@@ -210,6 +228,11 @@ fn convert_result(
           target: TargetId(0),
           env: EnvironmentId(config.env_id),
           import_attributes: ArenaVec::new(),
+          pipeline: None,
+          meta: None,
+          resolver_meta: None,
+          package_conditions: ExportsCondition::empty(),
+          custom_package_conditions: ArenaVec::new(),
         };
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
         let id = db.create_dependency(d);
@@ -337,6 +360,11 @@ fn convert_result(
           target: TargetId(0),
           env: env_id,
           import_attributes,
+          pipeline: None,
+          meta: None,
+          resolver_meta: None,
+          package_conditions: ExportsCondition::empty(),
+          custom_package_conditions: ArenaVec::new(),
         };
 
         let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
@@ -370,6 +398,11 @@ fn convert_result(
         ..db.get_environment(config.env_id).clone()
       }),
       import_attributes: ArenaVec::new(),
+      pipeline: None,
+      meta: None,
+      resolver_meta: None,
+      package_conditions: ExportsCondition::empty(),
+      custom_package_conditions: ArenaVec::new(),
     };
     deps.push(db.create_dependency(d));
   }
@@ -503,6 +536,11 @@ fn convert_result(
         target: TargetId(0),
         env: EnvironmentId(config.env_id),
         import_attributes: ArenaVec::new(),
+        pipeline: None,
+        meta: None,
+        resolver_meta: None,
+        package_conditions: ExportsCondition::empty(),
+        custom_package_conditions: ArenaVec::new(),
       };
       deps.push(db.create_dependency(d));
     }

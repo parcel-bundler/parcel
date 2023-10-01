@@ -293,6 +293,7 @@ export default class Parcel {
       this.#requestedAssetIds.clear();
 
       await dumpGraphToGraphViz(
+        options.db,
         // $FlowFixMe
         this.#requestTracker.graph,
         'RequestGraph',
@@ -463,7 +464,7 @@ export default class Parcel {
       ...options,
       filePath: toProjectPath(projectRoot, options.filePath),
       optionsRef: this.#optionsRef,
-      env: createEnvironment({
+      env: createEnvironment(nullthrows(this.#resolvedOptions).db, {
         ...options.env,
         loc:
           options.env?.loc != null
@@ -497,19 +498,26 @@ export default class Parcel {
       );
     }
 
-    let dependency = createDependency(projectRoot, {
-      ...request,
-      env: createEnvironment({
-        ...request.env,
-        loc:
-          request.env?.loc != null
-            ? {
-                ...request.env.loc,
-                filePath: toProjectPath(projectRoot, request.env.loc.filePath),
-              }
-            : undefined,
-      }),
-    });
+    let dependency = createDependency(
+      nullthrows(this.#resolvedOptions).db,
+      projectRoot,
+      {
+        ...request,
+        env: createEnvironment(nullthrows(this.#resolvedOptions).db, {
+          ...request.env,
+          loc:
+            request.env?.loc != null
+              ? {
+                  ...request.env.loc,
+                  filePath: toProjectPath(
+                    projectRoot,
+                    request.env.loc.filePath,
+                  ),
+                }
+              : undefined,
+        }),
+      },
+    );
 
     let req = createPathRequest({
       dependency,

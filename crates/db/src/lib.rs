@@ -3,14 +3,12 @@
 
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
-use std::sync::atomic::AtomicU32;
 use std::{marker::PhantomData, num::NonZeroU32, sync::RwLock};
 
 use alloc::{current_arena, current_heap, Arena, PageAllocator, Slab, ARENA, HEAP};
 use allocator_api2::alloc::Allocator;
 use dashmap::DashMap;
 use derivative::Derivative;
-use lazy_static::lazy_static;
 use parcel_derive::{JsValue, SlabAllocated, ToJs};
 
 mod alloc;
@@ -31,6 +29,9 @@ trait JsValue {
   fn js_getter(db: &str, addr: &str, offset: usize) -> String;
   fn js_setter(db: &str, addr: &str, offset: usize, value: &str) -> String;
   fn ty() -> String;
+  fn accessor() -> String {
+    Self::ty()
+  }
 }
 
 pub trait SlabAllocated {
@@ -112,6 +113,10 @@ impl JsValue for InternedString {
 
   fn ty() -> String {
     "string".into()
+  }
+
+  fn accessor() -> String {
+    "InternedString".into()
   }
 }
 
@@ -530,7 +535,7 @@ impl<T: std::fmt::Debug + SlabAllocated + Clone> std::fmt::Debug for ArenaVec<T>
 impl<T: JsValue> JsValue for ArenaVec<T> {
   fn js_getter(db: &str, addr: &str, offset: usize) -> String {
     let size = std::mem::size_of::<T>();
-    let ty = <T>::ty();
+    let ty = <T>::accessor();
     format!(
       "new Vec({db}, {addr} + {offset}, {size}, {ty})",
       db = db,
@@ -558,7 +563,7 @@ impl<T: JsValue> JsValue for ArenaVec<T> {
   }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+#[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash, SlabAllocated)]
 pub struct InternedString(pub NonZeroU32);
 
 #[derive(PartialEq, Clone, Debug, JsValue)]
@@ -685,6 +690,18 @@ pub struct Asset {
   pub flags: AssetFlags,
   pub symbols: ArenaVec<Symbol>,
   pub unique_key: Option<InternedString>,
+  // TODO: remove in next major version.
+  pub ast: Option<AssetAst>,
+}
+
+#[derive(Debug, Clone, ToJs, JsValue)]
+pub struct AssetAst {
+  pub key: InternedString,
+  pub plugin: InternedString,
+  pub config_path: InternedString,
+  pub config_key_path: Option<InternedString>,
+  pub generator: InternedString,
+  pub version: InternedString,
 }
 
 #[derive(Debug, Clone, ToJs, JsValue)]
@@ -720,6 +737,18 @@ js_bitflags! {
   }
 }
 
+js_bitflags! {
+  pub struct ExportsCondition: u32 {
+    const IMPORT = 1 << 0;
+    const REQUIRE = 1 << 1;
+    const MODULE = 1 << 2;
+    const STYLE = 1 << 12;
+    const SASS = 1 << 13;
+    const LESS = 1 << 14;
+    const STYLUS = 1 << 15;
+  }
+}
+
 #[derive(Debug, Clone, ToJs, JsValue, SlabAllocated)]
 pub struct Dependency {
   pub source_asset_id: Option<u32>,
@@ -732,13 +761,17 @@ pub struct Dependency {
   pub bundle_behavior: BundleBehavior,
   pub flags: DependencyFlags,
   pub loc: Option<SourceLocation>,
-  // meta/resolver_meta
-  // pipeline
   pub placeholder: Option<InternedString>,
   pub target: TargetId,
   pub symbols: ArenaVec<Symbol>,
   pub promise_symbol: Option<InternedString>,
   pub import_attributes: ArenaVec<ImportAttribute>,
+  pub pipeline: Option<InternedString>,
+  // These are stringified JSON
+  pub meta: Option<InternedString>,
+  pub resolver_meta: Option<InternedString>,
+  pub package_conditions: ExportsCondition,
+  pub custom_package_conditions: ArenaVec<InternedString>,
 }
 
 #[derive(Debug, Clone, ToJs, JsValue, SlabAllocated)]
@@ -875,18 +908,19 @@ struct Slabs {
   asset_slab: Slab<Asset>,
   symbol_slab: Slab<Symbol>,
   import_attribute_slab: Slab<ImportAttribute>,
+  interned_string_slab: Slab<InternedString>,
 }
 
 pub struct ParcelDbWrapper {
   inner: ParcelDb,
 }
 
-impl Drop for ParcelDbWrapper {
-  fn drop(&mut self) {
-    let count = DB_COUNT.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
-    println!("Drop native {}", count);
-  }
-}
+// impl Drop for ParcelDbWrapper {
+//   fn drop(&mut self) {
+//     let count = DB_COUNT.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+//     println!("Drop native {}", count);
+//   }
+// }
 
 impl ParcelDbWrapper {
   pub fn with<T, F: FnOnce(&ParcelDb) -> T>(&self, f: F) -> T {
@@ -907,7 +941,7 @@ impl ParcelDbWrapper {
   }
 }
 
-static DB_COUNT: AtomicU32 = AtomicU32::new(0);
+// static DB_COUNT: AtomicU32 = AtomicU32::new(0);
 
 pub struct ParcelDb {
   environments: RwLock<Vec<u32>>,
@@ -920,7 +954,7 @@ unsafe impl Sync for ParcelDb {}
 
 impl ParcelDb {
   pub fn new() -> ParcelDbWrapper {
-    DB_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    // DB_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     ParcelDbWrapper {
       inner: ParcelDb {
         environments: RwLock::new(Vec::new()),
@@ -1015,7 +1049,9 @@ let heapSymbol = global.Symbol('heap');
 let heapU32Symbol = global.Symbol('heapU32');
 let stringCacheSymbol = global.Symbol('stringCache');
 
+// $FlowFixMe
 ParcelDb.deserialize = (serialized) => {{
+  // $FlowFixMe
   let res = ParcelDb.deserializeNative(serialized);
   init(res);
   return res;
@@ -1092,6 +1128,16 @@ export function readCachedString(db: ParcelDb, addr: number): string {{
   v = db.readString(addr);
   stringCache.set(addr, v);
   return v;
+}}
+
+class InternedString {{
+  static get(db: ParcelDb, addr: number): string {{
+    return readCachedString(db, addr);
+  }}
+
+  static set(db: ParcelDb, addr: number, value: string): void {{
+    writeU32(db, addr, db.getStringId(value));
+  }}
 }}
 
 interface TypeAccessor<T> {{

@@ -8,7 +8,6 @@ import type {
   SerializedContentGraph,
 } from '@parcel/graph';
 import type {
-  Asset,
   AssetGraphNode,
   AssetGroup,
   AssetGroupNode,
@@ -56,7 +55,7 @@ type AssetGraphOpts = {|
 type SerializedAssetGraph = {|
   ...SerializedContentGraph<AssetGraphNode>,
   hash?: ?string,
-  db: SerializedParcelDb
+  db: SerializedParcelDb,
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
@@ -157,20 +156,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     return {
       ...super.serialize(),
       hash: this.hash,
-      db: this.db.serialize()
+      db: this.db.serialize(),
     };
-  }
-
-  // Deduplicates Environments by making them referentially equal
-  normalizeEnvironment(input: Asset | Dependency | AssetGroup) {
-    // let {id, context} = input.env;
-    // let idAndContext = `${id}-${context}`;
-    // let env = this.envCache.get(idAndContext);
-    // if (env) {
-    //   input.env = env;
-    // } else {
-    //   this.envCache.set(idAndContext, input.env);
-    // }
   }
 
   setRootConnections({entries, assetGroups}: InitOpts) {
@@ -248,13 +235,17 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           isEntry: true,
           needsStableName: true,
           symbols:
-            DbEnvironment.get(this.db, target.env).flags & EnvironmentFlags.IS_LIBRARY
+            DbEnvironment.get(this.db, target.env).flags &
+            EnvironmentFlags.IS_LIBRARY
               ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
               : undefined,
         }),
       );
 
-      if (DbEnvironment.get(this.db, target.env).flags & EnvironmentFlags.IS_LIBRARY) {
+      if (
+        DbEnvironment.get(this.db, target.env).flags &
+        EnvironmentFlags.IS_LIBRARY
+      ) {
         // in library mode, all of the entry's symbols are "used"
         node.usedSymbolsDown.add(this.db.starSymbol);
         node.usedSymbolsUp.set(this.db.starSymbol, undefined);
@@ -423,8 +414,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         d =>
           d.symbols &&
           !(
-            DbEnvironment.get(this.db, d.env).flags & EnvironmentFlags.IS_LIBRARY &&
-            d.flags & DependencyFlags.ENTRY
+            DbEnvironment.get(this.db, d.env).flags &
+              EnvironmentFlags.IS_LIBRARY && d.flags & DependencyFlags.ENTRY
           ) &&
           !d.symbols.some(s => s.exported === this.db.starSymbol) &&
           !d.symbols.some(s => {
@@ -447,7 +438,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     |}>,
     correspondingRequest: ContentKey,
   ) {
-    this.normalizeEnvironment(assetGroup);
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
     assetGroupNode = this.getNodeByContentKey(assetGroupNode.id);
     if (!assetGroupNode) {
@@ -481,7 +471,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     |}> = [];
     let assetNodeIds = [];
     for (let {asset: assetId, dependencies} of assets) {
-      // this.normalizeEnvironment(asset);
       let asset = DbAsset.get(this.db, assetId);
       let isDirect = !dependentAssetKeys.has(asset.uniqueKey);
 
@@ -531,18 +520,18 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let depNodesWithAssets = [];
     for (let d of dependencies) {
       let dep = DbDependency.get(this.db, d);
-      // this.normalizeEnvironment(dep);
       let depNode = nodeFromDep(d);
-      // let existing = this.getNodeByContentKey(depNode.id);
-      // if (
-      //   existing?.type === 'dependency' &&
-      //   existing.value.resolverMeta != null
-      // ) {
-      //   depNode.value.meta = {
-      //     ...depNode.value.meta,
-      //     ...existing.value.resolverMeta,
-      //   };
-      // }
+      let existing = this.getNodeByContentKey(depNode.id);
+      if (existing?.type === 'dependency') {
+        let existingDep = DbDependency.get(this.db, existing.value);
+        if (existingDep.resolverMeta != null) {
+          let resolverMeta = JSON.parse(existingDep.resolverMeta);
+          dep.meta = JSON.stringify({
+            ...(dep.meta != null ? JSON.parse(dep.meta) : null),
+            ...resolverMeta,
+          });
+        }
+      }
       let dependentAsset = dependentAssets.find(
         a => DbAsset.get(this.db, a).uniqueKey === dep.specifier,
       );
@@ -645,7 +634,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     this.traverse(nodeId => {
       let node = nullthrows(this.getNode(nodeId));
       if (node.type === 'asset') {
-        hash.writeString(nullthrows(DbAsset.get(this.db, node.value).outputHash));
+        hash.writeString(
+          nullthrows(DbAsset.get(this.db, node.value).outputHash),
+        );
       } else if (node.type === 'dependency') {
         let target = DbDependency.get(this.db, node.value).target;
         if (target) {

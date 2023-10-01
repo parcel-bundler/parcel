@@ -39,7 +39,10 @@ const base62 = baseX(
   '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
 );
 
-export function getBundleGroupId(db: ParcelDb, bundleGroup: BundleGroup): string {
+export function getBundleGroupId(
+  db: ParcelDb,
+  bundleGroup: BundleGroup,
+): string {
   return (
     'bundle_group:' +
     DbTarget.get(db, bundleGroup.target).name +
@@ -262,7 +265,7 @@ export function toDbSourceLocation(
   if (!loc) return loc;
 
   db[tmpSymbol] ??= new DbSourceLocation(db);
-  let tmpSourceLocation = db[tmpSymbol];
+  let tmpSourceLocation: DbSourceLocation = db[tmpSymbol];
   tmpSourceLocation.filePath = toProjectPath(projectRoot, loc.filePath);
   tmpSourceLocation.start.line = loc.start.line;
   tmpSourceLocation.start.column = loc.start.column;
@@ -278,7 +281,7 @@ export function toDbSourceLocationFromInternal(
   if (!loc) return loc;
 
   db[tmpSymbol] ??= new DbSourceLocation(db);
-  let tmpSourceLocation = db[tmpSymbol];
+  let tmpSourceLocation: DbSourceLocation = db[tmpSymbol];
   tmpSourceLocation.filePath = loc.filePath;
   tmpSourceLocation.start.line = loc.start.line;
   tmpSourceLocation.start.column = loc.start.column;

@@ -76,19 +76,21 @@ export type ResolvedParcelConfigFile = {|
 |};
 
 /** Corresponds to <code>pkg#engines</code> */
-export interface Engines {
-  +browsers?: string | Array<string>;
-  +electron?: SemverRange;
-  +node?: SemverRange;
-  +parcel?: SemverRange;
-}
+export type Engines = {
+  +browsers?: string | Array<string>,
+  +electron?: SemverRange,
+  +node?: SemverRange,
+  +parcel?: SemverRange,
+  ...
+};
 
 /** Corresponds to <code>pkg#targets.*.sourceMap</code> */
-export interface TargetSourceMapOptions {
-  +sourceRoot?: string;
-  +inline?: boolean;
-  +inlineSources?: boolean;
-}
+export type TargetSourceMapOptions = {
+  +sourceRoot?: ?string,
+  +inline?: boolean,
+  +inlineSources?: boolean,
+  ...
+};
 
 /**
  * A parsed version of PackageTargetDescriptor
@@ -541,7 +543,7 @@ export type DependencyOptions = {|
   /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,
-    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: Meta|},
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
   >,
 |};
 

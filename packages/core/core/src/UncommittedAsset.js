@@ -49,6 +49,7 @@ import {type ProjectPath, fromProjectPath} from './projectPath';
 import {
   Asset as DbAsset,
   AssetFlags,
+  AssetAst,
   Dependency as DbDependency,
   SymbolFlags,
 } from '@parcel/rust';
@@ -332,7 +333,12 @@ export default class UncommittedAsset {
       ...rest,
       // $FlowFixMe "convert" the $ReadOnlyMaps to the interal mutable one
       symbols,
-      env: mergeEnvironments(this.options.db, this.options.projectRoot, this.value.env, env),
+      env: mergeEnvironments(
+        this.options.db,
+        this.options.projectRoot,
+        this.value.env,
+        env,
+      ),
       sourceAssetId: this.value.id,
       sourcePath: fromProjectPath(
         this.options.projectRoot,
@@ -344,9 +350,19 @@ export default class UncommittedAsset {
     let id = dependencyId(options);
     let existing = this.value.dependencies.get(id);
     if (existing != null) {
-      dep = mergeDependencies(existing, options);
+      mergeDependencies(
+        this.options.db,
+        this.options.projectRoot,
+        existing,
+        options,
+      );
+      dep = existing;
     } else {
-      dep = createDependency(this.options.db, this.options.projectRoot, options);
+      dep = createDependency(
+        this.options.db,
+        this.options.projectRoot,
+        options,
+      );
       this.value.dependencies.set(id, dep);
     }
     return dep;
@@ -497,8 +513,22 @@ export default class UncommittedAsset {
       (this.value.sideEffects ? AssetFlags.SIDE_EFFECTS : 0) |
       (this.value.isLargeBlob ? AssetFlags.LARGE_BLOB : 0);
     asset.meta = JSON.stringify(this.value.meta);
-    asset.symbols.init();
 
+    if (this.value.astKey != null) {
+      let ast = new AssetAst(this.options.db);
+      ast.key = nullthrows(this.value.astKey);
+      ast.plugin = nullthrows(this.value.plugin);
+      ast.configPath = nullthrows(this.value.configPath);
+      ast.configKeyPath = this.value.configKeyPath;
+      ast.generator = nullthrows(this.value.astGenerator).type;
+      ast.version = nullthrows(this.value.astGenerator).version;
+      asset.ast = ast;
+      // TODO: deallocate tmp ast.
+    } else {
+      asset.ast = null;
+    }
+
+    asset.symbols.init();
     if (this.value.symbols) {
       for (let [exported, {local, loc, meta}] of this.value.symbols) {
         let sym = asset.symbols.extend();

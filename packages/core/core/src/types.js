@@ -5,7 +5,6 @@ import type {
   ASTGenerator,
   BuildMode,
   Engines,
-  EnvironmentContext,
   EnvMap,
   FilePath,
   Glob,
@@ -16,10 +15,8 @@ import type {
   ReporterEvent,
   SemverRange,
   ServerOptions,
-  SourceType,
   Stats,
   Symbol,
-  TargetSourceMapOptions,
   ConfigResult,
   OutputFormat,
   TargetDescriptor,
@@ -78,16 +75,16 @@ export type ProcessedParcelConfig = {|
 export type Environment = number;
 
 export interface InternalSourceLocation {
-  +filePath: ProjectPath,
+  +filePath: ProjectPath;
   /** inclusive */
-  +start: Location,
+  +start: Location;
   /** exclusive */
-  +end: Location,
-};
+  +end: Location;
+}
 
 interface Location {
-  +line: number,
-  +column: number
+  +line: number;
+  +column: number;
 }
 
 export type TargetValue = {|
@@ -377,7 +374,10 @@ export type AssetRequestInput = {|
   isSingleChangeRebuild?: boolean,
 |};
 
-export type AssetRequestResult = Array<{|asset: CommittedAssetId, dependencies: Array<Dependency>|}>;
+export type AssetRequestResult = Array<{|
+  asset: CommittedAssetId,
+  dependencies: Array<Dependency>,
+|}>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = $Rest<
   AssetRequestInput,

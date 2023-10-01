@@ -289,15 +289,17 @@ export function getJSONSourceLocation(
   return {start: v.start, end: {line: v.end.line, column: v.end.column + 1}};
 }
 
-export function convertSourceLocationToHighlight<
-  Location: {
-    /** 1-based, inclusive */
-    +start: DiagnosticHighlightLocation,
-    /** 1-based, exclusive */
-    +end: DiagnosticHighlightLocation,
-    ...
-  },
->({start, end}: Location, message?: string): DiagnosticCodeHighlight {
+interface Location {
+  /** 1-based, inclusive */
+  +start: DiagnosticHighlightLocation;
+  /** 1-based, exclusive */
+  +end: DiagnosticHighlightLocation;
+}
+
+export function convertSourceLocationToHighlight(
+  {start, end}: Location,
+  message?: string,
+): DiagnosticCodeHighlight {
   return {
     message,
     start: {line: start.line, column: start.column},

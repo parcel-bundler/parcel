@@ -6,7 +6,12 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {ContentKey} from '@parcel/graph';
 
 import type {StaticRunOpts} from '../RequestTracker';
-import type {Asset, AssetGroup, PackagedBundleInfo} from '../types';
+import type {
+  Asset,
+  AssetGroup,
+  CommittedAssetId,
+  PackagedBundleInfo,
+} from '../types';
 import type BundleGraph from '../BundleGraph';
 
 import createBundleGraphRequest, {
@@ -32,7 +37,7 @@ type ParcelBuildRequestInput = {|
 type ParcelBuildRequestResult = {|
   bundleGraph: BundleGraph,
   bundleInfo: Map<string, PackagedBundleInfo>,
-  changedAssets: Map<string, Asset>,
+  changedAssets: Map<CommittedAssetId, Asset>,
   assetRequests: Array<AssetGroup>,
 |};
 

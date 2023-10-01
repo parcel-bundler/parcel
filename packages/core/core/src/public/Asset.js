@@ -408,7 +408,8 @@ export class CommittedAsset implements IAsset {
   }
 
   get meta(): Meta {
-    return (this.#meta ??= JSON.parse(this.#asset.value.meta));
+    this.#meta ??= JSON.parse(this.#asset.value.meta);
+    return nullthrows(this.#meta);
   }
 
   get bundleBehavior(): ?BundleBehavior {
@@ -437,7 +438,14 @@ export class CommittedAsset implements IAsset {
   }
 
   get astGenerator(): ?ASTGenerator {
-    return this.#asset.value.astGenerator;
+    let ast = this.#asset.value.ast;
+    if (ast) {
+      return {
+        type: ast.generator,
+        version: ast.version,
+      };
+    }
+    return null;
   }
 
   get pipeline(): ?string {
@@ -447,7 +455,7 @@ export class CommittedAsset implements IAsset {
   getDependencies(): $ReadOnlyArray<IDependency> {
     return this.#asset
       .getDependencies()
-      .map(dep => new Dependency(dep, this.#asset.options));
+      .map(dep => getPublicDependency(dep, this.#asset.options));
   }
 
   getCode(): Promise<string> {

@@ -12,7 +12,7 @@ import type {
   Entry,
   ParcelOptions,
   Target,
-} from "../types";
+} from '../types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
@@ -22,7 +22,12 @@ import type {ContentKey} from '@parcel/graph';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {PromiseQueue, setEqual} from '@parcel/utils';
-import {hashString, Asset as DbAsset, Dependency as DbDependency, DependencyFlags} from '@parcel/rust';
+import {
+  hashString,
+  Asset as DbAsset,
+  Dependency as DbDependency,
+  DependencyFlags,
+} from '@parcel/rust';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
@@ -287,7 +292,11 @@ export class AssetGraphBuilder {
         throw e;
       }
     }
-    await dumpGraphToGraphViz(this.options.db,this.assetGraph, 'AssetGraph_' + this.name);
+    await dumpGraphToGraphViz(
+      this.options.db,
+      this.assetGraph,
+      'AssetGraph_' + this.name,
+    );
 
     this.api.storeResult(
       {
@@ -353,7 +362,9 @@ export class AssetGraphBuilder {
             .getIncomingDependencies(node.value)
             .every(depId => {
               let dep = DbDependency.get(this.options.db, depId);
-              return dep.flags & DependencyFlags.ENTRY || dep.priority !== 'sync';
+              return (
+                dep.flags & DependencyFlags.ENTRY || dep.priority !== 'sync'
+              );
             });
           if (isAsyncChild) {
             node.requested = !isNodeLazy;
@@ -482,19 +493,32 @@ export class AssetGraphBuilder {
       optionsRef: this.optionsRef,
       isSingleChangeRebuild: this.isSingleChangeRebuild,
     });
-    let assets = await this.api.runRequest<AssetRequestInput, Array<AssetRequestResult>>(
-      request,
-      {force: true},
-    );
+    let assets = await this.api.runRequest<
+      AssetRequestInput,
+      AssetRequestResult,
+    >(request, {force: true});
 
     if (assets != null) {
       for (let assetWithDeps of assets) {
         if (this.assetGraph.safeToIncrementallyBundle) {
-          let otherAsset = this.assetGraph.getNodeByContentKey(assetWithDeps.asset);
+          let otherAsset = this.assetGraph.getNodeByContentKey(
+            assetWithDeps.asset,
+          );
           if (otherAsset != null) {
             invariant(otherAsset.type === 'asset');
-            // TODO
-            if (!this._areDependenciesEqualForAssets(assetWithDeps, {asset: otherAsset.value, dependencies: new Map()})) {
+            let dependencies = this.assetGraph
+              .getNodeIdsConnectedFrom(assetWithDeps.asset)
+              .map(nodeId => {
+                let node = this.assetGraph.getNode(nodeId);
+                invariant(node?.type === 'dependency');
+                return node.value;
+              });
+            if (
+              !this._areDependenciesEqualForAssets(assetWithDeps, {
+                asset: otherAsset.value,
+                dependencies,
+              })
+            ) {
               this.assetGraph.safeToIncrementallyBundle = false;
             }
           } else {
@@ -516,23 +540,26 @@ export class AssetGraphBuilder {
   /**
    * Used for incremental bundling of modified assets
    */
-  _areDependenciesEqualForAssets(asset: AssetRequestResult, otherAsset: AssetRequestResult): boolean {
-    let assetDependencies = Array.from(asset?.dependencies.keys()).sort();
-    let otherAssetDependencies = Array.from(
-      otherAsset?.dependencies.keys(),
-    ).sort();
-
+  _areDependenciesEqualForAssets(
+    asset: AssetRequestResult[0],
+    otherAsset: AssetRequestResult[0],
+  ): boolean {
+    let assetDependencies = asset.dependencies.sort();
+    let otherAssetDependencies = otherAsset.dependencies.sort();
     if (assetDependencies.length !== otherAssetDependencies.length) {
       return false;
     }
 
-    return assetDependencies.every((key, index) => {
-      if (key !== otherAssetDependencies[index]) {
+    return assetDependencies.every((id, index) => {
+      if (id !== otherAssetDependencies[index]) {
         return false;
       }
 
-      let depA = DbDependency.get(nullthrows(asset?.dependencies.get(key)));
-      let depB = DbDependency.get(nullthrows(otherAsset?.dependencies.get(key)));
+      let depA = DbDependency.get(this.options.db, id);
+      let depB = DbDependency.get(
+        this.options.db,
+        otherAssetDependencies[index],
+      );
 
       return setEqual(
         new Set([...depA.symbols].map(s => s.exported)),

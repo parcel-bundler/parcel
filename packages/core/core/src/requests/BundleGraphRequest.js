@@ -11,7 +11,7 @@ import type {
   Config,
   DevDepRequest,
   ParcelOptions,
-} from "../types";
+} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {ContentKey} from '@parcel/graph';
@@ -56,7 +56,7 @@ import {
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
-import { Target as DbTarget, Asset as DbAsset } from '@parcel/rust';
+import {Target as DbTarget, Asset as DbAsset} from '@parcel/rust';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<ContentKey>,
@@ -317,7 +317,11 @@ class BundlerRunner {
         if (tracer.enabled) {
           measurementFilename = graph
             .getEntryAssets()
-            .map(asset => fromProjectPathRelative(DbAsset.get(this.options.db, asset).filePath))
+            .map(asset =>
+              fromProjectPathRelative(
+                DbAsset.get(this.options.db, asset).filePath,
+              ),
+            )
             .join(', ');
           measurement = tracer.createMeasurement(
             plugin.name,
@@ -383,7 +387,6 @@ class BundlerRunner {
         await this.runDevDepRequest(devDepRequest);
       }
     } catch (e) {
-      console.log(e)
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
           origin: name,
@@ -471,7 +474,10 @@ class BundlerRunner {
     let bundles = bundleGraph.getBundles();
 
     let bundleNames = bundles.map(b =>
-      joinProjectPath(DbTarget.get(this.options.db, b.target).distDir, nullthrows(b.name)),
+      joinProjectPath(
+        DbTarget.get(this.options.db, b.target).distDir,
+        nullthrows(b.name),
+      ),
     );
     assert.deepEqual(
       bundleNames,

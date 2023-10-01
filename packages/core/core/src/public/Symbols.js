@@ -29,18 +29,6 @@ import {
 } from '@parcel/rust';
 import {createBuildCache} from '../buildCache';
 
-const EMPTY_ITERABLE = {
-  [Symbol.iterator]() {
-    return EMPTY_ITERATOR;
-  },
-};
-
-const EMPTY_ITERATOR = {
-  next() {
-    return {done: true};
-  },
-};
-
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 let valueToSymbols: Map<CommittedAssetId, AssetSymbols> = createBuildCache();
@@ -92,17 +80,20 @@ export class AssetSymbols implements IAssetSymbols {
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    return [...this.#value.symbols].map(s => readCachedString(this.#options.db, s.exported));
+    return [...this.#value.symbols].map(s =>
+      readCachedString(this.#options.db, s.exported),
+    );
   }
   // $FlowFixMe
   *[Symbol.iterator]() {
-    // return this.#value.symbols
-    //   ? this.#value.symbols[Symbol.iterator]()
-    //   : EMPTY_ITERATOR;
     for (let s of this.#value.symbols) {
       yield [
         readCachedString(this.#options.db, s.exported),
-        fromInternalAssetSymbolDb(this.#options.db, this.#options.projectRoot, s),
+        fromInternalAssetSymbolDb(
+          this.#options.db,
+          this.#options.projectRoot,
+          s,
+        ),
       ];
     }
   }
@@ -114,7 +105,10 @@ export class AssetSymbols implements IAssetSymbols {
         ? [...this.#value.symbols]
             .map(
               ({exported, local}) =>
-                `${readCachedString(this.#options.db, exported)}:${readCachedString(this.#options.db, local)}`,
+                `${readCachedString(
+                  this.#options.db,
+                  exported,
+                )}:${readCachedString(this.#options.db, local)}`,
             )
             .join(', ')
         : null
@@ -176,9 +170,7 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   }
   // $FlowFixMe
   [Symbol.iterator]() {
-    return this.#value.symbols
-      ? this.#value.symbols[Symbol.iterator]()
-      : EMPTY_ITERATOR;
+    return this.#value.symbols[Symbol.iterator]();
   }
 
   // $FlowFixMe
@@ -271,7 +263,9 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    return [...this.#value.symbols].map(s => readCachedString(this.#options.db, s.exported));
+    return [...this.#value.symbols].map(s =>
+      readCachedString(this.#options.db, s.exported),
+    );
   }
 
   // $FlowFixMe
@@ -281,7 +275,11 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
       for (let sym of symbols) {
         yield [
           readCachedString(this.#options.db, sym.exported),
-          fromInternalDependencySymbol(this.#options.db, this.#options.projectRoot, sym),
+          fromInternalDependencySymbol(
+            this.#options.db,
+            this.#options.projectRoot,
+            sym,
+          ),
         ];
       }
     }
@@ -294,7 +292,10 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
         ? [...this.#value.symbols]
             .map(
               ({exported, local, flags}) =>
-                `${readCachedString(this.#options.db, exported)}:${readCachedString(this.#options.db, local)}${
+                `${readCachedString(
+                  this.#options.db,
+                  exported,
+                )}:${readCachedString(this.#options.db, local)}${
                   flags & SymbolFlags.IS_WEAK ? '?' : ''
                 }`,
             )
@@ -327,7 +328,11 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     sym.local = this.#options.db.getStringId(local);
     sym.exported = id;
     sym.flags = isWeak ? SymbolFlags.IS_WEAK : 0;
-    sym.loc = toDbSourceLocation(this.#options.db, this.#options.projectRoot, loc);
+    sym.loc = toDbSourceLocation(
+      this.#options.db,
+      this.#options.projectRoot,
+      loc,
+    );
     // console.log('set symbol', sym, local, exportSymbol);
     // symbols.set(exportSymbol, {
     //   local,

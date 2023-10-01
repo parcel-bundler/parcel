@@ -78,6 +78,7 @@ declare export class ParcelDb {
 
   starSymbol: number;
   defaultSymbol: number;
+  [symbol]: any;
 }
 export interface ResolverOptions {
   fs?: JsFileSystemOptions;

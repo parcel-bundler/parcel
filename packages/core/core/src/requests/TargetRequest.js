@@ -46,7 +46,11 @@ import {
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
-import {Environment as DbEnvironment, EnvironmentFlags, Target as DbTarget} from '@parcel/rust';
+import {
+  Environment as DbEnvironment,
+  EnvironmentFlags,
+  Target as DbTarget,
+} from '@parcel/rust';
 import {
   optionsProxy,
   toInternalSourceLocation,
@@ -352,7 +356,11 @@ export class TargetResolver {
             },
           });
         }
-        if (!BROWSER_ENVS.has(DbEnvironment.get(this.options.db, targets[0].env).context)) {
+        if (
+          !BROWSER_ENVS.has(
+            DbEnvironment.get(this.options.db, targets[0].env).context,
+          )
+        ) {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Only browser targets are supported in serve mode`,
@@ -1546,6 +1554,7 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
       }
 
       if (keyInfo.inferred) {
+        // $FlowFixMe
         highlight.inferred.push(md`${key} to be ${JSON.stringify(env[key])}`);
       }
     }
@@ -1607,13 +1616,15 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
               **Format**: ${env.outputFormat} ${format(info.outputFormat)}
              **Context**: ${env.context} ${format(info.context)}
              **Engines**: ${engines || ''} ${format(info.engines)}
-        **Library Mode**: ${String(!!(env.flags & EnvironmentFlags.IS_LIBRARY))} ${format(info.isLibrary)}
+        **Library Mode**: ${String(
+          !!(env.flags & EnvironmentFlags.IS_LIBRARY),
+        )} ${format(info.isLibrary)}
 **Include Node Modules**: ${includeNodeModules} ${format(
         info.includeNodeModules,
       )}
-            **Optimize**: ${String(!!(env.flags & EnvironmentFlags.SHOULD_OPTIMIZE))} ${format(
-        info.shouldOptimize,
-      )}`,
+            **Optimize**: ${String(
+              !!(env.flags & EnvironmentFlags.SHOULD_OPTIMIZE),
+            )} ${format(info.shouldOptimize)}`,
       codeFrames: target.loc
         ? [
             {

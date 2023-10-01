@@ -24,7 +24,7 @@ import {
 type DependencyOpts = {|
   id?: string,
   sourcePath?: FilePath,
-  sourceAssetId?: number,
+  sourceAssetId?: string,
   specifier: DependencySpecifier,
   specifierType: $Keys<typeof SpecifierType>,
   priority?: $Keys<typeof Priority>,
@@ -39,7 +39,7 @@ type DependencyOpts = {|
   resolveFrom?: FilePath,
   range?: SemverRange,
   target?: Target,
-  symbols?: ?Map<
+  symbols?: ?$ReadOnlyMap<
     Symbol,
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
   >,
@@ -132,13 +132,21 @@ export function createDependency(
     opts.resolveFrom ?? opts.sourcePath,
   );
   d.range = opts.range;
-  if (typeof opts.meta?.placeholder === 'string') {
-    d.placeholder = opts.meta?.placeholder;
-  } else {
-    d.placeholder = null;
+  d.placeholder = null;
+  d.meta = null;
+  d.resolverMeta = null;
+  if (opts.meta) {
+    let {placeholder, ...meta} = opts.meta;
+    if (typeof placeholder === 'string') {
+      d.placeholder = placeholder;
+    }
+    if (Object.keys(meta).length > 0) {
+      d.meta = JSON.stringify(meta);
+    }
   }
   d.target = opts.target || 0;
   d.loc = toDbSourceLocation(db, projectRoot, opts.loc);
+  d.pipeline = opts.pipeline;
   d.promiseSymbol = null;
   d.sourceAssetId = null;
   d.symbols.init();
@@ -146,6 +154,7 @@ export function createDependency(
 
   let symbols = opts.symbols;
   if (symbols) {
+    d.flags |= DependencyFlags.HAS_SYMBOLS;
     d.symbols.reserve(symbols.size);
     for (let [exported, {local, isWeak, loc, meta}] of symbols) {
       let sym = d.symbols.extend();
@@ -158,49 +167,89 @@ export function createDependency(
     }
   }
 
-  // if (opts.packageConditions) {
-  //   convertConditions(opts.packageConditions, dep);
-  // }
+  d.packageConditions = 0;
+  d.customPackageConditions.init();
+  if (opts.packageConditions) {
+    convertConditions(opts.packageConditions, d);
+  }
 
   // console.log('create dependency', d.addr, d.env)
   return d.addr;
 }
 
-export function mergeDependencies(a: Dependency, b: DependencyOpts): void {
-  // let {meta, symbols, needsStableName, isEntry, isOptional, ...other} = b;
-  // Object.assign(a, other);
-  // Object.assign(a.meta, meta);
-  // if (a.symbols && symbols) {
-  //   for (let [k, v] of symbols) {
-  //     a.symbols.set(k, v);
-  //   }
-  // }
-  // if (needsStableName) a.needsStableName = true;
-  // if (isEntry) a.isEntry = true;
-  // if (!isOptional) a.isOptional = false;
-  // throw new Error('todo')
-  // console.log('merge', b);
-  return a;
-}
-
-function convertConditions(conditions: Array<string>, dep: Dependency) {
-  // Store common package conditions as bit flags to reduce size.
-  // Custom conditions are stored as strings.
-  let packageConditions = 0;
-  let customConditions = [];
-  for (let condition of conditions) {
-    if (ExportsCondition[condition]) {
-      packageConditions |= ExportsCondition[condition];
-    } else {
-      customConditions.push(condition);
+export function mergeDependencies(
+  db: ParcelDb,
+  projectRoot: FilePath,
+  a: Dependency,
+  b: DependencyOpts,
+): void {
+  let {
+    meta,
+    symbols,
+    needsStableName,
+    isEntry,
+    isOptional,
+    loc,
+    range,
+    resolveFrom,
+    packageConditions,
+  } = b;
+  let dep = DbDependency.get(db, a);
+  if (symbols) {
+    for (let [exported, {local, isWeak, loc, meta}] of symbols) {
+      let sym = dep.symbols.extend();
+      sym.exported = db.getStringId(exported);
+      sym.local = db.getStringId(local);
+      sym.flags =
+        (isWeak ? SymbolFlags.IS_WEAK : 0) |
+        (meta?.isESM === true ? SymbolFlags.IS_ESM : 0);
+      sym.loc = toDbSourceLocation(db, projectRoot, loc);
     }
   }
-
-  if (packageConditions) {
-    dep.packageConditions = packageConditions;
+  if (needsStableName) {
+    dep.flags |= DependencyFlags.NEEDS_STABLE_NAME;
   }
+  if (isEntry) {
+    dep.flags |= DependencyFlags.ENTRY;
+  }
+  if (!isOptional) {
+    dep.flags &= ~DependencyFlags.OPTIONAL;
+  }
+  if (meta) {
+    let {placeholder, ...otherMeta} = meta;
+    if (typeof placeholder === 'string') {
+      dep.placeholder = placeholder;
+    }
+    if (Object.keys(otherMeta).length > 0) {
+      dep.meta = JSON.stringify({
+        ...(dep.meta != null ? JSON.parse(dep.meta) : null),
+        ...otherMeta,
+      });
+    }
+  }
+  if (loc) {
+    dep.loc = toDbSourceLocation(db, projectRoot, loc);
+  }
+  if (range) {
+    dep.range = range;
+  }
+  if (resolveFrom) {
+    dep.resolveFrom = resolveFrom;
+  }
+  if (packageConditions) {
+    // TODO: filter duplicates?
+    convertConditions(packageConditions, dep);
+  }
+}
 
-  if (customConditions.length) {
-    dep.customPackageConditions = customConditions;
+function convertConditions(conditions: Array<string>, dep: DbDependency) {
+  // Store common package conditions as bit flags to reduce size.
+  // Custom conditions are stored as strings.
+  for (let condition of conditions) {
+    if (ExportsCondition[condition]) {
+      dep.packageConditions |= ExportsCondition[condition];
+    } else {
+      dep.customPackageConditions.push(condition);
+    }
   }
 }
