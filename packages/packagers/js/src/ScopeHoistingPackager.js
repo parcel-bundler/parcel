@@ -627,7 +627,7 @@ export class ScopeHoistingPackager {
       sourceMap?.offsetLines(1, 1);
       lineCount++;
 
-      code = `parcelRequire.register(${JSON.stringify(
+      code = `parcelRegister(${JSON.stringify(
         this.bundleGraph.getAssetPublicId(asset),
       )}, function(module, exports) {
 ${code}
@@ -1273,9 +1273,10 @@ ${code}
         }
       } else {
         // Otherwise, get the current parcelRequire global.
-        res += `var parcelRequire = $parcel$global[${JSON.stringify(
-          this.parcelRequireName,
-        )}];\n`;
+        const escaped = JSON.stringify(this.parcelRequireName);
+        res += `var parcelRequire = $parcel$global[${escaped}];\n`;
+        lines++;
+        res += `var parcelRegister = parcelRequire.register;\n`;
         lines++;
       }
     }

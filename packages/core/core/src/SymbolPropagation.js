@@ -629,7 +629,7 @@ function propagateSymbolsUp(
   let runFullPass =
     // If there are n nodes in the graph, then the asset count is approximately
     // n/6 (for every asset, there are ~4 dependencies and ~1 asset_group).
-    assetGraph.nodes.size * (1 / 6) * 0.5 <
+    assetGraph.nodes.length * (1 / 6) * 0.5 <
     changedDepsUsedSymbolsUpDirtyDownAssets.size;
 
   let dirtyDeps;

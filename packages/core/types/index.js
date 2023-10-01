@@ -1450,6 +1450,7 @@ export interface BundleGraph<TBundle: Bundle> {
   traverse<TContext>(
     visit: GraphVisitor<BundleGraphTraversable, TContext>,
     startAsset: ?Asset,
+    options?: {|skipUnusedDependencies?: boolean|},
   ): ?TContext;
   /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
   traverseBundles<TContext>(
