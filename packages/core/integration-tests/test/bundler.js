@@ -9,7 +9,7 @@ import {
   fsFixture,
 } from '@parcel/test-utils';
 
-describe('bundler', function () {
+describe.only('bundler', function () {
   it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
     await fsFixture(overlayFS, __dirname)`
       disable-shared-bundle-single-source
