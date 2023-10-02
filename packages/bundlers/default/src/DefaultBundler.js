@@ -627,7 +627,7 @@ function createIdealGraph(
                 if (manualSharedObject) {
                   // MSB Step 5: If a bundle for this asset already exists and we have a glob match
                   // simply add the asset if it doesn't already have it
-                  //If this was an existing glob we must add the asset
+                  // If this was an existing glob we must add the asset
                   manualAssetToBundle.set(childAsset, bundleId); // Add asset to bundle
 
                   invariant(bundle !== 'root' && bundle !== null);
@@ -773,9 +773,9 @@ function createIdealGraph(
                   bundle.bundleBehavior = dependency.bundleBehavior;
                 }
               }
-              //GLOB MATCHING - If the bundle did exist, added the new asset, if the bundle was jsut created, add the key to map
+              // GLOB MATCHING - If the bundle did exist, added the new asset, if the bundle was jsut created, add the key to map
               if (manualSharedObject) {
-                //If this was an existing glob we must add the asset
+                // If this was an existing glob we must add the asset
                 manualAssetToBundle.set(childAsset, bundleId); // Add asset to bundle
 
                 invariant(bundle !== 'root' && bundle !== null);
@@ -947,30 +947,28 @@ function createIdealGraph(
             dependency.priority !== 'sync' &&
             dependencyBundleGraph.hasContentKey(dependency.id)
           ) {
-            if (dependency.priority !== 'sync') {
-              let assets = assetGraph.getDependencyAssets(dependency);
-              if (assets.length === 0) {
-                return;
-              }
-              invariant(assets.length === 1);
-              let bundleRoot = assets[0];
-              let bundle = nullthrows(
-                bundleGraph.getNode(nullthrows(bundles.get(bundleRoot.id))),
+            let assets = assetGraph.getDependencyAssets(dependency);
+            if (assets.length === 0) {
+              return;
+            }
+            invariant(assets.length === 1);
+            let bundleRoot = assets[0];
+            let bundle = nullthrows(
+              bundleGraph.getNode(nullthrows(bundles.get(bundleRoot.id))),
+            );
+            if (
+              bundle !== 'root' &&
+              bundle.bundleBehavior == null &&
+              !bundle.env.isIsolated() &&
+              bundle.env.context === root.env.context
+            ) {
+              bundleRootGraph.addEdge(
+                bundleRootId,
+                nullthrows(assetToBundleRootNodeId.get(bundleRoot)),
+                dependency.priority === 'parallel'
+                  ? bundleRootEdgeTypes.parallel
+                  : bundleRootEdgeTypes.lazy,
               );
-              if (
-                bundle !== 'root' &&
-                bundle.bundleBehavior == null &&
-                !bundle.env.isIsolated() &&
-                bundle.env.context === root.env.context
-              ) {
-                bundleRootGraph.addEdge(
-                  bundleRootId,
-                  nullthrows(assetToBundleRootNodeId.get(bundleRoot)),
-                  dependency.priority === 'parallel'
-                    ? bundleRootEdgeTypes.parallel
-                    : bundleRootEdgeTypes.lazy,
-                );
-              }
             }
           }
 

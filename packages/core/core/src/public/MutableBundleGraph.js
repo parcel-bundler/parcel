@@ -80,16 +80,6 @@ export default class MutableBundleGraph
     );
   }
 
-  getResolvedAsset(dependency: IDependency): ?IAsset {
-    let internalAsset = this.#graph.getResolvedAsset(
-      dependencyToInternalDependency(dependency),
-    );
-
-    if (internalAsset) {
-      return assetFromValue(internalAsset, this.#options);
-    }
-  }
-
   createBundleGroup(dependency: IDependency, target: Target): IBundleGroup {
     let dependencyNode = this.#graph._graph.getNodeByContentKey(dependency.id);
     if (!dependencyNode) {
