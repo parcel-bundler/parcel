@@ -424,6 +424,13 @@ function createIdealGraph(
 
   let typeChangeIds = new Set();
   function makeManualAssetToConfigLookup() {
+    let manualAssetToConfig = new Map();
+    let constantModuleToMSB = new DefaultMap(() => []);
+
+    if (config.manualSharedBundles.length === 0) {
+      return {manualAssetToConfig, constantModuleToMSB};
+    }
+
     let parentsToConfig = new DefaultMap(() => []);
 
     for (let c of config.manualSharedBundles) {
@@ -448,9 +455,6 @@ function createIdealGraph(
         }
       }
     });
-
-    let manualAssetToConfig = new Map();
-    let constantModuleToMSB = new DefaultMap(() => []);
 
     // Process in reverse order so earlier configs take precedence
     for (let c of config.manualSharedBundles.reverse()) {
