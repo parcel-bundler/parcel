@@ -16,7 +16,7 @@ jobs:
           cache: yarn
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           components: rustfmt
       - uses: Swatinem/rust-cache@v1
@@ -60,7 +60,7 @@ jobs:
           node-version: ${{matrix.node}}
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           components: rustfmt
       - uses: Swatinem/rust-cache@v1
@@ -89,7 +89,7 @@ jobs:
           node-version: ${{matrix.node}}
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           components: rustfmt
       - uses: Swatinem/rust-cache@v1
