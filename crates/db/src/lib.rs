@@ -3,11 +3,13 @@
 
 use std::any::TypeId;
 use std::cell::UnsafeCell;
+use std::io::Read;
 use std::ptr::NonNull;
 use std::{marker::PhantomData, num::NonZeroU32, sync::RwLock};
 
 use alloc::{current_arena, current_heap, Arena, PageAllocator, Slab, ARENA, HEAP};
 use allocator_api2::alloc::Allocator;
+use atomics::AtomicVec;
 use dashmap::DashMap;
 use derivative::Derivative;
 use parcel_derive::{ArenaAllocated, JsValue, SlabAllocated, ToJs};
@@ -884,41 +886,33 @@ fn alloc_struct<T>() -> (u32, *mut T) {
 
 impl From<String> for InternedString {
   fn from(value: String) -> Self {
-    if let Some(v) = current_strings().get(value.as_str()) {
-      // println!("FOUND EXISTING");
-      return InternedString(*v);
+    let strings = &current_db().strings;
+    if let Some(v) = strings.get(value.as_str()) {
+      return v;
     }
 
-    // TODO: memory leak
-    let mut bytes = value.into_bytes();
-    bytes.shrink_to_fit();
-    let s = unsafe { std::str::from_utf8_unchecked(bytes.leak()) };
-    let (addr, ptr) = alloc_struct();
-    unsafe { std::ptr::write(ptr, s) };
-    let offset = unsafe { NonZeroU32::new_unchecked(addr) };
-    current_strings().insert(unsafe { *ptr }, offset);
-    // println!("NEW STRING {:?}", STRINGS.len());
-    InternedString(offset)
+    strings.add(value)
   }
 }
 
 impl From<&str> for InternedString {
   fn from(value: &str) -> Self {
-    if let Some(v) = current_strings().get(value) {
-      return InternedString(*v);
+    let strings = &current_db().strings;
+    if let Some(v) = strings.get(value) {
+      return v;
     }
 
-    InternedString::from(String::from(value))
+    strings.add(String::from(value))
   }
 }
 
 impl InternedString {
   pub fn get(s: &str) -> Option<InternedString> {
-    current_strings().get(s).map(|s| InternedString(*s))
+    current_db().strings.get(s)
   }
 
   pub fn as_str(&self) -> &'static str {
-    unsafe { &*current_heap().get::<&str>(self.0.get()) }
+    current_db().strings.get_str(self)
   }
 }
 
@@ -945,10 +939,10 @@ impl std::fmt::Debug for InternedString {
 #[thread_local]
 static mut SLABS: Option<&'static mut Slabs> = None;
 #[thread_local]
-static mut STRINGS: Option<&'static DashMap<&'static str, NonZeroU32>> = None;
+static mut DB: Option<&'static ParcelDb> = None;
 
-pub fn current_strings<'a>() -> &'a DashMap<&'static str, NonZeroU32> {
-  unsafe { STRINGS.unwrap_unchecked() }
+pub fn current_db<'a>() -> &'a ParcelDb {
+  unsafe { DB.unwrap_unchecked() }
 }
 
 #[derive(Default)]
@@ -978,13 +972,13 @@ impl ParcelDbWrapper {
     unsafe {
       debug_assert!(HEAP.is_none());
       HEAP = Some(std::mem::transmute(&self.inner.heap));
-      STRINGS = Some(std::mem::transmute(&self.inner.strings));
+      DB = Some(std::mem::transmute(&self.inner));
       let slabs = &mut *self.inner.slabs.get_or_default().get();
       ARENA = Some(std::mem::transmute(&slabs.arena));
       SLABS = Some(std::mem::transmute(slabs));
       let res = f(&self.inner);
       HEAP = None;
-      STRINGS = None;
+      DB = None;
       ARENA = None;
       SLABS = None;
       res
@@ -994,10 +988,87 @@ impl ParcelDbWrapper {
 
 // static DB_COUNT: AtomicU32 = AtomicU32::new(0);
 
+struct StringInterner {
+  strings: AtomicVec<&'static str>,
+  lookup: DashMap<&'static str, NonZeroU32>,
+}
+
+unsafe impl Send for StringInterner {}
+
+impl StringInterner {
+  fn new() -> Self {
+    Self {
+      strings: AtomicVec::new(),
+      lookup: DashMap::new(),
+    }
+  }
+
+  fn add(&self, value: String) -> InternedString {
+    let mut bytes = value.into_bytes();
+    bytes.shrink_to_fit();
+    let s = unsafe { std::str::from_utf8_unchecked(bytes.leak()) };
+    let id = self.strings.push(s);
+    let offset = unsafe { NonZeroU32::new_unchecked(id + 1) };
+    self.lookup.insert(s, offset);
+    InternedString(offset)
+  }
+
+  fn get(&self, s: &str) -> Option<InternedString> {
+    if let Some(v) = self.lookup.get(s) {
+      return Some(InternedString(*v));
+    }
+
+    None
+  }
+
+  fn get_str(&self, id: &InternedString) -> &str {
+    unsafe { self.strings.get_unchecked(id.0.get() - 1) }
+  }
+
+  pub fn write<W: std::io::Write>(&self, dest: &mut W) -> std::io::Result<()> {
+    dest.write(&u32::to_le_bytes(self.strings.len()))?;
+    for i in 0..self.strings.len() {
+      let buf = self.strings.get(i).unwrap().as_bytes();
+      dest.write(&u32::to_le_bytes(buf.len() as u32))?;
+      dest.write(buf)?;
+    }
+    Ok(())
+  }
+
+  pub fn read<R: std::io::Read>(&self, source: &mut R) -> std::io::Result<()> {
+    let mut buf: [u8; 4] = [0; 4];
+    source.read_exact(&mut buf)?;
+    let len = u32::from_le_bytes(buf);
+    for _ in 0..len {
+      source.read_exact(&mut buf)?;
+      let len = u32::from_le_bytes(buf);
+      let mut vec = std::vec::Vec::with_capacity(len as usize);
+      unsafe { vec.set_len(len as usize) };
+      source.read_exact(&mut vec)?;
+      let string = String::from_utf8(vec)
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid UTF-8"))?;
+      self.add(string);
+    }
+    Ok(())
+  }
+}
+
+impl Drop for StringInterner {
+  fn drop(&mut self) {
+    unsafe {
+      for i in 0..self.strings.len() {
+        let s = self.strings.get_unchecked(i);
+        let vec = Vec::from_raw_parts(s.as_ptr() as *mut u8, s.len(), s.len());
+        drop(vec)
+      }
+    }
+  }
+}
+
 pub struct ParcelDb {
   environments: RwLock<Vec<u32>>,
   heap: PageAllocator,
-  strings: DashMap<&'static str, NonZeroU32>,
+  strings: StringInterner,
   slabs: ThreadLocal<UnsafeCell<Slabs>>,
 }
 
@@ -1010,7 +1081,7 @@ impl ParcelDb {
       inner: ParcelDb {
         environments: RwLock::new(Vec::new()),
         heap: PageAllocator::new(),
-        strings: DashMap::new(),
+        strings: StringInterner::new(),
         slabs: ThreadLocal::new(),
       },
     }
@@ -1078,6 +1149,52 @@ impl ParcelDb {
     self.environments.write().unwrap().push(addr);
     EnvironmentId(addr)
   }
+
+  pub fn write<W: std::io::Write>(&self, dest: &mut W) -> std::io::Result<()> {
+    // Write header with version number.
+    write!(dest, "parceldb")?;
+    dest.write(&u16::to_le_bytes(1))?;
+
+    self.heap.write(dest)?;
+    self.strings.write(dest)?;
+
+    let environments = self.environments.read().unwrap();
+    dest.write(&u32::to_le_bytes(environments.len() as u32))?;
+    dest.write(unsafe { std::mem::transmute(environments.as_slice()) })?;
+
+    Ok(())
+  }
+
+  pub fn read<R: std::io::Read>(source: &mut R) -> std::io::Result<ParcelDbWrapper> {
+    let mut header: [u8; 10] = [0; 10];
+    source.read_exact(&mut header)?;
+    let version = u16::from_le_bytes([header[8], header[9]]);
+    if &header[0..8] != "parceldb".as_bytes() || version != 1 {
+      return Err(std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        "Invalid header",
+      ));
+    }
+
+    let result = Self::new();
+    let db = &result.inner;
+    {
+      db.heap.read(source)?;
+      db.strings.read(source)?;
+
+      let mut buf: [u8; 4] = [0; 4];
+      source.read_exact(&mut buf)?;
+      let len = u32::from_le_bytes(buf);
+      let mut environments = db.environments.write().unwrap();
+      environments.reserve(len as usize);
+      unsafe {
+        environments.set_len(len as usize);
+        source.read_exact(std::mem::transmute(environments.as_mut_slice()))?;
+      }
+    }
+
+    Ok(result)
+  }
 }
 
 pub fn build() -> std::io::Result<()> {
@@ -1111,6 +1228,12 @@ ParcelDb.deserialize = (serialized) => {{
 
 export function createParcelDb(): ParcelDb {{
   let db = new ParcelDb();
+  init(db);
+  return db;
+}}
+
+export function readParcelDb(filename: string): ParcelDb {{
+  let db = ParcelDb.read(filename);
   init(db);
   return db;
 }}

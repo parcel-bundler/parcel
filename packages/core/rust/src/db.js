@@ -19,6 +19,12 @@ export function createParcelDb(): ParcelDb {
   return db;
 }
 
+export function readParcelDb(filename: string): ParcelDb {
+  let db = ParcelDb.read(filename);
+  init(db);
+  return db;
+}
+
 function init(db: ParcelDb) {
   db[heapSymbol] = [];
   db[heapU32Symbol] = [];

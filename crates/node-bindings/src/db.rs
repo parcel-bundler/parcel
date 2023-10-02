@@ -138,6 +138,26 @@ impl JsParcelDb {
       .db
       .with(|db| db.environment_id(db.get_environment(addr)).0)
   }
+
+  #[napi]
+  pub fn write(&self, filename: String) -> napi::Result<()> {
+    // TODO: memoryfs
+    let file = std::fs::File::create(filename)?;
+    let mut stream = std::io::BufWriter::new(file);
+    self.db.with(|db| {
+      db.write(&mut stream)?;
+      Ok(())
+    })
+  }
+
+  #[napi(factory)]
+  pub fn read(filename: String) -> napi::Result<Self> {
+    let file = std::fs::File::open(filename)?;
+    let mut stream = std::io::BufReader::new(file);
+    Ok(JsParcelDb {
+      db: Arc::new(ParcelDb::read(&mut stream)?),
+    })
+  }
 }
 
 type CreateExternalString = unsafe extern "C" fn(

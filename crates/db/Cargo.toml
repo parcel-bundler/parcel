@@ -13,6 +13,6 @@ ctor = "*"
 paste = "1.0.12"
 parcel-derive = { path = "../derive" }
 allocator-api2 = { version = "*", features = ["serde"] }
-dashmap = { version = "5.4.0", features = ["raw-api"] }
+dashmap = { version = "5.5.3", features = ["raw-api"] }
 derivative = "2.2.0"
 thread_local = "1.1.7"

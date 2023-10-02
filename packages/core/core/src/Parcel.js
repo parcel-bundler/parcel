@@ -120,8 +120,6 @@ export default class Parcel {
       });
     }
 
-    await resolvedOptions.cache.ensure();
-
     let {dispose: disposeOptions, ref: optionsRef} =
       await this.#farm.createSharedReference(resolvedOptions, false);
     this.#optionsRef = optionsRef;

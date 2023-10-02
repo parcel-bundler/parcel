@@ -424,8 +424,11 @@ export default class BundleGraph {
     };
   }
 
-  static deserialize(serialized: SerializedBundleGraph): BundleGraph {
-    return new BundleGraph(ParcelDb.deserialize(serialized.db), {
+  static deserialize(
+    serialized: SerializedBundleGraph,
+    db?: ParcelDb,
+  ): BundleGraph {
+    return new BundleGraph(db || ParcelDb.deserialize(serialized.db), {
       graph: ContentGraph.deserialize(serialized.graph),
       assetPublicIds: serialized.assetPublicIds,
       bundleContentHashes: serialized.bundleContentHashes,

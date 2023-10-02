@@ -200,7 +200,7 @@ export function prepareForSerialization(object: any): any {
   );
 }
 
-export function restoreDeserializedObject(object: any): any {
+export function restoreDeserializedObject(object: any, options?: any): any {
   return mapObject(object, value => {
     // If the value has a $$type property, use it to restore the object type
     if (value && value.$$type) {
@@ -212,7 +212,7 @@ export function restoreDeserializedObject(object: any): any {
       }
 
       if (typeof ctor.deserialize === 'function') {
-        return ctor.deserialize(value.value);
+        return ctor.deserialize(value.value, options);
       }
 
       value = value.value;
@@ -235,9 +235,9 @@ export function serialize(object: any): Buffer {
   return serializeRaw(mapped);
 }
 
-export function deserialize(buffer: Buffer): any {
+export function deserialize(buffer: Buffer, options?: any): any {
   let obj = deserializeRaw(buffer);
-  return restoreDeserializedObject(obj);
+  return restoreDeserializedObject(obj, options);
 }
 
 export function cacheSerializedObject(object: any, buffer?: Buffer): void {

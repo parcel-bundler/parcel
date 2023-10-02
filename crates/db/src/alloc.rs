@@ -95,11 +95,30 @@ impl PageAllocator {
     None
   }
 
-  pub fn dump(&self) {
+  pub fn write<W: std::io::Write>(&self, dest: &mut W) -> std::io::Result<()> {
+    dest.write(&u32::to_le_bytes(self.pages.len()))?;
     for i in 0..self.pages.len() {
-      let page = unsafe { self.get_page(i) };
-      std::fs::write(format!(".parcel-cache/page.{}.bin", i), page).unwrap();
+      let page = unsafe { self.pages.get_unchecked(i) };
+      dest.write(&u32::to_le_bytes(page.len as u32))?;
+      dest.write(unsafe { core::slice::from_raw_parts(page.ptr, page.len) })?;
     }
+    Ok(())
+  }
+
+  pub fn read<R: std::io::Read>(&self, source: &mut R) -> std::io::Result<()> {
+    let mut buf: [u8; 4] = [0; 4];
+    source.read_exact(&mut buf)?;
+    let len = u32::from_le_bytes(buf);
+    for i in 0..len {
+      source.read_exact(&mut buf)?;
+      let len = u32::from_le_bytes(buf);
+      unsafe {
+        self.alloc_page(len as usize, false);
+        let page = self.get_page(i);
+        source.read_exact(page)?;
+      }
+    }
+    Ok(())
   }
 }
 

@@ -10,7 +10,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
 
 import path from 'path';
-import {hashString, createParcelDb} from '@parcel/rust';
+import {hashString, createParcelDb, readParcelDb} from '@parcel/rust';
 import {NodeFS} from '@parcel/fs';
 import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -103,6 +103,16 @@ export default async function resolveOptions(
       ? new LMDBCache(cacheDir)
       : new FSCache(outputFS, cacheDir));
 
+  await cache.ensure();
+
+  // TODO: proper cache key.
+  let db;
+  if (await cache.hasLargeBlob('00parceldb')) {
+    db = readParcelDb('parceldb');
+  } else {
+    db = createParcelDb();
+  }
+
   let mode = initialOptions.mode ?? 'development';
   let shouldOptimize =
     initialOptions?.defaultTargetOptions?.shouldOptimize ??
@@ -187,7 +197,7 @@ export default async function resolveOptions(
     outputFS,
     cache,
     packageManager,
-    db: createParcelDb(),
+    db,
     additionalReporters:
       initialOptions.additionalReporters?.map(({packageName, resolveFrom}) => ({
         packageName,

@@ -27,7 +27,7 @@ import {
   isDirectoryInside,
   makeDeferredWithPromise,
 } from '@parcel/utils';
-import {hashString} from '@parcel/rust';
+import {hashString, readParcelDb} from '@parcel/rust';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
 import {assertSignalNotAborted, hashFromOption} from './utils';
@@ -891,6 +891,7 @@ export default class RequestTracker {
       invariant(this.options.cache.hasLargeBlob(key));
       let cachedResult: T = deserialize(
         await this.options.cache.getLargeBlob(key),
+        this.options.db,
       );
       node.value.result = cachedResult;
       return cachedResult;
@@ -1067,13 +1068,14 @@ export default class RequestTracker {
   }
 
   async writeToCache() {
-    let cacheKey = getCacheKey(this.options);
-    let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
-    let snapshotKey = hashString(`${cacheKey}:snapshot`);
-
     if (this.options.shouldDisableCache) {
       return;
     }
+
+    let cacheKey = getCacheKey(this.options);
+    let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
+    let snapshotKey = hashString(`${cacheKey}:snapshot`);
+    let dbKey = hashString(`${cacheKey}:parceldb`);
 
     let promises = [];
     for (let node of this.graph.nodes) {
@@ -1108,6 +1110,10 @@ export default class RequestTracker {
     );
 
     await Promise.all(promises);
+
+    // console.log(path.join(this.options.cacheDir, dbKey));
+    this.options.db.write('parceldb');
+    await this.options.cache.setLargeBlob('00parceldb', 'true');
   }
 
   static async init({
