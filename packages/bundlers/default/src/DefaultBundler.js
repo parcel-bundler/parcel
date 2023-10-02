@@ -1184,6 +1184,8 @@ function createIdealGraph(
       }
     });
 
+    reachable.bits.set(reachableNonEntries.bits);
+
     // If we encounter a "manual" asset, draw an edge from reachable to its MSB
     if (manualSharedObject && !reachable.empty()) {
       let bundle;
@@ -1194,11 +1196,12 @@ function createIdealGraph(
         sourceBundles.push(nullthrows(bundleRoots.get(assets[id]))[0]);
       });
 
-      let firstSourceBundle = nullthrows(bundleGraph.getNode(sourceBundles[0]));
-      invariant(firstSourceBundle !== 'root');
-
       if (!manualSharedMap.has(manualSharedBundleKey)) {
-        //CreateBundle
+        let firstSourceBundle = nullthrows(
+          bundleGraph.getNode(sourceBundles[0]),
+        );
+        invariant(firstSourceBundle !== 'root');
+
         bundle = createBundle({
           target: firstSourceBundle.target,
           type: firstSourceBundle.type,
@@ -1250,7 +1253,6 @@ function createIdealGraph(
     // a bundle represents the exact set of assets a set of bundles would share
 
     // if a bundle b is a subgraph of another bundle f, reuse it, drawing an edge between the two
-    reachable.bits.set(reachableNonEntries.bits);
     if (config.disableSharedBundles === false) {
       reachableNonEntries.forEach(candidateId => {
         let candidateSourceBundleRoot = assets[candidateId];
