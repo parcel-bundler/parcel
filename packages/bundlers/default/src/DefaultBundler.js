@@ -615,6 +615,9 @@ function createIdealGraph(
                   if (!manualSharedMap.has(manualSharedBundleKey)) {
                     manualSharedMap.set(manualSharedBundleKey, bundleId);
                   }
+                  nullthrows(
+                    manualBundleToInternalizedAsset.get(bundleId),
+                  ).push(nullthrows(assetToIndex.get(childAsset)));
                 }
               } else {
                 bundle = nullthrows(bundleGraph.getNode(bundleId));
@@ -644,13 +647,10 @@ function createIdealGraph(
                   bundles.set(childAsset.id, bundleId);
                   bundleRoots.set(childAsset, [bundleId, bundleId]);
 
-                  if (!bundle.mainEntryAsset) {
-                    bundle.mainEntryAsset = childAsset;
-                  } else {
-                    nullthrows(
-                      manualBundleToInternalizedAsset.get(bundleId),
-                    ).push(nullthrows(assetToIndex.get(childAsset)));
-                  }
+                  nullthrows(
+                    manualBundleToInternalizedAsset.get(bundleId),
+                  ).push(nullthrows(assetToIndex.get(childAsset)));
+
                   invariant(manualSharedBundleKey != null);
                   if (!manualSharedMap.has(manualSharedBundleKey)) {
                     manualSharedMap.set(manualSharedBundleKey, bundleId);
@@ -1100,6 +1100,12 @@ function createIdealGraph(
   for (let [id, bundleRootId] of bundleRootGraph.nodes.entries()) {
     if (bundleRootId == null || id === rootNodeId) continue;
     let bundleRoot = assets[bundleRootId];
+
+    if (manualAssetToConfig.has(bundleRoot)) {
+      // We internalize for MSBs later, we should never delete MSBs
+      continue;
+    }
+
     let parentRoots = bundleRootGraph.getNodeIdsConnectedTo(id, ALL_EDGE_TYPES);
     let canDelete =
       getBundleFromBundleRoot(bundleRoot).bundleBehavior !== 'isolated';
@@ -1437,9 +1443,8 @@ function createIdealGraph(
   // match multiple MSB's
   for (let [asset, msbs] of constantModuleToMSB.entries()) {
     for (let manualSharedObject of msbs) {
-      let bundleId = nullthrows(
-        manualSharedMap.get(manualSharedObject.name + ',js'),
-      );
+      let bundleId = manualSharedMap.get(manualSharedObject.name + ',js');
+      if (bundleId == null) continue;
       let bundle = nullthrows(bundleGraph.getNode(bundleId));
       invariant(
         bundle != null && bundle !== 'root',

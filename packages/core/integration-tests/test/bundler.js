@@ -7,6 +7,7 @@ import {
   findAsset,
   overlayFS,
   fsFixture,
+  run,
 } from '@parcel/test-utils';
 
 describe('bundler', function () {
@@ -1242,6 +1243,142 @@ describe('bundler', function () {
           assets: ['math.js', 'add.js', 'subtract.js'],
         },
       ]);
+    });
+
+    it('should support manual shared bundles with constants module', async function () {
+      await fsFixture(overlayFS, dir)`
+      yarn.lock:
+        // Required for config loading
+      package.json:
+        {
+          "@parcel/transformer-js" : {
+            "unstable_inlineConstants": true
+          },
+          "@parcel/bundler-default": {
+            "minBundleSize": 0,
+            "unstable_manualSharedBundles": [{
+              "name": "vendor",
+              "assets": ["vendor*.*"],
+              "types": ["js"]
+            }]
+          },
+          "sideEffects": ["index.js"]
+        }
+      
+      vendor-constants.js: 
+        export const a = 'hello';
+
+      index.html:
+        <script type="module" src="./index.js"></script>
+
+      index.js:
+        import {a} from './vendor-constants.js';
+        import('./async').then((res) => sideEffectNoop(res));
+        sideEffectNoop(a);
+
+      async.js:
+        import v from './vendor-async.js';
+        export default 'async' + v;
+      
+      vendor-async.js:
+        import {a} from './vendor-constants.js';
+        export default 'vendor-async.js' + a;
+        `;
+
+      let b = await bundle(path.join(dir, 'index.html'), {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          sourceMaps: false,
+          shouldOptimize: false,
+        },
+        inputFS: overlayFS,
+      });
+
+      assertBundles(b, [
+        {
+          assets: ['index.html'],
+        },
+        {
+          assets: [
+            'bundle-manifest.js',
+            'esm-js-loader.js',
+            'index.js',
+            'vendor-constants.js',
+          ],
+        },
+        {
+          assets: ['async.js', 'vendor-constants.js'],
+        },
+        {
+          // Vendor MSB for JS
+          assets: ['vendor-async.js', 'vendor-constants.js'],
+        },
+      ]);
+    });
+
+    it('should support manual shared bundles with internalized assets', async function () {
+      await fsFixture(overlayFS, dir)`
+      yarn.lock:
+        // Required for config loading
+      package.json:
+        {
+          "@parcel/transformer-js" : {
+            "unstable_inlineConstants": true
+          },
+          "@parcel/bundler-default": {
+            "minBundleSize": 0,
+            "unstable_manualSharedBundles": [{
+              "name": "vendor",
+              "parent": "manual.js",
+              "assets": ["**/*"],
+              "types": ["js"]
+            }]
+          }
+        }
+      
+      index.html:
+        <script type="module" src="./index.js"></script>
+
+      index.js:
+        import a from './manual.js';
+
+      manual.js:
+        import v from './vendor-async.js';
+        import n from './vendor';
+        export default 'async' + v;
+      
+      vendor.js:
+        export const n = () => import('./vendor-async');
+      
+      vendor-async.js:
+        export default 'vendor-async.js';
+      `;
+
+      let b = await bundle(path.join(dir, 'index.html'), {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          sourceMaps: false,
+          shouldOptimize: false,
+        },
+        inputFS: overlayFS,
+      });
+
+      assertBundles(b, [
+        {
+          assets: ['index.html'],
+        },
+        {
+          assets: ['esmodule-helpers.js', 'index.js'],
+        },
+        {
+          // Vendor MSB for JS
+          assets: ['manual.js', 'vendor.js', 'vendor-async.js'],
+        },
+      ]);
+
+      await run(b);
     });
 
     it('should support consistently splitting manual shared bundles', async function () {
