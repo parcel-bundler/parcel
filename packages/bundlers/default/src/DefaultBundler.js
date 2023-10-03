@@ -511,7 +511,7 @@ function createIdealGraph(
     makeManualAssetToConfigLookup();
   let manualBundleToInternalizedAsset: Map<
     NodeId,
-    Array<number>,
+    Array<Asset>,
   > = new DefaultMap(() => []);
 
   /**
@@ -617,7 +617,7 @@ function createIdealGraph(
                   }
                   nullthrows(
                     manualBundleToInternalizedAsset.get(bundleId),
-                  ).push(nullthrows(assetToIndex.get(childAsset)));
+                  ).push(childAsset);
                 }
               } else {
                 bundle = nullthrows(bundleGraph.getNode(bundleId));
@@ -649,7 +649,7 @@ function createIdealGraph(
 
                   nullthrows(
                     manualBundleToInternalizedAsset.get(bundleId),
-                  ).push(nullthrows(assetToIndex.get(childAsset)));
+                  ).push(childAsset);
 
                   invariant(manualSharedBundleKey != null);
                   if (!manualSharedMap.has(manualSharedBundleKey)) {
@@ -849,8 +849,8 @@ function createIdealGraph(
     if (!bundle.internalizedAssets) {
       bundle.internalizedAssets = new BitSet(assets.length);
     }
-    for (let assetIndex of internalizedAssets) {
-      bundle.internalizedAssets.add(assetIndex);
+    for (let asset of internalizedAssets) {
+      bundle.internalizedAssets.add(nullthrows(assetToIndex.get(asset)));
     }
     bundle.mainEntryAsset = null;
     bundleGroupBundleIds.delete(nodeId); // manual bundles can now act as shared, non-bundle group, should they be non-bundleRoots as well?
