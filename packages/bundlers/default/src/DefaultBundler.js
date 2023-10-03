@@ -618,6 +618,7 @@ function createIdealGraph(
                   nullthrows(
                     manualBundleToInternalizedAsset.get(bundleId),
                   ).push(childAsset);
+                  bundle.manualSharedBundle = manualSharedObject.name;
                 }
               } else {
                 bundle = nullthrows(bundleGraph.getNode(bundleId));
@@ -655,6 +656,7 @@ function createIdealGraph(
                   if (!manualSharedMap.has(manualSharedBundleKey)) {
                     manualSharedMap.set(manualSharedBundleKey, bundleId);
                   }
+                  bundle.manualSharedBundle = manualSharedObject.name;
                 }
               }
 
@@ -763,6 +765,7 @@ function createIdealGraph(
                   if (!manualSharedMap.has(manualSharedBundleKey)) {
                     manualSharedMap.set(manualSharedBundleKey, bundleId);
                   }
+                  bundle.manualSharedBundle = manualSharedObject.name;
                 }
               } else {
                 bundle = bundleGraph.getNode(bundleId);
@@ -791,6 +794,7 @@ function createIdealGraph(
                 if (!manualSharedMap.has(manualSharedBundleKey)) {
                   manualSharedMap.set(manualSharedBundleKey, bundleId);
                 }
+                bundle.manualSharedBundle = manualSharedObject.name;
               }
 
               bundles.set(childAsset.id, bundleId);
