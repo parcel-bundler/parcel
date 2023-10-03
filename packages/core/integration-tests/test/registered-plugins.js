@@ -57,6 +57,9 @@ describe('plugins with "registered" languages', () => {
 
     await run(b);
 
+    // Tests that the plugin actually loaded properly by validating that it output
+    // what it was supposed to output. If `esbuild-register` isn't used, or the resolver
+    // doesn't support updating extensions as they change, then the plugin won't work.
     assert(overlayFS.existsSync(path.join(dir, 'output.txt')));
     assert.equal(
       overlayFS.readFileSync(path.join(dir, 'output.txt'), 'utf8'),
