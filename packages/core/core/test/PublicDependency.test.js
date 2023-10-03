@@ -3,7 +3,7 @@
 import assert from 'assert';
 import {createEnvironment} from '../src/Environment';
 import {createDependency} from '../src/Dependency';
-import Dependency from '../src/public/Dependency';
+import {getPublicDependency} from '../src/public/Dependency';
 import {DEFAULT_OPTIONS} from './test-utils';
 
 describe('Public Dependency', () => {
@@ -15,8 +15,8 @@ describe('Public Dependency', () => {
     });
 
     assert.equal(
-      new Dependency(internalDependency, DEFAULT_OPTIONS),
-      new Dependency(internalDependency, DEFAULT_OPTIONS),
+      getPublicDependency(internalDependency, DEFAULT_OPTIONS),
+      getPublicDependency(internalDependency, DEFAULT_OPTIONS),
     );
   });
 });
