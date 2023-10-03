@@ -18,7 +18,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           override: true
       - uses: bahmutov/npm-install@v1.1.0
@@ -33,7 +33,7 @@ jobs:
           name: bindings-${{ matrix.os }}
           path: packages/*/*/*.node
       - name: Smoke test
-        run: node -e "require('@parcel/fs-search')"
+        run: node -e "require('@parcel/rust')"
 
   build-linux-gnu-x64:
     name: linux-gnu-x64
@@ -47,7 +47,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           override: true
       - uses: bahmutov/npm-install@v1.1.0
@@ -63,7 +63,7 @@ jobs:
       - name: debug
         run: ls -l packages/*/*/*.node
       - name: Smoke test
-        run: node -e 'require("@parcel/fs-search")'
+        run: node -e 'require("@parcel/rust")'
 
   build-linux-gnu-arm:
     strategy:
@@ -85,7 +85,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           override: true
           target: ${{ matrix.target }}
@@ -115,7 +115,7 @@ jobs:
         with:
           image: ghcr.io/devongovett/multiarch-node:node14-${{ matrix.arch }}-focal
           options: -v ${{github.workspace}}:/work
-          run: cd /work && node -e "require('@parcel/fs-search')"
+          run: cd /work && node -e "require('@parcel/rust')"
 
   build-linux-musl:
     strategy:
@@ -142,7 +142,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           override: true
           target: ${{ matrix.target }}
@@ -163,7 +163,7 @@ jobs:
         run: ls -l packages/*/*/*.node
       - name: Smoke test
         if: ${{ matrix.target == 'x86_64-unknown-linux-musl' }}
-        run: node -e 'require("@parcel/fs-search")'
+        run: node -e 'require("@parcel/rust")'
 
   build-apple-silicon:
     name: aarch64-apple-darwin
@@ -173,7 +173,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           override: true
           target: aarch64-apple-darwin

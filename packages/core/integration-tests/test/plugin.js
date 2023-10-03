@@ -15,6 +15,8 @@ import {
   overlayFS,
   run,
 } from '@parcel/test-utils';
+import * as wasmmap from 'wasm-sourcemap';
+import {relativePath} from '@parcel/utils';
 
 describe('plugin', function () {
   it("continue transformer pipeline on type change that doesn't change the pipeline", async function () {
@@ -309,5 +311,22 @@ parcel-transformer-b`,
     }
     await assertAsset('const replaced = 1;');
     await assertAsset('const replaced = 2;');
+  });
+
+  it('should output sourcemaps when packaging Wasm', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/wasm-sourcemap-transformer/index.js'),
+    );
+    let wasmPath = nullthrows(
+      b.getBundles().find(b => b.type === 'wasm'),
+    ).filePath;
+    let mapPath = wasmPath + '.map';
+    assert(await fs.exists(mapPath));
+
+    let wasm = await fs.readFile(wasmPath);
+    assert.equal(
+      wasmmap.GetSourceMapURL(wasm),
+      relativePath(distDir, mapPath, false),
+    );
   });
 });

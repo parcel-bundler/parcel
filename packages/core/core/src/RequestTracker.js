@@ -27,7 +27,7 @@ import {
   isDirectoryInside,
   makeDeferredWithPromise,
 } from '@parcel/utils';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
 import {assertSignalNotAborted, hashFromOption} from './utils';
@@ -724,8 +724,8 @@ export class RequestGraph extends ContentGraph<
       // this means the project root was moved and we need to
       // re-run all requests.
       if (type === 'create' && filePath === '') {
-        for (let [id, node] of this.nodes) {
-          if (node.type === 'request') {
+        for (let [id, node] of this.nodes.entries()) {
+          if (node?.type === 'request') {
             this.invalidNodeIds.add(id);
           }
         }
@@ -764,15 +764,19 @@ export class RequestGraph extends ContentGraph<
           let fileNameNodeId = this.getNodeIdByContentKey(
             'file_name:' + basename,
           );
+
           // Find potential file nodes to be invalidated if this file name pattern matches
-          let above = this.getNodeIdsConnectedTo(
+          let above: Array<FileNode> = [];
+          for (const nodeId of this.getNodeIdsConnectedTo(
             fileNameNodeId,
             requestGraphEdgeTypes.invalidated_by_create_above,
-          ).map(nodeId => {
+          )) {
             let node = nullthrows(this.getNode(nodeId));
-            invariant(node.type === 'file');
-            return node;
-          });
+            // these might also be `glob` nodes which get handled below, we only care about files here.
+            if (node.type === 'file') {
+              above.push(node);
+            }
+          }
 
           if (above.length > 0) {
             didInvalidate = true;
@@ -1087,8 +1091,8 @@ export default class RequestTracker {
     }
 
     let promises = [];
-    for (let [, node] of this.graph.nodes) {
-      if (node.type !== 'request') {
+    for (let node of this.graph.nodes) {
+      if (!node || node.type !== 'request') {
         continue;
       }
 

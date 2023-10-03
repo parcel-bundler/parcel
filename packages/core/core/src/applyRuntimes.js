@@ -24,7 +24,7 @@ import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
 import {mergeEnvironments} from './Environment';

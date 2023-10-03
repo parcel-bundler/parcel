@@ -260,7 +260,7 @@ describe('AssetGraph', () => {
       nodeFromAssetGroup(req).id,
     );
     let dependencyNodeId = graph.getNodeIdByContentKey(dep.id);
-    assert(graph.nodes.has(assetGroupNodeId));
+    assert(graph.hasNode(assetGroupNodeId));
     assert(graph.hasEdge(dependencyNodeId, assetGroupNodeId));
 
     let req2 = {
@@ -272,13 +272,13 @@ describe('AssetGraph', () => {
     let assetGroupNodeId2 = graph.getNodeIdByContentKey(
       nodeFromAssetGroup(req2).id,
     );
-    assert(!graph.nodes.has(assetGroupNodeId));
-    assert(graph.nodes.has(assetGroupNodeId2));
+    assert(!graph.hasNode(assetGroupNodeId));
+    assert(graph.hasNode(assetGroupNodeId2));
     assert(graph.hasEdge(dependencyNodeId, assetGroupNodeId2));
     assert(!graph.hasEdge(dependencyNodeId, assetGroupNodeId));
 
     graph.resolveDependency(dep, req2, '5');
-    assert(graph.nodes.has(assetGroupNodeId2));
+    assert(graph.hasNode(assetGroupNodeId2));
     assert(graph.hasEdge(dependencyNodeId, assetGroupNodeId2));
   });
 
@@ -389,11 +389,11 @@ describe('AssetGraph', () => {
       [...assets[1].dependencies.values()][0].id,
     );
 
-    assert(graph.nodes.has(nodeId1));
-    assert(graph.nodes.has(nodeId2));
-    assert(graph.nodes.has(nodeId3));
-    assert(graph.nodes.has(dependencyNodeId1));
-    assert(graph.nodes.has(dependencyNodeId2));
+    assert(graph.hasNode(nodeId1));
+    assert(graph.hasNode(nodeId2));
+    assert(graph.hasNode(nodeId3));
+    assert(graph.hasNode(dependencyNodeId1));
+    assert(graph.hasNode(dependencyNodeId2));
     assert(graph.hasEdge(assetGroupNode, nodeId1));
     assert(graph.hasEdge(assetGroupNode, nodeId2));
     assert(graph.hasEdge(assetGroupNode, nodeId3));
@@ -435,11 +435,11 @@ describe('AssetGraph', () => {
 
     graph.resolveAssetGroup(req, assets2, '5');
 
-    assert(graph.nodes.has(nodeId1));
-    assert(graph.nodes.has(nodeId2));
-    assert(!graph.nodes.has(nodeId3));
-    assert(graph.nodes.has(dependencyNodeId1));
-    assert(!graph.nodes.has(dependencyNodeId2));
+    assert(graph.hasNode(nodeId1));
+    assert(graph.hasNode(nodeId2));
+    assert(!graph.hasNode(nodeId3));
+    assert(graph.hasNode(dependencyNodeId1));
+    assert(!graph.hasNode(dependencyNodeId2));
     assert(graph.hasEdge(assetGroupNode, nodeId1));
     assert(graph.hasEdge(assetGroupNode, nodeId2));
     assert(!graph.hasEdge(assetGroupNode, nodeId3));

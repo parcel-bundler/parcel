@@ -19,8 +19,8 @@ import type {Diagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {PromiseQueue, setEqual, isGlobMatch} from '@parcel/utils';
-import {hashString} from '@parcel/hash';
+import {PromiseQueue, setEqual} from '@parcel/utils';
+import {hashString} from '@parcel/rust';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {Priority} from '../types';
 import AssetGraph from '../AssetGraph';
@@ -39,8 +39,8 @@ type AssetGraphRequestInput = {|
   optionsRef: SharedReference,
   name: string,
   shouldBuildLazily?: boolean,
-  lazyIncludes?: string[],
-  lazyExcludes?: string[],
+  lazyIncludes?: RegExp[],
+  lazyExcludes?: RegExp[],
   requestedAssetIds?: Set<string>,
 |};
 
@@ -113,8 +113,8 @@ export class AssetGraphBuilder {
   name: string;
   cacheKey: string;
   shouldBuildLazily: boolean;
-  lazyIncludes: string[];
-  lazyExcludes: string[];
+  lazyIncludes: RegExp[];
+  lazyExcludes: RegExp[];
   requestedAssetIds: Set<string>;
   isSingleChangeRebuild: boolean;
   assetGroupsWithRemovedParents: Set<NodeId>;
@@ -242,7 +242,7 @@ export class AssetGraphBuilder {
       throw errors[0];
     }
 
-    if (this.assetGraph.nodes.size > 1) {
+    if (this.assetGraph.nodes.length > 1) {
       await dumpGraphToGraphViz(
         this.assetGraph,
         'AssetGraph_' + this.name + '_before_prop',
@@ -329,17 +329,16 @@ export class AssetGraphBuilder {
         // For conditional lazy building - if this node matches the `lazyInclude` globs that means we want
         // only those nodes to be treated as lazy - that means if this node does _NOT_ match that glob, then we
         // also consider it not lazy (so it gets marked as requested).
+        const relativePath = fromProjectPathRelative(node.value.filePath);
         if (this.lazyIncludes.length > 0) {
-          isNodeLazy = isGlobMatch(
-            fromProjectPathRelative(node.value.filePath),
-            this.lazyIncludes,
+          isNodeLazy = this.lazyIncludes.some(lazyIncludeRegex =>
+            relativePath.match(lazyIncludeRegex),
           );
         }
         // Excludes override includes, so a node is _not_ lazy if it is included in the exclude list.
         if (this.lazyExcludes.length > 0 && isNodeLazy) {
-          isNodeLazy = !isGlobMatch(
-            fromProjectPathRelative(node.value.filePath),
-            this.lazyExcludes,
+          isNodeLazy = !this.lazyExcludes.some(lazyExcludeRegex =>
+            relativePath.match(lazyExcludeRegex),
           );
         }
 

@@ -6,6 +6,7 @@ var $parcel$modules = {};
 var $parcel$inits = {};
 
 var parcelRequire = $parcel$global[${JSON.stringify(parcelRequireName)}];
+
 if (parcelRequire == null) {
   parcelRequire = function(id) {
     if (id in $parcel$modules) {
@@ -29,6 +30,76 @@ if (parcelRequire == null) {
   };
 
   $parcel$global[${JSON.stringify(parcelRequireName)}] = parcelRequire;
+}
+
+var parcelRegister = parcelRequire.register;
+`;
+
+export const fnExpr = (
+  env: Environment,
+  params: Array<string>,
+  body: Array<string>,
+): string => {
+  let block = `{ ${body.join(' ')} }`;
+
+  if (env.supports('arrow-functions')) {
+    return `(${params.join(', ')}) => ${block}`;
+  }
+
+  return `function (${params.join(', ')}) ${block}`;
+};
+
+export const bundleQueuePrelude = (env: Environment): string => `
+if (!$parcel$global.lb) {
+  // Set of loaded bundles
+  $parcel$global.lb = new Set();
+  // Queue of bundles to execute once they're dep bundles are loaded
+  $parcel$global.bq = [];
+
+  // Register loaded bundle
+  $parcel$global.rlb = ${fnExpr(
+    env,
+    ['bundle'],
+    ['$parcel$global.lb.add(bundle);', '$parcel$global.pq();'],
+  )}
+
+  // Run when ready
+  $parcel$global.rwr = ${fnExpr(
+    env,
+    // b = bundle public id
+    // r = run function to execute the bundle entry
+    // d = list of dependent bundles this bundle requires before executing
+    ['b', 'r', 'd'],
+    ['$parcel$global.bq.push({b, r, d});', '$parcel$global.pq();'],
+  )}
+
+  // Process queue
+  $parcel$global.pq = ${fnExpr(
+    env,
+    [],
+    [
+      `var runnableEntry = $parcel$global.bq.find(${fnExpr(
+        env,
+        ['i'],
+        [
+          `return i.d.every(${fnExpr(
+            env,
+            ['dep'],
+            ['return $parcel$global.lb.has(dep);'],
+          )});`,
+        ],
+      )});`,
+      'if (runnableEntry) {',
+      `$parcel$global.bq = $parcel$global.bq.filter(${fnExpr(
+        env,
+        ['i'],
+        ['return i.b !== runnableEntry.b;'],
+      )});`,
+      'runnableEntry.r();',
+      '$parcel$global.pq();',
+      '}',
+    ],
+  )}
 }
 `;
 
