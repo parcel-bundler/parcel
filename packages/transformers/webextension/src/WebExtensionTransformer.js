@@ -27,6 +27,7 @@ const DEP_LOCS = [
   ['devtools_page'],
   ['options_ui', 'page'],
   ['sandbox', 'pages'],
+  ['side_panel', 'default_path'],
   ['sidebar_action', 'default_icon'],
   ['sidebar_action', 'default_panel'],
   ['storage', 'managed_schema'],

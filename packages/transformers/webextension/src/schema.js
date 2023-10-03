@@ -492,6 +492,13 @@ export const MV3Schema = ({
       },
       additionalProperties: false,
     },
+    side_panel: {
+      type: 'object',
+      properties: {
+        default_path: string,
+      },
+      additionalProperties: false,
+    },
     web_accessible_resources: {
       type: 'array',
       items: {

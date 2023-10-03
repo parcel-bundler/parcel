@@ -260,6 +260,9 @@ export default function codeFrame(
             characters += startCol - lastCol;
           }
 
+          // Don't crash (and swallow the original message) if the diagnostic is malformed (end is before start).
+          characters = Math.max(1, characters);
+
           // Append the highlight indicators
           highlightLine += highlighter('^'.repeat(characters));
 
