@@ -1566,7 +1566,7 @@ describe('bundler', function () {
         }
   
       index.js:
-        import('./foo');
+        import('./activeSource');
         import('./bar');
         export default 1;
 
@@ -1599,7 +1599,7 @@ describe('bundler', function () {
           assets: ['activeSource.js'],
         },
         {
-          assets: ['a.js', 'b.js'],
+          assets: ['vendor.js', 'b.js'],
         },
         {
           assets: ['bar.js', 'b.js'], // b is duplicated because 'bar' is not an 'Active' for this MSB
@@ -1667,10 +1667,10 @@ describe('bundler', function () {
       //assert that bar and bazz share b, despite b being a "manual asset"
       assertBundles(b, [
         {
-          assets: ['foo.js'],
+          assets: ['activeSource.js'],
         },
         {
-          assets: ['a.js', 'b.js'],
+          assets: ['vendor.js', 'b.js'],
         },
         {
           assets: ['bar.js'],

@@ -32,6 +32,7 @@ type ManualSharedBundles = Array<{|
   assets: Array<Glob>,
   types?: Array<string>,
   parent?: string,
+  active?: Array<string>,
   split?: number,
 |}>;
 
@@ -426,30 +427,48 @@ function createIdealGraph(
   function makeManualAssetToConfigLookup() {
     let manualAssetToConfig = new Map();
     let constantModuleToMSB = new DefaultMap(() => []);
-
+    let configToActiveAsset = new DefaultMap(() => []);
     if (config.manualSharedBundles.length === 0) {
-      return {manualAssetToConfig, constantModuleToMSB};
+      return {manualAssetToConfig, constantModuleToMSB, configToActiveAsset};
     }
 
     let parentsToConfig = new DefaultMap(() => []);
+    let activeToConfig = new DefaultMap(() => []);
 
     for (let c of config.manualSharedBundles) {
       if (c.parent != null) {
         parentsToConfig.get(path.join(config.projectRoot, c.parent)).push(c);
       }
+      if (c.active != null) {
+        for (let a of c.active) {
+          activeToConfig.get(path.join(config.projectRoot, a)).push(c);
+        }
+      }
     }
     let numParentsToFind = parentsToConfig.size;
+    let numActivesToFind = activeToConfig.size;
     let configToParentAsset = new Map();
 
     assetGraph.traverse((node, _, actions) => {
-      if (node.type === 'asset' && parentsToConfig.has(node.value.filePath)) {
-        for (let c of parentsToConfig.get(node.value.filePath)) {
-          configToParentAsset.set(c, node.value);
+      if (
+        node.type === 'asset' &&
+        (parentsToConfig.has(node.value.filePath) ||
+          activeToConfig.has(node.value.filePath))
+      ) {
+        if (parentsToConfig.has(node.value.filePath)) {
+          for (let c of parentsToConfig.get(node.value.filePath)) {
+            configToParentAsset.set(c, node.value);
+            numParentsToFind--;
+          }
+        }
+        if (activeToConfig.has(node.value.filePath)) {
+          for (let c of activeToConfig.get(node.value.filePath)) {
+            configToActiveAsset.get(c).push(node.value);
+            numActivesToFind--;
+          }
         }
 
-        numParentsToFind--;
-
-        if (numParentsToFind === 0) {
+        if (numParentsToFind === 0 && numActivesToFind === 0) {
           // If we've found all parents we can stop traversal
           actions.stop();
         }
@@ -499,7 +518,7 @@ function createIdealGraph(
       }, parentAsset);
     }
 
-    return {manualAssetToConfig, constantModuleToMSB};
+    return {manualAssetToConfig, constantModuleToMSB, configToActiveAsset};
   }
 
   //Manual is a map of the user-given name to the bundle node Id that corresponds to ALL the assets that match any glob in that user-specified array
@@ -507,7 +526,7 @@ function createIdealGraph(
   // May need a map to be able to look up NON- bundle root assets which need special case instructions
   // Use this when placing assets into bundles, to avoid duplication
   let manualAssetToBundle: Map<Asset, NodeId> = new Map();
-  let {manualAssetToConfig, constantModuleToMSB} =
+  let {manualAssetToConfig, constantModuleToMSB, configToActiveAsset} =
     makeManualAssetToConfigLookup();
   let manualBundleToInternalizedAsset: Map<
     NodeId,
@@ -1149,6 +1168,7 @@ function createIdealGraph(
   let reachable = new BitSet(assets.length);
   let reachableNonEntries = new BitSet(assets.length);
   let reachableIntersection = new BitSet(assets.length);
+  let manualReachable = new BitSet(assets.length);
   for (let i = 0; i < assets.length; i++) {
     let asset = assets[i];
     let manualSharedObject = manualAssetToConfig.get(asset);
@@ -1202,61 +1222,80 @@ function createIdealGraph(
 
     // If we encounter a "manual" asset, draw an edge from reachable to its MSB
     if (manualSharedObject && !reachable.empty()) {
-      let bundle;
-      let bundleId;
-      let manualSharedBundleKey = manualSharedObject.name + ',' + asset.type;
-      let sourceBundles = [];
-      reachable.forEach(id => {
-        sourceBundles.push(nullthrows(bundleRoots.get(assets[id]))[0]);
-      });
+      manualReachable.clear();
 
-      if (!manualSharedMap.has(manualSharedBundleKey)) {
-        let firstSourceBundle = nullthrows(
-          bundleGraph.getNode(sourceBundles[0]),
-        );
-        invariant(firstSourceBundle !== 'root');
-
-        bundle = createBundle({
-          target: firstSourceBundle.target,
-          type: firstSourceBundle.type,
-          env: firstSourceBundle.env,
-          manualSharedBundle: manualSharedObject?.name,
+      if (configToActiveAsset.has(manualSharedObject)) {
+        let activeSet = new Set(configToActiveAsset.get(manualSharedObject));
+        reachableRoots[i].forEach(nodeId => {
+          let assetId = bundleRootGraph.getNode(nodeId);
+          if (assetId == null) return; // deleted
+          let entry = assets[assetId];
+          if (activeSet.has(entry)) {
+            manualReachable.add(assetId);
+            reachable.delete(assetId); //ensure assets can still be processed afterwards
+          }
         });
-        bundle.sourceBundles = new Set(sourceBundles);
-        bundle.assets.add(asset);
-        bundleId = bundleGraph.addNode(bundle);
-        manualSharedMap.set(manualSharedBundleKey, bundleId);
       } else {
-        bundleId = nullthrows(manualSharedMap.get(manualSharedBundleKey));
-        bundle = nullthrows(bundleGraph.getNode(bundleId));
-        invariant(
-          bundle != null && bundle !== 'root',
-          'We tried to use the root incorrectly',
-        );
+        manualReachable = reachable.clone();
+      }
+      if (!manualReachable.empty()) {
+        let bundle;
+        let bundleId;
+        let manualSharedBundleKey = manualSharedObject.name + ',' + asset.type;
+        let sourceBundles = [];
+        manualReachable.forEach(id => {
+          sourceBundles.push(nullthrows(bundleRoots.get(assets[id]))[0]);
+        });
 
-        if (!bundle.assets.has(asset)) {
+        if (!manualSharedMap.has(manualSharedBundleKey)) {
+          let firstSourceBundle = nullthrows(
+            bundleGraph.getNode(sourceBundles[0]),
+          );
+          invariant(firstSourceBundle !== 'root');
+
+          bundle = createBundle({
+            target: firstSourceBundle.target,
+            type: firstSourceBundle.type,
+            env: firstSourceBundle.env,
+            manualSharedBundle: manualSharedObject?.name,
+          });
+          bundle.sourceBundles = new Set(sourceBundles);
           bundle.assets.add(asset);
-          bundle.size += asset.stats.size;
-        }
+          bundleId = bundleGraph.addNode(bundle);
+          manualSharedMap.set(manualSharedBundleKey, bundleId);
+        } else {
+          bundleId = nullthrows(manualSharedMap.get(manualSharedBundleKey));
+          bundle = nullthrows(bundleGraph.getNode(bundleId));
+          invariant(
+            bundle != null && bundle !== 'root',
+            'We tried to use the root incorrectly',
+          );
 
-        for (let s of sourceBundles) {
-          if (s != bundleId) {
-            bundle.sourceBundles.add(s);
+          if (!bundle.assets.has(asset)) {
+            bundle.assets.add(asset);
+            bundle.size += asset.stats.size;
+          }
+
+          for (let s of sourceBundles) {
+            if (s != bundleId) {
+              bundle.sourceBundles.add(s);
+            }
           }
         }
-      }
-
-      for (let sourceBundleId of sourceBundles) {
-        if (bundleId !== sourceBundleId) {
-          bundleGraph.addEdge(sourceBundleId, bundleId);
+        for (let sourceBundleId of sourceBundles) {
+          if (bundleId !== sourceBundleId) {
+            bundleGraph.addEdge(sourceBundleId, bundleId);
+          }
         }
-      }
 
-      dependencyBundleGraph.addNodeByContentKeyIfNeeded(String(bundleId), {
-        value: bundle,
-        type: 'bundle',
-      });
-      continue;
+        dependencyBundleGraph.addNodeByContentKeyIfNeeded(String(bundleId), {
+          value: bundle,
+          type: 'bundle',
+        });
+      }
+      if (reachable.empty() || manualSharedObject.active == null) {
+        continue;
+      }
     }
 
     // Finally, filter out bundleRoots (bundles) from this assets
@@ -1744,6 +1783,12 @@ const CONFIG_SCHEMA: SchemaEntity = {
           },
           parent: {
             type: 'string',
+          },
+          active: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
           },
           split: {
             type: 'number',
