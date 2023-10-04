@@ -34,6 +34,7 @@ pub fn hoist(
 ) -> Result<(Module, HoistResult, Vec<Diagnostic>), Vec<Diagnostic>> {
   let mut hoist = Hoist::new(module_id, unresolved_mark, collect);
   let module = module.fold_with(&mut hoist);
+
   if !hoist.diagnostics.is_empty() {
     return Err(hoist.diagnostics);
   }
