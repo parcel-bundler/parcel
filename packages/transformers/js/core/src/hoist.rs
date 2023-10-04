@@ -3410,7 +3410,7 @@ mod tests {
   }
 
   #[test]
-  fn collect_used_local_exports() {
+  fn collect_this_exports() {
     let (collect, code, _hoist) = parse(
       r#"
       exports.foo = function() {
@@ -3438,7 +3438,5 @@ mod tests {
       vec![&BailoutReason::ThisInExport]
     );
     assert_eq!(collect.should_wrap, true);
-
-    println!("{}", code);
   }
 }
