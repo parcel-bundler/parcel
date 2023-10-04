@@ -34,7 +34,6 @@ pub fn hoist(
 ) -> Result<(Module, HoistResult, Vec<Diagnostic>), Vec<Diagnostic>> {
   let mut hoist = Hoist::new(module_id, unresolved_mark, collect);
   let module = module.fold_with(&mut hoist);
-  println!("here in hoist");
   if !hoist.diagnostics.is_empty() {
     return Err(hoist.diagnostics);
   }
@@ -624,7 +623,6 @@ impl<'a> Fold for Hoist<'a> {
               && self.collect.static_cjs_exports
               && !self.collect.should_wrap
             {
-              println!("still scope hoisting");
               self.self_references.insert(key.clone());
               return Expr::Ident(self.get_export_ident(member.span, &key));
             }
