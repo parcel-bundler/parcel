@@ -34,7 +34,7 @@ pub fn hoist(
 ) -> Result<(Module, HoistResult, Vec<Diagnostic>), Vec<Diagnostic>> {
   let mut hoist = Hoist::new(module_id, unresolved_mark, collect);
   let module = module.fold_with(&mut hoist);
-
+  println!("here in hoist");
   if !hoist.diagnostics.is_empty() {
     return Err(hoist.diagnostics);
   }
@@ -624,6 +624,7 @@ impl<'a> Fold for Hoist<'a> {
               && self.collect.static_cjs_exports
               && !self.collect.should_wrap
             {
+              println!("still scope hoisting");
               self.self_references.insert(key.clone());
               return Expr::Ident(self.get_export_ident(member.span, &key));
             }
@@ -3406,5 +3407,37 @@ mod tests {
         }
       }
     );
+  }
+
+  #[test]
+  fn collect_used_local_exports() {
+    let (collect, code, _hoist) = parse(
+      r#"
+      exports.foo = function() {
+        exports.bar()
+      }
+
+      exports.bar = function() {
+        this.baz()
+      }
+
+      exports.baz = function() {
+        return 2
+      }
+      
+      console.log(exports.bar)
+      "#,
+    );
+    assert_eq!(
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|b| &b.reason)
+        .collect::<Vec<_>>(),
+      vec![&BailoutReason::ThisInExport]
+    );
+    assert_eq!(collect.should_wrap, true);
+    println!("{}", code);
   }
 }

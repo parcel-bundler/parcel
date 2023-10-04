@@ -58,6 +58,7 @@ pub struct Collect {
   pub should_wrap: bool,
   /// local variable binding -> descriptor
   pub imports: HashMap<Id, Import>,
+  pub thises: HashMap<Id, MemberExpr>,
   /// exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
   /// local variable binding -> exported name
@@ -129,6 +130,7 @@ impl Collect {
       is_esm: false,
       should_wrap: false,
       imports: HashMap::new(),
+      thises: HashMap::new(),
       exports: HashMap::new(),
       exports_locals: HashMap::new(),
       exports_all: HashMap::new(),
@@ -251,6 +253,18 @@ impl Visit for Collect {
                 reason: BailoutReason::NonStaticAccess,
               })
             }
+          }
+        }
+      }
+
+      for (key, node) in &self.thises {
+        if let MemberProp::Ident(prop) = &node.prop {
+          if self.exports.contains_key(&prop.sym) {
+            self.should_wrap = true;
+            bailouts.push(Bailout {
+              loc: SourceLocation::from(&self.source_map, node.span),
+              reason: BailoutReason::ThisInExport,
+            })
           }
         }
       }
@@ -681,6 +695,10 @@ impl Visit for Collect {
       Expr::This(_this) => {
         if self.in_module_this {
           handle_export!();
+        } else {
+          if let MemberProp::Ident(prop) = &node.prop {
+            self.thises.insert(id!(prop), node.clone());
+          }
         }
         return;
       }
