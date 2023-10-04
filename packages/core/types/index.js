@@ -1230,6 +1230,8 @@ export type CreateBundleOpts =
        *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
        */
       +bundleBehavior?: ?BundleBehavior,
+      /** Name of the manual shared bundle config that caused this bundle to be created */
+      +manualSharedBundle?: ?string,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
@@ -1263,6 +1265,8 @@ export type CreateBundleOpts =
       +isSplittable?: ?boolean,
       /** The bundle's pipeline, to be used for optimization. Usually based on the pipeline of the entry asset. */
       +pipeline?: ?string,
+      /** Name of the manual shared bundle config that caused this bundle to be created */
+      +manualSharedBundle?: ?string,
     |};
 
 /**
