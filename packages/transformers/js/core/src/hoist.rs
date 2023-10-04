@@ -3410,8 +3410,8 @@ mod tests {
   }
 
   #[test]
-  fn collect_used_local_exports() {
-    let (collect, code, _hoist) = parse(
+  fn collect_this_exports() {
+    let (collect, _code, _hoist) = parse(
       r#"
       exports.foo = function() {
         exports.bar()
@@ -3424,7 +3424,7 @@ mod tests {
       exports.baz = function() {
         return 2
       }
-      
+
       console.log(exports.bar)
       "#,
     );
@@ -3438,7 +3438,5 @@ mod tests {
       vec![&BailoutReason::ThisInExport]
     );
     assert_eq!(collect.should_wrap, true);
-
-    println!("{}", code);
   }
 }

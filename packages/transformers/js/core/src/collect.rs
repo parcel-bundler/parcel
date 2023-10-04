@@ -257,7 +257,7 @@ impl Visit for Collect {
         }
       }
 
-      for (key, node) in &self.thises {
+      for (_key, node) in &self.thises {
         if let MemberProp::Ident(prop) = &node.prop {
           if self.exports.contains_key(&prop.sym) {
             self.should_wrap = true;
