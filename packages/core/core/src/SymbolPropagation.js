@@ -38,6 +38,10 @@ export function propagateSymbols({
     ),
   );
 
+  // assetGraph.postOrderDfsFast((nodeId, actions) => {
+  //   console.log(nodeId)
+  // }, 0);
+
   // To reorder once at the end
   let changedDeps = new Set<DependencyNode>();
 
@@ -569,6 +573,7 @@ function propagateSymbolsDown(
       node.usedSymbolsDownDirty = false;
     }
 
+    // Adding children to queue
     for (let child of outgoing) {
       let childNode = nullthrows(assetGraph.getNode(child));
       let childDirty = false;
@@ -633,12 +638,20 @@ function propagateSymbolsUp(
     changedDepsUsedSymbolsUpDirtyDownAssets.size;
 
   let dirtyDeps;
+  // This is the postorder recursive DFS
   if (runFullPass) {
     dirtyDeps = new Set<NodeId>();
     let rootNodeId = nullthrows(
       assetGraph.rootNodeId,
       'A root node is required to traverse',
     );
+
+    const visit = (nodeId, context) => {
+      return nodeId;
+    };
+
+    assetGraph.postOrderDfsFast(visit, rootNodeId);
+
     let visited = new Set([rootNodeId]);
     const walk = (nodeId: NodeId) => {
       let node = nullthrows(assetGraph.getNode(nodeId));
@@ -657,7 +670,7 @@ function propagateSymbolsUp(
           }
         }
       }
-
+      // By the time we get here, we are at a leaf
       if (node.type === 'asset') {
         let incoming = assetGraph.getIncomingDependencies(node.value).map(d => {
           let n = assetGraph.getNodeByContentKey(d.id);

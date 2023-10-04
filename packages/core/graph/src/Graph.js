@@ -333,12 +333,14 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     this._assertHasNodeId(traversalStartNode);
 
     let visited;
+    // If this._visited.size() matches the size of the graph, just reuse it. Otherwise,
+    // we need to adjust the size of the _visited BitSet to make # of nodes in graph
     if (!this._visited || this._visited.capacity < this.nodes.length) {
       this._visited = new BitSet(this.nodes.length);
       visited = this._visited;
     } else {
       visited = this._visited;
-      visited.clear();
+      visited.clear(); // Start with a fresh visited array for every dfs
     }
     // Take shared instance to avoid re-entrancy issues.
     this._visited = null;
@@ -382,6 +384,64 @@ export default class Graph<TNode, TEdgeType: number = 1> {
         }
         return false;
       });
+    }
+
+    this._visited = visited;
+    return null;
+  }
+
+  postOrderDfsFast<TContext>(
+    visit: GraphTraversalCallback<NodeId, TContext>,
+    startNodeId: ?NodeId,
+  ): ?TContext {
+    let traversalStartNode = nullthrows(
+      startNodeId ?? this.rootNodeId,
+      'A start node is required to traverse',
+    );
+    this._assertHasNodeId(traversalStartNode);
+
+    let visited;
+    if (!this._visited || this._visited.capacity < this.nodes.length) {
+      this._visited = new BitSet(this.nodes.length);
+      visited = this._visited;
+    } else {
+      visited = this._visited;
+      visited.clear();
+    }
+    this._visited = null;
+
+    let stopped = false;
+    let actions: TraversalActions = {
+      stop() {
+        stopped = true;
+      },
+    };
+
+    let queue = [{nodeId: traversalStartNode, context: null}];
+    while (queue.length !== 0) {
+      let {nodeId, context} = queue[queue.length - 1];
+      if (!visited.has(nodeId)) {
+        visited.add(nodeId);
+
+        this.adjacencyList.forEachNodeIdConnectedFromReverse(nodeId, child => {
+          if (!visited.has(child)) {
+            queue.push({nodeId: child, context});
+          }
+          return false;
+        });
+      } else {
+        let popped = queue.pop();
+        console.log('Popped ', popped?.nodeId);
+        let newContext = visit(nodeId, context, actions);
+        if (typeof newContext !== 'undefined') {
+          console.log({context});
+          context = newContext;
+        }
+        if (stopped) {
+          this._visited = visited;
+          return context;
+        }
+      }
     }
 
     this._visited = visited;
