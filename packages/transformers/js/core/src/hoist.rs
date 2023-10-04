@@ -3438,6 +3438,7 @@ mod tests {
       vec![&BailoutReason::ThisInExport]
     );
     assert_eq!(collect.should_wrap, true);
+
     println!("{}", code);
   }
 }
