@@ -3410,6 +3410,7 @@ mod tests {
 
   #[test]
   fn collect_this_exports() {
+    // module is wrapped when `this` accessor matches an export
     let (collect, _code, _hoist) = parse(
       r#"
       exports.foo = function() {
@@ -3423,8 +3424,6 @@ mod tests {
       exports.baz = function() {
         return 2
       }
-
-      console.log(exports.bar)
       "#,
     );
     assert_eq!(
@@ -3437,5 +3436,37 @@ mod tests {
       vec![&BailoutReason::ThisInExport]
     );
     assert_eq!(collect.should_wrap, true);
+
+    // module is not wrapped when `this` inside a class collides with an export
+    let (collect, _code, _hoist) = parse(
+      r#"
+      class Foo {
+        constructor() {
+          this.a = 4
+        }
+
+        bar() {
+          return this.baz()
+        }
+
+        baz() {
+          return this.a
+        }
+      }
+
+      exports.baz = new Foo()
+      exports.a = 2
+      "#,
+    );
+    assert_eq!(
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|b| &b.reason)
+        .collect::<Vec<_>>(),
+      Vec::<&BailoutReason>::new()
+    );
+    assert_eq!(collect.should_wrap, false);
   }
 }

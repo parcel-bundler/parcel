@@ -77,6 +77,7 @@ pub struct Collect {
   in_export_decl: bool,
   in_function: bool,
   in_assign: bool,
+  in_class: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -144,6 +145,7 @@ impl Collect {
       in_export_decl: false,
       in_function: false,
       in_assign: false,
+      in_class: false,
       bailouts: if trace_bailouts { Some(vec![]) } else { None },
     }
   }
@@ -274,7 +276,6 @@ impl Visit for Collect {
   }
 
   collect_visit_fn!(visit_function, Function);
-  collect_visit_fn!(visit_class, Class);
   collect_visit_fn!(visit_getter_prop, GetterProp);
   collect_visit_fn!(visit_setter_prop, SetterProp);
 
@@ -695,7 +696,7 @@ impl Visit for Collect {
       Expr::This(_this) => {
         if self.in_module_this {
           handle_export!();
-        } else {
+        } else if !self.in_class {
           if let MemberProp::Ident(prop) = &node.prop {
             self.this_exprs.insert(id!(prop), node.clone());
           }
@@ -785,6 +786,21 @@ impl Visit for Collect {
     if self.imports.contains_key(&id!(node)) {
       self.used_imports.insert(id!(node));
     }
+  }
+
+  fn visit_class(&mut self, class: &Class) {
+    let in_module_this = self.in_module_this;
+    let in_function = self.in_function;
+    let in_class = self.in_class;
+
+    self.in_module_this = false;
+    self.in_function = true;
+    self.in_class = true;
+
+    class.visit_children_with(self);
+    self.in_module_this = in_module_this;
+    self.in_function = in_function;
+    self.in_class = in_class;
   }
 
   fn visit_this_expr(&mut self, node: &ThisExpr) {
