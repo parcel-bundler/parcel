@@ -76,6 +76,16 @@ const warBase = {
   additionalProperties: false,
 };
 
+const mv2Background = {
+  type: 'object',
+  properties: {
+    scripts: arrStr,
+    page: string,
+    persistent: boolean,
+  },
+  additionalProperties: false,
+};
+
 const commonProps = {
   $schema: string,
   name: string,
@@ -450,16 +460,21 @@ export const MV3Schema = ({
     },
     action: browserAction,
     background: {
-      type: 'object',
-      properties: {
-        service_worker: string,
-        type: {
-          type: 'string',
-          enum: ['classic', 'module'],
+      oneOf: [
+        {
+          type: 'object',
+          properties: {
+            service_worker: string,
+            type: {
+              type: 'string',
+              enum: ['classic', 'module'],
+            },
+          },
+          additionalProperties: false,
+          required: ['service_worker'],
         },
-      },
-      additionalProperties: false,
-      required: ['service_worker'],
+        mv2Background,
+      ], // for Firefox
     },
     content_security_policy: {
       type: 'object',
@@ -511,15 +526,7 @@ export const MV2Schema = ({
       type: 'number',
       enum: [2],
     },
-    background: {
-      type: 'object',
-      properties: {
-        scripts: arrStr,
-        page: string,
-        persistent: boolean,
-      },
-      additionalProperties: false,
-    },
+    background: mv2Background,
     browser_action: browserAction,
     content_security_policy: string,
     page_action: {
