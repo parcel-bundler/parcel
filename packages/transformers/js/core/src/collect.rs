@@ -58,7 +58,7 @@ pub struct Collect {
   pub should_wrap: bool,
   /// local variable binding -> descriptor
   pub imports: HashMap<Id, Import>,
-  pub thises: HashMap<Id, MemberExpr>,
+  pub this_exprs: HashMap<Id, MemberExpr>,
   /// exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
   /// local variable binding -> exported name
@@ -130,7 +130,7 @@ impl Collect {
       is_esm: false,
       should_wrap: false,
       imports: HashMap::new(),
-      thises: HashMap::new(),
+      this_exprs: HashMap::new(),
       exports: HashMap::new(),
       exports_locals: HashMap::new(),
       exports_all: HashMap::new(),
@@ -257,7 +257,7 @@ impl Visit for Collect {
         }
       }
 
-      for (_key, node) in &self.thises {
+      for (_key, node) in &self.this_exprs {
         if let MemberProp::Ident(prop) = &node.prop {
           if self.exports.contains_key(&prop.sym) {
             self.should_wrap = true;
@@ -697,7 +697,7 @@ impl Visit for Collect {
           handle_export!();
         } else {
           if let MemberProp::Ident(prop) = &node.prop {
-            self.thises.insert(id!(prop), node.clone());
+            self.this_exprs.insert(id!(prop), node.clone());
           }
         }
         return;
