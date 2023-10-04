@@ -16,26 +16,26 @@ describe('bundler', function () {
       disable-shared-bundle-single-source
         a.js:
           import foo from './foo';
-          
+
           export default 5;
         b.js:
           export default 4;
         bar.js:
           import a from './a';
           import b from './b';
-          
+
           export default 3;
         foo.js:
           import a from './a';
           import b from './b';
-          
+
           export default 2;
         index.js:
           import('./foo');
           import('./bar');
-          
+
           export default 1;
-          
+
         package.json:
           {
             "@parcel/bundler-default": {
@@ -45,7 +45,7 @@ describe('bundler', function () {
               "disableSharedBundles": true
             }
           }
-          
+
         yarn.lock:`;
 
     let b = await bundle(
@@ -90,19 +90,19 @@ describe('bundler', function () {
         bar.js:
           import a from './a';
           import b from './b';
-          
+
           export default 3;
         foo.js:
           import a from './a';
           import b from './b';
-          
+
           export default 2;
         index.js:
           import('./foo');
           import('./bar');
-          
+
           export default 1;
-          
+
         package.json:
           {
             "@parcel/bundler-default": {
@@ -110,7 +110,7 @@ describe('bundler', function () {
               "disableSharedBundles": true
             }
           }
-          
+
         yarn.lock:`;
 
     let messages = [];
@@ -173,19 +173,19 @@ describe('bundler', function () {
         bar.js:
           import a from './a';
           import b from './b';
-          
+
           export default 3;
         foo.js:
           import a from './a';
           import b from './b';
-          
+
           export default 2;
         index.js:
           import('./foo');
           import('./bar');
-          
+
           export default 1;
-          
+
         package.json:
           {
             "@parcel/bundler-default": {
@@ -193,7 +193,7 @@ describe('bundler', function () {
               "disableSharedBundles": true
             }
           }
-          
+
         yarn.lock:`;
 
     let messages = [];
@@ -259,19 +259,19 @@ describe('bundler', function () {
         bar.js:
           import a from './a';
           import b from './b';
-          
+
           export default 3;
         foo.js:
           import a from './a';
           import b from './b';
-          
+
           export default 2;
         index.js:
           import('./foo');
           import('./bar');
-          
+
           export default 1;
-          
+
         package.json:
           {
             "@parcel/bundler-default": {
@@ -279,7 +279,7 @@ describe('bundler', function () {
               "disableSharedBundles": true
             }
           }
-          
+
         yarn.lock:`;
 
     let messages = [];
@@ -342,19 +342,19 @@ describe('bundler', function () {
         bar.js:
           import a from './a';
           import b from './b';
-          
+
           export default 3;
         foo.js:
           import a from './a';
           import b from './b';
-          
+
           export default 2;
         index.js:
           import('./foo');
           import('./bar');
-          
+
           export default 1;
-          
+
         package.json:
           {
             "@parcel/bundler-default": {
@@ -364,7 +364,7 @@ describe('bundler', function () {
               "disableSharedBundles": true
             }
           }
-          
+
         yarn.lock:`;
 
     let messages = [];
@@ -452,19 +452,19 @@ describe('bundler', function () {
         bar.js:
           import a from './a';
           import b from './b';
-          
+
           export default 3;
         foo.js:
           import a from './a';
           import b from './b';
-          
+
           export default 2;
         index.js:
           import('./foo');
           import('./bar');
-          
+
           export default 1;
-          
+
         package.json:
           {
             "@parcel/bundler-default": {
@@ -474,7 +474,7 @@ describe('bundler', function () {
               "disableSharedBundles": false
             }
           }
-          
+
         yarn.lock:`;
 
     let messages = [];
@@ -525,7 +525,7 @@ describe('bundler', function () {
           export default 7;
         inline-module.js:
           import('./buzz');
-          
+
           export default 10;
         local.html:
           <!doctype html>
@@ -536,7 +536,7 @@ describe('bundler', function () {
               </script>
             </body>
           </html>
-          
+
         package.json:
           {
             "@parcel/bundler-default": {
@@ -545,7 +545,7 @@ describe('bundler', function () {
               "maxParallelRequests": 2
             }
           }
-          
+
         yarn.lock:`;
 
     // Shared bundle should not be removed in this case
@@ -939,26 +939,26 @@ describe('bundler', function () {
       mode-specific-bundler-config
         a.js:
           import foo from './foo';
-          
+
           export default 5;
         b.js:
           export default 4;
         bar.js:
           import a from './a';
           import b from './b';
-          
+
           export default 3;
         foo.js:
           import a from './a';
           import b from './b';
-          
+
           export default 2;
         index.js:
           import('./foo');
           import('./bar');
-          
+
           export default 1;
-          
+
         package.json:
           {
             "@parcel/bundler-default": {
@@ -970,7 +970,7 @@ describe('bundler', function () {
               }
             }
           }
-          
+
         yarn.lock:`;
 
     let b = await bundle(
@@ -1030,7 +1030,7 @@ describe('bundler', function () {
             }]
           }
         }
-      
+
       index.html:
         <script type="module" src="./index.js"></script>
 
@@ -1045,7 +1045,7 @@ describe('bundler', function () {
 
       vendor.js:
         export default 'vendor.js';
-      
+
       vendor-async.js:
         export default 'vendor-async.js';
 
@@ -1053,7 +1053,7 @@ describe('bundler', function () {
         body {
           background: blue;
         }
-      
+
       vendor-async.css:
         body {
           color: blue;
@@ -1099,6 +1099,86 @@ describe('bundler', function () {
       ]);
     });
 
+    it('should respect Asset.isBundleSplittable', async function () {
+      await fsFixture(overlayFS, dir)`
+      yarn.lock:
+        // Required for config loading
+      package.json:
+        {
+          "@parcel/bundler-default": {
+            "unstable_manualSharedBundles": [{
+              "name": "manual-inline",
+              "assets": ["shared.js"]
+            }]
+          }
+        }
+      
+      .parcelrc:
+        {
+          "extends": "@parcel/config-default",
+          "transformers": {
+            "*.js": ["./transformer.js", "..."],
+          }
+        }
+
+      transformer.js:
+        import { Transformer } from '@parcel/plugin';
+
+        export default new Transformer({
+          transform({asset}) {
+            if (asset.filePath.endsWith('.html')) {
+              asset.isBundleSplittable = false;
+            }
+
+            return [asset];
+          }
+        });
+      
+      index.html:
+        <script type="module">
+          import shared from './shared.js';
+          sideEffectNoop(shared);        
+        </script>
+        <script type="module" src="./index.js"></script>
+      
+      index.js:
+        import shared from './shared.js';
+        sideEffectNoop(shared);
+
+      shared.js:
+        export default 'shared';
+      `;
+
+      let b = await bundle(path.join(dir, 'index.html'), {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          sourceMaps: false,
+          shouldOptimize: false,
+        },
+        inputFS: overlayFS,
+      });
+
+      assertBundles(b, [
+        {
+          assets: ['index.html'],
+        },
+        {
+          // Inline script bundle
+          assets: ['index.html', 'esmodule-helpers.js', 'shared.js'],
+        },
+        {
+          assets: ['esmodule-helpers.js', 'index.js'],
+        },
+        {
+          // MSB for JS
+          assets: ['shared.js'],
+        },
+      ]);
+
+      run(b);
+    });
+
     it('should support manual shared bundles via glob config option for configured types', async function () {
       await fsFixture(overlayFS, dir)`
       yarn.lock:
@@ -1114,7 +1194,7 @@ describe('bundler', function () {
             }]
           }
         }
-      
+
       index.html:
         <script type="module" src="./index.js"></script>
 
@@ -1129,7 +1209,7 @@ describe('bundler', function () {
 
       vendor.js:
         export default 'vendor.js';
-      
+
       vendor-async.js:
         export default 'vendor-async.js';
 
@@ -1137,7 +1217,7 @@ describe('bundler', function () {
         body {
           background: blue;
         }
-      
+
       vendor-async.css:
         body {
           color: blue;
@@ -1210,8 +1290,8 @@ describe('bundler', function () {
       math
         math.js:
           export * from './add';
-          export * from './subtract';  
-          export * from './divide';  
+          export * from './subtract';
+          export * from './divide';
 
         add.js:
           export const add = (a, b) => a + b;
@@ -1264,8 +1344,8 @@ describe('bundler', function () {
           },
           "sideEffects": ["index.js"]
         }
-      
-      vendor-constants.js: 
+
+      vendor-constants.js:
         export const a = 'hello';
 
       index.html:
@@ -1279,7 +1359,7 @@ describe('bundler', function () {
       async.js:
         import v from './vendor-async.js';
         export default 'async' + v;
-      
+
       vendor-async.js:
         import {a} from './vendor-constants.js';
         export default 'vendor-async.js' + a;
@@ -1336,7 +1416,7 @@ describe('bundler', function () {
             }]
           }
         }
-      
+
       index.html:
         <script type="module" src="./index.js"></script>
 
@@ -1347,10 +1427,10 @@ describe('bundler', function () {
         import v from './vendor-async.js';
         import n from './vendor';
         export default 'async' + v;
-      
+
       vendor.js:
         export const n = () => import('./vendor-async');
-      
+
       vendor-async.js:
         export default 'vendor-async.js';
       `;
@@ -1407,15 +1487,15 @@ describe('bundler', function () {
 
         vendor.js:
           export * from './a';
-          export * from './b';  
+          export * from './b';
           export * from './c';
-          export * from './d';  
+          export * from './d';
           export * from './e';
           export * from './f';
           export * from './g';
           export * from './h';
           export * from './i';
-          export * from './j';   
+          export * from './j';
 
         a.js:
           export const a = 'a';
