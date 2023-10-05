@@ -430,11 +430,9 @@ export default class Graph<TNode, TEdgeType: number = 1> {
           return false;
         });
       } else {
-        let popped = queue.pop();
-        console.log('Popped ', popped?.nodeId);
+        queue.pop();
         let newContext = visit(nodeId, context, actions);
         if (typeof newContext !== 'undefined') {
-          console.log({context});
           context = newContext;
         }
         if (stopped) {
