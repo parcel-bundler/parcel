@@ -38,6 +38,7 @@ export function propagateSymbols({
     ),
   );
 
+  console.log('right version!!');
   // To reorder once at the end
   let changedDeps = new Set<DependencyNode>();
 
@@ -60,25 +61,9 @@ export function propagateSymbols({
     changedAssets,
     assetGroupsWithRemovedParents,
     (assetNode, incomingDeps, outgoingDeps) => {
-      // exportSymbol -> identifier
-      let assetSymbols: ?$ReadOnlyMap<
-        Symbol,
-        {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
-      > = assetNode.value.symbols;
-      // identifier -> exportSymbol
-      let assetSymbolsInverse;
-      if (assetSymbols) {
-        assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
-        for (let [s, {local}] of assetSymbols) {
-          let set = assetSymbolsInverse.get(local);
+      let {assetSymbols, assetSymbolsInverse} =
+        getAssetSymbolsInverse(assetNode);
 
-          if (!set) {
-            set = new Set();
-            assetSymbolsInverse.set(local, set);
-          }
-          set.add(s);
-        }
-      }
       let hasNamespaceOutgoingDeps = outgoingDeps.some(
         d => d.value.symbols?.get('*')?.local === '*',
       );
@@ -255,23 +240,8 @@ export function propagateSymbols({
     changedDepsUsedSymbolsUpDirtyDown,
     previousErrors,
     (assetNode, incomingDeps, outgoingDeps) => {
-      let assetSymbols: ?$ReadOnlyMap<
-        Symbol,
-        {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
-      > = assetNode.value.symbols;
-
-      let assetSymbolsInverse = null;
-      if (assetSymbols) {
-        assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
-        for (let [s, {local}] of assetSymbols) {
-          let set = assetSymbolsInverse.get(local);
-          if (!set) {
-            set = new Set();
-            assetSymbolsInverse.set(local, set);
-          }
-          set.add(s);
-        }
-      }
+      let {assetSymbolsInverse, assetSymbols} =
+        getAssetSymbolsInverse(assetNode);
 
       // the symbols that are reexported (not used in `asset`) -> asset they resolved to
       let reexportedSymbols = new Map<
@@ -698,68 +668,68 @@ function propagateSymbolsUp(
       }
     };
 
-    assetGraph.postOrderDfsFast(nodeVisitor, rootNodeId);
+    // assetGraph.postOrderDfsFast(nodeVisitor, rootNodeId);
 
-    // let visited = new Set([rootNodeId]);
-    // const walk = (nodeId: NodeId) => {
-    //   let node = nullthrows(assetGraph.getNode(nodeId));
-    //   let outgoing = assetGraph.getNodeIdsConnectedFrom(nodeId);
-    // for (let childId of outgoing) {
-    //   if (!visited.has(childId)) {
-    //     visited.add(childId);
-    //     walk(childId);
-    //     let child = nullthrows(assetGraph.getNode(childId));
-    //     if (node.type === 'asset') {
-    //       invariant(child.type === 'dependency');
-    //       if (child.usedSymbolsUpDirtyUp) {
-    //         node.usedSymbolsUpDirty = true;
-    //         child.usedSymbolsUpDirtyUp = false;
-    //       }
-    //     }
-    //   }
-    // }
-    //   // By the time we get here, we are at a leaf
-    //   if (node.type === 'asset') {
-    //     let incoming = assetGraph.getIncomingDependencies(node.value).map(d => {
-    //       let n = assetGraph.getNodeByContentKey(d.id);
-    //       invariant(n && n.type === 'dependency');
-    //       return n;
-    //     });
-    //     for (let dep of incoming) {
-    //       if (dep.usedSymbolsUpDirtyDown) {
-    //         dep.usedSymbolsUpDirtyDown = false;
-    //         node.usedSymbolsUpDirty = true;
-    //       }
-    //     }
-    //     if (node.usedSymbolsUpDirty) {
-    //       let e = visit(
-    //         node,
-    //         incoming,
-    //         outgoing.map(depNodeId => {
-    //           let depNode = nullthrows(assetGraph.getNode(depNodeId));
-    //           invariant(depNode.type === 'dependency');
-    //           return depNode;
-    //         }),
-    //       );
-    //       if (e.length > 0) {
-    //         node.usedSymbolsUpDirty = true;
-    //         errors.set(nodeId, e);
-    //       } else {
-    //         node.usedSymbolsUpDirty = false;
-    //         errors.delete(nodeId);
-    //       }
-    //     }
-    //   } else {
-    //     if (node.type === 'dependency') {
-    //       if (node.usedSymbolsUpDirtyUp) {
-    //         dirtyDeps.add(nodeId);
-    //       } else {
-    //         dirtyDeps.delete(nodeId);
-    //       }
-    //     }
-    //   }
-    // };
-    // walk(rootNodeId);
+    let visited = new Set([rootNodeId]);
+    const walk = (nodeId: NodeId) => {
+      let node = nullthrows(assetGraph.getNode(nodeId));
+      let outgoing = assetGraph.getNodeIdsConnectedFrom(nodeId);
+      for (let childId of outgoing) {
+        if (!visited.has(childId)) {
+          visited.add(childId);
+          walk(childId);
+          let child = nullthrows(assetGraph.getNode(childId));
+          if (node.type === 'asset') {
+            invariant(child.type === 'dependency');
+            if (child.usedSymbolsUpDirtyUp) {
+              node.usedSymbolsUpDirty = true;
+              child.usedSymbolsUpDirtyUp = false;
+            }
+          }
+        }
+      }
+      // By the time we get here, we are at a leaf
+      if (node.type === 'asset') {
+        let incoming = assetGraph.getIncomingDependencies(node.value).map(d => {
+          let n = assetGraph.getNodeByContentKey(d.id);
+          invariant(n && n.type === 'dependency');
+          return n;
+        });
+        for (let dep of incoming) {
+          if (dep.usedSymbolsUpDirtyDown) {
+            dep.usedSymbolsUpDirtyDown = false;
+            node.usedSymbolsUpDirty = true;
+          }
+        }
+        if (node.usedSymbolsUpDirty) {
+          let e = visit(
+            node,
+            incoming,
+            outgoing.map(depNodeId => {
+              let depNode = nullthrows(assetGraph.getNode(depNodeId));
+              invariant(depNode.type === 'dependency');
+              return depNode;
+            }),
+          );
+          if (e.length > 0) {
+            node.usedSymbolsUpDirty = true;
+            errors.set(nodeId, e);
+          } else {
+            node.usedSymbolsUpDirty = false;
+            errors.delete(nodeId);
+          }
+        }
+      } else {
+        if (node.type === 'dependency') {
+          if (node.usedSymbolsUpDirtyUp) {
+            dirtyDeps.add(nodeId);
+          } else {
+            dirtyDeps.delete(nodeId);
+          }
+        }
+      }
+    };
+    walk(rootNodeId);
   }
 
   let queue = dirtyDeps ?? changedDepsUsedSymbolsUpDirtyDownAssets;
@@ -851,8 +821,31 @@ function equalMap<K>(
   return true;
 }
 
+// TODO: can we rewrite this?
 function setPop<T>(set: Set<T>): T {
   let v = nullthrows(set.values().next().value);
   set.delete(v);
   return v;
+}
+
+function getAssetSymbolsInverse(assetNode: AssetNode) {
+  let assetSymbols: ?$ReadOnlyMap<
+    Symbol,
+    {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
+  > = assetNode.value.symbols;
+  // identifier -> exportSymbol
+  let assetSymbolsInverse;
+  if (assetSymbols) {
+    assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
+    for (let [s, {local}] of assetSymbols) {
+      let set = assetSymbolsInverse.get(local);
+
+      if (!set) {
+        set = new Set();
+        assetSymbolsInverse.set(local, set);
+      }
+      set.add(s);
+    }
+  }
+  return {assetSymbols, assetSymbolsInverse};
 }
