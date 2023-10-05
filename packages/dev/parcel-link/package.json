@@ -11,7 +11,7 @@
   },
   "main": "src/index.js",
   "dependencies": {
-    "@babel/core": "^7.0.0",
+    "@babel/core": "^7.22.11",
     "@parcel/babel-register": "2.9.3",
     "@parcel/fs": "2.9.3",
     "@parcel/utils": "2.9.3",
