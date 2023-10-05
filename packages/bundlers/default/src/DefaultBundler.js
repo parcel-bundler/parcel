@@ -1402,7 +1402,13 @@ function createIdealGraph(
         bundleGraph.getNode([...manualBundle.sourceBundles][0]),
       );
       invariant(firstSourceBundle !== 'root');
-      let firstAsset = [...manualBundle.assets][0];
+      let assetArr = [...manualBundle.assets];
+      let firstAsset = assetArr[0];
+      if (manualAssetToConfig.get(firstAsset)?.split == null) {
+        continue;
+      }
+      assetArr.sort((a, b) => a.id.localeCompare(b.id));
+      manualBundle.assets = new Set(assetArr);
       let manualSharedObject = manualAssetToConfig.get(firstAsset);
       invariant(manualSharedObject != null);
       let modNum = manualAssetToConfig.get(firstAsset)?.split;
