@@ -5,7 +5,7 @@ A CLI for linking a dev version of Parcel into a project.
 ## Installation
 
 Clone and run `yarn`, then `cd packages/dev/parcel-link && yarn link`
-to make the `parcel-link` and `parcel-unlink` binaries globally available.
+to make the `parcel-link` binary globally available.
 
 ## Usage
 
