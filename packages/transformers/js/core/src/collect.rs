@@ -245,6 +245,15 @@ impl Visit for Collect {
     }
     self.in_module_this = false;
 
+    for (_key, node) in self.this_exprs.clone() {
+      if let MemberProp::Ident(prop) = &node.prop {
+        if self.exports.contains_key(&prop.sym) {
+          self.should_wrap = true;
+          self.add_bailout(node.span, BailoutReason::ThisInExport);
+        }
+      }
+    }
+
     if let Some(bailouts) = &mut self.bailouts {
       for (key, Import { specifier, .. }) in &self.imports {
         if specifier == "*" {
@@ -255,18 +264,6 @@ impl Visit for Collect {
                 reason: BailoutReason::NonStaticAccess,
               })
             }
-          }
-        }
-      }
-
-      for (_key, node) in &self.this_exprs {
-        if let MemberProp::Ident(prop) = &node.prop {
-          if self.exports.contains_key(&prop.sym) {
-            self.should_wrap = true;
-            bailouts.push(Bailout {
-              loc: SourceLocation::from(&self.source_map, node.span),
-              reason: BailoutReason::ThisInExport,
-            })
           }
         }
       }
