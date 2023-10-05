@@ -1,6 +1,7 @@
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import {readFile} from 'fs';
 import {normalizePath} from '@parcel/utils';
 import {createWorkerFarm} from '@parcel/core';
 import {md} from '@parcel/diagnostic';
@@ -51,6 +52,27 @@ const bundler = (name, opts = {}) => {
 
 describe('scope hoisting', function () {
   describe('es6', function () {
+    it.only('should wrap when this could refer to an export', async function () {
+      let b = await bundle(
+        path.join(__dirname, '/integration/exports-this/a.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles().find(b => /a\.js/.test(b.filePath)).filePath,
+        'utf8',
+      );
+
+      let exports_found = contents.includes('$exports$');
+      assert.equal(exports_found, false);
+    });
+
     it('supports default imports and exports of expressions', async function () {
       let b = await bundle(
         path.join(
