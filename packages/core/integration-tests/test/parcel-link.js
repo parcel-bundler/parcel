@@ -3,8 +3,7 @@
 import type {ProgramOptions} from '@parcel/link';
 
 import {createProgram as _createProgram} from '@parcel/link';
-import {workerFarm, inputFS, fsFixture} from '@parcel/test-utils';
-import {OverlayFS} from '@parcel/fs';
+import {overlayFS, fsFixture} from '@parcel/test-utils';
 
 import assert from 'assert';
 import path from 'path';
@@ -20,70 +19,16 @@ function createProgram(opts: ProgramOptions) {
   return cli;
 }
 
-function callableProxy(target, handler) {
-  // $FlowFixMe[unclear-type]
-  return new Proxy<any>(handler, {
-    get(_, prop) {
-      let value = Reflect.get(target, prop);
-      if (typeof value === 'function') {
-        return value.bind(target);
-      }
-      return value;
-    },
-  });
-}
-
 describe('@parcel/link', () => {
   let _cwd;
   let _stdout;
 
-  declare function createFS(
-    strings: Array<string>, // $FlowFixMe[unclear-type]
-    ...exprs: Array<any>
-  ): Promise<OverlayFS>;
-
-  // eslint-disable-next-line no-redeclare
-  declare function createFS(cwd?: string): Promise<OverlayFS> &
-    ((
-      strings: Array<string>, // $FlowFixMe[unclear-type]
-      ...values: Array<any>
-    ) => Promise<OverlayFS>);
-
-  // eslint-disable-next-line no-redeclare
-  function createFS(cwdOrStrings = '/', ...exprs) {
-    assert(_cwd == null, 'FS already exists!');
-
-    let fs = new OverlayFS(workerFarm, inputFS);
+  beforeEach(async function () {
+    await overlayFS.mkdirp('/app');
+    overlayFS.chdir('/app');
 
     // $FlowFixMe[incompatible-call]
-    _cwd = sinon.stub(process, 'cwd').callsFake(() => fs.cwd());
-
-    if (Array.isArray(cwdOrStrings)) {
-      let cwd = path.resolve(path.sep);
-      return fs.mkdirp(cwd).then(async () => {
-        fs.chdir(cwd);
-        await fsFixture(fs, cwd)(cwdOrStrings, ...exprs);
-        return fs;
-      });
-    } else {
-      let cwd = path.resolve(cwdOrStrings);
-      let promise = fs.mkdirp(cwd).then(() => {
-        fs.chdir(cwd);
-        return callableProxy(fs, async (...args) => {
-          await fsFixture(fs, cwd)(...args);
-          return fs;
-        });
-      });
-
-      return callableProxy(promise, async (...args) => {
-        await promise;
-        await fsFixture(fs, cwd)(...args);
-        return fs;
-      });
-    }
-  }
-
-  beforeEach(function () {
+    _cwd = sinon.stub(process, 'cwd').callsFake(() => overlayFS.cwd());
     _stdout = sinon.stub(process.stdout, 'write');
   });
 
@@ -95,44 +40,40 @@ describe('@parcel/link', () => {
   });
 
   it('prints help text', async () => {
-    let fs = await createFS();
-    let cli = createProgram({fs});
+    let cli = createProgram({fs: overlayFS});
     await assert.throws(() => cli('--help'), /\(outputHelp\)/);
   });
 
   it('links by default', async () => {
     let link = sinon.stub();
-    let fs = await createFS();
-    let cli = createProgram({fs, link});
+    let cli = createProgram({fs: overlayFS, link});
     await cli();
     assert(link.called);
   });
 
   describe('link', () => {
     it('errors for invalid app root', async () => {
-      let fs = await createFS('/app');
-
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
 
       // $FlowFixMe[prop-missing]
       await assert.rejects(() => cli('link'), /Not a project root/);
     });
 
     it('errors for invalid package root', async () => {
-      let fs = await createFS('/app')`yarn.lock:`;
+      await fsFixture(overlayFS)`yarn.lock:`;
 
-      assert(fs.existsSync('/app/yarn.lock'));
+      assert(overlayFS.existsSync('/app/yarn.lock'));
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
 
       // $FlowFixMe[prop-missing]
       await assert.rejects(() => cli('link /fake'), /Not a package root/);
     });
 
     it('errors when a link exists', async () => {
-      let fs = await createFS('/app')`yarn.lock:`;
+      await fsFixture(overlayFS)`yarn.lock:`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli(`link`);
 
       // $FlowFixMe[prop-missing]
@@ -140,35 +81,35 @@ describe('@parcel/link', () => {
     });
 
     it('links with the default options', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         node_modules
           parcel
           @parcel/core`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('link');
 
-      assert(fs.existsSync('.parcel-link'));
+      assert(overlayFS.existsSync('.parcel-link'));
 
       assert.equal(
-        fs.realpathSync('node_modules/@parcel/core'),
+        overlayFS.realpathSync('node_modules/@parcel/core'),
         path.resolve(__dirname, '../../core'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/parcel'),
+        overlayFS.realpathSync('node_modules/parcel'),
         path.resolve(__dirname, '../../parcel'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/.bin/parcel'),
+        overlayFS.realpathSync('node_modules/.bin/parcel'),
         path.resolve(__dirname, '../../parcel/src/bin.js'),
       );
     });
 
     it('links from a custom package root', async () => {
-      let fs = await createFS`
+      await fsFixture(overlayFS, '/')`
         app
           yarn.lock:
           node_modules
@@ -181,31 +122,31 @@ describe('@parcel/link', () => {
               package.json: ${{name: 'parcel'}}
               src/bin.js:`;
 
-      fs.chdir('/app');
+      overlayFS.chdir('/app');
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli(`link ../package-root`);
 
-      assert(fs.existsSync('.parcel-link'));
+      assert(overlayFS.existsSync('.parcel-link'));
 
       assert.equal(
-        fs.realpathSync('node_modules/@parcel/core'),
-        path.resolve(fs.cwd(), '../package-root/core/core'),
+        overlayFS.realpathSync('node_modules/@parcel/core'),
+        path.resolve(overlayFS.cwd(), '../package-root/core/core'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/parcel'),
-        path.resolve(fs.cwd(), '../package-root/core/parcel'),
+        overlayFS.realpathSync('node_modules/parcel'),
+        path.resolve(overlayFS.cwd(), '../package-root/core/parcel'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/.bin/parcel'),
-        path.resolve(fs.cwd(), '../package-root/core/parcel/src/bin.js'),
+        overlayFS.realpathSync('node_modules/.bin/parcel'),
+        path.resolve(overlayFS.cwd(), '../package-root/core/parcel/src/bin.js'),
       );
     });
 
     it('links with a custom namespace', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         node_modules
           .bin/parcel:
@@ -213,45 +154,47 @@ describe('@parcel/link', () => {
             parcel
             parcel-core`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('link --namespace @namespace');
 
-      assert(fs.existsSync('.parcel-link'));
+      assert(overlayFS.existsSync('.parcel-link'));
 
       assert.equal(
-        fs.realpathSync('node_modules/.bin/parcel'),
+        overlayFS.realpathSync('node_modules/.bin/parcel'),
         path.resolve(__dirname, '../../parcel/src/bin.js'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/@namespace/parcel-core'),
+        overlayFS.realpathSync('node_modules/@namespace/parcel-core'),
         path.resolve(__dirname, '../../core'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/@parcel/core'),
+        overlayFS.realpathSync('node_modules/@parcel/core'),
         path.resolve(__dirname, '../../core'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/@namespace/parcel'),
+        overlayFS.realpathSync('node_modules/@namespace/parcel'),
         path.resolve(__dirname, '../../parcel'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/parcel'),
+        overlayFS.realpathSync('node_modules/parcel'),
         path.resolve(__dirname, '../../parcel'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/.bin/parcel'),
+        overlayFS.realpathSync('node_modules/.bin/parcel'),
         path.resolve(__dirname, '../../parcel/src/bin.js'),
       );
     });
 
     it('updates config for custom namespace', async () => {
-      let fs = await createFS`
-        ${path.join(__dirname, '../../../configs/namespace/package.json')}: ${{
+      await fsFixture(overlayFS, '/')`
+        ${path.resolve(
+          path.join(__dirname, '../../../configs/namespace/package.json'),
+        )}: ${{
         name: '@parcel/config-namespace',
       }}
         app
@@ -270,15 +213,15 @@ describe('@parcel/link', () => {
             ['@namespace/parcel-transformer-local']: {},
           }}`;
 
-      fs.chdir('/app');
+      overlayFS.chdir('/app');
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('link --namespace @namespace');
 
-      assert(fs.existsSync('.parcel-link'));
+      assert(overlayFS.existsSync('.parcel-link'));
 
       assert.equal(
-        fs.readFileSync('.parcelrc', 'utf8'),
+        overlayFS.readFileSync('.parcelrc', 'utf8'),
         JSON.stringify({
           extends: '@parcel/config-namespace',
           transformers: {
@@ -291,7 +234,7 @@ describe('@parcel/link', () => {
       );
 
       assert.equal(
-        fs.readFileSync('package.json', 'utf8'),
+        overlayFS.readFileSync('package.json', 'utf8'),
         JSON.stringify({
           ['@parcel/transformer-js']: {},
           ['@namespace/parcel-transformer-local']: {},
@@ -300,77 +243,77 @@ describe('@parcel/link', () => {
     });
 
     it('links with custom node modules glob', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         tools
           test/node_modules/parcel
           test2/node_modules/@parcel/core`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('link --node-modules-glob "tools/*/node_modules"');
 
-      assert(fs.existsSync('.parcel-link'));
+      assert(overlayFS.existsSync('.parcel-link'));
 
-      assert(fs.existsSync('tools/test/node_modules'));
-      assert(!fs.existsSync('tools/test/node_modules/parcel'));
+      assert(overlayFS.existsSync('tools/test/node_modules'));
+      assert(!overlayFS.existsSync('tools/test/node_modules/parcel'));
 
-      assert(fs.existsSync('tools/test2/node_modules'));
-      assert(!fs.existsSync('tools/test2/node_modules/@parcel/core'));
+      assert(overlayFS.existsSync('tools/test2/node_modules'));
+      assert(!overlayFS.existsSync('tools/test2/node_modules/@parcel/core'));
 
       assert.equal(
-        fs.realpathSync('node_modules/parcel'),
+        overlayFS.realpathSync('node_modules/parcel'),
         path.resolve(__dirname, '../../parcel'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/.bin/parcel'),
+        overlayFS.realpathSync('node_modules/.bin/parcel'),
         path.resolve(__dirname, '../../parcel/src/bin.js'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/@parcel/core'),
+        overlayFS.realpathSync('node_modules/@parcel/core'),
         path.resolve(__dirname, '../../core'),
       );
     });
 
     it('does not do anything with dry run', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         node_modules
           parcel
           @parcel/core`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('link --dry-run');
 
-      assert(!fs.existsSync('.parcel-link'));
+      assert(!overlayFS.existsSync('.parcel-link'));
 
       assert.equal(
-        fs.realpathSync('node_modules/@parcel/core'),
-        '/app/node_modules/@parcel/core',
+        overlayFS.realpathSync('node_modules/@parcel/core'),
+        path.resolve('/app/node_modules/@parcel/core'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/parcel'),
-        '/app/node_modules/parcel',
+        overlayFS.realpathSync('node_modules/parcel'),
+        path.resolve('/app/node_modules/parcel'),
       );
 
-      assert(!fs.existsSync('node_modules/.bin/parcel'));
+      assert(!overlayFS.existsSync('node_modules/.bin/parcel'));
     });
   });
 
   describe('unlink', () => {
     it('errors without a link config', async () => {
-      let fs = await createFS('/app')`yarn.lock:`;
+      await fsFixture(overlayFS)`yarn.lock:`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
 
       // $FlowFixMe[prop-missing]
       await assert.rejects(() => cli('unlink'), /link could not be found/);
     });
 
     it('errors for invalid app root', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         .parcel-link: ${{
           appRoot: '/app2',
@@ -379,14 +322,14 @@ describe('@parcel/link', () => {
           namespace: '@parcel',
         }}`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
 
       // $FlowFixMe[prop-missing]
       await assert.rejects(() => cli('unlink'), /Not a project root/);
     });
 
     it('errors for invalid package root', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         .parcel-link: ${{
           appRoot: '/app',
@@ -395,14 +338,14 @@ describe('@parcel/link', () => {
           namespace: '@parcel',
         }}`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
 
       // $FlowFixMe[prop-missing]
       await assert.rejects(() => cli('unlink'), /Not a package root/);
     });
 
     it('unlinks with the default options', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         node_modules
           .bin/parcel -> ${path.resolve(__dirname, '../../parcel/src/bin.js')}
@@ -415,22 +358,22 @@ describe('@parcel/link', () => {
           namespace: '@parcel',
         }}`;
 
-      assert(fs.existsSync('.parcel-link'));
-      assert(fs.existsSync('node_modules/@parcel/core'));
-      assert(fs.existsSync('node_modules/parcel'));
-      assert(fs.existsSync('node_modules/.bin/parcel'));
+      assert(overlayFS.existsSync('.parcel-link'));
+      assert(overlayFS.existsSync('node_modules/@parcel/core'));
+      assert(overlayFS.existsSync('node_modules/parcel'));
+      assert(overlayFS.existsSync('node_modules/.bin/parcel'));
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('unlink');
 
-      assert(!fs.existsSync('.parcel-link'));
-      assert(!fs.existsSync('node_modules/@parcel/core'));
-      assert(!fs.existsSync('node_modules/parcel'));
-      assert(!fs.existsSync('node_modules/.bin/parcel'));
+      assert(!overlayFS.existsSync('.parcel-link'));
+      assert(!overlayFS.existsSync('node_modules/@parcel/core'));
+      assert(!overlayFS.existsSync('node_modules/parcel'));
+      assert(!overlayFS.existsSync('node_modules/.bin/parcel'));
     });
 
     it('unlinks from a custom package root', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         .parcel-link: ${{
           appRoot: '/app',
@@ -442,22 +385,22 @@ describe('@parcel/link', () => {
         node_modules/@parcel/core -> package-root/core/core
         node_modules/.bin/parcel -> package-root/core/parcel/src/bin.js`;
 
-      await fsFixture(fs, '/')`
+      await fsFixture(overlayFS, '/')`
         package-root/core/core/package.json: ${{name: '@parcel/core'}}
         package-root/core/parcel/package.json: ${{name: 'parcel'}}
         package-root/core/parcel/src/bin.js:`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('unlink');
 
-      assert(!fs.existsSync('.parcel-link'));
-      assert(!fs.existsSync('node_modules/@parcel/core'));
-      assert(!fs.existsSync('node_modules/parcel'));
-      assert(!fs.existsSync('node_modules/.bin/parcel'));
+      assert(!overlayFS.existsSync('.parcel-link'));
+      assert(!overlayFS.existsSync('node_modules/@parcel/core'));
+      assert(!overlayFS.existsSync('node_modules/parcel'));
+      assert(!overlayFS.existsSync('node_modules/.bin/parcel'));
     });
 
     it('unlinks with a custom namespace', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         .parcel-link: ${{
           appRoot: '/app',
@@ -472,19 +415,19 @@ describe('@parcel/link', () => {
           parcel/core -> ${path.resolve(__dirname, '../../core')}
           @namespace/parcel-core -> ${path.resolve(__dirname, '../../core')}`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('unlink');
 
-      assert(!fs.existsSync('.parcel-link'));
-      assert(!fs.existsSync('node_modules/@parcel/core'));
-      assert(!fs.existsSync('node_modules/parcel'));
-      assert(!fs.existsSync('node_modules/.bin/parcel'));
-      assert(!fs.existsSync('node_modules/@namespace/parcel-core'));
-      assert(!fs.existsSync('node_modules/@namespace/parcel'));
+      assert(!overlayFS.existsSync('.parcel-link'));
+      assert(!overlayFS.existsSync('node_modules/@parcel/core'));
+      assert(!overlayFS.existsSync('node_modules/parcel'));
+      assert(!overlayFS.existsSync('node_modules/.bin/parcel'));
+      assert(!overlayFS.existsSync('node_modules/@namespace/parcel-core'));
+      assert(!overlayFS.existsSync('node_modules/@namespace/parcel'));
     });
 
     it('updates config for custom namespace', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         .parcelrc: ${{
           extends: '@parcel/config-namespace',
@@ -506,18 +449,20 @@ describe('@parcel/link', () => {
           namespace: '@namespace',
         }}`;
 
-      await fsFixture(fs, '/')`
-        ${path.join(__dirname, '../../../configs/namespace/package.json')}: ${{
+      await fsFixture(overlayFS, '/')`
+        ${path.resolve(
+          path.join(__dirname, '../../../configs/namespace/package.json'),
+        )}: ${{
         name: '@parcel/config-namespace',
       }}`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('unlink');
 
-      assert(!fs.existsSync('.parcel-link'));
+      assert(!overlayFS.existsSync('.parcel-link'));
 
       assert.equal(
-        fs.readFileSync('.parcelrc', 'utf8'),
+        overlayFS.readFileSync('.parcelrc', 'utf8'),
         JSON.stringify({
           extends: '@namespace/parcel-config-namespace',
           transformers: {
@@ -530,7 +475,7 @@ describe('@parcel/link', () => {
       );
 
       assert.equal(
-        fs.readFileSync('package.json', 'utf8'),
+        overlayFS.readFileSync('package.json', 'utf8'),
         JSON.stringify({
           ['@namespace/parcel-transformer-js']: {},
           ['@namespace/parcel-transformer-local']: {},
@@ -539,7 +484,7 @@ describe('@parcel/link', () => {
     });
 
     it('unlinks with custom node modules glob', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         .parcel-link: ${{
           appRoot: '/app',
@@ -558,19 +503,19 @@ describe('@parcel/link', () => {
             '../../core',
           )}`;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('unlink');
 
-      assert(!fs.existsSync('.parcel-link'));
-      assert(!fs.existsSync('node_modules/@parcel/core'));
-      assert(!fs.existsSync('node_modules/parcel'));
-      assert(!fs.existsSync('node_modules/.bin/parcel'));
-      assert(!fs.existsSync('tools/test/node_modules/parcel'));
-      assert(!fs.existsSync('tools/test2/node_modules/@parcel/core'));
+      assert(!overlayFS.existsSync('.parcel-link'));
+      assert(!overlayFS.existsSync('node_modules/@parcel/core'));
+      assert(!overlayFS.existsSync('node_modules/parcel'));
+      assert(!overlayFS.existsSync('node_modules/.bin/parcel'));
+      assert(!overlayFS.existsSync('tools/test/node_modules/parcel'));
+      assert(!overlayFS.existsSync('tools/test2/node_modules/@parcel/core'));
     });
 
     it('does not do anything with dry run', async () => {
-      let fs = await createFS('/app')`
+      await fsFixture(overlayFS)`
         yarn.lock:
         node_modules
           .bin/parcel -> ${path.resolve(__dirname, '../../parcel/src/bin.js')}
@@ -584,23 +529,23 @@ describe('@parcel/link', () => {
         }}
       `;
 
-      let cli = createProgram({fs});
+      let cli = createProgram({fs: overlayFS});
       await cli('unlink --dry-run');
 
-      assert(fs.existsSync('.parcel-link'));
+      assert(overlayFS.existsSync('.parcel-link'));
 
       assert.equal(
-        fs.realpathSync('node_modules/@parcel/core'),
+        overlayFS.realpathSync('node_modules/@parcel/core'),
         path.resolve(__dirname, '../../core'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/parcel'),
+        overlayFS.realpathSync('node_modules/parcel'),
         path.resolve(__dirname, '../../parcel'),
       );
 
       assert.equal(
-        fs.realpathSync('node_modules/.bin/parcel'),
+        overlayFS.realpathSync('node_modules/.bin/parcel'),
         path.resolve(__dirname, '../../parcel/src/bin.js'),
       );
     });
