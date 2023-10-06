@@ -288,7 +288,7 @@ function createClient(metafilepath: string, metafile: Metafile) {
 const BASEDIR = path.join(fs.realpathSync(os.tmpdir()), 'parcel-lsp');
 fs.mkdirSync(BASEDIR, {recursive: true});
 
-fs.writeFileSync(path.join(BASEDIR, `lsp-server`), 'help');
+fs.writeFileSync(path.join(BASEDIR, LSP_SENTINEL_FILENAME), '');
 
 // Search for currently running Parcel processes in the parcel-lsp dir.
 // Create an IPC client connection for each running process.
