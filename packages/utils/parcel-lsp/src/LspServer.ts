@@ -301,7 +301,6 @@ for (let filename of fs.readdirSync(BASEDIR)) {
   if (WORKSPACE_ROOT === projectRoot) {
     createClient(filepath, contents);
   }
-  console.log('connected initial', filepath);
 }
 
 // Watch for new Parcel processes in the parcel-lsp dir, and disconnect the
