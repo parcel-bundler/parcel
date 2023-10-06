@@ -88,7 +88,7 @@ async function watchLspActive(): Promise<FSWatcher> {
   return fs.watch(BASEDIR, (eventType: string, filename: string) => {
     switch (eventType) {
       case 'rename':
-        if (filename === lspFileName) {
+        if (filename === LSP_SENTINEL_FILENAME) {
           fs.access(
             LSP_SENTINEL_FILE,
             fs.constants.F_OK,
