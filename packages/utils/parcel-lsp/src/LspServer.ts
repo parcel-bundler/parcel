@@ -44,7 +44,7 @@ type Metafile = {
 
 const connection = createConnection(ProposedFeatures.all);
 const WORKSPACE_ROOT = process.cwd();
-
+const LSP_SENTINEL_FILENAME = 'lsp-server';
 // Create a simple text document manager.
 // const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
