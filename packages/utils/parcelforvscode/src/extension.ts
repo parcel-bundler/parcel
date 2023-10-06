@@ -3,6 +3,9 @@ import type {ExtensionContext} from 'vscode';
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
+
 import {
   LanguageClient,
   LanguageClientOptions,
@@ -48,5 +51,12 @@ export function deactivate(): Thenable<void> | undefined {
   if (!client) {
     return undefined;
   }
+
+  const LSP_SENTINEL_FILEPATH = path.join(fs.realpathSync(os.tmpdir()), 'parcel-lsp', 'lsp-server');
+
+  if (fs.existsSync(LSP_SENTINEL_FILEPATH)) {
+    fs.rmSync(LSP_SENTINEL_FILEPATH);
+  } 
+
   return client.stop();
 }
