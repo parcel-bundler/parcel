@@ -3576,7 +3576,10 @@ describe('scope hoisting', function () {
   describe('commonjs', function () {
     it('should wrap when this could refer to an export', async function () {
       let b = await bundle(
-        path.join(__dirname, '/integration/exports-this/a.js'),
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-this/a.js',
+        ),
       );
 
       let contents = await outputFS.readFile(
