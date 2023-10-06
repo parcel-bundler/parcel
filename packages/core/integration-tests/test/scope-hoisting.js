@@ -3591,8 +3591,8 @@ describe('scope hoisting', function () {
         'utf8',
       );
 
-      let exports_found = contents.includes('exports.bar()');
-      assert.equal(exports_found, true);
+      let wrapped = contents.includes('exports.bar()');
+      assert.equal(wrapped, true);
     });
 
     it('supports require of commonjs modules', async function () {
