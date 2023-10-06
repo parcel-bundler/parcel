@@ -320,7 +320,6 @@ watcher.subscribe(BASEDIR, async (err, events) => {
       if (WORKSPACE_ROOT === projectRoot) {
         createClient(event.path, contents);
       }
-      console.log('connected watched', event.path);
     } else if (event.type === 'delete' && event.path.endsWith('.json')) {
       let existing = clients.get(event.path);
       console.log('existing', event.path, existing);
