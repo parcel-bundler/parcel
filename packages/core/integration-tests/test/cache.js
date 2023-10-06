@@ -3439,8 +3439,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.a {'));
@@ -3460,7 +3462,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(css.includes('.a {'));
@@ -3482,8 +3486,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.a {'));
@@ -3502,7 +3508,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(!css.includes('.a {'));
@@ -3515,8 +3523,10 @@ describe('cache', function () {
             entries: ['index.js'],
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.index'));
@@ -3545,7 +3555,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(css.includes('.index'));
@@ -3580,8 +3592,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.index'));
@@ -3610,7 +3624,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(css.includes('.index'));
@@ -3637,8 +3653,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.a'));
@@ -3663,7 +3681,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(!css.includes('.a'));
@@ -3715,7 +3735,9 @@ describe('cache', function () {
 
         let b = await runBundle('index.js');
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(css.includes('.d'));
@@ -3738,8 +3760,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.included'));
@@ -3756,7 +3780,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(!css.includes('.included'));
@@ -3782,8 +3808,10 @@ describe('cache', function () {
             },
             async update(b) {
               let css = await overlayFS.readFile(
-                b.bundleGraph.getBundles().find(b => b.type === 'css')
-                  ?.filePath,
+                nullthrows(
+                  b.bundleGraph.getBundles().find(b => b.type === 'css')
+                    ?.filePath,
+                ),
                 'utf8',
               );
               assert(css.includes('.included'));
@@ -3799,7 +3827,9 @@ describe('cache', function () {
         );
 
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(!css.includes('.included'));
@@ -3841,7 +3871,9 @@ describe('cache', function () {
 
         let b = await runBundle('index.sass');
         let css = await overlayFS.readFile(
-          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          nullthrows(
+            b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          ),
           'utf8',
         );
         assert(css.includes('.d'));
@@ -6067,6 +6099,7 @@ describe('cache', function () {
 
     it('should invalidate when deleting a dist file', async function () {
       let b = await testCache({
+        outputFS: overlayFS,
         async update(b) {
           assert(await overlayFS.exists(path.join(distDir, 'index.js')));
           let res = await run(b.bundleGraph);
@@ -6083,6 +6116,7 @@ describe('cache', function () {
 
     it('should invalidate when deleting a source map', async function () {
       await testCache({
+        outputFS: overlayFS,
         async update() {
           assert(await overlayFS.exists(path.join(distDir, 'index.js.map')));
 
@@ -6095,6 +6129,7 @@ describe('cache', function () {
 
     it('should invalidate when the dist directory', async function () {
       await testCache({
+        outputFS: overlayFS,
         async update() {
           assert(await overlayFS.exists(path.join(distDir, 'index.js')));
           assert(await overlayFS.exists(path.join(distDir, 'index.js.map')));
