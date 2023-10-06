@@ -3577,17 +3577,10 @@ describe('scope hoisting', function () {
     it('should wrap when this could refer to an export', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/exports-this/a.js'),
-        {
-          mode: 'production',
-          defaultTargetOptions: {
-            shouldScopeHoist: true,
-            shouldOptimize: false,
-          },
-        },
       );
 
       let contents = await outputFS.readFile(
-        b.getBundles().find(b => /a\.js/.test(b.filePath)).filePath,
+        b.getBundles()[0].filePath,
         'utf8',
       );
 
