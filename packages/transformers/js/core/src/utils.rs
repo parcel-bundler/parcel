@@ -358,7 +358,7 @@ impl BailoutReason {
       ),
       BailoutReason::ThisInExport => (
         "Module contains `this` access of an exported value. This causes the module to be wrapped and tree-shaking to be disabled.",
-        ""
+        "https://parceljs.org/features/scope-hoisting/#avoiding-bail-outs"
       ),
     }
   }
