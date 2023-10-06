@@ -325,7 +325,6 @@ watcher.subscribe(BASEDIR, async (err, events) => {
       if (existing) {
         clients.delete(event.path);
         existing.connection.end();
-        console.log('disconnected watched', event.path);
       }
     }
   }
