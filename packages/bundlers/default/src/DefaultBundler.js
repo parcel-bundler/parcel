@@ -220,11 +220,14 @@ function decorateLegacyGraph(
       idealBundle.sourceBundles.size > 0 &&
       !idealBundle.mainEntryAsset
     ) {
+      let uniqueKey =
+        idealBundle.manualSharedBundle != null
+          ? idealBundle.manualSharedBundle
+          : [...idealBundle.assets].map(asset => asset.id).join(',');
+
       bundle = nullthrows(
         bundleGraph.createBundle({
-          uniqueKey:
-            [...idealBundle.assets].map(asset => asset.id).join(',') +
-            [...idealBundle.sourceBundles].join(','),
+          uniqueKey,
           needsStableName: idealBundle.needsStableName,
           bundleBehavior: idealBundle.bundleBehavior,
           type: idealBundle.type,
@@ -1420,7 +1423,7 @@ function createIdealGraph(
             target: firstSourceBundle.target,
             type: firstSourceBundle.type,
             env: firstSourceBundle.env,
-            manualSharedBundle: manualSharedObject.name,
+            manualSharedBundle: manualSharedObject.name + i,
           });
           bundle.sourceBundles = manualBundle.sourceBundles;
           bundle.internalizedAssets = manualBundle.internalizedAssets;
@@ -1909,6 +1912,15 @@ async function loadBundlerConfig(
       origin: '@parcel/bundler-default',
       message: `The value of "${modeConfig.maxParallelRequests}" set for maxParallelRequests will not be used as shared bundles have been disabled`,
     });
+  }
+
+  if (modeConfig.unstable_manualSharedBundles) {
+    let nameArray = modeConfig.unstable_manualSharedBundles.map(a => a.name);
+    let nameSet = new Set(nameArray);
+    invariant(
+      nameSet.size == nameArray.length,
+      'The name field must be unique for property unstable_manualSharedBundles',
+    );
   }
 
   validateSchema.diagnostic(
