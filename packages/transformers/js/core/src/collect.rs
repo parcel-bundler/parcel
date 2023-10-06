@@ -694,9 +694,7 @@ impl Visit for Collect {
         if self.in_module_this {
           handle_export!();
         } else if !self.in_class {
-          if let MemberProp::Ident(prop) = &node.prop {
-            self.this_exprs.insert(id!(prop), node.clone());
-          }
+          self.this_exprs.insert(id!(&node.prop), node.clone());
         }
         return;
       }
