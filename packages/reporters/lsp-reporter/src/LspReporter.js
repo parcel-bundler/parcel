@@ -78,7 +78,7 @@ async function watchLspActive(): Promise<FSWatcher> {
   // Check for lsp-server when reporter is first started
   try {
     await fs.promises.access(
-      path.join(BASEDIR, 'lsp-server'),
+      LSP_SENTINEL_FILE,
       fs.constants.F_OK,
     );
     lspStarted = true;
