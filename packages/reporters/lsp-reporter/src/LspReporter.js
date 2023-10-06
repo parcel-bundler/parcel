@@ -91,7 +91,7 @@ async function watchLspActive(): Promise<FSWatcher> {
       case 'rename':
         if (filename === lspFileName) {
           fs.access(
-            path.join(BASEDIR, 'lsp-server'),
+            LSP_SENTINEL_FILE,
             fs.constants.F_OK,
             err => {
               if (err) {
