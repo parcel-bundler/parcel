@@ -376,6 +376,10 @@ fn eval(expr: &Expr) -> Result<JsValue, Span> {
       (BinaryOp::Exp, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
         Ok(JsValue::Number(a.powf(b)))
       }
+      (BinaryOp::EqEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a == b)),
+      (BinaryOp::EqEqEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a == b)),
+      (BinaryOp::NotEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a != b)),
+      (BinaryOp::NotEqEq, Ok(JsValue::Bool(a)), Ok(JsValue::Bool(b))) => Ok(JsValue::Bool(a != b)),
       (BinaryOp::EqEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Bool(a == b)),
       (BinaryOp::EqEqEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
         Ok(JsValue::Bool(a == b))
@@ -384,6 +388,16 @@ fn eval(expr: &Expr) -> Result<JsValue, Span> {
         Ok(JsValue::Bool(a != b))
       }
       (BinaryOp::NotEqEq, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => {
+        Ok(JsValue::Bool(a != b))
+      }
+      (BinaryOp::EqEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => Ok(JsValue::Bool(a == b)),
+      (BinaryOp::EqEqEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
+        Ok(JsValue::Bool(a == b))
+      }
+      (BinaryOp::NotEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
+        Ok(JsValue::Bool(a != b))
+      }
+      (BinaryOp::NotEqEq, Ok(JsValue::String(a)), Ok(JsValue::String(b))) => {
         Ok(JsValue::Bool(a != b))
       }
       (BinaryOp::Gt, Ok(JsValue::Number(a)), Ok(JsValue::Number(b))) => Ok(JsValue::Bool(a > b)),
