@@ -236,6 +236,30 @@ describe('macros', function () {
     assert(res.includes('output=2'));
   });
 
+  it('should ignore macros in node_modules', async function () {
+    await fsFixture(overlayFS, dir)`
+      index.js:
+        import test from "foo";
+        output = test;
+
+      node_modules/foo/index.js:
+        import { test } from "./macro.js" with { type: "macro" };
+        export default test();
+
+      node_modules/foo/macro.js:
+        export function test() {
+          return 2;
+        }
+    `;
+
+    let b = await bundle(path.join(dir, '/index.js'), {
+      inputFS: overlayFS,
+    });
+
+    let res = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes('function test'));
+  });
+
   it('should throw a diagnostic when an argument cannot be converted', async function () {
     await fsFixture(overlayFS, dir)`
       index.js:
@@ -289,7 +313,7 @@ describe('macros', function () {
         output = test(1);
 
       macro.js:
-        export function test() {
+        exports.test = function test() {
           throw new Error('test');
         }
     `;
