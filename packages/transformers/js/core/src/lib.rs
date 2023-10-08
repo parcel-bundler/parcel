@@ -6,6 +6,7 @@ mod env_replacer;
 mod fs;
 mod global_replacer;
 mod hoist;
+mod macros;
 mod modules;
 mod node_replacer;
 mod typeof_replacer;
@@ -17,6 +18,7 @@ use std::str::FromStr;
 
 use constant_module::ConstantModule;
 use indexmap::IndexMap;
+use macros::MacroCallback;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_core::common::comments::SingleThreadedComments;
@@ -49,6 +51,9 @@ use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use typeof_replacer::*;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+
+pub use crate::macros::JsValue;
+use crate::macros::Macros;
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
@@ -144,7 +149,10 @@ impl Emitter for ErrorBuffer {
   }
 }
 
-pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
+pub fn transform(
+  config: Config,
+  call_macro: Option<MacroCallback>,
+) -> Result<TransformResult, std::io::Error> {
   let mut result = TransformResult::default();
   let mut map_buf = vec![];
 
@@ -263,7 +271,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 },
               };
 
-              let module = module.fold_with(&mut Optional::new(
+              let mut module = module.fold_with(&mut Optional::new(
                 react::react(
                   source_map.clone(),
                   Some(&comments),
@@ -300,13 +308,18 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 assumptions.set_public_class_fields |= true;
               }
 
+              let mut diagnostics = vec![];
+              if let Some(call_macro) = call_macro {
+                module =
+                  module.fold_with(&mut Macros::new(call_macro, &source_map, &mut diagnostics));
+              }
+
               if config.scope_hoist && config.inline_constants {
                 let mut constant_module = ConstantModule::new();
                 module.visit_with(&mut constant_module);
                 result.is_constant_module = constant_module.is_constant_module;
               }
 
-              let mut diagnostics = vec![];
               let module = {
                 let mut passes = chain!(
                   Optional::new(
@@ -539,6 +552,7 @@ fn parse(
       jsx: config.is_jsx,
       export_default_from: true,
       decorators: config.decorators,
+      import_attributes: true,
       ..Default::default()
     })
   };

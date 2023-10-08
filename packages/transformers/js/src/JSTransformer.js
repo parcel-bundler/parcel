@@ -451,6 +451,38 @@ export default (new Transformer({
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
       standalone: asset.query.has('standalone'),
       inline_constants: config.inlineConstants,
+      callMacro: asset.isSource
+        ? async (err, src, exportName, args) => {
+            try {
+              let mod = await options.packageManager.require(
+                src,
+                asset.filePath,
+              );
+              if (!Object.hasOwnProperty.call(mod, exportName)) {
+                throw new Error(`"${src}" does not export "${exportName}".`);
+              }
+
+              if (typeof mod[exportName] === 'function') {
+                return mod[exportName](...args);
+              } else {
+                throw new Error(
+                  `"${exportName}" in "${src}" is not a function.`,
+                );
+              }
+            } catch (err) {
+              // Remove parcel core from stack and build string so Rust can process errors more easily.
+              let stack = err.stack.split('\n').slice(1);
+              let message = err.message;
+              for (let line of stack) {
+                if (line.includes(__filename)) {
+                  break;
+                }
+                message += '\n' + line;
+              }
+              throw message;
+            }
+          }
+        : null,
     });
 
     if (is_constant_module) {
