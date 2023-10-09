@@ -270,6 +270,8 @@ export type ParcelOptions = {|
   shouldContentHash: boolean,
   serveOptions: ServerOptions | false,
   shouldBuildLazily: boolean,
+  lazyIncludes: RegExp[],
+  lazyExcludes: RegExp[],
   shouldBundleIncrementally: boolean,
   shouldAutoInstall: boolean,
   logLevel: LogLevel,
@@ -516,6 +518,7 @@ export type Bundle = {|
   name: ?string,
   displayName: ?string,
   pipeline: ?string,
+  manualSharedBundle?: ?string,
 |};
 
 export type BundleNode = {|

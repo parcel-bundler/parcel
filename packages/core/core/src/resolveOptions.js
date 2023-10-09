@@ -10,11 +10,17 @@ import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
 
 import path from 'path';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {NodeFS} from '@parcel/fs';
 import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
-import {getRootDir, relativePath, resolveConfig, isGlob} from '@parcel/utils';
+import {
+  getRootDir,
+  relativePath,
+  resolveConfig,
+  isGlob,
+  globToRegex,
+} from '@parcel/utils';
 import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
@@ -28,6 +34,11 @@ function generateInstanceId(entries: Array<FilePath>): string {
   return hashString(
     `${entries.join(',')}-${Date.now()}-${Math.round(Math.random() * 100)}`,
   );
+}
+
+// Compiles an array of globs to regex - used for lazy include/excludes
+function compileGlobs(globs: string[]): RegExp[] {
+  return globs.map(glob => globToRegex(glob));
 }
 
 export default async function resolveOptions(
@@ -104,6 +115,19 @@ export default async function resolveOptions(
       : undefined;
 
   let shouldBuildLazily = initialOptions.shouldBuildLazily ?? false;
+  let lazyIncludes = compileGlobs(initialOptions.lazyIncludes ?? []);
+  if (lazyIncludes.length > 0 && !shouldBuildLazily) {
+    throw new Error(
+      'Lazy includes can only be provided when lazy building is enabled',
+    );
+  }
+  let lazyExcludes = compileGlobs(initialOptions.lazyExcludes ?? []);
+  if (lazyExcludes.length > 0 && !shouldBuildLazily) {
+    throw new Error(
+      'Lazy excludes can only be provided when lazy building is enabled',
+    );
+  }
+
   let shouldContentHash =
     initialOptions.shouldContentHash ?? initialOptions.mode === 'production';
   if (shouldBuildLazily && shouldContentHash) {
@@ -140,6 +164,8 @@ export default async function resolveOptions(
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
     hmrOptions: initialOptions.hmrOptions ?? null,
     shouldBuildLazily,
+    lazyIncludes,
+    lazyExcludes,
     shouldBundleIncrementally: initialOptions.shouldBundleIncrementally ?? true,
     shouldContentHash,
     serveOptions: initialOptions.serveOptions

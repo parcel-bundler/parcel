@@ -303,6 +303,8 @@ export type InitialParcelOptions = {|
   +shouldTrace?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
+  +lazyIncludes?: string[],
+  +lazyExcludes?: string[],
   +shouldBundleIncrementally?: boolean,
 
   +inputFS?: FileSystem,
@@ -645,6 +647,27 @@ export type ASTGenerator = {|
 |};
 
 export type BundleBehavior = 'inline' | 'isolated';
+
+export type ParcelTransformOptions = {|
+  filePath: FilePath,
+  code?: string,
+  env?: EnvironmentOptions,
+  query?: ?string,
+|};
+
+export type ParcelResolveOptions = {|
+  specifier: DependencySpecifier,
+  specifierType: SpecifierType,
+  env?: EnvironmentOptions,
+  resolveFrom?: FilePath,
+|};
+
+export type ParcelResolveResult = {|
+  filePath: FilePath,
+  code?: string,
+  query?: ?string,
+  sideEffects?: boolean,
+|};
 
 /**
  * An asset represents a file or part of a file. It may represent any data type, including source code,
@@ -1207,6 +1230,8 @@ export type CreateBundleOpts =
        *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
        */
       +bundleBehavior?: ?BundleBehavior,
+      /** Name of the manual shared bundle config that caused this bundle to be created */
+      +manualSharedBundle?: ?string,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
@@ -1240,6 +1265,8 @@ export type CreateBundleOpts =
       +isSplittable?: ?boolean,
       /** The bundle's pipeline, to be used for optimization. Usually based on the pipeline of the entry asset. */
       +pipeline?: ?string,
+      /** Name of the manual shared bundle config that caused this bundle to be created */
+      +manualSharedBundle?: ?string,
     |};
 
 /**
@@ -1427,6 +1454,7 @@ export interface BundleGraph<TBundle: Bundle> {
   traverse<TContext>(
     visit: GraphVisitor<BundleGraphTraversable, TContext>,
     startAsset: ?Asset,
+    options?: {|skipUnusedDependencies?: boolean|},
   ): ?TContext;
   /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
   traverseBundles<TContext>(

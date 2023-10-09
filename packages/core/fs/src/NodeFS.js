@@ -18,7 +18,7 @@ import {hashFile} from '@parcel/utils';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
-import * as searchNative from '@parcel/fs-search';
+import * as searchNative from '@parcel/rust';
 import * as searchJS from './find';
 
 // Most of this can go away once we only support Node 10+, which includes
@@ -34,6 +34,7 @@ export class NodeFS implements FileSystem {
   copyFile: any = promisify(fs.copyFile);
   stat: any = promisify(fs.stat);
   readdir: any = promisify(fs.readdir);
+  symlink: any = promisify(fs.symlink);
   unlink: any = promisify(fs.unlink);
   utimes: any = promisify(fs.utimes);
   ncp: any = promisify(ncp);

@@ -11,7 +11,7 @@ import type {BundleInfo} from '../PackagerRunner';
 import {HASH_REF_PREFIX} from '../constants';
 import {joinProjectPath} from '../projectPath';
 import nullthrows from 'nullthrows';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {createPackageRequest} from './PackageRequest';
 import createWriteBundleRequest from './WriteBundleRequest';
 

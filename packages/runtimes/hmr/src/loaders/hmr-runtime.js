@@ -96,17 +96,26 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       !/localhost|127.0.0.1|0.0.0.0/.test(hostname))
       ? 'wss'
       : 'ws';
-  var ws = new WebSocket(
-    protocol + '://' + hostname + (port ? ':' + port : '') + '/',
-  );
+
+  var ws;
+  try {
+    ws = new WebSocket(
+      protocol + '://' + hostname + (port ? ':' + port : '') + '/',
+    );
+  } catch (err) {
+    if (err.message) {
+      console.error(err.message);
+    }
+    ws = {};
+  }
 
   // Web extension context
   var extCtx =
-    typeof chrome === 'undefined'
-      ? typeof browser === 'undefined'
+    typeof browser === 'undefined'
+      ? typeof chrome === 'undefined'
         ? null
-        : browser
-      : chrome;
+        : chrome
+      : browser;
 
   // Safari doesn't support sourceURL in error stacks.
   // eval may also be disabled via CSP, so do a quick check.
@@ -206,7 +215,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     }
   };
   ws.onerror = function (e) {
-    console.error(e.message);
+    if (e.message) {
+      console.error(e.message);
+    }
   };
   ws.onclose = function (e) {
     if (process.env.PARCEL_BUILD_ENV !== 'test') {
@@ -400,25 +411,16 @@ async function hmrApplyUpdates(assets) {
     if (!supportsSourceURL) {
       let promises = assets.map(asset =>
         hmrDownload(asset)?.catch(err => {
-          // Web extension bugfix for Chromium
-          // https://bugs.chromium.org/p/chromium/issues/detail?id=1255412#c12
+          // Web extension fix
           if (
             extCtx &&
             extCtx.runtime &&
-            extCtx.runtime.getManifest().manifest_version == 3
+            extCtx.runtime.getManifest().manifest_version == 3 &&
+            typeof ServiceWorkerGlobalScope != 'undefined' &&
+            global instanceof ServiceWorkerGlobalScope
           ) {
-            if (
-              typeof ServiceWorkerGlobalScope != 'undefined' &&
-              global instanceof ServiceWorkerGlobalScope
-            ) {
-              extCtx.runtime.reload();
-              return;
-            }
-            asset.url = extCtx.runtime.getURL(
-              '/__parcel_hmr_proxy__?url=' +
-                encodeURIComponent(asset.url + '?t=' + Date.now()),
-            );
-            return hmrDownload(asset);
+            extCtx.runtime.reload();
+            return;
           }
           throw err;
         }),
