@@ -28,7 +28,7 @@ import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 import {unique, setDifference} from '@parcel/utils';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
 import {PARCEL_VERSION, OPTION_CHANGE} from '../constants';
@@ -99,6 +99,8 @@ export default function createBundleGraphRequest(
         entries: options.entries,
         optionsRef,
         shouldBuildLazily: options.shouldBuildLazily,
+        lazyIncludes: options.lazyIncludes,
+        lazyExcludes: options.lazyExcludes,
         requestedAssetIds,
       });
       let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
@@ -411,8 +413,6 @@ class BundlerRunner {
         previousDevDeps: this.previousDevDeps,
         devDepRequests: this.devDepRequests,
         configs: this.configs,
-        nameRuntimeBundle: bundle =>
-          this.nameBundle(namers, bundle, internalBundleGraph),
       });
 
       // Add dev deps for namers, AFTER running them to account for lazy require().

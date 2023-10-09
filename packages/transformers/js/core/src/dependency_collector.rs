@@ -4,10 +4,10 @@ use std::fmt;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use swc_atoms::{js_word, JsWord};
-use swc_common::{Mark, SourceMap, Span, DUMMY_SP};
-use swc_ecmascript::ast::{self, Callee, Id, MemberProp};
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::common::{Mark, SourceMap, Span, DUMMY_SP};
+use swc_core::ecma::ast::{self, Callee, Id, MemberProp};
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::fold_member_expr_skip_prop;
 use crate::utils::*;
@@ -47,8 +47,8 @@ pub struct DependencyDescriptor {
   pub kind: DependencyKind,
   pub loc: SourceLocation,
   /// The text specifier associated with the import/export statement.
-  pub specifier: swc_atoms::JsWord,
-  pub attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
+  pub specifier: swc_core::ecma::atoms::JsWord,
+  pub attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
   pub is_optional: bool,
   pub is_helper: bool,
   pub source_type: Option<SourceType>,
@@ -60,8 +60,8 @@ pub fn dependency_collector<'a>(
   source_map: &'a SourceMap,
   items: &'a mut Vec<DependencyDescriptor>,
   decls: &'a HashSet<Id>,
-  ignore_mark: swc_common::Mark,
-  unresolved_mark: swc_common::Mark,
+  ignore_mark: swc_core::common::Mark,
+  unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
 ) -> impl Fold + 'a {
@@ -87,8 +87,8 @@ struct DependencyCollector<'a> {
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
   decls: &'a HashSet<Id>,
-  ignore_mark: swc_common::Mark,
-  unresolved_mark: swc_common::Mark,
+  ignore_mark: swc_core::common::Mark,
+  unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
@@ -98,9 +98,9 @@ impl<'a> DependencyCollector<'a> {
   fn add_dependency(
     &mut self,
     mut specifier: JsWord,
-    span: swc_common::Span,
+    span: swc_core::common::Span,
     kind: DependencyKind,
-    attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
+    attributes: Option<HashMap<swc_core::ecma::atoms::JsWord, bool>>,
     is_optional: bool,
     source_type: SourceType,
   ) -> Option<JsWord> {
@@ -125,15 +125,16 @@ impl<'a> DependencyCollector<'a> {
           None
         }
       }
-      _ => Some(format!(
+      _ if !self.config.standalone => Some(format!(
         "{:x}",
         hash!(format!(
           "{}:{}:{}",
           self.get_project_relative_filename(),
           specifier,
           kind
-        ))
+        )),
       )),
+      _ => None,
     };
 
     self.items.push(DependencyDescriptor {
@@ -153,12 +154,12 @@ impl<'a> DependencyCollector<'a> {
   fn add_url_dependency(
     &mut self,
     specifier: JsWord,
-    span: swc_common::Span,
+    span: swc_core::common::Span,
     kind: DependencyKind,
     source_type: SourceType,
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
-    if !self.config.is_library {
+    if !self.config.is_library && !self.config.standalone {
       let placeholder =
         self.add_dependency(specifier.clone(), span, kind, None, false, source_type);
       let specifier = if let Some(placeholder) = placeholder {
@@ -172,13 +173,17 @@ impl<'a> DependencyCollector<'a> {
     // For library builds, we need to create something that can be statically analyzed by another bundler,
     // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
     // call with a placeholder for the relative path to be replaced during packaging.
-    let placeholder = format!(
-      "{:x}",
-      hash!(format!(
-        "parcel_url:{}:{}:{}",
-        self.config.filename, specifier, kind
-      ))
-    );
+    let placeholder = if self.config.standalone {
+      specifier.as_ref().into()
+    } else {
+      format!(
+        "{:x}",
+        hash!(format!(
+          "parcel_url:{}:{}:{}",
+          self.config.filename, specifier, kind
+        ))
+      )
+    };
     self.items.push(DependencyDescriptor {
       kind,
       loc: SourceLocation::from(self.source_map, span),
@@ -508,7 +513,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                               Fn(_) | Arrow(_) => {
                                 self.in_promise = true;
                                 let node =
-                                  swc_ecmascript::visit::fold_call_expr(self, node.clone());
+                                  swc_core::ecma::visit::fold_call_expr(self, node.clone());
                                 self.in_promise = was_in_promise;
 
                                 // Transform Promise.resolve().then(() => __importStar(require('foo')))
@@ -666,7 +671,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
       let mut call = node;
-      if !self.config.scope_hoist {
+      if !self.config.scope_hoist && !self.config.standalone {
         let name = match &self.config.source_type {
           SourceType::Module => "require",
           SourceType::Script => "__parcel__require__",
@@ -838,7 +843,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
       // If this is a library, we will already have a URL object. Otherwise, we need to
       // construct one from the string returned by the JSRuntime.
-      if !self.config.is_library {
+      if !self.config.is_library && !self.config.standalone {
         return Expr::New(NewExpr {
           span: DUMMY_SP,
           callee: Box::new(Expr::Ident(Ident::new(js_word!("URL"), DUMMY_SP))),
@@ -1100,7 +1105,7 @@ impl Fold for PromiseTransformer {
       }
     }
 
-    swc_ecmascript::visit::fold_return_stmt(self, node)
+    swc_core::ecma::visit::fold_return_stmt(self, node)
   }
 
   fn fold_arrow_expr(&mut self, node: ast::ArrowExpr) -> ast::ArrowExpr {
@@ -1114,11 +1119,11 @@ impl Fold for PromiseTransformer {
       }
     }
 
-    swc_ecmascript::visit::fold_arrow_expr(self, node)
+    swc_core::ecma::visit::fold_arrow_expr(self, node)
   }
 
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
-    let node = swc_ecmascript::visit::fold_expr(self, node);
+    let node = swc_core::ecma::visit::fold_expr(self, node);
 
     // Replace the original require node with a reference to a variable `res`,
     // which will be added as a parameter to the parent function.
@@ -1139,7 +1144,7 @@ impl<'a> DependencyCollector<'a> {
     &mut self,
     expr: &ast::Expr,
     decls: &HashSet<Id>,
-  ) -> Option<(JsWord, swc_common::Span)> {
+  ) -> Option<(JsWord, swc_core::common::Span)> {
     use ast::*;
 
     if let Expr::New(new) = expr {

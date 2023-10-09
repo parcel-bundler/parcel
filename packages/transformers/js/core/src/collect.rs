@@ -5,10 +5,10 @@ use crate::utils::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use swc_atoms::{js_word, JsWord};
-use swc_common::{sync::Lrc, Mark, Span, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Visit, VisitWith};
+use swc_core::common::{sync::Lrc, Mark, Span, DUMMY_SP};
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Visit, VisitWith};
 
 macro_rules! collect_visit_fn {
   ($name:ident, $type:ident) => {
@@ -48,7 +48,7 @@ pub struct Export {
 }
 
 pub struct Collect {
-  pub source_map: Lrc<swc_common::SourceMap>,
+  pub source_map: Lrc<swc_core::common::SourceMap>,
   pub decls: HashSet<Id>,
   pub ignore_mark: Mark,
   pub global_mark: Mark,
@@ -113,7 +113,7 @@ pub struct CollectResult {
 
 impl Collect {
   pub fn new(
-    source_map: Lrc<swc_common::SourceMap>,
+    source_map: Lrc<swc_core::common::SourceMap>,
     decls: HashSet<Id>,
     ignore_mark: Mark,
     global_mark: Mark,
@@ -654,8 +654,10 @@ impl Visit for Collect {
       Expr::Member(member) => {
         if match_member_expr(member, vec!["module", "exports"], &self.decls) {
           handle_export!();
+          return;
+        } else {
+          member.visit_with(self);
         }
-        return;
       }
       Expr::Ident(ident) => {
         if &*ident.sym == "exports" && !self.decls.contains(&id!(ident)) {
@@ -754,6 +756,16 @@ impl Visit for Collect {
       _ => {
         node.visit_children_with(self);
       }
+    }
+  }
+
+  fn visit_ident(&mut self, node: &Ident) {
+    // This visitor helps us identify used imports in cases like:
+    //
+    //   import { foo } from "bar";
+    //   const baz = { foo };
+    if self.imports.contains_key(&id!(node)) {
+      self.used_imports.insert(id!(node));
     }
   }
 
