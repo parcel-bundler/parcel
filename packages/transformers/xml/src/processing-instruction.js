@@ -2,6 +2,9 @@
 import type {MutableAsset} from '@parcel/types';
 import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
 
+// Flow doesn't define ProcessingInstruction by default.
+type ProcessingInstruction = CharacterData;
+
 module.exports = {
   'xml-stylesheet': (node: ProcessingInstruction, asset: MutableAsset) => {
     const pseudo = new DOMParser().parseFromString(`<ψ ${node.data} />`);
