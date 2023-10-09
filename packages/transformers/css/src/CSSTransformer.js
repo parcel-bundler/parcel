@@ -11,7 +11,12 @@ import {
   browserslistToTargets,
   type SourceLocation as LightningSourceLocation,
 } from 'lightningcss';
-import {remapSourceLocation, relativePath, globToRegex} from '@parcel/utils';
+import {
+  remapSourceLocation,
+  relativePath,
+  globToRegex,
+  normalizeSeparators,
+} from '@parcel/utils';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -76,9 +81,8 @@ export default (new Transformer({
           let cssModulesConfig = config?.cssModules;
           let isCSSModule = /\.module\./.test(asset.filePath);
           if (asset.isSource) {
-            let projectRootPath = path.relative(
-              options.projectRoot,
-              asset.filePath,
+            let projectRootPath = normalizeSeparators(
+              path.relative(options.projectRoot, asset.filePath),
             );
             if (typeof cssModulesConfig === 'boolean') {
               isCSSModule = true;
