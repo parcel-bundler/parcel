@@ -81,8 +81,9 @@ export default (new Transformer({
           let cssModulesConfig = config?.cssModules;
           let isCSSModule = /\.module\./.test(asset.filePath);
           if (asset.isSource) {
-            let projectRootPath = normalizeSeparators(
-              path.relative(options.projectRoot, asset.filePath),
+            let projectRootPath = path.relative(
+              options.projectRoot,
+              asset.filePath,
             );
             if (typeof cssModulesConfig === 'boolean') {
               isCSSModule = true;
@@ -113,7 +114,9 @@ export default (new Transformer({
         }
 
         res = transform({
-          filename: path.relative(options.projectRoot, asset.filePath),
+          filename: normalizeSeparators(
+            path.relative(options.projectRoot, asset.filePath),
+          ),
           code,
           cssModules,
           analyzeDependencies: asset.meta.hasDependencies !== false,
