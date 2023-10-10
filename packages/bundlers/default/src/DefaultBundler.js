@@ -221,8 +221,8 @@ function decorateLegacyGraph(
       !idealBundle.mainEntryAsset
     ) {
       let uniqueKey =
-        idealBundle.manualSharedBundle != null
-          ? idealBundle.manualSharedBundle
+        idealBundle.uniqueKey != null
+          ? idealBundle.uniqueKey
           : [...idealBundle.assets].map(asset => asset.id).join(',');
 
       bundle = nullthrows(
@@ -622,6 +622,7 @@ function createIdealGraph(
                     manualBundleToInternalizedAsset.get(bundleId),
                   ).push(childAsset);
                   bundle.manualSharedBundle = manualSharedObject.name;
+                  bundle.uniqueKey = manualSharedObject.name;
                 }
               } else {
                 bundle = nullthrows(bundleGraph.getNode(bundleId));
@@ -660,6 +661,7 @@ function createIdealGraph(
                     manualSharedMap.set(manualSharedBundleKey, bundleId);
                   }
                   bundle.manualSharedBundle = manualSharedObject.name;
+                  bundle.uniqueKey = manualSharedObject.name;
                 }
               }
 
@@ -769,6 +771,7 @@ function createIdealGraph(
                     manualSharedMap.set(manualSharedBundleKey, bundleId);
                   }
                   bundle.manualSharedBundle = manualSharedObject.name;
+                  bundle.uniqueKey = manualSharedObject.name;
                 }
               } else {
                 bundle = bundleGraph.getNode(bundleId);
@@ -798,6 +801,7 @@ function createIdealGraph(
                   manualSharedMap.set(manualSharedBundleKey, bundleId);
                 }
                 bundle.manualSharedBundle = manualSharedObject.name;
+                bundle.uniqueKey = manualSharedObject.name;
               }
 
               bundles.set(childAsset.id, bundleId);
@@ -1220,6 +1224,7 @@ function createIdealGraph(
         invariant(firstSourceBundle !== 'root');
 
         bundle = createBundle({
+          uniqueKey: manualSharedObject?.name,
           target: firstSourceBundle.target,
           type: firstSourceBundle.type,
           env: firstSourceBundle.env,
@@ -1420,10 +1425,11 @@ function createIdealGraph(
 
         for (let i = 1; i < [...remainderMap.keys()].length; i++) {
           let bundle = createBundle({
+            uniqueKey: manualSharedObject.name + i,
             target: firstSourceBundle.target,
             type: firstSourceBundle.type,
             env: firstSourceBundle.env,
-            manualSharedBundle: manualSharedObject.name + i,
+            manualSharedBundle: manualSharedObject.name,
           });
           bundle.sourceBundles = manualBundle.sourceBundles;
           bundle.internalizedAssets = manualBundle.internalizedAssets;
