@@ -9,7 +9,11 @@ import type {
   MutableBundleGraph as IMutableBundleGraph,
   Target,
 } from '@parcel/types';
-import type {ParcelOptions, BundleGroup as InternalBundleGroup} from '../types';
+import type {
+  ParcelOptions,
+  BundleGroup as InternalBundleGroup,
+  BundleNode,
+} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -204,7 +208,7 @@ export default class MutableBundleGraph
       isPlaceholder = entryAssetNode.requested === false;
     }
 
-    let bundleNode = {
+    let bundleNode: BundleNode = {
       type: 'bundle',
       id: bundleId,
       value: {
@@ -232,6 +236,7 @@ export default class MutableBundleGraph
         name: null,
         displayName: null,
         publicId,
+        manualSharedBundle: opts.manualSharedBundle,
       },
     };
 
