@@ -69,5 +69,6 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
-  }
+  },
+  "packageManager": "yarn@1.22.19"
 }
