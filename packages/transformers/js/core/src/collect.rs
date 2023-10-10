@@ -58,7 +58,7 @@ pub struct Collect {
   pub should_wrap: bool,
   /// local variable binding -> descriptor
   pub imports: HashMap<Id, Import>,
-  pub this_exprs: HashMap<Id, MemberExpr>,
+  pub this_exprs: HashMap<Id, (Ident, Span)>,
   /// exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
   /// local variable binding -> exported name
@@ -245,12 +245,10 @@ impl Visit for Collect {
     }
     self.in_module_this = false;
 
-    for (_key, node) in self.this_exprs.clone() {
-      if let MemberProp::Ident(prop) = &node.prop {
-        if self.exports.contains_key(&prop.sym) {
-          self.should_wrap = true;
-          self.add_bailout(node.span, BailoutReason::ThisInExport);
-        }
+    for (_key, (ident, span)) in self.this_exprs.clone() {
+      if self.exports.contains_key(&ident.sym) {
+        self.should_wrap = true;
+        self.add_bailout(span, BailoutReason::ThisInExport);
       }
     }
 
@@ -695,7 +693,7 @@ impl Visit for Collect {
           handle_export!();
         } else if !self.in_class {
           if let MemberProp::Ident(prop) = &node.prop {
-            self.this_exprs.insert(id!(prop), node.clone());
+            self.this_exprs.insert(id!(prop), (prop.clone(), node.span));
           }
         }
         return;
