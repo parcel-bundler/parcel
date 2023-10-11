@@ -935,7 +935,7 @@ function createIdealGraph(
   // order the bundles are loaded.
   let ancestorAssets = [];
 
-  let inlineConstantDeps = new DefaultMap(() => []);
+  let inlineConstantDeps = new DefaultMap(() => new Set());
 
   for (let [bundleRootId, assetId] of bundleRootGraph.nodes.entries()) {
     let reachable = new BitSet(assets.length);
@@ -946,7 +946,7 @@ function createIdealGraph(
     // Add sync relationships to ReachableRoots
     let root = assets[assetId];
     assetGraph.traverse(
-      (node, parentAsset, actions) => {
+      (node, _, actions) => {
         if (node.value === root) {
           return;
         }
@@ -997,11 +997,17 @@ function createIdealGraph(
         reachable.add(assetIndex);
         reachableRoots[assetIndex].add(bundleRootId);
 
-        if (parentAsset != null && asset.meta.isConstantModule) {
-          inlineConstantDeps.get(parentAsset).push(asset);
+        if (asset.meta.isConstantModule) {
+          let parents = assetGraph
+            .getIncomingDependencies(asset)
+            .map(dep => nullthrows(assetGraph.getAssetWithDependency(dep)));
+
+          for (let parent of parents) {
+            inlineConstantDeps.get(parent).add(asset);
+          }
         }
 
-        return asset;
+        return;
       },
       root,
       {skipUnusedDependencies: true},
@@ -1161,20 +1167,32 @@ function createIdealGraph(
     let asset = assets[i];
     let manualSharedObject = manualAssetToConfig.get(asset);
 
-    if (asset.meta.isConstantModule === true) {
-      // Add assets to non-splittable bundles.
-      reachableRoots[i].forEach(nodeId => {
-        let assetId = bundleRootGraph.getNode(nodeId);
-        if (assetId == null) return; // deleted
-        let entry = assets[assetId];
-        let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
-        let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
-        invariant(entryBundle !== 'root');
-        entryBundle.assets.add(asset);
-        entryBundle.size += asset.stats.size;
-      });
+    if (bundleRoots.has(asset) && inlineConstantDeps.get(asset).size > 0) {
+      let entryBundleId = nullthrows(bundleRoots.get(asset))[0];
+      let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
+      invariant(entryBundle !== 'root');
 
+      for (let inlineConstant of inlineConstantDeps.get(asset)) {
+        entryBundle.assets.add(inlineConstant);
+        entryBundle.size += inlineConstant.stats.size;
+      }
+    }
+
+    if (asset.meta.isConstantModule === true) {
+      // Ignore constant modules as they are placed with their direct parents
       continue;
+      // reachableRoots[i].forEach(nodeId => {
+      //   let assetId = bundleRootGraph.getNode(nodeId);
+      //   if (assetId == null) return; // deleted
+      //   let entry = assets[assetId];
+      //   let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
+      //   let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
+      //   invariant(entryBundle !== 'root');
+      //   entryBundle.assets.add(asset);
+      //   entryBundle.size += asset.stats.size;
+      // });
+
+      // continue;
     }
 
     // Unreliable bundleRoot assets which need to pulled in by shared bundles or other means.
@@ -1377,7 +1395,6 @@ function createIdealGraph(
         if (!bundle.assets.has(inlineConstantDep)) {
           bundle.assets.add(inlineConstantDep);
           bundle.size += inlineConstantDep.stats.size;
-          console.log('Adding', inlineConstantDep, 'to shared bundle');
         }
       }
 
@@ -1402,6 +1419,13 @@ function createIdealGraph(
         invariant(bundle !== 'root');
         bundle.assets.add(asset);
         bundle.size += asset.stats.size;
+
+        for (let inlineConstantDep of inlineConstantDeps.get(asset)) {
+          if (!bundle.assets.has(inlineConstantDep)) {
+            bundle.assets.add(inlineConstantDep);
+            bundle.size += inlineConstantDep.stats.size;
+          }
+        }
       }
     }
   }
