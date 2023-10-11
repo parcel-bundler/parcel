@@ -196,10 +196,7 @@ mod test {
       canonicalize(dir.child("recursive").path(), &cache)?,
       canonicalize(dir.child("root.js").path(), &cache)?
     );
-    assert!(matches!(
-      canonicalize(dir.child("cycle").path(), &cache),
-      Err(_)
-    ));
+    assert!(canonicalize(dir.child("cycle").path(), &cache).is_err());
     assert_eq!(
       canonicalize(dir.child("a/b/e/d/a/b/e/d/a").path(), &cache)?,
       canonicalize(dir.child("a").path(), &cache)?
