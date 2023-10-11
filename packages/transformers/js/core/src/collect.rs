@@ -245,9 +245,7 @@ impl Visit for Collect {
     }
     self.in_module_this = false;
 
-    let this_exprs = std::mem::take(&mut self.this_exprs);
-    for (_key, (ident, span)) in this_exprs {
-      // for (_key, (ident, span)) in self.this_exprs.clone() {
+    for (_key, (ident, span)) in std::mem::take(&mut self.this_exprs) {
       if self.exports.contains_key(&ident.sym) {
         self.should_wrap = true;
         self.add_bailout(span, BailoutReason::ThisInExport);
