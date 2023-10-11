@@ -33,9 +33,7 @@ impl ConstantModule {
   fn is_constant_declarator(&mut self, decl: &VarDeclarator) -> bool {
     if let Some(init) = &decl.init {
       match &**init {
-        Expr::Lit(lit) => {
-          return is_safe_literal(lit);
-        }
+        Expr::Lit(lit) => is_safe_literal(lit),
         Expr::Tpl(tpl) => {
           for expr in &tpl.exprs {
             match &**expr {
@@ -55,14 +53,12 @@ impl ConstantModule {
             }
           }
 
-          return true;
+          true
         }
-        _ => {
-          return false;
-        }
+        _ => false,
       }
     } else {
-      return true;
+      true
     }
   }
 
@@ -84,9 +80,9 @@ impl ConstantModule {
         }
       }
 
-      return true;
+      true
     } else {
-      return false;
+      false
     }
   }
 }
