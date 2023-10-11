@@ -935,6 +935,8 @@ function createIdealGraph(
   // order the bundles are loaded.
   let ancestorAssets = [];
 
+  let inlineConstantDeps = new DefaultMap(() => []);
+
   for (let [bundleRootId, assetId] of bundleRootGraph.nodes.entries()) {
     let reachable = new BitSet(assets.length);
     reachableAssets.push(reachable);
@@ -944,7 +946,7 @@ function createIdealGraph(
     // Add sync relationships to ReachableRoots
     let root = assets[assetId];
     assetGraph.traverse(
-      (node, _, actions) => {
+      (node, parentAsset, actions) => {
         if (node.value === root) {
           return;
         }
@@ -994,6 +996,12 @@ function createIdealGraph(
         let assetIndex = nullthrows(assetToIndex.get(node.value));
         reachable.add(assetIndex);
         reachableRoots[assetIndex].add(bundleRootId);
+
+        if (parentAsset != null && asset.meta.isConstantModule) {
+          inlineConstantDeps.get(parentAsset).push(asset);
+        }
+
+        return asset;
       },
       root,
       {skipUnusedDependencies: true},
@@ -1364,6 +1372,14 @@ function createIdealGraph(
       }
       bundle.assets.add(asset);
       bundle.size += asset.stats.size;
+
+      for (let inlineConstantDep of inlineConstantDeps.get(asset)) {
+        if (!bundle.assets.has(inlineConstantDep)) {
+          bundle.assets.add(inlineConstantDep);
+          bundle.size += inlineConstantDep.stats.size;
+          console.log('Adding', inlineConstantDep, 'to shared bundle');
+        }
+      }
 
       for (let sourceBundleId of sourceBundles) {
         if (bundleId !== sourceBundleId) {

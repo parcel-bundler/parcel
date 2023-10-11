@@ -8,6 +8,7 @@ import {
   overlayFS,
   fsFixture,
   run,
+  inputFS,
 } from '@parcel/test-utils';
 
 describe('bundler', function () {
@@ -1070,10 +1071,10 @@ describe('bundler', function () {
         assets: ['two.html'],
       },
       {
-        assets: ['bundle-manifest.js', 'esm-js-loader.js', 'one.js'],
+        assets: ['one.js'],
       },
       {
-        assets: ['bundle-manifest.js', 'esm-js-loader.js', 'two.js'],
+        assets: ['two.js'],
       },
       {
         // shared bundle
