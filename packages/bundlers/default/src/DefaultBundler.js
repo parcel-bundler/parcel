@@ -1154,19 +1154,20 @@ function createIdealGraph(
     let manualSharedObject = manualAssetToConfig.get(asset);
 
     if (asset.meta.isConstantModule === true) {
-      // Add assets to non-splittable bundles.
       reachableRoots[i].forEach(nodeId => {
         let assetId = bundleRootGraph.getNode(nodeId);
         if (assetId == null) return; // deleted
         let entry = assets[assetId];
-        let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
-        let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
-        invariant(entryBundle !== 'root');
-        entryBundle.assets.add(asset);
-        entryBundle.size += asset.stats.size;
-      });
 
-      continue;
+        //Need to confirm that entry directly requires const
+        if (doesRootUseConstModule(entry, asset)) {
+          let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
+          let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
+          invariant(entryBundle !== 'root');
+          entryBundle.assets.add(asset);
+          entryBundle.size += asset.stats.size;
+        }
+      });
     }
 
     // Unreliable bundleRoot assets which need to pulled in by shared bundles or other means.
@@ -1579,6 +1580,32 @@ function createIdealGraph(
         }
       }
     }
+  }
+
+  function doesRootUseConstModule(entry: Asset, constAsset: Asset) {
+    let need = false;
+    assetGraph.traverse(
+      (node, _, actions) => {
+        if (node.type === 'dependency') {
+          let dependency = node.value;
+          let assets = assetGraph.getDependencyAssets(dependency);
+          if (assets.length === 0) {
+            return;
+          }
+          invariant(assets.length === 1);
+          if (assets[0] == constAsset) {
+            need = true;
+          }
+
+          //probe only one layer deep
+          actions.skipChildren();
+          return;
+        }
+      },
+      entry,
+      {skipUnusedDependencies: true},
+    );
+    return need;
   }
 
   function getBigIntFromContentKey(contentKey) {
