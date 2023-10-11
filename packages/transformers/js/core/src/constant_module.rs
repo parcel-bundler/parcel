@@ -34,13 +34,13 @@ impl ConstantModule {
     if let Some(init) = &decl.init {
       match &**init {
         Expr::Lit(lit) => {
-          return is_safe_literal(&lit);
+          return is_safe_literal(lit);
         }
         Expr::Tpl(tpl) => {
           for expr in &tpl.exprs {
             match &**expr {
               Expr::Lit(lit) => {
-                if !is_safe_literal(&lit) {
+                if !is_safe_literal(lit) {
                   return false;
                 }
               }
@@ -73,7 +73,7 @@ impl ConstantModule {
       }
 
       for declarator in &var_decl.decls {
-        if !self.is_constant_declarator(&declarator) {
+        if !self.is_constant_declarator(declarator) {
           return false;
         }
 
@@ -117,7 +117,7 @@ impl Visit for ConstantModule {
         },
         ModuleItem::Stmt(stmt) => match stmt {
           Stmt::Decl(decl) => {
-            let result = self.is_constant_declaration(&decl);
+            let result = self.is_constant_declaration(decl);
 
             if !result {
               self.is_constant_module = false;
