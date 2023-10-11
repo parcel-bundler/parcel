@@ -93,7 +93,7 @@ impl ConstantModule {
 
 impl Visit for ConstantModule {
   fn visit_module(&mut self, module: &Module) {
-    if module.body.len() == 0 {
+    if module.body.is_empty() {
       // Empty modules should not be marked as constant modules
       self.is_constant_module = false;
       return;
