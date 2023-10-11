@@ -34,6 +34,7 @@ export class NodeFS implements FileSystem {
   copyFile: any = promisify(fs.copyFile);
   stat: any = promisify(fs.stat);
   readdir: any = promisify(fs.readdir);
+  symlink: any = promisify(fs.symlink);
   unlink: any = promisify(fs.unlink);
   utimes: any = promisify(fs.utimes);
   ncp: any = promisify(ncp);

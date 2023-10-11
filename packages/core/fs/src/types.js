@@ -77,6 +77,7 @@ export interface FileSystem {
   readdir(path: FilePath, opts: {withFileTypes: true, ...}): Promise<Dirent[]>;
   readdirSync(path: FilePath, opts?: {withFileTypes?: false, ...}): FilePath[];
   readdirSync(path: FilePath, opts: {withFileTypes: true, ...}): Dirent[];
+  symlink(target: FilePath, path: FilePath): Promise<void>;
   unlink(path: FilePath): Promise<void>;
   realpath(path: FilePath): Promise<FilePath>;
   realpathSync(path: FilePath): FilePath;
