@@ -1190,7 +1190,7 @@ describe('bundler', function () {
             }]
           }
         }
-
+      
       .parcelrc:
         {
           "extends": "@parcel/config-default",
@@ -1211,14 +1211,14 @@ describe('bundler', function () {
             return [asset];
           }
         });
-
+      
       index.html:
         <script type="module">
           import shared from './shared.js';
-          sideEffectNoop(shared);
+          sideEffectNoop(shared);        
         </script>
         <script type="module" src="./index.js"></script>
-
+      
       index.js:
         import shared from './shared.js';
         sideEffectNoop(shared);
