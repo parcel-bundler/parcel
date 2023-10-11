@@ -8,7 +8,6 @@ import {
   overlayFS,
   fsFixture,
   run,
-  inputFS,
 } from '@parcel/test-utils';
 
 describe('bundler', function () {

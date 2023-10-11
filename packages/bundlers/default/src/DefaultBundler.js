@@ -997,7 +997,7 @@ function createIdealGraph(
         reachable.add(assetIndex);
         reachableRoots[assetIndex].add(bundleRootId);
 
-        if (asset.meta.isConstantModule) {
+        if (asset.meta.isConstantModule === true) {
           let parents = assetGraph
             .getIncomingDependencies(asset)
             .map(dep => nullthrows(assetGraph.getAssetWithDependency(dep)));
@@ -1181,18 +1181,6 @@ function createIdealGraph(
     if (asset.meta.isConstantModule === true) {
       // Ignore constant modules as they are placed with their direct parents
       continue;
-      // reachableRoots[i].forEach(nodeId => {
-      //   let assetId = bundleRootGraph.getNode(nodeId);
-      //   if (assetId == null) return; // deleted
-      //   let entry = assets[assetId];
-      //   let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
-      //   let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
-      //   invariant(entryBundle !== 'root');
-      //   entryBundle.assets.add(asset);
-      //   entryBundle.size += asset.stats.size;
-      // });
-
-      // continue;
     }
 
     // Unreliable bundleRoot assets which need to pulled in by shared bundles or other means.
