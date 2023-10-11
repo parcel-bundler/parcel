@@ -1527,6 +1527,7 @@ mod tests {
     );
   }
 
+  #[allow(clippy::single_range_in_vec_init)]
   #[test]
   fn test_replace_captures() {
     assert_eq!(
