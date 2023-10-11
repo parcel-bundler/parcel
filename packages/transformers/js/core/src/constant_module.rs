@@ -7,14 +7,10 @@ use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::visit::Visit;
 
 fn is_safe_literal(lit: &Lit) -> bool {
-  match lit {
-    Lit::Str(..) | Lit::Bool(..) | Lit::BigInt(..) | Lit::Null(..) | Lit::Num(..) => {
-      return true;
-    }
-    _ => {
-      return false;
-    }
-  }
+  matches!(
+    lit,
+    Lit::Str(..) | Lit::Bool(..) | Lit::BigInt(..) | Lit::Null(..) | Lit::Num(..)
+  )
 }
 
 pub struct ConstantModule {
