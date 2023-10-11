@@ -183,7 +183,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -194,7 +194,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -205,7 +205,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -216,7 +216,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -227,7 +227,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -239,7 +239,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -250,7 +250,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -262,7 +262,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -273,7 +273,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, true);
+    assert!(result);
   }
 
   #[test]
@@ -284,7 +284,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -296,7 +296,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -308,7 +308,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -319,7 +319,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -330,7 +330,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -341,7 +341,7 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
@@ -352,13 +352,13 @@ mod tests {
     "#,
     );
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 
   #[test]
   fn empty_file() {
     let result = is_constant_module(r#""#);
 
-    assert_eq!(result, false);
+    assert!(!result);
   }
 }
