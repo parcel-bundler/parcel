@@ -1936,9 +1936,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "0.85.4"
+version = "0.85.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3c312c3a84ef535b978ce388fb02b0a3b11f7c56adc8d3ed90777788996e43e"
+checksum = "007ad20698856e5a3ac1f4614f5c41789f4443e3e4eef5cbde144680748c808b"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -2026,9 +2026,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_preset_env"
-version = "0.202.5"
+version = "0.202.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f60f4053a83c54e5e46a6a3d347722a1db6247ba4985be0415b30ef60d7dfa5a"
+checksum = "e94c33f106892045de75f537470a55ec37c15dd33d20cca7c498e8488dcbb8ee"
 dependencies = [
  "anyhow",
  "dashmap",
