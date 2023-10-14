@@ -20,6 +20,10 @@ describe('xml', function () {
         assets: ['atom.xml'],
       },
       {
+        type: 'xsl',
+        assets: ['atom.xsl'],
+      },
+      {
         name: 'post.html',
         assets: ['post.html'],
       },
@@ -30,6 +34,13 @@ describe('xml', function () {
     ]);
 
     let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      contents.includes(
+        `<?xml-stylesheet type="text/xsl" href="http://example.org/${path.basename(
+          b.getBundles().find(b => b.type === 'xsl').filePath,
+        )}"?>`,
+      ),
+    );
     assert(
       contents.includes(
         `<img src="http://example.org/${path.basename(
@@ -60,6 +71,10 @@ describe('xml', function () {
         assets: ['atom-namespace.xml'],
       },
       {
+        type: 'xsl',
+        assets: ['atom.xsl'],
+      },
+      {
         name: 'post.html',
         assets: ['post.html'],
       },
@@ -70,6 +85,13 @@ describe('xml', function () {
     ]);
 
     let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      contents.includes(
+        `<?xml-stylesheet type="text/xsl" href="http://example.org/${path.basename(
+          b.getBundles().find(b => b.type === 'xsl').filePath,
+        )}"?>`,
+      ),
+    );
     assert(
       contents.includes(
         `<img src="http://example.org/${path.basename(

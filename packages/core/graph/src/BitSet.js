@@ -55,6 +55,16 @@ export class BitSet {
     return Boolean(this.bits[i] & (1 << b));
   }
 
+  empty(): boolean {
+    for (let k = 0; k < this.bits.length; k++) {
+      if (this.bits[k] !== 0) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   clear() {
     this.bits.fill(0);
   }

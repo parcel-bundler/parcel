@@ -1,8 +1,0 @@
-{
-  "@parcel/bundler-default": {
-    "minBundles": 0,
-    "minBundleSize": 200,
-    "maxParallelRequests": 100,
-    "disableSharedBundles": false
-  }
-}

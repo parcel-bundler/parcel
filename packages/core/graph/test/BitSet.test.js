@@ -55,6 +55,18 @@ describe('BitSet', () => {
     assertValues(set1, [1, 5]);
   });
 
+  it('empty should check if there are no values set', () => {
+    let set1 = new BitSet(5);
+
+    assert(set1.empty());
+
+    set1.add(3);
+    assert(!set1.empty());
+
+    set1.delete(3);
+    assert(set1.empty());
+  });
+
   it('should intersect with another BitSet', () => {
     let set1 = new BitSet(5);
     set1.add(1);

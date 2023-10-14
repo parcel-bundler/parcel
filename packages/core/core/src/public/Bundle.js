@@ -132,6 +132,10 @@ export class Bundle implements IBundle {
     return this.#bundle.isSplittable;
   }
 
+  get manualSharedBundle(): ?string {
+    return this.#bundle.manualSharedBundle;
+  }
+
   get target(): ITarget {
     return new Target(this.#bundle.target, this.#options);
   }

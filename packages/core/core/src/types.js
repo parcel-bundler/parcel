@@ -524,6 +524,7 @@ export type Bundle = {|
   name: ?string,
   displayName: ?string,
   pipeline: ?string,
+  manualSharedBundle?: ?string,
 |};
 
 export type BundleNode = {|
