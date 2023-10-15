@@ -110,16 +110,6 @@ export function readCachedString(db: ParcelDb, addr: number): string {
   return v;
 }
 
-class InternedString {
-  static get(db: ParcelDb, addr: number): string {
-    return readCachedString(db, addr);
-  }
-
-  static set(db: ParcelDb, addr: number, value: string): void {
-    writeU32(db, addr, db.getStringId(value));
-  }
-}
-
 interface TypeAccessor<T> {
   get(db: ParcelDb, addr: number): T;
   set(db: ParcelDb, addr: number, value: T): void;
@@ -1511,3 +1501,13 @@ export const SymbolFlags = {
   IS_WEAK: 0b1,
   IS_ESM: 0b10,
 };
+
+class InternedString {
+  static get(db: ParcelDb, addr: number): string {
+    return readCachedString(db, addr);
+  }
+
+  static set(db: ParcelDb, addr: number, value: string): void {
+    writeU32(db, addr, db.getStringId(value));
+  }
+}

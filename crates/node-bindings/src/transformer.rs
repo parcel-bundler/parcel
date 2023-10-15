@@ -7,7 +7,7 @@ use parcel_db::{
   ArenaAllocated, ArenaVec, BundleBehavior, Dependency, DependencyFlags, Environment,
   EnvironmentContext, EnvironmentFlags, EnvironmentId, ExportsCondition, ImportAttribute,
   InternedString, Location, OutputFormat, ParcelDb, Priority, SourceLocation, SourceType,
-  SpecifierType, Symbol, SymbolFlags, TargetId, Vec,
+  SpecifierType, Symbol, SymbolFlags, TargetId,
 };
 use parcel_js_swc_core::{CodeHighlight, DependencyKind, Diagnostic, TransformResult};
 use path_slash::{PathBufExt, PathExt};
@@ -45,14 +45,14 @@ pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsOb
 #[derive(Serialize, Debug, Default)]
 pub struct TransformResult2 {
   #[serde(with = "serde_bytes")]
-  pub code: std::vec::Vec<u8>,
+  pub code: Vec<u8>,
   pub map: Option<String>,
   pub shebang: Option<String>,
-  pub dependencies: std::vec::Vec<u32>,
+  pub dependencies: Vec<u32>,
   pub symbols: u32,
   // pub hoist_result: Option<HoistResult>,
   // pub symbol_result: Option<CollectResult>,
-  pub diagnostics: Option<std::vec::Vec<Diagnostic>>,
+  pub diagnostics: Option<Vec<Diagnostic>>,
   pub used_env: HashSet<String>,
   pub has_node_replacements: bool,
   pub is_constant_module: bool,
@@ -68,7 +68,7 @@ fn convert_result(
 ) -> TransformResult2 {
   let file_path = to_project_path(&config.filename, &config.project_root);
 
-  let mut deps = std::vec::Vec::new();
+  let mut deps = Vec::new();
   let mut dep_map = HashMap::new();
   let mut dep_flags = DependencyFlags::empty();
   dep_flags.set(
@@ -674,7 +674,7 @@ fn convert_result(
   //   deps
   //     .iter()
   //     .map(|d| db.read_heap::<Dependency>(*d))
-  //     .collect::<std::vec::Vec<_>>()
+  //     .collect::<Vec<_>>()
   // );
 
   TransformResult2 {

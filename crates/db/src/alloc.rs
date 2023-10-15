@@ -207,40 +207,6 @@ impl Arena {
   }
 }
 
-// pub struct ArenaAllocator;
-
-// // static WASTED: AtomicUsize = AtomicUsize::new(0);
-
-// unsafe impl Allocator for ArenaAllocator {
-//   #[inline(always)]
-//   fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-//     let addr = ARENA.alloc(layout.size() as u32);
-//     unsafe {
-//       Ok(NonNull::new_unchecked(
-//         ARENA.alloc.get_slice(addr, layout.size()),
-//       ))
-//     }
-//   }
-
-//   // #[inline(always)]
-//   // fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-//   //   unsafe { Ok(self.alloc_page(layout.size(), true)) }
-//   // }
-
-//   unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-//     // use std::backtrace::Backtrace;
-//     // WASTED.fetch_add(layout.size(), std::sync::atomic::Ordering::SeqCst);
-//     // println!(
-//     //   "DEALLOC ARENA {:p} {} {:?} {}",
-//     //   ptr,
-//     //   layout.size(),
-//     //   WASTED,
-//     //   Backtrace::force_capture()
-//     // );
-//     // ARENA.dealloc(ptr, layout)
-//   }
-// }
-
 pub struct Slab<T> {
   free_head: u32,
   phantom: PhantomData<T>,
@@ -303,7 +269,9 @@ impl<T> Slab<T> {
     }
   }
 
-  pub fn dealloc(&mut self, addr: u32, mut count: u32) {
+  pub fn dealloc(&mut self, addr: u32, count: u32) {
+    println!("DEALLOC {} {}", std::any::type_name::<Self>(), count);
+
     // println!("DEALLOC {} {}", addr, count);
     unsafe {
       // let size = std::mem::size_of::<T>() as u32;
@@ -336,6 +304,97 @@ impl<T> Slab<T> {
       addr = node.next;
     }
     println!("FREE SLOTS: {}", free);
+  }
+}
+
+/// A trait for types that can be allocated in an arena.
+pub trait ArenaAllocated: Sized {
+  fn alloc_ptr() -> u32 {
+    current_arena().alloc(std::mem::size_of::<Self>() as u32)
+  }
+
+  fn dealloc_ptr(addr: u32) {
+    unsafe {
+      // Call destructors.
+      let ptr: *mut Self = current_heap().get(addr);
+      std::ptr::drop_in_place(ptr);
+
+      current_arena().dealloc(
+        NonNull::new_unchecked(addr as usize as *mut u8),
+        std::alloc::Layout::from_size_align_unchecked(
+          std::mem::size_of::<Self>(),
+          std::mem::align_of::<Self>(),
+        ),
+      )
+    }
+  }
+
+  fn commit(self) -> u32 {
+    let addr = Self::alloc_ptr();
+    let ptr = unsafe { current_heap().get(addr) };
+    unsafe { std::ptr::write(ptr, self) };
+    addr
+  }
+}
+
+// Automatically implement ArenaAllocated for SlabAllocated types.
+impl<T: SlabAllocated + Sized> ArenaAllocated for T {
+  fn alloc_ptr() -> u32 {
+    T::alloc(1).0
+  }
+
+  fn dealloc_ptr(addr: u32) {
+    // Call destructors.
+    unsafe {
+      let ptr: *mut Self = current_heap().get(addr);
+      std::ptr::drop_in_place(ptr);
+    }
+
+    T::dealloc(addr, 1)
+  }
+}
+
+/// A trait for types that can be allocated in a type-specific slab.
+pub trait SlabAllocated {
+  fn alloc(count: u32) -> (u32, *mut Self);
+  fn dealloc(addr: u32, count: u32);
+}
+
+/// An allocator that uses a slab.
+#[derive(Clone)]
+pub struct SlabAllocator<T> {
+  phantom: PhantomData<T>,
+}
+
+impl<T> SlabAllocator<T> {
+  pub fn new() -> Self {
+    Self {
+      phantom: PhantomData,
+    }
+  }
+}
+
+unsafe impl<T: SlabAllocated> Allocator for SlabAllocator<T> {
+  fn allocate(
+    &self,
+    layout: std::alloc::Layout,
+  ) -> Result<std::ptr::NonNull<[u8]>, allocator_api2::alloc::AllocError> {
+    let size = std::mem::size_of::<T>();
+    let count = layout.size() / size;
+    let (_, ptr) = T::alloc(count as u32);
+    unsafe {
+      Ok(NonNull::new_unchecked(core::slice::from_raw_parts_mut(
+        ptr as *mut u8,
+        size,
+      )))
+    }
+  }
+
+  unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
+    let size = std::mem::size_of::<T>();
+    let count = layout.size() / size;
+    let addr = current_heap().find_page(ptr.as_ptr()).unwrap();
+    T::dealloc(addr, count as u32);
   }
 }
 

@@ -71,7 +71,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
             let u8_ptr = p as *const u8;
             let mut js = String::new();
             let size = std::mem::size_of::<#self_name>();
-            let id = unsafe { TYPES.iter().position(|t| *t == std::any::TypeId::of::<#self_name>()).unwrap() };
+            let id = unsafe { codegen::TYPES.iter().position(|t| *t == std::any::TypeId::of::<#self_name>()).unwrap() };
 
             js.push_str(&format!(
       r#"export class {name} {{
@@ -112,8 +112,8 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
         #[ctor::ctor]
         unsafe fn #register() {
           use std::io::Write;
-          WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()));
-          TYPES.push(std::any::TypeId::of::<#self_name>());
+          codegen::WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()));
+          codegen::TYPES.push(std::any::TypeId::of::<#self_name>());
           FACTORIES.push(Factory {
             alloc: #self_name::alloc_ptr,
             dealloc: #self_name::dealloc_ptr
@@ -140,7 +140,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
           });
           getters.push(quote! {
             let name = stringify!(#name).to_case(Case::Kebab);
-            let value_offset = enum_value_offset(#self_name::#name, |v| match v {
+            let value_offset = codegen::enum_value_offset(#self_name::#name, |v| match v {
               #self_name::#name(ref v) => v,
               _ => unreachable!()
             });
@@ -148,12 +148,12 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
           r#"
       case {}:
         return {};"#,
-              discriminant_value(#self_name::#name(uninit()), offset, size),
+              codegen::discriminant_value(#self_name::#name(codegen::uninit()), offset, size),
               <#ty>::js_getter("db", "addr", value_offset)
             ));
           });
           setters.push(quote! {
-            let value_offset = enum_value_offset(#self_name::#name, |v| match v {
+            let value_offset = codegen::enum_value_offset(#self_name::#name, |v| match v {
               #self_name::#name(ref v) => v,
               _ => unreachable!()
             });
@@ -164,7 +164,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
         {setter};
         break;"#,
               offset = offset,
-              discriminant = discriminant_value(#self_name::#name(uninit()), offset, size),
+              discriminant = codegen::discriminant_value(#self_name::#name(codegen::uninit()), offset, size),
               setter = <#ty>::js_setter("db", "addr", value_offset, "value")
             ));
           });
@@ -178,7 +178,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
           r#"
       case {}:
         return '{}';"#,
-              discriminant_value(#self_name::#name, offset, size),
+              codegen::discriminant_value(#self_name::#name, offset, size),
               name
             ));
           });
@@ -191,7 +191,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
         break;"#,
               name = name,
               offset = offset,
-              value = discriminant_value(#self_name::#name, offset, size),
+              value = codegen::discriminant_value(#self_name::#name, offset, size),
             ));
           });
         } else {
@@ -205,7 +205,7 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
         impl ToJs for #self_name {
           fn to_js() -> String {
             use convert_case::{Case, Casing};
-            let (offset, size) = discriminant(#self_name::#first_variant, |v| matches!(v, #self_name::#first_variant));
+            let (offset, size) = codegen::discriminant(#self_name::#first_variant, |v| matches!(v, #self_name::#first_variant));
             let heap = match size {
               1 => "U8",
               2 => "U16",
@@ -264,7 +264,7 @@ export class {name} {{
         #[ctor::ctor]
         unsafe fn #register() {
           use std::io::Write;
-          WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()))
+          codegen::WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()))
         }
       }
     }
@@ -352,14 +352,14 @@ pub fn derive_slab_allocated(input: TokenStream) -> TokenStream {
     impl #impl_generics SlabAllocated for #self_name #ty_generics #where_clause {
       fn alloc(count: u32) -> (u32, *mut #self_name) {
         unsafe {
-          let addr = SLABS.as_mut().unwrap_unchecked().#slab_name.alloc(count);
-          (addr, current_heap().get(addr))
+          let addr = crate::SLABS.as_mut().unwrap_unchecked().#slab_name.alloc(count);
+          (addr, crate::current_heap().get(addr))
         }
       }
 
       fn dealloc(addr: u32, count: u32) {
         unsafe {
-          SLABS.as_mut().unwrap_unchecked().#slab_name.dealloc(addr, count);
+          crate::SLABS.as_mut().unwrap_unchecked().#slab_name.dealloc(addr, count);
         }
       }
     }
