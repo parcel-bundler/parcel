@@ -52,9 +52,13 @@ impl<T> ChunkList<T> {
     let mut data = chunks[chunk_index as usize];
     if data.is_null() {
       let guard = self.lock.lock().unwrap();
-      let layout = std::alloc::Layout::array::<T>(chunk_length).unwrap();
-      data = unsafe { std::alloc::alloc(layout).cast::<T>() };
-      chunks[chunk_index as usize] = data;
+      // Now that we acquired the lock, check again in case another thread allocated while we were waiting.
+      data = chunks[chunk_index as usize];
+      if data.is_null() {
+        let layout = std::alloc::Layout::array::<T>(chunk_length).unwrap();
+        data = unsafe { std::alloc::alloc(layout).cast::<T>() };
+        chunks[chunk_index as usize] = data;
+      }
       drop(guard);
     }
 
@@ -64,7 +68,7 @@ impl<T> ChunkList<T> {
   fn chunk_data(&self, chunk_index: u32) -> Option<&[T]> {
     let chunk_length = self.chunk_length(chunk_index) as usize;
     let chunks = unsafe { &*self.chunks.get() };
-    let mut data = chunks[chunk_index as usize];
+    let data = chunks[chunk_index as usize];
     if data.is_null() {
       None
     } else {
