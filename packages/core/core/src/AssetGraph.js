@@ -196,6 +196,21 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   removeNode(nodeId: NodeId): void {
     this.hash = null;
     this.onNodeRemoved && this.onNodeRemoved(nodeId);
+
+    let node = this.getNode(nodeId);
+    switch (node?.type) {
+      case 'asset': {
+        let asset = DbAsset.get(this.db, node.value);
+        asset.dealloc();
+        break;
+      }
+      case 'dependency': {
+        let dep = DbDependency.get(this.db, node.value);
+        dep.dealloc();
+        break;
+      }
+    }
+
     return super.removeNode(nodeId);
   }
 

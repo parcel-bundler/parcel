@@ -496,7 +496,7 @@ unsafe impl<T: SlabAllocated> Allocator for SlabAllocator<T> {
   }
 }
 
-pub struct ArenaVec<T> {
+pub struct ArenaVec<T: SlabAllocated> {
   buf: u32,
   len: u32,
   cap: u32,
@@ -517,6 +517,12 @@ impl<T: SlabAllocated + Clone> Clone for ArenaVec<T> {
 impl<T: PartialEq + SlabAllocated> PartialEq for ArenaVec<T> {
   fn eq(&self, other: &Self) -> bool {
     self.as_slice().eq(other.as_slice())
+  }
+}
+
+impl<T: SlabAllocated> Drop for ArenaVec<T> {
+  fn drop(&mut self) {
+    drop(unsafe { self.as_vec() })
   }
 }
 
@@ -585,7 +591,7 @@ impl<T: std::fmt::Debug + SlabAllocated + Clone> std::fmt::Debug for ArenaVec<T>
   }
 }
 
-impl<T: JsValue> JsValue for ArenaVec<T> {
+impl<T: JsValue + SlabAllocated> JsValue for ArenaVec<T> {
   fn js_getter(db: &str, addr: &str, offset: usize) -> String {
     let size = std::mem::size_of::<T>();
     let ty = <T>::accessor();
@@ -1201,7 +1207,7 @@ pub fn build() -> std::io::Result<()> {
   use std::io::Write;
   let mut file = std::fs::File::create("src/db.js")?;
   let c = std::mem::MaybeUninit::uninit();
-  let p: *const ArenaVec<u8> = c.as_ptr();
+  let p: *const ArenaVec<Symbol> = c.as_ptr();
   let u8_ptr = p as *const u8;
   let buf_offset =
     unsafe { (std::ptr::addr_of!((*p).buf) as *const u8).offset_from(u8_ptr) as usize };
