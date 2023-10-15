@@ -13,17 +13,28 @@ ParcelDb.deserialize = serialized => {
   return res;
 };
 
-export function createParcelDb(): ParcelDb {
+// $FlowFixMe
+ParcelDb.create = () => {
   let db = new ParcelDb();
   init(db);
   return db;
-}
+};
 
-export function readParcelDb(filename: string): ParcelDb {
-  let db = ParcelDb.read(filename);
+// $FlowFixMe
+ParcelDb.read = filename => {
+  // $FlowFixMe
+  let db = ParcelDb._read(filename);
   init(db);
   return db;
-}
+};
+
+// $FlowFixMe
+ParcelDb.fromBuffer = buffer => {
+  // $FlowFixMe
+  let db = ParcelDb._fromBuffer(buffer);
+  init(db);
+  return db;
+};
 
 function init(db: ParcelDb) {
   db[heapSymbol] = [];

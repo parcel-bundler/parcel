@@ -10,7 +10,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
 
 import path from 'path';
-import {hashString, createParcelDb, readParcelDb} from '@parcel/rust';
+import {hashString, ParcelDb} from '@parcel/rust';
 import {NodeFS} from '@parcel/fs';
 import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -24,6 +24,7 @@ import {
 import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
 import {getResolveFrom} from './requests/ParcelConfigRequest';
+import {getCacheKey} from './utils';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
@@ -105,18 +106,28 @@ export default async function resolveOptions(
 
   await cache.ensure();
 
-  // TODO: proper cache key.
-  let db;
-  if (await cache.hasLargeBlob('00parceldb')) {
-    db = readParcelDb('parceldb');
-  } else {
-    db = createParcelDb();
-  }
-
   let mode = initialOptions.mode ?? 'development';
   let shouldOptimize =
     initialOptions?.defaultTargetOptions?.shouldOptimize ??
     mode === 'production';
+
+  entries = entries.map(e => toProjectPath(projectRoot, e));
+
+  let db;
+  let dbKey = hashString(`${getCacheKey(entries, mode)}:parceldb`);
+  if (outputFS instanceof NodeFS) {
+    let cachePath = path.join(cacheDir, dbKey);
+    if (await outputFS.exists(cachePath)) {
+      db = ParcelDb.read(cachePath);
+    }
+  } else if (await cache.hasLargeBlob(dbKey)) {
+    let buffer = await cache.getLargeBlob(dbKey);
+    db = ParcelDb.fromBuffer(buffer);
+  }
+
+  if (!db) {
+    db = ParcelDb.create();
+  }
 
   let publicUrl = initialOptions?.defaultTargetOptions?.publicUrl ?? '/';
   let distDir =
@@ -189,7 +200,7 @@ export default async function resolveOptions(
     shouldProfile: initialOptions.shouldProfile ?? false,
     shouldTrace: initialOptions.shouldTrace ?? false,
     cacheDir,
-    entries: entries.map(e => toProjectPath(projectRoot, e)),
+    entries,
     targets: initialOptions.targets,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,

@@ -268,7 +268,7 @@ impl<T> Slab<T> {
 
   pub fn alloc(&mut self, count: u32) -> u32 {
     unsafe {
-      let size = std::mem::size_of::<T>() as u32;
+      let size = std::mem::size_of::<T>().max(std::mem::size_of::<FreeNode>()) as u32;
       if self.free_head != 1 {
         let mut addr = self.free_head;
         let mut prev: *mut u32 = &mut self.free_head;

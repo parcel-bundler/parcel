@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use lazy_static::lazy_static;
-use napi::{bindgen_prelude::BigInt, Env, NapiValue};
+use napi::{bindgen_prelude::BigInt, Env, JsBuffer, NapiValue};
 use napi_derive::napi;
 use parcel_db::{InternedString, ParcelDb, ParcelDbWrapper};
 
@@ -141,7 +141,6 @@ impl JsParcelDb {
 
   #[napi]
   pub fn write(&self, filename: String) -> napi::Result<()> {
-    // TODO: memoryfs
     let file = std::fs::File::create(filename)?;
     let mut stream = std::io::BufWriter::new(file);
     self.db.with(|db| {
@@ -150,10 +149,28 @@ impl JsParcelDb {
     })
   }
 
-  #[napi(factory)]
+  #[napi]
+  pub fn to_buffer(&self, env: Env) -> napi::Result<JsBuffer> {
+    let mut stream = Vec::new();
+    self.db.with(|db| {
+      db.write(&mut stream)?;
+      Ok(env.create_buffer_with_data(stream)?.into_raw())
+    })
+  }
+
+  #[napi(factory, js_name = "_read")]
   pub fn read(filename: String) -> napi::Result<Self> {
     let file = std::fs::File::open(filename)?;
     let mut stream = std::io::BufReader::new(file);
+    Ok(JsParcelDb {
+      db: Arc::new(ParcelDb::read(&mut stream)?),
+    })
+  }
+
+  #[napi(factory, js_name = "_fromBuffer")]
+  pub fn from_buffer(buf: JsBuffer) -> napi::Result<Self> {
+    let buf = buf.into_value()?;
+    let mut stream = std::io::BufReader::new(buf.as_ref());
     Ok(JsParcelDb {
       db: Arc::new(ParcelDb::read(&mut stream)?),
     })

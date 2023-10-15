@@ -29,6 +29,7 @@ import Config from './public/Config';
 import {fromProjectPath, toProjectPath} from './projectPath';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
+import {PARCEL_VERSION} from './constants';
 import {
   Target as DbTarget,
   SourceLocation as DbSourceLocation,
@@ -288,4 +289,8 @@ export function toDbSourceLocationFromInternal(
   tmpSourceLocation.end.line = loc.end.line;
   tmpSourceLocation.end.column = loc.end.column;
   return tmpSourceLocation;
+}
+
+export function getCacheKey(entries: string[], mode: string): string {
+  return `${PARCEL_VERSION}:${JSON.stringify(entries)}:${mode}`;
 }

@@ -28,9 +28,10 @@ import {
   makeDeferredWithPromise,
 } from '@parcel/utils';
 import {hashString, readParcelDb} from '@parcel/rust';
+import {NodeFS} from '@parcel/fs';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
-import {assertSignalNotAborted, hashFromOption} from './utils';
+import {assertSignalNotAborted, hashFromOption, getCacheKey} from './utils';
 import {
   type ProjectPath,
   fromProjectPathRelative,
@@ -39,7 +40,6 @@ import {
 } from './projectPath';
 
 import {
-  PARCEL_VERSION,
   VALID,
   INITIAL_BUILD,
   FILE_CREATE,
@@ -1076,7 +1076,7 @@ export default class RequestTracker {
       return;
     }
 
-    let cacheKey = getCacheKey(this.options);
+    let cacheKey = getCacheKey(this.options.entries, this.options.mode);
     let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
     let snapshotKey = hashString(`${cacheKey}:snapshot`);
     let dbKey = hashString(`${cacheKey}:parceldb`);
@@ -1115,9 +1115,13 @@ export default class RequestTracker {
 
     await Promise.all(promises);
 
-    // console.log(path.join(this.options.cacheDir, dbKey));
-    this.options.db.write('parceldb');
-    await this.options.cache.setLargeBlob('00parceldb', 'true');
+    if (this.options.outputFS instanceof NodeFS) {
+      let cachePath = path.join(this.options.cacheDir, dbKey);
+      this.options.db.write(cachePath);
+    } else {
+      let buffer = this.options.db.toBuffer();
+      await this.options.cache.setLargeBlob(dbKey, buffer);
+    }
   }
 
   static async init({
@@ -1138,16 +1142,12 @@ export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
   return {ignore};
 }
 
-function getCacheKey(options) {
-  return `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}`;
-}
-
 async function loadRequestGraph(options): Async<RequestGraph> {
   if (options.shouldDisableCache) {
     return new RequestGraph();
   }
 
-  let cacheKey = getCacheKey(options);
+  let cacheKey = getCacheKey(options.entries, options.mode);
   let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
     let requestGraph: RequestGraph = deserialize(
