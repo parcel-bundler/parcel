@@ -163,10 +163,11 @@ impl StringInterner {
     Ok(())
   }
 
-  pub fn read<R: std::io::Read>(&self, source: &mut R) -> std::io::Result<()> {
+  pub fn read<R: std::io::Read>(source: &mut R) -> std::io::Result<StringInterner> {
     let mut buf: [u8; 4] = [0; 4];
     source.read_exact(&mut buf)?;
     let len = u32::from_le_bytes(buf);
+    let res = StringInterner::new();
     for _ in 0..len {
       source.read_exact(&mut buf)?;
       let len = u32::from_le_bytes(buf);
@@ -175,9 +176,9 @@ impl StringInterner {
       source.read_exact(&mut vec)?;
       let string = String::from_utf8(vec)
         .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid UTF-8"))?;
-      self.add(string);
+      res.add(string);
     }
-    Ok(())
+    Ok(res)
   }
 }
 

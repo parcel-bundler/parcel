@@ -105,20 +105,21 @@ impl PageAllocator {
     Ok(())
   }
 
-  pub fn read<R: std::io::Read>(&self, source: &mut R) -> std::io::Result<()> {
+  pub fn read<R: std::io::Read>(source: &mut R) -> std::io::Result<PageAllocator> {
     let mut buf: [u8; 4] = [0; 4];
     source.read_exact(&mut buf)?;
     let len = u32::from_le_bytes(buf);
+    let res = PageAllocator::new();
     for i in 0..len {
       source.read_exact(&mut buf)?;
       let len = u32::from_le_bytes(buf);
       unsafe {
-        self.alloc_page(len as usize, false);
-        let page = self.get_page(i);
+        res.alloc_page(len as usize, false);
+        let page = res.get_page(i);
         source.read_exact(page)?;
       }
     }
-    Ok(())
+    Ok(res)
   }
 }
 

@@ -2,6 +2,7 @@
 #![feature(thread_local)]
 
 use std::cell::UnsafeCell;
+use std::sync::Mutex;
 use std::{num::NonZeroU32, sync::RwLock};
 
 use alloc::{current_arena, current_heap, Arena, PageAllocator, Slab, SlabAllocated, ARENA, HEAP};
@@ -309,6 +310,22 @@ struct Slabs {
   interned_string_slab: Slab<InternedString>,
 }
 
+impl Slabs {
+  pub fn write<W: std::io::Write>(&self, dest: &mut W) -> std::io::Result<()> {
+    let slice = unsafe {
+      std::slice::from_raw_parts(self as *const _ as *const u8, std::mem::size_of::<Slabs>())
+    };
+    dest.write(slice)?;
+    Ok(())
+  }
+
+  pub fn read<R: std::io::Read>(source: &mut R) -> std::io::Result<Slabs> {
+    let mut buf = [0 as u8; std::mem::size_of::<Slabs>()];
+    source.read_exact(&mut buf)?;
+    Ok(unsafe { std::mem::transmute(buf) })
+  }
+}
+
 pub struct ParcelDbWrapper {
   inner: ParcelDb,
 }
@@ -326,7 +343,19 @@ impl ParcelDbWrapper {
       debug_assert!(HEAP.is_none());
       HEAP = Some(std::mem::transmute(&self.inner.heap));
       DB = Some(std::mem::transmute(&self.inner));
-      let slabs = &mut *self.inner.slabs.get_or_default().get();
+
+      let slabs = &mut *self
+        .inner
+        .slabs
+        .get_or(|| {
+          // Try to reuse existing Slabs from a previous Parcel run.
+          let mut available_slabs = self.inner.available_slabs.lock().unwrap();
+          let slabs = available_slabs.pop().unwrap_or_default();
+          MutableSlabs(UnsafeCell::new(slabs))
+        })
+        .0
+        .get();
+
       ARENA = Some(std::mem::transmute(&slabs.arena));
       SLABS = Some(std::mem::transmute(slabs));
       let res = f(&self.inner);
@@ -339,16 +368,18 @@ impl ParcelDbWrapper {
   }
 }
 
+struct MutableSlabs(UnsafeCell<Slabs>);
+unsafe impl Sync for MutableSlabs {}
+
 // static DB_COUNT: AtomicU32 = AtomicU32::new(0);
 
 pub struct ParcelDb {
   environments: RwLock<Vec<u32>>,
   heap: PageAllocator,
   strings: StringInterner,
-  slabs: ThreadLocal<UnsafeCell<Slabs>>,
+  slabs: ThreadLocal<MutableSlabs>,
+  available_slabs: Mutex<Vec<Slabs>>,
 }
-
-unsafe impl Sync for ParcelDb {}
 
 impl ParcelDb {
   pub fn new() -> ParcelDbWrapper {
@@ -359,6 +390,7 @@ impl ParcelDb {
         heap: PageAllocator::new(),
         strings: StringInterner::new(),
         slabs: ThreadLocal::new(),
+        available_slabs: Mutex::new(Vec::new()),
       },
     }
   }
@@ -430,6 +462,20 @@ impl ParcelDb {
     write!(dest, "parceldb")?;
     dest.write(&u16::to_le_bytes(1))?;
 
+    // Write slab metadata so we can reuse pages when we start back up.
+    // Write both used slabs and remaining available slabs.
+    let available_slabs = self.available_slabs.lock().unwrap();
+    let num_slabs = self.slabs.iter().count() + available_slabs.len();
+    dest.write(&u32::to_le_bytes(num_slabs as u32))?;
+    for slab in self.slabs.iter() {
+      let slab = unsafe { &*slab.0.get() };
+      slab.write(dest)?;
+    }
+
+    for slab in available_slabs.iter() {
+      slab.write(dest)?;
+    }
+
     self.heap.write(dest)?;
     self.strings.write(dest)?;
 
@@ -451,23 +497,38 @@ impl ParcelDb {
       ));
     }
 
-    let result = Self::new();
-    let db = &result.inner;
-    {
-      db.heap.read(source)?;
-      db.strings.read(source)?;
+    // Read previous slabs. When a thread starts up it will pull one of these from the queue of available slabs.
+    // This allows us to reuse metadata such as the free list for each type.
+    let mut buf: [u8; 4] = [0; 4];
+    source.read_exact(&mut buf)?;
+    let num_slabs = u32::from_le_bytes(buf);
 
-      let mut buf: [u8; 4] = [0; 4];
-      source.read_exact(&mut buf)?;
-      let len = u32::from_le_bytes(buf);
-      let mut environments = db.environments.write().unwrap();
-      environments.reserve(len as usize);
-      unsafe {
-        environments.set_len(len as usize);
-        source.read_exact(std::mem::transmute(environments.as_mut_slice()))?;
-      }
+    let mut available_slabs = Vec::with_capacity(num_slabs as usize);
+    for _ in 0..num_slabs {
+      let slabs = Slabs::read(source)?;
+      available_slabs.push(slabs);
     }
 
-    Ok(result)
+    let heap = PageAllocator::read(source)?;
+    let strings = StringInterner::read(source)?;
+
+    source.read_exact(&mut buf)?;
+    let len = u32::from_le_bytes(buf);
+    let mut environments = Vec::with_capacity(len as usize);
+    environments.reserve(len as usize);
+    unsafe {
+      environments.set_len(len as usize);
+      source.read_exact(std::mem::transmute(environments.as_mut_slice()))?;
+    }
+
+    Ok(ParcelDbWrapper {
+      inner: ParcelDb {
+        environments: RwLock::new(environments),
+        heap,
+        strings,
+        slabs: ThreadLocal::new(),
+        available_slabs: Mutex::new(available_slabs),
+      },
+    })
   }
 }
