@@ -411,7 +411,7 @@ impl ParcelDb {
     (factory.dealloc)(addr);
   }
 
-  pub fn alloc_struct<T>(&self) -> (u32, &'static mut T) {
+  pub fn alloc_struct<T>(&self) -> (u32, &mut T) {
     // TODO: get rid of this function...
     unsafe {
       let size = std::mem::size_of::<T>();
@@ -421,12 +421,8 @@ impl ParcelDb {
     }
   }
 
-  pub fn read_string<'a>(&self, addr: u32) -> &'static str {
+  pub fn read_string<'a>(&self, addr: u32) -> &str {
     unsafe { InternedString(NonZeroU32::new_unchecked(addr)).as_str() }
-  }
-
-  pub fn read_heap<'a, T>(&'a self, addr: u32) -> &'a mut T {
-    unsafe { &mut *self.heap.get(addr) }
   }
 
   pub fn extend_vec(&self, addr: u32, size: u32, count: u32) {

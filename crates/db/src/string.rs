@@ -68,6 +68,12 @@ impl std::fmt::Debug for InternedString {
   }
 }
 
+impl std::fmt::Display for InternedString {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    self.as_str().fmt(f)
+  }
+}
+
 impl JsValue for InternedString {
   fn js_getter(db: &str, addr: &str, offset: usize) -> String {
     format!(

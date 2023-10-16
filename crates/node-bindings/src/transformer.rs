@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::db::JsParcelDb;
+use indexmap::IndexMap;
 use napi::{Env, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
@@ -68,8 +69,7 @@ fn convert_result(
 ) -> TransformResult2 {
   let file_path = to_project_path(&config.filename, &config.project_root);
 
-  let mut deps = Vec::new();
-  let mut dep_map = HashMap::new();
+  let mut dep_map = IndexMap::new();
   let mut dep_flags = DependencyFlags::empty();
   dep_flags.set(
     DependencyFlags::HAS_SYMBOLS,
@@ -131,10 +131,8 @@ fn convert_result(
           package_conditions: ExportsCondition::empty(),
           custom_package_conditions: ArenaVec::new(),
         };
-        let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = d.commit();
-        deps.push(id);
-        dep_map.insert(placeholder, id);
+        let placeholder = d.placeholder.unwrap_or(d.specifier);
+        dep_map.insert(placeholder, d);
       }
       DependencyKind::ServiceWorker => {
         let d = Dependency {
@@ -172,10 +170,8 @@ fn convert_result(
           package_conditions: ExportsCondition::empty(),
           custom_package_conditions: ArenaVec::new(),
         };
-        let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = d.commit();
-        deps.push(id);
-        dep_map.insert(placeholder, id);
+        let placeholder = d.placeholder.unwrap_or(d.specifier);
+        dep_map.insert(placeholder, d);
       }
       DependencyKind::Worklet => {
         let d = Dependency {
@@ -206,10 +202,8 @@ fn convert_result(
           package_conditions: ExportsCondition::empty(),
           custom_package_conditions: ArenaVec::new(),
         };
-        let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = d.commit();
-        deps.push(id);
-        dep_map.insert(placeholder, id);
+        let placeholder = d.placeholder.unwrap_or(d.specifier);
+        dep_map.insert(placeholder, d);
       }
       DependencyKind::Url => {
         let d = Dependency {
@@ -234,10 +228,8 @@ fn convert_result(
           package_conditions: ExportsCondition::empty(),
           custom_package_conditions: ArenaVec::new(),
         };
-        let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = d.commit();
-        deps.push(id);
-        dep_map.insert(placeholder, id);
+        let placeholder = d.placeholder.unwrap_or(d.specifier);
+        dep_map.insert(placeholder, d);
       }
       DependencyKind::File => {}
       _ => {
@@ -367,10 +359,8 @@ fn convert_result(
           custom_package_conditions: ArenaVec::new(),
         };
 
-        let placeholder = d.placeholder.as_ref().unwrap_or(&d.specifier).clone();
-        let id = d.commit();
-        deps.push(id);
-        dep_map.insert(placeholder, id);
+        let placeholder = d.placeholder.unwrap_or(d.specifier);
+        dep_map.insert(placeholder, d);
       }
     }
   }
@@ -404,7 +394,7 @@ fn convert_result(
       package_conditions: ExportsCondition::empty(),
       custom_package_conditions: ArenaVec::new(),
     };
-    deps.push(d.commit());
+    dep_map.insert(d.specifier, d);
   }
 
   let mut has_cjs_exports = false;
@@ -429,8 +419,7 @@ fn convert_result(
     }
 
     for s in hoist_result.imported_symbols {
-      if let Some(dep_id) = InternedString::get(&*s.source).and_then(|s| dep_map.get(&s)) {
-        let dep: &mut Dependency = db.read_heap(*dep_id);
+      if let Some(dep) = InternedString::get(&*s.source).and_then(|s| dep_map.get_mut(&s)) {
         dep.symbols.push(Symbol {
           exported: s.imported.as_ref().into(),
           local: s.local.as_ref().into(),
@@ -441,8 +430,7 @@ fn convert_result(
     }
 
     for s in hoist_result.re_exports {
-      if let Some(dep_id) = InternedString::get(&*s.source).and_then(|s| dep_map.get(&s)) {
-        let dep: &mut Dependency = db.read_heap(*dep_id);
+      if let Some(dep) = InternedString::get(&*s.source).and_then(|s| dep_map.get_mut(&s)) {
         if &*s.local == "*" && &*s.imported == "*" {
           dep.symbols.push(Symbol {
             exported: "*".into(),
@@ -475,15 +463,13 @@ fn convert_result(
     }
 
     for specifier in hoist_result.wrapped_requires {
-      if let Some(dep_id) = InternedString::get(&specifier).and_then(|s| dep_map.get(&s)) {
-        let dep: &mut Dependency = db.read_heap(*dep_id);
+      if let Some(dep) = InternedString::get(&specifier).and_then(|s| dep_map.get_mut(&s)) {
         dep.flags |= DependencyFlags::SHOULD_WRAP;
       }
     }
 
     for (name, specifier) in hoist_result.dynamic_imports {
-      if let Some(dep_id) = InternedString::get(&*specifier).and_then(|s| dep_map.get(&s)) {
-        let dep: &mut Dependency = db.read_heap(*dep_id);
+      if let Some(dep) = InternedString::get(&*specifier).and_then(|s| dep_map.get_mut(&s)) {
         dep.promise_symbol = Some((&*name).into());
       }
     }
@@ -542,7 +528,7 @@ fn convert_result(
         package_conditions: ExportsCondition::empty(),
         custom_package_conditions: ArenaVec::new(),
       };
-      deps.push(d.commit());
+      dep_map.insert(d.specifier, d);
     }
 
     // Add * symbol if there are CJS exports, no imports/exports at all
@@ -551,7 +537,7 @@ fn convert_result(
     if (hoist_result.has_cjs_exports
       || (!hoist_result.is_esm
         && config.side_effects
-        && deps.is_empty()
+        && dep_map.is_empty()
         && hoist_result.exported_symbols.is_empty())
       || hoist_result.should_wrap)
       && !symbols.as_slice().iter().any(|s| s.exported == "*")
@@ -571,14 +557,13 @@ fn convert_result(
     if let Some(symbol_result) = result.symbol_result {
       symbols.reserve(symbol_result.exports.len() + 1);
       for sym in &symbol_result.exports {
-        let local = if let Some(dep_id) = sym
+        let local = if let Some(dep) = sym
           .source
           .as_ref()
           .and_then(|s| InternedString::get(&*s))
-          .and_then(|s| dep_map.get(&s))
+          .and_then(|s| dep_map.get_mut(&s))
         {
-          let dep: &mut Dependency = db.read_heap(*dep_id);
-          let local = format!("${}${}", *dep_id, sym.local).into();
+          let local = format!("${}${}", dep.placeholder.unwrap(), sym.local).into();
           dep.symbols.push(Symbol {
             exported: sym.local.as_ref().into(),
             local,
@@ -599,8 +584,7 @@ fn convert_result(
       }
 
       for sym in symbol_result.imports {
-        if let Some(dep_id) = InternedString::get(&*sym.source).and_then(|s| dep_map.get(&s)) {
-          let dep: &mut Dependency = db.read_heap(*dep_id);
+        if let Some(dep) = InternedString::get(&*sym.source).and_then(|s| dep_map.get_mut(&s)) {
           dep.symbols.push(Symbol {
             exported: sym.imported.as_ref().into(),
             local: sym.local.as_ref().into(),
@@ -611,8 +595,7 @@ fn convert_result(
       }
 
       for sym in symbol_result.exports_all {
-        if let Some(dep_id) = InternedString::get(&*sym.source).and_then(|s| dep_map.get(&s)) {
-          let dep: &mut Dependency = db.read_heap(*dep_id);
+        if let Some(dep) = InternedString::get(&*sym.source).and_then(|s| dep_map.get_mut(&s)) {
           dep.symbols.push(Symbol {
             exported: "*".into(),
             local: "*".into(),
@@ -627,7 +610,7 @@ fn convert_result(
       if symbol_result.has_cjs_exports
         || (!symbol_result.is_esm
           && config.side_effects
-          && deps.is_empty()
+          && dep_map.is_empty()
           && symbol_result.exports.is_empty())
         || (symbol_result.should_wrap && !symbols.as_slice().iter().any(|s| s.exported == "*"))
       {
@@ -650,12 +633,11 @@ fn convert_result(
 
     // For all other imports and requires, mark everything as imported (this covers both dynamic
     // imports and non-top-level requires.)
-    for dep_id in &deps {
-      let dep: &mut Dependency = db.read_heap(*dep_id);
+    for dep in dep_map.values_mut() {
       if dep.symbols.is_empty() {
         dep.symbols.push(Symbol {
           exported: "*".into(),
-          local: format!("${}$", dep_id).into(),
+          local: format!("${}$", dep.placeholder.unwrap_or(dep.specifier)).into(),
           flags: SymbolFlags::empty(),
           loc: None,
         });
@@ -676,6 +658,8 @@ fn convert_result(
   //     .map(|d| db.read_heap::<Dependency>(*d))
   //     .collect::<Vec<_>>()
   // );
+
+  let deps = dep_map.into_values().map(|dep| dep.commit()).collect();
 
   TransformResult2 {
     code: result.code,
