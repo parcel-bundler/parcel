@@ -1,22 +1,18 @@
 // @flow strict-local
 
 import type {
-  ASTGenerator,
   BundleBehavior,
   FilePath,
   GenerateOutput,
   Meta,
-  PackageName,
   Stats,
   Symbol,
   SourceLocation,
   Transformer,
 } from '@parcel/types';
 import type {
-  Asset,
   CommittedAssetId,
   RequestInvalidation,
-  Dependency,
   Environment,
   ParcelOptions,
 } from './types';
@@ -29,15 +25,20 @@ import loadPlugin from './loadParcelPlugin';
 import {CommittedAsset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import {blobToStream, hashFile} from '@parcel/utils';
-import {hashFromOption, toInternalSourceLocation} from './utils';
+import {hashFromOption, toDbSourceLocation} from './utils';
 import {createBuildCache} from './buildCache';
 import {
   type ProjectPath,
   fromProjectPath,
   fromProjectPathRelative,
 } from './projectPath';
-import {hashString} from '@parcel/rust';
-import {BundleBehavior as BundleBehaviorMap} from './types';
+import {
+  hashString,
+  ParcelDb,
+  Asset as DbAsset,
+  AssetFlags,
+  SymbolFlags,
+} from '@parcel/rust';
 import {PluginTracer} from '@parcel/profiler';
 
 type AssetOptions = {|
@@ -48,25 +49,15 @@ type AssetOptions = {|
   filePath: ProjectPath,
   query?: ?string,
   type: string,
-  contentKey?: ?string,
-  mapKey?: ?string,
-  astKey?: ?string,
-  astGenerator?: ?ASTGenerator,
-  dependencies?: Map<string, Dependency>,
-  bundleBehavior?: ?BundleBehavior,
+  bundleBehavior?: BundleBehavior | 'none',
   isBundleSplittable?: ?boolean,
   isSource?: boolean,
   env: Environment,
-  meta?: Meta,
-  outputHash?: ?string,
   pipeline?: ?string,
   stats?: Stats,
   symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
   sideEffects?: boolean,
   uniqueKey?: ?string,
-  plugin?: PackageName,
-  configPath?: ProjectPath,
-  configKeyPath?: string,
 |};
 
 export function createAssetIdFromOptions(options: AssetOptions): string {
@@ -89,52 +80,44 @@ export function createAssetIdFromOptions(options: AssetOptions): string {
 }
 
 export function createAsset(
+  db: ParcelDb,
   projectRoot: FilePath,
   options: AssetOptions,
-): Asset {
-  return {
-    id: options.id != null ? options.id : createAssetIdFromOptions(options),
-    committed: options.committed ?? false,
-    hash: options.hash,
-    filePath: options.filePath,
-    query: options.query,
-    bundleBehavior: options.bundleBehavior
-      ? BundleBehaviorMap[options.bundleBehavior]
-      : null,
-    isBundleSplittable: options.isBundleSplittable ?? true,
-    type: options.type,
-    contentKey: options.contentKey,
-    mapKey: options.mapKey,
-    astKey: options.astKey,
-    astGenerator: options.astGenerator,
-    dependencies: options.dependencies || new Map(),
-    isSource: options.isSource ?? true,
-    outputHash: options.outputHash,
-    pipeline: options.pipeline,
-    env: options.env,
-    meta: options.meta || {},
-    stats: options.stats ?? {
-      time: 0,
-      size: 0,
-    },
-    symbols:
-      options.symbols &&
-      new Map(
-        [...options.symbols].map(([k, v]) => [
-          k,
-          {
-            local: v.local,
-            meta: v.meta,
-            loc: toInternalSourceLocation(projectRoot, v.loc),
-          },
-        ]),
-      ),
-    sideEffects: options.sideEffects ?? true,
-    uniqueKey: options.uniqueKey,
-    plugin: options.plugin,
-    configPath: options.configPath,
-    configKeyPath: options.configKeyPath,
-  };
+): DbAsset {
+  let asset = new DbAsset(db);
+  asset.id =
+    options.id != null ? options.id : createAssetIdFromOptions(options);
+  asset.filePath = options.filePath;
+  asset.env = options.env;
+  asset.query = options.query;
+  asset.assetType = options.type;
+  asset.contentKey = '';
+  asset.mapKey = null;
+  asset.outputHash = '';
+  asset.uniqueKey = options.uniqueKey;
+  asset.pipeline = options.pipeline;
+  asset.stats.size = options.stats?.size ?? 0;
+  asset.stats.time = options.stats?.time ?? 0;
+  asset.bundleBehavior = options.bundleBehavior || 'none';
+  asset.flags =
+    (options.isSource ?? true ? AssetFlags.IS_SOURCE : 0) |
+    (options.isBundleSplittable ?? true ? AssetFlags.IS_BUNDLE_SPLITTABLE : 0) |
+    (options.sideEffects ?? true ? AssetFlags.SIDE_EFFECTS : 0);
+  asset.meta = null;
+  asset.ast = null;
+
+  asset.symbols.init();
+  if (options.symbols) {
+    for (let [exported, {local, loc, meta}] of options.symbols) {
+      let sym = asset.symbols.extend();
+      sym.exported = db.getStringId(exported);
+      sym.local = db.getStringId(local);
+      sym.flags = meta?.isEsm === true ? SymbolFlags.IS_ESM : 0;
+      sym.loc = toDbSourceLocation(db, projectRoot, loc);
+    }
+  }
+
+  return asset;
 }
 
 const generateResults: Map<

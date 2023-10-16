@@ -707,7 +707,7 @@ export class Asset {
   }
 
   static set(db: ParcelDb, addr: number, value: Asset): void {
-    copy(db, value.addr, addr, 96);
+    copy(db, value.addr, addr, 100);
   }
 
   dealloc() {
@@ -715,19 +715,19 @@ export class Asset {
   }
 
   get id(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 72));
+    return readCachedString(this.db, readU32(this.db, this.addr + 80));
   }
 
   set id(value: string): void {
-    writeU32(this.db, this.addr + 72, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 80, this.db.getStringId(value));
   }
 
   get filePath(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 76));
+    return readCachedString(this.db, readU32(this.db, this.addr + 84));
   }
 
   set filePath(value: string): void {
-    writeU32(this.db, this.addr + 76, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 84, this.db.getStringId(value));
   }
 
   get env(): number {
@@ -761,11 +761,11 @@ export class Asset {
   }
 
   get contentKey(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 80));
+    return readCachedString(this.db, readU32(this.db, this.addr + 88));
   }
 
   set contentKey(value: string): void {
-    writeU32(this.db, this.addr + 80, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 88, this.db.getStringId(value));
   }
 
   get mapKey(): ?string {
@@ -783,11 +783,11 @@ export class Asset {
   }
 
   get outputHash(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 84));
+    return readCachedString(this.db, readU32(this.db, this.addr + 92));
   }
 
   set outputHash(value: string): void {
-    writeU32(this.db, this.addr + 84, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 92, this.db.getStringId(value));
   }
 
   get pipeline(): ?string {
@@ -804,12 +804,18 @@ export class Asset {
     }
   }
 
-  get meta(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 88));
+  get meta(): ?string {
+    return readU32(this.db, this.addr + 56 + 0) === 0
+      ? null
+      : readCachedString(this.db, readU32(this.db, this.addr + 56));
   }
 
-  set meta(value: string): void {
-    writeU32(this.db, this.addr + 88, this.db.getStringId(value));
+  set meta(value: ?string): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 56 + 0, 0);
+    } else {
+      writeU32(this.db, this.addr + 56, this.db.getStringId(value));
+    }
   }
 
   get stats(): AssetStats {
@@ -821,40 +827,40 @@ export class Asset {
   }
 
   get bundleBehavior(): BundleBehaviorVariants {
-    return BundleBehavior.get(this.db, this.addr + 93);
+    return BundleBehavior.get(this.db, this.addr + 96);
   }
 
   set bundleBehavior(value: BundleBehaviorVariants): void {
-    BundleBehavior.set(this.db, this.addr + 93, value);
+    BundleBehavior.set(this.db, this.addr + 96, value);
   }
 
   get flags(): number {
-    return readU8(this.db, this.addr + 92);
+    return readU32(this.db, this.addr + 60);
   }
 
   set flags(value: number): void {
-    writeU8(this.db, this.addr + 92, value);
+    writeU32(this.db, this.addr + 60, value);
   }
 
   get symbols(): Vec<Symbol> {
-    return new Vec(this.db, this.addr + 56, 32, Symbol);
+    return new Vec(this.db, this.addr + 64, 32, Symbol);
   }
 
   set symbols(value: Vec<Symbol>): void {
-    copy(this.db, value.addr, this.addr + 56, 12);
+    copy(this.db, value.addr, this.addr + 64, 12);
   }
 
   get uniqueKey(): ?string {
-    return readU32(this.db, this.addr + 68 + 0) === 0
+    return readU32(this.db, this.addr + 76 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 68));
+      : readCachedString(this.db, readU32(this.db, this.addr + 76));
   }
 
   set uniqueKey(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 68 + 0, 0);
+      writeU32(this.db, this.addr + 76 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 68, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 76, this.db.getStringId(value));
     }
   }
 
@@ -1079,6 +1085,12 @@ export const AssetFlags = {
   SIDE_EFFECTS: 0b10,
   IS_BUNDLE_SPLITTABLE: 0b100,
   LARGE_BLOB: 0b1000,
+  HAS_CJS_EXPORTS: 0b10000,
+  STATIC_EXPORTS: 0b100000,
+  SHOULD_WRAP: 0b1000000,
+  IS_CONSTANT_MODULE: 0b10000000,
+  HAS_NODE_REPLACEMENTS: 0b100000000,
+  HAS_SYMBOLS: 0b1000000000,
 };
 
 export const ExportsCondition = {

@@ -34,7 +34,6 @@ import createParcelConfigRequest, {
 } from './ParcelConfigRequest';
 import {invalidateOnFileCreateToInternal} from '../utils';
 import {
-  fromProjectPath,
   fromProjectPathRelative,
   toProjectPath,
   toProjectPathUnsafe,

@@ -213,7 +213,14 @@ export default class Environment implements IEnvironment {
   }
 
   get sourceMap(): ?TargetSourceMapOptions {
-    return this.#environment.sourceMap;
+    let sourceMap = this.#environment.sourceMap;
+    return sourceMap
+      ? {
+          sourceRoot: sourceMap.sourceRoot,
+          inline: sourceMap.inline,
+          inlineSources: sourceMap.inlineSources,
+        }
+      : null;
   }
 
   get loc(): ?SourceLocation {

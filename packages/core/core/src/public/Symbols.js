@@ -7,23 +7,15 @@ import type {
   SourceLocation,
   Meta,
 } from '@parcel/types';
-import type {
-  Asset,
-  CommittedAssetId,
-  Dependency,
-  ParcelOptions,
-} from '../types';
+import type {CommittedAssetId, Dependency, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
-import {
-  fromInternalSourceLocation,
-  toInternalSourceLocation,
-  toDbSourceLocation,
-} from '../utils';
+import {fromInternalSourceLocation, toDbSourceLocation} from '../utils';
 import {
   Dependency as DbDependency,
   DependencyFlags,
   Asset as DbAsset,
+  AssetFlags,
   SymbolFlags,
   readCachedString,
 } from '@parcel/rust';
@@ -76,7 +68,7 @@ export class AssetSymbols implements IAssetSymbols {
   }
 
   get isCleared(): boolean {
-    return this.#value.symbols == null;
+    return !(this.#value.flags & AssetFlags.HAS_SYMBOLS);
   }
 
   exportSymbols(): Iterable<ISymbol> {
@@ -116,21 +108,24 @@ export class AssetSymbols implements IAssetSymbols {
   }
 }
 
-let valueToMutableAssetSymbols: WeakMap<Asset, MutableAssetSymbols> =
-  new WeakMap();
+let valueToMutableAssetSymbols: Map<CommittedAssetId, MutableAssetSymbols> =
+  createBuildCache();
 export class MutableAssetSymbols implements IMutableAssetSymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
   */
-  #value: Asset;
+  #value: DbAsset;
   #options: ParcelOptions;
 
-  constructor(options: ParcelOptions, asset: Asset): MutableAssetSymbols {
+  constructor(
+    options: ParcelOptions,
+    asset: CommittedAssetId,
+  ): MutableAssetSymbols {
     let existing = valueToMutableAssetSymbols.get(asset);
     if (existing != null) {
       return existing;
     }
-    this.#value = asset;
+    this.#value = DbAsset.get(options.db, asset);
     this.#options = options;
     return this;
   }
@@ -138,39 +133,51 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   // immutable
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return Boolean(this.#value.symbols?.has(exportSymbol));
+    let id = this.#options.db.getStringId(exportSymbol);
+    return this.#value.symbols?.some(s => s.exported === id);
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
     if (this.#value.symbols == null) {
       return false;
     }
-    for (let s of this.#value.symbols.values()) {
-      if (local === s.local) return true;
-    }
-    return false;
+    let id = this.#options.db.getStringId(local);
+    return this.#value.symbols.some(s => s.local === id);
   }
 
   get(
     exportSymbol: ISymbol,
   ): ?{|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|} {
-    return fromInternalAssetSymbol(
+    let id = this.#options.db.getStringId(exportSymbol);
+    return fromInternalAssetSymbolDb(
+      this.#options.db,
       this.#options.projectRoot,
-      this.#value.symbols?.get(exportSymbol),
+      this.#value.symbols?.find(s => s.exported === id),
     );
   }
 
   get isCleared(): boolean {
-    return this.#value.symbols == null;
+    return !(this.#value.flags & AssetFlags.HAS_SYMBOLS);
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    // $FlowFixMe
-    return this.#value.symbols.keys();
+    return [...this.#value.symbols].map(s =>
+      readCachedString(this.#options.db, s.exported),
+    );
   }
+
   // $FlowFixMe
-  [Symbol.iterator]() {
-    return this.#value.symbols[Symbol.iterator]();
+  *[Symbol.iterator]() {
+    for (let s of this.#value.symbols) {
+      yield [
+        readCachedString(this.#options.db, s.exported),
+        fromInternalAssetSymbolDb(
+          this.#options.db,
+          this.#options.projectRoot,
+          s,
+        ),
+      ];
+    }
   }
 
   // $FlowFixMe
@@ -178,7 +185,13 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
     return `MutableAssetSymbols(${
       this.#value.symbols
         ? [...this.#value.symbols]
-            .map(([s, {local}]) => `${s}:${local}`)
+            .map(
+              ({exported, local}) =>
+                `${readCachedString(
+                  this.#options.db,
+                  exported,
+                )}:${readCachedString(this.#options.db, local)}`,
+            )
             .join(', ')
         : null
     })`;
@@ -187,9 +200,7 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   // mutating
 
   ensure(): void {
-    if (this.#value.symbols == null) {
-      this.#value.symbols = new Map();
-    }
+    this.#value.flags |= AssetFlags.HAS_SYMBOLS;
   }
 
   set(
@@ -198,15 +209,30 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
     loc: ?SourceLocation,
     meta: ?Meta,
   ) {
-    nullthrows(this.#value.symbols).set(exportSymbol, {
-      local,
-      loc: toInternalSourceLocation(this.#options.projectRoot, loc),
-      meta,
-    });
+    // nullthrows(this.#value.symbols).set(exportSymbol, {
+    //   local,
+    //   loc: toInternalSourceLocation(this.#options.projectRoot, loc),
+    //   meta,
+    // });
+    let symbols = nullthrows(this.#value.symbols);
+    let id = this.#options.db.getStringId(exportSymbol);
+    let sym = symbols.find(s => s.exported === id);
+    if (!sym) {
+      sym = symbols.extend();
+    }
+    sym.local = this.#options.db.getStringId(local);
+    sym.exported = id;
+    sym.loc = toDbSourceLocation(
+      this.#options.db,
+      this.#options.projectRoot,
+      loc,
+    );
+    sym.flags = meta?.isEsm === true ? SymbolFlags.IS_ESM : 0;
   }
 
   delete(exportSymbol: ISymbol) {
-    nullthrows(this.#value.symbols).delete(exportSymbol);
+    // nullthrows(this.#value.symbols).delete(exportSymbol);
+    // TODO
   }
 }
 
@@ -354,16 +380,6 @@ function fromInternalAssetSymbolDb(db, projectRoot: string, value) {
       meta: {
         isEsm: !!(value.flags & SymbolFlags.IS_ESM),
       },
-      loc: fromInternalSourceLocation(projectRoot, value.loc),
-    }
-  );
-}
-
-function fromInternalAssetSymbol(projectRoot: string, value) {
-  return (
-    value && {
-      local: value.local,
-      meta: value.meta,
       loc: fromInternalSourceLocation(projectRoot, value.loc),
     }
   );

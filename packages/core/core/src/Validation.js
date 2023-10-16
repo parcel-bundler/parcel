@@ -201,12 +201,11 @@ export default class Validation {
     let idBase = code != null ? hash : fromProjectPathRelative(filePath);
     return new UncommittedAsset({
       idBase,
-      value: createAsset(this.options.projectRoot, {
+      value: createAsset(this.options.db, this.options.projectRoot, {
         idBase,
         filePath: filePath,
         isSource,
         type: path.extname(fromProjectPathRelative(filePath)).slice(1),
-        hash,
         query,
         env: env,
         stats: {
@@ -215,6 +214,7 @@ export default class Validation {
         },
         sideEffects: sideEffects,
       }),
+      hash,
       options: this.options,
       content,
     });

@@ -57,7 +57,6 @@ type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
   pub filename: String,
-  pub env_id: u32,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub module_id: String,

@@ -85,12 +85,11 @@ export type Engines = {
 };
 
 /** Corresponds to <code>pkg#targets.*.sourceMap</code> */
-export type TargetSourceMapOptions = {
+export type TargetSourceMapOptions = {|
   +sourceRoot?: ?string,
   +inline?: boolean,
   +inlineSources?: boolean,
-  ...
-};
+|};
 
 /**
  * A parsed version of PackageTargetDescriptor
@@ -678,6 +677,8 @@ export type ParcelResolveResult = {|
 export interface BaseAsset {
   /** The id of the asset. */
   +id: string;
+  /** Address of the asset for native plugins. */
+  +nativeAddress: number;
   /** The file system where the source is located. */
   +fs: FileSystem;
   /** The file path of the asset. */
@@ -903,10 +904,10 @@ export interface Config {
   getPackage(): Promise<?PackageJSON>;
 }
 
-export interface Stats {
-  time: number;
-  size: number;
-}
+export type Stats = {|
+  time: number,
+  size: number,
+|};
 
 /**
  * @section transformer

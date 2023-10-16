@@ -11,7 +11,6 @@ import type {
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
 import type {
-  Asset as AssetValue,
   TransformationRequest,
   RequestInvalidation,
   Config,
@@ -20,6 +19,7 @@ import type {
   InternalFileCreateInvalidation,
   InternalDevDepOptions,
   AssetRequestResult,
+  CommittedAssetId,
 } from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
@@ -35,7 +35,7 @@ import ThrowableDiagnostic, {
   type Diagnostic,
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
-import {hashString} from '@parcel/rust';
+import {hashString, Asset as DbAsset, AssetFlags} from '@parcel/rust';
 
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
@@ -152,7 +152,7 @@ export default class Transformation {
     let asset = await this.loadAsset();
     let existing;
 
-    if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+    if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.assetType)) {
       // Load existing sourcemaps, this automatically runs the source contents extraction
       try {
         existing = await asset.loadExistingSourcemap();
@@ -192,13 +192,16 @@ export default class Transformation {
 
     let pipeline = await this.loadPipeline(
       this.request.filePath,
-      asset.value.isSource,
+      Boolean(asset.value.flags & AssetFlags.IS_SOURCE),
       asset.value.pipeline,
     );
     let assets, error;
     try {
       let results = await this.runPipelines(pipeline, asset);
-      assets = results.map(a => a.saveToDb());
+      assets = results.map(a => ({
+        asset: a.value.addr,
+        dependencies: [...a.dependencies.values()],
+      }));
     } catch (e) {
       error = e;
     }
@@ -256,12 +259,11 @@ export default class Transformation {
     }
     return new UncommittedAsset({
       idBase,
-      value: createAsset(this.options.projectRoot, {
+      value: createAsset(this.options.db, this.options.projectRoot, {
         idBase,
         filePath,
         isSource,
         type: path.extname(fromProjectPathRelative(filePath)).slice(1),
-        hash,
         pipeline,
         env,
         query,
@@ -271,6 +273,7 @@ export default class Transformation {
         },
         sideEffects,
       }),
+      hash,
       options: this.options,
       content,
       invalidations: this.invalidations,
@@ -282,7 +285,7 @@ export default class Transformation {
     pipeline: Pipeline,
     initialAsset: UncommittedAsset,
   ): Promise<Array<UncommittedAsset>> {
-    let initialType = initialAsset.value.type;
+    let initialType = initialAsset.value.assetType;
     let initialPipelineHash = await this.getPipelineHash(pipeline);
     let initialAssetCacheKey = this.getCacheKey(
       [initialAsset],
@@ -336,11 +339,11 @@ export default class Transformation {
     let finalAssets: Array<UncommittedAsset> = [];
     for (let asset of assets) {
       let nextPipeline;
-      if (asset.value.type !== initialType) {
+      if (asset.value.assetType !== initialType) {
         nextPipeline = await this.loadNextPipeline({
           filePath: initialAsset.value.filePath,
-          isSource: asset.value.isSource,
-          newType: asset.value.type,
+          isSource: Boolean(asset.value.flags & AssetFlags.IS_SOURCE),
+          newType: asset.value.assetType,
           newPipeline: asset.value.pipeline,
           currentPipeline: pipeline,
         });
@@ -443,19 +446,20 @@ export default class Transformation {
       return [initialAsset];
     }
 
-    let initialType = initialAsset.value.type;
+    let initialType = initialAsset.value.assetType;
     let inputAssets = [initialAsset];
     let resultingAssets = [];
     let finalAssets = [];
     for (let transformer of pipeline.transformers) {
+      let deletedAssets = new Set(inputAssets);
       resultingAssets = [];
       for (let asset of inputAssets) {
         if (
-          asset.value.type !== initialType &&
+          asset.value.assetType !== initialType &&
           (await this.loadNextPipeline({
             filePath: initialAsset.value.filePath,
-            isSource: asset.value.isSource,
-            newType: asset.value.type,
+            isSource: Boolean(asset.value.flags & AssetFlags.IS_SOURCE),
+            newType: asset.value.assetType,
             newPipeline: asset.value.pipeline,
             currentPipeline: pipeline,
           }))
@@ -486,6 +490,7 @@ export default class Transformation {
           for (let result of transformerResults) {
             if (result instanceof UncommittedAsset) {
               resultingAssets.push(result);
+              deletedAssets.delete(result);
               continue;
             }
             resultingAssets.push(
@@ -530,6 +535,13 @@ export default class Transformation {
           });
         }
       }
+
+      // Deallocate any assets that we don't need anymore.
+      for (let asset of deletedAssets) {
+        // TODO: dealloc dependencies also?
+        asset.value.dealloc();
+      }
+
       inputAssets = resultingAssets;
     }
 
@@ -543,7 +555,7 @@ export default class Transformation {
             asset.ast != null &&
             !(
               this.options.mode === 'production' &&
-              asset.value.type === 'css' &&
+              asset.value.assetType === 'css' &&
               asset.value.symbols
             ),
         )
@@ -570,9 +582,9 @@ export default class Transformation {
       return null;
     }
 
-    let cached = await this.options.cache.get<{|assets: Array<AssetValue>|}>(
-      cacheKey,
-    );
+    let cached = await this.options.cache.get<{|
+      assets: Array<{|hash: string, value: CommittedAssetId|}>,
+    |}>(cacheKey);
     if (!cached) {
       return null;
     }
@@ -580,26 +592,28 @@ export default class Transformation {
     let cachedAssets = cached.assets;
 
     return Promise.all(
-      cachedAssets.map(async (value: AssetValue) => {
+      cachedAssets.map(async ({hash, value: id}) => {
+        let value = DbAsset.get(this.options.db, id);
         let content =
           value.contentKey != null
-            ? value.isLargeBlob
+            ? value.flags & AssetFlags.LARGE_BLOB
               ? this.options.cache.getStream(value.contentKey)
               : await this.options.cache.getBlob(value.contentKey)
             : null;
         let mapBuffer =
-          value.astKey != null
-            ? await this.options.cache.getBlob(value.astKey)
+          value.mapKey != null
+            ? await this.options.cache.getBlob(value.mapKey)
             : null;
         let ast =
-          value.astKey != null
+          value.ast != null
             ? // TODO: Capture with a test and likely use cache.get() as this returns a buffer.
               // $FlowFixMe[incompatible-call]
-              await this.options.cache.getBlob(value.astKey)
+              await this.options.cache.getBlob(value.ast.key)
             : null;
 
         return new UncommittedAsset({
           value,
+          hash,
           options: this.options,
           content,
           mapBuffer,
@@ -621,7 +635,10 @@ export default class Transformation {
 
     this.options.cache.set(cacheKey, {
       $$raw: true,
-      assets: assets.map(a => a.value),
+      assets: assets.map(a => ({
+        hash: a.hash,
+        value: a.value.addr,
+      })),
     });
   }
 
@@ -634,7 +651,7 @@ export default class Transformation {
       .map(a => [
         a.value.filePath,
         a.value.pipeline,
-        a.value.hash,
+        a.hash,
         a.value.uniqueKey,
         a.value.query ?? '',
       ])

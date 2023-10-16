@@ -2,15 +2,16 @@
 
 import type {
   AST,
+  ASTGenerator,
   Blob,
   DependencyOptions,
   FileCreateInvalidation,
   GenerateOutput,
   PackageName,
   TransformerResult,
+  Meta,
 } from '@parcel/types';
 import type {
-  Asset,
   RequestInvalidation,
   Dependency,
   ParcelOptions,
@@ -40,23 +41,22 @@ import {
   getInvalidationId,
   getInvalidationHash,
 } from './assetUtils';
-import {BundleBehaviorNames} from './types';
-import {
-  invalidateOnFileCreateToInternal,
-  toDbSourceLocationFromInternal,
-} from './utils';
+import {invalidateOnFileCreateToInternal} from './utils';
 import {type ProjectPath, fromProjectPath} from './projectPath';
 import {
   Asset as DbAsset,
   AssetFlags,
   AssetAst,
   Dependency as DbDependency,
-  SymbolFlags,
 } from '@parcel/rust';
 import nullthrows from 'nullthrows';
 
 type UncommittedAssetOptions = {|
-  value: Asset,
+  value: DbAsset,
+  hash: string,
+  plugin?: PackageName,
+  configPath?: ProjectPath,
+  configKeyPath?: string,
   options: ParcelOptions,
   content?: ?Blob,
   mapBuffer?: ?Buffer,
@@ -68,7 +68,8 @@ type UncommittedAssetOptions = {|
 |};
 
 export default class UncommittedAsset {
-  value: Asset;
+  value: DbAsset;
+  hash: string;
   options: ParcelOptions;
   content: ?(Blob | Promise<Buffer>);
   mapBuffer: ?Buffer;
@@ -80,10 +81,17 @@ export default class UncommittedAsset {
   invalidations: Map<string, RequestInvalidation>;
   fileCreateInvalidations: Array<InternalFileCreateInvalidation>;
   generate: ?() => Promise<GenerateOutput>;
-  nativeSymbols: ?number;
+
+  dependencies: Map<string, Dependency>;
+  meta: Meta;
+  astGenerator: ?ASTGenerator;
+  plugin: ?PackageName;
+  configPath: ?ProjectPath;
+  configKeyPath: ?string;
 
   constructor({
     value,
+    hash,
     options,
     content,
     mapBuffer,
@@ -92,8 +100,12 @@ export default class UncommittedAsset {
     idBase,
     invalidations,
     fileCreateInvalidations,
+    plugin,
+    configPath,
+    configKeyPath,
   }: UncommittedAssetOptions) {
     this.value = value;
+    this.hash = hash;
     this.options = options;
     this.content = content;
     this.mapBuffer = mapBuffer;
@@ -102,6 +114,11 @@ export default class UncommittedAsset {
     this.idBase = idBase;
     this.invalidations = invalidations || new Map();
     this.fileCreateInvalidations = fileCreateInvalidations || [];
+    this.plugin = plugin;
+    this.configPath = configPath;
+    this.configKeyPath = configKeyPath;
+    this.meta = {};
+    this.dependencies = new Map();
   }
 
   /*
@@ -135,11 +152,24 @@ export default class UncommittedAsset {
       astKey != null &&
         this.options.cache.setBlob(astKey, serializeRaw(this.ast)),
     ]);
-    this.value.contentKey = contentKey;
+    this.value.contentKey = nullthrows(contentKey);
     this.value.mapKey = mapKey;
-    this.value.astKey = astKey;
+
+    if (astKey != null) {
+      let ast = new AssetAst(this.options.db);
+      ast.key = astKey;
+      ast.plugin = nullthrows(this.plugin);
+      ast.configPath = nullthrows(this.configPath);
+      ast.configKeyPath = this.configKeyPath;
+      ast.generator = nullthrows(this.astGenerator).type;
+      ast.version = nullthrows(this.astGenerator).version;
+      this.value.ast = ast;
+      // TODO: deallocate tmp ast.
+    }
+
+    this.value.meta = JSON.stringify(this.meta);
     this.value.outputHash = hashString(
-      (this.value.hash ?? '') +
+      (this.hash ?? '') +
         pipelineKey +
         (await getInvalidationHash(this.getInvalidations(), this.options)),
     );
@@ -148,8 +178,9 @@ export default class UncommittedAsset {
       this.value.stats.size = size;
     }
 
-    this.value.isLargeBlob = this.content instanceof Readable;
-    this.value.committed = true;
+    if (this.content instanceof Readable) {
+      this.value.flags |= AssetFlags.LARGE_BLOB;
+    }
   }
 
   async commitContent(contentKey: string): Promise<number> {
@@ -308,7 +339,7 @@ export default class UncommittedAsset {
   setAST(ast: AST): void {
     this.ast = ast;
     this.isASTDirty = true;
-    this.value.astGenerator = {
+    this.astGenerator = {
       type: ast.type,
       version: ast.version,
     };
@@ -317,13 +348,11 @@ export default class UncommittedAsset {
   clearAST() {
     this.ast = null;
     this.isASTDirty = false;
-    this.value.astGenerator = null;
+    this.astGenerator = null;
   }
 
   getCacheKey(key: string): string {
-    return hashString(
-      PARCEL_VERSION + key + this.value.id + (this.value.hash || ''),
-    );
+    return hashString(PARCEL_VERSION + key + this.value.id + (this.hash || ''));
   }
 
   addDependency(opts: DependencyOptions): number {
@@ -348,7 +377,7 @@ export default class UncommittedAsset {
 
     let dep;
     let id = dependencyId(options);
-    let existing = this.value.dependencies.get(id);
+    let existing = this.dependencies.get(id);
     if (existing != null) {
       mergeDependencies(
         this.options.db,
@@ -363,20 +392,16 @@ export default class UncommittedAsset {
         this.options.projectRoot,
         options,
       );
-      this.value.dependencies.set(id, dep);
+      this.dependencies.set(id, dep);
     }
     return dep;
   }
 
   setNativeDependencies(deps: Array<Dependency>) {
-    this.value.dependencies.clear();
+    this.dependencies.clear();
     for (let d of deps) {
-      this.value.dependencies.set(d, d);
+      this.dependencies.set(d, d);
     }
-  }
-
-  setNativeSymbols(symbols: number) {
-    this.nativeSymbols = symbols;
   }
 
   invalidateOnFileChange(filePath: ProjectPath) {
@@ -408,7 +433,7 @@ export default class UncommittedAsset {
   }
 
   getDependencies(): Array<Dependency> {
-    return Array.from(this.value.dependencies.values());
+    return Array.from(this.dependencies.values());
   }
 
   createChildAsset(
@@ -420,51 +445,36 @@ export default class UncommittedAsset {
     let content = result.content ?? null;
 
     let asset = new UncommittedAsset({
-      value: createAsset(this.options.projectRoot, {
+      value: createAsset(this.options.db, this.options.projectRoot, {
         idBase: this.idBase,
-        hash: this.value.hash,
         filePath: this.value.filePath,
         type: result.type,
-        bundleBehavior:
-          result.bundleBehavior ??
-          (this.value.bundleBehavior == null
-            ? null
-            : BundleBehaviorNames[this.value.bundleBehavior]),
+        bundleBehavior: result.bundleBehavior ?? this.value.bundleBehavior,
         isBundleSplittable:
-          result.isBundleSplittable ?? this.value.isBundleSplittable,
-        isSource: this.value.isSource,
+          result.isBundleSplittable ??
+          Boolean(this.value.flags & AssetFlags.IS_BUNDLE_SPLITTABLE),
+        isSource: Boolean(this.value.flags & AssetFlags.IS_SOURCE),
         env: mergeEnvironments(
           this.options.db,
           this.options.projectRoot,
           this.value.env,
           result.env,
         ),
-        dependencies:
-          this.value.type === result.type
-            ? new Map(this.value.dependencies)
-            : new Map(),
-        meta: {
-          ...this.value.meta,
-          ...result.meta,
-        },
         pipeline:
           result.pipeline ??
-          (this.value.type === result.type ? this.value.pipeline : null),
+          (this.value.assetType === result.type ? this.value.pipeline : null),
         stats: {
           time: 0,
           size: this.value.stats.size,
         },
         // $FlowFixMe
         symbols: result.symbols,
-        sideEffects: result.sideEffects ?? this.value.sideEffects,
+        sideEffects:
+          result.sideEffects ??
+          Boolean(this.value.flags & AssetFlags.SIDE_EFFECTS),
         uniqueKey: result.uniqueKey,
-        astGenerator: result.ast
-          ? {type: result.ast.type, version: result.ast.version}
-          : null,
-        plugin,
-        configPath,
-        configKeyPath,
       }),
+      hash: this.hash,
       options: this.options,
       content,
       ast: result.ast,
@@ -474,6 +484,21 @@ export default class UncommittedAsset {
       invalidations: this.invalidations,
       fileCreateInvalidations: this.fileCreateInvalidations,
     });
+
+    asset.astGenerator = result.ast
+      ? {type: result.ast.type, version: result.ast.version}
+      : null;
+    asset.plugin = plugin;
+    asset.configPath = configPath;
+    asset.configKeyPath = configKeyPath;
+    asset.meta = {
+      ...this.meta,
+      ...result.meta,
+    };
+
+    if (this.value.assetType === result.type) {
+      asset.dependencies = new Map(this.dependencies);
+    }
 
     let dependencies = result.dependencies;
     if (dependencies) {
@@ -488,69 +513,5 @@ export default class UncommittedAsset {
   updateId() {
     // $FlowFixMe - this is fine
     this.value.id = createAssetIdFromOptions(this.value);
-  }
-
-  saveToDb(): {|asset: CommittedAssetId, dependencies: Array<Dependency>|} {
-    let asset = new DbAsset(this.options.db);
-    asset.id = this.value.id;
-    asset.filePath = this.value.filePath;
-    asset.env = this.value.env;
-    asset.query = this.value.query;
-    asset.assetType = this.value.type;
-    asset.contentKey = nullthrows(this.value.contentKey);
-    asset.mapKey = this.value.mapKey;
-    asset.outputHash = nullthrows(this.value.outputHash);
-    asset.uniqueKey = this.value.uniqueKey;
-    asset.pipeline = this.value.pipeline;
-    asset.stats.size = this.value.stats.size;
-    asset.stats.time = this.value.stats.time;
-    asset.bundleBehavior =
-      this.value.bundleBehavior != null
-        ? BundleBehaviorNames[this.value.bundleBehavior]
-        : 'none';
-    asset.flags =
-      (this.value.isSource ? AssetFlags.IS_SOURCE : 0) |
-      (this.value.isBundleSplittable ? AssetFlags.IS_BUNDLE_SPLITTABLE : 0) |
-      (this.value.sideEffects ? AssetFlags.SIDE_EFFECTS : 0) |
-      (this.value.isLargeBlob ? AssetFlags.LARGE_BLOB : 0);
-    asset.meta = JSON.stringify(this.value.meta);
-
-    if (this.value.astKey != null) {
-      let ast = new AssetAst(this.options.db);
-      ast.key = nullthrows(this.value.astKey);
-      ast.plugin = nullthrows(this.value.plugin);
-      ast.configPath = nullthrows(this.value.configPath);
-      ast.configKeyPath = this.value.configKeyPath;
-      ast.generator = nullthrows(this.value.astGenerator).type;
-      ast.version = nullthrows(this.value.astGenerator).version;
-      asset.ast = ast;
-      // TODO: deallocate tmp ast.
-    } else {
-      asset.ast = null;
-    }
-
-    asset.symbols.init();
-    if (this.value.symbols) {
-      for (let [exported, {local, loc, meta}] of this.value.symbols) {
-        let sym = asset.symbols.extend();
-        sym.exported = this.options.db.getStringId(exported);
-        sym.local = this.options.db.getStringId(local);
-        sym.flags = meta?.isEsm === true ? SymbolFlags.IS_ESM : 0;
-        sym.loc = toDbSourceLocationFromInternal(this.options.db, loc);
-      }
-    } else if (this.nativeSymbols != null) {
-      // console.log('native symbols', this.nativeSymbols)
-      asset.symbols = {addr: this.nativeSymbols};
-    }
-
-    let dependencies = [...this.value.dependencies.values()];
-    for (let dep of dependencies) {
-      DbDependency.get(this.options.db, dep).sourceAssetId = asset.addr;
-    }
-
-    return {
-      asset: asset.addr,
-      dependencies,
-    };
   }
 }

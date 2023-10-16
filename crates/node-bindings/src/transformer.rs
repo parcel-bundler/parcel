@@ -5,21 +5,28 @@ use indexmap::IndexMap;
 use napi::{Env, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
-  ArenaAllocated, ArenaVec, BundleBehavior, Dependency, DependencyFlags, Environment,
-  EnvironmentContext, EnvironmentFlags, EnvironmentId, ExportsCondition, ImportAttribute,
-  InternedString, Location, OutputFormat, ParcelDb, Priority, SourceLocation, SourceType,
-  SpecifierType, Symbol, SymbolFlags, TargetId,
+  ArenaAllocated, ArenaVec, AssetFlags, AssetType, BundleBehavior, Dependency, DependencyFlags,
+  Environment, EnvironmentContext, EnvironmentFlags, EnvironmentId, ExportsCondition,
+  ImportAttribute, InternedString, Location, OutputFormat, ParcelDb, Priority, SourceLocation,
+  SourceType, SpecifierType, Symbol, SymbolFlags, TargetId,
 };
-use parcel_js_swc_core::{CodeHighlight, DependencyKind, Diagnostic, TransformResult};
+use parcel_js_swc_core::{CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult};
 use path_slash::{PathBufExt, PathExt};
 use serde::{Deserialize, Serialize};
 
 #[napi]
 pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown> {
-  let config: parcel_js_swc_core::Config = env.from_js_value(opts)?;
+  let config: Config2 = env.from_js_value(opts)?;
 
   db.with(|db| {
-    let result = convert_result(db, &config, parcel_js_swc_core::transform(&config)?);
+    let asset_id = config.asset_id;
+    let config = convert_config(db, config);
+    let result = convert_result(
+      db,
+      asset_id,
+      &config,
+      parcel_js_swc_core::transform(&config)?,
+    );
     env.to_js_value(&result)
   })
 }
@@ -27,20 +34,99 @@ pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown>
 #[cfg(not(target_arch = "wasm32"))]
 #[napi]
 pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsObject> {
-  let config: parcel_js_swc_core::Config = env.from_js_value(opts)?;
+  let config: Config2 = env.from_js_value(opts)?;
+  let asset_id = config.asset_id;
+  let config = db.with(|db| convert_config(db, config));
+
   let (deferred, promise) = env.create_deferred()?;
   let db = db.db();
 
   rayon::spawn(move || {
     let res = parcel_js_swc_core::transform(&config);
     match res {
-      Ok(result) => deferred
-        .resolve(move |env| db.with(|db| env.to_js_value(&convert_result(db, &config, result)))),
+      Ok(result) => deferred.resolve(move |env| {
+        db.with(|db| env.to_js_value(&convert_result(db, asset_id, &config, result)))
+      }),
       Err(err) => deferred.reject(err.into()),
     }
   });
 
   Ok(promise)
+}
+
+#[derive(Serialize, Debug, Deserialize)]
+pub struct Config2 {
+  pub asset_id: u32,
+  #[serde(with = "serde_bytes")]
+  pub code: Vec<u8>,
+  pub project_root: String,
+  pub env: HashMap<String, String>,
+  pub inline_fs: bool,
+  pub is_jsx: bool,
+  pub jsx_pragma: Option<String>,
+  pub jsx_pragma_frag: Option<String>,
+  pub automatic_jsx_runtime: bool,
+  pub jsx_import_source: Option<String>,
+  pub decorators: bool,
+  pub use_define_for_class_fields: bool,
+  pub is_development: bool,
+  pub react_refresh: bool,
+  pub targets: Option<HashMap<String, String>>,
+  pub supports_module_workers: bool,
+  pub trace_bailouts: bool,
+  pub inline_constants: bool,
+  pub resolve_helpers_from: String,
+  pub supports_dynamic_import: bool,
+}
+
+fn convert_config(db: &ParcelDb, config: Config2) -> Config {
+  let asset = db.get_asset(config.asset_id);
+  let env = db.get_environment(asset.env.0);
+  Config {
+    filename: asset.file_path.to_string(), // TODO: does this need to be a full path or project path?
+    module_id: asset.id.to_string(),
+    code: config.code,
+    project_root: config.project_root,
+    replace_env: !env.context.is_node(),
+    env: config
+      .env
+      .into_iter()
+      .map(|(k, v)| (k.into(), v.into()))
+      .collect(),
+    inline_fs: config.inline_fs,
+    insert_node_globals: !env.context.is_node() && env.source_type != SourceType::Script,
+    node_replacer: env.context.is_node(),
+    is_browser: env.context.is_browser(),
+    is_worker: env.context.is_worker(),
+    is_type_script: matches!(asset.asset_type, AssetType::Ts | AssetType::Tsx),
+    is_jsx: config.is_jsx,
+    jsx_pragma: config.jsx_pragma,
+    jsx_pragma_frag: config.jsx_pragma_frag,
+    automatic_jsx_runtime: config.automatic_jsx_runtime,
+    jsx_import_source: config.jsx_import_source,
+    decorators: config.decorators,
+    use_define_for_class_fields: config.use_define_for_class_fields,
+    is_development: config.is_development,
+    react_refresh: config.react_refresh,
+    targets: config.targets,
+    source_maps: env.source_map.is_some(),
+    scope_hoist: env.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
+      && env.source_type != SourceType::Script,
+    source_type: match env.source_type {
+      SourceType::Script => parcel_js_swc_core::SourceType::Script,
+      _ => parcel_js_swc_core::SourceType::Module,
+    },
+    supports_module_workers: config.supports_module_workers,
+    is_library: env.flags.contains(EnvironmentFlags::IS_LIBRARY),
+    is_esm_output: env.output_format == OutputFormat::Esmodule,
+    trace_bailouts: config.trace_bailouts,
+    is_swc_helpers: asset.file_path.contains("@swc/helpers"),
+    standalone: asset.query.map_or(false, |q| q.contains("standalone=true")), // TODO: use a real parser
+    inline_constants: config.inline_constants,
+    resolve_helpers_from: config.resolve_helpers_from,
+    side_effects: asset.flags.contains(AssetFlags::SIDE_EFFECTS),
+    supports_dynamic_import: config.supports_dynamic_import,
+  }
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -50,24 +136,19 @@ pub struct TransformResult2 {
   pub map: Option<String>,
   pub shebang: Option<String>,
   pub dependencies: Vec<u32>,
-  pub symbols: u32,
-  // pub hoist_result: Option<HoistResult>,
-  // pub symbol_result: Option<CollectResult>,
   pub diagnostics: Option<Vec<Diagnostic>>,
   pub used_env: HashSet<String>,
-  pub has_node_replacements: bool,
-  pub is_constant_module: bool,
-  pub has_cjs_exports: bool,
-  pub static_cjs_exports: bool,
-  pub should_wrap: bool,
 }
 
 fn convert_result(
   db: &ParcelDb,
+  asset_id: u32,
   config: &parcel_js_swc_core::Config,
   mut result: TransformResult,
 ) -> TransformResult2 {
-  let file_path = to_project_path(&config.filename, &config.project_root);
+  let asset = db.get_asset_mut(asset_id);
+  let env = db.get_environment(asset.env.0);
+  let file_path = asset.file_path;
 
   let mut dep_map = IndexMap::new();
   let mut dep_flags = DependencyFlags::empty();
@@ -79,7 +160,6 @@ fn convert_result(
   for dep in result.dependencies {
     match dep.kind {
       DependencyKind::WebWorker => {
-        let env = db.get_environment(config.env_id);
         // Use native ES module output if the worker was created with `type: 'module'` and all targets
         // support native module workers. Only do this if parent asset output format is also esmodule so that
         // assets can be shared between workers and the main thread in the global output format.
@@ -104,7 +184,7 @@ fn convert_result(
           bundle_behavior: BundleBehavior::None,
           resolve_from: Some(file_path),
           range: None,
-          source_asset_id: None,
+          source_asset_id: Some(asset_id),
           placeholder: dep.placeholder.map(|s| s.into()),
           promise_symbol: None,
           symbols: ArenaVec::new(),
@@ -143,7 +223,7 @@ fn convert_result(
           bundle_behavior: BundleBehavior::None,
           resolve_from: Some(file_path),
           range: None,
-          source_asset_id: None,
+          source_asset_id: Some(asset_id),
           placeholder: dep.placeholder.map(|s| s.into()),
           promise_symbol: None,
           symbols: ArenaVec::new(),
@@ -161,7 +241,7 @@ fn convert_result(
             },
             output_format: OutputFormat::Global,
             loc: Some(convert_loc(file_path, &dep.loc)),
-            ..db.get_environment(config.env_id).clone()
+            ..env.clone()
           }),
           import_attributes: ArenaVec::new(),
           pipeline: None,
@@ -182,7 +262,7 @@ fn convert_result(
           bundle_behavior: BundleBehavior::None,
           resolve_from: Some(file_path),
           range: None,
-          source_asset_id: None,
+          source_asset_id: Some(asset_id),
           placeholder: dep.placeholder.map(|s| s.into()),
           promise_symbol: None,
           symbols: ArenaVec::new(),
@@ -193,7 +273,7 @@ fn convert_result(
             source_type: SourceType::Module,
             output_format: OutputFormat::Esmodule,
             loc: Some(convert_loc(file_path, &dep.loc)),
-            ..db.get_environment(config.env_id).clone()
+            ..env.clone()
           }),
           import_attributes: ArenaVec::new(),
           pipeline: None,
@@ -214,13 +294,13 @@ fn convert_result(
           bundle_behavior: BundleBehavior::Isolated,
           resolve_from: Some(file_path),
           range: None,
-          source_asset_id: None,
+          source_asset_id: Some(asset_id),
           placeholder: dep.placeholder.map(|s| s.into()),
           promise_symbol: None,
           symbols: ArenaVec::new(),
           loc: Some(convert_loc(file_path, &dep.loc)),
           target: TargetId(0),
-          env: EnvironmentId(config.env_id),
+          env: asset.env,
           import_attributes: ArenaVec::new(),
           pipeline: None,
           meta: None,
@@ -240,8 +320,8 @@ fn convert_result(
           matches!(dep.kind, DependencyKind::Import | DependencyKind::Export),
         );
 
-        let mut env_id = EnvironmentId(config.env_id);
-        let mut env = db.get_environment(config.env_id);
+        let mut env_id = asset.env;
+        let mut env = env;
         if dep.kind == DependencyKind::DynamicImport {
           // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
           if matches!(
@@ -274,7 +354,7 @@ fn convert_result(
           // Only do this for scripts, rather than modules in the global
           // output format so that assets can be shared between the bundles.
           let mut output_format = env.output_format;
-          if config.source_type == parcel_js_swc_core::SourceType::Script
+          if env.source_type == SourceType::Script
             && config.scope_hoist
             && config.supports_dynamic_import
           {
@@ -344,7 +424,7 @@ fn convert_result(
           bundle_behavior: BundleBehavior::None,
           resolve_from,
           range,
-          source_asset_id: None,
+          source_asset_id: Some(asset_id),
           placeholder: dep.placeholder.map(|s| s.into()),
           promise_symbol: None,
           symbols: ArenaVec::new(),
@@ -377,7 +457,7 @@ fn convert_result(
         &config.project_root,
       )),
       range: None,
-      source_asset_id: None,
+      source_asset_id: Some(asset_id),
       placeholder: None,
       promise_symbol: None,
       symbols: ArenaVec::new(),
@@ -385,7 +465,7 @@ fn convert_result(
       target: TargetId(0),
       env: db.environment_id(&Environment {
         include_node_modules: InternedString::from("{\"@parcel/transformer-js\":true}"),
-        ..db.get_environment(config.env_id).clone()
+        ..env.clone()
       }),
       import_attributes: ArenaVec::new(),
       pipeline: None,
@@ -401,8 +481,7 @@ fn convert_result(
   let mut static_cjs_exports = false;
   let mut should_wrap = false;
 
-  let (symbols_addr, symbols) = db.alloc_struct::<ArenaVec<Symbol>>();
-  unsafe { std::ptr::write(symbols, ArenaVec::new()) };
+  let symbols = &mut asset.symbols;
   if let Some(hoist_result) = result.hoist_result {
     symbols.reserve(hoist_result.exported_symbols.len() + hoist_result.re_exports.len() + 1);
     // println!("{:?}", hoist_result);
@@ -445,7 +524,7 @@ fn convert_result(
             .iter()
             .find(|sym| sym.exported == &*s.imported)
             .map(|sym| sym.local.clone())
-            .unwrap_or_else(|| format!("${}$re_export${}", config.module_id, s.local).into());
+            .unwrap_or_else(|| format!("${}$re_export${}", asset.id, s.local).into());
           dep.symbols.push(Symbol {
             exported: s.imported.as_ref().into(),
             local: re_export_name.clone(),
@@ -507,20 +586,20 @@ fn convert_result(
       // even if it came from a transformer that produced multiple assets (e.g. css modules).
       // Also avoids needing a resolution request.
       let d = Dependency {
-        specifier: config.module_id.as_str().into(),
+        specifier: asset.id,
         specifier_type: SpecifierType::Esm,
         priority: Priority::Sync,
         flags: dep_flags,
         bundle_behavior: BundleBehavior::None,
         resolve_from: None,
         range: None,
-        source_asset_id: None,
+        source_asset_id: Some(asset_id),
         placeholder: None,
         promise_symbol: None,
         symbols: dep_symbols,
         loc: None,
         target: TargetId(0),
-        env: EnvironmentId(config.env_id),
+        env: asset.env,
         import_attributes: ArenaVec::new(),
         pipeline: None,
         meta: None,
@@ -544,7 +623,7 @@ fn convert_result(
     {
       symbols.push(Symbol {
         exported: "*".into(),
-        local: format!("${}$exports", &config.module_id).into(),
+        local: format!("${}$exports", asset.id).into(),
         loc: None,
         flags: SymbolFlags::empty(),
       });
@@ -609,14 +688,14 @@ fn convert_result(
       // This allows accessing symbols that don't exist without errors in symbol propagation.
       if symbol_result.has_cjs_exports
         || (!symbol_result.is_esm
-          && config.side_effects
+          && asset.flags.contains(AssetFlags::SIDE_EFFECTS)
           && dep_map.is_empty()
           && symbol_result.exports.is_empty())
         || (symbol_result.should_wrap && !symbols.as_slice().iter().any(|s| s.exported == "*"))
       {
         symbols.push(Symbol {
           exported: "*".into(),
-          local: format!("${}$exports", &config.module_id).into(),
+          local: format!("${}$exports", asset.id).into(),
           loc: None,
           flags: SymbolFlags::empty(),
         });
@@ -625,7 +704,7 @@ fn convert_result(
       // If the asset is wrapped, add * as a fallback
       symbols.push(Symbol {
         exported: "*".into(),
-        local: format!("${}$exports", &config.module_id).into(),
+        local: format!("${}$exports", asset.id).into(),
         loc: None,
         flags: SymbolFlags::empty(),
       });
@@ -659,6 +738,25 @@ fn convert_result(
   //     .collect::<Vec<_>>()
   // );
 
+  asset.flags.set(
+    AssetFlags::HAS_NODE_REPLACEMENTS,
+    result.has_node_replacements,
+  );
+  asset
+    .flags
+    .set(AssetFlags::IS_CONSTANT_MODULE, result.is_constant_module);
+  asset
+    .flags
+    .set(AssetFlags::HAS_CJS_EXPORTS, has_cjs_exports);
+  asset
+    .flags
+    .set(AssetFlags::STATIC_EXPORTS, static_cjs_exports);
+  asset.flags.set(AssetFlags::SHOULD_WRAP, should_wrap);
+
+  if asset.unique_key.is_none() {
+    asset.unique_key = Some(asset.id);
+  }
+
   let deps = dep_map.into_values().map(|dep| dep.commit()).collect();
 
   TransformResult2 {
@@ -666,14 +764,8 @@ fn convert_result(
     map: result.map,
     shebang: result.shebang,
     dependencies: deps,
-    symbols: symbols_addr,
     diagnostics: result.diagnostics,
     used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
-    has_node_replacements: result.has_node_replacements,
-    is_constant_module: result.is_constant_module,
-    has_cjs_exports,
-    static_cjs_exports,
-    should_wrap,
   }
 }
 

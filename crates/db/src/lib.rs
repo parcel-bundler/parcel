@@ -50,7 +50,7 @@ pub struct Target {
   // source: Option<u32>
 }
 
-#[derive(PartialEq, Clone, Debug, JsValue)]
+#[derive(PartialEq, Clone, Copy, Debug, JsValue)]
 pub struct EnvironmentId(pub u32);
 
 #[derive(Derivative, Clone, Debug, ToJs, SlabAllocated)]
@@ -127,6 +127,26 @@ pub enum EnvironmentContext {
   ElectronRenderer,
 }
 
+impl EnvironmentContext {
+  pub fn is_node(&self) -> bool {
+    use EnvironmentContext::*;
+    matches!(self, Node | ElectronMain | ElectronRenderer)
+  }
+
+  pub fn is_browser(&self) -> bool {
+    use EnvironmentContext::*;
+    matches!(
+      self,
+      Browser | WebWorker | ServiceWorker | Worklet | ElectronRenderer
+    )
+  }
+
+  pub fn is_worker(&self) -> bool {
+    use EnvironmentContext::*;
+    matches!(self, WebWorker | ServiceWorker)
+  }
+}
+
 #[derive(PartialEq, Clone, Copy, Debug, ToJs, JsValue)]
 pub enum SourceType {
   Module,
@@ -151,7 +171,7 @@ pub struct Asset {
   pub map_key: Option<InternedString>,
   pub output_hash: InternedString,
   pub pipeline: Option<InternedString>,
-  pub meta: InternedString,
+  pub meta: Option<InternedString>,
   pub stats: AssetStats,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
@@ -196,11 +216,17 @@ pub struct AssetStats {
 }
 
 js_bitflags! {
-  pub struct AssetFlags: u8 {
-    const IS_SOURCE = 0b00000001;
-    const SIDE_EFFECTS = 0b00000010;
-    const IS_BUNDLE_SPLITTABLE = 0b00000100;
-    const LARGE_BLOB = 0b00001000;
+  pub struct AssetFlags: u32 {
+    const IS_SOURCE = 1 << 0;
+    const SIDE_EFFECTS = 1 << 1;
+    const IS_BUNDLE_SPLITTABLE = 1 << 2;
+    const LARGE_BLOB = 1 << 3;
+    const HAS_CJS_EXPORTS = 1 << 4;
+    const STATIC_EXPORTS = 1 << 5;
+    const SHOULD_WRAP = 1 << 6;
+    const IS_CONSTANT_MODULE = 1 << 7;
+    const HAS_NODE_REPLACEMENTS = 1 << 8;
+    const HAS_SYMBOLS = 1 << 9;
   }
 }
 
@@ -434,6 +460,16 @@ impl ParcelDb {
 
   pub fn get_environment(&self, addr: u32) -> &Environment {
     unsafe { &*self.heap.get(addr) }
+  }
+
+  pub fn get_asset(&self, addr: u32) -> &Asset {
+    unsafe { &*self.heap.get(addr) }
+  }
+
+  pub fn get_asset_mut(&self, addr: u32) -> &mut Asset {
+    // TODO: somehow make this safe...
+    // It is undefined behavior to vend more than one mutable reference at a time.
+    unsafe { &mut *self.heap.get(addr) }
   }
 
   pub fn environment_id(&self, env: &Environment) -> EnvironmentId {

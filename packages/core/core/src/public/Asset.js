@@ -21,11 +21,7 @@ import type {
   AssetSymbols as IAssetSymbols,
   BundleBehavior,
 } from '@parcel/types';
-import type {
-  Asset as AssetValue,
-  ParcelOptions,
-  CommittedAssetId,
-} from '../types';
+import type {ParcelOptions, CommittedAssetId} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
@@ -35,21 +31,18 @@ import UncommittedAsset from '../UncommittedAsset';
 import InternalCommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
 import {fromProjectPath, toProjectPath} from '../projectPath';
-import {
-  BundleBehavior as BundleBehaviorMap,
-  BundleBehaviorNames,
-} from '../types';
 import {toInternalSourceLocation} from '../utils';
 import {AssetFlags} from '@parcel/rust';
 import {createBuildCache} from '../buildCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const uncommittedAssetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
+const uncommittedAssetValueToAsset: Map<CommittedAssetId, Asset> =
+  createBuildCache();
 const committedAssetValueToAsset: Map<CommittedAssetId, CommittedAsset> =
   createBuildCache();
-const assetValueToMutableAsset: WeakMap<AssetValue, MutableAsset> =
-  new WeakMap();
+const assetValueToMutableAsset: Map<CommittedAssetId, MutableAsset> =
+  createBuildCache();
 
 const _assetToAssetValue: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
@@ -97,8 +90,12 @@ class BaseAsset {
     return this.#asset.value.id;
   }
 
+  get nativeAddress(): number {
+    return this.#asset.value.addr;
+  }
+
   get type(): string {
-    return this.#asset.value.type;
+    return this.#asset.value.assetType;
   }
 
   get env(): IEnvironment {
@@ -124,24 +121,72 @@ class BaseAsset {
   }
 
   get meta(): Meta {
-    return this.#asset.value.meta;
+    return new Proxy(this.#asset.meta, {
+      get: (target, prop) => {
+        let flags = this.#asset.value.flags;
+        switch (prop) {
+          case 'shouldWrap':
+            return Boolean(flags & AssetFlags.SHOULD_WRAP);
+          case 'isConstantModule':
+            return Boolean(flags & AssetFlags.IS_CONSTANT_MODULE);
+          case 'hasNodeReplacements':
+            return Boolean(flags & AssetFlags.HAS_NODE_REPLACEMENTS);
+          case 'hasCJSExports':
+            return Boolean(flags & AssetFlags.HAS_CJS_EXPORTS);
+          case 'staticExports':
+            return Boolean(flags & AssetFlags.STATIC_EXPORTS);
+          default:
+            return target[prop];
+        }
+      },
+      set: (target, prop, value) => {
+        let flag;
+        switch (prop) {
+          case 'shouldWrap':
+            flag = AssetFlags.SHOULD_WRAP;
+            break;
+          case 'isConstantModule':
+            flag = AssetFlags.IS_CONSTANT_MODULE;
+            break;
+          case 'hasNodeReplacements':
+            flag = AssetFlags.HAS_NODE_REPLACEMENTS;
+            break;
+          case 'hasCJSExports':
+            flag = AssetFlags.HAS_CJS_EXPORTS;
+            break;
+          case 'staticExports':
+            flag = AssetFlags.STATIC_EXPORTS;
+            break;
+          default:
+            target[prop] = value;
+            return true;
+        }
+
+        if (value) {
+          this.#asset.value.flags |= flag;
+        } else {
+          this.#asset.value.flags &= ~flag;
+        }
+        return true;
+      },
+    });
   }
 
   get bundleBehavior(): ?BundleBehavior {
     let bundleBehavior = this.#asset.value.bundleBehavior;
-    return bundleBehavior == null ? null : BundleBehaviorNames[bundleBehavior];
+    return bundleBehavior === 'none' ? null : bundleBehavior;
   }
 
   get isBundleSplittable(): boolean {
-    return this.#asset.value.isBundleSplittable;
+    return Boolean(this.#asset.value.flags & AssetFlags.IS_BUNDLE_SPLITTABLE);
   }
 
   get isSource(): boolean {
-    return this.#asset.value.isSource;
+    return Boolean(this.#asset.value.flags & AssetFlags.IS_SOURCE);
   }
 
   get sideEffects(): boolean {
-    return this.#asset.value.sideEffects;
+    return Boolean(this.#asset.value.flags & AssetFlags.SIDE_EFFECTS);
   }
 
   get uniqueKey(): ?string {
@@ -149,7 +194,7 @@ class BaseAsset {
   }
 
   get astGenerator(): ?ASTGenerator {
-    return this.#asset.value.astGenerator;
+    return this.#asset.astGenerator;
   }
 
   get pipeline(): ?string {
@@ -192,14 +237,14 @@ export class Asset extends BaseAsset implements IAsset {
   #env /*: ?Environment */;
 
   constructor(asset: UncommittedAsset): Asset {
-    let existing = uncommittedAssetValueToAsset.get(asset.value);
+    let existing = uncommittedAssetValueToAsset.get(asset.value.addr);
     if (existing != null) {
       return existing;
     }
 
     super(asset);
     this.#asset = asset;
-    uncommittedAssetValueToAsset.set(asset.value, this);
+    uncommittedAssetValueToAsset.set(asset.value.addr, this);
     return this;
   }
 
@@ -209,11 +254,15 @@ export class Asset extends BaseAsset implements IAsset {
   }
 
   get symbols(): IAssetSymbols {
-    return new MutableAssetSymbols(this.#asset.options, this.#asset.value);
+    return new AssetSymbols(this.#asset.options, this.#asset.value.addr);
   }
 
   get stats(): Stats {
-    return this.#asset.value.stats;
+    let stats = this.#asset.value.stats;
+    return {
+      size: stats.size,
+      time: stats.time,
+    };
   }
 }
 
@@ -221,14 +270,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   #asset /*: UncommittedAsset */;
 
   constructor(asset: UncommittedAsset): MutableAsset {
-    let existing = assetValueToMutableAsset.get(asset.value);
+    let existing = assetValueToMutableAsset.get(asset.value.addr);
     if (existing != null) {
       return existing;
     }
 
     super(asset);
     this.#asset = asset;
-    assetValueToMutableAsset.set(asset.value, this);
+    assetValueToMutableAsset.set(asset.value.addr, this);
     _mutableAssetToUncommittedAsset.set(this, asset);
     return this;
   }
@@ -238,41 +287,39 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   get type(): string {
-    return this.#asset.value.type;
+    return this.#asset.value.assetType;
   }
 
   set type(type: string): void {
-    if (type !== this.#asset.value.type) {
-      this.#asset.value.type = type;
+    if (type !== this.#asset.value.assetType) {
+      this.#asset.value.assetType = type;
       this.#asset.updateId();
     }
   }
 
   get bundleBehavior(): ?BundleBehavior {
     let bundleBehavior = this.#asset.value.bundleBehavior;
-    return bundleBehavior == null ? null : BundleBehaviorNames[bundleBehavior];
+    return bundleBehavior === 'none' ? null : bundleBehavior;
   }
 
   set bundleBehavior(bundleBehavior: ?BundleBehavior): void {
-    this.#asset.value.bundleBehavior = bundleBehavior
-      ? BundleBehaviorMap[bundleBehavior]
-      : null;
+    this.#asset.value.bundleBehavior = bundleBehavior ? bundleBehavior : 'none';
   }
 
   get isBundleSplittable(): boolean {
-    return this.#asset.value.isBundleSplittable;
+    return Boolean(this.#asset.value.flags & AssetFlags.IS_BUNDLE_SPLITTABLE);
   }
 
   set isBundleSplittable(isBundleSplittable: boolean): void {
-    this.#asset.value.isBundleSplittable = isBundleSplittable;
+    this.#asset.value.flags |= AssetFlags.IS_BUNDLE_SPLITTABLE;
   }
 
   get sideEffects(): boolean {
-    return this.#asset.value.sideEffects;
+    return Boolean(this.#asset.value.flags & AssetFlags.SIDE_EFFECTS);
   }
 
   set sideEffects(sideEffects: boolean): void {
-    this.#asset.value.sideEffects = sideEffects;
+    this.#asset.value.flags |= AssetFlags.SIDE_EFFECTS;
   }
 
   get uniqueKey(): ?string {
@@ -289,7 +336,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   get symbols(): IMutableAssetSymbols {
-    return new MutableAssetSymbols(this.#asset.options, this.#asset.value);
+    return new MutableAssetSymbols(this.#asset.options, this.#asset.value.addr);
   }
 
   addDependency(dep: DependencyOptions): string {
@@ -298,10 +345,6 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   setNativeDependencies(deps: Array<number>) {
     this.#asset.setNativeDependencies(deps);
-  }
-
-  setNativeSymbols(symbols: number) {
-    this.#asset.setNativeSymbols(symbols);
   }
 
   invalidateOnFileChange(filePath: FilePath): void {
@@ -374,11 +417,19 @@ export class CommittedAsset implements IAsset {
   }
 
   get stats(): Stats {
-    return this.#asset.value.stats;
+    let stats = this.#asset.value.stats;
+    return {
+      size: stats.size,
+      time: stats.time,
+    };
   }
 
   get id(): string {
     return this.#asset.value.id;
+  }
+
+  get nativeAddress(): number {
+    return this.#asset.value.addr;
   }
 
   get type(): string {
@@ -408,8 +459,20 @@ export class CommittedAsset implements IAsset {
   }
 
   get meta(): Meta {
-    this.#meta ??= JSON.parse(this.#asset.value.meta);
-    return nullthrows(this.#meta);
+    let flags = this.#asset.value.flags;
+    let json = this.#asset.value.meta;
+    if (json != null) {
+      this.#meta ??= JSON.parse(json);
+    }
+
+    return {
+      ...this.#meta,
+      shouldWrap: Boolean(flags & AssetFlags.SHOULD_WRAP),
+      isConstantModule: Boolean(flags & AssetFlags.IS_CONSTANT_MODULE),
+      hasNodeReplacements: Boolean(flags & AssetFlags.HAS_NODE_REPLACEMENTS),
+      hasCJSExports: Boolean(flags & AssetFlags.HAS_CJS_EXPORTS),
+      staticExports: Boolean(flags & AssetFlags.STATIC_EXPORTS),
+    };
   }
 
   get bundleBehavior(): ?BundleBehavior {
