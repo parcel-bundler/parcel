@@ -44,7 +44,7 @@ impl Drop for Page {
 }
 
 impl PageAllocator {
-  pub const fn new() -> Self {
+  pub fn new() -> Self {
     Self {
       pages: AtomicVec::new(),
     }

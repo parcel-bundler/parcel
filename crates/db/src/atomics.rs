@@ -1,9 +1,6 @@
-use std::{
-  cell::UnsafeCell,
-  sync::{
-    atomic::{AtomicU32, Ordering},
-    Mutex,
-  },
+use std::sync::{
+  atomic::{AtomicPtr, AtomicU32, Ordering},
+  Mutex,
 };
 
 const CHUNKS: usize = (u32::BITS + 1) as usize;
@@ -13,11 +10,9 @@ const CHUNKS: usize = (u32::BITS + 1) as usize;
 /// This means that for any given index, the location can be predicted
 /// deterministically, and there are no reallocations.
 struct ChunkList<T> {
-  chunks: UnsafeCell<[*mut T; CHUNKS]>,
+  chunks: [AtomicPtr<T>; CHUNKS],
   lock: Mutex<()>,
 }
-
-unsafe impl<T> Sync for ChunkList<T> {}
 
 impl<T> Default for ChunkList<T> {
   fn default() -> Self {
@@ -26,9 +21,9 @@ impl<T> Default for ChunkList<T> {
 }
 
 impl<T> ChunkList<T> {
-  const fn new() -> Self {
+  fn new() -> Self {
     Self {
-      chunks: UnsafeCell::new([std::ptr::null_mut(); CHUNKS]),
+      chunks: [std::ptr::null_mut(); CHUNKS].map(AtomicPtr::new),
       lock: Mutex::new(()),
     }
   }
@@ -48,16 +43,15 @@ impl<T> ChunkList<T> {
 
   fn chunk_data_mut(&self, chunk_index: u32) -> &mut [T] {
     let chunk_length = self.chunk_length(chunk_index) as usize;
-    let chunks = unsafe { &mut *self.chunks.get() };
-    let mut data = chunks[chunk_index as usize];
+    let mut data = self.chunks[chunk_index as usize].load(Ordering::Acquire);
     if data.is_null() {
       let guard = self.lock.lock().unwrap();
       // Now that we acquired the lock, check again in case another thread allocated while we were waiting.
-      data = chunks[chunk_index as usize];
+      data = self.chunks[chunk_index as usize].load(Ordering::Acquire);
       if data.is_null() {
         let layout = std::alloc::Layout::array::<T>(chunk_length).unwrap();
         data = unsafe { std::alloc::alloc(layout).cast::<T>() };
-        chunks[chunk_index as usize] = data;
+        self.chunks[chunk_index as usize].store(data, Ordering::Release);
       }
       drop(guard);
     }
@@ -67,8 +61,7 @@ impl<T> ChunkList<T> {
 
   fn chunk_data(&self, chunk_index: u32) -> Option<&[T]> {
     let chunk_length = self.chunk_length(chunk_index) as usize;
-    let chunks = unsafe { &*self.chunks.get() };
-    let data = chunks[chunk_index as usize];
+    let data = self.chunks[chunk_index as usize].load(Ordering::Acquire);
     if data.is_null() {
       None
     } else {
@@ -78,8 +71,7 @@ impl<T> ChunkList<T> {
 
   unsafe fn chunk_data_unchecked(&self, chunk_index: u32) -> &[T] {
     let chunk_length = self.chunk_length(chunk_index) as usize;
-    let chunks = unsafe { &*self.chunks.get() };
-    let data = chunks[chunk_index as usize];
+    let data = self.chunks[chunk_index as usize].load(Ordering::Acquire);
     unsafe { std::slice::from_raw_parts_mut(data, chunk_length) }
   }
 
@@ -118,15 +110,11 @@ impl<T> ChunkList<T> {
 
 impl<T> Drop for ChunkList<T> {
   fn drop(&mut self) {
-    let chunks = unsafe { &*self.chunks.get() };
-    for chunk_index in 0..chunks.len() {
-      let data = chunks[chunk_index];
+    for (chunk_index, ptr) in self.chunks.iter().enumerate() {
+      let data = ptr.load(Ordering::Acquire);
       if !data.is_null() {
         let chunk_length = self.chunk_length(chunk_index as u32) as usize;
-        let slice = unsafe { std::slice::from_raw_parts(data, chunk_length) };
-        for v in slice {
-          drop(v);
-        }
+        unsafe { std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(data, chunk_length)) };
         let layout = std::alloc::Layout::array::<T>(chunk_length).unwrap();
         unsafe { std::alloc::dealloc(data.cast(), layout) };
       }
@@ -149,7 +137,7 @@ impl<T> Default for AtomicVec<T> {
 }
 
 impl<T> AtomicVec<T> {
-  pub const fn new() -> Self {
+  pub fn new() -> Self {
     AtomicVec {
       list: ChunkList::new(),
       reserved: AtomicU32::new(0),
