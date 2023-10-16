@@ -114,7 +114,7 @@ impl<T> Drop for ChunkList<T> {
       let data = ptr.load(Ordering::Acquire);
       if !data.is_null() {
         let chunk_length = self.chunk_length(chunk_index as u32) as usize;
-        unsafe { std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(data, chunk_length)) };
+        // Destructors are not called here. AtomicVec takes care of that.
         let layout = std::alloc::Layout::array::<T>(chunk_length).unwrap();
         unsafe { std::alloc::dealloc(data.cast(), layout) };
       }
@@ -189,5 +189,27 @@ impl<T> AtomicVec<T> {
 
   pub fn len(&self) -> u32 {
     self.len.load(Ordering::SeqCst)
+  }
+}
+
+impl<T> Drop for AtomicVec<T> {
+  fn drop(&mut self) {
+    let len = self.len.load(Ordering::Acquire) as usize;
+    let mut i = 0;
+    let mut chunk_index = 0;
+    while i < len {
+      let chunk_len = self.list.chunk_length(chunk_index as u32) as usize;
+      let data = self.list.chunks[chunk_index].load(Ordering::Acquire);
+      if data.is_null() {
+        continue;
+      }
+
+      // Call destructors on used items in this chunk.
+      let used_len = (i + chunk_len).min(len) - i;
+      unsafe { std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(data, used_len)) };
+
+      i += chunk_len;
+      chunk_index += 1;
+    }
   }
 }
