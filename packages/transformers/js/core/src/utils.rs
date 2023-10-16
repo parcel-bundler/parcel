@@ -33,7 +33,7 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &Hash
     match &*member.obj {
       Expr::Member(m) => member = m,
       Expr::Ident(id) => {
-        return idents.len() == 1 && &id.sym == idents.pop().unwrap() && !decls.contains(&id!(id));
+        return idents.len() == 1 && id.sym == idents.pop().unwrap() && !decls.contains(&id!(id));
       }
       _ => return false,
     }
