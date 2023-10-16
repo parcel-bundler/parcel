@@ -199,6 +199,7 @@ export default class BundleGraph {
       walkVisited.add(nodeId);
 
       let node = nullthrows(assetGraph.getNode(nodeId));
+
       if (
         node.type === 'dependency' &&
         node.value.symbols != null &&
@@ -208,10 +209,9 @@ export default class BundleGraph {
       ) {
         let nodeValueSymbols = node.value.symbols;
 
-        let source = nullthrows(
-          graph.getNodeByContentKey(nullthrows(node.value.sourceAssetId)),
+        let source = graph.getNodeByContentKey(
+          nullthrows(node.value.sourceAssetId),
         );
-        invariant(source.type === 'asset');
 
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
@@ -260,15 +260,19 @@ export default class BundleGraph {
             ([, t]) => new Set([...t.values()]).size === t.size,
           )
         ) {
-          console.log(
-            node.value.specifier,
-            [...targets].map(([a, s]) => [
-              assetGraph.getNodeByContentKey(a)?.value.filePath,
-              s,
-            ]),
-          );
+          // console.log(
+          //   node.value.specifier,
+          //   [...targets].map(([a, s]) => [
+          //     assetGraph.getNodeByContentKey(a)?.value.filePath,
+          //     s,
+          //   ]),
+          // );
 
-          let sourceAssetSymbols = nullthrows(source.value.symbols);
+          let sourceAssetSymbols;
+          if (source) {
+            invariant(source.type === 'asset');
+            sourceAssetSymbols = nullthrows(source.value.symbols);
+          }
           let isReexportAll = nodeValueSymbols.get('*')?.local === '*';
           let reexportAllLoc = isReexportAll
             ? nullthrows(nodeValueSymbols.get('*')).loc
@@ -304,12 +308,12 @@ export default class BundleGraph {
               );
 
               let symbols = new Map();
-              console.log(
-                'X',
-                require('util').inspect(nodeValueSymbols, {depth: Infinity}),
-                target,
-                isReexportAll,
-              );
+              // console.log(
+              //   'X',
+              //   require('util').inspect(nodeValueSymbols, {depth: Infinity}),
+              //   target,
+              //   isReexportAll,
+              // );
               for (let [as, from] of target) {
                 let existing = nodeValueSymbols.get(as);
                 if (existing) {
@@ -322,14 +326,14 @@ export default class BundleGraph {
                     local,
                     loc: reexportAllLoc,
                   });
-                  console.log(
-                    'adding ',
-                    as,
-                    source.value.filePath,
-                    sourceAssetSymbols,
-                  );
+                  // console.log(
+                  //   'adding ',
+                  //   as,
+                  //   source.value.filePath,
+                  //   sourceAssetSymbols,
+                  // );
                   // It might already exist with multiple export-alls causing ambiguous resolution
-                  if (!sourceAssetSymbols.has(as)) {
+                  if (sourceAssetSymbols && !sourceAssetSymbols.has(as)) {
                     sourceAssetSymbols.set(as, {
                       loc: reexportAllLoc,
                       local: local,
@@ -360,17 +364,17 @@ export default class BundleGraph {
               };
             }),
           ];
-          console.log(
-            node.value.specifier,
-            require('util').inspect(
-              deps.map(x => [
-                assetGraph.getNodeByContentKey(x.asset)?.value.filePath,
-                [...graph.getNode(x.dep).usedSymbolsUp],
-                [...graph.getNode(x.dep).value.symbols],
-              ]),
-              {depth: Infinity},
-            ),
-          );
+          // console.log(
+          //   node.value.specifier,
+          //   require('util').inspect(
+          //     deps.map(x => [
+          //       assetGraph.getNodeByContentKey(x.asset)?.value.filePath,
+          //       [...graph.getNode(x.dep).usedSymbolsUp],
+          //       [...graph.getNode(x.dep).value.symbols],
+          //     ]),
+          //     {depth: Infinity},
+          //   ),
+          // );
 
           dependencies.set(nodeId, deps);
 
@@ -438,7 +442,6 @@ export default class BundleGraph {
         );
       }
     }
-
     return new BundleGraph({
       graph,
       assetPublicIds,
@@ -1713,9 +1716,9 @@ export default class BundleGraph {
     //   global.X = true;
     // }
     // try {
-    if (global.X) {
-      console.log('enter', asset.filePath, symbol);
-    }
+    // if (global.X) {
+    //   console.log('enter', asset.filePath, symbol);
+    // }
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
     let identifier = asset.symbols?.get(symbol)?.local;
