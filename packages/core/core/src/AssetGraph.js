@@ -183,6 +183,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let existing = this.getNodeByContentKey(node.id);
     if (existing != null) {
       invariant(existing.type === node.type);
+      if (node.value !== existing.value) {
+        this.deallocNode(existing);
+      }
       // $FlowFixMe[incompatible-type] Checked above
       // $FlowFixMe[prop-missing]
       existing.value = node.value;
@@ -198,6 +201,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     this.onNodeRemoved && this.onNodeRemoved(nodeId);
 
     let node = this.getNode(nodeId);
+    if (node) {
+      this.deallocNode(node);
+    }
+
+    return super.removeNode(nodeId);
+  }
+
+  deallocNode(node: AssetGraphNode) {
     switch (node?.type) {
       case 'asset': {
         let asset = DbAsset.get(this.db, node.value);
@@ -210,8 +221,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         break;
       }
     }
-
-    return super.removeNode(nodeId);
   }
 
   resolveEntry(

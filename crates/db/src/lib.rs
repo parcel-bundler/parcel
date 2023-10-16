@@ -142,6 +142,7 @@ pub enum OutputFormat {
 
 #[derive(Debug, Clone, ToJs, JsValue, SlabAllocated)]
 pub struct Asset {
+  pub id: InternedString,
   pub file_path: InternedString,
   pub env: EnvironmentId,
   pub query: Option<InternedString>,

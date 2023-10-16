@@ -492,6 +492,7 @@ export default class UncommittedAsset {
 
   saveToDb(): {|asset: CommittedAssetId, dependencies: Array<Dependency>|} {
     let asset = new DbAsset(this.options.db);
+    asset.id = this.value.id;
     asset.filePath = this.value.filePath;
     asset.env = this.value.env;
     asset.query = this.value.query;

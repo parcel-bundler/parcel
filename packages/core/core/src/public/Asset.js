@@ -378,7 +378,7 @@ export class CommittedAsset implements IAsset {
   }
 
   get id(): string {
-    return this.#asset.value.addr;
+    return this.#asset.value.id;
   }
 
   get type(): string {

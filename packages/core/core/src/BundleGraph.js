@@ -49,7 +49,6 @@ import {
   ParcelDb,
   readCachedString,
 } from '@parcel/rust';
-import {createAssetIdFromOptions} from './assetUtils';
 
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
@@ -190,15 +189,9 @@ export default class BundleGraph {
         let publicId = publicIdByAssetId.get(assetId);
         if (publicId == null) {
           let asset = DbAsset.get(db, assetId);
-          let id = createAssetIdFromOptions({
-            filePath: asset.filePath,
-            type: asset.assetType,
-            env: asset.env,
-            uniqueKey: asset.uniqueKey,
-            pipeline: asset.pipeline,
-            query: asset.query,
-          });
-          publicId = getPublicId(id, existing => assetPublicIds.has(existing));
+          publicId = getPublicId(asset.id, existing =>
+            assetPublicIds.has(existing),
+          );
           publicIdByAssetId.set(assetId, publicId);
           assetPublicIds.add(publicId);
         }

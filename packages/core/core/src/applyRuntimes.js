@@ -24,7 +24,7 @@ import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
-import {hashString} from '@parcel/rust';
+import {hashString, Asset as DbAsset} from '@parcel/rust';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
 import {mergeEnvironments} from './Environment';
@@ -229,6 +229,24 @@ export default async function applyRuntimes<TResult>({
     bundleGraph._publicIdByAssetId,
     bundleGraph._assetPublicIds,
   );
+
+  // Remap asset ids in the runtimes graph to reuse the same assets as the main asset graph when there is overlap.
+  let assetIdToAddr = new Map<string, number>();
+  for (let node of bundleGraph._graph.nodes) {
+    if (node?.type === 'asset') {
+      assetIdToAddr.set(DbAsset.get(options.db, node.value).id, node.value);
+    }
+  }
+
+  for (let node of runtimesGraph._graph.nodes) {
+    if (node?.type === 'asset') {
+      let existing = assetIdToAddr.get(DbAsset.get(options.db, node.value).id);
+      if (existing != null) {
+        node.id = existing;
+        node.value = existing;
+      }
+    }
+  }
 
   // Merge the runtimes graph into the main bundle graph.
   bundleGraph.merge(runtimesGraph);
