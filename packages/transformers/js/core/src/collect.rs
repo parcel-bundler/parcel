@@ -768,22 +768,24 @@ impl Visit for Collect {
         }
       }
       Expr::Bin(bin_expr) => {
-        // Some TSC polyfills use a pattern like below.
-        // We want to avoid marking these modules as CJS
-        // e.g. var _polyfill = (this && this.polyfill) || function () {}
-        if matches!(*bin_expr.left, Expr::This(..)) {
-          match &*bin_expr.right {
-            Expr::Member(member_expr) => {
-              if matches!(*member_expr.obj, Expr::This(..))
-                && matches!(member_expr.prop, MemberProp::Ident(..))
-              {
-                return;
+        if self.in_module_this {
+          // Some TSC polyfills use a pattern like below.
+          // We want to avoid marking these modules as CJS
+          // e.g. var _polyfill = (this && this.polyfill) || function () {}
+          if matches!(bin_expr.op, BinaryOp::LogicalAnd) && matches!(*bin_expr.left, Expr::This(..))
+          {
+            match &*bin_expr.right {
+              Expr::Member(member_expr) => {
+                if matches!(*member_expr.obj, Expr::This(..))
+                  && matches!(member_expr.prop, MemberProp::Ident(..))
+                {
+                  return;
+                }
               }
+              _ => {}
             }
-            _ => {}
           }
         }
-
         node.visit_children_with(self);
       }
       _ => {
