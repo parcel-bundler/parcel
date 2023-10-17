@@ -932,7 +932,6 @@ export default (new Transformer({
     }
 
     asset.type = 'js';
-    // console.log(asset.filePath, compiledCode.toString())
     asset.setBuffer(compiledCode);
 
     if (map) {
