@@ -509,7 +509,7 @@ function createIdealGraph(
   let manualAssetToBundle: Map<Asset, NodeId> = new Map();
   let {manualAssetToConfig, constantModuleToMSB} =
     makeManualAssetToConfigLookup();
-  let manualBundleToInternalizedAsset: Map<
+  let manualBundleToInternalizedAsset: DefaultMap<
     NodeId,
     Array<Asset>,
   > = new DefaultMap(() => []);
@@ -558,11 +558,13 @@ function createIdealGraph(
           }
 
           for (let childAsset of assets) {
+            let bundleId = bundles.get(childAsset.id);
+            let bundle;
+
             // MSB Step 1: Match glob on filepath and type for any asset
             let manualSharedBundleKey;
             let manualSharedObject = manualAssetToConfig.get(childAsset);
-            let bundleId;
-            let bundle;
+
             if (manualSharedObject) {
               // MSB Step 2: Generate a key for which to look up this manual bundle with
               manualSharedBundleKey =
@@ -580,10 +582,6 @@ function createIdealGraph(
               dependency.priority === 'lazy' ||
               childAsset.bundleBehavior === 'isolated' // An isolated Dependency, or Bundle must contain all assets it needs to load.
             ) {
-              if (bundleId == null) {
-                bundleId = bundles.get(childAsset.id);
-              }
-
               if (bundleId == null) {
                 let firstBundleGroup = nullthrows(
                   bundleGraph.getNode(stack[0][1]),
@@ -608,9 +606,9 @@ function createIdealGraph(
                 if (manualSharedObject) {
                   // MSB Step 4: If this was the first instance of a match, mark mainAsset for internalization
                   // since MSBs should not have main entry assets
-                  nullthrows(
-                    manualBundleToInternalizedAsset.get(bundleId),
-                  ).push(childAsset);
+                  manualBundleToInternalizedAsset
+                    .get(bundleId)
+                    .push(childAsset);
                 }
               } else {
                 bundle = nullthrows(bundleGraph.getNode(bundleId));
@@ -664,9 +662,7 @@ function createIdealGraph(
                 bundleGraph.getNode(referencingBundleId),
               );
               invariant(referencingBundle !== 'root');
-              if (bundleId == null) {
-                bundleId = bundles.get(childAsset.id);
-              }
+
               /**
                * If this is an entry bundlegroup, we only allow one bundle per type in those groups
                * So attempt to add the asset to the entry bundle if it's of the same type.
@@ -749,6 +745,8 @@ function createIdealGraph(
               }
 
               assetReference.get(childAsset).push([dependency, bundle]);
+            } else {
+              bundleId = null;
             }
             if (manualSharedObject && bundleId != null) {
               // MSB Step 5:  At this point we've either created or found an existing MSB bundle
