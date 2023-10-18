@@ -387,7 +387,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   // Transpile new syntax to older syntax if needed
                   Optional::new(
                     preset_env(
-                      global_mark,
+                      unresolved_mark,
                       Some(&comments),
                       preset_env_config,
                       assumptions,
