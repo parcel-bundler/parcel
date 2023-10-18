@@ -1389,13 +1389,6 @@ function createIdealGraph(
 
       assignInlineConstants(asset, bundle);
 
-      for (let inlineConstantDep of inlineConstantDeps.get(asset)) {
-        if (!bundle.assets.has(inlineConstantDep)) {
-          bundle.assets.add(inlineConstantDep);
-          bundle.size += inlineConstantDep.stats.size;
-        }
-      }
-
       for (let sourceBundleId of sourceBundles) {
         if (bundleId !== sourceBundleId) {
           bundleGraph.addEdge(sourceBundleId, bundleId);
