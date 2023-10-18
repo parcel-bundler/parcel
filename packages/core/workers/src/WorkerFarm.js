@@ -113,7 +113,7 @@ export default class WorkerFarm extends EventEmitter {
     // Note this can't be fixed easily where other things pipe into stdout -  even after starting > 10 worker
     // threads `process.stdout.getMaxListeners()` will still return 10, however adding another pipe into `stdout`
     // will give the warning with `<worker count + 1>` as the number of listeners.
-    process.stdout.setMaxListeners(
+    process.stdout?.setMaxListeners(
       Math.max(
         process.stdout.getMaxListeners(),
         WorkerFarm.getNumWorkers() + 1,
