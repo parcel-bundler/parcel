@@ -17,7 +17,7 @@
   "source": "src/SassTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.10.0"
+    "parcel": "^2.10.1"
   },
   "dependencies": {
     "@parcel/plugin": "2.10.1",

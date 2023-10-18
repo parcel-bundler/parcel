@@ -22,6 +22,6 @@
     "@parcel/transformer-webextension": "2.10.1"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.10.0"
+    "@parcel/core": "^2.10.1"
   }
 }

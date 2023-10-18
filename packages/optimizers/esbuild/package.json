@@ -17,7 +17,7 @@
   "source": "src/ESBuildOptimizer.js",
   "engines": {
     "node": ">= 10.0.0",
-    "parcel": "^2.10.0"
+    "parcel": "^2.10.1"
   },
   "dependencies": {
     "@parcel/diagnostic": "2.10.1",
