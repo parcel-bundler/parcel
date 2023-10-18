@@ -19,6 +19,7 @@
     "parcel-query": "2.10.3"
   },
   "devDependencies": {
+    "@babel/core": "^7.22.11",
     "@parcel/babel-register": "2.10.3",
     "@parcel/types": "2.10.3"
   }

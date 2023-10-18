@@ -29,6 +29,7 @@
     "cross-env": "^7.0.0",
     "elm": "^0.19.1-5",
     "elm-hot": "^1.1.5",
+    "esbuild": "^0.19.5",
     "esbuild-register": "^3.5.0",
     "exif-reader": "^1.0.3",
     "get-port": "^5.0.0",
