@@ -942,6 +942,8 @@ function createIdealGraph(
   // order the bundles are loaded.
   let ancestorAssets = [];
 
+  let inlineConstantDeps = new DefaultMap(() => new Set());
+
   for (let [bundleRootId, assetId] of bundleRootGraph.nodes.entries()) {
     let reachable = new BitSet(assets.length);
     reachableAssets.push(reachable);
@@ -1001,6 +1003,18 @@ function createIdealGraph(
         let assetIndex = nullthrows(assetToIndex.get(node.value));
         reachable.add(assetIndex);
         reachableRoots[assetIndex].add(bundleRootId);
+
+        if (asset.meta.isConstantModule === true) {
+          let parents = assetGraph
+            .getIncomingDependencies(asset)
+            .map(dep => nullthrows(assetGraph.getAssetWithDependency(dep)));
+
+          for (let parent of parents) {
+            inlineConstantDeps.get(parent).add(asset);
+          }
+        }
+
+        return;
       },
       root,
       {skipUnusedDependencies: true},
@@ -1150,6 +1164,16 @@ function createIdealGraph(
       deleteBundle(bundleRoot);
     }
   }
+
+  function assignInlineConstants(parentAsset: Asset, bundle: Bundle) {
+    for (let inlineConstant of inlineConstantDeps.get(parentAsset)) {
+      if (!bundle.assets.has(inlineConstant)) {
+        bundle.assets.add(inlineConstant);
+        bundle.size += inlineConstant.stats.size;
+      }
+    }
+  }
+
   // Step Insert Or Share: Place all assets into bundles or create shared bundles. Each asset
   // is placed into a single bundle based on the bundle entries it is reachable from.
   // This creates a maximally code split bundle graph with no duplication.
@@ -1160,19 +1184,15 @@ function createIdealGraph(
     let asset = assets[i];
     let manualSharedObject = manualAssetToConfig.get(asset);
 
-    if (asset.meta.isConstantModule === true) {
-      // Add assets to non-splittable bundles.
-      reachableRoots[i].forEach(nodeId => {
-        let assetId = bundleRootGraph.getNode(nodeId);
-        if (assetId == null) return; // deleted
-        let entry = assets[assetId];
-        let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
-        let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
-        invariant(entryBundle !== 'root');
-        entryBundle.assets.add(asset);
-        entryBundle.size += asset.stats.size;
-      });
+    if (bundleRoots.has(asset) && inlineConstantDeps.get(asset).size > 0) {
+      let entryBundleId = nullthrows(bundleRoots.get(asset))[0];
+      let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
+      invariant(entryBundle !== 'root');
+      assignInlineConstants(asset, entryBundle);
+    }
 
+    if (asset.meta.isConstantModule === true) {
+      // Ignore constant modules as they are placed with their direct parents
       continue;
     }
 
@@ -1198,6 +1218,8 @@ function createIdealGraph(
         invariant(entryBundle !== 'root');
         entryBundle.assets.add(asset);
         entryBundle.size += asset.stats.size;
+
+        assignInlineConstants(asset, entryBundle);
       } else if (!ancestorAssets[nodeId]?.has(i)) {
         // Filter out bundles from this asset's reachable array if
         // bundle does not contain the asset in its ancestry
@@ -1373,6 +1395,8 @@ function createIdealGraph(
       bundle.assets.add(asset);
       bundle.size += asset.stats.size;
 
+      assignInlineConstants(asset, bundle);
+
       for (let sourceBundleId of sourceBundles) {
         if (bundleId !== sourceBundleId) {
           bundleGraph.addEdge(sourceBundleId, bundleId);
@@ -1394,6 +1418,8 @@ function createIdealGraph(
         invariant(bundle !== 'root');
         bundle.assets.add(asset);
         bundle.size += asset.stats.size;
+
+        assignInlineConstants(asset, bundle);
       }
     }
   }
