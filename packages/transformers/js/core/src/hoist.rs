@@ -1425,6 +1425,32 @@ mod tests {
   }
 
   #[test]
+  fn collect_has_cjs_exports() {
+    let (collect, _code, _hoist) = parse(
+      r#"
+      module.exports = {};
+    "#,
+    );
+    assert!(collect.has_cjs_exports);
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+      this.someExport = 'true';
+    "#,
+    );
+    assert!(collect.has_cjs_exports);
+
+    // Some TSC polyfills use a pattern like below.
+    // We want to avoid marking these modules as CJS
+    let (collect, _code, _hoist) = parse(
+      r#"
+      var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function () {}
+    "#,
+    );
+    assert!(!collect.has_cjs_exports);
+  }
+
+  #[test]
   fn collect_should_wrap() {
     let (collect, _code, _hoist) = parse(
       r#"
