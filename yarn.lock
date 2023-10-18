@@ -3690,6 +3690,7 @@ __metadata:
     mocha: "npm:^8.3.0"
     mocha-junit-reporter: "npm:^2.0.0"
     mocha-multi-reporters: "npm:^1.5.1"
+    parcel: "npm:*"
     prettier: "npm:2.4.1"
     punycode: "npm:^1.4.1"
     rimraf: "npm:^3.0.2"
@@ -15756,7 +15757,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"parcel@npm:2.10.3, parcel@workspace:packages/core/parcel":
+"parcel@npm:*, parcel@npm:2.10.3, parcel@workspace:packages/core/parcel":
   version: 0.0.0-use.local
   resolution: "parcel@workspace:packages/core/parcel"
   dependencies:

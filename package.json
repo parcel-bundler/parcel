@@ -54,6 +54,7 @@
     "mocha": "^8.3.0",
     "mocha-junit-reporter": "^2.0.0",
     "mocha-multi-reporters": "^1.5.1",
+    "parcel": "*",
     "prettier": "2.4.1",
     "punycode": "^1.4.1",
     "rimraf": "^3.0.2",
