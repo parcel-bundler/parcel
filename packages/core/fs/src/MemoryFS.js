@@ -921,10 +921,12 @@ function makeShared(contents: Buffer | string): Buffer {
   let length = Buffer.byteLength(contents);
   let shared = new SharedBuffer(length);
   let buffer = Buffer.from(shared);
-  if (typeof contents === 'string') {
-    buffer.write(contents);
-  } else {
-    buffer.set(contents);
+  if (length > 0) {
+    if (typeof contents === 'string') {
+      buffer.write(contents);
+    } else {
+      buffer.set(contents);
+    }
   }
 
   return buffer;
