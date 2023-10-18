@@ -3684,7 +3684,7 @@ __metadata:
     glob: "npm:^7.1.6"
     gulp: "npm:^4.0.2"
     gulp-babel: "npm:^8.0.0"
-    husky: "npm:^6.0.0"
+    husky: "npm:^8.0.3"
     lerna: "npm:^3.22.1"
     lint-staged: "npm:^10.2.11"
     mocha: "npm:^8.3.0"
@@ -11845,12 +11845,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"husky@npm:^6.0.0":
-  version: 6.0.0
-  resolution: "husky@npm:6.0.0"
+"husky@npm:^8.0.3":
+  version: 8.0.3
+  resolution: "husky@npm:8.0.3"
   bin:
     husky: lib/bin.js
-  checksum: 7527e831c85d011518222965f2fe8487a30b1a06ed1c15d97143937184423827847e6436f721d8ffc2ab6abcc7ba1e6fff6c42cd43d69dc2d8e2deb0bde0c1b0
+  checksum: b754cf70fdc97c3b60fec5b80056b9c11436464953b1691bf2b5dcf0081fb6685d2c5f47abb8b2b1c49f504aabea5321fdd6496f8b755d9f6e7525a493406abb
   languageName: node
   linkType: hard
 
