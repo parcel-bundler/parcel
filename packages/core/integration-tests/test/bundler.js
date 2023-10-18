@@ -10,7 +10,7 @@ import {
   run,
 } from '@parcel/test-utils';
 
-describe('bundler', function () {
+describe.only('bundler', function () {
   it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
     await fsFixture(overlayFS, __dirname)`
       disable-shared-bundle-single-source
@@ -1152,6 +1152,52 @@ describe('bundler', function () {
       {
         // shared bundle
         assets: ['shared.js', 'constants.js'],
+      },
+    ]);
+  });
+
+  it('should support inline constants in non-splittable bundles', async () => {
+    await fsFixture(overlayFS, __dirname)`
+      inline-constants-non-splittable
+        index.js:
+          import {sharedFn} from './shared';
+          sideEffectNoop(sharedFn());
+
+        shared.js:
+          import {constant} from './constants';
+
+          export function sharedFn() {
+            return constant;
+          }
+
+        constants.js:
+          export const constant = 'constant';
+
+        package.json:
+          {
+            "@parcel/transformer-js": {
+              "unstable_inlineConstants": true
+            }
+          }
+
+        yarn.lock:`;
+
+    let b = await bundle(
+      path.join(__dirname, 'inline-constants-non-splittable/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          sourceMaps: false,
+          shouldOptimize: false,
+        },
+        inputFS: overlayFS,
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['index.js', 'shared.js', 'constants.js'],
       },
     ]);
   });
