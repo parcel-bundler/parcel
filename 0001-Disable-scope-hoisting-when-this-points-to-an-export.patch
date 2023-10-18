@@ -1,0 +1,301 @@
+From 75c1921c86017e747d8b46ea172392f78f187814 Mon Sep 17 00:00:00 2001
+From: adelchan07 <66882888+adelchan07@users.noreply.github.com>
+Date: Wed, 11 Oct 2023 14:18:45 -0400
+Subject: [PATCH] Disable scope hoisting when 'this' points to an export
+ (#9291)
+
+* recognize 'this' as a potential keyword linking to an export
+
+* Add co-authors.
+Co-authored-by: Eric Eldredge <lettertwo@gmail.com>
+Co-authored-by: Brian Tedder <btedder@atlassian.com>
+
+* update BailoutReason text, fix test name
+
+* rename "thises" to "this_exprs"
+
+* remove print statements
+
+* cleanup
+
+* don't wrap when `this` collides in class
+
+* move bailouts outside of tracing
+
+* add integration test
+
+* cleanup integration test
+
+* update test: move to commonjs and change search
+
+* update naming
+
+* Update packages/core/integration-tests/test/scope-hoisting.js
+
+Co-authored-by: Niklas Mischkulnig <4586894+mischnic@users.noreply.github.com>
+
+* move fixture for test into commonjs folder
+
+* update link for THisInExport bailout reason
+
+* remove duplicate memberProp check
+
+* Revert "remove duplicate memberProp check"
+
+This reverts commit a01708239200d7b32928f09586579ede51d87c1e.
+
+* store Ident, Span instead of entire node
+
+* move instead of clone self.this_exprs
+
+* Cleanup
+
+---------
+
+Co-authored-by: achan3 <achan3@atlassian.com>
+Co-authored-by: Brian Tedder <btedder@atlassian.com>
+Co-authored-by: Brian Tedder <6571474+imbrian@users.noreply.github.com>
+Co-authored-by: Niklas Mischkulnig <4586894+mischnic@users.noreply.github.com>
+---
+ .../scope-hoisting/commonjs/exports-this/a.js | 11 ++++
+ .../integration-tests/test/scope-hoisting.js  | 17 +++++
+ packages/transformers/js/core/src/collect.rs  | 31 +++++++++-
+ packages/transformers/js/core/src/hoist.rs    | 62 +++++++++++++++++++
+ packages/transformers/js/core/src/utils.rs    |  5 ++
+ 5 files changed, 125 insertions(+), 1 deletion(-)
+ create mode 100644 packages/core/integration-tests/test/integration/scope-hoisting/commonjs/exports-this/a.js
+
+diff --git a/packages/core/integration-tests/test/integration/scope-hoisting/commonjs/exports-this/a.js b/packages/core/integration-tests/test/integration/scope-hoisting/commonjs/exports-this/a.js
+new file mode 100644
+index 000000000..846721fe5
+--- /dev/null
++++ b/packages/core/integration-tests/test/integration/scope-hoisting/commonjs/exports-this/a.js
+@@ -0,0 +1,11 @@
++exports.foo = function() {
++    exports.bar()
++}
++
++exports.bar = function() {
++    this.baz()
++}
++
++exports.baz = function() {
++    return 2
++}
+\ No newline at end of file
+diff --git a/packages/core/integration-tests/test/scope-hoisting.js b/packages/core/integration-tests/test/scope-hoisting.js
+index a23e76084..5e7b87143 100644
+--- a/packages/core/integration-tests/test/scope-hoisting.js
++++ b/packages/core/integration-tests/test/scope-hoisting.js
+@@ -3574,6 +3574,23 @@ describe('scope hoisting', function () {
+   });
+ 
+   describe('commonjs', function () {
++    it('should wrap when this could refer to an export', async function () {
++      let b = await bundle(
++        path.join(
++          __dirname,
++          '/integration/scope-hoisting/commonjs/exports-this/a.js',
++        ),
++      );
++
++      let contents = await outputFS.readFile(
++        b.getBundles()[0].filePath,
++        'utf8',
++      );
++
++      let wrapped = contents.includes('exports.bar()');
++      assert.equal(wrapped, true);
++    });
++
+     it('supports require of commonjs modules', async function () {
+       let b = await bundle(
+         path.join(
+diff --git a/packages/transformers/js/core/src/collect.rs b/packages/transformers/js/core/src/collect.rs
+index 3611b906e..ee2ab4d64 100644
+--- a/packages/transformers/js/core/src/collect.rs
++++ b/packages/transformers/js/core/src/collect.rs
+@@ -58,6 +58,7 @@ pub struct Collect {
+   pub should_wrap: bool,
+   /// local variable binding -> descriptor
+   pub imports: HashMap<Id, Import>,
++  pub this_exprs: HashMap<Id, (Ident, Span)>,
+   /// exported name -> descriptor
+   pub exports: HashMap<JsWord, Export>,
+   /// local variable binding -> exported name
+@@ -76,6 +77,7 @@ pub struct Collect {
+   in_export_decl: bool,
+   in_function: bool,
+   in_assign: bool,
++  in_class: bool,
+ }
+ 
+ #[derive(Debug, Serialize)]
+@@ -129,6 +131,7 @@ impl Collect {
+       is_esm: false,
+       should_wrap: false,
+       imports: HashMap::new(),
++      this_exprs: HashMap::new(),
+       exports: HashMap::new(),
+       exports_locals: HashMap::new(),
+       exports_all: HashMap::new(),
+@@ -142,6 +145,7 @@ impl Collect {
+       in_export_decl: false,
+       in_function: false,
+       in_assign: false,
++      in_class: false,
+       bailouts: if trace_bailouts { Some(vec![]) } else { None },
+     }
+   }
+@@ -241,6 +245,13 @@ impl Visit for Collect {
+     }
+     self.in_module_this = false;
+ 
++    for (_key, (ident, span)) in std::mem::take(&mut self.this_exprs) {
++      if self.exports.contains_key(&ident.sym) {
++        self.should_wrap = true;
++        self.add_bailout(span, BailoutReason::ThisInExport);
++      }
++    }
++
+     if let Some(bailouts) = &mut self.bailouts {
+       for (key, Import { specifier, .. }) in &self.imports {
+         if specifier == "*" {
+@@ -260,7 +271,6 @@ impl Visit for Collect {
+   }
+ 
+   collect_visit_fn!(visit_function, Function);
+-  collect_visit_fn!(visit_class, Class);
+   collect_visit_fn!(visit_getter_prop, GetterProp);
+   collect_visit_fn!(visit_setter_prop, SetterProp);
+ 
+@@ -681,6 +691,10 @@ impl Visit for Collect {
+       Expr::This(_this) => {
+         if self.in_module_this {
+           handle_export!();
++        } else if !self.in_class {
++          if let MemberProp::Ident(prop) = &node.prop {
++            self.this_exprs.insert(id!(prop), (prop.clone(), node.span));
++          }
+         }
+         return;
+       }
+@@ -769,6 +783,21 @@ impl Visit for Collect {
+     }
+   }
+ 
++  fn visit_class(&mut self, class: &Class) {
++    let in_module_this = self.in_module_this;
++    let in_function = self.in_function;
++    let in_class = self.in_class;
++
++    self.in_module_this = false;
++    self.in_function = true;
++    self.in_class = true;
++
++    class.visit_children_with(self);
++    self.in_module_this = in_module_this;
++    self.in_function = in_function;
++    self.in_class = in_class;
++  }
++
+   fn visit_this_expr(&mut self, node: &ThisExpr) {
+     if self.in_module_this {
+       self.has_cjs_exports = true;
+diff --git a/packages/transformers/js/core/src/hoist.rs b/packages/transformers/js/core/src/hoist.rs
+index 32ed18768..da0108eda 100644
+--- a/packages/transformers/js/core/src/hoist.rs
++++ b/packages/transformers/js/core/src/hoist.rs
+@@ -3407,4 +3407,66 @@ mod tests {
+       }
+     );
+   }
++
++  #[test]
++  fn collect_this_exports() {
++    // module is wrapped when `this` accessor matches an export
++    let (collect, _code, _hoist) = parse(
++      r#"
++      exports.foo = function() {
++        exports.bar()
++      }
++
++      exports.bar = function() {
++        this.baz()
++      }
++
++      exports.baz = function() {
++        return 2
++      }
++      "#,
++    );
++    assert_eq!(
++      collect
++        .bailouts
++        .unwrap()
++        .iter()
++        .map(|b| &b.reason)
++        .collect::<Vec<_>>(),
++      vec![&BailoutReason::ThisInExport]
++    );
++    assert_eq!(collect.should_wrap, true);
++
++    // module is not wrapped when `this` inside a class collides with an export
++    let (collect, _code, _hoist) = parse(
++      r#"
++      class Foo {
++        constructor() {
++          this.a = 4
++        }
++
++        bar() {
++          return this.baz()
++        }
++
++        baz() {
++          return this.a
++        }
++      }
++
++      exports.baz = new Foo()
++      exports.a = 2
++      "#,
++    );
++    assert_eq!(
++      collect
++        .bailouts
++        .unwrap()
++        .iter()
++        .map(|b| &b.reason)
++        .collect::<Vec<_>>(),
++      Vec::<&BailoutReason>::new()
++    );
++    assert_eq!(collect.should_wrap, false);
++  }
+ }
+diff --git a/packages/transformers/js/core/src/utils.rs b/packages/transformers/js/core/src/utils.rs
+index bdab53c18..c234aaede 100644
+--- a/packages/transformers/js/core/src/utils.rs
++++ b/packages/transformers/js/core/src/utils.rs
+@@ -306,6 +306,7 @@ pub enum BailoutReason {
+   ModuleReassignment,
+   NonStaticDynamicImport,
+   NonStaticAccess,
++  ThisInExport,
+ }
+ 
+ impl BailoutReason {
+@@ -355,6 +356,10 @@ impl BailoutReason {
+         "Non-static access of an `import` or `require`. This causes tree shaking to be disabled for the resolved module.",
+         "https://parceljs.org/features/scope-hoisting/#dynamic-member-accesses"
+       ),
++      BailoutReason::ThisInExport => (
++        "Module contains `this` access of an exported value. This causes the module to be wrapped and tree-shaking to be disabled.",
++        "https://parceljs.org/features/scope-hoisting/#avoiding-bail-outs"
++      ),
+     }
+   }
+ }
+-- 
+2.41.0
+
