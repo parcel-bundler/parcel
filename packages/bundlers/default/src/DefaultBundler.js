@@ -622,7 +622,7 @@ function createIdealGraph(
                     manualBundleToInternalizedAsset.get(bundleId),
                   ).push(childAsset);
                   bundle.manualSharedBundle = manualSharedObject.name;
-                  bundle.uniqueKey = manualSharedObject.name;
+                  bundle.uniqueKey = manualSharedObject.name + childAsset.type;
                 }
               } else {
                 bundle = nullthrows(bundleGraph.getNode(bundleId));
@@ -771,7 +771,7 @@ function createIdealGraph(
                     manualSharedMap.set(manualSharedBundleKey, bundleId);
                   }
                   bundle.manualSharedBundle = manualSharedObject.name;
-                  bundle.uniqueKey = manualSharedObject.name;
+                  bundle.uniqueKey = manualSharedObject.name + childAsset.type;
                 }
               } else {
                 bundle = bundleGraph.getNode(bundleId);
@@ -801,7 +801,7 @@ function createIdealGraph(
                   manualSharedMap.set(manualSharedBundleKey, bundleId);
                 }
                 bundle.manualSharedBundle = manualSharedObject.name;
-                bundle.uniqueKey = manualSharedObject.name;
+                bundle.uniqueKey = manualSharedObject.name + childAsset.type;
               }
 
               bundles.set(childAsset.id, bundleId);
@@ -1246,7 +1246,7 @@ function createIdealGraph(
         invariant(firstSourceBundle !== 'root');
 
         bundle = createBundle({
-          uniqueKey: manualSharedObject?.name,
+          uniqueKey: manualSharedObject.name + firstSourceBundle.type,
           target: firstSourceBundle.target,
           type: firstSourceBundle.type,
           env: firstSourceBundle.env,
@@ -1451,7 +1451,7 @@ function createIdealGraph(
 
         for (let i = 1; i < [...remainderMap.keys()].length; i++) {
           let bundle = createBundle({
-            uniqueKey: manualSharedObject.name + i,
+            uniqueKey: manualSharedObject.name + firstSourceBundle.type + i,
             target: firstSourceBundle.target,
             type: firstSourceBundle.type,
             env: firstSourceBundle.env,
