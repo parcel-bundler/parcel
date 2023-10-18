@@ -720,33 +720,29 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     let matched = match &*node.callee {
       Ident(id) => {
-        match &id.sym {
-          &js_word!("Worker") | &js_word!("SharedWorker") => {
-            // Bail if defined in scope
-            self.config.is_browser && !self.decls.contains(&id.to_id())
-          }
-          &js_word!("Promise") => {
-            // Match requires inside promises (e.g. Rollup compiled dynamic imports)
-            // new Promise(resolve => resolve(require('foo')))
-            // new Promise(resolve => { resolve(require('foo')) })
-            // new Promise(function (resolve) { resolve(require('foo')) })
-            return self.fold_new_promise(node);
-          }
-          sym => {
-            if sym == "__parcel__URL__" {
-              // new __parcel__URL__(url) -> new URL(url, import.meta.url)
-              if let Some(args) = &node.args {
-                if let ast::Expr::New(new) = create_url_constructor(
-                  *args[0].expr.clone().fold_with(self),
-                  self.config.is_esm_output,
-                ) {
-                  return new;
-                }
+        if id.sym == "Worker" || id.sym == "SharedWorker" {
+          // Bail if defined in scope
+          self.config.is_browser && !self.decls.contains(&id.to_id())
+        } else if id.sym == "Promise" {
+          // Match requires inside promises (e.g. Rollup compiled dynamic imports)
+          // new Promise(resolve => resolve(require('foo')))
+          // new Promise(resolve => { resolve(require('foo')) })
+          // new Promise(function (resolve) { resolve(require('foo')) })
+          return self.fold_new_promise(node);
+        } else {
+          if id.sym == "__parcel__URL__" {
+            // new __parcel__URL__(url) -> new URL(url, import.meta.url)
+            if let Some(args) = &node.args {
+              if let ast::Expr::New(new) = create_url_constructor(
+                *args[0].expr.clone().fold_with(self),
+                self.config.is_esm_output,
+              ) {
+                return new;
               }
-              unreachable!();
             }
-            false
+            unreachable!();
           }
+          false
         }
       }
       _ => false,
@@ -1361,14 +1357,8 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
           };
 
           match &kv.key {
-            PropName::Ident(Ident {
-              sym: js_word!("type"),
-              ..
-            })
-            | PropName::Str(Str {
-              value: js_word!("type"),
-              ..
-            }) => {}
+            PropName::Ident(Ident { sym, .. }) if sym == "type" => {}
+            PropName::Str(Str { value, .. }) if value == "type" => {}
             _ => return true,
           };
 
@@ -1378,9 +1368,10 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
             return true;
           };
 
-          source_type = Some(match v {
-            js_word!("module") => SourceType::Module,
-            _ => SourceType::Script,
+          source_type = Some(if v == "module" {
+            SourceType::Module
+          } else {
+            SourceType::Script
           });
 
           false

@@ -628,7 +628,7 @@ export default class WorkerFarm extends EventEmitter {
   static getNumWorkers(): number {
     return process.env.PARCEL_WORKERS
       ? parseInt(process.env.PARCEL_WORKERS, 10)
-      : Math.ceil(cpuCount() / 2);
+      : Math.min(4, Math.ceil(cpuCount() / 2));
   }
 
   static isWorker(): boolean {
