@@ -220,11 +220,14 @@ function decorateLegacyGraph(
       idealBundle.sourceBundles.size > 0 &&
       !idealBundle.mainEntryAsset
     ) {
+      let uniqueKey =
+        idealBundle.uniqueKey != null
+          ? idealBundle.uniqueKey
+          : [...idealBundle.assets].map(asset => asset.id).join(',');
+
       bundle = nullthrows(
         bundleGraph.createBundle({
-          uniqueKey:
-            [...idealBundle.assets].map(asset => asset.id).join(',') +
-            [...idealBundle.sourceBundles].join(','),
+          uniqueKey,
           needsStableName: idealBundle.needsStableName,
           bundleBehavior: idealBundle.bundleBehavior,
           type: idealBundle.type,
@@ -619,6 +622,7 @@ function createIdealGraph(
                     manualBundleToInternalizedAsset.get(bundleId),
                   ).push(childAsset);
                   bundle.manualSharedBundle = manualSharedObject.name;
+                  bundle.uniqueKey = manualSharedObject.name + childAsset.type;
                 }
               } else {
                 bundle = nullthrows(bundleGraph.getNode(bundleId));
@@ -657,6 +661,7 @@ function createIdealGraph(
                     manualSharedMap.set(manualSharedBundleKey, bundleId);
                   }
                   bundle.manualSharedBundle = manualSharedObject.name;
+                  bundle.uniqueKey = manualSharedObject.name + childAsset.type;
                 }
               }
 
@@ -766,6 +771,7 @@ function createIdealGraph(
                     manualSharedMap.set(manualSharedBundleKey, bundleId);
                   }
                   bundle.manualSharedBundle = manualSharedObject.name;
+                  bundle.uniqueKey = manualSharedObject.name + childAsset.type;
                 }
               } else {
                 bundle = bundleGraph.getNode(bundleId);
@@ -795,6 +801,7 @@ function createIdealGraph(
                   manualSharedMap.set(manualSharedBundleKey, bundleId);
                 }
                 bundle.manualSharedBundle = manualSharedObject.name;
+                bundle.uniqueKey = manualSharedObject.name + childAsset.type;
               }
 
               bundles.set(childAsset.id, bundleId);
@@ -1239,6 +1246,7 @@ function createIdealGraph(
         invariant(firstSourceBundle !== 'root');
 
         bundle = createBundle({
+          uniqueKey: manualSharedObject.name + firstSourceBundle.type,
           target: firstSourceBundle.target,
           type: firstSourceBundle.type,
           env: firstSourceBundle.env,
@@ -1443,6 +1451,7 @@ function createIdealGraph(
 
         for (let i = 1; i < [...remainderMap.keys()].length; i++) {
           let bundle = createBundle({
+            uniqueKey: manualSharedObject.name + firstSourceBundle.type + i,
             target: firstSourceBundle.target,
             type: firstSourceBundle.type,
             env: firstSourceBundle.env,
@@ -1935,6 +1944,15 @@ async function loadBundlerConfig(
       origin: '@parcel/bundler-default',
       message: `The value of "${modeConfig.maxParallelRequests}" set for maxParallelRequests will not be used as shared bundles have been disabled`,
     });
+  }
+
+  if (modeConfig.unstable_manualSharedBundles) {
+    let nameArray = modeConfig.unstable_manualSharedBundles.map(a => a.name);
+    let nameSet = new Set(nameArray);
+    invariant(
+      nameSet.size == nameArray.length,
+      'The name field must be unique for property unstable_manualSharedBundles',
+    );
   }
 
   validateSchema.diagnostic(
