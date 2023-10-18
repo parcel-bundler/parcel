@@ -9,6 +9,7 @@ import {
   fsFixture,
   run,
 } from '@parcel/test-utils';
+import {hashString} from '@parcel/rust';
 
 describe('bundler', function () {
   it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
@@ -1520,6 +1521,10 @@ describe('bundler', function () {
           assets: ['math.js', 'add.js', 'subtract.js'],
         },
       ]);
+
+      let targetDistDir = __dirname.replace('/test', '/dist');
+      let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
+      assert(b.getBundles().find(b => b.id == hashedIdWithMSB));
     });
 
     it('should support manual shared bundles with constants module', async function () {
@@ -1654,6 +1659,10 @@ describe('bundler', function () {
           assets: ['manual.js', 'vendor.js', 'vendor-async.js'],
         },
       ]);
+
+      let targetDistDir = __dirname.replace('/test', '/dist');
+      let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
+      assert(b.getBundles().find(b => b.id == hashedIdWithMSB));
 
       await run(b);
     });
