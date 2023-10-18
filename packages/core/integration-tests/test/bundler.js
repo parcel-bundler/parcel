@@ -1005,6 +1005,203 @@ describe('bundler', function () {
     ]);
   });
 
+  it('should support inline constants', async () => {
+    await fsFixture(overlayFS, __dirname)`
+      inline-constants-shared-bundles
+        one.html:
+          <script type="module" src="./one.js" />
+
+        two.html:
+          <script type="module" src="./two.js" />
+
+        one.js:
+          import {sharedFn} from './shared';
+          import {constant} from './constants';
+          sideEffectNoop('one' + sharedFn() + constant);
+
+        two.js:
+          import {sharedFn} from './shared';
+
+          sideEffectNoop('two' + sharedFn);
+
+        shared.js:
+          import {constant} from './constants.js';
+
+          export function sharedFn() {
+            return constant;
+          }
+
+        constants.js:
+          export const constant = 'constant';
+
+        package.json:
+          {
+            "@parcel/transformer-js": {
+              "unstable_inlineConstants": true
+            },
+            "@parcel/bundler-default": {
+              "minBundleSize": 0,
+              "minBundles": 3
+            }
+          }
+
+        yarn.lock:`;
+
+    let b = await bundle(
+      [
+        path.join(__dirname, 'inline-constants-shared-bundles', 'one.html'),
+        path.join(__dirname, 'inline-constants-shared-bundles', 'two.html'),
+      ],
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          sourceMaps: false,
+          shouldOptimize: false,
+        },
+        inputFS: overlayFS,
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['one.html'],
+      },
+      {
+        assets: ['two.html'],
+      },
+      {
+        assets: ['one.js', 'shared.js', 'constants.js'],
+      },
+      {
+        assets: ['two.js', 'shared.js', 'constants.js'],
+      },
+    ]);
+  });
+
+  it('should support inline constants with shared bundles', async () => {
+    await fsFixture(overlayFS, __dirname)`
+      inline-constants-shared-bundles
+        one.html:
+          <script type="module" src="./one.js" />
+
+        two.html:
+          <script type="module" src="./two.js" />
+
+        one.js:
+          import {sharedFn} from './shared';
+          import {constant} from './constants';
+          sideEffectNoop('one' + sharedFn() + constant);
+
+        two.js:
+          import {sharedFn} from './shared';
+
+          sideEffectNoop('two' + sharedFn);
+
+        shared.js:
+          import {constant} from './constants.js';
+
+          export function sharedFn() {
+            return constant;
+          }
+
+        constants.js:
+          export const constant = 'constant';
+
+        package.json:
+          {
+            "@parcel/transformer-js": {
+              "unstable_inlineConstants": true
+            },
+            "@parcel/bundler-default": {
+              "minBundleSize": 0
+            }
+          }
+
+        yarn.lock:`;
+
+    let b = await bundle(
+      [
+        path.join(__dirname, 'inline-constants-shared-bundles', 'one.html'),
+        path.join(__dirname, 'inline-constants-shared-bundles', 'two.html'),
+      ],
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          sourceMaps: false,
+          shouldOptimize: false,
+        },
+        inputFS: overlayFS,
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['one.html'],
+      },
+      {
+        assets: ['two.html'],
+      },
+      {
+        assets: ['one.js', 'constants.js'],
+      },
+      {
+        assets: ['two.js'],
+      },
+      {
+        // shared bundle
+        assets: ['shared.js', 'constants.js'],
+      },
+    ]);
+  });
+
+  it('should support inline constants in non-splittable bundles', async () => {
+    await fsFixture(overlayFS, __dirname)`
+      inline-constants-non-splittable
+        index.js:
+          import {sharedFn} from './shared';
+          sideEffectNoop(sharedFn());
+
+        shared.js:
+          import {constant} from './constants';
+
+          export function sharedFn() {
+            return constant;
+          }
+
+        constants.js:
+          export const constant = 'constant';
+
+        package.json:
+          {
+            "@parcel/transformer-js": {
+              "unstable_inlineConstants": true
+            }
+          }
+
+        yarn.lock:`;
+
+    let b = await bundle(
+      path.join(__dirname, 'inline-constants-non-splittable/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          sourceMaps: false,
+          shouldOptimize: false,
+        },
+        inputFS: overlayFS,
+      },
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['index.js', 'shared.js', 'constants.js'],
+      },
+    ]);
+  });
+
   describe('manual shared bundles', () => {
     const dir = path.join(__dirname, 'manual-bundle');
 
@@ -1112,7 +1309,7 @@ describe('bundler', function () {
             }]
           }
         }
-      
+
       .parcelrc:
         {
           "extends": "@parcel/config-default",
@@ -1133,14 +1330,14 @@ describe('bundler', function () {
             return [asset];
           }
         });
-      
+
       index.html:
         <script type="module">
           import shared from './shared.js';
-          sideEffectNoop(shared);        
+          sideEffectNoop(shared);
         </script>
         <script type="module" src="./index.js"></script>
-      
+
       index.js:
         import shared from './shared.js';
         sideEffectNoop(shared);
@@ -1388,7 +1585,7 @@ describe('bundler', function () {
           ],
         },
         {
-          assets: ['async.js', 'vendor-constants.js'],
+          assets: ['async.js'],
         },
         {
           // Vendor MSB for JS
