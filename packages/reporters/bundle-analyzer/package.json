@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-bundle-analyzer",
-  "version": "2.10.0",
+  "version": "2.10.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,11 +20,11 @@
     "parcel": "^2.10.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.10.0",
-    "@parcel/utils": "2.10.0",
+    "@parcel/plugin": "2.10.1",
+    "@parcel/utils": "2.10.1",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {
-    "@parcel/types": "2.10.0"
+    "@parcel/types": "2.10.1"
   }
 }

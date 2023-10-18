@@ -1,6 +1,6 @@
 {
   "name": "@parcel/runtime-webextension",
-  "version": "2.10.0",
+  "version": "2.10.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.10.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.10.0",
-    "@parcel/utils": "2.10.0",
+    "@parcel/plugin": "2.10.1",
+    "@parcel/utils": "2.10.1",
     "nullthrows": "^1.1.1"
   }
 }
