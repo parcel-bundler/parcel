@@ -1155,6 +1155,7 @@ mod tests {
               Mark::fresh(Mark::root()),
               global_mark,
               true,
+              true,
             );
             module.visit_with(&mut collect);
 
