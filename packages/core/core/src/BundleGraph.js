@@ -207,9 +207,12 @@ export default class BundleGraph {
       ) {
         let nodeValueSymbols = node.value.symbols;
 
-        let source = graph.getNodeByContentKey(
-          nullthrows(node.value.sourceAssetId),
-        );
+        let source;
+        if (node.value.sourceAssetId != null) {
+          source = graph.getNodeByContentKey(
+            nullthrows(node.value.sourceAssetId),
+          );
+        }
 
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
