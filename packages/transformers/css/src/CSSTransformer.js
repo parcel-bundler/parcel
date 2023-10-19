@@ -58,8 +58,8 @@ export default (new Transformer({
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
-      // $FlowFixMe this only exists in the Wasm version
-      native.default?.(),
+      // $FlowFixMe native.default is the init function only when bundled for the browser build
+      process.browser && native.default(),
     ]);
 
     let targets = getTargets(asset.env.engines.browsers);
