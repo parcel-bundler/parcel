@@ -36,7 +36,7 @@ export function globMatch(
 }
 
 export function globToRegex(glob: Glob, opts?: Options): RegExp {
-  return makeRe(glob, opts);
+  return makeRe(normalizeSeparators(glob), opts);
 }
 
 export function globSync(
