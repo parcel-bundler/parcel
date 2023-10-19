@@ -8,15 +8,15 @@ function transformWrapper(config) {
   let result = transform(config);
   return {
     ...result,
-    code: Buffer.from(result.code.buffer),
-    map: result.map ? Buffer.from(result.map.buffer) : result.map,
+    code: Buffer.from(result.code),
+    map: result.map ? Buffer.from(result.map) : result.map,
   };
 }
 function transformStyleAttributeWrapper(config) {
   let result = transformStyleAttribute(config);
   return {
     ...result,
-    code: Buffer.from(result.code.buffer),
+    code: Buffer.from(result.code),
   };
 }
 
