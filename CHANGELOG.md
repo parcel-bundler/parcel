@@ -9,14 +9,18 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Bundler
+- JavaScript
+
   - Add logic to disable scope hoisting if the `this` key word is pointing to an export module [Details](https://github.com/parcel-bundler/parcel/pull/9291)
-  - updates the `build-bundles` script to use `rimraf` instead of `rm -rf` [Details](https://github.com/parcel-bundler/parcel/pull/9314)
+  - Detect TSC polyfills to avoid marking them as CJS [Details](https://github.com/parcel-bundler/parcel/pull/9318)
+
+### Unstable
+
+- Bundler
+
   - Fix inline constants in shared bundles [Details](https://github.com/parcel-bundler/parcel/pull/9313)
   - Ensure manualSharedBundles have unique names [Details](https://github.com/parcel-bundler/parcel/pull/9298)
   - Simplify MSB code for code split bundle creation section [Details](https://github.com/parcel-bundler/parcel/pull/9312)
-- JavaScript
-  - Detect TSC polyfills to avoid marking them as CJS [Details](https://github.com/parcel-bundler/parcel/pull/9318)
 
 ## [2.10.0] – 2023-10-11
 
