@@ -776,6 +776,7 @@ function createIdealGraph(
                 manualSharedMap.set(manualSharedBundleKey, bundleId);
               }
               bundle.manualSharedBundle = manualSharedObject.name;
+              bundle.uniqueKey = manualSharedObject.name + childAsset.type;
             }
           }
         }
