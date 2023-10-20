@@ -1,4 +1,4 @@
-index.*
+/index.*
 *.node
 *.wasm
 !*.flow
