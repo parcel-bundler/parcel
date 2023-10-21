@@ -38,10 +38,6 @@ export function propagateSymbols({
     ),
   );
 
-  // assetGraph.postOrderDfsFast((nodeId, actions) => {
-  //   console.log(nodeId)
-  // }, 0);
-
   // To reorder once at the end
   let changedDeps = new Set<DependencyNode>();
 
@@ -259,7 +255,6 @@ export function propagateSymbols({
     changedDepsUsedSymbolsUpDirtyDown,
     previousErrors,
     (assetNode, incomingDeps, outgoingDeps) => {
-      //console.log('propsymup. assetnode:', assetNode.value.filePath);
       let assetSymbols: ?$ReadOnlyMap<
         Symbol,
         {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
@@ -574,7 +569,6 @@ function propagateSymbolsDown(
       node.usedSymbolsDownDirty = false;
     }
 
-    // Adding children to queue
     for (let child of outgoing) {
       let childNode = nullthrows(assetGraph.getNode(child));
       let childDirty = false;
@@ -639,7 +633,6 @@ function propagateSymbolsUp(
     changedDepsUsedSymbolsUpDirtyDownAssets.size;
 
   let dirtyDeps;
-  // This is the postorder recursive DFS
   if (runFullPass) {
     dirtyDeps = new Set<NodeId>();
     let rootNodeId = nullthrows(
@@ -647,23 +640,21 @@ function propagateSymbolsUp(
       'A root node is required to traverse',
     );
 
-    const visitorFn = (nodeId, context) => {
-      console.log('at node', nodeId);
+    const nodeVisitor = nodeId => {
       let node = nullthrows(assetGraph.getNode(nodeId));
       let outgoing = assetGraph.getNodeIdsConnectedFrom(nodeId);
+
       for (let childId of outgoing) {
-        if (!visited.has(childId)) {
-          let child = nullthrows(assetGraph.getNode(childId));
-          if (node.type === 'asset') {
-            invariant(child.type === 'dependency');
-            if (child.usedSymbolsUpDirtyUp) {
-              node.usedSymbolsUpDirty = true;
-              child.usedSymbolsUpDirtyUp = false;
-            }
+        let child = nullthrows(assetGraph.getNode(childId));
+        if (node.type === 'asset') {
+          invariant(child.type === 'dependency');
+          if (child.usedSymbolsUpDirtyUp) {
+            node.usedSymbolsUpDirty = true;
+            child.usedSymbolsUpDirtyUp = false;
           }
         }
       }
-      console.log('hello', nodeId);
+
       if (node.type === 'asset') {
         let incoming = assetGraph.getIncomingDependencies(node.value).map(d => {
           let n = assetGraph.getNodeByContentKey(d.id);
@@ -671,14 +662,12 @@ function propagateSymbolsUp(
           return n;
         });
         for (let dep of incoming) {
-          // if parent dirty, set child dirty
           if (dep.usedSymbolsUpDirtyDown) {
             dep.usedSymbolsUpDirtyDown = false;
             node.usedSymbolsUpDirty = true;
           }
         }
         if (node.usedSymbolsUpDirty) {
-          console.log('in walk. visitng', nodeId);
           let e = visit(
             node,
             incoming,
@@ -706,79 +695,7 @@ function propagateSymbolsUp(
         }
       }
     };
-
-    let visited = new Set([rootNodeId]);
-
-    const walk2 = (nodeId: NodeId) => {
-      assetGraph.postOrderDfsFast(visitorFn, rootNodeId);
-    };
-
-    const walk = (nodeId: NodeId) => {
-      console.log('walk. at node', nodeId);
-      let node = nullthrows(assetGraph.getNode(nodeId));
-      let outgoing = assetGraph.getNodeIdsConnectedFrom(nodeId);
-      for (let childId of outgoing) {
-        if (!visited.has(childId)) {
-          visited.add(childId);
-          walk(childId);
-          console.log('*****************************hello1!!', nodeId);
-          // by the time we get here, we are at a parent (of a subgraph)
-          // if any of node's children are marked dirty, mark node as dirty.
-          let child = nullthrows(assetGraph.getNode(childId));
-          if (node.type === 'asset') {
-            invariant(child.type === 'dependency');
-            if (child.usedSymbolsUpDirtyUp) {
-              node.usedSymbolsUpDirty = true;
-              child.usedSymbolsUpDirtyUp = false;
-            }
-          }
-        }
-      }
-      console.log('hello', nodeId);
-      // By the time we get here, we are at a leaf
-      if (node.type === 'asset') {
-        let incoming = assetGraph.getIncomingDependencies(node.value).map(d => {
-          let n = assetGraph.getNodeByContentKey(d.id);
-          invariant(n && n.type === 'dependency');
-          return n;
-        });
-        for (let dep of incoming) {
-          // if parent dirty, set child dirty
-          if (dep.usedSymbolsUpDirtyDown) {
-            dep.usedSymbolsUpDirtyDown = false;
-            node.usedSymbolsUpDirty = true;
-          }
-        }
-        if (node.usedSymbolsUpDirty) {
-          console.log('in walk. visitng', nodeId);
-          let e = visit(
-            node,
-            incoming,
-            outgoing.map(depNodeId => {
-              let depNode = nullthrows(assetGraph.getNode(depNodeId));
-              invariant(depNode.type === 'dependency');
-              return depNode;
-            }),
-          );
-          if (e.length > 0) {
-            node.usedSymbolsUpDirty = true;
-            errors.set(nodeId, e);
-          } else {
-            node.usedSymbolsUpDirty = false;
-            errors.delete(nodeId);
-          }
-        }
-      } else {
-        if (node.type === 'dependency') {
-          if (node.usedSymbolsUpDirtyUp) {
-            dirtyDeps.add(nodeId);
-          } else {
-            dirtyDeps.delete(nodeId);
-          }
-        }
-      }
-    };
-    walk2(rootNodeId);
+    assetGraph.postOrderDfsFast(nodeVisitor, rootNodeId);
   }
 
   let queue = dirtyDeps ?? changedDepsUsedSymbolsUpDirtyDownAssets;
