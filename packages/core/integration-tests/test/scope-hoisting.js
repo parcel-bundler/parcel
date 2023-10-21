@@ -49,16 +49,6 @@ const bundler = (name, opts = {}) => {
   );
 };
 
-describe.only('symbol propagation', function () {
-  it('propagates symbols', async function () {
-    let b = await bundle(
-      path.join(__dirname, '/integration/symbol-propagation/index.js'),
-    );
-
-    await run(b);
-  });
-});
-
 describe('scope hoisting', function () {
   describe('es6', function () {
     it('supports default imports and exports of expressions', async function () {
