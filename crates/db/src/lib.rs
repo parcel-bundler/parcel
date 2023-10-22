@@ -514,7 +514,7 @@ impl ParcelDb {
 
     let environments = self.environments.read().unwrap();
     dest.write(&u32::to_le_bytes(environments.len() as u32))?;
-    dest.write(unsafe { std::mem::transmute(environments.as_slice()) })?;
+    dest.write(unsafe { std::slice::from_raw_parts(environments.as_ptr() as *const u8, environments.len() * 4) })?;
 
     Ok(())
   }
@@ -551,7 +551,8 @@ impl ParcelDb {
     environments.reserve(len as usize);
     unsafe {
       environments.set_len(len as usize);
-      source.read_exact(std::mem::transmute(environments.as_mut_slice()))?;
+      let slice = std::slice::from_raw_parts_mut(environments.as_mut_ptr() as *mut u8, environments.len() * 4);
+      source.read_exact(slice)?;
     }
 
     Ok(ParcelDbWrapper {
