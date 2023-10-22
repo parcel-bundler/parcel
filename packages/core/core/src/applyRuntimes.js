@@ -231,13 +231,7 @@ export default async function applyRuntimes<TResult>({
   );
 
   // Remap asset ids in the runtimes graph to reuse the same assets as the main asset graph when there is overlap.
-  let assetIdToAddr = new Map<string, number>();
-  for (let node of bundleGraph._graph.nodes) {
-    if (node?.type === 'asset') {
-      assetIdToAddr.set(DbAsset.get(options.db, node.value).id, node.value);
-    }
-  }
-
+  let assetIdToAddr = bundleGraph.getAssetIdToAddrMap();
   for (let node of runtimesGraph._graph.nodes) {
     if (node?.type === 'asset') {
       let existing = assetIdToAddr.get(DbAsset.get(options.db, node.value).id);

@@ -192,6 +192,7 @@ export function mergeDependencies(
     loc,
     range,
     resolveFrom,
+    sourcePath,
     packageConditions,
   } = b;
   let dep = DbDependency.get(db, a);
@@ -233,8 +234,11 @@ export function mergeDependencies(
   if (range) {
     dep.range = range;
   }
-  if (resolveFrom) {
-    dep.resolveFrom = resolveFrom;
+  if (resolveFrom || sourcePath) {
+    dep.resolveFrom = toProjectPath(
+      projectRoot,
+      resolveFrom ?? sourcePath,
+    );
   }
   if (packageConditions) {
     // TODO: filter duplicates?

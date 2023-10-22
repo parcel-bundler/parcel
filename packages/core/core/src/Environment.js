@@ -6,7 +6,7 @@ import type {
 } from '@parcel/types';
 import type {Environment, InternalSourceLocation} from './types';
 import type {ParcelDb} from '@parcel/rust';
-import {toDbSourceLocationFromInternal} from './utils';
+import { toDbSourceLocation, toDbSourceLocationFromInternal } from "./utils";
 import PublicEnvironment from './public/Environment';
 import {environmentToInternalEnvironment} from './public/Environment';
 import {
@@ -216,7 +216,7 @@ export function mergeEnvironments(
   }
 
   if (b.loc) {
-    tmp.loc = toDbSourceLocationFromInternal(db, b.loc);
+    tmp.loc = toDbSourceLocation(db, projectRoot, b.loc);
   }
 
   // TODO: sourceMap

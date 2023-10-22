@@ -133,6 +133,7 @@ export default class BundleGraph {
    */
   _bundleContentHashes: Map<string, string>;
   _targetEntryRoots: Map<ProjectPath, FilePath> = new Map();
+  _assetIdToAddr: Map<string, number> | null = null;
   /** The internal core Graph structure */
   _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
   _bundlePublicIds /*: Set<string> */ = new Set<string>();
@@ -1855,15 +1856,29 @@ export default class BundleGraph {
       };
     }
   }
-  getAssetById(contentKey: string): CommittedAssetId {
-    let node = this._graph.getNodeByContentKey(contentKey);
-    if (node == null) {
-      throw new Error('Node not found');
-    } else if (node.type !== 'asset') {
-      throw new Error('Node was not an asset');
+
+  getAssetIdToAddrMap(): Map<string, number> {
+    if (this._assetIdToAddr) {
+      return this._assetIdToAddr;
     }
 
-    return node.value;
+    this._assetIdToAddr = new Map();
+    for (let node of this._graph.nodes) {
+      if (node?.type === 'asset') {
+        this._assetIdToAddr.set(DbAsset.get(this.db, node.value).id, node.value);
+      }
+    }
+
+    return this._assetIdToAddr;
+  }
+
+  getAssetById(contentKey: string): CommittedAssetId {
+    let node = this.getAssetIdToAddrMap().get(contentKey);
+    if (node == null) {
+      throw new Error('Node not found');
+    }
+
+    return node;
   }
 
   getAssetPublicId(asset: CommittedAssetId): string {
