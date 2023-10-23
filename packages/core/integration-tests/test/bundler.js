@@ -1603,7 +1603,7 @@ describe('bundler', function () {
       ]);
     });
 
-    it.only('should support manual shared bundles with internalized assets', async function () {
+    it('should support manual shared bundles with internalized assets', async function () {
       await fsFixture(overlayFS, dir)`
       yarn.lock:
         // Required for config loading
