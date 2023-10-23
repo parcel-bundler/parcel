@@ -1522,9 +1522,12 @@ describe('bundler', function () {
         },
       ]);
 
-      let targetDistDir = __dirname.replace('/test', '/dist');
+      let targetDistDir = path.join(__dirname, '../dist');
       let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
-      assert(b.getBundles().find(b => b.id == hashedIdWithMSB));
+      assert(
+        b.getBundles().find(b => b.id == hashedIdWithMSB),
+        'MSB id does not match expected',
+      );
     });
 
     it('should support manual shared bundles with constants module', async function () {
@@ -1660,9 +1663,12 @@ describe('bundler', function () {
         },
       ]);
 
-      let targetDistDir = __dirname.replace('/test', '/dist');
+      let targetDistDir = path.join(__dirname, '../dist');
       let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
-      assert(b.getBundles().find(b => b.id == hashedIdWithMSB));
+      assert(
+        b.getBundles().find(b => b.id == hashedIdWithMSB),
+        'MSB id does not match expected',
+      );
 
       await run(b);
     });
