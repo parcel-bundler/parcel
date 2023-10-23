@@ -16,10 +16,9 @@
     "@parcel/reporter-sourcemap-visualiser": "2.10.0",
     "parcel": "2.10.0"
   },
-  "browser": "dist/legacy/index.html",
-  "browserModern": "dist/modern/index.html",
   "targets": {
     "browserModern": {
+      "distDir": "dist/modern",
       "engines": {
         "browsers": [
           "last 1 Chrome version"
@@ -27,6 +26,7 @@
       }
     },
     "browser": {
+      "distDir": "dist/legacy",
       "engines": {
         "browsers": [
           "> 0.25%"
