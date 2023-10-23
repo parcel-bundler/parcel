@@ -10,6 +10,7 @@ import {
   run,
 } from '@parcel/test-utils';
 import {hashString} from '@parcel/rust';
+import {normalizePath} from '@parcel/utils';
 
 describe('bundler', function () {
   it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
@@ -1522,9 +1523,12 @@ describe('bundler', function () {
         },
       ]);
 
-      let targetDistDir = __dirname.replace('/test', '/dist');
+      let targetDistDir = normalizePath(path.join(__dirname, '../dist'));
       let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
-      assert(b.getBundles().find(b => b.id == hashedIdWithMSB));
+      assert(
+        b.getBundles().find(b => b.id == hashedIdWithMSB),
+        'MSB id does not match expected',
+      );
     });
 
     it('should support manual shared bundles with constants module', async function () {
@@ -1660,9 +1664,12 @@ describe('bundler', function () {
         },
       ]);
 
-      let targetDistDir = __dirname.replace('/test', '/dist');
+      let targetDistDir = normalizePath(path.join(__dirname, '../dist'));
       let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
-      assert(b.getBundles().find(b => b.id == hashedIdWithMSB));
+      assert(
+        b.getBundles().find(b => b.id == hashedIdWithMSB),
+        'MSB id does not match expected',
+      );
 
       await run(b);
     });
