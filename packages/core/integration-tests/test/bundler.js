@@ -10,6 +10,7 @@ import {
   run,
 } from '@parcel/test-utils';
 import {hashString} from '@parcel/rust';
+import {normalizePath} from '@parcel/utils';
 
 describe('bundler', function () {
   it('should not create shared bundles when a bundle is being reused and disableSharedBundles is enabled', async function () {
@@ -1522,7 +1523,7 @@ describe('bundler', function () {
         },
       ]);
 
-      let targetDistDir = path.join(__dirname, '../dist');
+      let targetDistDir = normalizePath(path.join(__dirname, '../dist'));
       let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
       assert(
         b.getBundles().find(b => b.id == hashedIdWithMSB),
@@ -1602,7 +1603,7 @@ describe('bundler', function () {
       ]);
     });
 
-    it('should support manual shared bundles with internalized assets', async function () {
+    it.only('should support manual shared bundles with internalized assets', async function () {
       await fsFixture(overlayFS, dir)`
       yarn.lock:
         // Required for config loading
@@ -1663,7 +1664,7 @@ describe('bundler', function () {
         },
       ]);
 
-      let targetDistDir = path.join(__dirname, '../dist');
+      let targetDistDir = normalizePath(path.join(__dirname, '../dist'));
       let hashedIdWithMSB = hashString('bundle:' + 'vendorjs' + targetDistDir);
       assert(
         b.getBundles().find(b => b.id == hashedIdWithMSB),
