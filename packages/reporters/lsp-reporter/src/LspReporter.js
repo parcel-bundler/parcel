@@ -78,10 +78,7 @@ const LSP_SENTINEL_FILE = path.join(BASEDIR, LSP_SENTINEL_FILENAME);
 async function watchLspActive(): Promise<FSWatcher> {
   // Check for lsp-server when reporter is first started
   try {
-    await fs.promises.access(
-      LSP_SENTINEL_FILE,
-      fs.constants.F_OK,
-    );
+    await fs.promises.access(LSP_SENTINEL_FILE, fs.constants.F_OK);
     lspStarted = true;
   } catch {
     //
@@ -91,17 +88,13 @@ async function watchLspActive(): Promise<FSWatcher> {
     switch (eventType) {
       case 'rename':
         if (filename === LSP_SENTINEL_FILENAME) {
-          fs.access(
-            LSP_SENTINEL_FILE,
-            fs.constants.F_OK,
-            err => {
-              if (err) {
-                lspStarted = false;
-              } else {
-                lspStarted = true;
-              }
-            },
-          );
+          fs.access(LSP_SENTINEL_FILE, fs.constants.F_OK, err => {
+            if (err) {
+              lspStarted = false;
+            } else {
+              lspStarted = true;
+            }
+          });
         }
     }
   });
