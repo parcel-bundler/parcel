@@ -78,6 +78,7 @@ pub struct Collect {
   in_function: bool,
   in_assign: bool,
   in_class: bool,
+  is_module: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -120,12 +121,14 @@ impl Collect {
     ignore_mark: Mark,
     global_mark: Mark,
     trace_bailouts: bool,
+    is_module: bool,
   ) -> Self {
     Collect {
       source_map,
       decls,
       ignore_mark,
       global_mark,
+      is_module,
       static_cjs_exports: true,
       has_cjs_exports: false,
       is_esm: false,
@@ -690,7 +693,9 @@ impl Visit for Collect {
       }
       Expr::This(_this) => {
         if self.in_module_this {
-          handle_export!();
+          if !self.is_module {
+            handle_export!();
+          }
         } else if !self.in_class {
           if let MemberProp::Ident(prop) = &node.prop {
             self.this_exprs.insert(id!(prop), (prop.clone(), node.span));
@@ -767,27 +772,6 @@ impl Visit for Collect {
           self.used_imports.insert(id!(ident));
         }
       }
-      Expr::Bin(bin_expr) => {
-        if self.in_module_this {
-          // Some TSC polyfills use a pattern like below.
-          // We want to avoid marking these modules as CJS
-          // e.g. var _polyfill = (this && this.polyfill) || function () {}
-          if matches!(bin_expr.op, BinaryOp::LogicalAnd) && matches!(*bin_expr.left, Expr::This(..))
-          {
-            match &*bin_expr.right {
-              Expr::Member(member_expr) => {
-                if matches!(*member_expr.obj, Expr::This(..))
-                  && matches!(member_expr.prop, MemberProp::Ident(..))
-                {
-                  return;
-                }
-              }
-              _ => {}
-            }
-          }
-        }
-        node.visit_children_with(self);
-      }
       _ => {
         node.visit_children_with(self);
       }
@@ -820,7 +804,7 @@ impl Visit for Collect {
   }
 
   fn visit_this_expr(&mut self, node: &ThisExpr) {
-    if self.in_module_this {
+    if !self.is_module && self.in_module_this {
       self.has_cjs_exports = true;
       self.static_cjs_exports = false;
       self.add_bailout(node.span, BailoutReason::FreeExports);
