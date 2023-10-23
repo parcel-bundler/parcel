@@ -692,8 +692,10 @@ impl Visit for Collect {
         return;
       }
       Expr::This(_this) => {
-        if !self.is_module && self.in_module_this {
-          handle_export!();
+        if self.in_module_this {
+          if !self.is_module { 
+            handle_export!();
+          }
         } else if !self.in_class {
           if let MemberProp::Ident(prop) = &node.prop {
             self.this_exprs.insert(id!(prop), (prop.clone(), node.span));
