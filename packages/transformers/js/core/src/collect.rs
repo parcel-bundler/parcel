@@ -693,7 +693,7 @@ impl Visit for Collect {
       }
       Expr::This(_this) => {
         if self.in_module_this {
-          if !self.is_module { 
+          if !self.is_module {
             handle_export!();
           }
         } else if !self.in_class {
