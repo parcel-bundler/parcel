@@ -49,7 +49,7 @@ jobs:
     name: Unit tests (${{matrix.os}}, Node ${{matrix.node}})
     strategy:
       matrix:
-        node: [14, 16]
+        node: [18, 20]
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{matrix.os}}
     steps:
@@ -75,7 +75,7 @@ jobs:
     name: Integration tests (${{matrix.os}}, Node ${{matrix.node}})
     strategy:
       matrix:
-        node: [14, 16]
+        node: [18, 20]
         os: [ubuntu-latest, macos-latest, windows-latest]
       # These tend to be quite flakey, so one failed instance shouldn't stop
       # others from potentially succeeding
