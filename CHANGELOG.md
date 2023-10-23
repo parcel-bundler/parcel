@@ -5,14 +5,24 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.10.1] – 2023-10-18
+## [2.10.1] – 2023-10-23
 
 ### Fixed
+
+- Core
+
+  - Use modern node versions in CI [Details](https://github.com/parcel-bundler/parcel/pull/9323)
+
+- Bundler
+
+  - Make sure to set unique key [Details](https://github.com/parcel-bundler/parcel/pull/9326)
+  - Fix bundler tests assertions on Windows [Details](https://github.com/parcel-bundler/parcel/pull/9333)
 
 - JavaScript
 
   - Add logic to disable scope hoisting if the `this` key word is pointing to an export module [Details](https://github.com/parcel-bundler/parcel/pull/9291)
   - Detect TSC polyfills to avoid marking them as CJS [Details](https://github.com/parcel-bundler/parcel/pull/9318)
+  - Remove `this` exports tracking for files with module syntax [Details](https://github.com/parcel-bundler/parcel/pull/9330)
 
 ### Unstable
 
