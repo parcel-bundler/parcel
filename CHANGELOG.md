@@ -12,6 +12,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Core
 
   - Use modern node versions in CI [Details](https://github.com/parcel-bundler/parcel/pull/9323)
+  - Support multiple workspaces/clients in Parcel for VSCode [Details](https://github.com/parcel-bundler/parcel/pull/9278)
 
 - Bundler
 
