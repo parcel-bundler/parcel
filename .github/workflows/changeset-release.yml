@@ -221,7 +221,7 @@ jobs:
         run: ls -l packages/*/*/*.node
       - run: yarn release
       - name: Create release PR or publish to npm
-        uses: changesets/action@1.4.5
+        uses: changesets/action@v1.4.5
         with:
           version: yarn run changesets-version
           publish: yarn run changesets-release
