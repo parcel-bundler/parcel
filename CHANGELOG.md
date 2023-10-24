@@ -24,6 +24,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   - Add logic to disable scope hoisting if the `this` key word is pointing to an export module [Details](https://github.com/parcel-bundler/parcel/pull/9291)
   - Detect TSC polyfills to avoid marking them as CJS [Details](https://github.com/parcel-bundler/parcel/pull/9318)
   - Remove `this` exports tracking for files with module syntax [Details](https://github.com/parcel-bundler/parcel/pull/9330)
+  - Bump swc [Details](https://github.com/parcel-bundler/parcel/pull/9306)
 
 ### Unstable
 
