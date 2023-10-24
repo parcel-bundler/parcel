@@ -219,7 +219,6 @@ jobs:
         run: for d in artifacts/*/*/*; do cp $d/*.node packages/$(basename $(dirname $d))/$(basename $d); done
       - name: Debug
         run: ls -l packages/*/*/*.node
-      - run: yarn release
       - name: Create release PR or publish to npm
         uses: changesets/action@v1.4.5
         with:
