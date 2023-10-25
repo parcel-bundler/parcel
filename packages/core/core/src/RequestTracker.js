@@ -113,6 +113,7 @@ type Request<TInput, TResult> = {|
 type StoredRequest = {|
   id: string,
   +type: string,
+  correspondingNodeId?: NodeId,
   result?: mixed,
   resultCacheKey?: ?string,
 |};
@@ -155,6 +156,7 @@ export type RunAPI<TResult> = {|
 
 type RunRequestOpts = {|
   force: boolean,
+  correspondingNodeId?: NodeId,
 |};
 
 export type StaticRunOpts<TResult> = {|
@@ -993,6 +995,7 @@ export default class RequestTracker {
     let {requestNodeId, deferred} = this.startRequest({
       id: request.id,
       type: request.type,
+      correspondingNodeId: opts?.correspondingNodeId,
     });
 
     let {api, subRequestContentKeys} = this.createAPI(

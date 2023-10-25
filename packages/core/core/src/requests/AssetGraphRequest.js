@@ -222,7 +222,29 @@ export class AssetGraphBuilder {
       }
     };
 
-    visit(rootNodeId);
+    // If only one subrequest is invalid, we can start from that point rather than traversing the entire asset graph.
+    // Otherwise, we must build in graph order.
+    let invalidSubrequests = this.api
+      .getSubRequests()
+      .filter(req => !this.api.canSkipSubrequest(req.id));
+    let nodeId =
+      invalidSubrequests.length === 1
+        ? invalidSubrequests[0].correspondingNodeId
+        : null;
+    if (nodeId != null && this.assetGraph.hasNode(nodeId)) {
+      this.queueCorrespondingRequest(nodeId, errors).then(() => {
+        // We must visit children unless this is an asset group and it didn't change dependencies.
+        if (
+          !this.assetGraph.safeToIncrementallyBundle ||
+          this.assetGraph.getNode(nodeId)?.type !== 'asset_group'
+        ) {
+          visitChildren(nodeId);
+        }
+      });
+    } else {
+      visit(rootNodeId);
+    }
+
     await this.queue.run();
 
     if (errors.length) {
@@ -398,16 +420,16 @@ export class AssetGraphBuilder {
     let node = nullthrows(this.assetGraph.getNode(nodeId));
     switch (node.type) {
       case 'entry_specifier':
-        promise = this.runEntryRequest(node.value);
+        promise = this.runEntryRequest(nodeId, node.value);
         break;
       case 'entry_file':
-        promise = this.runTargetRequest(node.value);
+        promise = this.runTargetRequest(nodeId, node.value);
         break;
       case 'dependency':
-        promise = this.runPathRequest(node.value);
+        promise = this.runPathRequest(nodeId, node.value);
         break;
       case 'asset_group':
-        promise = this.runAssetRequest(node.value);
+        promise = this.runAssetRequest(nodeId, node.value);
         break;
       default:
         throw new Error(
@@ -419,7 +441,7 @@ export class AssetGraphBuilder {
     );
   }
 
-  async runEntryRequest(input: ProjectPath) {
+  async runEntryRequest(nodeId: NodeId, input: ProjectPath) {
     let prevEntries = this.assetGraph.safeToIncrementallyBundle
       ? this.assetGraph
           .getEntryAssets()
@@ -430,6 +452,7 @@ export class AssetGraphBuilder {
     let request = createEntryRequest(input);
     let result = await this.api.runRequest<ProjectPath, EntryResult>(request, {
       force: true,
+      correspondingNodeId: nodeId,
     });
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
 
@@ -450,24 +473,25 @@ export class AssetGraphBuilder {
     }
   }
 
-  async runTargetRequest(input: Entry) {
+  async runTargetRequest(nodeId: NodeId, input: Entry) {
     let request = createTargetRequest(input);
     let targets = await this.api.runRequest<Entry, Array<Target>>(request, {
       force: true,
+      correspondingNodeId: nodeId,
     });
     this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 
-  async runPathRequest(input: Dependency) {
+  async runPathRequest(nodeId: NodeId, input: Dependency) {
     let request = createPathRequest({dependency: input, name: this.name});
     let result = await this.api.runRequest<PathRequestInput, ?AssetGroup>(
       request,
-      {force: true},
+      {force: true, correspondingNodeId: nodeId},
     );
     this.assetGraph.resolveDependency(input, result, request.id);
   }
 
-  async runAssetRequest(input: AssetGroup) {
+  async runAssetRequest(nodeId: NodeId, input: AssetGroup) {
     this.assetRequests.push(input);
     let request = createAssetRequest({
       ...input,
@@ -477,7 +501,7 @@ export class AssetGraphBuilder {
     });
     let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
       request,
-      {force: true},
+      {force: true, correspondingNodeId: nodeId},
     );
 
     if (assets != null) {
