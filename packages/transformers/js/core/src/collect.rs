@@ -58,6 +58,7 @@ pub struct Collect {
   pub should_wrap: bool,
   /// local variable binding -> descriptor
   pub imports: HashMap<Id, Import>,
+  pub this_exprs: HashMap<Id, (Ident, Span)>,
   /// exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
   /// local variable binding -> exported name
@@ -76,6 +77,8 @@ pub struct Collect {
   in_export_decl: bool,
   in_function: bool,
   in_assign: bool,
+  in_class: bool,
+  is_module: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -118,17 +121,20 @@ impl Collect {
     ignore_mark: Mark,
     global_mark: Mark,
     trace_bailouts: bool,
+    is_module: bool,
   ) -> Self {
     Collect {
       source_map,
       decls,
       ignore_mark,
       global_mark,
+      is_module,
       static_cjs_exports: true,
       has_cjs_exports: false,
       is_esm: false,
       should_wrap: false,
       imports: HashMap::new(),
+      this_exprs: HashMap::new(),
       exports: HashMap::new(),
       exports_locals: HashMap::new(),
       exports_all: HashMap::new(),
@@ -142,6 +148,7 @@ impl Collect {
       in_export_decl: false,
       in_function: false,
       in_assign: false,
+      in_class: false,
       bailouts: if trace_bailouts { Some(vec![]) } else { None },
     }
   }
@@ -241,6 +248,13 @@ impl Visit for Collect {
     }
     self.in_module_this = false;
 
+    for (_key, (ident, span)) in std::mem::take(&mut self.this_exprs) {
+      if self.exports.contains_key(&ident.sym) {
+        self.should_wrap = true;
+        self.add_bailout(span, BailoutReason::ThisInExport);
+      }
+    }
+
     if let Some(bailouts) = &mut self.bailouts {
       for (key, Import { specifier, .. }) in &self.imports {
         if specifier == "*" {
@@ -260,7 +274,6 @@ impl Visit for Collect {
   }
 
   collect_visit_fn!(visit_function, Function);
-  collect_visit_fn!(visit_class, Class);
   collect_visit_fn!(visit_getter_prop, GetterProp);
   collect_visit_fn!(visit_setter_prop, SetterProp);
 
@@ -680,7 +693,13 @@ impl Visit for Collect {
       }
       Expr::This(_this) => {
         if self.in_module_this {
-          handle_export!();
+          if !self.is_module {
+            handle_export!();
+          }
+        } else if !self.in_class {
+          if let MemberProp::Ident(prop) = &node.prop {
+            self.this_exprs.insert(id!(prop), (prop.clone(), node.span));
+          }
         }
         return;
       }
@@ -769,8 +788,23 @@ impl Visit for Collect {
     }
   }
 
+  fn visit_class(&mut self, class: &Class) {
+    let in_module_this = self.in_module_this;
+    let in_function = self.in_function;
+    let in_class = self.in_class;
+
+    self.in_module_this = false;
+    self.in_function = true;
+    self.in_class = true;
+
+    class.visit_children_with(self);
+    self.in_module_this = in_module_this;
+    self.in_function = in_function;
+    self.in_class = in_class;
+  }
+
   fn visit_this_expr(&mut self, node: &ThisExpr) {
-    if self.in_module_this {
+    if !self.is_module && self.in_module_this {
       self.has_cjs_exports = true;
       self.static_cjs_exports = false;
       self.add_bailout(node.span, BailoutReason::FreeExports);

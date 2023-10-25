@@ -17,6 +17,7 @@ pub fn inline_fs<'a>(
   global_mark: Mark,
   project_root: &'a str,
   deps: &'a mut Vec<DependencyDescriptor>,
+  is_module: bool,
 ) -> impl Fold + 'a {
   InlineFS {
     filename: Path::new(filename).to_path_buf(),
@@ -26,6 +27,7 @@ pub fn inline_fs<'a>(
       Mark::fresh(Mark::root()),
       global_mark,
       false,
+      is_module,
     ),
     global_mark,
     project_root,

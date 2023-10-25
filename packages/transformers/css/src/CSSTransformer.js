@@ -11,7 +11,12 @@ import {
   browserslistToTargets,
   type SourceLocation as LightningSourceLocation,
 } from 'lightningcss';
-import {remapSourceLocation, relativePath} from '@parcel/utils';
+import {
+  remapSourceLocation,
+  relativePath,
+  globToRegex,
+  normalizeSeparators,
+} from '@parcel/utils';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -21,7 +26,22 @@ export default (new Transformer({
     let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
       packageKey: '@parcel/transformer-css',
     });
-    return conf?.contents;
+    let contents = conf?.contents;
+    if (typeof contents?.cssModules?.include === 'string') {
+      contents.cssModules.include = [globToRegex(contents.cssModules.include)];
+    } else if (Array.isArray(contents?.cssModules?.include)) {
+      contents.cssModules.include = contents.cssModules.include.map(include =>
+        typeof include === 'string' ? globToRegex(include) : include,
+      );
+    }
+    if (typeof contents?.cssModules?.exclude === 'string') {
+      contents.cssModules.exclude = [globToRegex(contents.cssModules.exclude)];
+    } else if (Array.isArray(contents?.cssModules?.exclude)) {
+      contents.cssModules.exclude = contents.cssModules.exclude.map(exclude =>
+        typeof exclude === 'string' ? globToRegex(exclude) : exclude,
+      );
+    }
+    return contents;
   },
   async transform({asset, config, options, logger}) {
     // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
@@ -59,12 +79,32 @@ export default (new Transformer({
           asset.meta.cssModulesCompiled == null
         ) {
           let cssModulesConfig = config?.cssModules;
-          if (
-            (asset.isSource &&
-              (typeof cssModulesConfig === 'boolean' ||
-                cssModulesConfig?.global)) ||
-            /\.module\./.test(asset.filePath)
-          ) {
+          let isCSSModule = /\.module\./.test(asset.filePath);
+          if (asset.isSource) {
+            let projectRootPath = path.relative(
+              options.projectRoot,
+              asset.filePath,
+            );
+            if (typeof cssModulesConfig === 'boolean') {
+              isCSSModule = true;
+            } else if (cssModulesConfig?.include) {
+              isCSSModule = cssModulesConfig.include.some(include =>
+                include.test(projectRootPath),
+              );
+            } else if (cssModulesConfig?.global) {
+              isCSSModule = true;
+            }
+
+            if (
+              cssModulesConfig?.exclude?.some(exclude =>
+                exclude.test(projectRootPath),
+              )
+            ) {
+              isCSSModule = false;
+            }
+          }
+
+          if (isCSSModule) {
             if (cssModulesConfig?.dashedIdents && !asset.isSource) {
               cssModulesConfig.dashedIdents = false;
             }
@@ -74,7 +114,9 @@ export default (new Transformer({
         }
 
         res = transform({
-          filename: path.relative(options.projectRoot, asset.filePath),
+          filename: normalizeSeparators(
+            path.relative(options.projectRoot, asset.filePath),
+          ),
           code,
           cssModules,
           analyzeDependencies: asset.meta.hasDependencies !== false,

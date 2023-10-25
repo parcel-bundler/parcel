@@ -252,6 +252,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ),
               ));
 
+              let is_module = module.is_module();
               // If it's a script, convert into module. This needs to happen after
               // the resolver (which behaves differently for non-/strict mode).
               let module = match module {
@@ -342,6 +343,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       global_mark,
                       &config.project_root,
                       &mut fs_deps,
+                      is_module
                     ),
                     should_inline_fs
                   ),
@@ -387,7 +389,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   // Transpile new syntax to older syntax if needed
                   Optional::new(
                     preset_env(
-                      global_mark,
+                      unresolved_mark,
                       Some(&comments),
                       preset_env_config,
                       assumptions,
@@ -448,6 +450,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ignore_mark,
                 global_mark,
                 config.trace_bailouts,
+                is_module,
               );
               module.visit_with(&mut collect);
               if let Some(bailouts) = &collect.bailouts {
