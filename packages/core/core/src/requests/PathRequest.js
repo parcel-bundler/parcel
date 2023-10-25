@@ -190,7 +190,9 @@ export class ResolverRunner {
       diagnostic.codeFrames = [
         {
           filePath,
-          code: await this.options.inputFS.readFile(filePath, 'utf8'),
+          code: await this.options.inputFS
+            .readFile(filePath, 'utf8')
+            .catch(() => ''),
           codeHighlights: dependency.loc
             ? [convertSourceLocationToHighlight(dependency.loc)]
             : [],
