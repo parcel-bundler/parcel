@@ -3,6 +3,11 @@
 import {Runtime} from '@parcel/plugin';
 import {loadConfig} from '@parcel/utils';
 
+const FILENAME = // $FlowFixMe
+  process.env.PARCEL_BUILD_REPL && process.browser
+    ? '/app/__virtual__/@parcel/runtime-react-refresh/src/ReactRefreshRuntime.js'
+    : __filename;
+
 const CODE = `
 var Refresh = require('react-refresh/runtime');
 var ErrorOverlay = require('react-error-overlay');
@@ -59,7 +64,7 @@ export default (new Runtime({
         pkg?.config?.peerDependencies?.react
       ) {
         return {
-          filePath: __filename,
+          filePath: FILENAME,
           code: CODE,
           isEntry: true,
         };

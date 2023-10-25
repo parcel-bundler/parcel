@@ -16,6 +16,11 @@ import ThrowableDiagnostic, {
 import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
 import pkg from '../package.json';
 
+const FILENAME = // $FlowFixMe[prop-missing]
+  process.env.PARCEL_BUILD_REPL && process.browser
+    ? '/app/__virtual__/@parcel/transformer-js/src/JSTransformer.js'
+    : __filename;
+
 const JSX_EXTENSIONS = {
   jsx: true,
   tsx: true,
@@ -730,7 +735,7 @@ export default (new Transformer({
           priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
           isOptional: dep.is_optional,
           meta,
-          resolveFrom: isHelper ? __filename : undefined,
+          resolveFrom: isHelper ? FILENAME : undefined,
           range,
           env,
         });
@@ -921,7 +926,7 @@ export default (new Transformer({
         asset.addDependency({
           specifier: '@parcel/transformer-js/src/esmodule-helpers.js',
           specifierType: 'esm',
-          resolveFrom: __filename,
+          resolveFrom: FILENAME,
           env: {
             includeNodeModules: {
               '@parcel/transformer-js': true,
