@@ -153,6 +153,7 @@ describe('scope hoisting', function () {
           __dirname,
           'integration/scope-hoisting/es6/rewrite-export-star/index.js',
         ),
+        {mode: 'production'},
       );
       let output = await run(b);
       assert.equal(output, 2);
