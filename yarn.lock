@@ -12229,6 +12229,11 @@ snapdragon@^0.8.1:
     source-map-resolve "^0.5.0"
     use "^3.1.0"
 
+snarkdown@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/snarkdown/-/snarkdown-2.0.0.tgz#b1feb4db91b9f94a8ebbd7a50f3e99aee18b1e03"
+  integrity sha512-MgL/7k/AZdXCTJiNgrO7chgDqaB9FGM/1Tvlcenenb7div6obaDATzs16JhFyHHBGodHT3B7RzRc5qk8pFhg3A==
+
 socks-proxy-agent@^4.0.0:
   version "4.0.2"
   resolved "https://registry.yarnpkg.com/socks-proxy-agent/-/socks-proxy-agent-4.0.2.tgz#3c8991f3145b2799e70e11bd5fbc8b1963116386"
