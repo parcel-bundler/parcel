@@ -302,22 +302,26 @@ export default class BundleGraph {
                     loc: reexportAllLoc,
                   });
                   // It might already exist with multiple export-alls causing ambiguous resolution
-
-                  let sourceAssetId = nullthrows(
-                    assetGraphNodeIdToBundleGraphNodeId.get(
-                      assetGraph.getNodeIdByContentKey(
-                        nullthrows(node.value.sourceAssetId),
+                  if (
+                    node.value.sourceAssetId != null &&
+                    assetGraph.hasContentKey(node.value.sourceAssetId)
+                  ) {
+                    let sourceAssetId = nullthrows(
+                      assetGraphNodeIdToBundleGraphNodeId.get(
+                        assetGraph.getNodeIdByContentKey(
+                          nullthrows(node.value.sourceAssetId),
+                        ),
                       ),
-                    ),
-                  );
-                  let sourceAsset = nullthrows(graph.getNode(sourceAssetId));
-                  invariant(sourceAsset.type === 'asset');
-                  let sourceAssetSymbols = sourceAsset.value.symbols;
-                  if (sourceAssetSymbols && !sourceAssetSymbols.has(as)) {
-                    sourceAssetSymbols.set(as, {
-                      loc: reexportAllLoc,
-                      local: local,
-                    });
+                    );
+                    let sourceAsset = nullthrows(graph.getNode(sourceAssetId));
+                    invariant(sourceAsset.type === 'asset');
+                    let sourceAssetSymbols = sourceAsset.value.symbols;
+                    if (sourceAssetSymbols && !sourceAssetSymbols.has(as)) {
+                      sourceAssetSymbols.set(as, {
+                        loc: reexportAllLoc,
+                        local: local,
+                      });
+                    }
                   }
                 }
               }
