@@ -22,9 +22,7 @@
     "test": "mocha test"
   },
   "files": [
-    "lib",
-    "native.js",
-    "*.node"
+    "lib"
   ],
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
