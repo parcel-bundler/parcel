@@ -31,6 +31,15 @@ import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
 import '@parcel/fs';
 
+// $FlowFixMe
+if (process.env.PARCEL_BUILD_REPL && process.browser) {
+  /* eslint-disable import/no-extraneous-dependencies, monorepo/no-internal-import */
+  require('@parcel/repl/src/parcel/BrowserPackageManager.js');
+  // $FlowFixMe
+  require('@parcel/repl/src/parcel/ExtendedMemoryFS.js');
+  /* eslint-enable import/no-extraneous-dependencies, monorepo/no-internal-import */
+}
+
 registerCoreWithSerializer();
 
 // Remove the workerApi type from the TransformationOpts and ValidationOpts types:
