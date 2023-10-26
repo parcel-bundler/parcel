@@ -207,13 +207,6 @@ export default class BundleGraph {
       ) {
         let nodeValueSymbols = node.value.symbols;
 
-        let source;
-        if (node.value.sourceAssetId != null) {
-          source = graph.getNodeByContentKey(
-            nullthrows(node.value.sourceAssetId),
-          );
-        }
-
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
           () => new Map(),
@@ -261,11 +254,6 @@ export default class BundleGraph {
             ([, t]) => new Set([...t.values()]).size === t.size,
           )
         ) {
-          let sourceAssetSymbols;
-          if (source) {
-            invariant(source.type === 'asset');
-            sourceAssetSymbols = nullthrows(source.value.symbols);
-          }
           let isReexportAll = nodeValueSymbols.get('*')?.local === '*';
           let reexportAllLoc = isReexportAll
             ? nullthrows(nodeValueSymbols.get('*')).loc
@@ -314,6 +302,17 @@ export default class BundleGraph {
                     loc: reexportAllLoc,
                   });
                   // It might already exist with multiple export-alls causing ambiguous resolution
+
+                  let sourceAssetId = nullthrows(
+                    assetGraphNodeIdToBundleGraphNodeId.get(
+                      assetGraph.getNodeIdByContentKey(
+                        nullthrows(node.value.sourceAssetId),
+                      ),
+                    ),
+                  );
+                  let sourceAsset = nullthrows(graph.getNode(sourceAssetId));
+                  invariant(sourceAsset.type === 'asset');
+                  let sourceAssetSymbols = sourceAsset.value.symbols;
                   if (sourceAssetSymbols && !sourceAssetSymbols.has(as)) {
                     sourceAssetSymbols.set(as, {
                       loc: reexportAllLoc,
@@ -361,7 +360,14 @@ export default class BundleGraph {
       }
       // Don't copy over asset groups into the bundle graph.
       else if (node.type !== 'asset_group') {
-        let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
+        let nodeToAdd =
+          node.type === 'asset'
+            ? {
+                ...node,
+                value: {...node.value, symbols: new Map(node.value.symbols)},
+              }
+            : node;
+        let bundleGraphNodeId = graph.addNodeByContentKey(node.id, nodeToAdd);
         if (node.id === assetGraphRootNode?.id) {
           graph.setRootNodeId(bundleGraphNodeId);
         }
