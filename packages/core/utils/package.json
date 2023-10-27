@@ -64,6 +64,7 @@
   "browser": {
     "./src/generateCertificate.js": false,
     "./src/http-server.js": false,
-    "./src/openInBrowser.js": false
+    "./src/openInBrowser.js": false,
+    "@parcel/markdown-ansi": false
   }
 }
