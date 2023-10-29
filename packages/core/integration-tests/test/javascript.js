@@ -7551,5 +7551,47 @@ describe('javascript', function () {
 
       assert.equal(await result.output, 2);
     });
+
+    it('should not wrap assets that are duplicated in different targets', async function () {
+      const dir = path.join(__dirname, 'multi-target-duplicates');
+      overlayFS.mkdirp(dir);
+
+      await fsFixture(overlayFS, dir)`
+        shared/index.js:
+          export default 2;
+
+        packages/a/package.json:
+          {
+            "source": "index.js",
+            "module": "dist/module.js"
+          }
+
+        packages/a/index.js:
+          import shared from '../../shared';
+          export default shared + 2;
+
+        packages/b/package.json:
+          {
+            "source": "index.js",
+            "module": "dist/module.js"
+          }
+
+        packages/b/index.js:
+          import shared from '../../shared';
+          export default shared + 2;
+      `;
+
+      let b = await bundle(path.join(dir, '/packages/*'), {
+        inputFS: overlayFS,
+      });
+
+      for (let bundle of b.getBundles()) {
+        let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+        assert(
+          !contents.includes('parcelRequire'),
+          'should not include parcelRequire',
+        );
+      }
+    });
   }
 });
