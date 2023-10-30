@@ -74,20 +74,22 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
             let id = unsafe { codegen::TYPES.iter().position(|t| *t == std::any::TypeId::of::<#self_name>()).unwrap() };
 
             js.push_str(&format!(
-      r#"export class {name} {{
-  db: ParcelDb;
-  addr: number;
+      r#"export opaque type {name}Addr = number;
 
-  constructor(db: ParcelDb, addr?: number) {{
+export class {name} {{
+  db: ParcelDb;
+  addr: {name}Addr;
+
+  constructor(db: ParcelDb, addr?: {name}Addr) {{
     this.db = db;
     this.addr = addr ?? db.alloc({id});
   }}
 
-  static get(db: ParcelDb, addr: number): {name} {{
+  static get(db: ParcelDb, addr: {name}Addr): {name} {{
     return new {name}(db, addr);
   }}
 
-  static set(db: ParcelDb, addr: number, value: {name}): void {{
+  static set(db: ParcelDb, addr: {name}Addr, value: {name}): void {{
     copy(db, value.addr, addr, {size});
   }}
 
@@ -274,11 +276,12 @@ export class {name} {{
   output.into()
 }
 
-#[proc_macro_derive(JsValue)]
+#[proc_macro_derive(JsValue, attributes(js_type))]
 pub fn derive_js_value(input: TokenStream) -> TokenStream {
   let DeriveInput {
     ident: self_name,
     data,
+    attrs,
     ..
   } = parse_macro_input!(input);
 
@@ -286,6 +289,13 @@ pub fn derive_js_value(input: TokenStream) -> TokenStream {
     // Special handling for newtype structs.
     Data::Struct(s) if s.fields.len() == 1 && matches!(s.fields, Fields::Unnamed(_)) => {
       let ty = &s.fields.iter().next().unwrap().ty;
+      let js_type = if let Some(attr) = attrs.iter().find(|attr| attr.path.is_ident("js_type")) {
+        let ty: Ident = attr.parse_args().unwrap();
+        quote! { stringify!(#ty).to_string() }
+      } else {
+        quote! { <#ty>::ty() }
+      };
+
       quote! {
         #[automatically_derived]
         impl JsValue for #self_name {
@@ -298,7 +308,7 @@ pub fn derive_js_value(input: TokenStream) -> TokenStream {
           }
 
           fn ty() -> String {
-            <#ty>::ty()
+            #js_type
           }
         }
       }

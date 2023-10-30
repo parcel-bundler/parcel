@@ -21,7 +21,8 @@ import type {
   AssetSymbols as IAssetSymbols,
   BundleBehavior,
 } from '@parcel/types';
-import type {ParcelOptions, CommittedAssetId} from '../types';
+import type {AssetAddr} from '@parcel/rust';
+import type {ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
@@ -32,21 +33,20 @@ import InternalCommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
 import {fromProjectPath, toProjectPath} from '../projectPath';
 import {toInternalSourceLocation} from '../utils';
-import {AssetFlags} from '@parcel/rust';
+import {AssetFlags, readCachedString} from '@parcel/rust';
 import {createBuildCache} from '../buildCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const uncommittedAssetValueToAsset: Map<CommittedAssetId, Asset> =
+const uncommittedAssetValueToAsset: Map<AssetAddr, Asset> = createBuildCache();
+const committedAssetValueToAsset: Map<AssetAddr, CommittedAsset> =
   createBuildCache();
-const committedAssetValueToAsset: Map<CommittedAssetId, CommittedAsset> =
-  createBuildCache();
-const assetValueToMutableAsset: Map<CommittedAssetId, MutableAsset> =
+const assetValueToMutableAsset: Map<AssetAddr, MutableAsset> =
   createBuildCache();
 
 const _assetToAssetValue: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
-  CommittedAssetId,
+  AssetAddr,
 > = new WeakMap();
 
 const _mutableAssetToUncommittedAsset: WeakMap<
@@ -54,9 +54,7 @@ const _mutableAssetToUncommittedAsset: WeakMap<
   UncommittedAsset,
 > = new WeakMap();
 
-export function assetToAssetValue(
-  asset: IAsset | IMutableAsset,
-): CommittedAssetId {
+export function assetToAssetValue(asset: IAsset | IMutableAsset): AssetAddr {
   return nullthrows(_assetToAssetValue.get(asset));
 }
 
@@ -67,7 +65,7 @@ export function mutableAssetToUncommittedAsset(
 }
 
 export function assetFromValue(
-  value: CommittedAssetId,
+  value: AssetAddr,
   options: ParcelOptions,
 ): CommittedAsset {
   return new CommittedAsset(new InternalCommittedAsset(value, options));
@@ -87,10 +85,11 @@ class BaseAsset {
   }
 
   get id(): string {
-    return this.#asset.value.id;
+    return readCachedString(this.#asset.options.db, this.#asset.value.id);
   }
 
   get nativeAddress(): number {
+    // $FlowFixMe
     return this.#asset.value.addr;
   }
 
@@ -344,6 +343,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   setNativeDependencies(deps: Array<number>) {
+    // $FlowFixMe
     this.#asset.setNativeDependencies(deps);
   }
 
@@ -425,10 +425,11 @@ export class CommittedAsset implements IAsset {
   }
 
   get id(): string {
-    return this.#asset.value.id;
+    return readCachedString(this.#asset.options.db, this.#asset.value.id);
   }
 
   get nativeAddress(): number {
+    // $FlowFixMe
     return this.#asset.value.addr;
   }
 

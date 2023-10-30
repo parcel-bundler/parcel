@@ -3,12 +3,11 @@
 import type {PackageName, ConfigResult} from '@parcel/types';
 import type {
   Config,
-  Environment,
   InternalFileCreateInvalidation,
   InternalDevDepOptions,
 } from './types';
 import type {ProjectPath} from './projectPath';
-import type {ParcelDb} from '@parcel/rust';
+import type {ParcelDb, EnvironmentAddr} from '@parcel/rust';
 
 import {fromProjectPathRelative} from './projectPath';
 import {createEnvironment} from './Environment';
@@ -19,7 +18,7 @@ type ConfigOpts = {|
   plugin: PackageName,
   searchPath: ProjectPath,
   isSource?: boolean,
-  env?: Environment,
+  env?: EnvironmentAddr,
   result?: ConfigResult,
   invalidateOnFileChange?: Set<ProjectPath>,
   invalidateOnFileCreate?: Array<InternalFileCreateInvalidation>,

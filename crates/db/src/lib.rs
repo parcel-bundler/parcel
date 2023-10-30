@@ -2,6 +2,7 @@
 #![feature(thread_local)]
 
 use std::cell::UnsafeCell;
+use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
 use std::{num::NonZeroU32, sync::RwLock};
 
@@ -9,6 +10,7 @@ use alloc::{current_arena, current_heap, Arena, PageAllocator, Slab, SlabAllocat
 use derivative::Derivative;
 use parcel_derive::{ArenaAllocated, JsValue, SlabAllocated, ToJs};
 use thread_local::ThreadLocal;
+use xxhash_rust::xxh3::Xxh3;
 
 mod alloc;
 mod atomics;
@@ -32,13 +34,11 @@ struct Factory {
   dealloc: fn(u32),
 }
 
-#[derive(PartialEq, Clone, Debug, JsValue)]
-pub struct FileId(u32);
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, JsValue)]
+#[js_type(TargetAddr)]
+pub struct TargetId(pub NonZeroU32);
 
-#[derive(PartialEq, Clone, Debug, JsValue)]
-pub struct TargetId(pub u32);
-
-#[derive(PartialEq, Debug, ToJs, ArenaAllocated)]
+#[derive(PartialEq, Debug, Clone, ToJs, ArenaAllocated)]
 pub struct Target {
   env: EnvironmentId,
   dist_dir: InternedString,
@@ -50,8 +50,9 @@ pub struct Target {
   // source: Option<u32>
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, JsValue)]
-pub struct EnvironmentId(pub u32);
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, JsValue)]
+#[js_type(EnvironmentAddr)]
+pub struct EnvironmentId(pub NonZeroU32);
 
 #[derive(Derivative, Clone, Debug, ToJs, SlabAllocated)]
 #[derivative(PartialEq)]
@@ -160,8 +161,13 @@ pub enum OutputFormat {
   Esmodule,
 }
 
+#[derive(PartialEq, Hash, Clone, Copy, Debug, JsValue)]
+#[js_type(AssetAddr)]
+pub struct AssetId(pub NonZeroU32);
+
 #[derive(Debug, Clone, ToJs, JsValue, SlabAllocated)]
 pub struct Asset {
+  #[js_type(u32)]
   pub id: InternedString,
   pub file_path: InternedString,
   pub env: EnvironmentId,
@@ -202,11 +208,17 @@ pub enum AssetType {
   Other(InternedString),
 }
 
-#[derive(Debug, Clone, Copy, ToJs, JsValue)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, ToJs, JsValue)]
 pub enum BundleBehavior {
   None,
   Inline,
   Isolated,
+}
+
+impl Default for BundleBehavior {
+  fn default() -> Self {
+    BundleBehavior::None
+  }
 }
 
 #[derive(Debug, Clone, Default, ToJs, JsValue, ArenaAllocated)]
@@ -244,7 +256,9 @@ js_bitflags! {
 
 #[derive(Debug, Clone, ToJs, JsValue, SlabAllocated)]
 pub struct Dependency {
-  pub source_asset_id: Option<u32>,
+  #[js_type(u32)]
+  pub id: InternedString,
+  pub source_asset_id: Option<AssetId>,
   pub env: EnvironmentId,
   pub specifier: InternedString,
   pub specifier_type: SpecifierType,
@@ -255,7 +269,7 @@ pub struct Dependency {
   pub flags: DependencyFlags,
   pub loc: Option<SourceLocation>,
   pub placeholder: Option<InternedString>,
-  pub target: TargetId,
+  pub target: Option<TargetId>,
   pub symbols: ArenaVec<Symbol>,
   pub promise_symbol: Option<InternedString>,
   pub import_attributes: ArenaVec<ImportAttribute>,
@@ -265,6 +279,55 @@ pub struct Dependency {
   pub resolver_meta: Option<InternedString>,
   pub package_conditions: ExportsCondition,
   pub custom_package_conditions: ArenaVec<InternedString>,
+}
+
+impl Dependency {
+  pub fn new(specifier: InternedString, source_asset_id: AssetId) -> Dependency {
+    let asset = current_db().get_asset(source_asset_id);
+    Dependency {
+      id: InternedString::default(),
+      specifier,
+      specifier_type: SpecifierType::Esm,
+      source_asset_id: Some(source_asset_id),
+      env: asset.env,
+      priority: Priority::Sync,
+      bundle_behavior: BundleBehavior::None,
+      flags: DependencyFlags::empty(),
+      resolve_from: None,
+      range: None,
+      loc: None,
+      placeholder: None,
+      target: None,
+      symbols: ArenaVec::new(),
+      promise_symbol: None,
+      import_attributes: ArenaVec::new(),
+      pipeline: None,
+      meta: None,
+      resolver_meta: None,
+      package_conditions: ExportsCondition::empty(),
+      custom_package_conditions: ArenaVec::new(),
+    }
+  }
+
+  pub fn commit(mut self) -> u32 {
+    // Compute hashed dependency id.
+    let mut hasher = Xxh3::new();
+    if let Some(source_asset_id) = self.source_asset_id {
+      let asset = current_db().get_asset(source_asset_id);
+      asset.id.hash(&mut hasher);
+    }
+    self.specifier.hash(&mut hasher);
+    self.specifier_type.hash(&mut hasher);
+    self.env.hash(&mut hasher);
+    self.target.hash(&mut hasher);
+    self.pipeline.hash(&mut hasher);
+    self.bundle_behavior.hash(&mut hasher);
+    self.priority.hash(&mut hasher);
+    self.package_conditions.hash(&mut hasher);
+    self.custom_package_conditions.hash(&mut hasher);
+    self.id = format!("{:016x}", hasher.finish()).into();
+    self.into_arena()
+  }
 }
 
 #[derive(Debug, Clone, ToJs, JsValue, SlabAllocated)]
@@ -285,7 +348,7 @@ js_bitflags! {
   }
 }
 
-#[derive(Clone, Copy, Debug, ToJs, JsValue)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ToJs, JsValue)]
 pub enum SpecifierType {
   Esm,
   Commonjs,
@@ -293,11 +356,23 @@ pub enum SpecifierType {
   Custom,
 }
 
-#[derive(Clone, Copy, Debug, ToJs, JsValue)]
+impl Default for SpecifierType {
+  fn default() -> Self {
+    SpecifierType::Esm
+  }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ToJs, JsValue)]
 pub enum Priority {
   Sync,
   Parallel,
   Lazy,
+}
+
+impl Default for Priority {
+  fn default() -> Self {
+    Priority::Sync
+  }
 }
 
 #[derive(Clone, Debug, ToJs, JsValue, SlabAllocated)]
@@ -401,7 +476,8 @@ unsafe impl Sync for MutableSlabs {}
 // static DB_COUNT: AtomicU32 = AtomicU32::new(0);
 
 pub struct ParcelDb {
-  environments: RwLock<Vec<u32>>,
+  environments: RwLock<Vec<EnvironmentId>>,
+  targets: RwLock<Vec<TargetId>>,
   heap: PageAllocator,
   strings: StringInterner,
   slabs: ThreadLocal<MutableSlabs>,
@@ -414,6 +490,7 @@ impl ParcelDb {
     ParcelDbWrapper {
       inner: ParcelDb {
         environments: RwLock::new(Vec::new()),
+        targets: RwLock::new(Vec::new()),
         heap: PageAllocator::new(),
         strings: StringInterner::new(),
         slabs: ThreadLocal::new(),
@@ -458,18 +535,18 @@ impl ParcelDb {
     vec.reserve(count as usize);
   }
 
-  pub fn get_environment(&self, addr: u32) -> &Environment {
-    unsafe { &*self.heap.get(addr) }
+  pub fn get_environment(&self, addr: EnvironmentId) -> &Environment {
+    unsafe { &*self.heap.get(addr.0.get()) }
   }
 
-  pub fn get_asset(&self, addr: u32) -> &Asset {
-    unsafe { &*self.heap.get(addr) }
+  pub fn get_asset(&self, addr: AssetId) -> &Asset {
+    unsafe { &*self.heap.get(addr.0.get()) }
   }
 
-  pub fn get_asset_mut(&self, addr: u32) -> &mut Asset {
+  pub fn get_asset_mut(&self, addr: AssetId) -> &mut Asset {
     // TODO: somehow make this safe...
     // It is undefined behavior to vend more than one mutable reference at a time.
-    unsafe { &mut *self.heap.get(addr) }
+    unsafe { &mut *self.heap.get(addr.0.get()) }
   }
 
   pub fn environment_id(&self, env: &Environment) -> EnvironmentId {
@@ -481,13 +558,37 @@ impl ParcelDb {
         .iter()
         .find(|e| self.get_environment(**e) == env)
       {
-        return EnvironmentId(*env);
+        return *env;
       }
     }
 
-    let addr = env.clone().commit();
-    self.environments.write().unwrap().push(addr);
-    EnvironmentId(addr)
+    let addr = env.clone().into_arena();
+    let id = EnvironmentId(NonZeroU32::new(addr).unwrap());
+    self.environments.write().unwrap().push(id);
+    id
+  }
+
+  pub fn get_target(&self, addr: TargetId) -> &Target {
+    unsafe { &*self.heap.get(addr.0.get()) }
+  }
+
+  pub fn target_id(&self, target: &Target) -> TargetId {
+    {
+      if let Some(target) = self
+        .targets
+        .read()
+        .unwrap()
+        .iter()
+        .find(|e| self.get_target(**e) == target)
+      {
+        return *target;
+      }
+    }
+
+    let addr = target.clone().into_arena();
+    let id = TargetId(NonZeroU32::new(addr).unwrap());
+    self.targets.write().unwrap().push(id);
+    id
   }
 
   pub fn write<W: std::io::Write>(&self, dest: &mut W) -> std::io::Result<()> {
@@ -513,8 +614,10 @@ impl ParcelDb {
     self.strings.write(dest)?;
 
     let environments = self.environments.read().unwrap();
-    dest.write(&u32::to_le_bytes(environments.len() as u32))?;
-    dest.write(unsafe { std::slice::from_raw_parts(environments.as_ptr() as *const u8, environments.len() * 4) })?;
+    write_vec(&environments, dest)?;
+
+    let targets = self.targets.read().unwrap();
+    write_vec(&targets, dest)?;
 
     Ok(())
   }
@@ -545,19 +648,13 @@ impl ParcelDb {
     let heap = PageAllocator::read(source)?;
     let strings = StringInterner::read(source)?;
 
-    source.read_exact(&mut buf)?;
-    let len = u32::from_le_bytes(buf);
-    let mut environments = Vec::with_capacity(len as usize);
-    environments.reserve(len as usize);
-    unsafe {
-      environments.set_len(len as usize);
-      let slice = std::slice::from_raw_parts_mut(environments.as_mut_ptr() as *mut u8, environments.len() * 4);
-      source.read_exact(slice)?;
-    }
+    let environments = read_vec(source)?;
+    let targets = read_vec(source)?;
 
     Ok(ParcelDbWrapper {
       inner: ParcelDb {
         environments: RwLock::new(environments),
+        targets: RwLock::new(targets),
         heap,
         strings,
         slabs: ThreadLocal::new(),
@@ -565,4 +662,25 @@ impl ParcelDb {
       },
     })
   }
+}
+
+fn write_vec<T, W: std::io::Write>(v: &Vec<T>, dest: &mut W) -> std::io::Result<()> {
+  dest.write(&u32::to_le_bytes(v.len() as u32))?;
+  dest.write(unsafe { std::slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 4) })?;
+  Ok(())
+}
+
+fn read_vec<T, R: std::io::Read>(source: &mut R) -> std::io::Result<Vec<T>> {
+  let mut buf: [u8; 4] = [0; 4];
+  source.read_exact(&mut buf)?;
+  let len = u32::from_le_bytes(buf);
+  let mut res = Vec::with_capacity(len as usize);
+  res.reserve(len as usize);
+  unsafe {
+    res.set_len(len as usize);
+    let slice = std::slice::from_raw_parts_mut(res.as_mut_ptr() as *mut u8, res.len() * 4);
+    source.read_exact(slice)?;
+  }
+
+  Ok(res)
 }

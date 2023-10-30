@@ -1,3 +1,4 @@
+/* eslint-disable */
 // @flow strict-local
 
 import type {
@@ -13,11 +14,11 @@ import type {
 } from '@parcel/types';
 import type {
   RequestInvalidation,
-  Dependency,
   ParcelOptions,
   InternalFileCreateInvalidation,
-  CommittedAssetId,
 } from './types';
+import type {DependencyAddr} from '@parcel/rust';
+import type {DependencyOpts} from './Dependency';
 
 import invariant from 'assert';
 import {Readable} from 'stream';
@@ -82,7 +83,7 @@ export default class UncommittedAsset {
   fileCreateInvalidations: Array<InternalFileCreateInvalidation>;
   generate: ?() => Promise<GenerateOutput>;
 
-  dependencies: Map<string, Dependency>;
+  dependencies: Map<number, DependencyAddr>;
   meta: Meta;
   astGenerator: ?ASTGenerator;
   plugin: ?PackageName;
@@ -180,6 +181,12 @@ export default class UncommittedAsset {
 
     if (this.content instanceof Readable) {
       this.value.flags |= AssetFlags.LARGE_BLOB;
+    }
+
+    // Asset address may have changed since deps were originally created.
+    for (let id of this.dependencies.values()) {
+      let dep = DbDependency.get(this.options.db, id);
+      dep.sourceAssetId = this.value.addr;
     }
   }
 
@@ -355,10 +362,10 @@ export default class UncommittedAsset {
     return hashString(PARCEL_VERSION + key + this.value.id + (this.hash || ''));
   }
 
-  addDependency(opts: DependencyOptions): number {
+  addDependency(opts: DependencyOptions): string {
     // eslint-disable-next-line no-unused-vars
     let {env, symbols, ...rest} = opts;
-    let options = {
+    let options: DependencyOpts = {
       ...rest,
       // $FlowFixMe "convert" the $ReadOnlyMaps to the interal mutable one
       symbols,
@@ -368,7 +375,7 @@ export default class UncommittedAsset {
         this.value.env,
         env,
       ),
-      sourceAssetId: this.value.id,
+      sourceAssetId: this.value.addr,
       sourcePath: fromProjectPath(
         this.options.projectRoot,
         this.value.filePath,
@@ -376,7 +383,8 @@ export default class UncommittedAsset {
     };
 
     let dep;
-    let id = dependencyId(options);
+    let hash = dependencyId(this.options.db, options);
+    let id = this.options.db.getStringId(hash);
     let existing = this.dependencies.get(id);
     if (existing != null) {
       mergeDependencies(
@@ -387,6 +395,7 @@ export default class UncommittedAsset {
       );
       dep = existing;
     } else {
+      options.id = id;
       dep = createDependency(
         this.options.db,
         this.options.projectRoot,
@@ -394,13 +403,12 @@ export default class UncommittedAsset {
       );
       this.dependencies.set(id, dep);
     }
-    return dep;
+    return hash;
   }
 
-  setNativeDependencies(deps: Array<Dependency>) {
-    this.dependencies.clear();
+  setNativeDependencies(deps: Array<DependencyAddr>) {
     for (let d of deps) {
-      this.dependencies.set(d, d);
+      this.dependencies.set(DbDependency.get(this.options.db, d).id, d);
     }
   }
 
@@ -432,7 +440,7 @@ export default class UncommittedAsset {
     return [...this.invalidations.values()];
   }
 
-  getDependencies(): Array<Dependency> {
+  getDependencies(): Array<DependencyAddr> {
     return Array.from(this.dependencies.values());
   }
 
@@ -512,6 +520,8 @@ export default class UncommittedAsset {
 
   updateId() {
     // $FlowFixMe - this is fine
-    this.value.id = createAssetIdFromOptions(this.value);
+    this.value.id = this.options.db.getStringId(
+      createAssetIdFromOptions(this.value),
+    );
   }
 }

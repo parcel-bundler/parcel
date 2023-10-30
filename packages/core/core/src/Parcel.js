@@ -50,9 +50,14 @@ import {createEnvironment} from './Environment';
 import {createDependency} from './Dependency';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initRust} from '@parcel/rust';
+import {
+  init as initRust,
+  Asset as DbAsset,
+  readCachedString,
+} from '@parcel/rust';
 import {toProjectPath} from './projectPath';
 import {tracer} from '@parcel/profiler';
+import {fromProjectPathRelative, fromProjectPath} from './projectPath';
 
 registerCoreWithSerializer();
 
@@ -298,11 +303,12 @@ export default class Parcel {
         requestGraphEdgeTypes,
       );
 
+      let db = nullthrows(this.#resolvedOptions).db;
       let event = {
         type: 'buildSuccess',
         changedAssets: new Map(
           Array.from(changedAssets).map(([id, asset]) => [
-            id,
+            readCachedString(db, DbAsset.get(db, id).id),
             assetFromValue(asset, options),
           ]),
         ),
@@ -334,7 +340,7 @@ export default class Parcel {
           }
 
           for (let assetId of bundleNode.value.entryAssetIds) {
-            this.#requestedAssetIds.add(assetId);
+            this.#requestedAssetIds.add(DbAsset.get(db, assetId).id);
           }
 
           if (this.#watchQueue.getNumWaiting() === 0) {
@@ -477,7 +483,7 @@ export default class Parcel {
     let res = await this.#requestTracker.runRequest(request, {
       force: true,
     });
-    return res.map(asset =>
+    return res.map(({asset}) =>
       assetFromValue(asset, nullthrows(this.#resolvedOptions)),
     );
   }

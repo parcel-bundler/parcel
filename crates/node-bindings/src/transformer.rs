@@ -1,16 +1,20 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+  collections::{HashMap, HashSet},
+  num::NonZeroU32,
+};
 
 use crate::db::JsParcelDb;
 use indexmap::IndexMap;
 use napi::{Env, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
-  ArenaAllocated, ArenaVec, AssetFlags, AssetType, BundleBehavior, Dependency, DependencyFlags,
-  Environment, EnvironmentContext, EnvironmentFlags, EnvironmentId, ExportsCondition,
+  ArenaAllocated, ArenaVec, AssetFlags, AssetId, AssetType, BundleBehavior, Dependency,
+  DependencyFlags, Environment, EnvironmentContext, EnvironmentFlags, ExportsCondition,
   ImportAttribute, InternedString, Location, OutputFormat, ParcelDb, Priority, SourceLocation,
   SourceType, SpecifierType, Symbol, SymbolFlags, TargetId,
 };
 use parcel_js_swc_core::{CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult};
+use parcel_resolver::Specifier;
 use path_slash::{PathBufExt, PathExt};
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +23,7 @@ pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown>
   let config: Config2 = env.from_js_value(opts)?;
 
   db.with(|db| {
-    let asset_id = config.asset_id;
+    let asset_id = AssetId(config.asset_id);
     let config = convert_config(db, config);
     let result = convert_result(
       db,
@@ -35,7 +39,7 @@ pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown>
 #[napi]
 pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsObject> {
   let config: Config2 = env.from_js_value(opts)?;
-  let asset_id = config.asset_id;
+  let asset_id = AssetId(config.asset_id);
   let config = db.with(|db| convert_config(db, config));
 
   let (deferred, promise) = env.create_deferred()?;
@@ -56,7 +60,7 @@ pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsOb
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config2 {
-  pub asset_id: u32,
+  pub asset_id: NonZeroU32,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub project_root: String,
@@ -80,8 +84,8 @@ pub struct Config2 {
 }
 
 fn convert_config(db: &ParcelDb, config: Config2) -> Config {
-  let asset = db.get_asset(config.asset_id);
-  let env = db.get_environment(asset.env.0);
+  let asset = db.get_asset(AssetId(config.asset_id));
+  let env = db.get_environment(asset.env);
   Config {
     filename: asset.file_path.to_string(), // TODO: does this need to be a full path or project path?
     module_id: asset.id.to_string(),
@@ -142,12 +146,12 @@ pub struct TransformResult2 {
 
 fn convert_result(
   db: &ParcelDb,
-  asset_id: u32,
+  asset_id: AssetId,
   config: &parcel_js_swc_core::Config,
   mut result: TransformResult,
 ) -> TransformResult2 {
   let asset = db.get_asset_mut(asset_id);
-  let env = db.get_environment(asset.env.0);
+  let env = db.get_environment(asset.env);
   let file_path = asset.file_path;
 
   let mut dep_map = IndexMap::new();
@@ -176,138 +180,76 @@ fn convert_result(
           output_format = OutputFormat::Global;
         }
 
-        let d = Dependency {
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          priority: Priority::Lazy,
-          flags: dep_flags | DependencyFlags::IS_WEBWORKER,
-          bundle_behavior: BundleBehavior::None,
-          resolve_from: Some(file_path),
-          range: None,
-          source_asset_id: Some(asset_id),
-          placeholder: dep.placeholder.map(|s| s.into()),
-          promise_symbol: None,
-          symbols: ArenaVec::new(),
+        let mut d = Dependency::new(dep.specifier.as_ref().into(), asset_id);
+        d.specifier_type = SpecifierType::Url;
+        d.priority = Priority::Lazy;
+        d.flags = dep_flags | DependencyFlags::IS_WEBWORKER;
+        d.placeholder = dep.placeholder.map(|s| s.into());
+        d.loc = Some(convert_loc(file_path, &dep.loc));
+        d.env = db.environment_id(&Environment {
+          context: EnvironmentContext::WebWorker,
+          source_type: if matches!(
+            dep.source_type,
+            Some(parcel_js_swc_core::SourceType::Module)
+          ) {
+            SourceType::Module
+          } else {
+            SourceType::Script
+          },
+          output_format,
           loc: Some(convert_loc(file_path, &dep.loc)),
-          target: TargetId(0),
-          env: db.environment_id(&Environment {
-            context: EnvironmentContext::WebWorker,
-            source_type: if matches!(
-              dep.source_type,
-              Some(parcel_js_swc_core::SourceType::Module)
-            ) {
-              SourceType::Module
-            } else {
-              SourceType::Script
-            },
-            output_format,
-            loc: Some(convert_loc(file_path, &dep.loc)),
-            ..env.clone()
-          }),
-          import_attributes: ArenaVec::new(),
-          pipeline: None,
-          meta: None,
-          resolver_meta: None,
-          package_conditions: ExportsCondition::empty(),
-          custom_package_conditions: ArenaVec::new(),
-        };
+          ..env.clone()
+        });
         let placeholder = d.placeholder.unwrap_or(d.specifier);
         dep_map.insert(placeholder, d);
       }
       DependencyKind::ServiceWorker => {
-        let d = Dependency {
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          priority: Priority::Lazy,
-          flags: dep_flags | DependencyFlags::NEEDS_STABLE_NAME,
-          bundle_behavior: BundleBehavior::None,
-          resolve_from: Some(file_path),
-          range: None,
-          source_asset_id: Some(asset_id),
-          placeholder: dep.placeholder.map(|s| s.into()),
-          promise_symbol: None,
-          symbols: ArenaVec::new(),
+        let mut d = Dependency::new(dep.specifier.as_ref().into(), asset_id);
+        d.specifier_type = SpecifierType::Url;
+        d.priority = Priority::Lazy;
+        d.flags = dep_flags | DependencyFlags::NEEDS_STABLE_NAME;
+        d.placeholder = dep.placeholder.map(|s| s.into());
+        d.loc = Some(convert_loc(file_path, &dep.loc));
+        d.env = db.environment_id(&Environment {
+          context: EnvironmentContext::ServiceWorker,
+          source_type: if matches!(
+            dep.source_type,
+            Some(parcel_js_swc_core::SourceType::Module)
+          ) {
+            SourceType::Module
+          } else {
+            SourceType::Script
+          },
+          output_format: OutputFormat::Global,
           loc: Some(convert_loc(file_path, &dep.loc)),
-          target: TargetId(0),
-          env: db.environment_id(&Environment {
-            context: EnvironmentContext::ServiceWorker,
-            source_type: if matches!(
-              dep.source_type,
-              Some(parcel_js_swc_core::SourceType::Module)
-            ) {
-              SourceType::Module
-            } else {
-              SourceType::Script
-            },
-            output_format: OutputFormat::Global,
-            loc: Some(convert_loc(file_path, &dep.loc)),
-            ..env.clone()
-          }),
-          import_attributes: ArenaVec::new(),
-          pipeline: None,
-          meta: None,
-          resolver_meta: None,
-          package_conditions: ExportsCondition::empty(),
-          custom_package_conditions: ArenaVec::new(),
-        };
+          ..env.clone()
+        });
         let placeholder = d.placeholder.unwrap_or(d.specifier);
         dep_map.insert(placeholder, d);
       }
       DependencyKind::Worklet => {
-        let d = Dependency {
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          priority: Priority::Lazy,
-          flags: dep_flags,
-          bundle_behavior: BundleBehavior::None,
-          resolve_from: Some(file_path),
-          range: None,
-          source_asset_id: Some(asset_id),
-          placeholder: dep.placeholder.map(|s| s.into()),
-          promise_symbol: None,
-          symbols: ArenaVec::new(),
+        let mut d = Dependency::new(dep.specifier.as_ref().into(), asset_id);
+        d.specifier_type = SpecifierType::Url;
+        d.priority = Priority::Lazy;
+        d.flags = dep_flags;
+        d.placeholder = dep.placeholder.map(|s| s.into());
+        d.loc = Some(convert_loc(file_path, &dep.loc));
+        d.env = db.environment_id(&Environment {
+          context: EnvironmentContext::Worklet,
+          source_type: SourceType::Module,
+          output_format: OutputFormat::Esmodule,
           loc: Some(convert_loc(file_path, &dep.loc)),
-          target: TargetId(0),
-          env: db.environment_id(&Environment {
-            context: EnvironmentContext::Worklet,
-            source_type: SourceType::Module,
-            output_format: OutputFormat::Esmodule,
-            loc: Some(convert_loc(file_path, &dep.loc)),
-            ..env.clone()
-          }),
-          import_attributes: ArenaVec::new(),
-          pipeline: None,
-          meta: None,
-          resolver_meta: None,
-          package_conditions: ExportsCondition::empty(),
-          custom_package_conditions: ArenaVec::new(),
-        };
+          ..env.clone()
+        });
         let placeholder = d.placeholder.unwrap_or(d.specifier);
         dep_map.insert(placeholder, d);
       }
       DependencyKind::Url => {
-        let d = Dependency {
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: SpecifierType::Url,
-          priority: Priority::Lazy,
-          flags: dep_flags,
-          bundle_behavior: BundleBehavior::Isolated,
-          resolve_from: Some(file_path),
-          range: None,
-          source_asset_id: Some(asset_id),
-          placeholder: dep.placeholder.map(|s| s.into()),
-          promise_symbol: None,
-          symbols: ArenaVec::new(),
-          loc: Some(convert_loc(file_path, &dep.loc)),
-          target: TargetId(0),
-          env: asset.env,
-          import_attributes: ArenaVec::new(),
-          pipeline: None,
-          meta: None,
-          resolver_meta: None,
-          package_conditions: ExportsCondition::empty(),
-          custom_package_conditions: ArenaVec::new(),
-        };
+        let mut d = Dependency::new(dep.specifier.as_ref().into(), asset_id);
+        d.specifier_type = SpecifierType::Url;
+        d.priority = Priority::Lazy;
+        d.flags = dep_flags;
+        d.placeholder = dep.placeholder.map(|s| s.into());
         let placeholder = d.placeholder.unwrap_or(d.specifier);
         dep_map.insert(placeholder, d);
       }
@@ -368,7 +310,7 @@ fn convert_result(
               loc: Some(convert_loc(file_path, &dep.loc)),
               ..env.clone()
             });
-            env = db.get_environment(env_id.0);
+            env = db.get_environment(env_id);
           }
         }
 
@@ -385,7 +327,7 @@ fn convert_result(
 
         // Add required version range for helpers.
         let mut range = None;
-        let mut resolve_from = Some(file_path);
+        let mut resolve_from = None;
         if is_helper {
           // TODO: get versions from package.json? Can we do it at compile time?
           if dep.specifier.starts_with("@swc/helpers") {
@@ -410,34 +352,21 @@ fn convert_result(
           }
         }
 
-        let d = Dependency {
-          specifier: dep.specifier.as_ref().into(),
-          specifier_type: match dep.kind {
-            DependencyKind::Require => SpecifierType::Commonjs,
-            _ => SpecifierType::Esm,
-          },
-          priority: match dep.kind {
-            DependencyKind::DynamicImport => Priority::Lazy,
-            _ => Priority::Sync,
-          },
-          flags,
-          bundle_behavior: BundleBehavior::None,
-          resolve_from,
-          range,
-          source_asset_id: Some(asset_id),
-          placeholder: dep.placeholder.map(|s| s.into()),
-          promise_symbol: None,
-          symbols: ArenaVec::new(),
-          loc: Some(convert_loc(file_path, &dep.loc)),
-          target: TargetId(0),
-          env: env_id,
-          import_attributes,
-          pipeline: None,
-          meta: None,
-          resolver_meta: None,
-          package_conditions: ExportsCondition::empty(),
-          custom_package_conditions: ArenaVec::new(),
+        let mut d = Dependency::new(dep.specifier.as_ref().into(), asset_id);
+        d.specifier_type = match dep.kind {
+          DependencyKind::Require => SpecifierType::Commonjs,
+          _ => SpecifierType::Esm,
         };
+        d.priority = match dep.kind {
+          DependencyKind::DynamicImport => Priority::Lazy,
+          _ => Priority::Sync,
+        };
+        d.flags = flags;
+        d.resolve_from = resolve_from;
+        d.range = range;
+        d.placeholder = dep.placeholder.map(|s| s.into());
+        d.import_attributes = import_attributes;
+        d.loc = Some(convert_loc(file_path, &dep.loc));
 
         let placeholder = d.placeholder.unwrap_or(d.specifier);
         dep_map.insert(placeholder, d);
@@ -446,34 +375,20 @@ fn convert_result(
   }
 
   if result.needs_esm_helpers {
-    let d = Dependency {
-      specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
-      specifier_type: SpecifierType::Esm,
-      priority: Priority::Sync,
-      flags: dep_flags,
-      bundle_behavior: BundleBehavior::None,
-      resolve_from: Some(to_project_path(
-        &config.resolve_helpers_from,
-        &config.project_root,
-      )),
-      range: None,
-      source_asset_id: Some(asset_id),
-      placeholder: None,
-      promise_symbol: None,
-      symbols: ArenaVec::new(),
-      loc: None,
-      target: TargetId(0),
-      env: db.environment_id(&Environment {
-        include_node_modules: InternedString::from("{\"@parcel/transformer-js\":true}"),
-        ..env.clone()
-      }),
-      import_attributes: ArenaVec::new(),
-      pipeline: None,
-      meta: None,
-      resolver_meta: None,
-      package_conditions: ExportsCondition::empty(),
-      custom_package_conditions: ArenaVec::new(),
-    };
+    let mut d = Dependency::new(
+      "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+      asset_id,
+    );
+    d.flags = dep_flags;
+    d.resolve_from = Some(to_project_path(
+      &config.resolve_helpers_from,
+      &config.project_root,
+    ));
+    d.env = db.environment_id(&Environment {
+      include_node_modules: InternedString::from("{\"@parcel/transformer-js\":true}"),
+      ..env.clone()
+    });
+
     dep_map.insert(d.specifier, d);
   }
 
@@ -483,6 +398,7 @@ fn convert_result(
 
   let symbols = &mut asset.symbols;
   if let Some(hoist_result) = result.hoist_result {
+    asset.flags |= AssetFlags::HAS_SYMBOLS;
     symbols.reserve(hoist_result.exported_symbols.len() + hoist_result.re_exports.len() + 1);
     // println!("{:?}", hoist_result);
     for s in &hoist_result.exported_symbols {
@@ -585,28 +501,9 @@ fn convert_result(
       // Using the unique key ensures that the dependency always resolves to the correct asset,
       // even if it came from a transformer that produced multiple assets (e.g. css modules).
       // Also avoids needing a resolution request.
-      let d = Dependency {
-        specifier: asset.id,
-        specifier_type: SpecifierType::Esm,
-        priority: Priority::Sync,
-        flags: dep_flags,
-        bundle_behavior: BundleBehavior::None,
-        resolve_from: None,
-        range: None,
-        source_asset_id: Some(asset_id),
-        placeholder: None,
-        promise_symbol: None,
-        symbols: dep_symbols,
-        loc: None,
-        target: TargetId(0),
-        env: asset.env,
-        import_attributes: ArenaVec::new(),
-        pipeline: None,
-        meta: None,
-        resolver_meta: None,
-        package_conditions: ExportsCondition::empty(),
-        custom_package_conditions: ArenaVec::new(),
-      };
+      let mut d = Dependency::new(asset.id, asset_id);
+      d.flags = dep_flags;
+      d.symbols = dep_symbols;
       dep_map.insert(d.specifier, d);
     }
 
@@ -634,6 +531,7 @@ fn convert_result(
     should_wrap = hoist_result.should_wrap;
   } else {
     if let Some(symbol_result) = result.symbol_result {
+      asset.flags |= AssetFlags::HAS_SYMBOLS;
       symbols.reserve(symbol_result.exports.len() + 1);
       for sym in &symbol_result.exports {
         let local = if let Some(dep) = sym
@@ -723,20 +621,6 @@ fn convert_result(
       }
     }
   }
-
-  // println!("SYMBOLS {:?} {:?}", config.filename, symbols);
-  // for id in &deps {
-  //   let dep: &mut Dependency = db.read_heap(*id);
-  //   println!("{:?}", dep);
-  // }
-  //
-  // println!(
-  //   "{:?}",
-  //   deps
-  //     .iter()
-  //     .map(|d| db.read_heap::<Dependency>(*d))
-  //     .collect::<Vec<_>>()
-  // );
 
   asset.flags.set(
     AssetFlags::HAS_NODE_REPLACEMENTS,

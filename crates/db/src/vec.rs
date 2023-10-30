@@ -1,5 +1,5 @@
 use allocator_api2::vec::Vec;
-use std::marker::PhantomData;
+use std::{hash::Hash, marker::PhantomData};
 
 use crate::{
   alloc::{current_heap, SlabAllocated, SlabAllocator},
@@ -99,6 +99,18 @@ impl<T: SlabAllocated> ArenaVec<T> {
 impl<T: std::fmt::Debug + SlabAllocated + Clone> std::fmt::Debug for ArenaVec<T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     self.as_slice().fmt(f)
+  }
+}
+
+impl<T: SlabAllocated> Default for ArenaVec<T> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+impl<T: SlabAllocated + Hash> Hash for ArenaVec<T> {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.as_slice().hash(state)
   }
 }
 

@@ -2,21 +2,18 @@
 
 import type {ContentKey} from '@parcel/graph';
 import type {
-  ASTGenerator,
   BuildMode,
   Engines,
   EnvMap,
   FilePath,
   Glob,
   LogLevel,
-  Meta,
   DependencySpecifier,
   PackageName,
   ReporterEvent,
   SemverRange,
   ServerOptions,
   Stats,
-  Symbol,
   ConfigResult,
   OutputFormat,
   TargetDescriptor,
@@ -28,7 +25,13 @@ import type {FileSystem} from '@parcel/fs';
 import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
-import type {ParcelDb} from '@parcel/rust';
+import type {
+  ParcelDb,
+  EnvironmentAddr,
+  AssetAddr,
+  DependencyAddr,
+  TargetAddr,
+} from '@parcel/rust';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -72,7 +75,6 @@ export type ProcessedParcelConfig = {|
 //   sourceMap: ?TargetSourceMapOptions,
 //   loc: ?InternalSourceLocation,
 // |};
-export type Environment = number;
 
 export interface InternalSourceLocation {
   +filePath: ProjectPath;
@@ -90,14 +92,13 @@ interface Location {
 export type TargetValue = {|
   distEntry?: ?FilePath,
   distDir: ProjectPath,
-  env: Environment,
+  env: EnvironmentAddr,
   name: string,
   publicUrl: string,
   loc?: ?InternalSourceLocation,
   pipeline?: string,
   source?: FilePath | Array<FilePath>,
 |};
-export type Target = number;
 
 export const SpecifierType = {
   esm: 0,
@@ -155,7 +156,6 @@ export const ExportsCondition = {
 //   >,
 //   pipeline?: ?string,
 // |};
-export type Dependency = number;
 
 export const BundleBehavior = {
   inline: 0,
@@ -165,39 +165,37 @@ export const BundleBehavior = {
 export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
   Object.keys(BundleBehavior);
 
-export type Asset = {|
-  id: string,
-  committed: boolean,
-  hash: ?string,
-  filePath: ProjectPath,
-  query: ?string,
-  type: string,
-  dependencies: Map<string, Dependency>,
-  bundleBehavior: ?$Values<typeof BundleBehavior>,
-  isBundleSplittable: boolean,
-  isSource: boolean,
-  env: Environment,
-  meta: Meta,
-  stats: Stats,
-  contentKey: ?string,
-  mapKey: ?string,
-  outputHash: ?string,
-  pipeline: ?string,
-  astKey: ?string,
-  astGenerator: ?ASTGenerator,
-  symbols: ?Map<
-    Symbol,
-    {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
-  >,
-  sideEffects: boolean,
-  uniqueKey: ?string,
-  configPath?: ProjectPath,
-  plugin: ?PackageName,
-  configKeyPath?: string,
-  isLargeBlob?: boolean,
-|};
-
-export type CommittedAssetId = number;
+// export type Asset = {|
+//   id: string,
+//   committed: boolean,
+//   hash: ?string,
+//   filePath: ProjectPath,
+//   query: ?string,
+//   type: string,
+//   dependencies: Map<string, DependencyAddr>,
+//   bundleBehavior: ?$Values<typeof BundleBehavior>,
+//   isBundleSplittable: boolean,
+//   isSource: boolean,
+//   env: EnvironmentAddr,
+//   meta: Meta,
+//   stats: Stats,
+//   contentKey: ?string,
+//   mapKey: ?string,
+//   outputHash: ?string,
+//   pipeline: ?string,
+//   astKey: ?string,
+//   astGenerator: ?ASTGenerator,
+//   symbols: ?Map<
+//     Symbol,
+//     {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
+//   >,
+//   sideEffects: boolean,
+//   uniqueKey: ?string,
+//   configPath?: ProjectPath,
+//   plugin: ?PackageName,
+//   configKeyPath?: string,
+//   isLargeBlob?: boolean,
+// |};
 
 export type InternalGlob = ProjectPath;
 
@@ -310,7 +308,7 @@ export type ParcelOptions = {|
 export type AssetNode = {|
   id: ContentKey,
   +type: 'asset',
-  value: CommittedAssetId,
+  value: AssetAddr,
   usedSymbols: Set<number>,
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,
@@ -321,7 +319,7 @@ export type AssetNode = {|
 export type DependencyNode = {|
   id: ContentKey,
   type: 'dependency',
-  value: Dependency,
+  value: DependencyAddr,
   complete?: boolean,
   correspondingRequest?: string,
   deferred: boolean,
@@ -362,7 +360,7 @@ export type RootNode = {|id: ContentKey, +type: 'root', value: string | null|};
 export type AssetRequestInput = {|
   name?: string, // AssetGraph name, needed so that different graphs can isolated requests since the results are not stored
   filePath: ProjectPath,
-  env: Environment,
+  env: EnvironmentAddr,
   isSource?: boolean,
   canDefer?: boolean,
   sideEffects?: boolean,
@@ -375,8 +373,8 @@ export type AssetRequestInput = {|
 |};
 
 export type AssetRequestResult = Array<{|
-  asset: CommittedAssetId,
-  dependencies: Array<Dependency>,
+  asset: AssetAddr,
+  dependencies: Array<DependencyAddr>,
 |}>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = $Rest<
@@ -408,7 +406,7 @@ export type TransformationRequest = {|
 export type DepPathRequestNode = {|
   id: ContentKey,
   +type: 'dep_path_request',
-  value: Dependency,
+  value: DependencyAddr,
 |};
 
 export type AssetRequestNode = {|
@@ -470,7 +468,7 @@ export type Config = {|
   id: string,
   isSource: boolean,
   searchPath: ProjectPath,
-  env: Environment,
+  env: EnvironmentAddr,
   cacheKey: ?string,
   result: ConfigResult,
   invalidateOnFileChange: Set<ProjectPath>,
@@ -501,11 +499,11 @@ export type TargetRequestNode = {|
 
 export type CacheEntry = {|
   filePath: ProjectPath,
-  env: Environment,
+  env: EnvironmentAddr,
   hash: string,
-  assets: Array<Asset>,
+  assets: Array<AssetAddr>,
   // Initial assets, pre-post processing
-  initialAssets: ?Array<Asset>,
+  initialAssets: ?Array<AssetAddr>,
 |};
 
 export type Bundle = {|
@@ -513,14 +511,14 @@ export type Bundle = {|
   publicId: ?string,
   hashReference: string,
   type: string,
-  env: Environment,
-  entryAssetIds: Array<ContentKey>,
-  mainEntryId: ?ContentKey,
+  env: EnvironmentAddr,
+  entryAssetIds: Array<AssetAddr>,
+  mainEntryId: ?AssetAddr,
   needsStableName: ?boolean,
   bundleBehavior: ?$Values<typeof BundleBehavior>,
   isSplittable: ?boolean,
   isPlaceholder?: boolean,
-  target: Target,
+  target: TargetAddr,
   name: ?string,
   displayName: ?string,
   pipeline: ?string,
@@ -534,8 +532,8 @@ export type BundleNode = {|
 |};
 
 export type BundleGroup = {|
-  target: Target,
-  entryAssetId: CommittedAssetId,
+  target: TargetAddr,
+  entryAssetId: AssetAddr,
 |};
 
 export type BundleGroupNode = {|

@@ -19,9 +19,9 @@ import type {
   InternalFileCreateInvalidation,
   InternalDevDepOptions,
   AssetRequestResult,
-  CommittedAssetId,
 } from './types';
 import type {LoadedPlugin} from './ParcelConfig';
+import type {AssetAddr} from '@parcel/rust';
 
 import path from 'path';
 import {Readable} from 'stream';
@@ -583,7 +583,7 @@ export default class Transformation {
     }
 
     let cached = await this.options.cache.get<{|
-      assets: Array<{|hash: string, value: CommittedAssetId|}>,
+      assets: Array<{|hash: string, value: AssetAddr|}>,
     |}>(cacheKey);
     if (!cached) {
       return null;

@@ -2,13 +2,9 @@
 
 import type {ContentKey, NodeId} from '@parcel/graph';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {
-  AssetNode,
-  CommittedAssetId,
-  DependencyNode,
-  ParcelOptions,
-} from './types';
+import type {AssetNode, DependencyNode, ParcelOptions} from './types';
 import {type default as AssetGraph} from './AssetGraph';
+import type {AssetAddr} from '@parcel/rust';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -34,14 +30,14 @@ export function propagateSymbols({
 }: {|
   options: ParcelOptions,
   assetGraph: AssetGraph,
-  changedAssetsPropagation: Set<CommittedAssetId>,
+  changedAssetsPropagation: Set<AssetAddr>,
   assetGroupsWithRemovedParents: Set<NodeId>,
   previousErrors?: ?Map<NodeId, Array<Diagnostic>>,
 |}): Map<NodeId, Array<Diagnostic>> {
   let db = options.db;
   let changedAssets = new Set(
-    [...changedAssetsPropagation].map(id =>
-      assetGraph.getNodeIdByContentKey(id),
+    [...changedAssetsPropagation].map(addr =>
+      assetGraph.getNodeIdByContentKey(DbAsset.get(db, addr).id),
     ),
   );
 
@@ -75,7 +71,7 @@ export function propagateSymbols({
       let assetSymbols = asset.symbols;
       // identifier -> exportSymbol
       let assetSymbolsInverse;
-      if (assetSymbols) {
+      if (asset.flags & AssetFlags.HAS_SYMBOLS) {
         assetSymbolsInverse = new Map<number, Set<number>>();
         for (let s of assetSymbols) {
           let set = assetSymbolsInverse.get(s.local);
@@ -178,8 +174,9 @@ export function propagateSymbols({
           assetNode.usedSymbols.size > 0 ||
           namespaceReexportedSymbols.size > 0
         ) {
-          let depSymbols = DbDependency.get(db, dep.value).symbols;
-          if (!depSymbols) continue;
+          let depValue = DbDependency.get(db, dep.value);
+          if (!(depValue.flags & DependencyFlags.HAS_SYMBOLS)) continue;
+          let depSymbols = depValue.symbols;
 
           if (
             depSymbols.find(s => s.exported === starSymbol)?.local ===
@@ -280,7 +277,7 @@ export function propagateSymbols({
       let assetSymbols = asset.symbols;
 
       let assetSymbolsInverse = null;
-      if (assetSymbols) {
+      if (asset.flags & AssetFlags.HAS_SYMBOLS) {
         assetSymbolsInverse = new Map<number, Set<number>>();
         for (let s of assetSymbols) {
           let set = assetSymbolsInverse.get(s.local);
@@ -302,11 +299,9 @@ export function propagateSymbols({
       // analyzable exports
       let reexportedSymbolsSource = new Map<number, DependencyNode>();
       for (let outgoingDep of outgoingDeps) {
-        let outgoingDepSymbols = DbDependency.get(
-          db,
-          outgoingDep.value,
-        ).symbols;
-        if (!outgoingDepSymbols) continue;
+        let outgoingDepValue = DbDependency.get(db, outgoingDep.value);
+        if (!(outgoingDepValue.flags & DependencyFlags.HAS_SYMBOLS)) continue;
+        let outgoingDepSymbols = outgoingDepValue.symbols;
 
         let isExcluded =
           assetGraph.getNodeIdsConnectedFrom(
@@ -409,8 +404,8 @@ export function propagateSymbols({
         let dep = DbDependency.get(db, incomingDep.value);
         let incomingDepUsedSymbolsUpOld = incomingDep.usedSymbolsUp;
         incomingDep.usedSymbolsUp = new Map();
+        if (!(dep.flags & DependencyFlags.HAS_SYMBOLS)) continue;
         let incomingDepSymbols = dep.symbols;
-        if (!incomingDepSymbols) continue;
 
         let hasNamespaceReexport =
           incomingDepSymbols.find(s => s.exported === starSymbol)?.local ===
@@ -592,7 +587,9 @@ function propagateSymbolsDown(
       visit(
         node,
         assetGraph.getIncomingDependencies(node.value).map(d => {
-          let dep = assetGraph.getNodeByContentKey(d);
+          let dep = assetGraph.getNodeByContentKey(
+            DbDependency.get(assetGraph.db, d).id,
+          );
           invariant(dep && dep.type === 'dependency');
           return dep;
         }),
@@ -696,7 +693,9 @@ function propagateSymbolsUp(
 
       if (node.type === 'asset') {
         let incoming = assetGraph.getIncomingDependencies(node.value).map(d => {
-          let n = assetGraph.getNodeByContentKey(d);
+          let n = assetGraph.getNodeByContentKey(
+            DbDependency.get(assetGraph.db, d).id,
+          );
           invariant(n && n.type === 'dependency');
           return n;
         });
@@ -743,7 +742,9 @@ function propagateSymbolsUp(
     let node = nullthrows(assetGraph.getNode(queuedNodeId));
     if (node.type === 'asset') {
       let incoming = assetGraph.getIncomingDependencies(node.value).map(dep => {
-        let depNode = assetGraph.getNodeByContentKey(dep);
+        let depNode = assetGraph.getNodeByContentKey(
+          DbDependency.get(assetGraph.db, dep).id,
+        );
         invariant(depNode && depNode.type === 'dependency');
         return depNode;
       });

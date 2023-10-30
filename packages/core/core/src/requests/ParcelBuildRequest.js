@@ -4,14 +4,10 @@ import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {ContentKey} from '@parcel/graph';
+import type {AssetAddr} from '@parcel/rust';
 
 import type {StaticRunOpts} from '../RequestTracker';
-import type {
-  Asset,
-  AssetGroup,
-  CommittedAssetId,
-  PackagedBundleInfo,
-} from '../types';
+import type {AssetGroup, PackagedBundleInfo} from '../types';
 import type BundleGraph from '../BundleGraph';
 
 import createBundleGraphRequest, {
@@ -25,6 +21,7 @@ import {report} from '../ReporterRunner';
 import IBundleGraph from '../public/BundleGraph';
 import {NamedBundle} from '../public/Bundle';
 import {assetFromValue} from '../public/Asset';
+import {readCachedString, Asset as DbAsset} from '@parcel/rust';
 
 import {tracer} from '@parcel/profiler';
 
@@ -37,7 +34,7 @@ type ParcelBuildRequestInput = {|
 type ParcelBuildRequestResult = {|
   bundleGraph: BundleGraph,
   bundleInfo: Map<string, PackagedBundleInfo>,
-  changedAssets: Map<CommittedAssetId, Asset>,
+  changedAssets: Map<AssetAddr, AssetAddr>,
   assetRequests: Array<AssetGroup>,
 |};
 
@@ -92,7 +89,7 @@ async function run({input, api, options}) {
     ),
     changedAssets: new Map(
       Array.from(changedAssets).map(([id, asset]) => [
-        id,
+        readCachedString(options.db, DbAsset.get(options.db, id).id),
         assetFromValue(asset, options),
       ]),
     ),

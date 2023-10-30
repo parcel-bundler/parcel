@@ -7,14 +7,9 @@ import type {
   Resolver,
 } from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
-import type {
-  AssetGroup,
-  Config,
-  Dependency,
-  DevDepRequest,
-  ParcelOptions,
-} from '../types';
+import type {AssetGroup, Config, DevDepRequest, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
+import type {DependencyAddr} from '@parcel/rust';
 
 import ThrowableDiagnostic, {
   convertSourceLocationToHighlight,
@@ -59,7 +54,7 @@ export type PathRequest = {|
 |};
 
 export type PathRequestInput = {|
-  dependency: Dependency,
+  dependency: DependencyAddr,
   name: string,
 |};
 
@@ -238,7 +233,7 @@ export class ResolverRunner {
     this.devDepRequests.set(key, devDepRequest);
   }
 
-  async resolve(dependency: Dependency): Promise<ResolverResult> {
+  async resolve(dependency: DependencyAddr): Promise<ResolverResult> {
     let internalDep = DbDependency.get(this.options.db, dependency);
     let dep = getPublicDependency(dependency, this.options);
     report({
@@ -272,7 +267,7 @@ export class ResolverRunner {
     }
 
     // Entrypoints, convert ProjectPath in module specifier to absolute path
-    if (dep.resolveFrom == null) {
+    if (internalDep.sourceAssetId == null) {
       specifier = path.join(this.options.projectRoot, specifier);
     }
     let diagnostics: Array<Diagnostic> = [];
@@ -355,7 +350,7 @@ export class ResolverRunner {
                 query: result.query?.toString(),
                 sideEffects: result.sideEffects,
                 code: result.code,
-                env: dep.env.id,
+                env: internalDep.env,
                 pipeline:
                   result.pipeline === undefined
                     ? pipeline ?? dep.pipeline

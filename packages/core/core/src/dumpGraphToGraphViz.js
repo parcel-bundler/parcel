@@ -2,8 +2,8 @@
 
 import type {Asset, BundleBehavior} from '@parcel/types';
 import type {Graph} from '@parcel/graph';
-import type {ParcelDb} from '@parcel/rust';
-import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
+import type {ParcelDb, EnvironmentAddr} from '@parcel/rust';
+import type {AssetGraphNode, BundleGraphNode} from './types';
 import {bundleGraphEdgeTypes} from './BundleGraph';
 import {requestGraphEdgeTypes} from './RequestTracker';
 
@@ -241,7 +241,7 @@ function nodeId(id) {
   return `node${id}`;
 }
 
-function getEnvDescription(db: ParcelDb, envId: Environment) {
+function getEnvDescription(db: ParcelDb, envId: EnvironmentAddr) {
   let description;
   let env = DbEnvironment.get(db, envId);
   let engines = JSON.parse(env.engines);

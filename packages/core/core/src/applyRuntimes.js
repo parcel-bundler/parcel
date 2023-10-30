@@ -6,11 +6,11 @@ import type {SharedReference} from '@parcel/workers';
 import type {
   AssetGroup,
   Bundle as InternalBundle,
-  CommittedAssetId,
   Config,
   DevDepRequest,
   ParcelOptions,
 } from './types';
+import type {AssetAddr} from '@parcel/rust';
 import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
 import type {RunAPI} from './RequestTracker';
@@ -24,7 +24,7 @@ import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
-import {hashString, Asset as DbAsset} from '@parcel/rust';
+import {hashString, Dependency as DbDependency} from '@parcel/rust';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
 import {mergeEnvironments} from './Environment';
@@ -80,7 +80,7 @@ export default async function applyRuntimes<TResult>({
   previousDevDeps: Map<string, string>,
   devDepRequests: Map<string, DevDepRequest>,
   configs: Map<string, Config>,
-|}): Promise<Map<CommittedAssetId, CommittedAssetId>> {
+|}): Promise<Map<AssetAddr, AssetAddr>> {
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
 
@@ -230,18 +230,6 @@ export default async function applyRuntimes<TResult>({
     bundleGraph._assetPublicIds,
   );
 
-  // Remap asset ids in the runtimes graph to reuse the same assets as the main asset graph when there is overlap.
-  let assetIdToAddr = bundleGraph.getAssetIdToAddrMap();
-  for (let node of runtimesGraph._graph.nodes) {
-    if (node?.type === 'asset') {
-      let existing = assetIdToAddr.get(DbAsset.get(options.db, node.value).id);
-      if (existing != null) {
-        node.id = existing;
-        node.value = existing;
-      }
-    }
-  }
-
   // Merge the runtimes graph into the main bundle graph.
   bundleGraph.merge(runtimesGraph);
   for (let [assetId, publicId] of runtimesGraph._publicIdByAssetId) {
@@ -259,12 +247,9 @@ export default async function applyRuntimes<TResult>({
     let runtimeNode = nullthrows(runtimesAssetGraph.getNode(runtimeNodeId));
     invariant(runtimeNode.type === 'asset');
 
+    let internalDep = dependency && dependencyToInternalDependency(dependency);
     let resolution =
-      dependency &&
-      bundleGraph.getResolvedAsset(
-        dependencyToInternalDependency(dependency),
-        bundle,
-      );
+      internalDep != null && bundleGraph.getResolvedAsset(internalDep, bundle);
 
     let runtimesGraphRuntimeNodeId = runtimesGraph._graph.getNodeIdByContentKey(
       runtimeNode.id,
@@ -281,15 +266,15 @@ export default async function applyRuntimes<TResult>({
         .map(assetNodeId => {
           let assetNode = nullthrows(runtimesGraph._graph.getNode(assetNodeId));
           invariant(assetNode.type === 'asset');
-          return assetNode.value;
+          return assetNode;
         });
 
       for (let asset of assets) {
         if (
-          bundleGraph.isAssetReachableFromBundle(asset, bundle) ||
+          bundleGraph.isAssetReachableFromBundle(asset.value, bundle) ||
           resolution === asset
         ) {
-          duplicatedContentKeys.add(asset);
+          duplicatedContentKeys.add(asset.id);
           actions.skipChildren();
         }
       }
@@ -321,10 +306,10 @@ export default async function applyRuntimes<TResult>({
 
     if (isEntry) {
       bundleGraph._graph.addEdge(bundleNodeId, bundleGraphRuntimeNodeId);
-      bundle.entryAssetIds.unshift(runtimeNode.id);
+      bundle.entryAssetIds.unshift(runtimeNode.value);
     }
 
-    if (dependency == null) {
+    if (internalDep == null) {
       // Verify this asset won't become an island
       assert(
         bundleGraph._graph.getNodeIdsConnectedTo(bundleGraphRuntimeNodeId)
@@ -333,7 +318,7 @@ export default async function applyRuntimes<TResult>({
       );
     } else {
       let dependencyNodeId = bundleGraph._graph.getNodeIdByContentKey(
-        dependency.id,
+        DbDependency.get(options.db, internalDep).id,
       );
       bundleGraph._graph.addEdge(dependencyNodeId, bundleGraphRuntimeNodeId);
     }

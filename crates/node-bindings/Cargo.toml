@@ -29,7 +29,7 @@ path-slash = "0.1.4"
 indexmap = "1.9.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-napi = {version =  "2.12.6", features = ["serde-json", "napi4", "napi6"]}
+napi = {version =  "2.13.3", features = ["serde-json", "napi4", "napi6"]}
 parcel-dev-dep-resolver = { path = "../../packages/utils/dev-dep-resolver" }
 oxipng = "6.0.0"
 mozjpeg-sys = "1.0.0"
@@ -37,7 +37,7 @@ libc = "0.2"
 rayon = "1.7.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-napi = {version =  "2.12.6", features = ["serde-json"]}
+napi = {version =  "2.13.3", features = ["serde-json"]}
 getrandom = { version = "0.2", features = ["custom"], default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]

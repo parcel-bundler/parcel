@@ -12,8 +12,9 @@ import type {
   OutputFormat,
 } from '@parcel/types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
-import type {Entry, ParcelOptions, Target, TargetValue} from '../types';
+import type {Entry, ParcelOptions, TargetValue} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
+import type {TargetAddr} from '@parcel/rust';
 
 import ThrowableDiagnostic, {
   convertSourceLocationToHighlight,
@@ -99,11 +100,12 @@ const DEFAULT_ENGINES = {
 export type TargetRequest = {|
   id: string,
   +type: 'target_request',
-  run: (RunOpts<Array<Target>>) => Async<Array<Target>>,
+  run: (RunOpts<Array<TargetAddr>>) => Async<Array<TargetAddr>>,
   input: Entry,
 |};
 
 const type = 'target_request';
+let tmpTarget = Symbol('tmpTarget');
 
 export default function createTargetRequest(input: Entry): TargetRequest {
   return {
@@ -128,7 +130,7 @@ export function skipTarget(
     : targetName !== exclusiveTarget;
 }
 
-async function run({input, api, options}): Promise<Array<Target>> {
+async function run({input, api, options}): Promise<Array<TargetAddr>> {
   let targetResolver = new TargetResolver(
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
@@ -163,7 +165,8 @@ async function run({input, api, options}): Promise<Array<Target>> {
   }
 
   return targets.map(t => {
-    let target = new DbTarget(options.db);
+    options.db[tmpTarget] ??= new DbTarget(options.db);
+    let target: DbTarget = options.db[tmpTarget];
     target.env = t.env;
     target.distDir = t.distDir;
     target.distEntry = t.distEntry;
@@ -171,7 +174,7 @@ async function run({input, api, options}): Promise<Array<Target>> {
     target.publicUrl = t.publicUrl;
     target.loc = toDbSourceLocationFromInternal(options.db, t.loc);
     target.pipeline = t.pipeline;
-    return target.addr;
+    return options.db.createTarget(target.addr);
   });
 }
 
@@ -202,11 +205,11 @@ type TargetKeyInfo =
 
 export class TargetResolver {
   fs: FileSystem;
-  api: RunAPI<Array<Target>>;
+  api: RunAPI<Array<TargetAddr>>;
   options: ParcelOptions;
   targetInfo: Map<string, TargetInfo>;
 
-  constructor(api: RunAPI<Array<Target>>, options: ParcelOptions) {
+  constructor(api: RunAPI<Array<TargetAddr>>, options: ParcelOptions) {
     this.api = api;
     this.fs = options.inputFS;
     this.options = options;

@@ -171,6 +171,11 @@ impl Arena {
       let addr = *ptr;
       if addr == 1 {
         let page_index = current_heap().alloc_page(size as usize, false);
+        if page_index == 0 {
+          // Ensure the address is never zero.
+          *ptr = pack_addr(page_index, size + 8);
+          return pack_addr(page_index, 8);
+        }
         *ptr = pack_addr(page_index, size);
         return pack_addr(page_index, 0);
       }
@@ -330,7 +335,7 @@ pub trait ArenaAllocated: Sized {
     }
   }
 
-  fn commit(self) -> u32 {
+  fn into_arena(self) -> u32 {
     let addr = Self::alloc_ptr();
     let ptr = unsafe { current_heap().get(addr) };
     unsafe { std::ptr::write(ptr, self) };

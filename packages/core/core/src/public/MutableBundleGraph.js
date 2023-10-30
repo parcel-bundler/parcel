@@ -30,7 +30,11 @@ import {HASH_REF_PREFIX} from '../constants';
 import {fromProjectPathRelative} from '../projectPath';
 import {BundleBehavior} from '../types';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
-import {Target as DbTarget, Asset as DbAsset} from '@parcel/rust';
+import {
+  Target as DbTarget,
+  Asset as DbAsset,
+  Dependency as DbDependency,
+} from '@parcel/rust';
 
 export default class MutableBundleGraph
   extends BundleGraph<IBundle>
@@ -83,7 +87,8 @@ export default class MutableBundleGraph
 
   createBundleGroup(dependency: IDependency, target: Target): IBundleGroup {
     let dependencyId = dependencyToInternalDependency(dependency);
-    let dependencyNode = this.#graph._graph.getNodeByContentKey(dependencyId);
+    let dep = DbDependency.get(this.#graph.db, dependencyId);
+    let dependencyNode = this.#graph._graph.getNodeByContentKey(dep.id);
     if (!dependencyNode) {
       throw new Error('Dependency not found');
     }
@@ -113,9 +118,10 @@ export default class MutableBundleGraph
           value: bundleGroup,
         });
 
-    let dependencyNodeId =
-      this.#graph._graph.getNodeIdByContentKey(dependencyId);
-    let resolvedNodeId = this.#graph._graph.getNodeIdByContentKey(resolved);
+    let dependencyNodeId = this.#graph._graph.getNodeIdByContentKey(dep.id);
+    let resolvedNodeId = this.#graph._graph.getNodeIdByContentKey(
+      DbAsset.get(this.#graph.db, resolved).id,
+    );
     let assetNodes =
       this.#graph._graph.getNodeIdsConnectedFrom(dependencyNodeId);
     this.#graph._graph.addEdge(dependencyNodeId, bundleGroupNodeId);
@@ -177,9 +183,12 @@ export default class MutableBundleGraph
   }
 
   createBundle(opts: CreateBundleOpts): Bundle {
-    let entryAsset = opts.entryAsset
+    let entryAssetId = opts.entryAsset
       ? assetToAssetValue(opts.entryAsset)
       : null;
+
+    let entryAsset =
+      entryAssetId != null ? DbAsset.get(this.#graph.db, entryAssetId) : null;
 
     let target = DbTarget.get(
       this.#options.db,
@@ -205,7 +214,9 @@ export default class MutableBundleGraph
 
     let isPlaceholder = false;
     if (entryAsset != null) {
-      let entryAssetNode = this.#graph._graph.getNodeByContentKey(entryAsset);
+      let entryAssetNode = this.#graph._graph.getNodeByContentKey(
+        entryAsset.id,
+      );
       invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
       isPlaceholder = entryAssetNode.requested === false;
     }
@@ -221,9 +232,9 @@ export default class MutableBundleGraph
         type: opts.entryAsset ? opts.entryAsset.type : opts.type,
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)
-          : DbAsset.get(this.#options.db, nullthrows(entryAsset)).env,
-        entryAssetIds: entryAsset != null ? [entryAsset] : [],
-        mainEntryId: entryAsset,
+          : nullthrows(entryAsset).env,
+        entryAssetIds: entryAssetId != null ? [entryAssetId] : [],
+        mainEntryId: entryAssetId,
         pipeline: opts.entryAsset ? opts.entryAsset.pipeline : opts.pipeline,
         needsStableName: opts.needsStableName,
         bundleBehavior:
@@ -250,7 +261,7 @@ export default class MutableBundleGraph
     if (entryAsset != null) {
       this.#graph._graph.addEdge(
         bundleNodeId,
-        this.#graph._graph.getNodeIdByContentKey(entryAsset),
+        this.#graph._graph.getNodeIdByContentKey(entryAsset.id),
       );
     }
     return Bundle.get(bundleNode.value, this.#graph, this.#options);

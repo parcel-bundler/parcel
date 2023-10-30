@@ -10,7 +10,8 @@ import type {
   DependencyPriority,
   BundleBehavior,
 } from '@parcel/types';
-import type {Dependency as InternalDependency, ParcelOptions} from '../types';
+import type {ParcelOptions} from '../types';
+import type {DependencyAddr} from '@parcel/rust';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
@@ -23,25 +24,24 @@ import {
   Dependency as DbDependency,
   DependencyFlags,
   Asset as DbAsset,
+  readCachedString,
 } from '@parcel/rust';
 import {createBuildCache} from '../buildCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const internalDependencyToDependency: Map<InternalDependency, Dependency> =
+const internalDependencyToDependency: Map<DependencyAddr, Dependency> =
   createBuildCache();
-const _dependencyToInternalDependency: WeakMap<
-  IDependency,
-  InternalDependency,
-> = new WeakMap();
+const _dependencyToInternalDependency: WeakMap<IDependency, DependencyAddr> =
+  new WeakMap();
 export function dependencyToInternalDependency(
   dependency: IDependency,
-): InternalDependency {
+): DependencyAddr {
   return nullthrows(_dependencyToInternalDependency.get(dependency));
 }
 
 export function getPublicDependency(
-  dep: InternalDependency,
+  dep: DependencyAddr,
   options: ParcelOptions,
 ): Dependency {
   let existing = internalDependencyToDependency.get(dep);
@@ -56,7 +56,7 @@ export default class Dependency implements IDependency {
   #dep /*: DbDependency */;
   #options /*: ParcelOptions */;
 
-  constructor(dep: InternalDependency, options: ParcelOptions): Dependency {
+  constructor(dep: DependencyAddr, options: ParcelOptions): Dependency {
     this.#dep = DbDependency.get(options.db, dep);
     this.#options = options;
     _dependencyToInternalDependency.set(this, dep);
@@ -70,7 +70,7 @@ export default class Dependency implements IDependency {
   }
 
   get id(): string {
-    return this.#dep.addr;
+    return readCachedString(this.#options.db, this.#dep.id);
   }
 
   get specifier(): string {
@@ -155,7 +155,12 @@ export default class Dependency implements IDependency {
 
   get sourceAssetId(): ?string {
     // TODO: does this need to be public?
-    return this.#dep.sourceAssetId;
+    return this.#dep.sourceAssetId != null
+      ? readCachedString(
+          this.#options.db,
+          DbAsset.get(this.#options.db, this.#dep.sourceAssetId).id,
+        )
+      : null;
   }
 
   get sourcePath(): ?FilePath {
@@ -175,7 +180,10 @@ export default class Dependency implements IDependency {
   }
 
   get resolveFrom(): ?string {
-    return fromProjectPath(this.#options.projectRoot, this.#dep.resolveFrom);
+    return (
+      fromProjectPath(this.#options.projectRoot, this.#dep.resolveFrom) ??
+      this.sourcePath
+    );
   }
 
   get range(): ?string {

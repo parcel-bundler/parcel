@@ -12,15 +12,17 @@ import type {
   AssetGroup,
   AssetGroupNode,
   AssetNode,
-  CommittedAssetId,
-  Dependency,
   DependencyNode,
   Entry,
   EntryFileNode,
   EntrySpecifierNode,
-  Environment,
-  Target,
 } from './types';
+import type {
+  AssetAddr,
+  DependencyAddr,
+  EnvironmentAddr,
+  TargetAddr,
+} from '@parcel/rust';
 
 import invariant from 'assert';
 import {hashString, Hash} from '@parcel/rust';
@@ -39,11 +41,12 @@ import {
   Asset as DbAsset,
   SymbolFlags,
   ParcelDb,
+  AssetFlags,
 } from '@parcel/rust';
 
 type InitOpts = {|
   entries?: Array<ProjectPath>,
-  targets?: Array<Target>,
+  targets?: Array<TargetAddr>,
   assetGroups?: Array<AssetGroup>,
 |};
 
@@ -58,9 +61,9 @@ type SerializedAssetGraph = {|
   db: SerializedParcelDb,
 |};
 
-export function nodeFromDep(dep: Dependency): DependencyNode {
+export function nodeFromDep(db: ParcelDb, dep: DependencyAddr): DependencyNode {
   return {
-    id: dep,
+    id: DbDependency.get(db, dep).id,
     type: 'dependency',
     value: dep,
     deferred: false,
@@ -92,9 +95,9 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   };
 }
 
-export function nodeFromAsset(asset: CommittedAssetId): AssetNode {
+export function nodeFromAsset(db: ParcelDb, asset: AssetAddr): AssetNode {
   return {
-    id: asset,
+    id: DbAsset.get(db, asset).id,
     type: 'asset',
     value: asset,
     usedSymbols: new Set(),
@@ -122,7 +125,7 @@ export function nodeFromEntryFile(entry: Entry): EntryFileNode {
 export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   onNodeRemoved: ?(nodeId: NodeId) => mixed;
   hash: ?string;
-  envCache: Map<string, Environment>;
+  envCache: Map<string, EnvironmentAddr>;
   safeToIncrementallyBundle: boolean = true;
   db: ParcelDb;
 
@@ -243,12 +246,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
   resolveTargets(
     entry: Entry,
-    targets: Array<Target>,
+    targets: Array<TargetAddr>,
     correspondingRequest: string,
   ) {
     let depNodes = targets.map(targetId => {
       let target = DbTarget.get(this.db, targetId);
       let node = nodeFromDep(
+        this.db,
         // The passed project path is ignored in this case, because there is no `loc`
         createDependency(this.db, '', {
           specifier: fromProjectPathRelative(entry.filePath),
@@ -289,11 +293,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   resolveDependency(
-    dependency: Dependency,
+    dependency: DependencyAddr,
     assetGroup: ?AssetGroup,
     correspondingRequest: string,
   ) {
-    let depNodeId = this.getNodeIdByContentKey(dependency);
+    let depNodeId = this.getNodeIdByContentKey(
+      DbDependency.get(this.db, dependency).id,
+    );
     let depNode = nullthrows(this.getNode(depNodeId));
     invariant(depNode.type === 'dependency');
     depNode.correspondingRequest = correspondingRequest;
@@ -311,9 +317,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     }
 
     let assetGroupNodeId = this.addNode(assetGroupNode);
-    this.replaceNodeIdsConnectedTo(this.getNodeIdByContentKey(dependency), [
-      assetGroupNodeId,
-    ]);
+    this.replaceNodeIdsConnectedTo(
+      this.getNodeIdByContentKey(DbDependency.get(this.db, dependency).id),
+      [assetGroupNodeId],
+    );
 
     this.replaceNodeIdsConnectedTo(depNodeId, [assetGroupNodeId]);
   }
@@ -405,7 +412,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   // This helps with performance building large libraries like `lodash-es`, which re-exports
   // a huge number of functions since we can avoid even transforming the files that aren't used.
   shouldDeferDependency(
-    dependencyId: Dependency,
+    dependencyId: DependencyAddr,
     sideEffects: ?boolean,
     canDefer: boolean,
   ): boolean {
@@ -419,7 +426,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       canDefer &&
       !dependencySymbols.some(s => s.exported === this.db.starSymbol)
     ) {
-      let depNodeId = this.getNodeIdByContentKey(dependencyId);
+      let depNodeId = this.getNodeIdByContentKey(dependency.id);
       let depNode = this.getNode(depNodeId);
       invariant(depNode);
 
@@ -436,14 +443,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       );
       defer = deps.every(
         d =>
-          d.symbols &&
+          d.flags & DependencyFlags.HAS_SYMBOLS &&
           !(
             DbEnvironment.get(this.db, d.env).flags &
               EnvironmentFlags.IS_LIBRARY && d.flags & DependencyFlags.ENTRY
           ) &&
           !d.symbols.some(s => s.exported === this.db.starSymbol) &&
           !d.symbols.some(s => {
-            if (!resolvedAsset.symbols) return true;
+            if (!(resolvedAsset.flags & AssetFlags.HAS_SYMBOLS)) return true;
             let assetSymbol = resolvedAsset.symbols?.find(
               sym => sym.exported === s.exported,
             )?.local;
@@ -457,8 +464,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   resolveAssetGroup(
     assetGroup: AssetGroup,
     assets: Array<{|
-      asset: CommittedAssetId,
-      dependencies: Array<Dependency>,
+      asset: AssetAddr,
+      dependencies: Array<DependencyAddr>,
     |}>,
     correspondingRequest: ContentKey,
   ) {
@@ -490,8 +497,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
     let assetObjects: Array<{|
       assetNodeId: NodeId,
-      dependencies: Array<Dependency>,
-      dependentAssets: Array<CommittedAssetId>,
+      dependencies: Array<DependencyAddr>,
+      dependentAssets: Array<AssetAddr>,
     |}> = [];
     let assetNodeIds = [];
     for (let {asset: assetId, dependencies} of assets) {
@@ -510,7 +517,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           }
         }
       }
-      let id = this.addNode(nodeFromAsset(assetId));
+      let id = this.addNode(nodeFromAsset(this.db, assetId));
       assetObjects.push({
         assetNodeId: id,
         dependencies,
@@ -537,14 +544,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
   resolveAsset(
     assetNode: AssetNode,
-    dependencies: Array<Dependency>,
-    dependentAssets: Array<CommittedAssetId>,
+    dependencies: Array<DependencyAddr>,
+    dependentAssets: Array<AssetAddr>,
   ) {
     let depNodeIds: Array<NodeId> = [];
     let depNodesWithAssets = [];
     for (let d of dependencies) {
       let dep = DbDependency.get(this.db, d);
-      let depNode = nodeFromDep(d);
+      let depNode = nodeFromDep(this.db, d);
       let existing = this.getNodeByContentKey(depNode.id);
       if (existing?.type === 'dependency') {
         let existingDep = DbDependency.get(this.db, existing.value);
@@ -561,7 +568,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       );
       if (dependentAsset != null) {
         depNode.complete = true;
-        depNodesWithAssets.push([depNode, nodeFromAsset(dependentAsset)]);
+        depNodesWithAssets.push([
+          depNode,
+          nodeFromAsset(this.db, dependentAsset),
+        ]);
       }
       depNodeIds.push(this.addNode(depNode));
     }
@@ -582,8 +592,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     }
   }
 
-  getIncomingDependencies(asset: CommittedAssetId): Array<Dependency> {
-    let nodeId = this.getNodeIdByContentKey(asset);
+  getIncomingDependencies(asset: AssetAddr): Array<DependencyAddr> {
+    let nodeId = this.getNodeIdByContentKey(DbAsset.get(this.db, asset).id);
     let assetGroupIds = this.getNodeIdsConnectedTo(nodeId);
     let dependencies = [];
     for (let i = 0; i < assetGroupIds.length; i++) {
@@ -613,7 +623,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   traverseAssets<TContext>(
-    visit: GraphVisitor<CommittedAssetId, TContext>,
+    visit: GraphVisitor<AssetAddr, TContext>,
     startNodeId: ?NodeId,
   ): ?TContext {
     return this.filteredTraverse(
@@ -638,7 +648,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     return entryNodes;
   }
 
-  getEntryAssets(): Array<CommittedAssetId> {
+  getEntryAssets(): Array<AssetAddr> {
     let entries = [];
     this.traverseAssets((asset, ctx, traversal) => {
       entries.push(asset);
@@ -663,8 +673,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         );
       } else if (node.type === 'dependency') {
         let target = DbDependency.get(this.db, node.value).target;
-        if (target) {
-          hash.writeString(JSON.stringify(target));
+        if (target != null) {
+          hash.writeString(String(target));
         }
       }
     });

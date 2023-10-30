@@ -1,9 +1,9 @@
-use std::sync::Arc;
+use std::{num::NonZeroU32, sync::Arc};
 
 use lazy_static::lazy_static;
 use napi::{bindgen_prelude::BigInt, Env, JsBuffer, NapiValue};
 use napi_derive::napi;
-use parcel_db::{InternedString, ParcelDb, ParcelDbWrapper};
+use parcel_db::{EnvironmentId, InternedString, ParcelDb, ParcelDbWrapper, TargetId};
 
 #[napi(js_name = "ParcelDb")]
 pub struct JsParcelDb {
@@ -134,9 +134,20 @@ impl JsParcelDb {
 
   #[napi]
   pub fn create_environment(&self, addr: u32) -> u32 {
-    self
-      .db
-      .with(|db| db.environment_id(db.get_environment(addr)).0)
+    self.db.with(|db| {
+      db.environment_id(db.get_environment(EnvironmentId(NonZeroU32::new(addr).unwrap())))
+        .0
+        .get()
+    })
+  }
+
+  #[napi]
+  pub fn create_target(&self, addr: u32) -> u32 {
+    self.db.with(|db| {
+      db.target_id(db.get_target(TargetId(NonZeroU32::new(addr).unwrap())))
+        .0
+        .get()
+    })
   }
 
   #[napi]

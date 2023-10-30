@@ -7,17 +7,15 @@ import type {
   AssetGroup,
   AssetRequestInput,
   AssetRequestResult,
-  CommittedAssetId,
-  Dependency,
   Entry,
   ParcelOptions,
-  Target,
 } from '../types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {ContentKey} from '@parcel/graph';
+import type {AssetAddr, DependencyAddr, TargetAddr} from '@parcel/rust';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -53,9 +51,9 @@ type AssetGraphRequestInput = {|
 type AssetGraphRequestResult = {|
   assetGraph: AssetGraph,
   /** Assets added/modified since the last successful build. */
-  changedAssets: Map<CommittedAssetId, CommittedAssetId>,
+  changedAssets: Map<AssetAddr, AssetAddr>,
   /** Assets added/modified since the last symbol propagation invocation. */
-  changedAssetsPropagation: Set<CommittedAssetId>,
+  changedAssetsPropagation: Set<AssetAddr>,
   assetGroupsWithRemovedParents: ?Set<NodeId>,
   previousSymbolPropagationErrors: ?Map<NodeId, Array<Diagnostic>>,
   assetRequests: Array<AssetGroup>,
@@ -111,8 +109,8 @@ export class AssetGraphBuilder {
   assetGraph: AssetGraph;
   assetRequests: Array<AssetGroup> = [];
   queue: PromiseQueue<mixed>;
-  changedAssets: Map<CommittedAssetId, CommittedAssetId>;
-  changedAssetsPropagation: Set<CommittedAssetId>;
+  changedAssets: Map<AssetAddr, AssetAddr>;
+  changedAssetsPropagation: Set<AssetAddr>;
   optionsRef: SharedReference;
   options: ParcelOptions;
   api: RunAPI<AssetGraphRequestResult>;
@@ -355,7 +353,7 @@ export class AssetGraphBuilder {
           );
         }
 
-        if (this.requestedAssetIds.has(node.value) || !isNodeLazy) {
+        if (this.requestedAssetIds.has(node.id) || !isNodeLazy) {
           node.requested = true;
         } else if (!node.requested) {
           let isAsyncChild = this.assetGraph
@@ -470,13 +468,13 @@ export class AssetGraphBuilder {
 
   async runTargetRequest(input: Entry) {
     let request = createTargetRequest(input);
-    let targets = await this.api.runRequest<Entry, Array<Target>>(request, {
+    let targets = await this.api.runRequest<Entry, Array<TargetAddr>>(request, {
       force: true,
     });
     this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 
-  async runPathRequest(input: Dependency) {
+  async runPathRequest(input: DependencyAddr) {
     let request = createPathRequest({dependency: input, name: this.name});
     let result = await this.api.runRequest<PathRequestInput, ?AssetGroup>(
       request,
@@ -501,13 +499,14 @@ export class AssetGraphBuilder {
     if (assets != null) {
       for (let assetWithDeps of assets) {
         if (this.assetGraph.safeToIncrementallyBundle) {
-          let otherAsset = this.assetGraph.getNodeByContentKey(
-            assetWithDeps.asset,
-          );
+          let assetId = DbAsset.get(this.options.db, assetWithDeps.asset).id;
+          let otherAsset = this.assetGraph.getNodeByContentKey(assetId);
           if (otherAsset != null) {
             invariant(otherAsset.type === 'asset');
             let dependencies = this.assetGraph
-              .getNodeIdsConnectedFrom(assetWithDeps.asset)
+              .getNodeIdsConnectedFrom(
+                this.assetGraph.getNodeIdByContentKey(assetId),
+              )
               .map(nodeId => {
                 let node = this.assetGraph.getNode(nodeId);
                 invariant(node?.type === 'dependency');

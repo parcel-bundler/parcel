@@ -11,7 +11,8 @@ import type {
   SourceType,
   TargetSourceMapOptions,
 } from '@parcel/types';
-import type {Environment as InternalEnvironment, ParcelOptions} from '../types';
+import type {ParcelOptions} from '../types';
+import type {EnvironmentAddr} from '@parcel/rust';
 import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
@@ -140,15 +141,15 @@ const supportData = {
   },
 };
 
-const internalEnvironmentToEnvironment: Map<InternalEnvironment, Environment> =
+const internalEnvironmentToEnvironment: Map<EnvironmentAddr, Environment> =
   createBuildCache();
 const _environmentToInternalEnvironment: WeakMap<
   IEnvironment,
-  InternalEnvironment,
+  EnvironmentAddr,
 > = new WeakMap();
 export function environmentToInternalEnvironment(
   environment: IEnvironment,
-): InternalEnvironment {
+): EnvironmentAddr {
   return nullthrows(_environmentToInternalEnvironment.get(environment));
 }
 
@@ -157,7 +158,7 @@ export default class Environment implements IEnvironment {
   #options /*: ParcelOptions */;
   #engines /*: ?Engines */;
 
-  constructor(env: InternalEnvironment, options: ParcelOptions): Environment {
+  constructor(env: EnvironmentAddr, options: ParcelOptions): Environment {
     let existing = internalEnvironmentToEnvironment.get(env);
     if (existing != null) {
       return existing;

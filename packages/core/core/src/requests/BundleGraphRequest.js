@@ -7,7 +7,6 @@ import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {
   AssetGroup,
   Bundle as InternalBundle,
-  CommittedAssetId,
   Config,
   DevDepRequest,
   ParcelOptions,
@@ -15,6 +14,7 @@ import type {
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {ContentKey} from '@parcel/graph';
+import type {AssetAddr} from '@parcel/rust';
 
 import invariant from 'assert';
 import assert from 'assert';
@@ -75,7 +75,7 @@ type RunInput = {|
 
 export type BundleGraphResult = {|
   bundleGraph: InternalBundleGraph,
-  changedAssets: Map<CommittedAssetId, CommittedAssetId>,
+  changedAssets: Map<AssetAddr, AssetAddr>,
   assetRequests: Array<AssetGroup>,
 |};
 
@@ -248,7 +248,7 @@ class BundlerRunner {
     assetRequests,
   }: {|
     graph: AssetGraph,
-    changedAssets: Map<CommittedAssetId, CommittedAssetId>,
+    changedAssets: Map<AssetAddr, AssetAddr>,
     assetRequests: Array<AssetGroup>,
   |}): Promise<BundleGraphResult> {
     report({
@@ -287,7 +287,9 @@ class BundlerRunner {
         for (let changedAssetId of changedAssets.keys()) {
           // Copy over the whole node to also have correct symbol data
           let changedAssetNode = nullthrows(
-            graph.getNodeByContentKey(changedAssetId),
+            graph.getNodeByContentKey(
+              DbAsset.get(this.options.db, changedAssetId).id,
+            ),
           );
           invariant(changedAssetNode.type === 'asset');
           internalBundleGraph.updateAsset(changedAssetNode);

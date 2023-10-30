@@ -227,20 +227,22 @@ class Vec<T> {
   }
 }
 
+export opaque type TargetAddr = number;
+
 export class Target {
   db: ParcelDb;
-  addr: number;
+  addr: TargetAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: TargetAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(0);
   }
 
-  static get(db: ParcelDb, addr: number): Target {
+  static get(db: ParcelDb, addr: TargetAddr): Target {
     return new Target(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: Target): void {
+  static set(db: ParcelDb, addr: TargetAddr, value: Target): void {
     copy(db, value.addr, addr, 44);
   }
 
@@ -248,12 +250,12 @@ export class Target {
     this.db.dealloc(0, this.addr);
   }
 
-  get env(): number {
-    return readU32(this.db, this.addr + 0);
+  get env(): EnvironmentAddr {
+    return readU32(this.db, this.addr + 28);
   }
 
-  set env(value: number): void {
-    writeU32(this.db, this.addr + 0, value);
+  set env(value: EnvironmentAddr): void {
+    writeU32(this.db, this.addr + 28, value);
   }
 
   get distDir(): string {
@@ -265,16 +267,16 @@ export class Target {
   }
 
   get distEntry(): ?string {
-    return readU32(this.db, this.addr + 4 + 0) === 0
+    return readU32(this.db, this.addr + 0 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 4));
+      : readCachedString(this.db, readU32(this.db, this.addr + 0));
   }
 
   set distEntry(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 4 + 0, 0);
+      writeU32(this.db, this.addr + 0 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 4, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 0, this.db.getStringId(value));
     }
   }
 
@@ -295,48 +297,50 @@ export class Target {
   }
 
   get loc(): ?SourceLocation {
-    return readU32(this.db, this.addr + 8 + 16) === 0
+    return readU32(this.db, this.addr + 4 + 16) === 0
       ? null
-      : SourceLocation.get(this.db, this.addr + 8);
+      : SourceLocation.get(this.db, this.addr + 4);
   }
 
   set loc(value: ?SourceLocation): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 8 + 16, 0);
+      writeU32(this.db, this.addr + 4 + 16, 0);
     } else {
-      SourceLocation.set(this.db, this.addr + 8, value);
+      SourceLocation.set(this.db, this.addr + 4, value);
     }
   }
 
   get pipeline(): ?string {
-    return readU32(this.db, this.addr + 28 + 0) === 0
+    return readU32(this.db, this.addr + 24 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 28));
+      : readCachedString(this.db, readU32(this.db, this.addr + 24));
   }
 
   set pipeline(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 28 + 0, 0);
+      writeU32(this.db, this.addr + 24 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 28, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 24, this.db.getStringId(value));
     }
   }
 }
 
+export opaque type EnvironmentAddr = number;
+
 export class Environment {
   db: ParcelDb;
-  addr: number;
+  addr: EnvironmentAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: EnvironmentAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(1);
   }
 
-  static get(db: ParcelDb, addr: number): Environment {
+  static get(db: ParcelDb, addr: EnvironmentAddr): Environment {
     return new Environment(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: Environment): void {
+  static set(db: ParcelDb, addr: EnvironmentAddr, value: Environment): void {
     copy(db, value.addr, addr, 40);
   }
 
@@ -421,20 +425,29 @@ export class Environment {
   }
 }
 
+export opaque type TargetSourceMapOptionsAddr = number;
+
 export class TargetSourceMapOptions {
   db: ParcelDb;
-  addr: number;
+  addr: TargetSourceMapOptionsAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: TargetSourceMapOptionsAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(2);
   }
 
-  static get(db: ParcelDb, addr: number): TargetSourceMapOptions {
+  static get(
+    db: ParcelDb,
+    addr: TargetSourceMapOptionsAddr,
+  ): TargetSourceMapOptions {
     return new TargetSourceMapOptions(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: TargetSourceMapOptions): void {
+  static set(
+    db: ParcelDb,
+    addr: TargetSourceMapOptionsAddr,
+    value: TargetSourceMapOptions,
+  ): void {
     copy(db, value.addr, addr, 8);
   }
 
@@ -473,20 +486,26 @@ export class TargetSourceMapOptions {
   }
 }
 
+export opaque type SourceLocationAddr = number;
+
 export class SourceLocation {
   db: ParcelDb;
-  addr: number;
+  addr: SourceLocationAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: SourceLocationAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(3);
   }
 
-  static get(db: ParcelDb, addr: number): SourceLocation {
+  static get(db: ParcelDb, addr: SourceLocationAddr): SourceLocation {
     return new SourceLocation(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: SourceLocation): void {
+  static set(
+    db: ParcelDb,
+    addr: SourceLocationAddr,
+    value: SourceLocation,
+  ): void {
     copy(db, value.addr, addr, 20);
   }
 
@@ -519,20 +538,22 @@ export class SourceLocation {
   }
 }
 
+export opaque type LocationAddr = number;
+
 export class Location {
   db: ParcelDb;
-  addr: number;
+  addr: LocationAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: LocationAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(4);
   }
 
-  static get(db: ParcelDb, addr: number): Location {
+  static get(db: ParcelDb, addr: LocationAddr): Location {
     return new Location(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: Location): void {
+  static set(db: ParcelDb, addr: LocationAddr, value: Location): void {
     copy(db, value.addr, addr, 8);
   }
 
@@ -693,20 +714,22 @@ export class OutputFormat {
   }
 }
 
+export opaque type AssetAddr = number;
+
 export class Asset {
   db: ParcelDb;
-  addr: number;
+  addr: AssetAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: AssetAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(5);
   }
 
-  static get(db: ParcelDb, addr: number): Asset {
+  static get(db: ParcelDb, addr: AssetAddr): Asset {
     return new Asset(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: Asset): void {
+  static set(db: ParcelDb, addr: AssetAddr, value: Asset): void {
     copy(db, value.addr, addr, 100);
   }
 
@@ -714,41 +737,41 @@ export class Asset {
     this.db.dealloc(5, this.addr);
   }
 
-  get id(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 80));
+  get id(): number {
+    return readU32(this.db, this.addr + 76);
   }
 
-  set id(value: string): void {
-    writeU32(this.db, this.addr + 80, this.db.getStringId(value));
+  set id(value: number): void {
+    writeU32(this.db, this.addr + 76, value);
   }
 
   get filePath(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 84));
+    return readCachedString(this.db, readU32(this.db, this.addr + 80));
   }
 
   set filePath(value: string): void {
-    writeU32(this.db, this.addr + 84, this.db.getStringId(value));
+    writeU32(this.db, this.addr + 80, this.db.getStringId(value));
   }
 
-  get env(): number {
-    return readU32(this.db, this.addr + 40);
+  get env(): EnvironmentAddr {
+    return readU32(this.db, this.addr + 84);
   }
 
-  set env(value: number): void {
-    writeU32(this.db, this.addr + 40, value);
+  set env(value: EnvironmentAddr): void {
+    writeU32(this.db, this.addr + 84, value);
   }
 
   get query(): ?string {
-    return readU32(this.db, this.addr + 44 + 0) === 0
+    return readU32(this.db, this.addr + 40 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 44));
+      : readCachedString(this.db, readU32(this.db, this.addr + 40));
   }
 
   set query(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 44 + 0, 0);
+      writeU32(this.db, this.addr + 40 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 44, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 40, this.db.getStringId(value));
     }
   }
 
@@ -769,16 +792,16 @@ export class Asset {
   }
 
   get mapKey(): ?string {
-    return readU32(this.db, this.addr + 48 + 0) === 0
+    return readU32(this.db, this.addr + 44 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 48));
+      : readCachedString(this.db, readU32(this.db, this.addr + 44));
   }
 
   set mapKey(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 48 + 0, 0);
+      writeU32(this.db, this.addr + 44 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 48, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 44, this.db.getStringId(value));
     }
   }
 
@@ -791,30 +814,30 @@ export class Asset {
   }
 
   get pipeline(): ?string {
+    return readU32(this.db, this.addr + 48 + 0) === 0
+      ? null
+      : readCachedString(this.db, readU32(this.db, this.addr + 48));
+  }
+
+  set pipeline(value: ?string): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 48 + 0, 0);
+    } else {
+      writeU32(this.db, this.addr + 48, this.db.getStringId(value));
+    }
+  }
+
+  get meta(): ?string {
     return readU32(this.db, this.addr + 52 + 0) === 0
       ? null
       : readCachedString(this.db, readU32(this.db, this.addr + 52));
   }
 
-  set pipeline(value: ?string): void {
+  set meta(value: ?string): void {
     if (value == null) {
       writeU32(this.db, this.addr + 52 + 0, 0);
     } else {
       writeU32(this.db, this.addr + 52, this.db.getStringId(value));
-    }
-  }
-
-  get meta(): ?string {
-    return readU32(this.db, this.addr + 56 + 0) === 0
-      ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 56));
-  }
-
-  set meta(value: ?string): void {
-    if (value == null) {
-      writeU32(this.db, this.addr + 56 + 0, 0);
-    } else {
-      writeU32(this.db, this.addr + 56, this.db.getStringId(value));
     }
   }
 
@@ -835,32 +858,32 @@ export class Asset {
   }
 
   get flags(): number {
-    return readU32(this.db, this.addr + 60);
+    return readU32(this.db, this.addr + 56);
   }
 
   set flags(value: number): void {
-    writeU32(this.db, this.addr + 60, value);
+    writeU32(this.db, this.addr + 56, value);
   }
 
   get symbols(): Vec<Symbol> {
-    return new Vec(this.db, this.addr + 64, 32, Symbol);
+    return new Vec(this.db, this.addr + 60, 32, Symbol);
   }
 
   set symbols(value: Vec<Symbol>): void {
-    copy(this.db, value.addr, this.addr + 64, 12);
+    copy(this.db, value.addr, this.addr + 60, 12);
   }
 
   get uniqueKey(): ?string {
-    return readU32(this.db, this.addr + 76 + 0) === 0
+    return readU32(this.db, this.addr + 72 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 76));
+      : readCachedString(this.db, readU32(this.db, this.addr + 72));
   }
 
   set uniqueKey(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 76 + 0, 0);
+      writeU32(this.db, this.addr + 72 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 76, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 72, this.db.getStringId(value));
     }
   }
 
@@ -879,20 +902,22 @@ export class Asset {
   }
 }
 
+export opaque type AssetAstAddr = number;
+
 export class AssetAst {
   db: ParcelDb;
-  addr: number;
+  addr: AssetAstAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: AssetAstAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(6);
   }
 
-  static get(db: ParcelDb, addr: number): AssetAst {
+  static get(db: ParcelDb, addr: AssetAstAddr): AssetAst {
     return new AssetAst(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: AssetAst): void {
+  static set(db: ParcelDb, addr: AssetAstAddr, value: AssetAst): void {
     copy(db, value.addr, addr, 24);
   }
 
@@ -1042,20 +1067,22 @@ export class BundleBehavior {
   }
 }
 
+export opaque type AssetStatsAddr = number;
+
 export class AssetStats {
   db: ParcelDb;
-  addr: number;
+  addr: AssetStatsAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: AssetStatsAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(7);
   }
 
-  static get(db: ParcelDb, addr: number): AssetStats {
+  static get(db: ParcelDb, addr: AssetStatsAddr): AssetStats {
     return new AssetStats(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: AssetStats): void {
+  static set(db: ParcelDb, addr: AssetStatsAddr, value: AssetStats): void {
     copy(db, value.addr, addr, 8);
   }
 
@@ -1103,20 +1130,22 @@ export const ExportsCondition = {
   STYLUS: 0b1000000000000000,
 };
 
+export opaque type DependencyAddr = number;
+
 export class Dependency {
   db: ParcelDb;
-  addr: number;
+  addr: DependencyAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: DependencyAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(8);
   }
 
-  static get(db: ParcelDb, addr: number): Dependency {
+  static get(db: ParcelDb, addr: DependencyAddr): Dependency {
     return new Dependency(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: Dependency): void {
+  static set(db: ParcelDb, addr: DependencyAddr, value: Dependency): void {
     copy(db, value.addr, addr, 112);
   }
 
@@ -1124,23 +1153,34 @@ export class Dependency {
     this.db.dealloc(8, this.addr);
   }
 
-  get sourceAssetId(): ?number {
-    return readU32(this.db, this.addr + 0) === 0
+  get id(): number {
+    return readU32(this.db, this.addr + 96);
+  }
+
+  set id(value: number): void {
+    writeU32(this.db, this.addr + 96, value);
+  }
+
+  get sourceAssetId(): ?AssetAddr {
+    return readU32(this.db, this.addr + 0 + 0) === 0
       ? null
-      : readU32(this.db, this.addr + 4);
+      : readU32(this.db, this.addr + 0);
   }
 
-  set sourceAssetId(value: ?number): void {
-    writeU32(this.db, this.addr + 0, value == null ? 0 : 1);
-    if (value != null) writeU32(this.db, this.addr + 4, value);
+  set sourceAssetId(value: ?AssetAddr): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 0 + 0, 0);
+    } else {
+      writeU32(this.db, this.addr + 0, value);
+    }
   }
 
-  get env(): number {
-    return readU32(this.db, this.addr + 8);
+  get env(): EnvironmentAddr {
+    return readU32(this.db, this.addr + 100);
   }
 
-  set env(value: number): void {
-    writeU32(this.db, this.addr + 8, value);
+  set env(value: EnvironmentAddr): void {
+    writeU32(this.db, this.addr + 100, value);
   }
 
   get specifier(): string {
@@ -1160,30 +1200,30 @@ export class Dependency {
   }
 
   get resolveFrom(): ?string {
-    return readU32(this.db, this.addr + 12 + 0) === 0
+    return readU32(this.db, this.addr + 4 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 12));
+      : readCachedString(this.db, readU32(this.db, this.addr + 4));
   }
 
   set resolveFrom(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 12 + 0, 0);
+      writeU32(this.db, this.addr + 4 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 12, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 4, this.db.getStringId(value));
     }
   }
 
   get range(): ?string {
-    return readU32(this.db, this.addr + 16 + 0) === 0
+    return readU32(this.db, this.addr + 8 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 16));
+      : readCachedString(this.db, readU32(this.db, this.addr + 8));
   }
 
   set range(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 16 + 0, 0);
+      writeU32(this.db, this.addr + 8 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 16, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 8, this.db.getStringId(value));
     }
   }
 
@@ -1212,78 +1252,112 @@ export class Dependency {
   }
 
   get loc(): ?SourceLocation {
-    return readU32(this.db, this.addr + 20 + 16) === 0
+    return readU32(this.db, this.addr + 12 + 16) === 0
       ? null
-      : SourceLocation.get(this.db, this.addr + 20);
+      : SourceLocation.get(this.db, this.addr + 12);
   }
 
   set loc(value: ?SourceLocation): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 20 + 16, 0);
+      writeU32(this.db, this.addr + 12 + 16, 0);
     } else {
-      SourceLocation.set(this.db, this.addr + 20, value);
+      SourceLocation.set(this.db, this.addr + 12, value);
     }
   }
 
   get placeholder(): ?string {
-    return readU32(this.db, this.addr + 40 + 0) === 0
+    return readU32(this.db, this.addr + 32 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 40));
+      : readCachedString(this.db, readU32(this.db, this.addr + 32));
   }
 
   set placeholder(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 40 + 0, 0);
+      writeU32(this.db, this.addr + 32 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 40, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 32, this.db.getStringId(value));
     }
   }
 
-  get target(): number {
-    return readU32(this.db, this.addr + 44);
+  get target(): ?TargetAddr {
+    return readU32(this.db, this.addr + 36 + 0) === 0
+      ? null
+      : readU32(this.db, this.addr + 36);
   }
 
-  set target(value: number): void {
-    writeU32(this.db, this.addr + 44, value);
+  set target(value: ?TargetAddr): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 36 + 0, 0);
+    } else {
+      writeU32(this.db, this.addr + 36, value);
+    }
   }
 
   get symbols(): Vec<Symbol> {
-    return new Vec(this.db, this.addr + 48, 32, Symbol);
+    return new Vec(this.db, this.addr + 40, 32, Symbol);
   }
 
   set symbols(value: Vec<Symbol>): void {
-    copy(this.db, value.addr, this.addr + 48, 12);
+    copy(this.db, value.addr, this.addr + 40, 12);
   }
 
   get promiseSymbol(): ?string {
-    return readU32(this.db, this.addr + 60 + 0) === 0
+    return readU32(this.db, this.addr + 52 + 0) === 0
       ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 60));
+      : readCachedString(this.db, readU32(this.db, this.addr + 52));
   }
 
   set promiseSymbol(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 60 + 0, 0);
+      writeU32(this.db, this.addr + 52 + 0, 0);
     } else {
-      writeU32(this.db, this.addr + 60, this.db.getStringId(value));
+      writeU32(this.db, this.addr + 52, this.db.getStringId(value));
     }
   }
 
   get importAttributes(): Vec<ImportAttribute> {
-    return new Vec(this.db, this.addr + 64, 8, ImportAttribute);
+    return new Vec(this.db, this.addr + 56, 8, ImportAttribute);
   }
 
   set importAttributes(value: Vec<ImportAttribute>): void {
-    copy(this.db, value.addr, this.addr + 64, 12);
+    copy(this.db, value.addr, this.addr + 56, 12);
   }
 
   get pipeline(): ?string {
+    return readU32(this.db, this.addr + 68 + 0) === 0
+      ? null
+      : readCachedString(this.db, readU32(this.db, this.addr + 68));
+  }
+
+  set pipeline(value: ?string): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 68 + 0, 0);
+    } else {
+      writeU32(this.db, this.addr + 68, this.db.getStringId(value));
+    }
+  }
+
+  get meta(): ?string {
+    return readU32(this.db, this.addr + 72 + 0) === 0
+      ? null
+      : readCachedString(this.db, readU32(this.db, this.addr + 72));
+  }
+
+  set meta(value: ?string): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 72 + 0, 0);
+    } else {
+      writeU32(this.db, this.addr + 72, this.db.getStringId(value));
+    }
+  }
+
+  get resolverMeta(): ?string {
     return readU32(this.db, this.addr + 76 + 0) === 0
       ? null
       : readCachedString(this.db, readU32(this.db, this.addr + 76));
   }
 
-  set pipeline(value: ?string): void {
+  set resolverMeta(value: ?string): void {
     if (value == null) {
       writeU32(this.db, this.addr + 76 + 0, 0);
     } else {
@@ -1291,65 +1365,43 @@ export class Dependency {
     }
   }
 
-  get meta(): ?string {
-    return readU32(this.db, this.addr + 80 + 0) === 0
-      ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 80));
-  }
-
-  set meta(value: ?string): void {
-    if (value == null) {
-      writeU32(this.db, this.addr + 80 + 0, 0);
-    } else {
-      writeU32(this.db, this.addr + 80, this.db.getStringId(value));
-    }
-  }
-
-  get resolverMeta(): ?string {
-    return readU32(this.db, this.addr + 84 + 0) === 0
-      ? null
-      : readCachedString(this.db, readU32(this.db, this.addr + 84));
-  }
-
-  set resolverMeta(value: ?string): void {
-    if (value == null) {
-      writeU32(this.db, this.addr + 84 + 0, 0);
-    } else {
-      writeU32(this.db, this.addr + 84, this.db.getStringId(value));
-    }
-  }
-
   get packageConditions(): number {
-    return readU32(this.db, this.addr + 88);
+    return readU32(this.db, this.addr + 80);
   }
 
   set packageConditions(value: number): void {
-    writeU32(this.db, this.addr + 88, value);
+    writeU32(this.db, this.addr + 80, value);
   }
 
   get customPackageConditions(): Vec<string> {
-    return new Vec(this.db, this.addr + 92, 4, InternedString);
+    return new Vec(this.db, this.addr + 84, 4, InternedString);
   }
 
   set customPackageConditions(value: Vec<string>): void {
-    copy(this.db, value.addr, this.addr + 92, 12);
+    copy(this.db, value.addr, this.addr + 84, 12);
   }
 }
 
+export opaque type ImportAttributeAddr = number;
+
 export class ImportAttribute {
   db: ParcelDb;
-  addr: number;
+  addr: ImportAttributeAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: ImportAttributeAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(9);
   }
 
-  static get(db: ParcelDb, addr: number): ImportAttribute {
+  static get(db: ParcelDb, addr: ImportAttributeAddr): ImportAttribute {
     return new ImportAttribute(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: ImportAttribute): void {
+  static set(
+    db: ParcelDb,
+    addr: ImportAttributeAddr,
+    value: ImportAttribute,
+  ): void {
     copy(db, value.addr, addr, 8);
   }
 
@@ -1457,20 +1509,22 @@ export class Priority {
   }
 }
 
+export opaque type SymbolAddr = number;
+
 export class Symbol {
   db: ParcelDb;
-  addr: number;
+  addr: SymbolAddr;
 
-  constructor(db: ParcelDb, addr?: number) {
+  constructor(db: ParcelDb, addr?: SymbolAddr) {
     this.db = db;
     this.addr = addr ?? db.alloc(10);
   }
 
-  static get(db: ParcelDb, addr: number): Symbol {
+  static get(db: ParcelDb, addr: SymbolAddr): Symbol {
     return new Symbol(db, addr);
   }
 
-  static set(db: ParcelDb, addr: number, value: Symbol): void {
+  static set(db: ParcelDb, addr: SymbolAddr, value: Symbol): void {
     copy(db, value.addr, addr, 32);
   }
 

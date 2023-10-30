@@ -5,7 +5,8 @@ import type {
   Environment as IEnvironment,
   SourceLocation,
 } from '@parcel/types';
-import type {Target as TargetValue, ParcelOptions} from '../types';
+import type {ParcelOptions} from '../types';
+import type {TargetAddr} from '@parcel/rust';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
@@ -16,9 +17,9 @@ import {createBuildCache} from '../buildCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const internalTargetToTarget: Map<TargetValue, Target> = createBuildCache();
-const _targetToInternalTarget: WeakMap<ITarget, TargetValue> = new WeakMap();
-export function targetToInternalTarget(target: ITarget): TargetValue {
+const internalTargetToTarget: Map<TargetAddr, Target> = createBuildCache();
+const _targetToInternalTarget: WeakMap<ITarget, TargetAddr> = new WeakMap();
+export function targetToInternalTarget(target: ITarget): TargetAddr {
   return nullthrows(_targetToInternalTarget.get(target));
 }
 
@@ -26,7 +27,7 @@ export default class Target implements ITarget {
   #target /*: DbTarget */;
   #options /*: ParcelOptions */;
 
-  constructor(target: TargetValue, options: ParcelOptions): Target {
+  constructor(target: TargetAddr, options: ParcelOptions): Target {
     let existing = internalTargetToTarget.get(target);
     if (existing != null) {
       return existing;

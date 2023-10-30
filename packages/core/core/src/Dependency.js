@@ -8,8 +8,13 @@ import type {
   BundleBehavior as IBundleBehavior,
   SemverRange,
 } from '@parcel/types';
-import type {Dependency, Environment, Target} from './types';
-import type {ParcelDb} from '@parcel/rust';
+import type {
+  ParcelDb,
+  DependencyAddr,
+  EnvironmentAddr,
+  TargetAddr,
+  AssetAddr,
+} from '@parcel/rust';
 import {hashString} from '@parcel/rust';
 import {SpecifierType, Priority, ExportsCondition} from './types';
 
@@ -19,12 +24,13 @@ import {
   Dependency as DbDependency,
   DependencyFlags,
   SymbolFlags,
+  Asset as DbAsset,
 } from '@parcel/rust';
 
-type DependencyOpts = {|
-  id?: string,
+export type DependencyOpts = {|
+  id?: number,
   sourcePath?: FilePath,
-  sourceAssetId?: string,
+  sourceAssetId?: AssetAddr,
   specifier: DependencySpecifier,
   specifierType: $Keys<typeof SpecifierType>,
   priority?: $Keys<typeof Priority>,
@@ -33,12 +39,12 @@ type DependencyOpts = {|
   isEntry?: boolean,
   isOptional?: boolean,
   loc?: SourceLocation,
-  env: Environment,
+  env: EnvironmentAddr,
   packageConditions?: Array<string>,
   meta?: Meta,
   resolveFrom?: FilePath,
   range?: SemverRange,
-  target?: Target,
+  target?: TargetAddr,
   symbols?: ?$ReadOnlyMap<
     Symbol,
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
@@ -46,20 +52,17 @@ type DependencyOpts = {|
   pipeline?: ?string,
 |};
 
-export function dependencyId(opts: DependencyOpts): string {
-  return (
-    opts.id ||
-    hashString(
-      (opts.sourceAssetId ?? '') +
-        opts.specifier +
-        String(opts.env) +
-        (opts.target ? JSON.stringify(opts.target) : '') +
-        (opts.pipeline ?? '') +
-        opts.specifierType +
-        (opts.bundleBehavior ?? '') +
-        (opts.priority ?? 'sync') +
-        (opts.packageConditions ? JSON.stringify(opts.packageConditions) : ''),
-    )
+export function dependencyId(db: ParcelDb, opts: DependencyOpts): string {
+  return hashString(
+    (opts.sourceAssetId != null ? DbAsset.get(db, opts.sourceAssetId).id : '') +
+      opts.specifier +
+      String(opts.env) +
+      (opts.target != null ? String(opts.target) : '') +
+      (opts.pipeline ?? '') +
+      opts.specifierType +
+      (opts.bundleBehavior ?? '') +
+      (opts.priority ?? 'sync') +
+      (opts.packageConditions ? JSON.stringify(opts.packageConditions) : ''),
   );
 }
 
@@ -67,7 +70,7 @@ export function createDependency(
   db: ParcelDb,
   projectRoot: FilePath,
   opts: DependencyOpts,
-): Dependency {
+): DependencyAddr {
   // let id =
   //   opts.id ||
   //   hashString(
@@ -118,6 +121,7 @@ export function createDependency(
   // };
 
   let d = new DbDependency(db);
+  d.id = opts.id ?? db.getStringId(dependencyId(db, opts));
   d.env = opts.env;
   d.specifier = opts.specifier;
   d.specifierType = opts.specifierType;
@@ -127,10 +131,7 @@ export function createDependency(
     (opts.isEntry ? DependencyFlags.ENTRY : 0) |
     (opts.isOptional ? DependencyFlags.OPTIONAL : 0) |
     (opts.needsStableName ? DependencyFlags.NEEDS_STABLE_NAME : 0);
-  d.resolveFrom = toProjectPath(
-    projectRoot,
-    opts.resolveFrom ?? opts.sourcePath,
-  );
+  d.resolveFrom = toProjectPath(projectRoot, opts.resolveFrom);
   d.range = opts.range;
   d.placeholder = null;
   d.meta = null;
@@ -144,7 +145,7 @@ export function createDependency(
       d.meta = JSON.stringify(meta);
     }
   }
-  d.target = opts.target || 0;
+  d.target = opts.target;
   d.loc = toDbSourceLocation(db, projectRoot, opts.loc);
   d.pipeline = opts.pipeline;
   d.promiseSymbol = null;
@@ -180,7 +181,7 @@ export function createDependency(
 export function mergeDependencies(
   db: ParcelDb,
   projectRoot: FilePath,
-  a: Dependency,
+  a: DependencyAddr,
   b: DependencyOpts,
 ): void {
   let {
@@ -235,10 +236,7 @@ export function mergeDependencies(
     dep.range = range;
   }
   if (resolveFrom || sourcePath) {
-    dep.resolveFrom = toProjectPath(
-      projectRoot,
-      resolveFrom ?? sourcePath,
-    );
+    dep.resolveFrom = toProjectPath(projectRoot, resolveFrom ?? sourcePath);
   }
   if (packageConditions) {
     // TODO: filter duplicates?

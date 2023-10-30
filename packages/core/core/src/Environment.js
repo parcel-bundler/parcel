@@ -4,9 +4,9 @@ import type {
   Environment as IEnvironment,
   FilePath,
 } from '@parcel/types';
-import type {Environment, InternalSourceLocation} from './types';
-import type {ParcelDb} from '@parcel/rust';
-import { toDbSourceLocation, toDbSourceLocationFromInternal } from "./utils";
+import type {InternalSourceLocation} from './types';
+import type {ParcelDb, EnvironmentAddr} from '@parcel/rust';
+import {toDbSourceLocation, toDbSourceLocationFromInternal} from './utils';
 import PublicEnvironment from './public/Environment';
 import {environmentToInternalEnvironment} from './public/Environment';
 import {
@@ -55,7 +55,7 @@ export function createEnvironment(
   }: EnvironmentOpts = {
     /*::...null*/
   },
-): Environment {
+): EnvironmentAddr {
   if (context == null) {
     if (engines?.node) {
       context = 'node';
@@ -165,9 +165,9 @@ export function createEnvironment(
 export function mergeEnvironments(
   db: ParcelDb,
   projectRoot: FilePath,
-  a: Environment,
+  a: EnvironmentAddr,
   b: ?(EnvironmentOptions | IEnvironment),
-): Environment {
+): EnvironmentAddr {
   // If merging the same object, avoid copying.
   if (a === b || !b) {
     return a;

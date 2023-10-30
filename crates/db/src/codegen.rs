@@ -303,7 +303,7 @@ macro_rules! js_bitflags {
   ) => {
     bitflags::bitflags! {
       $(#[$outer])*
-      #[derive(Debug, PartialEq, Clone, Copy)]
+      #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Default)]
       $vis struct $BitFlags: $T {
         $(
           $(#[$inner $($args)*])*

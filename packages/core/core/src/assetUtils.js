@@ -10,12 +10,8 @@ import type {
   SourceLocation,
   Transformer,
 } from '@parcel/types';
-import type {
-  CommittedAssetId,
-  RequestInvalidation,
-  Environment,
-  ParcelOptions,
-} from './types';
+import type {RequestInvalidation, ParcelOptions} from './types';
+import type {AssetAddr, EnvironmentAddr} from '@parcel/rust';
 
 import {Readable} from 'stream';
 import {PluginLogger} from '@parcel/logger';
@@ -52,7 +48,7 @@ type AssetOptions = {|
   bundleBehavior?: BundleBehavior | 'none',
   isBundleSplittable?: ?boolean,
   isSource?: boolean,
-  env: Environment,
+  env: EnvironmentAddr,
   pipeline?: ?string,
   stats?: Stats,
   symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
@@ -85,8 +81,9 @@ export function createAsset(
   options: AssetOptions,
 ): DbAsset {
   let asset = new DbAsset(db);
-  asset.id =
-    options.id != null ? options.id : createAssetIdFromOptions(options);
+  asset.id = db.getStringId(
+    options.id != null ? options.id : createAssetIdFromOptions(options),
+  );
   asset.filePath = options.filePath;
   asset.env = options.env;
   asset.query = options.query;
@@ -121,7 +118,7 @@ export function createAsset(
 }
 
 const generateResults: Map<
-  CommittedAssetId,
+  AssetAddr,
   Promise<GenerateOutput>,
 > = createBuildCache();
 

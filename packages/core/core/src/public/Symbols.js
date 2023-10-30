@@ -7,7 +7,8 @@ import type {
   SourceLocation,
   Meta,
 } from '@parcel/types';
-import type {CommittedAssetId, Dependency, ParcelOptions} from '../types';
+import type {ParcelOptions} from '../types';
+import type {AssetAddr, DependencyAddr} from '@parcel/rust';
 
 import nullthrows from 'nullthrows';
 import {fromInternalSourceLocation, toDbSourceLocation} from '../utils';
@@ -23,7 +24,7 @@ import {createBuildCache} from '../buildCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-let valueToSymbols: Map<CommittedAssetId, AssetSymbols> = createBuildCache();
+let valueToSymbols: Map<AssetAddr, AssetSymbols> = createBuildCache();
 export class AssetSymbols implements IAssetSymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
@@ -31,7 +32,7 @@ export class AssetSymbols implements IAssetSymbols {
   #value: DbAsset;
   #options: ParcelOptions;
 
-  constructor(options: ParcelOptions, asset: CommittedAssetId): AssetSymbols {
+  constructor(options: ParcelOptions, asset: AssetAddr): AssetSymbols {
     let existing = valueToSymbols.get(asset);
     if (existing != null) {
       return existing;
@@ -49,7 +50,7 @@ export class AssetSymbols implements IAssetSymbols {
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
-    if (this.#value.symbols == null) {
+    if (!(this.#value.flags & AssetFlags.HAS_SYMBOLS)) {
       return false;
     }
     let id = this.#options.db.getStringId(local);
@@ -108,7 +109,7 @@ export class AssetSymbols implements IAssetSymbols {
   }
 }
 
-let valueToMutableAssetSymbols: Map<CommittedAssetId, MutableAssetSymbols> =
+let valueToMutableAssetSymbols: Map<AssetAddr, MutableAssetSymbols> =
   createBuildCache();
 export class MutableAssetSymbols implements IMutableAssetSymbols {
   /*::
@@ -117,10 +118,7 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   #value: DbAsset;
   #options: ParcelOptions;
 
-  constructor(
-    options: ParcelOptions,
-    asset: CommittedAssetId,
-  ): MutableAssetSymbols {
+  constructor(options: ParcelOptions, asset: AssetAddr): MutableAssetSymbols {
     let existing = valueToMutableAssetSymbols.get(asset);
     if (existing != null) {
       return existing;
@@ -138,7 +136,7 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
-    if (this.#value.symbols == null) {
+    if (!(this.#value.flags & AssetFlags.HAS_SYMBOLS)) {
       return false;
     }
     let id = this.#options.db.getStringId(local);
@@ -236,8 +234,10 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   }
 }
 
-let valueToMutableDependencySymbols: Map<Dependency, MutableDependencySymbols> =
-  createBuildCache();
+let valueToMutableDependencySymbols: Map<
+  DependencyAddr,
+  MutableDependencySymbols,
+> = createBuildCache();
 export class MutableDependencySymbols implements IMutableDependencySymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|}]> { return ({}: any); }
@@ -247,7 +247,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
 
   constructor(
     options: ParcelOptions,
-    dep: Dependency,
+    dep: DependencyAddr,
   ): MutableDependencySymbols {
     let existing = valueToMutableDependencySymbols.get(dep);
     if (existing != null) {
@@ -266,7 +266,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
-    if (this.#value.symbols) {
+    if (this.#value.flags & AssetFlags.HAS_SYMBOLS) {
       let id = this.#options.db.getStringId(local);
       return this.#value.symbols?.some(s => s.local === id);
     }

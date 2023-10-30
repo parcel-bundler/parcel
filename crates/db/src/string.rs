@@ -74,6 +74,12 @@ impl std::fmt::Display for InternedString {
   }
 }
 
+impl Default for InternedString {
+  fn default() -> Self {
+    String::default().into()
+  }
+}
+
 impl JsValue for InternedString {
   fn js_getter(db: &str, addr: &str, offset: usize) -> String {
     format!(

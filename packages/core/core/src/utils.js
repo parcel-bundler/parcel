@@ -47,7 +47,7 @@ export function getBundleGroupId(
   return (
     'bundle_group:' +
     DbTarget.get(db, bundleGroup.target).name +
-    bundleGroup.entryAssetId
+    String(bundleGroup.entryAssetId)
   );
 }
 

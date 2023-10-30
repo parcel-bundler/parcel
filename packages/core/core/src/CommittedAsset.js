@@ -1,7 +1,8 @@
 // @flow strict-local
 
 import type {AST, Blob} from '@parcel/types';
-import type {Dependency, ParcelOptions, CommittedAssetId} from './types';
+import type {ParcelOptions} from './types';
+import type {AssetAddr, DependencyAddr} from '@parcel/rust';
 
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
@@ -20,7 +21,7 @@ export default class CommittedAsset {
   idBase: ?string;
   generatingPromise: ?Promise<void>;
 
-  constructor(id: CommittedAssetId, options: ParcelOptions) {
+  constructor(id: AssetAddr, options: ParcelOptions) {
     this.value = DbAsset.get(options.db, id);
     this.options = options;
   }
@@ -136,7 +137,7 @@ export default class CommittedAsset {
     return this.ast;
   }
 
-  getDependencies(): Array<Dependency> {
+  getDependencies(): Array<DependencyAddr> {
     // return Array.from(this.value.dependencies.values());
     throw new Error('todo');
   }
