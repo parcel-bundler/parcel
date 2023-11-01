@@ -89,18 +89,19 @@ type GlobNode = {|id: ContentKey, +type: 'glob', value: InternalGlob|};
 type FileNameNode = {|
   id: ContentKey,
   +type: 'file_name',
-  value: string,
+  //value: string,
 |};
 type EnvNode = {|
   id: ContentKey,
   +type: 'env',
-  value: {|key: string, value: string | void|},
+  value: string | void,
+  //value: {|key: string, value: string | void|},
 |};
 
 type OptionNode = {|
   id: ContentKey,
   +type: 'option',
-  value: {|key: string, hash: string|},
+  hash: string,
 |};
 
 type Request<TInput, TResult> = {|
@@ -110,20 +111,41 @@ type Request<TInput, TResult> = {|
   run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
 |};
 
-type StoredRequest = {|
-  id: string,
-  +type: string,
-  result?: mixed,
-  resultCacheKey?: ?string,
-|};
+// type StoredRequest = {|
+//   id: string,
+//   +type: string,
+//   result?: mixed,
+//   resultCacheKey?: ?string,
+// |};
 
 type InvalidateReason = number;
-type RequestNode = {|
+export type RequestNode = {|
   id: ContentKey,
   +type: 'request',
-  value: StoredRequest,
+  //value: StoredRequest,
+  +requestType?: RequestType,
   invalidateReason: InvalidateReason,
+  result?: mixed,
+  resultCacheKey?: ?string,
+  hash?: string,
 |};
+// TODO enumerate these
+type RequestType =
+  | 'parcel_build_request'
+  | 'bundle_graph_request'
+  | 'asset_graph_request'
+  | 'entry_request'
+  | 'target_request'
+  | 'parcel_config_request'
+  | 'path_request'
+  | 'dev_dep_request'
+  | 'asset_request'
+  | 'config_request'
+  | 'write_bundles_request'
+  | 'package_request'
+  | 'write_bundle_request'
+  | 'validation_request';
+
 type RequestGraphNode =
   | RequestNode
   | FileNode
@@ -144,8 +166,8 @@ export type RunAPI<TResult> = {|
   storeResult(result: TResult, cacheKey?: string): void,
   getRequestResult<T>(contentKey: ContentKey): Async<?T>,
   getPreviousResult<T>(ifMatch?: string): Async<?T>,
-  getSubRequests(): Array<StoredRequest>,
-  getInvalidSubRequests(): Array<StoredRequest>,
+  getSubRequests(): Array<RequestNode>,
+  getInvalidSubRequests(): Array<RequestNode>,
   canSkipSubrequest(ContentKey): boolean,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
@@ -179,32 +201,29 @@ const nodeFromGlob = (glob: InternalGlob): RequestGraphNode => ({
 const nodeFromFileName = (fileName: string): RequestGraphNode => ({
   id: 'file_name:' + fileName,
   type: 'file_name',
-  value: fileName,
 });
 
-const nodeFromRequest = (request: StoredRequest): RequestGraphNode => ({
+const nodeFromRequest = (request: RequestNode): RequestGraphNode => ({
   id: request.id,
   type: 'request',
-  value: request,
+  //value: request,
   invalidateReason: INITIAL_BUILD,
 });
 
 const nodeFromEnv = (env: string, value: string | void): RequestGraphNode => ({
   id: 'env:' + env,
   type: 'env',
-  value: {
-    key: env,
-    value,
-  },
+  value,
 });
 
 const nodeFromOption = (option: string, value: mixed): RequestGraphNode => ({
   id: 'option:' + option,
   type: 'option',
-  value: {
-    key: option,
-    hash: hashFromOption(value),
-  },
+  hash: hashFromOption(value),
+  // value: {
+  //   key: option,
+  //   hash: hashFromOption(value),
+  // },
 });
 
 export class RequestGraph extends ContentGraph<
@@ -346,7 +365,7 @@ export class RequestGraph extends ContentGraph<
     for (let nodeId of this.envNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'env');
-      if (env[node.value.key] !== node.value.value) {
+      if (env[node.id.slice(node.id.indexOf(':'))] !== node.value) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
           requestGraphEdgeTypes.invalidated_by_update,
@@ -362,7 +381,10 @@ export class RequestGraph extends ContentGraph<
     for (let nodeId of this.optionNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'option');
-      if (hashFromOption(options[node.value.key]) !== node.value.hash) {
+      if (
+        hashFromOption(options[node.id.slice(node.id.indexOf(':'))]) !==
+        node.hash
+      ) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
           requestGraphEdgeTypes.invalidated_by_update,
@@ -611,15 +633,18 @@ export class RequestGraph extends ContentGraph<
           case 'file':
             return {type: 'file', filePath: node.id};
           case 'env':
-            return {type: 'env', key: node.value.key};
+            return {type: 'env', key: node.id.slice(node.id.indexOf(':') + 1)};
           case 'option':
-            return {type: 'option', key: node.value.key};
+            return {
+              type: 'option',
+              key: node.id.slice(node.id.indexOf(':') + 1),
+            };
         }
       })
       .filter(Boolean);
   }
 
-  getSubRequests(requestNodeId: NodeId): Array<StoredRequest> {
+  getSubRequests(requestNodeId: NodeId): Array<RequestNode> {
     if (!this.hasNode(requestNodeId)) {
       return [];
     }
@@ -632,11 +657,11 @@ export class RequestGraph extends ContentGraph<
     return subRequests.map(nodeId => {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'request');
-      return node.value;
+      return node;
     });
   }
 
-  getInvalidSubRequests(requestNodeId: NodeId): Array<StoredRequest> {
+  getInvalidSubRequests(requestNodeId: NodeId): Array<RequestNode> {
     if (!this.hasNode(requestNodeId)) {
       return [];
     }
@@ -651,7 +676,7 @@ export class RequestGraph extends ContentGraph<
       .map(nodeId => {
         let node = nullthrows(this.getNode(nodeId));
         invariant(node.type === 'request');
-        return node.value;
+        return node;
       });
   }
 
@@ -841,8 +866,8 @@ export default class RequestTracker {
   setSignal(signal?: AbortSignal) {
     this.signal = signal;
   }
-
-  startRequest(request: StoredRequest): {|
+  // request used to be StoredRequest
+  startRequest(request: RequestNode): {|
     requestNodeId: NodeId,
     deferred: Deferred<boolean>,
   |} {
@@ -870,8 +895,8 @@ export default class RequestTracker {
   storeResult(nodeId: NodeId, result: mixed, cacheKey: ?string) {
     let node = this.graph.getNode(nodeId);
     if (node && node.type === 'request') {
-      node.value.result = result;
-      node.value.resultCacheKey = cacheKey;
+      node.result = result;
+      node.resultCacheKey = cacheKey;
     }
   }
 
@@ -890,21 +915,21 @@ export default class RequestTracker {
     let node = nullthrows(this.graph.getNodeByContentKey(contentKey));
     invariant(node.type === 'request');
 
-    if (ifMatch != null && node.value.resultCacheKey !== ifMatch) {
+    if (ifMatch != null && node.resultCacheKey !== ifMatch) {
       return null;
     }
 
-    if (node.value.result != undefined) {
+    if (node.result != undefined) {
       // $FlowFixMe
-      let result: T = (node.value.result: any);
+      let result: T = (node.result: any);
       return result;
-    } else if (node.value.resultCacheKey != null && ifMatch == null) {
-      let key = node.value.resultCacheKey;
+    } else if (node.resultCacheKey != null && ifMatch == null) {
+      let key = node.resultCacheKey;
       invariant(this.options.cache.hasLargeBlob(key));
       let cachedResult: T = deserialize(
         await this.options.cache.getLargeBlob(key),
       );
-      node.value.result = cachedResult;
+      node.result = cachedResult;
       return cachedResult;
     }
   }
@@ -939,12 +964,12 @@ export default class RequestTracker {
     return this.graph.invalidNodeIds.size > 0;
   }
 
-  getInvalidRequests(): Array<StoredRequest> {
+  getInvalidRequests(): Array<RequestNode> {
     let invalidRequests = [];
     for (let id of this.graph.invalidNodeIds) {
       let node = nullthrows(this.graph.getNode(id));
       invariant(node.type === 'request');
-      invalidRequests.push(node.value);
+      invalidRequests.push(node);
     }
     return invalidRequests;
   }
@@ -989,7 +1014,9 @@ export default class RequestTracker {
       requestId != null ? this.graph.getInvalidations(requestId) : [];
     let {requestNodeId, deferred} = this.startRequest({
       id: request.id,
-      type: request.type,
+      type: 'request',
+      requestType: request.type,
+      invalidateReason: INITIAL_BUILD,
     });
 
     let {api, subRequestContentKeys} = this.createAPI(
@@ -1093,15 +1120,15 @@ export default class RequestTracker {
         continue;
       }
 
-      let resultCacheKey = node.value.resultCacheKey;
-      if (resultCacheKey != null && node.value.result != null) {
+      let resultCacheKey = node.resultCacheKey;
+      if (resultCacheKey != null && node.result != null) {
         promises.push(
           this.options.cache.setLargeBlob(
             resultCacheKey,
-            serialize(node.value.result),
+            serialize(node.result),
           ),
         );
-        delete node.value.result;
+        delete node.result;
       }
     }
 
