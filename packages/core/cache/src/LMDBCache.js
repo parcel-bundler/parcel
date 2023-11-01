@@ -12,6 +12,7 @@ import {NodeFS} from '@parcel/fs';
 import packageJson from '../package.json';
 // $FlowFixMe
 import lmdb from 'lmdb';
+import {WRITE_LIMIT_CHUNK} from './constants';
 
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
   stream.pipeline,
@@ -91,16 +92,39 @@ export class LMDBCache implements Cache {
     return Promise.resolve(this.store.get(key));
   }
 
+  #getFilePath(key: string, index: number): string {
+    return path.join(this.dir, `${key}-${index}`);
+  }
+
   hasLargeBlob(key: string): Promise<boolean> {
-    return this.fs.exists(path.join(this.dir, key));
+    return this.fs.exists(this.#getFilePath(key, 0));
   }
 
-  getLargeBlob(key: string): Promise<Buffer> {
-    return this.fs.readFile(path.join(this.dir, key));
+  async getLargeBlob(key: string): Promise<Buffer> {
+    const buffers: Promise<Buffer>[] = [];
+    for (let i = 0; await this.fs.exists(this.#getFilePath(key, i)); i += 1) {
+      const file: Promise<Buffer> = this.fs.readFile(this.#getFilePath(key, i));
+
+      buffers.push(file);
+    }
+
+    return Buffer.concat(await Promise.all(buffers));
   }
 
-  async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
-    await this.fs.writeFile(path.join(this.dir, key), contents);
+  async setLargeBlob(key: string, contents: Buffer): Promise<void> {
+    const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
+
+    const writePromises: Promise<void>[] = [];
+    for (let i = 0; i < chunks; i += 1) {
+      writePromises.push(
+        this.fs.writeFile(
+          this.#getFilePath(key, i),
+          contents.subarray(i * WRITE_LIMIT_CHUNK, (i + 1) * WRITE_LIMIT_CHUNK),
+        ),
+      );
+    }
+
+    await Promise.all(writePromises);
   }
 
   refresh(): void {
