@@ -267,7 +267,7 @@ export class ResolverRunner {
     }
 
     // Entrypoints, convert ProjectPath in module specifier to absolute path
-    if (internalDep.sourceAssetId == null) {
+    if (internalDep.sourceAssetId == null && internalDep.resolveFrom == null) {
       specifier = path.join(this.options.projectRoot, specifier);
     }
     let diagnostics: Array<Diagnostic> = [];

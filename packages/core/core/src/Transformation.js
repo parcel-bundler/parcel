@@ -783,7 +783,7 @@ export default class Transformation {
           specifier: to,
           specifierType: options?.specifierType || 'esm',
           packageConditions: options?.packageConditions,
-          sourcePath: from,
+          resolveFrom: from,
         }),
       );
 
