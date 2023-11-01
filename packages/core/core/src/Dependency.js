@@ -149,7 +149,7 @@ export function createDependency(
   d.loc = toDbSourceLocation(db, projectRoot, opts.loc);
   d.pipeline = opts.pipeline;
   d.promiseSymbol = null;
-  d.sourceAssetId = null;
+  d.sourceAssetId = opts.sourceAssetId;
   d.symbols.init();
   d.importAttributes.init();
 
