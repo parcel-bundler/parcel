@@ -103,26 +103,23 @@ export default class WorkerFarm extends EventEmitter {
       throw new Error('Please provide a worker path!');
     }
 
-    if (this.options.useLocalWorker) {
-      // $FlowFixMe
-      if (process.browser) {
-        if (this.options.workerPath === '@parcel/core/src/worker.js') {
-          this.localWorker = coreWorker;
-        } else {
-          throw new Error(
-            'No dynamic require possible: ' + this.options.workerPath,
-          );
-        }
+    // $FlowFixMe
+    if (process.browser) {
+      if (this.options.workerPath === '@parcel/core/src/worker.js') {
+        this.localWorker = coreWorker;
       } else {
-        // $FlowFixMe this must be dynamic
-        this.localWorker = require(this.options.workerPath);
+        throw new Error(
+          'No dynamic require possible: ' + this.options.workerPath,
+        );
       }
-
-      this.localWorkerInit =
-        this.localWorker.childInit != null
-          ? this.localWorker.childInit()
-          : null;
+    } else {
+      // $FlowFixMe this must be dynamic
+      this.localWorker = require(this.options.workerPath);
     }
+
+    this.localWorkerInit =
+      this.localWorker.childInit != null ? this.localWorker.childInit() : null;
+
     this.run = this.createHandle('run');
 
     // Worker thread stdout is by default piped into the process stdout, if there are enough worker
