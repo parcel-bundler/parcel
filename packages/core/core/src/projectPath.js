@@ -6,7 +6,7 @@ import {relativePath, normalizeSeparators} from '@parcel/utils';
 /**
  * A path that's relative to the project root.
  */
-export type ProjectPath = string;
+export opaque type ProjectPath = string;
 
 function toProjectPath_(projectRoot: FilePath, p: FilePath): ProjectPath {
   if (p == null) {

@@ -607,7 +607,7 @@ export class RequestGraph extends ContentGraph<
         let node = nullthrows(this.getNode(nodeId));
         switch (node.type) {
           case 'file':
-            return {type: 'file', filePath: node.id};
+            return {type: 'file', filePath: toProjectPathUnsafe(node.id)};
           case 'env':
             return {type: 'env', key: node.value.key};
           case 'option':
@@ -672,7 +672,10 @@ export class RequestGraph extends ContentGraph<
           matchNodeId,
           requestGraphEdgeTypes.invalidated_by_create_above,
         ) &&
-        isDirectoryInside(fromProjectPathRelative(matchNode.id), dirname)
+        isDirectoryInside(
+          fromProjectPathRelative(toProjectPathUnsafe(matchNode.id)),
+          dirname,
+        )
       ) {
         let connectedNodes = this.getNodeIdsConnectedTo(
           matchNodeId,
