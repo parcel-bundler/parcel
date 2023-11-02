@@ -630,8 +630,12 @@ export class RequestGraph extends ContentGraph<
       .map(nodeId => {
         let node = nullthrows(this.getNode(nodeId));
         switch (node.type) {
-          case 'file':
+          case 'file': {
+            if (node.id === '.babelrc.cjs') {
+              console.log(nodeId);
+            }
             return {type: 'file', filePath: node.id};
+          }
           case 'env':
             return {type: 'env', key: node.id.slice(node.id.indexOf(':') + 1)};
           case 'option':
