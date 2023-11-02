@@ -102,7 +102,7 @@ export class FSCache implements Cache {
     return Buffer.concat(await Promise.all(buffers));
   }
 
-  async setLargeBlob(key: string, contents: Buffer): Promise<void> {
+  async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
     const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
 
     const writePromises: Promise<void>[] = [];
@@ -110,7 +110,12 @@ export class FSCache implements Cache {
       writePromises.push(
         this.fs.writeFile(
           this.#getFilePath(key, i),
-          contents.subarray(i * WRITE_LIMIT_CHUNK, (i + 1) * WRITE_LIMIT_CHUNK),
+          typeof contents === 'string'
+            ? contents.slice(i * WRITE_LIMIT_CHUNK, (i + 1) * WRITE_LIMIT_CHUNK)
+            : contents.subarray(
+                i * WRITE_LIMIT_CHUNK,
+                (i + 1) * WRITE_LIMIT_CHUNK,
+              ),
         ),
       );
     }

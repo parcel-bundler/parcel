@@ -114,7 +114,7 @@ export class IDBCache implements Cache {
     return this.getBlob(key);
   }
 
-  setLargeBlob(key: string, contents: Buffer): Promise<void> {
+  setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
     return this.setBlob(key, contents);
   }
 

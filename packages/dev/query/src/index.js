@@ -94,7 +94,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   );
   if (bundleGraphRequestNode != null) {
     bundleGraph = BundleGraph.deserialize(
-      (await loadLargeBlobRequestRequestSync(cache, bundleGraphRequestNode))
+      (await loadLargeBlobRequestRequest(cache, bundleGraphRequestNode))
         .bundleGraph.value,
     );
 
@@ -103,8 +103,8 @@ export async function loadGraphs(cacheDir: string): Promise<{|
     ).find(n => n.type === 'request' && n.value.type === 'asset_graph_request');
     if (assetGraphRequest != null) {
       assetGraph = AssetGraph.deserialize(
-        (await loadLargeBlobRequestRequestSync(cache, assetGraphRequest))
-          .assetGraph.value,
+        (await loadLargeBlobRequestRequest(cache, assetGraphRequest)).assetGraph
+          .value,
       );
     }
   }
@@ -124,7 +124,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   return {assetGraph, bundleGraph, requestTracker, bundleInfo};
 }
 
-async function loadLargeBlobRequestRequestSync(cache, node) {
+async function loadLargeBlobRequestRequest(cache, node) {
   invariant(node.type === 'request');
   return v8.deserialize(
     await cache.getLargeBlob(nullthrows(node.value.resultCacheKey)),
