@@ -105,6 +105,12 @@ export class FSCache implements Cache {
   async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
     const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
 
+    if (chunks === 1) {
+      // If there's one chunk, don't slice the content
+      await this.fs.writeFile(this.#getFilePath(key, 0), contents);
+      return;
+    }
+
     const writePromises: Promise<void>[] = [];
     for (let i = 0; i < chunks; i += 1) {
       writePromises.push(
