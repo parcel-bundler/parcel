@@ -767,7 +767,7 @@ export class RequestGraph extends ContentGraph<
       } else if (type === 'create') {
         let basename = path.basename(filePath);
         let fileNameNode = this.getNodeByContentKey('file_name:' + basename);
-        if (fileNameNode != null && fileNameNode?.type === 'file_name') {
+        if (fileNameNode != null && fileNameNode?.type === FILE_NAME) {
           let fileNameNodeId = this.getNodeIdByContentKey(
             'file_name:' + basename,
           );
