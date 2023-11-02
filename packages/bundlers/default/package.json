@@ -1,6 +1,6 @@
 {
   "name": "@parcel/bundler-default",
-  "version": "2.10.1",
+  "version": "2.10.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,14 +17,14 @@
   "source": "src/DefaultBundler.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.10.1"
+    "parcel": "^2.10.2"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.10.1",
-    "@parcel/graph": "3.0.1",
-    "@parcel/plugin": "2.10.1",
-    "@parcel/rust": "2.10.1",
-    "@parcel/utils": "2.10.1",
+    "@parcel/diagnostic": "2.10.2",
+    "@parcel/graph": "3.0.2",
+    "@parcel/plugin": "2.10.2",
+    "@parcel/rust": "2.10.2",
+    "@parcel/utils": "2.10.2",
     "nullthrows": "^1.1.1"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "parcel-for-vscode",
-  "version": "2.10.1",
+  "version": "2.10.2",
   "license": "MIT",
   "publisher": "parcel",
   "icon": "logo.png",
@@ -88,8 +88,8 @@
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@parcel/lsp": "2.10.1",
-    "@parcel/lsp-protocol": "2.10.1",
+    "@parcel/lsp": "2.10.2",
+    "@parcel/lsp-protocol": "2.10.2",
     "@types/glob": "^7.1.3",
     "@types/mocha": "^8.0.4",
     "@types/node": "^15.12.4",
