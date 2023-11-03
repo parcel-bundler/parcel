@@ -10,6 +10,7 @@ import repl from 'repl';
 import os from 'os';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import {serialize} from 'v8';
 
 // $FlowFixMe
 import {table} from 'table';
@@ -591,7 +592,59 @@ export async function run(input: string[]) {
 
     return entryBundleGroup;
   }
+  function inspectCache() {
+    // displays sizing of various entries of the cache
+    let table: Array<Array<string | number>> = [];
+    table.push([
+      'Graphs',
+      'Size (bytes)',
+      'Deserialize (ms)',
+      'Serialize (ms)',
+    ]);
+    let serialized: Map<string, number> = getSerializeTimes();
+    for (let [k, v] of nullthrows(cacheInfo).entries()) {
+      let s = serialized.get(k);
+      invariant(s != null);
+      table.push([k, ...v, s]);
+    }
+    function getColumnSum(t: Array<Array<string | number>>, col: number) {
+      if (t == null) {
+        return '';
+      }
+      const initialValue = 0;
+      let column = t.map(r => r[col]);
+      column.shift();
+      invariant(column != null);
+      return column.reduce(
+        (accumulator, currentValue) => accumulator + currentValue,
+        initialValue,
+      );
+    }
+    table.push([
+      'Totals',
+      getColumnSum(table, 1),
+      getColumnSum(table, 2),
+      getColumnSum(table, 3),
+    ]);
+    _printStatsTable('Cache Info', table);
+  }
+  function getSerializeTimes(): Map<string, number> {
+    let serializeTime = new Map<string, number>();
+    let requestgraph_st = Date.now();
+    serialize(requestTracker);
+    requestgraph_st = Date.now() - requestgraph_st;
+    serializeTime.set('RequestGraph', requestgraph_st);
+    let bundlegraph_st = Date.now();
+    serialize(bundleGraph);
+    bundlegraph_st = Date.now() - bundlegraph_st;
+    serializeTime.set('BundleGraph', bundlegraph_st);
+    let assetgraph_st = Date.now();
+    serialize(assetGraph);
+    assetgraph_st = Date.now() - assetgraph_st;
+    serializeTime.set('AssetGraph', assetgraph_st);
 
+    return serializeTime;
+  }
   function _printStatsTable(header, data) {
     const config = {
       columnDefault: {
@@ -738,7 +791,8 @@ export async function run(input: string[]) {
     server.context.assetGraph = assetGraph;
     // $FlowFixMe[prop-missing]
     server.context.requestTracker = requestTracker;
-
+    // $FlowFixMe[prop-missing]
+    server.context.cacheInfo = cacheInfo;
     for (let [name, cmd] of new Map([
       [
         'getAsset',
@@ -885,6 +939,13 @@ export async function run(input: string[]) {
         {
           help: 'args: <regex>. List assets matching the filepath regex',
           action: findAsset,
+        },
+      ],
+      [
+        'inspectCache',
+        {
+          help: 'args: <>',
+          action: inspectCache,
         },
       ],
       [
