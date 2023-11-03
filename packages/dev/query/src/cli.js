@@ -608,7 +608,8 @@ export async function run(input: string[]) {
     for (let [k, v] of nullthrows(cacheInfo).entries()) {
       let s = serialized.get(k);
       invariant(s != null);
-      table.push([k, ...v, s]);
+      let name = k.includes('_request') ? k.split('_request')[0] : k;
+      table.push([name, ...v, s]);
     }
     function getColumnSum(t: Array<Array<string | number>>, col: number) {
       if (t == null) {

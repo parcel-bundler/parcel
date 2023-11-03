@@ -121,11 +121,6 @@ export async function loadGraphs(cacheDir: string): Promise<{|
       requestTracker.graph.getNodeIdByContentKey(bundleGraphRequestNode.id),
     ).find(n => n.type === 'request' && n.value.type === 'asset_graph_request');
     if (assetGraphRequest != null) {
-      invariant(
-        assetGraphRequest.value != null &&
-          typeof assetGraphRequest.value != 'string',
-      );
-
       assetGraph = AssetGraph.deserialize(
         (await loadLargeBlobRequestRequest(cache, assetGraphRequest, cacheInfo))
           .assetGraph.value,
