@@ -629,8 +629,14 @@ export class RequestGraph extends ContentGraph<
         let node = nullthrows(this.getNode(nodeId));
         switch (node.type) {
           case 'file': {
+            //console.log('!!!invalidated', node.id);
             if (node.id === '.babelrc.cjs') {
-              console.log(nodeId);
+              console.log(
+                'babelrc invalidated. babelrc:',
+                nodeId,
+                'requestNodeId:',
+                requestNodeId,
+              );
             }
             return {type: 'file', filePath: toProjectPathUnsafe(node.id)};
           }
@@ -763,11 +769,19 @@ export class RequestGraph extends ContentGraph<
       // if it was a create event, but the file already exists in the graph,
       // then also invalidate nodes connected by invalidated_by_update edges.
       if (hasFileRequest && (type === 'create' || type === 'update')) {
+        console.log({filePath});
         let nodeId = this.getNodeIdByContentKey(filePath);
         let nodes = this.getNodeIdsConnectedTo(
           nodeId,
           requestGraphEdgeTypes.invalidated_by_update,
         );
+        if (filePath === '.babelrc.cjs') {
+          console.log(
+            '🎀 ~ invByUpdate parent node:',
+            {nodes},
+            nodes.map(n => this.getNode(n)),
+          );
+        }
 
         for (let connectedNode of nodes) {
           didInvalidate = true;

@@ -164,7 +164,7 @@ export default async function dumpGraphToGraphViz(
       } else if (node.type === 'asset_group') {
         if (node.deferred) label += '(deferred)';
       } else if (node.type === 'file') {
-        label += path.basename(node.value.filePath);
+        label += path.basename(node.id);
       } else if (node.type === 'transformer_request') {
         label +=
           path.basename(node.value.filePath) +
@@ -178,7 +178,7 @@ export default async function dumpGraphToGraphViz(
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
       } else if (node.type === 'request') {
-        label = node.value.type + ':' + node.id;
+        label = node.requestType + ':' + node.id;
       }
     }
     n.set('label', label);

@@ -296,7 +296,6 @@ describe('cache', function () {
         });
 
         it.only(`should support updating a ${name}`, async function () {
-          console.log('🎀 ~ inputDir:', inputDir);
           let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
