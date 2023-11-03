@@ -329,6 +329,9 @@ export class RequestGraph extends ContentGraph<
   }
 
   invalidateNode(nodeId: NodeId, reason: InvalidateReason) {
+    // if (nodeId === 626) {
+    //   console.trace('invalidating node 626');
+    // }
     let node = nullthrows(this.getNode(nodeId));
     invariant(node.type === 'request');
     node.invalidateReason |= reason;
@@ -615,6 +618,7 @@ export class RequestGraph extends ContentGraph<
   }
 
   getInvalidations(requestNodeId: NodeId): Array<RequestInvalidation> {
+    //console.log('running getInvlidations for node', requestNodeId);
     if (!this.hasNode(requestNodeId)) {
       return [];
     }
@@ -629,12 +633,17 @@ export class RequestGraph extends ContentGraph<
         let node = nullthrows(this.getNode(nodeId));
         switch (node.type) {
           case 'file': {
-            //console.log('!!!invalidated', node.id);
+            // console.log(
+            //   '!!!invalidated',
+            //   node.id,
+            //   'requestnode',
+            //   requestNodeId,
+            // );
             if (node.id === '.babelrc.cjs') {
               console.log(
                 'babelrc invalidated. babelrc:',
                 nodeId,
-                'requestNodeId:',
+                'invalidated by requestNodeId:',
                 requestNodeId,
               );
             }
@@ -777,7 +786,7 @@ export class RequestGraph extends ContentGraph<
         );
         if (filePath === '.babelrc.cjs') {
           console.log(
-            '🎀 ~ invByUpdate parent node:',
+            '🎀 ~in respondtoFSEvnts .babelrc.cjs invByUpdate parent node:',
             {nodes},
             nodes.map(n => this.getNode(n)),
           );
@@ -785,6 +794,9 @@ export class RequestGraph extends ContentGraph<
 
         for (let connectedNode of nodes) {
           didInvalidate = true;
+          // if (connectedNode === 626) {
+          //   console.log('herehere!!!', filePath);
+          // }
           this.invalidateNode(connectedNode, FILE_UPDATE);
         }
 
@@ -920,6 +932,17 @@ export default class RequestTracker {
   }
 
   hasValidResult(nodeId: NodeId): boolean {
+    if (nodeId === 626) {
+      console.log('this.graph.hasNode(nodeId)?', this.graph.hasNode(nodeId));
+      console.log(
+        '!this.graph.invalidNodeIds.has(nodeId)?',
+        !this.graph.invalidNodeIds.has(nodeId),
+      );
+      console.log(
+        '!this.graph.incompleteNodeIds.has(nodeId)?',
+        !this.graph.incompleteNodeIds.has(nodeId),
+      );
+    }
     return (
       this.graph.hasNode(nodeId) &&
       !this.graph.invalidNodeIds.has(nodeId) &&
@@ -1008,6 +1031,10 @@ export default class RequestTracker {
       ? this.graph.getNodeIdByContentKey(request.id)
       : undefined;
     let hasValidResult = requestId != null && this.hasValidResult(requestId);
+    if (requestId === 626) {
+      console.log('hihihi at 626. hasValidResult?', hasValidResult);
+      debugger;
+    }
 
     if (!opts?.force && hasValidResult) {
       // $FlowFixMe[incompatible-type]

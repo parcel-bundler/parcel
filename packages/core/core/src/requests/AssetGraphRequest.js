@@ -475,6 +475,10 @@ export class AssetGraphBuilder {
       optionsRef: this.optionsRef,
       isSingleChangeRebuild: this.isSingleChangeRebuild,
     });
+
+    if (request.id.includes('dev_dep_request:./.babelrc.cjs')) {
+      console.log('!!!!!!!!assetgroup', input);
+    }
     let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
       request,
       {force: true},
