@@ -41,8 +41,6 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 
   let cacheInfo: Map<string, Array<string | number>> = new Map();
   let timeToDeserialize = 0;
-  let timeToDeserialize_AssetGraph = 0;
-  let timeToDeserialize_BundleGraph = 0;
 
   let requestTracker;
   const cache = new LMDBCache(cacheDir);
@@ -90,7 +88,8 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 
   // Load graphs by finding the main subrequests and loading their results
   let assetGraph, bundleGraph, bundleInfo;
-
+  cacheInfo.set('bundle_graph_request', []);
+  cacheInfo.set('asset_graph_request', []);
   invariant(requestTracker);
   let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
     'parcel_build_request',
@@ -108,45 +107,31 @@ export async function loadGraphs(cacheDir: string): Promise<{|
     n => n.type === 'request' && n.value.type === 'bundle_graph_request',
   );
   if (bundleGraphRequestNode != null) {
-    let bundleGraphBytes = Buffer.byteLength(
-      fs.readFileSync(
-        path.join(
-          cacheDir,
-          nullthrows(bundleGraphRequestNode.value.resultCacheKey),
-        ),
-      ),
-    );
-    cacheInfo.set('BundleGraph', [bundleGraphBytes]);
-    let date = Date.now();
     bundleGraph = BundleGraph.deserialize(
-      (await loadLargeBlobRequestRequest(cache, bundleGraphRequestNode))
-        .bundleGraph.value,
+      (
+        await loadLargeBlobRequestRequest(
+          cache,
+          bundleGraphRequestNode,
+          cacheInfo,
+        )
+      ).bundleGraph.value,
     );
-    timeToDeserialize_BundleGraph = Date.now() - date;
 
     let assetGraphRequest = getSubRequests(
       requestTracker.graph.getNodeIdByContentKey(bundleGraphRequestNode.id),
     ).find(n => n.type === 'request' && n.value.type === 'asset_graph_request');
     if (assetGraphRequest != null) {
-      let assetgraphbytes = Buffer.byteLength(
-        fs.readFileSync(
-          path.join(
-            cacheDir,
-            nullthrows(assetGraphRequest.value.resultCacheKey),
-          ),
-        ),
+      invariant(
+        assetGraphRequest.value != null &&
+          typeof assetGraphRequest.value != 'string',
       );
-      cacheInfo.set('AssetGraph', [assetgraphbytes]);
-      date = Date.now();
+
       assetGraph = AssetGraph.deserialize(
-        (await loadLargeBlobRequestRequest(cache, assetGraphRequest)).assetGraph
-          .value,
+        (await loadLargeBlobRequestRequest(cache, assetGraphRequest, cacheInfo))
+          .assetGraph.value,
       );
-      timeToDeserialize_AssetGraph = Date.now() - date;
     }
   }
-  cacheInfo.get('BundleGraph')?.push(timeToDeserialize_BundleGraph);
-  cacheInfo.get('AssetGraph')?.push(timeToDeserialize_AssetGraph);
   cacheInfo.get('RequestGraph')?.push(timeToDeserialize);
   let writeBundlesRequest = buildRequestSubRequests.find(
     n => n.type === 'request' && n.value.type === 'write_bundles_request',
@@ -163,9 +148,18 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   return {assetGraph, bundleGraph, requestTracker, bundleInfo, cacheInfo};
 }
 
-async function loadLargeBlobRequestRequest(cache, node) {
+async function loadLargeBlobRequestRequest(cache, node, cacheInfo) {
   invariant(node.type === 'request');
-  return v8.deserialize(
-    await cache.getLargeBlob(nullthrows(node.value.resultCacheKey)),
+
+  let cachedFile = await cache.getLargeBlob(
+    nullthrows(node.value.resultCacheKey),
   );
+  cacheInfo.get(node.value.type)?.push(cachedFile.byteLength); //Add size
+
+  let TTD = Date.now();
+  let result = v8.deserialize(cachedFile);
+  TTD = Date.now() - TTD;
+  cacheInfo.get(node.value.type)?.push(TTD);
+
+  return result;
 }

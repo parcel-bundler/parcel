@@ -38,9 +38,8 @@ export async function run(input: string[]) {
   }
 
   console.log('Loading graphs...');
-  let {assetGraph, bundleGraph, bundleInfo, requestTracker} = await loadGraphs(
-    cacheDir,
-  );
+  let {assetGraph, bundleGraph, bundleInfo, requestTracker, cacheInfo} =
+    await loadGraphs(cacheDir);
 
   if (requestTracker == null) {
     console.error('Request Graph could not be found');
@@ -592,7 +591,8 @@ export async function run(input: string[]) {
 
     return entryBundleGroup;
   }
-  function inspectCache() {
+  // eslint-disable-next-line no-unused-vars
+  function inspectCache(_) {
     // displays sizing of various entries of the cache
     let table: Array<Array<string | number>> = [];
     table.push([
@@ -637,11 +637,11 @@ export async function run(input: string[]) {
     let bundlegraph_st = Date.now();
     serialize(bundleGraph);
     bundlegraph_st = Date.now() - bundlegraph_st;
-    serializeTime.set('BundleGraph', bundlegraph_st);
+    serializeTime.set('bundle_graph_request', bundlegraph_st);
     let assetgraph_st = Date.now();
     serialize(assetGraph);
     assetgraph_st = Date.now() - assetgraph_st;
-    serializeTime.set('AssetGraph', assetgraph_st);
+    serializeTime.set('asset_graph_request', assetgraph_st);
 
     return serializeTime;
   }
@@ -944,7 +944,7 @@ export async function run(input: string[]) {
       [
         'inspectCache',
         {
-          help: 'args: <>',
+          help: 'Cache Information',
           action: inspectCache,
         },
       ],
