@@ -125,6 +125,9 @@ async function run({input, api, farm, invalidateReason, options}) {
         }),
     ),
   };
+  if (request.invalidDevDeps.filter(d => d.specifier.includes('babelrc'))) {
+    debugger;
+  }
 
   let {
     assets,
