@@ -13,7 +13,6 @@ import type {
 import type {
   ParcelOptions,
   RequestInvalidation,
-  InternalFile,
   InternalFileCreateInvalidation,
   InternalGlob,
 } from './types';
@@ -189,7 +188,6 @@ export type StaticRunOpts<TResult> = {|
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
   id: fromProjectPathRelative(filePath),
   type: 'file',
-  //value: {filePath},
 });
 
 const nodeFromGlob = (glob: InternalGlob): RequestGraphNode => ({
@@ -634,7 +632,7 @@ export class RequestGraph extends ContentGraph<
             if (node.id === '.babelrc.cjs') {
               console.log(nodeId);
             }
-            return {type: 'file', filePath: node.id};
+            return {type: 'file', filePath: toProjectPathUnsafe(node.id)};
           }
           case 'env':
             return {type: 'env', key: node.id.slice(node.id.indexOf(':') + 1)};
@@ -703,7 +701,10 @@ export class RequestGraph extends ContentGraph<
           matchNodeId,
           requestGraphEdgeTypes.invalidated_by_create_above,
         ) &&
-        isDirectoryInside(fromProjectPathRelative(matchNode.id), dirname)
+        isDirectoryInside(
+          fromProjectPathRelative(toProjectPathUnsafe(matchNode.id)),
+          dirname,
+        )
       ) {
         let connectedNodes = this.getNodeIdsConnectedTo(
           matchNodeId,
