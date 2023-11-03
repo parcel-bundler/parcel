@@ -233,9 +233,9 @@ export async function getInvalidationHash(
 
         // Only recompute the hash of this file if we haven't seen it already during this build.
         let fileHash = hashCache.get(invalidation.filePath);
-        if (invalidation.filePath.includes('babelrc')) {
-          console.log('🎀 ~ fileHash:', fileHash);
-        }
+        // if (invalidation.filePath.includes('babelrc')) {
+        //   console.log('🎀 ~ fileHash:', fileHash);
+        // }
 
         if (fileHash == null) {
           fileHash = hashFile(

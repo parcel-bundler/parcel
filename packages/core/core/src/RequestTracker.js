@@ -287,6 +287,12 @@ export class RequestGraph extends ContentGraph<
   }
 
   removeNode(nodeId: NodeId): void {
+    if (nodeId === 626) {
+      ('626 DELETED IN REMOVENODE!!!!!!');
+    }
+    if (nodeId === 1340) {
+      ('1340 DELETED IN REMOVENODE!!!!!!');
+    }
     this.invalidNodeIds.delete(nodeId);
     this.incompleteNodeIds.delete(nodeId);
     this.incompleteNodePromises.delete(nodeId);
@@ -329,12 +335,15 @@ export class RequestGraph extends ContentGraph<
   }
 
   invalidateNode(nodeId: NodeId, reason: InvalidateReason) {
-    // if (nodeId === 626) {
-    //   console.trace('invalidating node 626');
-    // }
+    if (nodeId === 626) {
+      console.trace('in invalidateNode.invalidating node 626');
+    }
     let node = nullthrows(this.getNode(nodeId));
     invariant(node.type === 'request');
     node.invalidateReason |= reason;
+    if (nodeId === 626) {
+      console.log('in invalidateNode.*********adding 626 to invalidnodeids');
+    }
     this.invalidNodeIds.add(nodeId);
 
     let parentNodes = this.getNodeIdsConnectedTo(
@@ -786,7 +795,7 @@ export class RequestGraph extends ContentGraph<
         );
         if (filePath === '.babelrc.cjs') {
           console.log(
-            '🎀 ~in respondtoFSEvnts .babelrc.cjs invByUpdate parent node:',
+            '🎀 in respondTOFSEvnts. invByUpdate parent node:',
             {nodes},
             nodes.map(n => this.getNode(n)),
           );
@@ -914,6 +923,12 @@ export default class RequestTracker {
     }
 
     this.graph.incompleteNodeIds.add(requestNodeId);
+    if (requestNodeId === 626) {
+      ('626 DELETED IN startrequest!!!!!!');
+    }
+    if (requestNodeId === 1340) {
+      ('1340 DELETED IN startrequest!!!!!!');
+    }
     this.graph.invalidNodeIds.delete(requestNodeId);
 
     let {promise, deferred} = makeDeferredWithPromise();
@@ -933,12 +948,11 @@ export default class RequestTracker {
 
   hasValidResult(nodeId: NodeId): boolean {
     if (nodeId === 626) {
-      console.log('this.graph.hasNode(nodeId)?', this.graph.hasNode(nodeId));
       console.log(
+        'this.graph.hasNode(nodeId)?',
+        this.graph.hasNode(nodeId),
         '!this.graph.invalidNodeIds.has(nodeId)?',
         !this.graph.invalidNodeIds.has(nodeId),
-      );
-      console.log(
         '!this.graph.incompleteNodeIds.has(nodeId)?',
         !this.graph.incompleteNodeIds.has(nodeId),
       );
@@ -977,6 +991,12 @@ export default class RequestTracker {
   }
 
   completeRequest(nodeId: NodeId) {
+    if (nodeId === 626) {
+      ('626 DELETED IN completerequest!!!!!!');
+    }
+    if (nodeId === 1340) {
+      ('1340 DELETED IN completerequest!!!!!!');
+    }
     this.graph.invalidNodeIds.delete(nodeId);
     this.graph.incompleteNodeIds.delete(nodeId);
     this.graph.incompleteNodePromises.delete(nodeId);
@@ -1031,9 +1051,13 @@ export default class RequestTracker {
       ? this.graph.getNodeIdByContentKey(request.id)
       : undefined;
     let hasValidResult = requestId != null && this.hasValidResult(requestId);
+
     if (requestId === 626) {
-      console.log('hihihi at 626. hasValidResult?', hasValidResult);
-      debugger;
+      console.log(requestId, {hasValidResult});
+    }
+
+    if (request.id.includes('babelrc')) {
+      console.log(request.id, {hasValidResult});
     }
 
     if (!opts?.force && hasValidResult) {

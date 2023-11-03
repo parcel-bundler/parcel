@@ -171,10 +171,14 @@ async function run({input, api, farm, invalidateReason, options}) {
   }
 
   for (let devDepRequest of devDepRequests) {
-    // if (devDepRequest.specifier === './.babelrc.cjs') {
-    //   console.trace('hihihihihihihihihi', {devDepRequest});
-    // }
-    await runDevDepRequest(api, devDepRequest); //here
+    if (devDepRequest.specifier.includes('babelrc.cjs')) {
+      console.log(
+        '!!!!!!!!!iterating devdepreqs of',
+        input.filePath,
+        devDepRequest.specifier + ':' + devDepRequest.hash,
+      );
+    }
+    await runDevDepRequest(api, devDepRequest);
   }
 
   for (let configRequest of configRequests) {

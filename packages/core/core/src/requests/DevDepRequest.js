@@ -181,6 +181,9 @@ export async function runDevDepRequest<TResult>(
   api: RunAPI<TResult>,
   devDepRequest: DevDepRequest,
 ) {
+  if (devDepRequest.hash === '93be19cfb0ff8fd7') {
+    console.log('running devDepReq', devDepRequest.hash);
+  }
   await api.runRequest<null, DevDepRequestResult | void>({
     id: 'dev_dep_request:' + devDepRequest.specifier + ':' + devDepRequest.hash,
     type: 'dev_dep_request',
