@@ -601,7 +601,10 @@ export async function run(input: string[]) {
       'Deserialize (ms)',
       'Serialize (ms)',
     ]);
-    let serialized: Map<string, number> = getSerializeTimes();
+    let serialized: Map<string, number> = new Map();
+    serialized.set('RequestGraph', timeSerialize(requestTracker));
+    serialized.set('bundle_graph_request', timeSerialize(bundleGraph));
+    serialized.set('asset_graph_request', timeSerialize(assetGraph));
     for (let [k, v] of nullthrows(cacheInfo).entries()) {
       let s = serialized.get(k);
       invariant(s != null);
@@ -628,22 +631,12 @@ export async function run(input: string[]) {
     ]);
     _printStatsTable('Cache Info', table);
   }
-  function getSerializeTimes(): Map<string, number> {
-    let serializeTime = new Map<string, number>();
-    let requestgraph_st = Date.now();
-    serialize(requestTracker);
-    requestgraph_st = Date.now() - requestgraph_st;
-    serializeTime.set('RequestGraph', requestgraph_st);
-    let bundlegraph_st = Date.now();
-    serialize(bundleGraph);
-    bundlegraph_st = Date.now() - bundlegraph_st;
-    serializeTime.set('bundle_graph_request', bundlegraph_st);
-    let assetgraph_st = Date.now();
-    serialize(assetGraph);
-    assetgraph_st = Date.now() - assetgraph_st;
-    serializeTime.set('asset_graph_request', assetgraph_st);
 
-    return serializeTime;
+  function timeSerialize(graph) {
+    let date = Date.now();
+    serialize(graph);
+    date = Date.now() - date;
+    return date;
   }
   function _printStatsTable(header, data) {
     const config = {
