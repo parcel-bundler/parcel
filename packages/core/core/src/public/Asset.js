@@ -128,7 +128,7 @@ class BaseAsset {
             return Boolean(flags & AssetFlags.SHOULD_WRAP);
           case 'isConstantModule':
             return Boolean(flags & AssetFlags.IS_CONSTANT_MODULE);
-          case 'hasNodeReplacements':
+          case 'has_node_replacements':
             return Boolean(flags & AssetFlags.HAS_NODE_REPLACEMENTS);
           case 'hasCJSExports':
             return Boolean(flags & AssetFlags.HAS_CJS_EXPORTS);
@@ -147,7 +147,7 @@ class BaseAsset {
           case 'isConstantModule':
             flag = AssetFlags.IS_CONSTANT_MODULE;
             break;
-          case 'hasNodeReplacements':
+          case 'has_node_replacements':
             flag = AssetFlags.HAS_NODE_REPLACEMENTS;
             break;
           case 'hasCJSExports':
@@ -470,7 +470,7 @@ export class CommittedAsset implements IAsset {
       ...this.#meta,
       shouldWrap: Boolean(flags & AssetFlags.SHOULD_WRAP),
       isConstantModule: Boolean(flags & AssetFlags.IS_CONSTANT_MODULE),
-      hasNodeReplacements: Boolean(flags & AssetFlags.HAS_NODE_REPLACEMENTS),
+      has_node_replacements: Boolean(flags & AssetFlags.HAS_NODE_REPLACEMENTS),
       hasCJSExports: Boolean(flags & AssetFlags.HAS_CJS_EXPORTS),
       staticExports: Boolean(flags & AssetFlags.STATIC_EXPORTS),
     };

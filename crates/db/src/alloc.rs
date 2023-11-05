@@ -37,7 +37,7 @@ struct Page {
 
 impl Drop for Page {
   fn drop(&mut self) {
-    println!("DROP PAGE");
+    // println!("DROP PAGE");
     let layout = unsafe { Layout::from_size_align_unchecked(self.len, 8) };
     unsafe { std::alloc::dealloc(self.ptr.cast(), layout) };
   }
@@ -143,7 +143,7 @@ unsafe impl Allocator for PageAllocator {
   }
 
   unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-    println!("DEALLOC PAGE {:p}", ptr);
+    // println!("DEALLOC PAGE {:p}", ptr);
   }
 }
 
@@ -276,7 +276,7 @@ impl<T> Slab<T> {
   }
 
   pub fn dealloc(&mut self, addr: u32, count: u32) {
-    println!("DEALLOC {} {}", std::any::type_name::<Self>(), count);
+    // println!("DEALLOC {} {}", std::any::type_name::<Self>(), count);
 
     // println!("DEALLOC {} {}", addr, count);
     unsafe {

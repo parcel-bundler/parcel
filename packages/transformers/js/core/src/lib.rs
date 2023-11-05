@@ -56,7 +56,7 @@ type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
-  pub filename: String,
+  pub filename: PathBuf,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub module_id: String,
@@ -158,7 +158,7 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
   let module = parse(
     code,
     config.project_root.as_str(),
-    config.filename.as_str(),
+    config.filename.to_slash_lossy().as_ref(),
     &source_map,
     &config,
   );
@@ -179,8 +179,7 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
         Program::Script(script) => script.shebang.take().map(|s| s.to_string()),
       };
 
-      let mut global_deps = vec![];
-      let mut fs_deps = vec![];
+      let mut dependencies = IndexMap::new();
       let should_inline_fs = config.inline_fs
         && config.source_type != SourceType::Script
         && code.contains("readFileSync");
@@ -340,13 +339,13 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
                   // Inline Node fs.readFileSync calls
                   Optional::new(
                     inline_fs(
-                      config.filename.as_str(),
+                      &config.filename,
                       source_map.clone(),
                       // TODO this clone is unnecessary if we get the lifetimes right
                       decls.clone(),
                       global_mark,
                       &config.project_root,
-                      &mut fs_deps,
+                      &mut dependencies,
                     ),
                     should_inline_fs
                   ),
@@ -360,11 +359,11 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
                 &mut Optional::new(
                   NodeReplacer {
                     source_map: &source_map,
-                    items: &mut global_deps,
+                    items: &mut dependencies,
                     global_mark,
                     globals: HashMap::new(),
-                    project_root: Path::new(&config.project_root),
-                    filename: Path::new(&config.filename),
+                    project_root: &config.project_root,
+                    filename: &config.filename,
                     decls: &mut decls,
                     scope_hoist: config.scope_hoist,
                     has_node_replacements: &mut result.has_node_replacements,
@@ -379,11 +378,11 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
                   Optional::new(
                     GlobalReplacer {
                       source_map: &source_map,
-                      items: &mut global_deps,
+                      items: &mut dependencies,
                       global_mark,
                       globals: IndexMap::new(),
-                      project_root: Path::new(&config.project_root),
-                      filename: Path::new(&config.filename),
+                      project_root: &config.project_root,
+                      filename: &config.filename,
                       decls: &mut decls,
                       scope_hoist: config.scope_hoist
                     },
@@ -424,7 +423,6 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
               };
 
               let ignore_mark = Mark::fresh(Mark::root());
-              let mut dependencies = IndexMap::new();
               let module = module.fold_with(
                 // Collect dependencies
                 &mut dependency_collector(
@@ -490,9 +488,6 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
                 hygiene(),
                 fixer(Some(&comments)),
               ));
-
-              result.dependencies.extend(global_deps);
-              result.dependencies.extend(fs_deps);
 
               if !diagnostics.is_empty() {
                 result.diagnostics = Some(diagnostics);

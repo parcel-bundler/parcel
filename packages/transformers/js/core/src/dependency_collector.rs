@@ -2,7 +2,6 @@ use indexmap::IndexMap;
 use path_slash::PathBufExt;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use swc_core::common::{Mark, SourceMap, Span, DUMMY_SP};
@@ -24,7 +23,7 @@ macro_rules! hash {
   }};
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DependencyKind {
   Import,
   Export,
@@ -136,12 +135,12 @@ impl<'a> DependencyCollector<'a> {
     //     ))
     //   )),
     // };
-    let hash = hash!(format!(
-      "{}:{}:{}",
-      self.get_project_relative_filename(),
-      specifier,
-      kind
-    ));
+    let hash = get_dependency_hash(
+      &self.config.filename,
+      &self.config.project_root,
+      &specifier,
+      kind,
+    );
     let placeholder = if !self.config.standalone {
       Some(format!("{:x}", hash))
     } else {
@@ -188,8 +187,10 @@ impl<'a> DependencyCollector<'a> {
     // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
     // call with a placeholder for the relative path to be replaced during packaging.
     let hash = hash!(format!(
-      "parcel_url:{}:{}:{}",
-      self.config.filename, specifier, kind
+      "parcel_url:{:?}:{}:{}",
+      self.get_project_relative_filename(),
+      specifier,
+      kind
     ));
     let placeholder = if self.config.standalone {
       specifier.as_ref().to_owned()
@@ -1189,7 +1190,7 @@ impl<'a> DependencyCollector<'a> {
 
     // self reference, e.g. new Worker(import.meta.url)
     if self.is_import_meta_url(expr) {
-      let filename = Path::new(&self.config.filename).file_name().unwrap();
+      let filename = self.config.filename.file_name().unwrap();
       let specifier = format!("./{}", filename.to_string_lossy());
       let span = match expr {
         Expr::Member(member) => member.span,
@@ -1269,13 +1270,7 @@ impl<'a> DependencyCollector<'a> {
   }
 
   fn get_project_relative_filename(&self) -> String {
-    if let Some(relative) = pathdiff::diff_paths(&self.config.filename, &self.config.project_root) {
-      relative.to_slash_lossy()
-    } else if let Some(filename) = Path::new(&self.config.filename).file_name() {
-      String::from(filename.to_string_lossy())
-    } else {
-      String::from("unknown.js")
-    }
+    get_project_relative_filename(&self.config.filename, &self.config.project_root)
   }
 
   fn get_import_meta_url(&mut self) -> ast::Expr {

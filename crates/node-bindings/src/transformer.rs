@@ -1,6 +1,7 @@
 use std::{
   collections::{HashMap, HashSet},
   num::NonZeroU32,
+  path::Path,
 };
 
 use crate::db::JsParcelDb;
@@ -87,7 +88,7 @@ fn convert_config(db: &ParcelDb, config: Config2) -> Config {
   let asset = db.get_asset(AssetId(config.asset_id));
   let env = db.get_environment(asset.env);
   Config {
-    filename: asset.file_path.to_string(), // TODO: does this need to be a full path or project path?
+    filename: Path::new(&config.project_root).join(asset.file_path.as_str()),
     module_id: asset.id.to_string(),
     code: config.code,
     project_root: config.project_root,
@@ -361,6 +362,7 @@ fn convert_result(
           DependencyKind::DynamicImport => Priority::Lazy,
           _ => Priority::Sync,
         };
+        d.env = env_id;
         d.flags = flags;
         d.resolve_from = resolve_from;
         d.range = range;

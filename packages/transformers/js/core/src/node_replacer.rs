@@ -2,20 +2,23 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::path::Path;
 
+use indexmap::IndexMap;
 use swc_core::common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
 use swc_core::ecma::ast::{self, Id};
 use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
-use crate::utils::{create_global_decl_stmt, create_require, SourceLocation, SourceType};
+use crate::utils::{
+  add_dependency, create_global_decl_stmt, create_require, SourceLocation, SourceType,
+};
 
 pub struct NodeReplacer<'a> {
   pub source_map: &'a SourceMap,
-  pub items: &'a mut Vec<DependencyDescriptor>,
+  pub items: &'a mut IndexMap<u64, DependencyDescriptor>,
   pub global_mark: Mark,
   pub globals: HashMap<JsWord, (SyntaxContext, ast::Stmt)>,
-  pub project_root: &'a Path,
+  pub project_root: &'a str,
   pub filename: &'a Path,
   pub decls: &'a mut HashSet<Id>,
   pub scope_hoist: bool,
@@ -101,16 +104,21 @@ impl<'a> Fold for NodeReplacer<'a> {
             })
           };
           if self.update_binding(id, "$parcel$__filename".into(), expr) {
-            self.items.push(DependencyDescriptor {
-              kind: DependencyKind::Require,
-              loc: SourceLocation::from(self.source_map, id.span),
-              specifier,
-              attributes: None,
-              is_optional: false,
-              is_helper: false,
-              source_type: Some(SourceType::Module),
-              placeholder: None,
-            });
+            add_dependency(
+              self.filename,
+              self.project_root,
+              self.items,
+              DependencyDescriptor {
+                kind: DependencyKind::Require,
+                loc: SourceLocation::from(self.source_map, id.span),
+                specifier,
+                attributes: None,
+                is_optional: false,
+                is_helper: false,
+                source_type: Some(SourceType::Module),
+                placeholder: None,
+              },
+            );
 
             *self.has_node_replacements = true;
           }
@@ -148,16 +156,21 @@ impl<'a> Fold for NodeReplacer<'a> {
               }))),
             })
           }) {
-            self.items.push(DependencyDescriptor {
-              kind: DependencyKind::Require,
-              loc: SourceLocation::from(self.source_map, id.span),
-              specifier,
-              attributes: None,
-              is_optional: false,
-              is_helper: false,
-              source_type: Some(SourceType::Module),
-              placeholder: None,
-            });
+            add_dependency(
+              self.filename,
+              self.project_root,
+              self.items,
+              DependencyDescriptor {
+                kind: DependencyKind::Require,
+                loc: SourceLocation::from(self.source_map, id.span),
+                specifier,
+                attributes: None,
+                is_optional: false,
+                is_helper: false,
+                source_type: Some(SourceType::Module),
+                placeholder: None,
+              },
+            );
 
             *self.has_node_replacements = true;
           }

@@ -1,8 +1,9 @@
 use crate::collect::{Collect, Import};
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::id;
-use crate::utils::SourceLocation;
+use crate::utils::{add_dependency, SourceLocation};
 use data_encoding::{BASE64, HEXLOWER};
+use indexmap::IndexMap;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use swc_core::common::{Mark, Span, DUMMY_SP};
@@ -11,15 +12,15 @@ use swc_core::ecma::atoms::JsWord;
 use swc_core::ecma::visit::{Fold, FoldWith, VisitWith};
 
 pub fn inline_fs<'a>(
-  filename: &str,
+  filename: &'a Path,
   source_map: swc_core::common::sync::Lrc<swc_core::common::SourceMap>,
   decls: HashSet<Id>,
   global_mark: Mark,
   project_root: &'a str,
-  deps: &'a mut Vec<DependencyDescriptor>,
+  deps: &'a mut IndexMap<u64, DependencyDescriptor>,
 ) -> impl Fold + 'a {
   InlineFS {
-    filename: Path::new(filename).to_path_buf(),
+    filename,
     collect: Collect::new(
       source_map,
       decls,
@@ -34,11 +35,11 @@ pub fn inline_fs<'a>(
 }
 
 struct InlineFS<'a> {
-  filename: PathBuf,
+  filename: &'a Path,
   collect: Collect,
   global_mark: Mark,
   project_root: &'a str,
-  deps: &'a mut Vec<DependencyDescriptor>,
+  deps: &'a mut IndexMap<u64, DependencyDescriptor>,
 }
 
 impl<'a> Fold for InlineFS<'a> {
@@ -169,16 +170,22 @@ impl<'a> InlineFS<'a> {
         let contents = Expr::Lit(Lit::Str(contents.into()));
 
         // Add a file dependency so the cache is invalidated when this file changes.
-        self.deps.push(DependencyDescriptor {
-          kind: DependencyKind::File,
-          loc: SourceLocation::from(&self.collect.source_map, span),
-          specifier: path.to_str().unwrap().into(),
-          attributes: None,
-          is_optional: false,
-          is_helper: false,
-          source_type: None,
-          placeholder: None,
-        });
+        let specifier: JsWord = path.to_str().unwrap().into();
+        add_dependency(
+          self.filename,
+          self.project_root,
+          self.deps,
+          DependencyDescriptor {
+            kind: DependencyKind::File,
+            loc: SourceLocation::from(&self.collect.source_map, span),
+            specifier,
+            attributes: None,
+            is_optional: false,
+            is_helper: false,
+            source_type: None,
+            placeholder: None,
+          },
+        );
 
         // If buffer, wrap in Buffer.from(base64String, 'base64')
         if encoding == "buffer" {

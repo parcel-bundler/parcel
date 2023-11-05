@@ -1,7 +1,12 @@
+use indexmap::IndexMap;
+use path_slash::PathBufExt;
 use std::cmp::Ordering;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
+use std::path::Path;
 
-use crate::id;
+use crate::{id, DependencyDescriptor, DependencyKind};
 use serde::{Deserialize, Serialize};
 use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_core::ecma::ast::{self, Id};
@@ -387,4 +392,43 @@ macro_rules! id {
   ($ident: expr) => {
     $ident.to_id()
   };
+}
+
+pub fn get_dependency_hash(
+  filename: &Path,
+  project_root: &str,
+  specifier: &str,
+  kind: DependencyKind,
+) -> u64 {
+  let mut hasher = DefaultHasher::new();
+  format!(
+    "{}:{}:{}",
+    get_project_relative_filename(filename, project_root),
+    specifier,
+    kind
+  )
+  .hash(&mut hasher);
+  hasher.finish()
+}
+
+pub fn add_dependency(
+  filename: &Path,
+  project_root: &str,
+  deps: &mut IndexMap<u64, DependencyDescriptor>,
+  dep: DependencyDescriptor,
+) {
+  deps.insert(
+    get_dependency_hash(filename, project_root, &dep.specifier, dep.kind),
+    dep,
+  );
+}
+
+pub fn get_project_relative_filename(filename: &Path, project_root: &str) -> String {
+  if let Some(relative) = pathdiff::diff_paths(filename, project_root) {
+    relative.to_slash_lossy()
+  } else if let Some(filename) = filename.file_name() {
+    String::from(filename.to_string_lossy())
+  } else {
+    String::from("unknown.js")
+  }
 }
