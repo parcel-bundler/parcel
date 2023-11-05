@@ -295,13 +295,12 @@ export default class BundleGraph {
               }),
             },
             ...[...targets].map(([asset, target]) => {
-              let newNodeId = db.getStringId(
+              let clonedDep = new DbDependency(db);
+              DbDependency.set(db, clonedDep.addr, dep);
+              clonedDep.id = db.getStringId(
                 hashString(node.id + [...target.keys()].join(',')),
               );
 
-              // TODO: this is a shallow clone. It will not clone referenced data, e.g. strings.
-              let clonedDep = new DbDependency(db);
-              DbDependency.set(db, clonedDep.addr, dep);
               let symbols = clonedDep.symbols;
               symbols.init();
               for (let sym of dep.symbols) {
@@ -319,9 +318,9 @@ export default class BundleGraph {
 
               return {
                 asset,
-                dep: graph.addNodeByContentKey(newNodeId, {
+                dep: graph.addNodeByContentKey(clonedDep.id, {
                   ...node,
-                  id: newNodeId,
+                  id: clonedDep.id,
                   value: clonedDep.addr,
                   usedSymbolsUp: new Map(
                     [...node.usedSymbolsUp]

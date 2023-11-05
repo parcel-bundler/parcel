@@ -309,7 +309,7 @@ impl Dependency {
     }
   }
 
-  pub fn commit(mut self) -> u32 {
+  pub fn get_id_hash(&self) -> u64 {
     // Compute hashed dependency id.
     let mut hasher = Xxh3::new();
     if let Some(source_asset_id) = self.source_asset_id {
@@ -325,7 +325,11 @@ impl Dependency {
     self.priority.hash(&mut hasher);
     self.package_conditions.hash(&mut hasher);
     self.custom_package_conditions.hash(&mut hasher);
-    self.id = format!("{:016x}", hasher.finish()).into();
+    hasher.finish()
+  }
+
+  pub fn commit(mut self) -> u32 {
+    self.id = format!("{:016x}", self.get_id_hash()).into();
     self.into_arena()
   }
 }

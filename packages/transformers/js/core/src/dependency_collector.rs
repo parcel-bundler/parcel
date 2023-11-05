@@ -23,7 +23,7 @@ macro_rules! hash {
   }};
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum DependencyKind {
   Import,
   Export,
@@ -117,38 +117,30 @@ impl<'a> DependencyCollector<'a> {
     // For other types of dependencies, the specifier will be changed to a hash
     // that also contains the dependency kind. This way, multiple kinds of dependencies
     // to the same specifier can be used within the same file.
-    // let placeholder = match kind {
-    //   DependencyKind::Import | DependencyKind::Export => {
-    //     if is_specifier_rewritten {
-    //       Some(specifier.as_ref().to_owned())
-    //     } else {
-    //       None
-    //     }
-    //   }
-    //   _ => Some(format!(
-    //     "{:x}",
-    //     hash!(format!(
-    //       "{}:{}:{}",
-    //       self.get_project_relative_filename(),
-    //       specifier,
-    //       kind
-    //     ))
-    //   )),
-    // };
-    let hash = get_dependency_hash(
-      &self.config.filename,
-      &self.config.project_root,
-      &specifier,
-      kind,
-    );
-    let placeholder = if !self.config.standalone {
-      Some(format!("{:x}", hash))
-    } else {
-      None
+    let placeholder = match kind {
+      DependencyKind::Import | DependencyKind::Export => {
+        if is_specifier_rewritten {
+          Some(specifier.as_ref().to_owned())
+        } else {
+          None
+        }
+      }
+      _ if !self.config.standalone => Some(format!(
+        "{:x}",
+        hash!(format!(
+          "{}:{}:{}",
+          self.get_project_relative_filename(),
+          specifier,
+          kind
+        ))
+      )),
+      _ => None,
     };
 
-    self.items.insert(
-      hash,
+    add_dependency(
+      &self.config.filename,
+      &self.config.project_root,
+      self.items,
       DependencyDescriptor {
         kind,
         loc: SourceLocation::from(self.source_map, span),
@@ -186,19 +178,21 @@ impl<'a> DependencyCollector<'a> {
     // For library builds, we need to create something that can be statically analyzed by another bundler,
     // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
     // call with a placeholder for the relative path to be replaced during packaging.
-    let hash = hash!(format!(
-      "parcel_url:{:?}:{}:{}",
-      self.get_project_relative_filename(),
-      specifier,
-      kind
-    ));
     let placeholder = if self.config.standalone {
       specifier.as_ref().to_owned()
     } else {
+      let hash = hash!(format!(
+        "parcel_url:{:?}:{}:{}",
+        self.get_project_relative_filename(),
+        specifier,
+        kind
+      ));
       format!("{:x}", hash)
     };
-    self.items.insert(
-      hash,
+    add_dependency(
+      &self.config.filename,
+      &self.config.project_root,
+      self.items,
       DependencyDescriptor {
         kind,
         loc: SourceLocation::from(self.source_map, span),

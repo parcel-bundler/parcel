@@ -249,6 +249,7 @@ fn convert_result(
         let mut d = Dependency::new(dep.specifier.as_ref().into(), asset_id);
         d.specifier_type = SpecifierType::Url;
         d.priority = Priority::Lazy;
+        d.bundle_behavior = BundleBehavior::Isolated;
         d.flags = dep_flags;
         d.placeholder = dep.placeholder.map(|s| s.into());
         let placeholder = d.placeholder.unwrap_or(d.specifier);
@@ -542,7 +543,7 @@ fn convert_result(
           .and_then(|s| InternedString::get(&*s))
           .and_then(|s| dep_map.get_mut(&s))
         {
-          let local = format!("${}${}", dep.placeholder.unwrap(), sym.local).into();
+          let local = format!("${:016x}${}", dep.get_id_hash(), sym.local).into();
           dep.symbols.push(Symbol {
             exported: sym.local.as_ref().into(),
             local,

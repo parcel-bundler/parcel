@@ -394,33 +394,22 @@ macro_rules! id {
   };
 }
 
-pub fn get_dependency_hash(
-  filename: &Path,
-  project_root: &str,
-  specifier: &str,
-  kind: DependencyKind,
-) -> u64 {
-  let mut hasher = DefaultHasher::new();
-  format!(
-    "{}:{}:{}",
-    get_project_relative_filename(filename, project_root),
-    specifier,
-    kind
-  )
-  .hash(&mut hasher);
-  hasher.finish()
-}
-
 pub fn add_dependency(
   filename: &Path,
   project_root: &str,
   deps: &mut IndexMap<u64, DependencyDescriptor>,
   dep: DependencyDescriptor,
 ) {
-  deps.insert(
-    get_dependency_hash(filename, project_root, &dep.specifier, dep.kind),
-    dep,
-  );
+  let mut hasher = DefaultHasher::new();
+  get_project_relative_filename(filename, project_root).hash(&mut hasher);
+  dep.specifier.hash(&mut hasher);
+  let kind = match dep.kind {
+    DependencyKind::Import | DependencyKind::Export => DependencyKind::Import,
+    kind => kind,
+  };
+  kind.hash(&mut hasher);
+
+  deps.insert(hasher.finish(), dep);
 }
 
 pub fn get_project_relative_filename(filename: &Path, project_root: &str) -> String {

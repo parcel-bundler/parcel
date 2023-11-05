@@ -519,9 +519,16 @@ export default class UncommittedAsset {
   }
 
   updateId() {
-    // $FlowFixMe - this is fine
     this.value.id = this.options.db.getStringId(
-      createAssetIdFromOptions(this.value),
+      createAssetIdFromOptions({
+        uniqueKey: this.value.uniqueKey,
+        idBase: this.idBase,
+        filePath: this.value.filePath,
+        type: this.value.assetType,
+        env: this.value.env,
+        pipeline: this.value.pipeline,
+        query: this.value.query,
+      }),
     );
   }
 }
