@@ -196,7 +196,7 @@ export default class MutableBundleGraph
     );
     let bundleId = hashString(
       'bundle:' +
-        (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
+        (entryAsset ? entryAsset.id : String(opts.uniqueKey)) +
         fromProjectPathRelative(target.distDir) +
         (opts.bundleBehavior ?? ''),
     );

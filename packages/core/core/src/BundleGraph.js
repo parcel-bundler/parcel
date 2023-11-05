@@ -454,11 +454,11 @@ export default class BundleGraph {
   ): Bundle {
     let {entryAsset: entryAssetId, target: targetId} = opts;
     let target = DbTarget.get(this.db, targetId);
+    let entryAsset =
+      entryAssetId != null ? DbAsset.get(this.db, entryAssetId) : null;
     let bundleId = hashString(
       'bundle:' +
-        (opts.entryAsset != null
-          ? String(opts.entryAsset)
-          : String(opts.uniqueKey)) +
+        (entryAsset != null ? entryAsset.id : String(opts.uniqueKey)) +
         fromProjectPathRelative(target.distDir) +
         (opts.bundleBehavior ?? ''),
     );
@@ -475,8 +475,6 @@ export default class BundleGraph {
     this._bundlePublicIds.add(publicId);
 
     let isPlaceholder = false;
-    let entryAsset =
-      entryAssetId != null ? DbAsset.get(this.db, entryAssetId) : null;
     if (entryAsset != null) {
       let entryAssetNode = this._graph.getNodeByContentKey(entryAsset.id);
       invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
@@ -1434,8 +1432,8 @@ export default class BundleGraph {
         let sorted =
           entries && bundle.entryAssetIds.length > 0
             ? children.sort(([, a], [, b]) => {
-                let aIndex = bundle.entryAssetIds.indexOf(a.id);
-                let bIndex = bundle.entryAssetIds.indexOf(b.id);
+                let aIndex = bundle.entryAssetIds.indexOf(a.value);
+                let bIndex = bundle.entryAssetIds.indexOf(b.value);
 
                 if (aIndex === bIndex) {
                   // If both don't exist in the entry asset list, or
