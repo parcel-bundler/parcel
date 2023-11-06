@@ -39,7 +39,7 @@ export default (new Runtime({
         `var HMR_SECURE = ${JSON.stringify(
           !!(options.serveOptions && options.serveOptions.https),
         )};` +
-        `var HMR_ENV_HASH = "${bundle.env.id}";` +
+        `var HMR_ENV_HASH = ${JSON.stringify(bundle.env.id)};` +
         `module.bundle.HMR_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
         HMR_RUNTIME,
       isEntry: true,
