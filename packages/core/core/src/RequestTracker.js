@@ -13,7 +13,6 @@ import type {
 import type {
   ParcelOptions,
   RequestInvalidation,
-  InternalFile,
   InternalFileCreateInvalidation,
   InternalGlob,
 } from './types';
@@ -91,7 +90,7 @@ const ENV: 3 = 3;
 const OPTION: 4 = 4;
 const GLOB: 5 = 5;
 
-type FileNode = {|id: ContentKey, +type: typeof FILE, value: InternalFile|};
+type FileNode = {|id: ContentKey, +type: typeof FILE|};
 type GlobNode = {|id: ContentKey, +type: typeof GLOB, value: InternalGlob|};
 type FileNameNode = {|
   id: ContentKey,
@@ -174,15 +173,12 @@ export type StaticRunOpts<TResult> = {|
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
   id: fromProjectPathRelative(filePath),
   type: FILE,
-  value: {filePath},
 });
-
 const nodeFromGlob = (glob: InternalGlob): RequestGraphNode => ({
   id: fromProjectPathRelative(glob),
   type: GLOB,
   value: glob,
 });
-
 const nodeFromFileName = (fileName: string): RequestGraphNode => ({
   id: 'file_name:' + fileName,
   type: FILE_NAME,
@@ -616,7 +612,7 @@ export class RequestGraph extends ContentGraph<
         let node = nullthrows(this.getNode(nodeId));
         switch (node.type) {
           case FILE:
-            return {type: 'file', filePath: node.value.filePath};
+            return {type: 'file', filePath: toProjectPathUnsafe(node.id)};
           case ENV:
             return {type: 'env', key: node.value.key};
           case OPTION:
@@ -682,7 +678,7 @@ export class RequestGraph extends ContentGraph<
           requestGraphEdgeTypes.invalidated_by_create_above,
         ) &&
         isDirectoryInside(
-          fromProjectPathRelative(matchNode.value.filePath),
+          fromProjectPathRelative(toProjectPathUnsafe(matchNode.id)),
           dirname,
         )
       ) {
