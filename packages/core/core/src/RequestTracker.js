@@ -84,12 +84,12 @@ type SerializedRequestGraph = {|
   invalidateOnBuildNodeIds: Set<NodeId>,
 |};
 
-const FILE = 0;
-const REQUEST = 1;
-const FILE_NAME = 2;
-const ENV = 3;
-const OPTION = 4;
-const GLOB = 5;
+const FILE: 0 = 0;
+const REQUEST: 1 = 1;
+const FILE_NAME: 2 = 2;
+const ENV: 3 = 3;
+const OPTION: 4 = 4;
+const GLOB: 5 = 5;
 
 type FileNode = {|id: ContentKey, +type: typeof FILE, value: InternalFile|};
 type GlobNode = {|id: ContentKey, +type: typeof GLOB, value: InternalGlob|};
@@ -767,7 +767,7 @@ export class RequestGraph extends ContentGraph<
       } else if (type === 'create') {
         let basename = path.basename(filePath);
         let fileNameNode = this.getNodeByContentKey('file_name:' + basename);
-        if (fileNameNode != null && fileNameNode?.type === FILE_NAME) {
+        if (fileNameNode != null && fileNameNode.type === FILE_NAME) {
           let fileNameNodeId = this.getNodeIdByContentKey(
             'file_name:' + basename,
           );
@@ -924,7 +924,7 @@ export default class RequestTracker {
     this.graph.incompleteNodeIds.delete(nodeId);
     this.graph.incompleteNodePromises.delete(nodeId);
     let node = this.graph.getNode(nodeId);
-    if (node?.type === REQUEST) {
+    if (node && node.type === REQUEST) {
       node.invalidateReason = VALID;
     }
   }

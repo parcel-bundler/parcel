@@ -80,13 +80,13 @@ export function loadGraphs(cacheDir: string): {|
     requestTracker.graph.getNode(buildRequestId),
   );
   invariant(
-    buildRequestNode.type === 'request' &&
+    buildRequestNode.type === 1 &&
       buildRequestNode.value.type === 'parcel_build_request',
   );
   let buildRequestSubRequests = getSubRequests(buildRequestId);
 
   let bundleGraphRequestNode = buildRequestSubRequests.find(
-    n => n.type === 'request' && n.value.type === 'bundle_graph_request',
+    n => n.type === 1 && n.value.type === 'bundle_graph_request',
   );
   if (bundleGraphRequestNode != null) {
     bundleGraph = BundleGraph.deserialize(
@@ -96,7 +96,7 @@ export function loadGraphs(cacheDir: string): {|
 
     let assetGraphRequest = getSubRequests(
       requestTracker.graph.getNodeIdByContentKey(bundleGraphRequestNode.id),
-    ).find(n => n.type === 'request' && n.value.type === 'asset_graph_request');
+    ).find(n => n.type === 1 && n.value.type === 'asset_graph_request');
     if (assetGraphRequest != null) {
       assetGraph = AssetGraph.deserialize(
         loadLargeBlobRequestRequestSync(cacheDir, assetGraphRequest).assetGraph
@@ -106,10 +106,10 @@ export function loadGraphs(cacheDir: string): {|
   }
 
   let writeBundlesRequest = buildRequestSubRequests.find(
-    n => n.type === 'request' && n.value.type === 'write_bundles_request',
+    n => n.type === 1 && n.value.type === 'write_bundles_request',
   );
   if (writeBundlesRequest != null) {
-    invariant(writeBundlesRequest.type === 'request');
+    invariant(writeBundlesRequest.type === 1);
     // $FlowFixMe[incompatible-cast]
     bundleInfo = (nullthrows(writeBundlesRequest.value.result): Map<
       ContentKey,
@@ -121,7 +121,7 @@ export function loadGraphs(cacheDir: string): {|
 }
 
 function loadLargeBlobRequestRequestSync(cacheDir, node) {
-  invariant(node.type === 'request');
+  invariant(node.type === 1);
   return v8.deserialize(
     fs.readFileSync(path.join(cacheDir, nullthrows(node.value.resultCacheKey))),
   );
