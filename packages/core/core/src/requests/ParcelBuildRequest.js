@@ -75,9 +75,9 @@ async function run({input, api, options}) {
       force: options.shouldBuildLazily && requestedAssetIds.size > 0,
     });
 
-  // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
   dumpGraphToGraphViz(
     options.db,
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
     bundleGraph._graph,
     'BundleGraph',
     bundleGraphEdgeTypes,
@@ -95,7 +95,7 @@ async function run({input, api, options}) {
     changedAssets: new Map(
       Array.from(changedAssets).map(([id, asset]) => [
         readCachedString(options.db, DbAsset.get(options.db, id).id),
-        assetFromValue(asset, options),
+        assetFromValue(asset, options, bundleGraph),
       ]),
     ),
   });

@@ -21,8 +21,9 @@ import type {
   AssetSymbols as IAssetSymbols,
   BundleBehavior,
 } from '@parcel/types';
-import type {AssetAddr} from '@parcel/rust';
+import type {AssetAddr, DependencyAddr} from '@parcel/rust';
 import type {ParcelOptions} from '../types';
+import type BundleGraph from '../BundleGraph';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
@@ -33,7 +34,7 @@ import InternalCommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
 import {fromProjectPath, toProjectPath} from '../projectPath';
 import {toInternalSourceLocation} from '../utils';
-import {AssetFlags, readCachedString} from '@parcel/rust';
+import {Asset as DbAsset, AssetFlags, readCachedString} from '@parcel/rust';
 import {createBuildCache} from '../buildCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
@@ -67,8 +68,26 @@ export function mutableAssetToUncommittedAsset(
 export function assetFromValue(
   value: AssetAddr,
   options: ParcelOptions,
+  bundleGraph: BundleGraph,
 ): CommittedAsset {
-  return new CommittedAsset(new InternalCommittedAsset(value, options));
+  return new CommittedAsset(
+    new InternalCommittedAsset(value, options),
+    bundleGraph,
+  );
+}
+
+export function uncommittedAssetFromValue(
+  value: AssetAddr,
+  options: ParcelOptions,
+  dependencies: Array<DependencyAddr>,
+): Asset {
+  return new Asset(
+    new UncommittedAsset({
+      value: DbAsset.get(options.db, value),
+      options,
+      dependencies: new Map(dependencies.entries()),
+    }),
+  );
 }
 
 export function removeAssetFromCache(value: AssetAddr) {
@@ -409,14 +428,19 @@ export class CommittedAsset implements IAsset {
   #asset /*: InternalCommittedAsset */;
   #query /*: ?URLSearchParams */;
   #meta /*: ?Meta */;
+  #bundleGraph /*: BundleGraph */;
 
-  constructor(asset: InternalCommittedAsset): CommittedAsset {
+  constructor(
+    asset: InternalCommittedAsset,
+    bundleGraph: BundleGraph,
+  ): CommittedAsset {
     let existing = committedAssetValueToAsset.get(asset.value.addr);
     if (existing != null) {
       return existing;
     }
 
     this.#asset = asset;
+    this.#bundleGraph = bundleGraph;
     committedAssetValueToAsset.set(asset.value.addr, this);
     _assetToAssetValue.set(this, asset.value.addr);
     return this;
@@ -523,8 +547,8 @@ export class CommittedAsset implements IAsset {
   }
 
   getDependencies(): $ReadOnlyArray<IDependency> {
-    return this.#asset
-      .getDependencies()
+    return this.#bundleGraph
+      .getDependencies(this.#asset.value.addr)
       .map(dep => getPublicDependency(dep, this.#asset.options));
   }
 

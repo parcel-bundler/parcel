@@ -22,7 +22,7 @@ import type {ContentKey} from '@parcel/graph';
 
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
-import {assetFromValue} from './public/Asset';
+import {assetFromValue, uncommittedAssetFromValue} from './public/Asset';
 import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
 import WorkerFarm from '@parcel/workers';
@@ -309,7 +309,7 @@ export default class Parcel {
         changedAssets: new Map(
           Array.from(changedAssets).map(([id, asset]) => [
             readCachedString(db, DbAsset.get(db, id).id),
-            assetFromValue(asset, options),
+            assetFromValue(asset, options, bundleGraph),
           ]),
         ),
         bundleGraph: new BundleGraph<IPackagedBundle>(
@@ -483,8 +483,12 @@ export default class Parcel {
     let res = await this.#requestTracker.runRequest(request, {
       force: true,
     });
-    return res.map(({asset}) =>
-      assetFromValue(asset, nullthrows(this.#resolvedOptions)),
+    return res.map(({asset, dependencies}) =>
+      uncommittedAssetFromValue(
+        asset,
+        nullthrows(this.#resolvedOptions),
+        dependencies,
+      ),
     );
   }
 

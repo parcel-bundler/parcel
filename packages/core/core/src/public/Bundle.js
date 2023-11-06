@@ -161,7 +161,7 @@ export class Bundle implements IBundle {
         DbAsset.get(this.#options.db, id).id,
       );
       invariant(assetNode != null && assetNode.type === 'asset');
-      return assetFromValue(assetNode.value, this.#options);
+      return assetFromValue(assetNode.value, this.#options, this.#bundleGraph);
     });
   }
 
@@ -171,7 +171,7 @@ export class Bundle implements IBundle {
         DbAsset.get(this.#options.db, this.#bundle.mainEntryId).id,
       );
       invariant(assetNode != null && assetNode.type === 'asset');
-      return assetFromValue(assetNode.value, this.#options);
+      return assetFromValue(assetNode.value, this.#options, this.#bundleGraph);
     }
   }
 
@@ -184,7 +184,7 @@ export class Bundle implements IBundle {
         if (node.type === 'asset') {
           return {
             type: 'asset',
-            value: assetFromValue(node.value, this.#options),
+            value: assetFromValue(node.value, this.#options, this.#bundleGraph),
           };
         } else if (node.type === 'dependency') {
           return {
@@ -202,7 +202,10 @@ export class Bundle implements IBundle {
   ): ?TContext {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
-      mapVisitor(asset => assetFromValue(asset, this.#options), visit),
+      mapVisitor(
+        asset => assetFromValue(asset, this.#options, this.#bundleGraph),
+        visit,
+      ),
       startAsset ? assetToAssetValue(startAsset) : undefined,
     );
   }

@@ -70,7 +70,11 @@ export default class BundleGraph<TBundle: IBundle>
   }
 
   getAssetById(id: string): CommittedAsset {
-    return assetFromValue(this.#graph.getAssetById(id), this.#options);
+    return assetFromValue(
+      this.#graph.getAssetById(id),
+      this.#options,
+      this.#graph,
+    );
   }
 
   getAssetPublicId(asset: IAsset): string {
@@ -87,7 +91,7 @@ export default class BundleGraph<TBundle: IBundle>
       bundle && bundleToInternalBundle(bundle),
     );
     if (resolution != null) {
-      return assetFromValue(resolution, this.#options);
+      return assetFromValue(resolution, this.#options, this.#graph);
     }
   }
 
@@ -102,7 +106,7 @@ export default class BundleGraph<TBundle: IBundle>
       dependencyToInternalDependency(dep),
     );
     if (asset != null) {
-      return assetFromValue(asset, this.#options);
+      return assetFromValue(asset, this.#options, this.#graph);
     }
   }
 
@@ -144,7 +148,7 @@ export default class BundleGraph<TBundle: IBundle>
 
     return {
       type: 'asset',
-      value: assetFromValue(resolved.value, this.#options),
+      value: assetFromValue(resolved.value, this.#options, this.#graph),
     };
   }
 
@@ -233,7 +237,7 @@ export default class BundleGraph<TBundle: IBundle>
       boundary ? bundleToInternalBundle(boundary) : null,
     );
     return {
-      asset: assetFromValue(res.asset, this.#options),
+      asset: assetFromValue(res.asset, this.#options, this.#graph),
       exportSymbol: readCachedString(this.#options.db, res.exportSymbol),
       symbol:
         typeof res.symbol === 'number'
@@ -252,7 +256,7 @@ export default class BundleGraph<TBundle: IBundle>
       boundary ? bundleToInternalBundle(boundary) : null,
     );
     return res.map(e => ({
-      asset: assetFromValue(e.asset, this.#options),
+      asset: assetFromValue(e.asset, this.#options, this.#graph),
       exportSymbol: readCachedString(this.#options.db, e.exportSymbol),
       symbol:
         typeof e.symbol === 'number'
@@ -281,7 +285,10 @@ export default class BundleGraph<TBundle: IBundle>
           return null;
         }
         return node.type === 'asset'
-          ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
+          ? {
+              type: 'asset',
+              value: assetFromValue(node.value, this.#options, this.#graph),
+            }
           : {
               type: 'dependency',
               value: getPublicDependency(node.value, this.#options),

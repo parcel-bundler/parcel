@@ -54,7 +54,7 @@ import nullthrows from 'nullthrows';
 
 type UncommittedAssetOptions = {|
   value: DbAsset,
-  hash: string,
+  hash?: ?string,
   plugin?: PackageName,
   configPath?: ProjectPath,
   configKeyPath?: string,
@@ -66,11 +66,12 @@ type UncommittedAssetOptions = {|
   idBase?: ?string,
   invalidations?: Map<string, RequestInvalidation>,
   fileCreateInvalidations?: Array<InternalFileCreateInvalidation>,
+  dependencies?: Map<number, DependencyAddr>,
 |};
 
 export default class UncommittedAsset {
   value: DbAsset;
-  hash: string;
+  hash: ?string;
   options: ParcelOptions;
   content: ?(Blob | Promise<Buffer>);
   mapBuffer: ?Buffer;
@@ -104,6 +105,7 @@ export default class UncommittedAsset {
     plugin,
     configPath,
     configKeyPath,
+    dependencies,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.hash = hash;
@@ -119,7 +121,7 @@ export default class UncommittedAsset {
     this.configPath = configPath;
     this.configKeyPath = configKeyPath;
     this.meta = {};
-    this.dependencies = new Map();
+    this.dependencies = dependencies || new Map();
   }
 
   /*
