@@ -1,6 +1,6 @@
 {
   "name": "fuzzer",
-  "version": "2.10.1",
+  "version": "2.10.2",
   "private": true,
   "scripts": {
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules -r @parcel/babel-register index.js"

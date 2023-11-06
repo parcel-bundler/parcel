@@ -1,18 +1,13 @@
 // @flow strict-local
 
-// Small wasm program that exposes the `ctz` instruction.
-// https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Numeric/Count_trailing_zeros
-const wasmBuf = new Uint8Array([
-  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, 0x01,
-  0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0d, 0x01, 0x09, 0x74, 0x72,
-  0x61, 0x69, 0x6c, 0x69, 0x6e, 0x67, 0x30, 0x00, 0x00, 0x0a, 0x07, 0x01, 0x05,
-  0x00, 0x20, 0x00, 0x68, 0x0b, 0x00, 0x0f, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x02,
-  0x08, 0x01, 0x00, 0x01, 0x00, 0x03, 0x6e, 0x75, 0x6d,
-]);
-
-// eslint-disable-next-line
-const {trailing0} = new WebAssembly.Instance(new WebAssembly.Module(wasmBuf))
-  .exports;
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/clz32#implementing_count_leading_ones_and_beyond
+function ctz32(n: number): number {
+  if (n === 0) {
+    return 32;
+  }
+  let reversed = n & -n;
+  return 31 - Math.clz32(reversed);
+}
 
 export class BitSet {
   bits: Uint32Array;
@@ -95,7 +90,7 @@ export class BitSet {
       while (v !== 0) {
         let t = (v & -v) >>> 0;
         // $FlowFixMe
-        fn((k << 5) + trailing0(v));
+        fn((k << 5) + ctz32(v));
         v ^= t;
       }
     }

@@ -8,6 +8,7 @@ import path from 'path';
 import v8 from 'v8';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import {LMDBCache} from '@parcel/cache/src/LMDBCache';
 
 const {
   AssetGraph,
@@ -19,12 +20,12 @@ const {
   },
 } = require('./deep-imports.js');
 
-export function loadGraphs(cacheDir: string): {|
+export async function loadGraphs(cacheDir: string): Promise<{|
   assetGraph: ?AssetGraph,
   bundleGraph: ?BundleGraph,
   requestTracker: ?RequestTracker,
   bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
-|} {
+|}> {
   function filesBySizeAndModifiedTime() {
     let files = fs.readdirSync(cacheDir).map(f => {
       let stat = fs.statSync(path.join(cacheDir, f));
@@ -38,11 +39,14 @@ export function loadGraphs(cacheDir: string): {|
   }
 
   let requestTracker;
+  const cache = new LMDBCache(cacheDir);
   for (let f of filesBySizeAndModifiedTime()) {
-    // if (bundleGraph && assetGraph && requestTracker) break;
-    if (path.extname(f) !== '') continue;
+    // Empty filename or not the first chunk
+    if (path.extname(f) !== '' && !f.endsWith('-0')) continue;
     try {
-      let obj = v8.deserialize(fs.readFileSync(f));
+      let obj = v8.deserialize(
+        await cache.getLargeBlob(path.basename(f).slice(0, -'-0'.length)),
+      );
       /* if (obj.assetGraph != null && obj.assetGraph.value.hash != null) {
         assetGraph = AssetGraph.deserialize(obj.assetGraph.value);
       } else if (obj.bundleGraph != null) {
@@ -90,7 +94,7 @@ export function loadGraphs(cacheDir: string): {|
   );
   if (bundleGraphRequestNode != null) {
     bundleGraph = BundleGraph.deserialize(
-      loadLargeBlobRequestRequestSync(cacheDir, bundleGraphRequestNode)
+      (await loadLargeBlobRequestRequest(cache, bundleGraphRequestNode))
         .bundleGraph.value,
     );
 
@@ -99,7 +103,7 @@ export function loadGraphs(cacheDir: string): {|
     ).find(n => n.type === 'request' && n.value.type === 'asset_graph_request');
     if (assetGraphRequest != null) {
       assetGraph = AssetGraph.deserialize(
-        loadLargeBlobRequestRequestSync(cacheDir, assetGraphRequest).assetGraph
+        (await loadLargeBlobRequestRequest(cache, assetGraphRequest)).assetGraph
           .value,
       );
     }
@@ -120,9 +124,9 @@ export function loadGraphs(cacheDir: string): {|
   return {assetGraph, bundleGraph, requestTracker, bundleInfo};
 }
 
-function loadLargeBlobRequestRequestSync(cacheDir, node) {
+async function loadLargeBlobRequestRequest(cache, node) {
   invariant(node.type === 'request');
   return v8.deserialize(
-    fs.readFileSync(path.join(cacheDir, nullthrows(node.value.resultCacheKey))),
+    await cache.getLargeBlob(nullthrows(node.value.resultCacheKey)),
   );
 }

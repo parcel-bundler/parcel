@@ -20,7 +20,7 @@ import {Priority} from '@parcel/core/src/types';
 
 import {loadGraphs} from './index.js';
 
-export function run(input: string[]) {
+export async function run(input: string[]) {
   let args = input;
   let cacheDir = path.join(process.cwd(), '.parcel-cache');
   if (args[0] === '--cache') {
@@ -37,8 +37,9 @@ export function run(input: string[]) {
   }
 
   console.log('Loading graphs...');
-  let {assetGraph, bundleGraph, bundleInfo, requestTracker} =
-    loadGraphs(cacheDir);
+  let {assetGraph, bundleGraph, bundleInfo, requestTracker} = await loadGraphs(
+    cacheDir,
+  );
 
   if (requestTracker == null) {
     console.error('Request Graph could not be found');
