@@ -71,6 +71,12 @@ export function assetFromValue(
   return new CommittedAsset(new InternalCommittedAsset(value, options));
 }
 
+export function removeAssetFromCache(value: AssetAddr) {
+  uncommittedAssetValueToAsset.delete(value);
+  committedAssetValueToAsset.delete(value);
+  assetValueToMutableAsset.delete(value);
+}
+
 class BaseAsset {
   #asset: UncommittedAsset;
   #query /*: ?URLSearchParams */;

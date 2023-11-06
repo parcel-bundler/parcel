@@ -45,6 +45,7 @@ import {
   Asset,
   MutableAsset,
   mutableAssetToUncommittedAsset,
+  removeAssetFromCache,
 } from './public/Asset';
 import UncommittedAsset from './UncommittedAsset';
 import {
@@ -465,6 +466,7 @@ export default class Transformation {
           }))
         ) {
           finalAssets.push(asset);
+          deletedAssets.delete(asset);
           continue;
         }
 
@@ -539,6 +541,7 @@ export default class Transformation {
       // Deallocate any assets that we don't need anymore.
       for (let asset of deletedAssets) {
         // TODO: dealloc dependencies also?
+        removeAssetFromCache(asset.value.addr);
         asset.value.dealloc();
       }
 
