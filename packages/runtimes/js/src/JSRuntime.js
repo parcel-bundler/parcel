@@ -164,7 +164,7 @@ export default (new Runtime({
               `/bundles/${referencedBundle.id}.js`,
             ),
             code: `module.exports = Promise.resolve(${JSON.stringify(
-              dependency.meta.placeholder ?? dependency.id,
+              dependency.id,
             )});`,
             dependency,
             env: {sourceType: 'module'},
@@ -196,9 +196,7 @@ export default (new Runtime({
       if (referencedBundle?.bundleBehavior === 'inline') {
         assets.push({
           filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
-          code: `module.exports = ${JSON.stringify(
-            dependency.meta.placeholder ?? dependency.id,
-          )};`,
+          code: `module.exports = ${JSON.stringify(dependency.id)};`,
           dependency,
           env: {sourceType: 'module'},
         });

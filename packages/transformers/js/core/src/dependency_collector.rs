@@ -179,15 +179,17 @@ impl<'a> DependencyCollector<'a> {
     // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
     // call with a placeholder for the relative path to be replaced during packaging.
     let placeholder = if self.config.standalone {
-      specifier.as_ref().to_owned()
+      specifier.as_ref().into()
     } else {
-      let hash = hash!(format!(
-        "parcel_url:{:?}:{}:{}",
-        self.get_project_relative_filename(),
-        specifier,
-        kind
-      ));
-      format!("{:x}", hash)
+      format!(
+        "{:x}",
+        hash!(format!(
+          "parcel_url:{}:{}:{}",
+          self.get_project_relative_filename(),
+          specifier,
+          kind
+        ))
+      )
     };
     add_dependency(
       &self.config.filename,
