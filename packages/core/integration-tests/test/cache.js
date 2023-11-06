@@ -6208,33 +6208,25 @@ describe('cache', function () {
           });
         yarn.lock:`;
 
-      let errorThrown = true;
+      await assert.rejects(() => bundle(entries, options));
 
-      try {
-        await bundle(entries, options);
+      let resolvedOptions = await resolveOptions(
+        getParcelOptions(entries, options),
+      );
 
-        errorThrown = false;
-      } catch (e) {
-        let resolvedOptions = await resolveOptions(
-          getParcelOptions(entries, options),
-        );
+      let bundleGraphCacheKey = hashString(
+        `${version}:BundleGraph:${
+          JSON.stringify(resolvedOptions.entries) ?? ''
+        }${resolvedOptions.mode}`,
+      );
 
-        let bundleGraphCacheKey = hashString(
-          `${version}:BundleGraph:${
-            JSON.stringify(resolvedOptions.entries) ?? ''
-          }${resolvedOptions.mode}`,
-        );
+      let bundleGraphPath = path.join(
+        resolvedOptions.cacheDir,
+        bundleGraphCacheKey.slice(0, 2),
+        bundleGraphCacheKey.slice(2) + '-large',
+      );
 
-        let bundleGraphPath = path.join(
-          resolvedOptions.cacheDir,
-          bundleGraphCacheKey.slice(0, 2),
-          bundleGraphCacheKey.slice(2) + '-large',
-        );
-        assert(v8.deserialize(overlayFS.readFileSync(bundleGraphPath)));
-      }
-
-      // Ensure error was thrown during bundling
-      assert(errorThrown);
+      assert(v8.deserialize(overlayFS.readFileSync(bundleGraphPath)));
     });
 
     it('should invalidate when a terser config is modified', async function () {
