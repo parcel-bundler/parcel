@@ -340,7 +340,7 @@ export default class Parcel {
           }
 
           for (let assetId of bundleNode.value.entryAssetIds) {
-            this.#requestedAssetIds.add(DbAsset.get(db, assetId).id);
+            this.#requestedAssetIds.add(assetId);
           }
 
           if (this.#watchQueue.getNumWaiting() === 0) {

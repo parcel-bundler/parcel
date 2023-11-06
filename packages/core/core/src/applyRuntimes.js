@@ -306,7 +306,7 @@ export default async function applyRuntimes<TResult>({
 
     if (isEntry) {
       bundleGraph._graph.addEdge(bundleNodeId, bundleGraphRuntimeNodeId);
-      bundle.entryAssetIds.unshift(runtimeNode.value);
+      bundle.entryAssetIds.unshift(runtimeNode.id);
     }
 
     if (internalDep == null) {

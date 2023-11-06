@@ -3,7 +3,7 @@ import type {
   BundleGroup as IBundleGroup,
   Target as ITarget,
 } from '@parcel/types';
-import {readCachedString, Asset as DbAsset} from '@parcel/rust';
+import {readCachedString} from '@parcel/rust';
 import type {BundleGroup as InternalBundleGroup, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
@@ -48,9 +48,6 @@ export default class BundleGroup implements IBundleGroup {
   }
 
   get entryAssetId(): string {
-    return readCachedString(
-      this.#options.db,
-      DbAsset.get(this.#options.db, this.#bundleGroup.entryAssetId).id,
-    );
+    return readCachedString(this.#options.db, this.#bundleGroup.entryAssetId);
   }
 }

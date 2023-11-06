@@ -23,7 +23,6 @@ import type BundleGraph from '../BundleGraph';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {DefaultWeakMap} from '@parcel/utils';
-import {Asset as DbAsset} from '@parcel/rust';
 
 import {assetToAssetValue, assetFromValue} from './Asset';
 import {mapVisitor} from '@parcel/graph';
@@ -157,9 +156,7 @@ export class Bundle implements IBundle {
 
   getEntryAssets(): Array<IAsset> {
     return this.#bundle.entryAssetIds.map(id => {
-      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(
-        DbAsset.get(this.#options.db, id).id,
-      );
+      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(id);
       invariant(assetNode != null && assetNode.type === 'asset');
       return assetFromValue(assetNode.value, this.#options, this.#bundleGraph);
     });
@@ -168,7 +165,7 @@ export class Bundle implements IBundle {
   getMainEntry(): ?IAsset {
     if (this.#bundle.mainEntryId != null) {
       let assetNode = this.#bundleGraph._graph.getNodeByContentKey(
-        DbAsset.get(this.#options.db, this.#bundle.mainEntryId).id,
+        this.#bundle.mainEntryId,
       );
       invariant(assetNode != null && assetNode.type === 'asset');
       return assetFromValue(assetNode.value, this.#options, this.#bundleGraph);

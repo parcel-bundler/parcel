@@ -512,8 +512,8 @@ export type Bundle = {|
   hashReference: string,
   type: string,
   env: EnvironmentAddr,
-  entryAssetIds: Array<AssetAddr>,
-  mainEntryId: ?AssetAddr,
+  entryAssetIds: Array<ContentKey>,
+  mainEntryId: ?ContentKey,
   needsStableName: ?boolean,
   bundleBehavior: ?$Values<typeof BundleBehavior>,
   isSplittable: ?boolean,
@@ -533,7 +533,7 @@ export type BundleNode = {|
 
 export type BundleGroup = {|
   target: TargetAddr,
-  entryAssetId: AssetAddr,
+  entryAssetId: number,
 |};
 
 export type BundleGroupNode = {|

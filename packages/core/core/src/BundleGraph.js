@@ -491,8 +491,8 @@ export default class BundleGraph {
           : bundleId.slice(-8),
         type: entryAsset ? entryAsset.assetType : nullthrows(opts.type),
         env: opts.env,
-        entryAssetIds: entryAssetId != null ? [entryAssetId] : [],
-        mainEntryId: entryAssetId,
+        entryAssetIds: entryAsset != null ? [entryAsset.id] : [],
+        mainEntryId: entryAsset?.id,
         pipeline: entryAsset ? entryAsset.pipeline : opts.pipeline,
         needsStableName: opts.needsStableName,
         bundleBehavior:
@@ -659,13 +659,14 @@ export default class BundleGraph {
   }
 
   addEntryToBundle(
-    asset: AssetAddr,
+    assetAddr: AssetAddr,
     bundle: Bundle,
     shouldSkipDependency?: DependencyAddr => boolean,
   ) {
-    this.addAssetGraphToBundle(asset, bundle, shouldSkipDependency);
-    if (!bundle.entryAssetIds.includes(asset)) {
-      bundle.entryAssetIds.push(asset);
+    this.addAssetGraphToBundle(assetAddr, bundle, shouldSkipDependency);
+    let asset = DbAsset.get(this.db, assetAddr);
+    if (!bundle.entryAssetIds.includes(asset.id)) {
+      bundle.entryAssetIds.push(asset.id);
     }
   }
 
@@ -1432,8 +1433,8 @@ export default class BundleGraph {
         let sorted =
           entries && bundle.entryAssetIds.length > 0
             ? children.sort(([, a], [, b]) => {
-                let aIndex = bundle.entryAssetIds.indexOf(a.value);
-                let bIndex = bundle.entryAssetIds.indexOf(b.value);
+                let aIndex = bundle.entryAssetIds.indexOf(a.id);
+                let bIndex = bundle.entryAssetIds.indexOf(b.id);
 
                 if (aIndex === bIndex) {
                   // If both don't exist in the entry asset list, or
@@ -2086,9 +2087,7 @@ export default class BundleGraph {
     );
 
     for (let entryAssetId of bundle.entryAssetIds) {
-      let entryAssetNodeId = this._graph.getNodeIdByContentKey(
-        DbAsset.get(this.db, entryAssetId).id,
-      );
+      let entryAssetNodeId = this._graph.getNodeIdByContentKey(entryAssetId);
       if (this._graph.hasEdge(bundleGroupNodeId, entryAssetNodeId)) {
         this._graph.removeEdge(bundleGroupNodeId, entryAssetNodeId);
       }
@@ -2217,7 +2216,7 @@ export default class BundleGraph {
       let t = DbTarget.get(this.db, bundleGroupNode.value.target);
       if (t.distDir === target.distDir) {
         let entryAssetNode = this._graph.getNodeByContentKey(
-          DbAsset.get(this.db, bundleGroupNode.value.entryAssetId).id,
+          bundleGroupNode.value.entryAssetId,
         );
         invariant(entryAssetNode?.type === 'asset');
         entries.push(

@@ -104,9 +104,10 @@ export default class MutableBundleGraph
       );
     }
 
+    let resolvedAsset = DbAsset.get(this.#graph.db, resolved);
     let bundleGroup: InternalBundleGroup = {
       target: targetToInternalTarget(target),
-      entryAssetId: resolved,
+      entryAssetId: resolvedAsset.id,
     };
 
     let bundleGroupKey = getBundleGroupId(this.#options.db, bundleGroup);
@@ -120,7 +121,7 @@ export default class MutableBundleGraph
 
     let dependencyNodeId = this.#graph._graph.getNodeIdByContentKey(dep.id);
     let resolvedNodeId = this.#graph._graph.getNodeIdByContentKey(
-      DbAsset.get(this.#graph.db, resolved).id,
+      resolvedAsset.id,
     );
     let assetNodes =
       this.#graph._graph.getNodeIdsConnectedFrom(dependencyNodeId);
@@ -233,8 +234,8 @@ export default class MutableBundleGraph
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)
           : nullthrows(entryAsset).env,
-        entryAssetIds: entryAssetId != null ? [entryAssetId] : [],
-        mainEntryId: entryAssetId,
+        entryAssetIds: entryAsset != null ? [entryAsset.id] : [],
+        mainEntryId: entryAsset?.id,
         pipeline: opts.entryAsset ? opts.entryAsset.pipeline : opts.pipeline,
         needsStableName: opts.needsStableName,
         bundleBehavior:
