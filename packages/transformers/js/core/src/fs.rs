@@ -18,6 +18,7 @@ pub fn inline_fs<'a>(
   global_mark: Mark,
   project_root: &'a str,
   deps: &'a mut IndexMap<u64, DependencyDescriptor>,
+  is_module: bool,
 ) -> impl Fold + 'a {
   InlineFS {
     filename,
@@ -27,6 +28,7 @@ pub fn inline_fs<'a>(
       Mark::fresh(Mark::root()),
       global_mark,
       false,
+      is_module,
     ),
     global_mark,
     project_root,

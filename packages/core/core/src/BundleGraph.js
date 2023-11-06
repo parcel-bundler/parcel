@@ -1191,8 +1191,12 @@ export default class BundleGraph {
 
   isAssetReferenced(bundle: Bundle, assetAddr: AssetAddr): boolean {
     let asset = DbAsset.get(this.db, assetAddr);
-    // If the asset is available in multiple bundles, it's referenced.
-    if (this.getBundlesWithAsset(assetAddr).length > 1) {
+    // If the asset is available in multiple bundles in the same target, it's referenced.
+    if (
+      this.getBundlesWithAsset(assetAddr).filter(
+        b => b.target === bundle.target,
+      ).length > 1
+    ) {
       return true;
     }
 

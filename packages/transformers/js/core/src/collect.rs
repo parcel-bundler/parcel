@@ -78,6 +78,7 @@ pub struct Collect {
   in_function: bool,
   in_assign: bool,
   in_class: bool,
+  is_module: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -120,12 +121,14 @@ impl Collect {
     ignore_mark: Mark,
     global_mark: Mark,
     trace_bailouts: bool,
+    is_module: bool,
   ) -> Self {
     Collect {
       source_map,
       decls,
       ignore_mark,
       global_mark,
+      is_module,
       static_cjs_exports: true,
       has_cjs_exports: false,
       is_esm: false,
@@ -690,7 +693,9 @@ impl Visit for Collect {
       }
       Expr::This(_this) => {
         if self.in_module_this {
-          handle_export!();
+          if !self.is_module {
+            handle_export!();
+          }
         } else if !self.in_class {
           if let MemberProp::Ident(prop) = &node.prop {
             self.this_exprs.insert(id!(prop), (prop.clone(), node.span));
@@ -799,7 +804,7 @@ impl Visit for Collect {
   }
 
   fn visit_this_expr(&mut self, node: &ThisExpr) {
-    if self.in_module_this {
+    if !self.is_module && self.in_module_this {
       self.has_cjs_exports = true;
       self.static_cjs_exports = false;
       self.add_bailout(node.span, BailoutReason::FreeExports);
