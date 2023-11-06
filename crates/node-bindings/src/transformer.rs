@@ -255,6 +255,7 @@ fn convert_result(
         d.bundle_behavior = BundleBehavior::Isolated;
         d.flags = dep_flags;
         d.placeholder = dep.placeholder.map(|s| s.into());
+        d.loc = Some(convert_loc(file_path, &dep.loc));
         let placeholder = d.placeholder.unwrap_or(d.specifier);
         dep_map.insert(placeholder, d);
       }
