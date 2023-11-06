@@ -335,7 +335,11 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   set isBundleSplittable(isBundleSplittable: boolean): void {
-    this.#asset.value.flags |= AssetFlags.IS_BUNDLE_SPLITTABLE;
+    if (isBundleSplittable) {
+      this.#asset.value.flags |= AssetFlags.IS_BUNDLE_SPLITTABLE;
+    } else {
+      this.#asset.value.flags &= ~AssetFlags.IS_BUNDLE_SPLITTABLE;
+    }
   }
 
   get sideEffects(): boolean {
@@ -343,7 +347,11 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   set sideEffects(sideEffects: boolean): void {
-    this.#asset.value.flags |= AssetFlags.SIDE_EFFECTS;
+    if (sideEffects) {
+      this.#asset.value.flags |= AssetFlags.SIDE_EFFECTS;
+    } else {
+      this.#asset.value.flags &= ~AssetFlags.SIDE_EFFECTS;
+    }
   }
 
   get uniqueKey(): ?string {
