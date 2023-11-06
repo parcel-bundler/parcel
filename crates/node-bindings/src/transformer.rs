@@ -304,7 +304,7 @@ fn convert_result(
           // output format so that assets can be shared between the bundles.
           let mut output_format = env.output_format;
           if env.source_type == SourceType::Script
-            && config.scope_hoist
+            && env.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
             && config.supports_dynamic_import
           {
             output_format = OutputFormat::Esmodule;
