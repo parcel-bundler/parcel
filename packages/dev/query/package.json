@@ -7,6 +7,7 @@
   "dependencies": {
     "@parcel/core": "2.10.2",
     "@parcel/graph": "3.0.2",
+    "@parcel/cache": "2.10.2",
     "nullthrows": "^1.1.1",
     "table": "^6.8.1",
     "v8-compile-cache": "^2.0.0"

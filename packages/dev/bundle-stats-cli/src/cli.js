@@ -18,9 +18,9 @@ import {getBundleStats} from '@parcel/reporter-bundle-stats/src/BundleStatsRepor
 import {PackagedBundle as PackagedBundleClass} from '@parcel/core/src/public/Bundle';
 import type {commander$Command} from 'commander';
 
-function run({cacheDir, outDir}) {
+async function run({cacheDir, outDir}) {
   // 1. load bundle graph and info via parcel~query
-  let {bundleGraph, bundleInfo} = loadGraphs(cacheDir);
+  let {bundleGraph, bundleInfo} = await loadGraphs(cacheDir);
 
   if (bundleGraph == null) {
     console.error('Bundle Graph could not be found');
