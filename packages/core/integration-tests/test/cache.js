@@ -117,6 +117,10 @@ describe('cache', function () {
     await inputFS.rimraf(path.join(__dirname, 'input'));
   });
 
+  after(async () => {
+    await inputFS.rimraf(path.join(__dirname, '.parcel-cache'));
+  });
+
   beforeEach(() => {
     inputDir = path.join(
       __dirname,
