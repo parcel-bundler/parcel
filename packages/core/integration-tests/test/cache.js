@@ -6161,7 +6161,7 @@ describe('cache', function () {
       assert.equal(res, 4);
     });
 
-    it.only('should write bundle graph to cache on bundling error', async function () {
+    it('should write bundle graph to cache on bundling error', async function () {
       let overlayFSPackageManager = new NodePackageManager(
         overlayFS,
         __dirname,
