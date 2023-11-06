@@ -6234,7 +6234,7 @@ describe('cache', function () {
       }
 
       // Ensure error was thrown during bundling
-      assert(errorThrown, true);
+      assert(errorThrown);
     });
 
     it('should invalidate when a terser config is modified', async function () {
