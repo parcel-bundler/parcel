@@ -577,53 +577,54 @@ export default class Transformation {
   }
 
   async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
-    if (
-      this.options.shouldDisableCache ||
-      this.request.code != null ||
-      this.request.invalidateReason & FILE_CREATE
-    ) {
-      return null;
-    }
+    return null;
+    // if (
+    //   this.options.shouldDisableCache ||
+    //   this.request.code != null ||
+    //   this.request.invalidateReason & FILE_CREATE
+    // ) {
+    //   return null;
+    // }
 
-    let cached = await this.options.cache.get<{|
-      assets: Array<{|hash: string, value: AssetAddr|}>,
-    |}>(cacheKey);
-    if (!cached) {
-      return null;
-    }
+    // let cached = await this.options.cache.get<{|
+    //   assets: Array<{|hash: string, value: AssetAddr|}>,
+    // |}>(cacheKey);
+    // if (!cached) {
+    //   return null;
+    // }
 
-    let cachedAssets = cached.assets;
+    // let cachedAssets = cached.assets;
 
-    return Promise.all(
-      cachedAssets.map(async ({hash, value: id}) => {
-        let value = DbAsset.get(this.options.db, id);
-        let content =
-          value.contentKey != null
-            ? value.flags & AssetFlags.LARGE_BLOB
-              ? this.options.cache.getStream(value.contentKey)
-              : await this.options.cache.getBlob(value.contentKey)
-            : null;
-        let mapBuffer =
-          value.mapKey != null
-            ? await this.options.cache.getBlob(value.mapKey)
-            : null;
-        let ast =
-          value.ast != null
-            ? // TODO: Capture with a test and likely use cache.get() as this returns a buffer.
-              // $FlowFixMe[incompatible-call]
-              await this.options.cache.getBlob(value.ast.key)
-            : null;
+    // return Promise.all(
+    //   cachedAssets.map(async ({hash, value: id}) => {
+    //     let value = DbAsset.get(this.options.db, id);
+    //     let content =
+    //       value.contentKey != null
+    //         ? value.flags & AssetFlags.LARGE_BLOB
+    //           ? this.options.cache.getStream(value.contentKey)
+    //           : await this.options.cache.getBlob(value.contentKey)
+    //         : null;
+    //     let mapBuffer =
+    //       value.mapKey != null
+    //         ? await this.options.cache.getBlob(value.mapKey)
+    //         : null;
+    //     let ast =
+    //       value.ast != null
+    //         ? // TODO: Capture with a test and likely use cache.get() as this returns a buffer.
+    //           // $FlowFixMe[incompatible-call]
+    //           await this.options.cache.getBlob(value.ast.key)
+    //         : null;
 
-        return new UncommittedAsset({
-          value,
-          hash,
-          options: this.options,
-          content,
-          mapBuffer,
-          ast,
-        });
-      }),
-    );
+    //     return new UncommittedAsset({
+    //       value,
+    //       hash,
+    //       options: this.options,
+    //       content,
+    //       mapBuffer,
+    //       ast,
+    //     });
+    //   }),
+    // );
   }
 
   async writeToCache(
@@ -636,13 +637,13 @@ export default class Transformation {
       assets.map(asset => asset.commit(invalidationHash + pipelineHash)),
     );
 
-    this.options.cache.set(cacheKey, {
-      $$raw: true,
-      assets: assets.map(a => ({
-        hash: a.hash,
-        value: a.value.addr,
-      })),
-    });
+    // this.options.cache.set(cacheKey, {
+    //   $$raw: true,
+    //   assets: assets.map(a => ({
+    //     hash: a.hash,
+    //     value: a.value.addr,
+    //   })),
+    // });
   }
 
   getCacheKey(
