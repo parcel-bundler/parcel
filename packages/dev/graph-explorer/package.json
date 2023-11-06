@@ -43,9 +43,9 @@
     "nullthrows": "^1.1.1",
     "parcel-query": "2.8.3",
     "react": "^18.2.0",
-    "react-digraph": "8.0.0-beta.8",
+    "react-digraph": "9.1.2",
     "react-dom": "^18.2.0",
-    "react-json-tree": "^0.13.0",
+    "react-json-tree": "^0.18.0",
     "react-relay": "^15.0.0",
     "relay-runtime": "^15.0.0",
     "v8-compile-cache": "^2.0.0"

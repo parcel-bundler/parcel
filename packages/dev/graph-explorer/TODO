@@ -8,6 +8,7 @@
 - Info about the bundles an asset belongs to
 - Collapsing subgraphs -- would be useful for large graphs like frontbucket. size of node 'bubbles' depend on the subgraph size
 - ^ could implement some default limit for collapsing
+- Explore https://airbnb.io/visx -- maybe better for our aspirations?
 
 Aspirational
 

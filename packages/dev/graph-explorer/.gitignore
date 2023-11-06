@@ -1,4 +1,4 @@
 /frontend/
-/__generated__/
+__generated__
 .proxyrc
 schema.graphql

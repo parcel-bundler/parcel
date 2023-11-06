@@ -4,22 +4,35 @@ import * as React from 'react';
 
 import {useAppState} from '../AppState';
 import SearchView from './SearchView';
-import FocusView from './FocusView';
-import DetailView from './DetailView';
+// import FocusView from './FocusView';
+// import DetailView from './DetailView';
 import GraphView from './GraphView';
+
+import {graphql} from 'relay-runtime';
+import {useLazyLoadQuery} from 'react-relay';
+
+const query = graphql`
+  query AppQuery {
+    allBundles(args: {}) {
+      id
+      type
+      name
+    }
+  }
+`;
 
 export default function App(): React.Node {
   const [state, dispatch] = useAppState();
 
+  const data = useLazyLoadQuery(query, {});
+
   return (
     <div style={{height: '100%', width: '100%'}}>
-      <div className="tools tools--left">
-        <SearchView />
-      </div>
+      {/* <div className="tools tools--left"> */}
+      {/*   <SearchView /> */}
+      {/* </div> */}
 
-      <pre>
-        <code>{JSON.stringify(state, null, 2)}</code>
-      </pre>
+      <GraphView></GraphView>
     </div>
   );
 }
