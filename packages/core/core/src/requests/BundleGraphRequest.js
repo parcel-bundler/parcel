@@ -376,6 +376,7 @@ class BundlerRunner {
         await this.runDevDepRequest(devDepRequest);
       }
     } catch (e) {
+      invariant(internalBundleGraph != null);
       this.api.storeResult(
         {
           bundleGraph: internalBundleGraph,
