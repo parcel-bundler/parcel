@@ -376,6 +376,15 @@ class BundlerRunner {
         await this.runDevDepRequest(devDepRequest);
       }
     } catch (e) {
+      this.api.storeResult(
+        {
+          bundleGraph: internalBundleGraph,
+          changedAssets: new Map(),
+          assetRequests: [],
+        },
+        this.cacheKey,
+      );
+
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
           origin: name,
