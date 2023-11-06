@@ -550,15 +550,15 @@ export class AssetGraphBuilder {
     }
 
     return assetDependencies.every((id, index) => {
-      if (id !== otherAssetDependencies[index]) {
-        return false;
-      }
-
       let depA = DbDependency.get(this.options.db, id);
       let depB = DbDependency.get(
         this.options.db,
         otherAssetDependencies[index],
       );
+
+      if (depA.id !== depB.id) {
+        return false;
+      }
 
       return setEqual(
         new Set([...depA.symbols].map(s => s.exported)),
