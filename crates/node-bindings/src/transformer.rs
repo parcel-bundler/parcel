@@ -143,6 +143,7 @@ pub struct TransformResult2 {
   pub dependencies: Vec<u32>,
   pub diagnostics: Option<Vec<Diagnostic>>,
   pub used_env: HashSet<String>,
+  pub invalidate_on_file_change: Vec<String>,
 }
 
 fn convert_result(
@@ -161,6 +162,8 @@ fn convert_result(
     DependencyFlags::HAS_SYMBOLS,
     result.hoist_result.is_some() || result.symbol_result.is_some(),
   );
+
+  let mut invalidate_on_file_change = Vec::new();
 
   for dep in result.dependencies {
     match dep.kind {
@@ -255,7 +258,9 @@ fn convert_result(
         let placeholder = d.placeholder.unwrap_or(d.specifier);
         dep_map.insert(placeholder, d);
       }
-      DependencyKind::File => {}
+      DependencyKind::File => {
+        invalidate_on_file_change.push(dep.specifier.to_string());
+      }
       _ => {
         let mut flags = dep_flags;
         flags.set(DependencyFlags::OPTIONAL, dep.is_optional);
@@ -653,6 +658,7 @@ fn convert_result(
     dependencies: deps,
     diagnostics: result.diagnostics,
     used_env: result.used_env.into_iter().map(|v| v.to_string()).collect(),
+    invalidate_on_file_change,
   }
 }
 

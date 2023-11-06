@@ -405,6 +405,7 @@ export default (new Transformer({
       shebang,
       diagnostics,
       used_env,
+      invalidate_on_file_change,
     } = await (transformAsync || transform)(options.db, {
       code,
       asset_id: asset.nativeAddress,
@@ -534,6 +535,10 @@ export default (new Transformer({
 
     for (let env of used_env) {
       asset.invalidateOnEnvChange(env);
+    }
+
+    for (let file of invalidate_on_file_change) {
+      asset.invalidateOnFileChange(file);
     }
 
     asset.setNativeDependencies(dependencies);

@@ -56,7 +56,7 @@ export function replaceURLReferences({
       continue;
     }
 
-    let placeholder = dependency.meta?.placeholder ?? String(dependency.id);
+    let placeholder = dependency.meta?.placeholder ?? dependency.id;
     invariant(typeof placeholder === 'string');
 
     let resolved = bundleGraph.getReferencedBundle(dependency, bundle);
@@ -142,7 +142,7 @@ export async function replaceInlineReferences({
 
     let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
     if (inlineType == null || inlineType === 'string') {
-      let placeholder = dependency.meta?.placeholder ?? String(dependency.id);
+      let placeholder = dependency.meta?.placeholder ?? dependency.id;
       invariant(typeof placeholder === 'string');
       replacements.set(
         placeholder,
@@ -194,7 +194,7 @@ export function getURLReplacement({
     );
   }
 
-  let placeholder = dependency.meta?.placeholder ?? String(dependency.id);
+  let placeholder = dependency.meta?.placeholder ?? dependency.id;
   invariant(typeof placeholder === 'string');
 
   return {
