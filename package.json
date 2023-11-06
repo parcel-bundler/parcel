@@ -35,7 +35,8 @@
     "tag:release": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions",
     "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines-peerdeps.js",
     "release": "lerna publish -y from-package --pre-dist-tag=next --no-git-tag-version --no-push",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
@@ -78,5 +79,8 @@
     "react-dom": "preact/compat",
     "react": "preact/compat",
     "scheduler": false
+  },
+  "dependencies": {
+    "patch-package": "^8.0.0"
   }
 }
