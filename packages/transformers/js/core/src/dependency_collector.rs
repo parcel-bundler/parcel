@@ -1,5 +1,4 @@
 use indexmap::IndexMap;
-use path_slash::PathBufExt;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 

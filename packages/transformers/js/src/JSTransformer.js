@@ -408,6 +408,7 @@ export default (new Transformer({
       invalidate_on_file_change,
     } = await (transformAsync || transform)(options.db, {
       code,
+      map: await asset.getMapBuffer(),
       asset_id: asset.nativeAddress,
       project_root: options.projectRoot,
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),

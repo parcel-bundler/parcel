@@ -6,7 +6,7 @@ use std::{
 
 use crate::db::JsParcelDb;
 use indexmap::IndexMap;
-use napi::{Env, JsObject, JsUnknown, Result};
+use napi::{Env, JsBuffer, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
   ArenaAllocated, ArenaVec, AssetFlags, AssetId, AssetType, BundleBehavior, Dependency,
@@ -16,11 +16,20 @@ use parcel_db::{
 };
 use parcel_js_swc_core::{CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult};
 use parcel_resolver::Specifier;
+use parcel_sourcemap::SourceMap;
 use path_slash::{PathBufExt, PathExt};
 use serde::{Deserialize, Serialize};
 
 #[napi]
 pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown> {
+  let mut code = opts.get_named_property::<JsBuffer>("code")?.into_ref()?;
+  let map: Result<JsBuffer> = opts.get_named_property::<JsUnknown>("map")?.try_into();
+  let mut map = if let Ok(buf) = map {
+    Some(buf.into_ref()?)
+  } else {
+    None
+  };
+
   let config: Config2 = env.from_js_value(opts)?;
 
   db.with(|db| {
@@ -30,8 +39,13 @@ pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown>
       db,
       asset_id,
       &config,
-      parcel_js_swc_core::transform(&config)?,
+      map.as_ref().map(|m| m.as_ref()),
+      parcel_js_swc_core::transform(&code, &config),
     );
+    code.unref(env)?;
+    if let Some(map) = &mut map {
+      map.unref(env)?;
+    }
     env.to_js_value(&result)
   })
 }
@@ -39,6 +53,14 @@ pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown>
 #[cfg(not(target_arch = "wasm32"))]
 #[napi]
 pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsObject> {
+  let mut code = opts.get_named_property::<JsBuffer>("code")?.into_ref()?;
+  let map: Result<JsBuffer> = opts.get_named_property::<JsUnknown>("map")?.try_into();
+  let mut map = if let Ok(buf) = map {
+    Some(buf.into_ref()?)
+  } else {
+    None
+  };
+
   let config: Config2 = env.from_js_value(opts)?;
   let asset_id = AssetId(config.asset_id);
   let config = db.with(|db| convert_config(db, config));
@@ -47,13 +69,23 @@ pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsOb
   let db = db.db();
 
   rayon::spawn(move || {
-    let res = parcel_js_swc_core::transform(&config);
-    match res {
-      Ok(result) => deferred.resolve(move |env| {
-        db.with(|db| env.to_js_value(&convert_result(db, asset_id, &config, result)))
-      }),
-      Err(err) => deferred.reject(err.into()),
-    }
+    let result = parcel_js_swc_core::transform(&code, &config);
+    deferred.resolve(move |env| {
+      let res = db.with(|db| {
+        convert_result(
+          db,
+          asset_id,
+          &config,
+          map.as_ref().map(|m| m.as_ref()),
+          result,
+        )
+      });
+      code.unref(env)?;
+      if let Some(map) = &mut map {
+        map.unref(env)?;
+      }
+      env.to_js_value(&res)
+    })
   });
 
   Ok(promise)
@@ -62,8 +94,6 @@ pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsOb
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config2 {
   pub asset_id: NonZeroU32,
-  #[serde(with = "serde_bytes")]
-  pub code: Vec<u8>,
   pub project_root: String,
   pub env: HashMap<String, String>,
   pub inline_fs: bool,
@@ -90,7 +120,6 @@ fn convert_config(db: &ParcelDb, config: Config2) -> Config {
   Config {
     filename: Path::new(&config.project_root).join(asset.file_path.as_str()),
     module_id: asset.id.to_string(),
-    code: config.code,
     project_root: config.project_root,
     replace_env: !env.context.is_node(),
     env: config
@@ -150,11 +179,18 @@ fn convert_result(
   db: &ParcelDb,
   asset_id: AssetId,
   config: &parcel_js_swc_core::Config,
+  map_buf: Option<&[u8]>,
   mut result: TransformResult,
 ) -> TransformResult2 {
   let asset = db.get_asset_mut(asset_id);
   let env = db.get_environment(asset.env);
   let file_path = asset.file_path;
+
+  let mut map = if let Some(buf) = map_buf {
+    SourceMap::from_buffer(&config.project_root, buf).ok()
+  } else {
+    None
+  };
 
   let mut dep_map = IndexMap::new();
   let mut dep_flags = DependencyFlags::empty();
@@ -166,6 +202,8 @@ fn convert_result(
   let mut invalidate_on_file_change = Vec::new();
 
   for dep in result.dependencies {
+    let loc = convert_loc(file_path, &dep.loc, &mut map);
+
     match dep.kind {
       DependencyKind::WebWorker => {
         // Use native ES module output if the worker was created with `type: 'module'` and all targets
@@ -189,7 +227,7 @@ fn convert_result(
         d.priority = Priority::Lazy;
         d.flags = dep_flags | DependencyFlags::IS_WEBWORKER;
         d.placeholder = dep.placeholder.map(|s| s.into());
-        d.loc = Some(convert_loc(file_path, &dep.loc));
+        d.loc = Some(loc.clone());
         d.env = db.environment_id(&Environment {
           context: EnvironmentContext::WebWorker,
           source_type: if matches!(
@@ -201,7 +239,7 @@ fn convert_result(
             SourceType::Script
           },
           output_format,
-          loc: Some(convert_loc(file_path, &dep.loc)),
+          loc: Some(loc.clone()),
           ..env.clone()
         });
         let placeholder = d.placeholder.unwrap_or(d.specifier);
@@ -213,7 +251,7 @@ fn convert_result(
         d.priority = Priority::Lazy;
         d.flags = dep_flags | DependencyFlags::NEEDS_STABLE_NAME;
         d.placeholder = dep.placeholder.map(|s| s.into());
-        d.loc = Some(convert_loc(file_path, &dep.loc));
+        d.loc = Some(loc.clone());
         d.env = db.environment_id(&Environment {
           context: EnvironmentContext::ServiceWorker,
           source_type: if matches!(
@@ -225,7 +263,7 @@ fn convert_result(
             SourceType::Script
           },
           output_format: OutputFormat::Global,
-          loc: Some(convert_loc(file_path, &dep.loc)),
+          loc: Some(loc.clone()),
           ..env.clone()
         });
         let placeholder = d.placeholder.unwrap_or(d.specifier);
@@ -237,12 +275,12 @@ fn convert_result(
         d.priority = Priority::Lazy;
         d.flags = dep_flags;
         d.placeholder = dep.placeholder.map(|s| s.into());
-        d.loc = Some(convert_loc(file_path, &dep.loc));
+        d.loc = Some(loc.clone());
         d.env = db.environment_id(&Environment {
           context: EnvironmentContext::Worklet,
           source_type: SourceType::Module,
           output_format: OutputFormat::Esmodule,
-          loc: Some(convert_loc(file_path, &dep.loc)),
+          loc: Some(loc.clone()),
           ..env.clone()
         });
         let placeholder = d.placeholder.unwrap_or(d.specifier);
@@ -255,7 +293,7 @@ fn convert_result(
         d.bundle_behavior = BundleBehavior::Isolated;
         d.flags = dep_flags;
         d.placeholder = dep.placeholder.map(|s| s.into());
-        d.loc = Some(convert_loc(file_path, &dep.loc));
+        d.loc = Some(loc.clone());
         let placeholder = d.placeholder.unwrap_or(d.specifier);
         dep_map.insert(placeholder, d);
       }
@@ -315,7 +353,7 @@ fn convert_result(
             env_id = db.environment_id(&Environment {
               source_type: SourceType::Module,
               output_format,
-              loc: Some(convert_loc(file_path, &dep.loc)),
+              loc: Some(loc.clone()),
               ..env.clone()
             });
             env = db.get_environment(env_id);
@@ -375,7 +413,7 @@ fn convert_result(
         d.range = range;
         d.placeholder = dep.placeholder.map(|s| s.into());
         d.import_attributes = import_attributes;
-        d.loc = Some(convert_loc(file_path, &dep.loc));
+        d.loc = Some(loc.clone());
 
         let placeholder = d.placeholder.unwrap_or(d.specifier);
         dep_map.insert(placeholder, d);
@@ -416,7 +454,7 @@ fn convert_result(
       let sym = Symbol {
         exported: s.exported.as_ref().into(),
         local: s.local.as_ref().into(),
-        loc: Some(convert_loc(file_path, &s.loc)),
+        loc: Some(convert_loc(file_path, &s.loc, &mut map)),
         flags,
       };
       symbols.push(sym);
@@ -427,7 +465,7 @@ fn convert_result(
         dep.symbols.push(Symbol {
           exported: s.imported.as_ref().into(),
           local: s.local.as_ref().into(),
-          loc: Some(convert_loc(file_path, &s.loc)),
+          loc: Some(convert_loc(file_path, &s.loc, &mut map)),
           flags: SymbolFlags::empty(),
         });
       }
@@ -439,7 +477,7 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: "*".into(),
             local: "*".into(),
-            loc: Some(convert_loc(file_path, &s.loc)),
+            loc: Some(convert_loc(file_path, &s.loc, &mut map)),
             flags: SymbolFlags::IS_WEAK,
           });
         } else {
@@ -453,13 +491,13 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: s.imported.as_ref().into(),
             local: re_export_name.clone(),
-            loc: Some(convert_loc(file_path, &s.loc)),
+            loc: Some(convert_loc(file_path, &s.loc, &mut map)),
             flags: SymbolFlags::IS_WEAK,
           });
           symbols.push(Symbol {
             exported: s.local.as_ref().into(),
             local: re_export_name,
-            loc: Some(convert_loc(file_path, &s.loc)),
+            loc: Some(convert_loc(file_path, &s.loc, &mut map)),
             flags: SymbolFlags::empty(),
           });
         }
@@ -553,7 +591,7 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: sym.local.as_ref().into(),
             local,
-            loc: Some(convert_loc(file_path, &sym.loc)),
+            loc: Some(convert_loc(file_path, &sym.loc, &mut map)),
             flags: SymbolFlags::IS_WEAK,
           });
           local
@@ -564,7 +602,7 @@ fn convert_result(
         symbols.push(Symbol {
           exported: sym.exported.as_ref().into(),
           local,
-          loc: Some(convert_loc(file_path, &sym.loc)),
+          loc: Some(convert_loc(file_path, &sym.loc, &mut map)),
           flags: SymbolFlags::empty(),
         });
       }
@@ -574,7 +612,7 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: sym.imported.as_ref().into(),
             local: sym.local.as_ref().into(),
-            loc: Some(convert_loc(file_path, &sym.loc)),
+            loc: Some(convert_loc(file_path, &sym.loc, &mut map)),
             flags: SymbolFlags::empty(),
           });
         }
@@ -585,7 +623,7 @@ fn convert_result(
           dep.symbols.push(Symbol {
             exported: "*".into(),
             local: "*".into(),
-            loc: Some(convert_loc(file_path, &sym.loc)),
+            loc: Some(convert_loc(file_path, &sym.loc, &mut map)),
             flags: SymbolFlags::IS_WEAK,
           });
         }
@@ -666,9 +704,9 @@ fn convert_result(
 fn convert_loc(
   file_path: InternedString,
   loc: &parcel_js_swc_core::SourceLocation,
+  map: &mut Option<SourceMap>,
 ) -> SourceLocation {
-  // TODO: remap original source map
-  SourceLocation {
+  let mut loc = SourceLocation {
     file_path,
     start: Location {
       line: loc.start_line as u32, // + (asset.meta.startLine ?? 1) - 1
@@ -678,7 +716,60 @@ fn convert_loc(
       line: loc.end_line as u32,
       column: loc.end_col as u32,
     },
+  };
+
+  if let Some(map) = map {
+    remap_source_location(&mut loc, map);
   }
+
+  loc
+}
+
+fn remap_source_location(loc: &mut SourceLocation, map: &mut SourceMap) {
+  let line_diff = loc.end.line - loc.start.line;
+  let col_diff = loc.end.column - loc.start.column;
+
+  let start = map.find_closest_mapping(loc.start.line - 1, loc.start.column - 1);
+  let end = map.find_closest_mapping(loc.end.line - 1, loc.end.column - 1);
+
+  if let Some(start) = start {
+    if let Some(original) = start.original {
+      if let Ok(source) = map.get_source(original.source) {
+        loc.file_path = source.into();
+      }
+
+      loc.start.line = original.original_line + 1;
+      loc.start.column = original.original_column + 1; // source map columns are 0-based
+    }
+  }
+
+  if let Some(end) = end {
+    if let Some(original) = end.original {
+      loc.end.line = original.original_line + 1;
+      loc.end.column = original.original_column + 1; // source map columns are 0-based
+
+      if loc.end.line < loc.start.line {
+        loc.end.line = loc.start.line;
+        loc.end.column = loc.start.column;
+      } else if loc.end.line == loc.start.line
+        && loc.end.column < loc.start.column
+        && line_diff == 0
+      {
+        loc.end.column = loc.start.column + col_diff;
+      } else if loc.end.line == loc.start.line
+        && loc.start.column == loc.end.column
+        && line_diff == 0
+      {
+        // Prevent 0-length ranges
+        loc.end.column = loc.start.column + 1;
+      }
+
+      return;
+    }
+  }
+
+  loc.end.line = loc.start.line;
+  loc.end.column = loc.start.column;
 }
 
 fn to_project_path(path: &str, project_root: &str) -> InternedString {

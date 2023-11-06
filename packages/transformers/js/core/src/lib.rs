@@ -18,7 +18,7 @@ use std::str::FromStr;
 use constant_module::ConstantModule;
 use indexmap::IndexMap;
 use path_slash::PathExt;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use swc_core::common::comments::SingleThreadedComments;
 use swc_core::common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_core::common::pass::Optional;
@@ -54,11 +54,9 @@ pub use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, S
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Debug)]
 pub struct Config {
   pub filename: PathBuf,
-  #[serde(with = "serde_bytes")]
-  pub code: Vec<u8>,
   pub module_id: String,
   pub project_root: String,
   pub replace_env: bool,
@@ -149,11 +147,11 @@ impl Emitter for ErrorBuffer {
   }
 }
 
-pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
+pub fn transform(code: &[u8], config: &Config) -> TransformResult {
   let mut result = TransformResult::default();
   let mut map_buf = vec![];
 
-  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
+  let code = unsafe { std::str::from_utf8_unchecked(&code) };
   let source_map = Lrc::new(SourceMap::default());
   let module = parse(
     code,
@@ -170,7 +168,7 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
       err.into_diagnostic(&handler).emit();
 
       result.diagnostics = Some(error_buffer_to_diagnostics(&error_buffer, &source_map));
-      Ok(result)
+      result
     }
     Ok((module, comments)) => {
       let mut module = module;
@@ -444,7 +442,7 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
                 .any(|d| d.severity == DiagnosticSeverity::Error)
               {
                 result.diagnostics = Some(diagnostics);
-                return Ok(result);
+                return result;
               }
 
               let mut collect = Collect::new(
@@ -469,7 +467,7 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
                   }
                   Err(diagnostics) => {
                     result.diagnostics = Some(diagnostics);
-                    return Ok(result);
+                    return result;
                   }
                 }
               } else {
@@ -494,7 +492,20 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
               }
 
               let (buf, src_map_buf) =
-                emit(source_map.clone(), comments, &module, config.source_maps)?;
+                match emit(source_map.clone(), comments, &module, config.source_maps) {
+                  Err(e) => {
+                    result.diagnostics = Some(vec![Diagnostic {
+                      message: e.to_string(),
+                      code_highlights: None,
+                      hints: None,
+                      show_environment: false,
+                      severity: DiagnosticSeverity::Error,
+                      documentation_url: None,
+                    }]);
+                    return result;
+                  }
+                  Ok(v) => v,
+                };
               if config.source_maps
                 && source_map
                   .build_source_map(&src_map_buf)
@@ -504,7 +515,7 @@ pub fn transform(config: &Config) -> Result<TransformResult, std::io::Error> {
                 result.map = Some(String::from_utf8(map_buf).unwrap());
               }
               result.code = buf;
-              Ok(result)
+              result
             },
           )
         })
