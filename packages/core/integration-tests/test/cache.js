@@ -35,8 +35,6 @@ import {version} from '@parcel/core/package.json';
 import v8 from 'v8';
 import {hashString} from '@parcel/rust';
 
-const CONFIG = Symbol.for('parcel-plugin-config');
-
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS, '/');
 
