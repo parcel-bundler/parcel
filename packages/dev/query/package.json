@@ -1,18 +1,19 @@
 {
   "name": "parcel-query",
-  "version": "2.10.1",
+  "version": "2.10.2",
   "private": true,
   "bin": "src/bin.js",
   "main": "src/index.js",
   "dependencies": {
-    "@parcel/core": "2.10.1",
-    "@parcel/graph": "3.0.1",
+    "@parcel/core": "2.10.2",
+    "@parcel/graph": "3.0.2",
+    "@parcel/cache": "2.10.2",
     "nullthrows": "^1.1.1",
     "table": "^6.8.1",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.10.1"
+    "@parcel/babel-register": "2.10.2"
   }
 }

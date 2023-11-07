@@ -1,6 +1,6 @@
 {
   "name": "@parcel/node-resolver-core",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -22,16 +22,14 @@
     "test": "mocha test"
   },
   "files": [
-    "lib",
-    "native.js",
-    "*.node"
+    "lib"
   ],
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
-    "@parcel/diagnostic": "2.10.1",
-    "@parcel/fs": "2.10.1",
-    "@parcel/rust": "2.10.1",
-    "@parcel/utils": "2.10.1",
+    "@parcel/diagnostic": "2.10.2",
+    "@parcel/fs": "2.10.2",
+    "@parcel/rust": "2.10.2",
+    "@parcel/utils": "2.10.2",
     "nullthrows": "^1.1.1",
     "semver": "^7.5.2"
   },
@@ -61,6 +59,6 @@
     "vm-browserify": "^1.1.2"
   },
   "browser": {
-    "./native.js": "./native-wasm-browser.js"
+    "./src/builtins.js": "./src/builtins.browser.js"
   }
 }
