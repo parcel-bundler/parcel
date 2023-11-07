@@ -21,6 +21,8 @@ import {
   getParcelOptions,
   assertNoFilePathInCache,
   findAsset,
+  bundle,
+  fsFixture,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 import fs from 'fs';
@@ -29,6 +31,9 @@ import {createWorkerFarm} from '@parcel/core';
 import resolveOptions from '@parcel/core/src/resolveOptions';
 import logger from '@parcel/logger';
 import sinon from 'sinon';
+import {version} from '@parcel/core/package.json';
+import v8 from 'v8';
+import {hashString} from '@parcel/rust';
 
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS, '/');
@@ -6152,6 +6157,75 @@ describe('cache', function () {
 
       let res = await run(b.bundleGraph);
       assert.equal(res, 4);
+    });
+
+    it('should write bundle graph to cache on bundling error', async function () {
+      let overlayFSPackageManager = new NodePackageManager(
+        overlayFS,
+        __dirname,
+      );
+      let entries = 'source/index.js';
+      let options = {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+        packageManager: overlayFSPackageManager,
+        shouldDisableCache: false,
+        inputFS: overlayFS,
+        cacheDir: path.join(__dirname, '.parcel-cache'),
+      };
+
+      await fsFixture(overlayFS)`
+      source
+        foo.js:
+
+          export default 2;
+        index.js:
+          import('./foo');
+
+          export default 1;
+        .parcelrc:
+          {
+            "extends": "@parcel/config-default",
+            "bundler": "./test-bundler.js"
+          }
+        test-bundler.js:
+          import {Bundler} from '@parcel/plugin'
+          import DefaultBundler from '@parcel/bundler-default'
+
+          const CONFIG = Symbol.for('parcel-plugin-config');
+
+          export default new Bundler({
+            loadConfig({config, options}) {
+              return DefaultBundler[CONFIG].loadConfig({config, options});
+            },
+          
+            bundle({bundleGraph, config}) {
+              DefaultBundler[CONFIG].bundle({bundleGraph, config});
+            },
+            optimize() {throw new Error("Intentionally throw error")},
+          });
+        yarn.lock:`;
+      // $FlowFixMe
+      await assert.rejects(() => bundle(entries, options));
+
+      let resolvedOptions = await resolveOptions(
+        getParcelOptions(entries, options),
+      );
+
+      let bundleGraphCacheKey = hashString(
+        `${version}:BundleGraph:${
+          JSON.stringify(resolvedOptions.entries) ?? ''
+        }${resolvedOptions.mode}`,
+      );
+
+      let bundleGraphPath = path.join(
+        resolvedOptions.cacheDir,
+        bundleGraphCacheKey + '-0',
+      );
+
+      assert(v8.deserialize(overlayFS.readFileSync(bundleGraphPath)));
     });
 
     it('should invalidate when a terser config is modified', async function () {
