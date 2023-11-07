@@ -20,9 +20,7 @@
     "parcel": "^2.10.2"
   },
   "files": [
-    "lib",
-    "native.js",
-    "*.node"
+    "lib"
   ],
   "dependencies": {
     "@parcel/diagnostic": "2.10.2",
