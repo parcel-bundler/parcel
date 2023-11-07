@@ -8,6 +8,7 @@ import type {
   WorkerMessage,
 } from '../types';
 import {prepareForSerialization, restoreDeserializedObject} from '@parcel/core';
+import {makeDeferredWithPromise} from '@parcel/utils';
 
 let id = 0;
 
@@ -17,6 +18,7 @@ export default class WebWorker implements WorkerImpl {
   onError: ErrorHandler;
   onExit: ExitHandler;
   worker: Worker;
+  stopping: ?Promise<void>;
 
   constructor(
     execArgv: Object,
@@ -37,20 +39,40 @@ export default class WebWorker implements WorkerImpl {
       type: 'module',
     });
 
-    // $FlowFixMe ???
-    this.worker.onmessage = ({data}) => this.handleMessage(data);
+    let {deferred, promise} = makeDeferredWithPromise();
+
+    this.worker.onmessage = ({data}) => {
+      if (data === 'online') {
+        deferred.resolve();
+        return;
+      }
+
+      // $FlowFixMe assume WorkerMessage as data
+      this.handleMessage(data);
+    };
     this.worker.onerror = this.onError;
+    // Web workers can't crash or intentionally stop on their own, apart from stop() below
     // this.worker.on('exit', this.onExit);
 
-    return Promise.resolve();
-    // return new Promise<void>(resolve => {
-    //   this.worker.on('online', resolve);
-    // });
+    return promise;
   }
 
   stop(): Promise<void> {
-    this.worker.terminate();
-    return Promise.resolve();
+    if (!this.stopping) {
+      this.stopping = (async () => {
+        this.worker.postMessage('stop');
+        let {deferred, promise} = makeDeferredWithPromise();
+        this.worker.addEventListener('message', ({data}: MessageEvent) => {
+          if (data === 'stopped') {
+            deferred.resolve();
+          }
+        });
+        await promise;
+        this.worker.terminate();
+        this.onExit(0);
+      })();
+    }
+    return this.stopping;
   }
 
   handleMessage(data: WorkerMessage) {

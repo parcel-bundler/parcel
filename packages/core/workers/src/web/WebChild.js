@@ -27,11 +27,15 @@ export default class WebChild implements ChildImpl {
 
     this.onMessage = onMessage;
     this.onExit = onExit;
-    self.addEventListener('message', ({data}: MessageEvent) =>
+    self.addEventListener('message', ({data}: MessageEvent) => {
+      if (data === 'stop') {
+        this.onExit(0);
+        self.postMessage('stopped');
+      }
       // $FlowFixMe assume WorkerMessage as data
-      this.handleMessage(data),
-    );
-    // parentPort.on('close', this.onExit);
+      this.handleMessage(data);
+    });
+    self.postMessage('online');
   }
 
   handleMessage(data: WorkerMessage) {
