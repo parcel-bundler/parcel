@@ -6207,7 +6207,7 @@ describe('cache', function () {
             optimize() {throw new Error("Intentionally throw error")},
           });
         yarn.lock:`;
-
+      // $FlowFixMe
       await assert.rejects(() => bundle(entries, options));
 
       let resolvedOptions = await resolveOptions(
