@@ -84,6 +84,7 @@ export class LMDBCache implements Cache {
   }
 
   async setBlob(key: string, contents: Buffer | string): Promise<void> {
+    console.log('setBlob key: ', key);
     await this.store.put(key, contents);
   }
 
@@ -100,6 +101,7 @@ export class LMDBCache implements Cache {
   }
 
   async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
+    console.log('setLargeBlob key: ', key);
     await this.fs.writeFile(path.join(this.dir, key), contents);
   }
 

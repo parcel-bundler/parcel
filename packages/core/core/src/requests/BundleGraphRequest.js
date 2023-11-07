@@ -377,6 +377,7 @@ class BundlerRunner {
       }
     } catch (e) {
       if (internalBundleGraph != null) {
+        console.log('this is the cache key for bundle graph: ', this.cacheKey);
         this.api.storeResult(
           {
             bundleGraph: internalBundleGraph,
