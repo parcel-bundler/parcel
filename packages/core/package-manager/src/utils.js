@@ -13,8 +13,10 @@ import {promisify} from 'util';
 export const exec: (
   command: string,
   options?: child_process$execOpts,
-) => Promise<{|stdout: string | Buffer, stderr: string | Buffer|}> =
-  promisify(_exec);
+) => Promise<{|stdout: string | Buffer, stderr: string | Buffer|}> = _exec
+  ? promisify(_exec)
+  : // _exec is undefined in browser builds
+    _exec;
 
 export function npmSpecifierFromModuleRequest(
   moduleRequest: ModuleRequest,
