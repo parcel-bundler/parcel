@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-svg-react",
-  "version": "2.10.2",
+  "version": "2.10.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,10 +17,10 @@
   "source": "src/SvgReactTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.10.2"
+    "parcel": "^2.10.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.10.2",
+    "@parcel/plugin": "2.10.1",
     "@svgr/core": "^6.2.0",
     "@svgr/plugin-jsx": "^6.2.0",
     "@svgr/plugin-svgo": "^6.2.0"

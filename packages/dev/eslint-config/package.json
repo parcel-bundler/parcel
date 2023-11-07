@@ -1,10 +1,10 @@
 {
   "name": "@parcel/eslint-config",
   "private": true,
-  "version": "2.10.2",
+  "version": "2.10.1",
   "dependencies": {
     "@babel/eslint-parser": "^7.22.11",
-    "@parcel/eslint-plugin": "2.10.2",
+    "@parcel/eslint-plugin": "2.10.1",
     "eslint-config-prettier": "^7.2.0",
     "eslint-plugin-flowtype": "^5.2.0",
     "eslint-plugin-import": "^2.22.1",

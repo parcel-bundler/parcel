@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "2.10.2",
+  "version": "2.10.1",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -43,7 +43,7 @@
     "ncp": "^2.0.0",
     "nib": "^1.1.2",
     "node-elm-compiler": "^5.0.5",
-    "parcel": "2.10.2",
+    "parcel": "2.10.1",
     "postcss": "^8.4.5",
     "postcss-custom-properties": "^12.1.2",
     "postcss-import": "^14.0.2",

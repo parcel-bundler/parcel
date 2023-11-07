@@ -11,8 +11,6 @@ import type {
 } from './types';
 import type {HandleFunction} from './Handle';
 
-import * as coreWorker from './core-worker';
-import * as bus from './bus';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
@@ -48,10 +46,9 @@ export type FarmOptions = {|
   shouldTrace?: boolean,
 |};
 
-type WorkerModule = {
+type WorkerModule = {|
   +[string]: (...args: Array<mixed>) => Promise<mixed>,
-  ...
-};
+|};
 
 export type WorkerApi = {|
   callMaster(CallRequest, ?boolean): Promise<mixed>,
@@ -77,7 +74,6 @@ export default class WorkerFarm extends EventEmitter {
   options: FarmOptions;
   run: HandleFunction;
   warmWorkers: number = 0;
-  readyWorkers: number = 0;
   workers: Map<number, Worker> = new Map();
   handles: Map<number, Handle> = new Map();
   sharedReferences: Map<SharedReference, mixed> = new Map();
@@ -103,23 +99,10 @@ export default class WorkerFarm extends EventEmitter {
       throw new Error('Please provide a worker path!');
     }
 
-    // $FlowFixMe
-    if (process.browser) {
-      if (this.options.workerPath === '@parcel/core/src/worker.js') {
-        this.localWorker = coreWorker;
-      } else {
-        throw new Error(
-          'No dynamic require possible: ' + this.options.workerPath,
-        );
-      }
-    } else {
-      // $FlowFixMe this must be dynamic
-      this.localWorker = require(this.options.workerPath);
-    }
-
+    // $FlowFixMe this must be dynamic
+    this.localWorker = require(this.options.workerPath);
     this.localWorkerInit =
       this.localWorker.childInit != null ? this.localWorker.childInit() : null;
-
     this.run = this.createHandle('run');
 
     // Worker thread stdout is by default piped into the process stdout, if there are enough worker
@@ -130,7 +113,7 @@ export default class WorkerFarm extends EventEmitter {
     // Note this can't be fixed easily where other things pipe into stdout -  even after starting > 10 worker
     // threads `process.stdout.getMaxListeners()` will still return 10, however adding another pipe into `stdout`
     // will give the warning with `<worker count + 1>` as the number of listeners.
-    process.stdout?.setMaxListeners(
+    process.stdout.setMaxListeners(
       Math.max(
         process.stdout.getMaxListeners(),
         WorkerFarm.getNumWorkers() + 1,
@@ -268,13 +251,7 @@ export default class WorkerFarm extends EventEmitter {
 
     worker.on('request', data => this.processRequest(data, worker));
 
-    worker.on('ready', () => {
-      this.readyWorkers++;
-      if (this.readyWorkers === this.options.maxConcurrentWorkers) {
-        this.emit('ready');
-      }
-      this.processQueue();
-    });
+    worker.on('ready', () => this.processQueue());
     worker.on('response', () => this.processQueue());
 
     worker.on('error', err => this.onError(err, worker));
@@ -355,17 +332,8 @@ export default class WorkerFarm extends EventEmitter {
     if (handleId != null) {
       mod = nullthrows(this.handles.get(handleId)?.fn);
     } else if (location) {
-      // $FlowFixMe
-      if (process.browser) {
-        if (location === '@parcel/workers/src/bus.js') {
-          mod = (bus: any);
-        } else {
-          throw new Error('No dynamic require possible: ' + location);
-        }
-      } else {
-        // $FlowFixMe this must be dynamic
-        mod = require(location);
-      }
+      // $FlowFixMe this must be dynamic
+      mod = require(location);
     } else {
       throw new Error('Unknown request');
     }

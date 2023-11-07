@@ -65,4 +65,4 @@ export interface ChildImpl {
   send(data: WorkerMessage): void;
 }
 
-export type BackendType = 'threads' | 'process' | 'web';
+export type BackendType = 'threads' | 'process';

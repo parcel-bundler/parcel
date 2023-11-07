@@ -5,16 +5,6 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.10.2] - 2023-11-01
-
-### Fixed
-
-- Core
-  - Use clz32 for counting trailing zeroes – [Details](https://github.com/parcel-bundler/parcel/pull/9340)
-
-- JavaScript
-  - Do not wrap duplicated assets when they are in different targets – [Details](https://github.com/parcel-bundler/parcel/pull/9348)
-
 ## [2.10.1] – 2023-10-23
 
 ### Fixed

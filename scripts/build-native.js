@@ -5,7 +5,6 @@ const path = require('path');
 const {spawn, execSync} = require('child_process');
 
 let release = process.argv.includes('--release');
-let wasm = process.argv.includes('--wasm');
 build();
 
 async function build() {
@@ -17,17 +16,14 @@ async function build() {
   for (let pkg of packages) {
     try {
       let pkgJSON = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json')));
-      if (!wasm && !pkgJSON.napi) continue;
-      if (wasm && !pkgJSON.scripts?.['wasm:build-release']) continue;
+      if (!pkgJSON.napi) continue;
     } catch (err) {
       continue;
     }
 
     console.log(`Building ${pkg}...`);
     await new Promise((resolve, reject) => {
-      let args = [
-        (wasm ? 'wasm:' : '') + (release ? 'build-release' : 'build'),
-      ];
+      let args = [release ? 'build-release' : 'build'];
       if (process.env.RUST_TARGET) {
         args.push('--target', process.env.RUST_TARGET);
       }

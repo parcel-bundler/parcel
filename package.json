@@ -16,7 +16,6 @@
     "build-ts": "lerna run build-ts && lerna run check-ts",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
-    "build-native-wasm": "node scripts/build-native.js --release --wasm",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
     "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rimraf ./lib && yarn",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" && cargo fmt --all",

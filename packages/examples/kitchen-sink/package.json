@@ -1,6 +1,6 @@
 {
   "name": "@parcel/kitchen-sink-example",
-  "version": "2.10.2",
+  "version": "2.10.1",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -9,12 +9,12 @@
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.10.2",
-    "@parcel/config-default": "2.10.2",
-    "@parcel/core": "2.10.2",
-    "@parcel/optimizer-esbuild": "2.10.2",
-    "@parcel/reporter-sourcemap-visualiser": "2.10.2",
-    "parcel": "2.10.2"
+    "@parcel/babel-register": "2.10.1",
+    "@parcel/config-default": "2.10.1",
+    "@parcel/core": "2.10.1",
+    "@parcel/optimizer-esbuild": "2.10.1",
+    "@parcel/reporter-sourcemap-visualiser": "2.10.1",
+    "parcel": "2.10.1"
   },
   "targets": {
     "browserModern": {

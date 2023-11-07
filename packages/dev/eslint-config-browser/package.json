@@ -1,9 +1,9 @@
 {
   "name": "@parcel/eslint-config-browser",
   "private": true,
-  "version": "2.10.2",
+  "version": "2.10.1",
   "dependencies": {
-    "@parcel/eslint-config": "2.10.2"
+    "@parcel/eslint-config": "2.10.1"
   },
   "peerDependencies": {
     "@babel/core": "^7.22.11",

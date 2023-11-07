@@ -918,26 +918,13 @@ function makeShared(contents: Buffer | string): Buffer {
     return contents;
   }
 
-  let contentsBuffer: Buffer | string = contents;
-  // $FlowFixMe
-  if (process.browser) {
-    // For the polyfilled buffer module, it's faster to always convert once so that the subsequent
-    // operations are fast (.byteLength and using .set instead of .write)
-    contentsBuffer =
-      contentsBuffer instanceof Buffer
-        ? contentsBuffer
-        : Buffer.from(contentsBuffer);
-  }
-
-  let length = Buffer.byteLength(contentsBuffer);
+  let length = Buffer.byteLength(contents);
   let shared = new SharedBuffer(length);
   let buffer = Buffer.from(shared);
-  if (length > 0) {
-    if (typeof contentsBuffer === 'string') {
-      buffer.write(contentsBuffer);
-    } else {
-      buffer.set(contentsBuffer);
-    }
+  if (typeof contents === 'string') {
+    buffer.write(contents);
+  } else {
+    buffer.set(contents);
   }
 
   return buffer;

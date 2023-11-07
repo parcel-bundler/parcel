@@ -13,6 +13,7 @@ import type {
 import type {
   ParcelOptions,
   RequestInvalidation,
+  InternalFile,
   InternalFileCreateInvalidation,
   InternalGlob,
 } from './types';
@@ -83,7 +84,7 @@ type SerializedRequestGraph = {|
   invalidateOnBuildNodeIds: Set<NodeId>,
 |};
 
-type FileNode = {|id: ContentKey, +type: 'file'|};
+type FileNode = {|id: ContentKey, +type: 'file', value: InternalFile|};
 type GlobNode = {|id: ContentKey, +type: 'glob', value: InternalGlob|};
 type FileNameNode = {|
   id: ContentKey,
@@ -166,6 +167,7 @@ export type StaticRunOpts<TResult> = {|
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
   id: fromProjectPathRelative(filePath),
   type: 'file',
+  value: {filePath},
 });
 
 const nodeFromGlob = (glob: InternalGlob): RequestGraphNode => ({
@@ -607,7 +609,7 @@ export class RequestGraph extends ContentGraph<
         let node = nullthrows(this.getNode(nodeId));
         switch (node.type) {
           case 'file':
-            return {type: 'file', filePath: toProjectPathUnsafe(node.id)};
+            return {type: 'file', filePath: node.value.filePath};
           case 'env':
             return {type: 'env', key: node.value.key};
           case 'option':
@@ -673,7 +675,7 @@ export class RequestGraph extends ContentGraph<
           requestGraphEdgeTypes.invalidated_by_create_above,
         ) &&
         isDirectoryInside(
-          fromProjectPathRelative(toProjectPathUnsafe(matchNode.id)),
+          fromProjectPathRelative(matchNode.value.filePath),
           dirname,
         )
       ) {

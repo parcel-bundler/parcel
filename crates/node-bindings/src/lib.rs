@@ -39,20 +39,15 @@ pub extern "C" fn napi_wasm_malloc(size: usize) -> *mut u8 {
 
 #[cfg(target_arch = "wasm32")]
 mod wasm {
-  use napi_derive::napi;
+  use core::num::NonZeroU32;
+  use getrandom::register_custom_getrandom;
+  use getrandom::Error;
 
-  #[link(wasm_import_module = "env")]
-  extern "C" {
-    fn log(ptr: *const u8, len: usize);
+  // TODO
+  pub fn always_fail(buf: &mut [u8]) -> Result<(), Error> {
+    let code = NonZeroU32::new(Error::CUSTOM_START + 42).unwrap();
+    Err(Error::from(code))
   }
 
-  #[napi]
-  pub fn init_panic_hook() {
-    std::panic::set_hook(Box::new(|p| {
-      let s = p.to_string();
-      unsafe {
-        log(s.as_ptr(), s.len());
-      }
-    }));
-  }
+  register_custom_getrandom!(always_fail);
 }

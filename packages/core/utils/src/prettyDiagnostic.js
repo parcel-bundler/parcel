@@ -3,16 +3,11 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginOptions} from '@parcel/types';
 
 import formatCodeFrame from '@parcel/codeframe';
-import _mdAnsi from '@parcel/markdown-ansi';
-import _chalk from 'chalk';
+import mdAnsi from '@parcel/markdown-ansi';
+import chalk from 'chalk';
 import path from 'path';
 // $FlowFixMe
-import _terminalLink from 'terminal-link';
-
-/* eslint-disable import/no-extraneous-dependencies */
-// $FlowFixMe
-import snarkdown from 'snarkdown';
-/* eslint-enable import/no-extraneous-dependencies */
+import terminalLink from 'terminal-link';
 
 export type FormattedCodeFrame = {|
   location: string,
@@ -34,7 +29,6 @@ export default async function prettyDiagnostic(
   diagnostic: Diagnostic,
   options?: PluginOptions,
   terminalWidth?: number,
-  format: 'ansi' | 'html' = 'ansi',
 ): Promise<AnsiDiagnosticResult> {
   let {
     origin,
@@ -46,26 +40,10 @@ export default async function prettyDiagnostic(
     documentationURL,
   } = diagnostic;
 
-  const md = format === 'ansi' ? _mdAnsi : snarkdown;
-  const terminalLink =
-    format === 'ansi'
-      ? _terminalLink
-      : // eslint-disable-next-line no-unused-vars
-        (text, url, _) => `<a href="${url}">${text}</a>`;
-  const chalk =
-    format === 'ansi'
-      ? _chalk
-      : {
-          gray: {
-            underline: v =>
-              `<span style="color: grey; text-decoration: underline;">${v}</span>`,
-          },
-        };
-
   let result = {
     message:
-      md(`**${origin ?? 'unknown'}**: `) +
-      (skipFormatting ? message : md(message)),
+      mdAnsi(`**${origin ?? 'unknown'}**: `) +
+      (skipFormatting ? message : mdAnsi(message)),
     stack: '',
     codeframe: '',
     frames: [],
@@ -126,7 +104,7 @@ export default async function prettyDiagnostic(
 
   if (Array.isArray(hints) && hints.length) {
     result.hints = hints.map(h => {
-      return md(h);
+      return mdAnsi(h);
     });
   }
 

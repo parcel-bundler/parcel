@@ -12,7 +12,6 @@ import type {
 import type {Async, IDisposable} from '@parcel/types';
 import type {SharedReference} from './WorkerFarm';
 
-import * as coreWorker from './core-worker';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
@@ -101,17 +100,8 @@ export class Child {
   }
 
   async childInit(module: string, childId: number): Promise<void> {
-    // $FlowFixMe
-    if (process.browser) {
-      if (module === '@parcel/core/src/worker.js') {
-        this.module = coreWorker;
-      } else {
-        throw new Error('No dynamic require possible: ' + module);
-      }
-    } else {
-      // $FlowFixMe this must be dynamic
-      this.module = require(module);
-    }
+    // $FlowFixMe this must be dynamic
+    this.module = require(module);
     this.childId = childId;
 
     if (this.module.childInit != null) {

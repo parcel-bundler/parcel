@@ -136,7 +136,7 @@ function nameFromContent(
       }
     }
 
-    return name || 'bundle';
+    return name;
   }
 }
 

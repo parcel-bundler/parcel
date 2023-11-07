@@ -7,8 +7,7 @@ class Bus extends EventEmitter {
     if (child) {
       child.workerApi.callMaster(
         {
-          // $FlowFixMe
-          location: process.browser ? '@parcel/workers/src/bus.js' : __filename,
+          location: __filename,
           method: 'emit',
           args: [event, ...args],
         },
