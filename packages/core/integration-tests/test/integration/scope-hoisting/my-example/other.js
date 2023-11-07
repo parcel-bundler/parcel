@@ -1,0 +1,3 @@
+// other.js
+export * from './x.js'; // Is `a` reexported here...
+export * from './y.js'; // ... or here? Or neither?
