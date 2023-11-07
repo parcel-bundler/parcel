@@ -6226,6 +6226,7 @@ describe('cache', function () {
         bundleGraphCacheKey.slice(2) + '-large',
       );
 
+      console.log('This is the overlayFS:\n', overlayFS);
       assert(v8.deserialize(overlayFS.readFileSync(bundleGraphPath)));
     });
 
