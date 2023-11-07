@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-esbuild",
-  "version": "2.10.1",
+  "version": "2.10.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,13 +17,13 @@
   "source": "src/ESBuildOptimizer.js",
   "engines": {
     "node": ">= 10.0.0",
-    "parcel": "^2.10.1"
+    "parcel": "^2.10.2"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.10.1",
-    "@parcel/plugin": "2.10.1",
+    "@parcel/diagnostic": "2.10.2",
+    "@parcel/plugin": "2.10.2",
     "@parcel/source-map": "^2.1.1",
-    "@parcel/utils": "2.10.1",
+    "@parcel/utils": "2.10.2",
     "esbuild": "^0.13.0",
     "nullthrows": "^1.1.1"
   }
