@@ -141,6 +141,7 @@ export type RunAPI<TResult> = {|
   invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
   storeResult(result: TResult, cacheKey?: string): void,
+  storeResultDeep(result: TResult, cacheKey?: string): void,
   getRequestResult<T>(contentKey: ContentKey): Async<?T>,
   getPreviousResult<T>(ifMatch?: string): Async<?T>,
   getSubRequests(): Array<StoredRequest>,
@@ -875,7 +876,11 @@ export default class RequestTracker {
       node.value.resultCacheKey = cacheKey;
     }
   }
-
+  storeResultDeep(nodeId: NodeId, result: mixed, cacheKey: ?string) {
+    // Store result in graph the immediately write to cache
+    this.storeResult(nodeId, result, cacheKey);
+    this.writeToCache(cacheKey);
+  }
   hasValidResult(nodeId: NodeId): boolean {
     return (
       this.graph.hasNode(nodeId) &&
@@ -1049,6 +1054,9 @@ export default class RequestTracker {
       storeResult: (result, cacheKey) => {
         this.storeResult(requestId, result, cacheKey);
       },
+      storeResultDeep: (result, cacheKey) => {
+        this.storeResultDeep(requestId, result, cacheKey);
+      },
       getSubRequests: () => this.graph.getSubRequests(requestId),
       getInvalidSubRequests: () => this.graph.getInvalidSubRequests(requestId),
       getPreviousResult: <T>(ifMatch?: string): Async<?T> => {
@@ -1079,8 +1087,8 @@ export default class RequestTracker {
     return {api, subRequestContentKeys};
   }
 
-  async writeToCache() {
-    let cacheKey = getCacheKey(this.options);
+  async writeToCache(key?: ?string) {
+    let cacheKey = key != null ? key : getCacheKey(this.options);
     let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
     let snapshotKey = hashString(`${cacheKey}:snapshot`);
 

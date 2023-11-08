@@ -441,7 +441,7 @@ class BundlerRunner {
       bundleGraphEdgeTypes,
     );
 
-    this.api.storeResult(
+    this.api.storeResultDeep(
       {
         bundleGraph: internalBundleGraph,
         changedAssets: new Map(),
