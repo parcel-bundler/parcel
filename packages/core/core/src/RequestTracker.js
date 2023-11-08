@@ -50,6 +50,8 @@ import {
   ERROR,
 } from './constants';
 
+import cliProgress from 'cli-progress';
+
 export const requestGraphEdgeTypes = {
   subrequest: 2,
   invalidated_by_update: 3,
@@ -1079,13 +1081,19 @@ export default class RequestTracker {
     return {api, subRequestContentKeys};
   }
 
-  async writeToCache() {
+  async writeToCache(showWriteProgress?: boolean = false) {
     let cacheKey = getCacheKey(this.options);
     let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
     let snapshotKey = hashString(`${cacheKey}:snapshot`);
 
     if (this.options.shouldDisableCache) {
       return;
+    }
+    let bar;
+    let total = 2;
+    if (showWriteProgress) {
+      bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
+      bar.start(total, 0);
     }
 
     let promises = [];
@@ -1102,6 +1110,10 @@ export default class RequestTracker {
             serialize(node.value.result),
           ),
         );
+        if (bar) {
+          bar.setTotal(++total);
+          bar.increment();
+        }
         delete node.value.result;
       }
     }
@@ -1109,6 +1121,9 @@ export default class RequestTracker {
     promises.push(
       this.options.cache.setLargeBlob(requestGraphKey, serialize(this.graph)),
     );
+    if (bar) {
+      bar.increment();
+    }
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
@@ -1119,6 +1134,10 @@ export default class RequestTracker {
         opts,
       ),
     );
+    if (bar) {
+      bar.increment();
+      bar.stop();
+    }
 
     await Promise.all(promises);
   }

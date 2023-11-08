@@ -35,7 +35,7 @@ import {registerCoreWithSerializer} from './utils';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
-import logger from '@parcel/logger';
+import logger, {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
 import RequestTracker, {
   getWatcherOptions,
   requestGraphEdgeTypes,
@@ -55,6 +55,7 @@ import {
   fromProjectPathRelative,
 } from './projectPath';
 import {tracer} from '@parcel/profiler';
+import chalk from 'chalk';
 
 registerCoreWithSerializer();
 
@@ -174,11 +175,21 @@ export default class Parcel {
 
   async _end(): Promise<void> {
     this.#initialized = false;
+    // Shows progress message and status bar for large graphs.
+    let showWriteProgress = this.#requestTracker.graph.nodes.length > 5000;
+    if (showWriteProgress) {
+      INTERNAL_ORIGINAL_CONSOLE.log(
+        chalk.bold.yellowBright('Writing to cache...'),
+      );
+    }
 
     await Promise.all([
       this.#disposable.dispose(),
-      await this.#requestTracker.writeToCache(),
+      await this.#requestTracker.writeToCache(showWriteProgress),
     ]);
+    if (showWriteProgress) {
+      INTERNAL_ORIGINAL_CONSOLE.log(chalk.bold.yellowBright('Done.'));
+    }
   }
 
   async _startNextBuild(): Promise<?BuildEvent> {
