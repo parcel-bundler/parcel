@@ -32,7 +32,7 @@ import resolveOptions from '@parcel/core/src/resolveOptions';
 import logger from '@parcel/logger';
 import sinon from 'sinon';
 import {version} from '@parcel/core/package.json';
-import v8 from 'v8';
+import {deserialize} from '@parcel/core/src/serializer';
 import {hashString} from '@parcel/rust';
 
 let inputDir: string;
@@ -6220,12 +6220,11 @@ describe('cache', function () {
         }${resolvedOptions.mode}`,
       );
 
-      let bundleGraphPath = path.join(
-        resolvedOptions.cacheDir,
-        bundleGraphCacheKey + '-0',
+      assert(
+        deserialize(
+          await resolvedOptions.cache.getLargeBlob(bundleGraphCacheKey),
+        ),
       );
-
-      assert(v8.deserialize(overlayFS.readFileSync(bundleGraphPath)));
     });
 
     it('should invalidate when a terser config is modified', async function () {
