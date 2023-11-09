@@ -57,7 +57,7 @@ declare module 'cli-progress' {
     /**
      * output stream to use (default: process.stderr)
      */
-    stream?: NodeJS$WritableStream | void;
+    stream?: WritableStream | void;
 
     /**
      * automatically call stop() when the value reaches the total (default: false)
@@ -197,7 +197,7 @@ declare module 'cli-progress' {
      */
     format: string;
   }
-  declare export class GenericBar mixins EventEmitter {
+  declare export class GenericBar mixins events$EventEmitter {
     /**
      * Initialize a new Progress bar. An instance can be used multiple times! it's not required to re-create it!
      */
@@ -285,7 +285,7 @@ declare module 'cli-progress' {
      */
     stop(): void;
   }
-  declare export class MultiBar mixins EventEmitter {
+  declare export class MultiBar mixins events$EventEmitter {
     constructor(opt: Options, preset?: Preset): this;
 
     /**
