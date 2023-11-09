@@ -275,7 +275,7 @@ describe('lazy compile', function () {
     subscription.unsubscribe();
   });
 
-  it.only('should lazy compile properly when an assets needs to be re-visited in symbol propagation', async () => {
+  it('should lazy compile properly when an assets needs to be re-visited in symbol propagation', async () => {
     await fsFixture(overlayFS, __dirname)`
       lazy-compile-import-symbols
         index.js:
