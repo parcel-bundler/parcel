@@ -591,7 +591,7 @@ export default class WorkerFarm extends EventEmitter {
     await Promise.all(promises);
   }
 
-  async takeHeapSnapshot() {
+  async takeHeapSnapshot(name?: string) {
     let snapshotId = getTimeId();
 
     try {
@@ -601,7 +601,7 @@ export default class WorkerFarm extends EventEmitter {
             new Promise((resolve, reject) => {
               worker.call({
                 method: 'takeHeapSnapshot',
-                args: [snapshotId],
+                args: name == null ? [snapshotId] : [snapshotId, `${name}-`],
                 resolve,
                 reject,
                 retries: 0,

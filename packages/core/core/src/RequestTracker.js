@@ -116,6 +116,8 @@ type RequestGraphNode =
   | OptionNode;
 
 export type RunAPI<TResult> = {|
+  takeHeapSnapshot(name?: string): Promise<void>,
+
   invalidateOnFileCreate: InternalFileCreateInvalidation => void,
   invalidateOnFileDelete: ProjectPath => void,
   invalidateOnFileUpdate: ProjectPath => void,
@@ -827,6 +829,10 @@ export default class RequestTracker {
     this.signal = signal;
   }
 
+  takeHeapSnapshot(name?: string): Promise<void> {
+    return this.farm.takeHeapSnapshot(name);
+  }
+
   startRequest(request: StoredRequest): {|
     requestNodeId: NodeId,
     deferred: Deferred<boolean>,
@@ -1014,6 +1020,8 @@ export default class RequestTracker {
   ): {|api: RunAPI<TResult>, subRequestContentKeys: Set<ContentKey>|} {
     let subRequestContentKeys = new Set<ContentKey>();
     let api: RunAPI<TResult> = {
+      takeHeapSnapshot: name => this.takeHeapSnapshot(name),
+
       invalidateOnFileCreate: input =>
         this.graph.invalidateOnFileCreate(requestId, input),
       invalidateOnFileDelete: filePath =>

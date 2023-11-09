@@ -173,7 +173,7 @@ export class Child {
         let v8 = require('v8');
         result = responseFromContent(
           v8.writeHeapSnapshot(
-            'heap-' +
+            (args[1] || 'heap-') +
               args[0] +
               '-' +
               (this.childId ? 'worker' + this.childId : 'main') +

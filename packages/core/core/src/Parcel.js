@@ -272,6 +272,8 @@ export default class Parcel {
     this.#requestTracker.setSignal(signal);
     let options = nullthrows(this.#resolvedOptions);
     try {
+      // await this.#farm.takeHeapSnapshot('build');
+
       if (options.shouldProfile) {
         await this.startProfiling();
       }

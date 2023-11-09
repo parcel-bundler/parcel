@@ -70,10 +70,14 @@ async function run({input, api, options}) {
     signal,
   });
 
+  // await api.takeHeapSnapshot('before-bundling');
+
   let {bundleGraph, changedAssets, assetRequests}: BundleGraphResult =
     await api.runRequest(bundleGraphRequest, {
       force: options.shouldBuildLazily && requestedAssetIds.size > 0,
     });
+
+  // await api.takeHeapSnapshot('after-bundling');
 
   dumpGraphToGraphViz(
     options.db,
@@ -106,7 +110,12 @@ async function run({input, api, options}) {
     optionsRef,
   });
 
+  // await api.takeHeapSnapshot('before-packaging');
+
   let bundleInfo = await api.runRequest(writeBundlesRequest);
+
+  // await api.takeHeapSnapshot('after-packaging');
+
   packagingMeasurement && packagingMeasurement.end();
   assertSignalNotAborted(signal);
 
