@@ -8,10 +8,23 @@ import {
   assertBundles,
   removeDistDirectory,
   run,
+  fsFixture,
+  overlayFS,
 } from '@parcel/test-utils';
 
 const findBundle = (bundleGraph, nameRegex) => {
-  return bundleGraph.getBundles().find(b => nameRegex.test(b.name));
+  const result = bundleGraph.getBundles().find(b => nameRegex.test(b.name));
+
+  if (!result) {
+    throw new Error(
+      `Couldn't find bundle matching '${nameRegex}'. Available bundles are ${bundleGraph
+        ?.getBundles()
+        .map(b => b.name)
+        .join(', ')}`,
+    );
+  }
+
+  return result;
 };
 
 const distDirIncludes = async matches => {
@@ -258,6 +271,75 @@ describe('lazy compile', function () {
     assert.deepEqual(await output.default(), [
       'static component',
       'static component',
+    ]);
+    subscription.unsubscribe();
+  });
+
+  it.only('should lazy compile properly when an assets needs to be re-visited in symbol propagation', async () => {
+    await fsFixture(overlayFS, __dirname)`
+      lazy-compile-import-symbols
+        index.js:
+          import { shared, async } from './main';
+          export default Promise.all([shared(), async()]);
+
+        main.js:
+          export function shared() {
+            return import('./shared');
+          }
+          export function async() {
+            return import('./async');
+          }
+
+        async.js:
+          // Trigger more deps so a full 'propagateSymbolsUp' pass is executed
+          import './a';
+          import './b';
+          import './c';
+          import { other } from './shared';
+          export default other;
+
+        shared.js:
+            export const main = 'main';
+            export const other = 'other';
+
+        a.js:
+          sideEffectNoop();
+        b.js:
+          sideEffectNoop();
+        c.js:
+          sideEffectNoop();
+        `;
+
+    const b = await bundler(
+      path.join(__dirname, 'lazy-compile-import-symbols/index.js'),
+      {
+        shouldBuildLazily: true,
+        mode: 'development',
+        shouldContentHash: false,
+        inputFS: overlayFS,
+      },
+    );
+
+    await removeDistDirectory();
+
+    const subscription = await b.watch();
+    let result = await getNextBuild(b);
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^index\.js/),
+    );
+    result = await result.requestBundle(
+      findBundle(result.bundleGraph, /^async\./),
+    );
+
+    let output = await run(result.bundleGraph);
+    assert.deepEqual(await output.default, [
+      {
+        main: 'main',
+        other: 'other',
+      },
+      {
+        default: 'other',
+      },
     ]);
     subscription.unsubscribe();
   });
