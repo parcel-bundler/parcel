@@ -879,7 +879,7 @@ export default class RequestTracker {
   storeResultDeep(nodeId: NodeId, result: mixed, cacheKey: ?string) {
     // Store result in graph the immediately write to cache
     this.storeResult(nodeId, result, cacheKey);
-    this.writeToCache(cacheKey);
+    this.writeNodeToCache(nodeId);
   }
   hasValidResult(nodeId: NodeId): boolean {
     return (
@@ -1087,8 +1087,8 @@ export default class RequestTracker {
     return {api, subRequestContentKeys};
   }
 
-  async writeToCache(key?: ?string) {
-    let cacheKey = key != null ? key : getCacheKey(this.options);
+  async writeToCache() {
+    let cacheKey = getCacheKey(this.options);
     let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
     let snapshotKey = hashString(`${cacheKey}:snapshot`);
 
@@ -1129,6 +1129,25 @@ export default class RequestTracker {
     );
 
     await Promise.all(promises);
+  }
+
+  writeNodeToCache(nodeId: NodeId) {
+    if (this.options.shouldDisableCache) {
+      return;
+    }
+    let node = this.graph.getNode(nodeId);
+    if (!node || node.type !== 'request') {
+      return;
+    }
+
+    let resultCacheKey = node.value.resultCacheKey;
+    if (resultCacheKey != null && node.value.result != null) {
+      this.options.cache.setLargeBlob(
+        resultCacheKey,
+        serialize(node.value.result),
+      );
+      delete node.value.result;
+    }
   }
 
   static async init({
