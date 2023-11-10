@@ -31,7 +31,7 @@ export default (new Optimizer({
           params: {
             overrides: {
               // Removing ids could break SVG sprites.
-              cleanupIDs: false,
+              cleanupIds: false,
               // <style> elements and attributes are already minified before they
               // are re-inserted by the packager.
               minifyStyles: false,
