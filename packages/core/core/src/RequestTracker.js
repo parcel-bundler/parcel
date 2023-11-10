@@ -877,7 +877,7 @@ export default class RequestTracker {
     }
   }
   storeResultDeep(nodeId: NodeId, result: mixed, cacheKey: ?string) {
-    // Store result in graph the immediately write to cache
+    // Store result in graph, then immediately write to cache
     this.storeResult(nodeId, result, cacheKey);
     this.writeNodeToCache(nodeId);
   }

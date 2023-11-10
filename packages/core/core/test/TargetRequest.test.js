@@ -85,6 +85,7 @@ describe('TargetResolver', () => {
       throw new Error('Not implemented');
     },
     storeResult() {},
+    storeResultDeep() {},
     canSkipSubrequest() {
       return false;
     },
