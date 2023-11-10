@@ -113,11 +113,6 @@ export function readCachedString(db: ParcelDb, addr: number): string {{
   return v;
 }}
 
-interface TypeAccessor<T> {{
-  get(db: ParcelDb, addr: number): T,
-  set(db: ParcelDb, addr: number, value: T): void
-}}
-
 "#
   )?;
 

@@ -111,6 +111,7 @@ export function readCachedString(db: ParcelDb, addr: number): string {
 }
 
 interface TypeAccessor<T> {
+  typeId: number;
   get(db: ParcelDb, addr: number): T;
   set(db: ParcelDb, addr: number, value: T): void;
 }
@@ -159,7 +160,7 @@ class Vec<T> {
 
   reserve(count: number): void {
     if (this.length + count > this.capacity) {
-      this.db.extendVec(this.addr, this.size, count);
+      this.db.extendVec(this.accessor.typeId, this.addr, count);
     }
   }
 
@@ -230,12 +231,13 @@ class Vec<T> {
 export opaque type TargetAddr = number;
 
 export class Target {
+  static typeId: number = 9;
   db: ParcelDb;
   addr: TargetAddr;
 
   constructor(db: ParcelDb, addr?: TargetAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(0);
+    this.addr = addr ?? db.alloc(9);
   }
 
   static get(db: ParcelDb, addr: TargetAddr): Target {
@@ -247,7 +249,7 @@ export class Target {
   }
 
   dealloc() {
-    this.db.dealloc(0, this.addr);
+    this.db.dealloc(9, this.addr);
   }
 
   get env(): EnvironmentAddr {
@@ -328,12 +330,13 @@ export class Target {
 export opaque type EnvironmentAddr = number;
 
 export class Environment {
+  static typeId: number = 4;
   db: ParcelDb;
   addr: EnvironmentAddr;
 
   constructor(db: ParcelDb, addr?: EnvironmentAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(1);
+    this.addr = addr ?? db.alloc(4);
   }
 
   static get(db: ParcelDb, addr: EnvironmentAddr): Environment {
@@ -345,7 +348,7 @@ export class Environment {
   }
 
   dealloc() {
-    this.db.dealloc(1, this.addr);
+    this.db.dealloc(4, this.addr);
   }
 
   get context(): EnvironmentContextVariants {
@@ -428,12 +431,13 @@ export class Environment {
 export opaque type TargetSourceMapOptionsAddr = number;
 
 export class TargetSourceMapOptions {
+  static typeId: number = 10;
   db: ParcelDb;
   addr: TargetSourceMapOptionsAddr;
 
   constructor(db: ParcelDb, addr?: TargetSourceMapOptionsAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(2);
+    this.addr = addr ?? db.alloc(10);
   }
 
   static get(
@@ -452,7 +456,7 @@ export class TargetSourceMapOptions {
   }
 
   dealloc() {
-    this.db.dealloc(2, this.addr);
+    this.db.dealloc(10, this.addr);
   }
 
   get sourceRoot(): ?string {
@@ -489,12 +493,13 @@ export class TargetSourceMapOptions {
 export opaque type SourceLocationAddr = number;
 
 export class SourceLocation {
+  static typeId: number = 7;
   db: ParcelDb;
   addr: SourceLocationAddr;
 
   constructor(db: ParcelDb, addr?: SourceLocationAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(3);
+    this.addr = addr ?? db.alloc(7);
   }
 
   static get(db: ParcelDb, addr: SourceLocationAddr): SourceLocation {
@@ -510,7 +515,7 @@ export class SourceLocation {
   }
 
   dealloc() {
-    this.db.dealloc(3, this.addr);
+    this.db.dealloc(7, this.addr);
   }
 
   get filePath(): string {
@@ -541,12 +546,13 @@ export class SourceLocation {
 export opaque type LocationAddr = number;
 
 export class Location {
+  static typeId: number = 6;
   db: ParcelDb;
   addr: LocationAddr;
 
   constructor(db: ParcelDb, addr?: LocationAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(4);
+    this.addr = addr ?? db.alloc(6);
   }
 
   static get(db: ParcelDb, addr: LocationAddr): Location {
@@ -558,7 +564,7 @@ export class Location {
   }
 
   dealloc() {
-    this.db.dealloc(4, this.addr);
+    this.db.dealloc(6, this.addr);
   }
 
   get line(): number {
@@ -717,12 +723,13 @@ export class OutputFormat {
 export opaque type AssetAddr = number;
 
 export class Asset {
+  static typeId: number = 0;
   db: ParcelDb;
   addr: AssetAddr;
 
   constructor(db: ParcelDb, addr?: AssetAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(5);
+    this.addr = addr ?? db.alloc(0);
   }
 
   static get(db: ParcelDb, addr: AssetAddr): Asset {
@@ -734,7 +741,7 @@ export class Asset {
   }
 
   dealloc() {
-    this.db.dealloc(5, this.addr);
+    this.db.dealloc(0, this.addr);
   }
 
   get id(): number {
@@ -905,12 +912,13 @@ export class Asset {
 export opaque type AssetAstAddr = number;
 
 export class AssetAst {
+  static typeId: number = 1;
   db: ParcelDb;
   addr: AssetAstAddr;
 
   constructor(db: ParcelDb, addr?: AssetAstAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(6);
+    this.addr = addr ?? db.alloc(1);
   }
 
   static get(db: ParcelDb, addr: AssetAstAddr): AssetAst {
@@ -922,7 +930,7 @@ export class AssetAst {
   }
 
   dealloc() {
-    this.db.dealloc(6, this.addr);
+    this.db.dealloc(1, this.addr);
   }
 
   get key(): string {
@@ -1070,12 +1078,13 @@ export class BundleBehavior {
 export opaque type AssetStatsAddr = number;
 
 export class AssetStats {
+  static typeId: number = 2;
   db: ParcelDb;
   addr: AssetStatsAddr;
 
   constructor(db: ParcelDb, addr?: AssetStatsAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(7);
+    this.addr = addr ?? db.alloc(2);
   }
 
   static get(db: ParcelDb, addr: AssetStatsAddr): AssetStats {
@@ -1087,7 +1096,7 @@ export class AssetStats {
   }
 
   dealloc() {
-    this.db.dealloc(7, this.addr);
+    this.db.dealloc(2, this.addr);
   }
 
   get size(): number {
@@ -1133,12 +1142,13 @@ export const ExportsCondition = {
 export opaque type DependencyAddr = number;
 
 export class Dependency {
+  static typeId: number = 3;
   db: ParcelDb;
   addr: DependencyAddr;
 
   constructor(db: ParcelDb, addr?: DependencyAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(8);
+    this.addr = addr ?? db.alloc(3);
   }
 
   static get(db: ParcelDb, addr: DependencyAddr): Dependency {
@@ -1150,7 +1160,7 @@ export class Dependency {
   }
 
   dealloc() {
-    this.db.dealloc(8, this.addr);
+    this.db.dealloc(3, this.addr);
   }
 
   get id(): number {
@@ -1385,12 +1395,13 @@ export class Dependency {
 export opaque type ImportAttributeAddr = number;
 
 export class ImportAttribute {
+  static typeId: number = 5;
   db: ParcelDb;
   addr: ImportAttributeAddr;
 
   constructor(db: ParcelDb, addr?: ImportAttributeAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(9);
+    this.addr = addr ?? db.alloc(5);
   }
 
   static get(db: ParcelDb, addr: ImportAttributeAddr): ImportAttribute {
@@ -1406,7 +1417,7 @@ export class ImportAttribute {
   }
 
   dealloc() {
-    this.db.dealloc(9, this.addr);
+    this.db.dealloc(5, this.addr);
   }
 
   get key(): string {
@@ -1512,12 +1523,13 @@ export class Priority {
 export opaque type SymbolAddr = number;
 
 export class Symbol {
+  static typeId: number = 8;
   db: ParcelDb;
   addr: SymbolAddr;
 
   constructor(db: ParcelDb, addr?: SymbolAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(10);
+    this.addr = addr ?? db.alloc(8);
   }
 
   static get(db: ParcelDb, addr: SymbolAddr): Symbol {
@@ -1529,7 +1541,7 @@ export class Symbol {
   }
 
   dealloc() {
-    this.db.dealloc(10, this.addr);
+    this.db.dealloc(8, this.addr);
   }
 
   get exported(): number {
@@ -1577,6 +1589,8 @@ export const SymbolFlags = {
 };
 
 class InternedString {
+  static typeId: number = 11;
+
   static get(db: ParcelDb, addr: number): string {
     return readCachedString(db, addr);
   }

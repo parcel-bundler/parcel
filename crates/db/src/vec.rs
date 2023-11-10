@@ -158,7 +158,13 @@ impl<T: SlabAllocated> ToJs for ArenaVec<T> {
       unsafe { (std::ptr::addr_of!((*p).cap) as *const u8).offset_from(u8_ptr) as usize };
 
     format!(
-      r#"class Vec<T> {{
+      r#"interface TypeAccessor<T> {{
+  typeId: number;
+  get(db: ParcelDb, addr: number): T,
+  set(db: ParcelDb, addr: number, value: T): void
+}}
+      
+class Vec<T> {{
   db: ParcelDb;
   addr: number;
   size: number;
@@ -197,7 +203,7 @@ impl<T: SlabAllocated> ToJs for ArenaVec<T> {
 
   reserve(count: number): void {{
     if (this.length + count > this.capacity) {{
-      this.db.extendVec(this.addr, this.size, count);
+      this.db.extendVec(this.accessor.typeId, this.addr, count);
     }}
   }}
 

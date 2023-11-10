@@ -71,12 +71,13 @@ pub fn derive_to_js(input: TokenStream) -> TokenStream {
             let u8_ptr = p as *const u8;
             let mut js = String::new();
             let size = std::mem::size_of::<#self_name>();
-            let id = unsafe { codegen::TYPES.iter().position(|t| *t == std::any::TypeId::of::<#self_name>()).unwrap() };
+            let id = codegen::type_id::<#self_name>();
 
             js.push_str(&format!(
       r#"export opaque type {name}Addr = number;
 
 export class {name} {{
+  static typeId: number = {id};
   db: ParcelDb;
   addr: {name}Addr;
 
@@ -115,10 +116,10 @@ export class {name} {{
         unsafe fn #register() {
           use std::io::Write;
           codegen::WRITE_CALLBACKS.push(|file| write!(file, "{}", #self_name::to_js()));
-          codegen::TYPES.push(std::any::TypeId::of::<#self_name>());
-          FACTORIES.push(Factory {
+          codegen::register_type::<#self_name>(codegen::Factory {
             alloc: #self_name::alloc_ptr,
-            dealloc: #self_name::dealloc_ptr
+            dealloc: #self_name::dealloc_ptr,
+            extend_vec: #self_name::extend_vec,
           });
         }
       }

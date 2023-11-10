@@ -2,7 +2,7 @@ use std::{cell::UnsafeCell, marker::PhantomData, ptr::NonNull};
 
 use allocator_api2::alloc::{AllocError, Allocator, Layout};
 
-use crate::atomics::AtomicVec;
+use crate::{atomics::AtomicVec, ArenaVec};
 
 const PAGE_SIZE: usize = 65536;
 const PTR_MAX: u32 = u32::MAX;
@@ -341,6 +341,10 @@ pub trait ArenaAllocated: Sized {
     unsafe { std::ptr::write(ptr, self) };
     addr
   }
+
+  fn extend_vec(_addr: u32, _count: u32) {
+    unreachable!("Cannot call extend_vec for an ArenaAllocated type");
+  }
 }
 
 // Automatically implement ArenaAllocated for SlabAllocated types.
@@ -357,6 +361,11 @@ impl<T: SlabAllocated + Sized> ArenaAllocated for T {
     }
 
     T::dealloc(addr, 1)
+  }
+
+  fn extend_vec(addr: u32, count: u32) {
+    let vec: &mut ArenaVec<Self> = unsafe { &mut *crate::current_heap().get(addr) };
+    vec.reserve(count as usize);
   }
 }
 

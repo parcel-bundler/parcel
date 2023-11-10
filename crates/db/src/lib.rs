@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
 use std::{num::NonZeroU32, sync::RwLock};
 
-use alloc::{current_arena, current_heap, Arena, PageAllocator, Slab, SlabAllocated, ARENA, HEAP};
+use alloc::{current_heap, Arena, PageAllocator, Slab, SlabAllocated, ARENA, HEAP};
 use derivative::Derivative;
 use parcel_derive::{ArenaAllocated, JsValue, SlabAllocated, ToJs};
 use thread_local::ThreadLocal;
@@ -24,15 +24,6 @@ pub use vec::ArenaVec;
 
 use codegen::{js_bitflags, JsValue, ToJs};
 use string::StringInterner;
-
-// A mapping from type ids (indices) to factories to alloc/dealloc that type.
-static mut FACTORIES: Vec<Factory> = Vec::new();
-
-/// A factory allocates or deallocates values of a certain type.
-struct Factory {
-  alloc: fn() -> u32,
-  dealloc: fn(u32),
-}
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, JsValue)]
 #[js_type(TargetAddr)]
@@ -508,35 +499,22 @@ impl ParcelDb {
   }
 
   pub fn alloc(&self, type_id: u32) -> u32 {
-    // SAFETY: FACTORIES is not mutated after initial registration.
-    let factory = unsafe { &FACTORIES[type_id as usize] };
+    let factory = codegen::get_factory(type_id);
     (factory.alloc)()
   }
 
   pub fn dealloc(&self, type_id: u32, addr: u32) {
-    // SAFETY: FACTORIES is not mutated after initial registration.
-    let factory = unsafe { &FACTORIES[type_id as usize] };
+    let factory = codegen::get_factory(type_id);
     (factory.dealloc)(addr);
-  }
-
-  pub fn alloc_struct<T>(&self) -> (u32, &mut T) {
-    // TODO: get rid of this function...
-    unsafe {
-      let size = std::mem::size_of::<T>();
-      let addr = current_arena().alloc(size as u32);
-      let ptr = current_heap().get(addr);
-      (addr, &mut *ptr)
-    }
   }
 
   pub fn read_string<'a>(&self, addr: u32) -> &str {
     unsafe { InternedString(NonZeroU32::new_unchecked(addr)).as_str() }
   }
 
-  pub fn extend_vec(&self, addr: u32, size: u32, count: u32) {
-    // TODO: handle different types of vectors...
-    let vec: &mut ArenaVec<Symbol> = unsafe { &mut *self.heap.get(addr) };
-    vec.reserve(count as usize);
+  pub fn extend_vec(&self, type_id: u32, addr: u32, count: u32) {
+    let factory = codegen::get_factory(type_id);
+    (factory.extend_vec)(addr, count);
   }
 
   pub fn get_environment(&self, addr: EnvironmentId) -> &Environment {

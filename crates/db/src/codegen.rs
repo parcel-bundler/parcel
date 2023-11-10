@@ -1,10 +1,50 @@
-use std::{any::TypeId, num::NonZeroU32};
+use std::num::NonZeroU32;
 
 // Callbacks to write generated JS to a file.
 pub static mut WRITE_CALLBACKS: Vec<fn(&mut std::fs::File) -> std::io::Result<()>> = Vec::new();
 
 /// A mapping of indices to type ids used during code generation for alloc/dealloc methods.
-pub static mut TYPES: Vec<TypeId> = Vec::new();
+pub static mut TYPES: Vec<&'static str> = Vec::new();
+
+// A mapping from type ids (indices) to factories to alloc/dealloc that type.
+static mut FACTORIES: Vec<Factory> = Vec::new();
+
+/// A factory allocates or deallocates values of a certain type.
+pub struct Factory {
+  pub alloc: fn() -> u32,
+  pub dealloc: fn(u32),
+  pub extend_vec: fn(u32, u32),
+}
+
+pub fn register_type<T: 'static>(factory: Factory) {
+  // use type_name rather than TypeId here because it is consistent between builds.
+  let type_name = std::any::type_name::<T>();
+
+  unsafe {
+    // Insert into sorted arrays so the mapped indices are consistent.
+    match TYPES.binary_search(&type_name) {
+      Ok(_) => unreachable!("duplicate type registration"),
+      Err(pos) => {
+        TYPES.insert(pos, type_name);
+        FACTORIES.insert(pos, factory);
+      }
+    }
+  }
+}
+
+pub fn type_id<T: 'static>() -> u32 {
+  unsafe {
+    TYPES
+      .iter()
+      .position(|t| *t == std::any::type_name::<T>())
+      .unwrap() as u32
+  }
+}
+
+pub fn get_factory(type_id: u32) -> &'static Factory {
+  // SAFETY: FACTORIES is not mutated after initial registration.
+  unsafe { &FACTORIES[type_id as usize] }
+}
 
 /// A trait for types that can generate JS accessor code.
 pub trait ToJs {

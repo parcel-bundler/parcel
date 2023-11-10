@@ -128,8 +128,8 @@ impl JsParcelDb {
   }
 
   #[napi]
-  pub fn extend_vec(&self, addr: u32, size: u32, count: u32) {
-    self.db.with(|db| db.extend_vec(addr, size, count))
+  pub fn extend_vec(&self, type_id: u32, addr: u32, count: u32) {
+    self.db.with(|db| db.extend_vec(type_id, addr, count))
   }
 
   #[napi]

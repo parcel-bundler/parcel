@@ -8,7 +8,7 @@ use crate::{
   alloc::SlabAllocated,
   atomics::AtomicVec,
   codegen::{JsValue, ToJs},
-  current_db,
+  current_db, ArenaAllocated,
 };
 
 /// An InternedString is a string that only ever exists once.
@@ -107,23 +107,33 @@ impl JsValue for InternedString {
 
 impl ToJs for InternedString {
   fn to_js() -> String {
-    r#"class InternedString {
-  static get(db: ParcelDb, addr: number): string {
-    return readCachedString(db, addr);
-  }
+    let id = crate::codegen::type_id::<InternedString>();
+    format!(
+      r#"class InternedString {{
+  static typeId: number = {id};
 
-  static set(db: ParcelDb, addr: number, value: string): void {
+  static get(db: ParcelDb, addr: number): string {{
+    return readCachedString(db, addr);
+  }}
+
+  static set(db: ParcelDb, addr: number, value: string): void {{
     writeU32(db, addr, db.getStringId(value));
-  }
-}
-"#
-    .to_string()
+  }}
+}}
+"#,
+      id = id
+    )
   }
 }
 
 #[ctor::ctor]
 unsafe fn register() {
   crate::codegen::WRITE_CALLBACKS.push(|file| write!(file, "{}", InternedString::to_js()));
+  crate::codegen::register_type::<InternedString>(crate::codegen::Factory {
+    alloc: InternedString::alloc_ptr,
+    dealloc: InternedString::dealloc_ptr,
+    extend_vec: InternedString::extend_vec,
+  });
 }
 
 /// A StringInterner stores the contents of InternedStrings.

@@ -80,7 +80,7 @@ declare export class ParcelDb {
   dealloc(typeId: number, addr: number): void;
   readString(addr: number): string;
   getStringId(s: string): number;
-  extendVec(addr: number, size: number, count: number): void;
+  extendVec(typeId: number, addr: number, count: number): void;
   createEnvironment(addr: EnvironmentAddr): EnvironmentAddr;
   createTarget(addr: TargetAddr): TargetAddr;
 
