@@ -118,10 +118,13 @@ jobs:
           name: Integration tests (${{matrix.os}}, node ${{matrix.node}})
           path: '**/junit-*.xml'
 
+  # Deployment steps taken from https://github.com/colinwilson/static-site-to-vercel/blob/master/.github/workflows/deploy-preview.yml
   repl_build:
     name: Build REPL
     runs-on: ubuntu-latest
     needs: [unit_tests]
+    permissions:
+      deployments: write
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -150,11 +153,18 @@ jobs:
       - run: yarn build
       - run: yarn build-native-wasm
       - run: yarn workspace @parcel/repl build
-      - name: Upload REPL
-        uses: actions/upload-artifact@v2
+      # - name: Upload REPL
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: REPL
+      #     path: 'packages/dev/repl/dist'
+      - name: Start Deployment
+        uses: bobheadxi/deployments@v0.4.3
+        id: deployment
         with:
-          name: REPL
-          path: 'packages/dev/repl/dist'
+          step: start
+          token: ${{ secrets.GITHUB_TOKEN }}
+          env: Preview
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         id: vercel-action
@@ -165,9 +175,17 @@ jobs:
           github-comment: false
           working-directory: packages/dev/repl
           # vercel-args: '--prod'
-          # alias-domains: |
-          #   staging.angular.vercel-action.amond.dev
-          #   pr-{{PR_NUMBER}}.angular.vercel-action.amond.dev
+          alias-domains: |
+            pr-{{PR_NUMBER}}.repl.parceljs.org
+      - name: Update Deployment Status
+        uses: bobheadxi/deployments@v0.4.3
+        if: always()
+        with:
+          step: finish
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: ${{ job.status }}
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+          env_url: ${{ steps.vercel-action.outputs.preview-url }}
 
   test_report:
     name: Test report
