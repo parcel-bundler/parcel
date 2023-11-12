@@ -6386,6 +6386,48 @@ describe('javascript', function () {
     assert(!contents.includes('\ufffe'));
   });
 
+  it(`should not wrap assets that are duplicated in different targets`, async function () {
+    const dir = path.join(__dirname, 'multi-target-duplicates');
+    overlayFS.mkdirp(dir);
+
+    await fsFixture(overlayFS, dir)`
+      shared/index.js:
+        export default 2;
+
+      packages/a/package.json:
+        {
+          "source": "index.js",
+          "module": "dist/module.js"
+        }
+
+      packages/a/index.js:
+        import shared from '../../shared';
+        export default shared + 2;
+
+      packages/b/package.json:
+        {
+          "source": "index.js",
+          "module": "dist/module.js"
+        }
+
+      packages/b/index.js:
+        import shared from '../../shared';
+        export default shared + 2;
+    `;
+
+    let b = await bundle(path.join(dir, '/packages/*'), {
+      inputFS: overlayFS,
+    });
+
+    for (let bundle of b.getBundles()) {
+      let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+      assert(
+        !contents.includes('parcelRequire'),
+        'should not include parcelRequire',
+      );
+    }
+  });
+
   for (let shouldScopeHoist of [false, true]) {
     let options = {
       defaultTargetOptions: {
@@ -7532,7 +7574,9 @@ describe('javascript', function () {
       assert.equal(res.output, 123);
     });
 
-    it('duplicate assets should share module scope', async function () {
+    it(`duplicate assets should share module scope  ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async function () {
       let b = await bundle(
         [
           path.join(
@@ -7552,46 +7596,35 @@ describe('javascript', function () {
       assert.equal(await result.output, 2);
     });
 
-    it('should not wrap assets that are duplicated in different targets', async function () {
-      const dir = path.join(__dirname, 'multi-target-duplicates');
-      overlayFS.mkdirp(dir);
+    it(`should work correctly with export called hasOwnProperty ${
+      shouldScopeHoist ? 'with' : 'without'
+    } scope-hoisting`, async () => {
+      await fsFixture(overlayFS, __dirname)`
+        js-export-all-hasOwnProperty
+          a.js:
+            export function hasOwnProperty() {
+              throw new Error("Shouldn't be called");
+            }
+          b.js:
+            module.exports = { other: 123 };
 
-      await fsFixture(overlayFS, dir)`
-        shared/index.js:
-          export default 2;
+          library.js:
+            export * from './a';
+            export * from './b';
 
-        packages/a/package.json:
-          {
-            "source": "index.js",
-            "module": "dist/module.js"
-          }
+          index.js:
+            import * as x from './library';
+            output = sideEffectNoop(x).other;`;
 
-        packages/a/index.js:
-          import shared from '../../shared';
-          export default shared + 2;
-
-        packages/b/package.json:
-          {
-            "source": "index.js",
-            "module": "dist/module.js"
-          }
-
-        packages/b/index.js:
-          import shared from '../../shared';
-          export default shared + 2;
-      `;
-
-      let b = await bundle(path.join(dir, '/packages/*'), {
-        inputFS: overlayFS,
-      });
-
-      for (let bundle of b.getBundles()) {
-        let contents = await outputFS.readFile(bundle.filePath, 'utf8');
-        assert(
-          !contents.includes('parcelRequire'),
-          'should not include parcelRequire',
-        );
-      }
+      let b = await bundle(
+        path.join(__dirname, 'js-export-all-hasOwnProperty/index.js'),
+        {
+          ...options,
+          inputFS: overlayFS,
+        },
+      );
+      let res = await run(b, null, {require: false});
+      assert.equal(res.output, 123);
     });
   }
 });
