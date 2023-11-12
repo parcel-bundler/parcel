@@ -164,6 +164,7 @@ jobs:
         with:
           step: start
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref }}
           env: Preview
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
