@@ -8,7 +8,11 @@ exports.defineInteropFlag = function (a) {
 
 exports.exportAll = function (source, dest) {
   Object.keys(source).forEach(function (key) {
-    if (key === 'default' || key === '__esModule' || dest.hasOwnProperty(key)) {
+    if (
+      key === 'default' ||
+      key === '__esModule' ||
+      Object.prototype.hasOwnProperty.call(dest, key)
+    ) {
       return;
     }
 
