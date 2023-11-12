@@ -135,6 +135,7 @@ describe('scope hoisting', function () {
       let output = await run(b);
       assert.equal(output, 2);
     });
+
     it('supports named exports of variables with a different name when wrapped', async function () {
       let b = await bundle(
         path.join(
@@ -145,6 +146,25 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.equal(output, 2);
+    });
+
+    it('supports import * as from a library that has export *', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/rewrite-export-star/index.js',
+        ),
+        {mode: 'production'},
+      );
+      let output = await run(b);
+      assert.equal(output, 2);
+
+      assert.deepStrictEqual(
+        new Set(
+          b.getUsedSymbols(findDependency(b, 'index.js', './library/a.js')),
+        ),
+        new Set(['bar']),
+      );
     });
 
     it('supports renaming non-ASCII identifiers', async function () {

@@ -544,6 +544,9 @@ export function createWorkerFarm(
 ): WorkerFarm {
   return new WorkerFarm({
     ...options,
-    workerPath: require.resolve('./worker'),
+    // $FlowFixMe
+    workerPath: process.browser
+      ? '@parcel/core/src/worker.js'
+      : require.resolve('./worker'),
   });
 }

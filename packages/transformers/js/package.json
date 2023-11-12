@@ -21,10 +21,7 @@
   },
   "files": [
     "lib",
-    "native-browser.js",
-    "native.js",
-    "src",
-    "*.node"
+    "src"
   ],
   "dependencies": {
     "@parcel/diagnostic": "2.10.2",

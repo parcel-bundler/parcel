@@ -22,9 +22,7 @@
     "test": "mocha test"
   },
   "files": [
-    "lib",
-    "native.js",
-    "*.node"
+    "lib"
   ],
   "dependencies": {
     "@mischnic/json-sourcemap": "^0.1.0",
@@ -61,6 +59,6 @@
     "vm-browserify": "^1.1.2"
   },
   "browser": {
-    "./native.js": "./native-wasm-browser.js"
+    "./src/builtins.js": "./src/builtins.browser.js"
   }
 }

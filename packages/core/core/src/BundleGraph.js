@@ -205,6 +205,8 @@ export default class BundleGraph {
         // Disable in dev mode because this feature is at odds with safeToIncrementallyBundle
         isProduction
       ) {
+        let nodeValueSymbols = node.value.symbols;
+
         // asset -> symbols that should be imported directly from that asset
         let targets = new DefaultMap<ContentKey, Map<Symbol, Symbol>>(
           () => new Map(),
@@ -252,6 +254,11 @@ export default class BundleGraph {
             ([, t]) => new Set([...t.values()]).size === t.size,
           )
         ) {
+          let isReexportAll = nodeValueSymbols.get('*')?.local === '*';
+          let reexportAllLoc = isReexportAll
+            ? nullthrows(nodeValueSymbols.get('*')).loc
+            : undefined;
+
           // TODO adjust sourceAssetIdNode.value.dependencies ?
           let deps = [
             // Keep the original dependency
@@ -261,13 +268,11 @@ export default class BundleGraph {
                 ...node,
                 value: {
                   ...node.value,
-                  symbols: node.value.symbols
-                    ? new Map(
-                        [...node.value.symbols].filter(([k]) =>
-                          externalSymbols.has(k),
-                        ),
-                      )
-                    : undefined,
+                  symbols: new Map(
+                    [...nodeValueSymbols].filter(([k]) =>
+                      externalSymbols.has(k),
+                    ),
+                  ),
                 },
                 usedSymbolsUp: new Map(
                   [...node.usedSymbolsUp].filter(([k]) =>
@@ -282,6 +287,49 @@ export default class BundleGraph {
               let newNodeId = hashString(
                 node.id + [...target.keys()].join(','),
               );
+
+              let symbols = new Map();
+              for (let [as, from] of target) {
+                let existing = nodeValueSymbols.get(as);
+                if (existing) {
+                  symbols.set(from, existing);
+                } else {
+                  invariant(isReexportAll);
+                  let local = `${node.value.id}$rewrite$${asset}$${from}`;
+                  symbols.set(from, {
+                    isWeak: true,
+                    local,
+                    loc: reexportAllLoc,
+                  });
+                  // It might already exist with multiple export-alls causing ambiguous resolution
+                  if (
+                    node.value.sourceAssetId != null &&
+                    assetGraph.hasContentKey(node.value.sourceAssetId)
+                  ) {
+                    let sourceAssetId = nullthrows(
+                      assetGraphNodeIdToBundleGraphNodeId.get(
+                        assetGraph.getNodeIdByContentKey(
+                          nullthrows(node.value.sourceAssetId),
+                        ),
+                      ),
+                    );
+                    let sourceAsset = nullthrows(graph.getNode(sourceAssetId));
+                    invariant(sourceAsset.type === 'asset');
+                    let sourceAssetSymbols = sourceAsset.value.symbols;
+                    if (sourceAssetSymbols && !sourceAssetSymbols.has(as)) {
+                      sourceAssetSymbols.set(as, {
+                        loc: reexportAllLoc,
+                        local: local,
+                      });
+                    }
+                  }
+                }
+              }
+              let usedSymbolsUp = new Map(
+                [...node.usedSymbolsUp]
+                  .filter(([k]) => target.has(k) || k === '*')
+                  .map(([k, v]) => [target.get(k) ?? k, v]),
+              );
               return {
                 asset,
                 dep: graph.addNodeByContentKey(newNodeId, {
@@ -290,24 +338,17 @@ export default class BundleGraph {
                   value: {
                     ...node.value,
                     id: newNodeId,
-                    symbols: node.value.symbols
-                      ? new Map(
-                          [...node.value.symbols]
-                            .filter(([k]) => target.has(k) || k === '*')
-                            .map(([k, v]) => [target.get(k) ?? k, v]),
-                        )
-                      : undefined,
+                    symbols,
                   },
-                  usedSymbolsUp: new Map(
-                    [...node.usedSymbolsUp]
-                      .filter(([k]) => target.has(k) || k === '*')
-                      .map(([k, v]) => [target.get(k) ?? k, v]),
-                  ),
+                  usedSymbolsUp,
+                  // This is only a temporary helper needed during symbol propagation and is never
+                  // read afterwards.
                   usedSymbolsDown: new Set(),
                 }),
               };
             }),
           ];
+
           dependencies.set(nodeId, deps);
 
           // Jump to the dependencies that are used in this dependency
@@ -323,7 +364,14 @@ export default class BundleGraph {
       }
       // Don't copy over asset groups into the bundle graph.
       else if (node.type !== 'asset_group') {
-        let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
+        let nodeToAdd =
+          node.type === 'asset'
+            ? {
+                ...node,
+                value: {...node.value, symbols: new Map(node.value.symbols)},
+              }
+            : node;
+        let bundleGraphNodeId = graph.addNodeByContentKey(node.id, nodeToAdd);
         if (node.id === assetGraphRootNode?.id) {
           graph.setRootNodeId(bundleGraphNodeId);
         }
@@ -374,7 +422,6 @@ export default class BundleGraph {
         );
       }
     }
-
     return new BundleGraph({
       graph,
       assetPublicIds,
@@ -1781,6 +1828,7 @@ export default class BundleGraph {
         }
       }
     }
+
     // We didn't find the exact symbol...
     if (potentialResults.length == 1) {
       // ..., but if it does exist, it has to be behind this one reexport.
