@@ -66,12 +66,18 @@ type TmpBigInt = bigint;
 export type SerializedParcelDb = {|
   id: TmpBigInt
 |};
+type Options = {|
+  mode: string,
+  env: {[string]: string | void},
+  log_level: string,
+  project_root: string
+|};
 declare export class ParcelDb {
   constructor(): ParcelDb;
   serialize(): SerializedParcelDb;
-  static create(): ParcelDb;
-  static read(filename: string): ParcelDb;
-  static fromBuffer(buf: Buffer): ParcelDb;
+  static create(options: Options): ParcelDb;
+  static read(filename: string, options: Options): ParcelDb;
+  static fromBuffer(buf: Buffer, options: Options): ParcelDb;
   static deserialize(value: SerializedParcelDb): ParcelDb;
   write(filename: string): void;
   toBuffer(): Buffer;

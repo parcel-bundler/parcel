@@ -17,3 +17,4 @@ dashmap = { version = "5.5.3", features = ["raw-api"] }
 derivative = "2.2.0"
 thread_local = "1.1.7"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+serde = { version = "1.0.123", features = ["derive"] }

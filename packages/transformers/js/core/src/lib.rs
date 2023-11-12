@@ -13,12 +13,11 @@ mod utils;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 use constant_module::ConstantModule;
 use indexmap::IndexMap;
 use path_slash::PathExt;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use swc_core::common::comments::SingleThreadedComments;
 use swc_core::common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_core::common::pass::Optional;
@@ -56,12 +55,13 @@ pub use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, S
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
 #[derive(Debug)]
-pub struct Config {
+pub struct Config<'a> {
   pub filename: PathBuf,
-  pub module_id: String,
-  pub project_root: String,
+  pub module_id: &'a str,
+  pub project_root: &'a str,
   pub replace_env: bool,
-  pub env: HashMap<swc_core::ecma::atoms::JsWord, swc_core::ecma::atoms::JsWord>,
+  pub env: &'a HashMap<String, String>,
+  pub inline_environment: &'a InlineEnvironment,
   pub inline_fs: bool,
   pub insert_node_globals: bool,
   pub node_replacer: bool,
@@ -69,10 +69,10 @@ pub struct Config {
   pub is_worker: bool,
   pub is_type_script: bool,
   pub is_jsx: bool,
-  pub jsx_pragma: Option<String>,
-  pub jsx_pragma_frag: Option<String>,
+  pub jsx_pragma: &'a Option<String>,
+  pub jsx_pragma_frag: &'a Option<String>,
   pub automatic_jsx_runtime: bool,
-  pub jsx_import_source: Option<String>,
+  pub jsx_import_source: &'a Option<String>,
   pub decorators: bool,
   pub use_define_for_class_fields: bool,
   pub is_development: bool,
@@ -88,9 +88,13 @@ pub struct Config {
   pub is_swc_helpers: bool,
   pub standalone: bool,
   pub inline_constants: bool,
-  pub resolve_helpers_from: String,
-  pub side_effects: bool,
-  pub supports_dynamic_import: bool,
+}
+
+#[derive(Serialize, Debug, Deserialize)]
+#[serde(untagged)]
+pub enum InlineEnvironment {
+  Bool(bool),
+  Array(Vec<String>),
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -126,7 +130,7 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
   let source_map = Lrc::new(SourceMap::default());
   let module = parse(
     code,
-    config.project_root.as_str(),
+    config.project_root,
     config.filename.to_slash_lossy().as_ref(),
     &source_map,
     &config,
@@ -292,6 +296,7 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                     EnvReplacer {
                       replace_env: config.replace_env,
                       env: &config.env,
+                      inline_environment: &config.inline_environment,
                       is_browser: config.is_browser,
                       decls: &decls,
                       used_env: &mut result.used_env,
@@ -432,7 +437,7 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
               }
 
               let module = if config.scope_hoist {
-                let res = hoist(module, config.module_id.as_str(), unresolved_mark, &collect);
+                let res = hoist(module, config.module_id, unresolved_mark, &collect);
                 match res {
                   Ok((module, hoist_result, hoist_diagnostics)) => {
                     result.hoist_result = Some(hoist_result);

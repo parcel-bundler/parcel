@@ -1,18 +1,17 @@
 // @flow
-import type {EnvMap, SourceLocation} from '@parcel/types';
+import type {SourceLocation} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {transform, transformAsync} from '@parcel/rust';
 import path from 'path';
-import browserslist from 'browserslist';
 import semver from 'semver';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   convertSourceLocationToHighlight,
 } from '@parcel/diagnostic';
-import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
+import {validateSchema, remapSourceLocation} from '@parcel/utils';
 
 const JSX_EXTENSIONS = {
   jsx: true,
@@ -41,44 +40,6 @@ const JSX_PRAGMA = {
     automatic: undefined,
   },
 };
-
-const BROWSER_MAPPING = {
-  and_chr: 'chrome',
-  and_ff: 'firefox',
-  ie_mob: 'ie',
-  ios_saf: 'ios',
-  op_mob: 'opera',
-  and_qq: null,
-  and_uc: null,
-  baidu: null,
-  bb: null,
-  kaios: null,
-  op_mini: null,
-};
-
-// List of browsers to exclude when the esmodule target is specified.
-// Based on https://caniuse.com/#feat=es6-module
-const ESMODULE_BROWSERS = [
-  'not ie <= 11',
-  'not edge < 16',
-  'not firefox < 60',
-  'not chrome < 61',
-  'not safari < 11',
-  'not opera < 48',
-  'not ios_saf < 11',
-  'not op_mini all',
-  'not android < 76',
-  'not blackberry > 0',
-  'not op_mob > 0',
-  'not and_chr < 76',
-  'not and_ff < 68',
-  'not ie_mob > 0',
-  'not and_uc > 0',
-  'not samsung < 8.2',
-  'not and_qq > 0',
-  'not baidu > 0',
-  'not kaios > 0',
-];
 
 const CONFIG_SCHEMA: SchemaEntity = {
   type: 'object',
@@ -317,31 +278,6 @@ export default (new Transformer({
       asset.getMap(),
     ]);
 
-    let env: EnvMap = {};
-
-    if (!config?.inlineEnvironment) {
-      if (options.env.NODE_ENV != null) {
-        env.NODE_ENV = options.env.NODE_ENV;
-      }
-
-      if (process.env.PARCEL_BUILD_ENV === 'test') {
-        env.PARCEL_BUILD_ENV = 'test';
-      }
-    } else if (Array.isArray(config?.inlineEnvironment)) {
-      for (let match of globMatch(
-        Object.keys(options.env),
-        config.inlineEnvironment,
-      )) {
-        env[match] = String(options.env[match]);
-      }
-    } else {
-      for (let key in options.env) {
-        if (!key.startsWith('npm_')) {
-          env[key] = String(options.env[key]);
-        }
-      }
-    }
-
     let supportsModuleWorkers =
       asset.env.shouldScopeHoist && asset.env.supports('worker-module', true);
     let isJSX = Boolean(config?.isJSX);
@@ -365,15 +301,13 @@ export default (new Transformer({
       code,
       map: await asset.getMapBuffer(),
       asset_id: asset.nativeAddress,
-      project_root: options.projectRoot,
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
-      env,
+      inline_environment: config?.inlineEnvironment ?? true,
       is_jsx: isJSX,
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
       automatic_jsx_runtime: Boolean(config?.automaticJSXRuntime),
       jsx_import_source: config?.jsxImportSource,
-      is_development: options.mode === 'development',
       react_refresh:
         asset.env.isBrowser() &&
         !asset.env.isLibrary &&
@@ -383,7 +317,6 @@ export default (new Transformer({
       decorators: Boolean(config?.decorators),
       use_define_for_class_fields: Boolean(config?.useDefineForClassFields),
       supports_module_workers: supportsModuleWorkers,
-      trace_bailouts: options.logLevel === 'verbose',
       inline_constants: config.inlineConstants,
       resolve_helpers_from: __filename,
       supports_dynamic_import: asset.env.supports('dynamic-import', true),

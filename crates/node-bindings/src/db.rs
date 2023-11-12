@@ -1,9 +1,11 @@
 use std::{num::NonZeroU32, sync::Arc};
 
 use lazy_static::lazy_static;
-use napi::{bindgen_prelude::BigInt, Env, JsBuffer, NapiValue};
+use napi::{bindgen_prelude::BigInt, Env, JsBuffer, JsObject, NapiValue};
 use napi_derive::napi;
-use parcel_db::{EnvironmentId, InternedString, ParcelDb, ParcelDbWrapper, TargetId};
+use parcel_db::{
+  EnvironmentId, InternedString, ParcelDb, ParcelDbWrapper, ParcelOptions, TargetId,
+};
 
 #[napi(js_name = "ParcelDb")]
 pub struct JsParcelDb {
@@ -25,11 +27,11 @@ pub struct SerializedParcelDb {
 #[napi]
 impl JsParcelDb {
   #[napi(constructor)]
-  pub fn new() -> Self {
-    // println!("NEW DB");
-    JsParcelDb {
-      db: Arc::new(ParcelDb::new()),
-    }
+  pub fn new(options: JsObject, env: Env) -> napi::Result<Self> {
+    let options: ParcelOptions = env.from_js_value(options)?;
+    Ok(JsParcelDb {
+      db: Arc::new(ParcelDb::new(options)),
+    })
   }
 
   #[napi]
@@ -170,20 +172,22 @@ impl JsParcelDb {
   }
 
   #[napi(factory, js_name = "_read")]
-  pub fn read(filename: String) -> napi::Result<Self> {
+  pub fn read(filename: String, options: JsObject, env: Env) -> napi::Result<Self> {
     let file = std::fs::File::open(filename)?;
     let mut stream = std::io::BufReader::new(file);
+    let options: ParcelOptions = env.from_js_value(options)?;
     Ok(JsParcelDb {
-      db: Arc::new(ParcelDb::read(&mut stream)?),
+      db: Arc::new(ParcelDb::read(&mut stream, options)?),
     })
   }
 
   #[napi(factory, js_name = "_fromBuffer")]
-  pub fn from_buffer(buf: JsBuffer) -> napi::Result<Self> {
+  pub fn from_buffer(buf: JsBuffer, options: JsObject, env: Env) -> napi::Result<Self> {
     let buf = buf.into_value()?;
     let mut stream = std::io::BufReader::new(buf.as_ref());
+    let options: ParcelOptions = env.from_js_value(options)?;
     Ok(JsParcelDb {
-      db: Arc::new(ParcelDb::read(&mut stream)?),
+      db: Arc::new(ParcelDb::read(&mut stream, options)?),
     })
   }
 }

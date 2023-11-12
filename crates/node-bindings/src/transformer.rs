@@ -1,20 +1,18 @@
-use std::{
-  collections::{HashMap, HashSet},
-  num::NonZeroU32,
-  path::Path,
-};
+use std::{collections::HashSet, num::NonZeroU32, path::Path};
 
 use crate::db::JsParcelDb;
 use indexmap::IndexMap;
 use napi::{Env, JsBuffer, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
-  ArenaVec, AssetFlags, AssetId, AssetType, BundleBehavior, Dependency, DependencyFlags,
+  ArenaVec, AssetFlags, AssetId, AssetType, BuildMode, BundleBehavior, Dependency, DependencyFlags,
   Environment, EnvironmentContext, EnvironmentFlags, ImportAttribute, InternedString, Location,
-  OutputFormat, ParcelDb, Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
+  LogLevel, OutputFormat, ParcelDb, Priority, SourceLocation, SourceType, SpecifierType, Symbol,
+  SymbolFlags,
 };
 use parcel_js_swc_core::{
-  CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult, Version, Versions,
+  CodeHighlight, Config, DependencyKind, Diagnostic, InlineEnvironment, TransformResult, Version,
+  Versions,
 };
 use parcel_sourcemap::SourceMap;
 use path_slash::{PathBufExt, PathExt};
@@ -34,13 +32,13 @@ pub fn transform(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsUnknown>
 
   db.with(|db| {
     let asset_id = AssetId(config.asset_id);
-    let config = convert_config(db, config);
+    let transformer_config = convert_config(db, &config);
     let result = convert_result(
       db,
       asset_id,
       &config,
       map.as_ref().map(|m| m.as_ref()),
-      parcel_js_swc_core::transform(&code, &config),
+      parcel_js_swc_core::transform(&code, &transformer_config),
     );
     code.unref(env)?;
     if let Some(map) = &mut map {
@@ -63,13 +61,13 @@ pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsOb
 
   let config: Config2 = env.from_js_value(opts)?;
   let asset_id = AssetId(config.asset_id);
-  let config = db.with(|db| convert_config(db, config));
 
   let (deferred, promise) = env.create_deferred()?;
   let db = db.db();
 
   rayon::spawn(move || {
-    let result = parcel_js_swc_core::transform(&code, &config);
+    let transformer_config = db.with(|db| convert_config(db, &config));
+    let result = parcel_js_swc_core::transform(&code, &transformer_config);
     deferred.resolve(move |env| {
       let res = db.with(|db| {
         convert_result(
@@ -94,8 +92,7 @@ pub fn transform_async(db: &JsParcelDb, opts: JsObject, env: Env) -> Result<JsOb
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config2 {
   pub asset_id: NonZeroU32,
-  pub project_root: String,
-  pub env: HashMap<String, String>,
+  pub inline_environment: InlineEnvironment,
   pub inline_fs: bool,
   pub is_jsx: bool,
   pub jsx_pragma: Option<String>,
@@ -104,10 +101,8 @@ pub struct Config2 {
   pub jsx_import_source: Option<String>,
   pub decorators: bool,
   pub use_define_for_class_fields: bool,
-  pub is_development: bool,
   pub react_refresh: bool,
   pub supports_module_workers: bool,
-  pub trace_bailouts: bool,
   pub inline_constants: bool,
   pub resolve_helpers_from: String,
   pub supports_dynamic_import: bool,
@@ -137,7 +132,7 @@ const ESMODULE_BROWSERS: &'static [&'static str] = &[
   "not kaios > 0",
 ];
 
-fn convert_config(db: &ParcelDb, config: Config2) -> Config {
+fn convert_config<'a>(db: &'a ParcelDb, config: &'a Config2) -> Config<'a> {
   let asset = db.get_asset(AssetId(config.asset_id));
   let env = db.get_environment(asset.env);
   let mut targets = None;
@@ -195,15 +190,12 @@ fn convert_config(db: &ParcelDb, config: Config2) -> Config {
   }
 
   Config {
-    filename: Path::new(&config.project_root).join(asset.file_path.as_str()),
-    module_id: asset.id.to_string(),
-    project_root: config.project_root,
+    filename: Path::new(&db.options.project_root).join(asset.file_path.as_str()),
+    module_id: asset.id.as_str(),
+    project_root: &db.options.project_root,
     replace_env: !env.context.is_node(),
-    env: config
-      .env
-      .into_iter()
-      .map(|(k, v)| (k.into(), v.into()))
-      .collect(),
+    env: &db.options.env,
+    inline_environment: &config.inline_environment,
     inline_fs: config.inline_fs,
     insert_node_globals: !env.context.is_node() && env.source_type != SourceType::Script,
     node_replacer: env.context.is_node(),
@@ -211,13 +203,13 @@ fn convert_config(db: &ParcelDb, config: Config2) -> Config {
     is_worker: env.context.is_worker(),
     is_type_script: matches!(asset.asset_type, AssetType::Ts | AssetType::Tsx),
     is_jsx: config.is_jsx,
-    jsx_pragma: config.jsx_pragma,
-    jsx_pragma_frag: config.jsx_pragma_frag,
+    jsx_pragma: &config.jsx_pragma,
+    jsx_pragma_frag: &config.jsx_pragma_frag,
     automatic_jsx_runtime: config.automatic_jsx_runtime,
-    jsx_import_source: config.jsx_import_source,
+    jsx_import_source: &config.jsx_import_source,
     decorators: config.decorators,
     use_define_for_class_fields: config.use_define_for_class_fields,
-    is_development: config.is_development,
+    is_development: db.options.mode == BuildMode::Development,
     react_refresh: config.react_refresh,
     targets,
     source_maps: env.source_map.is_some(),
@@ -230,13 +222,10 @@ fn convert_config(db: &ParcelDb, config: Config2) -> Config {
     supports_module_workers: config.supports_module_workers,
     is_library: env.flags.contains(EnvironmentFlags::IS_LIBRARY),
     is_esm_output: env.output_format == OutputFormat::Esmodule,
-    trace_bailouts: config.trace_bailouts,
+    trace_bailouts: db.options.log_level == LogLevel::Verbose,
     is_swc_helpers: asset.file_path.contains("@swc/helpers"),
     standalone: asset.query.map_or(false, |q| q.contains("standalone=true")), // TODO: use a real parser
     inline_constants: config.inline_constants,
-    resolve_helpers_from: config.resolve_helpers_from,
-    side_effects: asset.flags.contains(AssetFlags::SIDE_EFFECTS),
-    supports_dynamic_import: config.supports_dynamic_import,
   }
 }
 
@@ -255,7 +244,7 @@ pub struct TransformResult2 {
 fn convert_result(
   db: &ParcelDb,
   asset_id: AssetId,
-  config: &parcel_js_swc_core::Config,
+  config: &Config2,
   map_buf: Option<&[u8]>,
   mut result: TransformResult,
 ) -> TransformResult2 {
@@ -264,7 +253,7 @@ fn convert_result(
   let file_path = asset.file_path;
 
   let mut map = if let Some(buf) = map_buf {
-    SourceMap::from_buffer(&config.project_root, buf).ok()
+    SourceMap::from_buffer(&db.options.project_root, buf).ok()
   } else {
     None
   };
@@ -461,7 +450,7 @@ fn convert_result(
 
           resolve_from = Some(to_project_path(
             &config.resolve_helpers_from,
-            &config.project_root,
+            &db.options.project_root,
           ));
         }
 
@@ -506,7 +495,7 @@ fn convert_result(
     d.flags = dep_flags;
     d.resolve_from = Some(to_project_path(
       &config.resolve_helpers_from,
-      &config.project_root,
+      &db.options.project_root,
     ));
     d.env = db.environment_id(&Environment {
       include_node_modules: InternedString::from("{\"@parcel/transformer-js\":true}"),
@@ -636,7 +625,7 @@ fn convert_result(
     // This allows accessing symbols that don't exist without errors in symbol propagation.
     if (hoist_result.has_cjs_exports
       || (!hoist_result.is_esm
-        && config.side_effects
+        && asset.flags.contains(AssetFlags::SIDE_EFFECTS)
         && dep_map.is_empty()
         && hoist_result.exported_symbols.is_empty())
       || hoist_result.should_wrap)

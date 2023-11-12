@@ -2,6 +2,7 @@
 #![feature(thread_local)]
 
 use std::cell::UnsafeCell;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
 use std::{num::NonZeroU32, sync::RwLock};
@@ -9,6 +10,7 @@ use std::{num::NonZeroU32, sync::RwLock};
 use alloc::{current_heap, Arena, PageAllocator, Slab, SlabAllocated, ARENA, HEAP};
 use derivative::Derivative;
 use parcel_derive::{ArenaAllocated, JsValue, SlabAllocated, ToJs};
+use serde::Deserialize;
 use thread_local::ThreadLocal;
 use xxhash_rust::xxh3::Xxh3;
 
@@ -392,6 +394,45 @@ js_bitflags! {
   }
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct ParcelOptions {
+  pub mode: BuildMode,
+  pub env: HashMap<String, String>,
+  pub log_level: LogLevel,
+  pub project_root: String,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum BuildMode {
+  Development,
+  Production,
+  Other(String),
+}
+
+impl<'de> serde::Deserialize<'de> for BuildMode {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.as_str() {
+      "development" => BuildMode::Development,
+      "production" => BuildMode::Production,
+      _ => BuildMode::Other(s),
+    })
+  }
+}
+
+#[derive(Clone, PartialEq, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+  None,
+  Error,
+  Warn,
+  Info,
+  Verbose,
+}
+
 #[thread_local]
 pub(crate) static mut SLABS: Option<&'static mut Slabs> = None;
 #[thread_local]
@@ -440,7 +481,7 @@ pub struct ParcelDbWrapper {
 // }
 
 impl ParcelDbWrapper {
-  pub fn with<T, F: FnOnce(&ParcelDb) -> T>(&self, f: F) -> T {
+  pub fn with<'a, T, F: FnOnce(&'a ParcelDb) -> T>(&'a self, f: F) -> T {
     unsafe {
       debug_assert!(HEAP.is_none());
       HEAP = Some(std::mem::transmute(&self.inner.heap));
@@ -476,6 +517,7 @@ unsafe impl Sync for MutableSlabs {}
 // static DB_COUNT: AtomicU32 = AtomicU32::new(0);
 
 pub struct ParcelDb {
+  pub options: ParcelOptions,
   environments: RwLock<Vec<EnvironmentId>>,
   targets: RwLock<Vec<TargetId>>,
   heap: PageAllocator,
@@ -485,10 +527,11 @@ pub struct ParcelDb {
 }
 
 impl ParcelDb {
-  pub fn new() -> ParcelDbWrapper {
+  pub fn new(options: ParcelOptions) -> ParcelDbWrapper {
     // DB_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     ParcelDbWrapper {
       inner: ParcelDb {
+        options,
         environments: RwLock::new(Vec::new()),
         targets: RwLock::new(Vec::new()),
         heap: PageAllocator::new(),
@@ -609,7 +652,10 @@ impl ParcelDb {
     Ok(())
   }
 
-  pub fn read<R: std::io::Read>(source: &mut R) -> std::io::Result<ParcelDbWrapper> {
+  pub fn read<R: std::io::Read>(
+    source: &mut R,
+    options: ParcelOptions,
+  ) -> std::io::Result<ParcelDbWrapper> {
     let mut header: [u8; 10] = [0; 10];
     source.read_exact(&mut header)?;
     let version = u16::from_le_bytes([header[8], header[9]]);
@@ -640,6 +686,7 @@ impl ParcelDb {
 
     Ok(ParcelDbWrapper {
       inner: ParcelDb {
+        options,
         environments: RwLock::new(environments),
         targets: RwLock::new(targets),
         heap,

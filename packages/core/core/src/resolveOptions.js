@@ -113,22 +113,6 @@ export default async function resolveOptions(
 
   entries = entries.map(e => toProjectPath(projectRoot, e));
 
-  let db;
-  let dbKey = hashString(`${getCacheKey(entries, mode)}:parceldb`);
-  if (outputFS instanceof NodeFS) {
-    let cachePath = path.join(cacheDir, dbKey);
-    if (await outputFS.exists(cachePath)) {
-      db = ParcelDb.read(cachePath);
-    }
-  } else if (await cache.hasLargeBlob(dbKey)) {
-    let buffer = await cache.getLargeBlob(dbKey);
-    db = ParcelDb.fromBuffer(buffer);
-  }
-
-  if (!db) {
-    db = ParcelDb.create();
-  }
-
   let publicUrl = initialOptions?.defaultTargetOptions?.publicUrl ?? '/';
   let distDir =
     initialOptions?.defaultTargetOptions?.distDir != null
@@ -167,6 +151,30 @@ export default async function resolveOptions(
   };
 
   let port = determinePort(initialOptions.serveOptions, env.PORT);
+  let logLevel = initialOptions.logLevel ?? 'info';
+
+  let dbOptions = {
+    mode,
+    env,
+    log_level: logLevel,
+    project_root: projectRoot,
+  };
+
+  let db;
+  let dbKey = hashString(`${getCacheKey(entries, mode)}:parceldb`);
+  if (outputFS instanceof NodeFS) {
+    let cachePath = path.join(cacheDir, dbKey);
+    if (await outputFS.exists(cachePath)) {
+      db = ParcelDb.read(cachePath, dbOptions);
+    }
+  } else if (await cache.hasLargeBlob(dbKey)) {
+    let buffer = await cache.getLargeBlob(dbKey);
+    db = ParcelDb.fromBuffer(buffer, dbOptions);
+  }
+
+  if (!db) {
+    db = ParcelDb.create(dbOptions);
+  }
 
   return {
     config: getRelativeConfigSpecifier(
@@ -202,7 +210,7 @@ export default async function resolveOptions(
     cacheDir,
     entries,
     targets: initialOptions.targets,
-    logLevel: initialOptions.logLevel ?? 'info',
+    logLevel,
     projectRoot,
     inputFS,
     outputFS,

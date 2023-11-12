@@ -1339,6 +1339,7 @@ dependencies = [
  "lazy_static",
  "parcel-derive",
  "paste",
+ "serde",
  "thread_local",
  "xxhash-rust",
 ]
@@ -1372,6 +1373,7 @@ dependencies = [
  "Inflector",
  "data-encoding",
  "dunce",
+ "glob-match",
  "indexmap",
  "indoc",
  "path-slash",

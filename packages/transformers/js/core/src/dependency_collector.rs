@@ -61,7 +61,7 @@ pub fn dependency_collector<'a>(
   decls: &'a HashSet<Id>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
-  config: &'a Config,
+  config: &'a Config<'a>,
   diagnostics: &'a mut Vec<Diagnostic>,
 ) -> impl Fold + 'a {
   DependencyCollector {
@@ -88,7 +88,7 @@ struct DependencyCollector<'a> {
   decls: &'a HashSet<Id>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
-  config: &'a Config,
+  config: &'a Config<'a>,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
 }

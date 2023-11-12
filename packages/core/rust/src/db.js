@@ -14,24 +14,24 @@ ParcelDb.deserialize = serialized => {
 };
 
 // $FlowFixMe
-ParcelDb.create = () => {
-  let db = new ParcelDb();
+ParcelDb.create = options => {
+  let db = new ParcelDb(options);
   init(db);
   return db;
 };
 
 // $FlowFixMe
-ParcelDb.read = filename => {
+ParcelDb.read = (filename, options) => {
   // $FlowFixMe
-  let db = ParcelDb._read(filename);
+  let db = ParcelDb._read(filename, options);
   init(db);
   return db;
 };
 
 // $FlowFixMe
-ParcelDb.fromBuffer = buffer => {
+ParcelDb.fromBuffer = (buffer, options) => {
   // $FlowFixMe
-  let db = ParcelDb._fromBuffer(buffer);
+  let db = ParcelDb._fromBuffer(buffer, options);
   init(db);
   return db;
 };
