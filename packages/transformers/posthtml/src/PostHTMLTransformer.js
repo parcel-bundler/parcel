@@ -104,9 +104,11 @@ export default (new Transformer({
       plugins: config.plugins,
     });
 
-    for (let {type, file: filePath} of res.messages) {
-      if (type === 'dependency') {
-        asset.invalidateOnFileChange(filePath);
+    if (res.messages) {
+      for (let {type, file: filePath} of res.messages) {
+        if (type === 'dependency') {
+          asset.invalidateOnFileChange(filePath);
+        }
       }
     }
 
