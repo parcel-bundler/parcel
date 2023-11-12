@@ -187,6 +187,15 @@ class Vec<T> {
     writeU32(this.db, this.addr + 0, 0);
   }
 
+  copyFrom(from: Vec<T>): void {
+    this.clear();
+    this.reserve(from.length);
+    let fromAddr = readU32(this.db, from.addr + 0);
+    let toAddr = readU32(this.db, this.addr + 0);
+    copy(this.db, fromAddr, toAddr, from.length * this.size);
+    writeU32(this.db, this.addr + 4, from.length);
+  }
+
   // $FlowFixMe
   *[globalThis.Symbol.iterator]() {
     let addr = readU32(this.db, this.addr + 0);
@@ -231,13 +240,13 @@ class Vec<T> {
 export opaque type TargetAddr = number;
 
 export class Target {
-  static typeId: number = 9;
+  static typeId: number = 10;
   db: ParcelDb;
   addr: TargetAddr;
 
   constructor(db: ParcelDb, addr?: TargetAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(9);
+    this.addr = addr ?? db.alloc(10);
   }
 
   static get(db: ParcelDb, addr: TargetAddr): Target {
@@ -249,7 +258,7 @@ export class Target {
   }
 
   dealloc() {
-    this.db.dealloc(9, this.addr);
+    this.db.dealloc(10, this.addr);
   }
 
   get env(): EnvironmentAddr {
@@ -330,13 +339,13 @@ export class Target {
 export opaque type EnvironmentAddr = number;
 
 export class Environment {
-  static typeId: number = 4;
+  static typeId: number = 5;
   db: ParcelDb;
   addr: EnvironmentAddr;
 
   constructor(db: ParcelDb, addr?: EnvironmentAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(4);
+    this.addr = addr ?? db.alloc(5);
   }
 
   static get(db: ParcelDb, addr: EnvironmentAddr): Environment {
@@ -344,100 +353,175 @@ export class Environment {
   }
 
   static set(db: ParcelDb, addr: EnvironmentAddr, value: Environment): void {
-    copy(db, value.addr, addr, 40);
+    copy(db, value.addr, addr, 60);
+  }
+
+  dealloc() {
+    this.db.dealloc(5, this.addr);
+  }
+
+  get context(): EnvironmentContextVariants {
+    return EnvironmentContext.get(this.db, this.addr + 57);
+  }
+
+  set context(value: EnvironmentContextVariants): void {
+    EnvironmentContext.set(this.db, this.addr + 57, value);
+  }
+
+  get outputFormat(): OutputFormatVariants {
+    return OutputFormat.get(this.db, this.addr + 58);
+  }
+
+  set outputFormat(value: OutputFormatVariants): void {
+    OutputFormat.set(this.db, this.addr + 58, value);
+  }
+
+  get sourceType(): SourceTypeVariants {
+    return SourceType.get(this.db, this.addr + 59);
+  }
+
+  set sourceType(value: SourceTypeVariants): void {
+    SourceType.set(this.db, this.addr + 59, value);
+  }
+
+  get flags(): number {
+    return readU8(this.db, this.addr + 56);
+  }
+
+  set flags(value: number): void {
+    writeU8(this.db, this.addr + 56, value);
+  }
+
+  get sourceMap(): ?TargetSourceMapOptions {
+    return readU8(this.db, this.addr + 24 + 4) === 2
+      ? null
+      : TargetSourceMapOptions.get(this.db, this.addr + 24);
+  }
+
+  set sourceMap(value: ?TargetSourceMapOptions): void {
+    if (value == null) {
+      writeU8(this.db, this.addr + 24 + 4, 2);
+    } else {
+      TargetSourceMapOptions.set(this.db, this.addr + 24, value);
+    }
+  }
+
+  get loc(): ?SourceLocation {
+    return readU32(this.db, this.addr + 32 + 16) === 0
+      ? null
+      : SourceLocation.get(this.db, this.addr + 32);
+  }
+
+  set loc(value: ?SourceLocation): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 32 + 16, 0);
+    } else {
+      SourceLocation.set(this.db, this.addr + 32, value);
+    }
+  }
+
+  get includeNodeModules(): string {
+    return readCachedString(this.db, readU32(this.db, this.addr + 52));
+  }
+
+  set includeNodeModules(value: string): void {
+    writeU32(this.db, this.addr + 52, this.db.getStringId(value));
+  }
+
+  get engines(): Engines {
+    return Engines.get(this.db, this.addr + 0);
+  }
+
+  set engines(value: Engines): void {
+    Engines.set(this.db, this.addr + 0, value);
+  }
+}
+
+export opaque type EnginesAddr = number;
+
+export class Engines {
+  static typeId: number = 4;
+  db: ParcelDb;
+  addr: EnginesAddr;
+
+  constructor(db: ParcelDb, addr?: EnginesAddr) {
+    this.db = db;
+    this.addr = addr ?? db.alloc(4);
+  }
+
+  static get(db: ParcelDb, addr: EnginesAddr): Engines {
+    return new Engines(db, addr);
+  }
+
+  static set(db: ParcelDb, addr: EnginesAddr, value: Engines): void {
+    copy(db, value.addr, addr, 24);
   }
 
   dealloc() {
     this.db.dealloc(4, this.addr);
   }
 
-  get context(): EnvironmentContextVariants {
-    return EnvironmentContext.get(this.db, this.addr + 37);
+  get browsers(): Vec<string> {
+    return new Vec(this.db, this.addr + 0, 4, InternedString);
   }
 
-  set context(value: EnvironmentContextVariants): void {
-    EnvironmentContext.set(this.db, this.addr + 37, value);
+  set browsers(value: Vec<string>): void {
+    copy(this.db, value.addr, this.addr + 0, 12);
   }
 
-  get outputFormat(): OutputFormatVariants {
-    return OutputFormat.get(this.db, this.addr + 38);
-  }
-
-  set outputFormat(value: OutputFormatVariants): void {
-    OutputFormat.set(this.db, this.addr + 38, value);
-  }
-
-  get sourceType(): SourceTypeVariants {
-    return SourceType.get(this.db, this.addr + 39);
-  }
-
-  set sourceType(value: SourceTypeVariants): void {
-    SourceType.set(this.db, this.addr + 39, value);
-  }
-
-  get flags(): number {
-    return readU8(this.db, this.addr + 36);
-  }
-
-  set flags(value: number): void {
-    writeU8(this.db, this.addr + 36, value);
-  }
-
-  get sourceMap(): ?TargetSourceMapOptions {
-    return readU8(this.db, this.addr + 0 + 4) === 2
+  get electron(): ?string {
+    return readU32(this.db, this.addr + 12 + 0) === 0
       ? null
-      : TargetSourceMapOptions.get(this.db, this.addr + 0);
+      : readCachedString(this.db, readU32(this.db, this.addr + 12));
   }
 
-  set sourceMap(value: ?TargetSourceMapOptions): void {
+  set electron(value: ?string): void {
     if (value == null) {
-      writeU8(this.db, this.addr + 0 + 4, 2);
+      writeU32(this.db, this.addr + 12 + 0, 0);
     } else {
-      TargetSourceMapOptions.set(this.db, this.addr + 0, value);
+      writeU32(this.db, this.addr + 12, this.db.getStringId(value));
     }
   }
 
-  get loc(): ?SourceLocation {
-    return readU32(this.db, this.addr + 8 + 16) === 0
+  get node(): ?string {
+    return readU32(this.db, this.addr + 16 + 0) === 0
       ? null
-      : SourceLocation.get(this.db, this.addr + 8);
+      : readCachedString(this.db, readU32(this.db, this.addr + 16));
   }
 
-  set loc(value: ?SourceLocation): void {
+  set node(value: ?string): void {
     if (value == null) {
-      writeU32(this.db, this.addr + 8 + 16, 0);
+      writeU32(this.db, this.addr + 16 + 0, 0);
     } else {
-      SourceLocation.set(this.db, this.addr + 8, value);
+      writeU32(this.db, this.addr + 16, this.db.getStringId(value));
     }
   }
 
-  get includeNodeModules(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 28));
+  get parcel(): ?string {
+    return readU32(this.db, this.addr + 20 + 0) === 0
+      ? null
+      : readCachedString(this.db, readU32(this.db, this.addr + 20));
   }
 
-  set includeNodeModules(value: string): void {
-    writeU32(this.db, this.addr + 28, this.db.getStringId(value));
-  }
-
-  get engines(): string {
-    return readCachedString(this.db, readU32(this.db, this.addr + 32));
-  }
-
-  set engines(value: string): void {
-    writeU32(this.db, this.addr + 32, this.db.getStringId(value));
+  set parcel(value: ?string): void {
+    if (value == null) {
+      writeU32(this.db, this.addr + 20 + 0, 0);
+    } else {
+      writeU32(this.db, this.addr + 20, this.db.getStringId(value));
+    }
   }
 }
 
 export opaque type TargetSourceMapOptionsAddr = number;
 
 export class TargetSourceMapOptions {
-  static typeId: number = 10;
+  static typeId: number = 11;
   db: ParcelDb;
   addr: TargetSourceMapOptionsAddr;
 
   constructor(db: ParcelDb, addr?: TargetSourceMapOptionsAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(10);
+    this.addr = addr ?? db.alloc(11);
   }
 
   static get(
@@ -456,7 +540,7 @@ export class TargetSourceMapOptions {
   }
 
   dealloc() {
-    this.db.dealloc(10, this.addr);
+    this.db.dealloc(11, this.addr);
   }
 
   get sourceRoot(): ?string {
@@ -493,13 +577,13 @@ export class TargetSourceMapOptions {
 export opaque type SourceLocationAddr = number;
 
 export class SourceLocation {
-  static typeId: number = 7;
+  static typeId: number = 8;
   db: ParcelDb;
   addr: SourceLocationAddr;
 
   constructor(db: ParcelDb, addr?: SourceLocationAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(7);
+    this.addr = addr ?? db.alloc(8);
   }
 
   static get(db: ParcelDb, addr: SourceLocationAddr): SourceLocation {
@@ -515,7 +599,7 @@ export class SourceLocation {
   }
 
   dealloc() {
-    this.db.dealloc(7, this.addr);
+    this.db.dealloc(8, this.addr);
   }
 
   get filePath(): string {
@@ -546,13 +630,13 @@ export class SourceLocation {
 export opaque type LocationAddr = number;
 
 export class Location {
-  static typeId: number = 6;
+  static typeId: number = 7;
   db: ParcelDb;
   addr: LocationAddr;
 
   constructor(db: ParcelDb, addr?: LocationAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(6);
+    this.addr = addr ?? db.alloc(7);
   }
 
   static get(db: ParcelDb, addr: LocationAddr): Location {
@@ -564,7 +648,7 @@ export class Location {
   }
 
   dealloc() {
-    this.db.dealloc(6, this.addr);
+    this.db.dealloc(7, this.addr);
   }
 
   get line(): number {
@@ -1395,13 +1479,13 @@ export class Dependency {
 export opaque type ImportAttributeAddr = number;
 
 export class ImportAttribute {
-  static typeId: number = 5;
+  static typeId: number = 6;
   db: ParcelDb;
   addr: ImportAttributeAddr;
 
   constructor(db: ParcelDb, addr?: ImportAttributeAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(5);
+    this.addr = addr ?? db.alloc(6);
   }
 
   static get(db: ParcelDb, addr: ImportAttributeAddr): ImportAttribute {
@@ -1417,7 +1501,7 @@ export class ImportAttribute {
   }
 
   dealloc() {
-    this.db.dealloc(5, this.addr);
+    this.db.dealloc(6, this.addr);
   }
 
   get key(): string {
@@ -1523,13 +1607,13 @@ export class Priority {
 export opaque type SymbolAddr = number;
 
 export class Symbol {
-  static typeId: number = 8;
+  static typeId: number = 9;
   db: ParcelDb;
   addr: SymbolAddr;
 
   constructor(db: ParcelDb, addr?: SymbolAddr) {
     this.db = db;
-    this.addr = addr ?? db.alloc(8);
+    this.addr = addr ?? db.alloc(9);
   }
 
   static get(db: ParcelDb, addr: SymbolAddr): Symbol {
@@ -1541,7 +1625,7 @@ export class Symbol {
   }
 
   dealloc() {
-    this.db.dealloc(8, this.addr);
+    this.db.dealloc(9, this.addr);
   }
 
   get exported(): number {
@@ -1589,10 +1673,10 @@ export const SymbolFlags = {
 };
 
 class InternedString {
-  static typeId: number = 11;
+  static typeId: number = 12;
 
   static get(db: ParcelDb, addr: number): string {
-    return readCachedString(db, addr);
+    return readCachedString(db, readU32(db, addr));
   }
 
   static set(db: ParcelDb, addr: number, value: string): void {

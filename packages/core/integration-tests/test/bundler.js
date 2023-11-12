@@ -1746,13 +1746,13 @@ describe('bundler', function () {
           assets: ['index.html'],
         },
         {
-          assets: ['a.js', 'i.js'],
+          assets: ['a.js', 'b.js', 'd.js'],
         },
         {
-          assets: ['b.js', 'c.js', 'd.js', 'e.js', 'f.js', 'j.js'],
+          assets: ['c.js', 'e.js', 'f.js', 'g.js', 'h.js'],
         },
         {
-          assets: ['vendor.js', 'g.js', 'h.js'],
+          assets: ['vendor.js', 'i.js', 'j.js'],
         },
         {
           assets: ['esmodule-helpers.js', 'index.js'],

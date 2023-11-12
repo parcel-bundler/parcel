@@ -48,6 +48,12 @@ impl InternedString {
   }
 }
 
+impl AsRef<str> for &InternedString {
+  fn as_ref(&self) -> &str {
+    self.as_str()
+  }
+}
+
 impl<T: AsRef<str>> PartialEq<T> for InternedString {
   fn eq(&self, other: &T) -> bool {
     matches!(InternedString::get(other.as_ref()), Some(s) if s == *self)
@@ -113,7 +119,7 @@ impl ToJs for InternedString {
   static typeId: number = {id};
 
   static get(db: ParcelDb, addr: number): string {{
-    return readCachedString(db, addr);
+    return readCachedString(db, readU32(db, addr));
   }}
 
   static set(db: ParcelDb, addr: number, value: string): void {{

@@ -244,11 +244,9 @@ function nodeId(id) {
 function getEnvDescription(db: ParcelDb, envId: EnvironmentAddr) {
   let description;
   let env = DbEnvironment.get(db, envId);
-  let engines = JSON.parse(env.engines);
-  if (typeof engines.browsers === 'string') {
-    description = `${env.context}: ${engines.browsers}`;
-  } else if (Array.isArray(engines.browsers)) {
-    description = `${env.context}: ${engines.browsers.join(', ')}`;
+  let engines = env.engines;
+  if (engines.browsers.length) {
+    description = `${env.context}: ${Array.from(engines.browsers).join(', ')}`;
   } else if (engines.node) {
     description = `node: ${engines.node}`;
   } else if (engines.electron) {

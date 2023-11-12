@@ -317,51 +317,6 @@ export default (new Transformer({
       asset.getMap(),
     ]);
 
-    // TODO: move to rust.
-    let targets;
-    if (asset.env.isElectron() && asset.env.engines.electron) {
-      targets = {
-        electron: semver.minVersion(asset.env.engines.electron)?.toString(),
-      };
-    } else if (asset.env.isBrowser() && asset.env.engines.browsers) {
-      targets = {};
-
-      let browsers = Array.isArray(asset.env.engines.browsers)
-        ? asset.env.engines.browsers
-        : [asset.env.engines.browsers];
-
-      // If the output format is esmodule, exclude browsers
-      // that support them natively so that we transpile less.
-      if (asset.env.outputFormat === 'esmodule') {
-        browsers = [...browsers, ...ESMODULE_BROWSERS];
-      }
-
-      browsers = browserslist(browsers);
-      for (let browser of browsers) {
-        let [name, version] = browser.split(' ');
-        if (BROWSER_MAPPING.hasOwnProperty(name)) {
-          name = BROWSER_MAPPING[name];
-          if (!name) {
-            continue;
-          }
-        }
-
-        let [major, minor = '0', patch = '0'] = version
-          .split('-')[0]
-          .split('.');
-        if (isNaN(major) || isNaN(minor) || isNaN(patch)) {
-          continue;
-        }
-        let semverVersion = `${major}.${minor}.${patch}`;
-
-        if (targets[name] == null || semver.gt(targets[name], semverVersion)) {
-          targets[name] = semverVersion;
-        }
-      }
-    } else if (asset.env.isNode() && asset.env.engines.node) {
-      targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
-    }
-
     let env: EnvMap = {};
 
     if (!config?.inlineEnvironment) {
@@ -427,7 +382,6 @@ export default (new Transformer({
         Boolean(config?.reactRefresh),
       decorators: Boolean(config?.decorators),
       use_define_for_class_fields: Boolean(config?.useDefineForClassFields),
-      targets,
       supports_module_workers: supportsModuleWorkers,
       trace_bailouts: options.logLevel === 'verbose',
       inline_constants: config.inlineConstants,

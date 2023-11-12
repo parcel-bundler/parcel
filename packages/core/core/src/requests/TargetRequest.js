@@ -1500,22 +1500,20 @@ async function debugResolvedTargets(input, targets, targetInfo, options) {
     // Resolve relevant engines for context.
     let engines;
     let env = DbEnvironment.get(options.db, target.env);
-    let envEngines = JSON.parse(env.engines);
     switch (env.context) {
       case 'browser':
       case 'web-worker':
       case 'service-worker':
       case 'worklet': {
-        let browsers = envEngines.browsers;
-        engines = Array.isArray(browsers) ? browsers.join(', ') : browsers;
+        engines = Array.from(env.engines.browsers).join(', ');
         break;
       }
       case 'node':
-        engines = envEngines.node;
+        engines = env.engines.node;
         break;
       case 'electron-main':
       case 'electron-renderer':
-        engines = envEngines.electron;
+        engines = env.engines.electron;
         break;
     }
 

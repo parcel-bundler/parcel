@@ -180,7 +180,24 @@ export default class Environment implements IEnvironment {
   }
 
   get engines(): Engines {
-    this.#engines ??= JSON.parse(this.#environment.engines);
+    if (!this.#engines) {
+      // Some code depends on keys missing entirely instead of values being null/undefined.
+      let engines = this.#environment.engines;
+      let obj = {};
+      if (engines.browsers.length) {
+        obj.browsers = Array.from(engines.browsers);
+      }
+      if (engines.electron != null) {
+        obj.electron = engines.electron;
+      }
+      if (engines.node != null) {
+        obj.node = engines.node;
+      }
+      if (engines.parcel != null) {
+        obj.parcel = engines.parcel;
+      }
+      this.#engines = obj;
+    }
     return nullthrows(this.#engines);
   }
 

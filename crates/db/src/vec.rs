@@ -16,11 +16,12 @@ pub struct ArenaVec<T: SlabAllocated> {
 
 impl<T: SlabAllocated + Clone> Clone for ArenaVec<T> {
   fn clone(&self) -> Self {
-    let vec = unsafe { self.as_vec() }.clone();
+    let vec = unsafe { self.as_vec() };
     let mut res = Self::new();
     unsafe {
-      res.update(vec);
+      res.update(vec.clone());
     }
+    std::mem::forget(vec);
     res
   }
 }
@@ -58,7 +59,11 @@ impl<T: SlabAllocated> ArenaVec<T> {
   }
 
   unsafe fn update(&mut self, vec: Vec<T, SlabAllocator<T>>) {
-    self.buf = current_heap().find_page(vec.as_ptr() as *const u8).unwrap();
+    self.buf = if vec.capacity() == 0 {
+      0
+    } else {
+      current_heap().find_page(vec.as_ptr() as *const u8).unwrap()
+    };
     self.len = vec.len() as u32;
     self.cap = vec.capacity() as u32;
     std::mem::forget(vec)
@@ -228,6 +233,15 @@ class Vec<T> {{
     writeU32(this.db, this.addr + {len_offset}, 0);
     writeU32(this.db, this.addr + {cap_offset}, 0);
     writeU32(this.db, this.addr + {buf_offset}, 0);
+  }}
+
+  copyFrom(from: Vec<T>): void {{
+    this.clear();
+    this.reserve(from.length);
+    let fromAddr = readU32(this.db, from.addr + {buf_offset});
+    let toAddr = readU32(this.db, this.addr + {buf_offset});
+    copy(this.db, fromAddr, toAddr, from.length * this.size);
+    writeU32(this.db, this.addr + {len_offset}, from.length);
   }}
 
   // $FlowFixMe

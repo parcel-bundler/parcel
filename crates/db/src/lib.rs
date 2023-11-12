@@ -56,16 +56,16 @@ pub struct Environment {
   #[derivative(PartialEq = "ignore")]
   pub loc: Option<SourceLocation>,
   pub include_node_modules: InternedString,
-  pub engines: InternedString,
+  pub engines: Engines,
 }
 
-// #[derive(PartialEq, Clone, Debug, ToJs, JsValue)]
-// pub struct Engines {
-//   browsers: ArenaVec<InternedString>,
-//   electron: Option<InternedString>,
-//   node: Option<InternedString>,
-//   parcel: Option<InternedString>,
-// }
+#[derive(PartialEq, Clone, Debug, ToJs, JsValue, ArenaAllocated)]
+pub struct Engines {
+  pub browsers: ArenaVec<InternedString>,
+  pub electron: Option<InternedString>,
+  pub node: Option<InternedString>,
+  pub parcel: Option<InternedString>,
+}
 
 // #[derive(Clone)]
 // pub enum IncludeNodeModules {
@@ -136,6 +136,11 @@ impl EnvironmentContext {
   pub fn is_worker(&self) -> bool {
     use EnvironmentContext::*;
     matches!(self, WebWorker | ServiceWorker)
+  }
+
+  pub fn is_electron(&self) -> bool {
+    use EnvironmentContext::*;
+    matches!(self, ElectronMain | ElectronRenderer)
   }
 }
 

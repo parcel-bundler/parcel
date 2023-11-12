@@ -27,7 +27,7 @@ use swc_core::ecma::ast::{Module, ModuleItem, Program};
 use swc_core::ecma::codegen::text_writer::JsWriter;
 use swc_core::ecma::parser::lexer::Lexer;
 use swc_core::ecma::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
-use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
+use swc_core::ecma::preset_env::{preset_env, Mode::Entry, Targets};
 use swc_core::ecma::transforms::base::fixer::paren_remover;
 use swc_core::ecma::transforms::base::helpers;
 use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver, Assumptions};
@@ -50,6 +50,7 @@ use node_replacer::NodeReplacer;
 use typeof_replacer::*;
 
 pub use dependency_collector::{DependencyDescriptor, DependencyKind};
+pub use swc_core::ecma::preset_env::{Version, Versions};
 pub use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
@@ -76,7 +77,7 @@ pub struct Config {
   pub use_define_for_class_fields: bool,
   pub is_development: bool,
   pub react_refresh: bool,
-  pub targets: Option<HashMap<String, String>>,
+  pub targets: Option<Versions>,
   pub source_maps: bool,
   pub scope_hoist: bool,
   pub source_type: SourceType,
@@ -106,36 +107,6 @@ pub struct TransformResult {
   pub used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   pub has_node_replacements: bool,
   pub is_constant_module: bool,
-}
-
-fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
-  if let Some(targets) = targets {
-    macro_rules! set_target {
-      ($versions: ident, $name: ident) => {
-        let version = targets.get(stringify!($name));
-        if let Some(version) = version {
-          if let Ok(version) = Version::from_str(version.as_str()) {
-            $versions.$name = Some(version);
-          }
-        }
-      };
-    }
-
-    let mut versions = Versions::default();
-    set_target!(versions, chrome);
-    set_target!(versions, opera);
-    set_target!(versions, edge);
-    set_target!(versions, firefox);
-    set_target!(versions, safari);
-    set_target!(versions, ie);
-    set_target!(versions, ios);
-    set_target!(versions, android);
-    set_target!(versions, node);
-    set_target!(versions, electron);
-    return Some(versions);
-  }
-
-  None
 }
 
 #[derive(Debug, Clone, Default)]
@@ -283,7 +254,7 @@ pub fn transform(code: &[u8], config: &Config) -> TransformResult {
                 dynamic_import: true,
                 ..Default::default()
               };
-              let versions = targets_to_versions(&config.targets);
+              let versions = config.targets;
               let mut should_run_preset_env = false;
               if !config.is_swc_helpers {
                 // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.

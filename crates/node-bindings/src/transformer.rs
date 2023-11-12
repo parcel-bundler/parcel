@@ -9,13 +9,13 @@ use indexmap::IndexMap;
 use napi::{Env, JsBuffer, JsObject, JsUnknown, Result};
 use napi_derive::napi;
 use parcel_db::{
-  ArenaAllocated, ArenaVec, AssetFlags, AssetId, AssetType, BundleBehavior, Dependency,
-  DependencyFlags, Environment, EnvironmentContext, EnvironmentFlags, ExportsCondition,
-  ImportAttribute, InternedString, Location, OutputFormat, ParcelDb, Priority, SourceLocation,
-  SourceType, SpecifierType, Symbol, SymbolFlags, TargetId,
+  ArenaVec, AssetFlags, AssetId, AssetType, BundleBehavior, Dependency, DependencyFlags,
+  Environment, EnvironmentContext, EnvironmentFlags, ImportAttribute, InternedString, Location,
+  OutputFormat, ParcelDb, Priority, SourceLocation, SourceType, SpecifierType, Symbol, SymbolFlags,
 };
-use parcel_js_swc_core::{CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult};
-use parcel_resolver::Specifier;
+use parcel_js_swc_core::{
+  CodeHighlight, Config, DependencyKind, Diagnostic, TransformResult, Version, Versions,
+};
 use parcel_sourcemap::SourceMap;
 use path_slash::{PathBufExt, PathExt};
 use serde::{Deserialize, Serialize};
@@ -106,7 +106,6 @@ pub struct Config2 {
   pub use_define_for_class_fields: bool,
   pub is_development: bool,
   pub react_refresh: bool,
-  pub targets: Option<HashMap<String, String>>,
   pub supports_module_workers: bool,
   pub trace_bailouts: bool,
   pub inline_constants: bool,
@@ -114,9 +113,87 @@ pub struct Config2 {
   pub supports_dynamic_import: bool,
 }
 
+// List of browsers to exclude when the esmodule target is specified.
+// Based on https://caniuse.com/#feat=es6-module
+const ESMODULE_BROWSERS: &'static [&'static str] = &[
+  "not ie <= 11",
+  "not edge < 16",
+  "not firefox < 60",
+  "not chrome < 61",
+  "not safari < 11",
+  "not opera < 48",
+  "not ios_saf < 11",
+  "not op_mini all",
+  "not android < 76",
+  "not blackberry > 0",
+  "not op_mob > 0",
+  "not and_chr < 76",
+  "not and_ff < 68",
+  "not ie_mob > 0",
+  "not and_uc > 0",
+  "not samsung < 8.2",
+  "not and_qq > 0",
+  "not baidu > 0",
+  "not kaios > 0",
+];
+
 fn convert_config(db: &ParcelDb, config: Config2) -> Config {
   let asset = db.get_asset(AssetId(config.asset_id));
   let env = db.get_environment(asset.env);
+  let mut targets = None;
+  if env.context.is_electron() {
+    if let Some(electron) = env
+      .engines
+      .electron
+      .and_then(|v| node_semver::Range::parse(v.as_str()).ok())
+      .and_then(|r| r.min_version())
+    {
+      targets = Some(Versions {
+        electron: Some(Version {
+          major: electron.major as u32,
+          minor: electron.minor as u32,
+          patch: electron.patch as u32,
+        }),
+        ..Default::default()
+      });
+    }
+  } else if env.context.is_browser() && !env.engines.browsers.is_empty() {
+    let env_browsers = env.engines.browsers.as_slice();
+    let browsers = if env.output_format == OutputFormat::Esmodule {
+      // If the output format is esmodule, exclude browsers
+      // that support them natively so that we transpile less.
+      browserslist::resolve(
+        env_browsers
+          .iter()
+          .map(|s| s.as_str())
+          .chain(ESMODULE_BROWSERS.iter().map(|s| *s)),
+        &Default::default(),
+      )
+    } else {
+      browserslist::resolve(env_browsers, &Default::default())
+    };
+
+    if let Some(browsers) = browsers.ok().and_then(|v| Versions::parse_versions(v).ok()) {
+      targets = Some(browsers);
+    }
+  } else if env.context.is_node() {
+    if let Some(node) = env
+      .engines
+      .node
+      .and_then(|v| node_semver::Range::parse(v.as_str()).ok())
+      .and_then(|r| r.min_version())
+    {
+      targets = Some(Versions {
+        node: Some(Version {
+          major: node.major as u32,
+          minor: node.minor as u32,
+          patch: node.patch as u32,
+        }),
+        ..Default::default()
+      });
+    }
+  }
+
   Config {
     filename: Path::new(&config.project_root).join(asset.file_path.as_str()),
     module_id: asset.id.to_string(),
@@ -142,7 +219,7 @@ fn convert_config(db: &ParcelDb, config: Config2) -> Config {
     use_define_for_class_fields: config.use_define_for_class_fields,
     is_development: config.is_development,
     react_refresh: config.react_refresh,
-    targets: config.targets,
+    targets,
     source_maps: env.source_map.is_some(),
     scope_hoist: env.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
       && env.source_type != SourceType::Script,
