@@ -1,6 +1,6 @@
-use std::{cell::UnsafeCell, marker::PhantomData, ptr::NonNull};
+use std::{marker::PhantomData, ptr::NonNull};
 
-use allocator_api2::alloc::{AllocError, Allocator, Layout};
+use allocator_api2::alloc::{Allocator, Layout};
 
 use crate::{atomics::AtomicVec, ArenaVec};
 
@@ -50,14 +50,17 @@ impl PageAllocator {
     }
   }
 
-  unsafe fn alloc_page(&self, min_size: usize, zeroed: bool) -> u32 {
+  fn alloc_page(&self, min_size: usize, zeroed: bool) -> u32 {
     let len = min_size.max(PAGE_SIZE);
-    let layout = Layout::from_size_align_unchecked(len, 8);
+    // SAFETY: alignment is always 8, and size is always non-zero.
+    let ptr = unsafe {
+      let layout = Layout::from_size_align_unchecked(len, 8);
 
-    let ptr = if zeroed {
-      std::alloc::alloc_zeroed(layout)
-    } else {
-      std::alloc::alloc(layout)
+      if zeroed {
+        std::alloc::alloc_zeroed(layout)
+      } else {
+        std::alloc::alloc(layout)
+      }
     };
 
     // println!("ALLOC PAGE {:?}", self.pages.len());
@@ -74,17 +77,12 @@ impl PageAllocator {
     ptr as *mut T
   }
 
-  pub unsafe fn get_slice(&self, addr: u32, len: usize) -> &mut [u8] {
-    let ptr: *mut u8 = self.get(addr);
-    core::slice::from_raw_parts_mut(ptr, len)
+  pub fn get_page(&self, index: u32) -> &mut [u8] {
+    let page = &self.pages.get(index).expect("invalid page");
+    unsafe { core::slice::from_raw_parts_mut(page.ptr, page.len) }
   }
 
-  pub unsafe fn get_page(&self, index: u32) -> &mut [u8] {
-    let page = &self.pages.get_unchecked(index);
-    core::slice::from_raw_parts_mut(page.ptr, page.len)
-  }
-
-  pub unsafe fn find_page(&self, ptr: *const u8) -> Option<u32> {
+  pub fn find_page(&self, ptr: *const u8) -> Option<u32> {
     for i in 0..self.pages.len() {
       let page = self.get_page(i);
       if page.as_ptr_range().contains(&ptr) {
@@ -113,42 +111,16 @@ impl PageAllocator {
     for i in 0..len {
       source.read_exact(&mut buf)?;
       let len = u32::from_le_bytes(buf);
-      unsafe {
-        res.alloc_page(len as usize, false);
-        let page = res.get_page(i);
-        source.read_exact(page)?;
-      }
+      res.alloc_page(len as usize, false);
+      let page = res.get_page(i);
+      source.read_exact(page)?;
     }
     Ok(res)
   }
 }
 
-unsafe impl Allocator for PageAllocator {
-  #[inline(always)]
-  fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-    unsafe {
-      let page_index = self.alloc_page(layout.size(), false);
-      let page = self.get_page(page_index);
-      Ok(NonNull::new_unchecked(page))
-    }
-  }
-
-  #[inline(always)]
-  fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-    unsafe {
-      let page_index = self.alloc_page(layout.size(), true);
-      let page = self.get_page(page_index);
-      Ok(NonNull::new_unchecked(page))
-    }
-  }
-
-  unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-    // println!("DEALLOC PAGE {:p}", ptr);
-  }
-}
-
 pub struct Arena {
-  addr: UnsafeCell<u32>,
+  addr: u32,
 }
 
 impl Default for Arena {
@@ -159,56 +131,41 @@ impl Default for Arena {
 
 impl Arena {
   pub const fn new() -> Self {
-    Self {
-      addr: UnsafeCell::new(1),
-    }
+    Self { addr: 1 }
   }
 
-  pub fn alloc(&self, size: u32) -> u32 {
+  pub fn alloc(&mut self, size: u32) -> u32 {
     let size = (size + 7) & !7;
-    unsafe {
-      let ptr = self.addr.get();
-      let addr = *ptr;
-      if addr == 1 {
-        let page_index = current_heap().alloc_page(size as usize, false);
-        if page_index == 0 {
-          // Ensure the address is never zero.
-          *ptr = pack_addr(page_index, size + 8);
-          return pack_addr(page_index, 8);
-        }
-        *ptr = pack_addr(page_index, size);
-        return pack_addr(page_index, 0);
+    let addr = self.addr;
+    if addr == 1 {
+      let page_index = current_heap().alloc_page(size as usize, false);
+      if page_index == 0 {
+        // Ensure the address is never zero.
+        self.addr = pack_addr(page_index, size + 8);
+        return pack_addr(page_index, 8);
       }
-
-      let (page_index, offset) = unpack_addr(addr);
-      let page = current_heap().get_page(page_index);
-      if (offset + size) as usize >= page.len() {
-        let page_index = current_heap().alloc_page(size as usize, false);
-        *ptr = pack_addr(page_index, size);
-        pack_addr(page_index, 0)
-      } else {
-        *ptr += size;
-        addr
-      }
+      self.addr = pack_addr(page_index, size);
+      return pack_addr(page_index, 0);
     }
-  }
-
-  pub unsafe fn dealloc(&self, ptr: NonNull<u8>, layout: Layout) {
-    let addr_ptr = self.addr.get();
-    let addr = *addr_ptr;
-    debug_assert!(addr != 1);
 
     let (page_index, offset) = unpack_addr(addr);
-    if offset == 0 {
-      return;
-    }
-
     let page = current_heap().get_page(page_index);
-    let cur_ptr = (page.as_ptr() as usize) + offset as usize;
-    let end_ptr = (ptr.as_ptr() as usize) + ((layout.size() + 7) & !7);
-    if cur_ptr == end_ptr {
+    if (offset + size) as usize >= page.len() {
+      let page_index = current_heap().alloc_page(size as usize, false);
+      self.addr = pack_addr(page_index, size);
+      pack_addr(page_index, 0)
+    } else {
+      self.addr += size;
+      addr
+    }
+  }
+
+  pub fn dealloc(&mut self, addr: u32, size: u32) {
+    debug_assert!(self.addr != 1);
+
+    if self.addr - size == addr {
       println!("DEALLOC AT END");
-      *addr_ptr -= layout.size() as u32;
+      self.addr -= size;
     }
   }
 }
@@ -239,65 +196,60 @@ impl<T> Slab<T> {
   }
 
   pub fn alloc(&mut self, count: u32) -> u32 {
-    unsafe {
-      let size = std::mem::size_of::<T>().max(std::mem::size_of::<FreeNode>()) as u32;
-      if self.free_head != 1 {
-        let mut addr = self.free_head;
-        let mut prev: *mut u32 = &mut self.free_head;
-        loop {
-          let node = &mut *current_heap().get::<FreeNode>(addr);
-          if node.slots >= count {
-            if count < node.slots {
-              node.slots -= count;
-              addr += size * node.slots;
-            } else {
-              *prev = node.next;
-            }
-            // println!(
-            //   "REUSED {:?} {} {} {:?}",
-            //   unpack_addr(addr),
-            //   count,
-            //   node.slots,
-            //   unpack_addr(node.next)
-            // );
-            // self.debug_free_list();
-            return addr;
+    let size = std::mem::size_of::<T>().max(std::mem::size_of::<FreeNode>()) as u32;
+    if self.free_head != 1 {
+      let mut addr = self.free_head;
+      let mut prev = &mut self.free_head;
+      loop {
+        let node = unsafe { &mut *current_heap().get::<FreeNode>(addr) };
+        if node.slots >= count {
+          if count < node.slots {
+            node.slots -= count;
+            addr += size * node.slots;
+          } else {
+            *prev = node.next;
           }
-          if node.next == 1 {
-            break;
-          }
-          prev = &mut node.next;
-          addr = node.next;
+          // println!(
+          //   "REUSED {:?} {} {} {:?}",
+          //   unpack_addr(addr),
+          //   count,
+          //   node.slots,
+          //   unpack_addr(node.next)
+          // );
+          // self.debug_free_list();
+          return addr;
         }
+        if node.next == 1 {
+          break;
+        }
+        addr = node.next;
+        prev = &mut node.next;
       }
-
-      current_arena().alloc(size * count)
     }
+
+    current_arena().alloc(size * count)
   }
 
   pub fn dealloc(&mut self, addr: u32, count: u32) {
     // println!("DEALLOC {} {}", std::any::type_name::<Self>(), count);
 
-    // println!("DEALLOC {} {}", addr, count);
-    unsafe {
-      // let size = std::mem::size_of::<T>() as u32;
-      // if self.free_head != 1 {
-      //   let node = &mut *HEAP.get::<FreeNode>(self.free_head);
-      //   if addr + size * count == self.free_head {
-      //     count += node.slots;
-      //     self.free_head = node.next;
-      //   } else if self.free_head + size * node.slots == addr {
-      //     node.slots += count;
-      //     return;
-      //   }
-      // }
+    // let size = std::mem::size_of::<T>() as u32;
+    // if self.free_head != 1 {
+    //   let node = &mut *HEAP.get::<FreeNode>(self.free_head);
+    //   if addr + size * count == self.free_head {
+    //     count += node.slots;
+    //     self.free_head = node.next;
+    //   } else if self.free_head + size * node.slots == addr {
+    //     node.slots += count;
+    //     return;
+    //   }
+    // }
 
-      let node = &mut *current_heap().get::<FreeNode>(addr);
-      node.slots = count;
-      node.next = self.free_head;
-      self.free_head = addr;
-      // self.debug_free_list();
-    }
+    let node = unsafe { &mut *current_heap().get::<FreeNode>(addr) };
+    node.slots = count;
+    node.next = self.free_head;
+    self.free_head = addr;
+    // self.debug_free_list();
   }
 
   fn debug_free_list(&self) {
@@ -320,19 +272,13 @@ pub trait ArenaAllocated: Sized {
   }
 
   fn dealloc_ptr(addr: u32) {
+    // Call destructors.
     unsafe {
-      // Call destructors.
       let ptr: *mut Self = current_heap().get(addr);
       std::ptr::drop_in_place(ptr);
-
-      current_arena().dealloc(
-        NonNull::new_unchecked(addr as usize as *mut u8),
-        std::alloc::Layout::from_size_align_unchecked(
-          std::mem::size_of::<Self>(),
-          std::mem::align_of::<Self>(),
-        ),
-      )
     }
+
+    current_arena().dealloc(addr, std::mem::size_of::<Self>() as u32);
   }
 
   fn into_arena(self) -> u32 {
@@ -416,14 +362,14 @@ unsafe impl<T: SlabAllocated> Allocator for SlabAllocator<T> {
 #[thread_local]
 pub static mut HEAP: Option<&'static PageAllocator> = None;
 #[thread_local]
-pub static mut ARENA: Option<&'static Arena> = None;
+pub static mut ARENA: Option<&'static mut Arena> = None;
 
 pub fn current_heap<'a>() -> &'a PageAllocator {
   unsafe { HEAP.unwrap_unchecked() }
 }
 
-pub fn current_arena<'a>() -> &'a Arena {
-  unsafe { ARENA.unwrap_unchecked() }
+pub fn current_arena<'a>() -> &'a mut Arena {
+  unsafe { ARENA.as_mut().unwrap_unchecked() }
 }
 
 #[cfg(test)]

@@ -499,7 +499,7 @@ impl ParcelDbWrapper {
         .0
         .get();
 
-      ARENA = Some(std::mem::transmute(&slabs.arena));
+      ARENA = Some(std::mem::transmute(&mut slabs.arena));
       SLABS = Some(std::mem::transmute(slabs));
       let res = f(&self.inner);
       HEAP = None;
@@ -543,7 +543,7 @@ impl ParcelDb {
   }
 
   pub fn heap_page(&self, page: u32) -> &mut [u8] {
-    unsafe { self.heap.get_page(page) }
+    self.heap.get_page(page)
   }
 
   pub fn alloc(&self, type_id: u32) -> u32 {
