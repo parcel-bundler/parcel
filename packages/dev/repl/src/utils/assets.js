@@ -418,14 +418,35 @@ document.body.innerHTML = greeter(user);`,
                 isEntry: true,
                 value: `<!DOCTYPE html>
 <main></main>
+<button>Update</button>
 <script src="./index.js" type="module"></script>`,
               },
             ],
             [
               'index.js',
               {
-                value: `document.body.appendChild(document.createTextNode(Date.now()));
-module.hot?.accept();`,
+                value: `let counter = 0;
+
+if (module.hot) {
+  module.hot.dispose(function (data) {
+    data.counter = counter;
+  });
+
+  module.hot.accept(function () {
+    counter = module.hot.data.counter;
+    render();
+  });
+}
+
+let btn = document.querySelector("button");
+btn.onclick = (e) => {
+  counter++;
+  render();
+}
+function render(){
+  btn.innerText = \`Update (\${counter})\`;
+}
+`,
               },
             ],
           ]),
