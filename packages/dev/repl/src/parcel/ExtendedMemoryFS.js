@@ -1,6 +1,9 @@
+// @flow
+import type {FilePath} from '@parcel/types';
 import {MemoryFS, FSError, makeShared, File} from '@parcel/fs';
 import path from 'path';
 import {registerSerializableClass} from '@parcel/core';
+import type WorkerFarm from '@parcel/workers';
 
 const {Buffer} = require('buffer');
 
@@ -44,10 +47,13 @@ function asyncToNode(args, num, f) {
     }
   }
 
+  // $FlowFixMe
   let result = Promise.resolve(f(...params));
   if (cb) {
     result.then(
+      // $FlowFixMe
       res => cb(null, res),
+      // $FlowFixMe
       err => cb(err),
     );
   } else {
@@ -122,16 +128,19 @@ function parseOpenFlags(flags) {
  * Can be used as a standin for the npm `require("fs")` package because `MemoryFS` not API compatible.
  */
 export class ExtendedMemoryFS extends MemoryFS {
-  openFDs /*: Map<number, {|filePath: string, file: File, position: number|}> */ =
+  openFDs: Map<number, {|filePath: FilePath, file: File, position: number|}> =
     new Map();
-  nextFD /* : number */ = 1;
+  nextFD: number = 1;
 
-  constructor(workerFarm) {
+  constructor(workerFarm: WorkerFarm) {
     super(workerFarm);
   }
 
   // eslint-disable-next-line
-  async _mkdir(dir, options = {}) {
+  async _mkdir(
+    dir: FilePath,
+    options: {recursive?: boolean, ...} = {},
+  ): Promise<void> {
     let {recursive = false} = options;
 
     if (!recursive) {
@@ -146,7 +155,10 @@ export class ExtendedMemoryFS extends MemoryFS {
     return super.mkdirp(dir);
   }
 
-  async _rmdir(filePath, options = {}) {
+  async _rmdir(
+    filePath: FilePath,
+    options: {recursive?: boolean, ...} = {},
+  ): Promise<void> {
     let {recursive = false} = options;
 
     if (!recursive) {
@@ -166,43 +178,43 @@ export class ExtendedMemoryFS extends MemoryFS {
 
   // --------------------------------
 
-  rmdir(...args) {
+  rmdir(...args: any): any {
     return asyncToNode(args, 3, (...p) => this._rmdir(...p));
   }
-  mkdir(...args) {
+  mkdir(...args: any): any {
     return asyncToNode(args, 3, (...p) => this._mkdir(...p));
   }
-  readdir(...args) {
+  readdir(...args: any): any {
     return asyncToNode(args, 3, (...p) => super.readdir(...p));
   }
-  unlink(...args) {
+  unlink(...args: any): any {
     return asyncToNode(args, 2, (...p) => super.unlink(...p));
   }
-  copyFile(...args) {
+  copyFile(...args: any): any {
     return asyncToNode(args, 3, (...p) => super.copyFile(...p));
   }
-  realpath(...args) {
+  realpath(...args: any): any {
     return asyncToNode(args, 3, (...p) => super.realpath(...p));
   }
-  readFile(...args) {
+  readFile(...args: any): any {
     return asyncToNode(args, 3, (...p) => super.readFile(...p));
   }
-  symlink(...args) {
+  symlink(...args: any): any {
     return asyncToNode(args, 4, (...p) => super.symlink(...p));
   }
-  writeFile(...args) {
+  writeFile(...args: any): any {
     return asyncToNode(args, 4, (...p) => super.writeFile(...p));
   }
-  stat(...args) {
+  stat(...args: any): any {
     return asyncToNode(args, 2, (...p) => super.stat(...p));
   }
-  lstat(...args) {
+  lstat(...args: any): any {
     return asyncToNode(args, 2, (...p) => super.stat(...p));
   }
-  lstatSync(...args) {
-    return this.statSync(...args);
+  lstatSync(filePath: FilePath): any {
+    return this.statSync(filePath);
   }
-  exists(filePath, cb) {
+  exists(filePath: FilePath, cb?: boolean => void): any {
     let result = super.exists(filePath);
     if (cb != null) {
       result.then(res => cb(res));
@@ -212,9 +224,9 @@ export class ExtendedMemoryFS extends MemoryFS {
   }
   // --------------------------------
   chmodSync() {}
-  renameSync(oldPath, newPath) {
-    if (this.files.has(oldPath)) {
-      let file = this.files.get(oldPath);
+  renameSync(oldPath: FilePath, newPath: FilePath) {
+    let file = this.files.get(oldPath);
+    if (file) {
       this.files.delete(oldPath);
       if (this.dirs.has(newPath)) {
         this.files.set(newPath + '/' + path.basename(oldPath), file);
@@ -225,15 +237,15 @@ export class ExtendedMemoryFS extends MemoryFS {
       return;
     }
 
-    if (this.symlinks.has(oldPath)) {
-      let target = this.symlinks.get(oldPath);
+    let target = this.symlinks.get(oldPath);
+    if (target) {
       this.symlinks.delete(oldPath);
       this.symlinks.set(newPath, target);
       return;
     }
 
-    if (this.dirs.has(oldPath)) {
-      let dir = this.dirs.get(oldPath);
+    let dir = this.dirs.get(oldPath);
+    if (dir) {
       this.dirs.delete(oldPath);
       this.dirs.set(newPath, dir);
       return;
@@ -242,7 +254,7 @@ export class ExtendedMemoryFS extends MemoryFS {
     throw new FSError('ENOENT', path.dirname(oldPath), "wasn't found");
   }
 
-  _nextFD(path) {
+  _nextFD(path: FilePath): number {
     let tested = 0;
     let fd;
     while (tested < FD_MAX) {
@@ -262,7 +274,7 @@ export class ExtendedMemoryFS extends MemoryFS {
     return fd;
   }
 
-  openSync(filePath, flags, mode) {
+  openSync(filePath: FilePath, flags: number, mode: number): number {
     flags = parseOpenFlags(flags);
     if (flags & CONSTANTS.O_NOFOLLOW && this.symlinks.has(filePath)) {
       throw new FSError('ELOOP', filePath, 'is a symlink');
@@ -295,14 +307,21 @@ export class ExtendedMemoryFS extends MemoryFS {
     this.openFDs.set(fd, {filePath, file, position: 0});
     return fd;
   }
-  readSync(fdNum, buffer, offset, length, position) {
+
+  readSync(
+    fdNum: number,
+    buffer: Buffer,
+    offset: any,
+    length: any,
+    position: any,
+  ): number {
     if (length == null) {
       ({offset, length, position} = offset);
     }
-    if (!this.openFDs.has(fdNum)) {
+    let fd = this.openFDs.get(fdNum);
+    if (!fd) {
       throw new Error('invalid fd');
     }
-    let fd = this.openFDs.get(fdNum);
     let file = fd.file;
     position = position ?? fd.position;
     offset = offset ?? 0;
@@ -318,17 +337,23 @@ export class ExtendedMemoryFS extends MemoryFS {
 
     return length;
   }
-  writeSync(fdNum, buffer, offset, length, position) {
+  writeSync(
+    fdNum: number,
+    buffer: Buffer | string,
+    offset: any,
+    length: any,
+    position: any,
+  ): number {
     if (offset != null && length == null) {
       ({offset, length, position} = offset);
     }
     if (typeof buffer === 'string') {
       buffer = Buffer.from(buffer);
     }
-    if (!this.openFDs.has(fdNum)) {
+    let fd = this.openFDs.get(fdNum);
+    if (!fd) {
       throw new Error('invalid fd');
     }
-    let fd = this.openFDs.get(fdNum);
     let file = fd.file;
     position = position ?? fd.position;
     offset = offset ?? 0;
@@ -348,65 +373,61 @@ export class ExtendedMemoryFS extends MemoryFS {
 
     return length;
   }
-  closeSync(fd) {
+  closeSync(fd: number) {
     if (!this.openFDs.has(fd)) {
       throw new Error('invalid fd');
     }
     this.openFDs.delete(fd);
   }
-  fstatSync(fd) {
-    if (!this.openFDs.has(fd)) {
+  fstatSync(fdNum: number): any {
+    let fd = this.openFDs.get(fdNum);
+    if (!fd) {
       throw new Error('invalid fd');
     }
-    let {filePath} = this.openFDs.get(fd);
+    let {filePath} = fd;
     return this.statSync(filePath);
   }
   // ------------------------------------------------------------
 
-  open(...args) {
-    // eslint-disable-next-line
+  /* eslint-disable require-await */
+  open(...args: any): any {
     return asyncToNode(args, 2, async (...p) =>
       Promise.resolve(this.openSync(...p)),
     );
   }
-  read(...args) {
-    // eslint-disable-next-line
+  read(...args: any): any {
     return asyncToNode(args, 6, async (...p) =>
       Promise.resolve(this.readSync(...p)),
     );
   }
-  write(...args) {
-    // eslint-disable-next-line
+  write(...args: any): any {
     return asyncToNode(args, 6, async (...p) =>
       Promise.resolve(this.writeSync(...p)),
     );
   }
-  close(...args) {
-    // eslint-disable-next-line
+  close(...args: any): any {
     return asyncToNode(args, 2, async (...p) =>
       Promise.resolve(this.closeSync(...p)),
     );
   }
-  fstat(...args) {
-    // eslint-disable-next-line
+  fstat(...args: any): any {
     return asyncToNode(args, 2, async (...p) =>
       Promise.resolve(this.fstatSync(...p)),
     );
   }
 
-  rename(...args) {
-    // eslint-disable-next-line
+  rename(...args: any): any {
     return asyncToNode(args, 2, async (...p) =>
       Promise.resolve(this.renameSync(...p)),
     );
   }
 
-  chmod(...args) {
-    // eslint-disable-next-line
+  chmod(...args: any): any {
     return asyncToNode(args, 3, async (...p) =>
       Promise.resolve(this.chmodSync(...p)),
     );
   }
+  /* eslint-enable require-await */
 }
 
 registerSerializableClass(`repl-ExtendedMemoryFS`, ExtendedMemoryFS);
