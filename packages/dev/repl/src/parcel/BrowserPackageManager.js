@@ -26,7 +26,7 @@ import reporterJson from '@parcel/reporter-json';
 import reporterServer from '@parcel/reporter-dev-server-sw';
 import resolverDefault from '@parcel/resolver-default';
 import resolverREPLRuntimes from '@parcel/resolver-repl-runtimes';
-import runtimeHMRSSE from '@parcel/runtime-browser-hmr-sse';
+import runtimeHMR from '@parcel/runtime-browser-hmr';
 import runtimeJs from '@parcel/runtime-js';
 import runtimeReactRefresh from '@parcel/runtime-react-refresh';
 import transformerBabel from '@parcel/transformer-babel';
@@ -53,7 +53,7 @@ export const BUILTINS = {
   '@parcel/reporter-json': reporterJson,
   '@parcel/resolver-default': resolverDefault,
   '@parcel/resolver-repl-runtimes': resolverREPLRuntimes,
-  '@parcel/runtime-browser-hmr-sse': runtimeHMRSSE,
+  '@parcel/runtime-browser-hmr': runtimeHMR,
   '@parcel/runtime-js': runtimeJs,
   '@parcel/runtime-react-refresh': runtimeReactRefresh,
   '@parcel/transformer-babel': transformerBabel,

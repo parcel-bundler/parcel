@@ -24,7 +24,7 @@
     "@parcel/reporter-json": "^2.10.1",
     "@parcel/resolver-default": "^2.10.1",
     "@parcel/resolver-repl-runtimes": "^2.10.1",
-    "@parcel/runtime-browser-hmr-sse": "^2.10.1",
+    "@parcel/runtime-browser-hmr": "^2.10.1",
     "@parcel/runtime-js": "^2.10.1",
     "@parcel/runtime-react-refresh": "^2.10.1",
     "@parcel/transformer-babel": "^2.10.1",

@@ -53,9 +53,10 @@ export default (new Reporter({
           }
         }
         break;
-      case 'buildFailure':
-        await hmrServer?.emitError(options, event.diagnostics);
-        break;
+      // We show this in the "frontend" as opposed to the iframe
+      // case 'buildFailure':
+      //   await hmrServer?.emitError(options, event.diagnostics);
+      //   break;
     }
   },
 }): Reporter);

@@ -9,6 +9,12 @@ const HMR_RUNTIME = fs.readFileSync(
   'utf8',
 );
 
+// $FlowFixMe
+const DIRNAME = process.browser
+  ? '/VIRTUAL/@parcel/runtime-hmr/src'
+  : __dirname;
+const FILENAME = path.join(DIRNAME, 'HMRRuntime.js');
+
 export default (new Runtime({
   apply({bundle, options}) {
     if (
@@ -23,7 +29,7 @@ export default (new Runtime({
 
     const {host, port} = options.hmrOptions;
     return {
-      filePath: __filename,
+      filePath: FILENAME,
       code:
         `var HMR_HOST = ${JSON.stringify(
           host != null && host !== '0.0.0.0' ? host : null,
@@ -40,6 +46,10 @@ export default (new Runtime({
           !!(options.serveOptions && options.serveOptions.https),
         )};` +
         `var HMR_ENV_HASH = "${bundle.env.id}";` +
+        `var HMR_USE_SSE = ${
+          // $FlowFixMe
+          JSON.stringify(!!(process.env.PARCEL_BUILD_REPL && process.browser))
+        };` +
         `module.bundle.HMR_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
         HMR_RUNTIME,
       isEntry: true,
