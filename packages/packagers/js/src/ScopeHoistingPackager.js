@@ -27,7 +27,7 @@ import path from 'path';
 import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
-import {prelude, helpers} from './helpers';
+import {prelude, helpers, bundleQueuePrelude, fnExpr} from './helpers';
 import {replaceScriptDependencies, getSpecifier} from './utils';
 
 // https://262.ecma-international.org/6.0/#sec-names-and-keywords
@@ -74,6 +74,7 @@ export class ScopeHoistingPackager {
   bundleGraph: BundleGraph<NamedBundle>;
   bundle: NamedBundle;
   parcelRequireName: string;
+  useAsyncBundleRuntime: boolean;
   outputFormat: OutputFormat;
   isAsyncBundle: boolean;
   globalNames: $ReadOnlySet<string>;
@@ -101,11 +102,13 @@ export class ScopeHoistingPackager {
     bundleGraph: BundleGraph<NamedBundle>,
     bundle: NamedBundle,
     parcelRequireName: string,
+    useAsyncBundleRuntime: boolean,
   ) {
     this.options = options;
     this.bundleGraph = bundleGraph;
     this.bundle = bundle;
     this.parcelRequireName = parcelRequireName;
+    this.useAsyncBundleRuntime = useAsyncBundleRuntime;
 
     let OutputFormat = OUTPUT_FORMATS[this.bundle.env.outputFormat];
     this.outputFormat = new OutputFormat(this);
@@ -202,6 +205,8 @@ export class ScopeHoistingPackager {
       mainEntry = null;
     }
 
+    let needsBundleQueue = this.shouldBundleQueue(this.bundle);
+
     // If any of the entry assets are wrapped, call parcelRequire so they are executed.
     for (let entry of entries) {
       if (this.wrappedAssets.has(entry.id) && !this.isScriptEntry(entry)) {
@@ -210,13 +215,22 @@ export class ScopeHoistingPackager {
         )});\n`;
 
         let entryExports = entry.symbols.get('*')?.local;
+
         if (
           entryExports &&
           entry === mainEntry &&
           this.exportedSymbols.has(entryExports)
         ) {
+          invariant(
+            !needsBundleQueue,
+            'Entry exports are not yet compaitble with async bundles',
+          );
           res += `\nvar ${entryExports} = ${parcelRequire}`;
         } else {
+          if (needsBundleQueue) {
+            parcelRequire = this.runWhenReady(this.bundle, parcelRequire);
+          }
+
           res += `\n${parcelRequire}`;
         }
 
@@ -264,6 +278,38 @@ export class ScopeHoistingPackager {
     };
   }
 
+  shouldBundleQueue(bundle: NamedBundle): boolean {
+    return (
+      this.useAsyncBundleRuntime &&
+      bundle.type === 'js' &&
+      bundle.bundleBehavior !== 'inline' &&
+      bundle.env.outputFormat === 'esmodule' &&
+      !bundle.env.isIsolated() &&
+      bundle.bundleBehavior !== 'isolated' &&
+      !this.bundleGraph.hasParentBundleOfType(bundle, 'js')
+    );
+  }
+
+  runWhenReady(bundle: NamedBundle, codeToRun: string): string {
+    let deps = this.bundleGraph
+      .getReferencedBundles(bundle)
+      .filter(b => this.shouldBundleQueue(b))
+      .map(b => b.publicId);
+
+    if (deps.length === 0) {
+      // If no deps we can safely execute immediately
+      return codeToRun;
+    }
+
+    let params = [
+      JSON.stringify(this.bundle.publicId),
+      fnExpr(this.bundle.env, [], [codeToRun]),
+      JSON.stringify(deps),
+    ];
+
+    return `$parcel$global.rwr(${params.join(', ')});`;
+  }
+
   async loadAssets(): Promise<Array<Asset>> {
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrapped = [];
@@ -285,8 +331,10 @@ export class ScopeHoistingPackager {
           .getIncomingDependencies(asset)
           .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
-        this.wrappedAssets.add(asset.id);
-        wrapped.push(asset);
+        if (!asset.meta.isConstantModule) {
+          this.wrappedAssets.add(asset.id);
+          wrapped.push(asset);
+        }
       }
     });
 
@@ -300,9 +348,10 @@ export class ScopeHoistingPackager {
           actions.skipChildren();
           return;
         }
-
-        this.wrappedAssets.add(asset.id);
-        wrapped.push(asset);
+        if (!asset.meta.isConstantModule) {
+          this.wrappedAssets.add(asset.id);
+          wrapped.push(asset);
+        }
       }, wrappedAssetRoot);
     }
 
@@ -578,7 +627,7 @@ export class ScopeHoistingPackager {
       sourceMap?.offsetLines(1, 1);
       lineCount++;
 
-      code = `parcelRequire.register(${JSON.stringify(
+      code = `parcelRegister(${JSON.stringify(
         this.bundleGraph.getAssetPublicId(asset),
       )}, function(module, exports) {
 ${code}
@@ -597,6 +646,14 @@ ${code}
       }
 
       this.needsPrelude = true;
+    }
+
+    if (
+      !shouldWrap &&
+      this.shouldBundleQueue(this.bundle) &&
+      this.bundle.getEntryAssets().some(entry => entry.id === asset.id)
+    ) {
+      code = this.runWhenReady(this.bundle, code);
     }
 
     return [code, sourceMap, lineCount];
@@ -774,6 +831,13 @@ ${code}
   }
 
   isWrapped(resolved: Asset, parentAsset: Asset): boolean {
+    if (resolved.meta.isConstantModule) {
+      invariant(
+        this.bundle.hasAsset(resolved),
+        'Constant module not found in bundle',
+      );
+      return false;
+    }
     return (
       (!this.bundle.hasAsset(resolved) && !this.externalAssets.has(resolved)) ||
       (this.wrappedAssets.has(resolved.id) && resolved !== parentAsset)
@@ -1170,9 +1234,13 @@ ${code}
     }
 
     for (let helper of this.usedHelpers) {
-      res += helpers[helper];
+      let currentHelper = helpers[helper];
+      if (typeof currentHelper === 'function') {
+        currentHelper = helpers[helper](this.bundle.env);
+      }
+      res += currentHelper;
       if (enableSourceMaps) {
-        lines += countLines(helpers[helper]) - 1;
+        lines += countLines(currentHelper) - 1;
       }
     }
 
@@ -1195,11 +1263,20 @@ ${code}
         if (enableSourceMaps) {
           lines += countLines(preludeCode) - 1;
         }
+
+        if (this.shouldBundleQueue(this.bundle)) {
+          let bundleQueuePreludeCode = bundleQueuePrelude(this.bundle.env);
+          res += bundleQueuePreludeCode;
+          if (enableSourceMaps) {
+            lines += countLines(bundleQueuePreludeCode) - 1;
+          }
+        }
       } else {
         // Otherwise, get the current parcelRequire global.
-        res += `var parcelRequire = $parcel$global[${JSON.stringify(
-          this.parcelRequireName,
-        )}];\n`;
+        const escaped = JSON.stringify(this.parcelRequireName);
+        res += `var parcelRequire = $parcel$global[${escaped}];\n`;
+        lines++;
+        res += `var parcelRegister = parcelRequire.register;\n`;
         lines++;
       }
     }

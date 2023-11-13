@@ -30,6 +30,10 @@ describe('webmanifest', function () {
         type: 'png',
         assets: ['shortcut-icon.png'],
       },
+      {
+        type: 'png',
+        assets: ['file-handler-icon.png'],
+      },
     ]);
 
     const manifest = await outputFS.readFile(
@@ -39,6 +43,7 @@ describe('webmanifest', function () {
     assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
     assert(/shortcut-icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/file-handler-icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
   it('should support .json', async function () {
@@ -67,6 +72,10 @@ describe('webmanifest', function () {
         type: 'png',
         assets: ['shortcut-icon.png'],
       },
+      {
+        type: 'png',
+        assets: ['file-handler-icon.png'],
+      },
     ]);
 
     const manifest = await outputFS.readFile(
@@ -76,9 +85,10 @@ describe('webmanifest', function () {
     assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
     assert(/shortcut-icon\.[0-9a-f]+\.png/.test(manifest));
+    assert(/file-handler-icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
-  it('should throw on malformed icons and screenshots', async function () {
+  it('should throw on malformed icons, screenshots, shortcuts, and file handlers', async function () {
     let manifestPath = path.join(
       __dirname,
       '/integration/webmanifest-schema/manifest.webmanifest',
@@ -165,6 +175,17 @@ describe('webmanifest', function () {
                     start: {
                       column: 9,
                       line: 31,
+                    },
+                  },
+                  {
+                    end: {
+                      column: 21,
+                      line: 35,
+                    },
+                    message: 'Expected type array',
+                    start: {
+                      column: 20,
+                      line: 35,
                     },
                   },
                 ],

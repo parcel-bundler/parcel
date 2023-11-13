@@ -1,4 +1,0 @@
-// @flow
-declare export function findAncestorFile(filenames: Array<string>, from: string, root: string): string | null
-declare export function findFirstFile(names: Array<string>): string | null
-declare export function findNodeModule(module: string, from: string): string | null

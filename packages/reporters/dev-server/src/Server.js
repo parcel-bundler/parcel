@@ -186,7 +186,7 @@ export default class Server {
       // If the main asset is an HTML file, serve it
       let htmlBundleFilePaths = this.bundleGraph
         .getBundles()
-        .filter(bundle => bundle.type === 'html')
+        .filter(bundle => path.posix.extname(bundle.name) === '.html')
         .map(bundle => {
           return `/${relativePath(
             this.options.distDir,

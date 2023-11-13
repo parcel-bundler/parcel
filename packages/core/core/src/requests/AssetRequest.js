@@ -14,7 +14,7 @@ import type {TransformationResult} from '../Transformation';
 
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
 import {runConfigRequest} from './ConfigRequest';

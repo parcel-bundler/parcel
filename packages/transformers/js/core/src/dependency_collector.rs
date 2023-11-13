@@ -125,15 +125,16 @@ impl<'a> DependencyCollector<'a> {
           None
         }
       }
-      _ => Some(format!(
+      _ if !self.config.standalone => Some(format!(
         "{:x}",
         hash!(format!(
           "{}:{}:{}",
           self.get_project_relative_filename(),
           specifier,
           kind
-        ))
+        )),
       )),
+      _ => None,
     };
 
     self.items.push(DependencyDescriptor {
@@ -158,7 +159,7 @@ impl<'a> DependencyCollector<'a> {
     source_type: SourceType,
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
-    if !self.config.is_library {
+    if !self.config.is_library && !self.config.standalone {
       let placeholder =
         self.add_dependency(specifier.clone(), span, kind, None, false, source_type);
       let specifier = if let Some(placeholder) = placeholder {
@@ -172,13 +173,17 @@ impl<'a> DependencyCollector<'a> {
     // For library builds, we need to create something that can be statically analyzed by another bundler,
     // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
     // call with a placeholder for the relative path to be replaced during packaging.
-    let placeholder = format!(
-      "{:x}",
-      hash!(format!(
-        "parcel_url:{}:{}:{}",
-        self.config.filename, specifier, kind
-      ))
-    );
+    let placeholder = if self.config.standalone {
+      specifier.as_ref().into()
+    } else {
+      format!(
+        "{:x}",
+        hash!(format!(
+          "parcel_url:{}:{}:{}",
+          self.config.filename, specifier, kind
+        ))
+      )
+    };
     self.items.push(DependencyDescriptor {
       kind,
       loc: SourceLocation::from(self.source_map, span),
@@ -666,7 +671,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
       let mut call = node;
-      if !self.config.scope_hoist {
+      if !self.config.scope_hoist && !self.config.standalone {
         let name = match &self.config.source_type {
           SourceType::Module => "require",
           SourceType::Script => "__parcel__require__",
@@ -715,33 +720,29 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     let matched = match &*node.callee {
       Ident(id) => {
-        match &id.sym {
-          &js_word!("Worker") | &js_word!("SharedWorker") => {
-            // Bail if defined in scope
-            self.config.is_browser && !self.decls.contains(&id.to_id())
-          }
-          &js_word!("Promise") => {
-            // Match requires inside promises (e.g. Rollup compiled dynamic imports)
-            // new Promise(resolve => resolve(require('foo')))
-            // new Promise(resolve => { resolve(require('foo')) })
-            // new Promise(function (resolve) { resolve(require('foo')) })
-            return self.fold_new_promise(node);
-          }
-          sym => {
-            if sym == "__parcel__URL__" {
-              // new __parcel__URL__(url) -> new URL(url, import.meta.url)
-              if let Some(args) = &node.args {
-                if let ast::Expr::New(new) = create_url_constructor(
-                  *args[0].expr.clone().fold_with(self),
-                  self.config.is_esm_output,
-                ) {
-                  return new;
-                }
+        if id.sym == "Worker" || id.sym == "SharedWorker" {
+          // Bail if defined in scope
+          self.config.is_browser && !self.decls.contains(&id.to_id())
+        } else if id.sym == "Promise" {
+          // Match requires inside promises (e.g. Rollup compiled dynamic imports)
+          // new Promise(resolve => resolve(require('foo')))
+          // new Promise(resolve => { resolve(require('foo')) })
+          // new Promise(function (resolve) { resolve(require('foo')) })
+          return self.fold_new_promise(node);
+        } else {
+          if id.sym == "__parcel__URL__" {
+            // new __parcel__URL__(url) -> new URL(url, import.meta.url)
+            if let Some(args) = &node.args {
+              if let ast::Expr::New(new) = create_url_constructor(
+                *args[0].expr.clone().fold_with(self),
+                self.config.is_esm_output,
+              ) {
+                return new;
               }
-              unreachable!();
             }
-            false
+            unreachable!();
           }
+          false
         }
       }
       _ => false,
@@ -838,7 +839,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
       // If this is a library, we will already have a URL object. Otherwise, we need to
       // construct one from the string returned by the JSRuntime.
-      if !self.config.is_library {
+      if !self.config.is_library && !self.config.standalone {
         return Expr::New(NewExpr {
           span: DUMMY_SP,
           callee: Box::new(Expr::Ident(Ident::new(js_word!("URL"), DUMMY_SP))),
@@ -1356,14 +1357,8 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
           };
 
           match &kv.key {
-            PropName::Ident(Ident {
-              sym: js_word!("type"),
-              ..
-            })
-            | PropName::Str(Str {
-              value: js_word!("type"),
-              ..
-            }) => {}
+            PropName::Ident(Ident { sym, .. }) if sym == "type" => {}
+            PropName::Str(Str { value, .. }) if value == "type" => {}
             _ => return true,
           };
 
@@ -1373,9 +1368,10 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
             return true;
           };
 
-          source_type = Some(match v {
-            js_word!("module") => SourceType::Module,
-            _ => SourceType::Script,
+          source_type = Some(if v == "module" {
+            SourceType::Module
+          } else {
+            SourceType::Script
           });
 
           false

@@ -24,7 +24,7 @@ import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import PublicConfig from '../public/Config';
 import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
-import {Hash} from '@parcel/hash';
+import {Hash} from '@parcel/rust';
 import {PluginTracer} from '@parcel/profiler';
 
 export type PluginWithLoadConfig = {

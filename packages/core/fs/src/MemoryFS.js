@@ -59,13 +59,13 @@ export class MemoryFS implements FileSystem {
 
   constructor(workerFarm: WorkerFarm) {
     this.farm = workerFarm;
-    this.dirs = new Map([['/', new Directory()]]);
+    this._cwd = path.resolve(path.sep);
+    this.dirs = new Map([[this._cwd, new Directory()]]);
     this.files = new Map();
     this.symlinks = new Map();
     this.watchers = new Map();
     this.events = [];
     this.id = id++;
-    this._cwd = '/';
     this._workerHandles = [];
     this._eventQueue = [];
     instances.set(this.id, this);
@@ -134,7 +134,10 @@ export class MemoryFS implements FileSystem {
   }
 
   _normalizePath(filePath: FilePath, realpath: boolean = true): FilePath {
-    filePath = path.resolve(this.cwd(), filePath);
+    filePath = path.normalize(filePath);
+    if (!filePath.startsWith(this.cwd())) {
+      filePath = path.resolve(this.cwd(), filePath);
+    }
 
     // get realpath by following symlinks
     if (realpath) {
@@ -244,10 +247,15 @@ export class MemoryFS implements FileSystem {
       throw new FSError('ENOENT', dir, 'does not exist');
     }
 
-    dir += path.sep;
+    if (!dir.endsWith(path.sep)) {
+      dir += path.sep;
+    }
 
     let res = [];
     for (let [filePath, entry] of this.dirs) {
+      if (filePath === dir) {
+        continue;
+      }
       if (
         filePath.startsWith(dir) &&
         filePath.indexOf(path.sep, dir.length) === -1
@@ -738,6 +746,7 @@ class WriteStream extends Writable {
 const S_IFREG = 0o100000;
 const S_IFDIR = 0o040000;
 const S_IFLNK = 0o120000;
+const S_IFMT = 0o170000;
 
 class Entry {
   mode: number;
@@ -848,11 +857,11 @@ class Dirent {
   }
 
   isFile(): boolean {
-    return Boolean(this.#mode & S_IFREG);
+    return (this.#mode & S_IFMT) === S_IFREG;
   }
 
   isDirectory(): boolean {
-    return Boolean(this.#mode & S_IFDIR);
+    return (this.#mode & S_IFMT) === S_IFDIR;
   }
 
   isBlockDevice(): boolean {
@@ -864,7 +873,7 @@ class Dirent {
   }
 
   isSymbolicLink(): boolean {
-    return Boolean(this.#mode & S_IFLNK);
+    return (this.#mode & S_IFMT) === S_IFLNK;
   }
 
   isFIFO(): boolean {
@@ -909,13 +918,26 @@ function makeShared(contents: Buffer | string): Buffer {
     return contents;
   }
 
-  let length = Buffer.byteLength(contents);
+  let contentsBuffer: Buffer | string = contents;
+  // $FlowFixMe
+  if (process.browser) {
+    // For the polyfilled buffer module, it's faster to always convert once so that the subsequent
+    // operations are fast (.byteLength and using .set instead of .write)
+    contentsBuffer =
+      contentsBuffer instanceof Buffer
+        ? contentsBuffer
+        : Buffer.from(contentsBuffer);
+  }
+
+  let length = Buffer.byteLength(contentsBuffer);
   let shared = new SharedBuffer(length);
   let buffer = Buffer.from(shared);
-  if (typeof contents === 'string') {
-    buffer.write(contents);
-  } else {
-    buffer.set(contents);
+  if (length > 0) {
+    if (typeof contentsBuffer === 'string') {
+      buffer.write(contentsBuffer);
+    } else {
+      buffer.set(contentsBuffer);
+    }
   }
 
   return buffer;

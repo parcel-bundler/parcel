@@ -149,7 +149,7 @@ impl<'a> Fold for Hoist<'a> {
                 import.src.value.clone(),
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
-                  asserts: None,
+                  with: None,
                   span: DUMMY_SP,
                   src: Box::new(
                     format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
@@ -196,7 +196,7 @@ impl<'a> Fold for Hoist<'a> {
                   src.value.clone(),
                   ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     specifiers: vec![],
-                    asserts: None,
+                    with: None,
                     span: DUMMY_SP,
                     src: Box::new(Str {
                       value: format!("{}:{}:{}", self.module_id, src.value, "esm").into(),
@@ -291,7 +291,7 @@ impl<'a> Fold for Hoist<'a> {
                 export.src.value.clone(),
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
-                  asserts: None,
+                  with: None,
                   span: DUMMY_SP,
                   src: Box::new(
                     format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
@@ -397,7 +397,7 @@ impl<'a> Fold for Hoist<'a> {
                             .module_items
                             .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                               specifiers: vec![],
-                              asserts: None,
+                              with: None,
                               span: DUMMY_SP,
                               src: Box::new(Str {
                                 value: format!("{}:{}", self.module_id, source).into(),
@@ -438,7 +438,7 @@ impl<'a> Fold for Hoist<'a> {
                               .module_items
                               .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                                 specifiers: vec![],
-                                asserts: None,
+                                with: None,
                                 span: DUMMY_SP,
                                 src: Box::new(Str {
                                   value: format!("{}:{}", self.module_id, source,).into(),
@@ -998,7 +998,7 @@ impl<'a> Hoist<'a> {
       .module_items
       .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         specifiers: vec![],
-        asserts: None,
+        with: None,
         span: DUMMY_SP,
         src: Box::new(src.into()),
         type_only: false,
@@ -1140,11 +1140,21 @@ mod tests {
     );
 
     let mut parser = Parser::new_from(lexer);
-    match parser.parse_module() {
-      Ok(module) => swc_core::common::GLOBALS.set(&Globals::new(), || {
+    match parser.parse_program() {
+      Ok(program) => swc_core::common::GLOBALS.set(&Globals::new(), || {
         swc_core::ecma::transforms::base::helpers::HELPERS.set(
           &swc_core::ecma::transforms::base::helpers::Helpers::new(false),
           || {
+            let is_module = program.is_module();
+            let module = match program {
+              Program::Module(module) => module,
+              Program::Script(script) => Module {
+                span: script.span,
+                shebang: None,
+                body: script.body.into_iter().map(ModuleItem::Stmt).collect(),
+              },
+            };
+
             let unresolved_mark = Mark::fresh(Mark::root());
             let global_mark = Mark::fresh(Mark::root());
             let module = module.fold_with(&mut resolver(unresolved_mark, global_mark, false));
@@ -1155,6 +1165,7 @@ mod tests {
               Mark::fresh(Mark::root()),
               global_mark,
               true,
+              is_module,
             );
             module.visit_with(&mut collect);
 
@@ -1187,12 +1198,8 @@ mod tests {
         &mut buf,
         Some(&mut src_map_buf),
       ));
-      let config = swc_core::ecma::codegen::Config {
-        minify: false,
-        ascii_only: false,
-        target: swc_core::ecma::ast::EsVersion::Es5,
-        omit_last_semi: false,
-      };
+      let config =
+        swc_core::ecma::codegen::Config::default().with_target(swc_core::ecma::ast::EsVersion::Es5);
       let mut emitter = swc_core::ecma::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
@@ -1317,7 +1324,7 @@ mod tests {
 
     let (collect, _code, _hoist) = parse(
       r#"
-    import { a, b, c, d } from "other";
+    import { a, b, c, d, e } from "other";
     import * as x from "other";
     import * as y from "other";
 
@@ -1326,11 +1333,12 @@ mod tests {
     c();
     log(x);
     y.foo();
+    e.foo.bar();
     "#,
     );
     assert_eq_set!(
       collect.used_imports,
-      set! { w!("a"), w!("b"), w!("c"), w!("x"), w!("y") }
+      set! { w!("a"), w!("b"), w!("c"), w!("e"), w!("x"), w!("y") }
     );
     assert_eq_imports!(
       collect.imports,
@@ -1339,6 +1347,7 @@ mod tests {
         w!("b") => (w!("other"), w!("b"), false),
         w!("c") => (w!("other"), w!("c"), false),
         w!("d") => (w!("other"), w!("d"), false),
+        w!("e") => (w!("other"), w!("e"), false),
         w!("x") => (w!("other"), w!("*"), false),
         w!("y") => (w!("other"), w!("*"), false)
       }
@@ -1424,6 +1433,33 @@ mod tests {
     "#,
     );
     assert!(collect.should_wrap);
+  }
+
+  #[test]
+  fn collect_has_cjs_exports() {
+    let (collect, _code, _hoist) = parse(
+      r#"
+      module.exports = {};
+    "#,
+    );
+    assert!(collect.has_cjs_exports);
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+      this.someExport = 'true';
+    "#,
+    );
+    assert!(collect.has_cjs_exports);
+
+    // Some TSC polyfills use a pattern like below.
+    // We want to avoid marking these modules as CJS
+    let (collect, _code, _hoist) = parse(
+      r#"
+      import 'something';
+      var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function () {}
+    "#,
+    );
+    assert!(!collect.has_cjs_exports);
   }
 
   #[test]
@@ -3408,5 +3444,67 @@ mod tests {
         }
       }
     );
+  }
+
+  #[test]
+  fn collect_this_exports() {
+    // module is wrapped when `this` accessor matches an export
+    let (collect, _code, _hoist) = parse(
+      r#"
+      exports.foo = function() {
+        exports.bar()
+      }
+
+      exports.bar = function() {
+        this.baz()
+      }
+
+      exports.baz = function() {
+        return 2
+      }
+      "#,
+    );
+    assert_eq!(
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|b| &b.reason)
+        .collect::<Vec<_>>(),
+      vec![&BailoutReason::ThisInExport]
+    );
+    assert_eq!(collect.should_wrap, true);
+
+    // module is not wrapped when `this` inside a class collides with an export
+    let (collect, _code, _hoist) = parse(
+      r#"
+      class Foo {
+        constructor() {
+          this.a = 4
+        }
+
+        bar() {
+          return this.baz()
+        }
+
+        baz() {
+          return this.a
+        }
+      }
+
+      exports.baz = new Foo()
+      exports.a = 2
+      "#,
+    );
+    assert_eq!(
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|b| &b.reason)
+        .collect::<Vec<_>>(),
+      Vec::<&BailoutReason>::new()
+    );
+    assert_eq!(collect.should_wrap, false);
   }
 }

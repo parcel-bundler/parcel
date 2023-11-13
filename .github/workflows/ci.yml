@@ -16,7 +16,7 @@ jobs:
           cache: yarn
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           components: rustfmt
       - uses: Swatinem/rust-cache@v1
@@ -49,7 +49,7 @@ jobs:
     name: Unit tests (${{matrix.os}}, Node ${{matrix.node}})
     strategy:
       matrix:
-        node: [14, 16]
+        node: [18, 20]
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{matrix.os}}
     steps:
@@ -60,7 +60,7 @@ jobs:
           node-version: ${{matrix.node}}
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           components: rustfmt
       - uses: Swatinem/rust-cache@v1
@@ -75,7 +75,7 @@ jobs:
     name: Integration tests (${{matrix.os}}, Node ${{matrix.node}})
     strategy:
       matrix:
-        node: [14, 16]
+        node: [18, 20]
         os: [ubuntu-latest, macos-latest, windows-latest]
       # These tend to be quite flakey, so one failed instance shouldn't stop
       # others from potentially succeeding
@@ -89,7 +89,7 @@ jobs:
           node-version: ${{matrix.node}}
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
           components: rustfmt
       - uses: Swatinem/rust-cache@v1

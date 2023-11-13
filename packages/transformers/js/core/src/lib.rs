@@ -1,4 +1,5 @@
 mod collect;
+mod constant_module;
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
@@ -14,10 +15,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use constant_module::ConstantModule;
 use indexmap::IndexMap;
 use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
-use swc_core;
 use swc_core::common::comments::SingleThreadedComments;
 use swc_core::common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_core::common::pass::Optional;
@@ -84,6 +85,8 @@ pub struct Config {
   is_esm_output: bool,
   trace_bailouts: bool,
   is_swc_helpers: bool,
+  standalone: bool,
+  inline_constants: bool,
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -99,6 +102,7 @@ pub struct TransformResult {
   needs_esm_helpers: bool,
   used_env: HashSet<swc_core::ecma::atoms::JsWord>,
   has_node_replacements: bool,
+  is_constant_module: bool,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -230,12 +234,12 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   config.decorators
                 ),
                 Optional::new(
-                  typescript::strip_with_jsx(
+                  typescript::tsx(
                     source_map.clone(),
-                    typescript::Config {
+                    Default::default(),
+                    typescript::TsxConfig {
                       pragma: react_options.pragma.clone(),
                       pragma_frag: react_options.pragma_frag.clone(),
-                      ..Default::default()
                     },
                     Some(&comments),
                     global_mark,
@@ -248,6 +252,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ),
               ));
 
+              let is_module = module.is_module();
               // If it's a script, convert into module. This needs to happen after
               // the resolver (which behaves differently for non-/strict mode).
               let module = match module {
@@ -296,6 +301,12 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 assumptions.set_public_class_fields |= true;
               }
 
+              if config.scope_hoist && config.inline_constants {
+                let mut constant_module = ConstantModule::new();
+                module.visit_with(&mut constant_module);
+                result.is_constant_module = constant_module.is_constant_module;
+              }
+
               let mut diagnostics = vec![];
               let module = {
                 let mut passes = chain!(
@@ -332,6 +343,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                       global_mark,
                       &config.project_root,
                       &mut fs_deps,
+                      is_module
                     ),
                     should_inline_fs
                   ),
@@ -377,7 +389,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   // Transpile new syntax to older syntax if needed
                   Optional::new(
                     preset_env(
-                      global_mark,
+                      unresolved_mark,
                       Some(&comments),
                       preset_env_config,
                       assumptions,
@@ -438,6 +450,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ignore_mark,
                 global_mark,
                 config.trace_bailouts,
+                is_module,
               );
               module.visit_with(&mut collect);
               if let Some(bailouts) = &collect.bailouts {
@@ -566,12 +579,10 @@ fn emit(
         None
       },
     ));
-    let config = swc_core::ecma::codegen::Config {
-      minify: false,
-      ascii_only: false,
-      target: swc_core::ecma::ast::EsVersion::Es5,
-      omit_last_semi: false,
-    };
+    let config = swc_core::ecma::codegen::Config::default()
+      .with_target(swc_core::ecma::ast::EsVersion::Es5)
+      // Make sure the output works regardless of whether it's loaded with the correct (utf8) encoding
+      .with_ascii_only(true);
     let mut emitter = swc_core::ecma::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
