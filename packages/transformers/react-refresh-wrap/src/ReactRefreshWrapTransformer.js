@@ -3,11 +3,6 @@
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
 
-const FILENAME = // $FlowFixMe[prop-missing]
-  process.env.PARCEL_BUILD_REPL && process.browser
-    ? '/app/__virtual__/@parcel/transformer-react-refresh-wrap/src/ReactRefreshWrapTransformer.js'
-    : __filename;
-
 function shouldExclude(asset, options) {
   return (
     !asset.isSource ||
@@ -68,7 +63,7 @@ ${code}
     asset.addDependency({
       specifier: wrapperPath,
       specifierType: 'esm',
-      resolveFrom: FILENAME,
+      resolveFrom: __filename,
     });
 
     return [asset];

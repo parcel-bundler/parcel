@@ -29,13 +29,6 @@ const TYPE_TO_RESOURCE_PRIORITY = {
 const BROWSER_PRELOAD_LOADER = './helpers/browser/preload-loader';
 const BROWSER_PREFETCH_LOADER = './helpers/browser/prefetch-loader';
 
-const DIRNAME =
-  // $FlowFixMe
-  process.env.PARCEL_BUILD_REPL && process.browser
-    ? '/app/__virtual__/@parcel/runtime-js/src'
-    : __dirname;
-const FILENAME = path.join(DIRNAME, 'JSRuntime.js');
-
 const LOADERS = {
   browser: {
     css: './helpers/browser/css-loader',
@@ -149,7 +142,7 @@ export default (new Runtime({
           // return a simple runtime of `Promise.resolve(internalRequire(assetId))`.
           // The linker handles this for scope-hoisting.
           assets.push({
-            filePath: FILENAME,
+            filePath: __filename,
             code: `module.exports = Promise.resolve(module.bundle.root(${JSON.stringify(
               bundleGraph.getAssetPublicId(resolved.value),
             )}))`,
@@ -166,7 +159,10 @@ export default (new Runtime({
         );
         if (referencedBundle?.bundleBehavior === 'inline') {
           assets.push({
-            filePath: path.join(DIRNAME, `/bundles/${referencedBundle.id}.js`),
+            filePath: path.join(
+              __dirname,
+              `/bundles/${referencedBundle.id}.js`,
+            ),
             code: `module.exports = Promise.resolve(${JSON.stringify(
               dependency.id,
             )});`,
@@ -199,7 +195,7 @@ export default (new Runtime({
       );
       if (referencedBundle?.bundleBehavior === 'inline') {
         assets.push({
-          filePath: path.join(DIRNAME, `/bundles/${referencedBundle.id}.js`),
+          filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
           dependency,
           env: {sourceType: 'module'},
@@ -214,7 +210,7 @@ export default (new Runtime({
         // If a URL dependency was not able to be resolved, add a runtime that
         // exports the original specifier.
         assets.push({
-          filePath: FILENAME,
+          filePath: __filename,
           code: `module.exports = ${JSON.stringify(dependency.specifier)}`,
           dependency,
           env: {sourceType: 'module'},
@@ -269,7 +265,7 @@ export default (new Runtime({
           loader,
         )})( ${getAbsoluteUrlExpr(relativePathExpr, bundle)})`;
         assets.push({
-          filePath: FILENAME,
+          filePath: __filename,
           code: loaderCode,
           isEntry: true,
           env: {sourceType: 'module'},
@@ -285,7 +281,7 @@ export default (new Runtime({
       isNewContext(bundle, bundleGraph)
     ) {
       assets.push({
-        filePath: FILENAME,
+        filePath: __filename,
         code: getRegisterCode(bundle, bundleGraph),
         isEntry: true,
         env: {sourceType: 'module'},
@@ -497,7 +493,7 @@ function getLoaderRuntime({
   code.push(`module.exports = ${loaderCode};`);
 
   return {
-    filePath: FILENAME,
+    filePath: __filename,
     code: code.join('\n'),
     dependency,
     env: {sourceType: 'module'},
@@ -617,7 +613,7 @@ function getURLRuntime(
   }
 
   return {
-    filePath: FILENAME,
+    filePath: __filename,
     code,
     dependency,
     env: {sourceType: 'module'},
@@ -689,7 +685,7 @@ function getAbsoluteUrlExpr(relativePathExpr: string, bundle: NamedBundle) {
       bundle.env.supports('import-meta-url')) ||
     bundle.env.outputFormat === 'commonjs'
   ) {
-    // This will be compiled to new URL(url, import.meta.url) or new URL(url, 'file:' + FILENAME).
+    // This will be compiled to new URL(url, import.meta.url) or new URL(url, 'file:' + __filename).
     return `new __parcel__URL__(${relativePathExpr}).toString()`;
   } else {
     return `require('./helpers/bundle-url').getBundleURL('${bundle.publicId}') + ${relativePathExpr}`;
