@@ -1,6 +1,6 @@
 {
   "name": "@parcel/bundle-stats-cli",
-  "version": "2.9.3",
+  "version": "2.10.2",
   "private": true,
   "main": "lib/cli.js",
   "source": "src/cli.js",
@@ -12,14 +12,14 @@
     "parcel": "^2.9.3"
   },
   "dependencies": {
-    "@parcel/reporter-bundle-stats": "^2.9.3",
-    "@parcel/core": "^2.9.3",
-    "@parcel/utils": "^2.9.3",
+    "@parcel/core": "2.10.2",
+    "@parcel/reporter-bundle-stats": "2.10.2",
+    "@parcel/utils": "2.10.2",
     "commander": "^7.0.0",
-    "parcel-query": "^2.9.3"
+    "parcel-query": "2.10.2"
   },
   "devDependencies": {
-    "@parcel/babel-register": "^2.9.3",
-    "@parcel/types": "^2.9.3"
+    "@parcel/babel-register": "2.10.2",
+    "@parcel/types": "2.10.2"
   }
 }

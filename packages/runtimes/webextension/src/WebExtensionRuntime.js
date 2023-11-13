@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
+import {replaceURLReferences} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import fs from 'fs';
 import path from 'path';
@@ -11,14 +12,15 @@ const AUTORELOAD_BG = fs.readFileSync(
 );
 
 export default (new Runtime({
-  apply({bundle, bundleGraph, options}) {
+  loadConfig({config}) {
+    config.invalidateOnBuild();
+  },
+  async apply({bundle, bundleGraph, options}) {
     if (!bundle.env.isBrowser() || bundle.env.isWorklet()) {
       return;
     }
-    if (bundle.name == 'manifest.json') {
-      const asset = bundle.getMainEntry();
-      if (asset?.meta.webextEntry !== true) return;
 
+    if (bundle.getMainEntry()?.meta.webextEntry === true) {
       // Hack to bust packager cache when any descendants update
       const descendants = [];
       bundleGraph.traverseBundles(b => {
@@ -35,7 +37,7 @@ export default (new Runtime({
         .find(b => b.getMainEntry()?.meta.webextEntry === true);
       const entry = manifest?.getMainEntry();
       const insertDep = entry?.meta.webextBGInsert;
-      if (insertDep == null) return;
+      if (!manifest || !entry || insertDep == null) return;
       const insertBundle = bundleGraph.getReferencedBundle(
         nullthrows(entry?.getDependencies().find(dep => dep.id === insertDep)),
         nullthrows(manifest),
@@ -50,16 +52,30 @@ export default (new Runtime({
 
       // Add autoreload
       if (bundle === firstInsertableBundle) {
-        return {
-          filePath: __filename,
-          code:
-            `var HMR_HOST = ${JSON.stringify(
-              options.hmrOptions?.host ?? 'localhost',
-            )};` +
-            `var HMR_PORT = '${options.hmrOptions?.port ?? ''}';` +
-            AUTORELOAD_BG,
-          isEntry: true,
-        };
+        return [
+          {
+            filePath: __filename,
+            code: AUTORELOAD_BG,
+            isEntry: true,
+          },
+          {
+            filePath: __filename,
+            // cache bust on non-asset manifest.json changes
+            code: `JSON.parse(${JSON.stringify(
+              JSON.stringify(
+                JSON.parse(
+                  replaceURLReferences({
+                    bundle: manifest,
+                    bundleGraph,
+                    contents: await entry.getCode(),
+                    getReplacement: () => '',
+                  }).contents,
+                ),
+              ),
+            )})`,
+            isEntry: true,
+          },
+        ];
       }
     }
   },

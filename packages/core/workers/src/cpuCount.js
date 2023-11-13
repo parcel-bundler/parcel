@@ -47,15 +47,23 @@ export default function getCores(bypassCache?: boolean = false): number {
     return cores;
   }
 
-  try {
-    cores = detectRealCores();
-  } catch (e) {
-    // Guess the amount of real cores
-    cores = os
-      .cpus()
-      .filter(
-        (cpu, index) => !cpu.model.includes('Intel') || index % 2 === 1,
-      ).length;
+  // $FlowFixMe
+  if (process.browser) {
+    // eslint-disable-next-line no-undef
+    cores = navigator.hardwareConcurrency / 2;
+  }
+
+  if (!cores) {
+    try {
+      cores = detectRealCores();
+    } catch (e) {
+      // Guess the amount of real cores
+      cores = os
+        .cpus()
+        .filter(
+          (cpu, index) => !cpu.model.includes('Intel') || index % 2 === 1,
+        ).length;
+    }
   }
 
   // Another fallback

@@ -796,4 +796,27 @@ describe('codeframe', () => {
     assert.equal(lines[3], '   9 | ');
     assert.equal(lines[4], '  10 | /**');
   });
+
+  it('should still generate a codeframe when end is before start', () => {
+    let codeframeString = codeframe(
+      'hello world',
+      [
+        {
+          start: {
+            column: 5,
+            line: 1,
+          },
+          end: {
+            column: 1,
+            line: 1,
+          },
+        },
+      ],
+      {useColor: false},
+    );
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines[0], '> 1 | hello world');
+    assert.equal(lines[1], '>   |     ^');
+  });
 });

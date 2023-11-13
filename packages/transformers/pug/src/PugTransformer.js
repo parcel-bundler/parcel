@@ -31,7 +31,7 @@ export default (new Transformer({
     });
 
     for (let filePath of render.dependencies) {
-      await asset.invalidateOnFileChange(filePath);
+      asset.invalidateOnFileChange(filePath);
     }
 
     asset.type = 'html';

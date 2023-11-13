@@ -36,6 +36,7 @@ import {
   normalizeFilePath,
   parcelSeverityToLspSeverity,
 } from './utils';
+import type {FSWatcher} from 'fs';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
@@ -67,58 +68,103 @@ let bundleGraphDeferrable =
 let bundleGraph: Promise<?BundleGraph<PackagedBundle>> =
   bundleGraphDeferrable.promise;
 
+let watchStarted = false;
+let lspStarted = false;
+let watchStartPromise;
+
+const LSP_SENTINEL_FILENAME = 'lsp-server';
+const LSP_SENTINEL_FILE = path.join(BASEDIR, LSP_SENTINEL_FILENAME);
+
+async function watchLspActive(): Promise<FSWatcher> {
+  // Check for lsp-server when reporter is first started
+  try {
+    await fs.promises.access(LSP_SENTINEL_FILE, fs.constants.F_OK);
+    lspStarted = true;
+  } catch {
+    //
+  }
+
+  return fs.watch(BASEDIR, (eventType: string, filename: string) => {
+    switch (eventType) {
+      case 'rename':
+        if (filename === LSP_SENTINEL_FILENAME) {
+          fs.access(LSP_SENTINEL_FILE, fs.constants.F_OK, err => {
+            if (err) {
+              lspStarted = false;
+            } else {
+              lspStarted = true;
+            }
+          });
+        }
+    }
+  });
+}
+
+async function doWatchStart() {
+  await fs.promises.mkdir(BASEDIR, {recursive: true});
+
+  // For each existing file, check if the pid matches a running process.
+  // If no process matches, delete the file, assuming it was orphaned
+  // by a process that quit unexpectedly.
+  for (let filename of fs.readdirSync(BASEDIR)) {
+    if (filename.endsWith('.json')) continue;
+    let pid = parseInt(filename.slice('parcel-'.length), 10);
+    let resultList = await lookupPid({pid});
+    if (resultList.length > 0) continue;
+    fs.unlinkSync(path.join(BASEDIR, filename));
+    ignoreFail(() => fs.unlinkSync(path.join(BASEDIR, filename + '.json')));
+  }
+
+  server = await createServer(SOCKET_FILE, connection => {
+    // console.log('got connection');
+    connections.push(connection);
+    connection.onClose(() => {
+      connections = connections.filter(c => c !== connection);
+    });
+
+    connection.onRequest(RequestDocumentDiagnostics, async uri => {
+      let graph = await bundleGraph;
+      if (!graph) return;
+
+      return getDiagnosticsUnusedExports(graph, uri);
+    });
+
+    connection.onRequest(RequestImporters, async params => {
+      let graph = await bundleGraph;
+      if (!graph) return null;
+
+      return getImporters(graph, params);
+    });
+
+    sendDiagnostics();
+  });
+  await fs.promises.writeFile(
+    META_FILE,
+    JSON.stringify({
+      projectRoot: process.cwd(),
+      pid: process.pid,
+      argv: process.argv,
+    }),
+  );
+}
+
+watchLspActive();
+
 export default (new Reporter({
   async report({event, options}) {
+    if (event.type === 'watchStart') {
+      watchStarted = true;
+    }
+
+    if (watchStarted && lspStarted) {
+      if (!watchStartPromise) {
+        watchStartPromise = doWatchStart();
+      }
+      await watchStartPromise;
+    }
+
     switch (event.type) {
       case 'watchStart': {
-        await fs.promises.mkdir(BASEDIR, {recursive: true});
-
-        // For each existing file, check if the pid matches a running process.
-        // If no process matches, delete the file, assuming it was orphaned
-        // by a process that quit unexpectedly.
-        for (let filename of fs.readdirSync(BASEDIR)) {
-          if (filename.endsWith('.json')) continue;
-          let pid = parseInt(filename.slice('parcel-'.length), 10);
-          let resultList = await lookupPid({pid});
-          if (resultList.length > 0) continue;
-          fs.unlinkSync(path.join(BASEDIR, filename));
-          ignoreFail(() =>
-            fs.unlinkSync(path.join(BASEDIR, filename + '.json')),
-          );
-        }
-
-        server = await createServer(SOCKET_FILE, connection => {
-          // console.log('got connection');
-          connections.push(connection);
-          connection.onClose(() => {
-            connections = connections.filter(c => c !== connection);
-          });
-
-          connection.onRequest(RequestDocumentDiagnostics, async uri => {
-            let graph = await bundleGraph;
-            if (!graph) return;
-
-            return getDiagnosticsUnusedExports(graph, uri);
-          });
-
-          connection.onRequest(RequestImporters, async params => {
-            let graph = await bundleGraph;
-            if (!graph) return null;
-
-            return getImporters(graph, params);
-          });
-
-          sendDiagnostics();
-        });
-        await fs.promises.writeFile(
-          META_FILE,
-          JSON.stringify({
-            projectRoot: options.projectRoot,
-            pid: process.pid,
-            argv: process.argv,
-          }),
-        );
-
         break;
       }
 

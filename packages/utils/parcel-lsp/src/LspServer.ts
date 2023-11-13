@@ -36,8 +36,15 @@ import {
   RequestImporters,
 } from '@parcel/lsp-protocol';
 
-const connection = createConnection(ProposedFeatures.all);
+type Metafile = {
+  projectRoot: string;
+  pid: typeof process['pid'];
+  argv: typeof process['argv'];
+};
 
+const connection = createConnection(ProposedFeatures.all);
+const WORKSPACE_ROOT = process.cwd();
+const LSP_SENTINEL_FILENAME = 'lsp-server';
 // Create a simple text document manager.
 // const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
@@ -220,9 +227,12 @@ function findClient(document: DocumentUri): Client | undefined {
   return bestClient;
 }
 
-function createClient(metafilepath: string) {
-  let metafile = JSON.parse(fs.readFileSync(metafilepath, 'utf8'));
+function parseMetafile(filepath: string) {
+  const file = fs.readFileSync(filepath, 'utf-8');
+  return JSON.parse(file);
+}
 
+function createClient(metafilepath: string, metafile: Metafile) {
   let socketfilepath = metafilepath.slice(0, -5);
   let [reader, writer] = createServerPipeTransport(socketfilepath);
   let client = createMessageConnection(reader, writer);
@@ -263,7 +273,7 @@ function createClient(metafilepath: string) {
   });
 
   client.onClose(() => {
-    clients.delete(metafile);
+    clients.delete(JSON.stringify(metafile));
     sendDiagnosticsRefresh();
     return Promise.all(
       [...uris].map(uri => connection.sendDiagnostics({uri, diagnostics: []})),
@@ -271,19 +281,26 @@ function createClient(metafilepath: string) {
   });
 
   sendDiagnosticsRefresh();
-  clients.set(metafile, result);
+  clients.set(JSON.stringify(metafile), result);
 }
 
 // Take realpath because to have consistent cache keys on macOS (/var -> /private/var)
 const BASEDIR = path.join(fs.realpathSync(os.tmpdir()), 'parcel-lsp');
 fs.mkdirSync(BASEDIR, {recursive: true});
+
+fs.writeFileSync(path.join(BASEDIR, LSP_SENTINEL_FILENAME), '');
+
 // Search for currently running Parcel processes in the parcel-lsp dir.
 // Create an IPC client connection for each running process.
 for (let filename of fs.readdirSync(BASEDIR)) {
   if (!filename.endsWith('.json')) continue;
   let filepath = path.join(BASEDIR, filename);
-  createClient(filepath);
-  // console.log('connected initial', filepath);
+  const contents = parseMetafile(filepath);
+  const {projectRoot} = contents;
+
+  if (WORKSPACE_ROOT === projectRoot) {
+    createClient(filepath, contents);
+  }
 }
 
 // Watch for new Parcel processes in the parcel-lsp dir, and disconnect the
@@ -295,15 +312,19 @@ watcher.subscribe(BASEDIR, async (err, events) => {
 
   for (let event of events) {
     if (event.type === 'create' && event.path.endsWith('.json')) {
-      createClient(event.path);
-      // console.log('connected watched', event.path);
+      const file = fs.readFileSync(event.path, 'utf-8');
+      const contents = parseMetafile(file);
+      const {projectRoot} = contents;
+
+      if (WORKSPACE_ROOT === projectRoot) {
+        createClient(event.path, contents);
+      }
     } else if (event.type === 'delete' && event.path.endsWith('.json')) {
       let existing = clients.get(event.path);
-      // console.log('existing', event.path, existing);
+      console.log('existing', event.path, existing);
       if (existing) {
         clients.delete(event.path);
         existing.connection.end();
-        // console.log('disconnected watched', event.path);
       }
     }
   }

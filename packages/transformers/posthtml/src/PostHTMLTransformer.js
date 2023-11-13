@@ -105,14 +105,11 @@ export default (new Transformer({
     });
 
     if (res.messages) {
-      await Promise.all(
-        res.messages.map(({type, file: filePath}) => {
-          if (type === 'dependency') {
-            return asset.invalidateOnFileChange(filePath);
-          }
-          return Promise.resolve();
-        }),
-      );
+      for (let {type, file: filePath} of res.messages) {
+        if (type === 'dependency') {
+          asset.invalidateOnFileChange(filePath);
+        }
+      }
     }
 
     asset.setAST({

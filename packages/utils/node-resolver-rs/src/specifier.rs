@@ -136,6 +136,10 @@ impl<'a> Specifier<'a> {
             }
           }
           SpecifierType::Cjs => {
+            if let Some(node_prefixed) = specifier.strip_prefix("node:") {
+              return Ok((Specifier::Builtin(Cow::Borrowed(node_prefixed)), None));
+            }
+
             if BUILTINS.contains(&specifier) {
               (Specifier::Builtin(Cow::Borrowed(specifier)), None)
             } else {

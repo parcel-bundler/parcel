@@ -4,7 +4,7 @@ import type {SchemaEntity} from '@parcel/utils';
 import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {init, transform} from '../native';
+import {transform, transformAsync} from '@parcel/rust';
 import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
@@ -14,7 +14,6 @@ import ThrowableDiagnostic, {
   convertSourceLocationToHighlight,
 } from '@parcel/diagnostic';
 import {validateSchema, remapSourceLocation, globMatch} from '@parcel/utils';
-import WorkerFarm from '@parcel/workers';
 import pkg from '../package.json';
 
 const JSX_EXTENSIONS = {
@@ -102,6 +101,9 @@ const CONFIG_SCHEMA: SchemaEntity = {
         },
       ],
     },
+    unstable_inlineConstants: {
+      type: 'boolean',
+    },
   },
   additionalProperties: false,
 };
@@ -110,6 +112,7 @@ type PackageJSONConfig = {|
   '@parcel/transformer-js'?: {|
     inlineFS?: boolean,
     inlineEnvironment?: boolean | Array<string>,
+    unstable_inlineConstants?: boolean,
   |},
 |};
 
@@ -271,6 +274,7 @@ export default (new Transformer({
 
     let inlineEnvironment = config.isSource;
     let inlineFS = !ignoreFS;
+    let inlineConstants = false;
     if (result && rootPkg?.['@parcel/transformer-js']) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
@@ -290,6 +294,9 @@ export default (new Transformer({
         rootPkg['@parcel/transformer-js']?.inlineEnvironment ??
         inlineEnvironment;
       inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
+      inlineConstants =
+        rootPkg['@parcel/transformer-js']?.unstable_inlineConstants ??
+        inlineConstants;
     }
 
     return {
@@ -300,6 +307,7 @@ export default (new Transformer({
       pragmaFrag,
       inlineEnvironment,
       inlineFS,
+      inlineConstants,
       reactRefresh,
       decorators,
       useDefineForClassFields,
@@ -309,8 +317,6 @@ export default (new Transformer({
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
-      init,
-      loadOnMainThreadIfNeeded(),
     ]);
 
     let targets;
@@ -404,7 +410,8 @@ export default (new Transformer({
       diagnostics,
       used_env,
       has_node_replacements,
-    } = transform({
+      is_constant_module,
+    } = await (transformAsync || transform)({
       filename: asset.filePath,
       code,
       module_id: asset.id,
@@ -442,7 +449,13 @@ export default (new Transformer({
       is_esm_output: asset.env.outputFormat === 'esmodule',
       trace_bailouts: options.logLevel === 'verbose',
       is_swc_helpers: /@swc[/\\]helpers/.test(asset.filePath),
+      standalone: asset.query.has('standalone'),
+      inline_constants: config.inlineConstants,
     });
+
+    if (is_constant_module) {
+      asset.meta.isConstantModule = true;
+    }
 
     let convertLoc = (loc): SourceLocation => {
       let location = {
@@ -933,30 +946,3 @@ export default (new Transformer({
     return [asset];
   },
 }): Transformer);
-
-// On linux with older versions of glibc (e.g. CentOS 7), we encounter a segmentation fault
-// when worker threads exit due to thread local variables used by SWC. A workaround is to
-// also load the native module on the main thread, so that it is not unloaded until process exit.
-// See https://github.com/rust-lang/rust/issues/91979.
-let isLoadedOnMainThread = false;
-
-async function loadOnMainThreadIfNeeded() {
-  if (
-    !isLoadedOnMainThread &&
-    process.platform === 'linux' &&
-    WorkerFarm.isWorker()
-  ) {
-    // $FlowFixMe
-    let {glibcVersionRuntime} = process.report.getReport().header;
-
-    if (glibcVersionRuntime && parseFloat(glibcVersionRuntime) <= 2.17) {
-      let api = WorkerFarm.getWorkerApi();
-      await api.callMaster({
-        location: __dirname + '/loadNative.js',
-        args: [],
-      });
-    }
-
-    isLoadedOnMainThread = true;
-  }
-}

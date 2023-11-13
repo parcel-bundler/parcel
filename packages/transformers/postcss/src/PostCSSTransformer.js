@@ -2,7 +2,7 @@
 
 import type {FilePath, Asset, MutableAsset, PluginOptions} from '@parcel/types';
 
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {glob} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
 import nullthrows from 'nullthrows';

@@ -139,8 +139,12 @@ let serve = program
   )
   .option('--watch-for-stdin', 'exit when stdin closes')
   .option(
-    '--lazy',
-    'Build async bundles on demand, when requested in the browser',
+    '--lazy [includes]',
+    'Build async bundles on demand, when requested in the browser. Defaults to all async bundles, unless a comma separated list of source file globs is provided. Only async bundles whose entry points match these globs will be built lazily',
+  )
+  .option(
+    '--lazy-exclude <excludes>',
+    'Can only be used in combination with --lazy. Comma separated list of source file globs, async bundles whose entry points match these globs will not be built lazily',
   )
   .action(runCommand);
 
@@ -470,6 +474,11 @@ async function normalizeOptions(
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
+
+  const normalizeIncludeExcludeList = (input?: string): string[] => {
+    if (typeof input !== 'string') return [];
+    return input.split(',').map(value => value.trim());
+  };
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
@@ -483,7 +492,9 @@ async function normalizeOptions(
     logLevel: command.logLevel,
     shouldProfile: command.profile,
     shouldTrace: command.trace,
-    shouldBuildLazily: command.lazy,
+    shouldBuildLazily: typeof command.lazy !== 'undefined',
+    lazyIncludes: normalizeIncludeExcludeList(command.lazy),
+    lazyExcludes: normalizeIncludeExcludeList(command.lazyExclude),
     shouldBundleIncrementally:
       process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,
     detailedReport:

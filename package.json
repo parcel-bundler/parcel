@@ -12,10 +12,11 @@
   ],
   "scripts": {
     "build": "yarn build-bundles && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
-    "build-bundles": "rm -rf packages/*/*/lib && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server} packages/utils/{parcel-lsp,parcel-lsp-protocol}",
+    "build-bundles": "rimraf packages/*/*/lib && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_SELF_BUILD=true parcel build packages/core/{fs,codeframe,package-manager,utils} packages/reporters/{cli,dev-server} packages/utils/{parcel-lsp,parcel-lsp-protocol}",
     "build-ts": "lerna run build-ts && lerna run check-ts",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
+    "build-native-wasm": "node scripts/build-native.js --release --wasm",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
     "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rimraf ./lib && yarn",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" && cargo fmt --all",
@@ -36,10 +37,10 @@
     "prepare": "husky install"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.0",
+    "@babel/core": "^7.22.11",
     "@khanacademy/flow-to-ts": "^0.5.2",
     "@napi-rs/cli": "^2.15.2",
-    "@parcel/babel-register": "2.9.3",
+    "@parcel/babel-register": "*",
     "@types/node": "^15.12.4",
     "cross-env": "^7.0.0",
     "eslint": "^7.20.0",
@@ -69,5 +70,6 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
-  }
+  },
+  "packageManager": "yarn@1.22.19"
 }
