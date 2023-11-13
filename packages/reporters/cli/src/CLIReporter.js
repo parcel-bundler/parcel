@@ -30,6 +30,7 @@ import wrapAnsi from 'wrap-ansi';
 const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
 const seenPhases = new Set();
+const seenPhasesGen = new Set();
 const phaseStartTimes = {};
 
 let statusThrottle = throttle((message: string) => {
@@ -73,9 +74,9 @@ export async function _report(
         break;
       }
 
-      if (!seenPhases.has(event.phase)) {
+      if (!seenPhasesGen.has(event.phase)) {
         phaseStartTimes[event.phase] = Date.now();
-        seenPhases.add(event.phase);
+        seenPhasesGen.add(event.phase);
       }
 
       if (!isTTY && logLevelFilter != logLevels.verbose) {
@@ -90,6 +91,7 @@ export async function _report(
         ) {
           updateSpinner('Packaging & Optimizing...');
         }
+        seenPhases.add(event.phase);
         break;
       }
 
