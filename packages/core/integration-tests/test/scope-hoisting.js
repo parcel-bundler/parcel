@@ -148,7 +148,7 @@ describe('scope hoisting', function () {
       assert.equal(output, 2);
     });
 
-    it('supports import * as from a library that has export *', async function () {
+    it('supports dependency rewriting for import * as from a library that has export *', async function () {
       let b = await bundle(
         path.join(
           __dirname,
@@ -401,6 +401,21 @@ describe('scope hoisting', function () {
         'utf8',
       );
       assert.match(contents, /output="foo bar"/);
+    });
+
+    it('supports re-exporting all with ambiguous CJS and non-renaming and renaming dependency retargeting', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-ambiguous/entry.js',
+        ),
+        {
+          mode: 'production',
+        },
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, '123 999');
     });
 
     it('supports re-exporting all exports from an external module', async function () {
