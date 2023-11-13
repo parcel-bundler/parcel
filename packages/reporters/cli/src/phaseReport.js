@@ -2,8 +2,9 @@
 import {prettifyTime} from '@parcel/utils';
 import chalk from 'chalk';
 import {writeOut} from './render';
+import invariant from 'assert';
 
-export default function phaseReport(phaseStartTimes) {
+export default function phaseReport(phaseStartTimes: {[string]: number}) {
   let phaseTimes = {};
   if (phaseStartTimes['transforming'] && phaseStartTimes['bundling']) {
     phaseTimes['Transforming'] =
@@ -26,6 +27,7 @@ export default function phaseReport(phaseStartTimes) {
   }
 
   for (let [phase, time] of Object.entries(phaseTimes)) {
+    invariant(typeof time === 'number');
     writeOut(chalk.green.bold(`${phase} finished in ${prettifyTime(time)}`));
   }
 }
