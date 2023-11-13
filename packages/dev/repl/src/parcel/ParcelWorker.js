@@ -267,7 +267,6 @@ async function setup(assets, options) {
     inputFS: fs,
     outputFS: fs,
     // cache: new IDBCache(),
-    // cache: new RemoteCache(fs, '/.parcel-cache', 'http://localhost:2392'),
     defaultTargetOptions: {
       distDir: PathUtils.DIST_DIR,
       publicUrl: options.publicUrl || undefined,
