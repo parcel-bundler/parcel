@@ -343,7 +343,7 @@ async function collectDependencies(
       program.permissions.push('scripting');
     }
     const hostPerms = [
-      ...new Set(program.content_scripts.flatMap(sc => sc.matches)),
+      ...new Set(program.content_scripts?.flatMap(sc => sc.matches)),
     ];
     if (isMV2) program.permissions = program.permissions.concat(hostPerms);
     else {

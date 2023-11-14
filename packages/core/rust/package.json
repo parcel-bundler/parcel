@@ -22,7 +22,7 @@
     "node": ">= 12.0.0"
   },
   "files": [
-    "native-browser.js",
+    "browser.js",
     "index.d.ts",
     "index.js",
     "index.js.flow",
@@ -37,6 +37,6 @@
     "build": "napi build --platform --cargo-cwd ../../../crates/node-bindings",
     "build-release": "napi build --platform --release --cargo-cwd ../../../crates/node-bindings",
     "wasm:build": "cargo build -p parcel-node-bindings --target wasm32-unknown-unknown && cp ../../../target/wasm32-unknown-unknown/debug/parcel_node_bindings.wasm .",
-    "wasm:build-release": "CARGO_PROFILE_RELEASE_LTO=true cargo build --target wasm32-unknown-unknown --release && wasm-opt --strip-debug -O ../../target/wasm32-unknown-unknown/release/parcel_node_bindings.wasm -o ../../packages/core/rust/parcel_node_bindings.wasm"
+    "wasm:build-release": "CARGO_PROFILE_RELEASE_LTO=true cargo build -p parcel-node-bindings --target wasm32-unknown-unknown --release && wasm-opt --strip-debug -O ../../../target/wasm32-unknown-unknown/release/parcel_node_bindings.wasm -o parcel_node_bindings.wasm"
   }
 }
