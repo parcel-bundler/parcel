@@ -1216,7 +1216,7 @@ describe('cache', function () {
       assert.equal(await run(b.bundleGraph), 'updated');
     });
 
-    it.only('should not invalidate when a set environment variable does not change', async () => {
+    it('should not invalidate when a set environment variable does not change', async () => {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');

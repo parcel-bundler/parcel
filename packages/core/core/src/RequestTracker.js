@@ -370,7 +370,7 @@ export class RequestGraph extends ContentGraph<
     for (let nodeId of this.envNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'env');
-      if (env[node.id.slice(node.id.indexOf(':'))] !== node.value) {
+      if (env[node.id.slice(node.id.indexOf(':') + 1)] !== node.value) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
           requestGraphEdgeTypes.invalidated_by_update,
@@ -387,7 +387,7 @@ export class RequestGraph extends ContentGraph<
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'option');
       if (
-        hashFromOption(options[node.id.slice(node.id.indexOf(':'))]) !==
+        hashFromOption(options[node.id.slice(node.id.indexOf(':') + 1)]) !==
         node.hash
       ) {
         let parentNodes = this.getNodeIdsConnectedTo(
@@ -798,9 +798,6 @@ export class RequestGraph extends ContentGraph<
 
         for (let connectedNode of nodes) {
           didInvalidate = true;
-          // if (connectedNode === 626) {
-          //   console.log('herehere!!!', filePath);
-          // }
           this.invalidateNode(connectedNode, FILE_UPDATE);
         }
 
