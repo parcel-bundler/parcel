@@ -161,8 +161,9 @@ export class AssetGraphBuilder {
     );
 
     this.isSingleChangeRebuild =
-      api.getInvalidSubRequests().filter(req => req.type === 'asset_request')
-        .length === 1;
+      api
+        .getInvalidSubRequests()
+        .filter(req => req.requestType === 'asset_request').length === 1;
     this.queue = new PromiseQueue();
 
     assetGraph.onNodeRemoved = nodeId => {

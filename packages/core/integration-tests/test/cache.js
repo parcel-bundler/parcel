@@ -295,7 +295,7 @@ describe('cache', function () {
           );
         });
 
-        it.only(`should support updating a ${name}`, async function () {
+        it(`should support updating a ${name}`, async function () {
           let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
@@ -1216,7 +1216,7 @@ describe('cache', function () {
       assert.equal(await run(b.bundleGraph), 'updated');
     });
 
-    it('should not invalidate when a set environment variable does not change', async () => {
+    it.only('should not invalidate when a set environment variable does not change', async () => {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');

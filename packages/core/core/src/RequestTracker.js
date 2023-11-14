@@ -204,6 +204,7 @@ const nodeFromFileName = (fileName: string): RequestGraphNode => ({
 const nodeFromRequest = (request: RequestNode): RequestGraphNode => ({
   id: request.id,
   type: 'request',
+  requestType: request.requestType,
   //value: request,
   invalidateReason: INITIAL_BUILD,
 });
@@ -287,12 +288,6 @@ export class RequestGraph extends ContentGraph<
   }
 
   removeNode(nodeId: NodeId): void {
-    if (nodeId === 626) {
-      ('626 DELETED IN REMOVENODE!!!!!!');
-    }
-    if (nodeId === 1340) {
-      ('1340 DELETED IN REMOVENODE!!!!!!');
-    }
     this.invalidNodeIds.delete(nodeId);
     this.incompleteNodeIds.delete(nodeId);
     this.incompleteNodePromises.delete(nodeId);
@@ -564,6 +559,7 @@ export class RequestGraph extends ContentGraph<
   ) {
     let envNode = nodeFromEnv(env, value);
     let envNodeId = this.addNode(envNode);
+    console.log({envNode});
 
     if (
       !this.hasEdge(
@@ -787,7 +783,6 @@ export class RequestGraph extends ContentGraph<
       // if it was a create event, but the file already exists in the graph,
       // then also invalidate nodes connected by invalidated_by_update edges.
       if (hasFileRequest && (type === 'create' || type === 'update')) {
-        console.log({filePath});
         let nodeId = this.getNodeIdByContentKey(filePath);
         let nodes = this.getNodeIdsConnectedTo(
           nodeId,
@@ -923,12 +918,6 @@ export default class RequestTracker {
     }
 
     this.graph.incompleteNodeIds.add(requestNodeId);
-    if (requestNodeId === 626) {
-      ('626 DELETED IN startrequest!!!!!!');
-    }
-    if (requestNodeId === 1340) {
-      ('1340 DELETED IN startrequest!!!!!!');
-    }
     this.graph.invalidNodeIds.delete(requestNodeId);
 
     let {promise, deferred} = makeDeferredWithPromise();
