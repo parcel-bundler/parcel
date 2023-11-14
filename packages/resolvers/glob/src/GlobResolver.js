@@ -80,21 +80,15 @@ export default (new Resolver({
         const insideNodeModules = options.projectRoot.includes('node_modules');
         let dir = path.dirname(sourceFile);
 
-        while (
-          dir !== options.projectRoot &&
-          path.basename(path.dirname(dir)) !== 'node_modules' &&
-          (insideNodeModules ||
-            !(await options.inputFS.exists(path.join(dir, 'package.json'))))
-        ) {
-          dir = path.dirname(dir);
+        let pkgPath = nullthrows(
+          options.inputFS.findAncestorFile(
+            ['package.json'],
+            dir,
+            options.projectRoot,
+          ),
+        );
 
-          if (dir === path.dirname(dir)) {
-            dir = options.projectRoot;
-            break;
-          }
-        }
-
-        specifier = path.resolve(dir, specifier.slice(2));
+        specifier = path.resolve(path.dirname(pkgPath), specifier.slice(2));
         break;
       }
 
