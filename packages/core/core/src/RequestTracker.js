@@ -140,8 +140,7 @@ export type RequestType =
   | 'write_bundles_request'
   | 'package_request'
   | 'write_bundle_request'
-  | 'validation_request'
-  | string;
+  | 'validation_request';
 
 type RequestGraphNode =
   | RequestNode
