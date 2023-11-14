@@ -77,9 +77,7 @@ export default (new Resolver({
       // directory, the nearest directory with package.json or the project
       // root - whichever comes first.
       case '~': {
-        const insideNodeModules = options.projectRoot.includes('node_modules');
         let dir = path.dirname(sourceFile);
-
         let pkgPath = nullthrows(
           options.inputFS.findAncestorFile(
             ['package.json'],
@@ -87,7 +85,6 @@ export default (new Resolver({
             options.projectRoot,
           ),
         );
-
         specifier = path.resolve(path.dirname(pkgPath), specifier.slice(2));
         break;
       }
