@@ -22,6 +22,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   - Fixing issues when `import * as` is used with `export *` - [Details](https://github.com/parcel-bundler/parcel/pull/9331)
   - Writing cache in chunks - [Details](https://github.com/parcel-bundler/parcel/pull/9355)
   - Reduce redundancy in the RequestGraph's file nodes - [Details](https://github.com/parcel-bundler/parcel/pull/9360)
+  - Fix dependency retargeting with ambiguous reexports - [Details](https://github.com/parcel-bundler/parcel/pull/9380)
 
 - JavaScript
 
