@@ -29,11 +29,7 @@ import {
 import {hashString} from '@parcel/rust';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
-import {
-  assertSignalNotAborted,
-  hashFromOption,
-  keyFromEnvOrOptionContentKey,
-} from './utils';
+import {assertSignalNotAborted, hashFromOption} from './utils';
 import {
   type ProjectPath,
   fromProjectPathRelative,
@@ -217,6 +213,12 @@ const nodeFromOption = (option: string, value: mixed): RequestGraphNode => ({
   hash: hashFromOption(value),
 });
 
+const keyFromEnvContentKey = (contentKey: ContentKey): string =>
+  contentKey.slice('env:'.length);
+
+const keyFromOptionContentKey = (contentKey: ContentKey): string =>
+  contentKey.slice('option:'.length);
+
 export class RequestGraph extends ContentGraph<
   RequestGraphNode,
   RequestGraphEdgeType,
@@ -356,7 +358,7 @@ export class RequestGraph extends ContentGraph<
     for (let nodeId of this.envNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'env');
-      if (env[keyFromEnvOrOptionContentKey(node.id)] !== node.value) {
+      if (env[keyFromEnvContentKey(node.id)] !== node.value) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
           requestGraphEdgeTypes.invalidated_by_update,
@@ -373,8 +375,7 @@ export class RequestGraph extends ContentGraph<
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'option');
       if (
-        hashFromOption(options[keyFromEnvOrOptionContentKey(node.id)]) !==
-        node.hash
+        hashFromOption(options[keyFromOptionContentKey(node.id)]) !== node.hash
       ) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
@@ -624,11 +625,11 @@ export class RequestGraph extends ContentGraph<
           case 'file':
             return {type: 'file', filePath: toProjectPathUnsafe(node.id)};
           case 'env':
-            return {type: 'env', key: keyFromEnvOrOptionContentKey(node.id)};
+            return {type: 'env', key: keyFromEnvContentKey(node.id)};
           case 'option':
             return {
               type: 'option',
-              key: keyFromEnvOrOptionContentKey(node.id),
+              key: keyFromOptionContentKey(node.id),
             };
         }
       })

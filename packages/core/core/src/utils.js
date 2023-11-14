@@ -18,7 +18,6 @@ import type {PackageManager} from '@parcel/package-manager';
 import invariant from 'assert';
 import baseX from 'base-x';
 import {Graph} from '@parcel/graph';
-import type {ContentKey} from '@parcel/graph';
 import {hashObject} from '@parcel/utils';
 
 import {registerSerializableClass} from './serializer';
@@ -235,8 +234,4 @@ export function toInternalSymbols<T: {|loc: ?SourceLocation|}>(
       },
     ]),
   );
-}
-
-export function keyFromEnvOrOptionContentKey(contentKey: ContentKey): string {
-  return contentKey.slice(contentKey.indexOf(':') + 1);
 }
