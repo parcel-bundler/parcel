@@ -125,7 +125,9 @@ export async function _report(
           options.projectRoot,
           options.detailedReport?.assetsPerBundle,
         );
-        phaseReport(phaseStartTimes);
+        if (process.env.PARCEL_SHOW_PHASE_TIMES) {
+          phaseReport(phaseStartTimes);
+        }
       }
       break;
     case 'buildFailure':
