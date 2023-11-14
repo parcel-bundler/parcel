@@ -1,5 +1,3 @@
 const rootVars = require('/dir/*.js');
 
-module.expors = function () {
-  return rootVars.a + rootVars.b;
-}
+module.exports = rootVars.a + rootVars.b;
