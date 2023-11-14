@@ -29,7 +29,11 @@ import {
 import {hashString} from '@parcel/rust';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
-import {assertSignalNotAborted, hashFromOption} from './utils';
+import {
+  assertSignalNotAborted,
+  hashFromOption,
+  keyFromEnvOrOptionContentKey,
+} from './utils';
 import {
   type ProjectPath,
   fromProjectPathRelative,
@@ -84,17 +88,18 @@ type SerializedRequestGraph = {|
 |};
 
 type FileNode = {|id: ContentKey, +type: 'file'|};
+
 type GlobNode = {|id: ContentKey, +type: 'glob', value: InternalGlob|};
+
 type FileNameNode = {|
   id: ContentKey,
   +type: 'file_name',
-  //value: string,
 |};
+
 type EnvNode = {|
   id: ContentKey,
   +type: 'env',
   value: string | void,
-  //value: {|key: string, value: string | void|},
 |};
 
 type OptionNode = {|
@@ -105,31 +110,23 @@ type OptionNode = {|
 
 type Request<TInput, TResult> = {|
   id: string,
-  +type: string,
+  +type: RequestType,
   input: TInput,
   run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
 |};
 
-// type StoredRequest = {|
-//   id: string,
-//   +type: string,
-//   result?: mixed,
-//   resultCacheKey?: ?string,
-// |};
-
 type InvalidateReason = number;
-export type RequestNode = {|
+type RequestNode = {|
   id: ContentKey,
   +type: 'request',
-  //value: StoredRequest,
   +requestType?: RequestType,
   invalidateReason: InvalidateReason,
   result?: mixed,
   resultCacheKey?: ?string,
   hash?: string,
 |};
-// TODO enumerate these
-type RequestType =
+
+export type RequestType =
   | 'parcel_build_request'
   | 'bundle_graph_request'
   | 'asset_graph_request'
@@ -143,7 +140,8 @@ type RequestType =
   | 'write_bundles_request'
   | 'package_request'
   | 'write_bundle_request'
-  | 'validation_request';
+  | 'validation_request'
+  | string;
 
 type RequestGraphNode =
   | RequestNode
@@ -205,7 +203,6 @@ const nodeFromRequest = (request: RequestNode): RequestGraphNode => ({
   id: request.id,
   type: 'request',
   requestType: request.requestType,
-  //value: request,
   invalidateReason: INITIAL_BUILD,
 });
 
@@ -219,10 +216,6 @@ const nodeFromOption = (option: string, value: mixed): RequestGraphNode => ({
   id: 'option:' + option,
   type: 'option',
   hash: hashFromOption(value),
-  // value: {
-  //   key: option,
-  //   hash: hashFromOption(value),
-  // },
 });
 
 export class RequestGraph extends ContentGraph<
@@ -364,7 +357,7 @@ export class RequestGraph extends ContentGraph<
     for (let nodeId of this.envNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'env');
-      if (env[node.id.slice(node.id.indexOf(':') + 1)] !== node.value) {
+      if (env[keyFromEnvOrOptionContentKey(node.id)] !== node.value) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
           requestGraphEdgeTypes.invalidated_by_update,
@@ -381,7 +374,7 @@ export class RequestGraph extends ContentGraph<
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'option');
       if (
-        hashFromOption(options[node.id.slice(node.id.indexOf(':') + 1)]) !==
+        hashFromOption(options[keyFromEnvOrOptionContentKey(node.id)]) !==
         node.hash
       ) {
         let parentNodes = this.getNodeIdsConnectedTo(
@@ -629,16 +622,14 @@ export class RequestGraph extends ContentGraph<
       .map(nodeId => {
         let node = nullthrows(this.getNode(nodeId));
         switch (node.type) {
-          case 'file': {
+          case 'file':
             return {type: 'file', filePath: toProjectPathUnsafe(node.id)};
-          }
-          case 'env': {
-            return {type: 'env', key: node.id.slice(node.id.indexOf(':') + 1)};
-          }
+          case 'env':
+            return {type: 'env', key: keyFromEnvOrOptionContentKey(node.id)};
           case 'option':
             return {
               type: 'option',
-              key: node.id.slice(node.id.indexOf(':') + 1),
+              key: keyFromEnvOrOptionContentKey(node.id),
             };
         }
       })
@@ -870,7 +861,7 @@ export default class RequestTracker {
   setSignal(signal?: AbortSignal) {
     this.signal = signal;
   }
-  // request used to be StoredRequest
+
   startRequest(request: RequestNode): {|
     requestNodeId: NodeId,
     deferred: Deferred<boolean>,
@@ -939,12 +930,6 @@ export default class RequestTracker {
   }
 
   completeRequest(nodeId: NodeId) {
-    if (nodeId === 626) {
-      ('626 DELETED IN completerequest!!!!!!');
-    }
-    if (nodeId === 1340) {
-      ('1340 DELETED IN completerequest!!!!!!');
-    }
     this.graph.invalidNodeIds.delete(nodeId);
     this.graph.incompleteNodeIds.delete(nodeId);
     this.graph.incompleteNodePromises.delete(nodeId);
@@ -1036,9 +1021,6 @@ export default class RequestTracker {
 
     try {
       let node = this.graph.getRequestNode(requestNodeId);
-      if (request.id === '9627b0e91fc9a842') {
-        debugger;
-      }
       let result = await request.run({
         input: request.input,
         api,
