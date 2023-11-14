@@ -505,9 +505,6 @@ export class NodePackageManager implements PackageManager {
     let seen = new Set();
 
     let invalidate = (name, from) => {
-      if (name.includes('babelrc')) {
-        debugger;
-      }
       let basedir = path.dirname(from);
       let key = basedir + ':' + name;
       if (seen.has(key)) {
@@ -537,9 +534,6 @@ export class NodePackageManager implements PackageManager {
       }
 
       children.delete(resolved.resolved);
-      if (key.includes('babelrc.cjs')) {
-        console.log('deleting KEY!!!!!!!!!!!!!!!!!!!', key);
-      }
       cache.delete(key);
     };
 

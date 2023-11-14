@@ -734,9 +734,7 @@ export default class Transformation {
     for (let devDep of config.devDeps) {
       await this.addDevDependency(devDep);
     }
-    // console.log(
-    //   config.invalidateOnFileCreate.filter(a => a.fileName === '.babelrc.cjs'),
-    // );
+
     return config;
   }
 

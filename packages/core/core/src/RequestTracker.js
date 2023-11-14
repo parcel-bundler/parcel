@@ -330,15 +330,9 @@ export class RequestGraph extends ContentGraph<
   }
 
   invalidateNode(nodeId: NodeId, reason: InvalidateReason) {
-    if (nodeId === 626) {
-      console.trace('in invalidateNode.invalidating node 626');
-    }
     let node = nullthrows(this.getNode(nodeId));
     invariant(node.type === 'request');
     node.invalidateReason |= reason;
-    if (nodeId === 626) {
-      console.log('in invalidateNode.*********adding 626 to invalidnodeids');
-    }
     this.invalidNodeIds.add(nodeId);
 
     let parentNodes = this.getNodeIdsConnectedTo(
@@ -559,7 +553,6 @@ export class RequestGraph extends ContentGraph<
   ) {
     let envNode = nodeFromEnv(env, value);
     let envNodeId = this.addNode(envNode);
-    console.log({envNode});
 
     if (
       !this.hasEdge(
@@ -623,7 +616,6 @@ export class RequestGraph extends ContentGraph<
   }
 
   getInvalidations(requestNodeId: NodeId): Array<RequestInvalidation> {
-    //console.log('running getInvlidations for node', requestNodeId);
     if (!this.hasNode(requestNodeId)) {
       return [];
     }
@@ -638,24 +630,11 @@ export class RequestGraph extends ContentGraph<
         let node = nullthrows(this.getNode(nodeId));
         switch (node.type) {
           case 'file': {
-            // console.log(
-            //   '!!!invalidated',
-            //   node.id,
-            //   'requestnode',
-            //   requestNodeId,
-            // );
-            if (node.id === '.babelrc.cjs') {
-              console.log(
-                'babelrc invalidated. babelrc:',
-                nodeId,
-                'invalidated by requestNodeId:',
-                requestNodeId,
-              );
-            }
             return {type: 'file', filePath: toProjectPathUnsafe(node.id)};
           }
-          case 'env':
+          case 'env': {
             return {type: 'env', key: node.id.slice(node.id.indexOf(':') + 1)};
+          }
           case 'option':
             return {
               type: 'option',
@@ -788,13 +767,6 @@ export class RequestGraph extends ContentGraph<
           nodeId,
           requestGraphEdgeTypes.invalidated_by_update,
         );
-        if (filePath === '.babelrc.cjs') {
-          console.log(
-            '🎀 in respondTOFSEvnts. invByUpdate parent node:',
-            {nodes},
-            nodes.map(n => this.getNode(n)),
-          );
-        }
 
         for (let connectedNode of nodes) {
           didInvalidate = true;
@@ -933,16 +905,6 @@ export default class RequestTracker {
   }
 
   hasValidResult(nodeId: NodeId): boolean {
-    if (nodeId === 626) {
-      console.log(
-        'this.graph.hasNode(nodeId)?',
-        this.graph.hasNode(nodeId),
-        '!this.graph.invalidNodeIds.has(nodeId)?',
-        !this.graph.invalidNodeIds.has(nodeId),
-        '!this.graph.incompleteNodeIds.has(nodeId)?',
-        !this.graph.incompleteNodeIds.has(nodeId),
-      );
-    }
     return (
       this.graph.hasNode(nodeId) &&
       !this.graph.invalidNodeIds.has(nodeId) &&
@@ -1037,14 +999,6 @@ export default class RequestTracker {
       ? this.graph.getNodeIdByContentKey(request.id)
       : undefined;
     let hasValidResult = requestId != null && this.hasValidResult(requestId);
-
-    if (requestId === 626) {
-      console.log(requestId, {hasValidResult});
-    }
-
-    if (request.id.includes('babelrc')) {
-      console.log(request.id, {hasValidResult});
-    }
 
     if (!opts?.force && hasValidResult) {
       // $FlowFixMe[incompatible-type]

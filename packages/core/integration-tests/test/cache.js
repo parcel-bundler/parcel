@@ -231,14 +231,14 @@ describe('cache', function () {
     // TODO: not sure how to invalidate the ESM cache in node...
     // let mjs = (config) => `export default ${JSON.stringify(config)}`;
     let configs = [
-      // {name: '.babelrc', formatter: json, nesting: true},
-      // {name: '.babelrc.json', formatter: json, nesting: true},
-      // {name: '.babelrc.js', formatter: cjs, nesting: true},
+      {name: '.babelrc', formatter: json, nesting: true},
+      {name: '.babelrc.json', formatter: json, nesting: true},
+      {name: '.babelrc.js', formatter: cjs, nesting: true},
       {name: '.babelrc.cjs', formatter: cjs, nesting: true},
-      // // {name: '.babelrc.mjs', formatter: mjs, nesting: true},
-      // {name: 'babel.config.json', formatter: json, nesting: false},
-      // {name: 'babel.config.js', formatter: cjs, nesting: false},
-      // {name: 'babel.config.cjs', formatter: cjs, nesting: false},
+      // {name: '.babelrc.mjs', formatter: mjs, nesting: true},
+      {name: 'babel.config.json', formatter: json, nesting: false},
+      {name: 'babel.config.js', formatter: cjs, nesting: false},
+      {name: 'babel.config.cjs', formatter: cjs, nesting: false},
       // {name: 'babel.config.mjs', formatter: mjs, nesting: false},
     ];
 
@@ -325,8 +325,6 @@ describe('cache', function () {
                 b.bundleGraph.getBundles()[0].filePath,
                 'utf8',
               );
-              //console.log('🎀 ~ contents:', contents);
-
               assert(
                 contents.includes('class Test'),
                 'class should not be transpiled',
@@ -347,8 +345,6 @@ describe('cache', function () {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          //console.log('🎀 ~ contents:', contents);
-          // fails here because contents still include class Test
           assert(
             !contents.includes('class Test'),
             'class should be transpiled',

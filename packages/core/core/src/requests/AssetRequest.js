@@ -125,9 +125,6 @@ async function run({input, api, farm, invalidateReason, options}) {
         }),
     ),
   };
-  if (request.invalidDevDeps.filter(d => d.specifier.includes('babelrc'))) {
-    debugger;
-  }
 
   let {
     assets,
@@ -174,13 +171,6 @@ async function run({input, api, farm, invalidateReason, options}) {
   }
 
   for (let devDepRequest of devDepRequests) {
-    if (devDepRequest.specifier.includes('babelrc.cjs')) {
-      console.log(
-        '!!!!!!!!!iterating devdepreqs of',
-        input.filePath,
-        devDepRequest.specifier + ':' + devDepRequest.hash,
-      );
-    }
     await runDevDepRequest(api, devDepRequest);
   }
 

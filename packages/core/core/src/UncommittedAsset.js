@@ -357,8 +357,6 @@ export default class UncommittedAsset {
       key,
     };
 
-    console.log('invalidateOnEnvChange in uncommittedasset');
-
     this.invalidations.set(getInvalidationId(invalidation), invalidation);
   }
 

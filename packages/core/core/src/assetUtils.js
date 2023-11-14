@@ -227,15 +227,8 @@ export async function getInvalidationHash(
   for (let invalidation of sortedInvalidations) {
     switch (invalidation.type) {
       case 'file': {
-        // if (!invalidation.filePath.includes('/Users/gkong/parcel/')) {
-        //   console.log('file', invalidation.filePath);
-        // }
-
         // Only recompute the hash of this file if we haven't seen it already during this build.
         let fileHash = hashCache.get(invalidation.filePath);
-        if (invalidation.filePath.includes('babelrc.cjs')) {
-          debugger;
-        }
         if (fileHash == null) {
           fileHash = hashFile(
             options.inputFS,

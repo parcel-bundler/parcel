@@ -75,10 +75,6 @@ export async function createDevDependency(
     options,
   );
 
-  if (hash === '93be19cfb0ff8fd7') {
-    debugger;
-  }
-
   let devDepRequest: DevDepRequest = {
     specifier,
     resolveFrom,
@@ -185,9 +181,6 @@ export async function runDevDepRequest<TResult>(
   api: RunAPI<TResult>,
   devDepRequest: DevDepRequest,
 ) {
-  if (devDepRequest.hash === '93be19cfb0ff8fd7') {
-    console.log('running devDepReq', devDepRequest.hash);
-  }
   await api.runRequest<null, DevDepRequestResult | void>({
     id: 'dev_dep_request:' + devDepRequest.specifier + ':' + devDepRequest.hash,
     type: 'dev_dep_request',
@@ -229,9 +222,6 @@ export function getWorkerDevDepRequests(
     // If we've already sent a matching transformer + hash to the main thread during this build,
     // there's no need to repeat ourselves.
     let {specifier, resolveFrom, hash} = devDepRequest;
-    if (specifier.includes('babelrc.cjs')) {
-      debugger;
-    }
     if (hash === pluginCache.get(specifier)) {
       return {specifier, resolveFrom, hash};
     } else {
