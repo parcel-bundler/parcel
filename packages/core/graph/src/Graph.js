@@ -411,11 +411,13 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
     let stopped = false;
     let skipped = false;
-    // $FlowFixMe[prop-missing]: skipChildren() doesn't apply here since this is a post-order traversal
     let actions: TraversalActions = {
       stop() {
         stopped = true;
       },
+      skipChildren() {
+      	throw new Error("Calling skipChildren inside a post-order traversal is not allowed");
+      }
     };
 
     let queue = [{nodeId: traversalStartNode, context: null}];
