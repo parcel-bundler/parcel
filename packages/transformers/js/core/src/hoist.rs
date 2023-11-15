@@ -1140,11 +1140,21 @@ mod tests {
     );
 
     let mut parser = Parser::new_from(lexer);
-    match parser.parse_module() {
-      Ok(module) => swc_core::common::GLOBALS.set(&Globals::new(), || {
+    match parser.parse_program() {
+      Ok(program) => swc_core::common::GLOBALS.set(&Globals::new(), || {
         swc_core::ecma::transforms::base::helpers::HELPERS.set(
           &swc_core::ecma::transforms::base::helpers::Helpers::new(false),
           || {
+            let is_module = program.is_module();
+            let module = match program {
+              Program::Module(module) => module,
+              Program::Script(script) => Module {
+                span: script.span,
+                shebang: None,
+                body: script.body.into_iter().map(ModuleItem::Stmt).collect(),
+              },
+            };
+
             let unresolved_mark = Mark::fresh(Mark::root());
             let global_mark = Mark::fresh(Mark::root());
             let module = module.fold_with(&mut resolver(unresolved_mark, global_mark, false));
@@ -1155,6 +1165,7 @@ mod tests {
               Mark::fresh(Mark::root()),
               global_mark,
               true,
+              is_module,
             );
             module.visit_with(&mut collect);
 
@@ -1444,6 +1455,7 @@ mod tests {
     // We want to avoid marking these modules as CJS
     let (collect, _code, _hoist) = parse(
       r#"
+      import 'something';
       var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function () {}
     "#,
     );

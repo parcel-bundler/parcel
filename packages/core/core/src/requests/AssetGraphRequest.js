@@ -369,6 +369,13 @@ export class AssetGraphBuilder {
         if (!previouslyDeferred && childNode.deferred) {
           this.assetGraph.markParentsWithHasDeferred(childNodeId);
         } else if (previouslyDeferred && !childNode.deferred) {
+          // Mark Asset and Dependency as dirty for symbol propagation as it was
+          // previously deferred and it's used symbols may have changed
+          this.changedAssetsPropagation.add(node.id);
+          node.usedSymbolsDownDirty = true;
+          this.changedAssetsPropagation.add(childNode.id);
+          childNode.usedSymbolsDownDirty = true;
+
           this.assetGraph.unmarkParentsWithHasDeferred(childNodeId);
         }
 

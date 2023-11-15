@@ -1,0 +1,21 @@
+{
+  "name": "@parcel/link",
+  "description": "A CLI for linking a dev version of Parcel into a project",
+  "version": "2.10.3",
+  "private": true,
+  "bin": {
+    "parcel-link": "bin.js"
+  },
+  "scripts": {
+    "test": "cd ../../.. && yarn test:integration --grep @parcel/link"
+  },
+  "main": "src/index.js",
+  "dependencies": {
+    "@babel/core": "^7.22.11",
+    "@parcel/babel-register": "2.10.3",
+    "@parcel/fs": "2.10.3",
+    "@parcel/utils": "2.10.3",
+    "commander": "^7.0.0",
+    "nullthrows": "^1.1.1"
+  }
+}
