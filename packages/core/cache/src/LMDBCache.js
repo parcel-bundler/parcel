@@ -3,6 +3,7 @@ import type {FilePath} from '@parcel/types';
 import type {Cache} from './types';
 import type {Readable, Writable} from 'stream';
 
+import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import stream from 'stream';
 import path from 'path';
 import {promisify} from 'util';
@@ -111,27 +112,47 @@ export class LMDBCache implements Cache {
     return Buffer.concat(await Promise.all(buffers));
   }
 
-  async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
+  async setLargeBlob(
+    key: string,
+    contents: Buffer | string,
+    options?: {|signal?: AbortSignal|},
+  ): Promise<void> {
     const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
 
+    const writePromises: Promise<void>[] = [];
     if (chunks === 1) {
       // If there's one chunk, don't slice the content
-      await this.fs.writeFile(this.#getFilePath(key, 0), contents);
-      return;
+      writePromises.push(
+        this.fs.writeFile(this.#getFilePath(key, 0), contents, {
+          signal: options?.signal,
+        }),
+      );
+    } else {
+      for (let i = 0; i < chunks; i += 1) {
+        writePromises.push(
+          this.fs.writeFile(
+            this.#getFilePath(key, i),
+            typeof contents === 'string'
+              ? contents.slice(
+                  i * WRITE_LIMIT_CHUNK,
+                  (i + 1) * WRITE_LIMIT_CHUNK,
+                )
+              : contents.subarray(
+                  i * WRITE_LIMIT_CHUNK,
+                  (i + 1) * WRITE_LIMIT_CHUNK,
+                ),
+            {signal: options?.signal},
+          ),
+        );
+      }
     }
 
-    const writePromises: Promise<void>[] = [];
-    for (let i = 0; i < chunks; i += 1) {
+    // If there's already a file following this chunk, it's old and should be removed
+    if (await this.fs.exists(this.#getFilePath(key, chunks))) {
       writePromises.push(
-        this.fs.writeFile(
-          this.#getFilePath(key, i),
-          typeof contents === 'string'
-            ? contents.slice(i * WRITE_LIMIT_CHUNK, (i + 1) * WRITE_LIMIT_CHUNK)
-            : contents.subarray(
-                i * WRITE_LIMIT_CHUNK,
-                (i + 1) * WRITE_LIMIT_CHUNK,
-              ),
-        ),
+        this.fs.unlink(this.#getFilePath(key, chunks), {
+          signal: options?.signal,
+        }),
       );
     }
 

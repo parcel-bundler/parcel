@@ -105,25 +105,34 @@ export class FSCache implements Cache {
   async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
     const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
 
+    const writePromises: Promise<void>[] = [];
     if (chunks === 1) {
       // If there's one chunk, don't slice the content
-      await this.fs.writeFile(this.#getFilePath(key, 0), contents);
-      return;
+      writePromises.push(
+        this.fs.writeFile(this.#getFilePath(key, 0), contents),
+      );
+    } else {
+      for (let i = 0; i < chunks; i += 1) {
+        writePromises.push(
+          this.fs.writeFile(
+            this.#getFilePath(key, i),
+            typeof contents === 'string'
+              ? contents.slice(
+                  i * WRITE_LIMIT_CHUNK,
+                  (i + 1) * WRITE_LIMIT_CHUNK,
+                )
+              : contents.subarray(
+                  i * WRITE_LIMIT_CHUNK,
+                  (i + 1) * WRITE_LIMIT_CHUNK,
+                ),
+          ),
+        );
+      }
     }
 
-    const writePromises: Promise<void>[] = [];
-    for (let i = 0; i < chunks; i += 1) {
-      writePromises.push(
-        this.fs.writeFile(
-          this.#getFilePath(key, i),
-          typeof contents === 'string'
-            ? contents.slice(i * WRITE_LIMIT_CHUNK, (i + 1) * WRITE_LIMIT_CHUNK)
-            : contents.subarray(
-                i * WRITE_LIMIT_CHUNK,
-                (i + 1) * WRITE_LIMIT_CHUNK,
-              ),
-        ),
-      );
+    // If there's already a file following this chunk, it's old and should be removed
+    if (await this.fs.exists(this.#getFilePath(key, chunks))) {
+      writePromises.push(this.fs.unlink(this.#getFilePath(key, chunks)));
     }
 
     await Promise.all(writePromises);

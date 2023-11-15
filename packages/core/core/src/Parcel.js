@@ -175,10 +175,7 @@ export default class Parcel {
   async _end(): Promise<void> {
     this.#initialized = false;
 
-    await Promise.all([
-      this.#disposable.dispose(),
-      await this.#requestTracker.writeToCache(),
-    ]);
+    await this.#disposable.dispose();
   }
 
   async _startNextBuild(): Promise<?BuildEvent> {
@@ -361,6 +358,7 @@ export default class Parcel {
         createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),
         {force: assetRequests.length > 0},
       );
+      await this.#requestTracker.writeToCache();
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {

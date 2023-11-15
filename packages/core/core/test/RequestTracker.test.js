@@ -7,6 +7,7 @@ import WorkerFarm from '@parcel/workers';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {INITIAL_BUILD} from '../src/constants';
 import {makeDeferredWithPromise} from '@parcel/utils';
+import type {MemoryFS} from '../../fs/src/MemoryFS';
 
 const options = DEFAULT_OPTIONS;
 const farm = new WorkerFarm({workerPath: require.resolve('../src/worker.js')});
@@ -182,6 +183,34 @@ describe('RequestTracker', () => {
         .map(req => req.id)
         .includes('abc'),
     );
+  });
+
+  it('should stop writing to cache when the abort controller aborts', async () => {
+    let tracker = new RequestTracker({farm, options});
+    let p = tracker
+      .runRequest({
+        id: 'abc',
+        type: 'mock_request',
+        run: async () => {
+          await Promise.resolve('hello');
+        },
+        input: null,
+      })
+      .then(null, () => {
+        /* do nothing */
+      });
+    await p;
+    // $FlowFixMe
+    tracker.setSignal({aborted: false});
+
+    // $FlowFixMe[incompatible-cast]
+    const fsEvents = (options.outputFS: MemoryFS).events;
+    const initialCount = fsEvents.length;
+
+    await tracker.writeToCache();
+
+    // Caching writes to the FS, if there's more events than before - we haven't aborted correctly
+    assert.deepEqual([], fsEvents.slice(initialCount));
   });
 
   it('should not requeue requests if the previous request is still running', async () => {
