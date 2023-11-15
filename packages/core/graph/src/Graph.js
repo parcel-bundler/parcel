@@ -410,8 +410,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     this._visited = null;
 
     let stopped = false;
-    let skipped = false;
-    // $FlowFixMe[prop-missing]: skipChildren() doesn't apply here since this is a post-order traversal
+    // $FlowFixMe[prop-missing]: skipChildren() doesn't apply here since we visit children before their parents
     let actions: TraversalActions = {
       stop() {
         stopped = true;
@@ -425,20 +424,15 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       if (!visited.has(nodeId)) {
         visited.add(nodeId);
 
-        if (!skipped) {
-          this.adjacencyList.forEachNodeIdConnectedFromReverse(
-            nodeId,
-            child => {
-              if (!visited.has(child)) {
-                queue.push({
-                  nodeId: child,
-                  context,
-                });
-              }
-              return false;
-            },
-          );
-        }
+        this.adjacencyList.forEachNodeIdConnectedFromReverse(nodeId, child => {
+          if (!visited.has(child)) {
+            queue.push({
+              nodeId: child,
+              context,
+            });
+          }
+          return false;
+        });
       } else {
         queue.pop();
         let newContext = visit(nodeId, context, actions);
