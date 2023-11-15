@@ -227,7 +227,7 @@ function findClient(document: DocumentUri): Client | undefined {
   return bestClient;
 }
 
-function parseMetafile(filepath: string) {
+function loadMetafile(filepath: string) {
   const file = fs.readFileSync(filepath, 'utf-8');
   return JSON.parse(file);
 }
@@ -295,7 +295,7 @@ fs.writeFileSync(path.join(BASEDIR, LSP_SENTINEL_FILENAME), '');
 for (let filename of fs.readdirSync(BASEDIR)) {
   if (!filename.endsWith('.json')) continue;
   let filepath = path.join(BASEDIR, filename);
-  const contents = parseMetafile(filepath);
+  const contents = loadMetafile(filepath);
   const {projectRoot} = contents;
 
   if (WORKSPACE_ROOT === projectRoot) {
@@ -312,8 +312,7 @@ watcher.subscribe(BASEDIR, async (err, events) => {
 
   for (let event of events) {
     if (event.type === 'create' && event.path.endsWith('.json')) {
-      const file = fs.readFileSync(event.path, 'utf-8');
-      const contents = parseMetafile(file);
+      const contents = loadMetafile(event.path);
       const {projectRoot} = contents;
 
       if (WORKSPACE_ROOT === projectRoot) {
