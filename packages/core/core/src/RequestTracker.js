@@ -104,7 +104,7 @@ type OptionNode = {|
   hash: string,
 |};
 
-type Request<TInput, TResult> = {|
+export type Request<TInput, TResult> = {|
   id: string,
   +type: RequestType,
   input: TInput,
@@ -167,7 +167,7 @@ export type RunAPI<TResult> = {|
   ) => Promise<TResult>,
 |};
 
-type RunRequestOpts = {|
+export type RunRequestOpts = {|
   force: boolean,
 |};
 

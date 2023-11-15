@@ -2,7 +2,12 @@
 
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import RequestTracker, {type RunAPI} from '../src/RequestTracker';
+import RequestTracker, {
+  type RunAPI,
+  type Request,
+  type RequestType,
+  type RunRequestOpts,
+} from '../src/RequestTracker';
 import WorkerFarm from '@parcel/workers';
 import {DEFAULT_OPTIONS} from './test-utils';
 import {INITIAL_BUILD} from '../src/constants';
@@ -11,20 +16,68 @@ import {makeDeferredWithPromise} from '@parcel/utils';
 const options = DEFAULT_OPTIONS;
 const farm = new WorkerFarm({workerPath: require.resolve('../src/worker.js')});
 
+type MockRequest<TInput, TResult> = {
+  ...Request<TInput, TResult>,
+  type: RequestType | 'mock_request',
+  ...
+};
+
+const extractRequestType = <TInput, TResult>(
+  request: MockRequest<TInput, TResult>,
+): Request<TInput, TResult> => {
+  let newRequest: ?Request<TInput, TResult>;
+  if (request.type === 'mock_request') {
+    newRequest = {
+      id: request.id,
+      // For Flow: Mock all mock_request types to parcel_build_request
+      type: 'parcel_build_request',
+      input: request.input,
+      run: request.run,
+    };
+  } else {
+    newRequest = {
+      id: request.id,
+      type: request.type,
+      input: request.input,
+      run: request.run,
+    };
+  }
+  return newRequest;
+};
+
+// eslint-disable-next-line require-await
+async function mockRunRequest<TInput, TResult>(
+  tracker: RequestTracker,
+  request: MockRequest<TInput, TResult>,
+  opts?: RunRequestOpts,
+): Promise<TResult> {
+  const newRequest = extractRequestType(request);
+  return tracker.runRequest(newRequest, opts);
+}
+
+// eslint-disable-next-line require-await
+async function apiMockRunRequest<TInput, TResult>(
+  api: RunAPI<TResult>,
+  request: MockRequest<TInput, TResult>,
+  opts?: RunRequestOpts,
+): Promise<TResult> {
+  const newRequest = extractRequestType(request);
+
+  return api.runRequest(newRequest, opts);
+}
+
 describe('RequestTracker', () => {
   it('should not run requests that have not been invalidated', async () => {
     let tracker = new RequestTracker({farm, options});
-    await tracker.runRequest({
+    await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: () => {},
       input: null,
     });
     let called = false;
-    await tracker.runRequest({
+    await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: () => {
         called = true;
@@ -36,9 +89,8 @@ describe('RequestTracker', () => {
 
   it('should rerun requests that have been invalidated', async () => {
     let tracker = new RequestTracker({farm, options});
-    await tracker.runRequest({
+    await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: () => {},
       input: null,
@@ -48,9 +100,8 @@ describe('RequestTracker', () => {
       INITIAL_BUILD,
     );
     let called = false;
-    await tracker.runRequest({
+    await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: () => {
         called = true;
@@ -62,14 +113,12 @@ describe('RequestTracker', () => {
 
   it('should invalidate requests with invalidated subrequests', async () => {
     let tracker = new RequestTracker({farm, options});
-    await tracker.runRequest({
+    await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: async ({api}) => {
-        await api.runRequest({
+        await apiMockRunRequest(api, {
           id: 'xyz',
-          // $FlowFixMe[incompatible-call]
           type: 'mock_request',
           run: () => {},
           input: null,
@@ -91,20 +140,17 @@ describe('RequestTracker', () => {
 
   it('should invalidate requests that failed', async () => {
     let tracker = new RequestTracker({farm, options});
-    await tracker
-      .runRequest({
-        id: 'abc',
-        // $FlowFixMe[incompatible-call]
-        type: 'mock_request',
-        run: async () => {
-          await Promise.resolve();
-          throw new Error('woops');
-        },
-        input: null,
-      })
-      .then(null, () => {
-        /* do nothing */
-      });
+    await mockRunRequest(tracker, {
+      id: 'abc',
+      type: 'mock_request',
+      run: async () => {
+        await Promise.resolve();
+        throw new Error('woops');
+      },
+      input: null,
+    }).then(null, () => {
+      /* do nothing */
+    });
     assert(
       tracker
         .getInvalidRequests()
@@ -115,14 +161,12 @@ describe('RequestTracker', () => {
 
   it('should remove subrequests that are no longer called within a request', async () => {
     let tracker = new RequestTracker({farm, options});
-    await tracker.runRequest({
+    await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: async ({api}) => {
-        await api.runRequest({
+        await apiMockRunRequest(api, {
           id: 'xyz',
-          // $FlowFixMe[incompatible-call]
           type: 'mock_request',
           run: () => {},
           input: null,
@@ -132,14 +176,12 @@ describe('RequestTracker', () => {
     });
     let nodeId = nullthrows(tracker.graph.getNodeIdByContentKey('abc'));
     tracker.graph.invalidateNode(nodeId, INITIAL_BUILD);
-    await tracker.runRequest({
+    await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: async ({api}) => {
-        await api.runRequest({
+        await apiMockRunRequest(api, {
           id: '123',
-          // $FlowFixMe[incompatible-call]
           type: 'mock_request',
           run: () => {},
           input: null,
@@ -152,9 +194,8 @@ describe('RequestTracker', () => {
 
   it('should return a cached result if it was stored', async () => {
     let tracker = new RequestTracker({farm, options});
-    await tracker.runRequest({
+    await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         let result = await Promise.resolve('hello');
@@ -162,9 +203,8 @@ describe('RequestTracker', () => {
       },
       input: null,
     });
-    let result = await tracker.runRequest({
+    let result = await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: async () => {},
       input: null,
@@ -174,19 +214,16 @@ describe('RequestTracker', () => {
 
   it('should reject all in progress requests when the abort controller aborts', async () => {
     let tracker = new RequestTracker({farm, options});
-    let p = tracker
-      .runRequest({
-        id: 'abc',
-        // $FlowFixMe[incompatible-call]
-        type: 'mock_request',
-        run: async () => {
-          await Promise.resolve('hello');
-        },
-        input: null,
-      })
-      .then(null, () => {
-        /* do nothing */
-      });
+    let p = mockRunRequest(tracker, {
+      id: 'abc',
+      type: 'mock_request',
+      run: async () => {
+        await Promise.resolve('hello');
+      },
+      input: null,
+    }).then(null, () => {
+      /* do nothing */
+    });
     // $FlowFixMe
     tracker.setSignal({aborted: true});
     await p;
@@ -200,13 +237,11 @@ describe('RequestTracker', () => {
 
   it('should not requeue requests if the previous request is still running', async () => {
     let tracker = new RequestTracker({farm, options});
-
     let lockA = makeDeferredWithPromise();
     let lockB = makeDeferredWithPromise();
 
-    let requestA = tracker.runRequest({
+    let requestA = mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: async ({api}: {api: RunAPI<string>, ...}) => {
         await lockA.promise;
@@ -217,9 +252,8 @@ describe('RequestTracker', () => {
     });
 
     let calledB = false;
-    let requestB = tracker.runRequest({
+    let requestB = mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: async ({api}: {api: RunAPI<string>, ...}) => {
         calledB = true;
@@ -238,9 +272,8 @@ describe('RequestTracker', () => {
     assert.strictEqual(resultB, 'a');
     assert.strictEqual(calledB, false);
 
-    let cachedResult = await tracker.runRequest({
+    let cachedResult = await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: () => {},
       input: null,
@@ -250,28 +283,23 @@ describe('RequestTracker', () => {
 
   it('should requeue requests if the previous request is still running but failed', async () => {
     let tracker = new RequestTracker({farm, options});
-
     let lockA = makeDeferredWithPromise();
     let lockB = makeDeferredWithPromise();
 
-    let requestA = tracker
-      .runRequest({
-        id: 'abc',
-        // $FlowFixMe[incompatible-call]
-        type: 'mock_request',
-        run: async () => {
-          await lockA.promise;
-          throw new Error('whoops');
-        },
-        input: null,
-      })
-      .catch(() => {
-        // ignore
-      });
-
-    let requestB = tracker.runRequest({
+    let requestA = mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
+      type: 'mock_request',
+      run: async () => {
+        await lockA.promise;
+        throw new Error('whoops');
+      },
+      input: null,
+    }).catch(() => {
+      // ignore
+    });
+
+    let requestB = mockRunRequest(tracker, {
+      id: 'abc',
       type: 'mock_request',
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         await lockB.promise;
@@ -286,9 +314,8 @@ describe('RequestTracker', () => {
     await requestB;
 
     let called = false;
-    let cachedResult = await tracker.runRequest({
+    let cachedResult = await mockRunRequest(tracker, {
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
       type: 'mock_request',
       run: () => {
         called = true;
