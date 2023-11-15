@@ -17,6 +17,7 @@ import {ResolverBase, init} from '@parcel/node-resolver-core';
 import bundlerDefault from '@parcel/bundler-default';
 import compressorRaw from '@parcel/compressor-raw';
 import namerDefault from '@parcel/namer-default';
+import optimizerCSS from '@parcel/optimizer-css';
 import optimizerTerser from '@parcel/optimizer-terser';
 import packagerCss from '@parcel/packager-css';
 import packagerHtml from '@parcel/packager-html';
@@ -44,6 +45,7 @@ export const BUILTINS = {
   '@parcel/bundler-default': bundlerDefault,
   '@parcel/compressor-raw': compressorRaw,
   '@parcel/namer-default': namerDefault,
+  '@parcel/optimizer-css': optimizerCSS,
   '@parcel/optimizer-terser': optimizerTerser,
   '@parcel/packager-css': packagerCss,
   '@parcel/packager-html': packagerHtml,

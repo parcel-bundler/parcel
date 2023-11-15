@@ -22,12 +22,13 @@
     "@parcel/runtime-react-refresh"
   ],
   "optimizers": {
-    "*.js": ["@parcel/optimizer-terser"]
+    "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
+    "*.css": ["@parcel/optimizer-css"]
   },
   "packagers": {
-    "*.html": "@parcel/packager-html",
+    "*.{html,xhtml}": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
-    "*.js": "@parcel/packager-js",
+    "*.{js,mjs,cjs}": "@parcel/packager-js",
     "*": "@parcel/packager-raw"
   },
   "compressors": {
