@@ -190,7 +190,7 @@ describe('RequestTracker', () => {
     let p = tracker
       .runRequest({
         id: 'abc',
-        type: 'mock_request',
+        type: 'path_request',
         run: async () => {
           await Promise.resolve('hello');
         },
@@ -201,7 +201,7 @@ describe('RequestTracker', () => {
       });
     await p;
     // $FlowFixMe
-    tracker.setSignal({aborted: false});
+    tracker.setSignal({aborted: true});
 
     // $FlowFixMe[incompatible-cast]
     const fsEvents = (options.outputFS: MemoryFS).events;
