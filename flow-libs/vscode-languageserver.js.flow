@@ -185,4 +185,14 @@ declare module 'vscode-languageserver' {
    * the defining symbol
    */
   declare export type DefinitionLink = LocationLink;
+
+  /**
+   * The definition of a symbol represented as one or many [locations](#Location).
+   * For most programming languages there is only one location at which a symbol is
+   * defined.
+   *
+   * Servers should prefer returning `DefinitionLink` over `Definition` if supported
+   * by the client.
+   */
+  declare export type Definition = Location | Location[];
 }

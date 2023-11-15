@@ -170,7 +170,13 @@ declare module 'vscode-jsonrpc/node' {
   }
   // prettier-ignore
   declare export class RequestType2<P1, P2, R, E> extends AbstractMessageSignature {
-    constructor(method: string): this;
+    constructor(method: string, _parameterStructures?: ParameterStructures): this;
+    get parameterStructures(): ParameterStructures;
+  }
+  // prettier-ignore
+  declare export class RequestType3<P1, P2, P3, R, E> extends AbstractMessageSignature {
+    constructor(method: string, _parameterStructures?: ParameterStructures): this;
+    get parameterStructures(): ParameterStructures;
   }
 
   // prettier-ignore
@@ -233,6 +239,9 @@ declare module 'vscode-jsonrpc/node' {
   declare interface RequestHandler2<P1, P2, R, E> {
     (p1: P1, p2: P2, token: CancellationToken): HandlerResult<R, E>;
   }
+  declare interface RequestHandler3<P1, P2, P3, R, E> {
+    (p1: P1, p2: P2, p3: P3, token: CancellationToken): HandlerResult<R, E>;
+  }
   declare interface GenericRequestHandler<R, E> {
     (...params: any[]): HandlerResult<R, E>;
   }
@@ -290,6 +299,7 @@ declare module 'vscode-jsonrpc/node' {
     onRequest<P, R, E>(type: RequestType<P, R, E>, handler: RequestHandler<P, R, E>): Disposable;
     onRequest<P1, R, E>(type: RequestType1<P1, R, E>, handler: RequestHandler1<P1, R, E>): Disposable;
     onRequest<P1, P2, R, E>(type: RequestType2<P1, P2, R, E>, handler: RequestHandler2<P1, P2, R, E>): Disposable;
+    onRequest<P1, P2, P3, R, E>(type: RequestType3<P1, P2, P3, R, E>, handler: RequestHandler3<P1, P2, P3, R, E>): Disposable;
     onRequest<R, E>(method: string, handler: GenericRequestHandler<R, E>): Disposable;
     onRequest(handler: StarRequestHandler): Disposable;
     sendNotification(type: NotificationType0): void;
