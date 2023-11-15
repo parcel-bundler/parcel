@@ -1,6 +1,6 @@
 // @flow
-import type {DiagnosticLogEvent, FilePath} from '@parcel/types';
-import type {ODiagnosticSeverity} from 'vscode-languageserver';
+import type {DiagnosticLogEvent, FilePath, SourceLocation} from '@parcel/types';
+import type {ODiagnosticSeverity, Position, Range} from 'vscode-languageserver';
 
 import path from 'path';
 
@@ -32,26 +32,26 @@ export function normalizeFilePath(
     : path.join(projectRoot, filePath);
 }
 
-// export function isInRange(loc: SourceLocation, position: Position): boolean {
-//   let pos = {line: position.line + 1, column: position.character + 1};
+export function isInRange(loc: SourceLocation, position: Position): boolean {
+  let pos = {line: position.line + 1, column: position.character + 1};
 
-//   if (pos.line < loc.start.line || loc.end.line < pos.line) {
-//     return false;
-//   }
-//   if (pos.line === loc.start.line) {
-//     return loc.start.column <= pos.column;
-//   }
-//   if (pos.line === loc.end.line - 1) {
-//     return pos.column < loc.start.column;
-//   }
-//   return true;
-// }
+  if (pos.line < loc.start.line || loc.end.line < pos.line) {
+    return false;
+  }
+  if (pos.line === loc.start.line) {
+    return loc.start.column <= pos.column;
+  }
+  if (pos.line === loc.end.line - 1) {
+    return pos.column < loc.start.column;
+  }
+  return true;
+}
 
 // /** This range is used when refering to a whole file and not a specific range. */
-// export const RANGE_DUMMY: Range = {
-//   start: {line: 0, character: 0},
-//   end: {line: 0, character: 0},
-// };
+export const RANGE_DUMMY: Range = {
+  start: {line: 0, character: 0},
+  end: {line: 0, character: 0},
+};
 
 // Copied over from vscode-languageserver to prevent the runtime dependency
 export const DiagnosticTag = {

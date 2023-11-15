@@ -4,12 +4,15 @@ const {
   NotificationType0,
   NotificationType2,
   RequestType,
+  RequestType3,
 } = require('vscode-jsonrpc/node');
 
 // -------------------------------- Typescript-specific definitions
 
 /**
  * @typedef {import("vscode-languageserver")} lsp
+ * @typedef {import("vscode-languageserver").LocationLink} LocationLink
+ * @typedef {import("vscode-languageserver").Definition} Definition
  *
  * @typedef PublishDiagnostic
  * @prop {import('vscode-languageserver').DocumentUri} uri
@@ -19,12 +22,13 @@ const {
 // -------------------------------- Flow-specific defintions
 
 /*::
+import type {Diagnostic, DocumentUri, Position, Definition, LocationLink} from 'vscode-languageserver';
+
 export type PublishDiagnostic = {|
   uri: DocumentUri,
   diagnostics: Array<Diagnostic>,
 |};
 
-import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
 */
 
 // --------------------------------
@@ -42,6 +46,13 @@ export const RequestImporters /*: RequestType<DocumentUri, Array<DocumentUri> | 
 // Request: LSP Server -> Reporter
 export const RequestDocumentDiagnostics /*: RequestType<DocumentUri, Array<Diagnostic> | void, void> */ =
   new RequestType('parcel/request-document-diagnostics');
+
+/**
+ * @type {RequestType3<DocumentUri, string, Position, Definition | LocationLink[] | null, void>}
+ */
+// Request: LSP Server -> Reporter
+export const RequestDefinition /*: RequestType3<DocumentUri, string, Position, Definition | LocationLink[] | null, void> */ =
+  new RequestType3('parcel/request-definition');
 
 /**
  * @type {NotificationType<Array<PublishDiagnostic>>}

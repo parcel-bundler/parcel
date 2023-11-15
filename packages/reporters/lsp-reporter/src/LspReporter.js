@@ -3,9 +3,15 @@
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {Program, Query} from 'ps-node';
-import type {Diagnostic, DocumentUri} from 'vscode-languageserver';
+import type {
+  Diagnostic,
+  DocumentUri,
+  Location,
+  LocationLink,
+} from 'vscode-languageserver';
 import type {MessageConnection} from 'vscode-jsonrpc/node';
 import type {ParcelSeverity} from './utils';
+import type {FSWatcher} from 'fs';
 
 import {
   DefaultMap,
@@ -28,6 +34,7 @@ import {
   NotificationWorkspaceDiagnostics,
   RequestDocumentDiagnostics,
   RequestImporters,
+  RequestDefinition,
 } from '@parcel/lsp-protocol';
 
 import {
@@ -35,8 +42,9 @@ import {
   DiagnosticTag,
   normalizeFilePath,
   parcelSeverityToLspSeverity,
+  isInRange,
+  RANGE_DUMMY,
 } from './utils';
-import type {FSWatcher} from 'fs';
 
 const lookupPid: Query => Program[] = promisify(ps.lookup);
 
@@ -134,6 +142,13 @@ async function doWatchStart(options) {
       if (!graph) return null;
 
       return getImporters(graph, params);
+    });
+
+    connection.onRequest(RequestDefinition, async (uri, word, location) => {
+      let graph = await bundleGraph;
+      if (!graph) return null;
+
+      return getDefinition(graph, uri, word, location);
     });
 
     sendDiagnostics();
@@ -392,46 +407,6 @@ function getDiagnosticsUnusedExports(
   return diagnostics;
 }
 
-// function getDefinition(
-//   bundleGraph: BundleGraph<PackagedBundle>,
-//   document: string,
-//   position: Position,
-// ): Array<LocationLink> | void {
-//   let filename = url.fileURLToPath(document);
-
-//   let asset = bundleGraph.traverse((node, context, actions) => {
-//     if (node.type === 'asset' && node.value.filePath === filename) {
-//       actions.stop();
-//       return node.value;
-//     }
-//   });
-
-//   if (asset) {
-//     for (let dep of bundleGraph.getDependencies(asset)) {
-//       let loc = dep.loc;
-//       if (loc && isInRange(loc, position)) {
-//         let resolution = bundleGraph.getResolvedAsset(dep);
-//         if (resolution) {
-//           return [
-//             {
-//               originSelectionRange: {
-//                 start: {
-//                   line: loc.start.line - 1,
-//                   character: loc.start.column - 1,
-//                 },
-//                 end: {line: loc.end.line - 1, character: loc.end.column},
-//               },
-//               targetUri: `file://${resolution.filePath}`,
-//               targetRange: RANGE_DUMMY,
-//               targetSelectionRange: RANGE_DUMMY,
-//             },
-//           ];
-//         }
-//       }
-//     }
-//   }
-// }
-
 function getImporters(
   bundleGraph: BundleGraph<PackagedBundle>,
   document: string,
@@ -451,5 +426,79 @@ function getImporters(
       .filter(dep => dep.sourcePath != null)
       .map(dep => `file://${nullthrows(dep.sourcePath)}`);
   }
+  return null;
+}
+
+function getDefinition(
+  bundleGraph: BundleGraph<PackagedBundle>,
+  document: string,
+  word: string,
+  position: {|line: number, character: number|},
+): Location | LocationLink[] | null {
+  let assetFileName = url.fileURLToPath(document);
+  let ext = path.extname(assetFileName).slice(1);
+  let asset = nullthrows(
+    bundleGraph.traverseBundles((bundle, context, actions) => {
+      let asset = bundle.traverseAssets((asset, context, actions) => {
+        if (asset.filePath === assetFileName && asset.type === ext) {
+          actions.stop();
+          return asset;
+        }
+      });
+      if (asset) {
+        actions.stop();
+        return asset;
+      }
+    }),
+  );
+
+  for (let dep of asset.getDependencies()) {
+    // if (dep.symbols.hasLocalSymbol(word)) {
+    //   for (let [sym, symbol] of dep.symbols) {
+    //     if (symbol.local === word) {
+    //       let resolution = bundleGraph.getSymbolResolution(
+    //         nullthrows(bundleGraph.getResolvedAsset(dep)),
+    //         sym,
+    //       );
+    //       if (resolution) {
+    //         let v = {
+    //           line: nullthrows(resolution.loc).start.line - 1,
+    //           character: nullthrows(resolution.loc).start.column - 1,
+    //         };
+    //         return {
+    //           uri: url.pathToFileURL(resolution.asset.filePath).toString(),
+    //           range: {
+    //             start: v,
+    //             end: v,
+    //           },
+    //         };
+    //       }
+    //     }
+    //   }
+    // }
+
+    let loc = dep.loc;
+    if (loc && isInRange(loc, position)) {
+      let resolution = bundleGraph.getResolvedAsset(dep);
+      if (resolution) {
+        let actualDepRange = {
+          start: {
+            line: loc.start.line - 1,
+            character: loc.start.column - 1,
+          },
+          end: {line: loc.end.line - 1, character: loc.end.column - 1},
+        };
+        return [
+          {
+            originSelectionRange: actualDepRange,
+            targetUri: url.pathToFileURL(resolution.filePath).toString(),
+            targetRange: RANGE_DUMMY,
+            targetSelectionRange: RANGE_DUMMY,
+          },
+        ];
+      }
+    }
+  }
+
   return null;
 }

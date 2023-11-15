@@ -9,13 +9,18 @@ import {
   DocumentDiagnosticReport,
   DocumentDiagnosticReportKind,
   DocumentDiagnosticRequest,
+  DefinitionRequest,
   DocumentUri,
   InitializeParams,
   InitializeResult,
   ProposedFeatures,
   TextDocumentSyncKind,
   WorkDoneProgressServerReporter,
+  Location,
+  Range,
+  TextDocuments,
 } from 'vscode-languageserver/node';
+import {TextDocument} from 'vscode-languageserver-textdocument';
 
 import {
   createServerPipeTransport,
@@ -34,6 +39,7 @@ import {
   NotificationWorkspaceDiagnostics,
   RequestDocumentDiagnostics,
   RequestImporters,
+  RequestDefinition,
 } from '@parcel/lsp-protocol';
 
 type Metafile = {
@@ -45,8 +51,9 @@ type Metafile = {
 const connection = createConnection(ProposedFeatures.all);
 const WORKSPACE_ROOT = process.cwd();
 const LSP_SENTINEL_FILENAME = 'lsp-server';
+
 // Create a simple text document manager.
-// const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
@@ -76,7 +83,7 @@ connection.onInitialize((params: InitializeParams) => {
   const result: InitializeResult = {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Incremental,
-      // Tell the client that this server supports code completion.
+      definitionProvider: true,
       diagnosticProvider: {
         workspaceDiagnostics: false,
         interFileDependencies: true,
@@ -158,6 +165,48 @@ connection.onRequest(
   },
 );
 
+connection.onRequest(DefinitionRequest.type, async (params, token) => {
+  let uri = params.textDocument.uri;
+  let position = params.position;
+  let client = findClient(uri);
+
+  let document = documents.get(uri);
+
+  if (client && document) {
+    let line = document.getText({
+      start: {line: position.line, character: 0},
+      end: {line: position.line, character: Number.MAX_VALUE},
+    });
+    let range = {
+      start: {line: position.line, character: position.character},
+      end: {line: position.line, character: position.character},
+    };
+    let regex = document.languageId === 'css' ? /[\w-]/ : /[\w]/;
+
+    while (
+      range.start.character > 0 &&
+      regex.test(line.charAt(range.start.character - 1))
+    )
+      --range.start.character;
+    while (
+      range.end.character < line.length - 1 &&
+      regex.test(line.charAt(range.end.character))
+    )
+      ++range.end.character;
+
+    let word = document.getText(range);
+
+    let result = await client.connection.sendRequest(
+      RequestDefinition,
+      uri,
+      word,
+      position,
+    );
+    return result;
+  }
+});
+
+documents.listen(connection);
 connection.listen();
 
 class ProgressReporter {
