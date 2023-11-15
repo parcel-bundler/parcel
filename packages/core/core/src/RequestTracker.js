@@ -50,7 +50,7 @@ import {
   ERROR,
 } from './constants';
 
-import cliProgress from 'cli-progress';
+import {report} from './ReporterRunner';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -1081,7 +1081,7 @@ export default class RequestTracker {
     return {api, subRequestContentKeys};
   }
 
-  async writeToCache(showWriteProgress?: boolean = false) {
+  async writeToCache() {
     let cacheKey = getCacheKey(this.options);
     let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
     let snapshotKey = hashString(`${cacheKey}:snapshot`);
@@ -1089,13 +1089,13 @@ export default class RequestTracker {
     if (this.options.shouldDisableCache) {
       return;
     }
-    let bar;
     let total = 2;
-    if (showWriteProgress) {
-      bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
-      bar.start(total, 0);
-    }
-
+    report({
+      type: 'cache',
+      phase: 'start',
+      total,
+      size: this.graph.nodes.length,
+    });
     let promises = [];
     for (let node of this.graph.nodes) {
       if (!node || node.type !== 'request') {
@@ -1110,10 +1110,13 @@ export default class RequestTracker {
             serialize(node.value.result),
           ),
         );
-        if (bar) {
-          bar.setTotal(++total);
-          bar.increment();
-        }
+        total++;
+        report({
+          type: 'cache',
+          phase: 'write',
+          total,
+          size: this.graph.nodes.length,
+        });
         delete node.value.result;
       }
     }
@@ -1121,9 +1124,12 @@ export default class RequestTracker {
     promises.push(
       this.options.cache.setLargeBlob(requestGraphKey, serialize(this.graph)),
     );
-    if (bar) {
-      bar.increment();
-    }
+    report({
+      type: 'cache',
+      phase: 'write',
+      total,
+      size: this.graph.nodes.length,
+    });
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
@@ -1134,10 +1140,13 @@ export default class RequestTracker {
         opts,
       ),
     );
-    if (bar) {
-      bar.increment();
-      bar.stop();
-    }
+    report({
+      type: 'cache',
+      phase: 'write',
+      total,
+      size: this.graph.nodes.length,
+    });
+    report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
 
     await Promise.all(promises);
   }

@@ -35,6 +35,7 @@
     "@parcel/types": "2.10.2",
     "@parcel/utils": "2.10.2",
     "chalk": "^4.1.0",
+    "cli-progress": "^3.12.0",
     "term-size": "^2.2.1"
   },
   "devDependencies": {
