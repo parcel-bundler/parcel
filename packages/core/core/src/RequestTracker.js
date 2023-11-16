@@ -122,7 +122,7 @@ type RequestNode = {|
   hash?: string,
 |};
 
-export type RequestType =
+type RequestType =
   | 'parcel_build_request'
   | 'bundle_graph_request'
   | 'asset_graph_request'

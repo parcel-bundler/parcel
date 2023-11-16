@@ -16,16 +16,14 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: () => {},
       input: null,
     });
     let called = false;
     await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: () => {
         called = true;
       },
@@ -38,8 +36,7 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: () => {},
       input: null,
     });
@@ -50,8 +47,7 @@ describe('RequestTracker', () => {
     let called = false;
     await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: () => {
         called = true;
       },
@@ -64,13 +60,11 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: async ({api}) => {
         await api.runRequest({
           id: 'xyz',
-          // $FlowFixMe[incompatible-call]
-          type: 'mock_request',
+          type: 'path_request',
           run: () => {},
           input: null,
         });
@@ -94,8 +88,7 @@ describe('RequestTracker', () => {
     await tracker
       .runRequest({
         id: 'abc',
-        // $FlowFixMe[incompatible-call]
-        type: 'mock_request',
+        type: 'path_request',
         run: async () => {
           await Promise.resolve();
           throw new Error('woops');
@@ -117,13 +110,11 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: async ({api}) => {
         await api.runRequest({
           id: 'xyz',
-          // $FlowFixMe[incompatible-call]
-          type: 'mock_request',
+          type: 'path_request',
           run: () => {},
           input: null,
         });
@@ -134,13 +125,11 @@ describe('RequestTracker', () => {
     tracker.graph.invalidateNode(nodeId, INITIAL_BUILD);
     await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: async ({api}) => {
         await api.runRequest({
           id: '123',
-          // $FlowFixMe[incompatible-call]
-          type: 'mock_request',
+          type: 'path_request',
           run: () => {},
           input: null,
         });
@@ -154,8 +143,7 @@ describe('RequestTracker', () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         let result = await Promise.resolve('hello');
         api.storeResult(result);
@@ -164,8 +152,7 @@ describe('RequestTracker', () => {
     });
     let result = await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: async () => {},
       input: null,
     });
@@ -177,8 +164,7 @@ describe('RequestTracker', () => {
     let p = tracker
       .runRequest({
         id: 'abc',
-        // $FlowFixMe[incompatible-call]
-        type: 'mock_request',
+        type: 'path_request',
         run: async () => {
           await Promise.resolve('hello');
         },
@@ -206,8 +192,7 @@ describe('RequestTracker', () => {
 
     let requestA = tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: async ({api}: {api: RunAPI<string>, ...}) => {
         await lockA.promise;
         api.storeResult('a');
@@ -219,8 +204,7 @@ describe('RequestTracker', () => {
     let calledB = false;
     let requestB = tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: async ({api}: {api: RunAPI<string>, ...}) => {
         calledB = true;
         await lockB.promise;
@@ -240,8 +224,7 @@ describe('RequestTracker', () => {
 
     let cachedResult = await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: () => {},
       input: null,
     });
@@ -257,8 +240,7 @@ describe('RequestTracker', () => {
     let requestA = tracker
       .runRequest({
         id: 'abc',
-        // $FlowFixMe[incompatible-call]
-        type: 'mock_request',
+        type: 'path_request',
         run: async () => {
           await lockA.promise;
           throw new Error('whoops');
@@ -271,8 +253,7 @@ describe('RequestTracker', () => {
 
     let requestB = tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: async ({api}: {api: RunAPI<string | void>, ...}) => {
         await lockB.promise;
         api.storeResult('b');
@@ -288,8 +269,7 @@ describe('RequestTracker', () => {
     let called = false;
     let cachedResult = await tracker.runRequest({
       id: 'abc',
-      // $FlowFixMe[incompatible-call]
-      type: 'mock_request',
+      type: 'path_request',
       run: () => {
         called = true;
       },
