@@ -165,6 +165,8 @@ export default class Parcel {
     let result = await this._build({startTime});
     await this._end();
 
+    await this.#requestTracker.writeToCache();
+
     if (result.type === 'buildFailure') {
       throw new BuildError(result.diagnostics);
     }
@@ -176,6 +178,28 @@ export default class Parcel {
     this.#initialized = false;
 
     await this.#disposable.dispose();
+  }
+
+  async writeRequestTrackerToCache(): Promise<void> {
+    if (this.#watchQueue.getNumWaiting() === 0) {
+      // If there's no queued events, we are safe to write the request graph to disk
+      const abortController = new AbortController();
+
+      const unsubscribe = this.#watchQueue.subscribeToAdd(() => {
+        abortController.abort();
+      });
+
+      try {
+        await this.#requestTracker.writeToCache(abortController.signal);
+      } catch (err) {
+        if (!abortController.signal.aborted) {
+          // We expect abort errors if we interrupt the cache write
+          throw err;
+        }
+      }
+
+      unsubscribe();
+    }
   }
 
   async _startNextBuild(): Promise<?BuildEvent> {
@@ -197,6 +221,9 @@ export default class Parcel {
       if (!(err instanceof BuildAbortError)) {
         throw err;
       }
+    } finally {
+      // If the build passes or fails, we want to cache the request graph
+      await this.writeRequestTrackerToCache();
     }
   }
 
@@ -358,7 +385,6 @@ export default class Parcel {
         createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),
         {force: assetRequests.length > 0},
       );
-      await this.#requestTracker.writeToCache();
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -372,8 +398,6 @@ export default class Parcel {
       };
 
       await this.#reporterRunner.report(event);
-      await this.#requestTracker.writeToCache();
-
       return event;
     } finally {
       if (this.isProfiling) {

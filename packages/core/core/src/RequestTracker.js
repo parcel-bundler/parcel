@@ -1101,7 +1101,7 @@ export default class RequestTracker {
     return {api, subRequestContentKeys};
   }
 
-  async writeToCache() {
+  async writeToCache(signal?: AbortSignal) {
     const cacheKey = getCacheKey(this.options);
     const requestGraphKey = `requestGraph:${hashString(cacheKey)}`;
     const snapshotKey = `snapshot:${hashString(cacheKey)}`;
@@ -1115,17 +1115,19 @@ export default class RequestTracker {
       // $FlowFixMe serialise input is any type
       contents: any,
     ): Promise<void> => {
-      if (!this.signal?.aborted) {
-        await this.options.cache.setLargeBlob(
-          key,
-          serialize(contents),
-          this.signal
-            ? {
-                signal: this.signal,
-              }
-            : undefined,
-        );
+      if (signal?.aborted) {
+        throw new Error('Serialization was aborted');
       }
+
+      await this.options.cache.setLargeBlob(
+        key,
+        serialize(contents),
+        signal
+          ? {
+              signal: signal,
+            }
+          : undefined,
+      );
     };
 
     const serialisedGraph = this.graph.serialize();
@@ -1151,14 +1153,11 @@ export default class RequestTracker {
       }
     }
 
-    for (let i = 0; i * NODES_PER_BLOB < serialisedGraph.nodes.length; i += 1) {
+    for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
       promises.push(
         serialiseAndSet(
           `requestGraph:nodes:${i}:${hashString(cacheKey)}`,
-          serialisedGraph.nodes.slice(
-            i * NODES_PER_BLOB,
-            (i + 1) * NODES_PER_BLOB,
-          ),
+          cacheableNodes.slice(i * NODES_PER_BLOB, (i + 1) * NODES_PER_BLOB),
         ),
       );
     }
