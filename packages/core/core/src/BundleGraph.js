@@ -295,32 +295,44 @@ export default class BundleGraph {
                   symbols.set(from, existing);
                 } else {
                   invariant(isReexportAll);
-                  let local = `${node.value.id}$rewrite$${asset}$${from}`;
-                  symbols.set(from, {
-                    isWeak: true,
-                    local,
-                    loc: reexportAllLoc,
-                  });
-                  // It might already exist with multiple export-alls causing ambiguous resolution
-                  if (
-                    node.value.sourceAssetId != null &&
-                    assetGraph.hasContentKey(node.value.sourceAssetId)
-                  ) {
-                    let sourceAssetId = nullthrows(
-                      assetGraphNodeIdToBundleGraphNodeId.get(
-                        assetGraph.getNodeIdByContentKey(
-                          nullthrows(node.value.sourceAssetId),
+                  if (as === from) {
+                    // Keep the export-all for non-renamed reexports, this still correctly models
+                    // ambiguous resolution with multiple export-alls.
+                    symbols.set('*', {
+                      isWeak: true,
+                      local: '*',
+                      loc: reexportAllLoc,
+                    });
+                  } else {
+                    let local = `${node.value.id}$rewrite$${asset}$${from}`;
+                    symbols.set(from, {
+                      isWeak: true,
+                      local,
+                      loc: reexportAllLoc,
+                    });
+                    if (node.value.sourceAssetId != null) {
+                      let sourceAssetId = nullthrows(
+                        assetGraphNodeIdToBundleGraphNodeId.get(
+                          assetGraph.getNodeIdByContentKey(
+                            node.value.sourceAssetId,
+                          ),
                         ),
-                      ),
-                    );
-                    let sourceAsset = nullthrows(graph.getNode(sourceAssetId));
-                    invariant(sourceAsset.type === 'asset');
-                    let sourceAssetSymbols = sourceAsset.value.symbols;
-                    if (sourceAssetSymbols && !sourceAssetSymbols.has(as)) {
-                      sourceAssetSymbols.set(as, {
-                        loc: reexportAllLoc,
-                        local: local,
-                      });
+                      );
+                      let sourceAsset = nullthrows(
+                        graph.getNode(sourceAssetId),
+                      );
+                      invariant(sourceAsset.type === 'asset');
+                      let sourceAssetSymbols = sourceAsset.value.symbols;
+                      if (sourceAssetSymbols) {
+                        // The `as == from` case above should handle multiple export-alls causing
+                        // ambiguous resolution. So the current symbol is unambiguous and shouldn't
+                        // already exist on the importer.
+                        invariant(!sourceAssetSymbols.has(as));
+                        sourceAssetSymbols.set(as, {
+                          loc: reexportAllLoc,
+                          local: local,
+                        });
+                      }
                     }
                   }
                 }
@@ -342,7 +354,7 @@ export default class BundleGraph {
                   },
                   usedSymbolsUp,
                   // This is only a temporary helper needed during symbol propagation and is never
-                  // read afterwards.
+                  // read afterwards (and also not exposed through the public API).
                   usedSymbolsDown: new Set(),
                 }),
               };
