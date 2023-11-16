@@ -149,7 +149,7 @@ async function loadLargeBlobRequestRequest(cache, node, cacheInfo) {
   invariant(node.type === 'request');
 
   let cachedFile = await cache.getLargeBlob(nullthrows(node.resultCacheKey));
-  cacheInfo.get(node.type)?.push(cachedFile.byteLength); //Add size
+  cacheInfo.get(node.requestType)?.push(cachedFile.byteLength); //Add size
 
   let TTD = Date.now();
   let result = v8.deserialize(cachedFile);

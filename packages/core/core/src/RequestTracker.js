@@ -115,7 +115,7 @@ type InvalidateReason = number;
 type RequestNode = {|
   id: ContentKey,
   +type: 'request',
-  +requestType?: RequestType,
+  +requestType: RequestType,
   invalidateReason: InvalidateReason,
   result?: mixed,
   resultCacheKey?: ?string,
