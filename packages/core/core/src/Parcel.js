@@ -372,6 +372,7 @@ export default class Parcel {
       };
 
       await this.#reporterRunner.report(event);
+      await this.#requestTracker.writeToCache();
 
       return event;
     } finally {
