@@ -52,7 +52,7 @@ type RunOpts<TResult> = {|
 
 export type ParcelConfigRequest = {|
   id: string,
-  type: string,
+  type: 'parcel_config_request',
   input: null,
   run: (RunOpts<ConfigAndCachePath>) => Async<ConfigAndCachePath>,
 |};
