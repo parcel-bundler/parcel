@@ -1138,18 +1138,15 @@ export default class RequestTracker {
     const cacheableNodes = new Array(serialisedGraph.nodes.length);
     for (let i = 0; i < serialisedGraph.nodes.length; i += 1) {
       const node = serialisedGraph.nodes[i];
-      if (!node || node.type !== 'request') {
-        cacheableNodes[i] = node;
-        continue;
-      }
 
-      let resultCacheKey = node.resultCacheKey;
-      if (resultCacheKey != null && node.result != null) {
+      let resultCacheKey = node?.resultCacheKey;
+      if (resultCacheKey != null && node?.result != null) {
         promises.push(serialiseAndSet(resultCacheKey, node.result));
-        cacheableNodes[i] = {
-          ...node,
-          result: undefined,
-        };
+        // eslint-disable-next-line no-unused-vars
+        const {result: _, ...newNode} = node;
+        cacheableNodes[i] = newNode;
+      } else {
+        cacheableNodes[i] = node;
       }
     }
 
@@ -1207,7 +1204,8 @@ async function loadRequestGraph(options): Async<RequestGraph> {
   }
 
   const cacheKey = getCacheKey(options);
-  const requestGraphKey = `requestGraph:${hashString(cacheKey)}`;
+  const hashedCacheKey = hashString(cacheKey);
+  const requestGraphKey = `requestGraph:${hashedCacheKey}`;
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
     const getAndDeserialize = async (key: string) => {
       return deserialize(await options.cache.getLargeBlob(key));
@@ -1217,11 +1215,11 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     let nodePromises = [];
     while (
       await options.cache.hasLargeBlob(
-        `requestGraph:nodes:${i}:${hashString(cacheKey)}`,
+        `requestGraph:nodes:${i}:${hashedCacheKey}`,
       )
     ) {
       nodePromises.push(
-        getAndDeserialize(`requestGraph:nodes:${i}:${hashString(cacheKey)}`),
+        getAndDeserialize(`requestGraph:nodes:${i}:${hashedCacheKey}`),
       );
       i += 1;
     }
@@ -1233,7 +1231,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     });
 
     let opts = getWatcherOptions(options);
-    let snapshotKey = `snapshot:${hashString(cacheKey)}`;
+    let snapshotKey = `snapshot:${hashedCacheKey}`;
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
       options.projectRoot,

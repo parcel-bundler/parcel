@@ -163,9 +163,9 @@ export default class Parcel {
     }
 
     let result = await this._build({startTime});
-    await this._end();
 
     await this.#requestTracker.writeToCache();
+    await this._end();
 
     if (result.type === 'buildFailure') {
       throw new BuildError(result.diagnostics);
