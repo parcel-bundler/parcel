@@ -10,7 +10,8 @@ import repl from 'repl';
 import os from 'os';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
-import {serialize} from 'v8';
+// import {serialize} from 'v8';
+import {serialize} from '../../../core/core/src/serializer';
 
 // $FlowFixMe
 import {table} from 'table';
@@ -633,6 +634,64 @@ export async function run(input: string[]) {
     _printStatsTable('Cache Info', table);
   }
 
+  function inspectRequestTracker(_) {
+    let bufferGraph = serialize(requestTracker.graph);
+    let graphSize = bufferGraph.byteLength;
+    console.log('Serialized RequestTracker', graphSize);
+
+    let nodes = requestTracker.graph.nodes;
+    console.time('Nodes');
+    let serializedNodes = serialize(nodes);
+    console.timeEnd('Nodes');
+
+    let bytesOfNodes = serializedNodes.byteLength;
+    console.time('compact');
+    // requestTracker.graph.adjacencyList.compact();
+    console.timeEnd('compact');
+    console.log(
+      'Adjacency List stats',
+      requestTracker.graph.adjacencyList.stats,
+    );
+    console.time('Adj');
+    let serializedAdjList = serialize(
+      requestTracker.graph.adjacencyList.serialize(),
+    );
+    //log adjacency list stats
+
+    console.timeEnd('Adj');
+
+    let bytesOfAdj = serializedAdjList.byteLength;
+
+    let contentKeys = requestTracker.graph._contentKeyToNodeId;
+    let nodeIds = requestTracker.graph._nodeIdToContentKey;
+    console.time('Keys');
+    let serializedContentKeys = serialize(contentKeys);
+    console.timeEnd('Keys');
+    let bytesOfContentKeys = serializedContentKeys.byteLength;
+
+    let serializedIds = serialize(nodeIds);
+    bytesOfContentKeys += serializedIds.byteLength;
+    console.log('Serialized Graph Nodes', bytesOfNodes);
+    console.log('Serialized AdjacencyList', bytesOfAdj);
+    console.log('Serialized ContentKeys', bytesOfContentKeys);
+
+    let percentNodes = (bytesOfNodes / graphSize) * 100;
+    let percentAdj = (bytesOfAdj / graphSize) * 100;
+    let percentIds = (bytesOfContentKeys / graphSize) * 100;
+    console.log('Percentage nodes of graph', percentNodes);
+    console.log('Percentage adj of graph', percentAdj);
+    console.log('Percentage contentKey mappings of graph', percentIds);
+  }
+  function writeOutRequestTracker(_) {
+    requestTracker.graph.adjacencyList.compact();
+    const adjacencyListFile = path.join(process.cwd(), 'adjacencyList.json');
+    const adjListWriteStream = fs.createWriteStream(adjacencyListFile);
+
+    for (let edge of requestTracker.graph.adjacencyList.getAllEdges()) {
+      adjListWriteStream.write(JSON.stringify(edge) + '\n');
+    }
+    console.log('Done');
+  }
   function timeSerialize(graph) {
     let date = Date.now();
     serialize(graph);
@@ -940,6 +999,20 @@ export async function run(input: string[]) {
         {
           help: 'Cache Information',
           action: inspectCache,
+        },
+      ],
+      [
+        'inspectRequestTracker',
+        {
+          help: 'RequestTracker Size Information',
+          action: inspectRequestTracker,
+        },
+      ],
+      [
+        'writeOutRequestTracker',
+        {
+          help: 'RequestTracker adj Information',
+          action: writeOutRequestTracker,
         },
       ],
       [
