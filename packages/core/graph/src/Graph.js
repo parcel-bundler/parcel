@@ -392,7 +392,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   postOrderDfsFast(
     visit: GraphTraversalCallback<NodeId, TraversalActions>,
     startNodeId: ?NodeId,
-  ): ?TraversalActions {
+  ): void {
     let traversalStartNode = nullthrows(
       startNodeId ?? this.rootNodeId,
       'A start node is required to traverse',
@@ -410,10 +410,14 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     this._visited = null;
 
     let stopped = false;
-    // $FlowFixMe[prop-missing]: skipChildren() doesn't apply here since we visit children before their parents
     let actions: TraversalActions = {
       stop() {
         stopped = true;
+      },
+      skipChildren() {
+        throw new Error(
+          'Calling skipChildren inside a post-order traversal is not allowed',
+        );
       },
     };
 
@@ -432,17 +436,17 @@ export default class Graph<TNode, TEdgeType: number = 1> {
         });
       } else {
         queue.pop();
-        let newNodeId = visit(nodeId, null, actions);
+        visit(nodeId, null, actions);
 
         if (stopped) {
           this._visited = visited;
-          return newNodeId;
+          return;
         }
       }
     }
 
     this._visited = visited;
-    return null;
+    return;
   }
 
   dfs<TContext>({
