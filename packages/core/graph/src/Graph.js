@@ -389,10 +389,10 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   }
 
   // A post-order implementation of dfsFast
-  postOrderDfsFast<TContext>(
-    visit: GraphTraversalCallback<NodeId, TContext>,
+  postOrderDfsFast(
+    visit: GraphTraversalCallback<NodeId, TraversalActions>,
     startNodeId: ?NodeId,
-  ): ?TContext {
+  ): ?TraversalActions {
     let traversalStartNode = nullthrows(
       startNodeId ?? this.rootNodeId,
       'A start node is required to traverse',
@@ -417,32 +417,26 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       },
     };
 
-    let queue = [{nodeId: traversalStartNode, context: null}];
+    let queue = [traversalStartNode];
     while (queue.length !== 0) {
-      let {nodeId, context} = queue[queue.length - 1];
+      let nodeId = queue[queue.length - 1];
 
       if (!visited.has(nodeId)) {
         visited.add(nodeId);
 
         this.adjacencyList.forEachNodeIdConnectedFromReverse(nodeId, child => {
           if (!visited.has(child)) {
-            queue.push({
-              nodeId: child,
-              context,
-            });
+            queue.push(child);
           }
           return false;
         });
       } else {
         queue.pop();
-        let newContext = visit(nodeId, context, actions);
-        if (typeof newContext !== 'undefined') {
-          context = newContext;
-        }
+        let newNodeId = visit(nodeId, null, actions);
 
         if (stopped) {
           this._visited = visited;
-          return context;
+          return newNodeId;
         }
       }
     }
