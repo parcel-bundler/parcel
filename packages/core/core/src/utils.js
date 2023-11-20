@@ -17,18 +17,8 @@ import type {PackageManager} from '@parcel/package-manager';
 
 import invariant from 'assert';
 import baseX from 'base-x';
-import {Graph} from '@parcel/graph';
 import {hashObject} from '@parcel/utils';
-
-import {registerSerializableClass} from './serializer';
-import AssetGraph from './AssetGraph';
-import BundleGraph from './BundleGraph';
-import ParcelConfig from './ParcelConfig';
-import {RequestGraph} from './RequestTracker';
-import Config from './public/Config';
 import {fromProjectPath, toProjectPath} from './projectPath';
-// flowlint-next-line untyped-import:off
-import packageJson from '../package.json';
 
 const base62 = baseX(
   '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
