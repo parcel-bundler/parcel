@@ -1,5 +1,3 @@
-#![allow(clippy::new_without_default)]
-
 use napi::bindgen_prelude::Uint32Array;
 use napi_derive::napi;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
