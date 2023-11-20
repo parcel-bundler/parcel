@@ -5,7 +5,7 @@ import {serializeRaw, deserializeRaw} from './serializerCore';
 export {serializeRaw, deserializeRaw} from './serializerCore';
 
 const nameToCtor: Map<string, Class<any>> = new Map();
-const ctorToName: Map<Class<any>, string> = new Map();
+export const ctorToName: Map<Class<any>, string> = new Map();
 
 export function registerSerializableClass(name: string, ctor: Class<any>) {
   if (ctorToName.has(ctor)) {
