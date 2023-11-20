@@ -3,7 +3,6 @@ import assert from 'assert';
 import nullthrows from 'nullthrows';
 import {encode, decode} from '@parcel/rust';
 import {SharedBuffer} from './shared-buffer';
-import {BitSet} from './BitSet';
 import {fromNodeId, toNodeId} from './types';
 import {ALL_EDGE_TYPES, type NullEdgeType, type AllEdgeTypes} from './Graph';
 import type {NodeId} from './types';
