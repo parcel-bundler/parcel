@@ -25,10 +25,25 @@ pub fn encode(input: Uint32Array) -> Uint32Array {
     encoded.push(value);
   }
 
-  return Uint32Array::new(encoded);
+  Uint32Array::new(encoded)
 }
 
 #[napi]
-pub fn decode(input: Uint32Array) -> Uint32Array {
-  input
+pub fn decode(encoded: Uint32Array, mut decoded: Uint32Array) {
+  let length = encoded.len();
+  let mut i: usize = 0;
+  let mut index: usize = 0;
+
+  while i < length {
+    let value: u32 = encoded[i];
+
+    if value == 0 {
+      index += encoded[i + 1] as usize;
+      i += 2;
+    } else {
+      decoded[index] = value;
+      index += 1;
+      i += 1;
+    }
+  }
 }

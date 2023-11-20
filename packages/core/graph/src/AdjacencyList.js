@@ -1,7 +1,7 @@
 // @flow
 import assert from 'assert';
 import nullthrows from 'nullthrows';
-import {encode} from '@parcel/rust';
+import {encode, decode} from '@parcel/rust';
 import {SharedBuffer} from './shared-buffer';
 import {BitSet} from './BitSet';
 import {fromNodeId, toNodeId} from './types';
@@ -665,7 +665,10 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     } else {
       this.data = this.decode(capacityOrData);
     }
-    assert(this.getLength() === this.data.length, 'Data appears corrupt.');
+    assert(
+      this.getLength() === this.data.length,
+      `Data appears corrupt. ${this.getLength()} !== ${this.data.length}`,
+    );
   }
 
   set(data: Uint32Array): void {
@@ -843,15 +846,18 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
 
     let decoded = new Uint32Array(size);
 
-    for (let i = 0; i < encoded.length; i++) {
-      let value = encoded[i];
+    // for (let i = 0; i < encoded.length; i++) {
+    //   let value = encoded[i];
 
-      if (value === 0) {
-        i += encoded[i + 1];
-      } else {
-        decoded[i] = value;
-      }
-    }
+    //   if (value === 0) {
+    //     i += encoded[i + 1];
+    //   } else {
+    //     decoded[i] = value;
+    //   }
+    // }
+
+    decode(encoded, decoded);
+
     console.timeEnd('decode');
 
     return decoded;
@@ -882,8 +888,8 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     //   encoded[length++] = value;
     // }
     // encoded = encoded.subarray(0, length);
-    let encoded = encode(this.data);
 
+    let encoded = encode(this.data);
     console.timeEnd('encode');
     console.log(
       'compression rate:',
