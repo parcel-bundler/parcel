@@ -1983,14 +1983,9 @@ export default class BundleGraph {
       let asset = DbAsset.get(this.db, assetId);
       {
         hash.writeString(
-          [
-            this.getAssetPublicId(assetId),
-            asset.outputHash,
-            asset.filePath,
-            asset.query,
-            asset.assetType,
-            asset.uniqueKey,
-          ].join(':'),
+          [this.getAssetPublicId(assetId), asset.id, asset.outputHash].join(
+            ':',
+          ),
         );
       }
     });
@@ -2036,9 +2031,8 @@ export default class BundleGraph {
 
   getHash(bundle: Bundle): string {
     let hash = new Hash();
-    let target = DbTarget.get(this.db, bundle.target);
     hash.writeString(
-      bundle.id + target.publicUrl + this.getContentHash(bundle),
+      bundle.id + String(bundle.target) + this.getContentHash(bundle),
     );
 
     if (bundle.isPlaceholder) {

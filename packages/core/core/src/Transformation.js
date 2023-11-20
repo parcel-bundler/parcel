@@ -21,7 +21,6 @@ import type {
   AssetRequestResult,
 } from './types';
 import type {LoadedPlugin} from './ParcelConfig';
-import type {AssetAddr} from '@parcel/rust';
 
 import path from 'path';
 import {Readable} from 'stream';
@@ -35,7 +34,7 @@ import ThrowableDiagnostic, {
   type Diagnostic,
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
-import {hashString, Asset as DbAsset, AssetFlags} from '@parcel/rust';
+import {AssetFlags, hashString} from '@parcel/rust';
 
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
@@ -48,18 +47,12 @@ import {
   removeAssetFromCache,
 } from './public/Asset';
 import UncommittedAsset from './UncommittedAsset';
-import {
-  createAsset,
-  getInvalidationId,
-  getInvalidationHash,
-} from './assetUtils';
+import {createAsset, getInvalidationId} from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
-import {PARCEL_VERSION, FILE_CREATE} from './constants';
 import {optionsProxy} from './utils';
 import {createConfig} from './InternalConfig';
 import {
-  getConfigHash,
   loadPluginConfig,
   getConfigRequests,
   type ConfigRequest,
@@ -199,6 +192,7 @@ export default class Transformation {
     let assets, error;
     try {
       let results = await this.runPipelines(pipeline, asset);
+      await Promise.all(results.map(asset => asset.commit()));
       assets = results.map(a => ({
         asset: a.value.addr,
         dependencies: [...a.dependencies.values()],
@@ -242,7 +236,6 @@ export default class Transformation {
     let {
       content,
       size,
-      hash,
       isSource: summarizedIsSource,
     } = await summarizeRequest(this.options.inputFS, {
       filePath: fromProjectPath(this.options.projectRoot, filePath),
@@ -256,7 +249,7 @@ export default class Transformation {
     // to the filename as the base for the id to ensure it is unique.
     let idBase = fromProjectPathRelative(filePath);
     if (code != null) {
-      idBase += hash;
+      idBase += hashString(code);
     }
     return new UncommittedAsset({
       idBase,
@@ -274,7 +267,6 @@ export default class Transformation {
         },
         sideEffects,
       }),
-      hash,
       options: this.options,
       content,
       invalidations: this.invalidations,
@@ -287,16 +279,16 @@ export default class Transformation {
     initialAsset: UncommittedAsset,
   ): Promise<Array<UncommittedAsset>> {
     let initialType = initialAsset.value.assetType;
-    let initialPipelineHash = await this.getPipelineHash(pipeline);
-    let initialAssetCacheKey = this.getCacheKey(
-      [initialAsset],
-      await getInvalidationHash(this.request.invalidations, this.options), // TODO: should be per-pipeline
-      initialPipelineHash,
-    );
-    let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
+    // let initialPipelineHash = await this.getPipelineHash(pipeline);
+    // let initialAssetCacheKey = this.getCacheKey(
+    //   [initialAsset],
+    //   await getInvalidationHash(this.request.invalidations, this.options), // TODO: should be per-pipeline
+    //   initialPipelineHash,
+    // );
+    // let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
 
     let assets: Array<UncommittedAsset> =
-      initialCacheEntry || (await this.runPipeline(pipeline, initialAsset));
+      /*initialCacheEntry || */ await this.runPipeline(pipeline, initialAsset);
 
     // Add dev dep requests for each transformer
     for (let transformer of pipeline.transformers) {
@@ -313,29 +305,29 @@ export default class Transformation {
       await this.addDevDependency(devDep);
     }
 
-    if (!initialCacheEntry) {
-      let pipelineHash = await this.getPipelineHash(pipeline);
-      let invalidationCacheKey = await getInvalidationHash(
-        assets.flatMap(asset => asset.getInvalidations()),
-        this.options,
-      );
-      let resultCacheKey = this.getCacheKey(
-        [initialAsset],
-        invalidationCacheKey,
-        pipelineHash,
-      );
-      await this.writeToCache(
-        resultCacheKey,
-        assets,
-        invalidationCacheKey,
-        pipelineHash,
-      );
-    } else {
-      // See above TODO, this should be per-pipeline
-      for (let i of this.request.invalidations) {
-        this.invalidations.set(getInvalidationId(i), i);
-      }
-    }
+    // if (!initialCacheEntry) {
+    // let pipelineHash = await this.getPipelineHash(pipeline);
+    // let invalidationCacheKey = await getInvalidationHash(
+    //   assets.flatMap(asset => asset.getInvalidations()),
+    //   this.options,
+    // );
+    // let resultCacheKey = this.getCacheKey(
+    //   [initialAsset],
+    //   invalidationCacheKey,
+    //   pipelineHash,
+    // );
+    // await this.writeToCache(
+    //   resultCacheKey,
+    //   assets,
+    //   invalidationCacheKey,
+    //   pipelineHash,
+    // );
+    // } else {
+    //   // See above TODO, this should be per-pipeline
+    //   for (let i of this.request.invalidations) {
+    //     this.invalidations.set(getInvalidationId(i), i);
+    //   }
+    // }
 
     let finalAssets: Array<UncommittedAsset> = [];
     for (let asset of assets) {
@@ -362,58 +354,59 @@ export default class Transformation {
       return finalAssets;
     }
 
-    let pipelineHash = await this.getPipelineHash(pipeline);
-    let invalidationHash = await getInvalidationHash(
-      finalAssets.flatMap(asset => asset.getInvalidations()),
-      this.options,
-    );
-    let processedCacheEntry = await this.readFromCache(
-      this.getCacheKey(finalAssets, invalidationHash, pipelineHash),
-    );
+    // let pipelineHash = await this.getPipelineHash(pipeline);
+    // let invalidationHash = await getInvalidationHash(
+    //   finalAssets.flatMap(asset => asset.getInvalidations()),
+    //   this.options,
+    // );
+    // let processedCacheEntry = await this.readFromCache(
+    //   this.getCacheKey(finalAssets, invalidationHash, pipelineHash),
+    // );
 
     invariant(pipeline.postProcess != null);
     let processedFinalAssets: Array<UncommittedAsset> =
-      processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
+      /*processedCacheEntry ?? */ (await pipeline.postProcess(finalAssets)) ??
+      [];
 
-    if (!processedCacheEntry) {
-      await this.writeToCache(
-        this.getCacheKey(processedFinalAssets, invalidationHash, pipelineHash),
-        processedFinalAssets,
+    // if (!processedCacheEntry) {
+    //   await this.writeToCache(
+    //     this.getCacheKey(processedFinalAssets, invalidationHash, pipelineHash),
+    //     processedFinalAssets,
 
-        invalidationHash,
-        pipelineHash,
-      );
-    }
+    //     invalidationHash,
+    //     pipelineHash,
+    //   );
+    // }
 
     return processedFinalAssets;
   }
 
-  async getPipelineHash(pipeline: Pipeline): Promise<string> {
-    let hashes = '';
-    for (let transformer of pipeline.transformers) {
-      let key = `${transformer.name}:${fromProjectPathRelative(
-        transformer.resolveFrom,
-      )}`;
-      hashes +=
-        this.request.devDeps.get(key) ??
-        this.devDepRequests.get(key)?.hash ??
-        ':';
+  // async getPipelineHash(pipeline: Pipeline): Promise<string> {
+  //   let hashes = '';
+  //   for (let transformer of pipeline.transformers) {
+  //     let key = `${transformer.name}:${fromProjectPathRelative(
+  //       transformer.resolveFrom,
+  //     )}`;
+  //     hashes +=
+  //       this.request.devDeps.get(key) ??
+  //       this.devDepRequests.get(key)?.hash ??
+  //       ':';
 
-      let config = this.configs.get(transformer.name);
-      if (config) {
-        hashes += await getConfigHash(config, transformer.name, this.options);
+  //     let config = this.configs.get(transformer.name);
+  //     if (config) {
+  //       hashes += await getConfigHash(config, transformer.name, this.options);
 
-        for (let devDep of config.devDeps) {
-          let key = `${devDep.specifier}:${fromProjectPathRelative(
-            devDep.resolveFrom,
-          )}`;
-          hashes += nullthrows(this.devDepRequests.get(key)).hash;
-        }
-      }
-    }
+  //       for (let devDep of config.devDeps) {
+  //         let key = `${devDep.specifier}:${fromProjectPathRelative(
+  //           devDep.resolveFrom,
+  //         )}`;
+  //         hashes += nullthrows(this.devDepRequests.get(key)).hash;
+  //       }
+  //     }
+  //   }
 
-    return hashString(hashes);
-  }
+  //   return hashString(hashes);
+  // }
 
   async addDevDependency(opts: InternalDevDepOptions): Promise<void> {
     let {specifier, resolveFrom, range} = opts;
@@ -559,7 +552,7 @@ export default class Transformation {
             !(
               this.options.mode === 'production' &&
               asset.value.assetType === 'css' &&
-              asset.value.symbols
+              asset.value.flags & AssetFlags.HAS_SYMBOLS
             ),
         )
         .map(async asset => {
@@ -576,99 +569,98 @@ export default class Transformation {
     return finalAssets.concat(resultingAssets);
   }
 
-  async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
-    return null;
-    // if (
-    //   this.options.shouldDisableCache ||
-    //   this.request.code != null ||
-    //   this.request.invalidateReason & FILE_CREATE
-    // ) {
-    //   return null;
-    // }
+  // async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
+  // if (
+  //   this.options.shouldDisableCache ||
+  //   this.request.code != null ||
+  //   this.request.invalidateReason & FILE_CREATE
+  // ) {
+  //   return null;
+  // }
 
-    // let cached = await this.options.cache.get<{|
-    //   assets: Array<{|hash: string, value: AssetAddr|}>,
-    // |}>(cacheKey);
-    // if (!cached) {
-    //   return null;
-    // }
+  // let cached = await this.options.cache.get<{|
+  //   assets: Array<{|hash: string, value: AssetAddr|}>,
+  // |}>(cacheKey);
+  // if (!cached) {
+  //   return null;
+  // }
 
-    // let cachedAssets = cached.assets;
+  // let cachedAssets = cached.assets;
 
-    // return Promise.all(
-    //   cachedAssets.map(async ({hash, value: id}) => {
-    //     let value = DbAsset.get(this.options.db, id);
-    //     let content =
-    //       value.contentKey != null
-    //         ? value.flags & AssetFlags.LARGE_BLOB
-    //           ? this.options.cache.getStream(value.contentKey)
-    //           : await this.options.cache.getBlob(value.contentKey)
-    //         : null;
-    //     let mapBuffer =
-    //       value.mapKey != null
-    //         ? await this.options.cache.getBlob(value.mapKey)
-    //         : null;
-    //     let ast =
-    //       value.ast != null
-    //         ? // TODO: Capture with a test and likely use cache.get() as this returns a buffer.
-    //           // $FlowFixMe[incompatible-call]
-    //           await this.options.cache.getBlob(value.ast.key)
-    //         : null;
+  // return Promise.all(
+  //   cachedAssets.map(async ({hash, value: id}) => {
+  //     let value = DbAsset.get(this.options.db, id);
+  //     let content =
+  //       value.contentKey != null
+  //         ? value.flags & AssetFlags.LARGE_BLOB
+  //           ? this.options.cache.getStream(value.contentKey)
+  //           : await this.options.cache.getBlob(value.contentKey)
+  //         : null;
+  //     let mapBuffer =
+  //       value.mapKey != null
+  //         ? await this.options.cache.getBlob(value.mapKey)
+  //         : null;
+  //     let ast =
+  //       value.ast != null
+  //         ? // TODO: Capture with a test and likely use cache.get() as this returns a buffer.
+  //           // $FlowFixMe[incompatible-call]
+  //           await this.options.cache.getBlob(value.ast.key)
+  //         : null;
 
-    //     return new UncommittedAsset({
-    //       value,
-    //       hash,
-    //       options: this.options,
-    //       content,
-    //       mapBuffer,
-    //       ast,
-    //     });
-    //   }),
-    // );
-  }
+  //     return new UncommittedAsset({
+  //       value,
+  //       hash,
+  //       options: this.options,
+  //       content,
+  //       mapBuffer,
+  //       ast,
+  //     });
+  //   }),
+  // );
+  // }
 
-  async writeToCache(
-    cacheKey: string,
-    assets: Array<UncommittedAsset>,
-    invalidationHash: string,
-    pipelineHash: string,
-  ): Promise<void> {
-    await Promise.all(
-      assets.map(asset => asset.commit(invalidationHash + pipelineHash)),
-    );
+  // async writeToCache(
+  //   cacheKey: string,
+  //   assets: Array<UncommittedAsset>,
+  //   invalidationHash: string,
+  //   pipelineHash: string,
+  // ): Promise<void> {
+  //   await Promise.all(
+  //     assets.map(asset => asset.commit(invalidationHash + pipelineHash)),
+  //   );
 
-    // this.options.cache.set(cacheKey, {
-    //   $$raw: true,
-    //   assets: assets.map(a => ({
-    //     hash: a.hash,
-    //     value: a.value.addr,
-    //   })),
-    // });
-  }
+  // this.options.cache.set(cacheKey, {
+  //   $$raw: true,
+  //   assets: assets.map(a => ({
+  //     hash: a.hash,
+  //     value: a.value.addr,
+  //   })),
+  // });
+  // }
 
-  getCacheKey(
-    assets: Array<UncommittedAsset>,
-    invalidationHash: string,
-    pipelineHash: string,
-  ): string {
-    let assetsKeyInfo = assets
-      .map(a => [
-        a.value.filePath,
-        a.value.pipeline,
-        a.hash,
-        a.value.uniqueKey,
-        a.value.query ?? '',
-      ])
-      .join('');
+  // getCacheKey(
+  //   assets: Array<UncommittedAsset>,
+  //   invalidationHash: string,
+  //   pipelineHash: string,
+  // ): string {
+  //   let assetsKeyInfo = assets
+  //     .map(a => [
+  //       a.value.filePath,
+  //       a.value.pipeline,
+  //       a.hash,
+  //       a.value.uniqueKey,
+  //       a.value.query ?? '',
+  //     ])
+  //     .join('');
 
-    return hashString(
-      PARCEL_VERSION +
-        assetsKeyInfo +
-        String(this.request.env) +
-        invalidationHash +
-        pipelineHash,
-    );
-  }
+  //   return hashString(
+  //     PARCEL_VERSION +
+  //       assetsKeyInfo +
+  //       String(this.request.env) +
+  //       invalidationHash +
+  //       pipelineHash,
+  //   );
+  // }
 
   async loadPipeline(
     filePath: ProjectPath,

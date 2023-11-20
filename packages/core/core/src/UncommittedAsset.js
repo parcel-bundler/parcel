@@ -31,7 +31,7 @@ import {
   loadSourceMap,
   SOURCEMAP_RE,
 } from '@parcel/utils';
-import {hashString} from '@parcel/rust';
+import {hashString, hashBuffer, Hash} from '@parcel/rust';
 import {serializeRaw} from './serializer';
 import {createDependency, dependencyId, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
@@ -54,7 +54,6 @@ import nullthrows from 'nullthrows';
 
 type UncommittedAssetOptions = {|
   value: DbAsset,
-  hash?: ?string,
   plugin?: PackageName,
   configPath?: ProjectPath,
   configKeyPath?: string,
@@ -71,7 +70,6 @@ type UncommittedAssetOptions = {|
 
 export default class UncommittedAsset {
   value: DbAsset;
-  hash: ?string;
   options: ParcelOptions;
   content: ?(Blob | Promise<Buffer>);
   mapBuffer: ?Buffer;
@@ -93,7 +91,6 @@ export default class UncommittedAsset {
 
   constructor({
     value,
-    hash,
     options,
     content,
     mapBuffer,
@@ -108,7 +105,6 @@ export default class UncommittedAsset {
     dependencies,
   }: UncommittedAssetOptions) {
     this.value = value;
-    this.hash = hash;
     this.options = options;
     this.content = content;
     this.mapBuffer = mapBuffer;
@@ -128,7 +124,7 @@ export default class UncommittedAsset {
    * Prepares the asset for being serialized to the cache by committing its
    * content and map of the asset to the cache.
    */
-  async commit(pipelineKey: string): Promise<void> {
+  async commit(): Promise<void> {
     // If there is a dirty AST, clear out any old content and map as these
     // must be regenerated later and shouldn't be committed.
     if (this.ast != null && this.isASTDirty) {
@@ -137,18 +133,18 @@ export default class UncommittedAsset {
     }
 
     let size = 0;
-    let contentKey =
-      this.content == null ? null : this.getCacheKey('content' + pipelineKey);
-    let mapKey =
-      this.mapBuffer == null ? null : this.getCacheKey('map' + pipelineKey);
-    let astKey =
-      this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
+    let outputHash = '';
+    let contentKey = this.content == null ? null : this.getCacheKey('content');
+    let mapKey = this.mapBuffer == null ? null : this.getCacheKey('map');
+    let astKey = this.ast == null ? null : this.getCacheKey('ast');
 
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     await Promise.all([
       contentKey != null &&
-        this.commitContent(contentKey).then(s => (size = s)),
+        this.commitContent(contentKey).then(
+          s => ((size = s.size), (outputHash = s.hash)),
+        ),
       this.mapBuffer != null &&
         mapKey != null &&
         this.options.cache.setBlob(mapKey, this.mapBuffer),
@@ -167,15 +163,16 @@ export default class UncommittedAsset {
       ast.generator = nullthrows(this.astGenerator).type;
       ast.version = nullthrows(this.astGenerator).version;
       this.value.ast = ast;
-      // TODO: deallocate tmp ast.
+      ast.dealloc();
     }
 
     this.value.meta = JSON.stringify(this.meta);
-    this.value.outputHash = hashString(
-      (this.hash ?? '') +
-        pipelineKey +
-        (await getInvalidationHash(this.getInvalidations(), this.options)),
-    );
+    this.value.outputHash = outputHash;
+    // this.value.outputHash = hashString(
+    //   (this.hash ?? '') +
+    //     pipelineKey +
+    //     (await getInvalidationHash(this.getInvalidations(), this.options)),
+    // );
 
     if (this.content != null) {
       this.value.stats.size = size;
@@ -192,34 +189,41 @@ export default class UncommittedAsset {
     }
   }
 
-  async commitContent(contentKey: string): Promise<number> {
+  async commitContent(
+    contentKey: string,
+  ): Promise<{|size: number, hash: string|}> {
     let content = await this.content;
     if (content == null) {
-      return 0;
+      return {size: 0, hash: ''};
     }
 
     let size = 0;
     if (content instanceof Readable) {
+      let hash = new Hash();
       await this.options.cache.setStream(
         contentKey,
         content.pipe(
           new TapStream(buf => {
+            hash.writeBuffer(buf);
             size += buf.length;
           }),
         ),
       );
 
-      return size;
+      return {size, hash: hash.finish()};
     }
 
+    let hash;
     if (typeof content === 'string') {
+      hash = hashString(content);
       size = Buffer.byteLength(content);
     } else {
+      hash = hashBuffer(content);
       size = content.length;
     }
 
     await this.options.cache.setBlob(contentKey, content);
-    return size;
+    return {size, hash};
   }
 
   async getCode(): Promise<string> {
@@ -361,7 +365,7 @@ export default class UncommittedAsset {
   }
 
   getCacheKey(key: string): string {
-    return hashString(PARCEL_VERSION + key + this.value.id + (this.hash || ''));
+    return hashString(PARCEL_VERSION + key + this.value.id);
   }
 
   addDependency(opts: DependencyOptions): string {
@@ -484,7 +488,6 @@ export default class UncommittedAsset {
           Boolean(this.value.flags & AssetFlags.SIDE_EFFECTS),
         uniqueKey: result.uniqueKey,
       }),
-      hash: this.hash,
       options: this.options,
       content,
       ast: result.ast,
