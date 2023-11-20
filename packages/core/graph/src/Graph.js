@@ -58,10 +58,10 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     });
   }
 
-  serialize(): SerializedGraph<TNode, TEdgeType> {
+  serialize(compress?: boolean): SerializedGraph<TNode, TEdgeType> {
     return {
       nodes: this.nodes,
-      adjacencyList: this.adjacencyList.serialize(),
+      adjacencyList: this.adjacencyList.serialize(compress),
       rootNodeId: this.rootNodeId,
     };
   }

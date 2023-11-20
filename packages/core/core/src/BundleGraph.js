@@ -442,10 +442,10 @@ export default class BundleGraph {
     });
   }
 
-  serialize(): SerializedBundleGraph {
+  serialize(compress?: boolean): SerializedBundleGraph {
     return {
       $$raw: true,
-      graph: this._graph.serialize(),
+      graph: this._graph.serialize(compress),
       assetPublicIds: this._assetPublicIds,
       bundleContentHashes: this._bundleContentHashes,
       publicIdByAssetId: this._publicIdByAssetId,

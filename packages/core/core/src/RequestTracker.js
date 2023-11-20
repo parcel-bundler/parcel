@@ -249,9 +249,9 @@ export class RequestGraph extends ContentGraph<
   }
 
   // $FlowFixMe[prop-missing]
-  serialize(): SerializedRequestGraph {
+  serialize(compress?: boolean): SerializedRequestGraph {
     return {
-      ...super.serialize(),
+      ...super.serialize(compress),
       invalidNodeIds: this.invalidNodeIds,
       incompleteNodeIds: this.incompleteNodeIds,
       globNodeIds: this.globNodeIds,
@@ -1119,7 +1119,7 @@ export default class RequestTracker {
         promises.push(
           this.options.cache.setLargeBlob(
             resultCacheKey,
-            serialize(node.result),
+            serialize(node.result, true),
           ),
         );
         delete node.result;
@@ -1127,7 +1127,10 @@ export default class RequestTracker {
     }
 
     promises.push(
-      this.options.cache.setLargeBlob(requestGraphKey, serialize(this.graph)),
+      this.options.cache.setLargeBlob(
+        requestGraphKey,
+        serialize(this.graph, true),
+      ),
     );
 
     let opts = getWatcherOptions(this.options);

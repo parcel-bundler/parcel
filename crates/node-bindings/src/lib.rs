@@ -9,6 +9,7 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+mod encoder;
 #[cfg(not(target_arch = "wasm32"))]
 mod fs_search;
 mod hash;

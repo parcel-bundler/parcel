@@ -159,7 +159,7 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
   return mapped;
 }
 
-export function prepareForSerialization(object: any): any {
+export function prepareForSerialization(object: any, compress?: boolean): any {
   if (object?.$$raw) {
     return object;
   }
@@ -179,7 +179,7 @@ export function prepareForSerialization(object: any): any {
           let raw = false;
           if (value && typeof value.serialize === 'function') {
             // If the object has a serialize method, call it
-            serialized = value.serialize();
+            serialized = value.serialize(compress);
             raw = (serialized && serialized.$$raw) ?? true;
             if (serialized) {
               delete serialized.$$raw;
@@ -225,13 +225,13 @@ export function restoreDeserializedObject(object: any): any {
 
 const serializeCache = createBuildCache();
 
-export function serialize(object: any): Buffer {
+export function serialize(object: any, compress?: boolean): Buffer {
   let cached = serializeCache.get(object);
   if (cached) {
     return cached;
   }
 
-  let mapped = prepareForSerialization(object);
+  let mapped = prepareForSerialization(object, compress);
   return serializeRaw(mapped);
 }
 

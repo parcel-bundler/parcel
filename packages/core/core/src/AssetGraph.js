@@ -137,9 +137,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   // $FlowFixMe[prop-missing]
-  serialize(): SerializedAssetGraph {
+  serialize(compress?: boolean): SerializedAssetGraph {
     return {
-      ...super.serialize(),
+      ...super.serialize(compress),
       hash: this.hash,
     };
   }

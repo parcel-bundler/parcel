@@ -42,10 +42,10 @@ export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
   }
 
   // $FlowFixMe[prop-missing]
-  serialize(): SerializedContentGraph<TNode, TEdgeType> {
+  serialize(compress?: boolean): SerializedContentGraph<TNode, TEdgeType> {
     // $FlowFixMe[prop-missing]
     return {
-      ...super.serialize(),
+      ...super.serialize(compress),
       _contentKeyToNodeId: this._contentKeyToNodeId,
       _nodeIdToContentKey: this._nodeIdToContentKey,
     };

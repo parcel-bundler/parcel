@@ -1,7 +1,9 @@
 // @flow
 import assert from 'assert';
 import nullthrows from 'nullthrows';
+import {encode} from '@parcel/rust';
 import {SharedBuffer} from './shared-buffer';
+import {BitSet} from './BitSet';
 import {fromNodeId, toNodeId} from './types';
 import {ALL_EDGE_TYPES, type NullEdgeType, type AllEdgeTypes} from './Graph';
 import type {NodeId} from './types';
@@ -14,10 +16,18 @@ opaque type EdgeHash = number;
 /** The address of the edge in the edges map. */
 opaque type EdgeAddress = number;
 
+type CompressedSharedTypeMap = {|
+  encoded: Uint32Array,
+  size: number,
+|};
+
+// eslint-disable-next-line no-unused-vars
+export type SerializedSharedTypeMap = Uint32Array | CompressedSharedTypeMap;
+
 // eslint-disable-next-line no-unused-vars
 export type SerializedAdjacencyList<TEdgeType> = {|
-  nodes: Uint32Array,
-  edges: Uint32Array,
+  nodes: SerializedSharedTypeMap,
+  edges: SerializedSharedTypeMap,
 |};
 
 // eslint-disable-next-line no-unused-vars
@@ -83,10 +93,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   /**
    * Returns a serializable object of the nodes and edges in the graph.
    */
-  serialize(): SerializedAdjacencyList<TEdgeType> {
+  serialize(compress?: boolean): SerializedAdjacencyList<TEdgeType> {
     return {
-      nodes: this.#nodes.data,
-      edges: this.#edges.data,
+      nodes: this.#nodes.serialize(compress),
+      edges: this.#edges.serialize(compress),
     };
   }
 
@@ -612,6 +622,7 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
   static BUCKET_SIZE: number = 2;
 
   data: Uint32Array;
+  used: Uint8Array;
 
   get capacity(): number {
     return this.data[SharedTypeMap.#CAPACITY];
@@ -640,7 +651,7 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     })} mb`;
   }
 
-  constructor(capacityOrData: number | Uint32Array) {
+  constructor(capacityOrData: number | SerializedSharedTypeMap) {
     if (typeof capacityOrData === 'number') {
       let {BYTES_PER_ELEMENT} = Uint32Array;
       let CAPACITY = SharedTypeMap.#CAPACITY;
@@ -649,10 +660,12 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
         new SharedBuffer(this.getLength(capacityOrData) * BYTES_PER_ELEMENT),
       );
       this.data[CAPACITY] = capacityOrData;
-    } else {
+    } else if (capacityOrData instanceof Uint32Array) {
       this.data = capacityOrData;
-      assert(this.getLength() === this.data.length, 'Data appears corrupt.');
+    } else {
+      this.data = this.decode(capacityOrData);
     }
+    assert(this.getLength() === this.data.length, 'Data appears corrupt.');
   }
 
   set(data: Uint32Array): void {
@@ -823,6 +836,73 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
       table: this.data.subarray(HEADER_SIZE, min),
       data: this.data.subarray(min, max),
     };
+  }
+
+  decode({encoded, size}: CompressedSharedTypeMap): Uint32Array {
+    console.time('decode');
+
+    let decoded = new Uint32Array(size);
+
+    for (let i = 0; i < encoded.length; i++) {
+      let value = encoded[i];
+
+      if (value === 0) {
+        i += encoded[i + 1];
+      } else {
+        decoded[i] = value;
+      }
+    }
+    console.timeEnd('decode');
+
+    return decoded;
+  }
+
+  encode(): CompressedSharedTypeMap {
+    console.time('encode');
+    // We serialize using run-length encoding as SharedTypeMaps are contain very sparse data
+    // let encoded = new Uint32Array(this.data.length);
+    // let runLength = 0;
+    // let length = 0;
+
+    // for (let i = 0; i < this.data.length; i++) {
+    //   let value = this.data[i];
+
+    //   if (value === 0) {
+    //     runLength++;
+    //     continue;
+    //   }
+
+    //   if (runLength > 0) {
+    //     // Account for the zero item as well
+    //     length++;
+    //     encoded[length++] = runLength;
+    //     runLength = 0;
+    //   }
+
+    //   encoded[length++] = value;
+    // }
+    // encoded = encoded.subarray(0, length);
+    let encoded = encode(this.data);
+
+    console.timeEnd('encode');
+    console.log(
+      'compression rate:',
+      encoded.length / this.data.length,
+      this.data.length,
+    );
+
+    return {
+      encoded,
+      size: this.data.length,
+    };
+  }
+
+  serialize(compress?: boolean): SerializedSharedTypeMap {
+    if (compress) {
+      return this.encode();
+    }
+
+    return this.data;
   }
 }
 
