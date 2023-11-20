@@ -842,60 +842,14 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
   }
 
   decode({encoded, size}: CompressedSharedTypeMap): Uint32Array {
-    console.time('decode');
-
     let decoded = new Uint32Array(size);
-
-    // for (let i = 0; i < encoded.length; i++) {
-    //   let value = encoded[i];
-
-    //   if (value === 0) {
-    //     i += encoded[i + 1];
-    //   } else {
-    //     decoded[i] = value;
-    //   }
-    // }
-
     decode(encoded, decoded);
-
-    console.timeEnd('decode');
 
     return decoded;
   }
 
   encode(): CompressedSharedTypeMap {
-    console.time('encode');
-    // We serialize using run-length encoding as SharedTypeMaps are contain very sparse data
-    // let encoded = new Uint32Array(this.data.length);
-    // let runLength = 0;
-    // let length = 0;
-
-    // for (let i = 0; i < this.data.length; i++) {
-    //   let value = this.data[i];
-
-    //   if (value === 0) {
-    //     runLength++;
-    //     continue;
-    //   }
-
-    //   if (runLength > 0) {
-    //     // Account for the zero item as well
-    //     length++;
-    //     encoded[length++] = runLength;
-    //     runLength = 0;
-    //   }
-
-    //   encoded[length++] = value;
-    // }
-    // encoded = encoded.subarray(0, length);
-
     let encoded = encode(this.data);
-    console.timeEnd('encode');
-    console.log(
-      'compression rate:',
-      encoded.length / this.data.length,
-      this.data.length,
-    );
 
     return {
       encoded,
