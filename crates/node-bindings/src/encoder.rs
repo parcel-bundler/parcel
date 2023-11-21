@@ -2,29 +2,40 @@ use napi::bindgen_prelude::Uint32Array;
 use napi_derive::napi;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
+const MIN_CHUNK_SIZE: usize = 1000000;
+
 #[napi]
 pub fn encode(input: Uint32Array) -> Uint32Array {
-  let input_vec: Vec<u32> = input.to_vec();
-  let total_len = input_vec.len();
-  let mut chunk_count: usize = rayon::current_num_threads();
-  let mut chunk_size = ((input_vec.len() / chunk_count) as f32).ceil() as usize;
+  let mut input_vec: Vec<u32> = input.to_vec();
 
-  if chunk_size < 5 {
-    chunk_size = 5;
-    chunk_count = ((input_vec.len() / chunk_size) as f32).ceil() as usize;
+  // Remove all trailing 0's from the input
+  let mut index = input_vec.len() - 1;
+  while input_vec[index] == 0 {
+    index -= 1;
   }
+  input_vec.truncate(index + 1);
+
+  let total_len = input_vec.len();
+
+  let mut chunk_count = (total_len / MIN_CHUNK_SIZE) + 1;
+  if chunk_count > rayon::current_num_threads() {
+    chunk_count = rayon::current_num_threads();
+  }
+
+  let chunk_size = (total_len as f64 / chunk_count as f64).ceil() as usize;
 
   let encoded = (0..chunk_count)
     .collect::<Vec<usize>>()
     .par_iter()
     .map(|chunk| {
-      let start = chunk * chunk_size;
+      let start = *chunk * chunk_size;
       let end = if *chunk == chunk_count - 1 {
         total_len
       } else {
         start + chunk_size
       };
 
+      // To avoid resizing, pre-allocate the full chunk size capacity
       let mut encoded: Vec<u32> = Vec::with_capacity(chunk_size);
       let mut zero_run: u32 = 0;
       let mut non_zero_run = 0;
@@ -74,7 +85,6 @@ pub fn encode(input: Uint32Array) -> Uint32Array {
         i += 1;
         zero_run += 1;
       }
-
       encoded
     })
     .flatten()
@@ -127,7 +137,7 @@ mod tests {
     let encoded = encode(input);
     let result = encoded.to_vec();
 
-    assert_eq!(vec![1, 2, 0, 3, 2, 3, 4, 0, 2], result);
+    assert_eq!(vec![1, 2, 0, 3, 2, 3, 4], result);
   }
 
   #[test]
