@@ -176,8 +176,8 @@ export default class Parcel {
     this.#initialized = false;
 
     await Promise.all([
-      this.#disposable.dispose(),
       await this.#requestTracker.writeToCache(),
+      this.#disposable.dispose(),
     ]);
   }
 
