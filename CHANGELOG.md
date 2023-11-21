@@ -5,11 +5,42 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.10.3] - 2023-11-14
+
+### Added
+
+- Dev
+  - Added `cacheInfo` to Parcel Query - [Details](https://github.com/parcel-bundler/parcel/pull/9361)
+  - Add `parcel-link` and `parcel-unlink` dev CLIs - [Details](https://github.com/parcel-bundler/parcel/pull/8618)
+
+### Fixed
+
+- Core
+
+  - Mark previously deferred assets as dirty for symbol prop - [Details](https://github.com/parcel-bundler/parcel/pull/9369)
+  - Write bundle graph to cache if error occurs during bundling - [Details](https://github.com/parcel-bundler/parcel/pull/9366)
+  - Fixing issues when `import * as` is used with `export *` - [Details](https://github.com/parcel-bundler/parcel/pull/9331)
+  - Writing cache in chunks - [Details](https://github.com/parcel-bundler/parcel/pull/9355)
+  - Reduce redundancy in the RequestGraph's file nodes - [Details](https://github.com/parcel-bundler/parcel/pull/9360)
+  - Fix dependency retargeting with ambiguous reexports - [Details](https://github.com/parcel-bundler/parcel/pull/9380)
+
+- JavaScript
+
+  - Fixing behavior for `hasOwnProperty` in modules exporting member with same name - [Details](https://github.com/parcel-bundler/parcel/pull/9362)
+
+- WebbExtension
+
+  - Don't crash if WebExt has no content_scripts - [Details](https://github.com/parcel-bundler/parcel/pull/9341)
+
+- PostHTML, Pug, Stylus
+  - Simplified calls to `invalidateOnFileChange` - [Details](https://github.com/parcel-bundler/parcel/pull/9379)
+
 ## [2.10.2] - 2023-11-01
 
 ### Fixed
 
 - Core
+
   - Use clz32 for counting trailing zeroes – [Details](https://github.com/parcel-bundler/parcel/pull/9340)
 
 - JavaScript

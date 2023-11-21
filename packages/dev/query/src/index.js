@@ -99,12 +99,12 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   );
   invariant(
     buildRequestNode.type === 'request' &&
-      buildRequestNode.value.type === 'parcel_build_request',
+      buildRequestNode.requestType === 'parcel_build_request',
   );
   let buildRequestSubRequests = getSubRequests(buildRequestId);
 
   let bundleGraphRequestNode = buildRequestSubRequests.find(
-    n => n.type === 'request' && n.value.type === 'bundle_graph_request',
+    n => n.type === 'request' && n.requestType === 'bundle_graph_request',
   );
   if (bundleGraphRequestNode != null) {
     bundleGraph = BundleGraph.deserialize(
@@ -119,7 +119,9 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 
     let assetGraphRequest = getSubRequests(
       requestTracker.graph.getNodeIdByContentKey(bundleGraphRequestNode.id),
-    ).find(n => n.type === 'request' && n.value.type === 'asset_graph_request');
+    ).find(
+      n => n.type === 'request' && n.requestType === 'asset_graph_request',
+    );
     if (assetGraphRequest != null) {
       assetGraph = AssetGraph.deserialize(
         (await loadLargeBlobRequestRequest(cache, assetGraphRequest, cacheInfo))
@@ -129,12 +131,12 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   }
   cacheInfo.get('RequestGraph')?.push(timeToDeserialize);
   let writeBundlesRequest = buildRequestSubRequests.find(
-    n => n.type === 'request' && n.value.type === 'write_bundles_request',
+    n => n.type === 'request' && n.requestType === 'write_bundles_request',
   );
   if (writeBundlesRequest != null) {
     invariant(writeBundlesRequest.type === 'request');
     // $FlowFixMe[incompatible-cast]
-    bundleInfo = (nullthrows(writeBundlesRequest.value.result): Map<
+    bundleInfo = (nullthrows(writeBundlesRequest.result): Map<
       ContentKey,
       PackagedBundleInfo,
     >);
@@ -146,15 +148,13 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 async function loadLargeBlobRequestRequest(cache, node, cacheInfo) {
   invariant(node.type === 'request');
 
-  let cachedFile = await cache.getLargeBlob(
-    nullthrows(node.value.resultCacheKey),
-  );
-  cacheInfo.get(node.value.type)?.push(cachedFile.byteLength); //Add size
+  let cachedFile = await cache.getLargeBlob(nullthrows(node.resultCacheKey));
+  cacheInfo.get(node.requestType)?.push(cachedFile.byteLength); //Add size
 
   let TTD = Date.now();
   let result = v8.deserialize(cachedFile);
   TTD = Date.now() - TTD;
-  cacheInfo.get(node.value.type)?.push(TTD);
+  cacheInfo.get(node.type)?.push(TTD);
 
   return result;
 }

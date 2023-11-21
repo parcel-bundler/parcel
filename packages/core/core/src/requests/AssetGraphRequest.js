@@ -161,8 +161,9 @@ export class AssetGraphBuilder {
     );
 
     this.isSingleChangeRebuild =
-      api.getInvalidSubRequests().filter(req => req.type === 'asset_request')
-        .length === 1;
+      api
+        .getInvalidSubRequests()
+        .filter(req => req.requestType === 'asset_request').length === 1;
     this.queue = new PromiseQueue();
 
     assetGraph.onNodeRemoved = nodeId => {
@@ -369,6 +370,13 @@ export class AssetGraphBuilder {
         if (!previouslyDeferred && childNode.deferred) {
           this.assetGraph.markParentsWithHasDeferred(childNodeId);
         } else if (previouslyDeferred && !childNode.deferred) {
+          // Mark Asset and Dependency as dirty for symbol propagation as it was
+          // previously deferred and it's used symbols may have changed
+          this.changedAssetsPropagation.add(node.id);
+          node.usedSymbolsDownDirty = true;
+          this.changedAssetsPropagation.add(childNode.id);
+          childNode.usedSymbolsDownDirty = true;
+
           this.assetGraph.unmarkParentsWithHasDeferred(childNodeId);
         }
 
@@ -475,6 +483,7 @@ export class AssetGraphBuilder {
       optionsRef: this.optionsRef,
       isSingleChangeRebuild: this.isSingleChangeRebuild,
     });
+
     let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
       request,
       {force: true},
