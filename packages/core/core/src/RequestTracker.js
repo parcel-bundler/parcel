@@ -83,24 +83,30 @@ type SerializedRequestGraph = {|
   invalidateOnBuildNodeIds: Set<NodeId>,
 |};
 
-type FileNode = {|id: ContentKey, +type: 'file'|};
+const FILE: 0 = 0;
+const REQUEST: 1 = 1;
+const FILE_NAME: 2 = 2;
+const ENV: 3 = 3;
+const OPTION: 4 = 4;
+const GLOB: 5 = 5;
+type FileNode = {|id: ContentKey, +type: typeof FILE|};
 
-type GlobNode = {|id: ContentKey, +type: 'glob', value: InternalGlob|};
+type GlobNode = {|id: ContentKey, +type: typeof GLOB, value: InternalGlob|};
 
 type FileNameNode = {|
   id: ContentKey,
-  +type: 'file_name',
+  +type: typeof FILE_NAME,
 |};
 
 type EnvNode = {|
   id: ContentKey,
-  +type: 'env',
+  +type: typeof ENV,
   value: string | void,
 |};
 
 type OptionNode = {|
   id: ContentKey,
-  +type: 'option',
+  +type: typeof OPTION,
   hash: string,
 |};
 
@@ -114,7 +120,7 @@ type Request<TInput, TResult> = {|
 type InvalidateReason = number;
 type RequestNode = {|
   id: ContentKey,
-  +type: 'request',
+  +type: typeof REQUEST,
   +requestType: RequestType,
   invalidateReason: InvalidateReason,
   result?: mixed,
@@ -199,36 +205,34 @@ export type StaticRunOpts<TResult> = {|
 
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
   id: fromProjectPathRelative(filePath),
-  type: 'file',
+  type: FILE,
 });
-
 const nodeFromGlob = (glob: InternalGlob): RequestGraphNode => ({
   id: fromProjectPathRelative(glob),
-  type: 'glob',
+  type: GLOB,
   value: glob,
 });
-
 const nodeFromFileName = (fileName: string): RequestGraphNode => ({
   id: 'file_name:' + fileName,
-  type: 'file_name',
+  type: FILE_NAME,
 });
 
 const nodeFromRequest = (request: RequestNode): RequestGraphNode => ({
   id: request.id,
-  type: 'request',
+  type: REQUEST,
   requestType: request.requestType,
   invalidateReason: INITIAL_BUILD,
 });
 
 const nodeFromEnv = (env: string, value: string | void): RequestGraphNode => ({
   id: 'env:' + env,
-  type: 'env',
+  type: ENV,
   value,
 });
 
 const nodeFromOption = (option: string, value: mixed): RequestGraphNode => ({
   id: 'option:' + option,
-  type: 'option',
+  type: OPTION,
   hash: hashFromOption(value),
 });
 
@@ -289,11 +293,11 @@ export class RequestGraph extends ContentGraph<
     }
 
     nodeId = super.addNodeByContentKey(node.id, node);
-    if (node.type === 'glob') {
+    if (node.type === GLOB) {
       this.globNodeIds.add(nodeId);
-    } else if (node.type === 'env') {
+    } else if (node.type === ENV) {
       this.envNodeIds.add(nodeId);
-    } else if (node.type === 'option') {
+    } else if (node.type === OPTION) {
       this.optionNodeIds.add(nodeId);
     }
 
@@ -307,11 +311,11 @@ export class RequestGraph extends ContentGraph<
     this.unpredicatableNodeIds.delete(nodeId);
     this.invalidateOnBuildNodeIds.delete(nodeId);
     let node = nullthrows(this.getNode(nodeId));
-    if (node.type === 'glob') {
+    if (node.type === GLOB) {
       this.globNodeIds.delete(nodeId);
-    } else if (node.type === 'env') {
+    } else if (node.type === ENV) {
       this.envNodeIds.delete(nodeId);
-    } else if (node.type === 'option') {
+    } else if (node.type === OPTION) {
       this.optionNodeIds.delete(nodeId);
     }
     return super.removeNode(nodeId);
@@ -319,7 +323,7 @@ export class RequestGraph extends ContentGraph<
 
   getRequestNode(nodeId: NodeId): RequestNode {
     let node = nullthrows(this.getNode(nodeId));
-    invariant(node.type === 'request');
+    invariant(node.type === REQUEST);
     return node;
   }
 
@@ -344,7 +348,7 @@ export class RequestGraph extends ContentGraph<
 
   invalidateNode(nodeId: NodeId, reason: InvalidateReason) {
     let node = nullthrows(this.getNode(nodeId));
-    invariant(node.type === 'request');
+    invariant(node.type === REQUEST);
     node.invalidateReason |= reason;
     this.invalidNodeIds.add(nodeId);
 
@@ -360,7 +364,7 @@ export class RequestGraph extends ContentGraph<
   invalidateUnpredictableNodes() {
     for (let nodeId of this.unpredicatableNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
-      invariant(node.type !== 'file' && node.type !== 'glob');
+      invariant(node.type !== FILE && node.type !== GLOB);
       this.invalidateNode(nodeId, STARTUP);
     }
   }
@@ -368,7 +372,7 @@ export class RequestGraph extends ContentGraph<
   invalidateOnBuildNodes() {
     for (let nodeId of this.invalidateOnBuildNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
-      invariant(node.type !== 'file' && node.type !== 'glob');
+      invariant(node.type !== FILE && node.type !== GLOB);
       this.invalidateNode(nodeId, STARTUP);
     }
   }
@@ -376,7 +380,7 @@ export class RequestGraph extends ContentGraph<
   invalidateEnvNodes(env: EnvMap) {
     for (let nodeId of this.envNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
-      invariant(node.type === 'env');
+      invariant(node.type === ENV);
       if (env[keyFromEnvContentKey(node.id)] !== node.value) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
@@ -392,7 +396,7 @@ export class RequestGraph extends ContentGraph<
   invalidateOptionNodes(options: ParcelOptions) {
     for (let nodeId of this.optionNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
-      invariant(node.type === 'option');
+      invariant(node.type === OPTION);
       if (
         hashFromOption(options[keyFromOptionContentKey(node.id)]) !== node.hash
       ) {
@@ -641,11 +645,11 @@ export class RequestGraph extends ContentGraph<
       .map(nodeId => {
         let node = nullthrows(this.getNode(nodeId));
         switch (node.type) {
-          case 'file':
+          case FILE:
             return {type: 'file', filePath: toProjectPathUnsafe(node.id)};
-          case 'env':
+          case ENV:
             return {type: 'env', key: keyFromEnvContentKey(node.id)};
-          case 'option':
+          case OPTION:
             return {
               type: 'option',
               key: keyFromOptionContentKey(node.id),
@@ -667,7 +671,7 @@ export class RequestGraph extends ContentGraph<
 
     return subRequests.map(nodeId => {
       let node = nullthrows(this.getNode(nodeId));
-      invariant(node.type === 'request');
+      invariant(node.type === REQUEST);
       return node;
     });
   }
@@ -686,7 +690,7 @@ export class RequestGraph extends ContentGraph<
       .filter(id => this.invalidNodeIds.has(id))
       .map(nodeId => {
         let node = nullthrows(this.getNode(nodeId));
-        invariant(node.type === 'request');
+        invariant(node.type === REQUEST);
         return node;
       });
   }
@@ -738,7 +742,7 @@ export class RequestGraph extends ContentGraph<
         )
       ) {
         let parent = nullthrows(this.getNodeByContentKey(contentKey));
-        invariant(parent.type === 'file_name');
+        invariant(parent.type === FILE_NAME);
         this.invalidateFileNameNode(
           parent,
           toProjectPathUnsafe(dirname),
@@ -796,7 +800,7 @@ export class RequestGraph extends ContentGraph<
       } else if (type === 'create') {
         let basename = path.basename(filePath);
         let fileNameNode = this.getNodeByContentKey('file_name:' + basename);
-        if (fileNameNode != null && fileNameNode?.type === 'file_name') {
+        if (fileNameNode != null && fileNameNode.type === FILE_NAME) {
           let fileNameNodeId = this.getNodeIdByContentKey(
             'file_name:' + basename,
           );
@@ -809,7 +813,7 @@ export class RequestGraph extends ContentGraph<
           )) {
             let node = nullthrows(this.getNode(nodeId));
             // these might also be `glob` nodes which get handled below, we only care about files here.
-            if (node.type === 'file') {
+            if (node.type === FILE) {
               above.push(node);
             }
           }
@@ -822,7 +826,7 @@ export class RequestGraph extends ContentGraph<
 
         for (let globeNodeId of this.globNodeIds) {
           let globNode = this.getNode(globeNodeId);
-          invariant(globNode && globNode.type === 'glob');
+          invariant(globNode && globNode.type === GLOB);
 
           if (isGlobMatch(filePath, fromProjectPathRelative(globNode.value))) {
             let connectedNodes = this.getNodeIdsConnectedTo(
@@ -908,7 +912,7 @@ export default class RequestTracker {
   // If a cache key is provided, the result will be removed from the node and stored in a separate cache entry
   storeResult(nodeId: NodeId, result: mixed, cacheKey: ?string) {
     let node = this.graph.getNode(nodeId);
-    if (node && node.type === 'request') {
+    if (node && node.type === REQUEST) {
       node.result = result;
       node.resultCacheKey = cacheKey;
     }
@@ -927,7 +931,7 @@ export default class RequestTracker {
     ifMatch?: string,
   ): Promise<?T> {
     let node = nullthrows(this.graph.getNodeByContentKey(contentKey));
-    invariant(node.type === 'request');
+    invariant(node.type === REQUEST);
 
     if (ifMatch != null && node.resultCacheKey !== ifMatch) {
       return null;
@@ -953,7 +957,7 @@ export default class RequestTracker {
     this.graph.incompleteNodeIds.delete(nodeId);
     this.graph.incompleteNodePromises.delete(nodeId);
     let node = this.graph.getNode(nodeId);
-    if (node?.type === 'request') {
+    if (node && node.type === REQUEST) {
       node.invalidateReason = VALID;
     }
   }
@@ -963,7 +967,7 @@ export default class RequestTracker {
     this.graph.incompleteNodePromises.delete(nodeId);
 
     let node = this.graph.getNode(nodeId);
-    if (node?.type === 'request') {
+    if (node?.type === REQUEST) {
       this.graph.invalidateNode(nodeId, ERROR);
     }
   }
@@ -982,7 +986,7 @@ export default class RequestTracker {
     let invalidRequests = [];
     for (let id of this.graph.invalidNodeIds) {
       let node = nullthrows(this.graph.getNode(id));
-      invariant(node.type === 'request');
+      invariant(node.type === REQUEST);
       invalidRequests.push(node);
     }
     return invalidRequests;
@@ -1129,7 +1133,7 @@ export default class RequestTracker {
 
     let promises = [];
     for (let node of this.graph.nodes) {
-      if (!node || node.type !== 'request') {
+      if (!node || node.type !== REQUEST) {
         continue;
       }
 
