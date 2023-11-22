@@ -122,21 +122,40 @@ type RequestNode = {|
   hash?: string,
 |};
 
-type RequestType =
-  | 'parcel_build_request'
-  | 'bundle_graph_request'
-  | 'asset_graph_request'
-  | 'entry_request'
-  | 'target_request'
-  | 'parcel_config_request'
-  | 'path_request'
-  | 'dev_dep_request'
-  | 'asset_request'
-  | 'config_request'
-  | 'write_bundles_request'
-  | 'package_request'
-  | 'write_bundle_request'
-  | 'validation_request';
+// type RequestType =
+//   | 'parcel_build_request'
+//   | 'bundle_graph_request'
+//   | 'asset_graph_request'
+//   | 'entry_request'
+//   | 'target_request'
+//   | 'parcel_config_request'
+//   | 'path_request'
+//   | 'dev_dep_request'
+//   | 'asset_request'
+//   | 'config_request'
+//   | 'write_bundles_request'
+//   | 'package_request'
+//   | 'write_bundle_request'
+//   | 'validation_request';
+
+export const requestTypes = {
+  parcel_build_request: 1,
+  bundle_graph_request: 2,
+  asset_graph_request: 3,
+  entry_request: 4,
+  target_request: 5,
+  parcel_config_request: 6,
+  path_request: 7,
+  dev_dep_request: 8,
+  asset_request: 9,
+  config_request: 10,
+  write_bundles_request: 11,
+  package_request: 12,
+  write_bundle_request: 13,
+  validation_request: 14,
+};
+
+type RequestType = $Values<typeof requestTypes>;
 
 type RequestGraphNode =
   | RequestNode
