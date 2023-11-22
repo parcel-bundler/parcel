@@ -32,7 +32,10 @@ export default function App(): React.Node {
       {/*   <SearchView /> */}
       {/* </div> */}
 
-      <GraphView></GraphView>
+      <h1>TODO: Turn this into a graph visualization</h1>
+      <pre>{JSON.stringify(data, null, 2)}</pre>
+
+      {/* <GraphView></GraphView> */}
     </div>
   );
 }
