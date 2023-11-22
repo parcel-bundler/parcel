@@ -36,6 +36,7 @@ import {
   SymbolFlags,
 } from '@parcel/rust';
 import {PluginTracer} from '@parcel/profiler';
+import type {Scope} from './scopeCache';
 
 type AssetOptions = {|
   id?: string,
@@ -124,16 +125,17 @@ const generateResults: Map<
 
 export function generateFromAST(
   asset: CommittedAsset,
+  scope: Scope,
 ): Promise<GenerateOutput> {
   let output = generateResults.get(asset.value.addr);
   if (output == null) {
-    output = _generateFromAST(asset);
+    output = _generateFromAST(asset, scope);
     generateResults.set(asset.value.addr, output);
   }
   return output;
 }
 
-async function _generateFromAST(asset: CommittedAsset) {
+async function _generateFromAST(asset: CommittedAsset, scope: Scope) {
   let ast = await asset.getAST();
   if (ast == null) {
     throw new Error('Asset has no AST');
@@ -153,7 +155,7 @@ async function _generateFromAST(asset: CommittedAsset) {
   }
 
   let {content, map} = await generate({
-    asset: new PublicAsset(asset),
+    asset: new PublicAsset(asset, scope),
     ast,
     options: new PluginOptions(asset.options),
     logger: new PluginLogger({origin: pluginName}),

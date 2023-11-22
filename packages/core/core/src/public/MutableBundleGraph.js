@@ -297,7 +297,7 @@ export default class MutableBundleGraph
   getDependencyAssets(dependency: IDependency): Array<IAsset> {
     return this.#graph
       .getDependencyAssets(dependencyToInternalDependency(dependency))
-      .map(asset => assetFromValue(asset, this.#options, this.#graph));
+      .map(asset => assetFromValue(asset, this.#options, this.#graph, this));
   }
 
   getBundleGroupsContainingBundle(bundle: IBundle): Array<IBundleGroup> {

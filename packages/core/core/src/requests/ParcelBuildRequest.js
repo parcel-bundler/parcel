@@ -95,7 +95,7 @@ async function run({input, api, options}) {
     changedAssets: new Map(
       Array.from(changedAssets).map(([id, asset]) => [
         readCachedString(options.db, DbAsset.get(options.db, id).id),
-        assetFromValue(asset, options, bundleGraph),
+        assetFromValue(asset, options, bundleGraph, bundleGraphRequest),
       ]),
     ),
   });

@@ -77,7 +77,7 @@ export default class Validation {
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
             if (plugin.validateAll && this.dedicatedThread) {
               validatorResults = await plugin.validateAll({
-                assets: assets.map(asset => new Asset(asset)),
+                assets: assets.map(asset => new Asset(asset, this)),
                 options: pluginOptions,
                 logger: validatorLogger,
                 tracer: validatorTracer,
@@ -99,7 +99,7 @@ export default class Validation {
               await Promise.all(
                 assets.map(async input => {
                   let config = null;
-                  let publicAsset = new Asset(input);
+                  let publicAsset = new Asset(input, this);
                   if (plugin.getConfig) {
                     config = await plugin.getConfig({
                       asset: publicAsset,

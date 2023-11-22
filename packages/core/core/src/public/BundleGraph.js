@@ -74,6 +74,7 @@ export default class BundleGraph<TBundle: IBundle>
       this.#graph.getAssetById(id),
       this.#options,
       this.#graph,
+      this,
     );
   }
 
@@ -91,7 +92,7 @@ export default class BundleGraph<TBundle: IBundle>
       bundle && bundleToInternalBundle(bundle),
     );
     if (resolution != null) {
-      return assetFromValue(resolution, this.#options, this.#graph);
+      return assetFromValue(resolution, this.#options, this.#graph, this);
     }
   }
 
@@ -106,7 +107,7 @@ export default class BundleGraph<TBundle: IBundle>
       dependencyToInternalDependency(dep),
     );
     if (asset != null) {
-      return assetFromValue(asset, this.#options, this.#graph);
+      return assetFromValue(asset, this.#options, this.#graph, this);
     }
   }
 
@@ -148,7 +149,7 @@ export default class BundleGraph<TBundle: IBundle>
 
     return {
       type: 'asset',
-      value: assetFromValue(resolved.value, this.#options, this.#graph),
+      value: assetFromValue(resolved.value, this.#options, this.#graph, this),
     };
   }
 
@@ -237,7 +238,7 @@ export default class BundleGraph<TBundle: IBundle>
       boundary ? bundleToInternalBundle(boundary) : null,
     );
     return {
-      asset: assetFromValue(res.asset, this.#options, this.#graph),
+      asset: assetFromValue(res.asset, this.#options, this.#graph, this),
       exportSymbol: readCachedString(this.#options.db, res.exportSymbol),
       symbol:
         typeof res.symbol === 'number'
@@ -256,7 +257,7 @@ export default class BundleGraph<TBundle: IBundle>
       boundary ? bundleToInternalBundle(boundary) : null,
     );
     return res.map(e => ({
-      asset: assetFromValue(e.asset, this.#options, this.#graph),
+      asset: assetFromValue(e.asset, this.#options, this.#graph, this),
       exportSymbol: readCachedString(this.#options.db, e.exportSymbol),
       symbol:
         typeof e.symbol === 'number'
@@ -287,7 +288,12 @@ export default class BundleGraph<TBundle: IBundle>
         return node.type === 'asset'
           ? {
               type: 'asset',
-              value: assetFromValue(node.value, this.#options, this.#graph),
+              value: assetFromValue(
+                node.value,
+                this.#options,
+                this.#graph,
+                this,
+              ),
             }
           : {
               type: 'dependency',

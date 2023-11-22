@@ -98,7 +98,7 @@ export default class CommittedAsset {
           return await this.options.cache.getBlob(mapKey);
         } catch (err) {
           if (err.code === 'ENOENT' && this.value.ast != null) {
-            return (await generateFromAST(this)).map?.toBuffer();
+            return (await generateFromAST(this, this)).map?.toBuffer();
           } else {
             throw err;
           }

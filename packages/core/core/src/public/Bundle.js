@@ -158,7 +158,12 @@ export class Bundle implements IBundle {
     return this.#bundle.entryAssetIds.map(id => {
       let assetNode = this.#bundleGraph._graph.getNodeByContentKey(id);
       invariant(assetNode != null && assetNode.type === 'asset');
-      return assetFromValue(assetNode.value, this.#options, this.#bundleGraph);
+      return assetFromValue(
+        assetNode.value,
+        this.#options,
+        this.#bundleGraph,
+        this,
+      );
     });
   }
 
@@ -168,7 +173,12 @@ export class Bundle implements IBundle {
         this.#bundle.mainEntryId,
       );
       invariant(assetNode != null && assetNode.type === 'asset');
-      return assetFromValue(assetNode.value, this.#options, this.#bundleGraph);
+      return assetFromValue(
+        assetNode.value,
+        this.#options,
+        this.#bundleGraph,
+        this,
+      );
     }
   }
 
@@ -181,7 +191,12 @@ export class Bundle implements IBundle {
         if (node.type === 'asset') {
           return {
             type: 'asset',
-            value: assetFromValue(node.value, this.#options, this.#bundleGraph),
+            value: assetFromValue(
+              node.value,
+              this.#options,
+              this.#bundleGraph,
+              this,
+            ),
           };
         } else if (node.type === 'dependency') {
           return {
@@ -200,7 +215,7 @@ export class Bundle implements IBundle {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
       mapVisitor(
-        asset => assetFromValue(asset, this.#options, this.#bundleGraph),
+        asset => assetFromValue(asset, this.#options, this.#bundleGraph, this),
         visit,
       ),
       startAsset ? assetToAssetValue(startAsset) : undefined,

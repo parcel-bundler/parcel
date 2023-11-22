@@ -35,15 +35,16 @@ import {createEnvironment} from '../Environment';
 import {fromProjectPath, toProjectPath} from '../projectPath';
 import {toInternalSourceLocation} from '../utils';
 import {Asset as DbAsset, AssetFlags, readCachedString} from '@parcel/rust';
-import {createBuildCache} from '../buildCache';
+// import {createBuildCache} from '../buildCache';
+import {getScopeCache, type Scope} from '../scopeCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const uncommittedAssetValueToAsset: Map<AssetAddr, Asset> = createBuildCache();
-const committedAssetValueToAsset: Map<AssetAddr, CommittedAsset> =
-  createBuildCache();
-const assetValueToMutableAsset: Map<AssetAddr, MutableAsset> =
-  createBuildCache();
+// const uncommittedAssetValueToAsset: Map<AssetAddr, Asset> = createBuildCache();
+// const committedAssetValueToAsset: Map<AssetAddr, CommittedAsset> =
+//   createBuildCache();
+// const assetValueToMutableAsset: Map<AssetAddr, MutableAsset> =
+//   createBuildCache();
 
 const _assetToAssetValue: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
@@ -69,10 +70,12 @@ export function assetFromValue(
   value: AssetAddr,
   options: ParcelOptions,
   bundleGraph: BundleGraph,
+  scope: Scope,
 ): CommittedAsset {
   return new CommittedAsset(
     new InternalCommittedAsset(value, options),
     bundleGraph,
+    scope,
   );
 }
 
@@ -80,6 +83,7 @@ export function uncommittedAssetFromValue(
   value: AssetAddr,
   options: ParcelOptions,
   dependencies: Array<DependencyAddr>,
+  scope: Scope,
 ): Asset {
   return new Asset(
     new UncommittedAsset({
@@ -87,13 +91,14 @@ export function uncommittedAssetFromValue(
       options,
       dependencies: new Map(dependencies.entries()),
     }),
+    scope,
   );
 }
 
-export function removeAssetFromCache(value: AssetAddr) {
-  uncommittedAssetValueToAsset.delete(value);
-  committedAssetValueToAsset.delete(value);
-  assetValueToMutableAsset.delete(value);
+export function removeAssetFromCache(_value: AssetAddr) {
+  // uncommittedAssetValueToAsset.delete(value);
+  // committedAssetValueToAsset.delete(value);
+  // assetValueToMutableAsset.delete(value);
 }
 
 class BaseAsset {
@@ -260,15 +265,17 @@ export class Asset extends BaseAsset implements IAsset {
   #asset /*: UncommittedAsset */;
   #env /*: ?Environment */;
 
-  constructor(asset: UncommittedAsset): Asset {
-    let existing = uncommittedAssetValueToAsset.get(asset.value.addr);
+  constructor(asset: UncommittedAsset, scope: Scope): Asset {
+    let cache = getScopeCache(scope, 'Asset');
+
+    let existing = cache.get(asset.value.addr);
     if (existing != null) {
       return existing;
     }
 
     super(asset);
     this.#asset = asset;
-    uncommittedAssetValueToAsset.set(asset.value.addr, this);
+    cache.set(asset.value.addr, this);
     return this;
   }
 
@@ -293,15 +300,17 @@ export class Asset extends BaseAsset implements IAsset {
 export class MutableAsset extends BaseAsset implements IMutableAsset {
   #asset /*: UncommittedAsset */;
 
-  constructor(asset: UncommittedAsset): MutableAsset {
-    let existing = assetValueToMutableAsset.get(asset.value.addr);
+  constructor(asset: UncommittedAsset, scope: Scope): MutableAsset {
+    let cache = getScopeCache(scope, 'MutableAsset');
+
+    let existing = cache.get(asset.value.addr);
     if (existing != null) {
       return existing;
     }
 
     super(asset);
     this.#asset = asset;
-    assetValueToMutableAsset.set(asset.value.addr, this);
+    cache.set(asset.value.addr, this);
     _mutableAssetToUncommittedAsset.set(this, asset);
     return this;
   }
@@ -441,15 +450,18 @@ export class CommittedAsset implements IAsset {
   constructor(
     asset: InternalCommittedAsset,
     bundleGraph: BundleGraph,
+    scope: Scope,
   ): CommittedAsset {
-    let existing = committedAssetValueToAsset.get(asset.value.addr);
+    let cache = getScopeCache(scope, 'CommittedAsset');
+
+    let existing = cache.get(asset.value.addr);
     if (existing != null) {
       return existing;
     }
 
     this.#asset = asset;
     this.#bundleGraph = bundleGraph;
-    committedAssetValueToAsset.set(asset.value.addr, this);
+    cache.set(asset.value.addr, this);
     _assetToAssetValue.set(this, asset.value.addr);
     return this;
   }
