@@ -3,7 +3,6 @@
   "private": true,
   "version": "2.10.3",
   "main": "index.js",
-  "scripts": {},
   "dependencies": {
     "read-pkg-up": "^5.0.0"
   },

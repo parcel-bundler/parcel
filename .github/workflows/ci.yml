@@ -20,9 +20,9 @@ jobs:
           profile: minimal
           components: rustfmt
       - uses: Swatinem/rust-cache@v1
-      # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
-      # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
-      - run: yarn --frozen-lockfile
+      # use `--immutable` to fail immediately if the committed yarn.lock needs updates
+      # https://yarnpkg.com/cli/install#options
+      - run: yarn --immutable
       - run: yarn lint
 
   flow:
@@ -33,7 +33,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           cache: yarn
-      - run: yarn --frozen-lockfile
+      - run: yarn --immutable
       - run: yarn flow check
 
   benchmarks:
@@ -67,7 +67,7 @@ jobs:
       - name: Bump max inotify watches (Linux only)
         run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
         if: ${{matrix.os == 'ubuntu-latest'}}
-      - run: yarn --frozen-lockfile
+      - run: yarn --immutable
       - run: yarn build-native-release
       - run: yarn test:unit
 
@@ -96,7 +96,7 @@ jobs:
       - name: Bump max inotify watches (Linux only)
         run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
         if: ${{matrix.os == 'ubuntu-latest'}}
-      - run: yarn --frozen-lockfile
+      - run: yarn --immutable
       - run: yarn build-native-release
       - run: yarn build
       - run: yarn test:integration-ci
