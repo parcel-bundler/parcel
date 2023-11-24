@@ -9254,7 +9254,7 @@ lightningcss-linux-x64-musl@1.22.1:
   resolved "https://registry.yarnpkg.com/lightningcss-linux-x64-musl/-/lightningcss-linux-x64-musl-1.22.1.tgz#e713e56798f8a50df3e3f285ef102191a01ef951"
   integrity sha512-ZgO4C7Rd6Hv/5MnyY2KxOYmIlzk4rplVolDt3NbkNR8DndnyX0Q5IR4acJWNTBICQ21j3zySzKbcJaiJpk/4YA==
 
-lightningcss-wasm@^1.16.1:
+lightningcss-wasm@^1.22.1:
   version "1.22.1"
   resolved "https://registry.yarnpkg.com/lightningcss-wasm/-/lightningcss-wasm-1.22.1.tgz#120053c7aaabc72d1d31cdec192e267af5f389eb"
   integrity sha512-GzY3oTNtkPhDVt1AY0H0ZEWdcAjTOD1Y72nJlEO1JSRgA4UTUDhrklzdMhSLTyVHTpVAEfCxnD6fULBIbwgT/A==
