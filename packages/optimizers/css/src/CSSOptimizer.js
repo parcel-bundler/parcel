@@ -174,7 +174,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
       }
     }
 
-    let contents = result.code;
+    let contents = Buffer.from(result.code);
     if (bundle.env.sourceMap) {
       let reference = await getSourceMapReference(map);
       if (reference != null) {
