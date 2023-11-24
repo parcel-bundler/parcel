@@ -175,7 +175,7 @@ export default (new Transformer({
       }
     }
 
-    asset.setBuffer(Buffer.from(res.code));
+    asset.setBuffer(res.code);
 
     if (res.map != null) {
       let vlqMap = JSON.parse(res.map.toString());

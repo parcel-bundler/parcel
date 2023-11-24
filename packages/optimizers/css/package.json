@@ -25,7 +25,7 @@
     "@parcel/source-map": "^2.1.1",
     "@parcel/utils": "2.10.3",
     "browserslist": "^4.6.6",
-    "lightningcss": "^1.22.1",
+    "lightningcss": "^1.16.1",
     "nullthrows": "^1.1.1"
   }
 }

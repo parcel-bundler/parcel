@@ -150,7 +150,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
         });
 
         return {
-          contents: Buffer.from(result.code),
+          contents: result.code,
         };
       }
     }
@@ -174,7 +174,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
       }
     }
 
-    let contents = Buffer.from(result.code);
+    let contents = result.code;
     if (bundle.env.sourceMap) {
       let reference = await getSourceMapReference(map);
       if (reference != null) {
