@@ -166,7 +166,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
 
     let map;
     if (result.map != null) {
-      let vlqMap = JSON.parse(result.map.toString());
+      let vlqMap = JSON.parse(Buffer.from(result.map).toString());
       map = new SourceMap(options.projectRoot);
       map.addVLQMap(vlqMap);
       if (prevMap) {
