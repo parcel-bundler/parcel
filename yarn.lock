@@ -1149,6 +1149,26 @@
   dependencies:
     commander "^2.15.1"
 
+"@elm_binaries/darwin_arm64@0.19.1-0":
+  version "0.19.1-0"
+  resolved "https://registry.yarnpkg.com/@elm_binaries/darwin_arm64/-/darwin_arm64-0.19.1-0.tgz#ea09fca7cdfedad3fa517267099d78d180f01098"
+  integrity sha512-mjbsH7BNHEAmoE2SCJFcfk5fIHwFIpxtSgnEAqMsVLpBUFoEtAeX+LQ+N0vSFJB3WAh73+QYx/xSluxxLcL6dA==
+
+"@elm_binaries/darwin_x64@0.19.1-0":
+  version "0.19.1-0"
+  resolved "https://registry.yarnpkg.com/@elm_binaries/darwin_x64/-/darwin_x64-0.19.1-0.tgz#8c3254590804c35ee7b97b4d8a21a63318511c44"
+  integrity sha512-QGUtrZTPBzaxgi9al6nr+9313wrnUVHuijzUK39UsPS+pa+n6CmWyV/69sHZeX9qy6UfeugE0PzF3qcUiy2GDQ==
+
+"@elm_binaries/linux_x64@0.19.1-0":
+  version "0.19.1-0"
+  resolved "https://registry.yarnpkg.com/@elm_binaries/linux_x64/-/linux_x64-0.19.1-0.tgz#95440341eee8f6bee2d88859b3bdd99f33ca88f0"
+  integrity sha512-T1ZrWVhg2kKAsi8caOd3vp/1A3e21VuCpSG63x8rDie50fHbCytTway9B8WHEdnBFv4mYWiA68dzGxYCiFmU2w==
+
+"@elm_binaries/win32_x64@0.19.1-0":
+  version "0.19.1-0"
+  resolved "https://registry.yarnpkg.com/@elm_binaries/win32_x64/-/win32_x64-0.19.1-0.tgz#3f8decfd6f5fbc46906f3f5d50561b6e5b33ac3a"
+  integrity sha512-yDleiXqSE9EcqKtd9SkC/4RIW8I71YsXzMPL79ub2bBPHjWTcoyyeBbYjoOB9SxSlArJ74HaoBApzT6hY7Zobg==
+
 "@eslint/eslintrc@^0.4.3":
   version "0.4.3"
   resolved "https://registry.yarnpkg.com/@eslint/eslintrc/-/eslintrc-0.4.3.tgz#9e42981ef035beb3dd49add17acb96e8ff6f394c"
@@ -5378,16 +5398,19 @@ elliptic@^6.0.0, elliptic@^6.5.4:
     minimalistic-crypto-utils "^1.0.1"
 
 elm-hot@^1.1.5:
-  version "1.1.5"
-  resolved "https://registry.yarnpkg.com/elm-hot/-/elm-hot-1.1.5.tgz#bba309b592d39b5c3195c3c6f608f36b96c23b89"
-  integrity sha512-HSMlAr6INTV82wkpPNG0zsHoJXo/04GwG7bnhFX8s4zyIbbzuJAovsdo27FAT6/NKx5IVTXGI+IFcK9Z7oN1Tw==
+  version "1.1.6"
+  resolved "https://registry.yarnpkg.com/elm-hot/-/elm-hot-1.1.6.tgz#93e3962b40670e65f0a3640951b3add2702bfd0e"
+  integrity sha512-zYZJlfs7Gt4BdjA+D+857K+XAWzwwySJmXCgFpHW1dIEfaHSZCIPYPf7/jinZBLfKRkOAlKzI32AA84DY50g7Q==
 
 elm@^0.19.1-5:
-  version "0.19.1-5"
-  resolved "https://registry.yarnpkg.com/elm/-/elm-0.19.1-5.tgz#61f18437222972e20f316f9b2d2c76a781a9991b"
-  integrity sha512-dyBoPvFiNLvxOStQJdyq28gZEjS/enZXdZ5yyCtNtDEMbFJJVQq4pYNRKvhrKKdlxNot6d96iQe1uczoqO5yvA==
-  dependencies:
-    request "^2.88.0"
+  version "0.19.1-6"
+  resolved "https://registry.yarnpkg.com/elm/-/elm-0.19.1-6.tgz#b6f51d0add8877de70592097a8f6efc4588c476a"
+  integrity sha512-mKYyierHICPdMx/vhiIacdPmTPnh889gjHOZ75ZAoCxo3lZmSWbGP8HMw78wyctJH0HwvTmeKhlYSWboQNYPeQ==
+  optionalDependencies:
+    "@elm_binaries/darwin_arm64" "0.19.1-0"
+    "@elm_binaries/darwin_x64" "0.19.1-0"
+    "@elm_binaries/linux_x64" "0.19.1-0"
+    "@elm_binaries/win32_x64" "0.19.1-0"
 
 emoji-regex@^7.0.1:
   version "7.0.3"
