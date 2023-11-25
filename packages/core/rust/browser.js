@@ -1,3 +1,5 @@
+/* global WebAssembly, crypto */
+
 const {Environment, napi} = require('napi-wasm');
 
 let env;
