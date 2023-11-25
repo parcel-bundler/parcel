@@ -56,7 +56,7 @@ export function Preview({clientID}: {|clientID: Promise<string>|}): any {
         </div>
         {!popover && (
           //<Box>
-          <iframe ref={iframeRef} src={url} />
+          <iframe title="Preview" ref={iframeRef} src={url} />
           //</Box>
         )}
       </div>

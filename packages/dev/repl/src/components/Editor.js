@@ -116,6 +116,7 @@ const Editor: any = memo(function Editor({
           ? css()
           : null,
       ].filter(Boolean),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [extension],
   );
 

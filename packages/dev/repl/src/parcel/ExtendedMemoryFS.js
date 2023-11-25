@@ -3,7 +3,6 @@ import type {FilePath} from '@parcel/types';
 import {MemoryFS, FSError, makeShared, File} from '@parcel/fs';
 import path from 'path';
 import {registerSerializableClass} from '@parcel/core';
-import type WorkerFarm from '@parcel/workers';
 
 const {Buffer} = require('buffer');
 
@@ -131,10 +130,6 @@ export class ExtendedMemoryFS extends MemoryFS {
   openFDs: Map<number, {|filePath: FilePath, file: File, position: number|}> =
     new Map();
   nextFD: number = 1;
-
-  constructor(workerFarm: WorkerFarm) {
-    super(workerFarm);
-  }
 
   // eslint-disable-next-line
   async _mkdir(

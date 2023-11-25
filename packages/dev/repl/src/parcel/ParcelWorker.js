@@ -46,7 +46,7 @@ let workerFarm;
 let fs: MemoryFS;
 function startWorkerFarm(numWorkers: ?number) {
   // $FlowFixMe
-  if (!workerFarm || workerFarm.maxConcurrentWorkers != numWorkers) {
+  if (!workerFarm || workerFarm.maxConcurrentWorkers !== numWorkers) {
     workerFarm?.end();
     // $FlowFixMe
     workerFarm = createWorkerFarm(
@@ -433,6 +433,7 @@ async function watch(
     unsubscribe: (
       await bundler.watch(async (err, event) => {
         if (event) {
+          // eslint-disable-next-line default-case
           switch (event.type) {
             case 'buildSuccess': {
               let result = await collectResult(event, graphs, fs);

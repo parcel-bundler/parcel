@@ -102,7 +102,7 @@ export function reducer(state: State, action: any): State {
     case 'view.close':
       return {
         ...state,
-        views: new Map([...state.views].filter(([n]) => n != action.name)),
+        views: new Map([...state.views].filter(([n]) => n !== action.name)),
       };
     case 'view.setValue': {
       let data = nullthrows(state.views.get(action.name));
@@ -239,7 +239,7 @@ export function reducer(state: State, action: any): State {
       return {
         ...state,
         browserCollapsed: state.browserCollapsed.has(action.name)
-          ? new Set([...state.browserCollapsed].filter(n => n != action.name))
+          ? new Set([...state.browserCollapsed].filter(n => n !== action.name))
           : new Set([...state.browserCollapsed, action.name]),
       };
     }

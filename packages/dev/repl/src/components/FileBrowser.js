@@ -128,7 +128,7 @@ function FileBrowserFolder({
                 const data = e.dataTransfer.getData(
                   'application/x-parcel-repl-file',
                 );
-                if (data != p) {
+                if (data !== p) {
                   dispatch({
                     type: 'file.move',
                     name: data,

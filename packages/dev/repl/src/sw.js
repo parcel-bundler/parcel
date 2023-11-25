@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 // @flow strict
 
 import nullthrows from 'nullthrows';

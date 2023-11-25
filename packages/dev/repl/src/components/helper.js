@@ -3,7 +3,7 @@ import type {BundleOutputError} from '../parcel/ParcelWorker';
 import {useCallback, useState, useEffect, useRef, memo} from 'react';
 import {ctrlKey} from '../utils';
 import renderGraph from '../graphs/index.js';
-import {ASSET_PRESETS} from '../utils';
+import {ASSET_PRESETS, extractZIP} from '../utils';
 import {type FSMap} from '../utils/assets';
 /* eslint-disable react/jsx-no-bind */
 
@@ -258,6 +258,7 @@ export function useDebounce(
     return () => {
       clearTimeout(handler);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cb, delay, ...deps]);
 }
 
@@ -316,8 +317,8 @@ const addBodyClass = className => document.body.classList.add(className);
 // $FlowFixMe
 const removeBodyClass = className => document.body.classList.remove(className);
 export function useBodyClass(className: string) {
-  let classNames = Array.isArray(className) ? className : [className];
   useEffect(() => {
+    let classNames = Array.isArray(className) ? className : [className];
     classNames.forEach(addBodyClass);
 
     return () => {
@@ -327,9 +328,13 @@ export function useBodyClass(className: string) {
 }
 
 export function useKeyboard(cb: KeyboardEvent => mixed, deps: Array<mixed>) {
-  const keydownCb = useCallback((e: KeyboardEvent) => {
-    cb(e);
-  }, deps);
+  const keydownCb = useCallback(
+    (e: KeyboardEvent) => {
+      cb(e);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cb, ...deps],
+  );
   useEffect(() => {
     document.addEventListener('keydown', keydownCb);
     return () => {
