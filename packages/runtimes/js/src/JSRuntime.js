@@ -32,7 +32,7 @@ const BROWSER_PREFETCH_LOADER = './helpers/browser/prefetch-loader';
 const DIRNAME =
   // $FlowFixMe
   process.env.PARCEL_BUILD_REPL && process.browser
-    ? '/virtual/@parcel/runtime-js/src'
+    ? '/app/__virtual__/@parcel/runtime-js/src'
     : __dirname;
 const FILENAME = path.join(DIRNAME, 'JSRuntime.js');
 

@@ -11,7 +11,7 @@ const HMR_RUNTIME = fs.readFileSync(
 
 // $FlowFixMe
 const DIRNAME = process.browser
-  ? '/VIRTUAL/@parcel/runtime-hmr/src'
+  ? '/app/__virtual__/@parcel/runtime-hmr/src'
   : __dirname;
 const FILENAME = path.join(DIRNAME, 'HMRRuntime.js');
 
