@@ -36,6 +36,7 @@ export default (new Packager({
           // Hoist unresolved external dependencies (i.e. http: imports)
           if (
             node.value.priority === 'sync' &&
+            !bundleGraph.isDependencySkipped(node.value) &&
             !bundleGraph.getResolvedAsset(node.value, bundle)
           ) {
             hoistedImports.push(node.value.specifier);

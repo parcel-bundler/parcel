@@ -13,7 +13,6 @@ import type {
 import type {
   ParcelOptions,
   RequestInvalidation,
-  InternalFile,
   InternalFileCreateInvalidation,
   InternalGlob,
 } from './types';
@@ -27,7 +26,7 @@ import {
   isDirectoryInside,
   makeDeferredWithPromise,
 } from '@parcel/utils';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import {ContentGraph} from '@parcel/graph';
 import {deserialize, serialize} from './serializer';
 import {assertSignalNotAborted, hashFromOption} from './utils';
@@ -84,46 +83,61 @@ type SerializedRequestGraph = {|
   invalidateOnBuildNodeIds: Set<NodeId>,
 |};
 
-type FileNode = {|id: ContentKey, +type: 'file', value: InternalFile|};
+type FileNode = {|id: ContentKey, +type: 'file'|};
+
 type GlobNode = {|id: ContentKey, +type: 'glob', value: InternalGlob|};
+
 type FileNameNode = {|
   id: ContentKey,
   +type: 'file_name',
-  value: string,
 |};
+
 type EnvNode = {|
   id: ContentKey,
   +type: 'env',
-  value: {|key: string, value: string | void|},
+  value: string | void,
 |};
 
 type OptionNode = {|
   id: ContentKey,
   +type: 'option',
-  value: {|key: string, hash: string|},
+  hash: string,
 |};
 
 type Request<TInput, TResult> = {|
   id: string,
-  +type: string,
+  +type: RequestType,
   input: TInput,
   run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
-|};
-
-type StoredRequest = {|
-  id: string,
-  +type: string,
-  result?: mixed,
-  resultCacheKey?: ?string,
 |};
 
 type InvalidateReason = number;
 type RequestNode = {|
   id: ContentKey,
   +type: 'request',
-  value: StoredRequest,
+  +requestType: RequestType,
   invalidateReason: InvalidateReason,
+  result?: mixed,
+  resultCacheKey?: ?string,
+  hash?: string,
 |};
+
+type RequestType =
+  | 'parcel_build_request'
+  | 'bundle_graph_request'
+  | 'asset_graph_request'
+  | 'entry_request'
+  | 'target_request'
+  | 'parcel_config_request'
+  | 'path_request'
+  | 'dev_dep_request'
+  | 'asset_request'
+  | 'config_request'
+  | 'write_bundles_request'
+  | 'package_request'
+  | 'write_bundle_request'
+  | 'validation_request';
+
 type RequestGraphNode =
   | RequestNode
   | FileNode
@@ -144,8 +158,8 @@ export type RunAPI<TResult> = {|
   storeResult(result: TResult, cacheKey?: string): void,
   getRequestResult<T>(contentKey: ContentKey): Async<?T>,
   getPreviousResult<T>(ifMatch?: string): Async<?T>,
-  getSubRequests(): Array<StoredRequest>,
-  getInvalidSubRequests(): Array<StoredRequest>,
+  getSubRequests(): Array<RequestNode>,
+  getInvalidSubRequests(): Array<RequestNode>,
   canSkipSubrequest(ContentKey): boolean,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
@@ -167,7 +181,6 @@ export type StaticRunOpts<TResult> = {|
 const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
   id: fromProjectPathRelative(filePath),
   type: 'file',
-  value: {filePath},
 });
 
 const nodeFromGlob = (glob: InternalGlob): RequestGraphNode => ({
@@ -179,33 +192,32 @@ const nodeFromGlob = (glob: InternalGlob): RequestGraphNode => ({
 const nodeFromFileName = (fileName: string): RequestGraphNode => ({
   id: 'file_name:' + fileName,
   type: 'file_name',
-  value: fileName,
 });
 
-const nodeFromRequest = (request: StoredRequest): RequestGraphNode => ({
+const nodeFromRequest = (request: RequestNode): RequestGraphNode => ({
   id: request.id,
   type: 'request',
-  value: request,
+  requestType: request.requestType,
   invalidateReason: INITIAL_BUILD,
 });
 
 const nodeFromEnv = (env: string, value: string | void): RequestGraphNode => ({
   id: 'env:' + env,
   type: 'env',
-  value: {
-    key: env,
-    value,
-  },
+  value,
 });
 
 const nodeFromOption = (option: string, value: mixed): RequestGraphNode => ({
   id: 'option:' + option,
   type: 'option',
-  value: {
-    key: option,
-    hash: hashFromOption(value),
-  },
+  hash: hashFromOption(value),
 });
+
+const keyFromEnvContentKey = (contentKey: ContentKey): string =>
+  contentKey.slice('env:'.length);
+
+const keyFromOptionContentKey = (contentKey: ContentKey): string =>
+  contentKey.slice('option:'.length);
 
 export class RequestGraph extends ContentGraph<
   RequestGraphNode,
@@ -346,7 +358,7 @@ export class RequestGraph extends ContentGraph<
     for (let nodeId of this.envNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'env');
-      if (env[node.value.key] !== node.value.value) {
+      if (env[keyFromEnvContentKey(node.id)] !== node.value) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
           requestGraphEdgeTypes.invalidated_by_update,
@@ -362,7 +374,9 @@ export class RequestGraph extends ContentGraph<
     for (let nodeId of this.optionNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'option');
-      if (hashFromOption(options[node.value.key]) !== node.value.hash) {
+      if (
+        hashFromOption(options[keyFromOptionContentKey(node.id)]) !== node.hash
+      ) {
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
           requestGraphEdgeTypes.invalidated_by_update,
@@ -609,17 +623,20 @@ export class RequestGraph extends ContentGraph<
         let node = nullthrows(this.getNode(nodeId));
         switch (node.type) {
           case 'file':
-            return {type: 'file', filePath: node.value.filePath};
+            return {type: 'file', filePath: toProjectPathUnsafe(node.id)};
           case 'env':
-            return {type: 'env', key: node.value.key};
+            return {type: 'env', key: keyFromEnvContentKey(node.id)};
           case 'option':
-            return {type: 'option', key: node.value.key};
+            return {
+              type: 'option',
+              key: keyFromOptionContentKey(node.id),
+            };
         }
       })
       .filter(Boolean);
   }
 
-  getSubRequests(requestNodeId: NodeId): Array<StoredRequest> {
+  getSubRequests(requestNodeId: NodeId): Array<RequestNode> {
     if (!this.hasNode(requestNodeId)) {
       return [];
     }
@@ -632,11 +649,11 @@ export class RequestGraph extends ContentGraph<
     return subRequests.map(nodeId => {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'request');
-      return node.value;
+      return node;
     });
   }
 
-  getInvalidSubRequests(requestNodeId: NodeId): Array<StoredRequest> {
+  getInvalidSubRequests(requestNodeId: NodeId): Array<RequestNode> {
     if (!this.hasNode(requestNodeId)) {
       return [];
     }
@@ -651,7 +668,7 @@ export class RequestGraph extends ContentGraph<
       .map(nodeId => {
         let node = nullthrows(this.getNode(nodeId));
         invariant(node.type === 'request');
-        return node.value;
+        return node;
       });
   }
 
@@ -675,7 +692,7 @@ export class RequestGraph extends ContentGraph<
           requestGraphEdgeTypes.invalidated_by_create_above,
         ) &&
         isDirectoryInside(
-          fromProjectPathRelative(matchNode.value.filePath),
+          fromProjectPathRelative(toProjectPathUnsafe(matchNode.id)),
           dirname,
         )
       ) {
@@ -724,8 +741,8 @@ export class RequestGraph extends ContentGraph<
       // this means the project root was moved and we need to
       // re-run all requests.
       if (type === 'create' && filePath === '') {
-        for (let [id, node] of this.nodes) {
-          if (node.type === 'request') {
+        for (let [id, node] of this.nodes.entries()) {
+          if (node?.type === 'request') {
             this.invalidNodeIds.add(id);
           }
         }
@@ -764,15 +781,19 @@ export class RequestGraph extends ContentGraph<
           let fileNameNodeId = this.getNodeIdByContentKey(
             'file_name:' + basename,
           );
+
           // Find potential file nodes to be invalidated if this file name pattern matches
-          let above = this.getNodeIdsConnectedTo(
+          let above: Array<FileNode> = [];
+          for (const nodeId of this.getNodeIdsConnectedTo(
             fileNameNodeId,
             requestGraphEdgeTypes.invalidated_by_create_above,
-          ).map(nodeId => {
+          )) {
             let node = nullthrows(this.getNode(nodeId));
-            invariant(node.type === 'file');
-            return node;
-          });
+            // these might also be `glob` nodes which get handled below, we only care about files here.
+            if (node.type === 'file') {
+              above.push(node);
+            }
+          }
 
           if (above.length > 0) {
             didInvalidate = true;
@@ -841,7 +862,7 @@ export default class RequestTracker {
     this.signal = signal;
   }
 
-  startRequest(request: StoredRequest): {|
+  startRequest(request: RequestNode): {|
     requestNodeId: NodeId,
     deferred: Deferred<boolean>,
   |} {
@@ -869,8 +890,8 @@ export default class RequestTracker {
   storeResult(nodeId: NodeId, result: mixed, cacheKey: ?string) {
     let node = this.graph.getNode(nodeId);
     if (node && node.type === 'request') {
-      node.value.result = result;
-      node.value.resultCacheKey = cacheKey;
+      node.result = result;
+      node.resultCacheKey = cacheKey;
     }
   }
 
@@ -889,21 +910,21 @@ export default class RequestTracker {
     let node = nullthrows(this.graph.getNodeByContentKey(contentKey));
     invariant(node.type === 'request');
 
-    if (ifMatch != null && node.value.resultCacheKey !== ifMatch) {
+    if (ifMatch != null && node.resultCacheKey !== ifMatch) {
       return null;
     }
 
-    if (node.value.result != undefined) {
+    if (node.result != undefined) {
       // $FlowFixMe
-      let result: T = (node.value.result: any);
+      let result: T = (node.result: any);
       return result;
-    } else if (node.value.resultCacheKey != null && ifMatch == null) {
-      let key = node.value.resultCacheKey;
+    } else if (node.resultCacheKey != null && ifMatch == null) {
+      let key = node.resultCacheKey;
       invariant(this.options.cache.hasLargeBlob(key));
       let cachedResult: T = deserialize(
         await this.options.cache.getLargeBlob(key),
       );
-      node.value.result = cachedResult;
+      node.result = cachedResult;
       return cachedResult;
     }
   }
@@ -938,12 +959,12 @@ export default class RequestTracker {
     return this.graph.invalidNodeIds.size > 0;
   }
 
-  getInvalidRequests(): Array<StoredRequest> {
+  getInvalidRequests(): Array<RequestNode> {
     let invalidRequests = [];
     for (let id of this.graph.invalidNodeIds) {
       let node = nullthrows(this.graph.getNode(id));
       invariant(node.type === 'request');
-      invalidRequests.push(node.value);
+      invalidRequests.push(node);
     }
     return invalidRequests;
   }
@@ -988,7 +1009,9 @@ export default class RequestTracker {
       requestId != null ? this.graph.getInvalidations(requestId) : [];
     let {requestNodeId, deferred} = this.startRequest({
       id: request.id,
-      type: request.type,
+      type: 'request',
+      requestType: request.type,
+      invalidateReason: INITIAL_BUILD,
     });
 
     let {api, subRequestContentKeys} = this.createAPI(
@@ -998,7 +1021,6 @@ export default class RequestTracker {
 
     try {
       let node = this.graph.getRequestNode(requestNodeId);
-
       let result = await request.run({
         input: request.input,
         api,
@@ -1087,20 +1109,20 @@ export default class RequestTracker {
     }
 
     let promises = [];
-    for (let [, node] of this.graph.nodes) {
-      if (node.type !== 'request') {
+    for (let node of this.graph.nodes) {
+      if (!node || node.type !== 'request') {
         continue;
       }
 
-      let resultCacheKey = node.value.resultCacheKey;
-      if (resultCacheKey != null && node.value.result != null) {
+      let resultCacheKey = node.resultCacheKey;
+      if (resultCacheKey != null && node.result != null) {
         promises.push(
           this.options.cache.setLargeBlob(
             resultCacheKey,
-            serialize(node.value.result),
+            serialize(node.result),
           ),
         );
-        delete node.value.result;
+        delete node.result;
       }
     }
 

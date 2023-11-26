@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
-use swc_atoms::{js_word, JsWord};
-use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Fold, FoldWith};
+use swc_core::common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_core::ecma::ast::*;
+use swc_core::ecma::atoms::{js_word, JsWord};
+use swc_core::ecma::visit::{Fold, FoldWith};
 
 use crate::id;
 use crate::utils::{
@@ -149,7 +149,7 @@ impl<'a> Fold for Hoist<'a> {
                 import.src.value.clone(),
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
-                  asserts: None,
+                  with: None,
                   span: DUMMY_SP,
                   src: Box::new(
                     format!("{}:{}:{}", self.module_id, import.src.value, "esm").into(),
@@ -196,7 +196,7 @@ impl<'a> Fold for Hoist<'a> {
                   src.value.clone(),
                   ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     specifiers: vec![],
-                    asserts: None,
+                    with: None,
                     span: DUMMY_SP,
                     src: Box::new(Str {
                       value: format!("{}:{}:{}", self.module_id, src.value, "esm").into(),
@@ -291,7 +291,7 @@ impl<'a> Fold for Hoist<'a> {
                 export.src.value.clone(),
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
-                  asserts: None,
+                  with: None,
                   span: DUMMY_SP,
                   src: Box::new(
                     format!("{}:{}:{}", self.module_id, export.src.value, "esm").into(),
@@ -397,7 +397,7 @@ impl<'a> Fold for Hoist<'a> {
                             .module_items
                             .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                               specifiers: vec![],
-                              asserts: None,
+                              with: None,
                               span: DUMMY_SP,
                               src: Box::new(Str {
                                 value: format!("{}:{}", self.module_id, source).into(),
@@ -438,7 +438,7 @@ impl<'a> Fold for Hoist<'a> {
                               .module_items
                               .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                                 specifiers: vec![],
-                                asserts: None,
+                                with: None,
                                 span: DUMMY_SP,
                                 src: Box::new(Str {
                                   value: format!("{}:{}", self.module_id, source,).into(),
@@ -538,7 +538,7 @@ impl<'a> Fold for Hoist<'a> {
       Expr::OptChain(opt) => {
         return Expr::OptChain(OptChainExpr {
           span: opt.span,
-          question_dot_token: opt.question_dot_token,
+          optional: opt.optional,
           base: Box::new(match *opt.base {
             OptChainBase::Call(call) => OptChainBase::Call(call.fold_with(self)),
             OptChainBase::Member(member) => {
@@ -979,7 +979,6 @@ impl<'a> Fold for Hoist<'a> {
             left: Box::new(Pat::Ident(BindingIdent::from(assign.key.fold_with(self)))),
             right: value.fold_with(self),
             span: DUMMY_SP,
-            type_ann: None,
           }),
           None => Pat::Ident(BindingIdent::from(assign.key.fold_with(self))),
         }),
@@ -999,7 +998,7 @@ impl<'a> Hoist<'a> {
       .module_items
       .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         specifiers: vec![],
-        asserts: None,
+        with: None,
         span: DUMMY_SP,
         src: Box::new(src.into()),
         type_only: false,
@@ -1117,14 +1116,14 @@ mod tests {
   use crate::collect_decls;
   use crate::utils::BailoutReason;
   use std::iter::FromIterator;
-  use swc_common::chain;
-  use swc_common::comments::SingleThreadedComments;
-  use swc_common::{sync::Lrc, FileName, Globals, Mark, SourceMap};
-  use swc_ecmascript::codegen::text_writer::JsWriter;
-  use swc_ecmascript::parser::lexer::Lexer;
-  use swc_ecmascript::parser::{Parser, StringInput};
-  use swc_ecmascript::transforms::{fixer, hygiene, resolver};
-  use swc_ecmascript::visit::VisitWith;
+  use swc_core::common::chain;
+  use swc_core::common::comments::SingleThreadedComments;
+  use swc_core::common::{sync::Lrc, FileName, Globals, Mark, SourceMap};
+  use swc_core::ecma::codegen::text_writer::JsWriter;
+  use swc_core::ecma::parser::lexer::Lexer;
+  use swc_core::ecma::parser::{Parser, StringInput};
+  use swc_core::ecma::transforms::base::{fixer::fixer, hygiene::hygiene, resolver};
+  use swc_core::ecma::visit::VisitWith;
   extern crate indoc;
   use self::indoc::indoc;
 
@@ -1141,11 +1140,21 @@ mod tests {
     );
 
     let mut parser = Parser::new_from(lexer);
-    match parser.parse_module() {
-      Ok(module) => swc_common::GLOBALS.set(&Globals::new(), || {
-        swc_ecmascript::transforms::helpers::HELPERS.set(
-          &swc_ecmascript::transforms::helpers::Helpers::new(false),
+    match parser.parse_program() {
+      Ok(program) => swc_core::common::GLOBALS.set(&Globals::new(), || {
+        swc_core::ecma::transforms::base::helpers::HELPERS.set(
+          &swc_core::ecma::transforms::base::helpers::Helpers::new(false),
           || {
+            let is_module = program.is_module();
+            let module = match program {
+              Program::Module(module) => module,
+              Program::Script(script) => Module {
+                span: script.span,
+                shebang: None,
+                body: script.body.into_iter().map(ModuleItem::Stmt).collect(),
+              },
+            };
+
             let unresolved_mark = Mark::fresh(Mark::root());
             let global_mark = Mark::fresh(Mark::root());
             let module = module.fold_with(&mut resolver(unresolved_mark, global_mark, false));
@@ -1156,6 +1165,7 @@ mod tests {
               Mark::fresh(Mark::root()),
               global_mark,
               true,
+              is_module,
             );
             module.visit_with(&mut collect);
 
@@ -1188,13 +1198,9 @@ mod tests {
         &mut buf,
         Some(&mut src_map_buf),
       ));
-      let config = swc_ecmascript::codegen::Config {
-        minify: false,
-        ascii_only: false,
-        target: swc_ecmascript::ast::EsVersion::Es5,
-        omit_last_semi: false,
-      };
-      let mut emitter = swc_ecmascript::codegen::Emitter {
+      let config =
+        swc_core::ecma::codegen::Config::default().with_target(swc_core::ecma::ast::EsVersion::Es5);
+      let mut emitter = swc_core::ecma::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
         cm: source_map,
@@ -1318,7 +1324,7 @@ mod tests {
 
     let (collect, _code, _hoist) = parse(
       r#"
-    import { a, b, c, d } from "other";
+    import { a, b, c, d, e } from "other";
     import * as x from "other";
     import * as y from "other";
 
@@ -1327,11 +1333,12 @@ mod tests {
     c();
     log(x);
     y.foo();
+    e.foo.bar();
     "#,
     );
     assert_eq_set!(
       collect.used_imports,
-      set! { w!("a"), w!("b"), w!("c"), w!("x"), w!("y") }
+      set! { w!("a"), w!("b"), w!("c"), w!("e"), w!("x"), w!("y") }
     );
     assert_eq_imports!(
       collect.imports,
@@ -1340,6 +1347,7 @@ mod tests {
         w!("b") => (w!("other"), w!("b"), false),
         w!("c") => (w!("other"), w!("c"), false),
         w!("d") => (w!("other"), w!("d"), false),
+        w!("e") => (w!("other"), w!("e"), false),
         w!("x") => (w!("other"), w!("*"), false),
         w!("y") => (w!("other"), w!("*"), false)
       }
@@ -1425,6 +1433,33 @@ mod tests {
     "#,
     );
     assert!(collect.should_wrap);
+  }
+
+  #[test]
+  fn collect_has_cjs_exports() {
+    let (collect, _code, _hoist) = parse(
+      r#"
+      module.exports = {};
+    "#,
+    );
+    assert!(collect.has_cjs_exports);
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+      this.someExport = 'true';
+    "#,
+    );
+    assert!(collect.has_cjs_exports);
+
+    // Some TSC polyfills use a pattern like below.
+    // We want to avoid marking these modules as CJS
+    let (collect, _code, _hoist) = parse(
+      r#"
+      import 'something';
+      var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function () {}
+    "#,
+    );
+    assert!(!collect.has_cjs_exports);
   }
 
   #[test]
@@ -1968,7 +2003,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    const { foo: $abc$var$foo , ...$abc$var$bar } = $abc$import$70a00e0a8474f72a;
+    const { foo: $abc$var$foo, ...$abc$var$bar } = $abc$import$70a00e0a8474f72a;
     console.log($abc$var$foo, $abc$var$bar);
     "#}
     );
@@ -1984,7 +2019,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:x";
-    const { x: { y: $abc$var$z  }  } = $abc$import$d141bba7fdc215a3;
+    const { x: { y: $abc$var$z } } = $abc$import$d141bba7fdc215a3;
     console.log($abc$var$z);
     "#}
     );
@@ -2073,7 +2108,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    const { foo: $abc$var$foo  } = $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa;
+    const { foo: $abc$var$foo } = $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa;
     console.log($abc$var$foo);
     "#}
     );
@@ -2205,7 +2240,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     function $abc$var$x() {
-        const { foo: foo  } = $abc$import$70a00e0a8474f72a;
+        const { foo: foo } = $abc$import$70a00e0a8474f72a;
         console.log(foo);
     }
     "#}
@@ -2462,9 +2497,9 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var { x: $abc$export$d141bba7fdc215a3 , ...$abc$export$4a5767248b18ef41 } = something;
+    var { x: $abc$export$d141bba7fdc215a3, ...$abc$export$4a5767248b18ef41 } = something;
     var [$abc$export$ffb5f4729a158638, ...$abc$export$9e5f44173e64f162] = something;
-    var { x: $abc$export$d141bba7fdc215a3 = 3  } = something;
+    var { x: $abc$export$d141bba7fdc215a3 = 3 } = something;
     "#}
     );
 
@@ -2952,7 +2987,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     async function $abc$var$test() {
-        const { foo: foo  } = await $abc$importAsync$70a00e0a8474f72a;
+        const { foo: foo } = await $abc$importAsync$70a00e0a8474f72a;
         console.log(foo);
     }
     "#}
@@ -2983,7 +3018,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     async function $abc$var$test() {
-        const { foo: bar  } = await $abc$importAsync$70a00e0a8474f72a;
+        const { foo: bar } = await $abc$importAsync$70a00e0a8474f72a;
         console.log(bar);
     }
     "#}
@@ -3060,7 +3095,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(({ foo: foo  })=>foo);
+    $abc$importAsync$70a00e0a8474f72a.then(({ foo: foo })=>foo);
     "#}
     );
 
@@ -3085,7 +3120,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(({ foo: bar  })=>bar);
+    $abc$importAsync$70a00e0a8474f72a.then(({ foo: bar })=>bar);
     "#}
     );
 
@@ -3164,7 +3199,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: foo  }) {});
+    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: foo }) {});
     "#}
     );
 
@@ -3189,7 +3224,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: bar  }) {});
+    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: bar }) {});
     "#}
     );
   }
@@ -3409,5 +3444,67 @@ mod tests {
         }
       }
     );
+  }
+
+  #[test]
+  fn collect_this_exports() {
+    // module is wrapped when `this` accessor matches an export
+    let (collect, _code, _hoist) = parse(
+      r#"
+      exports.foo = function() {
+        exports.bar()
+      }
+
+      exports.bar = function() {
+        this.baz()
+      }
+
+      exports.baz = function() {
+        return 2
+      }
+      "#,
+    );
+    assert_eq!(
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|b| &b.reason)
+        .collect::<Vec<_>>(),
+      vec![&BailoutReason::ThisInExport]
+    );
+    assert_eq!(collect.should_wrap, true);
+
+    // module is not wrapped when `this` inside a class collides with an export
+    let (collect, _code, _hoist) = parse(
+      r#"
+      class Foo {
+        constructor() {
+          this.a = 4
+        }
+
+        bar() {
+          return this.baz()
+        }
+
+        baz() {
+          return this.a
+        }
+      }
+
+      exports.baz = new Foo()
+      exports.a = 2
+      "#,
+    );
+    assert_eq!(
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|b| &b.reason)
+        .collect::<Vec<_>>(),
+      Vec::<&BailoutReason>::new()
+    );
+    assert_eq!(collect.should_wrap, false);
   }
 }

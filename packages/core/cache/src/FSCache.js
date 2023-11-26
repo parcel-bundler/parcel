@@ -13,6 +13,8 @@ import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 
+import {WRITE_LIMIT_CHUNK} from './constants';
+
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
   stream.pipeline,
 );
@@ -81,16 +83,50 @@ export class FSCache implements Cache {
     }
   }
 
-  hasLargeBlob(key: string): Promise<boolean> {
-    return this.fs.exists(this._getCachePath(`${key}-large`));
+  #getFilePath(key: string, index: number): string {
+    return path.join(this.dir, `${key}-${index}`);
   }
 
-  getLargeBlob(key: string): Promise<Buffer> {
-    return this.fs.readFile(this._getCachePath(`${key}-large`));
+  hasLargeBlob(key: string): Promise<boolean> {
+    return this.fs.exists(this.#getFilePath(key, 0));
+  }
+
+  async getLargeBlob(key: string): Promise<Buffer> {
+    const buffers: Promise<Buffer>[] = [];
+    for (let i = 0; await this.fs.exists(this.#getFilePath(key, i)); i += 1) {
+      const file: Promise<Buffer> = this.fs.readFile(this.#getFilePath(key, i));
+
+      buffers.push(file);
+    }
+
+    return Buffer.concat(await Promise.all(buffers));
   }
 
   async setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
-    await this.fs.writeFile(this._getCachePath(`${key}-large`), contents);
+    const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
+
+    if (chunks === 1) {
+      // If there's one chunk, don't slice the content
+      await this.fs.writeFile(this.#getFilePath(key, 0), contents);
+      return;
+    }
+
+    const writePromises: Promise<void>[] = [];
+    for (let i = 0; i < chunks; i += 1) {
+      writePromises.push(
+        this.fs.writeFile(
+          this.#getFilePath(key, i),
+          typeof contents === 'string'
+            ? contents.slice(i * WRITE_LIMIT_CHUNK, (i + 1) * WRITE_LIMIT_CHUNK)
+            : contents.subarray(
+                i * WRITE_LIMIT_CHUNK,
+                (i + 1) * WRITE_LIMIT_CHUNK,
+              ),
+        ),
+      );
+    }
+
+    await Promise.all(writePromises);
   }
 
   async get<T>(key: string): Promise<?T> {
@@ -115,6 +151,10 @@ export class FSCache implements Cache {
     } catch (err) {
       logger.error(err, '@parcel/cache');
     }
+  }
+
+  refresh(): void {
+    // NOOP
   }
 }
 

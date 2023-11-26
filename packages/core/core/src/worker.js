@@ -21,10 +21,10 @@ import {reportWorker, report} from './ReporterRunner';
 import PackagerRunner, {type PackageRequestResult} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
-import {registerCoreWithSerializer} from './utils';
+import {registerCoreWithSerializer} from './registerCoreWithSerializer';
 import {clearBuildCaches} from './buildCache';
 import {init as initSourcemaps} from '@parcel/source-map';
-import {init as initHash} from '@parcel/hash';
+import {init as initRust} from '@parcel/rust';
 import WorkerFarm from '@parcel/workers';
 
 import '@parcel/cache'; // register with serializer
@@ -148,7 +148,7 @@ export async function runPackage(
 
 export async function childInit() {
   await initSourcemaps;
-  await initHash;
+  await initRust?.();
 }
 
 const PKG_RE =

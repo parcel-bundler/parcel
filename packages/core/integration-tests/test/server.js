@@ -176,7 +176,7 @@ describe('server', function () {
     assert.equal(await get('/', port), rootIndex);
     assert.equal(await get('/something', port), rootIndex);
     assert.equal(await get('/other', port), other);
-    assert.equal(await get('/foo', port), rootIndex);
+    assert.equal(await get('/foo', port), fooIndex);
     assert.equal(await get('/foo/', port), fooIndex);
     assert.equal(await get('/foo/bar', port), fooIndex);
     assert.equal(await get('/foo/other', port), fooOther);

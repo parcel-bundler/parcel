@@ -1,0 +1,8 @@
+{
+    "@parcel/transformer-js": {
+        "unstable_inlineConstants": true
+    },
+    "@parcel/bundler-default": {
+        "minBundleSize": 0
+    }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@parcel/optimizer-inline-requires",
+  "version": "2.10.3",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/InlineRequires.js",
+  "source": "src/InlineRequires.js",
+  "engines": {
+    "node": ">= 14.0.0",
+    "parcel": "^2.10.3"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.10.3",
+    "@parcel/types": "2.10.3",
+    "@swc/core": "^1.3.36",
+    "nullthrows": "^1.1.1"
+  }
+}

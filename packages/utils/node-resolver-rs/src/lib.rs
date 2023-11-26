@@ -1228,6 +1228,14 @@ mod tests {
     );
     assert_eq!(
       test_resolver()
+        .resolve(".///bar.js", &root().join("foo.js"), SpecifierType::Esm)
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("bar.js"))
+    );
+    assert_eq!(
+      test_resolver()
         .resolve("./bar", &root().join("foo.js"), SpecifierType::Esm)
         .result
         .unwrap()
@@ -2288,6 +2296,18 @@ mod tests {
         .unwrap()
         .0,
       Resolution::Builtin("zlib".into())
+    );
+    assert_eq!(
+      test_resolver()
+        .resolve(
+          "node:fs/promises",
+          &root().join("foo.js"),
+          SpecifierType::Cjs
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Builtin("fs/promises".into())
     );
   }
 

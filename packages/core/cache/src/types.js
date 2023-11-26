@@ -14,4 +14,10 @@ export interface Cache {
   getLargeBlob(key: string): Promise<Buffer>;
   setLargeBlob(key: string, contents: Buffer | string): Promise<void>;
   getBuffer(key: string): Promise<?Buffer>;
+  /**
+   * In a multi-threaded environment, where there are potentially multiple Cache
+   * instances writing to the cache, ensure that this instance has the latest view
+   * of the changes that may have been written to the cache in other threads.
+   */
+  refresh(): void;
 }

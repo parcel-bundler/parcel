@@ -150,7 +150,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
         });
 
         return {
-          contents: result.code,
+          contents: Buffer.from(result.code),
         };
       }
     }
@@ -166,7 +166,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
 
     let map;
     if (result.map != null) {
-      let vlqMap = JSON.parse(result.map.toString());
+      let vlqMap = JSON.parse(Buffer.from(result.map).toString());
       map = new SourceMap(options.projectRoot);
       map.addVLQMap(vlqMap);
       if (prevMap) {
@@ -174,7 +174,7 @@ Parcel\'s default CSS minifer changed from cssnano to lightningcss, but a "cssna
       }
     }
 
-    let contents = result.code;
+    let contents = Buffer.from(result.code);
     if (bundle.env.sourceMap) {
       let reference = await getSourceMapReference(map);
       if (reference != null) {

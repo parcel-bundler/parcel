@@ -1,0 +1,42 @@
+{
+  "name": "@parcel/rust",
+  "version": "2.10.3",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "index.js",
+  "browser": "browser.js",
+  "napi": {
+    "name": "parcel-node-bindings"
+  },
+  "engines": {
+    "node": ">= 12.0.0"
+  },
+  "files": [
+    "browser.js",
+    "index.d.ts",
+    "index.js",
+    "index.js.flow",
+    "*.node",
+    "*.wasm"
+  ],
+  "devDependencies": {
+    "@napi-rs/cli": "^2.15.2",
+    "napi-wasm": "^1.0.1"
+  },
+  "scripts": {
+    "build": "napi build --platform --cargo-cwd ../../../crates/node-bindings",
+    "build-release": "napi build --platform --release --cargo-cwd ../../../crates/node-bindings",
+    "wasm:build": "cargo build -p parcel-node-bindings --target wasm32-unknown-unknown && cp ../../../target/wasm32-unknown-unknown/debug/parcel_node_bindings.wasm .",
+    "wasm:build-release": "CARGO_PROFILE_RELEASE_LTO=true cargo build -p parcel-node-bindings --target wasm32-unknown-unknown --release && wasm-opt --strip-debug -O ../../../target/wasm32-unknown-unknown/release/parcel_node_bindings.wasm -o parcel_node_bindings.wasm"
+  }
+}

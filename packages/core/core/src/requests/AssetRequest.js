@@ -14,7 +14,7 @@ import type {TransformationResult} from '../Transformation';
 
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {hashString} from '@parcel/hash';
+import {hashString} from '@parcel/rust';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
 import {runConfigRequest} from './ConfigRequest';
@@ -81,7 +81,7 @@ async function run({input, api, farm, invalidateReason, options}) {
     await Promise.all(
       api
         .getSubRequests()
-        .filter(req => req.type === 'dev_dep_request')
+        .filter(req => req.requestType === 'dev_dep_request')
         .map(async req => [
           req.id,
           nullthrows(await api.getRequestResult<DevDepRequest>(req.id)),

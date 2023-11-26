@@ -244,7 +244,7 @@ declare module 'commander' {
     [key: string]: any;
   }
 
-  declare class commander$Command {
+  declare export class commander$Command {
     constructor(name?: string): commander$Command;
 
     args: string[];

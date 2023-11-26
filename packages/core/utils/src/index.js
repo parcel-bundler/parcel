@@ -85,5 +85,4 @@ export {
   loadSourceMap,
   remapSourceLocation,
 } from './sourcemap';
-export {BitSet} from './BitSet';
 export {default as stripAnsi} from 'strip-ansi';
