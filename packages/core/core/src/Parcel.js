@@ -488,8 +488,7 @@ export default class Parcel {
         asset,
         nullthrows(this.#resolvedOptions),
         dependencies,
-        // This is weird and likely wrong
-        dependencies,
+        res,
       ),
     );
   }
