@@ -639,21 +639,18 @@ function propagateSymbolsUp(
       assetGraph.rootNodeId,
       'A root node is required to traverse',
     );
-    let visited = new Set([rootNodeId]);
-    const walk = (nodeId: NodeId) => {
+
+    const nodeVisitor = nodeId => {
       let node = nullthrows(assetGraph.getNode(nodeId));
       let outgoing = assetGraph.getNodeIdsConnectedFrom(nodeId);
+
       for (let childId of outgoing) {
-        if (!visited.has(childId)) {
-          visited.add(childId);
-          walk(childId);
-          let child = nullthrows(assetGraph.getNode(childId));
-          if (node.type === 'asset') {
-            invariant(child.type === 'dependency');
-            if (child.usedSymbolsUpDirtyUp) {
-              node.usedSymbolsUpDirty = true;
-              child.usedSymbolsUpDirtyUp = false;
-            }
+        let child = nullthrows(assetGraph.getNode(childId));
+        if (node.type === 'asset') {
+          invariant(child.type === 'dependency');
+          if (child.usedSymbolsUpDirtyUp) {
+            node.usedSymbolsUpDirty = true;
+            child.usedSymbolsUpDirtyUp = false;
           }
         }
       }
@@ -698,7 +695,7 @@ function propagateSymbolsUp(
         }
       }
     };
-    walk(rootNodeId);
+    assetGraph.postOrderDfsFast(nodeVisitor, rootNodeId);
   }
 
   let queue = dirtyDeps ?? changedDepsUsedSymbolsUpDirtyDownAssets;
