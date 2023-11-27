@@ -446,6 +446,7 @@ export class CommittedAsset implements IAsset {
   #query /*: ?URLSearchParams */;
   #meta /*: ?Meta */;
   #bundleGraph /*: BundleGraph */;
+  #scope /*: Scope */;
 
   constructor(
     asset: InternalCommittedAsset,
@@ -459,6 +460,7 @@ export class CommittedAsset implements IAsset {
       return existing;
     }
 
+    this.#scope = scope;
     this.#asset = asset;
     this.#bundleGraph = bundleGraph;
     cache.set(asset.value.addr, this);
@@ -585,7 +587,7 @@ export class CommittedAsset implements IAsset {
   }
 
   getMap(): Promise<?SourceMap> {
-    return this.#asset.getMap();
+    return this.#asset.getMap(this.#scope);
   }
 
   getAST(): Promise<?AST> {
@@ -593,6 +595,6 @@ export class CommittedAsset implements IAsset {
   }
 
   getMapBuffer(): Promise<?Buffer> {
-    return this.#asset.getMapBuffer();
+    return this.#asset.getMapBuffer(this.#scope);
   }
 }

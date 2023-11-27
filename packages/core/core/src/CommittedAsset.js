@@ -10,6 +10,7 @@ import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
 import {generateFromAST} from './assetUtils';
 import {Asset as DbAsset, AssetFlags} from '@parcel/rust';
 import {deserializeRaw} from './serializer';
+import type {Scope} from './scopeCache';
 
 export default class CommittedAsset {
   value: DbAsset;
@@ -90,7 +91,7 @@ export default class CommittedAsset {
       : blobToStream(content);
   }
 
-  getMapBuffer(): Promise<?Buffer> {
+  getMapBuffer(scope: Scope): Promise<?Buffer> {
     let mapKey = this.value.mapKey;
     if (mapKey != null && this.mapBuffer == null) {
       this.mapBuffer = (async () => {
@@ -98,7 +99,7 @@ export default class CommittedAsset {
           return await this.options.cache.getBlob(mapKey);
         } catch (err) {
           if (err.code === 'ENOENT' && this.value.ast != null) {
-            return (await generateFromAST(this, this)).map?.toBuffer();
+            return (await generateFromAST(this, scope)).map?.toBuffer();
           } else {
             throw err;
           }
@@ -109,10 +110,10 @@ export default class CommittedAsset {
     return this.mapBuffer ?? Promise.resolve();
   }
 
-  getMap(): Promise<?SourceMap> {
+  getMap(scope: Scope): Promise<?SourceMap> {
     if (this.map == null) {
       this.map = (async () => {
-        let mapBuffer = await this.getMapBuffer();
+        let mapBuffer = await this.getMapBuffer(scope);
         if (mapBuffer) {
           // Get sourcemap from flatbuffer
           return new SourceMap(this.options.projectRoot, mapBuffer);
