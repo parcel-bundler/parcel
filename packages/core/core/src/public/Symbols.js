@@ -20,11 +20,10 @@ import {
   SymbolFlags,
   readCachedString,
 } from '@parcel/rust';
-import {createBuildCache} from '../buildCache';
+import {getScopeCache, type Scope} from '../scopeCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-let valueToSymbols: Map<AssetAddr, AssetSymbols> = createBuildCache();
 export class AssetSymbols implements IAssetSymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
@@ -32,15 +31,21 @@ export class AssetSymbols implements IAssetSymbols {
   #value: DbAsset;
   #options: ParcelOptions;
 
-  constructor(options: ParcelOptions, asset: AssetAddr): AssetSymbols {
-    let existing = valueToSymbols.get(asset);
+  constructor(
+    options: ParcelOptions,
+    asset: AssetAddr,
+    scope: Scope,
+  ): AssetSymbols {
+    let cache = getScopeCache(scope, 'AssetSymbols');
+
+    let existing = cache.get(asset);
     if (existing != null) {
       return existing;
     }
 
     this.#value = DbAsset.get(options.db, asset);
     this.#options = options;
-    valueToSymbols.set(asset, this);
+    cache.set(asset, this);
     return this;
   }
 
@@ -109,8 +114,6 @@ export class AssetSymbols implements IAssetSymbols {
   }
 }
 
-let valueToMutableAssetSymbols: Map<AssetAddr, MutableAssetSymbols> =
-  createBuildCache();
 export class MutableAssetSymbols implements IMutableAssetSymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
@@ -118,13 +121,20 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   #value: DbAsset;
   #options: ParcelOptions;
 
-  constructor(options: ParcelOptions, asset: AssetAddr): MutableAssetSymbols {
-    let existing = valueToMutableAssetSymbols.get(asset);
+  constructor(
+    options: ParcelOptions,
+    asset: AssetAddr,
+    scope: Scope,
+  ): MutableAssetSymbols {
+    let cache = getScopeCache(scope, 'MutableAssetSymbols');
+
+    let existing = cache.get(asset);
     if (existing != null) {
       return existing;
     }
     this.#value = DbAsset.get(options.db, asset);
     this.#options = options;
+    cache.set(asset, this);
     return this;
   }
 
@@ -234,10 +244,6 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   }
 }
 
-let valueToMutableDependencySymbols: Map<
-  DependencyAddr,
-  MutableDependencySymbols,
-> = createBuildCache();
 export class MutableDependencySymbols implements IMutableDependencySymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|}]> { return ({}: any); }
@@ -249,12 +255,15 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     options: ParcelOptions,
     dep: DependencyAddr,
   ): MutableDependencySymbols {
-    let existing = valueToMutableDependencySymbols.get(dep);
+    let cache = getScopeCache(dep, 'MutableDependencySymbols');
+
+    let existing = cache.get(dep);
     if (existing != null) {
       return existing;
     }
     this.#value = DbDependency.get(options.db, dep);
     this.#options = options;
+    cache.set(dep, this);
     return this;
   }
 
