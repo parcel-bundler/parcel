@@ -23,7 +23,10 @@ import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {assetFromValue, assetToAssetValue} from './Asset';
 import {getBundleGroupId, getPublicId} from '../utils';
-import Dependency, {dependencyToInternalDependency} from './Dependency';
+import {
+  dependencyToInternalDependency,
+  getPublicDependency,
+} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
@@ -66,7 +69,7 @@ export default class MutableBundleGraph
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
       shouldSkipDependency
-        ? d => shouldSkipDependency(new Dependency(d, this.#options))
+        ? d => shouldSkipDependency(getPublicDependency(d, this.#options, this))
         : undefined,
     );
   }
@@ -80,7 +83,7 @@ export default class MutableBundleGraph
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
       shouldSkipDependency
-        ? d => shouldSkipDependency(new Dependency(d, this.#options))
+        ? d => shouldSkipDependency(getPublicDependency(d, this.#options, this))
         : undefined,
     );
   }

@@ -35,16 +35,9 @@ import {createEnvironment} from '../Environment';
 import {fromProjectPath, toProjectPath} from '../projectPath';
 import {toInternalSourceLocation} from '../utils';
 import {Asset as DbAsset, AssetFlags, readCachedString} from '@parcel/rust';
-// import {createBuildCache} from '../buildCache';
 import {getScopeCache, type Scope} from '../scopeCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
-
-// const uncommittedAssetValueToAsset: Map<AssetAddr, Asset> = createBuildCache();
-// const committedAssetValueToAsset: Map<AssetAddr, CommittedAsset> =
-//   createBuildCache();
-// const assetValueToMutableAsset: Map<AssetAddr, MutableAsset> =
-//   createBuildCache();
 
 const _assetToAssetValue: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
@@ -95,15 +88,10 @@ export function uncommittedAssetFromValue(
   );
 }
 
-export function removeAssetFromCache(_value: AssetAddr) {
-  // uncommittedAssetValueToAsset.delete(value);
-  // committedAssetValueToAsset.delete(value);
-  // assetValueToMutableAsset.delete(value);
-}
-
 class BaseAsset {
   #asset: UncommittedAsset;
-  #query /*: ?URLSearchParams */;
+  #query: ?URLSearchParams;
+  #scope: Scope;
 
   constructor(asset: UncommittedAsset) {
     this.#asset = asset;
@@ -233,7 +221,13 @@ class BaseAsset {
   getDependencies(): $ReadOnlyArray<IDependency> {
     return this.#asset
       .getDependencies()
-      .map(dep => getPublicDependency(dep, this.#asset.options));
+      .map(dep =>
+        getPublicDependency(
+          dep,
+          this.#asset.options,
+          nullthrows(this.#scope, 'Missing scope cache key'),
+        ),
+      );
   }
 
   getCode(): Promise<string> {
@@ -571,7 +565,7 @@ export class CommittedAsset implements IAsset {
   getDependencies(): $ReadOnlyArray<IDependency> {
     return this.#bundleGraph
       .getDependencies(this.#asset.value.addr)
-      .map(dep => getPublicDependency(dep, this.#asset.options));
+      .map(dep => getPublicDependency(dep, this.#asset.options, this.#scope));
   }
 
   getCode(): Promise<string> {

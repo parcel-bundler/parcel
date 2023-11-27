@@ -201,7 +201,7 @@ export class Bundle implements IBundle {
         } else if (node.type === 'dependency') {
           return {
             type: 'dependency',
-            value: getPublicDependency(node.value, this.#options),
+            value: getPublicDependency(node.value, this.#options, this),
           };
         }
       }, visit),

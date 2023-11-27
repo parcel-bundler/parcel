@@ -26,12 +26,11 @@ import {
   Asset as DbAsset,
   readCachedString,
 } from '@parcel/rust';
-import {createBuildCache} from '../buildCache';
+import {getScopeCache} from '../scopeCache';
+import type {Scope} from '../scopeCache';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const internalDependencyToDependency: Map<DependencyAddr, Dependency> =
-  createBuildCache();
 const _dependencyToInternalDependency: WeakMap<IDependency, DependencyAddr> =
   new WeakMap();
 export function dependencyToInternalDependency(
@@ -43,13 +42,19 @@ export function dependencyToInternalDependency(
 export function getPublicDependency(
   dep: DependencyAddr,
   options: ParcelOptions,
+  scope: Scope,
 ): Dependency {
-  let existing = internalDependencyToDependency.get(dep);
+  let cache = getScopeCache(scope, 'Dependency');
+
+  let existing = cache.get(dep);
   if (existing != null) {
     return existing;
   }
 
-  return new Dependency(dep, options);
+  let dependency = new Dependency(dep, options);
+  cache.set(dep, dependency);
+
+  return dependency;
 }
 
 export default class Dependency implements IDependency {
@@ -60,7 +65,6 @@ export default class Dependency implements IDependency {
     this.#dep = DbDependency.get(options.db, dep);
     this.#options = options;
     _dependencyToInternalDependency.set(this, dep);
-    internalDependencyToDependency.set(dep, this);
     return this;
   }
 

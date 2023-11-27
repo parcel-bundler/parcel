@@ -1,9 +1,10 @@
 // @flow strict-local
 
+// $FlowFixMe[unclear-type]
 export type Scope = any;
 type SubCacheKey = string;
 
-const scopeCache = new WeakMap<Scope, Map<SubCacheKey, Map<any, any>>>();
+const scopeCache = new WeakMap<Scope, Map<SubCacheKey, Map<mixed, mixed>>>();
 
 export function getScopeCache<Key, Value>(
   scope: Scope,
@@ -23,5 +24,6 @@ export function getScopeCache<Key, Value>(
     cache.set(key, subCache);
   }
 
+  // $FlowFixMe[incompatible-return]
   return subCache;
 }
