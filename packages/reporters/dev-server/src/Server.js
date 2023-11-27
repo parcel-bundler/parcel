@@ -35,6 +35,8 @@ import fresh from 'fresh';
 
 export function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
   res.setHeader(
     'Access-Control-Allow-Methods',
     'GET, HEAD, PUT, PATCH, POST, DELETE',
