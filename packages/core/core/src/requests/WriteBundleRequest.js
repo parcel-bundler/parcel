@@ -120,7 +120,7 @@ async function run({input, options, api}) {
 
   // Use the file mode from the entry asset as the file mode for the bundle.
   // Don't do this for browser builds, as the executable bit in particular is unnecessary.
-  let publicBundle = NamedBundle.get(bundle, bundleGraph, options);
+  let publicBundle = NamedBundle.get(bundle, bundleGraph, options, input);
   let mainEntry = publicBundle.getMainEntry();
   let writeOptions =
     publicBundle.env.isBrowser() || !mainEntry

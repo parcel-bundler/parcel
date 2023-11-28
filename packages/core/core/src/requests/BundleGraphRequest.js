@@ -496,11 +496,16 @@ class BundlerRunner {
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {
-    let bundle = Bundle.get(internalBundle, internalBundleGraph, this.options);
     let bundleGraph = new BundleGraph<IBundle>(
       internalBundleGraph,
       NamedBundle.get.bind(NamedBundle),
       this.options,
+    );
+    let bundle = Bundle.get(
+      internalBundle,
+      internalBundleGraph,
+      this.options,
+      bundleGraph,
     );
 
     for (let namer of namers) {

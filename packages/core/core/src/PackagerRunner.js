@@ -269,13 +269,19 @@ export default class PackagerRunner {
           bundle.name ?? bundle.id,
         ),
       });
+      let publicBundleGraph = new BundleGraph<NamedBundleType>(
+        bundleGraph,
+        NamedBundle.get.bind(NamedBundle),
+        this.options,
+      );
       config.result = await loadBundleConfig({
-        bundle: NamedBundle.get(bundle, bundleGraph, this.options),
-        bundleGraph: new BundleGraph<NamedBundleType>(
+        bundle: NamedBundle.get(
+          bundle,
           bundleGraph,
-          NamedBundle.get.bind(NamedBundle),
           this.options,
+          publicBundleGraph,
         ),
+        bundleGraph: publicBundleGraph,
         config: new PublicConfig(config, this.options, this),
         options: new PluginOptions(this.options),
         logger: new PluginLogger({origin: plugin.name}),
@@ -390,7 +396,17 @@ export default class PackagerRunner {
     configs: Map<string, Config>,
     bundleConfigs: Map<string, Config>,
   ): Promise<BundleResult> {
-    let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
+    let publicBundleGraph = new BundleGraph<NamedBundleType>(
+      bundleGraph,
+      NamedBundle.get.bind(NamedBundle),
+      this.options,
+    );
+    let bundle = NamedBundle.get(
+      internalBundle,
+      bundleGraph,
+      this.options,
+      publicBundleGraph,
+    );
     this.report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -408,11 +424,7 @@ export default class PackagerRunner {
         config: configs.get(name)?.result,
         bundleConfig: bundleConfigs.get(name)?.result,
         bundle,
-        bundleGraph: new BundleGraph<NamedBundleType>(
-          bundleGraph,
-          NamedBundle.get.bind(NamedBundle),
-          this.options,
-        ),
+        bundleGraph: publicBundleGraph,
         getSourceMapReference: map => {
           return this.getSourceMapReference(bundle, map);
         },
@@ -475,15 +487,16 @@ export default class PackagerRunner {
     configs: Map<string, Config>,
     bundleConfigs: Map<string, Config>,
   ): Promise<BundleResult> {
-    let bundle = NamedBundle.get(
-      internalBundle,
-      internalBundleGraph,
-      this.options,
-    );
     let bundleGraph = new BundleGraph<NamedBundleType>(
       internalBundleGraph,
       NamedBundle.get.bind(NamedBundle),
       this.options,
+    );
+    let bundle = NamedBundle.get(
+      internalBundle,
+      internalBundleGraph,
+      this.options,
+      bundleGraph,
     );
     let optimizers = await this.config.getOptimizers(
       bundle.name,

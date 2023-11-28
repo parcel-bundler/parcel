@@ -208,7 +208,7 @@ export default class MutableBundleGraph
     let existing = this.#graph._graph.getNodeByContentKey(bundleId);
     if (existing != null) {
       invariant(existing.type === 'bundle');
-      return Bundle.get(existing.value, this.#graph, this.#options);
+      return Bundle.get(existing.value, this.#graph, this.#options, this);
     }
 
     let publicId = getPublicId(bundleId, existing =>
@@ -268,7 +268,7 @@ export default class MutableBundleGraph
         this.#graph._graph.getNodeIdByContentKey(entryAsset.id),
       );
     }
-    return Bundle.get(bundleNode.value, this.#graph, this.#options);
+    return Bundle.get(bundleNode.value, this.#graph, this.#options, this);
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: IBundleGroup) {
@@ -314,7 +314,7 @@ export default class MutableBundleGraph
       .getParentBundlesOfBundleGroup(
         bundleGroupToInternalBundleGroup(bundleGroup),
       )
-      .map(bundle => Bundle.get(bundle, this.#graph, this.#options));
+      .map(bundle => Bundle.get(bundle, this.#graph, this.#options, this));
   }
 
   getTotalSize(asset: IAsset): number {

@@ -319,6 +319,7 @@ export default class Parcel {
               bundle,
               bundleGraph,
               options,
+              bundleInfo,
               bundleInfo.get(bundle.id),
             ),
           options,
