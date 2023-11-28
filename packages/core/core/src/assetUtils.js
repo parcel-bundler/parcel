@@ -37,6 +37,7 @@ import {
 } from '@parcel/rust';
 import {PluginTracer} from '@parcel/profiler';
 import type {Scope} from './scopeCache';
+import type BundleGraph from './BundleGraph';
 
 type AssetOptions = {|
   id?: string,
@@ -125,17 +126,22 @@ const generateResults: Map<
 
 export function generateFromAST(
   asset: CommittedAsset,
+  bundleGraph: BundleGraph,
   scope: Scope,
 ): Promise<GenerateOutput> {
   let output = generateResults.get(asset.value.addr);
   if (output == null) {
-    output = _generateFromAST(asset, scope);
+    output = _generateFromAST(asset, bundleGraph, scope);
     generateResults.set(asset.value.addr, output);
   }
   return output;
 }
 
-async function _generateFromAST(asset: CommittedAsset, scope: Scope) {
+async function _generateFromAST(
+  asset: CommittedAsset,
+  bundleGraph: BundleGraph,
+  scope: Scope,
+) {
   let ast = await asset.getAST();
   if (ast == null) {
     throw new Error('Asset has no AST');
@@ -155,7 +161,7 @@ async function _generateFromAST(asset: CommittedAsset, scope: Scope) {
   }
 
   let {content, map} = await generate({
-    asset: new PublicAsset(asset, scope),
+    asset: new PublicAsset(asset, bundleGraph, scope),
     ast,
     options: new PluginOptions(asset.options),
     logger: new PluginLogger({origin: pluginName}),

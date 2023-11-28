@@ -238,7 +238,7 @@ export default class PackagerRunner {
             searchPath: toProjectPathUnsafe('index'),
           });
 
-          await loadPluginConfig(plugin, config, this.options);
+          await loadPluginConfig(plugin, config, this.options, this);
 
           for (let devDep of config.devDeps) {
             let devDepRequest = await createDevDependency(
@@ -276,7 +276,7 @@ export default class PackagerRunner {
           NamedBundle.get.bind(NamedBundle),
           this.options,
         ),
-        config: new PublicConfig(config, this.options),
+        config: new PublicConfig(config, this.options, this),
         options: new PluginOptions(this.options),
         logger: new PluginLogger({origin: plugin.name}),
         tracer: new PluginTracer({origin: plugin.name, category: 'loadConfig'}),

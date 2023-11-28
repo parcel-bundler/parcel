@@ -12,40 +12,40 @@ import type {Config, ParcelOptions} from '../types';
 
 import invariant from 'assert';
 import path from 'path';
-import {
-  DefaultWeakMap,
-  resolveConfig,
-  readConfig,
-  relativePath,
-} from '@parcel/utils';
+import {resolveConfig, readConfig, relativePath} from '@parcel/utils';
 import Environment from './Environment';
 import {fromProjectPath, toProjectPath} from '../projectPath';
-
-const internalConfigToConfig: DefaultWeakMap<
-  ParcelOptions,
-  WeakMap<Config, PublicConfig>,
-> = new DefaultWeakMap(() => new WeakMap());
+import {getScopeCache, type Scope} from '../scopeCache';
 
 export default class PublicConfig implements IConfig {
   #config /*: Config */;
   #pkg /*: ?PackageJSON */;
   #pkgFilePath /*: ?FilePath */;
   #options /*: ParcelOptions */;
+  #scope: Scope;
 
-  constructor(config: Config, options: ParcelOptions): PublicConfig {
-    let existing = internalConfigToConfig.get(options).get(config);
+  constructor(
+    config: Config,
+    options: ParcelOptions,
+    scope: Scope,
+  ): PublicConfig {
+    let cache = getScopeCache(scope, 'PublicConfig');
+
+    let existing = cache.get(config);
     if (existing != null) {
       return existing;
     }
 
     this.#config = config;
     this.#options = options;
-    internalConfigToConfig.get(options).set(config, this);
+    this.#scope = scope;
+    // Is this safe to key off just config or do we need to key off options as well?
+    cache.set(config, this);
     return this;
   }
 
   get env(): Environment {
-    return new Environment(this.#config.env, this.#options);
+    return new Environment(this.#config.env, this.#options, this.#scope);
   }
 
   get searchPath(): FilePath {

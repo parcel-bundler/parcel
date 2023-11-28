@@ -254,8 +254,9 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   constructor(
     options: ParcelOptions,
     dep: DependencyAddr,
+    scope: Scope,
   ): MutableDependencySymbols {
-    let cache = getScopeCache(dep, 'MutableDependencySymbols');
+    let cache = getScopeCache(scope, 'MutableDependencySymbols');
 
     let existing = cache.get(dep);
     if (existing != null) {

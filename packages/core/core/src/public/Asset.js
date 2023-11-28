@@ -93,8 +93,9 @@ class BaseAsset {
   #query: ?URLSearchParams;
   #scope: Scope;
 
-  constructor(asset: UncommittedAsset) {
+  constructor(asset: UncommittedAsset, scope: Scope) {
     this.#asset = asset;
+    this.#scope = scope;
   }
 
   // $FlowFixMe[unsupported-syntax]
@@ -116,7 +117,11 @@ class BaseAsset {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#asset.value.env, this.#asset.options);
+    return new Environment(
+      this.#asset.value.env,
+      this.#asset.options,
+      nullthrows(this.#scope, 'Missing scope cache key'),
+    );
   }
 
   get fs(): FileSystem {
@@ -258,6 +263,7 @@ class BaseAsset {
 export class Asset extends BaseAsset implements IAsset {
   #asset /*: UncommittedAsset */;
   #env /*: ?Environment */;
+  #scope: Scope;
 
   constructor(asset: UncommittedAsset, scope: Scope): Asset {
     let cache = getScopeCache(scope, 'Asset');
@@ -267,19 +273,28 @@ export class Asset extends BaseAsset implements IAsset {
       return existing;
     }
 
-    super(asset);
+    super(asset, scope);
     this.#asset = asset;
+    this.#scope = scope;
     cache.set(asset.value.addr, this);
     return this;
   }
 
   get env(): IEnvironment {
-    this.#env ??= new Environment(this.#asset.value.env, this.#asset.options);
+    this.#env ??= new Environment(
+      this.#asset.value.env,
+      this.#asset.options,
+      this.#scope,
+    );
     return this.#env;
   }
 
   get symbols(): IAssetSymbols {
-    return new AssetSymbols(this.#asset.options, this.#asset.value.addr);
+    return new AssetSymbols(
+      this.#asset.options,
+      this.#asset.value.addr,
+      this.#scope,
+    );
   }
 
   get stats(): Stats {
@@ -293,6 +308,7 @@ export class Asset extends BaseAsset implements IAsset {
 
 export class MutableAsset extends BaseAsset implements IMutableAsset {
   #asset /*: UncommittedAsset */;
+  #scope: Scope;
 
   constructor(asset: UncommittedAsset, scope: Scope): MutableAsset {
     let cache = getScopeCache(scope, 'MutableAsset');
@@ -302,8 +318,9 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
       return existing;
     }
 
-    super(asset);
+    super(asset, scope);
     this.#asset = asset;
+    this.#scope = scope;
     cache.set(asset.value.addr, this);
     _mutableAssetToUncommittedAsset.set(this, asset);
     return this;
@@ -371,7 +388,11 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   get symbols(): IMutableAssetSymbols {
-    return new MutableAssetSymbols(this.#asset.options, this.#asset.value.addr);
+    return new MutableAssetSymbols(
+      this.#asset.options,
+      this.#asset.value.addr,
+      this.#scope,
+    );
   }
 
   addDependency(dep: DependencyOptions): string {
@@ -484,7 +505,11 @@ export class CommittedAsset implements IAsset {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#asset.value.env, this.#asset.options);
+    return new Environment(
+      this.#asset.value.env,
+      this.#asset.options,
+      this.#scope,
+    );
   }
 
   get fs(): FileSystem {
@@ -540,7 +565,11 @@ export class CommittedAsset implements IAsset {
   }
 
   get symbols(): IAssetSymbols {
-    return new AssetSymbols(this.#asset.options, this.#asset.value.addr);
+    return new AssetSymbols(
+      this.#asset.options,
+      this.#asset.value.addr,
+      this.#scope,
+    );
   }
 
   get uniqueKey(): ?string {
@@ -581,7 +610,7 @@ export class CommittedAsset implements IAsset {
   }
 
   getMap(): Promise<?SourceMap> {
-    return this.#asset.getMap(this.#scope);
+    return this.#asset.getMap(this.#bundleGraph, this.#scope);
   }
 
   getAST(): Promise<?AST> {
@@ -589,6 +618,6 @@ export class CommittedAsset implements IAsset {
   }
 
   getMapBuffer(): Promise<?Buffer> {
-    return this.#asset.getMapBuffer(this.#scope);
+    return this.#asset.getMapBuffer(this.#bundleGraph, this.#scope);
   }
 }

@@ -742,7 +742,7 @@ export default class Transformation {
       env: this.request.env,
     });
 
-    await loadPluginConfig(transformer, config, this.options);
+    await loadPluginConfig(transformer, config, this.options, this);
 
     for (let devDep of config.devDeps) {
       await this.addDevDependency(devDep);

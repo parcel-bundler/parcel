@@ -207,7 +207,7 @@ export class ResolverRunner {
           searchPath: toProjectPathUnsafe('index'),
         });
 
-        await loadPluginConfig(plugin, config, this.options);
+        await loadPluginConfig(plugin, config, this.options, this);
         configCache.set(plugin.name, config);
         this.configs.set(plugin.name, config);
       }
@@ -235,7 +235,7 @@ export class ResolverRunner {
 
   async resolve(dependency: DependencyAddr): Promise<ResolverResult> {
     let internalDep = DbDependency.get(this.options.db, dependency);
-    let dep = getPublicDependency(dependency, this.options);
+    let dep = getPublicDependency(dependency, this.options, this);
     report({
       type: 'buildProgress',
       phase: 'resolving',

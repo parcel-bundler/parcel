@@ -1,7 +1,6 @@
 // @flow strict-local
 
-// $FlowFixMe[unclear-type]
-export type Scope = any;
+export type Scope = interface {};
 type SubCacheKey = string;
 
 const scopeCache = new WeakMap<Scope, Map<SubCacheKey, Map<mixed, mixed>>>();

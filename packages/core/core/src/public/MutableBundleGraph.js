@@ -170,7 +170,7 @@ export default class MutableBundleGraph
       }
     }
 
-    return new BundleGroup(bundleGroup, this.#options);
+    return new BundleGroup(bundleGroup, this.#options, this);
   }
 
   removeBundleGroup(bundleGroup: IBundleGroup): void {
@@ -306,7 +306,7 @@ export default class MutableBundleGraph
   getBundleGroupsContainingBundle(bundle: IBundle): Array<IBundleGroup> {
     return this.#graph
       .getBundleGroupsContainingBundle(bundleToInternalBundle(bundle))
-      .map(bundleGroup => new BundleGroup(bundleGroup, this.#options));
+      .map(bundleGroup => new BundleGroup(bundleGroup, this.#options, this));
   }
 
   getParentBundlesOfBundleGroup(bundleGroup: IBundleGroup): Array<IBundle> {

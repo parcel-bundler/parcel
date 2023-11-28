@@ -99,7 +99,7 @@ export default class BundleGraph<TBundle: IBundle>
   getIncomingDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getIncomingDependencies(assetToAssetValue(asset))
-      .map(dep => getPublicDependency(dep, this.#options));
+      .map(dep => getPublicDependency(dep, this.#options, this));
   }
 
   getAssetWithDependency(dep: IDependency): ?IAsset {
@@ -114,7 +114,7 @@ export default class BundleGraph<TBundle: IBundle>
   getBundleGroupsContainingBundle(bundle: IBundle): Array<IBundleGroup> {
     return this.#graph
       .getBundleGroupsContainingBundle(bundleToInternalBundle(bundle))
-      .map(bundleGroup => new BundleGroup(bundleGroup, this.#options));
+      .map(bundleGroup => new BundleGroup(bundleGroup, this.#options, this));
   }
 
   getReferencedBundles(
@@ -143,7 +143,7 @@ export default class BundleGraph<TBundle: IBundle>
     } else if (resolved.type === 'bundle_group') {
       return {
         type: 'bundle_group',
-        value: new BundleGroup(resolved.value, this.#options),
+        value: new BundleGroup(resolved.value, this.#options, this),
       };
     }
 
@@ -167,7 +167,7 @@ export default class BundleGraph<TBundle: IBundle>
   getDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getDependencies(assetToAssetValue(asset))
-      .map(dep => getPublicDependency(dep, this.#options));
+      .map(dep => getPublicDependency(dep, this.#options, this));
   }
 
   isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
@@ -297,7 +297,7 @@ export default class BundleGraph<TBundle: IBundle>
             }
           : {
               type: 'dependency',
-              value: getPublicDependency(node.value, this.#options),
+              value: getPublicDependency(node.value, this.#options, this),
             };
       }, visit),
       start ? assetToAssetValue(start) : undefined,

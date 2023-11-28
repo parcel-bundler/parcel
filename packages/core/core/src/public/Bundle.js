@@ -116,7 +116,7 @@ export class Bundle implements IBundle {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#bundle.env, this.#options);
+    return new Environment(this.#bundle.env, this.#options, this);
   }
 
   get needsStableName(): ?boolean {
@@ -137,7 +137,7 @@ export class Bundle implements IBundle {
   }
 
   get target(): ITarget {
-    return new Target(this.#bundle.target, this.#options);
+    return new Target(this.#bundle.target, this.#options, this);
   }
 
   hasAsset(asset: IAsset): boolean {

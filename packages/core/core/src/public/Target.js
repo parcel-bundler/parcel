@@ -26,6 +26,7 @@ export function targetToInternalTarget(target: ITarget): TargetAddr {
 export default class Target implements ITarget {
   #target /*: DbTarget */;
   #options /*: ParcelOptions */;
+  #scope: Scope;
 
   constructor(
     target: TargetAddr,
@@ -41,6 +42,7 @@ export default class Target implements ITarget {
 
     this.#target = DbTarget.get(options.db, target);
     this.#options = options;
+    this.#scope = scope;
     _targetToInternalTarget.set(this, target);
     cache.set(target, this);
     return this;
@@ -55,7 +57,7 @@ export default class Target implements ITarget {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#target.env, this.#options);
+    return new Environment(this.#target.env, this.#options, this.#scope);
   }
 
   get name(): string {

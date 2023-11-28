@@ -51,7 +51,7 @@ export function getPublicDependency(
     return existing;
   }
 
-  let dependency = new Dependency(dep, options);
+  let dependency = new Dependency(dep, options, scope);
   cache.set(dep, dependency);
 
   return dependency;
@@ -60,10 +60,16 @@ export function getPublicDependency(
 export default class Dependency implements IDependency {
   #dep /*: DbDependency */;
   #options /*: ParcelOptions */;
+  #scope: Scope;
 
-  constructor(dep: DependencyAddr, options: ParcelOptions): Dependency {
+  constructor(
+    dep: DependencyAddr,
+    options: ParcelOptions,
+    scope: Scope,
+  ): Dependency {
     this.#dep = DbDependency.get(options.db, dep);
     this.#options = options;
+    this.#scope = scope;
     _dependencyToInternalDependency.set(this, dep);
     return this;
   }
@@ -111,7 +117,7 @@ export default class Dependency implements IDependency {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#dep.env, this.#options);
+    return new Environment(this.#dep.env, this.#options, this.#scope);
   }
 
   get packageConditions(): ?Array<string> {
@@ -149,12 +155,16 @@ export default class Dependency implements IDependency {
   }
 
   get symbols(): IMutableDependencySymbols {
-    return new MutableDependencySymbols(this.#options, this.#dep.addr);
+    return new MutableDependencySymbols(
+      this.#options,
+      this.#dep.addr,
+      this.#scope,
+    );
   }
 
   get target(): ?Target {
     let target = this.#dep.target;
-    return target ? new Target(target, this.#options) : null;
+    return target ? new Target(target, this.#options, this.#scope) : null;
   }
 
   get sourceAssetId(): ?string {
