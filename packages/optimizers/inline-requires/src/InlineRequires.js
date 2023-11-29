@@ -13,15 +13,23 @@ type BundleConfig = {|
 
 // $FlowFixMe not sure how to anotate the export here to make it work...
 module.exports = new Optimizer<empty, BundleConfig>({
-  loadBundleConfig({bundleGraph, logger}): BundleConfig {
+  loadBundleConfig({bundle, bundleGraph, tracer}): BundleConfig {
     if (publicIdToAssetSideEffects !== null) {
       return {publicIdToAssetSideEffects};
     }
 
     publicIdToAssetSideEffects = new Map<string, SideEffectsMap>();
-    logger.verbose({
-      message: 'Generating publicIdToAssetSideEffects for require optimisation',
-    });
+
+    if (!bundle.env.shouldOptimize) {
+      return {publicIdToAssetSideEffects};
+    }
+
+    const measurement = tracer.createMeasurement(
+      '@parcel/optimizer-inline-requires',
+      'generatePublicIdToAssetSideEffects',
+      bundle.name,
+    );
+
     bundleGraph.traverse(node => {
       if (node.type === 'asset') {
         const publicId = bundleGraph.getAssetPublicId(node.value);
@@ -32,17 +40,26 @@ module.exports = new Optimizer<empty, BundleConfig>({
         });
       }
     });
-    logger.verbose({message: 'Generation complete'});
+
+    measurement && measurement.end();
+
     return {publicIdToAssetSideEffects};
   },
 
-  async optimize({bundle, options, contents, map, logger, bundleConfig}) {
-    if (options.mode !== 'production') {
+  async optimize({bundle, contents, map, tracer, logger, bundleConfig}) {
+    if (!bundle.env.shouldOptimize) {
       return {contents, map};
     }
 
     try {
+      const measurement = tracer.createMeasurement(
+        '@parcel/optimizer-inline-requires',
+        'parse',
+        bundle.name,
+      );
       const ast = await parse(contents.toString());
+      measurement && measurement.end();
+
       const visitor = new RequireInliningVisitor({
         bundle,
         logger,
