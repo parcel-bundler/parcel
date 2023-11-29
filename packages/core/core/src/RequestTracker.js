@@ -765,7 +765,7 @@ export class RequestGraph extends ContentGraph<
       // re-run all requests.
       if (type === 'create' && filePath === '') {
         for (let [id, node] of this.nodes.entries()) {
-          if (node?.type === 'request') {
+          if (node?.type === REQUEST) {
             this.invalidNodeIds.add(id);
           }
         }
@@ -1032,7 +1032,7 @@ export default class RequestTracker {
       requestId != null ? this.graph.getInvalidations(requestId) : [];
     let {requestNodeId, deferred} = this.startRequest({
       id: request.id,
-      type: 'request',
+      type: REQUEST,
       requestType: request.type,
       invalidateReason: INITIAL_BUILD,
     });
