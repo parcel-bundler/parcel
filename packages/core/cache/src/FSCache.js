@@ -156,6 +156,50 @@ export class FSCache implements Cache {
   refresh(): void {
     // NOOP
   }
+
+  async getKeys(): Promise<{|
+    normal: Iterable<string>,
+    largeBlobs: Iterable<string>,
+  |}> {
+    let normal: Array<string> = [];
+    let largeBlobs: Array<string> = [];
+
+    let dirPromises = [];
+    for (let i = 0; i < 256; i++) {
+      dirPromises.push(
+        this.fs
+          .readdir(path.join(this.dir, ('00' + i.toString(16)).slice(-2)))
+          .then(files => {
+            for (let f of files) {
+              if (f.endsWith('-large')) {
+                largeBlobs.push(f);
+              } else {
+                normal.push(f);
+              }
+            }
+          }),
+      );
+    }
+    await Promise.all(dirPromises);
+
+    return {normal, largeBlobs};
+  }
+
+  async remove(key: string): Promise<void> {
+    try {
+      await this.fs.unlink(this._getCachePath(key));
+    } catch (err) {
+      logger.error(err, '@parcel/cache');
+    }
+  }
+
+  async removeLargeBlob(key: string): Promise<void> {
+    try {
+      await this.fs.unlink(this._getCachePath(`${key}-large`));
+    } catch (err) {
+      logger.error(err, '@parcel/cache');
+    }
+  }
 }
 
 registerSerializableClass(`${packageJson.version}:FSCache`, FSCache);

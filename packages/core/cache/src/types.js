@@ -6,10 +6,12 @@ export interface Cache {
   has(key: string): Promise<boolean>;
   get<T>(key: string): Promise<?T>;
   set(key: string, value: mixed): Promise<void>;
+  remove(key: string): Promise<void>;
   getStream(key: string): Readable;
   setStream(key: string, stream: Readable): Promise<void>;
   getBlob(key: string): Promise<Buffer>;
   setBlob(key: string, contents: Buffer | string): Promise<void>;
+  getBuffer(key: string): Promise<?Buffer>;
   hasLargeBlob(key: string): Promise<boolean>;
   getLargeBlob(key: string): Promise<Buffer>;
   setLargeBlob(key: string, contents: Buffer | string): Promise<void>;
@@ -20,4 +22,9 @@ export interface Cache {
    * of the changes that may have been written to the cache in other threads.
    */
   refresh(): void;
+  removeLargeBlob(key: string): Promise<void>;
+  getKeys(): Promise<{|
+    normal: Iterable<string>,
+    largeBlobs: Iterable<string>,
+  |}>;
 }

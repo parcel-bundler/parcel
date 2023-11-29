@@ -13,10 +13,12 @@ import type {
 } from '@parcel/types';
 import path from 'path';
 import type {ParcelOptions} from './types';
+import type {AssetRequestResult, PackagedBundleInfo} from './types';
 // eslint-disable-next-line no-unused-vars
 import type {FarmOptions, SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import type {ConfigAndCachePath} from './requests/ParcelConfigRequest';
 
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
@@ -37,6 +39,7 @@ import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
 import RequestTracker, {
+  getRequestGraphCacheKey,
   getWatcherOptions,
   requestGraphEdgeTypes,
 } from './RequestTracker';
@@ -58,24 +61,29 @@ import {tracer} from '@parcel/profiler';
 
 registerCoreWithSerializer();
 
+const GC_KEY_LAST_RUN = 'lastGCRun';
+const GC_WATCH_INTERVAL = 1000 * 60 * 60 * 4; // Only GC once every 4 hours in watch mode
+const GC_BUILD_INTERVAL = 1000 * 60 * 60 * 24; // Only GC once in 24 hours when not in watch mode
+const GC_WATCH_IDLE_TIMEOUT = 1000 * 60 * 5; // Wait 5 minutes after the last watch mode build
+
 export const INTERNAL_TRANSFORM: symbol = Symbol('internal_transform');
 export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
-  #requestTracker /*: RequestTracker*/;
-  #config /*: ParcelConfig*/;
-  #farm /*: WorkerFarm*/;
-  #initialized /*: boolean*/ = false;
-  #disposable /*: Disposable */;
-  #initialOptions /*: InitialParcelOptions*/;
-  #reporterRunner /*: ReporterRunner*/;
-  #resolvedOptions /*: ?ParcelOptions*/ = null;
-  #optionsRef /*: SharedReference */;
-  #watchAbortController /*: AbortController*/;
-  #watchQueue /*: PromiseQueue<?BuildEvent>*/ = new PromiseQueue<?BuildEvent>({
+  #requestTracker: RequestTracker;
+  #config: ParcelConfig;
+  #farm: WorkerFarm;
+  #initialized: boolean = false;
+  #disposable: Disposable;
+  #initialOptions: InitialParcelOptions;
+  #reporterRunner: ReporterRunner;
+  #resolvedOptions: ?ParcelOptions = null;
+  #optionsRef: SharedReference;
+  #watchAbortController: AbortController;
+  #watchQueue: PromiseQueue<?BuildEvent> = new PromiseQueue<?BuildEvent>({
     maxConcurrent: 1,
   });
-  #watchEvents /*: ValueEmitter<
+  #watchEvents: ValueEmitter<
     | {|
         +error: Error,
         +buildEvent?: void,
@@ -84,12 +92,17 @@ export default class Parcel {
         +buildEvent: BuildEvent,
         +error?: void,
       |},
-  > */;
-  #watcherSubscription /*: ?AsyncSubscription*/;
-  #watcherCount /*: number*/ = 0;
-  #requestedAssetIds /*: Set<string>*/ = new Set();
+  >;
+  #watcherSubscription: ?AsyncSubscription;
+  #watcherCount: number = 0;
+  #requestedAssetIds: Set<string> = new Set();
 
-  isProfiling /*: boolean */;
+  /** Store the last build (if successful) for eventual garbage collection */
+  #lastBuildBundleInfo: ?Map<string, PackagedBundleInfo> = null;
+  #gcAbortController: ?AbortController;
+  #isGCRunning = false;
+
+  isProfiling: boolean;
 
   constructor(options: InitialParcelOptions) {
     this.#initialOptions = options;
@@ -169,6 +182,8 @@ export default class Parcel {
       throw new BuildError(result.diagnostics);
     }
 
+    await this.#runCacheGC(GC_BUILD_INTERVAL);
+
     return result;
   }
 
@@ -186,13 +201,23 @@ export default class Parcel {
     await this.#farm.callAllWorkers('clearConfigCache', []);
 
     try {
+      let signal = this.#watchAbortController.signal;
       let buildEvent = await this._build({
-        signal: this.#watchAbortController.signal,
+        signal,
       });
 
       this.#watchEvents.emit({
         buildEvent,
       });
+
+      setTimeout(() => {
+        if (signal.aborted) {
+          return;
+        }
+
+        // Intentionally don't await promise
+        this.#runCacheGC(GC_WATCH_INTERVAL, signal);
+      }, GC_WATCH_IDLE_TIMEOUT);
 
       return buildEvent;
     } catch (err) {
@@ -290,6 +315,7 @@ export default class Parcel {
       let {bundleGraph, bundleInfo, changedAssets, assetRequests} =
         await this.#requestTracker.runRequest(request, {force: true});
 
+      this.#lastBuildBundleInfo = bundleInfo;
       this.#requestedAssetIds.clear();
 
       await dumpGraphToGraphViz(
@@ -363,6 +389,8 @@ export default class Parcel {
       );
       return event;
     } catch (e) {
+      this.#lastBuildBundleInfo = null;
+
       if (e instanceof BuildAbortError) {
         throw e;
       }
@@ -529,6 +557,127 @@ export default class Parcel {
       query: res.query,
       sideEffects: res.sideEffects,
     };
+  }
+
+  runGarbageCollection(): Promise<void> {
+    return this.#runCacheGC();
+  }
+
+  async #runCacheGC(intervalMS: ?number, signal: ?AbortSignal) {
+    if (
+      this.#resolvedOptions == null ||
+      this.#lastBuildBundleInfo == null ||
+      this.#isGCRunning
+    ) {
+      return;
+    }
+
+    try {
+      let options = this.#resolvedOptions;
+      let requestGraph = this.#requestTracker.graph;
+      let bundleInfo = this.#lastBuildBundleInfo;
+
+      if (
+        intervalMS != null &&
+        // $FlowFixMe[sketchy-null-string] this sketchy check is fine
+        !process.env.PARCEL_FORCE_CACHE_GC
+      ) {
+        let lastGCRun = await options.cache.get<number>(GC_KEY_LAST_RUN);
+        if (lastGCRun == null) {
+          // First run, skip
+          await options.cache.set(GC_KEY_LAST_RUN, Date.now());
+          return;
+        }
+
+        if (Date.now() - lastGCRun < intervalMS) {
+          return;
+        }
+      }
+
+      let used: Set<string> = new Set([
+        GC_KEY_LAST_RUN,
+        getRequestGraphCacheKey(options).requestGraphKey,
+      ]);
+
+      logger.info({
+        origin: '@parcel/core',
+        message: 'Running cache garbage collection...',
+      });
+
+      let start = Date.now();
+
+      for (let [, node] of requestGraph.nodes) {
+        if (signal?.aborted) {
+          console.log('1');
+          return;
+        }
+        if (node.type === 'request') {
+          if (node.value.resultCacheKey != null) {
+            used.add(node.value.resultCacheKey);
+          }
+
+          if (node.value.type === 'parcel_config_request') {
+            // $FlowFixMe[incompatible-cast]
+            let configValue = (node.value.result: ConfigAndCachePath);
+            used.add(configValue.cachePath);
+          } else if (node.value.type === 'asset_request') {
+            // $FlowFixMe[incompatible-cast]
+            let result = (node.value.result: AssetRequestResult);
+            for (let k of result.cacheKeys) {
+              used.add(k);
+            }
+          }
+        }
+      }
+
+      for (let {cacheKeys} of bundleInfo.values()) {
+        if (signal?.aborted) {
+          return;
+        }
+        if (cacheKeys == null) continue;
+        used.add(cacheKeys.map);
+        used.add(cacheKeys.content);
+        used.add(cacheKeys.info);
+      }
+
+      let keys = await options.cache.getKeys();
+      for (let k of keys.normal) {
+        if (signal?.aborted) {
+          return;
+        }
+        if (!used.has(k)) {
+          // console.log(
+          //   '---------Removing',
+          //   k,
+          //   (await options.cache.getBuffer(k)).toString().slice(0, 100),
+          // );
+          await options.cache.remove(k);
+        }
+      }
+      for (let k of keys.largeBlobs) {
+        if (signal?.aborted) {
+          return;
+        }
+        if (!used.has(k)) {
+          // console.log(
+          //   '---------Removing large blob',
+          //   k,
+          //   (await options.cache.getLargeBlob(k)).toString().slice(0, 100),
+          // );
+          await options.cache.removeLargeBlob(k);
+        }
+      }
+
+      let end = Date.now();
+      logger.info({
+        origin: '@parcel/core',
+        message: `Cache garbage collection took ${end - start}ms`,
+      });
+
+      await options.cache.set(GC_KEY_LAST_RUN, Date.now());
+    } finally {
+      this.#isGCRunning = false;
+    }
   }
 }
 
