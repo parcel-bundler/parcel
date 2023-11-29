@@ -22,7 +22,6 @@ import type BundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {DefaultWeakMap} from '@parcel/utils';
 
 import {assetToAssetValue, assetFromValue} from './Asset';
 import {mapVisitor} from '@parcel/graph';
@@ -35,19 +34,7 @@ import Target from './Target';
 import {BundleBehaviorNames} from '../types';
 import {fromProjectPath} from '../projectPath';
 import type {Scope} from '../scopeCache';
-
-const internalBundleToBundle: DefaultWeakMap<
-  ParcelOptions,
-  DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, Bundle>>,
-> = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
-const internalBundleToNamedBundle: DefaultWeakMap<
-  ParcelOptions,
-  DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, NamedBundle>>,
-> = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
-const internalBundleToPackagedBundle: DefaultWeakMap<
-  ParcelOptions,
-  DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, PackagedBundle>>,
-> = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
+import {getScopeCache} from '../scopeCache';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -94,8 +81,9 @@ export class Bundle implements IBundle {
     options: ParcelOptions,
     scope: Scope,
   ): Bundle {
-    let existingMap = internalBundleToBundle.get(options).get(bundleGraph);
-    let existing = existingMap.get(internalBundle);
+    let cache = getScopeCache(scope, 'Bundle');
+
+    let existing = cache.get(internalBundle);
     if (existing != null) {
       return existing;
     }
@@ -109,7 +97,7 @@ export class Bundle implements IBundle {
     );
     _bundleToInternalBundle.set(bundle, internalBundle);
     _bundleToInternalBundleGraph.set(bundle, bundleGraph);
-    existingMap.set(internalBundle, bundle);
+    cache.set(internalBundle, bundle);
 
     return bundle;
   }
@@ -259,8 +247,9 @@ export class NamedBundle extends Bundle implements INamedBundle {
     options: ParcelOptions,
     scope: Scope,
   ): NamedBundle {
-    let existingMap = internalBundleToNamedBundle.get(options).get(bundleGraph);
-    let existing = existingMap.get(internalBundle);
+    let cache = getScopeCache(scope, 'NamedBundle');
+
+    let existing = cache.get(internalBundle);
     if (existing != null) {
       return existing;
     }
@@ -274,7 +263,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
     );
     _bundleToInternalBundle.set(namedBundle, internalBundle);
     _bundleToInternalBundleGraph.set(namedBundle, bundleGraph);
-    existingMap.set(internalBundle, namedBundle);
+    cache.set(internalBundle, namedBundle);
 
     return namedBundle;
   }
@@ -317,10 +306,9 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     options: ParcelOptions,
     scope: Scope,
   ): PackagedBundle {
-    let existingMap = internalBundleToPackagedBundle
-      .get(options)
-      .get(bundleGraph);
-    let existing = existingMap.get(internalBundle);
+    let cache = getScopeCache(scope, 'PackagedBundle');
+
+    let existing = cache.get(internalBundle);
     if (existing != null) {
       return existing;
     }
@@ -334,7 +322,7 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     );
     _bundleToInternalBundle.set(packagedBundle, internalBundle);
     _bundleToInternalBundleGraph.set(packagedBundle, bundleGraph);
-    existingMap.set(internalBundle, packagedBundle);
+    cache.set(internalBundle, packagedBundle);
 
     return packagedBundle;
   }
