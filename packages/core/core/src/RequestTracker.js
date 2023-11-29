@@ -128,22 +128,6 @@ type RequestNode = {|
   hash?: string,
 |};
 
-// type RequestType =
-//   | 'parcel_build_request'
-//   | 'bundle_graph_request'
-//   | 'asset_graph_request'
-//   | 'entry_request'
-//   | 'target_request'
-//   | 'parcel_config_request'
-//   | 'path_request'
-//   | 'dev_dep_request'
-//   | 'asset_request'
-//   | 'config_request'
-//   | 'write_bundles_request'
-//   | 'package_request'
-//   | 'write_bundle_request'
-//   | 'validation_request';
-
 export const requestTypes = {
   parcel_build_request: 1,
   bundle_graph_request: 2,

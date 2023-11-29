@@ -9,6 +9,7 @@ import v8 from 'v8';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import {LMDBCache} from '@parcel/cache/src/LMDBCache';
+import {requestTypes} from '@parcel/core/src/RequestTracker.js';
 
 const {
   AssetGraph,
@@ -19,7 +20,6 @@ const {
     requestGraphEdgeTypes,
   },
 } = require('./deep-imports.js');
-import {requestTypes} from '../../../core/core/src/RequestTracker';
 
 export async function loadGraphs(cacheDir: string): Promise<{|
   assetGraph: ?AssetGraph,
