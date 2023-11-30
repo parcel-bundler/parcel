@@ -33,6 +33,8 @@ const seenPhases = new Set();
 const seenPhasesGen = new Set();
 const phaseStartTimes = {};
 
+let maybeIncrementalBuild = false;
+
 let statusThrottle = throttle((message: string) => {
   updateSpinner(message);
 }, THROTTLE_DELAY);
@@ -72,6 +74,12 @@ export async function _report(
     case 'buildProgress': {
       if (logLevelFilter < logLevels.info) {
         break;
+      }
+
+      if (maybeIncrementalBuild) {
+        maybeIncrementalBuild = false;
+        seenPhasesGen.clear();
+        seenPhases.clear();
       }
 
       if (!seenPhasesGen.has(event.phase)) {
@@ -125,9 +133,12 @@ export async function _report(
           options.projectRoot,
           options.detailedReport?.assetsPerBundle,
         );
-        if (process.env.PARCEL_SHOW_PHASE_TIMES) {
-          phaseReport(phaseStartTimes);
-        }
+      } else {
+        maybeIncrementalBuild = true;
+      }
+
+      if (process.env.PARCEL_SHOW_PHASE_TIMES) {
+        phaseReport(phaseStartTimes);
       }
       break;
     case 'buildFailure':
