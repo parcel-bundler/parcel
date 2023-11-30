@@ -139,7 +139,6 @@ export async function _report(
       }
 
       if (process.env.PARCEL_SHOW_PHASE_TIMES) {
-        // TODO handle report with missing phases (e.g. packaging/optimizing) on dev builds
         phaseReport(phaseStartTimes);
       }
       break;
