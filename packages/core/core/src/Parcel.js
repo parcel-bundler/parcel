@@ -175,10 +175,8 @@ export default class Parcel {
   async _end(): Promise<void> {
     this.#initialized = false;
 
-    await Promise.all([
-      this.#disposable.dispose(),
-      await this.#requestTracker.writeToCache(),
-    ]);
+    await this.#requestTracker.writeToCache();
+    await this.#disposable.dispose();
   }
 
   async _startNextBuild(): Promise<?BuildEvent> {
