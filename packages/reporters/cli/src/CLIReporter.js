@@ -31,8 +31,8 @@ const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
 const seenPhases = new Set();
 const seenPhasesGen = new Set();
-const phaseStartTimes = {};
 
+let phaseStartTimes = {};
 let maybeIncrementalBuild = false;
 
 let statusThrottle = throttle((message: string) => {
@@ -78,6 +78,7 @@ export async function _report(
 
       if (maybeIncrementalBuild) {
         maybeIncrementalBuild = false;
+        phaseStartTimes = {};
         seenPhasesGen.clear();
         seenPhases.clear();
       }
