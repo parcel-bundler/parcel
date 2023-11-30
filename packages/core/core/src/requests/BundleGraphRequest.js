@@ -411,9 +411,19 @@ class BundlerRunner {
       // inline bundles must still be named so the PackagerRunner
       // can match them to the correct packager/optimizer plugins.
       let bundles = internalBundleGraph.getBundles({includeInline: true});
+      let publicBundleGraph = new BundleGraph<IBundle>(
+        internalBundleGraph,
+        NamedBundle.get.bind(NamedBundle),
+        this.options,
+      );
       await Promise.all(
         bundles.map(bundle =>
-          this.nameBundle(namers, bundle, internalBundleGraph),
+          this.nameBundle(
+            namers,
+            bundle,
+            internalBundleGraph,
+            publicBundleGraph,
+          ),
         ),
       );
 
@@ -495,17 +505,13 @@ class BundlerRunner {
     namers: Array<LoadedPlugin<Namer<mixed>>>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
+    publicBundleGraph: BundleGraph<IBundle>,
   ): Promise<void> {
-    let bundleGraph = new BundleGraph<IBundle>(
-      internalBundleGraph,
-      NamedBundle.get.bind(NamedBundle),
-      this.options,
-    );
     let bundle = Bundle.get(
       internalBundle,
       internalBundleGraph,
       this.options,
-      bundleGraph,
+      publicBundleGraph,
     );
 
     for (let namer of namers) {
@@ -514,7 +520,7 @@ class BundlerRunner {
         measurement = tracer.createMeasurement(namer.name, 'namer', bundle.id);
         let name = await namer.plugin.name({
           bundle,
-          bundleGraph,
+          bundleGraph: publicBundleGraph,
           config: this.configs.get(namer.name)?.result,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: namer.name}),

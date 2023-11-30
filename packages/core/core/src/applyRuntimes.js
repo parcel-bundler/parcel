@@ -94,15 +94,16 @@ export default async function applyRuntimes<TResult>({
     },
   });
 
+  let publicBundleGraph = new BundleGraph<INamedBundle>(
+    bundleGraph,
+    NamedBundle.get.bind(NamedBundle),
+    options,
+  );
+
   for (let bundle of bundles) {
     for (let runtime of runtimes) {
       let measurement;
       try {
-        let publicBundleGraph = new BundleGraph<INamedBundle>(
-          bundleGraph,
-          NamedBundle.get.bind(NamedBundle),
-          options,
-        );
         const namedBundle = NamedBundle.get(
           bundle,
           bundleGraph,
