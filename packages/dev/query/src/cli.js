@@ -12,7 +12,6 @@ import nullthrows from 'nullthrows';
 import invariant from 'assert';
 // import {serialize} from 'v8';
 import {serialize} from '../../../core/core/src/serializer';
-
 // $FlowFixMe
 import {table} from 'table';
 
@@ -633,12 +632,16 @@ export async function run(input: string[]) {
     ]);
     _printStatsTable('Cache Info', table);
   }
-
+  function inspectGraphs(_) {
+    inspectAssetGraphs(assetGraph, 'AssetGraph');
+    inspectAssetGraphs(bundleGraph._graph, 'BundleGraph');
+  }
   function inspectRequestTracker(_) {
     let bufferGraph = serialize(requestTracker.graph);
     let graphSize = bufferGraph.byteLength;
     console.log('Serialized RequestTracker', graphSize);
 
+    //** REQUEST GRAPH BREAK DOWN */
     let nodes = requestTracker.graph.nodes;
     console.time('Nodes');
     let serializedNodes = serialize(nodes);
@@ -682,15 +685,133 @@ export async function run(input: string[]) {
     console.log('Percentage adj of graph', percentAdj);
     console.log('Percentage contentKey mappings of graph', percentIds);
   }
-  function writeOutRequestTracker(_) {
-    requestTracker.graph.adjacencyList.compact();
-    const adjacencyListFile = path.join(process.cwd(), 'adjacencyList.json');
-    const adjListWriteStream = fs.createWriteStream(adjacencyListFile);
-
-    for (let edge of requestTracker.graph.adjacencyList.getAllEdges()) {
-      adjListWriteStream.write(JSON.stringify(edge) + '\n');
+  function getRequestEdges(_) {
+    let byType = new Map();
+    let totalEdges = [...requestTracker.graph.getAllEdges()].length;
+    for (let e of requestTracker.graph.getAllEdges()) {
+      if (byType.has(e.type)) {
+        byType.get(e.type).push(e);
+      } else {
+        byType.set(e.type, [e]);
+      }
     }
-    console.log('Done');
+    for (let [k, v] of byType) {
+      console.log(
+        'Edge type',
+        k,
+        'has',
+        v.length,
+        'nodes',
+        'percent of total',
+        (v.length / totalEdges) * 100,
+      );
+    }
+    //** Breakdown nodes with the most edges */
+    let mostConnectedNodes = [];
+    for (let n of requestTracker.graph.nodes) {
+      if (n == null) {
+        continue;
+      }
+      if (mostConnectedNodes.length <= 0) {
+        mostConnectedNodes.push(n);
+      } else {
+        let currentNodeId = requestTracker.graph.getNodeIdByContentKey(n.id);
+        let maxNodeId = requestTracker.graph.getNodeIdByContentKey(
+          mostConnectedNodes[0].id,
+        );
+        if (
+          requestTracker.graph.getNodeIdsConnectedTo(currentNodeId, -1).length >
+            800 &&
+          requestTracker.graph.getNodeIdsConnectedTo(currentNodeId, -1).length >
+            requestTracker.graph.getNodeIdsConnectedTo(maxNodeId, -1).length
+        ) {
+          mostConnectedNodes.unshift(n);
+        }
+        if (mostConnectedNodes.length > 4) {
+          mostConnectedNodes.pop();
+        }
+      }
+    }
+    console.log('Nodes With the most incoming connections...');
+    for (let node of mostConnectedNodes) {
+      let id = requestTracker.graph.getNodeIdByContentKey(node.id);
+      let numEdges = requestTracker.graph.getNodeIdsConnectedTo(id, -1).length;
+      console.log(
+        'Nodes: ',
+        node.id,
+        node.value,
+        node,
+        'with ',
+        numEdges,
+        'edges',
+      );
+      if (numEdges > 0) {
+        console.log(
+          'Percent Edges of total edges:',
+          (numEdges / totalEdges) * 100,
+        );
+      }
+    }
+  }
+  function inspectAssetGraphs(graph, name: string) {
+    let bufferGraph = serialize(graph);
+    let graphSize = bufferGraph.byteLength;
+    console.log('Serialized ', name, graphSize);
+
+    let nodes = graph.nodes;
+    console.time('Nodes');
+    let serializedNodes = serialize(nodes);
+    console.timeEnd('Nodes');
+
+    let bytesOfNodes = serializedNodes.byteLength;
+
+    console.time('compact');
+    // requestTracker.graph.adjacencyList.compact();
+    console.timeEnd('compact');
+    console.log('Adjacency List stats', assetGraph.adjacencyList.stats);
+    console.time('Adj');
+    let serializedAdjList = serialize(assetGraph.adjacencyList.serialize());
+    //log adjacency list stats
+    console.timeEnd('Adj');
+
+    let bytesOfAdj = serializedAdjList.byteLength;
+
+    let contentKeys = graph._contentKeyToNodeId;
+    let nodeIds = graph._nodeIdToContentKey;
+    console.time('Keys');
+    let serializedContentKeys = serialize(contentKeys);
+    console.timeEnd('Keys');
+    let bytesOfContentKeys = serializedContentKeys.byteLength;
+
+    let serializedIds = serialize(nodeIds);
+    bytesOfContentKeys += serializedIds.byteLength;
+
+    console.log('Serialized Graph Nodes', bytesOfNodes);
+    console.log('Serialized AdjacencyList', bytesOfAdj);
+    console.log('Serialized ContentKeys', bytesOfContentKeys);
+
+    let percentNodes = (bytesOfNodes / graphSize) * 100;
+    let percentAdj = (bytesOfAdj / graphSize) * 100;
+    let percentIds = (bytesOfContentKeys / graphSize) * 100;
+    console.log('Percentage nodes of graph', percentNodes);
+    console.log('Percentage adj of graph', percentAdj);
+    console.log('Percentage contentKey mappings of graph', percentIds);
+  }
+  function getTimeAndSize(graph): [number, number] {
+    let t = Date.now();
+    let bufferGraph = serialize(graph);
+    t = Date.now() - t;
+    let graphSize = bufferGraph.byteLength;
+
+    return [graphSize, t];
+  }
+  function getTimeAndSizeBundleGraph(): [number, number] {
+    let t = Date.now();
+    let bufferGraph = serialize(bundleGraph._graph.serialize());
+    t = Date.now() - t;
+    let graphSize = bufferGraph.byteLength;
+
+    return [graphSize, t];
   }
   function timeSerialize(graph) {
     let date = Date.now();
@@ -719,13 +840,25 @@ export async function run(input: string[]) {
       dependency: 0,
       asset_group: 0,
     };
-
+    let nodesByType_a = new Map<string, []>();
+    nodesByType_a.set('asset', []);
+    nodesByType_a.set('dependency', []);
+    nodesByType_a.set('asset_group', []);
     for (let n of assetGraph.nodes) {
       if (n && n.type in ag) {
         // $FlowFixMe
         ag[n.type]++;
+        nodesByType_a.get(n.type).push(n);
       }
     }
+
+    let nodesByType_b = new Map<string, []>();
+    nodesByType_b.set('dependency', []);
+    nodesByType_b.set('asset_node_modules', []);
+    nodesByType_b.set('bundle', []);
+    nodesByType_b.set('asset_source', []);
+    nodesByType_b.set('bundle_group', []);
+    nodesByType_b.set('asset', []);
 
     let bg = {
       dependency: 0,
@@ -788,6 +921,9 @@ export async function run(input: string[]) {
       } else if (n?.type === 'dependency') {
         bg.dependency++;
       }
+      if (n && n.type in bg) {
+        nodesByType_b.get(n.type).push(n);
+      }
     }
 
     _printStatsTable('# Asset Graph Node Counts', Object.entries(ag));
@@ -815,6 +951,31 @@ export async function run(input: string[]) {
       bg.bundle == sum_b_ext,
       `Bundles by extension ${sum_b_ext} does not equal total ${bg.bundle}`,
     );
+
+    console.log('Generating Serialization Stats...');
+
+    let bg_times = getTimeAndSizeBundleGraph();
+    let ag_times = getTimeAndSize(assetGraph);
+    console.log('----------- AssetGraph --------------');
+    for (let [k, v] of nodesByType_a) {
+      console.time(`Nodes Of Type ${k}`);
+      let serializedNodes = serialize(v);
+      console.timeEnd(`Nodes Of Type ${k}`);
+
+      let bytesOfNodes = serializedNodes.byteLength;
+      console.log(`Serialized ${k} nodes: ${bytesOfNodes}`);
+      console.log(`Percent of Graph ${bytesOfNodes / ag_times[0]}`);
+    }
+    console.log('----------- BundleGraph --------------');
+    for (let [k, v] of nodesByType_b) {
+      console.time(`Nodes Of Type ${k}`);
+      let serializedNodes = serialize(v);
+      console.timeEnd(`Nodes Of Type ${k}`);
+
+      let bytesOfNodes = serializedNodes.byteLength;
+      console.log(`Serialized ${k} nodes: ${bytesOfNodes}`);
+      console.log(`Percent of Graph ${bytesOfNodes / bg_times[0]}`);
+    }
   }
 
   // -------------------------------------------------------
@@ -1009,10 +1170,17 @@ export async function run(input: string[]) {
         },
       ],
       [
-        'writeOutRequestTracker',
+        'getRequestEdges',
         {
-          help: 'RequestTracker adj Information',
-          action: writeOutRequestTracker,
+          help: 'RequestTracker Edge Information',
+          action: getRequestEdges,
+        },
+      ],
+      [
+        'inspectGraphs',
+        {
+          help: 'Asset and BundleGraph Size Information',
+          action: inspectGraphs,
         },
       ],
       [
