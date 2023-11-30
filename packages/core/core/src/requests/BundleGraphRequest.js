@@ -55,6 +55,7 @@ import {
 } from '../projectPath';
 import createAssetGraphRequest from './AssetGraphRequest';
 import {tracer, PluginTracer} from '@parcel/profiler';
+import {requestTypes} from '../RequestTracker';
 
 type BundleGraphRequestInput = {|
   requestedAssetIds: Set<string>,
@@ -79,7 +80,7 @@ export type BundleGraphResult = {|
 
 type BundleGraphRequest = {|
   id: string,
-  +type: 'bundle_graph_request',
+  +type: typeof requestTypes.bundle_graph_request,
   run: RunInput => Async<BundleGraphResult>,
   input: BundleGraphRequestInput,
 |};
@@ -88,7 +89,7 @@ export default function createBundleGraphRequest(
   input: BundleGraphRequestInput,
 ): BundleGraphRequest {
   return {
-    type: 'bundle_graph_request',
+    type: requestTypes.bundle_graph_request,
     id: 'BundleGraph',
     run: async input => {
       let {options, api, invalidateReason} = input;
