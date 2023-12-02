@@ -740,8 +740,12 @@ export class RequestGraph extends ContentGraph<
     events: Array<{|path: ProjectPath, type: EventType|}>,
   ): boolean {
     let didInvalidate = false;
+    console.log('!!!respondtofsevents');
     for (let {path: _filePath, type} of events) {
       let filePath = fromProjectPathRelative(_filePath);
+      if (filePath.includes('node_modules')) {
+        console.log('invalidating NM', filePath);
+      }
       let hasFileRequest = this.hasContentKey(filePath);
 
       // If we see a 'create' event for the project root itself,
@@ -1173,6 +1177,7 @@ function getCacheKey(options) {
 }
 
 async function loadRequestGraph(options): Async<RequestGraph> {
+  console.log('loading request graph');
   if (options.shouldDisableCache) {
     return new RequestGraph();
   }
@@ -1191,6 +1196,17 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       snapshotPath,
       opts,
     );
+    console.log(options.additionalInvalidations);
+
+    if (options.additionalInvalidations != null) {
+      events.push(
+        ...options.additionalInvalidations.map(filePath => ({
+          path: filePath,
+          type: 'create',
+        })),
+      );
+    }
+    console.log({events});
     requestGraph.invalidateUnpredictableNodes();
     requestGraph.invalidateOnBuildNodes();
     requestGraph.invalidateEnvNodes(options.env);

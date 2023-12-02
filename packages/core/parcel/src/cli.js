@@ -101,6 +101,14 @@ const commonOptions = {
     },
     [],
   ],
+  '--additional-invalidations': [
+    'node_modules packages to be invalidated',
+    (val, acc) => {
+      acc.push(val);
+      return acc;
+    },
+    [],
+  ],
 };
 
 var hmrOptions = {
