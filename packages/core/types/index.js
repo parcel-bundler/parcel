@@ -1975,6 +1975,13 @@ export type TraceEvent = {|
   +args?: {[key: string]: mixed},
 |};
 
+export type CacheEvent = {|
+  type: 'cache',
+  phase: string,
+  total: number,
+  size: number,
+|};
+
 /**
  * @section reporter
  */
@@ -1987,7 +1994,8 @@ export type ReporterEvent =
   | WatchStartEvent
   | WatchEndEvent
   | ValidationEvent
-  | TraceEvent;
+  | TraceEvent
+  | CacheEvent;
 
 /**
  * @section reporter

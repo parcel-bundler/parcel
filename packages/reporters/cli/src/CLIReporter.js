@@ -26,6 +26,7 @@ import {
 } from './render';
 import * as emoji from './emoji';
 import wrapAnsi from 'wrap-ansi';
+import cliProgress from 'cli-progress';
 
 const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
@@ -36,6 +37,7 @@ const phaseStartTimes = {};
 let statusThrottle = throttle((message: string) => {
   updateSpinner(message);
 }, THROTTLE_DELAY);
+let bar;
 
 // Exported only for test
 export async function _report(
@@ -140,6 +142,30 @@ export async function _report(
       persistSpinner('buildProgress', 'error', chalk.red.bold('Build failed.'));
 
       await writeDiagnostic(options, event.diagnostics, 'red', true);
+      break;
+    case 'cache':
+      if (event.size > 5000) {
+        switch (event.phase) {
+          case 'start':
+            if (!bar) {
+              bar = new cliProgress.SingleBar(
+                {},
+                cliProgress.Presets.shades_classic,
+              );
+            }
+            writeOut('Writing to cache...');
+            bar.start(event.total, 0);
+            break;
+          case 'write':
+            bar.setTotal(event.total);
+            bar.increment();
+            break;
+          case 'end':
+            bar.stop();
+            writeOut('Done.');
+            break;
+        }
+      }
       break;
     case 'log': {
       if (logLevelFilter < logLevels[event.level]) {

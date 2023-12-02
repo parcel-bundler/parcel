@@ -388,6 +388,67 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return null;
   }
 
+  // A post-order implementation of dfsFast
+  postOrderDfsFast(
+    visit: GraphTraversalCallback<NodeId, TraversalActions>,
+    startNodeId: ?NodeId,
+  ): void {
+    let traversalStartNode = nullthrows(
+      startNodeId ?? this.rootNodeId,
+      'A start node is required to traverse',
+    );
+    this._assertHasNodeId(traversalStartNode);
+
+    let visited;
+    if (!this._visited || this._visited.capacity < this.nodes.length) {
+      this._visited = new BitSet(this.nodes.length);
+      visited = this._visited;
+    } else {
+      visited = this._visited;
+      visited.clear();
+    }
+    this._visited = null;
+
+    let stopped = false;
+    let actions: TraversalActions = {
+      stop() {
+        stopped = true;
+      },
+      skipChildren() {
+        throw new Error(
+          'Calling skipChildren inside a post-order traversal is not allowed',
+        );
+      },
+    };
+
+    let queue = [traversalStartNode];
+    while (queue.length !== 0) {
+      let nodeId = queue[queue.length - 1];
+
+      if (!visited.has(nodeId)) {
+        visited.add(nodeId);
+
+        this.adjacencyList.forEachNodeIdConnectedFromReverse(nodeId, child => {
+          if (!visited.has(child)) {
+            queue.push(child);
+          }
+          return false;
+        });
+      } else {
+        queue.pop();
+        visit(nodeId, null, actions);
+
+        if (stopped) {
+          this._visited = visited;
+          return;
+        }
+      }
+    }
+
+    this._visited = visited;
+    return;
+  }
+
   dfs<TContext>({
     visit,
     startNodeId,

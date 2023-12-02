@@ -50,6 +50,8 @@ import {
   ERROR,
 } from './constants';
 
+import {report} from './ReporterRunner';
+
 export const requestGraphEdgeTypes = {
   subrequest: 2,
   invalidated_by_update: 3,
@@ -1118,7 +1120,13 @@ export default class RequestTracker {
     if (this.options.shouldDisableCache) {
       return;
     }
-
+    let total = 2;
+    report({
+      type: 'cache',
+      phase: 'start',
+      total,
+      size: this.graph.nodes.length,
+    });
     let promises = [];
     for (let node of this.graph.nodes) {
       if (!node || node.type !== REQUEST) {
@@ -1133,6 +1141,13 @@ export default class RequestTracker {
             serialize(node.result),
           ),
         );
+        total++;
+        report({
+          type: 'cache',
+          phase: 'write',
+          total,
+          size: this.graph.nodes.length,
+        });
         delete node.result;
       }
     }
@@ -1140,6 +1155,12 @@ export default class RequestTracker {
     promises.push(
       this.options.cache.setLargeBlob(requestGraphKey, serialize(this.graph)),
     );
+    report({
+      type: 'cache',
+      phase: 'write',
+      total,
+      size: this.graph.nodes.length,
+    });
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
@@ -1150,6 +1171,13 @@ export default class RequestTracker {
         opts,
       ),
     );
+    report({
+      type: 'cache',
+      phase: 'write',
+      total,
+      size: this.graph.nodes.length,
+    });
+    report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
 
     await Promise.all(promises);
   }
