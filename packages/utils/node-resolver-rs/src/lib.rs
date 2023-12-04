@@ -1145,7 +1145,7 @@ impl<'a, Fs: FileSystem> ResolveRequest<'a, Fs> {
                 entries: Fields::TSCONFIG,
                 flags: Flags::NODE_CJS,
                 cache: CacheCow::Borrowed(&self.resolver.cache),
-                include_node_modules: Cow::Borrowed(self.resolver.include_node_modules.as_ref()),
+                include_node_modules: Cow::Owned(IncludeNodeModules::default()),
                 conditions: ExportsCondition::TYPES,
                 module_dir_resolver: self.resolver.module_dir_resolver.clone(),
               };
