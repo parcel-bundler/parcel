@@ -26,7 +26,6 @@ import {
 } from './render';
 import * as emoji from './emoji';
 import wrapAnsi from 'wrap-ansi';
-import cliProgress from 'cli-progress';
 
 const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
@@ -34,12 +33,11 @@ const seenPhases = new Set();
 const seenPhasesGen = new Set();
 
 let phaseStartTimes = {};
-let maybeIncrementalBuild = false;
+let pendingIncrementalBuild = false;
 
 let statusThrottle = throttle((message: string) => {
   updateSpinner(message);
 }, THROTTLE_DELAY);
-let bar;
 
 // Exported only for test
 export async function _report(
@@ -78,8 +76,8 @@ export async function _report(
         break;
       }
 
-      if (maybeIncrementalBuild) {
-        maybeIncrementalBuild = false;
+      if (pendingIncrementalBuild) {
+        pendingIncrementalBuild = false;
         phaseStartTimes = {};
         seenPhasesGen.clear();
         seenPhases.clear();
@@ -137,7 +135,7 @@ export async function _report(
           options.detailedReport?.assetsPerBundle,
         );
       } else {
-        maybeIncrementalBuild = true;
+        pendingIncrementalBuild = true;
       }
 
       if (process.env.PARCEL_SHOW_PHASE_TIMES) {
@@ -154,30 +152,6 @@ export async function _report(
       persistSpinner('buildProgress', 'error', chalk.red.bold('Build failed.'));
 
       await writeDiagnostic(options, event.diagnostics, 'red', true);
-      break;
-    case 'cache':
-      if (event.size > 5000) {
-        switch (event.phase) {
-          case 'start':
-            if (!bar) {
-              bar = new cliProgress.SingleBar(
-                {},
-                cliProgress.Presets.shades_classic,
-              );
-            }
-            writeOut('Writing to cache...');
-            bar.start(event.total, 0);
-            break;
-          case 'write':
-            bar.setTotal(event.total);
-            bar.increment();
-            break;
-          case 'end':
-            bar.stop();
-            writeOut('Done.');
-            break;
-        }
-      }
       break;
     case 'log': {
       if (logLevelFilter < logLevels[event.level]) {
