@@ -340,7 +340,6 @@ export default class Parcel {
             if (this.#watchAbortController) {
               this.#watchAbortController.abort();
             }
-
             this.#watchQueue.add(() => this._startNextBuild());
           }
 
@@ -359,6 +358,7 @@ export default class Parcel {
         createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),
         {force: assetRequests.length > 0},
       );
+      this.#requestTracker.generateInvalidationReport();
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -406,7 +406,6 @@ export default class Parcel {
           if (this.#watchAbortController) {
             this.#watchAbortController.abort();
           }
-
           this.#watchQueue.add(() => this._startNextBuild());
           this.#watchQueue.run();
         }

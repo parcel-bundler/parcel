@@ -745,58 +745,6 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  generateInvalidationReport(): void {
-    let nodes = {};
-    let invalidationRelations = {};
-    for (let {invalidated, cause} of this.invalidationReport) {
-      let invalidatedNode = nullthrows(this.getNode(invalidated));
-      invariant(invalidatedNode.type === 'request');
-      let causeNode =
-        cause !== undefined ? nullthrows(this.getNode(cause)) : undefined;
-
-      if (invalidatedNode.id === 'Main') {
-        continue;
-      }
-
-      if (!invalidationRelations[invalidated]) {
-        invalidationRelations[invalidated] = [];
-      }
-
-      if (causeNode && !invalidationRelations[invalidated].includes(cause)) {
-        invalidationRelations[invalidated].push(cause);
-      }
-
-      nodes[invalidated] = {
-        id: invalidatedNode.id,
-        type: invalidatedNode.type,
-        requestType: invalidatedNode.requestType,
-        invalidateReason: invalidatedNode.invalidateReason,
-      };
-
-      if (causeNode) {
-        invariant(cause !== undefined);
-        let {id, type, requestType, invalidateReason} = causeNode;
-        nodes[cause] =
-          requestType !== undefined && invalidateReason !== undefined
-            ? {id, type, requestType, invalidateReason}
-            : {id, type};
-      }
-    }
-
-    const fs = require('fs');
-    fs.writeFile(
-      'cache-invalidation-report.json',
-      JSON.stringify(
-        {invalidationRelations: invalidationRelations, nodes: nodes},
-        undefined,
-        4,
-      ),
-      function (err) {
-        if (err) throw err;
-      },
-    );
-  }
-
   respondToFSEvents(
     events: Array<{|path: ProjectPath, type: EventType|}>,
   ): boolean {
@@ -1167,6 +1115,73 @@ export default class RequestTracker {
     return {api, subRequestContentKeys};
   }
 
+  generateInvalidationReport(): void {
+    let nodes = {};
+    let invalidationRelations = {};
+    for (let {invalidated, cause} of this.graph.invalidationReport) {
+      let invalidatedNode = this.graph.getNode(invalidated);
+      let causeNode =
+        cause !== undefined ? this.graph.getNode(cause) : undefined;
+      if (
+        invalidatedNode === null ||
+        causeNode === null ||
+        invalidatedNode === undefined ||
+        causeNode === undefined
+      ) {
+        continue;
+      }
+
+      if (invalidatedNode.id !== 'Main') {
+        if (!invalidationRelations[invalidated]) {
+          invalidationRelations[invalidated] = [];
+        }
+
+        if (!invalidationRelations[invalidated].includes(cause)) {
+          invariant(cause !== undefined);
+          invalidationRelations[invalidated].push(cause);
+        }
+      }
+
+      invariant(invalidatedNode.type === 'request');
+      nodes[invalidated] = {
+        id: invalidatedNode.id,
+        type: invalidatedNode.type,
+        requestType: invalidatedNode.requestType,
+        invalidateReason: invalidatedNode.invalidateReason,
+      };
+
+      if (
+        causeNode.requestType !== undefined &&
+        causeNode.invalidateReason !== undefined
+      ) {
+        nodes[cause] = {
+          id: causeNode.id,
+          type: causeNode.type,
+          requestType: causeNode.requestType,
+          invalidateReason: causeNode.invalidateReason,
+        };
+      } else {
+        nodes[cause] = {
+          id: causeNode.id,
+          type: causeNode.type,
+        };
+      }
+    }
+
+    const fs = require('fs');
+    fs.writeFile(
+      'cache-invalidation-report.json',
+      JSON.stringify(
+        {invalidationRelations: invalidationRelations, nodes: nodes},
+        undefined,
+        4,
+      ),
+      function (err) {
+        if (err) throw err;
+      },
+    );
+  }
+
   async writeToCache() {
     let cacheKey = getCacheKey(this.options);
     let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
@@ -1288,7 +1303,6 @@ async function loadRequestGraph(options): Async<RequestGraph> {
         path: toProjectPath(options.projectRoot, e.path),
       })),
     );
-    requestGraph.generateInvalidationReport();
 
     return requestGraph;
   }
