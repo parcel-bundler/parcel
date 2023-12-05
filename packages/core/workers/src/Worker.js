@@ -51,7 +51,10 @@ export default class Worker extends EventEmitter {
     let filteredArgs = [];
     if (process.execArgv) {
       filteredArgs = process.execArgv.filter(
-        v => !/^--(debug|inspect|no-opt|max-old-space-size=)/.test(v),
+        v =>
+          !/^--(debug|inspect|no-opt|max-old-space-size=|max-semi-space-size=|expose-gc)/.test(
+            v,
+          ),
       );
 
       for (let i = 0; i < filteredArgs.length; i++) {

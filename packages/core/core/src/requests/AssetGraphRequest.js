@@ -32,6 +32,7 @@ import createPathRequest from './PathRequest';
 import {type ProjectPath, fromProjectPathRelative} from '../projectPath';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 import {propagateSymbols} from '../SymbolPropagation';
+import {requestTypes} from '../RequestTracker';
 
 type AssetGraphRequestInput = {|
   entries?: Array<ProjectPath>,
@@ -62,7 +63,7 @@ type RunInput = {|
 
 type AssetGraphRequest = {|
   id: string,
-  +type: 'asset_graph_request',
+  +type: typeof requestTypes.asset_graph_request,
   run: RunInput => Async<AssetGraphRequestResult>,
   input: AssetGraphRequestInput,
 |};
@@ -71,7 +72,7 @@ export default function createAssetGraphRequest(
   input: AssetGraphRequestInput,
 ): AssetGraphRequest {
   return {
-    type: 'asset_graph_request',
+    type: requestTypes.asset_graph_request,
     id: input.name,
     run: async input => {
       let prevResult =
@@ -161,8 +162,9 @@ export class AssetGraphBuilder {
     );
 
     this.isSingleChangeRebuild =
-      api.getInvalidSubRequests().filter(req => req.type === 'asset_request')
-        .length === 1;
+      api
+        .getInvalidSubRequests()
+        .filter(req => req.requestType === 'asset_request').length === 1;
     this.queue = new PromiseQueue();
 
     assetGraph.onNodeRemoved = nodeId => {
@@ -482,6 +484,7 @@ export class AssetGraphBuilder {
       optionsRef: this.optionsRef,
       isSingleChangeRebuild: this.isSingleChangeRebuild,
     });
+
     let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
       request,
       {force: true},

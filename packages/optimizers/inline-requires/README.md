@@ -8,12 +8,9 @@ Add this optimizer to run _first_ (before minification), for JS bundles.
 
 ```json
 {
-    "optimizers": {
-        "*.js": {
-            "parcel-optimizer-inline-requires",
-            "..."
-        }
-    }
+  "optimizers": {
+    "*.js": ["@parcel/optimizer-inline-requires", "..."]
+  }
 }
 ```
 
