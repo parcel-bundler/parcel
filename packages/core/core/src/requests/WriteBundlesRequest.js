@@ -4,6 +4,7 @@ import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {StaticRunOpts} from '../RequestTracker';
+import {requestTypes} from '../RequestTracker';
 import type {PackagedBundleInfo} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
@@ -27,7 +28,7 @@ type RunInput<TResult> = {|
 
 export type WriteBundlesRequest = {|
   id: ContentKey,
-  +type: 'write_bundles_request',
+  +type: typeof requestTypes.write_bundles_request,
   run: (
     RunInput<Map<string, PackagedBundleInfo>>,
   ) => Async<Map<string, PackagedBundleInfo>>,
@@ -41,7 +42,7 @@ export default function createWriteBundlesRequest(
   input: WriteBundlesRequestInput,
 ): WriteBundlesRequest {
   return {
-    type: 'write_bundles_request',
+    type: requestTypes.write_bundles_request,
     id: 'write_bundles:' + input.bundleGraph.getBundleGraphHash(),
     run,
     input,
