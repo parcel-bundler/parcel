@@ -31,6 +31,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ProjectPath} from './projectPath';
+import type {EventType} from '@parcel/watcher';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
@@ -281,9 +282,9 @@ export type ParcelOptions = {|
   shouldPatchConsole: boolean,
   detailedReport?: ?DetailedReportOptions,
   nodeModuleInvalidations?: Array<{|
-    path: ProjectPath,
+    path: FilePath,
     type: EventType,
-  |}> | null,
+  |}>,
 
   inputFS: FileSystem,
   outputFS: FileSystem,

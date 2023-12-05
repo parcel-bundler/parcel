@@ -147,24 +147,11 @@ export default async function resolveOptions(
 
   let port = determinePort(initialOptions.serveOptions, env.PORT);
 
-  // initialOptions.nodeModuleInvalidations = [
-  //   '/Users/gkong/jira-frontend/node_modules/react/cjs/react.production.min.js',
-  //   '/Users/gkong/jira-frontend/node_modules/react/cjs/react-dom.production.min.js',
-  // ];
-
-  console.log(
-    'nodeModuleInvalidations',
-    initialOptions.nodeModuleInvalidations,
-  );
   let nodeModuleInvalidations = initialOptions.nodeModuleInvalidations?.map(
     path => ({
       type: 'create',
       path,
     }),
-  );
-  console.log(
-    '🎀 ~ transformed nodeModuleInvalidations:',
-    nodeModuleInvalidations,
   );
 
   return {

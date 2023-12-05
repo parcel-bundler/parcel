@@ -101,10 +101,8 @@ const commonOptions = {
     },
     [],
   ],
-  '--node-module-invalidations [path]': [
-    'file paths of node_module packages to be invalidated',
-    (val, list) => list.concat([val]),
-    [],
+  '--node-module-invalidations <path>': [
+    'Comma separated list of file paths of node_module packages to be invalidated',
   ],
 };
 
@@ -125,9 +123,6 @@ var hmrOptions = {
 
 function applyOptions(cmd, options) {
   for (let opt in options) {
-    if (opt === 'node-module-invalidations') {
-      debugger;
-    }
     const option = options[opt];
     if (option instanceof commander.Option) {
       cmd.addOption(option);
@@ -177,10 +172,6 @@ let build = program
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--no-content-hash', 'disable content hashing')
-  // .option(
-  //   '--node-module-invalidations',
-  //   'file paths of node_module packages to be invalidated',
-  // )
   .action(runCommand);
 
 applyOptions(build, commonOptions);
@@ -480,7 +471,7 @@ async function normalizeOptions(
 
   let mode = command.name() === 'build' ? 'production' : 'development';
 
-  const normalizeIncludeExcludeList = (input?: string): string[] => {
+  const normalizeCommaSeparatedList = (input?: string): string[] => {
     if (typeof input !== 'string') return [];
     return input.split(',').map(value => value.trim());
   };
@@ -499,9 +490,11 @@ async function normalizeOptions(
     shouldProfile: command.profile,
     shouldTrace: command.trace,
     shouldBuildLazily: typeof command.lazy !== 'undefined',
-    lazyIncludes: normalizeIncludeExcludeList(command.lazy),
-    lazyExcludes: normalizeIncludeExcludeList(command.lazyExclude),
-    nodeModuleInvalidations: command.nodeModuleInvalidations,
+    lazyIncludes: normalizeCommaSeparatedList(command.lazy),
+    lazyExcludes: normalizeCommaSeparatedList(command.lazyExclude),
+    nodeModuleInvalidations: normalizeCommaSeparatedList(
+      command.nodeModuleInvalidations,
+    ),
     shouldBundleIncrementally:
       process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,
     detailedReport:

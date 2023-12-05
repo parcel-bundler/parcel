@@ -8,6 +8,5 @@ if (
 ) {
   require('@parcel/babel-register');
 }
-console.log('HI FROM PAR2');
 
 require('./cli');
