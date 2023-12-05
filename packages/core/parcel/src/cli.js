@@ -101,12 +101,9 @@ const commonOptions = {
     },
     [],
   ],
-  '--additional-invalidations': [
-    'node_modules packages to be invalidated',
-    (val, acc) => {
-      acc.push(val);
-      return acc;
-    },
+  '--node-module-invalidations [path]': [
+    'file paths of node_module packages to be invalidated',
+    (val, list) => list.concat([val]),
     [],
   ],
 };
@@ -128,6 +125,9 @@ var hmrOptions = {
 
 function applyOptions(cmd, options) {
   for (let opt in options) {
+    if (opt === 'node-module-invalidations') {
+      debugger;
+    }
     const option = options[opt];
     if (option instanceof commander.Option) {
       cmd.addOption(option);
@@ -177,6 +177,10 @@ let build = program
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--no-content-hash', 'disable content hashing')
+  // .option(
+  //   '--node-module-invalidations',
+  //   'file paths of node_module packages to be invalidated',
+  // )
   .action(runCommand);
 
 applyOptions(build, commonOptions);
@@ -221,6 +225,7 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 program.parse(args);
 
 function runCommand(...args) {
+  console.log('hello run1');
   run(...args).catch(handleUncaughtException);
 }
 
@@ -234,6 +239,7 @@ async function run(
   }
 
   entries = entries.map(entry => path.resolve(entry));
+  console.log('🎀 ~ entries:', entries);
 
   let Parcel = require('@parcel/core').default;
   let fs = new NodeFS();
@@ -478,6 +484,7 @@ async function normalizeOptions(
     if (typeof input !== 'string') return [];
     return input.split(',').map(value => value.trim());
   };
+
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
@@ -494,6 +501,7 @@ async function normalizeOptions(
     shouldBuildLazily: typeof command.lazy !== 'undefined',
     lazyIncludes: normalizeIncludeExcludeList(command.lazy),
     lazyExcludes: normalizeIncludeExcludeList(command.lazyExclude),
+    nodeModuleInvalidations: command.nodeModuleInvalidations,
     shouldBundleIncrementally:
       process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,
     detailedReport:

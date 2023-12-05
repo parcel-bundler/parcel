@@ -280,7 +280,10 @@ export type ParcelOptions = {|
   shouldTrace: boolean,
   shouldPatchConsole: boolean,
   detailedReport?: ?DetailedReportOptions,
-  additionalInvalidations?: Array<FilePath> | null,
+  nodeModuleInvalidations?: Array<{|
+    path: ProjectPath,
+    type: EventType,
+  |}> | null,
 
   inputFS: FileSystem,
   outputFS: FileSystem,

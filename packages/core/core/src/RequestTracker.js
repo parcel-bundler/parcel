@@ -1224,17 +1224,15 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       snapshotPath,
       opts,
     );
-    console.log(options.additionalInvalidations);
+    console.log('b4', {events});
+    console.log('!!!!!!!!!!additionalinvalid', options.nodeModuleInvalidations);
 
-    if (options.additionalInvalidations != null) {
-      events.push(
-        ...options.additionalInvalidations.map(filePath => ({
-          path: filePath,
-          type: 'create',
-        })),
-      );
+    if (options.nodeModuleInvalidations != null) {
+      events.push(...options.nodeModuleInvalidations);
     }
-    console.log({events});
+
+    console.log('after', {events});
+
     requestGraph.invalidateUnpredictableNodes();
     requestGraph.invalidateOnBuildNodes();
     requestGraph.invalidateEnvNodes(options.env);

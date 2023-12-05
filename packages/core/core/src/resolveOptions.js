@@ -147,11 +147,24 @@ export default async function resolveOptions(
 
   let port = determinePort(initialOptions.serveOptions, env.PORT);
 
-  let additionalInvalidations = initialOptions.additionalInvalidations?.map(
-    filePath => ({
+  // initialOptions.nodeModuleInvalidations = [
+  //   '/Users/gkong/jira-frontend/node_modules/react/cjs/react.production.min.js',
+  //   '/Users/gkong/jira-frontend/node_modules/react/cjs/react-dom.production.min.js',
+  // ];
+
+  console.log(
+    'nodeModuleInvalidations',
+    initialOptions.nodeModuleInvalidations,
+  );
+  let nodeModuleInvalidations = initialOptions.nodeModuleInvalidations?.map(
+    path => ({
       type: 'create',
-      filePath,
+      path,
     }),
+  );
+  console.log(
+    '🎀 ~ transformed nodeModuleInvalidations:',
+    nodeModuleInvalidations,
   );
 
   return {
@@ -173,7 +186,7 @@ export default async function resolveOptions(
     shouldBuildLazily,
     lazyIncludes,
     lazyExcludes,
-    additionalInvalidations,
+    nodeModuleInvalidations,
     shouldBundleIncrementally: initialOptions.shouldBundleIncrementally ?? true,
     shouldContentHash,
     serveOptions: initialOptions.serveOptions
