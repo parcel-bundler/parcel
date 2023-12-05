@@ -306,6 +306,7 @@ export type InitialParcelOptions = {|
   +lazyIncludes?: string[],
   +lazyExcludes?: string[],
   +shouldBundleIncrementally?: boolean,
+  +nodeModuleInvalidations?: Array<FilePath>,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,

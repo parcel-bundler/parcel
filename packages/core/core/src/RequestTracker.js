@@ -1219,6 +1219,9 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       snapshotPath,
       opts,
     );
+    if (options.nodeModuleInvalidations != null) {
+      events.push(...options.nodeModuleInvalidations);
+    }
     requestGraph.invalidateUnpredictableNodes();
     requestGraph.invalidateOnBuildNodes();
     requestGraph.invalidateEnvNodes(options.env);

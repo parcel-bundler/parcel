@@ -147,6 +147,13 @@ export default async function resolveOptions(
 
   let port = determinePort(initialOptions.serveOptions, env.PORT);
 
+  let nodeModuleInvalidations = initialOptions.nodeModuleInvalidations?.map(
+    path => ({
+      type: 'create',
+      path,
+    }),
+  );
+
   return {
     config: getRelativeConfigSpecifier(
       inputFS,
@@ -166,6 +173,7 @@ export default async function resolveOptions(
     shouldBuildLazily,
     lazyIncludes,
     lazyExcludes,
+    nodeModuleInvalidations,
     shouldBundleIncrementally: initialOptions.shouldBundleIncrementally ?? true,
     shouldContentHash,
     serveOptions: initialOptions.serveOptions
