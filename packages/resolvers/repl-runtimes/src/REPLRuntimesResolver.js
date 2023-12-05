@@ -6,7 +6,7 @@ import path from 'path';
 
 const FILES = new Map([
   [
-    '@parcel/runtime-js/src/helpers/bundle-manifest.js',
+    '/app/packages/runtimes/js/src/helpers/bundle-manifest.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/bundle-manifest.js',
@@ -14,14 +14,14 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/bundle-url.js',
+    '/app/packages/runtimes/js/src/helpers/bundle-url.js',
     fs.readFileSync(
       __dirname + '/../../../../packages/runtimes/js/src/helpers/bundle-url.js',
       'utf8',
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/cacheLoader.js',
+    '/app/packages/runtimes/js/src/helpers/cacheLoader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/cacheLoader.js',
@@ -29,7 +29,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/get-worker-url.js',
+    '/app/packages/runtimes/js/src/helpers/get-worker-url.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/get-worker-url.js',
@@ -37,7 +37,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/browser/preload-loader.js',
+    '/app/packages/runtimes/js/src/helpers/browser/preload-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/browser/preload-loader.js',
@@ -45,7 +45,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/browser/prefetch-loader.js',
+    '/app/packages/runtimes/js/src/helpers/browser/prefetch-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/browser/prefetch-loader.js',
@@ -53,7 +53,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/browser/css-loader.js',
+    '/app/packages/runtimes/js/src/helpers/browser/css-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/browser/css-loader.js',
@@ -61,7 +61,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/browser/html-loader.js',
+    '/app/packages/runtimes/js/src/helpers/browser/html-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/browser/html-loader.js',
@@ -69,7 +69,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/browser/js-loader.js',
+    '/app/packages/runtimes/js/src/helpers/browser/js-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/browser/js-loader.js',
@@ -77,7 +77,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/browser/wasm-loader.js',
+    '/app/packages/runtimes/js/src/helpers/browser/wasm-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/browser/wasm-loader.js',
@@ -85,7 +85,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/browser/import-polyfill.js',
+    '/app/packages/runtimes/js/src/helpers/browser/import-polyfill.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/browser/import-polyfill.js',
@@ -93,7 +93,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/worker/js-loader.js',
+    '/app/packages/runtimes/js/src/helpers/worker/js-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/worker/js-loader.js',
@@ -101,7 +101,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/worker/wasm-loader.js',
+    '/app/packages/runtimes/js/src/helpers/worker/wasm-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/worker/wasm-loader.js',
@@ -109,7 +109,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/node/css-loader.js',
+    '/app/packages/runtimes/js/src/helpers/node/css-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/node/css-loader.js',
@@ -117,7 +117,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/node/html-loader.js',
+    '/app/packages/runtimes/js/src/helpers/node/html-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/node/html-loader.js',
@@ -125,7 +125,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/node/js-loader.js',
+    '/app/packages/runtimes/js/src/helpers/node/js-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/node/js-loader.js',
@@ -133,7 +133,7 @@ const FILES = new Map([
     ),
   ],
   [
-    '@parcel/runtime-js/src/helpers/node/wasm-loader.js',
+    '/app/packages/runtimes/js/src/helpers/node/wasm-loader.js',
     fs.readFileSync(
       __dirname +
         '/../../../../packages/runtimes/js/src/helpers/node/wasm-loader.js',
@@ -167,34 +167,37 @@ export default (new Resolver({
   resolve({dependency}) {
     let {specifier, resolveFrom} = dependency;
 
-    if (resolveFrom && resolveFrom.startsWith('/app/__virtual__')) {
-      if (specifier === 'react-error-overlay') {
+    if (resolveFrom && resolveFrom.startsWith('/app/packages/')) {
+      if (
+        specifier === 'react-error-overlay' &&
+        resolveFrom.startsWith('/app/packages/runtimes/react-refresh/src/')
+      ) {
         return {
-          filePath: `/app/__virtual__/react-error-overlay/lib/index.js`,
+          filePath: `/react-error-overlay/lib/index.js`,
           code: REACT_ERROR_OVERLAY,
         };
       }
 
       let resolvedPath = specifier.startsWith('.')
-        ? path
-            .resolve(path.dirname(resolveFrom), specifier)
-            .replace(/^\/app\/__virtual__\//, '')
+        ? path.resolve(path.dirname(resolveFrom), specifier)
         : specifier;
 
       let filePath;
-      let content;
+      let code;
       if (FILES.has(resolvedPath)) {
         filePath = resolvedPath;
-        content = FILES.get(resolvedPath);
+        code = FILES.get(resolvedPath);
       } else if (FILES.has(resolvedPath + '.js')) {
         filePath = resolvedPath + '.js';
-        content = FILES.get(resolvedPath + '.js');
+        code = FILES.get(resolvedPath + '.js');
       }
 
-      if (filePath && content) {
+      if (filePath && code) {
         return {
-          filePath: `/app/__virtual__/${filePath}`,
-          code: content,
+          filePath: filePath.startsWith('@')
+            ? `/app/node_modules/${filePath}`
+            : filePath,
+          code,
         };
       }
     }
