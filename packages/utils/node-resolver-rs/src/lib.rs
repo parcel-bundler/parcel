@@ -2381,6 +2381,22 @@ mod tests {
         .0,
       Resolution::Path(root().join("tsconfig/extends-extension/foo.js"))
     );
+
+    let mut extends_node_module_resolver = test_resolver();
+    extends_node_module_resolver.include_node_modules = Cow::Owned(IncludeNodeModules::Bool(false));
+    assert_eq!(
+      extends_node_module_resolver
+        .resolve(
+          "./bar",
+          &root().join("tsconfig/extends-node-module/index.js"),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .0,
+      Resolution::Path(root().join("tsconfig/extends-node-module/bar.ts"))
+    );
+
     assert_eq!(
       test_resolver()
         .resolve(
