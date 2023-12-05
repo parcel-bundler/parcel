@@ -1,8 +1,3 @@
 {
-  "extends": "@scope/tsconfig/tsconfig.json",
-  "compilerOptions": {
-    "paths": {
-      "bar": ["./foo.ts"]
-    }
-  }
+  "extends": "@scope/tsconfig/tsconfig.json"
 }
