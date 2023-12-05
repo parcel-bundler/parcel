@@ -144,7 +144,7 @@ export async function _report(
       await writeDiagnostic(options, event.diagnostics, 'red', true);
       break;
     case 'cache':
-      if (event.size > 5000) {
+      if (event.size > 500000) {
         switch (event.phase) {
           case 'start':
             if (!bar) {
