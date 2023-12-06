@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "graphviz": "^0.0.9",
-    "tempy": "^0.2.1"
+    "tempy": "^0.3.0"
   },
   "browser": {
     "./src/serializerCore.js": "./src/serializerCore.browser.js"
