@@ -293,6 +293,7 @@ export type InitialParcelOptions = {|
 
   +shouldDisableCache?: boolean,
   +cacheDir?: FilePath,
+  +watchDir?: FilePath,
   +mode?: BuildMode,
   +hmrOptions?: ?HMROptions,
   +shouldContentHash?: boolean,
