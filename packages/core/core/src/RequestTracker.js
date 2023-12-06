@@ -1150,6 +1150,7 @@ export default class RequestTracker {
         invalidateReason: invalidatedNode.invalidateReason,
       };
 
+      invariant(cause !== undefined);
       if (
         causeNode.requestType !== undefined &&
         causeNode.invalidateReason !== undefined
