@@ -1142,7 +1142,7 @@ export default class RequestTracker {
         }
       }
 
-      invariant(invalidatedNode.type === 'request');
+      invariant(invalidatedNode.type === 1);
       nodes[invalidated] = {
         id: invalidatedNode.id,
         type: invalidatedNode.type,
