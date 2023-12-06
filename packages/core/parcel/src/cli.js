@@ -101,9 +101,6 @@ const commonOptions = {
     },
     [],
   ],
-  '--node-module-invalidations <path>': [
-    'Comma separated list of file paths of node_module packages to be invalidated',
-  ],
 };
 
 var hmrOptions = {
@@ -469,11 +466,10 @@ async function normalizeOptions(
 
   let mode = command.name() === 'build' ? 'production' : 'development';
 
-  const normalizeCommaSeparatedList = (input?: string): string[] => {
+  const normalizeIncludeExcludeList = (input?: string): string[] => {
     if (typeof input !== 'string') return [];
     return input.split(',').map(value => value.trim());
   };
-
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
@@ -488,11 +484,8 @@ async function normalizeOptions(
     shouldProfile: command.profile,
     shouldTrace: command.trace,
     shouldBuildLazily: typeof command.lazy !== 'undefined',
-    lazyIncludes: normalizeCommaSeparatedList(command.lazy),
-    lazyExcludes: normalizeCommaSeparatedList(command.lazyExclude),
-    nodeModuleInvalidations: normalizeCommaSeparatedList(
-      command.nodeModuleInvalidations,
-    ),
+    lazyIncludes: normalizeIncludeExcludeList(command.lazy),
+    lazyExcludes: normalizeIncludeExcludeList(command.lazyExclude),
     shouldBundleIncrementally:
       process.env.PARCEL_INCREMENTAL_BUNDLING === 'false' ? false : true,
     detailedReport:

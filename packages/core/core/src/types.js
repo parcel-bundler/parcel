@@ -281,7 +281,7 @@ export type ParcelOptions = {|
   shouldTrace: boolean,
   shouldPatchConsole: boolean,
   detailedReport?: ?DetailedReportOptions,
-  nodeModuleInvalidations?: Array<{|
+  unstableFileInvalidations?: Array<{|
     path: FilePath,
     type: EventType,
   |}>,
