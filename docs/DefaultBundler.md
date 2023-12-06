@@ -70,42 +70,83 @@ Create bundles for explicit code split points. These are…
 
   - SVG image inlined into html: `<img src="data-url:./img.svg"/>`
 
-More on code splitting: [Code Splitting ](https://parceljs.org/features/code-splitting/).
+More on code splitting: [Code Splitting](https://parceljs.org/features/code-splitting/).
 
 We also maintain the notion of bundleGroups during this traversal. Entry bundles and Async Bundles are also bundleGroups.
 
 Here’s an example of how some files are translated to a bundleGraph in the experimental bundler.
 
+<table><tr>
+<td>
+
+```js
 //index.js
 import('./foo'); //async imports
 import('./bar');
+```
 
+</td><td>
+
+```js
 //bar.js
 import styles from './styles.css';
 import html from './local.html'; //isolated
+```
 
+<td>
+</tr></table>
+
+// TODO IMAGE
 IdealBundleGraph from integration/shared-bundle-single-source/index.js
 
 ## Step: Merge Type Change Bundles
 
+Type change bundles are a special case of bundle, because they require a consistent or “stable” name. As a result, we only allow one bundle of another type per bundleGroup. So, we need to merge bundles that exist within the same bundleGroups. (i.e. siblings)
+
 ## Step: Determine Reachability
+
+Here is where we begin building up the graphs required to determine where to place assets. The first is called reachableRoots. ReachableRoots maintains all bundleRoots and what assets are available to them synchronously.
 
 ## Step: Determine Availability
 
+Now, in order to know where to place assets, we construct a mapping of all assets available to a bundleRoot (or bundle). This is called ancestorAssets and it is populated with assets available via older siblings, assets within the same bundleGroup, and parent and ancestor bundles.
+
+At each bundleRoot, we first determine the assets that would be available via bundleGroup, since the bundles in a bundleGroup are loaded together. This is the bundles in the bundleGroup (BundleRoot Assets + Synchronously available Assets)
+
+Next, we “peek ahead” to the children, and propagate the available assets down, intersecting as we go since that will be the set of assets available by any “path”.
+
+In the case of sibling parallel dependencies, the younger siblings have access to the assets of the older siblings, since they load in order, so we must propagate those too. This ensures we can extract shared code between siblings
+
 ## Step: Internalize Async Bundles
+
+Internalization is when some asset requires an asset synchronously, but also asynchronously. This is redundant so we don’t need to load the extra (async) bundle. We mark this in `bundle.internalizedAssetIds`, and an internalized asset is ultimately displayed as an orange edge.
 
 ## Step: Insert or Share
 
+Here, we place assets into bundles since they require them synchronously, or by other means (like entries need all their assets within their bundle). If an asset is “reachable” from many bundles, we can extract it into a shared bundle.
+
+You may think of reachable as all the bundles that still need an asset by some means. We filter it down to ensure we only place assets where they need to be. Any bundle that contains the asset in question in it’s ancestorAssets is filtered out, & entries are filtered out.
+
+### Reused Bundles
+
+    There’s a special case here that is unique to the experimental bundler, which is reusing bundles. We noticed sometimes, if two or more bundles shared the whole contents of another bundle, reusing that bundle is as simple as drawing an edge, as opposed to creating a shared bundle that would essentially be a copy of another. In the above example, foo.js is a reused bundle. You can tell a bundle is reused if it has both an entry asset and source bundles.
+
+### Other special cases
+
+- Manual shared bundles: See []
+
 ## Step: Merge Shared Bundles
+
+Users of Parcel can specify a bundler config, which sets minbundleSize, maxParallelRequests, and minBundles. In this step we merge back and shared bundles that are smaller than minBundleSize.
+
+This config option only affect shared bundles.
 
 ## Step: Remove Shared Bundles
 
+Finally, we remove shared bundles to abide by maxParallelRequests. maxParallelRequests semantically affects how many bundles are to be loaded at once, and syntactically affects how many bundles can be in a bundle group.
+
+One difference between the default and experimental bundler is here, where we also merge back “reused” bundles. Unlike shared bundles, reused bundles may have children, so we must update the graph accordingly. Below is an example graph from shared-bundle-reused-bundle-remove-reuse/index.js
+
 # BundleGraph Decoratation
 
-Code : `hasDeferred=true`
-
-code inline :
-
-```mermaid
-Hello this is the code
-```
+BundleGraph decoration takes ideal graph and mutates the passed-in assetGraph aka Mutable bundleGraph, in order to back port our idealGraph to what Parcel expects.
