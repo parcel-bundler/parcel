@@ -460,7 +460,13 @@ export default class Server {
       }
       cfg(app);
     } else if (filename === '.proxyrc' || filename === '.proxyrc.json') {
-      let conf = await readConfig(this.options.inputFS, configFilePath);
+      let conf;
+      try {
+        conf = await readConfig(this.options.inputFS, configFilePath);
+      } catch (e) {
+        this.options.logger.error(e);
+        return this;
+      }
       if (!conf) {
         return this;
       }

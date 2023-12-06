@@ -1,7 +1,7 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import json5 from 'json5';
+import {parseJSON5} from '@parcel/utils';
 
 // A list of all attributes in a schema that may produce a dependency
 // Based on https://schema.org/ImageObject
@@ -23,14 +23,11 @@ const SCHEMA_ATTRS = [
 export default (new Transformer({
   async transform({asset}) {
     let rawCode = await asset.getCode();
-    // allowing any recieved jsonld to be in json5 format
-    let jsonCode = json5.parse(rawCode);
+    let jsonCode = parseJSON5(asset.filePath, rawCode);
 
     jsonCode = extractUrlsFrom(jsonCode, asset);
 
-    // json should be injected back into the html page
     asset.type = 'jsonld';
-    // setting it to jsonCode since the parser updates asset paths
     asset.setCode(JSON.stringify(jsonCode));
     return [asset];
   },

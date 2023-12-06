@@ -27,6 +27,7 @@ export {default as createDependencyLocation} from './dependency-location';
 export {default as debounce} from './debounce';
 export {default as throttle} from './throttle';
 export {default as openInBrowser} from './openInBrowser';
+export {default as parseJSON5} from './parseJSON5';
 
 // Explicit re-exports instead of export * for lazy require performance
 export {findAlternativeNodeModules, findAlternativeFiles} from './alternatives';
