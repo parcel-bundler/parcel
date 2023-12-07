@@ -2157,9 +2157,9 @@
   integrity sha512-O+6Gs8UeDbyFpbSh2CPEz/UOrrdWPTBYNblZK5CxxLisYt4kGX3Sc+czffFonyjiGSq3jWLwJS/CCJc7tBr4sQ==
 
 "@napi-rs/cli@^2.15.2":
-  version "2.15.2"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.15.2.tgz#33547b25fcc1bc0dd52d1c7409694b3f62c01c16"
-  integrity sha512-80tBCtCnEhAmFtB9oPM0FL74uW7fAmtpeqjvERH7Q1z/aZzCAs/iNfE7U3ehpwg9Q07Ob2Eh/+1guyCdX/p24w==
+  version "2.16.5"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.16.5.tgz#077ef3c1fea0e68843ba700456df39b6242bb0df"
+  integrity sha512-mFEzwrg4IOLngGd2/P6yeqIWgwQNn59Z08n1rndu6kLDq1gg954NH9cM1O9Da0RJuybt46p43lqgSsnAY2mxqA==
 
 "@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1":
   version "5.1.1-v1"
@@ -13128,11 +13128,6 @@ timsort@^0.3.0:
   version "0.3.0"
   resolved "https://registry.yarnpkg.com/timsort/-/timsort-0.3.0.tgz#405411a8e7e6339fe64db9a234de11dc31e02bd4"
   integrity sha1-QFQRqOfmM5/mTbmiNN4R3DHgK9Q=
-
-tiny-benchy@^1.0.2:
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/tiny-benchy/-/tiny-benchy-1.0.2.tgz#ed13db50876b54ded3d4cdf7710a5c2856b234ae"
-  integrity sha512-IpawVd9wuRyVXyajQ/La9ugQXKJohIEA6ufdPZsNuqOH7U4//xq4ivc7YdyCBshYccrUJovwYhMKWhxwdFgDsA==
 
 tmp@0.0.29:
   version "0.0.29"
