@@ -5191,6 +5191,12 @@ describe('javascript', function () {
   it('should not use arrow functions for reexport declarations unless supported', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-arrow-support/index.js'),
+      {
+        // Remove comments containing "=>"
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
     let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(!content.includes('=>'));
