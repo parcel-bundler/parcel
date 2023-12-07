@@ -167,6 +167,8 @@ const TOKEN_TYPES = [
 // with the exception of the `indent` and `path` groups, which
 // capture patterns that should be subsequently matched on `TOKEN_TYPES`.
 const COMPOUND_TYPES = [
+  // Matches empty lines that are meant to be ignored.
+  /^(?<empty> *)\n/,
   // Matches are captured as `indent` and`path` groups,
   // which can then be matched to `TOKEN_TYPES`.
   /^(?<indent>(?: {2})*)(?<path>[^:>\n]+\b) *(?:\n|$)/,
@@ -207,6 +209,8 @@ export class FixtureTokenizer {
 
         // Additional tokens that aren't captured by `indent` and `path`.
         for (let type in groups) {
+          // Ignore empty lines.
+          if (type === 'empty') continue;
           // If the value is multiline, dedent each line.
           let value = groups[type]
             .trim()
