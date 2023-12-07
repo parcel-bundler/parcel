@@ -1,0 +1,167 @@
+{
+  "title": "JSON schema for .parcelrc files",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "$defs": {
+    "engines": {
+      "type": "object",
+      "properties": {
+        "browsers": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "target": {
+      "type": "object",
+      "properties": {
+        "context": {
+          "description": "The context property defines what type of environment to build for. This tells Parcel what environment-specific APIs are available, e.g. the DOM, Node filesystem APIs.",
+          "type": "string",
+          "enum": [
+            "node",
+            "browser",
+            "web-worker",
+            "electron-main",
+            "electron-renderer",
+            "service-worker"
+          ]
+        },
+        "includeNodeModules": {
+          "description": "Determines whether to bundle node_modules or treat them as external. The default is true for browser targets, and false for library targets.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "a wildcard or filepath"
+              }
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            }
+          ]
+        },
+        "outputFormat": {
+          "description": "Defines what type of module to output.",
+          "type": "string",
+          "enum": ["global", "esmodule", "commonjs"]
+        },
+        "distDir": {
+          "description": "Sets the location where compiled bundles in this target will be written",
+          "type": "string"
+        },
+        "publicUrl": {
+          "description": "Sets the base URL at which this bundle will be loaded at runtime",
+          "type": "string"
+        },
+        "isLibrary": {
+          "description": "When set to true, the target is treated as a library that would be published to npm and consumed by another tool rather than used directly in a browser or other target environment.",
+          "type": "boolean"
+        },
+        "source": {
+          "description": "Overrides the top-level `source` field in package.json for a target. This allows for each target to have different entries.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "sourceMap": {
+          "description": "Enables or disables source maps, and sets source map options.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "inlineSources": {
+                  "type": "boolean"
+                },
+                "sourceRoot": {
+                  "type": "string"
+                },
+                "inline": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "engines": {
+          "description": "Overrides the engines defined in the top-level `package.json#engines` and `browserslist` fields for this target.",
+          "$ref": "#/$defs/engines"
+        },
+        "optimize": {
+          "description": "Enables or disables optimization (e.g. minification). Exact behavior is determined by plugins.",
+          "type": "boolean"
+        },
+        "scopeHoist": {
+          "description": "Enables or disables scope hoisting.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "commonTarget": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/target"
+        },
+        {
+          "enum": [false]
+        }
+      ]
+    }
+  },
+  "properties": {
+    "targets": {
+      "type": "object",
+      "description": "Parcel can compile your source code in multiple different ways (targets) simultaneously.",
+      "properties": {
+        "main": {
+          "$ref": "#/$defs/commonTarget"
+        },
+        "module": {
+          "$ref": "#/$defs/commonTarget"
+        },
+        "browser": {
+          "$ref": "#/$defs/commonTarget"
+        },
+        "types": {
+          "$ref": "#/$defs/commonTarget"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/target"
+      }
+    }
+  }
+}
