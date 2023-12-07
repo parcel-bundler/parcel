@@ -340,6 +340,7 @@ export default class Parcel {
             if (this.#watchAbortController) {
               this.#watchAbortController.abort();
             }
+
             this.#watchQueue.add(() => this._startNextBuild());
           }
 
@@ -406,6 +407,7 @@ export default class Parcel {
           if (this.#watchAbortController) {
             this.#watchAbortController.abort();
           }
+
           this.#watchQueue.add(() => this._startNextBuild());
           this.#watchQueue.run();
         }
