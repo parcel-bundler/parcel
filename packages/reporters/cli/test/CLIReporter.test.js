@@ -1,12 +1,15 @@
 // @flow strict-local
 
 import assert from 'assert';
+import sinon from 'sinon';
 import {PassThrough} from 'stream';
 import {_report} from '../src/CLIReporter';
 import {_setStdio} from '../src/render';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {NodePackageManager} from '@parcel/package-manager';
 import stripAnsi from 'strip-ansi';
+import * as bundleReport from '../src/bundleReport';
+import * as render from '../src/render';
 
 const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
@@ -178,5 +181,51 @@ describe('CLIReporter', () => {
   it('writes buildSuccess messages to stdout on the default loglevel', async () => {
     await _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
     assert.equal(stdoutOutput, 'Bundling...\n');
+  });
+
+  it('writes phase timings to stdout when PARCEL_SHOW_PHASE_TIMES is set', async () => {
+    let oldPhaseTimings = process.env['PARCEL_SHOW_PHASE_TIMES'];
+    const bundleReportStub = sinon.stub(bundleReport, 'default');
+    const persistSpinnerStub = sinon.stub(render, 'persistSpinner');
+
+    after(() => {
+      bundleReportStub.restore();
+      persistSpinnerStub.restore();
+      process.env['PARCEL_SHOW_PHASE_TIMES'] = oldPhaseTimings;
+    });
+
+    // emit a buildSuccess event to reset the timings and seen phases
+    // from the previous test
+    process.env['PARCEL_SHOW_PHASE_TIMES'] = undefined;
+    // $FlowFixMe[incompatible-call]
+    await _report({type: 'buildSuccess'}, EMPTY_OPTIONS);
+
+    process.env['PARCEL_SHOW_PHASE_TIMES'] = 'true';
+    await _report(
+      {type: 'buildProgress', phase: 'transforming', filePath: 'foo.js'},
+      EMPTY_OPTIONS,
+    );
+    await _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
+    // $FlowFixMe[incompatible-call]
+    await _report({type: 'buildProgress', phase: 'packaging'}, EMPTY_OPTIONS);
+    // $FlowFixMe[incompatible-call]
+    await _report({type: 'buildSuccess'}, EMPTY_OPTIONS);
+    const expected =
+      /Building...\nBundling...\nPackaging & Optimizing...\nTransforming finished in [0-9]ms\nBundling finished in [0-9]ms\nPackaging & Optimizing finished in [0-9]ms/;
+
+    assert.equal(expected.test(stdoutOutput), true);
+
+    stdoutOutput = '';
+
+    await _report(
+      {type: 'buildProgress', phase: 'transforming', filePath: 'foo.js'},
+      EMPTY_OPTIONS,
+    );
+    await _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
+    // $FlowFixMe[incompatible-call]
+    await _report({type: 'buildProgress', phase: 'packaging'}, EMPTY_OPTIONS);
+    // $FlowFixMe[incompatible-call]
+    await _report({type: 'buildSuccess'}, EMPTY_OPTIONS);
+    assert.equal(expected.test(stdoutOutput), true);
   });
 });
