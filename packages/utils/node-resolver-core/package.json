@@ -43,7 +43,6 @@
     "domain-browser": "^3.5.0",
     "events": "^3.1.0",
     "https-browserify": "^1.0.0",
-    "napi-wasm": "^1.0.1",
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.0",
     "process": "^0.11.10",
