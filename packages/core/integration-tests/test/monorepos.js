@@ -915,12 +915,12 @@ describe('monorepos', function () {
 
     let builds = 0;
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
       // 1. Increment the build counter and modify `packages/lib/index.js` which
       //    should trigger a subsquent build.
       //
       // 2. Ensure the changed asset was detected and built
-      subscription = await b.watch(async (err, buildEvent) => {
+      b.watch(async (err, buildEvent) => {
         builds++;
 
         if (builds < 2) {
@@ -938,6 +938,8 @@ describe('monorepos', function () {
             reject(new Error('Changed assets missing.'));
           }
         }
+      }).then(sub => {
+        subscription = sub;
       });
     });
   });
