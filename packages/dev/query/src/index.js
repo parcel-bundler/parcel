@@ -98,14 +98,11 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   let buildRequestNode = nullthrows(
     requestTracker.graph.getNode(buildRequestId),
   );
-  invariant(
-    buildRequestNode.type === 1 &&
-      buildRequestNode.requestType === 'parcel_build_request',
-  );
+  invariant(buildRequestNode.type === 1 && buildRequestNode.requestType === 1);
   let buildRequestSubRequests = getSubRequests(buildRequestId);
 
   let bundleGraphRequestNode = buildRequestSubRequests.find(
-    n => n.type === 1 && n.requestType === 'bundle_graph_request',
+    n => n.type === 1 && n.requestType === 2,
   );
   if (bundleGraphRequestNode != null) {
     bundleGraph = BundleGraph.deserialize(
@@ -120,7 +117,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 
     let assetGraphRequest = getSubRequests(
       requestTracker.graph.getNodeIdByContentKey(bundleGraphRequestNode.id),
-    ).find(n => n.type === 1 && n.requestType === 'asset_graph_request');
+    ).find(n => n.type === 1 && n.requestType === 3);
     if (assetGraphRequest != null) {
       assetGraph = AssetGraph.deserialize(
         (await loadLargeBlobRequestRequest(cache, assetGraphRequest, cacheInfo))
@@ -130,7 +127,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   }
   cacheInfo.get('RequestGraph')?.push(timeToDeserialize);
   let writeBundlesRequest = buildRequestSubRequests.find(
-    n => n.type === 1 && n.requestType === 'write_bundles_request',
+    n => n.type === 1 && n.requestType === 11,
   );
   if (writeBundlesRequest != null) {
     invariant(writeBundlesRequest.type === 1);
