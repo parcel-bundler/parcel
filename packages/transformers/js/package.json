@@ -36,9 +36,6 @@
     "regenerator-runtime": "^0.13.7",
     "semver": "^7.5.2"
   },
-  "devDependencies": {
-    "@napi-rs/cli": "^2.15.2"
-  },
   "peerDependencies": {
     "@parcel/core": "^2.10.3"
   }
