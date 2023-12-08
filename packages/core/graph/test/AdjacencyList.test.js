@@ -19,19 +19,19 @@ describe('AdjacencyList', () => {
     let id = graph.addNode();
     assert.equal(id, 0);
     assert.equal(graph.stats.nodes, 1);
+    let id2 = graph.addNode();
+    assert.equal(id2, 1);
+    assert.equal(graph.stats.nodes, 2);
   });
 
-  it('addNode should resize nodes array when necessary', () => {
+  it('addNode should not resize nodes array', () => {
     let graph = new AdjacencyList();
     let size = graph.serialize().nodes.byteLength;
-    let a = graph.addNode();
-    let b = graph.addNode();
-    assert(size < (size = graph.serialize().nodes.byteLength));
-    graph.addEdge(a, b, 1);
-    graph.addEdge(a, b, 2);
-    graph.addEdge(a, b, 3);
-    graph.addEdge(a, b, 4);
-    assert(size < graph.serialize().nodes.byteLength);
+    graph.addNode();
+    graph.addNode();
+    graph.addNode();
+    graph.addNode();
+    assert(size == graph.serialize().nodes.byteLength);
   });
 
   it('removeEdge should remove an edge from the graph', () => {
@@ -168,6 +168,19 @@ describe('AdjacencyList', () => {
     assert.equal(graph.addEdge(a, b), false);
   });
 
+  it('addEdge should resize nodes array when necessary', () => {
+    let graph = new AdjacencyList();
+    let size = graph.serialize().nodes.byteLength;
+    let a = graph.addNode();
+    let b = graph.addNode();
+    assert(size == (size = graph.serialize().nodes.byteLength));
+    graph.addEdge(a, b, 1);
+    graph.addEdge(a, b, 2);
+    graph.addEdge(a, b, 3);
+    graph.addEdge(a, b, 4);
+    assert(size < graph.serialize().nodes.byteLength);
+  });
+
   it('addEdge should resize edges array when necessary', () => {
     let graph = new AdjacencyList();
     let size = graph.serialize().edges.byteLength;
@@ -226,21 +239,23 @@ describe('AdjacencyList', () => {
     // $FlowFixMe[prop-missing]
     AdjacencyList.prototype.hash = () => 1;
 
-    let graph = new AdjacencyList();
-    let n0 = graph.addNode();
-    let n1 = graph.addNode();
-    graph.addEdge(n0, n1, 2);
-    graph.removeEdge(n0, n1, 2);
-    assert(graph.addEdge(n0, n1, 2));
-    assert(graph.stats.edges === 1);
-    assert(graph.stats.deleted === 1);
-    // Resize to reclaim deleted edge space.
-    graph.resizeEdges(4);
-    assert(graph.stats.edges === 1);
-    assert(graph.stats.deleted === 0);
-
-    // $FlowFixMe[prop-missing]
-    AdjacencyList.prototype.hash = originalHash;
+    try {
+      let graph = new AdjacencyList({capacity: 3});
+      let n0 = graph.addNode();
+      let n1 = graph.addNode();
+      graph.addEdge(n0, n1, 2);
+      graph.removeEdge(n0, n1, 2);
+      assert(graph.addEdge(n0, n1, 2));
+      assert(graph.stats.edges === 1);
+      assert(graph.stats.deleted === 1);
+      // Resize to reclaim deleted edge space.
+      graph.resizeEdges(2);
+      assert(graph.stats.edges === 1);
+      assert(graph.stats.deleted === 0);
+    } finally {
+      // $FlowFixMe[prop-missing]
+      AdjacencyList.prototype.hash = originalHash;
+    }
   });
 
   it('hasEdge should accept an array of edge types', () => {

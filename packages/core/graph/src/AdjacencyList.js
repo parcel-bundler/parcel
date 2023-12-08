@@ -23,9 +23,7 @@ export type SerializedAdjacencyList<TEdgeType> = {|
 // eslint-disable-next-line no-unused-vars
 export type AdjacencyListOptions<TEdgeType> = {|
   /** The number of edges to accommodate. */
-  edgeCapacity?: number,
-  /** The number of nodes to accommodate. */
-  nodeCapacity?: number,
+  capacity?: number,
   /** The upper bound above which capacity should be increased. */
   loadFactor?: number,
   /** The lower bound below which capacity should be decreased. */
@@ -38,36 +36,26 @@ export type AdjacencyListOptions<TEdgeType> = {|
   peakCapacity?: number,
   /** The amount by which to shrink the capacity. */
   shrinkFactor?: number,
-  /** The number of items to accommodate per hash bucket. */
-  bucketSize?: number,
-  /** The number of distnict edge types to accommodate. */
-  edgeTypes?: number,
 |};
 
 type AdjacencyListParams = {|
-  edgeCapacity: number,
-  nodeCapacity: number,
+  capacity: number,
   loadFactor: number,
   unloadFactor: number,
   maxGrowFactor: number,
   minGrowFactor: number,
   peakCapacity: number,
   shrinkFactor: number,
-  bucketSize: number,
-  edgeTypes: number,
 |};
 
 const DEFAULT_PARAMS: AdjacencyListParams = {
-  edgeCapacity: 2,
-  nodeCapacity: 2,
+  capacity: 2,
   loadFactor: 0.7,
   unloadFactor: 0.3,
   maxGrowFactor: 8,
   minGrowFactor: 2,
   peakCapacity: 2 ** 18,
   shrinkFactor: 0.5,
-  bucketSize: 2,
-  edgeTypes: 1,
 };
 
 export default class AdjacencyList<TEdgeType: number = 1> {
@@ -88,20 +76,22 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       ({nodes, edges} = opts);
       this.#nodes = new NodeTypeMap(nodes);
       this.#edges = new EdgeTypeMap(edges);
-      this.#params = {
-        ...DEFAULT_PARAMS,
-        nodeCapacity: this.#nodes.capacity,
-        edgeCapacity: this.#edges.capacity,
-      };
+      this.#params = {...DEFAULT_PARAMS, capacity: this.#edges.capacity};
     } else {
       this.#params = {...DEFAULT_PARAMS, ...opts};
-      let {nodeCapacity, edgeCapacity, bucketSize, edgeTypes} = this.#params;
 
-      NodeTypeMap.assertMaxCapacity(nodeCapacity, edgeTypes);
-      EdgeTypeMap.assertMaxCapacity(edgeCapacity, bucketSize);
+      let {capacity} = this.#params;
 
-      this.#nodes = new NodeTypeMap(nodeCapacity, edgeTypes);
-      this.#edges = new EdgeTypeMap(edgeCapacity, bucketSize);
+      // TODO: Find a heuristic for right-sizing nodes.
+      // e.g., given an average ratio of `e` edges for every `n` nodes,
+      // init nodes with `capacity * n / e`.
+      let nodeCapacity = 2;
+
+      NodeTypeMap.assertMaxCapacity(nodeCapacity);
+      EdgeTypeMap.assertMaxCapacity(capacity);
+
+      this.#nodes = new NodeTypeMap(nodeCapacity);
+      this.#edges = new EdgeTypeMap(capacity);
     }
   }
 
@@ -125,12 +115,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   get stats(): {|
+    /** The maximum number of edges the graph can contain. */
+    capacity: number,
     /** The number of nodes in the graph. */
     nodes: number,
     /** The number of edge types associated with nodes in the graph. */
     nodeEdgeTypes: number,
-    /** The maximum number of nodes the graph can contain. */
-    nodeCapacity: number,
     /** The size of the raw nodes buffer, in mb. */
     nodeBufferSize: string,
     /** The current load on the nodes array. */
@@ -141,8 +131,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     deleted: number,
     /** The number of unique edge types in the graph. */
     edgeTypes: number,
-    /** The maximum number of edges the graph can contain. */
-    edgeCapacity: number,
     /** The size of the raw edges buffer, in mb. */
     edgeBufferSize: string,
     /** The current load on the edges array, including deletes. */
@@ -180,22 +168,23 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       distribution += (bucket.size * (bucket.size + 1)) / 2;
     }
 
+    // TODO: Figure out if this calculation is still correct...
     let uniformity =
       distribution /
       ((this.#edges.count / (2 * this.#edges.capacity)) *
         (this.#edges.count + 2 * this.#edges.capacity - 1));
 
     return {
+      capacity: this.#edges.capacity,
+
       nodes: fromNodeId(this.#nodes.nextId),
       nodeEdgeTypes: this.#nodes.count,
-      nodeCapacity: this.#nodes.capacity,
       nodeLoad: `${Math.round(this.#nodes.load * 100)}%`,
       nodeBufferSize: this.#nodes.bufferSize,
 
       edges: this.#edges.count,
       deleted: this.#edges.deletes,
       edgeTypes: edgeTypes.size,
-      edgeCapacity: this.#edges.capacity,
       edgeLoad: `${Math.round(this.#edges.load * 100)}%`,
       edgeLoadWithDeletes: `${Math.round(
         this.#edges.getLoad(this.#edges.count + this.#edges.deletes) * 100,
@@ -212,13 +201,13 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   /**
    * Resize the internal nodes array.
    *
-   * This is used in `addNode` when the `numNodes` meets or exceeds
+   * This is used in `addEdge` when the `numNodes` meets or exceeds
    * the allocated size of the `nodes` array.
    */
   resizeNodes(size: number) {
     let nodes = this.#nodes;
     // Allocate the required space for a `nodes` map of the given `size`.
-    this.#nodes = new NodeTypeMap(size, this.#params.edgeTypes);
+    this.#nodes = new NodeTypeMap(size);
     // Copy the existing nodes into the new array.
     this.#nodes.set(nodes.data);
   }
@@ -234,7 +223,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     let copy = new AdjacencyList({
       ...this.#params,
       nodeCapacity: this.#nodes.capacity,
-      edgeCapacity: size,
+      capacity: size,
     });
 
     // Copy the existing edges into the new array.
@@ -265,16 +254,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    * Adds a node to the graph.
    *
    * Returns the id of the added node.
+   *
+   * Note that the space for this node will only be allocated
+   * if it is connected to an edge (via `addEdge`).
    */
   addNode(): NodeId {
-    let id = this.#nodes.getId();
-    // If we're in danger of overflowing the `nodes` array, resize it.
-    if (this.#nodes.load > this.#params.loadFactor) {
-      this.resizeNodes(
-        increaseNodeCapacity(this.#nodes.capacity, this.#params),
-      );
-    }
-    return id;
+    return this.#nodes.getId();
   }
 
   /**
@@ -603,7 +588,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
  *   └──┴──┴──┴───────┴──┴──┴──┴───────┴──┴──┘
  *   └──┬──┘             └─────────┬─────────┘
  *    header                     items
- * (HEADER_SIZE)         (capacity * bucketSize * ITEM_SIZE)
+ * (HEADER_SIZE)         (capacity * ITEM_SIZE)
  *
  *
  * An item is added with a hash key that fits within the range of the hash
@@ -663,21 +648,15 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
   static #TYPE: 1 = 1;
 
   /** The largest possible capacity. */
-  static assertMaxCapacity(capacity: number, bucketSize: number): void {
+  static assertMaxCapacity(capacity: number): void {
     let maxCapacity = Math.floor(
       // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length#what_went_wrong
-      (2 ** 31 - 1 - this.HEADER_SIZE) / this.ITEM_SIZE / bucketSize,
+      (2 ** 31 - 1 - this.HEADER_SIZE) / this.ITEM_SIZE,
     );
     assert(capacity <= maxCapacity, `${this.name} capacity overflow!`);
   }
 
   data: Uint32Array;
-
-  #bucketSize: number = DEFAULT_PARAMS.bucketSize;
-
-  get bucketSize(): number {
-    return this.#bucketSize;
-  }
 
   get capacity(): number {
     return this.data[SharedTypeMap.#CAPACITY];
@@ -706,8 +685,7 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     })} mb`;
   }
 
-  constructor(capacityOrData: number | Uint32Array, bucketSize?: number) {
-    this.#bucketSize = bucketSize ?? this.#bucketSize;
+  constructor(capacityOrData: number | Uint32Array) {
     if (typeof capacityOrData === 'number') {
       let {BYTES_PER_ELEMENT} = Uint32Array;
       let CAPACITY = SharedTypeMap.#CAPACITY;
@@ -754,16 +732,12 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
   }
 
   getLoad(count: number = this.count): number {
-    return count / (this.capacity * this.bucketSize);
+    return count / this.capacity;
   }
 
   getLength(capacity: number = this.capacity): number {
     let {HEADER_SIZE, ITEM_SIZE} = this.constructor;
-    return (
-      capacity +
-      HEADER_SIZE +
-      ITEM_SIZE * Math.round(this.bucketSize * capacity)
-    );
+    return capacity + HEADER_SIZE + ITEM_SIZE * capacity;
   }
 
   /** Get the next available address in the map. */
@@ -958,16 +932,9 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
     this.data[NodeTypeMap.#NEXT_ID] = fromNodeId(nextId);
   }
 
-  /** Get a unique node id. */
+  /** Increment the node counter to get a unique node id. */
   getId(): NodeId {
     return toNodeId(this.data[NodeTypeMap.#NEXT_ID]++);
-  }
-
-  getLoad(count: number): number {
-    return Math.max(
-      fromNodeId(this.nextId) / this.capacity,
-      super.getLoad(count),
-    );
   }
 
   add(node: NodeId, type: TEdgeType): NodeAddress {
@@ -1266,7 +1233,7 @@ function increaseNodeCapacity(
   params: AdjacencyListParams,
 ): number {
   let newCapacity = Math.round(currentCapacity * params.minGrowFactor);
-  NodeTypeMap.assertMaxCapacity(newCapacity, params.edgeTypes);
+  NodeTypeMap.assertMaxCapacity(newCapacity);
   return newCapacity;
 }
 
@@ -1295,6 +1262,6 @@ function getNextEdgeCapacity(
     newCapacity = Math.round(currentCapacity * params.shrinkFactor);
   }
 
-  EdgeTypeMap.assertMaxCapacity(newCapacity, params.bucketSize);
+  EdgeTypeMap.assertMaxCapacity(newCapacity);
   return newCapacity;
 }
