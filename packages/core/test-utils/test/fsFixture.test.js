@@ -225,6 +225,37 @@ describe('FixtureTokenizer', () => {
       {type: 'link', value: 'foo/bar/bat'},
     ]);
   });
+  it('ignores empty lines after dirnames', () => {
+    let tokens = new FixtureTokenizer(`lib\n  \n  \n  nested`).tokenize();
+
+    assert.deepEqual(tokens, [
+      {type: 'dirname', value: 'lib'},
+      {type: 'nest', value: ''},
+      {type: 'dirname', value: 'nested'},
+    ]);
+  });
+
+  it('ignores empty lines after links', () => {
+    let tokens = new FixtureTokenizer(`lib -> ./lib2\n \nlib2`).tokenize();
+
+    assert.deepEqual(tokens, [
+      {type: 'filename', value: 'lib'},
+      {type: 'link', value: './lib2'},
+      {type: 'dirname', value: 'lib2'},
+    ]);
+  });
+
+  it('ignores empty lines after file content', () => {
+    let tokens = new FixtureTokenizer(
+      `file:\n  \n  content\n\n  \ndir`,
+    ).tokenize();
+
+    assert.deepEqual(tokens, [
+      {type: 'filename', value: 'file'},
+      {type: 'content', value: 'content'},
+      {type: 'dirname', value: 'dir'},
+    ]);
+  });
 });
 
 describe('FixtureParser', () => {
