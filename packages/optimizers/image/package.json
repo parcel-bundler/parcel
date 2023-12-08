@@ -31,9 +31,5 @@
   },
   "peerDependencies": {
     "@parcel/core": "^2.10.3"
-  },
-  "devDependencies": {
-    "@napi-rs/cli": "^2.15.2",
-    "tiny-benchy": "^1.0.2"
   }
 }

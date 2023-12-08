@@ -10,10 +10,11 @@ import ParcelConfig from '../ParcelConfig';
 import {report} from '../ReporterRunner';
 import Validation from '../Validation';
 import createParcelConfigRequest from './ParcelConfigRequest';
+import {requestTypes} from '../RequestTracker';
 
 type ValidationRequest = {|
   id: string,
-  +type: 'validation_request',
+  +type: typeof requestTypes.validation_request,
   run: (RunOpts<void>) => Async<void>,
   input: ValidationRequestInput,
 |};
@@ -33,7 +34,7 @@ export default function createValidationRequest(
 ): ValidationRequest {
   return {
     id: 'validation',
-    type: 'validation_request',
+    type: requestTypes.validation_request,
     run: async ({input: {assetRequests, optionsRef}, api, options, farm}) => {
       let {config: processedConfig, cachePath} = nullthrows(
         await api.runRequest<null, ConfigAndCachePath>(
