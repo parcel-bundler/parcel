@@ -220,34 +220,39 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    */
   resizeEdges(size: number) {
     // Allocate the required space for new `nodes` and `edges` maps.
-    let copy = new AdjacencyList({
-      ...this.#params,
-      nodeCapacity: this.#nodes.capacity,
-      capacity: size,
-    });
+    let edges = new EdgeTypeMap(size);
+    let nodes = new NodeTypeMap(this.#nodes.capacity);
 
     // Copy the existing edges into the new array.
-    copy.#nodes.nextId = this.#nodes.nextId;
+    nodes.nextId = this.#nodes.nextId;
     this.#edges.forEach(
       edge =>
-        void copy.addEdge(
+        void link(
           this.#edges.from(edge),
           this.#edges.to(edge),
           this.#edges.typeOf(edge),
+          edges,
+          nodes,
+          this.#params.loadFactor,
+          this.#params.unloadFactor,
         ),
     );
 
     // We expect to preserve the same number of edges.
     assert(
-      this.#edges.count === copy.#edges.count,
-      `Edge mismatch! ${this.#edges.count} does not match ${
-        copy.#edges.count
-      }.`,
+      this.#edges.count === edges.count,
+      `Edge mismatch! ${this.#edges.count} does not match ${edges.count}.`,
+    );
+
+    // We expect to preserve the same number of nodes.
+    assert(
+      this.#nodes.count === nodes.count,
+      `Node mismatch! ${this.#nodes.count} does not match ${nodes.count}.`,
     );
 
     // Finally, copy the new data arrays over to this graph.
-    this.#nodes = copy.#nodes;
-    this.#edges = copy.#edges;
+    this.#nodes = nodes;
+    this.#edges = edges;
   }
 
   /**
@@ -275,77 +280,63 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   ): boolean {
     assert(type > 0, `Unsupported edge type ${type}`);
 
-    let hash = this.#edges.hash(from, to, type);
-    let edge = this.#edges.addressOf(hash, from, to, type);
+    let result;
+    let maxTries = 3; // allow 3 tries: no resize, resize edges, resize nodes.
+    let tries = 0;
 
-    // The edge is already in the graph; do nothing.
-    if (edge !== null) return false;
+    do {
+      assert(tries++ < maxTries, 'Failed to addEdge too many times!');
 
-    let capacity = this.#edges.capacity;
-    // We add 1 to account for the edge we are adding.
-    let count = this.#edges.count + 1;
-    // Since the space occupied by deleted edges isn't reclaimed,
-    // we include them in our count to avoid overflowing the `edges` array.
-    let deletes = this.#edges.deletes;
-    let total = count + deletes;
-    // If we have enough space to keep adding edges, we can
-    // put off reclaiming the deleted space until the next resize.
-    if (this.#edges.getLoad(total) > this.#params.loadFactor) {
-      if (this.#edges.getLoad(deletes) > this.#params.unloadFactor) {
-        // If we have a significant number of deletes, we compute our new
-        // capacity based on the current count, even though we decided to
-        // resize based on the sum total of count and deletes.
-        // In this case, resizing is more like a compaction.
-        this.resizeEdges(
-          getNextEdgeCapacity(
-            capacity,
-            count,
-            this.#edges.getLoad(count),
-            this.#params,
-          ),
-        );
-      } else {
-        this.resizeEdges(
-          getNextEdgeCapacity(
-            capacity,
-            total,
-            this.#edges.getLoad(total),
-            this.#params,
-          ),
-        );
+      result = link(
+        from,
+        to,
+        type,
+        this.#edges,
+        this.#nodes,
+        this.#params.loadFactor,
+        this.#params.unloadFactor,
+      );
+
+      // Sometimes we need to resize before we can add.
+      switch (result) {
+        case 'resizeNodes': {
+          this.resizeNodes(
+            increaseNodeCapacity(this.#nodes.capacity, this.#params),
+          );
+          break;
+        }
+        case 'resizeEdges': {
+          this.resizeEdges(
+            getNextEdgeCapacity(
+              this.#edges.capacity,
+              // We add 1 to account for the edge we are adding.
+              this.#edges.deletes + this.#edges.count + 1,
+              this.#edges.getLoad(this.#edges.deletes + this.#edges.count + 1),
+              this.#params,
+            ),
+          );
+          break;
+        }
+        case 'reclaimDeletes': {
+          // If we have a significant number of deletes, we compute our new
+          // capacity based on the current count, even though we decided to
+          // resize based on the sum total of count and deletes.
+          // In this case, resizing is more like a compaction.
+          this.resizeEdges(
+            getNextEdgeCapacity(
+              this.#edges.capacity,
+              // We add 1 to account for the edge we are adding.
+              this.#edges.count + 1,
+              this.#edges.getLoad(this.#edges.count + 1),
+              this.#params,
+            ),
+          );
+          break;
+        }
       }
-      // We must rehash because the capacity has changed.
-      hash = this.#edges.hash(from, to, type);
-    }
+    } while (typeof result !== 'boolean');
 
-    let toNode = this.#nodes.addressOf(to, type);
-    let fromNode = this.#nodes.addressOf(from, type);
-    if (toNode === null || fromNode === null) {
-      // If we're in danger of overflowing the `nodes` array, resize it.
-      if (this.#nodes.load >= this.#params.loadFactor) {
-        this.resizeNodes(
-          increaseNodeCapacity(this.#nodes.capacity, this.#params),
-        );
-        // We need to update our indices since the `nodes` array has changed.
-        toNode = this.#nodes.addressOf(to, type);
-        fromNode = this.#nodes.addressOf(from, type);
-      }
-    }
-    if (toNode === null) toNode = this.#nodes.add(to, type);
-    if (fromNode === null) fromNode = this.#nodes.add(from, type);
-
-    // Add our new edge to its hash bucket.
-    edge = this.#edges.add(hash, from, to, type);
-
-    // Link this edge to the node's list of incoming edges.
-    let prevIn = this.#nodes.linkIn(toNode, edge);
-    if (prevIn !== null) this.#edges.linkIn(prevIn, edge);
-
-    // Link this edge to the node's list of outgoing edges.
-    let prevOut = this.#nodes.linkOut(fromNode, edge);
-    if (prevOut !== null) this.#edges.linkOut(prevOut, edge);
-
-    return true;
+    return result;
   }
 
   *getAllEdges(): Iterator<{|
@@ -1211,6 +1202,71 @@ export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
     hash %= this.capacity;
     return hash;
   }
+}
+
+/**
+ * Links a node to another node with an edge of the given type.
+ *
+ * Returns:
+ * - `true` if the edge was added
+ * - `false` if the edge already exists
+ * - `'resizeEdges'` if the edge map is overloaded
+ * - `'reclaimDeletes'` if the edge map has too many deleted edges
+ * - `'resizeNodes'` if the node map is overloaded
+ */
+function link<TEdgeType: number>(
+  from: NodeId,
+  to: NodeId,
+  type: TEdgeType | NullEdgeType,
+  edges: EdgeTypeMap<TEdgeType | NullEdgeType>,
+  nodes: NodeTypeMap<TEdgeType | NullEdgeType>,
+  loadFactor: number = DEFAULT_PARAMS.loadFactor,
+  unloadFactor: number = DEFAULT_PARAMS.unloadFactor,
+): boolean | 'resizeEdges' | 'reclaimDeletes' | 'resizeNodes' {
+  let hash = edges.hash(from, to, type);
+  let edge = edges.addressOf(hash, from, to, type);
+
+  // The edge is already in the graph; do nothing.
+  if (edge !== null) return false;
+
+  // We add 1 to account for the edge we are adding.
+  let count = edges.count + 1;
+  // Since the space occupied by deleted edges isn't reclaimed,
+  // we include them in our count to avoid overflowing the `edges` array.
+  let deletes = edges.deletes;
+  let total = count + deletes;
+  if (edges.getLoad(total) > loadFactor) {
+    if (edges.getLoad(deletes) > unloadFactor) {
+      // If we have a significant number of deletes, reclaim the space.
+      return 'reclaimDeletes';
+    } else {
+      return 'resizeEdges';
+    }
+  }
+
+  let toNode = nodes.addressOf(to, type);
+  let fromNode = nodes.addressOf(from, type);
+  if (toNode === null || fromNode === null) {
+    // If we're in danger of overflowing the `nodes` array, resize it.
+    if (nodes.load >= loadFactor) {
+      return 'resizeNodes';
+    }
+  }
+  if (toNode === null) toNode = nodes.add(to, type);
+  if (fromNode === null) fromNode = nodes.add(from, type);
+
+  // Add our new edge to its hash bucket.
+  edge = edges.add(hash, from, to, type);
+
+  // Link this edge to the node's list of incoming edges.
+  let prevIn = nodes.linkIn(toNode, edge);
+  if (prevIn !== null) edges.linkIn(prevIn, edge);
+
+  // Link this edge to the node's list of outgoing edges.
+  let prevOut = nodes.linkOut(fromNode, edge);
+  if (prevOut !== null) edges.linkOut(prevOut, edge);
+
+  return true;
 }
 
 // From https://gist.github.com/badboy/6267743#32-bit-mix-functions
