@@ -638,13 +638,16 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
   /** The offset at which an item's type is stored. */
   static #TYPE: 1 = 1;
 
-  /** The largest possible capacity. */
-  static assertMaxCapacity(capacity: number): void {
-    let maxCapacity = Math.floor(
+  static get MAX_CAPACITY(): number {
+    return Math.floor(
       // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length#what_went_wrong
       (2 ** 31 - 1 - this.HEADER_SIZE) / this.ITEM_SIZE,
     );
-    assert(capacity <= maxCapacity, `${this.name} capacity overflow!`);
+  }
+
+  /** The largest possible capacity. */
+  static assertMaxCapacity(capacity: number): void {
+    assert(capacity <= this.MAX_CAPACITY, `${this.name} capacity overflow!`);
   }
 
   data: Uint32Array;
@@ -1288,8 +1291,16 @@ function increaseNodeCapacity(
   currentCapacity: number,
   params: AdjacencyListParams,
 ): number {
-  let newCapacity = Math.round(currentCapacity * params.minGrowFactor);
-  NodeTypeMap.assertMaxCapacity(newCapacity);
+  let newCapacity = Math.ceil(currentCapacity * params.minGrowFactor);
+
+  if (newCapacity >= NodeTypeMap.MAX_CAPACITY) {
+    if (currentCapacity >= NodeTypeMap.MAX_CAPACITY) {
+      throw new Error('Node capacity overflow!');
+    }
+
+    return NodeTypeMap.MAX_CAPACITY;
+  }
+
   return newCapacity;
 }
 
@@ -1311,13 +1322,20 @@ function getNextEdgeCapacity(
       params.minGrowFactor,
       pct,
     );
-    newCapacity = Math.round(currentCapacity * growFactor);
+    newCapacity = Math.ceil(currentCapacity * growFactor);
   } else if (load < params.unloadFactor) {
     // In some cases, it may be possible to shrink the edge capacity,
     // but this is only likely to occur when a lot of edges have been removed.
-    newCapacity = Math.round(currentCapacity * params.shrinkFactor);
+    newCapacity = Math.ceil(currentCapacity * params.shrinkFactor);
   }
 
-  EdgeTypeMap.assertMaxCapacity(newCapacity);
+  if (newCapacity >= EdgeTypeMap.MAX_CAPACITY) {
+    if (currentCapacity >= EdgeTypeMap.MAX_CAPACITY) {
+      throw new Error('Edge capacity overflow!');
+    }
+
+    return EdgeTypeMap.MAX_CAPACITY;
+  }
+
   return newCapacity;
 }
