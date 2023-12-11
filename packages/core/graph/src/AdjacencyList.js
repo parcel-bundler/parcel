@@ -259,12 +259,20 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    * Adds a node to the graph.
    *
    * Returns the id of the added node.
-   *
-   * Note that the space for this node will only be allocated
-   * if it is connected to an edge (via `addEdge`).
    */
   addNode(): NodeId {
-    return this.#nodes.getId();
+    let id = this.#nodes.getId();
+    // Even though adding a node doesn't increment count, we preemptively
+    // grow the capacity if the array is currently maxed out, under the
+    // assumption that at least one 1 edge to or from this new node will be
+    // added.
+    if (this.#nodes.count >= this.#nodes.capacity) {
+      this.resizeNodes(
+        increaseNodeCapacity(this.#nodes.capacity, this.#params),
+      );
+    }
+
+    return id;
   }
 
   /**
@@ -307,29 +315,13 @@ export default class AdjacencyList<TEdgeType: number = 1> {
         }
         case 'resizeEdges': {
           this.resizeEdges(
-            getNextEdgeCapacity(
-              this.#edges.capacity,
-              // We add 1 to account for the edge we are adding.
-              this.#edges.deletes + this.#edges.count + 1,
-              this.#edges.getLoad(this.#edges.deletes + this.#edges.count + 1),
-              this.#params,
-            ),
+            increaseEdgeCapacity(this.#edges.capacity, this.#params),
           );
           break;
         }
         case 'reclaimDeletes': {
-          // If we have a significant number of deletes, we compute our new
-          // capacity based on the current count, even though we decided to
-          // resize based on the sum total of count and deletes.
-          // In this case, resizing is more like a compaction.
           this.resizeEdges(
-            getNextEdgeCapacity(
-              this.#edges.capacity,
-              // We add 1 to account for the edge we are adding.
-              this.#edges.count + 1,
-              this.#edges.getLoad(this.#edges.count + 1),
-              this.#params,
-            ),
+            decreaseEdgeCapacity(this.#edges.capacity, this.#params),
           );
           break;
         }
@@ -1232,14 +1224,26 @@ function link<TEdgeType: number>(
   // The edge is already in the graph; do nothing.
   if (edge !== null) return false;
 
+  let toNode = nodes.addressOf(to, type);
+  let fromNode = nodes.addressOf(from, type);
+
+  let nodeCount = nodes.count;
+  // add one for each node we must add.
+  if (toNode === null) nodeCount++;
+  if (fromNode === null) nodeCount++;
+  // If we're in danger of overflowing the `nodes` array, resize it.
+  if (nodes.getLoad(nodeCount) >= loadFactor) {
+    return 'resizeNodes';
+  }
+
   // We add 1 to account for the edge we are adding.
   let count = edges.count + 1;
   // Since the space occupied by deleted edges isn't reclaimed,
   // we include them in our count to avoid overflowing the `edges` array.
   let deletes = edges.deletes;
   let total = count + deletes;
-  if (edges.getLoad(total) > loadFactor) {
-    if (edges.getLoad(deletes) > unloadFactor) {
+  if (edges.getLoad(total) >= loadFactor) {
+    if (edges.getLoad(deletes) >= unloadFactor) {
       // If we have a significant number of deletes, reclaim the space.
       return 'reclaimDeletes';
     } else {
@@ -1247,14 +1251,6 @@ function link<TEdgeType: number>(
     }
   }
 
-  let toNode = nodes.addressOf(to, type);
-  let fromNode = nodes.addressOf(from, type);
-  if (toNode === null || fromNode === null) {
-    // If we're in danger of overflowing the `nodes` array, resize it.
-    if (nodes.load >= loadFactor) {
-      return 'resizeNodes';
-    }
-  }
   if (toNode === null) toNode = nodes.add(to, type);
   if (fromNode === null) fromNode = nodes.add(from, type);
 
@@ -1291,10 +1287,14 @@ function increaseNodeCapacity(
   currentCapacity: number,
   params: AdjacencyListParams,
 ): number {
-  let newCapacity = Math.ceil(currentCapacity * params.minGrowFactor);
+  let newCapacity = Math.max(
+    // Make sure we have room for at least 2 more nodes.
+    currentCapacity + 2,
+    Math.ceil(currentCapacity * params.minGrowFactor),
+  );
 
   if (newCapacity >= NodeTypeMap.MAX_CAPACITY) {
-    if (currentCapacity >= NodeTypeMap.MAX_CAPACITY) {
+    if (currentCapacity > NodeTypeMap.MAX_CAPACITY - 2) {
       throw new Error('Node capacity overflow!');
     }
 
@@ -1304,33 +1304,25 @@ function increaseNodeCapacity(
   return newCapacity;
 }
 
-function getNextEdgeCapacity(
+function increaseEdgeCapacity(
   currentCapacity: number,
-  count: number,
-  load: number,
   params: AdjacencyListParams,
 ): number {
-  let newCapacity = currentCapacity;
-  if (load > params.loadFactor) {
-    // This is intended to strike a balance between growing the edge capacity
-    // in too small increments, which causes a lot of resizing, and growing
-    // the edge capacity in too large increments, which results in a lot of
-    // wasted memory.
-    let pct = currentCapacity / params.peakCapacity;
-    let growFactor = interpolate(
-      params.maxGrowFactor,
-      params.minGrowFactor,
-      pct,
-    );
-    newCapacity = Math.ceil(currentCapacity * growFactor);
-  } else if (load < params.unloadFactor) {
-    // In some cases, it may be possible to shrink the edge capacity,
-    // but this is only likely to occur when a lot of edges have been removed.
-    newCapacity = Math.ceil(currentCapacity * params.shrinkFactor);
-  }
+  // This is intended to strike a balance between growing the edge capacity
+  // in too small increments, which causes a lot of resizing, and growing
+  // the edge capacity in too large increments, which results in a lot of
+  // wasted memory.
+  let pct = currentCapacity / params.peakCapacity;
+  let growFactor = interpolate(params.maxGrowFactor, params.minGrowFactor, pct);
+
+  let newCapacity = Math.max(
+    // Make sure we have room for at least one more edge.
+    currentCapacity + 1,
+    Math.ceil(currentCapacity * growFactor),
+  );
 
   if (newCapacity >= EdgeTypeMap.MAX_CAPACITY) {
-    if (currentCapacity >= EdgeTypeMap.MAX_CAPACITY) {
+    if (currentCapacity > EdgeTypeMap.MAX_CAPACITY - 1) {
       throw new Error('Edge capacity overflow!');
     }
 
@@ -1338,4 +1330,19 @@ function getNextEdgeCapacity(
   }
 
   return newCapacity;
+}
+
+function decreaseEdgeCapacity(
+  currentCapacity: number,
+  params: AdjacencyListParams,
+): number {
+  return Math.max(
+    // Make sure we don't shrink the capacity _below_ 2.
+    2,
+    Math.min(
+      // Make sure we shrink the capacity by at least 1.
+      currentCapacity - 1,
+      Math.ceil(currentCapacity * params.shrinkFactor),
+    ),
+  );
 }
