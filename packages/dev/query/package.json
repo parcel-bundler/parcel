@@ -1,7 +1,18 @@
 {
   "name": "parcel-query",
   "version": "2.10.3",
-  "private": true,
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
   "bin": "src/bin.js",
   "main": "src/index.js",
   "dependencies": {

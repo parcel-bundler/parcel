@@ -1,7 +1,18 @@
 {
   "name": "@parcel/bundle-stats-cli",
   "version": "2.10.3",
-  "private": true,
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
   "main": "lib/cli.js",
   "source": "src/cli.js",
   "bin": {
