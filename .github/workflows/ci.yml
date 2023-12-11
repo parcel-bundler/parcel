@@ -1,4 +1,4 @@
-on: pull_request
+on: push
 
 name: Continuous Integration
 
@@ -6,77 +6,77 @@ permissions:
   contents: read
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          cache: yarn
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v1
-      # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
-      # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
-      - run: yarn --frozen-lockfile
-      - run: yarn lint
+  # lint:
+  #   name: Lint
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-node@v3
+  #       with:
+  #         cache: yarn
+  #     - uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: stable
+  #         profile: minimal
+  #         components: rustfmt
+  #     - uses: Swatinem/rust-cache@v1
+  #     # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
+  #     # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
+  #     - run: yarn --frozen-lockfile
+  #     - run: yarn lint
 
-  flow:
-    name: Flow
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          cache: yarn
-      - run: yarn --frozen-lockfile
-      - run: yarn flow check
+  # flow:
+  #   name: Flow
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-node@v3
+  #       with:
+  #         cache: yarn
+  #     - run: yarn --frozen-lockfile
+  #     - run: yarn flow check
 
-  benchmarks:
-    name: Benchmarks
-    runs-on: ubuntu-latest
-    steps:
-      - name: PR Benchmarks
-        uses: parcel-bundler/parcel-benchmark-action@master
-        env:
-          PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
+  # benchmarks:
+  #   name: Benchmarks
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: PR Benchmarks
+  #       uses: parcel-bundler/parcel-benchmark-action@master
+  #       env:
+  #         PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
 
-  unit_tests:
-    name: Unit tests (${{matrix.os}}, Node ${{matrix.node}})
-    strategy:
-      matrix:
-        node: [18, 20]
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{matrix.os}}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          cache: yarn
-          node-version: ${{matrix.node}}
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v1
-      - name: Bump max inotify watches (Linux only)
-        run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
-        if: ${{matrix.os == 'ubuntu-latest'}}
-      - run: yarn --frozen-lockfile
-      - run: yarn build-native-release
-      - run: yarn test:unit
+  # unit_tests:
+  #   name: Unit tests (${{matrix.os}}, Node ${{matrix.node}})
+  #   strategy:
+  #     matrix:
+  #       node: [18, 20]
+  #       os: [ubuntu-latest, macos-latest, windows-latest]
+  #   runs-on: ${{matrix.os}}
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-node@v3
+  #       with:
+  #         cache: yarn
+  #         node-version: ${{matrix.node}}
+  #     - uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: stable
+  #         profile: minimal
+  #         components: rustfmt
+  #     - uses: Swatinem/rust-cache@v1
+  #     - name: Bump max inotify watches (Linux only)
+  #       run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
+  #       if: ${{matrix.os == 'ubuntu-latest'}}
+  #     - run: yarn --frozen-lockfile
+  #     - run: yarn build-native-release
+  #     - run: yarn test:unit
 
   integration_tests:
     name: Integration tests (${{matrix.os}}, Node ${{matrix.node}})
     strategy:
       matrix:
-        node: [18, 20]
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [20]
+        os: [windows-latest]
       # These tend to be quite flakey, so one failed instance shouldn't stop
       # others from potentially succeeding
       fail-fast: false
@@ -109,13 +109,13 @@ jobs:
           name: Integration tests (${{matrix.os}}, node ${{matrix.node}})
           path: '**/junit-*.xml'
 
-  test_report:
-    name: Test report
-    runs-on: ubuntu-latest
-    needs: [unit_tests, integration_tests]
-    if: always()
-    steps:
-      - name: Create test report
-        uses: mikepenz/action-junit-report@v2
-        with:
-          report_paths: artifacts/**/*.xml
+  # test_report:
+  #   name: Test report
+  #   runs-on: ubuntu-latest
+  #   needs: [unit_tests, integration_tests]
+  #   if: always()
+  #   steps:
+  #     - name: Create test report
+  #       uses: mikepenz/action-junit-report@v2
+  #       with:
+  #         report_paths: artifacts/**/*.xml

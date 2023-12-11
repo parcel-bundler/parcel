@@ -1112,8 +1112,8 @@ export default class RequestTracker {
 
   async writeToCache(signal?: AbortSignal) {
     const cacheKey = getCacheKey(this.options);
-    const requestGraphKey = `requestGraph:${hashString(cacheKey)}`;
-    const snapshotKey = `snapshot:${hashString(cacheKey)}`;
+    const requestGraphKey = `requestGraph-${hashString(cacheKey)}`;
+    const snapshotKey = `snapshot-${hashString(cacheKey)}`;
 
     if (this.options.shouldDisableCache) {
       return;
@@ -1183,7 +1183,7 @@ export default class RequestTracker {
     for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
       promises.push(
         serialiseAndSet(
-          `requestGraph:nodes:${i}:${hashString(cacheKey)}`,
+          `requestGraph-nodes-${i}-${hashString(cacheKey)}`,
           cacheableNodes.slice(i * NODES_PER_BLOB, (i + 1) * NODES_PER_BLOB),
         ),
       );
@@ -1237,7 +1237,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
 
   const cacheKey = getCacheKey(options);
   const hashedCacheKey = hashString(cacheKey);
-  const requestGraphKey = `requestGraph:${hashedCacheKey}`;
+  const requestGraphKey = `requestGraph-${hashedCacheKey}`;
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
     const getAndDeserialize = async (key: string) => {
       return deserialize(await options.cache.getLargeBlob(key));
@@ -1247,11 +1247,11 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     let nodePromises = [];
     while (
       await options.cache.hasLargeBlob(
-        `requestGraph:nodes:${i}:${hashedCacheKey}`,
+        `requestGraph-nodes-${i}-${hashedCacheKey}`,
       )
     ) {
       nodePromises.push(
-        getAndDeserialize(`requestGraph:nodes:${i}:${hashedCacheKey}`),
+        getAndDeserialize(`requestGraph-nodes-${i}-${hashedCacheKey}`),
       );
       i += 1;
     }
@@ -1263,7 +1263,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     });
 
     let opts = getWatcherOptions(options);
-    let snapshotKey = `snapshot:${hashedCacheKey}`;
+    let snapshotKey = `snapshot-${hashedCacheKey}`;
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
       options.projectRoot,

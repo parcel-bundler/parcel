@@ -125,7 +125,9 @@ export class NodeFS implements FileSystem {
     options: ?FileOptions,
   ): Promise<void> {
     let tmpFilePath = getTempFilePath(filePath);
+    console.log('tmpFilePath', tmpFilePath);
     await fs.promises.writeFile(tmpFilePath, contents, options);
+    console.log('rename ', tmpFilePath, 'to', filePath);
     await fs.promises.rename(tmpFilePath, filePath);
   }
 

@@ -104,6 +104,7 @@ export class LMDBCache implements Cache {
   async getLargeBlob(key: string): Promise<Buffer> {
     const buffers: Promise<Buffer>[] = [];
     for (let i = 0; await this.fs.exists(this.#getFilePath(key, i)); i += 1) {
+      console.log('reading', this.#getFilePath(key, i));
       const file: Promise<Buffer> = this.fs.readFile(this.#getFilePath(key, i));
 
       buffers.push(file);
@@ -121,6 +122,7 @@ export class LMDBCache implements Cache {
 
     const writePromises: Promise<void>[] = [];
     if (chunks === 1) {
+      console.log('writing', this.#getFilePath(key, 0));
       // If there's one chunk, don't slice the content
       writePromises.push(
         this.fs.writeFile(this.#getFilePath(key, 0), contents, {
@@ -129,6 +131,7 @@ export class LMDBCache implements Cache {
       );
     } else {
       for (let i = 0; i < chunks; i += 1) {
+        console.log('writing', this.#getFilePath(key, i));
         writePromises.push(
           this.fs.writeFile(
             this.#getFilePath(key, i),
@@ -149,6 +152,7 @@ export class LMDBCache implements Cache {
 
     // If there's already a file following this chunk, it's old and should be removed
     if (await this.fs.exists(this.#getFilePath(key, chunks))) {
+      console.log('deleting', this.#getFilePath(key, chunks));
       writePromises.push(
         this.fs.unlink(this.#getFilePath(key, chunks), {
           signal: options?.signal,
