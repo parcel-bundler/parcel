@@ -24,8 +24,6 @@ export type SerializedAdjacencyList<TEdgeType> = {|
 export type AdjacencyListOptions<TEdgeType> = {|
   /** The number of edges to accommodate. */
   capacity?: number,
-  /** The upper bound above which capacity should be increased. */
-  loadFactor?: number,
   /** The lower bound below which capacity should be decreased. */
   unloadFactor?: number,
   /** The max amount by which to grow the capacity. */
@@ -40,7 +38,6 @@ export type AdjacencyListOptions<TEdgeType> = {|
 
 type AdjacencyListParams = {|
   capacity: number,
-  loadFactor: number,
   unloadFactor: number,
   maxGrowFactor: number,
   minGrowFactor: number,
@@ -50,7 +47,6 @@ type AdjacencyListParams = {|
 
 const DEFAULT_PARAMS: AdjacencyListParams = {
   capacity: 2,
-  loadFactor: 0.7,
   unloadFactor: 0.3,
   maxGrowFactor: 8,
   minGrowFactor: 2,
@@ -233,7 +229,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
           this.#edges.typeOf(edge),
           edges,
           nodes,
-          this.#params.loadFactor,
           this.#params.unloadFactor,
         ),
     );
@@ -301,7 +296,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
         type,
         this.#edges,
         this.#nodes,
-        this.#params.loadFactor,
         this.#params.unloadFactor,
       );
 
@@ -1215,7 +1209,6 @@ function link<TEdgeType: number>(
   type: TEdgeType | NullEdgeType,
   edges: EdgeTypeMap<TEdgeType | NullEdgeType>,
   nodes: NodeTypeMap<TEdgeType | NullEdgeType>,
-  loadFactor: number = DEFAULT_PARAMS.loadFactor,
   unloadFactor: number = DEFAULT_PARAMS.unloadFactor,
 ): boolean | 'resizeEdges' | 'reclaimDeletes' | 'resizeNodes' {
   let hash = edges.hash(from, to, type);
@@ -1232,7 +1225,7 @@ function link<TEdgeType: number>(
   if (toNode === null) nodeCount++;
   if (fromNode === null) nodeCount++;
   // If we're in danger of overflowing the `nodes` array, resize it.
-  if (nodes.getLoad(nodeCount) >= loadFactor) {
+  if (nodes.getLoad(nodeCount) >= 1) {
     return 'resizeNodes';
   }
 
@@ -1242,8 +1235,11 @@ function link<TEdgeType: number>(
   // we include them in our count to avoid overflowing the `edges` array.
   let deletes = edges.deletes;
   let total = count + deletes;
-  if (edges.getLoad(total) >= loadFactor) {
-    if (edges.getLoad(deletes) >= unloadFactor) {
+  if (edges.getLoad(total) >= 1) {
+    if (
+      edges.getLoad(deletes) >= unloadFactor &&
+      edges.getLoad(count) < unloadFactor
+    ) {
       // If we have a significant number of deletes, reclaim the space.
       return 'reclaimDeletes';
     } else {
