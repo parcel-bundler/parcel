@@ -21,17 +21,23 @@ import {Priority} from '@parcel/core/src/types';
 
 import {loadGraphs} from './index.js';
 
-export async function run(input: string[]) {
+export async function run(input: string[], options?: ParcelOptions) {
   let args = input;
-  let cacheDir = path.join(process.cwd(), '.parcel-cache');
+  let cacheDir =
+    options && options.cacheDir
+      ? options.cacheDir
+      : path.join(process.cwd(), '.parcel-cache');
   if (args[0] === '--cache') {
     cacheDir = path.resolve(process.cwd(), args[1]);
     args = args.slice(2);
   }
+
   let initialCmd = args[0];
 
   try {
-    fs.accessSync(cacheDir);
+    options && options.outputFS
+      ? options.outputFS.readdirSync(cacheDir)
+      : fs.accessSync(cacheDir);
   } catch (e) {
     console.error("Can't find cache dir", cacheDir);
     process.exit(1);
@@ -39,7 +45,7 @@ export async function run(input: string[]) {
 
   console.log('Loading graphs...');
   let {assetGraph, bundleGraph, bundleInfo, requestTracker, cacheInfo} =
-    await loadGraphs(cacheDir);
+    await loadGraphs(cacheDir, options?.cache, options?.outputFS);
 
   function hasRequestTracker() {
     if (requestTracker == null) {

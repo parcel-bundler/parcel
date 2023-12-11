@@ -20,8 +20,14 @@ const {
     requestGraphEdgeTypes,
   },
 } = require('./deep-imports.js');
+import type {FileSystem} from '@parcel/fs';
+import type {Cache} from '@parcel/cache';
 
-export async function loadGraphs(cacheDir: string): Promise<{|
+export async function loadGraphs(
+  cacheDir: string,
+  initCache?: Cache,
+  outputFS?: FileSystem,
+): Promise<{|
   assetGraph: ?AssetGraph,
   bundleGraph: ?BundleGraph,
   requestTracker: ?RequestTracker,
@@ -29,8 +35,9 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   cacheInfo: ?Map<string, Array<string | number>>,
 |}> {
   function filesBySizeAndModifiedTime() {
-    let files = fs.readdirSync(cacheDir).map(f => {
-      let stat = fs.statSync(path.join(cacheDir, f));
+    let fileSystem = outputFS || fs;
+    let files = fileSystem.readdirSync(cacheDir).map(f => {
+      let stat = fileSystem.statSync(path.join(cacheDir, f));
       return [path.join(cacheDir, f), stat.size, stat.mtime];
     });
 
@@ -44,7 +51,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   let timeToDeserialize = 0;
 
   let requestTracker;
-  const cache = new LMDBCache(cacheDir);
+  const cache = initCache || new LMDBCache(cacheDir);
   for (let f of filesBySizeAndModifiedTime()) {
     // Empty filename or not the first chunk
     if (path.extname(f) !== '' && !f.endsWith('-0')) continue;
