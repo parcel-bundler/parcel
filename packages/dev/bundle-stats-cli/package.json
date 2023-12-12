@@ -27,7 +27,7 @@
     "@parcel/reporter-bundle-stats": "2.10.3",
     "@parcel/utils": "2.10.3",
     "commander": "^7.0.0",
-    "parcel-query": "2.10.3"
+    "@parcel/query": "2.10.3"
   },
   "devDependencies": {
     "@parcel/babel-register": "2.10.3",
