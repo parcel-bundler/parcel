@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/bundle-stats-cli",
+  "name": "@parcel/bundle-stats",
   "version": "2.10.3",
   "license": "MIT",
   "publishConfig": {
