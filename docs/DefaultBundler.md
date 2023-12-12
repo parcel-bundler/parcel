@@ -1,50 +1,73 @@
-# Default Bundler
+## `bundle()`
 
-The bundling phase can be divided into two main parts, create and decorate. CreateIdealGraph is the bulk of the algorithm and decorate simply back-ports our "Ideal Graph" structures to our previous BundleGraph structure. The main differences between these two graphs are that the Ideal graph does not contain any BundleGroup, Dependency, or Asset nodes. It only depicts bundles loaded in parallel, and the bundle’s which reference them.
+During the bundling phase, we hand over control to the bundler plugin via `bundle()`. This mutative function is called in the `BundleGraphRequest`, and is passed in a stripped version of the AssetGraph, called the `mutableBundleGraph`. Users can specify custom bundler plugins in their `.parcelrc`. In this document we will go through the default bundler plugin.
 
-In both instances of the Bundler, the BundleGraph is a stripped version of the AssetGraph, and has nodes mutated/ added on in bundling.
+```
+await bundler.bundle({
+          bundleGraph: mutableBundleGraph,
+          config: this.configs.get(plugin.name)?.result,
+          options: this.pluginOptions,
+          logger,
+          tracer,
+        });
+```
+
+# Default Bundler Plugin
+
+The goal of the bundler is to mutate the Assetgraph into a BundleGraph by adding bundles and edges. The DefaultBundler can be divided into two main parts, `CreateIdealGraph` and `decorate()`.
+
+In order write the bundling algorithm in distinct, disjoint steps, we defer mutating the AssetGraph to a step called `decorate()`. The bulk of the algorithm is executed on a localized, smaller _IdealGraph_ that only represents bundles, and a few other supplementary structures ultimately passed to decorate as an `IdealGraph` object, containing our local representation of the bundleGraph.
+
+```
+  type IdealGraph = {|
+    assets: Array<Asset>,
+    dependencyBundleGraph: DependencyBundleGraph,
+    bundleGraph: Graph<Bundle | 'root'>,
+    bundleGroupBundleIds: Set<NodeId>,
+    assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
+    manualAssetToBundle: Map<Asset, NodeId>,
+  |};
+```
+
+Note: Within `createIdealGraph()`, the local IdealGraph is refered to simply as the bundleGraph, while the `mutableBundleGraph` passed in, is referred to as assetGraph. This is because we don't actually add bundles to the `mutableBundleGraph` until decorate. Until that point it is just as assetgraph.
 
 ## Definitions
 
-```
-- Asset: A file or representation of a file with some information about how it should be bundled
+- **Asset:** A file or representation of a file with some information about how it should be bundled
 
-- Bundle: A grouping of assets which are loaded together and within the same location
+- **Bundle:** A grouping of assets which are loaded together and within the same location
 
-- BundleGroup: Group of bundles which will load together, which has an entry bundle (the first bundle to load out of the group)
+- **BundleGroup:** Group of bundles which will load together, which has an entry bundle (the first bundle to load out of the group)
 
-- Note the existence of LegacyBundle which refers to the old Bundle structure
+  - _Note the existence of LegacyBundle which refers to the old Bundle structure_
 
-- AssetGraph: A Graph representing Assets and their Dependencies as they appear in a user’s project
+- **AssetGraph:** A Graph representing Assets and their Dependencies as they appear in a user’s project
 
-- BundleGraph: A Graph maintaining Bundles, Assets, Dependencies, and Entries as Nodes, with relationships as edge types
+- **BundleGraph:** A Graph maintaining Bundles, Assets, Dependencies, and Entries as Nodes, with relationships as edge types
 
-- Experimental: Within the Experimental Bundler, the BundleGraph represents only bundles that load in parallel, meaning they are attached to the root.
+- **local BundleGraph:** Within `CreateIdealGraph()`, we maintain a local BundleGraph which represents only bundles that load in parallel, represeted by being attached to the root dummy node.
 
-- Default: The Default BundleGraph (which you will most commonly see throughout Parcel) maintains the nodes mentioned above and is a modified version of the AssetGraph.
+- **Default:** The Default BundleGraph (which you will most commonly see throughout Parcel) maintains the nodes mentioned above and is a modified version of the AssetGraph.
 
-- IdealGraph: Structure which contains the Experimental BundleGraph, dependencyBundleGraph, BundleGroupIds, and a mapping of asset references. This stores all info needed to back-port our structures to the “standard” bundleGraph
+- **IdealGraph:** Structure which contains the local bundleGraph, dependencyBundleGraph, BundleGroupIds, and a mapping of asset references. This stores all info needed to back-port our structures to the “standard” bundleGraph
 
-- dependencyBundleGraph: Maps bundles to their dependencies
+- **dependencyBundleGraph:** Maps bundles to their dependencies
 
-- bundleRoots: An Asset which is an entry to a Bundle
+- **bundleRoots:** An Asset which is an entry to a Bundle
 
-- reachableBundles: A graph maintaining Synchronous relationships between bundleRoots
+- **reachableBundles:** A graph maintaining Synchronous relationships between bundleRoots
 
-- BundleRootGraph: A graph maintaining Async and Parallel relationships between bundleRoots
+- **BundleRootGraph:** A graph maintaining Async and Parallel relationships between bundleRoots
 
-- Entries
+- **Entries**
 
-- Entry to Project: A file the user points Parcel at, in the bundler, this is a set of assets
+  - **Entry to Project:** A file the user points Parcel at, in the bundler, this is a set of assets
 
-- Entry to A Bundle: The main or first asset in a bundle
+  - **Entry to A Bundle:** The main or first asset in a bundle
 
-- Entry to A BundleGroup: The main or first bundle in a bundleGroup, which triggers the bundleGroup to be loaded
+  - **Entry to A BundleGroup:** The main or first bundle in a bundleGroup, which triggers the bundleGroup to be loaded
 
 - assetReference: For bundles within the same bundleGroup as their parent, reference edges are drawn between bundles and dependencies
-
-
-```
 
 ## Step: Create Entries
 
@@ -74,7 +97,7 @@ More on code splitting: [Code Splitting](https://parceljs.org/features/code-spli
 
 We also maintain the notion of bundleGroups during this traversal. Entry bundles and Async Bundles are also bundleGroups.
 
-Here’s an example of how some files are translated to a bundleGraph in the experimental bundler.
+Here’s an example of how some files are translated to a bundleGraph.
 
 <table><tr>
 <td>
@@ -101,7 +124,9 @@ IdealBundleGraph from integration/shared-bundle-single-source/index.js
 
 ## Step: Merge Type Change Bundles
 
-Type change bundles are a special case of bundle, because they require a consistent or “stable” name. As a result, we only allow one bundle of another type per bundleGroup. So, we need to merge bundles that exist within the same bundleGroups. (i.e. siblings)
+Type change bundles are a special case of bundle, because they require consistent or “stable” names. As a result, we only allow one bundle of another type per bundleGroup. So, we need to merge bundles that exist within the same bundleGroups. (i.e. siblings)
+
+See example #1 for an example of when we merge type change bundles.
 
 ## Step: Determine Reachability
 
