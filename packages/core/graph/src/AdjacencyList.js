@@ -261,7 +261,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // grow the capacity if the array is currently maxed out, under the
     // assumption that at least one 1 edge to or from this new node will be
     // added.
-    if (this.#nodes.count >= this.#nodes.capacity) {
+    if (this.#nodes.getLoad() >= 1) {
       this.resizeNodes(
         increaseNodeCapacity(this.#nodes.capacity, this.#params),
       );
@@ -281,6 +281,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): boolean {
+    assert(from < this.#nodes.nextId, `Node ${from} does not exist.`);
+    assert(to < this.#nodes.nextId, `Node ${to} does not exist.`);
     assert(type > 0, `Unsupported edge type ${type}`);
 
     let result;
@@ -910,6 +912,13 @@ export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
   }
   set nextId(nextId: NodeId) {
     this.data[NodeTypeMap.#NEXT_ID] = fromNodeId(nextId);
+  }
+
+  getLoad(count?: number): number {
+    return Math.max(
+      fromNodeId(this.nextId) / this.capacity,
+      super.getLoad(count),
+    );
   }
 
   /** Increment the node counter to get a unique node id. */
