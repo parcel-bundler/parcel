@@ -1276,7 +1276,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     requestGraph.invalidateEnvNodes(options.env);
     requestGraph.invalidateOptionNodes(options);
     requestGraph.respondToFSEvents(
-      events.map(e => ({
+      (options.unstableFileInvalidations || events).map(e => ({
         type: e.type,
         path: toProjectPath(options.projectRoot, e.path),
       })),
