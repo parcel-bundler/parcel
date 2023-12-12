@@ -20,6 +20,7 @@ import {runDevDepRequest} from './DevDepRequest';
 import {runConfigRequest} from './ConfigRequest';
 import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {report} from '../ReporterRunner';
+import {requestTypes} from '../RequestTracker';
 
 type RunInput<TResult> = {|
   input: AssetRequestInput,
@@ -28,7 +29,7 @@ type RunInput<TResult> = {|
 
 export type AssetRequest = {|
   id: ContentKey,
-  +type: 'asset_request',
+  +type: typeof requestTypes.asset_request,
   run: (RunInput<AssetRequestResult>) => Async<AssetRequestResult>,
   input: AssetRequestInput,
 |};
@@ -37,7 +38,7 @@ export default function createAssetRequest(
   input: AssetRequestInput,
 ): AssetRequest {
   return {
-    type: 'asset_request',
+    type: requestTypes.asset_request,
     id: getId(input),
     run,
     input,
@@ -81,7 +82,7 @@ async function run({input, api, farm, invalidateReason, options}) {
     await Promise.all(
       api
         .getSubRequests()
-        .filter(req => req.type === 'dev_dep_request')
+        .filter(req => req.requestType === requestTypes.dev_dep_request)
         .map(async req => [
           req.id,
           nullthrows(await api.getRequestResult<DevDepRequest>(req.id)),

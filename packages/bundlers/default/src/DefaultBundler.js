@@ -226,11 +226,14 @@ function decorateLegacyGraph(
       idealBundle.sourceBundles.size > 0 &&
       !idealBundle.mainEntryAsset
     ) {
+      let uniqueKey =
+        idealBundle.uniqueKey != null
+          ? idealBundle.uniqueKey
+          : [...idealBundle.assets].map(asset => asset.id).join(',');
+
       bundle = nullthrows(
         bundleGraph.createBundle({
-          uniqueKey:
-            [...idealBundle.assets].map(asset => asset.id).join(',') +
-            [...idealBundle.sourceBundles].join(','),
+          uniqueKey,
           needsStableName: idealBundle.needsStableName,
           bundleBehavior: idealBundle.bundleBehavior,
           type: idealBundle.type,
@@ -515,7 +518,7 @@ function createIdealGraph(
   let manualAssetToBundle: Map<Asset, NodeId> = new Map();
   let {manualAssetToConfig, constantModuleToMSB} =
     makeManualAssetToConfigLookup();
-  let manualBundleToInternalizedAsset: Map<
+  let manualBundleToInternalizedAsset: DefaultMap<
     NodeId,
     Array<Asset>,
   > = new DefaultMap(() => []);
@@ -564,6 +567,9 @@ function createIdealGraph(
           }
 
           for (let childAsset of assets) {
+            let bundleId = bundles.get(childAsset.id);
+            let bundle;
+
             // MSB Step 1: Match glob on filepath and type for any asset
             let manualSharedBundleKey;
             let manualSharedObject = manualAssetToConfig.get(childAsset);
@@ -573,22 +579,18 @@ function createIdealGraph(
               manualSharedBundleKey =
                 manualSharedObject.name + ',' + childAsset.type;
             }
+
+            if (
+              // MSB Step 3: If a bundle for these globs already exsits, use it
+              manualSharedBundleKey != null &&
+              manualSharedMap.has(manualSharedBundleKey)
+            ) {
+              bundleId = nullthrows(manualSharedMap.get(manualSharedBundleKey));
+            }
             if (
               dependency.priority === 'lazy' ||
               childAsset.bundleBehavior === 'isolated' // An isolated Dependency, or Bundle must contain all assets it needs to load.
             ) {
-              let bundleId = bundles.get(childAsset.id);
-              let bundle;
-
-              if (
-                // MSB Step 3: If a bundle for these globs already exsits, use it
-                manualSharedBundleKey != null &&
-                manualSharedMap.has(manualSharedBundleKey)
-              ) {
-                bundleId = nullthrows(
-                  manualSharedMap.get(manualSharedBundleKey),
-                );
-              }
               if (bundleId == null) {
                 let firstBundleGroup = nullthrows(
                   bundleGraph.getNode(stack[0][1]),
@@ -611,20 +613,11 @@ function createIdealGraph(
                 bundleGroupBundleIds.add(bundleId);
                 bundleGraph.addEdge(bundleGraphRootNodeId, bundleId);
                 if (manualSharedObject) {
-                  // MSB Step 4: If this is the first instance of a match, set it appropriately
-                  //If this was an existing glob we must add the asset
-                  manualAssetToBundle.set(childAsset, bundleId); // Add asset to bundle
-
-                  invariant(bundle !== 'root' && bundle !== null);
-                  bundle.size = childAsset.stats.size;
-                  invariant(manualSharedBundleKey != null);
-                  if (!manualSharedMap.has(manualSharedBundleKey)) {
-                    manualSharedMap.set(manualSharedBundleKey, bundleId);
-                  }
-                  nullthrows(
-                    manualBundleToInternalizedAsset.get(bundleId),
-                  ).push(childAsset);
-                  bundle.manualSharedBundle = manualSharedObject.name;
+                  // MSB Step 4: If this was the first instance of a match, mark mainAsset for internalization
+                  // since MSBs should not have main entry assets
+                  manualBundleToInternalizedAsset
+                    .get(bundleId)
+                    .push(childAsset);
                 }
               } else {
                 bundle = nullthrows(bundleGraph.getNode(bundleId));
@@ -637,32 +630,6 @@ function createIdealGraph(
                   bundle.bundleBehavior == null
                 ) {
                   bundle.bundleBehavior = dependency.bundleBehavior;
-                }
-                if (manualSharedObject) {
-                  // MSB Step 5: If a bundle for this asset already exists and we have a glob match
-                  // simply add the asset if it doesn't already have it
-                  // If this was an existing glob we must add the asset
-                  manualAssetToBundle.set(childAsset, bundleId); // Add asset to bundle
-
-                  invariant(bundle !== 'root' && bundle !== null);
-
-                  if (!bundle.assets.has(childAsset)) {
-                    bundle.assets.add(childAsset);
-                    bundle.size += childAsset.stats.size;
-                  }
-
-                  bundles.set(childAsset.id, bundleId);
-                  bundleRoots.set(childAsset, [bundleId, bundleId]);
-
-                  nullthrows(
-                    manualBundleToInternalizedAsset.get(bundleId),
-                  ).push(childAsset);
-
-                  invariant(manualSharedBundleKey != null);
-                  if (!manualSharedMap.has(manualSharedBundleKey)) {
-                    manualSharedMap.set(manualSharedBundleKey, bundleId);
-                  }
-                  bundle.manualSharedBundle = manualSharedObject.name;
                 }
               }
 
@@ -683,9 +650,7 @@ function createIdealGraph(
                 ),
                 dependencyPriorityEdges[dependency.priority],
               );
-              continue;
-            }
-            if (
+            } else if (
               parentAsset.type !== childAsset.type ||
               dependency.priority === 'parallel' ||
               childAsset.bundleBehavior === 'inline'
@@ -699,7 +664,6 @@ function createIdealGraph(
               );
               invariant(bundleGroup !== 'root');
 
-              let bundleId;
               let referencingBundleId = nullthrows(
                 bundleRoots.get(referencingBundleRoot),
               )[0];
@@ -707,8 +671,6 @@ function createIdealGraph(
                 bundleGraph.getNode(referencingBundleId),
               );
               invariant(referencingBundle !== 'root');
-              let bundle;
-              bundleId = bundles.get(childAsset.id);
 
               /**
                * If this is an entry bundlegroup, we only allow one bundle per type in those groups
@@ -721,20 +683,10 @@ function createIdealGraph(
                 parentAsset.type !== childAsset.type &&
                 entries.has(bundleGroupRootAsset) &&
                 canMerge(bundleGroupRootAsset, childAsset) &&
-                dependency.bundleBehavior == null
+                dependency.bundleBehavior == null &&
+                manualSharedBundleKey == null //exclude MSBs for merging
               ) {
                 bundleId = bundleGroupNodeId;
-              }
-              if (
-                // MSB Step 3 alt: If a bundle for these globs already exsits, use it
-                manualSharedBundleKey != null &&
-                manualSharedMap.has(manualSharedBundleKey)
-              ) {
-                // If theres an existing bundle for this glob, add the asset
-                bundleId = nullthrows(
-                  manualSharedMap.get(manualSharedBundleKey),
-                );
-                bundle = nullthrows(bundleGraph.getNode(bundleId));
               }
               if (bundleId == null) {
                 bundle = createBundle({
@@ -759,20 +711,6 @@ function createIdealGraph(
                 if (parentAsset.type !== childAsset.type) {
                   typeChangeIds.add(bundleId);
                 }
-                if (manualSharedObject) {
-                  //If this was an existing glob we must add the asset
-                  manualAssetToBundle.set(childAsset, bundleId); // Add asset to bundle
-
-                  invariant(bundle !== 'root' && bundle !== null);
-                  bundle.assets.add(childAsset);
-                  bundle.size += childAsset.stats.size;
-                  bundles.set(childAsset.id, bundleId); // bundleRoots.set(childAsset, [bundleId, bundleId]);
-                  invariant(manualSharedBundleKey != null);
-                  if (!manualSharedMap.has(manualSharedBundleKey)) {
-                    manualSharedMap.set(manualSharedBundleKey, bundleId);
-                  }
-                  bundle.manualSharedBundle = manualSharedObject.name;
-                }
               } else {
                 bundle = bundleGraph.getNode(bundleId);
                 invariant(bundle != null && bundle !== 'root');
@@ -785,22 +723,6 @@ function createIdealGraph(
                 ) {
                   bundle.bundleBehavior = dependency.bundleBehavior;
                 }
-              }
-              // GLOB MATCHING - If the bundle did exist, added the new asset, if the bundle was jsut created, add the key to map
-              if (manualSharedObject) {
-                // If this was an existing glob we must add the asset
-                manualAssetToBundle.set(childAsset, bundleId); // Add asset to bundle
-
-                invariant(bundle !== 'root' && bundle !== null);
-                bundle.assets.add(childAsset);
-                bundle.size += childAsset.stats.size;
-                bundles.set(childAsset.id, bundleId);
-
-                invariant(manualSharedBundleKey != null);
-                if (!manualSharedMap.has(manualSharedBundleKey)) {
-                  manualSharedMap.set(manualSharedBundleKey, bundleId);
-                }
-                bundle.manualSharedBundle = manualSharedObject.name;
               }
 
               bundles.set(childAsset.id, bundleId);
@@ -832,7 +754,35 @@ function createIdealGraph(
               }
 
               assetReference.get(childAsset).push([dependency, bundle]);
-              continue;
+            } else {
+              bundleId = null;
+            }
+            if (manualSharedObject && bundleId != null) {
+              // MSB Step 5:  At this point we've either created or found an existing MSB bundle
+              // add the asset if it doesn't already have it and set key
+
+              invariant(
+                bundle !== 'root' && bundle != null && bundleId != null,
+              );
+
+              manualAssetToBundle.set(childAsset, bundleId);
+
+              if (!bundle.assets.has(childAsset)) {
+                // Add asset to bundle
+                bundle.assets.add(childAsset);
+                bundle.size += childAsset.stats.size;
+              }
+
+              bundles.set(childAsset.id, bundleId);
+              bundleRoots.set(childAsset, [bundleId, bundleId]);
+
+              invariant(manualSharedBundleKey != null);
+              // Ensure we set key to BundleId so the next glob match uses the appropriate bundle
+              if (!manualSharedMap.has(manualSharedBundleKey)) {
+                manualSharedMap.set(manualSharedBundleKey, bundleId);
+              }
+              bundle.manualSharedBundle = manualSharedObject.name;
+              bundle.uniqueKey = manualSharedObject.name + childAsset.type;
             }
           }
         }
@@ -1024,6 +974,8 @@ function createIdealGraph(
   // order the bundles are loaded.
   let ancestorAssets = [];
 
+  let inlineConstantDeps = new DefaultMap(() => new Set());
+
   for (let [bundleRootId, assetId] of bundleRootGraph.nodes.entries()) {
     let reachable = new BitSet(assets.length);
     reachableAssets.push(reachable);
@@ -1083,6 +1035,18 @@ function createIdealGraph(
         let assetIndex = nullthrows(assetToIndex.get(node.value));
         reachable.add(assetIndex);
         reachableRoots[assetIndex].add(bundleRootId);
+
+        if (asset.meta.isConstantModule === true) {
+          let parents = assetGraph
+            .getIncomingDependencies(asset)
+            .map(dep => nullthrows(assetGraph.getAssetWithDependency(dep)));
+
+          for (let parent of parents) {
+            inlineConstantDeps.get(parent).add(asset);
+          }
+        }
+
+        return;
       },
       root,
       {skipUnusedDependencies: true},
@@ -1232,6 +1196,16 @@ function createIdealGraph(
       deleteBundle(bundleRoot);
     }
   }
+
+  function assignInlineConstants(parentAsset: Asset, bundle: Bundle) {
+    for (let inlineConstant of inlineConstantDeps.get(parentAsset)) {
+      if (!bundle.assets.has(inlineConstant)) {
+        bundle.assets.add(inlineConstant);
+        bundle.size += inlineConstant.stats.size;
+      }
+    }
+  }
+
   // Step Insert Or Share: Place all assets into bundles or create shared bundles. Each asset
   // is placed into a single bundle based on the bundle entries it is reachable from.
   // This creates a maximally code split bundle graph with no duplication.
@@ -1242,19 +1216,15 @@ function createIdealGraph(
     let asset = assets[i];
     let manualSharedObject = manualAssetToConfig.get(asset);
 
-    if (asset.meta.isConstantModule === true) {
-      // Add assets to non-splittable bundles.
-      reachableRoots[i].forEach(nodeId => {
-        let assetId = bundleRootGraph.getNode(nodeId);
-        if (assetId == null) return; // deleted
-        let entry = assets[assetId];
-        let entryBundleId = nullthrows(bundleRoots.get(entry))[0];
-        let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
-        invariant(entryBundle !== 'root');
-        entryBundle.assets.add(asset);
-        entryBundle.size += asset.stats.size;
-      });
+    if (bundleRoots.has(asset) && inlineConstantDeps.get(asset).size > 0) {
+      let entryBundleId = nullthrows(bundleRoots.get(asset))[0];
+      let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
+      invariant(entryBundle !== 'root');
+      assignInlineConstants(asset, entryBundle);
+    }
 
+    if (asset.meta.isConstantModule === true) {
+      // Ignore constant modules as they are placed with their direct parents
       continue;
     }
 
@@ -1280,6 +1250,8 @@ function createIdealGraph(
         invariant(entryBundle !== 'root');
         entryBundle.assets.add(asset);
         entryBundle.size += asset.stats.size;
+
+        assignInlineConstants(asset, entryBundle);
       } else if (!ancestorAssets[nodeId]?.has(i)) {
         // Filter out bundles from this asset's reachable array if
         // bundle does not contain the asset in its ancestry
@@ -1306,6 +1278,7 @@ function createIdealGraph(
         invariant(firstSourceBundle !== 'root');
 
         bundle = createBundle({
+          uniqueKey: manualSharedObject.name + firstSourceBundle.type,
           target: firstSourceBundle.target,
           type: firstSourceBundle.type,
           env: firstSourceBundle.env,
@@ -1454,6 +1427,8 @@ function createIdealGraph(
       bundle.assets.add(asset);
       bundle.size += asset.stats.size;
 
+      assignInlineConstants(asset, bundle);
+
       for (let sourceBundleId of sourceBundles) {
         if (bundleId !== sourceBundleId) {
           bundleGraph.addEdge(sourceBundleId, bundleId);
@@ -1475,6 +1450,8 @@ function createIdealGraph(
         invariant(bundle !== 'root');
         bundle.assets.add(asset);
         bundle.size += asset.stats.size;
+
+        assignInlineConstants(asset, bundle);
       }
     }
   }
@@ -1506,6 +1483,7 @@ function createIdealGraph(
 
         for (let i = 1; i < [...remainderMap.keys()].length; i++) {
           let bundle = createBundle({
+            uniqueKey: manualSharedObject.name + firstSourceBundle.type + i,
             target: firstSourceBundle.target,
             type: firstSourceBundle.type,
             env: firstSourceBundle.env,
@@ -2021,6 +1999,15 @@ async function loadBundlerConfig(
       origin: '@parcel/bundler-default',
       message: `The value of "${modeConfig.maxParallelRequests}" set for maxParallelRequests will not be used as shared bundles have been disabled`,
     });
+  }
+
+  if (modeConfig.unstable_manualSharedBundles) {
+    let nameArray = modeConfig.unstable_manualSharedBundles.map(a => a.name);
+    let nameSet = new Set(nameArray);
+    invariant(
+      nameSet.size == nameArray.length,
+      'The name field must be unique for property unstable_manualSharedBundles',
+    );
   }
 
   validateSchema.diagnostic(

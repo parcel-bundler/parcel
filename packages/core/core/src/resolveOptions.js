@@ -166,6 +166,7 @@ export default async function resolveOptions(
     shouldBuildLazily,
     lazyIncludes,
     lazyExcludes,
+    unstableFileInvalidations: initialOptions.unstableFileInvalidations,
     shouldBundleIncrementally: initialOptions.shouldBundleIncrementally ?? true,
     shouldContentHash,
     serveOptions: initialOptions.serveOptions
