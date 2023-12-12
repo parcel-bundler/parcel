@@ -177,9 +177,11 @@ describe('server', function () {
     assert.equal(await get('/something', port), rootIndex);
     assert.equal(await get('/other', port), other);
     assert.equal(await get('/foo', port), fooIndex);
+    assert.equal(await get('/foo?foo=bar', port), fooIndex);
     assert.equal(await get('/foo/', port), fooIndex);
     assert.equal(await get('/foo/bar', port), fooIndex);
     assert.equal(await get('/foo/other', port), fooOther);
+    assert.equal(await get('/foo/other?foo=bar', port), fooOther);
   });
 
   it('should serve a default page if the single HTML bundle is not called index', async function () {
