@@ -1,5 +1,5 @@
 {
-  "name": "parcel-query",
+  "name": "@parcel/query",
   "version": "2.10.3",
   "license": "MIT",
   "publishConfig": {
@@ -13,7 +13,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "bin": "src/bin.js",
+  "bin": {
+    "parcel-query": "src/bin.js"
+  },
   "main": "src/index.js",
   "dependencies": {
     "@parcel/cache": "2.10.3",
