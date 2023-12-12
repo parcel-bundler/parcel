@@ -6,22 +6,40 @@ import path from 'path';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {
-  transform,
-  transformStyleAttribute,
-  browserslistToTargets,
-  type SourceLocation as LightningSourceLocation,
-} from 'lightningcss';
-import {remapSourceLocation, relativePath} from '@parcel/utils';
+  remapSourceLocation,
+  relativePath,
+  globToRegex,
+  normalizeSeparators,
+} from '@parcel/utils';
+import {type SourceLocation as LightningSourceLocation} from 'lightningcss';
+import * as native from 'lightningcss';
 import browserslist from 'browserslist';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+
+const {transform, transformStyleAttribute, browserslistToTargets} = native;
 
 export default (new Transformer({
   async loadConfig({config, options}) {
     let conf = await config.getConfigFrom(options.projectRoot + '/index', [], {
       packageKey: '@parcel/transformer-css',
     });
-    return conf?.contents;
+    let contents = conf?.contents;
+    if (typeof contents?.cssModules?.include === 'string') {
+      contents.cssModules.include = [globToRegex(contents.cssModules.include)];
+    } else if (Array.isArray(contents?.cssModules?.include)) {
+      contents.cssModules.include = contents.cssModules.include.map(include =>
+        typeof include === 'string' ? globToRegex(include) : include,
+      );
+    }
+    if (typeof contents?.cssModules?.exclude === 'string') {
+      contents.cssModules.exclude = [globToRegex(contents.cssModules.exclude)];
+    } else if (Array.isArray(contents?.cssModules?.exclude)) {
+      contents.cssModules.exclude = contents.cssModules.exclude.map(exclude =>
+        typeof exclude === 'string' ? globToRegex(exclude) : exclude,
+      );
+    }
+    return contents;
   },
   async transform({asset, config, options, logger}) {
     // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
@@ -40,6 +58,8 @@ export default (new Transformer({
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
+      // $FlowFixMe native.default is the init function only when bundled for the browser build
+      process.browser && native.default(),
     ]);
 
     let targets = getTargets(asset.env.engines.browsers);
@@ -59,12 +79,32 @@ export default (new Transformer({
           asset.meta.cssModulesCompiled == null
         ) {
           let cssModulesConfig = config?.cssModules;
-          if (
-            (asset.isSource &&
-              (typeof cssModulesConfig === 'boolean' ||
-                cssModulesConfig?.global)) ||
-            /\.module\./.test(asset.filePath)
-          ) {
+          let isCSSModule = /\.module\./.test(asset.filePath);
+          if (asset.isSource) {
+            let projectRootPath = path.relative(
+              options.projectRoot,
+              asset.filePath,
+            );
+            if (typeof cssModulesConfig === 'boolean') {
+              isCSSModule = true;
+            } else if (cssModulesConfig?.include) {
+              isCSSModule = cssModulesConfig.include.some(include =>
+                include.test(projectRootPath),
+              );
+            } else if (cssModulesConfig?.global) {
+              isCSSModule = true;
+            }
+
+            if (
+              cssModulesConfig?.exclude?.some(exclude =>
+                exclude.test(projectRootPath),
+              )
+            ) {
+              isCSSModule = false;
+            }
+          }
+
+          if (isCSSModule) {
             if (cssModulesConfig?.dashedIdents && !asset.isSource) {
               cssModulesConfig.dashedIdents = false;
             }
@@ -74,7 +114,9 @@ export default (new Transformer({
         }
 
         res = transform({
-          filename: path.relative(options.projectRoot, asset.filePath),
+          filename: normalizeSeparators(
+            path.relative(options.projectRoot, asset.filePath),
+          ),
           code,
           cssModules,
           analyzeDependencies: asset.meta.hasDependencies !== false,
@@ -133,10 +175,10 @@ export default (new Transformer({
       }
     }
 
-    asset.setBuffer(res.code);
+    asset.setBuffer(Buffer.from(res.code));
 
     if (res.map != null) {
-      let vlqMap = JSON.parse(res.map.toString());
+      let vlqMap = JSON.parse(Buffer.from(res.map).toString());
       let map = new SourceMap(options.projectRoot);
       map.addVLQMap(vlqMap);
 

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/ts-utils",
-  "version": "2.9.3",
+  "version": "2.10.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"

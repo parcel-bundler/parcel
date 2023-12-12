@@ -1,6 +1,6 @@
 {
   "name": "@parcel/ts-example",
-  "version": "2.9.3",
+  "version": "2.10.3",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -8,8 +8,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
-    "@parcel/babel-register": "2.9.3",
-    "@parcel/core": "2.9.3"
+    "@parcel/babel-register": "2.10.3",
+    "@parcel/core": "2.10.3"
   },
   "main": "dist/main.js",
   "module": "dist/module.js",

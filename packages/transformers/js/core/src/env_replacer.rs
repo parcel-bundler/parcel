@@ -200,7 +200,7 @@ impl<'a> EnvReplacer<'a> {
       self.used_env.insert(sym.clone());
       return Some(Expr::Lit(Lit::Str(Str {
         span: DUMMY_SP,
-        value: val.into(),
+        value: val.clone(),
         raw: None,
       })));
     } else if fallback_undefined {

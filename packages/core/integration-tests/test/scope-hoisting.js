@@ -17,6 +17,7 @@ import {
   overlayFS,
   run,
   runBundle,
+  fsFixture,
 } from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) => {
@@ -134,6 +135,7 @@ describe('scope hoisting', function () {
       let output = await run(b);
       assert.equal(output, 2);
     });
+
     it('supports named exports of variables with a different name when wrapped', async function () {
       let b = await bundle(
         path.join(
@@ -144,6 +146,25 @@ describe('scope hoisting', function () {
 
       let output = await run(b);
       assert.equal(output, 2);
+    });
+
+    it('supports dependency rewriting for import * as from a library that has export *', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/rewrite-export-star/index.js',
+        ),
+        {mode: 'production'},
+      );
+      let output = await run(b);
+      assert.equal(output, 2);
+
+      assert.deepStrictEqual(
+        new Set(
+          b.getUsedSymbols(findDependency(b, 'index.js', './library/a.js')),
+        ),
+        new Set(['bar']),
+      );
     });
 
     it('supports renaming non-ASCII identifiers', async function () {
@@ -380,6 +401,21 @@ describe('scope hoisting', function () {
         'utf8',
       );
       assert.match(contents, /output="foo bar"/);
+    });
+
+    it('supports re-exporting all with ambiguous CJS and non-renaming and renaming dependency retargeting', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-ambiguous/entry.js',
+        ),
+        {
+          mode: 'production',
+        },
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, '123 999');
     });
 
     it('supports re-exporting all exports from an external module', async function () {
@@ -2487,6 +2523,23 @@ describe('scope hoisting', function () {
       assert.equal(await output, 42);
     });
 
+    it('should handle TSC polyfills', async () => {
+      await fsFixture(overlayFS, __dirname)`
+        tsc-polyfill-es6
+          library.js:
+            var __polyfill = (this && this.__polyfill) || function (a) {return a;};
+            export default __polyfill('es6')
+
+          index.js:
+            import value from './library';
+            output = value;`;
+
+      let b = await bundle(path.join(__dirname, 'tsc-polyfill-es6/index.js'), {
+        inputFS: overlayFS,
+      });
+      assert.equal(await run(b), 'es6');
+    });
+
     describe("considers an asset's closest package.json for sideEffects, not the package through which it found the asset", () => {
       it('handles redirects up the tree', async () => {
         let b = await bundle(
@@ -3574,6 +3627,23 @@ describe('scope hoisting', function () {
   });
 
   describe('commonjs', function () {
+    it('should wrap when this could refer to an export', async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-this/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+
+      let wrapped = contents.includes('exports.bar()');
+      assert.equal(wrapped, true);
+    });
+
     it('supports require of commonjs modules', async function () {
       let b = await bundle(
         path.join(
@@ -5247,6 +5317,29 @@ describe('scope hoisting', function () {
       );
 
       assert.deepEqual(await run(b), {test: 2});
+    });
+
+    it('should handle TSC polyfills', async () => {
+      await fsFixture(overlayFS, __dirname)`
+        tsc-polyfill-commonjs
+          library.js:
+            "use strict";
+            var __polyfill = (this && this.__polyfill) || function (a) {return a;};
+            exports.value = __polyfill('cjs')
+
+          index.js:
+            const value = require('./library');
+            output = value;
+      `;
+
+      let b = await bundle(
+        path.join(__dirname, 'tsc-polyfill-commonjs/index.js'),
+        {
+          inputFS: overlayFS,
+        },
+      );
+
+      assert.deepEqual(await run(b), {value: 'cjs'});
     });
   });
 

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-less",
-  "version": "2.9.3",
+  "version": "2.10.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,10 +17,10 @@
   "source": "src/LessTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.9.3"
+    "parcel": "^2.10.3"
   },
   "dependencies": {
-    "@parcel/plugin": "2.9.3",
+    "@parcel/plugin": "2.10.3",
     "@parcel/source-map": "^2.1.1",
     "less": "^4.1.1"
   }
