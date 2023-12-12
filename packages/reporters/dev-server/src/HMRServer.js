@@ -86,7 +86,14 @@ export default class HMRServer {
     } else {
       this.options.addMiddleware?.((req, res) => this.handle(req, res));
     }
-    this.wss = new WebSocket.Server({server});
+    this.wss = new WebSocket.Server({noServer: true});
+    server.on('upgrade', (req, ws, head) => {
+      let {pathname} = url.parse(req.originalUrl || req.url);
+      if (pathname != null && pathname.startsWith(HMR_ENDPOINT)) {
+        const emitConnection = this.wss.emit.bind(this.wss, 'connection');
+        this.wss.handleUpgrade(req, ws, head, emitConnection);
+      }
+    })
 
     this.wss.on('connection', ws => {
       if (this.unresolvedError) {
