@@ -24,7 +24,6 @@ import {
   setIntersect,
   validateSchema,
   DefaultMap,
-  BitSet,
   globToRegex,
 } from '@parcel/utils';
 import logger from '@parcel/logger';
