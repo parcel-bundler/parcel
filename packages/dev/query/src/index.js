@@ -145,12 +145,20 @@ async function loadLargeBlobRequestRequest(cache, node, cacheInfo) {
   invariant(node.type === 1);
 
   let cachedFile = await cache.getLargeBlob(nullthrows(node.resultCacheKey));
-  cacheInfo.get(requestTypes[node.requestType])?.push(cachedFile.byteLength); //Add size
 
   let TTD = Date.now();
   let result = v8.deserialize(cachedFile);
   TTD = Date.now() - TTD;
-  cacheInfo.get(requestTypes[node.requestType])?.push(TTD);
+
+  if (node.requestType === 2) {
+    cacheInfo.get('bundle_graph_request')?.push(cachedFile.byteLength); //Add size
+    cacheInfo.get('bundle_graph_request')?.push(TTD);
+  }
+
+  if (node.requestType === 3) {
+    cacheInfo.get('asset_graph_request')?.push(cachedFile.byteLength); //Add size
+    cacheInfo.get('asset_graph_request')?.push(TTD);
+  }
 
   return result;
 }
