@@ -273,8 +273,8 @@ export async function run(input: string[]) {
 
   function _findEntries(
     graph:
-      | ContentGraph<BundleGraphNode, BundleGraphEdgeType>
-      | ContentGraph<AssetGraphNode>,
+      | ContentGraph<typeof BundleGraphNode, typeof BundleGraphEdgeType>
+      | ContentGraph<typeof AssetGraphNode>,
     v: string,
   ) {
     let asset = nullthrows(parseAssetLocator(v), 'Asset not found');

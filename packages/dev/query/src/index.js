@@ -25,7 +25,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   assetGraph: ?AssetGraph,
   bundleGraph: ?BundleGraph,
   requestTracker: ?RequestTracker,
-  bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
+  bundleInfo: ?Map<ContentKey, typeof PackagedBundleInfo>,
   cacheInfo: ?Map<string, Array<string | number>>,
 |}> {
   function filesBySizeAndModifiedTime() {
@@ -134,7 +134,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
     // $FlowFixMe[incompatible-cast]
     bundleInfo = (nullthrows(writeBundlesRequest.result): Map<
       ContentKey,
-      PackagedBundleInfo,
+      typeof PackagedBundleInfo,
     >);
   }
 
