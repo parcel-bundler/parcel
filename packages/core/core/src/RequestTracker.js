@@ -343,7 +343,9 @@ export class RequestGraph extends ContentGraph<
     invariant(node.type === REQUEST);
     node.invalidateReason |= reason;
     this.invalidNodeIds.add(nodeId);
-    this.invalidationReport.push({invalidated: nodeId, cause: cause});
+    if (process.env.PARCEL_GENERATE_INVALIDATION_REPORT != null) {
+      this.invalidationReport.push({invalidated: nodeId, cause: cause});
+    }
 
     let parentNodes = this.getNodeIdsConnectedTo(
       nodeId,
