@@ -189,7 +189,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
       collisions,
       maxCollisions,
-      avgCollisions: Math.round((collisions / buckets.size) * 100) / 100 || 0,
+      avgCollisions:
+        Math.round((collisions / this.#edges.count) * 100) / 100 || 0,
       uniformity: Math.round(uniformity * 100) / 100 || 0,
     };
   }
