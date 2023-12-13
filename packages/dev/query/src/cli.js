@@ -733,12 +733,6 @@ export async function run(input: string[]) {
   }
   // eslint-disable-next-line no-unused-vars
   function inspectCache(_) {
-    if (!hasRequestTracker() || !hasBundleGraph() || !hasAssetGraph()) {
-      return;
-    }
-    invariant(requestTracker != null);
-    invariant(bundleGraph != null);
-    invariant(assetGraph != null);
     // displays sizing of various entries of the cache
     let table: Array<Array<string | number>> = [];
     table.push([
@@ -752,6 +746,13 @@ export async function run(input: string[]) {
     serialized.set('BundleGraph', timeSerialize(bundleGraph));
     serialized.set('AssetGraph', timeSerialize(assetGraph));
     for (let [name, info] of nullthrows(cacheInfo).entries()) {
+      if (
+        (name === 'RequestGraph' && !hasRequestTracker()) ||
+        (name === 'BundleGraph' && !hasBundleGraph()) ||
+        (name === 'AssetGraph' && !hasAssetGraph())
+      ) {
+        continue;
+      }
       let s = serialized.get(name);
       invariant(s != null);
       table.push([name, ...info, s]);
