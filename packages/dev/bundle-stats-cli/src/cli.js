@@ -1,5 +1,6 @@
 /* eslint-disable no-console, monorepo/no-internal-import */
 // @flow strict-local
+import type {PackagedBundle} from '@parcel/types';
 import type {ParcelOptions} from '@parcel/core/src/types';
 import type {commander$Command} from 'commander';
 
@@ -12,7 +13,6 @@ import path from 'path';
 import {DefaultMap} from '@parcel/utils';
 
 const {
-  PackagedBundle,
   loadGraphs,
   getBundleStats,
   PackagedBundleClass,
@@ -44,7 +44,7 @@ async function run({cacheDir, outDir}) {
 
   let bundlesByTarget: DefaultMap<
     string /* target name */,
-    Array<typeof PackagedBundle>,
+    Array<PackagedBundle>,
   > = new DefaultMap(() => []);
   for (let bundle of bundleGraph.getBundles()) {
     bundlesByTarget
