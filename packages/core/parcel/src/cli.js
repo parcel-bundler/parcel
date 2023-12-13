@@ -73,8 +73,6 @@ const commonOptions = {
   '--config <path>':
     'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
-  '--watch-dir <path>':
-    'set the root watch directory. defaults to nearest lockfile or source control dir.',
   '--no-source-maps': 'disable sourcemaps',
   '--target [name]': [
     'only build given target(s)',
@@ -118,6 +116,8 @@ var hmrOptions = {
   '--key <path>': 'path to private key to use with HTTPS',
   '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
   '--hmr-host <host>': ['hot module replacement host', process.env.HMR_HOST],
+  '--watch-dir <path>':
+    'set the root watch directory. defaults to nearest lockfile or source control dir.',
 };
 
 function applyOptions(cmd, options) {
