@@ -13,7 +13,8 @@ import {NodeFS} from '@parcel/fs';
 import packageJson from '../package.json';
 // $FlowFixMe
 import lmdb from 'lmdb';
-import {WRITE_LIMIT_CHUNK} from './constants';
+
+import {FSCache} from './FSCache';
 
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
   stream.pipeline,
@@ -24,10 +25,12 @@ export class LMDBCache implements Cache {
   dir: FilePath;
   // $FlowFixMe
   store: any;
+  fsCache: FSCache;
 
   constructor(cacheDir: FilePath) {
     this.fs = new NodeFS();
     this.dir = cacheDir;
+    this.fsCache = new FSCache(this.fs, cacheDir);
 
     this.store = lmdb.open(cacheDir, {
       name: 'parcel-cache',
@@ -101,62 +104,18 @@ export class LMDBCache implements Cache {
     return this.fs.exists(this.#getFilePath(key, 0));
   }
 
+  // eslint-disable-next-line require-await
   async getLargeBlob(key: string): Promise<Buffer> {
-    const buffers: Promise<Buffer>[] = [];
-    for (let i = 0; await this.fs.exists(this.#getFilePath(key, i)); i += 1) {
-      const file: Promise<Buffer> = this.fs.readFile(this.#getFilePath(key, i));
-
-      buffers.push(file);
-    }
-
-    return Buffer.concat(await Promise.all(buffers));
+    return this.fsCache.getLargeBlob(key);
   }
 
+  // eslint-disable-next-line require-await
   async setLargeBlob(
     key: string,
     contents: Buffer | string,
     options?: {|signal?: AbortSignal|},
   ): Promise<void> {
-    const chunks = Math.ceil(contents.length / WRITE_LIMIT_CHUNK);
-
-    const writePromises: Promise<void>[] = [];
-    if (chunks === 1) {
-      // If there's one chunk, don't slice the content
-      writePromises.push(
-        this.fs.writeFile(this.#getFilePath(key, 0), contents, {
-          signal: options?.signal,
-        }),
-      );
-    } else {
-      for (let i = 0; i < chunks; i += 1) {
-        writePromises.push(
-          this.fs.writeFile(
-            this.#getFilePath(key, i),
-            typeof contents === 'string'
-              ? contents.slice(
-                  i * WRITE_LIMIT_CHUNK,
-                  (i + 1) * WRITE_LIMIT_CHUNK,
-                )
-              : contents.subarray(
-                  i * WRITE_LIMIT_CHUNK,
-                  (i + 1) * WRITE_LIMIT_CHUNK,
-                ),
-            {signal: options?.signal},
-          ),
-        );
-      }
-    }
-
-    // If there's already a file following this chunk, it's old and should be removed
-    if (await this.fs.exists(this.#getFilePath(key, chunks))) {
-      writePromises.push(
-        this.fs.unlink(this.#getFilePath(key, chunks), {
-          signal: options?.signal,
-        }),
-      );
-    }
-
-    await Promise.all(writePromises);
+    return this.fsCache.setLargeBlob(key, contents, options);
   }
 
   refresh(): void {

@@ -846,6 +846,8 @@ export class RequestGraph extends ContentGraph<
   }
 }
 
+// This constant is chosen by local profiling the time to serialise n nodes and tuning until an average time of ~50 ms per blob.
+// The goal is to free up the event loop periodically to allow interuption by the user.
 const NODES_PER_BLOB = 2 ** 14;
 
 export default class RequestTracker {
