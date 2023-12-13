@@ -46,7 +46,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   const cache = new LMDBCache(cacheDir);
   for (let f of filesBySizeAndModifiedTime()) {
     // Empty filename or not the first chunk
-    if (path.extname(f) !== '' && !f.endsWith('-0')) continue;
+    if (path.extname(f) !== '' || !f.endsWith('-0')) continue;
     try {
       let file = await cache.getLargeBlob(
         path.basename(f).slice(0, -'-0'.length),
