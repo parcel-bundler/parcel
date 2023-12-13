@@ -42,11 +42,11 @@ async function run({cacheDir, outDir}) {
   let projectRoot = process.cwd();
 
   // $FlowFixMe[unclear-type]
-  let parcelOptions: ParcelOptions = ({projectRoot}: any);
+  let parcelOptions: typeof ParcelOptions = ({projectRoot}: any);
 
   let bundlesByTarget: DefaultMap<
     string /* target name */,
-    Array<PackagedBundle>,
+    Array<typeof PackagedBundle>,
   > = new DefaultMap(() => []);
   for (let bundle of bundleGraph.getBundles()) {
     bundlesByTarget
