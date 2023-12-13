@@ -9,6 +9,6 @@ if (
   require('@parcel/babel-register');
 }
 
-const cli = require('./src/cli');
+const cli = require('./cli');
 
 cli.command.parse();

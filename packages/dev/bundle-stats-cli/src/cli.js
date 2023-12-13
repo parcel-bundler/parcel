@@ -1,9 +1,6 @@
 /* eslint-disable no-console, monorepo/no-internal-import */
 // @flow strict-local
 
-import type {PackagedBundle} from '@parcel/types';
-import type {ParcelOptions} from '@parcel/core/src/types';
-
 // $FlowFixMe[untyped-import]
 import {version} from '../package.json';
 
@@ -13,10 +10,15 @@ import path from 'path';
 
 import {DefaultMap} from '@parcel/utils';
 
-import {loadGraphs} from 'parcel-query/src/index.js';
-import {getBundleStats} from '@parcel/reporter-bundle-stats/src/BundleStatsReporter';
-import {PackagedBundle as PackagedBundleClass} from '@parcel/core/src/public/Bundle';
 import type {commander$Command} from 'commander';
+
+const {
+  ParcelOptions,
+  PackagedBundle,
+  loadGraphs,
+  getBundleStats,
+  PackagedBundleClass,
+} = require('./deep-imports.js');
 
 async function run({cacheDir, outDir}) {
   // 1. load bundle graph and info via parcel~query
