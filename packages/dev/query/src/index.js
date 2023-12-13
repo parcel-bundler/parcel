@@ -89,8 +89,8 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 
   // Load graphs by finding the main subrequests and loading their results
   let assetGraph, bundleGraph, bundleInfo;
-  cacheInfo.set('bundle_graph_request', []);
-  cacheInfo.set('asset_graph_request', []);
+  cacheInfo.set('BundleGraph', []);
+  cacheInfo.set('AssetGraph', []);
   invariant(requestTracker);
   let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
     'parcel_build_request',
@@ -151,13 +151,13 @@ async function loadLargeBlobRequestRequest(cache, node, cacheInfo) {
   TTD = Date.now() - TTD;
 
   if (node.requestType === 2) {
-    cacheInfo.get('bundle_graph_request')?.push(cachedFile.byteLength); //Add size
-    cacheInfo.get('bundle_graph_request')?.push(TTD);
+    cacheInfo.get('BundleGraph')?.push(cachedFile.byteLength); //Add size
+    cacheInfo.get('BundleGraph')?.push(TTD);
   }
 
   if (node.requestType === 3) {
-    cacheInfo.get('asset_graph_request')?.push(cachedFile.byteLength); //Add size
-    cacheInfo.get('asset_graph_request')?.push(TTD);
+    cacheInfo.get('AssetGraph')?.push(cachedFile.byteLength);
+    cacheInfo.get('AssetGraph')?.push(TTD);
   }
 
   return result;

@@ -749,13 +749,12 @@ export async function run(input: string[]) {
     ]);
     let serialized: Map<string, number> = new Map();
     serialized.set('RequestGraph', timeSerialize(requestTracker));
-    serialized.set('bundle_graph_request', timeSerialize(bundleGraph));
-    serialized.set('asset_graph_request', timeSerialize(assetGraph));
-    for (let [k, v] of nullthrows(cacheInfo).entries()) {
-      let s = serialized.get(k);
+    serialized.set('BundleGraph', timeSerialize(bundleGraph));
+    serialized.set('AssetGraph', timeSerialize(assetGraph));
+    for (let [name, info] of nullthrows(cacheInfo).entries()) {
+      let s = serialized.get(name);
       invariant(s != null);
-      let name = k.includes('_request') ? k.split('_request')[0] : k;
-      table.push([name, ...v, s]);
+      table.push([name, ...info, s]);
     }
     function getColumnSum(t: Array<Array<string | number>>, col: number) {
       if (t == null) {
