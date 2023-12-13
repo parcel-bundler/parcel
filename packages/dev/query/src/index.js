@@ -1,24 +1,24 @@
 // @flow strict-local
 /* eslint-disable monorepo/no-internal-import */
 import type {ContentKey, NodeId} from '@parcel/graph';
-import type {PackagedBundleInfo} from '@parcel/core/src/types';
 
 import fs from 'fs';
 import path from 'path';
 import v8 from 'v8';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
-import {LMDBCache} from '@parcel/cache/src/LMDBCache';
-import {requestTypes} from '@parcel/core/src/RequestTracker.js';
 
 const {
   AssetGraph,
-  BundleGraph,
+  BundleGraph: {default: BundleGraph},
   RequestTracker: {
     default: RequestTracker,
     RequestGraph,
     requestGraphEdgeTypes,
+    requestTypes,
   },
+  LMDBCache,
+  Types: {PackagedBundleInfo: PackagedBundleInfo},
 } = require('./deep-imports.js');
 
 export async function loadGraphs(cacheDir: string): Promise<{|

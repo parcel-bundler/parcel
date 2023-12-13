@@ -1,8 +1,6 @@
 // @flow strict-local
 /* eslint-disable no-console, monorepo/no-internal-import */
 import type {ContentGraph, ContentKey, NodeId} from '@parcel/graph';
-import type {AssetGraphNode, BundleGraphNode} from '@parcel/core/src/types';
-import type {BundleGraphEdgeType} from '@parcel/core/src/BundleGraph.js';
 
 import path from 'path';
 import fs from 'fs';
@@ -15,11 +13,16 @@ import {serialize} from 'v8';
 // $FlowFixMe
 import {table} from 'table';
 
-import {fromProjectPathRelative} from '@parcel/core/src/projectPath';
-import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
-import {Priority} from '@parcel/core/src/types';
-
 import {loadGraphs} from './index.js';
+
+const {
+  BundleGraph: {
+    bundleGraphEdgeTypes: bundleGraphEdgeTypes,
+    BundleGraphEdgeType: BundleGraphEdgeType,
+  },
+  Types: {AssetGraphNode, BundleGraphNode, Priority},
+  fromProjectPathRelative: fromProjectPathRelative,
+} = require('./deep-imports.js');
 
 export async function run(input: string[]) {
   let args = input;
