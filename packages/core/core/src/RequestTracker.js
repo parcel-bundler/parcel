@@ -51,6 +51,7 @@ import {
 } from './constants';
 
 import {report} from './ReporterRunner';
+import {PromiseQueue} from '@parcel/utils';
 
 export const requestGraphEdgeTypes = {
   subrequest: 2,
@@ -1153,7 +1154,9 @@ export default class RequestTracker {
       });
     };
 
-    const promises: Promise<void>[] = [];
+    const queue = new PromiseQueue({
+      maxConcurrent: 32,
+    });
 
     report({
       type: 'cache',
@@ -1173,7 +1176,7 @@ export default class RequestTracker {
         resultCacheKey != null &&
         node?.result != null
       ) {
-        promises.push(serialiseAndSet(resultCacheKey, node.result));
+        queue.add(() => serialiseAndSet(resultCacheKey, node.result));
         // eslint-disable-next-line no-unused-vars
         const {result: _, ...newNode} = node;
         cacheableNodes[i] = newNode;
@@ -1183,7 +1186,7 @@ export default class RequestTracker {
     }
 
     for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
-      promises.push(
+      queue.add(() =>
         serialiseAndSet(
           `requestGraph-nodes-${i}-${hashString(cacheKey)}`,
           cacheableNodes.slice(i * NODES_PER_BLOB, (i + 1) * NODES_PER_BLOB),
@@ -1191,13 +1194,13 @@ export default class RequestTracker {
       );
     }
 
-    promises.push(
+    queue.add(() =>
       serialiseAndSet(requestGraphKey, {...serialisedGraph, nodes: undefined}),
     );
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
-    promises.push(
+    queue.add(() =>
       this.options.inputFS.writeSnapshot(
         this.options.projectRoot,
         snapshotPath,
@@ -1205,7 +1208,7 @@ export default class RequestTracker {
       ),
     );
 
-    await Promise.all(promises);
+    await queue.run();
 
     report({type: 'cache', phase: 'end', total, size: this.graph.nodes.length});
   }
