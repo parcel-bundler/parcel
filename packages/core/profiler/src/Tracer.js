@@ -12,8 +12,7 @@ import type {
 // @ts-ignore
 import {ValueEmitter} from '@parcel/events';
 
-// $FlowFixMe
-import {performance as _performance} from 'perf_hooks';
+import {performance} from 'perf_hooks';
 
 let tid;
 try {
@@ -22,8 +21,6 @@ try {
   tid = 0;
 }
 
-// @ts-ignore
-const performance: Performance = _performance;
 const pid = process.pid;
 
 class TraceMeasurement implements ITraceMeasurement {
