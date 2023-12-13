@@ -7,7 +7,6 @@ import typeof BundleGraph, {
 import type {BundleGraphEdgeType} from '@parcel/core/src/BundleGraph.js';
 import typeof RequestTracker, {
   RequestGraph,
-  requestTypes,
 } from '@parcel/core/src/RequestTracker.js';
 import {typeof requestGraphEdgeTypes} from '@parcel/core/src/RequestTracker.js';
 import {typeof LMDBCache} from '@parcel/cache/src/LMDBCache.js';
@@ -58,7 +57,6 @@ module.exports = ((process.env.PARCEL_BUILD_ENV === 'production'
     default: RequestTracker,
     RequestGraph: RequestGraph,
     requestGraphEdgeTypes: requestGraphEdgeTypes,
-    requestTypes: requestTypes,
     ...
   },
   LMDBCache: LMDBCache,
