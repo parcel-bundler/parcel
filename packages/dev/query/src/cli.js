@@ -1,6 +1,8 @@
 // @flow strict-local
 /* eslint-disable no-console, monorepo/no-internal-import */
 import type {ContentGraph, ContentKey, NodeId} from '@parcel/graph';
+import type {BundleGraphEdgeType} from '@parcel/core/src/BundleGraph.js';
+import type {AssetGraphNode, BundleGraphNode} from '@parcel/core/src/types.js';
 
 import path from 'path';
 import fs from 'fs';
@@ -9,19 +11,15 @@ import os from 'os';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import {serialize} from 'v8';
-
 // $FlowFixMe
 import {table} from 'table';
 
 import {loadGraphs} from './index.js';
 
 const {
-  BundleGraph: {
-    bundleGraphEdgeTypes: bundleGraphEdgeTypes,
-    BundleGraphEdgeType: BundleGraphEdgeType,
-  },
-  Types: {AssetGraphNode, BundleGraphNode, Priority},
-  fromProjectPathRelative: fromProjectPathRelative,
+  BundleGraph: {bundleGraphEdgeTypes: bundleGraphEdgeTypes},
+  Priority,
+  fromProjectPathRelative,
 } = require('./deep-imports.js');
 
 export async function run(input: string[]) {
@@ -273,8 +271,8 @@ export async function run(input: string[]) {
 
   function _findEntries(
     graph:
-      | ContentGraph<typeof BundleGraphNode, typeof BundleGraphEdgeType>
-      | ContentGraph<typeof AssetGraphNode>,
+      | ContentGraph<BundleGraphNode, BundleGraphEdgeType>
+      | ContentGraph<AssetGraphNode>,
     v: string,
   ) {
     let asset = nullthrows(parseAssetLocator(v), 'Asset not found');

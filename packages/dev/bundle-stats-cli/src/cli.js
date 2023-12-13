@@ -1,5 +1,7 @@
 /* eslint-disable no-console, monorepo/no-internal-import */
 // @flow strict-local
+import type {ParcelOptions} from '@parcel/core/src/types';
+import type {commander$Command} from 'commander';
 
 // $FlowFixMe[untyped-import]
 import {version} from '../package.json';
@@ -7,13 +9,9 @@ import {version} from '../package.json';
 import commander from 'commander';
 import fs from 'fs';
 import path from 'path';
-
 import {DefaultMap} from '@parcel/utils';
 
-import type {commander$Command} from 'commander';
-
 const {
-  ParcelOptions,
   PackagedBundle,
   loadGraphs,
   getBundleStats,
@@ -42,7 +40,7 @@ async function run({cacheDir, outDir}) {
   let projectRoot = process.cwd();
 
   // $FlowFixMe[unclear-type]
-  let parcelOptions: typeof ParcelOptions = ({projectRoot}: any);
+  let parcelOptions: ParcelOptions = ({projectRoot}: any);
 
   let bundlesByTarget: DefaultMap<
     string /* target name */,

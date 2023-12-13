@@ -1,6 +1,7 @@
 // @flow strict-local
 /* eslint-disable monorepo/no-internal-import */
 import type {ContentKey, NodeId} from '@parcel/graph';
+import type {PackagedBundleInfo} from '@parcel/core/src/types.js';
 
 import fs from 'fs';
 import path from 'path';
@@ -17,14 +18,13 @@ const {
     requestGraphEdgeTypes,
   },
   LMDBCache,
-  Types: {PackagedBundleInfo: PackagedBundleInfo},
 } = require('./deep-imports.js');
 
 export async function loadGraphs(cacheDir: string): Promise<{|
   assetGraph: ?AssetGraph,
   bundleGraph: ?BundleGraph,
   requestTracker: ?RequestTracker,
-  bundleInfo: ?Map<ContentKey, typeof PackagedBundleInfo>,
+  bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
   cacheInfo: ?Map<string, Array<string | number>>,
 |}> {
   function filesBySizeAndModifiedTime() {
@@ -133,7 +133,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
     // $FlowFixMe[incompatible-cast]
     bundleInfo = (nullthrows(writeBundlesRequest.result): Map<
       ContentKey,
-      typeof PackagedBundleInfo,
+      PackagedBundleInfo,
     >);
   }
 
