@@ -94,7 +94,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var protocol =
     HMR_SECURE ||
     (location.protocol == 'https:' &&
-      !/localhost|127.0.0.1|0.0.0.0/.test(hostname))
+      !['localhost', '127.0.0.1', '0.0.0.0'].includes(hostname))
       ? 'wss'
       : 'ws';
 
