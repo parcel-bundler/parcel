@@ -1473,7 +1473,7 @@ describe('bundler', function () {
             "minBundleSize": 0,
             "unstable_manualSharedBundles": [{
               "name": "vendor",
-              "parent": "math/math.js",
+              "root": "math/math.js",
               "assets": ["math/!(divide).js"]
             }]
           }
@@ -1616,7 +1616,7 @@ describe('bundler', function () {
             "minBundleSize": 0,
             "unstable_manualSharedBundles": [{
               "name": "vendor",
-              "parent": "manual.js",
+              "root": "manual.js",
               "assets": ["**/*"],
               "types": ["js"]
             }]
@@ -1684,7 +1684,7 @@ describe('bundler', function () {
               "minBundleSize": 0,
               "unstable_manualSharedBundles": [{
                 "name": "vendor",
-                "parent": "vendor.js",
+                "root": "vendor.js",
                 "assets": ["**/*"],
                 "split": 3
               }]
@@ -1771,9 +1771,9 @@ describe('bundler', function () {
             "minBundleSize": 0,
             "unstable_manualSharedBundles": [{
               "name": "vendor",
-              "parent": "vendor.js",
+              "root": "vendor.js",
               "assets": ["**/*"],
-              "active": ["activeSource.js"]
+              "requestedBy": ["activeSource.js"]
             }]
           }
         }
@@ -1840,9 +1840,9 @@ describe('bundler', function () {
               "minBundleSize": 0,
               "unstable_manualSharedBundles": [{
                 "name": "vendor",
-                "parent": "vendor.js",
+                "root": "vendor.js",
                 "assets": ["**/*"],
-                "active": ["activeSource.js"]
+                "requestedBy": ["activeSource.js"]
               }]
             }
           }
