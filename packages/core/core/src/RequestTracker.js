@@ -1215,7 +1215,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     let snapshotKey = hashString(`${cacheKey}:snapshot`);
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
-      options.projectRoot,
+      options.watchDir,
       snapshotPath,
       opts,
     );
