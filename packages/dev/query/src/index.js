@@ -8,16 +8,16 @@ import path from 'path';
 import v8 from 'v8';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
-import {LMDBCache} from '@parcel/cache/src/LMDBCache';
 
 const {
   AssetGraph,
-  BundleGraph,
+  BundleGraph: {default: BundleGraph},
   RequestTracker: {
     default: RequestTracker,
     RequestGraph,
     requestGraphEdgeTypes,
   },
+  LMDBCache,
 } = require('./deep-imports.js');
 
 export async function loadGraphs(cacheDir: string): Promise<{|
