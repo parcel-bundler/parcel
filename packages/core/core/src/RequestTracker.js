@@ -1109,9 +1109,7 @@ export default class RequestTracker {
   }
 
   async writeToCache() {
-    let cacheKey = getCacheKey(this.options);
-    let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
-    let snapshotKey = hashString(`${cacheKey}:snapshot`);
+    let {requestGraphKey, snapshotKey} = getRequestGraphCacheKey(this.options);
 
     if (this.options.shouldDisableCache) {
       return;
@@ -1196,8 +1194,17 @@ export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
   return {ignore};
 }
 
-function getCacheKey(options) {
-  return `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}`;
+export function getRequestGraphCacheKey(options: ParcelOptions): {|
+  requestGraphKey: string,
+  snapshotKey: string,
+|} {
+  let cacheKey = `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${
+    options.mode
+  }`;
+  return {
+    requestGraphKey: hashString(`${cacheKey}:requestGraph`),
+    snapshotKey: hashString(`${cacheKey}:snapshot`),
+  };
 }
 
 async function loadRequestGraph(options): Async<RequestGraph> {
@@ -1205,14 +1212,12 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     return new RequestGraph();
   }
 
-  let cacheKey = getCacheKey(options);
-  let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
+  let {requestGraphKey, snapshotKey} = getRequestGraphCacheKey(options);
   if (await options.cache.hasLargeBlob(requestGraphKey)) {
     let requestGraph: RequestGraph = deserialize(
       await options.cache.getLargeBlob(requestGraphKey),
     );
     let opts = getWatcherOptions(options);
-    let snapshotKey = hashString(`${cacheKey}:snapshot`);
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
       options.projectRoot,

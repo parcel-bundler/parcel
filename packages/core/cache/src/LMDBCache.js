@@ -2,7 +2,7 @@
 import type {FilePath} from '@parcel/types';
 import type {Cache} from './types';
 import type {Readable, Writable} from 'stream';
-
+import type {Database} from 'lmdb';
 import stream from 'stream';
 import path from 'path';
 import {promisify} from 'util';
@@ -11,7 +11,7 @@ import {NodeFS} from '@parcel/fs';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 // $FlowFixMe
-import lmdb from 'lmdb';
+import * as lmdb from 'lmdb';
 import {WRITE_LIMIT_CHUNK} from './constants';
 
 const pipeline: (Readable, Writable) => Promise<void> = promisify(
@@ -21,8 +21,8 @@ const pipeline: (Readable, Writable) => Promise<void> = promisify(
 export class LMDBCache implements Cache {
   fs: NodeFS;
   dir: FilePath;
-  // $FlowFixMe
-  store: any;
+  // $FlowFixMe[unclear-type]
+  store: Database<any, string>;
 
   constructor(cacheDir: FilePath) {
     this.fs = new NodeFS();
@@ -35,8 +35,8 @@ export class LMDBCache implements Cache {
     });
   }
 
-  ensure(): Promise<void> {
-    return Promise.resolve();
+  async ensure(): Promise<void> {
+    await this.fs.mkdirp(path.join(this.dir, 'large-blobs'));
   }
 
   serialize(): {|dir: FilePath|} {
@@ -67,13 +67,13 @@ export class LMDBCache implements Cache {
   }
 
   getStream(key: string): Readable {
-    return this.fs.createReadStream(path.join(this.dir, key));
+    return this.fs.createReadStream(path.join(this.dir, 'large-blobs', key));
   }
 
   setStream(key: string, stream: Readable): Promise<void> {
     return pipeline(
       stream,
-      this.fs.createWriteStream(path.join(this.dir, key)),
+      this.fs.createWriteStream(path.join(this.dir, 'large-blobs', key)),
     );
   }
 
@@ -93,7 +93,7 @@ export class LMDBCache implements Cache {
   }
 
   #getFilePath(key: string, index: number): string {
-    return path.join(this.dir, `${key}-${index}`);
+    return path.join(this.dir, 'large-blobs', `${key}-${index}`);
   }
 
   hasLargeBlob(key: string): Promise<boolean> {
@@ -144,6 +144,24 @@ export class LMDBCache implements Cache {
     // Useful in scenarios where reads and writes are multi-threaded.
     // See https://github.com/kriszyp/lmdb-js#resetreadtxn-void
     this.store.resetReadTxn();
+  }
+
+  async getKeys(): Promise<{|
+    normal: Iterable<string>,
+    largeBlobs: Iterable<string>,
+  |}> {
+    return {
+      normal: this.store.getKeys(),
+      largeBlobs: await this.fs.readdir(path.join(this.dir, 'large-blobs')),
+    };
+  }
+
+  async remove(key: string): Promise<void> {
+    await this.store.remove(key);
+  }
+
+  async removeLargeBlob(key: string): Promise<void> {
+    await this.store.remove(key);
   }
 }
 

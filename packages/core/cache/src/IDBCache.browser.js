@@ -121,6 +121,24 @@ export class IDBCache implements Cache {
   refresh(): void {
     // NOOP
   }
+
+  async getKeys(): Promise<{|
+    normal: Iterable<string>,
+    largeBlobs: Iterable<string>,
+  |}> {
+    return {
+      normal: await (await this.store).getAllKeys(STORE_NAME),
+      largeBlobs: [],
+    };
+  }
+
+  async remove(key: string): Promise<void> {
+    await (await this.store).delete(STORE_NAME, key);
+  }
+
+  removeLargeBlob(key: string): Promise<void> {
+    return this.remove(key);
+  }
 }
 
 registerSerializableClass(`${packageJson.version}:IDBCache`, IDBCache);

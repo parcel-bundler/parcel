@@ -298,6 +298,9 @@ async function run(
         case 'y':
           await parcel.takeHeapSnapshot();
           break;
+        case 'g':
+          await parcel.runGarbageCollection();
+          break;
       }
     });
 
