@@ -5,7 +5,7 @@ import type {PackagedBundleInfo} from '@parcel/core/src/types';
 
 import fs from 'fs';
 import path from 'path';
-import v8, {deserialize} from 'v8';
+import v8, {deserializ, serialize} from 'v8';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 
@@ -199,6 +199,39 @@ export async function loadBundleInfo(requestTracker: RequestTracker): Promise<{|
   } catch (e) {
     console.log('Error loading bundleInfo\n', e);
   }
+}
+
+function timeSerialize(graph) {
+  let date = Date.now();
+  serialize(graph);
+  date = Date.now() - date;
+  return date;
+}
+
+export async function loadCacheInfo(
+  requestGraphFiles: string[],
+  bundleGraphFiles: string[],
+  assetGraphFiles: string[],
+  cache: LMDBCache,
+): Promise<{|
+  cacheInfo: ?Map<string, Array<string | number>>,
+|}> {
+  if (!requestTracker) {
+    await loadRequestTracker(requestGraphFiles, cache);
+    cacheInfo.get('RequestGraph')?.push(timeSerialize(requestTracker));
+  }
+
+  if (!bundleGraph) {
+    bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
+    cacheInfo.get('BundleGraph')?.push(timeSerialize(bundleGraph));
+  }
+
+  if (!assetGraph) {
+    assetGraph = await loadAssetGraph(assetGraphFiles, cache);
+    cacheInfo.get('AssetGraph')?.push(timeSerialize(assetGraph));
+  }
+
+  return cacheInfo;
 }
 
 export async function loadGraphs(

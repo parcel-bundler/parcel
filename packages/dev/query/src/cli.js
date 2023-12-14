@@ -19,6 +19,7 @@ import {
   loadAssetGraph,
   loadBundleGraph,
   loadBundleInfo,
+  loadCacheInfo,
   loadGraphs,
   loadRequestTracker,
 } from './index.js';
@@ -657,8 +658,14 @@ export async function run(input: string[]) {
     return entryBundleGroup;
   }
   // eslint-disable-next-line no-unused-vars
-  function inspectCache(_) {
+  async function inspectCache(_) {
     // displays sizing of various entries of the cache
+    cacheInfo = await loadCacheInfo(
+      requestGraphFiles,
+      bundleGraphFiles,
+      assetGraphFiles,
+      cache,
+    );
     let table: Array<Array<string | number>> = [];
     table.push([
       'Graphs',
@@ -666,21 +673,9 @@ export async function run(input: string[]) {
       'Deserialize (ms)',
       'Serialize (ms)',
     ]);
-    let serialized: Map<string, number> = new Map();
-    serialized.set('RequestGraph', timeSerialize(requestTracker));
-    serialized.set('BundleGraph', timeSerialize(bundleGraph));
-    serialized.set('AssetGraph', timeSerialize(assetGraph));
+
     for (let [name, info] of nullthrows(cacheInfo).entries()) {
-      if (
-        (name === 'RequestGraph' && !hasRequestTracker()) ||
-        (name === 'BundleGraph' && !hasBundleGraph()) ||
-        (name === 'AssetGraph' && !hasAssetGraph())
-      ) {
-        continue;
-      }
-      let s = serialized.get(name);
-      invariant(s != null);
-      table.push([name, ...info, s]);
+      table.push([name, ...info]);
     }
     function getColumnSum(t: Array<Array<string | number>>, col: number) {
       if (t == null) {
@@ -704,12 +699,6 @@ export async function run(input: string[]) {
     _printStatsTable('Cache Info', table);
   }
 
-  function timeSerialize(graph) {
-    let date = Date.now();
-    serialize(graph);
-    date = Date.now() - date;
-    return date;
-  }
   function _printStatsTable(header, data) {
     const config = {
       columnDefault: {
