@@ -22,22 +22,22 @@ export type SerializedAdjacencyList<TEdgeType> = {|
 
 // eslint-disable-next-line no-unused-vars
 export type AdjacencyListOptions<TEdgeType> = {|
-  /** The number of edges to accommodate. */
-  capacity?: number,
-  /** The lower bound below which capacity should be decreased. */
-  unloadFactor?: number,
+  /** The initial number of edges to accommodate. */
+  initialCapacity?: number,
   /** The max amount by which to grow the capacity. */
   maxGrowFactor?: number,
   /** The min amount by which to grow the capacity. */
   minGrowFactor?: number,
   /** The size after which to grow the capacity by the minimum factor. */
   peakCapacity?: number,
+  /** The percentage of deleted edges above which the capcity should shink. */
+  unloadFactor?: number,
   /** The amount by which to shrink the capacity. */
   shrinkFactor?: number,
 |};
 
 type AdjacencyListParams = {|
-  capacity: number,
+  initialCapacity: number,
   unloadFactor: number,
   maxGrowFactor: number,
   minGrowFactor: number,
@@ -46,7 +46,7 @@ type AdjacencyListParams = {|
 |};
 
 const DEFAULT_PARAMS: AdjacencyListParams = {
-  capacity: 2,
+  initialCapacity: 2,
   unloadFactor: 0.3,
   maxGrowFactor: 8,
   minGrowFactor: 2,
@@ -72,22 +72,22 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       ({nodes, edges} = opts);
       this.#nodes = new NodeTypeMap(nodes);
       this.#edges = new EdgeTypeMap(edges);
-      this.#params = {...DEFAULT_PARAMS, capacity: this.#edges.capacity};
+      this.#params = {...DEFAULT_PARAMS, initialCapacity: this.#edges.capacity};
     } else {
       this.#params = {...DEFAULT_PARAMS, ...opts};
 
-      let {capacity} = this.#params;
+      let {initialCapacity} = this.#params;
 
       // TODO: Find a heuristic for right-sizing nodes.
       // e.g., given an average ratio of `e` edges for every `n` nodes,
       // init nodes with `capacity * n / e`.
-      let nodeCapacity = 2;
+      let initialNodeCapacity = 2;
 
-      NodeTypeMap.assertMaxCapacity(nodeCapacity);
-      EdgeTypeMap.assertMaxCapacity(capacity);
+      NodeTypeMap.assertMaxCapacity(initialNodeCapacity);
+      EdgeTypeMap.assertMaxCapacity(initialCapacity);
 
-      this.#nodes = new NodeTypeMap(nodeCapacity);
-      this.#edges = new EdgeTypeMap(capacity);
+      this.#nodes = new NodeTypeMap(initialNodeCapacity);
+      this.#edges = new EdgeTypeMap(initialCapacity);
     }
   }
 
