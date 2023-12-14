@@ -20,53 +20,47 @@ const {
   LMDBCache,
 } = require('./deep-imports.js');
 
-export async function loadGraphs(cacheDir: string): Promise<{|
-  assetGraph: ?AssetGraph,
-  bundleGraph: ?BundleGraph,
-  requestTracker: ?RequestTracker,
-  bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
-  cacheInfo: ?Map<string, Array<string | number>>,
-|}> {
-  function filesByTypeAndModifiedTime() {
-    let files = fs.readdirSync(cacheDir);
+let cacheInfo: Map<string, Array<string | number>> = new Map();
 
-    let requestGraphFiles = [];
-    let bundleGraphFiles = [];
-    let assetGraphFiles = [];
+function filesByTypeAndModifiedTime(cacheDir: string) {
+  let files = fs.readdirSync(cacheDir);
 
-    files.forEach(f => {
-      if (f.endsWith('-0')) {
-        let stat = fs.statSync(path.join(cacheDir, f));
-        let info = [path.join(cacheDir, f), stat.size, stat.mtime];
+  let requestGraphFiles = [];
+  let bundleGraphFiles = [];
+  let assetGraphFiles = [];
 
-        if (f.endsWith('RequestGraph-0')) {
-          requestGraphFiles.push(info);
-        } else if (f.endsWith('BundleGraph-0')) {
-          bundleGraphFiles.push(info);
-        } else if (f.endsWith('AssetGraph-0')) {
-          assetGraphFiles.push(info);
-        }
+  files.forEach(f => {
+    if (f.endsWith('-0')) {
+      let stat = fs.statSync(path.join(cacheDir, f));
+      let info = [path.join(cacheDir, f), stat.size, stat.mtime];
+
+      if (f.endsWith('RequestGraph-0')) {
+        requestGraphFiles.push(info);
+      } else if (f.endsWith('BundleGraph-0')) {
+        bundleGraphFiles.push(info);
+      } else if (f.endsWith('AssetGraph-0')) {
+        assetGraphFiles.push(info);
       }
-    });
+    }
+  });
 
-    requestGraphFiles.sort(([, , aTime], [, , bTime]) => bTime - aTime);
-    bundleGraphFiles.sort(([, , aTime], [, , bTime]) => bTime - aTime);
-    assetGraphFiles.sort(([, , aTime], [, , bTime]) => bTime - aTime);
+  requestGraphFiles.sort(([, , aTime], [, , bTime]) => bTime - aTime);
+  bundleGraphFiles.sort(([, , aTime], [, , bTime]) => bTime - aTime);
+  assetGraphFiles.sort(([, , aTime], [, , bTime]) => bTime - aTime);
 
-    return {
-      requestGraphFiles: requestGraphFiles.map(([f]) => f),
-      bundleGraphFiles: bundleGraphFiles.map(([f]) => f),
-      assetGraphFiles: assetGraphFiles.map(([f]) => f),
-    };
-  }
+  return {
+    requestGraphFiles: requestGraphFiles.map(([f]) => f),
+    bundleGraphFiles: bundleGraphFiles.map(([f]) => f),
+    assetGraphFiles: assetGraphFiles.map(([f]) => f),
+  };
+}
 
-  let cacheInfo: Map<string, Array<string | number>> = new Map();
-
-  let {requestGraphFiles, bundleGraphFiles, assetGraphFiles} =
-    filesByTypeAndModifiedTime();
-  const cache = new LMDBCache(cacheDir);
-
-  // Get requestTracker
+export async function loadRequestTracker(
+  requestGraphFiles: string[],
+  cache: LMDBCache,
+): Promise<{|
+  requestTracker: ?RequestTracker,
+|}> {
   let requestTracker;
   if (requestGraphFiles.length > 0) {
     try {
@@ -90,12 +84,19 @@ export async function loadGraphs(cacheDir: string): Promise<{|
       timeToDeserialize += Date.now() - date;
       cacheInfo.set('RequestGraph', [Buffer.byteLength(file)]);
       cacheInfo.get('RequestGraph')?.push(timeToDeserialize);
+      return requestTracker;
     } catch (e) {
       console.log('Error loading Request Graph\n', e);
     }
   }
+}
 
-  // Get bundleGraph
+export async function loadBundleGraph(
+  bundleGraphFiles: string[],
+  cache: LMDBCache,
+): Promise<{|
+  bundleGraph: ?BundleGraph,
+|}> {
   let bundleGraph;
   if (bundleGraphFiles.length > 0) {
     try {
@@ -111,12 +112,19 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 
       cacheInfo.set('BundleGraph', [Buffer.byteLength(file)]);
       cacheInfo.get('BundleGraph')?.push(timeToDeserialize);
+      return bundleGraph;
     } catch (e) {
       console.log('Error loading Bundle Graph\n', e);
     }
   }
+}
 
-  // Get assetGraph
+export async function loadAssetGraph(
+  assetGraphFiles: string[],
+  cache: LMDBCache,
+): Promise<{|
+  assetGraph: ?AssetGraph,
+|}> {
   let assetGraph;
   if (assetGraphFiles.length > 0) {
     try {
@@ -132,11 +140,16 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 
       cacheInfo.set('AssetGraph', [Buffer.byteLength(file)]);
       cacheInfo.get('AssetGraph')?.push(timeToDeserialize);
+      return assetGraph;
     } catch (e) {
       console.log('Error loading Asset Graph\n', e);
     }
   }
+}
 
+export async function loadBundleInfo(requestTracker: RequestTracker): Promise<{|
+  bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
+|}> {
   function getSubRequests(id: NodeId) {
     return requestTracker.graph
       .getNodeIdsConnectedFrom(id, requestGraphEdgeTypes.subrequest)
@@ -168,10 +181,34 @@ export async function loadGraphs(cacheDir: string): Promise<{|
         ContentKey,
         PackagedBundleInfo,
       >);
+      return bundleInfo;
     }
   } catch (e) {
     console.log('Error loading bundleInfo\n', e);
   }
+}
+
+export async function loadGraphs(cacheDir: string): Promise<{|
+  assetGraph: ?AssetGraph,
+  bundleGraph: ?BundleGraph,
+  requestTracker: ?RequestTracker,
+  bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
+  cacheInfo: ?Map<string, Array<string | number>>,
+|}> {
+  let {requestGraphFiles, bundleGraphFiles, assetGraphFiles} =
+    filesByTypeAndModifiedTime(cacheDir);
+  const cache = new LMDBCache(cacheDir);
+
+  let requestTracker = loadRequestTracker(requestGraphFiles, cache);
+  let bundleGraph = loadBundleGraph(bundleGraphFiles, cache);
+  let assetGraph = loadAssetGraph(assetGraphFiles, cache);
+
+  requestTracker = await requestTracker;
+  let bundleInfo = loadBundleInfo(requestTracker);
+  bundleGraph = await bundleGraph;
+  assetGraph = await assetGraph;
+
+  bundleInfo = await bundleInfo;
 
   return {assetGraph, bundleGraph, requestTracker, bundleInfo, cacheInfo};
 }
