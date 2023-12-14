@@ -157,9 +157,12 @@ export class AssetGraphBuilder {
     this.shouldBuildLazily = shouldBuildLazily ?? false;
     this.lazyIncludes = lazyIncludes ?? [];
     this.lazyExcludes = lazyExcludes ?? [];
-    this.cacheKey = hashString(
-      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
-    );
+    this.cacheKey =
+      hashString(
+        `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${
+          options.mode
+        }`,
+      ) + '-AssetGraph';
 
     this.isSingleChangeRebuild =
       api
