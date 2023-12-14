@@ -13,7 +13,7 @@ declare module 'rimraf' {
   declare type Callback = (err: ?Error, path: ?string) => void;
 
   declare module.exports: {
-    (f: string, opts?: Options | Callback, callback?: Callback): void,
+    (f: string, opts?: Options): Promise<boolean>,
     sync(path: string, opts?: Options): void,
     ...
   };
