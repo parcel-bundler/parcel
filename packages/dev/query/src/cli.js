@@ -52,42 +52,124 @@ export async function run(input: string[]) {
   let cacheInfo: Map<string, Array<string | number>> = new Map();
 
   //let {assetGraph, bundleGraph, requestTracker, bundleInfo} = await loadGraphs(cache, requestGraphFiles, bundleGraphFiles, assetGraphFiles);
-  let bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
-  let assetGraph = await loadAssetGraph(assetGraphFiles, cache);
-  let requestTracker = await loadRequestTracker(requestGraphFiles, cache);
-  let bundleInfo = await loadBundleInfo(requestTracker);
+  // let bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
+  // let assetGraph = await loadAssetGraph(assetGraphFiles, cache);
+  // let requestTracker = await loadRequestTracker(requestGraphFiles, cache);
+  // let bundleInfo = await loadBundleInfo(requestTracker);
 
-  function hasRequestTracker() {
-    if (requestTracker == null) {
-      console.error('Request Graph could not be found');
+  let assetGraph, bundleGraph, requestTracker, bundleInfo;
+  let assetGraphLoaded = false,
+    bundleGraphLoaded = false,
+    requestTrackerLoaded = false,
+    bundleInfoLoaded = false;
+
+  async function hasRequestTracker() {
+    if (requestTracker) return true;
+
+    if (!requestTrackerLoaded) {
+      console.log('Loading request tracker');
+      requestTracker = await loadRequestTracker(requestGraphFiles, cache);
+      requestTrackerLoaded = true;
+    }
+
+    if (!requestTracker) {
+      console.error('Request tracker could not be found');
       return false;
     }
+
     return true;
   }
 
-  function hasBundleGraph() {
-    if (bundleGraph == null) {
-      console.error('Bundle Graph could not be found');
+  async function hasBundleGraph() {
+    if (bundleGraph) return true;
+
+    if (!bundleGraphLoaded) {
+      console.log('Loading bundle graph');
+      bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
+      // let timeToDeserialize, fileSize;
+      // ({bundleGraph, timeToDeserialize, fileSize}= await loadBundleGraph(bundleGraphFiles, cache));
+      // cacheInfo.get('BundleGraph')?.push(fileSize);
+      // cacheInfo.get('BundleGraph')?.push(timeToDeserialize);
+      bundleGraphLoaded = true;
+    }
+
+    if (!bundleGraph) {
+      console.error('Bundle graph could not be found');
       return false;
     }
+
     return true;
   }
 
-  function hasAssetGraph() {
-    if (assetGraph == null) {
-      console.error('Asset Graph could not be found');
+  async function hasAssetGraph() {
+    if (assetGraph) return true;
+
+    if (!assetGraphLoaded) {
+      console.log('Loading asset graph');
+      assetGraph = await loadAssetGraph(assetGraphFiles, cache);
+      assetGraphLoaded = true;
+    }
+
+    if (!assetGraph) {
+      console.error('Asset graph could not be found');
       return false;
     }
+
     return true;
   }
 
-  function hasBundleInfo() {
-    if (bundleInfo == null) {
-      console.error('Bundle Info could not be found');
+  async function hasBundleInfo() {
+    if (bundleInfo) return true;
+
+    if (!bundleInfo) {
+      console.log('Loading bundle info');
+
+      if (hasRequestTracker()) {
+        bundleInfo = await loadBundleInfo(requestTracker);
+      }
+
+      bundleInfoLoaded = true;
+    }
+
+    if (!bundleInfo) {
+      console.error('Bundle info could not be found');
       return false;
     }
+
     return true;
   }
+
+  // function hasRequestTracker() {
+  //   if (requestTracker == null) {
+  //     console.error('Request Graph could not be found');
+  //     return false;
+  //   }
+  //   return true;
+  // }
+
+  // function hasBundleGraph() {
+  //   if (bundleGraph == null) {
+  //     console.error('Bundle Graph could not be found');
+  //     return false;
+  //   }
+  //   return true;
+  // }
+
+  // function hasAssetGraph() {
+  //   if (assetGraph == null) {
+  //     console.error('Asset Graph could not be found');
+  //     return false;
+  //   }
+  //   return true;
+  // }
+
+  // function hasBundleInfo() {
+  //   if (bundleInfo == null) {
+  //     console.error('Bundle Info could not be found');
+  //     return false;
+  //   }
+  //   return true;
+  // }
 
   // -------------------------------------------------------
 
@@ -449,8 +531,8 @@ export async function run(input: string[]) {
   }
 
   // eslint-disable-next-line no-unused-vars
-  function getBundles(_) {
-    if (!hasBundleGraph()) {
+  async function getBundles(_) {
+    if (!(await hasBundleGraph())) {
       return;
     }
     invariant(bundleGraph != null);
