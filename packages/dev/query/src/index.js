@@ -145,49 +145,30 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 
   // Load graphs by finding the main subrequests and loading their results
   let bundleInfo;
-  invariant(requestTracker);
-  let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
-    'parcel_build_request',
-  );
-  let buildRequestNode = nullthrows(
-    requestTracker.graph.getNode(buildRequestId),
-  );
-  invariant(buildRequestNode.type === 1 && buildRequestNode.requestType === 1);
-  let buildRequestSubRequests = getSubRequests(buildRequestId);
+  if (requestTracker) {
+    let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
+      'parcel_build_request',
+    );
+    let buildRequestNode = nullthrows(
+      requestTracker.graph.getNode(buildRequestId),
+    );
+    invariant(
+      buildRequestNode.type === 1 && buildRequestNode.requestType === 1,
+    );
+    let buildRequestSubRequests = getSubRequests(buildRequestId);
 
-  let writeBundlesRequest = buildRequestSubRequests.find(
-    n => n.type === 1 && n.requestType === 11,
-  );
-  if (writeBundlesRequest != null) {
-    invariant(writeBundlesRequest.type === 1);
-    // $FlowFixMe[incompatible-cast]
-    bundleInfo = (nullthrows(writeBundlesRequest.result): Map<
-      ContentKey,
-      PackagedBundleInfo,
-    >);
+    let writeBundlesRequest = buildRequestSubRequests.find(
+      n => n.type === 1 && n.requestType === 11,
+    );
+    if (writeBundlesRequest != null) {
+      invariant(writeBundlesRequest.type === 1);
+      // $FlowFixMe[incompatible-cast]
+      bundleInfo = (nullthrows(writeBundlesRequest.result): Map<
+        ContentKey,
+        PackagedBundleInfo,
+      >);
+    }
   }
 
   return {assetGraph, bundleGraph, requestTracker, bundleInfo, cacheInfo};
-}
-
-async function loadLargeBlobRequestRequest(cache, node, cacheInfo) {
-  invariant(node.type === 1);
-
-  let cachedFile = await cache.getLargeBlob(nullthrows(node.resultCacheKey));
-
-  let TTD = Date.now();
-  let result = v8.deserialize(cachedFile);
-  TTD = Date.now() - TTD;
-
-  if (node.requestType === 2) {
-    cacheInfo.get('BundleGraph')?.push(cachedFile.byteLength); //Add size
-    cacheInfo.get('BundleGraph')?.push(TTD);
-  }
-
-  if (node.requestType === 3) {
-    cacheInfo.get('AssetGraph')?.push(cachedFile.byteLength);
-    cacheInfo.get('AssetGraph')?.push(TTD);
-  }
-
-  return result;
 }
