@@ -12,7 +12,7 @@ import {promisify} from 'util';
 import commandExists from 'command-exists';
 // flowlint-next-line untyped-import:off
 import _spawn from '@npmcli/promise-spawn';
-import _rimraf from 'rimraf';
+import rimraf from 'rimraf';
 import tempy from 'tempy';
 import chalk from 'chalk';
 import * as emoji from './emoji';
@@ -20,7 +20,6 @@ import * as emoji from './emoji';
 const TEMPLATES_DIR = path.resolve(__dirname, '../templates');
 
 const ncp = promisify(_ncp);
-const rimraf = promisify(_rimraf);
 // eslint-disable-next-line no-console
 const log = console.log;
 

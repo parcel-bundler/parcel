@@ -1,8 +1,8 @@
 // @flow strict-local
 /* eslint-disable no-console, monorepo/no-internal-import */
 import type {ContentGraph, ContentKey, NodeId} from '@parcel/graph';
+import type {BundleGraphEdgeType} from '@parcel/core/src/BundleGraph';
 import type {AssetGraphNode, BundleGraphNode} from '@parcel/core/src/types';
-import type {BundleGraphEdgeType} from '@parcel/core/src/BundleGraph.js';
 
 import path from 'path';
 import fs from 'fs';
@@ -11,15 +11,16 @@ import os from 'os';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import {serialize} from 'v8';
-
 // $FlowFixMe
 import {table} from 'table';
 
-import {fromProjectPathRelative} from '@parcel/core/src/projectPath';
-import {bundleGraphEdgeTypes} from '@parcel/core/src/BundleGraph.js';
-import {Priority} from '@parcel/core/src/types';
-
 import {loadGraphs} from './index.js';
+
+const {
+  BundleGraph: {bundleGraphEdgeTypes: bundleGraphEdgeTypes},
+  Priority,
+  fromProjectPathRelative,
+} = require('./deep-imports.js');
 
 export async function run(input: string[]) {
   let args = input;
@@ -41,33 +42,45 @@ export async function run(input: string[]) {
   let {assetGraph, bundleGraph, bundleInfo, requestTracker, cacheInfo} =
     await loadGraphs(cacheDir);
 
-  if (requestTracker == null) {
-    console.error('Request Graph could not be found');
-    process.exit(1);
-    throw new Error();
+  function hasRequestTracker() {
+    if (requestTracker == null) {
+      console.error('Request Graph could not be found');
+      return false;
+    }
+    return true;
   }
 
-  if (bundleGraph == null) {
-    console.error('Bundle Graph could not be found');
-    process.exit(1);
-    throw new Error();
+  function hasBundleGraph() {
+    if (bundleGraph == null) {
+      console.error('Bundle Graph could not be found');
+      return false;
+    }
+    return true;
   }
 
-  if (assetGraph == null) {
-    console.error('Asset Graph could not be found');
-    process.exit(1);
-    throw new Error();
+  function hasAssetGraph() {
+    if (assetGraph == null) {
+      console.error('Asset Graph could not be found');
+      return false;
+    }
+    return true;
   }
 
-  if (bundleInfo == null) {
-    console.error('Bundle Info could not be found');
-    process.exit(1);
-    throw new Error();
+  function hasBundleInfo() {
+    if (bundleInfo == null) {
+      console.error('Bundle Info could not be found');
+      return false;
+    }
+    return true;
   }
 
   // -------------------------------------------------------
 
   function getBundleFilePath(id: ContentKey) {
+    if (!hasBundleInfo()) {
+      return;
+    }
+    invariant(bundleInfo != null);
     return fromProjectPathRelative(nullthrows(bundleInfo.get(id)?.filePath));
   }
 
@@ -76,6 +89,10 @@ export async function run(input: string[]) {
     if (v.length === 16) {
       id = v;
     } else {
+      if (!hasBundleGraph()) {
+        return;
+      }
+      invariant(bundleGraph != null);
       for (let [assetId, publicId] of bundleGraph._publicIdByAssetId) {
         if (publicId === v) {
           id = assetId;
@@ -85,6 +102,10 @@ export async function run(input: string[]) {
     }
 
     if (id == null && v.length > 0) {
+      if (!hasAssetGraph()) {
+        return;
+      }
+      invariant(assetGraph != null);
       let assetRegex = new RegExp(v);
       for (let node of assetGraph.nodes.values()) {
         if (
@@ -100,9 +121,17 @@ export async function run(input: string[]) {
   }
 
   function parseBundleLocator(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let bundleRegex = new RegExp(v);
     for (let b of bundleGraph.getBundles()) {
-      if (bundleRegex.test(getBundleFilePath(b.id)) || b.id === v) {
+      let bundleFilePath = getBundleFilePath(b.id);
+      if (
+        (bundleFilePath !== undefined && bundleRegex.test(bundleFilePath)) ||
+        b.id === v
+      ) {
         return b.id;
       }
     }
@@ -115,10 +144,18 @@ export async function run(input: string[]) {
       console.log(null);
     } else {
       try {
+        if (!hasBundleGraph()) {
+          return;
+        }
+        invariant(bundleGraph != null);
         let asset = bundleGraph.getAssetById(id);
         console.log('Public id', bundleGraph.getAssetPublicId(asset));
         console.log(asset);
       } catch (e) {
+        if (!hasAssetGraph()) {
+          return;
+        }
+        invariant(assetGraph != null);
         let node = nullthrows(assetGraph.getNodeByContentKey(id));
         invariant(node.type === 'asset');
         console.log(node.value);
@@ -127,6 +164,10 @@ export async function run(input: string[]) {
   }
 
   function _findAssetNode(v: string) {
+    if (!hasAssetGraph()) {
+      return;
+    }
+    invariant(assetGraph != null);
     let assetRegex = new RegExp(v);
     for (let node of assetGraph.nodes.values()) {
       if (
@@ -142,6 +183,10 @@ export async function run(input: string[]) {
     let node = _findAssetNode(v);
     if (node) {
       try {
+        if (!hasBundleGraph()) {
+          return;
+        }
+        invariant(bundleGraph != null);
         console.log(
           `${bundleGraph.getAssetPublicId(
             bundleGraph.getAssetById(node.id),
@@ -154,6 +199,11 @@ export async function run(input: string[]) {
   }
 
   function findAssetWithSymbol(local: string) {
+    if (!hasBundleGraph() || !hasAssetGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
+    invariant(assetGraph != null);
     let [, assetId, binding, ref] = nullthrows(
       local.match(/^\$([^$]+)\$([^$]+)\$(.*)$/),
       `symbol ${local} could not be resolved`,
@@ -237,9 +287,17 @@ export async function run(input: string[]) {
   }
 
   function getNodeAssetGraph(v: string) {
+    if (!hasAssetGraph()) {
+      return;
+    }
+    invariant(assetGraph != null);
     console.log(assetGraph.getNodeByContentKey(v));
   }
   function getNodeBundleGraph(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     console.log(bundleGraph._graph.getNodeByContentKey(v));
   }
 
@@ -318,9 +376,17 @@ export async function run(input: string[]) {
   }
 
   function findEntriesAssetGraph(v: string) {
+    if (!hasAssetGraph()) {
+      return;
+    }
+    invariant(assetGraph != null);
     _findEntries(assetGraph, v);
   }
   function findEntriesBundleGraph(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     _findEntries(bundleGraph._graph, v);
   }
   function findEntries(v: string) {
@@ -328,44 +394,68 @@ export async function run(input: string[]) {
   }
 
   function getBundlesWithAsset(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let asset = nullthrows(parseAssetLocator(v), 'Asset not found');
-
     for (let b of bundleGraph.getBundlesWithAsset(
       bundleGraph.getAssetById(asset),
     )) {
-      console.log(
-        `${b.id} ${getBundleFilePath(b.id)} ${
-          b.mainEntryId != null ? `(main: ${b.mainEntryId})` : ''
-        }`,
-      );
+      let bundleFilePath = getBundleFilePath(b.id);
+      if (bundleFilePath !== undefined) {
+        console.log(
+          `${b.id} ${bundleFilePath} ${
+            b.mainEntryId != null ? `(main: ${b.mainEntryId})` : ''
+          }`,
+        );
+      }
     }
   }
 
   function getBundlesWithDependency(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let node = nullthrows(bundleGraph._graph.getNodeByContentKey(v));
     invariant(node.type === 'dependency');
 
     for (let b of bundleGraph.getBundlesWithDependency(node.value)) {
-      console.log(
-        `${b.id} ${getBundleFilePath(b.id)} ${
-          b.mainEntryId != null ? `(main: ${b.mainEntryId})` : ''
-        }`,
-      );
+      let bundleFilePath = getBundleFilePath(b.id);
+      if (bundleFilePath !== undefined) {
+        console.log(
+          `${b.id} ${bundleFilePath} ${
+            b.mainEntryId != null ? `(main: ${b.mainEntryId})` : ''
+          }`,
+        );
+      }
     }
   }
 
   // eslint-disable-next-line no-unused-vars
   function getBundles(_) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     for (let b of bundleGraph.getBundles()) {
-      console.log(
-        `${b.id} ${getBundleFilePath(b.id)} ${
-          b.mainEntryId != null ? `(main: ${b.mainEntryId})` : ''
-        }`,
-      );
+      let bundleFilePath = getBundleFilePath(b.id);
+      if (bundleFilePath !== undefined) {
+        console.log(
+          `${b.id} ${bundleFilePath} ${
+            b.mainEntryId != null ? `(main: ${b.mainEntryId})` : ''
+          }`,
+        );
+      }
     }
   }
 
   function getReferencingBundles(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let bundleId = nullthrows(parseBundleLocator(v), 'Bundle not found');
     let bundleNodeId = bundleGraph._graph.getNodeIdByContentKey(bundleId);
     let bundleNode = nullthrows(
@@ -375,15 +465,22 @@ export async function run(input: string[]) {
     invariant(bundleNode.type === 'bundle', 'Not a bundle');
 
     for (let b of bundleGraph.getReferencingBundles(bundleNode.value)) {
-      console.log(
-        `${b.id} ${getBundleFilePath(b.id)} ${
-          b.mainEntryId != null ? `(main: ${b.mainEntryId})` : ''
-        }`,
-      );
+      let bundleFilePath = getBundleFilePath(b.id);
+      if (bundleFilePath !== undefined) {
+        console.log(
+          `${b.id} ${bundleFilePath} ${
+            b.mainEntryId != null ? `(main: ${b.mainEntryId})` : ''
+          }`,
+        );
+      }
     }
   }
 
   function getIncomingDependenciesAssetGraph(v: string) {
+    if (!hasAssetGraph()) {
+      return;
+    }
+    invariant(assetGraph != null);
     let asset = nullthrows(parseAssetLocator(v), 'Asset not found');
     let node = nullthrows(assetGraph.getNodeByContentKey(asset));
     invariant(node.type === 'asset');
@@ -391,6 +488,10 @@ export async function run(input: string[]) {
     console.log(assetGraph.getIncomingDependencies(node.value));
   }
   function getIncomingDependenciesBundleGraph(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let asset = nullthrows(parseAssetLocator(v), 'Asset not found');
     let value = nullthrows(bundleGraph.getAssetById(asset));
 
@@ -402,6 +503,10 @@ export async function run(input: string[]) {
   }
 
   function getResolvedAsset(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let node = nullthrows(
       bundleGraph._graph.getNodeByContentKey(v),
       'Dependency not found',
@@ -414,6 +519,10 @@ export async function run(input: string[]) {
   }
 
   function getAssetWithDependency(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let node = nullthrows(
       bundleGraph._graph.getNodeByContentKey(v),
       'Dependency not found',
@@ -426,6 +535,10 @@ export async function run(input: string[]) {
   }
 
   function traverseAssets(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let bundleId = nullthrows(parseBundleLocator(v), 'Bundle not found');
     let node = nullthrows(
       bundleGraph._graph.getNodeByContentKey(bundleId),
@@ -441,6 +554,10 @@ export async function run(input: string[]) {
     });
   }
   function traverseBundle(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let bundleId = nullthrows(parseBundleLocator(v), 'Bundle not found');
     let node = nullthrows(
       bundleGraph._graph.getNodeByContentKey(bundleId),
@@ -470,15 +587,27 @@ export async function run(input: string[]) {
   }
 
   function getBundle(v: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let bundleRegex = new RegExp(v);
     for (let b of bundleGraph.getBundles()) {
-      if (bundleRegex.test(getBundleFilePath(b.id)) || b.id === v) {
+      let bundleFilePath = getBundleFilePath(b.id);
+      if (
+        (bundleFilePath !== undefined && bundleRegex.test(bundleFilePath)) ||
+        b.id === v
+      ) {
         console.log(getBundleFilePath(b.id), b);
       }
     }
   }
 
   function findBundleReason(bundle: string, asset: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let bundleId = nullthrows(parseBundleLocator(bundle), 'Bundle not found');
     let bundleNodeId = bundleGraph._graph.getNodeIdByContentKey(bundleId);
     let bundleNode = nullthrows(
@@ -552,6 +681,10 @@ export async function run(input: string[]) {
   }
 
   function _getIncomingNodeOfType(bundleGraph, node, type: string) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(node.id);
     return bundleGraph._graph
       .getNodeIdsConnectedTo(bundleGraphNodeId, -1)
@@ -563,6 +696,10 @@ export async function run(input: string[]) {
   // If a Bundle does not have an incoming dependency, we look for an incoming BundleGroup and its dependency
   // e.g. Dep(priority = 1) -> BundleGroup -> Bundle means that the Bundle has priority 1.
   function _getBundlePriority(bundleGraph, bundle) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let node = _getIncomingNodeOfType(bundleGraph, bundle, 'dependency');
 
     if (node == null) {
@@ -579,6 +716,10 @@ export async function run(input: string[]) {
   }
 
   function _findEntryBundle(bundleGraph, node) {
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     const bundleGraphNodeId = bundleGraph._graph.getNodeIdByContentKey(node.id);
     const entryBundleGroup = bundleGraph._graph
       .getNodeIdsConnectedTo(bundleGraphNodeId, -1)
@@ -603,13 +744,19 @@ export async function run(input: string[]) {
     ]);
     let serialized: Map<string, number> = new Map();
     serialized.set('RequestGraph', timeSerialize(requestTracker));
-    serialized.set('bundle_graph_request', timeSerialize(bundleGraph));
-    serialized.set('asset_graph_request', timeSerialize(assetGraph));
-    for (let [k, v] of nullthrows(cacheInfo).entries()) {
-      let s = serialized.get(k);
+    serialized.set('BundleGraph', timeSerialize(bundleGraph));
+    serialized.set('AssetGraph', timeSerialize(assetGraph));
+    for (let [name, info] of nullthrows(cacheInfo).entries()) {
+      if (
+        (name === 'RequestGraph' && !hasRequestTracker()) ||
+        (name === 'BundleGraph' && !hasBundleGraph()) ||
+        (name === 'AssetGraph' && !hasAssetGraph())
+      ) {
+        continue;
+      }
+      let s = serialized.get(name);
       invariant(s != null);
-      let name = k.includes('_request') ? k.split('_request')[0] : k;
-      table.push([name, ...v, s]);
+      table.push([name, ...info, s]);
     }
     function getColumnSum(t: Array<Array<string | number>>, col: number) {
       if (t == null) {
@@ -661,13 +808,21 @@ export async function run(input: string[]) {
       asset_group: 0,
     };
 
-    for (let n of assetGraph.nodes) {
-      if (n && n.type in ag) {
-        // $FlowFixMe
-        ag[n.type]++;
+    if (hasAssetGraph()) {
+      invariant(assetGraph != null);
+      for (let n of assetGraph.nodes) {
+        if (n && n.type in ag) {
+          // $FlowFixMe
+          ag[n.type]++;
+        }
       }
+      _printStatsTable('# Asset Graph Node Counts', Object.entries(ag));
     }
 
+    if (!hasBundleGraph()) {
+      return;
+    }
+    invariant(bundleGraph != null);
     let bg = {
       dependency: 0,
       bundle: 0,
@@ -731,7 +886,6 @@ export async function run(input: string[]) {
       }
     }
 
-    _printStatsTable('# Asset Graph Node Counts', Object.entries(ag));
     _printStatsTable('# Bundle Graph Node Counts', Object.entries(bg));
     _printStatsTable('# Bundles By Type', Object.entries(b_type));
     _printStatsTable('# Bundles By Extension', Object.entries(b_ext));
