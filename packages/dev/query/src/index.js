@@ -146,6 +146,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   // Load graphs by finding the main subrequests and loading their results
   let bundleInfo;
   try {
+    invariant(requestTracker);
     let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
       'parcel_build_request',
     );
