@@ -91,7 +91,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
       cacheInfo.set('RequestGraph', [Buffer.byteLength(file)]);
       cacheInfo.get('RequestGraph')?.push(timeToDeserialize);
     } catch (e) {
-      console.log('Issue with identifying Request Graph');
+      console.log('Error loading Request Graph\n', e);
     }
   }
 
@@ -112,7 +112,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
       cacheInfo.set('BundleGraph', [Buffer.byteLength(file)]);
       cacheInfo.get('BundleGraph')?.push(timeToDeserialize);
     } catch (e) {
-      console.log('Issue with identifying Bundle Graph');
+      console.log('Error loading Bundle Graph\n', e);
     }
   }
 
@@ -133,7 +133,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
       cacheInfo.set('AssetGraph', [Buffer.byteLength(file)]);
       cacheInfo.get('AssetGraph')?.push(timeToDeserialize);
     } catch (e) {
-      console.log('Issue with identifying Asset Graph');
+      console.log('Error loading Asset Graph\n', e);
     }
   }
 
@@ -145,7 +145,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 
   // Load graphs by finding the main subrequests and loading their results
   let bundleInfo;
-  if (requestTracker) {
+  try {
     let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
       'parcel_build_request',
     );
@@ -168,6 +168,8 @@ export async function loadGraphs(cacheDir: string): Promise<{|
         PackagedBundleInfo,
       >);
     }
+  } catch (e) {
+    console.log('Error loading bundleInfo\n', e);
   }
 
   return {assetGraph, bundleGraph, requestTracker, bundleInfo, cacheInfo};
