@@ -35,7 +35,7 @@
     "vscode-languageserver-textdocument": "^1.0.0"
   },
   "devDependencies": {
-    "@types/node": "^15.12.4",
+    "@types/node": ">= 18",
     "@typescript-eslint/eslint-plugin": "^4.14.1",
     "@typescript-eslint/parser": "^4.14.1",
     "eslint": "^7.19.0",

@@ -8,17 +8,16 @@ import path from 'path';
 import v8 from 'v8';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
-import {LMDBCache} from '@parcel/cache/src/LMDBCache';
-import {requestTypes} from '@parcel/core/src/RequestTracker.js';
 
 const {
   AssetGraph,
-  BundleGraph,
+  BundleGraph: {default: BundleGraph},
   RequestTracker: {
     default: RequestTracker,
     RequestGraph,
     requestGraphEdgeTypes,
   },
+  LMDBCache,
 } = require('./deep-imports.js');
 
 export async function loadGraphs(cacheDir: string): Promise<{|
@@ -47,7 +46,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   const cache = new LMDBCache(cacheDir);
   for (let f of filesBySizeAndModifiedTime()) {
     // Empty filename or not the first chunk
-    if (path.extname(f) !== '' && !f.endsWith('-0')) continue;
+    if (path.extname(f) !== '' || !f.endsWith('-0')) continue;
     try {
       let file = await cache.getLargeBlob(
         path.basename(f).slice(0, -'-0'.length),
@@ -89,8 +88,8 @@ export async function loadGraphs(cacheDir: string): Promise<{|
 
   // Load graphs by finding the main subrequests and loading their results
   let assetGraph, bundleGraph, bundleInfo;
-  cacheInfo.set('bundle_graph_request', []);
-  cacheInfo.set('asset_graph_request', []);
+  cacheInfo.set('BundleGraph', []);
+  cacheInfo.set('AssetGraph', []);
   invariant(requestTracker);
   let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
     'parcel_build_request',
@@ -145,12 +144,20 @@ async function loadLargeBlobRequestRequest(cache, node, cacheInfo) {
   invariant(node.type === 1);
 
   let cachedFile = await cache.getLargeBlob(nullthrows(node.resultCacheKey));
-  cacheInfo.get(requestTypes[node.requestType])?.push(cachedFile.byteLength); //Add size
 
   let TTD = Date.now();
   let result = v8.deserialize(cachedFile);
   TTD = Date.now() - TTD;
-  cacheInfo.get(requestTypes[node.requestType])?.push(TTD);
+
+  if (node.requestType === 2) {
+    cacheInfo.get('BundleGraph')?.push(cachedFile.byteLength); //Add size
+    cacheInfo.get('BundleGraph')?.push(TTD);
+  }
+
+  if (node.requestType === 3) {
+    cacheInfo.get('AssetGraph')?.push(cachedFile.byteLength);
+    cacheInfo.get('AssetGraph')?.push(TTD);
+  }
 
   return result;
 }
