@@ -91,7 +91,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
       cacheInfo.set('RequestGraph', [Buffer.byteLength(file)]);
       cacheInfo.get('RequestGraph')?.push(timeToDeserialize);
     } catch (e) {
-      throw new Error('Issue with identifying Request Graph');
+      console.log('Issue with identifying Request Graph');
     }
   }
 
@@ -112,7 +112,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
       cacheInfo.set('BundleGraph', [Buffer.byteLength(file)]);
       cacheInfo.get('BundleGraph')?.push(timeToDeserialize);
     } catch (e) {
-      throw new Error('Issue with identifying Bundle Graph');
+      console.log('Issue with identifying Bundle Graph');
     }
   }
 
@@ -133,7 +133,7 @@ export async function loadGraphs(cacheDir: string): Promise<{|
       cacheInfo.set('AssetGraph', [Buffer.byteLength(file)]);
       cacheInfo.get('AssetGraph')?.push(timeToDeserialize);
     } catch (e) {
-      throw new Error('Issue with identifying Asset Graph');
+      console.log('Issue with identifying Asset Graph');
     }
   }
 
