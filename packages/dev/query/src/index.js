@@ -95,6 +95,27 @@ export async function loadGraphs(cacheDir: string): Promise<{|
     }
   }
 
+  // Get assetGraph
+  let assetGraph;
+  if (assetGraphFiles.length > 0) {
+    try {
+      let file = await cache.getLargeBlob(
+        path.basename(assetGraphFiles[0]).slice(0, -'-0'.length),
+      );
+
+      let timeToDeserialize = Date.now();
+      let obj = v8.deserialize(file);
+      invariant(obj.assetGraph != null);
+      assetGraph = AssetGraph.deserialize(obj.assetGraph.value);
+      timeToDeserialize = Date.now() - timeToDeserialize;
+
+      cacheInfo.set('AssetGraph', [Buffer.byteLength(file)]);
+      cacheInfo.get('AssetGraph')?.push(timeToDeserialize);
+    } catch (e) {
+      throw new Error('Issue with identifying Asset Graph');
+    }
+  }
+
   function getSubRequests(id: NodeId) {
     return requestTracker.graph
       .getNodeIdsConnectedFrom(id, requestGraphEdgeTypes.subrequest)
@@ -102,9 +123,8 @@ export async function loadGraphs(cacheDir: string): Promise<{|
   }
 
   // Load graphs by finding the main subrequests and loading their results
-  let assetGraph, bundleGraph, bundleInfo;
+  let bundleGraph, bundleInfo;
   cacheInfo.set('BundleGraph', []);
-  cacheInfo.set('AssetGraph', []);
   invariant(requestTracker);
   let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
     'parcel_build_request',
@@ -128,16 +148,6 @@ export async function loadGraphs(cacheDir: string): Promise<{|
         )
       ).bundleGraph.value,
     );
-
-    let assetGraphRequest = getSubRequests(
-      requestTracker.graph.getNodeIdByContentKey(bundleGraphRequestNode.id),
-    ).find(n => n.type === 1 && n.requestType === 3);
-    if (assetGraphRequest != null) {
-      assetGraph = AssetGraph.deserialize(
-        (await loadLargeBlobRequestRequest(cache, assetGraphRequest, cacheInfo))
-          .assetGraph.value,
-      );
-    }
   }
 
   let writeBundlesRequest = buildRequestSubRequests.find(
