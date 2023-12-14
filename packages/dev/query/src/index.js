@@ -5,7 +5,7 @@ import type {PackagedBundleInfo} from '@parcel/core/src/types';
 
 import fs from 'fs';
 import path from 'path';
-import v8 from 'v8';
+import v8, {deserialize} from 'v8';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 
@@ -22,7 +22,7 @@ const {
 
 let cacheInfo: Map<string, Array<string | number>> = new Map();
 
-function filesByTypeAndModifiedTime(cacheDir: string) {
+export function filesByTypeAndModifiedTime(cacheDir: string) {
   let files = fs.readdirSync(cacheDir);
 
   let requestGraphFiles = [];
@@ -188,17 +188,18 @@ export async function loadBundleInfo(requestTracker: RequestTracker): Promise<{|
   }
 }
 
-export async function loadGraphs(cacheDir: string): Promise<{|
+export async function loadGraphs(
+  cache: LMDBCache,
+  requestGraphFiles: string[],
+  bundleGraphFiles: string[],
+  assetGraphFiles: string[],
+): Promise<{|
   assetGraph: ?AssetGraph,
   bundleGraph: ?BundleGraph,
   requestTracker: ?RequestTracker,
   bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
   cacheInfo: ?Map<string, Array<string | number>>,
 |}> {
-  let {requestGraphFiles, bundleGraphFiles, assetGraphFiles} =
-    filesByTypeAndModifiedTime(cacheDir);
-  const cache = new LMDBCache(cacheDir);
-
   let requestTracker = loadRequestTracker(requestGraphFiles, cache);
   let bundleGraph = loadBundleGraph(bundleGraphFiles, cache);
   let assetGraph = loadAssetGraph(assetGraphFiles, cache);

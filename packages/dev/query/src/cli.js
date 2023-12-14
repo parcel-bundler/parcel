@@ -14,12 +14,20 @@ import {serialize} from 'v8';
 // $FlowFixMe
 import {table} from 'table';
 
-import {loadGraphs} from './index.js';
+import {
+  filesByTypeAndModifiedTime,
+  loadAssetGraph,
+  loadBundleGraph,
+  loadBundleInfo,
+  loadGraphs,
+  loadRequestTracker,
+} from './index.js';
 
 const {
   BundleGraph: {bundleGraphEdgeTypes: bundleGraphEdgeTypes},
   Priority,
   fromProjectPathRelative,
+  LMDBCache,
 } = require('./deep-imports.js');
 
 export async function run(input: string[]) {
@@ -38,9 +46,16 @@ export async function run(input: string[]) {
     process.exit(1);
   }
 
-  console.log('Loading graphs...');
-  let {assetGraph, bundleGraph, bundleInfo, requestTracker, cacheInfo} =
-    await loadGraphs(cacheDir);
+  const cache = new LMDBCache(cacheDir);
+  let {requestGraphFiles, bundleGraphFiles, assetGraphFiles} =
+    filesByTypeAndModifiedTime(cacheDir);
+  let cacheInfo: Map<string, Array<string | number>> = new Map();
+
+  //let {assetGraph, bundleGraph, requestTracker, bundleInfo} = await loadGraphs(cache, requestGraphFiles, bundleGraphFiles, assetGraphFiles);
+  let bundleGraph = await loadBundleGraph(bundleGraphFiles, cache);
+  let assetGraph = await loadAssetGraph(assetGraphFiles, cache);
+  let requestTracker = await loadRequestTracker(requestGraphFiles, cache);
+  let bundleInfo = await loadBundleInfo(requestTracker);
 
   function hasRequestTracker() {
     if (requestTracker == null) {
