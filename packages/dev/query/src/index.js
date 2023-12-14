@@ -1,5 +1,5 @@
 // @flow strict-local
-/* eslint-disable monorepo/no-internal-import */
+/* eslint-disable no-console monorepo/no-internal-import */
 import type {ContentKey, NodeId} from '@parcel/graph';
 import type {PackagedBundleInfo} from '@parcel/core/src/types';
 
