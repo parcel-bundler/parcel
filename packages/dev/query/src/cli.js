@@ -915,8 +915,10 @@ export async function run(input: string[]) {
   // -------------------------------------------------------
 
   if (initialCmd != null) {
-    eval(initialCmd);
-    process.exit(0);
+    (async () => {
+      await eval(initialCmd);
+      process.exit(0);
+    })();
   } else {
     console.log(
       'See .help. The graphs can be accessed via `assetGraph`, `bundleGraph` and `requestTracker`.',
