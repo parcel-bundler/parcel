@@ -20,6 +20,7 @@ const {
   LMDBCache,
 } = require('./deep-imports.js');
 
+let assetGraph, bundleGraph, requestTracker, bundleInfo;
 let cacheInfo: Map<string, Array<string | number>> = new Map();
 
 export function filesByTypeAndModifiedTime(cacheDir: string) {
@@ -61,7 +62,10 @@ export async function loadRequestTracker(
 ): Promise<{|
   requestTracker: ?RequestTracker,
 |}> {
-  let requestTracker;
+  if (requestTracker) {
+    return requestTracker;
+  }
+
   if (requestGraphFiles.length > 0) {
     try {
       let file = await cache.getLargeBlob(
@@ -97,7 +101,10 @@ export async function loadBundleGraph(
 ): Promise<{|
   bundleGraph: ?BundleGraph,
 |}> {
-  let bundleGraph;
+  if (bundleGraph) {
+    return bundleGraph;
+  }
+
   if (bundleGraphFiles.length > 0) {
     try {
       let file = await cache.getLargeBlob(
@@ -125,7 +132,10 @@ export async function loadAssetGraph(
 ): Promise<{|
   assetGraph: ?AssetGraph,
 |}> {
-  let assetGraph;
+  if (assetGraph) {
+    return assetGraph;
+  }
+
   if (assetGraphFiles.length > 0) {
     try {
       let file = await cache.getLargeBlob(
@@ -156,8 +166,11 @@ export async function loadBundleInfo(requestTracker: RequestTracker): Promise<{|
       .map(n => nullthrows(requestTracker.graph.getNode(n)));
   }
 
+  if (bundleInfo) {
+    return bundleInfo;
+  }
+
   // Load graphs by finding the main subrequests and loading their results
-  let bundleInfo;
   try {
     invariant(requestTracker);
     let buildRequestId = requestTracker.graph.getNodeIdByContentKey(
@@ -200,12 +213,12 @@ export async function loadGraphs(
   bundleInfo: ?Map<ContentKey, PackagedBundleInfo>,
   cacheInfo: ?Map<string, Array<string | number>>,
 |}> {
-  let requestTracker = loadRequestTracker(requestGraphFiles, cache);
-  let bundleGraph = loadBundleGraph(bundleGraphFiles, cache);
-  let assetGraph = loadAssetGraph(assetGraphFiles, cache);
+  requestTracker = loadRequestTracker(requestGraphFiles, cache);
+  bundleGraph = loadBundleGraph(bundleGraphFiles, cache);
+  assetGraph = loadAssetGraph(assetGraphFiles, cache);
 
   requestTracker = await requestTracker;
-  let bundleInfo = loadBundleInfo(requestTracker);
+  bundleInfo = loadBundleInfo(requestTracker);
   bundleGraph = await bundleGraph;
   assetGraph = await assetGraph;
 
