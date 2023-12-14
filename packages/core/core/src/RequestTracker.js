@@ -1176,7 +1176,9 @@ export default class RequestTracker {
         resultCacheKey != null &&
         node?.result != null
       ) {
-        queue.add(() => serialiseAndSet(resultCacheKey, node.result));
+        queue
+          .add(() => serialiseAndSet(resultCacheKey, node.result))
+          .catch(() => {});
         // eslint-disable-next-line no-unused-vars
         const {result: _, ...newNode} = node;
         cacheableNodes[i] = newNode;
@@ -1186,27 +1188,36 @@ export default class RequestTracker {
     }
 
     for (let i = 0; i * NODES_PER_BLOB < cacheableNodes.length; i += 1) {
-      queue.add(() =>
-        serialiseAndSet(
-          `requestGraph-nodes-${i}-${hashString(cacheKey)}`,
-          cacheableNodes.slice(i * NODES_PER_BLOB, (i + 1) * NODES_PER_BLOB),
-        ),
-      );
+      queue
+        .add(() =>
+          serialiseAndSet(
+            `requestGraph-nodes-${i}-${hashString(cacheKey)}`,
+            cacheableNodes.slice(i * NODES_PER_BLOB, (i + 1) * NODES_PER_BLOB),
+          ),
+        )
+        .catch(() => {});
     }
 
-    queue.add(() =>
-      serialiseAndSet(requestGraphKey, {...serialisedGraph, nodes: undefined}),
-    );
+    queue
+      .add(() =>
+        serialiseAndSet(requestGraphKey, {
+          ...serialisedGraph,
+          nodes: undefined,
+        }),
+      )
+      .catch(() => {});
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
-    queue.add(() =>
-      this.options.inputFS.writeSnapshot(
-        this.options.projectRoot,
-        snapshotPath,
-        opts,
-      ),
-    );
+    queue
+      .add(() =>
+        this.options.inputFS.writeSnapshot(
+          this.options.projectRoot,
+          snapshotPath,
+          opts,
+        ),
+      )
+      .catch(() => {});
 
     await queue.run();
 

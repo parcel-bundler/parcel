@@ -191,7 +191,7 @@ describe('RequestTracker', () => {
     const abortController = new AbortController();
     abortController.abort();
 
-    // $FlowFixMe[prop-missing] Rejects is missing on
+    // $FlowFixMe[prop-missing] Rejects is missing on assert type
     await assert.rejects(tracker.writeToCache(abortController.signal));
   });
 
