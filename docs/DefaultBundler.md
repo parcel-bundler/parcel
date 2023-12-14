@@ -14,17 +14,19 @@ await bundler.bundle({
 
 ### Targets
 
-Targets are specified in the `package.json`. Read more about targets [here](https://parceljs.org/features/targets). For the bundler, this means that the final graph output must be completely disjoint between targets, because those bundles will be separately packaged. Shared bundles cannot exist between separate targets. To remedy this constraint, we create a target map, representing targets mapped to entry assets.
+Targets are specified in the `package.json`. Read more about targets [here](https://parceljs.org/features/targets). For the bundler, this means that the final graph output must be completely disjoint between targets, because those bundles will be separately packaged. Shared bundles cannot exist between separate targets. To remedy this constraint, we create a target map, representing targets mapped to entry assets and what dependencies are part of that target.
 
-` EntrysBytargets: Map<string, Asset>`
+```js
+targetMap: DefaultMap<string, Map<Asset, Dependency>>
+```
 
-We create one IdealGraph per target, but mutations are applied to the same mutableBundleGraph. This ensures that we can return a singular bundleGraph, but generate bundles that **only** reference assets available to them within that target. See "targets" example in [BundlerExamples](./BundlerExamples.md)
+We create one IdealGraph per target, but mutations are applied to the same mutableBundleGraph. This ensures that we can return a singular bundleGraph, but generate bundles that **only** reference assets available to them within that target. See "targets" example in [Bundler Examples](./BundlerExamples.md)
 
 # Default Bundler Plugin
 
 The goal of the bundler is to mutate the Assetgraph into a BundleGraph by adding bundles and edges. These bundles can be thought of as groupings of assets, which will be executed together in the browser at runtime. The bundler ensures two things, correct temporal order of assets, and optimizing bundles to favor less duplication.
 
-The DefaultBundler can be divided into two main parts, `CreateIdealGraph` and `decorate()`. In order write the bundling algorithm in distinct, disjoint steps, we defer mutating the AssetGraph to a step called `decorate()`. The bulk of the algorithm is executed on a localized, smaller _IdealGraph_ that only represents bundles, and a few other supplementary structures ultimately passed to decorate as an `IdealGraph` object, containing our local representation of the bundleGraph.
+The DefaultBundler can be divided into two main parts, `CreateIdealGraph` and `decorate()`. In order to write the bundling algorithm in distinct, disjoint steps, we defer mutating the AssetGraph to a step called `decorate()`. The bulk of the algorithm is executed on a localized, smaller _IdealGraph_ that only represents bundles, and a few other supplementary structures ultimately passed to decorate as an `IdealGraph` object, containing our local representation of the bundleGraph.
 
 ```
   type IdealGraph = {|
@@ -37,7 +39,7 @@ The DefaultBundler can be divided into two main parts, `CreateIdealGraph` and `d
   |};
 ```
 
-Note: Within `createIdealGraph()`, the local IdealGraph is refered to simply as the bundleGraph, while the `mutableBundleGraph` passed in, is referred to as assetGraph. This is because we don't actually add bundles to the `mutableBundleGraph` until decorate. Until that point it is just as assetgraph.
+Note: Within `createIdealGraph()`, the local IdealGraph is referred to simply as the bundleGraph, while the `mutableBundleGraph` passed in, is referred to as assetGraph. This is because we don't actually add bundles to the `mutableBundleGraph` until `decorate()`. Until that point it is just an assetgraph.
 
 ## Step: Create Entries
 
@@ -178,7 +180,7 @@ Internalization is when some asset requires an asset synchronously, but also asy
 
 Here, we place assets into bundles since they require them synchronously, or by other means (like entries need all their assets within their bundle). If an asset is “reachable” from many bundles, we can extract it into a shared bundle.
 
-You may think of reachable as all the bundles that still need an asset by some means. We filter it down to ensure we only place assets where they need to be. Any bundle that contains the asset in question in it’s ancestorAssets is filtered out, & entries are filtered out.
+You may think of reachable as all the bundles that still need an asset by some means. We filter it down to ensure we only place assets where they need to be. Any bundle that contains the asset in question in its ancestorAssets is filtered out, & entries are filtered out.
 
 ### Reused Bundles
 
@@ -194,7 +196,7 @@ Manual Bundles: TODO
 
 Users of Parcel can specify a bundler config, which sets minbundleSize, maxParallelRequests, and minBundles. In this step we merge back and shared bundles that are smaller than minBundleSize.
 
-This config option only affect shared bundles.
+These config options only affect shared bundles.
 
 ## Step: Remove Shared Bundles
 
@@ -202,9 +204,9 @@ Finally, we remove shared bundles to abide by maxParallelRequests. maxParallelRe
 
 One difference between the default and experimental bundler is here, where we also merge back “reused” bundles. Unlike shared bundles, reused bundles may have children, so we must update the graph accordingly. Below is an example graph from shared-bundle-reused-bundle-remove-reuse/index.js
 
-# BundleGraph Decoratation
+# BundleGraph Decoration
 
-BundleGraph decoration takes ideal graph and mutates the passed-in assetGraph aka Mutable bundleGraph, in order to back port our idealGraph to what Parcel expects.
+BundleGraph decoration takes an idealGraph and mutates the passed-in assetGraph aka Mutable bundleGraph, in order to back port our idealGraph to what Parcel expects.
 
 ## Definitions
 
@@ -220,7 +222,7 @@ BundleGraph decoration takes ideal graph and mutates the passed-in assetGraph ak
 
 - **BundleGraph:** A Graph maintaining Bundles, Assets, Dependencies, and Entries as Nodes, with relationships as edge types
 
-- **local BundleGraph:** Within `CreateIdealGraph()`, we maintain a local BundleGraph which represents only bundles that load in parallel, represeted by being attached to the root dummy node.
+- **local BundleGraph:** Within `CreateIdealGraph()`, we maintain a local BundleGraph which represents only bundles that load in parallel, represented by being attached to the root dummy node.
 
 - **Default:** The Default BundleGraph (which you will most commonly see throughout Parcel) maintains the nodes mentioned above and is a modified version of the AssetGraph.
 
