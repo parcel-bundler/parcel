@@ -12,11 +12,19 @@ await bundler.bundle({
         });
 ```
 
+### Targets
+
+Targets are specified in the `package.json`. Read more about targets [here](https://parceljs.org/features/targets). For the bundler, this means that the final graph output must be completely disjoint between targets, because those bundles will be separately packaged. Shared bundles cannot exist between separate targets. To remedy this constraint, we create a target map, representing targets mapped to entry assets.
+
+` EntrysBytargets: Map<string, Asset>`
+
+We create one IdealGraph per target, but mutations are applied to the same mutableBundleGraph. This ensures that we can return a singular bundleGraph, but generate bundles that **only** reference assets available to them within that target. See "targets" example in [BundlerExamples](./BundlerExamples.md)
+
 # Default Bundler Plugin
 
-The goal of the bundler is to mutate the Assetgraph into a BundleGraph by adding bundles and edges. The DefaultBundler can be divided into two main parts, `CreateIdealGraph` and `decorate()`.
+The goal of the bundler is to mutate the Assetgraph into a BundleGraph by adding bundles and edges. These bundles can be thought of as groupings of assets, which will be executed together in the browser at runtime. The bundler ensures two things, correct temporal order of assets, and optimizing bundles to favor less duplication.
 
-In order write the bundling algorithm in distinct, disjoint steps, we defer mutating the AssetGraph to a step called `decorate()`. The bulk of the algorithm is executed on a localized, smaller _IdealGraph_ that only represents bundles, and a few other supplementary structures ultimately passed to decorate as an `IdealGraph` object, containing our local representation of the bundleGraph.
+The DefaultBundler can be divided into two main parts, `CreateIdealGraph` and `decorate()`. In order write the bundling algorithm in distinct, disjoint steps, we defer mutating the AssetGraph to a step called `decorate()`. The bulk of the algorithm is executed on a localized, smaller _IdealGraph_ that only represents bundles, and a few other supplementary structures ultimately passed to decorate as an `IdealGraph` object, containing our local representation of the bundleGraph.
 
 ```
   type IdealGraph = {|
@@ -30,6 +38,173 @@ In order write the bundling algorithm in distinct, disjoint steps, we defer muta
 ```
 
 Note: Within `createIdealGraph()`, the local IdealGraph is refered to simply as the bundleGraph, while the `mutableBundleGraph` passed in, is referred to as assetGraph. This is because we don't actually add bundles to the `mutableBundleGraph` until decorate. Until that point it is just as assetgraph.
+
+## Step: Create Entries
+
+Create bundles for each entry the user as specified to the project. Entries can be specified in the build command.
+
+## Step: Create Bundles for explicit code split points
+
+Create bundles for explicit code split points. These are…
+
+- Asynchronous: this bundle does not need to load automatically
+
+- Isolated: Cannot share any assets with other bundles
+
+  - Example: A URL import import url from 'url:./resource.txt';
+
+  - A key difference between bundlers here is that we’ve implicitly created a relationship of one asset to one bundle, and so if a dependency is isolated for example, then we mark that bundle isolated for all purposes. This means it cannot share any assets with other bundles.
+
+- A type change: If the parent asset is a different type than the child.
+
+- Parallel: Separate bundle but loaded with the parent.
+
+- Inline: Separate bundle, which is placed into the parent bundle before writing to dist
+
+  - SVG image inlined into html: `<img src="data-url:./img.svg"/>`
+
+More on code splitting: [Code Splitting](https://parceljs.org/features/code-splitting/).
+
+We also maintain the notion of bundleGroups during this traversal. Entry bundles and Async Bundles are also bundleGroups. Consider the below code obtained from `integration/shared-bundle-single-source/index.js`
+
+<table><tr>
+<td>
+
+```js
+//index.js
+import('./foo'); //async imports
+import('./bar');
+```
+
+</td><td>
+
+```js
+//bar.js
+import styles from './styles.css';
+import html from './local.html'; //isolated
+```
+
+<td>
+</tr></table>
+
+![image info](./BundlerGraphs/steps/create-bundles-bundleGraph.png)
+
+IdealBundleGraph from `integration/shared-bundle-single-source/index.js`
+
+## Step: Merge Type Change Bundles
+
+Type change bundles are a special case of bundle, because they require consistent or “stable” names. As a result, we only allow one bundle of another type per bundleGroup. So, we need to merge bundles that exist within the same bundleGroups. (i.e. siblings)
+
+See CSS example in [BundlerExamples.md](./BundlerExamples.md) for a step-by-step example of how we merge type change bundles.
+
+## Step: Determine Reachability
+
+Here is where we begin building up the graphs required to determine where to place assets. The first is called reachableRoots. ReachableRoots maintains all bundleRoots and what assets are available to them synchronously.
+
+<table><tr>
+<td>
+
+```js
+//bar.js
+import a from './a';
+import b from './b';
+import styles from './styles.css';
+import html from './local.html'; //isolated
+```
+
+</td><td>
+
+```js
+//a.js
+import foo from './foo';
+```
+
+<td>
+</tr></table>
+
+Given those imports, here are our synchronous:
+![image info](./BundlerGraphs/steps/reachableRoots_sharedsinglesource.png)
+
+We also begin building up the bundleRootGraph (needs a better name) which maintains bundleRoots and their parallel and async relationships via different edge types.
+
+From the same example, here are the asynchronous and parallel relationships:
+![image info](./BundlerGraphs/steps/bundleRootGraph.png)
+
+_Note: In order to optimize structures, ReachableRoots is a bitSet and bundleRootGraph is a graph of numbers, as of the writing of this document. Both, however, represent assets and used to be graphs of asset nodes. Below is a graph representation of reachableRoots and BundleRoot graph. To produce such a graph for developmental purposes, the graph visualizer at `dumpGraphToGraphViz.js` could be expanded to translate these bitSets or graph of numbers._
+
+## Step: Determine Availability
+
+Now, in order to know where to place assets, we construct a mapping of all assets available to a bundleRoot (or bundle). This is called ancestorAssets and it is populated with assets available via older siblings, assets within the same bundleGroup, and parent and ancestor bundles.
+
+At each bundleRoot, we first determine the assets that would be available via bundleGroup, since the bundles in a bundleGroup are loaded together. This is the bundles in the bundleGroup (BundleRoot Assets + Synchronously available Assets)
+
+Next, we “peek ahead” to the children, and propagate the available assets down, intersecting as we go since that will be the set of assets available by any “path”.
+
+In the case of sibling parallel dependencies, the younger siblings have access to the assets of the older siblings, since they load in order, so we must propagate those too. This ensures we can extract shared code between siblings
+
+For Example, integration/html-js-dedup/index.html
+
+```html
+<!DOCTYPE html>
+<script type="module" src="component-1.js"></script>
+<script type="module" src="component-2.js"></script>
+```
+
+![image info](./BundlerGraphs/steps/idealBundleGraph_htmldedup.png)
+
+![image info](./BundlerGraphs/steps/reachableRoots_htmldedup.png)
+
+What is ancestorAssets ? What about the output ?
+
+```// ancestorAssets
+index.html => {},
+component1 => {},
+component2 => {html-js-dedup/component-1.js}
+```
+
+Making the final bundles the following
+
+```
+[index.html]
+[component1, obj.js]
+[component2]
+```
+
+## Step: Internalize Async Bundles
+
+Internalization is when some asset requires an asset synchronously, but also asynchronously. This is redundant so we don’t need to load the extra (async) bundle. We mark this in `bundle.internalizedAssetIds`, and an internalized asset is ultimately displayed as an orange edge.
+
+## Step: Insert or Share
+
+Here, we place assets into bundles since they require them synchronously, or by other means (like entries need all their assets within their bundle). If an asset is “reachable” from many bundles, we can extract it into a shared bundle.
+
+You may think of reachable as all the bundles that still need an asset by some means. We filter it down to ensure we only place assets where they need to be. Any bundle that contains the asset in question in it’s ancestorAssets is filtered out, & entries are filtered out.
+
+### Reused Bundles
+
+There’s a special case here that is unique to the experimental bundler, which is reusing bundles. We noticed sometimes, if two or more bundles shared the whole contents of another bundle, reusing that bundle is as simple as drawing an edge, as opposed to creating a shared bundle that would essentially be a copy of another. In the above example, foo.js is a reused bundle. You can tell a bundle is reused if it has both an entry asset and source bundles.
+
+![image info](./BundlerGraphs/steps/idealBundleGraph_final_reusedFoo.png)
+
+### Other special cases
+
+Manual Bundles: TODO
+
+## Step: Merge Shared Bundles
+
+Users of Parcel can specify a bundler config, which sets minbundleSize, maxParallelRequests, and minBundles. In this step we merge back and shared bundles that are smaller than minBundleSize.
+
+This config option only affect shared bundles.
+
+## Step: Remove Shared Bundles
+
+Finally, we remove shared bundles to abide by maxParallelRequests. maxParallelRequests semantically affects how many bundles are to be loaded at once, and syntactically affects how many bundles can be in a bundle group.
+
+One difference between the default and experimental bundler is here, where we also merge back “reused” bundles. Unlike shared bundles, reused bundles may have children, so we must update the graph accordingly. Below is an example graph from shared-bundle-reused-bundle-remove-reuse/index.js
+
+# BundleGraph Decoratation
+
+BundleGraph decoration takes ideal graph and mutates the passed-in assetGraph aka Mutable bundleGraph, in order to back port our idealGraph to what Parcel expects.
 
 ## Definitions
 
@@ -68,110 +243,3 @@ Note: Within `createIdealGraph()`, the local IdealGraph is refered to simply as 
   - **Entry to A BundleGroup:** The main or first bundle in a bundleGroup, which triggers the bundleGroup to be loaded
 
 - assetReference: For bundles within the same bundleGroup as their parent, reference edges are drawn between bundles and dependencies
-
-## Step: Create Entries
-
-Create bundles for each entry the user as specified to the project. Entries can be specified in the build command.
-
-## Step: Create Bundles for explicit code split points
-
-Create bundles for explicit code split points. These are…
-
-- Asynchronous: this bundle does not need to load automatically
-
-- Isolated: Cannot share any assets with other bundles
-
-  - Example: A URL import import url from 'url:./resource.txt';
-
-  - A key difference between bundlers here is that we’ve implicitly created a relationship of one asset to one bundle, and so if a dependency is isolated for example, then we mark that bundle isolated for all purposes. This means it cannot share any assets with other bundles.
-
-- A type change: If the parent asset is a different type than the child.
-
-- Parallel: Separate bundle but loaded with the parent.
-
-- Inline: Separate bundle, which is placed into the parent bundle before writing to dist
-
-  - SVG image inlined into html: `<img src="data-url:./img.svg"/>`
-
-More on code splitting: [Code Splitting](https://parceljs.org/features/code-splitting/).
-
-We also maintain the notion of bundleGroups during this traversal. Entry bundles and Async Bundles are also bundleGroups.
-
-Here’s an example of how some files are translated to a bundleGraph.
-
-<table><tr>
-<td>
-
-```js
-//index.js
-import('./foo'); //async imports
-import('./bar');
-```
-
-</td><td>
-
-```js
-//bar.js
-import styles from './styles.css';
-import html from './local.html'; //isolated
-```
-
-<td>
-</tr></table>
-
-// TODO IMAGE
-IdealBundleGraph from integration/shared-bundle-single-source/index.js
-
-## Step: Merge Type Change Bundles
-
-Type change bundles are a special case of bundle, because they require consistent or “stable” names. As a result, we only allow one bundle of another type per bundleGroup. So, we need to merge bundles that exist within the same bundleGroups. (i.e. siblings)
-
-See example #1 for an example of when we merge type change bundles.
-
-## Step: Determine Reachability
-
-Here is where we begin building up the graphs required to determine where to place assets. The first is called reachableRoots. ReachableRoots maintains all bundleRoots and what assets are available to them synchronously.
-
-## Step: Determine Availability
-
-Now, in order to know where to place assets, we construct a mapping of all assets available to a bundleRoot (or bundle). This is called ancestorAssets and it is populated with assets available via older siblings, assets within the same bundleGroup, and parent and ancestor bundles.
-
-At each bundleRoot, we first determine the assets that would be available via bundleGroup, since the bundles in a bundleGroup are loaded together. This is the bundles in the bundleGroup (BundleRoot Assets + Synchronously available Assets)
-
-Next, we “peek ahead” to the children, and propagate the available assets down, intersecting as we go since that will be the set of assets available by any “path”.
-
-In the case of sibling parallel dependencies, the younger siblings have access to the assets of the older siblings, since they load in order, so we must propagate those too. This ensures we can extract shared code between siblings
-
-## Step: Internalize Async Bundles
-
-Internalization is when some asset requires an asset synchronously, but also asynchronously. This is redundant so we don’t need to load the extra (async) bundle. We mark this in `bundle.internalizedAssetIds`, and an internalized asset is ultimately displayed as an orange edge.
-
-## Step: Insert or Share
-
-Here, we place assets into bundles since they require them synchronously, or by other means (like entries need all their assets within their bundle). If an asset is “reachable” from many bundles, we can extract it into a shared bundle.
-
-You may think of reachable as all the bundles that still need an asset by some means. We filter it down to ensure we only place assets where they need to be. Any bundle that contains the asset in question in it’s ancestorAssets is filtered out, & entries are filtered out.
-
-### Reused Bundles
-
-    There’s a special case here that is unique to the experimental bundler, which is reusing bundles. We noticed sometimes, if two or more bundles shared the whole contents of another bundle, reusing that bundle is as simple as drawing an edge, as opposed to creating a shared bundle that would essentially be a copy of another. In the above example, foo.js is a reused bundle. You can tell a bundle is reused if it has both an entry asset and source bundles.
-
-### Other special cases
-
-- Manual shared bundles: See []
-
-## Step: Merge Shared Bundles
-
-Users of Parcel can specify a bundler config, which sets minbundleSize, maxParallelRequests, and minBundles. In this step we merge back and shared bundles that are smaller than minBundleSize.
-
-This config option only affect shared bundles.
-
-## Step: Remove Shared Bundles
-
-Finally, we remove shared bundles to abide by maxParallelRequests. maxParallelRequests semantically affects how many bundles are to be loaded at once, and syntactically affects how many bundles can be in a bundle group.
-
-One difference between the default and experimental bundler is here, where we also merge back “reused” bundles. Unlike shared bundles, reused bundles may have children, so we must update the graph accordingly. Below is an example graph from shared-bundle-reused-bundle-remove-reuse/index.js
-
-# BundleGraph Decoratation
-
-BundleGraph decoration takes ideal graph and mutates the passed-in assetGraph aka Mutable bundleGraph, in order to back port our idealGraph to what Parcel expects.
